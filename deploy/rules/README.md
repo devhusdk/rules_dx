@@ -750,6 +750,10 @@ oci_deploy(
   `app/server.py`.
 - `main_class`: the class of a `java` base. It defaults to the `main_class` of
   the `java_binary`, written to an argument file next to the jars.
+- `runtime`: for the `python`, `java`, `node` and `dotnet` bases. Replaces the
+  base interpreter with a layer from the managed toolchain, installed under
+  `/opt/<base>`, on the distroless `cc` image. The dotnet runtime runs with
+  invariant globalization.
 - `platforms`: defaults to `["linux/amd64"]`. One platform gives an
   `oci_image` and an `<name>_load` target that `dx run` loads into a local
   runtime. Several platforms give an `oci_image_index` that builds the binary

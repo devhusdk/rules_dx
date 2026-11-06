@@ -2,6 +2,7 @@
 
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
+load("@rules_pkg//pkg:providers.bzl", "PackageFilesInfo")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load(":oci.bzl", "OCI_PLATFORMS", "oci_platform_error")
 
@@ -12,6 +13,37 @@ IMAGE_BASES = {
     "node": "@distroless_nodejs",
     "python": "@distroless_python",
     "static": "@distroless_static",
+}
+
+_RUNTIMES = {
+    "dotnet": {
+        "linux/amd64": "@dotnet_x86_64-unknown-linux-gnu//:runtime",
+        "linux/arm64": "@dotnet_arm64-unknown-linux-gnu//:runtime",
+    },
+    "java": {
+        "linux/amd64": "@remotejdk21_linux//:jdk",
+        "linux/arm64": "@remotejdk21_linux_aarch64//:jdk",
+    },
+    "node": {
+        "linux/amd64": "@nodejs_linux_amd64//:node_bin",
+        "linux/arm64": "@nodejs_linux_arm64//:node_bin",
+    },
+    "python": {
+        "linux/amd64": "@python_3_12_x86_64_unknown_linux_gnu//:files",
+        "linux/arm64": "@python_3_12_aarch64_unknown_linux_gnu//:files",
+    },
+}
+
+# Paths kept from each toolchain, relative to the part stripped; a trailing / means a directory.
+_RUNTIME_LAYOUT = {
+    "dotnet": {"include": ["dotnet", "host/", "shared/Microsoft.NETCore.App/"], "strip": ""},
+    "java": {"include": ["bin/", "conf/", "lib/", "release"], "strip": ""},
+    "node": {"include": ["bin/"], "strip": "bin/nodejs/"},
+    "python": {
+        "drop": ["lib/libpython", "lib/libtcl", "lib/libtk", "lib/tcl", "lib/tk", "lib/itcl", "lib/thread", "lib/python3.12/config-", "lib/python3.12/test/"],
+        "include": ["bin/python3", "lib/"],
+        "strip": "",
+    },
 }
 
 _PLATFORM_LABELS = {
@@ -42,7 +74,7 @@ def image_default_main(base, binary, package):
         return path + "/net10.0/" + name + ext
     return path + ext
 
-def image_options_error(binary, base, platforms, main = None, main_class = None):
+def image_options_error(binary, base, platforms, main = None, main_class = None, runtime = False):
     """Validates the oci_image_from_binary arguments."""
     if type(binary) != "string" or binary == "":
         return "oci_image_from_binary: invalid binary '" + str(binary) + "': want a binary target label"
@@ -57,23 +89,33 @@ def image_options_error(binary, base, platforms, main = None, main_class = None)
             return error.replace("oci_deploy", "oci_image_from_binary")
     if len(depset(platforms).to_list()) != len(platforms):
         return "oci_image_from_binary: want each platform once, got " + ", ".join(platforms)
+    if runtime and base not in _RUNTIMES:
+        return "oci_image_from_binary: runtime only applies to the python, java, node and dotnet bases"
     if base in ("python", "node", "dotnet") and not main:
         return "oci_image_from_binary: base '" + base + "' needs main, the workspace path of the entry script"
     if base not in ("python", "java", "node", "dotnet") and (main or main_class):
         return "oci_image_from_binary: main and main_class only apply to the python, java, node and dotnet bases"
     return ""
 
-def image_entrypoint(base, app, main = None, main_class = None):
-    """Returns the image entrypoint and environment for a base."""
+def image_entrypoint(base, app, main = None, main_class = None, runtime = False):
+    """Returns the image entrypoint and environment for a base.
+
+    With runtime the interpreter is the one the toolchain layer puts under /opt.
+    """
     if base == "python":
         root = "/app/" + app + ".runfiles/_main"
-        return ["/usr/bin/python3", root + "/" + main], {"PYTHONPATH": root}
+        return [("/opt/python" if runtime else "/usr") + "/bin/python3", root + "/" + main], {"PYTHONPATH": root}
     if base == "node":
-        return ["/nodejs/bin/node", "/app/" + app + ".runfiles/_main/" + main], {}
+        return [("/opt/node" if runtime else "/nodejs") + "/bin/node", "/app/" + app + ".runfiles/_main/" + main], {}
     if base == "dotnet":
+        if runtime:
+            return ["/opt/dotnet/dotnet", "/app/" + app + ".dll.runfiles/_main/" + main], {
+                "DOTNET_ROOT": "/opt/dotnet",
+                "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1",
+            }
         return ["dotnet", "/app/" + app + ".dll.runfiles/_main/" + main], {}
     if base == "java":
-        return ["/usr/bin/java", "-cp", "/app/lib/*", main_class or "@/app/lib/main.args"], {}
+        return [("/opt/java" if runtime else "/usr") + "/bin/java", "-cp", "/app/lib/*", main_class or "@/app/lib/main.args"], {}
     return ["/app/" + app], {}
 
 def _platform_transition_impl(_settings, attr):
@@ -105,6 +147,51 @@ _for_platform = rule(
             doc = "Bazel platform the binary is built for.",
             mandatory = True,
         ),
+    },
+)
+
+def image_runtime_dest(path, layout, prefix):
+    """Returns where a toolchain file lands in the image, or None when the layer leaves it out.
+
+    path is relative to the toolchain's repository.
+    """
+    if not path.startswith(layout["strip"]):
+        return None
+    path = path[len(layout["strip"]):]
+    for drop in layout.get("drop", []):
+        if path.startswith(drop):
+            return None
+    for keep in layout["include"]:
+        if path == keep or (keep.endswith("/") and path.startswith(keep)):
+            return prefix + "/" + path
+    return None
+
+def _runtime_files_impl(ctx):
+    layout = {"drop": ctx.attr.drop, "include": ctx.attr.include, "strip": ctx.attr.strip_prefix}
+    dest_src_map = {}
+    for target in ctx.attr.srcs:
+        files = depset(transitive = [target[DefaultInfo].files, target[DefaultInfo].default_runfiles.files])
+        for f in files.to_list():
+            parts = f.short_path.split("/")
+            if parts[0] != "..":
+                continue
+            dest = image_runtime_dest("/".join(parts[2:]), layout, ctx.attr.prefix)
+            if dest:
+                dest_src_map[dest] = f
+    return [
+        PackageFilesInfo(attributes = {"mode": "0755"}, dest_src_map = dest_src_map),
+        DefaultInfo(files = depset(dest_src_map.values())),
+    ]
+
+_runtime_files = rule(
+    implementation = _runtime_files_impl,
+    doc = "Maps the files of a toolchain repository to paths under prefix in an image.",
+    attrs = {
+        "drop": attr.string_list(doc = "Path prefixes left out."),
+        "include": attr.string_list(doc = "Paths kept; a trailing / keeps a directory."),
+        "prefix": attr.string(doc = "Directory in the image.", mandatory = True),
+        "srcs": attr.label_list(doc = "Targets of the toolchain repository.", allow_files = True, mandatory = True),
+        "strip_prefix": attr.string(doc = "Leading path removed before matching."),
     },
 )
 
@@ -162,7 +249,7 @@ _jars_for_platform = rule(
     },
 )
 
-def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd64"], tags = [], main = None, main_class = None):
+def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd64"], tags = [], main = None, main_class = None, runtime = False):
     """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
 
     One platform gives an oci_image and an oci_load target named name + "_load".
@@ -176,14 +263,19 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     or assembly, and run it from the binary's runfiles. python, node and dotnet default main to
     the binary's package and name with .py or .js, and a dotnet binary to its net10.0 assembly. The java base puts the binary's runtime jars under /app/lib and
     runs main_class, which defaults to the main class of the java_binary.
+
+    With runtime = True the python, java, node or dotnet base is replaced by the distroless cc image
+    and a layer from the managed toolchain for each platform, installed under /opt, so the image
+    runs the interpreter the build used instead of the one in the base image. The dotnet runtime
+    runs with invariant globalization.
     """
     if not main and type(binary) == "string":
         main = image_default_main(base, binary, native.package_name())
-    error = image_options_error(binary, base, platforms, main, main_class)
+    error = image_options_error(binary, base, platforms, main, main_class, runtime)
     if error != "":
         fail(error + " (in " + native.package_name() + ":" + name + ")")
     app = image_binary_name(binary)
-    entrypoint, env = image_entrypoint(base, app, main, main_class)
+    entrypoint, env = image_entrypoint(base, app, main, main_class, runtime)
     single = len(platforms) == 1
 
     images = []
@@ -224,14 +316,32 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
                 package_dir = "/app",
                 tags = ["manual"],
             )
+        layers = [name + "_layer" + suffix]
+        if runtime:
+            layout = _RUNTIME_LAYOUT[base]
+            _runtime_files(
+                name = name + "_runtime_files" + suffix,
+                srcs = [str(Label(_RUNTIMES[base][platform]))],
+                drop = layout.get("drop", []),
+                include = layout["include"],
+                prefix = "/opt/" + base,
+                strip_prefix = layout["strip"],
+                tags = ["manual"],
+            )
+            pkg_tar(
+                name = name + "_runtime" + suffix,
+                srcs = [name + "_runtime_files" + suffix],
+                tags = ["manual"],
+            )
+            layers = [name + "_runtime" + suffix] + layers
         image = name if single else name + "_image" + suffix
         oci_image(
             name = image,
-            base = IMAGE_BASES[base],
+            base = IMAGE_BASES["cc" if runtime else base],
             entrypoint = entrypoint,
             env = env,
             tags = tags,
-            tars = [name + "_layer" + suffix],
+            tars = layers,
         )
         images.append(image)
 

@@ -1,7 +1,7 @@
 """Unit tests for oci_image_from_binary."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":image.bzl", "image_binary_name", "image_default_main", "image_entrypoint", "image_options_error")
+load(":image.bzl", "image_binary_name", "image_default_main", "image_entrypoint", "image_options_error", "image_runtime_dest")
 
 def image_unit_tests(name):
     starlark_test(
@@ -150,6 +150,67 @@ def image_unit_tests(name):
                 "image_entrypoint reads the java main class from an argument file",
                 image_entrypoint("java", "server"),
                 (["/usr/bin/java", "-cp", "/app/lib/*", "@/app/lib/main.args"], {}),
+            ),
+            expect_equal(
+                "image_options_error rejects runtime on a static base",
+                image_options_error(":server", "static", ["linux/amd64"], runtime = True),
+                "oci_image_from_binary: runtime only applies to the python, java, node and dotnet bases",
+            ),
+            expect_equal(
+                "image_options_error accepts runtime on a java base",
+                image_options_error(":server", "java", ["linux/amd64"], runtime = True),
+                "",
+            ),
+            expect_equal(
+                "image_entrypoint runs python from the runtime layer",
+                image_entrypoint("python", "server", main = "app/server.py", runtime = True),
+                (
+                    ["/opt/python/bin/python3", "/app/server.runfiles/_main/app/server.py"],
+                    {"PYTHONPATH": "/app/server.runfiles/_main"},
+                ),
+            ),
+            expect_equal(
+                "image_entrypoint runs java from the runtime layer",
+                image_entrypoint("java", "server", main_class = "app.Server", runtime = True),
+                (["/opt/java/bin/java", "-cp", "/app/lib/*", "app.Server"], {}),
+            ),
+            expect_equal(
+                "image_entrypoint runs node from the runtime layer",
+                image_entrypoint("node", "server", main = "app/server.js", runtime = True),
+                (["/opt/node/bin/node", "/app/server.runfiles/_main/app/server.js"], {}),
+            ),
+            expect_equal(
+                "image_entrypoint points dotnet at its runtime layer",
+                image_entrypoint("dotnet", "server", main = "a.dll", runtime = True),
+                (
+                    ["/opt/dotnet/dotnet", "/app/server.dll.runfiles/_main/a.dll"],
+                    {"DOTNET_ROOT": "/opt/dotnet", "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1"},
+                ),
+            ),
+            expect_equal(
+                "image_runtime_dest keeps a listed directory",
+                image_runtime_dest("lib/modules", {"include": ["lib/"], "strip": ""}, "/opt/java"),
+                "/opt/java/lib/modules",
+            ),
+            expect_equal(
+                "image_runtime_dest drops unlisted files",
+                image_runtime_dest("jmods/java.base.jmod", {"include": ["lib/"], "strip": ""}, "/opt/java"),
+                None,
+            ),
+            expect_equal(
+                "image_runtime_dest strips the node prefix",
+                image_runtime_dest("bin/nodejs/bin/node", {"include": ["bin/"], "strip": "bin/nodejs/"}, "/opt/node"),
+                "/opt/node/bin/node",
+            ),
+            expect_equal(
+                "image_runtime_dest drops listed prefixes",
+                image_runtime_dest("lib/libpython3.12.so", {"drop": ["lib/libpython"], "include": ["lib/"], "strip": ""}, "/opt/python"),
+                None,
+            ),
+            expect_equal(
+                "image_runtime_dest matches a file exactly",
+                image_runtime_dest("dotnet", {"include": ["dotnet"], "strip": ""}, "/opt/dotnet"),
+                "/opt/dotnet/dotnet",
             ),
         ],
     )

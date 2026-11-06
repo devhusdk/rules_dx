@@ -124,3 +124,37 @@ oci_image_from_binary(
     binary = ":hello_dotnet",
     tags = ["manual"],
 )
+
+oci_image_from_binary(
+    name = "image_py_runtime",
+    base = "python",
+    binary = ":hello_py",
+    main = "deploy/rules/image_demo/hello.py",
+    runtime = True,
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_java_runtime",
+    base = "java",
+    binary = ":hello_java",
+    runtime = True,
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_node_runtime",
+    base = "node",
+    binary = ":hello_node",
+    main = "deploy/rules/image_demo/hello.js",
+    runtime = True,
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_dotnet_runtime",
+    base = "dotnet",
+    binary = ":hello_dotnet",
+    runtime = True,
+    tags = ["manual"],
+)

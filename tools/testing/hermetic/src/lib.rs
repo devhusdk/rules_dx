@@ -1672,7 +1672,16 @@ fn native(path: &Path) -> bool {
 
 fn find_bazelisk(chosen: Option<&str>, path: &str) -> Result<PathBuf, String> {
     if let Some(chosen) = chosen.filter(|chosen| !chosen.is_empty()) {
-        let chosen = PathBuf::from(chosen);
+        let mut chosen = PathBuf::from(chosen);
+        let exe = PathBuf::from(format!(
+            "{}{}",
+            chosen.display(),
+            std::env::consts::EXE_SUFFIX
+        ));
+        if !std::env::consts::EXE_SUFFIX.is_empty() && chosen.extension().is_none() && exe.is_file()
+        {
+            chosen = exe;
+        }
         if !native(&chosen) {
             return Err(format!(
                 "DX_HERMETIC_BAZELISK {} is not a native bazelisk binary; a wrapper script would run outside the isolation",

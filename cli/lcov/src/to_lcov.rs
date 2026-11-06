@@ -45,15 +45,18 @@ fn convert(from: &str, xml: &str) -> Result<String, String> {
     lcov.map_err(|e| e.to_string())
 }
 
-/// Keeps the records whose path is a listed source or ends in `/<source>`, renamed to it.
+/// Keeps the records whose path is a listed source or ends in `/<source>`, renamed to the longest such source.
 fn keep_sources(lcov: &str, sources: &[&str]) -> String {
     let mut out = String::new();
     let mut keep = false;
     for line in lcov.lines() {
         if let Some(path) = line.strip_prefix("SF:") {
-            let found = sources
-                .iter()
-                .find(|src| path == **src || path.ends_with(&format!("/{src}")));
+            let found = sources.iter().find(|src| path == **src).or_else(|| {
+                sources
+                    .iter()
+                    .filter(|src| path.ends_with(&format!("/{src}")))
+                    .max_by_key(|src| src.len())
+            });
             keep = found.is_some();
             if let Some(src) = found {
                 out.push_str(&format!("SF:{src}\n"));
@@ -140,6 +143,21 @@ mod tests {
             keep_sources(lcov, &["src/a.zig", "src/b.zig"]),
             "SF:src/a.zig\nDA:1,1\nend_of_record\nSF:src/b.zig\nDA:3,1\nend_of_record\n"
         );
+    }
+
+    #[test]
+    fn keeps_exact_match_over_shorter_suffix() {
+        let lcov = "SF:tools/main.zig\nDA:1,1\nend_of_record\nSF:main.zig\nDA:2,0\nend_of_record\n";
+        assert_eq!(keep_sources(lcov, &["main.zig", "tools/main.zig"]), lcov);
+    }
+
+    #[test]
+    fn prefers_longest_suffix_in_any_order() {
+        let lcov = "SF:/x/_main/tools/main.zig\nDA:1,1\nend_of_record\n\
+                    SF:/x/_main/main.zig\nDA:2,0\nend_of_record\n";
+        let want = "SF:tools/main.zig\nDA:1,1\nend_of_record\nSF:main.zig\nDA:2,0\nend_of_record\n";
+        assert_eq!(keep_sources(lcov, &["main.zig", "tools/main.zig"]), want);
+        assert_eq!(keep_sources(lcov, &["tools/main.zig", "main.zig"]), want);
     }
 
     #[test]

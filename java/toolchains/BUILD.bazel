@@ -1,0 +1,28 @@
+load("@rules_java//java:defs.bzl", "java_package_configuration")
+load("@rules_java//toolchains:default_java_toolchain.bzl", "default_java_toolchain")
+
+# -Werror for rules_dx's own packages; external repos compile without it.
+package_group(
+    name = "own",
+    packages = ["//..."],
+)
+
+java_package_configuration(
+    name = "werror",
+    javacopts = ["-Werror"],
+    packages = [":own"],
+)
+
+[
+    default_java_toolchain(
+        name = "toolchain_jdk_%s" % version,
+        package_configuration = [":werror"],
+        source_version = version,
+        target_version = version,
+    )
+    for version in [
+        "11",
+        "17",
+        "21",
+    ]
+]

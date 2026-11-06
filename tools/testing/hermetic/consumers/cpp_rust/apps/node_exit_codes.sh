@@ -41,27 +41,16 @@ edge none" ]; then
 fi
 
 where=$("$bin" where one "two words")
-case "$where" in
-*"/javascript/tests/fixtures/node-app/cli/main.js"*) ;;
-*)
-  echo "FAIL: where entry -> '$where'"
-  failures=$((failures + 1))
-  ;;
-esac
-case "$where" in
-*"/semver@7.8.6/node_modules/semver 7.8.6"*) ;;
-*)
-  echo "FAIL: where semver -> '$where'"
-  failures=$((failures + 1))
-  ;;
-esac
-case "$where" in
-*"same true"*) ;;
-*)
-  echo "FAIL: where identity -> '$where'"
-  failures=$((failures + 1))
-  ;;
-esac
+has() {
+  if ! printf '%s\n' "$where" | grep -F -q -e "$2"; then
+    echo "FAIL: where $1 -> '$where'"
+    failures=$((failures + 1))
+  fi
+}
+
+has entry "/javascript/tests/fixtures/node-app/cli/main.js"
+has semver "/semver@7.8.6/node_modules/semver 7.8.6"
+has identity "same true"
 
 "$bin" sell >/dev/null 2>&1
 if [ "$?" != 2 ]; then

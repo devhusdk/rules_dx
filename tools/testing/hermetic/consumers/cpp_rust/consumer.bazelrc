@@ -3,3 +3,5 @@ build:consumer --copt=-DDX_CONSUMER_CONFIG=1
 build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 build --jvmopt=-Ddx.consumer.choice=kept
+build --enable_platform_specific_config
+build:macos --dynamic_mode=off

@@ -575,6 +575,7 @@ hermetic_qualification(
         "//ocaml/tests/fixtures/ocaml-app/diagnostics:BUILD.bazel": "ocaml/tests/fixtures/ocaml-app/diagnostics/BUILD.bazel",
         "//ocaml/tests/fixtures/ocaml-app/diagnostics:syntax_error.ml": "ocaml/tests/fixtures/ocaml-app/diagnostics/syntax_error.ml",
     },
+    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["ocaml"],
     module_fragment = "consumers/ocaml/module_fragment.bazel",
     patterns = ["//..."],
@@ -636,6 +637,7 @@ hermetic_qualification(
         "consumers/scala_scalafix/root.BUILD.bazel": "BUILD.bazel",
         "consumers/scala_scalafix/scalafix.conf": "scalafix.conf",
     },
+    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["scala"],
     module_fragment = "consumers/scala_scalafix/module_fragment.bazel",
     patterns = [
@@ -691,6 +693,7 @@ hermetic_qualification(
         "//third_party/dart:BUILD.bazel": "third_party/dart/BUILD.bazel",
         "//third_party/dart:pubspec.lock": "third_party/dart/pubspec.lock",
     },
+    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["dart"],
     module_fragment = "consumers/dart/module_fragment.bazel",
     patterns = ["//..."],
@@ -705,6 +708,7 @@ hermetic_qualification(
         "//flutter/tests/fixtures/flutter-app/failures:undeclared_dep": "is not a direct dependency of",
         "//flutter/tests/fixtures/flutter-app/failures:bad_abi": "android_abi 'x86' is unknown",
     },
+    compatible_with = LINUX_MACOS_WINDOWS,
     families = ["android"],
     files = {
         "//flutter/tests/fixtures/flutter-app/android:BUILD.bazel": "flutter/tests/fixtures/flutter-app/android/BUILD.bazel",
@@ -902,6 +906,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "adopt_android",
+    compatible_with = LINUX_MACOS_WINDOWS,
     families = ["android"],
     files = {
         "@rules_dx_android//tests/fixtures/adopt-android/app:BUILD.bazel": "android/tests/fixtures/adopt-android/app/BUILD.bazel",

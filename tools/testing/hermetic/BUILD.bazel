@@ -377,6 +377,7 @@ hermetic_qualification(
     languages = ["go", "python", "java", "cc"],
     module_fragment = "consumers/proto_bindings/module_fragment.bazel",
     patterns = ["//..."],
+    smoke = True,
 )
 
 hermetic_qualification(

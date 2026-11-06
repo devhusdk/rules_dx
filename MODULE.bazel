@@ -1223,7 +1223,7 @@ bazel_dep(name = "hermetic_launcher", version = "0.0.17")
 single_version_override(
     module_name = "hermetic_launcher",
     patch_strip = 1,
-    patches = ["//patches/hermetic_launcher:windows_arm64_toolchains.patch"],
+    patches = ["//patches/hermetic_launcher:windows_arm64_toolchains.patch"],  # upstream: https://github.com/hermeticbuild/hermetic-launcher/pull/94
     version = "0.0.17",
 )
 
@@ -1237,7 +1237,7 @@ archive_override(
         "//patches/rules_py:py_cc_toolchain_platform.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1665
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",
-        "//patches/rules_py:venv_bin_files.patch",
+        "//patches/rules_py:venv_bin_files.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1670
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],

@@ -5,7 +5,9 @@ use std::process::Command as Process;
 
 use super::common::*;
 use dx_plan::args::Invocation;
-use dx_update::release::{apply, lint, plan, read_config, tag_message};
+use dx_update::release::{
+    apply, changelog_section, lint, plan, prepend_section, read_config, tag_message, today,
+};
 
 fn git(workspace: &Path, args: &[&str]) -> Option<String> {
     let output = Process::new("git")
@@ -67,6 +69,13 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         return exit;
     }
     if !invocation.apply {
+        if let (true, Some(next)) = (config.changelog, report.next.as_deref()) {
+            let section = changelog_section(next, &today(), &log);
+            let text = format!("CHANGELOG.md would gain:\n\n{section}");
+            if let Err(exit) = check_stdout_write(out.write_all(text.as_bytes())) {
+                return exit;
+            }
+        }
         return 0;
     }
     let Some(next) = report.next.as_deref() else {
@@ -77,7 +86,7 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
             "nothing to release: no feat, fix or breaking commits; pass --to <x.y.z> to force a version",
         );
     };
-    match commit_and_tag(workspace, &config.tag_prefix, next, &log, invocation.push) {
+    match commit_and_tag(workspace, &config, next, &log, invocation.push) {
         Ok(tag) => {
             let line = if invocation.push {
                 format!("committed, tagged and pushed {tag}")
@@ -162,12 +171,12 @@ fn refresh_locks(workspace: &Path, changed: &[String]) -> Result<Vec<String>, St
 
 fn commit_and_tag(
     workspace: &Path,
-    prefix: &str,
+    config: &dx_update::release::Config,
     version: &str,
     log: &str,
     push: bool,
 ) -> Result<String, String> {
-    let tag = format!("{prefix}{version}");
+    let tag = format!("{}{version}", config.tag_prefix);
     let branch = git(workspace, &["symbolic-ref", "--quiet", "--short", "HEAD"])
         .map(|name| name.trim().to_owned())
         .filter(|name| !name.is_empty())
@@ -191,6 +200,14 @@ fn commit_and_tag(
     }
     let changed = apply(workspace, version)?;
     let mut files = changed.clone();
+    if config.changelog {
+        let path = workspace.join("CHANGELOG.md");
+        let existing = std::fs::read_to_string(&path).ok();
+        let section = changelog_section(version, &today(), log);
+        std::fs::write(&path, prepend_section(existing.as_deref(), &section))
+            .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
+        files.push("CHANGELOG.md".to_owned());
+    }
     files.extend(refresh_locks(workspace, &changed)?);
     let mut add = vec!["add", "--"];
     add.extend(files.iter().map(String::as_str));

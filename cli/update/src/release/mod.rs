@@ -21,6 +21,8 @@ pub struct Config {
     pub tag_prefix: String,
     /// Subject prefixes `--commits` lets through, such as `Merge `.
     pub skip: Vec<String>,
+    /// Keep a `CHANGELOG.md` in Keep a Changelog form.
+    pub changelog: bool,
 }
 
 impl Default for Config {
@@ -28,6 +30,7 @@ impl Default for Config {
         Config {
             tag_prefix: DEFAULT_TAG_PREFIX.to_owned(),
             skip: Vec::new(),
+            changelog: false,
         }
     }
 }
@@ -51,6 +54,9 @@ fn parse_config(text: &str) -> Result<Config, String> {
             .as_str()
             .ok_or("tag_prefix must be a string")?
             .to_owned();
+    }
+    if let Some(item) = doc.get("changelog") {
+        config.changelog = item.as_bool().ok_or("changelog must be true or false")?;
     }
     if let Some(item) = doc.get("skip") {
         let table = item.as_table_like().ok_or("skip must be a table")?;
@@ -222,8 +228,7 @@ pub fn plan(
     })
 }
 
-/// The annotated tag message: the title line, then the notes for the commits in `log`.
-pub fn tag_message(tag: &str, log: &str) -> String {
+fn notes(log: &str) -> String {
     use conventional::Kind;
     let commits = conventional::parse(log);
     let groups = [
@@ -231,7 +236,62 @@ pub fn tag_message(tag: &str, log: &str) -> String {
         (Kind::Fix, "Fixes"),
         (Kind::Perf, "Performance"),
     ];
-    format!("{tag}\n\n{}", conventional::notes(&commits, &groups))
+    conventional::notes(&commits, &groups)
+}
+
+/// The annotated tag message: the title line, then the notes for the commits in `log`.
+pub fn tag_message(tag: &str, log: &str) -> String {
+    format!("{tag}\n\n{}", notes(log))
+}
+
+const CHANGELOG_HEADER: &str = "# Changelog\n\nAll notable changes to this project are documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).\n";
+
+/// The `## [version] - date` section for the commits in `log`, with the headings lowered one level.
+pub fn changelog_section(version: &str, date: &str, log: &str) -> String {
+    let body: String = notes(log)
+        .lines()
+        .map(|line| match line.strip_prefix("## ") {
+            Some(heading) => format!("### {heading}\n"),
+            None => format!("{line}\n"),
+        })
+        .collect();
+    format!("## [{version}] - {date}\n\n{body}")
+}
+
+/// `existing` with `section` placed above the older release sections; a missing file starts with the Keep a Changelog header.
+pub fn prepend_section(existing: Option<&str>, section: &str) -> String {
+    let existing = existing.unwrap_or(CHANGELOG_HEADER);
+    match existing.find("\n## ") {
+        Some(at) => {
+            let (head, tail) = existing.split_at(at + 1);
+            format!("{head}{section}\n{tail}")
+        }
+        None => format!(
+            "{}\n{section}",
+            existing.trim_end_matches('\n').to_owned() + "\n"
+        ),
+    }
+}
+
+/// Today's UTC date as `YYYY-MM-DD`.
+pub fn today() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    date_of_day((secs / 86_400) as i64)
+}
+
+fn date_of_day(days: i64) -> String {
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02}")
 }
 
 /// Writes `version` into every manifest that carries one; returns their paths relative to `workspace`.

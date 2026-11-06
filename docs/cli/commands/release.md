@@ -34,6 +34,7 @@ An optional `release.toml` at the workspace root.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `tag_prefix` | `"v"` | The prefix of release tags. |
+| `changelog` | `false` | When `true`, `--apply` prepends a `## [x.y.z] - date` section with the grouped notes to `CHANGELOG.md` (created with a Keep a Changelog header) and commits it; `--check` prints the section it would add. |
 | `skip.subjects` | `[]` | Subject prefixes `--commits` lets through, for example `["Revert "]`. |
 
 Scopes: none. Targets and `-- bazel-options` are usage errors. `--output` is not supported.

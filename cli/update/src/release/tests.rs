@@ -155,3 +155,39 @@ fn lint_names_non_conventional_subjects_and_honours_skip() {
     fs::write(dir.path().join("release.toml"), "[skip]\nsubjects = 3\n").expect("write");
     assert!(read_config(dir.path()).is_err());
 }
+
+#[test]
+fn changelog_key_is_read_and_defaults_off() {
+    let dir = workspace(&[("Cargo.toml", "1.0.0")]);
+    assert!(!read_config(dir.path()).expect("default").changelog);
+    fs::write(dir.path().join("release.toml"), "changelog = true\n").expect("write");
+    assert!(read_config(dir.path()).expect("config").changelog);
+    fs::write(dir.path().join("release.toml"), "changelog = 1\n").expect("write");
+    assert!(read_config(dir.path()).is_err());
+}
+
+#[test]
+fn changelog_section_is_keep_a_changelog_and_goes_above_older_releases() {
+    let section = changelog_section("1.3.0", "2026-01-02", MINOR_LOG);
+    assert!(
+        section.starts_with("## [1.3.0] - 2026-01-02\n\n### "),
+        "{section}"
+    );
+    let fresh = prepend_section(None, &section);
+    assert!(fresh.starts_with("# Changelog\n"), "{fresh}");
+    assert!(fresh.contains("keepachangelog.com"), "{fresh}");
+    assert!(fresh.ends_with(&section), "{fresh}");
+    let next = changelog_section("1.4.0", "2026-02-03", MINOR_LOG);
+    let both = prepend_section(Some(&fresh), &next);
+    let new_at = both.find("## [1.4.0]").expect("new");
+    let old_at = both.find("## [1.3.0]").expect("old");
+    assert!(new_at < old_at, "{both}");
+    assert!(both.starts_with("# Changelog\n"), "{both}");
+}
+
+#[test]
+fn dates_come_from_days_since_the_epoch() {
+    assert_eq!(date_of_day(0), "1970-01-01");
+    assert_eq!(date_of_day(20_455), "2026-01-02");
+    assert_eq!(date_of_day(19_782), "2024-02-29");
+}

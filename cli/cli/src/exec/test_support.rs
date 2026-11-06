@@ -780,16 +780,23 @@ impl FakeRunner {
                 signal: None,
             });
         };
-        let artifact = format!("{bep}.shards.json");
-        std::fs::write(
-            &artifact,
-            serde_json::json!({ "shards": shards }).to_string(),
-        )
-        .expect("shard file");
+        let files: Vec<serde_json::Value> = shards
+            .iter()
+            .enumerate()
+            .map(|(index, shard)| {
+                let artifact = format!("{bep}.shards{index}.json");
+                std::fs::write(
+                    &artifact,
+                    serde_json::json!({ "shards": [shard] }).to_string(),
+                )
+                .expect("shard file");
+                serde_json::json!({"uri": format!("file://{artifact}")})
+            })
+            .collect();
         let lines = [
             serde_json::json!({
                 "id": {"namedSet": {"id": "0"}},
-                "namedSetOfFiles": {"files": [{"uri": format!("file://{artifact}")}]},
+                "namedSetOfFiles": {"files": files},
             })
             .to_string(),
             serde_json::json!({

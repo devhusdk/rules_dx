@@ -50,6 +50,18 @@ fn probed_shards_narrow_the_build_aspects() {
 }
 
 #[test]
+fn shards_from_several_probe_files_are_unioned() {
+    let mut harness = clean_harness("probe-union");
+    harness.probe_shards = Some(vec!["real_rust_lint".to_owned(), "real_go_lint".to_owned()]);
+    let (code, _, _) = harness.run(&["lint", "--output=text"]);
+    assert_eq!(code, 0);
+    let builds = harness.build_argv.borrow();
+    let aspects = aspects_of(&builds[0]);
+    assert!(aspects.contains(&"real_rust_lint_aspect".to_owned()));
+    assert!(aspects.contains(&"real_go_lint_aspect".to_owned()));
+}
+
+#[test]
 fn failed_probe_falls_back_to_every_shard() {
     for (command, parsed) in [
         ("lint", dx_plan::args::Command::Lint),

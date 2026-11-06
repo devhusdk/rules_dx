@@ -5,7 +5,7 @@ use dx_process::{
 use super::{
     bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
     exec_log_options,
-    registry::{aspects_for, spec},
+    registry::{aspects_for, probes_for, spec},
     rules_dx_label, BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP,
     DOCS_TOOLS_OUTPUT_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
     SKIP_INCOMPATIBLE_FLAG,
@@ -233,17 +233,22 @@ pub fn plan_probe(
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
+    installed_modules: Option<&[String]>,
 ) -> Result<Option<BuildPlan>, ForwardError> {
-    let Some(probe) = spec(command).probe else {
-        return Ok(None);
+    let probes = match installed_modules {
+        Some(modules) => probes_for(command, modules),
+        None => spec(command).probes.iter().take(1).copied().collect(),
     };
+    if probes.is_empty() {
+        return Ok(None);
+    }
     shaped_plan(
         command,
         resolved,
         bazel_options,
         startup_options,
         &shaped_options(
-            &rules_dx_label(probe),
+            &joined_labels(probes),
             SHARD_OUTPUT_GROUP,
             bazel_options,
             bep_path,
@@ -622,7 +627,7 @@ mod tests {
             let mut build =
                 plan_build(command, &scope, &user, "/tmp/bep.json", &startup).expect("build");
             build.argv.retain(|arg| !arg.contains("extra_rustc_flags"));
-            let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup)
+            let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup, None)
                 .expect("probe")
                 .expect("quality commands carry a probe");
             assert_eq!(build.argv.len(), probe.argv.len());
@@ -632,7 +637,7 @@ mod tests {
                 .zip(&probe.argv)
                 .filter(|(left, right)| left != right)
                 .collect();
-            let probe_label = rules_dx_label(spec(command).probe.expect("probe label"));
+            let probe_label = rules_dx_label(spec(command).probes[0]);
             assert_eq!(
                 differing,
                 vec![
@@ -655,11 +660,40 @@ mod tests {
                 "{command:?}"
             );
         }
-        assert!(
-            plan_probe(Command::Build, &resolved(&[]), &[], "/tmp/p.json", &[])
-                .expect("plan")
-                .is_none()
-        );
+        assert!(plan_probe(
+            Command::Build,
+            &resolved(&[]),
+            &[],
+            "/tmp/p.json",
+            &[],
+            None
+        )
+        .expect("plan")
+        .is_none());
+    }
+
+    #[test]
+    fn probe_with_installed_modules_passes_core_and_installed_family_probes() {
+        let scope = resolved(&["//pkg:lib"]);
+        let installed = strings(&["rules_dx_python"]);
+        let plan = plan_probe(
+            Command::Lint,
+            &scope,
+            &[],
+            "/tmp/p.json",
+            &[],
+            Some(&installed),
+        )
+        .expect("plan")
+        .expect("probe");
+        let aspects = plan
+            .argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix("--aspects="))
+            .expect("aspects");
+        assert!(aspects.contains("core_probe.bzl%real_core_lint_probe_aspect"));
+        assert!(aspects.contains("python.bzl%real_python_lint_probe_aspect"));
+        assert!(!aspects.contains("beam.bzl"));
     }
 
     #[test]
@@ -897,17 +931,21 @@ mod tests {
             plan.argv.iter().any(|arg| arg
                 .contains("@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect")
                 && arg.contains("@rules_dx//quality:families/rust.bzl%real_rust_typecheck_aspect")
-                && arg
-                    .contains("@rules_dx//quality:families/dotnet.bzl%real_dotnet_typecheck_aspect")
+                && arg.contains(
+                    "@rules_dx//quality:families/dotnet.bzl%real_dotnet_typecheck_aspect"
+                )
                 && arg.contains("@rules_dx//quality:families/js.bzl%real_js_typecheck_aspect")
                 && arg.contains("@rules_dx//quality:families/jvm.bzl%real_jvm_typecheck_aspect")
                 && arg.contains("@rules_dx//quality:families/d.bzl%real_d_typecheck_aspect")
-                && arg
-                    .contains("@rules_dx//quality:families/fortran.bzl%real_fortran_typecheck_aspect")
+                && arg.contains(
+                    "@rules_dx//quality:families/fortran.bzl%real_fortran_typecheck_aspect"
+                )
                 && arg.contains("@rules_dx//quality:families/zig.bzl%real_zig_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:families/ocaml.bzl%real_ocaml_typecheck_aspect")
                 && arg
-                    .contains("@rules_dx//quality:families/haskell.bzl%real_haskell_typecheck_aspect")),
+                    .contains("@rules_dx//quality:families/ocaml.bzl%real_ocaml_typecheck_aspect")
+                && arg.contains(
+                    "@rules_dx//quality:families/haskell.bzl%real_haskell_typecheck_aspect"
+                )),
             "typecheck selects the real typecheck aspects: {plan:?}"
         );
         assert_eq!(plan.summary, "Running typecheck analysis for //...");

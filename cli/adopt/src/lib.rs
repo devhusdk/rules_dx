@@ -32,6 +32,9 @@ pub mod upgrade;
 pub mod version;
 pub mod watch;
 
+#[cfg(test)]
+mod local_paths_tests;
+
 pub use error::AdoptError;
 pub use families::{plan_family_deps, FamilyDeps};
 pub use git_changes::{

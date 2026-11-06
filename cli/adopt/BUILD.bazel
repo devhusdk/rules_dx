@@ -24,6 +24,7 @@ dx_rust_crate(
         "src/launcher.rs",
         "src/lib.rs",
         "src/load_graph.rs",
+        "src/local_paths_tests.rs",
         "src/lock_hubs.rs",
         "src/module_pin.rs",
         "src/overrides.rs",
@@ -98,7 +99,7 @@ dx_rust_crate(
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
-    test_data = [
+    test_data = glob(["src/*.rs"]) + [
         ":python_files",
         ":python_interpreter",
         "//:.bazelversion",

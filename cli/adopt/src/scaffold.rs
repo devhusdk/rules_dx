@@ -1517,7 +1517,7 @@ mod tests {
             (".dx/\n", true),
             ("./.dx\n", true),
             ("  .dx  \n", true),
-            (".dx/ide\n", false),
+            (".dx/local/ide\n", false),
             ("node_modules\n.dx/\n", true),
             ("# .dx\n", false),
             (".dx/local\n", true),

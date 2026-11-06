@@ -643,11 +643,13 @@ mod tests {
             "{err}"
         );
         assert!(!harness.workspace.join("Cargo.lock").exists());
-        assert!(!harness
-            .build_argv
-            .borrow()
-            .iter()
-            .any(|argv| argv.iter().any(|arg| arg == "--repo=@crates")));
+        assert!(
+            !harness
+                .build_argv
+                .borrow()
+                .iter()
+                .any(|argv| argv.iter().any(|arg| arg == "--repo=@crates"))
+        );
     }
 
     #[test]

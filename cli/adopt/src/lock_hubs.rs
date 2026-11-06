@@ -675,10 +675,16 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains(&format!("version = \"{}\"", dx_versions::TYPESCRIPT_VERSION)),
+            text.contains(&format!(
+                "version = \"{}\"",
+                dx_versions::TYPESCRIPT_VERSION
+            )),
             "{text}"
         );
-        assert!(text.ends_with("use_repo(typescript, \"npm_typescript\")\n"), "{text}");
+        assert!(
+            text.ends_with("use_repo(typescript, \"npm_typescript\")\n"),
+            "{text}"
+        );
     }
 
     #[test]

@@ -1245,13 +1245,20 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             verify_forward_exit = Some(exit);
         }
     }
+    let mut commits_flagged = false;
+    if stdout_exit.is_none() && !fix_apply {
+        match lint_commit_subjects(request, workspace, out, err) {
+            Ok(flagged) => commits_flagged = flagged,
+            Err(exit) => stdout_exit = Some(exit),
+        }
+    }
     let code = match stdout_exit {
         Some(exit) => exit,
         None => match verify_forward_exit {
             Some(exit) => exit,
             None => match stop_code.or(failed_code) {
                 Some(phase_code) => phase_code,
-                None if reports_ok && !verification_failed => 0,
+                None if reports_ok && !verification_failed && !commits_flagged => 0,
                 None => 1,
             },
         },
@@ -1271,6 +1278,51 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         let _ = write_event(out, &finished);
     }
     code
+}
+
+/// Warns about each commit subject since the merge base that is not a conventional commit.
+/// Runs only when `dx check --affected` found a merge base and `dx.toml` sets `[check] commits`.
+fn lint_commit_subjects(
+    request: &UmbrellaRequest,
+    workspace: &Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<bool, i32> {
+    let Some(base) = request.commits_base.as_deref() else {
+        return Ok(false);
+    };
+    let enabled = matches!(
+        dx_config::load(workspace),
+        Ok(Some(config)) if config.check.commits == Some(dx_config::CommitsPolicy::Conventional)
+    );
+    if !enabled {
+        return Ok(false);
+    }
+    let range = format!("{base}..HEAD");
+    let args = [&dx_update::release::LOG_ARGS[..], &[range.as_str()]].concat();
+    let Some(log) = super::release::git(workspace, &args) else {
+        let _ = writeln!(
+            err,
+            "dx: warning: commits: cannot read the commits in {range}"
+        );
+        return Ok(false);
+    };
+    let bad = dx_update::release::lint(&log);
+    let command = request.command.name();
+    for (hash, subject) in &bad {
+        let sha = &hash[..hash.len().min(12)];
+        let message = format!("{sha} {subject}: not a conventional commit");
+        if request.common.output == OutputMode::Json {
+            let notice = NoticeEvent {
+                related_command: Some(command.to_owned()),
+                ..NoticeEvent::warning(CODE_COMMIT_NOT_CONVENTIONAL, message)
+            };
+            emit_built(out, correlated(notice_event(&notice), command, "commits"))?;
+        } else {
+            let _ = writeln!(err, "dx: warning: commits: {message}");
+        }
+    }
+    Ok(!bad.is_empty())
 }
 
 /// Appends one finished phase's execution log to the run's store file, then removes the phase file.
@@ -3932,6 +3984,73 @@ mod tests {
         for stale in ["dx format --apply", "dx lint --apply", "//test:"] {
             assert!(!err.contains(stale), "{stale}: {err}");
         }
+    }
+
+    fn commits_harness(name: &str, config: &str, subject: &str) -> (Harness, Invocation) {
+        let harness = umbrella_clean(name);
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&harness.workspace)
+                .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
+                .args(["-c", "commit.gpgsign=false"])
+                .args(args)
+                .output()
+                .expect("git runs");
+            assert!(output.status.success(), "{args:?}");
+            String::from_utf8_lossy(&output.stdout).trim().to_owned()
+        };
+        git(&["init", "-q"]);
+        git(&["commit", "-q", "--allow-empty", "-m", "base"]);
+        let base = git(&["rev-parse", "HEAD"]);
+        harness.write_source("dx.toml", config);
+        git(&["add", "dx.toml"]);
+        git(&["commit", "-q", "-m", subject]);
+        let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
+        inv.affected = false;
+        inv.targets = vec!["//test:corpus".to_owned()];
+        inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
+            base: Some(base),
+            ..Default::default()
+        });
+        (harness, inv)
+    }
+
+    const COMMITS_ON: &str = "schema_version = 1\n[check]\ncommits = \"conventional\"\n";
+
+    #[test]
+    fn check_affected_reports_a_commit_that_is_not_conventional() {
+        let (harness, inv) = commits_harness("umbrella-commits-bad", COMMITS_ON, "update stuff");
+        harness.write_source("test/BUILD.bazel", "");
+        let (code, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("update stuff: not a conventional commit"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn check_affected_accepts_conventional_commits() {
+        let (harness, inv) =
+            commits_harness("umbrella-commits-good", COMMITS_ON, "fix: update stuff");
+        harness.write_source("test/BUILD.bazel", "");
+        let (code, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!err.contains("conventional"), "{err}");
+    }
+
+    #[test]
+    fn check_affected_skips_the_commits_phase_without_the_key() {
+        let (harness, inv) = commits_harness(
+            "umbrella-commits-off",
+            "schema_version = 1\n",
+            "update stuff",
+        );
+        harness.write_source("test/BUILD.bazel", "");
+        let (code, out, err) = harness.execute_with(&inv, &harness.runner());
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!err.contains("conventional"), "{err}");
     }
 
     #[test]

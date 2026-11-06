@@ -39,6 +39,7 @@ Scopes: no scope means `//...`. `--here` and `--affected` do not combine with sc
 - `check --apply` also stops when a phase fails to compile. Remaining phases are skipped.
 - `--apply` reruns `generate` after `typecheck` when a phase wrote a file.
 - `--affected` skips the test phase under `--apply`.
+- `--affected` also lints the commit subjects since the merge base when `dx.toml` sets `[check] commits = "conventional"`. Each subject that is not a conventional commit is a `warning` with its sha, and the run exits `1`. Merge commits are skipped. Left out, the key is off. Not run under `--apply`.
 - A failed run ends with a `dx: phases:` line on stderr.
 
 ### Build output check

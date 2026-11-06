@@ -4,18 +4,16 @@ Works out the next version from conventional commits since the last tag and list
 
 ```sh
 dx release
-dx release --commits origin/main..HEAD
 dx release --apply
 dx release --to 2.0.0 --apply
 ```
 
 ```text
-dx release [--commits <range> | --apply [--push]] [--to <x.y.z>] [--no-api-compat]
+dx release [--apply [--push]] [--to <x.y.z>] [--no-api-compat]
 ```
 
 | Flag | What it does |
 | --- | --- |
-| `--commits <range>` | Lint the commit subjects in a git range such as `origin/main..HEAD`. Lists each one that is not a conventional commit and exits 1 when there is any. Merge commits are not read. Cannot be combined with `--apply` or `--to`. |
 | `--apply` | Set the version in every manifest, run `bazel mod deps --lockfile_mode=update` when a `MODULE.bazel` changed, commit them as `release: <tag>` and create the tag. The tag is annotated and its message lists the commits since the last tag. Refuses a dirty working tree, a detached HEAD, an existing tag, or no version to release. |
 | `--push` | With `--apply`, push the branch and the tag to `origin`. Without it, the output says `next: git push --follow-tags`. |
 | `--to <x.y.z>` | Use this version instead of the derived one, for teams that do not use conventional commits. |

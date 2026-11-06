@@ -15,6 +15,12 @@ In every table, a key without a default is required. Dates are `YYYY-MM-DD`.
 |---|---|---|---|
 | `allow` | array of strings | `[]` | Paths or `dir/` prefixes the large-file check skips. Lock files are always skipped. |
 
+## dx.toml `[check]`
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `commits` | string | off | `"conventional"` makes `dx check --affected` warn about each commit subject since the merge base that is not a conventional commit. See [Check, Clean](check-clean.md). |
+
 ## security.toml
 
 Used by `dx security`. See [Audit, Update](audit-update.md).

@@ -2,6 +2,33 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
+    "CheckConfig": {
+      "additionalProperties": false,
+      "description": "What `dx check --affected` runs besides the quality phases.",
+      "properties": {
+        "commits": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CommitsPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Lint the commit subjects since the merge base. Off when left out."
+        }
+      },
+      "type": "object"
+    },
+    "CommitsPolicy": {
+      "oneOf": [
+        {
+          "const": "conventional",
+          "description": "Every subject must be a conventional commit.",
+          "type": "string"
+        }
+      ]
+    },
     "FamilyConfig": {
       "additionalProperties": false,
       "description": "Replaces the curated tools of one family. A capability left out keeps the curated tools.",
@@ -103,6 +130,9 @@
   },
   "description": "The optional root file for tier, tool selection and scope.",
   "properties": {
+    "check": {
+      "$ref": "#/definitions/CheckConfig"
+    },
     "families": {
       "additionalProperties": {
         "$ref": "#/definitions/FamilyConfig"

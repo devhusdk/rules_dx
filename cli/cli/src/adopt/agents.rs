@@ -18,6 +18,7 @@ pub(crate) fn block() -> String {
          - Start: `{dx} {worktree} add <branch>`. Finish: `{dx} {worktree} release`.\n\
          - Fix first: `{dx} {check} --apply --affected`.\n\
          - Then verify: `{dx} {test} --affected`.\n\
+         - Before a PR: `{dx} {check} --affected`. It is the gate.\n\
          - One file: `{dx} {test} <file>`.\n\
          - One test: `{dx} {test} <label> -- --test_filter=<name>`.\n\
          - Read the `--output=json` result.\n\
@@ -127,6 +128,7 @@ mod tests {
             "tools/dx worktree release",
             "tools/dx check --apply --affected",
             "tools/dx test --affected",
+            "tools/dx check --affected`",
             "tools/dx test <file>",
             "tools/dx test <label> -- --test_filter=<name>",
             "--output=json",

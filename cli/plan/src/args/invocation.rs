@@ -4,10 +4,11 @@ use super::Command;
 use super::profile::{Profile, resolve_profile};
 
 /// Typed marker that an invocation was handed off from an affected plan,
-/// carrying the planned test targets.
+/// carrying the planned test targets and the merge base the plan started from.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AffectedHandoff {
     pub tests: Vec<String>,
+    pub base: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,6 +103,8 @@ pub struct UmbrellaRequest {
     /// `dx check --explain`: save one execution log across the phases.
     pub explain: bool,
     pub unsafe_fixes: bool,
+    /// `dx check --affected`: the merge base whose later commit subjects are linted.
+    pub commits_base: Option<String>,
 }
 
 impl CommonOptions {
@@ -269,8 +272,6 @@ pub struct Invocation {
     /// `dx init --profile`: the config profile the root files pick.
     pub profile: Option<crate::args::ProfileArg>,
     pub to: Option<String>,
-    /// `dx release --commits`: the git range whose subjects are linted.
-    pub commits: Option<String>,
     pub here: bool,
     pub affected: bool,
     pub affected_handoff: Option<AffectedHandoff>,
@@ -518,7 +519,7 @@ impl Invocation {
         }
         let affected = self.is_affected_plan();
         let test = match (&self.affected_handoff, self.command) {
-            (Some(AffectedHandoff { tests }), Command::Check)
+            (Some(AffectedHandoff { tests, .. }), Command::Check)
                 if !tests.is_empty() && !self.applies() =>
             {
                 let mut test = self.clone();
@@ -550,6 +551,10 @@ impl Invocation {
                 self.targets.clone()
             },
             test,
+            commits_base: self
+                .affected_handoff
+                .as_ref()
+                .and_then(|handoff| handoff.base.clone()),
             bazel_options: self.quiet_bazel_options(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
@@ -719,7 +724,6 @@ mod tests {
             agents: Vec::new(),
             profile: None,
             to: None,
-            commits: None,
             here: true,
             affected: false,
             affected_handoff: None,

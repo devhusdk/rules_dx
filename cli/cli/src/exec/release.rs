@@ -6,11 +6,11 @@ use std::process::Command as Process;
 use super::common::*;
 use dx_plan::args::Invocation;
 use dx_update::release::{
-    LOG_ARGS, TAG_PREFIX, apply, breaking_targets, changelog_section, lint, plan, tag_message,
-    today, write_changelog,
+    LOG_ARGS, TAG_PREFIX, apply, breaking_targets, changelog_section, plan, tag_message, today,
+    write_changelog,
 };
 
-fn git(workspace: &Path, args: &[&str]) -> Option<String> {
+pub(super) fn git(workspace: &Path, args: &[&str]) -> Option<String> {
     let output = Process::new("git")
         .arg("-C")
         .arg(workspace)
@@ -30,9 +30,6 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ..
     } = env;
-    if let Some(range) = invocation.commits.as_deref() {
-        return lint_commits(invocation, workspace, range, out, err);
-    }
     let pattern = format!("{TAG_PREFIX}*");
     let tag = git(
         workspace,
@@ -130,46 +127,6 @@ fn api_breaking(workspace: &Path, candidate: &str) -> Result<Vec<String>, String
     breaking_targets(&labels, &mut |target| {
         bazel_output(workspace, &["run", target], Some(candidate))
     })
-}
-
-fn lint_commits(
-    invocation: &Invocation,
-    workspace: &Path,
-    range: &str,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-) -> i32 {
-    if invocation.apply || invocation.to.is_some() {
-        return refusal(
-            invocation.output,
-            out,
-            err,
-            "--commits only checks; it cannot be combined with --apply or --to",
-        );
-    }
-    let Some(log) = git(workspace, &[&LOG_ARGS[..], &[range]].concat()) else {
-        return operational(
-            invocation,
-            out,
-            err,
-            "release_git_failed",
-            &format!(
-                "cannot read the commits in {range}; check the range and that this is a git checkout"
-            ),
-        );
-    };
-    let bad = lint(&log);
-    if bad.is_empty() {
-        return 0;
-    }
-    let mut text = String::from("commits that do not follow conventional commits:\n");
-    for (hash, subject) in &bad {
-        text.push_str(&format!("  {} {subject}\n", &hash[..hash.len().min(12)]));
-    }
-    if let Err(exit) = check_stdout_write(out.write_all(text.as_bytes())) {
-        return exit;
-    }
-    1
 }
 
 fn refresh_locks(workspace: &Path, changed: &[String]) -> Result<Vec<String>, String> {

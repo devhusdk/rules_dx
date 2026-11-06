@@ -145,7 +145,6 @@ pub(crate) struct Flags {
     pub(crate) agents: Vec<Agent>,
     pub(crate) profile: Option<ProfileArg>,
     pub(crate) to: Option<String>,
-    pub(crate) commits: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
     pub(crate) serve: bool,
@@ -582,14 +581,6 @@ flag_group! {
     ToFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "to", value_parser = non_empty)]
         to: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Git range whose commit subjects `dx release --commits` lints.
-    CommitsFlag, {
-        #[arg(long, overrides_with = "commits", value_parser = non_empty, value_name = "RANGE")]
-        commits: Option<String>,
     }
 }
 
@@ -1345,7 +1336,6 @@ command_args! {
         push: PushFlag,
         no_api_compat: NoApiCompatFlag,
         own: ToFlag,
-        commits: CommitsFlag,
     };
 }
 
@@ -1603,7 +1593,8 @@ mod tests {
         let error = Cli::try_parse_from(words).err().expect("rejected");
         assert_eq!(error.kind(), clap::error::ErrorKind::UnknownArgument);
         let words = ["dx", "release", "--commits", "a..b"].map(OsString::from);
-        assert!(Cli::try_parse_from(words).is_ok());
+        let error = Cli::try_parse_from(words).err().expect("rejected");
+        assert_eq!(error.kind(), clap::error::ErrorKind::UnknownArgument);
     }
 
     #[test]

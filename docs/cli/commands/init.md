@@ -246,6 +246,7 @@ stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
 - Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`.
 - Fix first: `tools/dx check --apply --affected`.
 - Then verify: `tools/dx test --affected`.
+- Before a PR: `tools/dx check --affected`. It is the gate.
 - One file: `tools/dx test <file>`.
 - One test: `tools/dx test <label> -- --test_filter=<name>`.
 - Read the `--output=json` result.

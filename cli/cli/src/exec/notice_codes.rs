@@ -17,6 +17,7 @@ pub(crate) const CODE_IDE_REFRESH_FAILED: &str = "ide_refresh_failed";
 pub(crate) const CODE_MANAGED_DRIFT: &str = "managed_drift";
 pub(crate) const CODE_UMBRELLA_PHASE_SKIPPED: &str = "umbrella_phase_skipped";
 pub(crate) const CODE_UMBRELLA_PHASE_FINDINGS: &str = "umbrella_phase_findings";
+pub(crate) const CODE_COMMIT_NOT_CONVENTIONAL: &str = "commit_not_conventional";
 pub(crate) const CODE_AUDIT_SECURITY_CLEAN: &str = "audit_security_clean";
 pub(crate) const CODE_AUDIT_LICENSE_CLEAN: &str = "audit_license_clean";
 pub(crate) const CODE_AUDIT_ACCEPTED: &str = "audit_accepted";

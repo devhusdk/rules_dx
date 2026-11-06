@@ -57,7 +57,6 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
         .chain(std::iter::once(AGGREGATE.to_owned()))
         .chain([
             "fuzz".to_owned(),
-            "commit-lint".to_owned(),
             "bench".to_owned(),
         ])
         .collect();

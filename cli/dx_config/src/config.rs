@@ -38,6 +38,8 @@ pub struct DxConfig {
     pub scope: Scope,
     #[serde(default)]
     pub large_files: LargeFiles,
+    #[serde(default)]
+    pub check: CheckConfig,
 }
 
 /// Oversized files a change may keep. Lock files are always allowed.
@@ -47,6 +49,22 @@ pub struct LargeFiles {
     /// Paths, or `dir/` prefixes, that the large-file check skips.
     #[serde(default)]
     pub allow: Vec<String>,
+}
+
+/// What `dx check --affected` runs besides the quality phases.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CheckConfig {
+    /// Lint the commit subjects since the merge base. Off when left out.
+    #[serde(default)]
+    pub commits: Option<CommitsPolicy>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CommitsPolicy {
+    /// Every subject must be a conventional commit.
+    Conventional,
 }
 
 /// Replaces the curated tools of one family. A capability left out keeps the curated tools.

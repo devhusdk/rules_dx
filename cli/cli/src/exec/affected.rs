@@ -478,6 +478,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
     next.targets = plan.targets.clone();
     next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         tests: plan.tests.clone(),
+        base: Some(plan.base.clone()),
     });
     if invocation.output != OutputMode::Json {
         return execute(

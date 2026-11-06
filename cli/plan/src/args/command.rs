@@ -452,7 +452,7 @@ pub static COMMANDS: [CommandMeta; 26] = [
         name: "release",
         scope_policy: "reject",
         describe: "derive the next version from conventional commits, list the manifests that carry it, and with --apply bump them, commit and tag",
-        usage: "Usage: dx release [--commits <range> | --apply [--push]] [--to <x.y.z>] [--no-api-compat]",
+        usage: "Usage: dx release [--apply [--push]] [--to <x.y.z>] [--no-api-compat]",
         scopes: "Scopes: none; positionals are usage failures. The last tag is the base; the version comes from conventional commits since it, or from --to.",
         is_managed: false,
         is_adoption: false,

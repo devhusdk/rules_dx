@@ -17,7 +17,10 @@ mod curated_defaults_gen;
 pub mod schema;
 pub mod select;
 
-pub use config::{DxConfig, FamilyConfig, LargeFiles, LoadProblem, Profile, Scope, load};
+pub use config::{
+    CheckConfig, CommitsPolicy, DxConfig, FamilyConfig, LargeFiles, LoadProblem, Profile, Scope,
+    load,
+};
 pub use select::{FamilySelection, Selection, SelectionProblem, effective};
 
 #[cfg(test)]

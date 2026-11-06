@@ -30,6 +30,11 @@ cc_test(
         "launcher_test_helper.lua",
         ":launcher_test_entry",
     ],
+    target_compatible_with = select({
+        # Its cases skip on Windows, and the LLVM toolchain cannot emit coverage maps for the MSVC ABI.
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:private"],
     deps = [
         "@lua//:liblua",

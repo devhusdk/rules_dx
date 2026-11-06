@@ -475,7 +475,7 @@ if "$$public" init --workspace "$$checktree" > "$(location init_check.txt)" 2>&1
 else
   echo "exit=$$?" >> "$(location init_check.txt)"
 fi
-grep -q "init drift: missing" "$(location init_check.txt)"
+grep -q "would create" "$(location init_check.txt)"
 test ! -e "$$checktree/.dx"
 "$$public" init --workspace "$$fortree" > "$(location init_clean.txt)" 2>&1
 echo "exit=0" >> "$(location init_clean.txt)"

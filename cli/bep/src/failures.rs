@@ -6,7 +6,7 @@ use serde_json::{Map, Value};
 
 use super::file_uri_to_path;
 
-const MESSAGE_LIMIT: usize = 300;
+const MESSAGE_LIMIT: usize = 1000;
 
 /// The build stage a failure belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

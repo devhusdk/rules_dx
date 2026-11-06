@@ -87,7 +87,7 @@ impl Target {
         super::init_files::plan_with_profile(
             &self.root,
             &self.module,
-            self.blocker.is_none(),
+            self.blocker.is_none() || !self.root.join("MODULE.bazel").exists(),
             &self.agents,
             self.profile,
         )
@@ -158,14 +158,6 @@ pub(crate) fn execute_init(
             .into_iter()
             .map(|note| format!("{}{note}", target.prefix)),
     );
-    if let Some(blocker) = &target.blocker
-        && !root.join("MODULE.bazel").exists()
-    {
-        notes.push(format!(
-                "{}{blocker} exists, treating this as an existing repo; create MODULE.bazel first or run in an empty directory",
-                target.prefix
-            ));
-    }
     if let Some(plan) = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
         .ok()
         .map(|setup| dx_adopt::preflight(root, &setup))
@@ -212,7 +204,7 @@ pub(crate) fn execute_init(
             "next: run `tools/dx env --apply` to fill .dx/local, then `direnv allow`".to_owned(),
         );
     }
-    super::wiring::report(
+    let code = super::wiring::report(
         invocation,
         &applied,
         &notes,
@@ -220,7 +212,36 @@ pub(crate) fn execute_init(
         CODE_INIT_FAILED,
         out,
         err,
-    )
+    );
+    if code == 0
+        && !summaries_suppressed(invocation)
+        && let Err(exit) = check_stdout_write(write!(out, "{NEXT_STEPS}"))
+    {
+        return exit;
+    }
+    code
+}
+
+const NEXT_STEPS: &str =
+    "next: add your code, then run `dx generate --apply` and `dx build //...`\n";
+
+/// Lists the files a first `dx init` would create, one per line under their top directory.
+fn render_creation_plan(prefix: &str, paths: &[&String], apply: &str) -> String {
+    let mut groups: std::collections::BTreeMap<&str, Vec<&str>> = std::collections::BTreeMap::new();
+    for path in paths {
+        let relative = path.strip_prefix(prefix).unwrap_or(path);
+        let group = relative.split_once('/').map_or("(root)", |(top, _)| top);
+        groups.entry(group).or_default().push(relative);
+    }
+    let mut text = format!("would create {} files:\n", paths.len());
+    for (group, files) in &groups {
+        text.push_str(&format!("  {group}\n"));
+        for file in files {
+            text.push_str(&format!("    {file}\n"));
+        }
+    }
+    text.push_str(&format!("run `{apply}` to create them\n"));
+    text
 }
 
 fn absent_message(absent: &[String], apply: &str) -> String {
@@ -323,6 +344,22 @@ fn check_init(
             return exit;
         }
         return 0;
+    }
+    if !json
+        && invalid_pin.is_none()
+        && conflicts.is_empty()
+        && stale.is_empty()
+        && other.is_empty()
+        && !workspace.join("MODULE.bazel").exists()
+    {
+        if !summaries_suppressed(invocation) {
+            let paths: Vec<&String> = missing.iter().chain(&absent).collect();
+            let text = render_creation_plan(&target.prefix, &paths, &target.apply_command());
+            if let Err(exit) = check_stdout_write(write!(out, "{text}")) {
+                return exit;
+            }
+        }
+        return 1;
     }
     let rewrite = dx_adopt::pin_rewrite_hint();
     let mut clauses: Vec<String> = [("missing", missing), ("stale", stale), ("absent", absent)]
@@ -885,11 +922,11 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-check-");
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["init"]);
-        let (code, _out, err) = run(&inv, &root);
+        let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(err.contains("init_failed"), "{err}");
-        assert!(err.contains("init drift"), "{err}");
-        assert!(err.contains("--apply"), "{err}");
+        assert!(!err.contains("init_failed"), "{err}");
+        assert!(out.starts_with("would create "), "{out}");
+        assert!(out.contains("--apply"), "{out}");
         assert!(!root.join(".dx/pins").exists(), "check must not write");
         assert!(!root.join(".devcontainer/devcontainer.json").exists());
         let inv = invocation(&["init", "--apply"]);
@@ -941,14 +978,10 @@ mod tests {
     fn init_dir_creates_a_fresh_workspace_and_rechecks_clean() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-dir-");
         let root = scratch.path().to_path_buf();
-        let (code, _out, err) = run(&invocation(&["init", "nested/Demo App"]), &root);
+        let (code, out, err) = run(&invocation(&["init", "nested/Demo App"]), &root);
         assert_eq!(code, 1, "{err}");
-        assert!(
-            err.contains("missing nested/Demo App/")
-                && err.contains(" nested/Demo App/MODULE.bazel"),
-            "{err}"
-        );
-        assert!(err.contains("dx init nested/Demo App --apply"), "{err}");
+        assert!(out.contains("\n    MODULE.bazel\n"), "{out}");
+        assert!(out.contains("dx init nested/Demo App --apply"), "{out}");
         assert!(!root.join("nested").exists(), "check must not write");
         let (code, out, err) = run(&invocation(&["init", "--apply", "nested/Demo App"]), &root);
         assert_eq!(code, 0, "{err}");
@@ -1012,19 +1045,45 @@ mod tests {
     }
 
     #[test]
-    fn init_in_a_non_empty_tree_writes_no_module() {
+    fn init_in_a_non_empty_tree_without_a_module_creates_one() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-existing-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir(root.join("src")).expect("src");
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
+        assert!(out.contains("wrote MODULE.bazel\n"), "{out}");
+        assert!(root.join("MODULE.bazel").is_file());
+        assert!(!err.contains("existing repo"), "{err}");
+    }
+
+    #[test]
+    fn init_check_in_an_empty_dir_prints_a_plan_not_a_failure() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-");
+        let root = scratch.path().to_path_buf();
+        let (code, out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(!err.contains("init_failed"), "{err}");
+        assert!(out.starts_with("would create "), "{out}");
+        assert!(out.contains("\n  tools\n    tools/dx\n"), "{out}");
+        assert!(out.contains("\n    MODULE.bazel\n"), "{out}");
         assert!(
-            err.contains("dx: src/ exists, treating this as an existing repo; create MODULE.bazel first or run in an empty directory\n"),
-            "{err}"
+            out.ends_with("run `dx init --apply` to create them\n"),
+            "{out}"
         );
-        assert!(!out.contains("wrote MODULE.bazel\n"), "{out}");
-        assert!(!root.join("MODULE.bazel").exists());
-        assert!(!root.join(".bazelversion").exists());
+    }
+
+    #[test]
+    fn init_apply_ends_with_the_next_steps() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-next-");
+        let root = scratch.path().to_path_buf();
+        let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            out.ends_with(
+                "next: add your code, then run `dx generate --apply` and `dx build //...`\n"
+            ),
+            "{out}"
+        );
     }
 
     #[test]

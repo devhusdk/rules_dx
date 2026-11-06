@@ -98,6 +98,7 @@ fn missing_module_lists_searched_and_suggests_override() {
         matches!(&err, DiscoverError::NotFound { searched } if searched.contains(&PathBuf::from("/repo")))
     );
     assert!(err.to_string().contains("--workspace"));
+    assert!(err.to_string().contains("or run dx init here to start one"));
 }
 
 #[test]

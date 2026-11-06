@@ -280,6 +280,14 @@ fn toolchain_check(root: &Path) -> StatusCheck {
         .flat_map(|tag| module.calls_named(tag))
         .flat_map(|call| call.str_list("versions"))
         .collect();
+    if versions.is_empty() && tag.is_none() && module.bazel_dep_version("rules_rust").is_err() {
+        return check(
+            "toolchain",
+            "ok",
+            "not applicable: MODULE.bazel does not use rust".to_owned(),
+            hint,
+        );
+    }
     if versions.is_empty() {
         return check(
             "toolchain",
@@ -559,6 +567,12 @@ mod tests {
         let broken = run("bazel_dep(");
         assert_eq!(broken.status, "warn");
         assert_eq!(broken.detail, "unknown: MODULE.bazel does not parse");
+        let java = run("bazel_dep(name = \"rules_java\", version = \"8.0.0\")\n");
+        assert_eq!(java.status, "ok", "{}", java.detail);
+        assert_eq!(
+            java.detail,
+            "not applicable: MODULE.bazel does not use rust"
+        );
         let none = run("bazel_dep(name = \"rules_rust\", version = \"0.75.0\")\n");
         assert_eq!(none.status, "warn");
         assert!(none.detail.starts_with("unknown:"), "{}", none.detail);

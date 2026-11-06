@@ -372,7 +372,7 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
     );
     let check = read("DX_INIT_CHECK");
     assert!(
-        check.contains("init drift: missing"),
+        check.contains("would create"),
         "check mode reports drift instead of writing: {check}"
     );
     assert!(check.contains("exit=1"), "check mode fails: {check}");

@@ -78,7 +78,7 @@ impl Fs for RealFs {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum DiscoverError {
     #[error(
-        "no MODULE.bazel in {searched_len} {directories}; run inside a workspace or pass --workspace <path> (workspace_not_found)",
+        "no MODULE.bazel in {searched_len} {directories}; run inside a workspace, pass --workspace <path>, or run dx init here to start one (workspace_not_found)",
         searched_len = searched.len(),
         directories = if searched.len() == 1 { "directory" } else { "directories" }
     )]

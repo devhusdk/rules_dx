@@ -339,7 +339,8 @@ pub(super) fn run_license(
             | dx_adopt::dependency_sets::Ecosystem::Hex
             | dx_adopt::dependency_sets::Ecosystem::Composer
             | dx_adopt::dependency_sets::Ecosystem::Opam
-            | dx_adopt::dependency_sets::Ecosystem::SwiftPm => {}
+            | dx_adopt::dependency_sets::Ecosystem::SwiftPm
+            | dx_adopt::dependency_sets::Ecosystem::Cabal => {}
         }
     }
     let mut exception_problems: Vec<String> = Vec::new();

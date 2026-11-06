@@ -9,6 +9,8 @@ mod locks_cargo;
 mod locks_composer;
 #[path = "locks_conan.rs"]
 mod locks_conan;
+#[path = "locks_cabal.rs"]
+mod locks_cabal;
 #[path = "locks_cpan.rs"]
 mod locks_cpan;
 #[path = "locks_hex.rs"]
@@ -38,6 +40,7 @@ pub use locks_bazel::*;
 pub use locks_cargo::*;
 pub use locks_composer::*;
 pub use locks_conan::*;
+pub use locks_cabal::*;
 pub use locks_cpan::*;
 pub use locks_hex::*;
 pub use locks_julia::*;

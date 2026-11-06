@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 32] = [
+const EXPECTED_NAMES: [&str; 34] = [
     "dx_crates",
     "dx_dart_deps",
     "dx_dart_padded_archive",
@@ -33,6 +33,8 @@ const EXPECTED_NAMES: [&str; 32] = [
     "dx_scalafix",
     "dx_thrift_crates",
     "go",
+    "haskell_app_hackage",
+    "haskell_exe_hackage",
     "julia_app_pkgs",
     "maven",
     "npm_node_app",

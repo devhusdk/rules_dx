@@ -214,7 +214,8 @@ fn run_configured_target(
         | Ecosystem::Hex
         | Ecosystem::Composer
         | Ecosystem::Opam
-        | Ecosystem::SwiftPm => dx_update::backend::UvClosure::default(),
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {

@@ -108,7 +108,7 @@ The `failures` file has `record_version`, `exit_code`, `complete`, `truncated`, 
 
 ## Coverage details
 
-`--min-coverage` counts the eligible lines of every production source in the scope. It also fails on a source missing from the LCOV, an LCOV path no target owns, or an invalid exclusion marker. A passing gate prints `coverage <percent>% (<covered>/<eligible> lines) meets minimum <n>% in cell <cell>`. A failing gate exits `1` with `coverage_below_minimum`.
+`--min-coverage` counts the eligible lines of every production source in the scope, including the production sources its targets depend on, such as a shared library outside the patterns. It also fails on a source missing from the LCOV, an LCOV path no target owns, or an invalid exclusion marker. A passing gate prints `coverage <percent>% (<covered>/<eligible> lines) meets minimum <n>% in cell <cell>`. A failing gate exits `1` with `coverage_below_minimum`.
 
 `--min-changed-line-coverage` gates the lines added since the merge-base with the default branch (`origin/HEAD`, else `main`, else `master`). It needs full Git history. It exits `1` below the minimum, for a changed source the LCOV never saw, or on a Git failure.
 

@@ -691,3 +691,44 @@ fn machines_rejects_a_nested_or_cut_archive() {
     cut.truncate(cut.len() - 8);
     assert!(machines(&cut).is_err());
 }
+
+#[test]
+fn elf32_with_bad_program_headers_is_rejected() {
+    let mut elf32 = vec![0u8; 52];
+    put(&mut elf32, 0, &[0x7f, b'E', b'L', b'F', 1, 1, 1, 0]);
+    put(&mut elf32, 28, &60u32.to_le_bytes());
+    put(&mut elf32, 40, &52u16.to_le_bytes());
+    put(&mut elf32, 42, &32u16.to_le_bytes());
+    put(&mut elf32, 44, &1u16.to_le_bytes());
+    assert!(inspect(&elf32).is_err());
+}
+
+#[test]
+fn elf_dynamic_segment_without_needed_entries_names_none() {
+    let mut image = elf_with(elf::EM_X86_64, None, &["libc.so.6"], false);
+    put(&mut image, 528, &u64::from(elf::DT_SONAME).to_le_bytes());
+    assert!(inspect(&image).unwrap()[0].needed.is_empty());
+}
+
+#[test]
+fn macho_ignores_load_commands_it_does_not_read() {
+    let mut image = macho(
+        macho::CPU_TYPE_ARM64,
+        macho::PLATFORM_MACOS,
+        0x000b_0000,
+        &[],
+    );
+    image.extend_from_slice(&macho::LC_SYMTAB.to_le_bytes());
+    image.extend_from_slice(&24u32.to_le_bytes());
+    image.extend_from_slice(&[0u8; 16]);
+    put(&mut image, 16, &2u32.to_le_bytes());
+    put(&mut image, 20, &48u32.to_le_bytes());
+    assert_eq!(inspect(&image).unwrap()[0].machine, "aarch64");
+}
+
+#[test]
+fn producers_are_empty_for_a_pe_without_a_dans_marker() {
+    let mut image = pe_with_rich(&[(1, 2, 3)]);
+    put(&mut image, 0x40, &0u32.to_le_bytes());
+    assert!(producers(&image).is_empty());
+}

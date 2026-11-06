@@ -206,9 +206,6 @@ pub fn machines(bytes: &[u8]) -> Result<Vec<String>, Error> {
             let mut names = Vec::new();
             for member in archive.members() {
                 let member = member.map_err(|error| fail("bad archive member", error))?;
-                if matches!(member.name(), b"/" | b"//") {
-                    continue;
-                }
                 let data = member
                     .data(bytes)
                     .map_err(|error| fail("bad archive member", error))?;
@@ -243,34 +240,27 @@ pub fn producers(bytes: &[u8]) -> Vec<String> {
 }
 
 fn rich_producers(bytes: &[u8]) -> Vec<String> {
+    rich_entries(bytes).unwrap_or_default()
+}
+
+fn rich_entries(bytes: &[u8]) -> Option<Vec<String>> {
     const DANS: u32 = 0x536e_6144;
     let word = |at: usize| {
         bytes
             .get(at..at + 4)
             .map(|raw| u32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]))
     };
-    let Some(lfanew) = word(0x3c).map(|raw| raw as usize) else {
-        return Vec::new();
-    };
+    let lfanew = word(0x3c)? as usize;
     let stub = &bytes[..lfanew.min(bytes.len())];
-    let Some(rich) = stub.windows(4).rposition(|window| window == b"Rich") else {
-        return Vec::new();
-    };
-    let Some(key) = word(rich + 4) else {
-        return Vec::new();
-    };
-    let Some(start) = (0x40..rich)
+    let rich = stub.windows(4).rposition(|window| window == b"Rich")?;
+    let key = word(rich + 4)?;
+    let start = (0x40..rich)
         .step_by(4)
-        .find(|at| word(*at).is_some_and(|raw| raw ^ key == DANS))
-    else {
-        return Vec::new();
-    };
+        .find(|at| word(*at).is_some_and(|raw| raw ^ key == DANS))?;
     let mut found = Vec::new();
     for at in (start + 16..rich.saturating_sub(7)).step_by(8) {
-        let (Some(id), Some(count)) = (word(at), word(at + 4)) else {
-            break;
-        };
-        let id = id ^ key;
+        let id = word(at)? ^ key;
+        let count = word(at + 4)?;
         if count ^ key == 0 {
             continue;
         }
@@ -279,19 +269,17 @@ fn rich_producers(bytes: &[u8]) -> Vec<String> {
             found.push(producer);
         }
     }
-    found
+    Some(found)
 }
 
 fn elf_producers<H: object::read::elf::FileHeader<Endian = object::Endianness>>(
     bytes: &[u8],
 ) -> Vec<String> {
-    let Ok(file) = object::read::elf::ElfFile::<H>::parse(bytes) else {
-        return Vec::new();
+    let comment = || {
+        let file = object::read::elf::ElfFile::<H>::parse(bytes).ok()?;
+        file.section_by_name(".comment")?.data().ok()
     };
-    let Some(section) = file.section_by_name(".comment") else {
-        return Vec::new();
-    };
-    let Ok(data) = section.data() else {
+    let Some(data) = comment() else {
         return Vec::new();
     };
     data.split(|byte| *byte == 0)

@@ -5,8 +5,7 @@ use dx_process::{
 use super::{
     BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP, DOCS_TOOLS_OUTPUT_GROUP,
     KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG, SKIP_OUTPUT_GROUP,
-    bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
-    exec_log_options,
+    bazel_argv, bep_guards, bep_options, download_flag, download_guards,
     registry::{aspects_for, probes_for, spec},
     rules_dx_label,
 };
@@ -158,7 +157,6 @@ pub fn plan_build(
         bep_path,
         startup_options,
         Selection::default(),
-        None,
     )
 }
 
@@ -181,7 +179,6 @@ pub fn plan_build_with(
     bep_path: &str,
     startup_options: &[String],
     selection: Selection,
-    exec_log: Option<&str>,
 ) -> Result<BuildPlan, ForwardError> {
     let aspects = match selection.installed_modules {
         Some(modules) => aspects_for(command, modules),
@@ -193,17 +190,7 @@ pub fn plan_build_with(
     if selection.unsafe_fixes {
         required.push("--aspects_parameters=unsafe_fixes=true".to_owned());
     }
-    if let Some(path) = exec_log {
-        required.extend(exec_log_options(path));
-    }
-    shaped_plan(
-        command,
-        resolved,
-        bazel_options,
-        startup_options,
-        &required,
-        exec_log.is_some(),
-    )
+    shaped_plan(command, resolved, bazel_options, startup_options, &required)
 }
 
 /// Plans the docs build: the docs aspect over the scope, with the site manifests beside the results.
@@ -224,7 +211,6 @@ pub fn plan_docs(
         bazel_options,
         startup_options,
         &required,
-        false,
     )?;
     plan.argv
         .push(rules_dx_label("tools/docs/site:scope_tools"));
@@ -258,7 +244,6 @@ pub fn plan_probe(
             bazel_options,
             bep_path,
         ),
-        false,
     )
     .map(Some)
 }
@@ -269,12 +254,8 @@ fn shaped_plan(
     bazel_options: &[String],
     startup_options: &[String],
     required: &[String],
-    logged: bool,
 ) -> Result<BuildPlan, ForwardError> {
-    let mut protected = protected_flags(required)?;
-    if logged {
-        protected.extend(exec_log_guards());
-    }
+    let protected = protected_flags(required)?;
     let (scope, labels) = workflow_bazel_labels(resolved);
     let mut options = vec![SKIP_INCOMPATIBLE_FLAG.to_owned()];
     options.extend(bazel_options.iter().cloned());
@@ -767,7 +748,6 @@ mod tests {
                 installed_modules: None,
                 unsafe_fixes: false,
             },
-            None,
         )
         .expect("plan");
         assert!(plan.argv.contains(
@@ -790,7 +770,6 @@ mod tests {
                         unsafe_fixes,
                         ..Selection::default()
                     },
-                    None,
                 )
                 .expect("plan")
                 .argv

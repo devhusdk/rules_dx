@@ -21,7 +21,7 @@ dx check --affected --output=json
 | `watch` | A watchable command plus its scopes. |
 | `init` | An optional directory. |
 | `completion` | Exactly one shell. |
-| `clean`, `status`, `upgrade`, `worktree`, `explain` | No scopes. |
+| `clean`, `status`, `upgrade`, `worktree` | No scopes. |
 
 ## Scope shapes
 

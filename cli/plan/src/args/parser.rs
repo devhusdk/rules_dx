@@ -358,10 +358,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         bases,
         capabilities,
         files,
-        explain,
         build_profile,
-        old_log,
-        new_log,
         time,
         jobs,
         max_regression,
@@ -630,7 +627,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             scope: scope.clone(),
         });
     }
-    if matches!(command, Command::Explain | Command::Release)
+    if matches!(command, Command::Release)
         && let Some(scope) = targets.first()
     {
         return Err(extra_positional(command, scope));
@@ -769,11 +766,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         bases,
         capabilities,
         files,
-        explain,
         build_profile,
-        exec_log: None,
-        old_log,
-        new_log,
         time,
         jobs,
         bench_regression: max_regression,

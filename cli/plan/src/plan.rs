@@ -13,7 +13,7 @@ use dx_process::{ForwardError, ProtectedFlag};
 
 pub use generate::{
     GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_package_scope,
-    generate_scope_json, plan_generate, plan_generate_logged,
+    generate_scope_json, plan_generate,
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
 pub use quality::{Selection, plan_build, plan_build_with, plan_docs, plan_probe};
@@ -283,33 +283,6 @@ pub(crate) fn bep_guards() -> Vec<ProtectedFlag> {
             allowed: vec!["--nobuild_event_json_file_path_conversion".to_owned()],
         },
     ]
-}
-
-pub const EXEC_LOG_FLAG_NAME: &str = "execution_log_compact_file";
-
-/// Every Bazel execution log flag, which cannot be combined with the compact log dx writes.
-const EXEC_LOG_FLAG_NAMES: [&str; 4] = [
-    EXEC_LOG_FLAG_NAME,
-    "experimental_execution_log_compact_file",
-    "execution_log_binary_file",
-    "execution_log_json_file",
-];
-
-/// The option that writes the compact execution log to `path`.
-pub fn exec_log_options(path: &str) -> Vec<String> {
-    vec![format!("--{EXEC_LOG_FLAG_NAME}={path}")]
-}
-
-/// Guards that refuse user execution log flags while dx writes its own.
-pub fn exec_log_guards() -> Vec<ProtectedFlag> {
-    EXEC_LOG_FLAG_NAMES
-        .iter()
-        .map(|name| ProtectedFlag {
-            name: (*name).to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        })
-        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -68,8 +68,6 @@ pub struct QualityRequest {
     pub common: CommonOptions,
     pub fail_on: Threshold,
     pub origin: Option<UmbrellaOrigin>,
-    /// The execution log file an umbrella `--explain` run has this phase write.
-    pub exec_log: Option<String>,
     /// `--unsafe`: fixes include the ones the tool marks unsafe.
     pub unsafe_fixes: bool,
 }
@@ -82,8 +80,6 @@ pub struct GenerateRequest {
     pub bazel_startup_options: Vec<String>,
     pub workspace: Option<String>,
     pub common: CommonOptions,
-    /// The execution log file an umbrella `--explain` run has this phase write.
-    pub exec_log: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,8 +96,6 @@ pub struct UmbrellaRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
-    /// `dx check --explain`: save one execution log across the phases.
-    pub explain: bool,
     pub unsafe_fixes: bool,
     /// `dx check --affected`: the merge base whose later commit subjects are linted.
     pub commits_base: Option<String>,
@@ -221,7 +215,6 @@ impl UmbrellaRequest {
             common: self.common_with(reports),
             fail_on: self.fail_on,
             origin: Some(self.origin()),
-            exec_log: None,
             unsafe_fixes: self.unsafe_fixes,
         })
     }
@@ -238,7 +231,6 @@ impl UmbrellaRequest {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_with(reports),
-            exec_log: None,
         }
     }
 }
@@ -331,16 +323,8 @@ pub struct Invocation {
     pub capabilities: bool,
     /// `dx status --files`: add one record per file dx init writes.
     pub files: bool,
-    /// `build`/`test --explain`: save the execution log for `dx explain`.
-    pub explain: bool,
     /// `build`/`test`/`coverage --profile`: print where build time went.
     pub build_profile: bool,
-    /// An umbrella phase's execution log file; set instead of `explain` so the umbrella owns the store entry.
-    pub exec_log: Option<String>,
-    /// `dx explain --old`.
-    pub old_log: Option<String>,
-    /// `dx explain --new`.
-    pub new_log: Option<String>,
     /// `dx fuzz --time`: the budget per target; 60s when absent.
     pub time: Option<String>,
     /// `dx fuzz --jobs`: jobs each fuzz runner may use.
@@ -485,7 +469,6 @@ impl Invocation {
             common: self.common_options(),
             fail_on: self.fail_on,
             origin: None,
-            exec_log: None,
             unsafe_fixes: self.unsafe_fixes,
         })
     }
@@ -504,7 +487,6 @@ impl Invocation {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),
-            exec_log: None,
         })
     }
 
@@ -529,7 +511,6 @@ impl Invocation {
                 test.command = Command::Test;
                 test.apply = false;
                 test.reports = Vec::new();
-                test.explain = false;
                 test.include_edits = false;
                 test.unsafe_fixes = false;
                 test.targets = tests.clone();
@@ -563,7 +544,6 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
-            explain: self.explain,
             unsafe_fixes: self.unsafe_fixes,
         })
     }
@@ -758,15 +738,11 @@ mod tests {
             bases: false,
             capabilities: false,
             files: false,
-            explain: false,
             build_profile: false,
-            exec_log: None,
-            old_log: None,
             time: None,
             jobs: None,
             bench_regression: None,
             bench_compare: None,
-            new_log: None,
             path_only: false,
             shell: None,
             agent: false,

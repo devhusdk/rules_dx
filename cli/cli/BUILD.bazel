@@ -1,7 +1,5 @@
 # gazelle:ignore
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//deploy/rules:github.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -9,16 +7,6 @@ load("//rust/rules:wrapper_tests.bzl", "dx_msvc_opt_pdb_tests")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
-
-proto_library(
-    name = "spawn_proto",
-    srcs = ["spawn.proto"],
-)
-
-rust_prost_library(
-    name = "spawn_proto_rs",
-    proto = ":spawn_proto",
-)
 
 rust_library(
     name = "dx_cli",
@@ -55,10 +43,8 @@ rust_library(
         "src/exec/deploy.rs",
         "src/exec/docs.rs",
         "src/exec/docs_index.rs",
-        "src/exec/explain.rs",
         "src/exec/fuzz.rs",
         "src/exec/release.rs",
-        "src/exec/explain_store.rs",
         "src/exec/failure.rs",
         "src/exec/failure_reports.rs",
         "src/exec/first_run.rs",
@@ -102,8 +88,6 @@ rust_library(
         "src/exec/update_version_add.rs",
         "src/exec/workflow.rs",
         "src/exec/worktree.rs",
-        "src/execlog.rs",
-        "src/execlog/diff.rs",
         "src/lib.rs",
         "src/multicall.rs",
         "src/startup.rs",
@@ -125,7 +109,6 @@ rust_library(
         "//cli/audit:dx_audit",
         "//cli/bep:dx_bep",
         "//cli/clean:dx_clean",
-        "//cli/cli:spawn_proto_rs",
         "//cli/codegen:dx_codegen",
         "//cli/depcheck:depcheck_lib",
         "//cli/diff:dx_diff",
@@ -154,7 +137,6 @@ rust_library(
         "//quality/result:quality_result",
         "@crates//:serde",
         "@crates//:serde_json",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 
@@ -278,10 +260,8 @@ rust_test(
         "src/exec/docs.rs",
         "src/exec/docs_index.rs",
         "src/exec/error_boundary_launcher_tests.rs",
-        "src/exec/explain.rs",
         "src/exec/fuzz.rs",
         "src/exec/release.rs",
-        "src/exec/explain_store.rs",
         "src/exec/failure.rs",
         "src/exec/failure_reports.rs",
         "src/exec/first_run.rs",
@@ -346,10 +326,6 @@ rust_test(
         "src/exec/workflow.rs",
         "src/exec/workflow_delivery_tests.rs",
         "src/exec/worktree.rs",
-        "src/execlog.rs",
-        "src/execlog/diff.rs",
-        "src/execlog/diff_tests.rs",
-        "src/execlog/tests.rs",
         "src/lib.rs",
         "src/multicall.rs",
         "src/startup.rs",
@@ -389,7 +365,6 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        ":spawn_proto_rs",
         "//cli/adopt:dx_adopt",
         "//cli/apply:dx_apply",
         "//cli/atomic_fs:dx_atomic_fs",
@@ -428,7 +403,6 @@ rust_test(
         "//tools/testing:dx_testing",
         "@crates//:serde",
         "@crates//:serde_json",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 

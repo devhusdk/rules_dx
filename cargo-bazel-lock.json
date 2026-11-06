@@ -1,5 +1,5 @@
 {
-  "checksum": "dc62baf0982a863c3f82d16030ec634b0975bf3d344c9051a171871d8750ea8c",
+  "checksum": "2c8dac1c5d8c7c87cdc60921d3275a46c798e6a12e43975184354aa4e6b49521",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7341,10 +7341,6 @@
           {
             "id": "libc 0.2.189",
             "target": "libc"
-          },
-          {
-            "id": "ruzstd 0.9.1",
-            "target": "ruzstd"
           },
           {
             "id": "serde 1.0.229",

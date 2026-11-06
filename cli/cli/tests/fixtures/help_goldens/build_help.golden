@@ -1,6 +1,6 @@
 run Bazel build over resolved targets
 
-Usage: dx build [--here] [--affected] [--debug|--release] [--explain] [--timings] [scope ...] [-- bazel-options ...]
+Usage: dx build [--here] [--affected] [--debug|--release] [--timings] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -44,9 +44,6 @@ Options:
 
       --release
           Use release build (the deploy default)
-
-      --explain
-          Save the execution log for dx explain
 
       --timings
           Print where build time went

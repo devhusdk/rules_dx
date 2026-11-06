@@ -436,7 +436,6 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         &scope,
         &invocation.quiet_bazel_options(),
         Some(&bep_text),
-        None,
         Some(invocation.profile()),
         &invocation.bazel_startup_options,
     ) {

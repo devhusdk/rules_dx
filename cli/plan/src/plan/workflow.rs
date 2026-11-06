@@ -2,7 +2,7 @@ use dx_process::{ForwardError, ProtectedFlag, describe_scope};
 
 use super::{
     BuildPlan, SKIP_INCOMPATIBLE_FLAG, bazel_argv, bep_guards, bep_options, download_flag,
-    download_guards, exec_log_guards, exec_log_options, profile_options, workflow_bazel_labels,
+    download_guards, profile_options, workflow_bazel_labels,
 };
 use crate::resolve::ResolvedScope;
 
@@ -43,7 +43,6 @@ pub fn workflow_options(
     verb: WorkflowVerb,
     bazel_options: &[String],
     bep_path: Option<&str>,
-    exec_log: Option<&str>,
 ) -> Vec<String> {
     let mut required = Vec::new();
     if verb == WorkflowVerb::Coverage {
@@ -60,9 +59,6 @@ pub fn workflow_options(
     }
     if let Some(path) = bep_path {
         required.extend(bep_options(path));
-    }
-    if let Some(path) = exec_log {
-        required.extend(exec_log_options(path));
     }
     required
 }
@@ -111,15 +107,11 @@ pub fn plan_workflow(
     resolved: &ResolvedScope,
     bazel_options: &[String],
     bep_path: Option<&str>,
-    exec_log: Option<&str>,
     profile: Option<crate::args::Profile>,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
-    let required = workflow_options(verb, bazel_options, bep_path, exec_log);
-    let mut protected = workflow_protected(verb);
-    if exec_log.is_some() {
-        protected.extend(exec_log_guards());
-    }
+    let required = workflow_options(verb, bazel_options, bep_path);
+    let protected = workflow_protected(verb);
     let mut options: Vec<String> = workflow_defaults(verb)
         .iter()
         .map(ToString::to_string)
@@ -166,8 +158,7 @@ mod tests {
             (WorkflowVerb::Test, Some(Profile::Dev)),
             (WorkflowVerb::Coverage, None),
         ] {
-            let plan =
-                plan_workflow(verb, &resolved(&[]), &[], None, None, profile, &[]).expect("plan");
+            let plan = plan_workflow(verb, &resolved(&[]), &[], None, profile, &[]).expect("plan");
             assert!(
                 !plan.argv.iter().any(|arg| arg == "--keep_going"),
                 "{verb:?} must not force keep_going: {plan:?}"
@@ -177,7 +168,6 @@ mod tests {
             WorkflowVerb::Test,
             &resolved(&[]),
             &[],
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -208,8 +198,8 @@ mod tests {
             WorkflowVerb::Test,
             WorkflowVerb::Coverage,
         ] {
-            let plan = plan_workflow(verb, &resolved(&["//a:x"]), &[], None, None, None, &[])
-                .expect("plan");
+            let plan =
+                plan_workflow(verb, &resolved(&["//a:x"]), &[], None, None, &[]).expect("plan");
             assert!(
                 plan.argv
                     .iter()
@@ -221,7 +211,6 @@ mod tests {
             WorkflowVerb::Run,
             &resolved(&["//a:x"]),
             &[],
-            None,
             None,
             None,
             &[],
@@ -247,7 +236,6 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[conflicting]),
                 None,
-                None,
                 Some(Profile::Dev),
                 &[],
             )
@@ -262,7 +250,6 @@ mod tests {
             WorkflowVerb::Build,
             &resolved(&[]),
             &strings(&[same, crate::plan::CLIPPY_DIAGNOSTICS_FLAG]),
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -282,7 +269,6 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[conflicting]),
                 Some("/tmp/bep.json"),
-                None,
                 Some(Profile::Dev),
                 &[],
             )
@@ -297,7 +283,6 @@ mod tests {
             &resolved(&[]),
             &strings(&["--nobuild_event_json_file_path_conversion"]),
             Some("/tmp/bep.json"),
-            None,
             Some(Profile::Dev),
             &[],
         )
@@ -311,7 +296,6 @@ mod tests {
             WorkflowVerb::Build,
             &resolved(&[]),
             &[],
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -333,7 +317,6 @@ mod tests {
             &resolved(&[]),
             &strings(&["--keep_going"]),
             None,
-            None,
             Some(Profile::Dev),
             &[],
         )
@@ -353,7 +336,6 @@ mod tests {
                     "case with spaces héllo",
                     "--test_filter=unit",
                 ]),
-                None,
                 None,
                 if verb == WorkflowVerb::Coverage {
                     None
@@ -384,7 +366,6 @@ mod tests {
             &resolved(&[]),
             &strings(&["--test_arg=--exact"]),
             None,
-            None,
             Some(Profile::Dev),
             &[],
         )
@@ -407,7 +388,6 @@ mod tests {
                     "--config=ci-pr",
                     "--config=sanitizer",
                 ]),
-                None,
                 None,
                 Some(Profile::Dev),
                 &[],
@@ -454,7 +434,6 @@ mod tests {
                 &resolved(&[]),
                 &strings(&options),
                 None,
-                None,
                 Some(Profile::Dev),
                 &[],
             )
@@ -469,7 +448,6 @@ mod tests {
             &resolved(&[]),
             &strings(&["--config=dx_build_release"]),
             None,
-            None,
             Some(Profile::Dev),
             &[],
         )
@@ -483,7 +461,6 @@ mod tests {
             WorkflowVerb::Build,
             &resolved(&[]),
             &strings(&["--config=dx_build_dev", "--config=sanitizer"]),
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -501,7 +478,6 @@ mod tests {
             WorkflowVerb::Build,
             &resolved(&[]),
             &strings(&["--config", "dx_build_dev", "--config", "sanitizer"]),
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -536,7 +512,6 @@ mod tests {
                 &strings(&options),
                 None,
                 None,
-                None,
                 &[],
             )
             .expect("coverage has no profile pin to conflict with");
@@ -546,16 +521,8 @@ mod tests {
 
     #[test]
     fn coverage_plan_requires_combined_lcov_report() {
-        let plan = plan_workflow(
-            WorkflowVerb::Coverage,
-            &resolved(&[]),
-            &[],
-            None,
-            None,
-            None,
-            &[],
-        )
-        .expect("plan");
+        let plan = plan_workflow(WorkflowVerb::Coverage, &resolved(&[]), &[], None, None, &[])
+            .expect("plan");
         assert!(
             plan.argv
                 .iter()
@@ -565,7 +532,6 @@ mod tests {
             WorkflowVerb::Coverage,
             &resolved(&[]),
             &strings(&[COVERAGE_COMBINED_REPORT_FLAG]),
-            None,
             None,
             None,
             &[],
@@ -583,7 +549,6 @@ mod tests {
             &strings(&["--combined_report=json"]),
             None,
             None,
-            None,
             &[],
         )
         .expect_err("conflicting combined_report must fail");
@@ -596,7 +561,6 @@ mod tests {
             &resolved(&[]),
             &strings(&["--build_event_json_file=/tmp/other.json"]),
             Some("/tmp/bep.json"),
-            None,
             Some(Profile::Dev),
             &[],
         )
@@ -626,7 +590,6 @@ mod tests {
             &user,
             None,
             None,
-            None,
             &[],
         )
         .expect("plan");
@@ -650,7 +613,6 @@ mod tests {
             &strings(&["--config=mine"]),
             None,
             None,
-            None,
             &[],
         )
         .expect("plan");
@@ -666,8 +628,7 @@ mod tests {
             .expect("user config kept");
         assert!(forced > config, "forced after rc expansion: {bare:?}");
         for verb in [WorkflowVerb::Build, WorkflowVerb::Test] {
-            let plan =
-                plan_workflow(verb, &resolved(&[]), &[], None, None, None, &[]).expect("plan");
+            let plan = plan_workflow(verb, &resolved(&[]), &[], None, None, &[]).expect("plan");
             assert!(
                 !plan
                     .argv
@@ -687,7 +648,6 @@ mod tests {
                 &strings(&[flag]),
                 None,
                 None,
-                None,
                 &[],
             )
             .expect_err("build_tests_only hides sources");
@@ -700,7 +660,6 @@ mod tests {
             WorkflowVerb::Test,
             &resolved(&[]),
             &strings(&["--build_tests_only"]),
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -715,7 +674,6 @@ mod tests {
             &resolved(&[]),
             &strings(&["--config=remote", "--jobs=4"]),
             Some("/tmp/bep.json"),
-            None,
             None,
             &[],
         )
@@ -744,7 +702,6 @@ mod tests {
             WorkflowVerb::Test,
             &resolved(&[]),
             &strings(&["--config=remote", "--jobs=4"]),
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -780,16 +737,8 @@ mod tests {
                     "remote_download_outputs",
                 ),
             ] {
-                let err = plan_workflow(
-                    verb,
-                    &resolved(&[]),
-                    &strings(&[option]),
-                    None,
-                    None,
-                    None,
-                    &[],
-                )
-                .expect_err("download override must fail");
+                let err = plan_workflow(verb, &resolved(&[]), &strings(&[option]), None, None, &[])
+                    .expect_err("download override must fail");
                 assert_eq!(
                     err,
                     ForwardError::ConflictingOption {
@@ -804,7 +753,6 @@ mod tests {
                 WorkflowVerb::Run,
                 &resolved(&[]),
                 &strings(&[option]),
-                None,
                 None,
                 Some(Profile::Dev),
                 &[],
@@ -845,16 +793,8 @@ mod tests {
                     crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
                 ),
             ] {
-                let plan = plan_workflow(
-                    verb,
-                    &resolved(&[]),
-                    &strings(&options),
-                    None,
-                    None,
-                    None,
-                    &[],
-                )
-                .expect("plan");
+                let plan = plan_workflow(verb, &resolved(&[]), &strings(&options), None, None, &[])
+                    .expect("plan");
                 assert_eq!(
                     last_download(&plan.argv).as_deref(),
                     Some(expected),
@@ -863,8 +803,7 @@ mod tests {
             }
         }
         for verb in [WorkflowVerb::Build, WorkflowVerb::Run] {
-            let plan =
-                plan_workflow(verb, &resolved(&[]), &[], None, None, None, &[]).expect("plan");
+            let plan = plan_workflow(verb, &resolved(&[]), &[], None, None, &[]).expect("plan");
             assert!(
                 !plan
                     .argv
@@ -887,7 +826,6 @@ mod tests {
                 &resolved(&[]),
                 &[],
                 None,
-                None,
                 Some(profile),
                 &[],
             )
@@ -908,16 +846,8 @@ mod tests {
                 "{profile:?}: {plan:?}"
             );
         }
-        let plan = plan_workflow(
-            WorkflowVerb::Coverage,
-            &resolved(&[]),
-            &[],
-            None,
-            None,
-            None,
-            &[],
-        )
-        .expect("plan");
+        let plan = plan_workflow(WorkflowVerb::Coverage, &resolved(&[]), &[], None, None, &[])
+            .expect("plan");
         assert!(
             !plan.argv.iter().any(|arg| arg.starts_with("--config=")),
             "coverage argv is unchanged: {plan:?}"
@@ -926,7 +856,6 @@ mod tests {
             WorkflowVerb::Build,
             &resolved(&[]),
             &strings(&["--config=dx_build_dev"]),
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -937,7 +866,6 @@ mod tests {
             WorkflowVerb::Build,
             &resolved(&[]),
             &strings(&["--config=dx_build_release"]),
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -950,54 +878,12 @@ mod tests {
     }
 
     #[test]
-    fn explain_adds_the_compact_log_and_refuses_other_logs() {
-        let plan = plan_workflow(
-            WorkflowVerb::Build,
-            &resolved(&["//a:x"]),
-            &[],
-            None,
-            Some("/ws/.dx/local/explain/3.binpb.zst"),
-            Some(Profile::Dev),
-            &[],
-        )
-        .expect("plan");
-        assert!(
-            plan.argv
-                .iter()
-                .any(|arg| arg == "--execution_log_compact_file=/ws/.dx/local/explain/3.binpb.zst"),
-            "{plan:?}"
-        );
-        for conflicting in [
-            "--execution_log_compact_file=/tmp/x",
-            "--experimental_execution_log_compact_file=/tmp/x",
-            "--execution_log_binary_file=/tmp/x",
-            "--execution_log_json_file=/tmp/x",
-        ] {
-            let err = plan_workflow(
-                WorkflowVerb::Test,
-                &resolved(&[]),
-                &strings(&[conflicting]),
-                None,
-                Some("/ws/.dx/local/explain/3.binpb.zst"),
-                Some(Profile::Dev),
-                &[],
-            )
-            .expect_err("a second execution log must fail");
-            assert!(
-                matches!(err, ForwardError::ConflictingOption { .. }),
-                "{conflicting} produced {err:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn user_execution_logs_pass_through_without_explain() {
+    fn user_execution_logs_pass_through() {
         let own = "--execution_log_json_file=/tmp/x.json";
         let plan = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
             &strings(&[own]),
-            None,
             None,
             Some(Profile::Dev),
             &[],
@@ -1020,7 +906,6 @@ mod tests {
             &resolved(&["//app:b"]),
             &[],
             None,
-            None,
             Some(Profile::Dev),
             &[],
         )
@@ -1038,7 +923,6 @@ mod tests {
                 WorkflowVerb::Bench,
                 &resolved(&["//app:b"]),
                 &strings(&[flag]),
-                None,
                 None,
                 Some(Profile::Dev),
                 &[],

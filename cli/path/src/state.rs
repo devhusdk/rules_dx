@@ -20,7 +20,6 @@ pub const LEASES: &str = "leases";
 pub const COMMIT_LOCK: &str = ".commit.lock";
 pub const COMMIT_LOCK_HOLDER: &str = ".commit.lock.holder";
 pub const RESULTS: &str = "results.json";
-pub const EXPLAIN: &str = "explain";
 pub const DOCS: &str = "docs";
 pub const TIMINGS: &str = "timings";
 pub const FUZZ: &str = "fuzz";

@@ -24,7 +24,6 @@ tools/dx lint //... -- --jobs=4
 - [`dx license`](audit-update.md): run the license audit.
 - [`dx update`](audit-update.md): update dependencies.
 - [`dx docs`](docs.md): build and serve the docs site.
-- [`dx explain`](explain.md): explain cache misses.
 - [`dx fuzz`](fuzz.md): run fuzz targets for a time budget.
 - [`dx release`](release.md): derive the next version from commits.
 - [`dx init`](init.md): set up a workspace.

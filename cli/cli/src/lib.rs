@@ -13,7 +13,6 @@
 pub mod adopt;
 pub mod bazel_restart;
 pub mod exec;
-pub mod execlog;
 pub mod multicall;
 pub mod startup;
 #[cfg(test)]

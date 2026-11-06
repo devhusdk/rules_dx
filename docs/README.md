@@ -36,7 +36,6 @@ Find your task.
 - [Sync](cli/commands/sync.md)
 - [Audit and update](cli/commands/audit-update.md)
 - [Config reference](cli/commands/config.md)
-- [Explain](cli/commands/explain.md)
 - [Fuzz](cli/commands/fuzz.md)
 - [Release](cli/commands/release.md)
 - [Init](cli/commands/init.md)

@@ -401,7 +401,6 @@ fn run_quality_request(
             installed_modules: installed.as_deref(),
             unsafe_fixes: request.unsafe_fixes,
         },
-        request.exec_log.as_deref(),
     )
     .map_err(|error| format!("{error}"))
     {
@@ -453,7 +452,6 @@ fn run_quality_request(
                     installed_modules: installed.as_deref(),
                     unsafe_fixes: request.unsafe_fixes,
                 },
-                request.exec_log.as_deref(),
             ) {
                 build = narrowed;
             }

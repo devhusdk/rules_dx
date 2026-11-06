@@ -7,9 +7,6 @@
       "$ref": "#/$defs/build_failure"
     },
     {
-      "$ref": "#/$defs/cache_miss"
-    },
-    {
       "$ref": "#/$defs/capability"
     },
     {
@@ -253,81 +250,6 @@
         "action",
         "tool",
         "diagnostics"
-      ],
-      "additionalProperties": false
-    },
-    "cache_miss": {
-      "type": "object",
-      "properties": {
-        "schema": {
-          "$ref": "#/$defs/schema"
-        },
-        "event": {
-          "const": "cache_miss"
-        },
-        "correlation": {
-          "type": "string"
-        },
-        "mnemonic": {
-          "type": "string"
-        },
-        "target": {
-          "type": "string"
-        },
-        "primary_output": {
-          "type": "string"
-        },
-        "changes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "enum": [
-                  "input",
-                  "env",
-                  "arg",
-                  "platform",
-                  "not_in_old_log",
-                  "not_cacheable"
-                ]
-              },
-              "change": {
-                "enum": [
-                  "modified",
-                  "added",
-                  "removed",
-                  "order_changed"
-                ]
-              },
-              "path": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "changes_omitted": {
-          "type": "integer",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "schema",
-        "event",
-        "mnemonic",
-        "target",
-        "primary_output",
-        "changes"
       ],
       "additionalProperties": false
     },

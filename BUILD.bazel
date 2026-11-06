@@ -53,7 +53,6 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:resolve rust marker_proto //env:marker_proto_rs
 # gazelle:resolve rust proto //quality:result_proto_rs
 # gazelle:resolve rust result_proto //quality:result_proto_rs
-# gazelle:resolve rust spawn_proto //cli/cli:spawn_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde

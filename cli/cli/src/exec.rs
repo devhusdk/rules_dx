@@ -16,8 +16,6 @@ mod dep_edit;
 mod deploy;
 mod docs;
 mod docs_index;
-mod explain;
-mod explain_store;
 mod failure;
 mod failure_reports;
 pub mod first_run;
@@ -98,10 +96,7 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
 }
 
 fn slot_exempt(command: Command) -> bool {
-    matches!(
-        command,
-        Command::Worktree | Command::Completion | Command::Explain
-    )
+    matches!(command, Command::Worktree | Command::Completion)
 }
 
 /// Holds the busy lock of the slot `workspace` is in while a slot command runs.
@@ -289,7 +284,6 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
             quality::execute_quality(invocation, env)
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
-        Command::Explain => explain::execute_explain(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),
         Command::Release => release::execute_release(invocation, env),
     }
@@ -355,7 +349,7 @@ mod tests {
         (Command::Check, &["check"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 10] = [
+    const NO_BAZEL_BUILD: [Command; 9] = [
         Command::Init,
         Command::Security,
         Command::License,
@@ -365,7 +359,6 @@ mod tests {
         Command::Status,
         Command::Watch,
         Command::Worktree,
-        Command::Explain,
     ];
 
     fn bazel_build_argvs(words: &[&str], agent: bool, output: &str) -> Vec<Vec<String>> {
@@ -695,7 +688,7 @@ mod tests {
         drop(held);
         drop(nested);
         dx_atomic_fs::lease::acquire_exclusive_at(&busy, Duration::from_secs(10)).expect("free");
-        for command in [Command::Worktree, Command::Completion, Command::Explain] {
+        for command in [Command::Worktree, Command::Completion] {
             assert!(hold_slot(command, &slot, Duration::ZERO).is_none());
         }
         assert!(hold_slot(Command::Test, scratch.path(), Duration::ZERO).is_none());
@@ -723,7 +716,7 @@ mod tests {
         let scratch = leased_slot(Some("s1"), true);
         let slot = scratch.path().join("pool").join("1");
         assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s1"))).is_none());
-        for command in [Command::Worktree, Command::Completion, Command::Explain] {
+        for command in [Command::Worktree, Command::Completion] {
             assert!(lease_refusal_for(command, &slot, &who(Some("s2"))).is_none());
         }
         assert!(lease_refusal_for(Command::Build, scratch.path(), &who(Some("s2"))).is_none());

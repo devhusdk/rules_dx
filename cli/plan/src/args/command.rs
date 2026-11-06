@@ -23,7 +23,6 @@ pub enum Command {
     Completion,
     Docs,
     Worktree,
-    Explain,
     Fuzz,
     Release,
 }
@@ -96,7 +95,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 26] = [
+pub static COMMANDS: [CommandMeta; 25] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -186,7 +185,7 @@ pub static COMMANDS: [CommandMeta; 26] = [
         name: "build",
         scope_policy: "default-//...",
         describe: "run Bazel build over resolved targets",
-        usage: "Usage: dx build [--here] [--affected] [--debug|--release] [--explain] [--timings] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx build [--here] [--affected] [--debug|--release] [--timings] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -200,7 +199,7 @@ pub static COMMANDS: [CommandMeta; 26] = [
         name: "test",
         scope_policy: "default-//...",
         describe: "run Bazel test over resolved targets",
-        usage: "Usage: dx test [--here] [--affected] [--debug|--release] [--explain] [--timings] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx test [--here] [--affected] [--debug|--release] [--timings] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -214,7 +213,7 @@ pub static COMMANDS: [CommandMeta; 26] = [
         name: "coverage",
         scope_policy: "default-//...",
         describe: "collect LCOV coverage with optional threshold",
-        usage: "Usage: dx coverage [--here] [--affected] [--explain] [--timings] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx coverage [--here] [--affected] [--timings] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -412,20 +411,6 @@ pub static COMMANDS: [CommandMeta; 26] = [
         describe: "lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)",
         usage: "Usage: dx worktree add <branch> [--create=<ref>] [--force] | release [<path>] [--force] | list [--disk] | path <branch> | prune [--apply] [--bases] | hook create|remove|stop|guard",
         scopes: "Scopes: none (worktree takes a subcommand and its arguments, not scopes).",
-        is_managed: false,
-        is_adoption: false,
-        default_release: false,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
-    },
-    CommandMeta {
-        command: Command::Explain,
-        name: "explain",
-        scope_policy: "reject",
-        describe: "explain why actions missed the cache by diffing two execution logs from build/test --explain (non-mutating)",
-        usage: "Usage: dx explain [--old=<log>] [--new=<log>]",
-        scopes: "Scopes: none (explain compares saved execution logs, not scopes).",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -733,7 +718,6 @@ mod tests {
             Command::Completion,
             Command::Docs,
             Command::Worktree,
-            Command::Explain,
             Command::Fuzz,
             Command::Release,
         ];
@@ -824,7 +808,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|release",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|release",
             "pipe_list order must match declaration order"
         );
     }

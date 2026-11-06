@@ -1,5 +1,4 @@
 use super::common::*;
-use super::explain_store;
 use dx_clean::{
     GenerationView, PRUNE_UNOBSERVED_FLAG, PruneBytes, UnobservedPolicy, apply_plan,
     collect_inventory_with_scan_from, measure_preserved_bytes, measure_prune_bytes,
@@ -70,40 +69,6 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if let Err(exit) = report_applied(out, &plan, &outcome, &bytes, &preserved, json, verbose) {
         return exit;
-    }
-    match explain_store::clear(workspace) {
-        Ok(0) => {}
-        Ok(removed) => {
-            if json {
-                let notice = NoticeEvent {
-                    related_command: Some("clean".to_owned()),
-                    path: Some(".dx/local/explain".to_owned()),
-                    ..NoticeEvent::info(
-                        CODE_CLEAN_PRUNED,
-                        format!("pruned {removed} execution logs .dx/local/explain"),
-                    )
-                };
-                if let Err(exit) = emit_built(out, notice_event(&notice)) {
-                    return exit;
-                }
-            } else if verbose
-                && let Err(exit) = check_stdout_write(writeln!(
-                    out,
-                    "dx clean: pruned {removed} execution logs from .dx/local/explain"
-                ))
-            {
-                return exit;
-            }
-        }
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_CLEAN_FAILED,
-                &format!("could not prune .dx/local/explain: {error}"),
-            );
-        }
     }
     if json && let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
         return exit;

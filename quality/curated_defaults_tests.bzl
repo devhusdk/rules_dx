@@ -58,6 +58,17 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
+                "julia curated defaults lint with julialint and typos; JET and JuliaFormatter stay opt-in",
+                CURATED_DEFAULTS["julia"],
+                {
+                    "audit": [],
+                    "format": [],
+                    "lint": ["julialint", "typos"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
                 "graphql curated defaults stay Prettier format only",
                 CURATED_DEFAULTS["graphql"],
                 {

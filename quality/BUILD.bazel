@@ -234,11 +234,14 @@ consumer_policy_tests(
         },
         {
             "case": "default_swift",
-            "expected_dx_results": [
-                "greet-real-format-swift.pb",
-                "greet-real-lint-swift.pb",
-                "greet-real-lint-text.pb",
-            ],
+            "expected_dx_results": select({
+                "@platforms//os:linux": [
+                    "greet-real-format-swift.pb",
+                    "greet-real-lint-swift.pb",
+                    "greet-real-lint-text.pb",
+                ],
+                "//conditions:default": ["greet-real-lint-text.pb"],
+            }),
             "policy": "//quality:default_workspace_policy",
             "subject": "//swift/tests/fixtures/hello:greet",
         },

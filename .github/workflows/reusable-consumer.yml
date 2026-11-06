@@ -100,7 +100,6 @@ jobs:
     permissions:
       contents: read
     outputs:
-      cache_saver: ${{ steps.validate.outputs.cache_saver }}
       check_lines: ${{ steps.validate.outputs.check_lines }}
       checks_timeout: ${{ steps.validate.outputs.checks_timeout }}
       disabled: ${{ steps.validate.outputs.disabled }}
@@ -118,8 +117,6 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -132,23 +129,6 @@ jobs:
           else
             bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
           fi
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Validate workflow inputs
         id: validate
         env:
@@ -209,8 +189,7 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
+          cache-save: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
           disk-cache: ${{ inputs.remote_cache == '' && secrets.BUILDBUDDY_API_KEY == '' && format('checks-{0}', matrix.platform) || 'false' }}
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
@@ -224,23 +203,6 @@ jobs:
           else
             bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
           fi
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Run the checks
         env:
           DX_CHECK_LINES: ${{ needs.validate.outputs.check_lines }}
@@ -482,34 +444,6 @@ jobs:
         run: |
           line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
-      - name: Prune the Bazel repository cache to this run's downloads
-        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        env:
-          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
-        run: |
-          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
-          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
-          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
-            exit 0
-          fi
-          pruned=0
-          for entry in "$DX_REPO_CACHE"/*/*/; do
-            entry="${entry%/}"
-            [ -d "$entry" ] || continue
-            if [ ! "$entry/file" -nt "$stamp" ]; then
-              rm -rf "$entry"
-              pruned=$((pruned + 1))
-            fi
-          done
-          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
-          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   advisory-snapshots:
     name: advisory snapshots (one run, every platform)
     needs: [validate]
@@ -530,8 +464,6 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -544,23 +476,6 @@ jobs:
           else
             bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
           fi
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Prepare one advisory snapshot set
         id: prepare
         run: |
@@ -616,8 +531,6 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -630,23 +543,6 @@ jobs:
           else
             bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
           fi
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Resolve hermetic Gitleaks
         run: |
           # shellcheck disable=SC2086
@@ -687,8 +583,6 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: false
       - name: Restore the fuzz corpus
         id: corpus
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -733,8 +627,6 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: false
       - name: Run the benchmarks
         env:
           GH_TOKEN: ${{ github.token }}

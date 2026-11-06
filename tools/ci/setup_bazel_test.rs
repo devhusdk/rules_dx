@@ -85,12 +85,59 @@ fn only_the_reusable_and_cache_free_workflows_call_upstream_setup_bazel_directly
 }
 
 /// Workflows that call upstream setup-bazel without a repository cache:
-/// dx-update is a `dx init` template, reusable-release publishes from a tag and upgrade-e2e runs nested Bazel itself.
+/// the reusable workflows and dx-update run in consumer repositories, and upgrade-e2e runs nested Bazel itself.
 const CACHE_FREE: &[&str] = &[
     ".github/workflows/dx-update.yml",
+    ".github/workflows/reusable-consumer.yml",
+    ".github/workflows/reusable-docs.yml",
     ".github/workflows/reusable-release.yml",
     ".github/workflows/upgrade-e2e.yml",
 ];
+
+#[test]
+fn consumer_workflows_cache_only_the_checks_disk_cache_from_the_default_branch() {
+    let main_only = "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}";
+    for (name, document) in setup_bazel_documents() {
+        if !CACHE_FREE.contains(&name.as_str()) || name.ends_with("upgrade-e2e.yml") {
+            continue;
+        }
+        let jobs = document["jobs"].as_object().expect("jobs");
+        for (job, body) in jobs {
+            let steps = body["steps"].as_array().cloned().unwrap_or_default();
+            for step in &steps {
+                assert!(
+                    !step["run"]
+                        .as_str()
+                        .is_some_and(|run| run.contains("bazel info repository_cache")),
+                    "{name} job {job} caches the Bazel repository cache"
+                );
+                if !step["uses"].as_str().is_some_and(is_setup_bazel) {
+                    continue;
+                }
+                let with = &step["with"];
+                for input in ["bazelisk-cache", "repository-cache", "external-cache"] {
+                    assert!(
+                        with.get(input).is_none(),
+                        "{name} job {job} sets setup-bazel {input}"
+                    );
+                }
+                if with.get("disk-cache").is_some() {
+                    assert_eq!(job, "checks", "{name} job {job} sets setup-bazel disk-cache");
+                    assert_eq!(
+                        with["cache-save"].as_str(),
+                        Some(main_only),
+                        "{name} job {job} saves the disk cache off the default branch"
+                    );
+                } else {
+                    assert!(
+                        with.get("cache-save").is_none(),
+                        "{name} job {job} sets cache-save with nothing to save"
+                    );
+                }
+            }
+        }
+    }
+}
 
 fn repo_cache_key(prefix: &str) -> String {
     format!("{prefix}${{{{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}}}")
@@ -120,11 +167,6 @@ fn setup_bazel_documents() -> Vec<(String, serde_json::Value)> {
 /// The one job per platform that saves the shared repository cache, keyed on
 /// workflow file and job, with the guard that picks it.
 const SAVERS: &[(&str, &str, &str)] = &[
-    (
-        ".github/workflows/reusable-consumer.yml",
-        "checks",
-        "needs.validate.outputs.cache_saver == github.job",
-    ),
     (".github/workflows/ci.yml", "preflight", ""),
 ];
 /// Runner labels whose `runner.os` and `runner.arch` we can resolve statically.

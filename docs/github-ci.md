@@ -128,7 +128,17 @@ Common failures:
 
    Without a remote cache, no config is passed.
 
-The repository cache is keyed on `MODULE.bazel` and `MODULE.bazel.lock`. Without a remote cache, each `checks` cell keeps a disk cache keyed on the check and platform. The default branch saves both. Pull requests only restore them.
+A remote cache is recommended: it is the only cache that keeps build and test results across runs, branches and pull requests.
+
+The workflow keeps these GitHub Actions caches:
+
+| Cache | When |
+|---|---|
+| Disk cache per `checks` cell, keyed on the check and platform | Only without a remote cache. Saved on the default branch; other runs restore it. |
+| Advisory snapshots under `.dx/local/advisory` | When `.dx/pins` pins them. |
+| Fuzz corpus under `.dx/local/fuzz` | When `fuzz` is `true`. |
+
+Bazel downloads and Bazelisk are fetched fresh in each job.
 
 ## Inputs
 

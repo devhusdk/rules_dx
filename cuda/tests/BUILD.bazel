@@ -6,6 +6,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load(":cell_tests.bzl", "cuda_cell_tests")
 load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "hermetic_toolchain_test", "with_clang_compiler")
 
 package(default_visibility = ["//visibility:private"])
@@ -311,11 +312,30 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "cell_tests.bzl",
         "defs.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
 )
+
+platform(
+    name = "windows_x86_64_platform",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+platform(
+    name = "linux_x86_64_platform",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+cuda_cell_tests(name = "cell_tests")
 
 exports_files(
     ["BUILD.bazel"],

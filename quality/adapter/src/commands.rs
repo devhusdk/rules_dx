@@ -131,8 +131,6 @@ const PHPSTAN_ARGS: &[&str] = &[
     "--no-interaction",
     "--error-format=json",
 ];
-const KTLINT_CHECK_ARGS: &[&str] = &["--relative", "--log-level=none", "--reporter=sarif"];
-const KTLINT_FIX_ARGS: &[&str] = &["--relative", "--format"];
 const BUF_LINT_ARGS: &[&str] = &["lint", "--error-format=json"];
 const BUF_BREAKING_ARGS: &[&str] = &["breaking", "--error-format=json"];
 const BUF_AGAINST_FLAG: &str = "--against";
@@ -281,8 +279,6 @@ const YAMLFMT_CHECK_ARGS: &[&str] = &["-lint", "-q"];
 const YAMLFMT_FIX_ARGS: &[&str] = &[];
 const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
 const SHFMT_FIX_ARGS: &[&str] = &["-w"];
-const STANDARDRB_CHECK_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
-const STANDARDRB_FIX_ARGS: &[&str] = &["--fix", "--cache", "false"];
 const DJLINT_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const DJLINT_FORMAT_FIX_ARGS: &[&str] = &["--reformat", "--quiet"];
 const DJLINT_CHECK_PREFIX: &[&str] = &[
@@ -296,6 +292,15 @@ const DJLINT_PREFER_CONFIG: &[&str] = &["--prefer-configuration"];
 const GPLINT_PREFIX: &[&str] = &["-f", "json", "-i", "dx-gplint-no-ignore"];
 const STYLELINT_PREFIX: &[&str] = &["--formatter", "json"];
 const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
+const RUBOCOP_FORMAT_CHECK_ARGS: &[&str] = &[
+    "--format",
+    "json",
+    "--cache",
+    "false",
+    "--fix-layout",
+    "--display-only-correctable",
+];
+const RUBOCOP_FORMAT_FIX_ARGS: &[&str] = &["--fix-layout", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
@@ -1314,30 +1319,6 @@ pub fn detekt_check(binary: &Path, files: &[&Path], config: &Path, report: &Path
     }
 }
 
-pub fn ktlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        KTLINT_CHECK_ARGS,
-        "--editorconfig",
-        config,
-        &[],
-        files,
-        "",
-    )
-}
-
-pub fn ktlint_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        KTLINT_FIX_ARGS,
-        "--editorconfig",
-        config,
-        &[],
-        files,
-        "",
-    )
-}
-
 fn buf(
     binary: &Path,
     args: &[&str],
@@ -2164,30 +2145,6 @@ pub fn shfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, SHFMT_FIX_ARGS, files, "")
 }
 
-pub fn standardrb_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        STANDARDRB_CHECK_ARGS,
-        "--config",
-        config,
-        SCALAFMT_EMPTY,
-        files,
-        "",
-    )
-}
-
-pub fn standardrb_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        STANDARDRB_FIX_ARGS,
-        "--config",
-        config,
-        SCALAFMT_EMPTY,
-        files,
-        "",
-    )
-}
-
 pub fn djlint_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     djlint(binary, DJLINT_FORMAT_CHECK_ARGS, files, config)
 }
@@ -2271,6 +2228,30 @@ pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> I
     optional_flag(
         binary,
         RUBOCOP_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+pub fn rubocop_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        RUBOCOP_FORMAT_CHECK_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+pub fn rubocop_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        RUBOCOP_FORMAT_FIX_ARGS,
         "--config",
         config,
         SCALAFMT_EMPTY,

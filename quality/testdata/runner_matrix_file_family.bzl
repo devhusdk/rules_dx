@@ -1725,12 +1725,12 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_ruby_format_pass",
         "generated": {
-            "matrix/standardrb_clean.rb": "puts \"hello\"\n",
+            "matrix/rubocop_clean.rb": "puts \"hello\"\n",
         },
         "capability": "format",
-        "stages": ["standardrb;ruby;matrix/standardrb_clean.rb"],
-        "tool_names": ["standardrb"],
-        "tool_binaries": ["//quality/testdata:fake_standardrb"],
+        "stages": ["rubocop;ruby;matrix/rubocop_clean.rb"],
+        "tool_names": ["rubocop"],
+        "tool_binaries": ["//quality/testdata:fake_rubocop"],
         "expected_file": ":matrix/matrix_ruby_format_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
@@ -1738,12 +1738,12 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_ruby_format_fail",
         "generated": {
-            "matrix/standardrb_dirty.rb": "puts BADFMT\n",
+            "matrix/rubocop_dirty.rb": "puts BADFMT\n",
         },
         "capability": "format",
-        "stages": ["standardrb;ruby;matrix/standardrb_dirty.rb"],
-        "tool_names": ["standardrb"],
-        "tool_binaries": ["//quality/testdata:fake_standardrb"],
+        "stages": ["rubocop;ruby;matrix/rubocop_dirty.rb"],
+        "tool_names": ["rubocop"],
+        "tool_binaries": ["//quality/testdata:fake_rubocop"],
         "expected_file": ":matrix/matrix_ruby_format_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,

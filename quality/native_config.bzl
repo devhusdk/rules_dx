@@ -340,7 +340,6 @@ swift_format_config = _make_native_config_rule("swift_format")
 swift_lint_config = _make_native_config_rule("swift_lint")
 credo_config = _make_native_config_rule("credo")
 detekt_config = _make_native_config_rule("detekt")
-ktlint_config = _make_native_config_rule("ktlint")
 
 elvis_config = _make_native_config_rule("elvis")
 
@@ -354,5 +353,4 @@ phpstan_config = _make_native_config_rule("phpstan")
 
 rubocop_config = _make_native_config_rule("rubocop")
 
-standardrb_config = _make_native_config_rule("standardrb")
 

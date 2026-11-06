@@ -14,16 +14,6 @@ pub use tools_gen::REAL_TOOLS;
 
 const RUSTFMT_DEFAULTS_REL: &str = "dx-rustfmt-default.toml";
 
-const KTLINT_DEFAULTS_REL: &str = "dx-ktlint-default/.editorconfig";
-const KTLINT_DEFAULTS_BYTES: &[u8] = b"root = true
-
-[*.{kt,kts}]
-ktlint_code_style = intellij_idea
-ij_kotlin_imports_layout = *
-ktlint_standard_function-signature = disabled
-ktlint_standard_trailing-comma-on-call-site = disabled
-ktlint_standard_trailing-comma-on-declaration-site = disabled
-";
 const DETEKT_DEFAULTS_REL: &str = "dx-detekt-default/detekt.yml";
 /// Only the unused and unreachable rules, reported as info.
 const DETEKT_DEFAULTS_BYTES: &[u8] = b"style:

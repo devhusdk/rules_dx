@@ -1588,23 +1588,6 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "ktlint",
-        adapters = {"lint": ["kotlin"]},
-        config = config(suffixes = [".editorconfig"]),
-        support = [
-            row(
-                capability = "lint",
-                classes = ["kotlin"],
-                context = "owned",
-                family = "kotlin",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "batched",
-            ),
-        ],
-    ),
-    tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
         config = config(suffixes = [".kubeconform.json"], files = ["kubernetes.kubeconform.json"], tier_active = True, stage_native = True),
@@ -2281,10 +2264,24 @@ TOOLS = [
     ),
     tool(
         id = "rubocop",
-        adapters = {"lint": ["ruby"]},
+        adapters = {"format": ["ruby"], "lint": ["ruby"]},
         config = config(suffixes = [".yml", ".yaml"], tier_active = True),
         severity = severity(default = "warning", categories = {"Security/": "error"}),
         support = [
+            row(
+                capability = "format",
+                classes = ["ruby"],
+                context = "owned",
+                family = "ruby",
+                fix = "supported",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                state = "supported",
+                transport = "batched",
+                unsupported = {
+                    "windows_arm64": "Ruby portable builds ship no Windows interpreter",
+                    "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
+                },
+            ),
             row(
                 capability = "lint",
                 classes = ["ruby"],
@@ -2601,27 +2598,6 @@ TOOLS = [
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
                 state = "supported",
                 transport = "batched",
-            ),
-        ],
-    ),
-    tool(
-        id = "standardrb",
-        adapters = {"format": ["ruby"]},
-        config = config(suffixes = [".yml", ".yaml"]),
-        support = [
-            row(
-                capability = "format",
-                classes = ["ruby"],
-                context = "owned",
-                family = "ruby",
-                fix = "supported",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                state = "supported",
-                transport = "batched",
-                unsupported = {
-                    "windows_arm64": "Ruby portable builds ship no Windows interpreter",
-                    "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
-                },
             ),
         ],
     ),

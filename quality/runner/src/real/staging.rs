@@ -143,12 +143,6 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(BIOME_DEFAULTS_BYTES.to_vec()),
             });
         }
-        if tool_id == "ktlint" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(KTLINT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(KTLINT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
         if tool_id == "detekt" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(DETEKT_DEFAULTS_REL),
@@ -345,13 +339,6 @@ impl RealBackend {
     ) -> Result<Option<PathBuf>, RunnerError> {
         if tool_id == "rustfmt" {
             let rel = tool.config_rel.as_deref().unwrap_or(RUSTFMT_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "ktlint" {
-            let rel = tool.config_rel.as_deref().unwrap_or(KTLINT_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

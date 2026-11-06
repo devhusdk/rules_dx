@@ -136,12 +136,6 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
-        tool: "ktlint",
-        config: FixConfig::Optional,
-        keep_exit_one: true,
-        crash_stderr: None,
-    },
-    FixSpec {
         tool: "buf",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -292,7 +286,7 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
-        tool: "standardrb",
+        tool: "rubocop",
         config: FixConfig::Optional,
         keep_exit_one: true,
         crash_stderr: Some(quality_adapter::parsers::rubocop_crash),
@@ -384,14 +378,14 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "clippy" | "roslyn" | "csc"
         | "fsc" | "fsharplint" | "checkstyle" | "fortitude" | "pkl_lsp" | "perlcritic"
         | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck"
-        | "staticcheck" | "govet" | "gplint" | "errcheck" | "stylelint" | "rubocop"
-        | "yamllint" | "shellcheck" | "hadolint" | "hlint" | "redocly" | "kubeconform" | "helm"
-        | "capnp" | "checkmake" | "flatc" | "tflint" | "cfn_lint" | "chktex" | "cmakelint"
-        | "credo" | "dialyzer" | "elvis" | "gotype" | "jet" | "julialint" | "luals" | "phpcs"
-        | "phpstan" | "regal" | "sorbet" | "tsc" | "javac" | "kotlinc" | "scalac" | "flang"
-        | "ghc" | "ldc" | "ocaml" | "zig" | "zig_ast_check" | "swift_lint" | "xmllint"
-        | "selene" | "zanuda" | "thrift" | "avro_tools" | "tinymist" | "detekt" | "lychee"
-        | "actionlint" | "zizmor" | "trivy_config" | "weeder" => Ok(Route::Keep),
+        | "staticcheck" | "govet" | "gplint" | "errcheck" | "stylelint" | "yamllint"
+        | "shellcheck" | "hadolint" | "hlint" | "redocly" | "kubeconform" | "helm" | "capnp"
+        | "checkmake" | "flatc" | "tflint" | "cfn_lint" | "chktex" | "cmakelint" | "credo"
+        | "dialyzer" | "elvis" | "gotype" | "jet" | "julialint" | "luals" | "phpcs" | "phpstan"
+        | "regal" | "sorbet" | "tsc" | "javac" | "kotlinc" | "scalac" | "flang" | "ghc" | "ldc"
+        | "ocaml" | "zig" | "zig_ast_check" | "swift_lint" | "xmllint" | "selene" | "zanuda"
+        | "thrift" | "avro_tools" | "tinymist" | "detekt" | "lychee" | "actionlint" | "zizmor"
+        | "trivy_config" | "weeder" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(
@@ -399,8 +393,8 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
                 "graphql_eslint requires a config".to_owned(),
             )),
         },
-        "bicep" | "buf" | "djlint" | "psscriptanalyzer" | "biome" | "prettier" | "remark"
-        | "opa" => {
+        "bicep" | "buf" | "djlint" | "rubocop" | "psscriptanalyzer" | "biome" | "prettier"
+        | "remark" | "opa" => {
             if capability == "format" {
                 spec(true)
             } else {
@@ -1080,7 +1074,7 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
-                    "standardrb" => Ok(commands::standardrb_fix(
+                    "rubocop" => Ok(commands::rubocop_format_fix(
                         &tool.binary,
                         refs,
                         config.as_deref(),
@@ -1110,7 +1104,6 @@ impl super::RealBackend {
                         Ok(commands::remark_fix(&launch, refs, config.as_deref())
                             .map_err(|err| execution(tool_id, err.to_string()))?)
                     }
-                    "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs, config.as_deref())),
                     "clang_format" => Ok(commands::clang_format_fix(
                         &tool.binary,
                         refs,

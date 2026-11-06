@@ -230,7 +230,6 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `pmd`, `spotbugs` | Lint Java | |
 | `javac` | Typecheck Java | |
 | `ktfmt` | Format Kotlin | |
-| `ktlint` | Lint Kotlin | |
 | `kotlinc` | Typecheck Kotlin | |
 | `scalafmt` | Format Scala | |
 | `scalafix` | Lint Scala | |
@@ -249,8 +248,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `ruff` | Format and lint Python and Jupyter; audit | |
 | `pydoclint` | Lint Python | |
 | `ty` | Typecheck Python and Jupyter | |
-| `rubocop` | Lint Ruby | `windows_x86_64`, `windows_arm64` |
-| `standardrb` | Format Ruby | `windows_x86_64`, `windows_arm64` |
+| `rubocop` | Format and lint Ruby | `windows_x86_64`, `windows_arm64` |
 | `sorbet` | Typecheck Ruby | `windows_x86_64`, `windows_arm64` |
 | `phpcs` | Lint PHP | `windows_arm64` |
 | `phpstan` | Typecheck PHP | `windows_arm64` |
@@ -413,72 +411,77 @@ Edit the tool's own root file. Where the Base column says `extends`, the file ex
 | `ansible_lint` | catalog | `*.ansible-lint`, `*.yml`, `*.yaml` | none | ansible-lint moderate and production profiles |  |
 | `bicep` | curated | `bicepconfig.json` | none | dx |  |
 | `biome` | curated | `*.json` | none | dx |  |
-| `buf` | catalog | `*.yaml` | none |  |  |
-| `buildifier` | curated | `*.json` | none | dx |  |
+| `buf` | catalog | `buf.yaml` | override copy | dx |  |
+| `buildifier` | curated | `.buildifier.json` | override copy | dx |  |
 | `cfn_lint` | curated | `*.cfnlintrc`, `*.yaml`, `*.yml` | none | dx |  |
-| `checkmake` | catalog | `*.ini` | none |  |  |
+| `checkmake` | catalog | `checkmake.ini` | override copy | dx |  |
 | `checkstyle` | catalog | `*.xml` | none | dx |  |
 | `clang_format` | curated | `*.clang-format` | none | dx |  |
 | `clang_tidy` | curated | `*.clang-tidy` | none | dx |  |
-| `cmakelint` | catalog | `*.cmakelintrc` | none |  |  |
+| `clippy` | curated |  | none | dx |  |
+| `cmakelint` | catalog | `.cmakelintrc` | override copy | dx |  |
 | `cppcheck` | catalog | `*.txt` | none | dx |  |
 | `credo` | catalog | `*.exs` | none | dx |  |
 | `csharpier` | catalog | `*.yaml` | none |  |  |
-| `dart` | curated | `analysis_options.yaml` | extends |  |  |
-| `detekt` | curated | `*.yml`, `*.yaml` | none |  |  |
-| `djlint` | catalog | `djlint.toml`, `*.djlintrc` | none |  |  |
+| `dart` | curated | `analysis_options.yaml` | extends | dx |  |
+| `deadnix` | curated | `*.txt` | none | dx |  |
+| `detekt` | curated | `*.yml`, `*.yaml` | none | dx |  |
+| `djlint` | catalog | `djlint.toml`, `*.djlintrc` | none | dx |  |
 | `elvis` | catalog | `elvis.config`, `*.config` | none | dx |  |
 | `errcheck` | curated | `*.txt` | none | dx |  |
 | `eslint` | catalog | `eslint.config.mjs`, `eslint.config.js`, `eslint.config.cjs`, `eslint.config.ts`, `.eslintrc*` | extends | dx |  |
-| `ffmt` | curated | `ffmt.toml` | none |  |  |
-| `fortitude` | curated | `*.toml` | none |  |  |
+| `ffmt` | curated | `ffmt.toml` | none | dx |  |
+| `fortitude` | curated | `*.toml` | none | dx |  |
 | `fsharplint` | catalog | `*.json` | none |  |  |
-| `gersemi` | catalog | `*.gersemirc`, `*.yaml`, `*.yml` | none |  |  |
+| `gersemi` | catalog | `.gersemirc` | override copy | dx |  |
 | `govet` | curated | `*.json` | none | dx |  |
 | `gplint` | catalog | `*.gplintrc`, `*.json` | none | dx |  |
 | `graphql_eslint` | catalog | `*.json` | none | dx |  |
 | `hadolint` | curated | `*.yaml`, `*.yml` | none | dx |  |
-| `hlint` | catalog | `.hlint.yaml` | override copy |  |  |
-| `ktlint` | catalog | `*.editorconfig` | none |  |  |
+| `hlint` | catalog | `.hlint.yaml` | override copy | dx |  |
+| `julialint` | curated | `*.toml` | none | dx |  |
 | `kubeconform` | curated | `kubernetes.kubeconform.json` | none | dx |  |
 | `latexindent` | catalog | `*.yaml`, `*.yml` | none | dx |  |
-| `luals` | catalog | `*.json` | none |  |  |
+| `luals` | catalog | `*.json` | none | dx |  |
 | `markdown_check` | curated | `*.txt` | none | dx |  |
-| `mbake` | catalog | `*.bake.toml`, `*.toml` | none |  |  |
+| `mbake` | catalog | `.bake.toml` | override copy | dx |  |
 | `perlcritic` | catalog | `*.perlcriticrc`, `perlcriticrc` | none | dx |  |
 | `phpcs` | catalog | `*.xml`, `*.xml.dist` | none | dx |  |
 | `phpstan` | catalog | `*.neon`, `*.neon.dist` | none | phpstan level 6 and phpstan-strict-rules |  |
-| `pmd` | curated | `*.xml` | none |  |  |
-| `prettier` | curated | `*.prettierrc`, `*.json`, `*.json5`, `*.yaml`, `*.yml`, `*.toml`, `*.mjs`, `*.cjs`, `*.js` | none |  |  |
-| `psscriptanalyzer` | catalog | `PSScriptAnalyzerSettings.psd1` | override copy |  |  |
+| `pmd` | curated | `*.xml` | none | dx |  |
+| `prettier` | curated | `*.prettierrc`, `*.json`, `*.json5`, `*.yaml`, `*.yml`, `*.toml`, `*.mjs`, `*.cjs`, `*.js` | none | dx |  |
+| `psscriptanalyzer` | catalog | `PSScriptAnalyzerSettings.psd1` | override copy | dx |  |
 | `pydoclint` | catalog | `*.toml` | override copy | dx |  |
-| `qmlformat` | catalog | `*.qmlformat.ini` | none |  |  |
-| `qmllint` | catalog | `*.qmllint.ini` | none |  |  |
+| `qmlformat` | catalog | `*.qmlformat.ini` | none | dx |  |
+| `qmllint` | catalog | `*.qmllint.ini` | none | dx |  |
 | `redocly` | catalog | `*.yaml`, `*.yml` | none | redocly spec and all rulesets |  |
 | `regal` | catalog | `.regal/config.yaml` | none | dx |  |
-| `remark` | curated | `*.json` | none |  |  |
+| `remark` | curated | `*.json` | none | dx |  |
 | `roslyn` | catalog | `*.globalconfig` | none |  |  |
 | `rubocop` | catalog | `*.yml`, `*.yaml` | none | dx |  |
 | `ruff` | curated | `ruff.toml`, `.ruff.toml` | extends | dx |  |
-| `rustfmt` | curated | `*.toml` | none |  |  |
-| `scalafix` | catalog | `*.conf` | none |  |  |
-| `scalafmt` | curated | `*.conf` | none |  |  |
-| `selene` | catalog | `*.toml` | none |  |  |
+| `rustfmt` | curated | `*.toml` | none | dx |  |
+| `scalafix` | catalog | `*.conf` | none | dx |  |
+| `scalafmt` | curated | `*.conf` | none | dx |  |
+| `selene` | catalog | `*.toml` | none | dx |  |
 | `shellcheck` | curated | `*.shellcheckrc`, `shellcheckrc` | none | dx |  |
-| `sqlfluff` | catalog | `*.sqlfluff`, `*.cfg`, `*.ini` | none | dx |  |
-| `standardrb` | catalog | `*.yml`, `*.yaml` | none |  |  |
+| `spotbugs` | curated | `*.xml` | none | dx |  |
+| `sqlfluff` | catalog | `.sqlfluff` | override copy | dx |  |
 | `staticcheck` | curated | `staticcheck.conf` | none | dx |  |
-| `stylelint` | catalog | `.stylelintrc.json`, `.stylelintrc*`, `stylelint.config.*` | extends |  |  |
-| `stylua` | catalog | `*.toml` | none |  |  |
-| `swift_format` | catalog | `*.swift-format`, `*.json` | none |  |  |
-| `taplo` | curated | `*.toml` | none |  |  |
+| `stylelint` | catalog | `.stylelintrc.json`, `.stylelintrc*`, `stylelint.config.*` | extends | dx |  |
+| `stylua` | catalog | `*.toml` | none | dx |  |
+| `swift_format` | catalog | `*.swift-format`, `*.json` | none | dx |  |
+| `swift_lint` | catalog | `*.swift-format`, `*.json` | none | dx |  |
+| `taplo` | curated | `.taplo.toml` | override copy | dx |  |
 | `tflint` | catalog | `*.hcl` | none | dx |  |
 | `trivy_config` | catalog | `*.txt` | none | dx |  |
-| `tsc` | curated | `tsconfig.json` | extends |  |  |
+| `tsc` | curated | `tsconfig.json` | extends | dx |  |
 | `ty` | curated | `*.toml` | none | dx |  |
+| `typos` | curated | `typos.toml` | override copy | dx |  |
 | `vale` | catalog | `*.ini` | none | dx |  |
-| `yamlfmt` | curated | `*.yaml`, `*.yml`, `*.yamlfmt` | none |  |  |
-| `yamllint` | curated | `*.yaml`, `*.yml`, `*.yamllint` | none |  |  |
+| `yamlfmt` | curated | `.yamlfmt` | override copy | dx |  |
+| `yamllint` | curated | `.yamllint` | override copy | dx |  |
+| `zanuda` | catalog | `*.txt` | none | dx |  |
 | `zizmor` | curated | `*.txt` | none | dx |  |
 
 <!-- tool-config-table:end -->

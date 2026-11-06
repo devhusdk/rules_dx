@@ -49,7 +49,6 @@ filegroup(
         "//quality/tiers/hadolint:files",
         "//quality/tiers/hlint:files",
         "//quality/tiers/julialint:files",
-        "//quality/tiers/ktlint:files",
         "//quality/tiers/luals:files",
         "//quality/tiers/markdown_check:files",
         "//quality/tiers/mbake:files",

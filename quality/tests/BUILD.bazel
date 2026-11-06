@@ -57,13 +57,11 @@ rust_test(
     data = [
         "//quality/tools/javascript/bin:eslint",
         "//quality/tools/jvm:checkstyle",
-        "//quality/tools/jvm:ktlint",
         "//quality/tools/jvm:pmd",
     ],
     env = {
         "DX_CHECKSTYLE": "$(rootpath //quality/tools/jvm:checkstyle)",
         "DX_ESLINT": "$(rootpath //quality/tools/javascript/bin:eslint)",
-        "DX_KTLINT": "$(rootpath //quality/tools/jvm:ktlint)",
         "DX_PMD": "$(rootpath //quality/tools/jvm:pmd)",
     },
     tags = ["block-network"],

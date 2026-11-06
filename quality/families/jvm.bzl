@@ -48,13 +48,6 @@ TOOLS = {
         "resources": "heavy",
         "shard": "jvm",
     },
-    "ktlint": {
-        "attr": attr.label(default = "//quality/tools/jvm:ktlint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "jvm",
-    },
     "pmd": {
         "attr": attr.label(default = "//quality/tools/jvm:pmd", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -100,7 +93,7 @@ SHARD_SPECS = {
     },
     "real_jvm_lint": {
         "capability": "lint",
-        "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).",
+        "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs; SpotBugs target-coupled via JavaInfo).",
         "extra_attrs": {
             "_jacoco_runtime": attr.label(
                 default = "@bazel_tools//tools/jdk:JacocoCoverage",

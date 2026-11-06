@@ -2439,7 +2439,6 @@ use_repo(
     "jvm_detekt",
     "jvm_google_java_format",
     "jvm_ktfmt",
-    "jvm_ktlint",
     "jvm_pkl_lsp",
     "jvm_pmd_dist",
     "jvm_spotbugs_dist",
@@ -2536,4 +2535,4 @@ qt_sdk.configure(modules = [
 use_repo(qt_sdk, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")
-use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")
+use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")

@@ -54,7 +54,6 @@ pub mod jvm_diagnostics;
 pub mod jvm_unused_deps;
 pub mod keep_sorted;
 pub mod ktfmt;
-pub mod ktlint;
 pub mod kubeconform;
 pub mod latexindent;
 pub mod ldc;
@@ -101,7 +100,6 @@ pub mod shfmt;
 pub mod sorbet;
 pub mod spotbugs;
 pub mod sqlfluff;
-pub mod standardrb;
 pub mod staticcheck;
 pub mod stylelint;
 pub mod stylua;
@@ -184,7 +182,6 @@ pub use julialint::parse_julialint;
 pub use jvm_diagnostics::parse_jvm_diagnostics;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
-pub use ktlint::parse_ktlint;
 pub use kubeconform::{KubeconformTarget, parse_kubeconform};
 pub use latexindent::parse_latexindent;
 pub use ldc::parse_ldc;
@@ -229,7 +226,6 @@ pub use shfmt::parse_shfmt;
 pub use sorbet::parse_sorbet;
 pub use spotbugs::parse_spotbugs;
 pub use sqlfluff::parse_sqlfluff;
-pub use standardrb::parse_standardrb;
 pub use staticcheck::parse_staticcheck;
 pub use stylelint::parse_stylelint;
 pub use stylua::parse_stylua;
@@ -666,7 +662,7 @@ impl DiffExit {
     }
 }
 
-/// Report the offenses in the RuboCop JSON grammar, which `rubocop` and `standardrb` share.
+/// Report the offenses in the RuboCop JSON grammar, used by `rubocop`.
 pub(super) fn rubocop_json(
     tool: &'static str,
     stdout: &[u8],
@@ -1259,7 +1255,6 @@ mod tests {
             super::checkstyle::parse_checkstyle(failed, Some(0), &files, 8),
             super::pmd::parse_pmd(failed, Some(0), &files),
             super::spotbugs::parse_spotbugs(failed, Some(0), &files),
-            super::ktlint::parse_ktlint(failed, Some(0), &files),
             super::roslyn::parse_roslyn(failed, Some(0), &files),
         ];
         for result in results {
@@ -2004,14 +1999,6 @@ mod tests {
         super::ktfmt::parse_ktfmt(input, code, files)
     }
 
-    fn fuzz_ktlint(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::ktlint::parse_ktlint(input, code, files)
-    }
-
     fn fuzz_lychee(
         input: &[u8],
         code: Option<i32>,
@@ -2743,14 +2730,6 @@ mod tests {
         super::sqlfluff::parse_sqlfluff(input, input, code, files)
     }
 
-    fn fuzz_standardrb(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::standardrb::parse_standardrb(input, input, code, files, Path::new(""))
-    }
-
     fn fuzz_staticcheck(
         input: &[u8],
         code: Option<i32>,
@@ -2999,7 +2978,6 @@ mod tests {
         ("latexindent", fuzz_latexindent),
         ("mbake", fuzz_mbake),
         ("ktfmt", fuzz_ktfmt),
-        ("ktlint", fuzz_ktlint),
         ("luals", fuzz_luals),
         ("lychee", fuzz_lychee),
         ("parse_markdown_findings", fuzz_markdown_findings),
@@ -3051,7 +3029,6 @@ mod tests {
         ("sorbet", fuzz_sorbet),
         ("spotbugs", fuzz_spotbugs),
         ("sqlfluff", fuzz_sqlfluff),
-        ("standardrb", fuzz_standardrb),
         ("staticcheck", fuzz_staticcheck),
         ("stylelint", fuzz_stylelint),
         ("stylua", fuzz_stylua),
@@ -3139,7 +3116,6 @@ mod tests {
         ("chktex", include_str!("chktex.rs")),
         ("latexindent", include_str!("latexindent.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
-        ("ktlint", include_str!("ktlint.rs")),
         ("luals", include_str!("luals.rs")),
         ("lychee", include_str!("lychee.rs")),
         ("markdown", include_str!("markdown.rs")),
@@ -3185,7 +3161,6 @@ mod tests {
         ("sorbet", include_str!("sorbet.rs")),
         ("spotbugs", include_str!("spotbugs.rs")),
         ("sqlfluff", include_str!("sqlfluff.rs")),
-        ("standardrb", include_str!("standardrb.rs")),
         ("staticcheck", include_str!("staticcheck.rs")),
         ("stylelint", include_str!("stylelint.rs")),
         ("stylua", include_str!("stylua.rs")),

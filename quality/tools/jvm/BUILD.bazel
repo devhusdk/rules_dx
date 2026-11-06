@@ -93,17 +93,6 @@ java_binary(
     runtime_deps = [":detekt_import"],
 )
 
-java_import(
-    name = "ktlint_import",
-    jars = ["@jvm_ktlint//file"],
-)
-
-java_binary(
-    name = "ktlint",
-    main_class = "com.pinterest.ktlint.Main",
-    runtime_deps = [":ktlint_import"],
-)
-
 pinned_java_runtime(
     name = "jdk25",
     version = "25",

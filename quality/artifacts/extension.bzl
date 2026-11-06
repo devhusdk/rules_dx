@@ -29,7 +29,6 @@ load("//quality/artifacts:jsonnetfmt.bzl", _jsonnetfmt = "ARTIFACTS")
 load("//quality/artifacts:keep_sorted.bzl", _keep_sorted = "ARTIFACTS")
 load("//quality/artifacts:ktfmt.bzl", _ktfmt = "SOURCE")
 load("//quality/artifacts:detekt.bzl", _detekt = "SOURCE")
-load("//quality/artifacts:ktlint.bzl", _ktlint = "SOURCE")
 load("//quality/artifacts:kubeconform.bzl", _kubeconform = "ARTIFACTS")
 load("//quality/artifacts:latexindent.bzl", _latexindent = "ARTIFACTS")
 load("//quality/artifacts:lychee.bzl", _lychee = "ARTIFACTS")
@@ -124,7 +123,6 @@ TOOL_SOURCES = [
     _detekt,
     _google_java_format,
     _ktfmt,
-    _ktlint,
     _pkl_lsp,
     _pmd,
     _spotbugs,

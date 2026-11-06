@@ -1,5 +1,3 @@
-@file:Suppress("ktlint:standard:filename")
-
 package hello
 
 object Hello {

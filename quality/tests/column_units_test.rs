@@ -212,25 +212,3 @@ fn pmd_sarif_columns_land_after_an_emoji() {
         &["(1)"],
     );
 }
-
-#[test]
-fn ktlint_sarif_columns_land_after_an_emoji() {
-    let dir_guard = dx_test_scratch::scratch("ktlint");
-    let dir = dir_guard.path();
-    let text = "val s = \"\u{1F600}\u{e9}\" +  \"x\"\n";
-    let file = write(dir, "S.kt", text);
-    let invocation = commands::ktlint_check(&tool("DX_KTLINT"), &[file.as_path()], None);
-    let out = run(&invocation, dir);
-    let name = file.to_str().expect("utf-8 path");
-    let findings = parsers::parse_ktlint(out.stdout.as_bytes(), out.code, &[name])
-        .unwrap_or_else(|err| panic!("ktlint output: {err}: {}", out.combined));
-    assert_sarif_lands(
-        &out,
-        "ktlint",
-        &findings,
-        ColumnEncoding::Utf16,
-        "no-multi-spaces",
-        text,
-        &[" \"x\""],
-    );
-}

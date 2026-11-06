@@ -873,33 +873,6 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "/scratch/A.kt,/scratch/B.kt"
         ]
     );
-    let kt = Path::new("/scratch/src/Hello.kt");
-    let editorconfig = Path::new("/scratch/dx-ktlint-default/.editorconfig");
-    let check = ktlint_check(Path::new(BIN), &[kt], Some(editorconfig));
-    assert_eq!(
-        argv_strings(&check),
-        vec![
-            BIN,
-            "--relative",
-            "--log-level=none",
-            "--reporter=sarif",
-            "--editorconfig",
-            "/scratch/dx-ktlint-default/.editorconfig",
-            "/scratch/src/Hello.kt"
-        ]
-    );
-    let fix = ktlint_fix(Path::new(BIN), &[kt], Some(editorconfig));
-    assert_eq!(
-        argv_strings(&fix),
-        vec![
-            BIN,
-            "--relative",
-            "--format",
-            "--editorconfig",
-            "/scratch/dx-ktlint-default/.editorconfig",
-            "/scratch/src/Hello.kt"
-        ]
-    );
 }
 
 #[test]
@@ -1212,52 +1185,44 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         vec![BIN, "-w", "/scratch/run.sh"]
     );
     let rb = Path::new("/scratch/Sample.rb");
+    let fmt_check = [
+        "--format",
+        "json",
+        "--cache",
+        "false",
+        "--fix-layout",
+        "--display-only-correctable",
+    ];
+    let mut want = vec![BIN];
+    want.extend(fmt_check);
+    want.push("/scratch/Sample.rb");
     assert_eq!(
-        argv_strings(&standardrb_check(Path::new(BIN), &[rb], None)),
+        argv_strings(&rubocop_format_check(Path::new(BIN), &[rb], None)),
+        want
+    );
+    assert_eq!(
+        argv_strings(&rubocop_format_fix(Path::new(BIN), &[rb], None)),
         vec![
             BIN,
-            "--format",
-            "json",
+            "--fix-layout",
             "--cache",
             "false",
             "/scratch/Sample.rb"
         ]
     );
     assert_eq!(
-        argv_strings(&standardrb_fix(Path::new(BIN), &[rb], None)),
-        vec![BIN, "--fix", "--cache", "false", "/scratch/Sample.rb"]
-    );
-    let standard_config = Path::new("/scratch/standard.yml");
-    assert_eq!(
-        argv_strings(&standardrb_check(
+        argv_strings(&rubocop_format_fix(
             Path::new(BIN),
             &[rb],
-            Some(standard_config)
+            Some(Path::new("/scratch/rubocop.yml"))
         )),
         vec![
             BIN,
-            "--format",
-            "json",
+            "--fix-layout",
             "--cache",
             "false",
             "--config",
-            "/scratch/standard.yml",
-            "/scratch/Sample.rb"
-        ]
-    );
-    assert_eq!(
-        argv_strings(&standardrb_fix(
-            Path::new(BIN),
-            &[rb],
-            Some(standard_config)
-        )),
-        vec![
-            BIN,
-            "--fix",
-            "--cache",
-            "false",
-            "--config",
-            "/scratch/standard.yml",
+            "/scratch/rubocop.yml",
             "/scratch/Sample.rb"
         ]
     );
@@ -2565,10 +2530,6 @@ fn fixed_args_match_recorded_invocations() {
         (
             GOOGLE_JAVA_FORMAT_CHECK_ARGS,
             google_java_format_check(Path::new(BIN), &[file]),
-        ),
-        (
-            KTLINT_CHECK_ARGS,
-            ktlint_check(Path::new(BIN), &[file], None),
         ),
         (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file], None)),
         (

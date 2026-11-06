@@ -114,7 +114,7 @@ fn non_utf8_fix_fails_the_action() {
     assert!(matches!(err, RunnerError::ToolOutput { .. }));
 }
 
-fn standardrb_crash(
+fn rubocop_crash(
     _argv: &[OsString],
     _cwd: &Path,
     env: &[(OsString, OsString)],
@@ -129,10 +129,10 @@ fn standardrb_crash(
 }
 
 #[test]
-fn standardrb_fix_fails_on_a_cop_crash_despite_exit_one() {
-    let backend = backend_for("standardrb", plain_tool(), standardrb_crash);
+fn rubocop_fix_fails_on_a_cop_crash_despite_exit_one() {
+    let backend = backend_for("rubocop", plain_tool(), rubocop_crash);
     let err = backend
-        .apply_fix("standardrb", "a.rb", "x = 1\n", "lint")
+        .apply_fix("rubocop", "a.rb", "x = 1\n", "format")
         .expect_err("crash fails the fix");
     assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
     assert!(err.to_string().contains("cop crashed"), "{err}");

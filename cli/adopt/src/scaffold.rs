@@ -21,9 +21,6 @@ pub enum FileKind {
     Generated,
     /// A bare `.dx` line, which dx wrote, becomes the planned lines; every other line stays.
     Bazelignore,
-    /// Sets the owned keys of `OWNED_EDITORCONFIG_SECTIONS` that the planned text has; other keys
-    /// and sections stay.
-    EditorconfigKeys,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -133,57 +130,6 @@ const EDITORCONFIG_CONTENT: &str = concat!(
     "[{Makefile,makefile,GNUmakefile,*.mk}]\n",
     "indent_style = tab\n",
 );
-
-struct OwnedEditorconfigSection {
-    extensions: &'static [&'static str],
-    keys: &'static str,
-}
-
-/// Sections of `.editorconfig` whose keys dx sets while the tree has files of these extensions.
-const OWNED_EDITORCONFIG_SECTIONS: [OwnedEditorconfigSection; 1] = [OwnedEditorconfigSection {
-    extensions: &[".kt", ".kts"],
-    keys: include_str!("../../../quality/tiers/ktlint/standard.editorconfig"),
-}];
-
-/// The section header and `key = value` pairs of an owned section's text.
-fn owned_section_keys(text: &str) -> Option<(&str, Vec<(&str, &str)>)> {
-    let mut lines = text.lines().map(str::trim).filter(|line| !line.is_empty());
-    let header = lines.next()?.strip_prefix('[')?.strip_suffix(']')?;
-    let keys = lines
-        .filter_map(|line| line.split_once('='))
-        .map(|(key, value)| (key.trim(), value.trim()))
-        .collect();
-    Some((header, keys))
-}
-
-fn editorconfig_content(extensions: &BTreeSet<String>) -> String {
-    let mut text = EDITORCONFIG_CONTENT.to_owned();
-    for owned in &OWNED_EDITORCONFIG_SECTIONS {
-        if !owned.extensions.iter().any(|ext| extensions.contains(*ext)) {
-            continue;
-        }
-        if let Some((section, keys)) = owned_section_keys(owned.keys) {
-            text = dx_merge::editorconfig::set_keys(&text, section, &keys);
-        }
-    }
-    text
-}
-
-fn merge_editorconfig_keys(existing: &str, generated: &str) -> String {
-    let mut text = existing.to_owned();
-    for owned in &OWNED_EDITORCONFIG_SECTIONS {
-        let Some((section, keys)) = owned_section_keys(owned.keys) else {
-            continue;
-        };
-        let planned = generated
-            .lines()
-            .any(|line| line.trim() == format!("[{section}]"));
-        if planned {
-            text = dx_merge::editorconfig::set_keys(&text, section, &keys);
-        }
-    }
-    text
-}
 
 /// Content `dx init` writes to a new `.gitattributes`.
 const GITATTRIBUTES_CONTENT: &str = concat!(
@@ -436,7 +382,6 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
         FileKind::WriteOnce => Ok(existing.to_owned()),
         FileKind::Generated => Ok(generated.to_owned()),
         FileKind::Bazelignore => Ok(merge_bazelignore(existing, generated)),
-        FileKind::EditorconfigKeys => Ok(merge_editorconfig_keys(existing, generated)),
         FileKind::VscodeKeys => {
             let value = dx_merge::jsonc::parse(generated)?;
             let mut edits: Vec<(Vec<&str>, serde_json::Value)> = Vec::new();
@@ -594,12 +539,8 @@ fn plan_init_files_full(
         },
         ScaffoldFile {
             path: ".editorconfig".to_owned(),
-            content: with_header(
-                Ownership::Keys,
-                ".editorconfig",
-                &editorconfig_content(extensions),
-            ),
-            kind: FileKind::EditorconfigKeys,
+            content: with_header(Ownership::Once, ".editorconfig", EDITORCONFIG_CONTENT),
+            kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".gitattributes".to_owned(),
@@ -833,10 +774,9 @@ pub(crate) fn entries(
 #[cfg(test)]
 mod tests {
     use super::{
-        Applied, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
-        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION, EDITORCONFIG_CONTENT, ScaffoldFile,
-        editor_settings_value, entries, owned_file_drift, plan_init_files, plan_init_files_at,
-        refresh_scaffold, render_consumer_caller, render_consumer_caller_for,
+        CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
+        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION, editor_settings_value, entries,
+        plan_init_files, render_consumer_caller, render_consumer_caller_for,
         render_editor_settings,
     };
 
@@ -1165,7 +1105,7 @@ mod tests {
     }
 
     #[test]
-    fn editorconfig_stays_and_gitattributes_is_written_once() {
+    fn editorconfig_and_gitattributes_are_written_once() {
         let scratch = dx_test_scratch::scratch("dx-adopt-editor-files-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
@@ -1174,74 +1114,11 @@ mod tests {
             assert!(first.iter().any(|p| p == path), "{path}");
         }
         std::fs::write(root.join(".editorconfig"), "mine\n").expect("custom");
-        std::fs::write(root.join(".gitattributes"), "mine\n").expect("custom");
         let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
-        assert!(second.iter().any(|p| p == "refused:.gitattributes"));
-        assert!(!second.iter().any(|p| p.contains(".editorconfig")));
+        assert!(second.iter().any(|p| p == "refused:.editorconfig"));
         assert_eq!(
             std::fs::read_to_string(root.join(".editorconfig")).expect("read"),
             "mine\n"
-        );
-        scratch.close().expect("cleanup");
-    }
-
-    fn editorconfig_file(root: &std::path::Path) -> ScaffoldFile {
-        plan_init_files_at(root, "demo", None)
-            .expect("plan")
-            .into_iter()
-            .find(|file| file.path == ".editorconfig")
-            .expect("editorconfig")
-    }
-
-    #[test]
-    fn editorconfig_gets_ktlint_keys_only_with_kotlin_sources() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-editorconfig-new-");
-        let root = scratch.path().to_path_buf();
-        std::fs::create_dir_all(&root).expect("tmp");
-        assert!(
-            editorconfig_file(&root)
-                .content
-                .ends_with(EDITORCONFIG_CONTENT)
-        );
-        std::fs::write(root.join("Main.kt"), "fun main() {}\n").expect("kt");
-        let content = editorconfig_file(&root).content;
-        assert!(content.contains(EDITORCONFIG_CONTENT));
-        assert!(content.ends_with(
-            "\n[*.{kt,kts}]\nktlint_code_style = intellij_idea\nij_kotlin_imports_layout = *\n\
-             ktlint_standard_function-signature = disabled\n\
-             ktlint_standard_trailing-comma-on-call-site = disabled\n\
-             ktlint_standard_trailing-comma-on-declaration-site = disabled\n"
-        ));
-        scratch.close().expect("cleanup");
-    }
-
-    #[test]
-    fn editorconfig_refresh_appends_the_kotlin_section_once() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-editorconfig-refresh-");
-        let root = scratch.path().to_path_buf();
-        std::fs::create_dir_all(&root).expect("tmp");
-        let mine = "root = true\n[*]\nindent_size = 3\n";
-        std::fs::write(root.join(".editorconfig"), mine).expect("custom");
-
-        let plain = editorconfig_file(&root);
-        assert!(!owned_file_drift(&root, &plain).expect("drift"));
-
-        std::fs::write(root.join("Main.kt"), "fun main() {}\n").expect("kt");
-        let file = editorconfig_file(&root);
-        assert!(owned_file_drift(&root, &file).expect("drift"));
-        let mut applied = Applied::default();
-        refresh_scaffold(&root, std::slice::from_ref(&file), &mut applied).expect("refresh");
-        let text = std::fs::read_to_string(root.join(".editorconfig")).expect("read");
-        assert!(text.starts_with(mine));
-        assert!(text.contains("\n[*.{kt,kts}]\nktlint_code_style = intellij_idea\n"));
-        assert!(!owned_file_drift(&root, &file).expect("drift"));
-
-        let mut again = Applied::default();
-        refresh_scaffold(&root, std::slice::from_ref(&file), &mut again).expect("refresh");
-        assert!(again.wrote.is_empty());
-        assert_eq!(
-            std::fs::read_to_string(root.join(".editorconfig")).expect("read"),
-            text
         );
         scratch.close().expect("cleanup");
     }

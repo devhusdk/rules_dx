@@ -19,12 +19,6 @@ TOOLS = {
         "resources": "medium",
         "shard": "ruby",
     },
-    "standardrb": {
-        "attr": attr.label(default = "//quality/tools/ruby:standardrb", cfg = "exec", executable = True),
-        "kind": "executable",
-        "resources": "medium",
-        "shard": "ruby",
-    },
 }
 
 SHARD_SPECS = {
@@ -36,7 +30,7 @@ SHARD_SPECS = {
     },
     "real_ruby_format": {
         "capability": "format",
-        "doc": "Additive Ruby format family aspect (Standard).",
+        "doc": "Additive Ruby format family aspect (RuboCop).",
         "shard": "ruby",
         "suffix": "-ruby",
     },

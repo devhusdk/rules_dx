@@ -78,12 +78,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
         run: ormolu,
     },
     ToolDef {
-        id: "standardrb",
-        run: standardrb,
-    },
-    ToolDef {
         id: "rubocop",
-        run: lint_family,
+        run: rubocop,
     },
     ToolDef {
         id: "yamllint",
@@ -700,18 +696,20 @@ fn ormolu(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, R
     Ok(merged)
 }
 
-fn standardrb(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+fn rubocop(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
+    if call.capability != "format" {
+        return lint_family(backend, call);
+    }
     let tool_id = call.tool_id;
     let tool = call.tool;
     let scratch = &call.staged.scratch;
-    let config = call.config;
     let (refs, names) = paths(call);
     let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-    let invocation = commands::standardrb_check(&tool.binary, &refs, config);
+    let invocation = commands::rubocop_format_check(&tool.binary, &refs, call.config);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
     parsed(
         tool_id,
-        parsers::parse_standardrb(&out.stdout, &out.stderr, out.code, &strs, scratch.root()),
+        parsers::parse_rubocop(&out.stdout, &out.stderr, out.code, &strs, scratch.root()),
     )
 }
 

@@ -36,6 +36,8 @@ struct Flags {
     check: bool,
     diff: bool,
     pos_check: bool,
+    layout: bool,
+    json: bool,
 }
 
 fn extension_of(name: &str) -> &str {
@@ -77,6 +79,7 @@ fn wants_fix(ext: &str, flags: &Flags) -> bool {
         "fs" => !flags.pos_check,
         "cs" => !flags.pos_check && !flags.check,
         "scala" => !flags.check,
+        "rb" => flags.layout && !flags.json,
         _ => flags.fix,
     }
 }
@@ -96,6 +99,8 @@ fn parse(argv: &[String]) -> (Flags, Vec<String>) {
             "--diff" | "-d" => flags.diff = true,
             "-w" | "--write" | "--fix" | "-i" => flags.fix = true,
             "check" => flags.pos_check = true,
+            "--fix-layout" => flags.layout = true,
+            "--format" => flags.json = true,
             _ if arg.starts_with('-') => {}
             _ => {
                 if Path::new(arg).is_file() {
@@ -190,7 +195,7 @@ fn marker_position(bytes: &[u8]) -> Option<(u64, u64)> {
     Some((line, column + 1))
 }
 
-/// The RuboCop JSON report that `standardrb --format json` writes.
+/// The RuboCop JSON report that `rubocop --format json` writes.
 ///
 /// RuboCop reports each path as it was handed on the command line, so the fake keeps the
 /// argument instead of shortening it.
@@ -238,11 +243,7 @@ fn emit_offenses(files: &[String]) -> i32 {
         count,
         count
     );
-    if offenses > 0 {
-        1
-    } else {
-        0
-    }
+    if offenses > 0 { 1 } else { 0 }
 }
 
 fn fixed_bytes(bytes: &[u8]) -> Vec<u8> {
@@ -318,11 +319,7 @@ pub fn run(argv: &[String]) -> i32 {
                     dirty = true;
                 }
             }
-            if dirty {
-                1
-            } else {
-                0
-            }
+            if dirty { 1 } else { 0 }
         }
         Mode::Json => {
             let mut entries = Vec::new();
@@ -341,11 +338,7 @@ pub fn run(argv: &[String]) -> i32 {
                 }
             }
             println!("{{\"files\": [{}]}}", entries.join(", "));
-            if dirty {
-                99
-            } else {
-                0
-            }
+            if dirty { 99 } else { 0 }
         }
         Mode::Offenses => emit_offenses(&files),
         Mode::Warn => {
@@ -357,11 +350,7 @@ pub fn run(argv: &[String]) -> i32 {
                     dirty = true;
                 }
             }
-            if dirty {
-                1
-            } else {
-                0
-            }
+            if dirty { 1 } else { 0 }
         }
         Mode::Diff => {
             let mut dirty = false;
@@ -371,11 +360,7 @@ pub fn run(argv: &[String]) -> i32 {
                     dirty = true;
                 }
             }
-            if dirty {
-                1
-            } else {
-                0
-            }
+            if dirty { 1 } else { 0 }
         }
         Mode::Diff0 => {
             for file in &files {
@@ -393,11 +378,7 @@ pub fn run(argv: &[String]) -> i32 {
                     dirty = true;
                 }
             }
-            if dirty {
-                1
-            } else {
-                0
-            }
+            if dirty { 1 } else { 0 }
         }
     }
 }

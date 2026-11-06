@@ -718,6 +718,21 @@ pub fn periphery_check(binary: &Path, project_config: &Path) -> Invocation {
     }
 }
 
+/// Weeder reads every `.hie` file under the directory and reports unused declarations. Naming the
+/// config keeps it from searching the cwd for `weeder.toml`.
+pub fn weeder_check(binary: &Path, config: &Path, hie_dir: &Path) -> Invocation {
+    Invocation {
+        argv: vec![
+            binary.as_os_str().to_owned(),
+            OsString::from("--config"),
+            config.as_os_str().to_owned(),
+            OsString::from("--hie-directory"),
+            hie_dir.as_os_str().to_owned(),
+        ],
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn flake8_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, FLAKE8_ARGS, files, "")
 }

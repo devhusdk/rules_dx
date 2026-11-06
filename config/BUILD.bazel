@@ -88,6 +88,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_weeder",
+    build_setting_default = "//haskell/tools/weeder:weeder",
+)
+
+label_flag(
     name = "tool_jet",
     build_setting_default = "//julia/tools/jet:jet",
 )

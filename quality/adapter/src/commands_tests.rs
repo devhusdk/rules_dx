@@ -366,6 +366,26 @@ fn periphery_check_scans_the_generic_project_without_building() {
 }
 
 #[test]
+fn weeder_check_names_its_config_and_hie_directory() {
+    let invocation = weeder_check(
+        Path::new(BIN),
+        Path::new("/scratch/weeder.toml"),
+        Path::new("/scratch/hie"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/weeder.toml",
+            "--hie-directory",
+            "/scratch/hie"
+        ]
+    );
+    assert_eq!(invocation.cwd_rel, "");
+}
+
+#[test]
 fn vulture_check_reports_unused_code_at_its_floor() {
     let files = [Path::new("/scratch/a.py"), Path::new("/scratch/b.py")];
     let invocation = vulture_check(Path::new(BIN), &files);

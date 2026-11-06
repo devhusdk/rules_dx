@@ -1,4 +1,4 @@
-# Every rule active, except these: formatting-only rules that fight ktfmt and ktlint,
+# Every rule active, except these: formatting-only rules that fight ktfmt,
 # and AbsentOrWrongFileLicense, which needs a license template file.
 # AbsentOrWrongFileLicense MaxLineLength NewLineAtEndOfFile WildcardImport TrailingWhitespace NoTabs SpacingBetweenPackageAndImports
 build:

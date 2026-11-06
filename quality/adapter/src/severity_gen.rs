@@ -35,6 +35,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "checkstyle",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
         "chktex",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -209,6 +216,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "detekt",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
         "dialyzer",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Error),
@@ -272,9 +286,23 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "javac",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            categories: &[],
+        },
+    ),
+    (
         "jsonnet_lint",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "kotlinc",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
             categories: &[],
         },
     ),
@@ -341,6 +369,16 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "pmd",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("HardCodedCryptoKey", crate::ToolSeverity::Error),
+                ("InsecureCryptoIv", crate::ToolSeverity::Error),
+            ],
+        },
+    ),
+    (
         "pydoclint",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -386,10 +424,34 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "scalac",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            categories: &[],
+        },
+    ),
+    (
         "selene",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
             categories: &[],
+        },
+    ),
+    (
+        "spotbugs",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("ASE_", crate::ToolSeverity::Error),
+                ("DMI_CONSTANT_DB_PASSWORD", crate::ToolSeverity::Error),
+                ("DMI_EMPTY_DB_PASSWORD", crate::ToolSeverity::Error),
+                ("HRS_", crate::ToolSeverity::Error),
+                ("PT_", crate::ToolSeverity::Error),
+                ("UNS_", crate::ToolSeverity::Error),
+                ("USBC_", crate::ToolSeverity::Error),
+                ("USO_", crate::ToolSeverity::Error),
+                ("XSS_", crate::ToolSeverity::Error),
+            ],
         },
     ),
     (

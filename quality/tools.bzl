@@ -502,6 +502,7 @@ TOOLS = [
         id = "checkstyle",
         adapters = {"lint": ["java"]},
         config = config(suffixes = [".xml"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -916,7 +917,8 @@ TOOLS = [
     tool(
         id = "detekt",
         adapters = {"lint": ["kotlin"]},
-        config = config(suffixes = [".yml", ".yaml"]),
+        config = config(suffixes = [".yml", ".yaml"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1444,6 +1446,7 @@ TOOLS = [
     ),
     tool(
         id = "javac",
+        severity = severity(default = "error"),
         adapters = {"typecheck": ["java"]},
         support = [
             row(
@@ -1552,6 +1555,7 @@ TOOLS = [
     ),
     tool(
         id = "kotlinc",
+        severity = severity(default = "error"),
         adapters = {"typecheck": ["kotlin"]},
         support = [
             row(
@@ -1569,6 +1573,7 @@ TOOLS = [
     tool(
         id = "ktfmt",
         adapters = {"format": ["kotlin"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2002,7 +2007,14 @@ TOOLS = [
     tool(
         id = "pmd",
         adapters = {"lint": ["java"]},
-        config = config(suffixes = [".xml"]),
+        config = config(suffixes = [".xml"], tier_active = True),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "HardCodedCryptoKey": "error",
+                "InsecureCryptoIv": "error",
+            },
+        ),
         support = [
             row(
                 capability = "lint",
@@ -2395,6 +2407,7 @@ TOOLS = [
     ),
     tool(
         id = "scalac",
+        severity = severity(default = "error"),
         adapters = {"typecheck": ["scala"]},
         support = [
             row(
@@ -2412,7 +2425,7 @@ TOOLS = [
     tool(
         id = "scalafix",
         adapters = {"lint": ["scala"]},
-        config = config(suffixes = [".conf"]),
+        config = config(suffixes = [".conf"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2429,7 +2442,7 @@ TOOLS = [
     tool(
         id = "scalafmt",
         adapters = {"format": ["scala"]},
-        config = config(suffixes = [".conf"]),
+        config = config(suffixes = [".conf"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2517,6 +2530,21 @@ TOOLS = [
     tool(
         id = "spotbugs",
         adapters = {"lint": ["java"]},
+        config = config(suffixes = [".xml"], tier_active = True),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "ASE_": "error",
+                "DMI_CONSTANT_DB_PASSWORD": "error",
+                "DMI_EMPTY_DB_PASSWORD": "error",
+                "HRS_": "error",
+                "PT_": "error",
+                "UNS_": "error",
+                "USBC_": "error",
+                "USO_": "error",
+                "XSS_": "error",
+            },
+        ),
         support = [
             row(
                 capability = "lint",

@@ -73,6 +73,7 @@ def _impl(rctx):
     exe = rctx.path(rctx.attr.clis[key])
     rctx.file("restore.bicep", "module m '%s' = {\n  name: 'm'\n}\n" % rctx.attr.ref)
     home = str(rctx.path("home"))
+    rctx.file("bicepconfig.json", json.encode({"cacheRootDirectory": home + "/.bicep"}) + "\n")
     result = rctx.execute(
         [str(exe), "restore", "restore.bicep"],
         environment = {

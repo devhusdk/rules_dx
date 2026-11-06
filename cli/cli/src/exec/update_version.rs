@@ -1352,7 +1352,7 @@ dependencies = ["anyio>=4"]
         #[allow(clippy::disallowed_methods)]
         let mut head = dx_process::startup_argv(&[]);
         head.extend(
-            ["run", "--config=dx_dev", "@rules_go//go", "--", "-C"]
+            ["run", "--config=dx_build_dev", "@rules_go//go", "--", "-C"]
                 .iter()
                 .map(|word| (*word).to_owned()),
         );

@@ -184,7 +184,7 @@ mod tests {
             plan.argv,
             expected(
                 "run",
-                &["--config=dx_dev", "//app:bin", "--", "--port=8080"]
+                &["--config=dx_build_dev", "//app:bin", "--", "--port=8080"]
             )
         );
         assert!(plan.summary.contains("//app:bin"));
@@ -195,9 +195,9 @@ mod tests {
     #[test]
     fn run_profile_pins_config_flag() {
         for (profile, flag) in [
-            (Profile::Debug, "--config=dx_debug"),
-            (Profile::Dev, "--config=dx_dev"),
-            (Profile::Release, "--config=dx_release"),
+            (Profile::Debug, "--config=dx_build_debug"),
+            (Profile::Dev, "--config=dx_build_dev"),
+            (Profile::Release, "--config=dx_build_release"),
         ] {
             let plan = plan_run("//app:bin", &[], &[], profile, &[]).expect("plan");
             assert_eq!(
@@ -247,7 +247,7 @@ mod tests {
             expected(
                 "run",
                 &[
-                    "--config=dx_dev",
+                    "--config=dx_build_dev",
                     "--noshow_progress",
                     "--curses=no",
                     "//app:bin",
@@ -263,7 +263,7 @@ mod tests {
             expected(
                 "build",
                 &[
-                    "--config=dx_dev",
+                    "--config=dx_build_dev",
                     "--noshow_progress",
                     "--curses=no",
                     "//app:bin",
@@ -274,7 +274,7 @@ mod tests {
 
     #[test]
     fn run_plans_filter_profile_configs_from_user_options() {
-        let conflicting = strings(&["--config=dx_release"]);
+        let conflicting = strings(&["--config=dx_build_release"]);
         assert_eq!(
             plan_run("//app:bin", &conflicting, &[], Profile::Dev, &[]).expect_err("conflict"),
             ForwardError::ConflictingOption {
@@ -288,14 +288,14 @@ mod tests {
                 flag: "config".to_owned(),
             }
         );
-        let options = strings(&["--noshow_progress", "--config=dx_dev", "--jobs=4"]);
+        let options = strings(&["--noshow_progress", "--config=dx_build_dev", "--jobs=4"]);
         let run = plan_run("//app:bin", &options, &[], Profile::Dev, &[]).expect("plan");
         assert_eq!(
             run.argv,
             expected(
                 "run",
                 &[
-                    "--config=dx_dev",
+                    "--config=dx_build_dev",
                     "--noshow_progress",
                     "--jobs=4",
                     "//app:bin"
@@ -309,7 +309,7 @@ mod tests {
             expected(
                 "build",
                 &[
-                    "--config=dx_dev",
+                    "--config=dx_build_dev",
                     "--noshow_progress",
                     "--jobs=4",
                     "//app:bin"
@@ -323,7 +323,7 @@ mod tests {
         let build = plan_deploy_build("//deploy:prod", Profile::Release, &[]).expect("plan");
         assert_eq!(
             build.argv,
-            expected("build", &["--config=dx_release", "//deploy:prod"])
+            expected("build", &["--config=dx_build_release", "//deploy:prod"])
         );
         assert_eq!(build.summary, "Running deploy build for //deploy:prod");
         let run = plan_deploy_run(
@@ -337,7 +337,12 @@ mod tests {
             run.argv,
             expected(
                 "run",
-                &["--config=dx_release", "//deploy:prod", "--", "--port=8080"]
+                &[
+                    "--config=dx_build_release",
+                    "//deploy:prod",
+                    "--",
+                    "--port=8080"
+                ]
             )
         );
         assert_eq!(run.summary, "Running deploy run for //deploy:prod");

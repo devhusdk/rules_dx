@@ -408,11 +408,11 @@ mod tests {
             }
         }
         assert!(
-            run.argv[0].contains(&"--config=dx_release".to_owned()),
+            run.argv[0].contains(&"--config=dx_build_release".to_owned()),
             "{run:?}"
         );
         assert!(
-            run.argv[1].contains(&"--config=dx_release".to_owned()),
+            run.argv[1].contains(&"--config=dx_build_release".to_owned()),
             "{run:?}"
         );
         let seen_env = harness.seen_env.borrow();
@@ -430,7 +430,7 @@ mod tests {
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         assert!(
-            run.argv[0].contains(&"--config=dx_debug".to_owned()),
+            run.argv[0].contains(&"--config=dx_build_debug".to_owned()),
             "{run:?}"
         );
     }

@@ -3497,7 +3497,7 @@ mod tests {
         assert!(argv.contains(&"execution_root".to_owned()), "{argv:?}");
         assert!(argv.contains(&"output_path".to_owned()), "{argv:?}");
         assert!(
-            argv.contains(&"--config=dx_dev".to_owned()),
+            argv.contains(&"--config=dx_build_dev".to_owned()),
             "the test profile reaches info: {argv:?}"
         );
         assert!(

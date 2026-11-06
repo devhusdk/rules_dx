@@ -191,7 +191,7 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "test",
-                "--config=dx_dev",
+                "--config=dx_build_dev",
                 SKIP_INCOMPATIBLE_FLAG,
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
@@ -416,7 +416,7 @@ mod tests {
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             let dev = argv
                 .iter()
-                .position(|arg| *arg == "--config=dx_dev")
+                .position(|arg| *arg == "--config=dx_build_dev")
                 .expect("profile is planned");
             let keep_going = argv
                 .iter()
@@ -445,9 +445,9 @@ mod tests {
     #[test]
     fn workflow_plan_rejects_only_conflicting_dx_profile() {
         for options in [
-            vec!["--config=dx_release"],
-            vec!["--config", "dx_release"],
-            vec!["--config=sanitizer", "--config=dx_debug"],
+            vec!["--config=dx_build_release"],
+            vec!["--config", "dx_build_release"],
+            vec!["--config=sanitizer", "--config=dx_build_debug"],
         ] {
             let err = plan_workflow(
                 WorkflowVerb::Build,
@@ -467,7 +467,7 @@ mod tests {
         let err = plan_workflow(
             WorkflowVerb::Test,
             &resolved(&[]),
-            &strings(&["--config=dx_release"]),
+            &strings(&["--config=dx_build_release"]),
             None,
             None,
             Some(Profile::Dev),
@@ -482,7 +482,7 @@ mod tests {
         let plan = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
-            &strings(&["--config=dx_dev", "--config=sanitizer"]),
+            &strings(&["--config=dx_build_dev", "--config=sanitizer"]),
             None,
             None,
             Some(Profile::Dev),
@@ -492,7 +492,7 @@ mod tests {
         assert_eq!(
             plan.argv
                 .iter()
-                .filter(|arg| *arg == "--config=dx_dev")
+                .filter(|arg| *arg == "--config=dx_build_dev")
                 .count(),
             1,
             "{plan:?}"
@@ -500,7 +500,7 @@ mod tests {
         let plan = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
-            &strings(&["--config", "dx_dev", "--config", "sanitizer"]),
+            &strings(&["--config", "dx_build_dev", "--config", "sanitizer"]),
             None,
             None,
             Some(Profile::Dev),
@@ -510,7 +510,7 @@ mod tests {
         assert_eq!(
             plan.argv
                 .iter()
-                .filter(|arg| *arg == "--config=dx_dev")
+                .filter(|arg| *arg == "--config=dx_build_dev")
                 .count(),
             1,
             "{plan:?}"
@@ -526,7 +526,10 @@ mod tests {
 
     #[test]
     fn workflow_plan_forwards_any_config_without_profile() {
-        for options in [vec!["--config=sanitizer"], vec!["--config=dx_release"]] {
+        for options in [
+            vec!["--config=sanitizer"],
+            vec!["--config=dx_build_release"],
+        ] {
             let plan = plan_workflow(
                 WorkflowVerb::Coverage,
                 &resolved(&[]),
@@ -755,7 +758,7 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "test",
-                "--config=dx_dev",
+                "--config=dx_build_dev",
                 SKIP_INCOMPATIBLE_FLAG,
                 "--config=remote",
                 "--jobs=4",
@@ -875,9 +878,9 @@ mod tests {
     #[test]
     fn workflow_profile_pins_config_flag_in_order() {
         for (profile, flag) in [
-            (Profile::Debug, "--config=dx_debug"),
-            (Profile::Dev, "--config=dx_dev"),
-            (Profile::Release, "--config=dx_release"),
+            (Profile::Debug, "--config=dx_build_debug"),
+            (Profile::Dev, "--config=dx_build_dev"),
+            (Profile::Release, "--config=dx_build_release"),
         ] {
             let plan = plan_workflow(
                 WorkflowVerb::Build,
@@ -922,18 +925,18 @@ mod tests {
         let repeated = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
-            &strings(&["--config=dx_dev"]),
+            &strings(&["--config=dx_build_dev"]),
             None,
             None,
             Some(Profile::Dev),
             &[],
         )
         .expect("repeated required config is accepted");
-        assert!(repeated.argv.contains(&"--config=dx_dev".to_owned()));
+        assert!(repeated.argv.contains(&"--config=dx_build_dev".to_owned()));
         let err = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
-            &strings(&["--config=dx_release"]),
+            &strings(&["--config=dx_build_release"]),
             None,
             None,
             Some(Profile::Dev),

@@ -224,7 +224,7 @@ fn the_gazelle_manifest_is_separate_checked_attested_and_filled() {
 fn every_cell_builds_and_compares_the_pure_gazelle() {
     let text = read_runfiles(CELL_SCRIPT);
     for needle in [
-        "gazelle_flags=(--config=dx_release --@rules_go//go/config:pure)",
+        "gazelle_flags=(--config=dx_build_release --@rules_go//go/config:pure)",
         "gazelle_asset=\"dx-gazelle-${CELL#dx-}\"",
         "cmp \"$out/$gazelle_asset\" \"$rebuilt_gazelle\"",
     ] {

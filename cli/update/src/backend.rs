@@ -3247,7 +3247,7 @@ mod tests {
     fn configured_cargo_update_repins_only_its_crate_universe_repository() {
         let head = dx_process::BazelHead {
             startup: vec!["--output_base=/ob".to_owned()],
-            options: vec!["--config=dx_dev".to_owned()],
+            options: vec!["--config=dx_build_dev".to_owned()],
             settings: vec![],
         };
         for set in [
@@ -3426,7 +3426,7 @@ mod tests {
     fn configured_nuget_stages_paket2bazel_without_rules_dx_settings() {
         let head = dx_process::BazelHead {
             startup: vec!["--output_base=/ob".to_owned()],
-            options: vec!["--config=dx_dev".to_owned()],
+            options: vec!["--config=dx_build_dev".to_owned()],
             settings: vec!["--@rules_dx//config:x=true".to_owned()],
         };
         let set = nuget_set();
@@ -3532,7 +3532,7 @@ mod tests {
     fn configured_go_stages_go_mod_download_with_forced_env() {
         let head = dx_process::BazelHead {
             startup: vec!["--output_base=/ob".to_owned()],
-            options: vec!["--config=dx_dev".to_owned()],
+            options: vec!["--config=dx_build_dev".to_owned()],
             settings: vec!["--@rules_dx//config:x=true".to_owned()],
         };
         let set = go_set();
@@ -3791,7 +3791,7 @@ mod tests {
     fn configured_maven_update_runs_only_its_pin_target() {
         let head = dx_process::BazelHead {
             startup: vec!["--output_base=/ob".to_owned()],
-            options: vec!["--config=dx_dev".to_owned()],
+            options: vec!["--config=dx_build_dev".to_owned()],
             settings: vec!["--@rules_dx//config:x=true".to_owned()],
         };
         let set = maven_set("tools", "tool_maven");

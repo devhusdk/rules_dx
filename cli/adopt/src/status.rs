@@ -378,7 +378,10 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
         let (Some(scope), Some(flag)) = (words.next(), words.next()) else {
             continue;
         };
-        if !matches!(scope, "build" | "common" | "build:dx_dev" | "common:dx_dev") {
+        if !matches!(
+            scope,
+            "build" | "common" | "build:dx_build_dev" | "common:dx_build_dev"
+        ) {
             continue;
         }
         if let Some(value) = flag.strip_prefix("--host_compilation_mode=") {
@@ -396,7 +399,7 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
             "exec_tools",
             "warn",
             format!(
-                "unknown: exec tools build at {} in dx_dev",
+                "unknown: exec tools build at {} in dx_build_dev",
                 other.unwrap_or("opt")
             ),
             "add build --host_compilation_mode=fastbuild to .bazelrc",
@@ -853,7 +856,7 @@ mod tests {
         assert_eq!(super::exec_tools_check(&dir).status, "warn");
         std::fs::write(
             dir.join(".bazelrc"),
-            "build:dx_dev --host_compilation_mode=fastbuild\n",
+            "build:dx_build_dev --host_compilation_mode=fastbuild\n",
         )
         .expect("rc");
         assert_eq!(super::exec_tools_check(&dir).status, "ok");

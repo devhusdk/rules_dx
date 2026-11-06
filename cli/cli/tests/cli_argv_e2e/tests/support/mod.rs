@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use dx_nested::{rules_dx_module, write_rules_dx_config};
 use dx_testing::{Run, resolve_runfiles, run};
 
-const BAZELRC: &str = "common:dx_dev --define=dx=dev\ncommon:dx_release --define=dx=release\n";
+const BAZELRC: &str =
+    "common:dx_build_dev --define=dx=dev\ncommon:dx_build_release --define=dx=release\n";
 
 /// Test rule whose launcher is a shell script. It records its argv as JSON and
 /// exits 1 when the sentinel argument is missing. The `ignored` flavour mimics

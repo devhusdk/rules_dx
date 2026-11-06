@@ -897,9 +897,12 @@ fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool,
 
 #[test]
 fn preset_configs_need_no_doc_stanza() {
-    let rc = "common:ci --announce_rc\nbuild:dx_release --host_compilation_mode=opt\n";
-    let preset = "build:dx_release --compilation_mode=opt\n";
-    assert_eq!(config_needs_doc_stanza("dx_release", rc, preset), Ok(false));
+    let rc = "common:ci --announce_rc\nbuild:dx_build_release --host_compilation_mode=opt\n";
+    let preset = "build:dx_build_release --compilation_mode=opt\n";
+    assert_eq!(
+        config_needs_doc_stanza("dx_build_release", rc, preset),
+        Ok(false)
+    );
     assert_eq!(config_needs_doc_stanza("ci", rc, preset), Ok(true));
     assert!(config_needs_doc_stanza("missing", rc, preset).is_err());
 }

@@ -575,12 +575,7 @@ pub fn pypi_main_checked(
             } else {
                 run.resolve(api.griffe_rloc)
             };
-            pypi_api_check(
-                griffe.as_deref(),
-                &version,
-                api,
-                Path::new(&workspace),
-            )
+            pypi_api_check(griffe.as_deref(), &version, api, Path::new(&workspace))
         });
     if let Err(message) = checked {
         eprintln!("{message}");

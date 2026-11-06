@@ -35,8 +35,8 @@ dx coverage [--here] [--affected] [--explain] [--timings] [--min-coverage <perce
 | --- | --- |
 | `--here` | Use the current directory tree. |
 | `--affected` | Use the targets your git changes reach. |
-| `--debug` | Compile with the `dx_debug` build mode (`build`, `test`, `run`, `deploy`). |
-| `--release` | Compile with the `dx_release` build mode. No flag uses `dx_dev`. |
+| `--debug` | Compile with the `dx_build_debug` build mode (`build`, `test`, `run`, `deploy`). |
+| `--release` | Compile with the `dx_build_release` build mode. No flag uses `dx_build_dev`. |
 | `--explain` | Save the execution log for [`dx explain`](explain.md). |
 | `--timings` | (`build`, `test`, `coverage`, `run`; `run` reports on its build step.) Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions (with Bazel mnemonics when the trace has them), cache hit rate (disk, remote, local), bytes downloaded, Bazel peak heap and CPU time per action mnemonic (from the build event stream, absent for `run`), the ten slowest actions and repository fetch time. The trace is `.dx/local/timings/<run id>.json.gz` (the last five are kept) and the report `.dx/local/timings/report.json`; with `--output=json` the report is the message of a `timings_report` notice. |
 | `--min-coverage <percent>` | `coverage`: fail below this whole percent (0-100). |

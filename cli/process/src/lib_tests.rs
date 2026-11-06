@@ -1226,19 +1226,19 @@ fn disk_space_without_an_existing_ancestor_is_none() {
 fn bazel_head_puts_startup_before_the_verb_and_options_after_verb_options() {
     let head = BazelHead {
         startup: vec!["--output_base=/ob".to_owned()],
-        options: vec!["--config=dx_dev".to_owned()],
+        options: vec!["--config=dx_build_dev".to_owned()],
         settings: Vec::new(),
     };
     let argv = head.argv("run");
     let mut expected = startup_argv(&head.startup);
     expected.push("run".to_owned());
     expected.extend(build_verb_options("run", &head.options));
-    expected.push("--config=dx_dev".to_owned());
+    expected.push("--config=dx_build_dev".to_owned());
     assert_eq!(argv, expected);
     let verb = argv.iter().position(|arg| arg == "run").expect("verb");
     let config = argv
         .iter()
-        .position(|arg| arg == "--config=dx_dev")
+        .position(|arg| arg == "--config=dx_build_dev")
         .expect("config");
     assert!(argv.contains(&"--output_base=/ob".to_owned()));
     assert!(argv.iter().position(|arg| arg == "--output_base=/ob") < Some(verb));
@@ -1249,7 +1249,7 @@ fn bazel_head_puts_startup_before_the_verb_and_options_after_verb_options() {
 fn bazel_head_settings_follow_options_for_build_like_verbs_only() {
     let head = BazelHead {
         startup: Vec::new(),
-        options: vec!["--config=dx_dev".to_owned()],
+        options: vec!["--config=dx_build_dev".to_owned()],
         settings: vec!["--@rules_dx//config:x=true".to_owned()],
     };
     for verb in SHARED_SETTINGS_VERBS {

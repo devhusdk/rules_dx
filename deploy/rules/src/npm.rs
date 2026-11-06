@@ -1553,7 +1553,7 @@ mod tests {
             &[
                 ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
                 ("RUNFILES_MANIFEST_FILE", None),
-                ("DX_BUILD_MODE", Some("dx_dev")),
+                ("DX_BUILD_MODE", Some("dx_build_dev")),
                 ("BUILD_WORKSPACE_DIRECTORY", None),
                 ("DX_DEPLOY_LIVE", None),
                 ("NPM_PUBLISH_APPROVED", None),

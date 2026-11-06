@@ -1210,10 +1210,7 @@ exit 7
     #[test]
     fn main_live_without_approval_refuses() {
         let (code, out, err, uploaded) = run_gated(
-            &[
-                ("DX_DEPLOY_LIVE", "1"),
-                ("CLOUDFLARE_API_TOKEN", TOKEN),
-            ],
+            &[("DX_DEPLOY_LIVE", "1"), ("CLOUDFLARE_API_TOKEN", TOKEN)],
             &SITE,
         );
         assert_eq!(code, 1);
@@ -1225,10 +1222,7 @@ exit 7
     #[test]
     fn main_live_without_token_refuses() {
         let (code, out, err, uploaded) = run_gated(
-            &[
-                ("DX_DEPLOY_LIVE", "1"),
-                ("CLOUDFLARE_PAGES_APPROVED", "1"),
-            ],
+            &[("DX_DEPLOY_LIVE", "1"), ("CLOUDFLARE_PAGES_APPROVED", "1")],
             &SITE,
         );
         assert_eq!(code, 1);

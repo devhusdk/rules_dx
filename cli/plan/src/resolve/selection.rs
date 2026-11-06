@@ -253,7 +253,7 @@ mod tests {
         assert_eq!(argv[3], "cquery");
         let dev = argv
             .iter()
-            .position(|arg| arg == "--config=dx_dev")
+            .position(|arg| arg == "--config=dx_build_dev")
             .expect("profile config");
         let ci = argv
             .iter()
@@ -327,7 +327,7 @@ mod tests {
             .expect("argv");
         let dev = argv
             .iter()
-            .position(|arg| arg == "--config=dx_dev")
+            .position(|arg| arg == "--config=dx_build_dev")
             .expect("profile reaches selection");
         let ci = argv
             .iter()
@@ -353,7 +353,7 @@ mod tests {
     fn selection_rejects_conflicting_profile_config() {
         let selection = SelectionContext::for_test_execution(
             Profile::Dev,
-            &strings(&["--config=dx_release"]),
+            &strings(&["--config=dx_build_release"]),
             &[],
         );
         let error = selection
@@ -428,7 +428,7 @@ mod tests {
             "m=/p",
             "--jobs=2",
             "--nobuild_tests_only",
-            "--config=dx_dev",
+            "--config=dx_build_dev",
         ])
     }
 
@@ -452,7 +452,7 @@ mod tests {
         for dropped in [
             "--config=ci",
             "--config",
-            "--config=dx_dev",
+            "--config=dx_build_dev",
             "--test_filter=x",
             "--test_filter",
             "--test_tag_filters=a",
@@ -468,7 +468,7 @@ mod tests {
             .selection_query_file_argv("query", &[], Path::new("/tmp/q.txt"))
             .expect("argv");
         assert_eq!(file_argv[4..9], expected, "{file_argv:?}");
-        assert!(!file_argv.contains(&"--config=dx_dev".to_owned()));
+        assert!(!file_argv.contains(&"--config=dx_build_dev".to_owned()));
     }
 
     #[test]
@@ -479,7 +479,10 @@ mod tests {
         let argv = selection
             .selection_argv("cquery", &[], "tests(//...)")
             .expect("argv");
-        assert!(argv.contains(&"--config=dx_dev".to_owned()), "{argv:?}");
+        assert!(
+            argv.contains(&"--config=dx_build_dev".to_owned()),
+            "{argv:?}"
+        );
         for kept in &options[..options.len() - 1] {
             assert!(argv.contains(kept), "{kept}: {argv:?}");
         }
@@ -489,7 +492,7 @@ mod tests {
     fn query_verb_still_rejects_a_conflicting_profile() {
         let selection = SelectionContext::for_test_execution(
             Profile::Dev,
-            &strings(&["--config=dx_release"]),
+            &strings(&["--config=dx_build_release"]),
             &[],
         )
         .unconfigured_view();

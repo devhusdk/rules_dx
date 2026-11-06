@@ -831,9 +831,9 @@ mod tests {
     #[test]
     fn build_profile_flags_reach_bazel_argv() {
         for (words, flag) in [
-            (vec!["build"], "--config=dx_dev"),
-            (vec!["build", "--debug"], "--config=dx_debug"),
-            (vec!["build", "--release"], "--config=dx_release"),
+            (vec!["build"], "--config=dx_build_dev"),
+            (vec!["build", "--debug"], "--config=dx_build_debug"),
+            (vec!["build", "--release"], "--config=dx_build_release"),
         ] {
             let harness = Harness::new("build-profile");
             let inv = invocation(&words);
@@ -858,7 +858,7 @@ mod tests {
         let argv = &run.argv[0];
         let dev = argv
             .iter()
-            .position(|arg| arg == "--config=dx_dev")
+            .position(|arg| arg == "--config=dx_build_dev")
             .expect("profile reaches bazel");
         let ci = argv
             .iter()
@@ -870,7 +870,7 @@ mod tests {
             .expect("consumer config reaches bazel");
         assert!(dev < ci && ci < sanitizer, "{argv:?}");
         let harness = Harness::new("build-conflicting-config");
-        let (code, _, err) = harness.run(&["build", "--", "--config=dx_release"]);
+        let (code, _, err) = harness.run(&["build", "--", "--config=dx_build_release"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("config"), "{err}");
     }
@@ -1022,7 +1022,7 @@ mod tests {
     #[test]
     fn test_filter_with_a_conflicting_profile_still_exits_usage() {
         let harness = Harness::new("wf-rust-filter-conflict");
-        let inv = invocation(&["test", "--", "--test_filter=x", "--config=dx_release"]);
+        let inv = invocation(&["test", "--", "--test_filter=x", "--config=dx_build_release"]);
         let mut err = Vec::new();
         let run = harness.probe_streams(&inv, &[Some(0)], &mut Vec::new(), &mut err);
         let err = String::from_utf8(err).expect("stderr");
@@ -1338,11 +1338,11 @@ mod tests {
             "mapping shares platforms with execution: {queries:?}"
         );
         assert!(
-            queries[2].contains(&"--config=dx_dev".to_owned()),
+            queries[2].contains(&"--config=dx_build_dev".to_owned()),
             "mapping shares profile with execution: {queries:?}"
         );
         for query in &queries[..2] {
-            for dropped in ["--platforms=//:x", "--config=dx_dev"] {
+            for dropped in ["--platforms=//:x", "--config=dx_build_dev"] {
                 assert!(
                     !query.contains(&dropped.to_owned()),
                     "unconfigured queries ignore configuration: {query:?}"
@@ -1352,7 +1352,10 @@ mod tests {
         assert_eq!(run.argv.len(), 1, "{run:?}");
         let argv = &run.argv[0];
         assert!(argv.contains(&"--platforms=//:x".to_owned()), "{argv:?}");
-        assert!(argv.contains(&"--config=dx_dev".to_owned()), "{argv:?}");
+        assert!(
+            argv.contains(&"--config=dx_build_dev".to_owned()),
+            "{argv:?}"
+        );
     }
 
     #[test]
@@ -1363,7 +1366,7 @@ mod tests {
         harness
             .query
             .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
-        let (code, _, err) = harness.run(&["test", "pkg/a.py", "--", "--config=dx_release"]);
+        let (code, _, err) = harness.run(&["test", "pkg/a.py", "--", "--config=dx_build_release"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("config"), "{err}");
     }

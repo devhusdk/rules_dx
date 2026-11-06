@@ -1189,9 +1189,9 @@ source = { registry = "https://pypi.org/simple" }
         argv.push("run".to_owned());
         argv.extend(dx_process::build_verb_options(
             "run",
-            &["--config=dx_dev".to_owned()],
+            &["--config=dx_build_dev".to_owned()],
         ));
-        argv.push("--config=dx_dev".to_owned());
+        argv.push("--config=dx_build_dev".to_owned());
         argv.extend(dx_plan::plan::shared_settings("run"));
         if offline {
             argv.push("--repository_disable_download".to_owned());
@@ -1609,9 +1609,9 @@ source = { registry = "https://pypi.org/simple" }
         argv.push("fetch".to_owned());
         argv.extend(dx_process::build_verb_options(
             "fetch",
-            &["--config=dx_dev".to_owned()],
+            &["--config=dx_build_dev".to_owned()],
         ));
-        argv.push("--config=dx_dev".to_owned());
+        argv.push("--config=dx_build_dev".to_owned());
         if offline {
             argv.push("--repository_disable_download".to_owned());
         }
@@ -1926,7 +1926,7 @@ source = { registry = "https://pypi.org/simple" }
     fn maven_pin_call(repository: &str) -> Vec<String> {
         let mut argv = dx_process::startup_argv(&[]);
         argv.push("run".to_owned());
-        argv.push("--config=dx_dev".to_owned());
+        argv.push("--config=dx_build_dev".to_owned());
         argv.push(format!("@{repository}//:pin"));
         argv
     }
@@ -2157,7 +2157,7 @@ source = { registry = "https://pypi.org/simple" }
         let mut head = dx_process::startup_argv(&[]);
         head.extend(strings_of(&[
             "run",
-            "--config=dx_dev",
+            "--config=dx_build_dev",
             "@rules_dx//dotnet:paket2bazel",
             "--",
             "--dependencies-file",
@@ -2497,7 +2497,7 @@ source = { registry = "https://pypi.org/simple" }
         let mut head = dx_process::startup_argv(&[]);
         head.extend(strings_of(&[
             "run",
-            "--config=dx_dev",
+            "--config=dx_build_dev",
             "@rules_go//go",
             "--",
             "-C",

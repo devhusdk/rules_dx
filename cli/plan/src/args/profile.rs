@@ -18,9 +18,9 @@ impl Profile {
 
     pub fn config(self) -> &'static str {
         match self {
-            Profile::Debug => "dx_debug",
-            Profile::Dev => "dx_dev",
-            Profile::Release => "dx_release",
+            Profile::Debug => "dx_build_debug",
+            Profile::Dev => "dx_build_dev",
+            Profile::Release => "dx_build_release",
         }
     }
 
@@ -117,12 +117,12 @@ mod tests {
         assert_eq!(Profile::Debug.name(), "debug");
         assert_eq!(Profile::Dev.name(), "dev");
         assert_eq!(Profile::Release.name(), "release");
-        assert_eq!(Profile::Debug.config(), "dx_debug");
-        assert_eq!(Profile::Dev.config(), "dx_dev");
-        assert_eq!(Profile::Release.config(), "dx_release");
-        assert_eq!(Profile::Debug.config_flag(), "--config=dx_debug");
-        assert_eq!(Profile::Dev.config_flag(), "--config=dx_dev");
-        assert_eq!(Profile::Release.config_flag(), "--config=dx_release");
+        assert_eq!(Profile::Debug.config(), "dx_build_debug");
+        assert_eq!(Profile::Dev.config(), "dx_build_dev");
+        assert_eq!(Profile::Release.config(), "dx_build_release");
+        assert_eq!(Profile::Debug.config_flag(), "--config=dx_build_debug");
+        assert_eq!(Profile::Dev.config_flag(), "--config=dx_build_dev");
+        assert_eq!(Profile::Release.config_flag(), "--config=dx_build_release");
         assert_eq!(DX_BUILD_MODE_ENV, "DX_BUILD_MODE");
     }
 
@@ -218,7 +218,12 @@ mod tests {
 
     #[test]
     fn filter_profile_configs_drops_the_selected_profile_and_rejects_others() {
-        let options = strings(&["--config=dx_dev", "--config", "dx_dev", "--keep"]);
+        let options = strings(&[
+            "--config=dx_build_dev",
+            "--config",
+            "dx_build_dev",
+            "--keep",
+        ]);
         let kept = filter_profile_configs(&options, Some(Profile::Dev)).expect("kept");
         assert_eq!(kept, strings(&["--keep"]));
         assert!(filter_profile_configs(&options, Some(Profile::Release)).is_err());

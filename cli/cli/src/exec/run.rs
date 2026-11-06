@@ -1026,9 +1026,15 @@ mod tests {
     #[test]
     fn run_profile_flags_reach_bazel_argv() {
         for (words, flag) in [
-            (vec!["run", "//app:bin"], "--config=dx_dev"),
-            (vec!["run", "--debug", "//app:bin"], "--config=dx_debug"),
-            (vec!["run", "//app:bin", "--release"], "--config=dx_release"),
+            (vec!["run", "//app:bin"], "--config=dx_build_dev"),
+            (
+                vec!["run", "--debug", "//app:bin"],
+                "--config=dx_build_debug",
+            ),
+            (
+                vec!["run", "//app:bin", "--release"],
+                "--config=dx_build_release",
+            ),
         ] {
             let harness = Harness::new("run-profile");
             let inv = invocation(&words);

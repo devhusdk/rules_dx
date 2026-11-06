@@ -75,20 +75,20 @@ const BUILD_PROFILES: [Flag; 7] = [
         "Build host tools without optimization so builds finish sooner.",
     ),
     (
-        "build:dx_debug --compilation_mode=dbg",
-        "The dx_debug config builds with debug symbols.",
+        "build:dx_build_debug --compilation_mode=dbg",
+        "The dx_build_debug config builds with debug symbols.",
     ),
     (
-        "build:dx_dev --compilation_mode=fastbuild",
-        "The dx_dev config builds unoptimized for quick edit and test loops.",
+        "build:dx_build_dev --compilation_mode=fastbuild",
+        "The dx_build_dev config builds unoptimized for quick edit and test loops.",
     ),
     (
-        "build:dx_release --compilation_mode=opt",
-        "The dx_release config builds optimized target code.",
+        "build:dx_build_release --compilation_mode=opt",
+        "The dx_build_release config builds optimized target code.",
     ),
     (
-        "build:dx_release --host_compilation_mode=opt",
-        "The dx_release config also optimizes host tools.",
+        "build:dx_build_release --host_compilation_mode=opt",
+        "The dx_build_release config also optimizes host tools.",
     ),
     (
         "build:dx_dev_remote --compilation_mode=fastbuild",
@@ -892,10 +892,10 @@ mod tests {
             flag_sequence(&render_layer(Layer::Performance, DEFAULT_REPO)),
             [
                 "build --host_compilation_mode=fastbuild",
-                "build:dx_debug --compilation_mode=dbg",
-                "build:dx_dev --compilation_mode=fastbuild",
-                "build:dx_release --compilation_mode=opt",
-                "build:dx_release --host_compilation_mode=opt",
+                "build:dx_build_debug --compilation_mode=dbg",
+                "build:dx_build_dev --compilation_mode=fastbuild",
+                "build:dx_build_release --compilation_mode=opt",
+                "build:dx_build_release --host_compilation_mode=opt",
                 "build:dx_dev_remote --compilation_mode=fastbuild",
                 "build:dx_toolchain --compilation_mode=fastbuild",
             ]
@@ -1093,7 +1093,7 @@ mod tests {
     #[test]
     fn flag_lines_skip_comments_and_blanks() {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
-        assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
+        assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert_eq!(flags.len(), 39);
         assert!(!flags.iter().any(|line| line.starts_with('#')));

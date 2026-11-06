@@ -1,5 +1,5 @@
 common --enable_platform_specific_config
 build:linux --platforms=//:qt_linux_x86_64
 build:macos --platforms=//:qt_macos_arm64
-build:dx_dev --compilation_mode=fastbuild
-build:dx_release --compilation_mode=opt
+build:dx_build_dev --compilation_mode=fastbuild
+build:dx_build_release --compilation_mode=opt

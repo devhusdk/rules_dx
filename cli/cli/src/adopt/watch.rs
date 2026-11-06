@@ -1414,7 +1414,7 @@ mod tests {
         let settings = dx_plan::plan::BAZEL_SETTINGS.join(" ");
         assert!(
             events[1].ends_with(&format!(
-                " run --config=dx_dev {settings} //app:bin -- --help"
+                " run --config=dx_build_dev {settings} //app:bin -- --help"
             )),
             "the -- payload reaches the app unchanged: {}",
             events[1]

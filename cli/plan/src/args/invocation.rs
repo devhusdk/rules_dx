@@ -698,7 +698,7 @@ mod tests {
         invocation.bazel_startup_options = vec!["--output_base=/ob".to_owned()];
         let head = invocation.bazel_head();
         assert_eq!(head.startup, vec!["--output_base=/ob".to_owned()]);
-        assert_eq!(head.options, vec!["--config=dx_dev".to_owned()]);
+        assert_eq!(head.options, vec!["--config=dx_build_dev".to_owned()]);
         assert_eq!(head.settings, crate::plan::shared_settings("build"));
         assert!(!head.settings.is_empty());
     }

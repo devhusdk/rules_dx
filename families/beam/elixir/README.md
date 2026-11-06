@@ -2,8 +2,8 @@
 
 Build and test Elixir with a pinned Elixir 1.20.4 on the pinned OTP 29.1.2
 runtime. Nothing is installed on the host and nothing is fetched until a
-target needs it. rules_dx registers the toolchain, so there is no setup in
-`MODULE.bazel`.
+target needs it. `rules_dx_beam` registers the toolchain, so the only setup in
+`MODULE.bazel` is `bazel_dep(name = "rules_dx_beam", version = "...")`.
 
 ## Start
 

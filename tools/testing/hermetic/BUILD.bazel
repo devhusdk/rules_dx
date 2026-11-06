@@ -258,6 +258,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "elixir",
+    families = ["beam"],
     files = {
         "@rules_dx_beam//elixir/tests/fixtures/elixir-app:mix.lock": "elixir/tests/fixtures/elixir-app/mix.lock",
         "@rules_dx_beam//elixir/tests/fixtures/elixir-app/catalog:BUILD.bazel": "elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel",
@@ -385,6 +386,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "erlang",
+    families = ["beam"],
     files = {
         "@rules_dx_beam//erlang/tests/fixtures/erlang-app/proto:BUILD.bazel": "erlang/tests/fixtures/erlang-app/proto/BUILD.bazel",
         "@rules_dx_beam//erlang/tests/fixtures/erlang-app/proto:src/kv_lexer.xrl": "erlang/tests/fixtures/erlang-app/proto/src/kv_lexer.xrl",

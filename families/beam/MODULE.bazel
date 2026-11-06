@@ -50,3 +50,8 @@ register_toolchains(
     "@rust_toolchains//:all",
     dev_dependency = True,
 )
+
+register_toolchains(
+    "@dx_elixir_toolchains//:all",
+    "@dx_erlang_toolchains//:all",
+)

@@ -128,7 +128,10 @@
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
         "@rules_dx//elixir/rules:hex.bzl%hex_package"
       ],
-      "toolchains": []
+      "toolchains": [
+        "@dx_elixir_toolchains//:all",
+        "@dx_erlang_toolchains//:all"
+      ]
     },
     "cc": {
       "aspects": [
@@ -363,9 +366,7 @@
       ],
       "toolchains": [
         "//tools/platforms:protoc_windows_arm64",
-        "@dotnet_toolchains//:all",
-        "@dx_elixir_toolchains//:all",
-        "@dx_erlang_toolchains//:all"
+        "@dotnet_toolchains//:all"
       ]
     },
     "d": {

@@ -244,3 +244,24 @@ fn compiler_table_never_upgrades_a_skipped_cell() {
     );
     assert!(table.contains("| gcc | skipped |"), "{table}");
 }
+
+#[test]
+fn compiler_table_reports_mismatch_over_passed() {
+    let (table, _) = table_of(
+        &[
+            r#"{"platform":"linux_x86_64","row":"gcc","outcome":"passed"}"#,
+            r#"{"platform":"linux_x86_64","row":"gcc","outcome":"mismatch"}"#,
+        ],
+        &[],
+    );
+    assert!(table.contains("| gcc | mismatch |"), "{table}");
+}
+
+#[test]
+fn compiler_table_keeps_a_lone_mismatch() {
+    let (table, _) = table_of(
+        &[r#"{"platform":"windows_x86_64","row":"msvc","outcome":"mismatch"}"#],
+        &[],
+    );
+    assert!(table.contains("| msvc | mismatch |"), "{table}");
+}

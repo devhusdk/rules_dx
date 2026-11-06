@@ -3,7 +3,8 @@
 # usage: compiler_evidence.sh OUT PLATFORM FACTS
 # Run after the tests. Reads bazel-bin and bazel-testlogs, or DX_BIN and DX_TESTLOGS when set.
 # With DX_PRODUCERS set to producers_bin, it also records the compiler signatures found in the row's test executables
-# and marks a passing row mismatch when none of them carries the expected compiler and version.
+# and marks a passing row mismatch when none of them carries the expected compiler and version,
+# or when it is the msvc row and its executables carry no Rich header at all.
 # A row is failed if any test failed, passed if its probe (when it has one) and at least one test passed, else skipped.
 set -euo pipefail
 
@@ -57,6 +58,7 @@ while IFS= read -r row; do
   }
 
   observed='[]'
+  found=0
   if [ -n "${DX_PRODUCERS:-}" ]; then
     files=()
     while IFS= read -r label; do
@@ -66,12 +68,13 @@ while IFS= read -r row; do
         [ ! -f "$candidate" ] || files+=("$candidate")
       done
     done < <(jq -r '.ci_tests[]' <<<"$row" | tr -d '\r')
-    if [ "${#files[@]}" -gt 0 ]; then
+    found="${#files[@]}"
+    if [ "$found" -gt 0 ]; then
       observed="$("$DX_PRODUCERS" "${files[@]}" | tr -d '\r' | jq -c '[.[][]] | unique')"
     fi
   fi
   marker=""
-  case "$flag" in gcc) marker="GCC" ;; llvm) marker="clang" ;; esac
+  case "$flag" in gcc) marker="GCC" ;; llvm) marker="clang" ;; msvc) marker="msvc " ;; esac
   matched="$(jq -r --arg marker "$marker" --arg version "$version" \
     'any(.[]; contains($marker) and contains($version))' <<<"$observed")"
 
@@ -83,6 +86,9 @@ while IFS= read -r row; do
     outcome=skipped
   fi
   if [ "$outcome" = passed ] && [ "$observed" != '[]' ] && [ "$matched" != true ]; then
+    outcome=mismatch
+  fi
+  if [ "$flag" = msvc ] && [ "$outcome" = passed ] && [ "$found" -gt 0 ] && [ "$observed" = '[]' ]; then
     outcome=mismatch
   fi
 

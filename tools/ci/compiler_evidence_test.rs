@@ -13,6 +13,8 @@ fn facts() -> Value {
          "identity": {"compiler": "a", "version": "1.2.3", "probe": "//p:probe_a"}},
         {"name": "cc_b", "section": "compilers", "ci_tests": ["//p:b1"], "consumer_tests": [],
          "identity": {"compiler": "b", "version": "", "probe": ""}},
+        {"name": "cc_m", "section": "compilers", "ci_tests": ["//p:m1"], "consumer_tests": [],
+         "identity": {"compiler": "msvc", "version": "", "probe": ""}},
         {"name": "other", "section": "languages", "ci_tests": ["//p:o"], "consumer_tests": [], "identity": {}},
     ]})
 }
@@ -72,7 +74,7 @@ fn all_passed() {
         passed(dir.path(), label);
     }
     let lines = run(dir.path());
-    assert_eq!(lines.len(), 2);
+    assert_eq!(lines.len(), 3);
     let a = row(&lines, "cc_a");
     assert_eq!(a["outcome"], "passed");
     assert_eq!((a["ran"].as_u64(), a["total"].as_u64()), (Some(3), Some(3)));
@@ -131,6 +133,10 @@ fn version_is_copied_through() {
 
 fn observe(root: &Path, signatures: &[&str]) -> Vec<Value> {
     write(root, "bin/p/a1", "binary");
+    observe_with(root, signatures)
+}
+
+fn observe_with(root: &Path, signatures: &[&str]) -> Vec<Value> {
     write(
         root,
         "producers.sh",
@@ -142,7 +148,7 @@ fn observe(root: &Path, signatures: &[&str]) -> Vec<Value> {
     std::fs::set_permissions(&producers, mode).expect("chmod");
     let mut command = Command::new("bash");
     command.env("DX_PRODUCERS", root.join("producers.sh"));
-    for label in ["//p:probe_a", "//p:a1", "//p:a2", "//q:a3"] {
+    for label in ["//p:probe_a", "//p:a1", "//p:a2", "//q:a3", "//p:m1"] {
         passed(root, label);
     }
     run_with(root, &mut command)
@@ -172,6 +178,31 @@ fn no_observed_producer_keeps_the_outcome() {
     let a = &observe(dir.path(), &[])[0];
     assert_eq!(a["outcome"], "passed");
     assert_eq!(a["observed_producers"], json!([]));
+}
+
+#[test]
+fn msvc_rich_producer_passes() {
+    let dir = scratch("compiler_evidence");
+    write(dir.path(), "bin/p/m1.exe", "binary");
+    let lines = observe_with(dir.path(), &["msvc 259.33145"]);
+    assert_eq!(row(&lines, "cc_m")["outcome"], "passed");
+}
+
+#[test]
+fn msvc_binary_without_rich_header_is_a_mismatch() {
+    let dir = scratch("compiler_evidence");
+    write(dir.path(), "bin/p/m1.exe", "binary");
+    let lines = observe_with(dir.path(), &[]);
+    let m = row(&lines, "cc_m");
+    assert_eq!(m["outcome"], "mismatch");
+    assert_eq!(m["observed_producers"], json!([]));
+}
+
+#[test]
+fn msvc_row_without_binaries_keeps_outcome() {
+    let dir = scratch("compiler_evidence");
+    let lines = observe_with(dir.path(), &[]);
+    assert_eq!(row(&lines, "cc_m")["outcome"], "passed");
 }
 
 #[test]

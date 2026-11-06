@@ -243,15 +243,18 @@ jobs:
           export DX_HERMETIC_BAZELISK
           startup=()
           extra=()
+          downloads=()
+          # The determinism check reads outputs from the execution root, so only a plain run leaves them remote.
+          [ "$DX_RELOCATE" = true ] || downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")
           profile=("--profile=$RUNNER_TEMP/evidence/profile.gz" --noslim_profile)
           run_task() {
             log="$1"
             if [ "$DX_TASK" = "build" ]; then
-              bazel "${startup[@]}" build --noshow_progress "${profile[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" build --noshow_progress "${profile[@]}" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             elif [ "$DX_TASK" = "coverage" ]; then
               bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
-              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             fi
           }
           run_task evidence.log

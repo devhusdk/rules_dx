@@ -951,6 +951,11 @@ fn ci_config_leaves_remote_downloads_to_dx() {
             "{path} sets --remote_download_outputs=all"
         );
     }
+    // dx refuses --remote_download_minimal, so only evidence.yml passes it, on bazel itself.
+    assert!(
+        !read_runfiles(".bazelrc").contains("remote_download_minimal"),
+        ".bazelrc sets --remote_download_minimal, which dx refuses"
+    );
 }
 
 #[test]

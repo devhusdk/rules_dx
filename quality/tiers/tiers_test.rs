@@ -5,6 +5,7 @@ const NO_FORMATTER: &[&str] = &[
     "cfg",
     "clang-format",
     "clang-tidy",
+    "cmakelintrc",
     "conf",
     "config",
     "editorconfig",

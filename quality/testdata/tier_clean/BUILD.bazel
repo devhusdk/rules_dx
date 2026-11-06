@@ -1,0 +1,67 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:native_config.bzl", "sqlfluff_config")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+load("//sql/rules:defs.bzl", "sql_library")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+[
+    quality_family(
+        name = "%s_family" % family,
+        disabled = [
+            "audit",
+            "format",
+            "typecheck",
+        ],
+        family_id = family,
+        lint = [tool],
+    )
+    for family, tool in [
+        ("sql", "sqlfluff"),
+        ("starlark", "buildifier"),
+        ("yaml", "yamllint"),
+    ]
+]
+
+genrule(
+    name = "sqlfluff_standard_cfg",
+    srcs = ["//quality/tiers/sqlfluff:standard.cfg"],
+    outs = ["sqlfluff/.sqlfluff"],
+    cmd = "awk '{ print } /^\\[sqlfluff\\]$$/ { print \"dialect = sqlite\" }' $< > $@",
+)
+
+sqlfluff_config(
+    name = "sqlfluff_standard",
+    src = ":sqlfluff_standard_cfg",
+    allow_generated = True,
+)
+
+workspace_policy(
+    name = "policy",
+    configs = [
+        ":sqlfluff_standard",
+        "//quality/tiers/buildifier:standard",
+        "//quality/tiers/yamllint:standard",
+    ],
+    families = [
+        ":sql_family",
+        ":starlark_family",
+        ":yaml_family",
+    ],
+)
+
+real_source_target(
+    name = "yaml",
+    yaml_srcs = ["clean.yaml"],
+)
+
+real_source_target(
+    name = "starlark",
+    starlark_srcs = ["clean.bzl"],
+)
+
+sql_library(
+    name = "sql",
+    srcs = ["clean.sql"],
+    dialect = "sqlite",
+)

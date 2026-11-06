@@ -116,6 +116,17 @@ exports_files(
     for profile in ["standard", "strict"]
 ]
 
+# The tier names no dialect; sql_library supplies it, so the profile cases add one.
+[
+    genrule(
+        name = "sqlfluff_profile_%s" % profile,
+        srcs = ["//quality/tiers/sqlfluff:%s.cfg" % profile],
+        outs = ["sqlfluff_profile/%s/.sqlfluff" % profile],
+        cmd = "awk '{ print } /^\\[sqlfluff\\]$$/ { print \"dialect = ansi\" }' $< > $@",
+    )
+    for profile in ["standard", "strict"]
+]
+
 vale_config(
     name = "vale_cfg",
     src = "vale_test.ini",

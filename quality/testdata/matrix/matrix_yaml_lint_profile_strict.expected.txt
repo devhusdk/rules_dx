@@ -6,8 +6,8 @@ completed_rounds 1
 convergence STABLE
 initial 2
 initial WARNING yamllint truthy matrix/yamllint_profile_strict.yaml 4 4 fixable=false "truthy value should be one of [false, true]"
-initial ERROR yamllint line-length matrix/yamllint_profile_strict.yaml 93 93 fixable=false "line too long (100 > 80 characters)"
+initial WARNING yamllint key-ordering matrix/yamllint_profile_strict.yaml 13 13 fixable=false "wrong ordering of key \"key\" in mapping"
 terminal 2
 terminal WARNING yamllint truthy matrix/yamllint_profile_strict.yaml 4 4 fixable=false "truthy value should be one of [false, true]"
-terminal ERROR yamllint line-length matrix/yamllint_profile_strict.yaml 93 93 fixable=false "line too long (100 > 80 characters)"
+terminal WARNING yamllint key-ordering matrix/yamllint_profile_strict.yaml 13 13 fixable=false "wrong ordering of key \"key\" in mapping"
 replacements 0

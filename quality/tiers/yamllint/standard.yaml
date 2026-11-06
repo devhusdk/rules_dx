@@ -1,7 +1,6 @@
-extends: default
 rules:
-  document-start: disable
-  line-length:
-    max: 120
+  anchors: enable
+  key-duplicates: enable
   truthy:
-    allowed-values: ['true', 'false', 'on', 'off']
+    allowed-values: ['true', 'false']
+    check-keys: false

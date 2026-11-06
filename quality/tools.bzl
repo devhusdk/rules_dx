@@ -347,7 +347,13 @@ TOOLS = [
             "format": ["protobuf"],
             "lint": ["protobuf"],
         },
-        config = config(suffixes = [".yaml"]),
+        config = config(
+            suffixes = [".yaml"],
+            files = ["buf.yaml"],
+            ext = "yaml",
+            tier_active = True,
+        ),
+        severity = severity(default = "warning", categories = {"COMPILE": "error"}),
         support = [
             row(
                 capability = "format",
@@ -377,7 +383,12 @@ TOOLS = [
             "format": ["starlark"],
             "lint": ["starlark"],
         },
-        config = config(suffixes = [".json"], tier_active = True),
+        config = config(
+            suffixes = [".json"],
+            files = [".buildifier.json"],
+            ext = "json",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",
@@ -460,7 +471,12 @@ TOOLS = [
     tool(
         id = "checkmake",
         adapters = {"lint": ["make"]},
-        config = config(suffixes = [".ini"]),
+        config = config(
+            suffixes = [".ini"],
+            files = ["checkmake.ini"],
+            ext = "ini",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",
@@ -624,7 +640,13 @@ TOOLS = [
     tool(
         id = "cmakelint",
         adapters = {"lint": ["cmake"]},
-        config = config(suffixes = [".cmakelintrc"]),
+        config = config(
+            suffixes = [".cmakelintrc"],
+            files = [".cmakelintrc"],
+            ext = "cmakelintrc",
+            tier_active = True,
+        ),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1149,7 +1171,12 @@ TOOLS = [
     tool(
         id = "gersemi",
         adapters = {"format": ["cmake"]},
-        config = config(suffixes = [".gersemirc", ".yaml", ".yml"]),
+        config = config(
+            suffixes = [".gersemirc", ".yaml", ".yml"],
+            files = [".gersemirc"],
+            ext = "yaml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",
@@ -1592,7 +1619,12 @@ TOOLS = [
     tool(
         id = "mbake",
         adapters = {"format": ["make"]},
-        config = config(suffixes = [".bake.toml", ".toml"]),
+        config = config(
+            suffixes = [".bake.toml", ".toml"],
+            files = [".bake.toml"],
+            ext = "toml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",
@@ -2408,7 +2440,23 @@ TOOLS = [
             "format": ["sql"],
             "lint": ["sql"],
         },
-        config = config(suffixes = [".sqlfluff", ".cfg", ".ini"], tier_active = True),
+        config = config(
+            suffixes = [".sqlfluff", ".cfg", ".ini"],
+            files = [".sqlfluff"],
+            ext = "cfg",
+            tier_active = True,
+        ),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "AM": "error",
+                "LXR": "error",
+                "PRS": "error",
+                "RF": "error",
+                "ST": "error",
+                "TMP": "error",
+            },
+        ),
         support = [
             row(
                 capability = "format",
@@ -2564,7 +2612,12 @@ TOOLS = [
             "format": ["toml"],
             "lint": ["toml"],
         },
-        config = config(suffixes = [".toml"]),
+        config = config(
+            suffixes = [".toml"],
+            files = [".taplo.toml"],
+            ext = "toml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",
@@ -2804,6 +2857,11 @@ TOOLS = [
     tool(
         id = "typos",
         adapters = {"lint": sorted([c for classes in _TYPOS_FAMILY_CLASSES.values() for c in classes])},
+        config = config(
+            files = ["typos.toml"],
+            ext = "toml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",
@@ -2913,7 +2971,12 @@ TOOLS = [
     tool(
         id = "yamlfmt",
         adapters = {"format": ["ansible", "github_workflow", "kubernetes", "yaml"]},
-        config = config(suffixes = [".yaml", ".yml", ".yamlfmt"]),
+        config = config(
+            suffixes = [".yaml", ".yml", ".yamlfmt"],
+            files = [".yamlfmt"],
+            ext = "yaml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",
@@ -2956,7 +3019,20 @@ TOOLS = [
     tool(
         id = "yamllint",
         adapters = {"lint": ["yaml"]},
-        config = config(suffixes = [".yaml", ".yml", ".yamllint"]),
+        config = config(
+            suffixes = [".yaml", ".yml", ".yamllint"],
+            files = [".yamllint"],
+            ext = "yaml",
+            tier_active = True,
+        ),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "anchors": "error",
+                "key-duplicates": "error",
+                "syntax": "error",
+            },
+        ),
         support = [
             row(
                 capability = "lint",

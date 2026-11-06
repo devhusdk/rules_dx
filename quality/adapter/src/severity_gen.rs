@@ -13,6 +13,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "buf",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[("COMPILE", crate::ToolSeverity::Error)],
+        },
+    ),
+    (
         "chktex",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -34,6 +41,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
                 ("performance-", crate::ToolSeverity::Warning),
                 ("readability-", crate::ToolSeverity::Warning),
             ],
+        },
+    ),
+    (
+        "cmakelint",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
         },
     ),
     (
@@ -194,6 +208,20 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "sqlfluff",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("AM", crate::ToolSeverity::Error),
+                ("LXR", crate::ToolSeverity::Error),
+                ("PRS", crate::ToolSeverity::Error),
+                ("RF", crate::ToolSeverity::Error),
+                ("ST", crate::ToolSeverity::Error),
+                ("TMP", crate::ToolSeverity::Error),
+            ],
+        },
+    ),
+    (
         "staticcheck",
         crate::severity::ToolSeverityMap {
             default: None,
@@ -223,6 +251,17 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Error),
             categories: &[],
+        },
+    ),
+    (
+        "yamllint",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("anchors", crate::ToolSeverity::Error),
+                ("key-duplicates", crate::ToolSeverity::Error),
+                ("syntax", crate::ToolSeverity::Error),
+            ],
         },
     ),
 ];

@@ -1,13 +1,20 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "buildifier_config")
 
 exports_files(
-    glob(["**"], exclude = ["BUILD.bazel"]),
+    glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
     visibility = ["//visibility:public"],
 )
 
 filegroup(
     name = "files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
     visibility = ["//visibility:public"],
 )
 
@@ -21,4 +28,10 @@ buildifier_config(
     name = "strict",
     src = "strict.json",
     visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

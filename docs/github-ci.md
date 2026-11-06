@@ -145,6 +145,8 @@ The repository cache is keyed on `MODULE.bazel` and `MODULE.bazel.lock`. Without
 | `unused` | Default `false`. On scheduled runs, run `dx unused --output=json` and open or update one issue titled `dx unused report` with the findings. Only this job gets `issues: write`. Call the workflow from a weekly `schedule` trigger to use it. |
 | `fuzz` | Default `false`. Run [`dx fuzz`](cli/commands/fuzz.md) on `dx-fuzz` targets on Linux x86_64. The corpus under `.dx/fuzz` is cached between runs. A crash fails the job and uploads the `dx-fuzz-crashes` artifact for 30 days; the log shows the reproduce line. |
 | `fuzz_time` | Default `300s`. Time budget per fuzz target: `90s`, `5m` or `1h`. |
+| `bench` | Default `false`. Run [`dx bench`](cli/commands/bench.md) on Linux x86_64. Pushes to the default branch upload `.dx/bench/last.json` as the `dx-bench-linux_x86_64` artifact for 90 days. Pull requests run `dx bench --compare <base branch> --fail-on=regression:<bench_regression_pct>` and add the table to the job summary. |
+| `bench_regression_pct` | Default `20`. Percent a benchmark may be slower than the base branch before a pull request fails. |
 | `remote_cache` | REAPI cache URL. |
 | `invocation_id` | 1 to 40 letters, digits, underscores or hyphens. Set one per call when a run has several calls. |
 

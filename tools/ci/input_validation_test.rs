@@ -13,13 +13,14 @@ const EVIDENCE_WORKFLOW: &str = ".github/workflows/evidence.yml";
 const ACTIONLINT_CONFIG: &str = ".github/actionlint.yaml";
 const DOCS: &str = "docs/github-ci.md";
 const CALLERS: [&str; 2] = ["examples/consumer-ci/caller.yml", CI_WORKFLOW];
-const INPUTS: [&str; 6] = [
+const INPUTS: [&str; 7] = [
     "DX_PLATFORMS",
     "DX_DISABLED_CHECKS",
     "DX_MIN_COVERAGE",
     "DX_MIN_CHANGED_LINE_COVERAGE",
     "DX_INVOCATION_ID",
     "DX_FUZZ_TIME",
+    "DX_BENCH_REGRESSION_PCT",
 ];
 const PLAIN_OUTPUTS: [&str; 8] = [
     "artifact_suffix",

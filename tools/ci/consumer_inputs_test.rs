@@ -55,7 +55,7 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
         .chain(PLATFORM_JOBS.iter().map(|name| (*name).to_owned()))
         .chain(std::iter::once(PREP.to_owned()))
         .chain(std::iter::once(AGGREGATE.to_owned()))
-        .chain(["mutate".to_owned(), "fuzz".to_owned(), "unused".to_owned(), "commit-lint".to_owned()])
+        .chain(["mutate".to_owned(), "fuzz".to_owned(), "unused".to_owned(), "commit-lint".to_owned(), "bench".to_owned()])
         .collect();
     wanted.sort();
     assert_eq!(
@@ -466,6 +466,27 @@ fn fuzz_is_off_by_default_and_uploads_crashes_for_thirty_days() {
         "-- fuzz --time",
     ] {
         assert!(steps.contains(needle), "fuzz steps miss {needle}: {steps}");
+    }
+}
+
+#[test]
+fn bench_is_off_by_default_and_uploads_the_baseline_for_ninety_days() {
+    let doc = document(WORKFLOW);
+    let inputs = &doc["on"]["workflow_call"]["inputs"];
+    assert_eq!(inputs["bench"]["type"], json!("boolean"), "{WORKFLOW} type");
+    assert_eq!(inputs["bench"]["default"], json!(false), "{WORKFLOW} default");
+    assert_eq!(inputs["bench_regression_pct"]["default"], json!("20"));
+    let bench = job(WORKFLOW, "bench");
+    assert!(scope_text(&bench["if"]).contains("inputs.bench"));
+    let steps = bench["steps"].to_string();
+    for needle in [
+        "dx-bench-linux_x86_64",
+        "\"retention-days\":90",
+        "bench --compare",
+        "--fail-on=regression:",
+        "GITHUB_STEP_SUMMARY",
+    ] {
+        assert!(steps.contains(needle), "bench steps miss {needle}: {steps}");
     }
 }
 

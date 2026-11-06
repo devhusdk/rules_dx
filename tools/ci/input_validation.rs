@@ -9,6 +9,7 @@ pub const MIN_COVERAGE_ENV: &str = "DX_MIN_COVERAGE";
 pub const MIN_CHANGED_ENV: &str = "DX_MIN_CHANGED_LINE_COVERAGE";
 pub const INVOCATION_ENV: &str = "DX_INVOCATION_ID";
 pub const FUZZ_TIME_ENV: &str = "DX_FUZZ_TIME";
+pub const BENCH_PCT_ENV: &str = "DX_BENCH_REGRESSION_PCT";
 
 pub const PLATFORMS: [(&str, &str); 5] = [
     ("linux_x86_64", "ubuntu-latest"),
@@ -546,13 +547,15 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
     );
     let invocation = validate_invocation(&get(INVOCATION_ENV));
     let fuzz_time = validate_fuzz_time(&get(FUZZ_TIME_ENV));
-    let (Ok(platforms), Ok(disabled), Ok(coverage), Ok(changed), Ok(invocation), Ok(_)) = (
+    let bench_pct = validate_percent(&get(BENCH_PCT_ENV), BENCH_PCT_ENV, "use 20");
+    let (Ok(platforms), Ok(disabled), Ok(coverage), Ok(changed), Ok(invocation), Ok(_), Ok(_)) = (
         &platforms,
         &disabled,
         &coverage,
         &changed,
         &invocation,
         &fuzz_time,
+        &bench_pct,
     ) else {
         let errors = [
             platforms.err(),
@@ -561,6 +564,7 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
             changed.err(),
             invocation.err(),
             fuzz_time.err(),
+            bench_pct.err(),
         ];
         return Err(errors.into_iter().flatten().collect());
     };

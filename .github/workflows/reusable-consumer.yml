@@ -53,6 +53,16 @@ on:
         required: false
         default: "300s"
         type: string
+      bench:
+        description: "Run dx bench on Linux x86_64. Pushes to the default branch upload the dx-bench-linux_x86_64 artifact for 90 days; pull requests compare against the base branch and fail on a regression."
+        required: false
+        default: false
+        type: boolean
+      bench_regression_pct:
+        description: "Percent a benchmark may be slower than the base branch on a pull request before the bench job fails, a whole number from 0 to 100."
+        required: false
+        default: "20"
+        type: string
       remote_cache:
         description: "URL of an REAPI remote cache, for example grpc://cache.example.com:9092. Empty keeps BUILDBUDDY_API_KEY as the only way to enable a cache."
         required: false
@@ -160,6 +170,7 @@ jobs:
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ inputs.min_changed_line_coverage }}
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
           DX_FUZZ_TIME: ${{ inputs.fuzz_time }}
+          DX_BENCH_REGRESSION_PCT: ${{ inputs.bench_regression_pct }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
@@ -776,6 +787,54 @@ jobs:
           path: .dx/fuzz/**/crash-*
           if-no-files-found: ignore
           retention-days: 30
+  bench:
+    name: bench
+    needs: [validate]
+    if: ${{ inputs.bench && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) }}
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Run the benchmarks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          REGRESSION_PCT: ${{ inputs.bench_regression_pct }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          if [ "$EVENT" = pull_request ]; then
+            status=0
+            bazel run "$@" @rules_dx//:dx -- bench --compare "$BASE_REF" "--fail-on=regression:${REGRESSION_PCT:-20}" //... | tee "$RUNNER_TEMP/bench.txt" || status=$?
+            {
+              echo "## dx bench"
+              echo '```'
+              cat "$RUNNER_TEMP/bench.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit "$status"
+          fi
+          bazel run "$@" @rules_dx//:dx -- bench //...
+      - name: Upload the results
+        if: ${{ github.event_name == 'push' && !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dx-bench-linux_x86_64
+          path: .dx/bench/last.json
+          if-no-files-found: ignore
+          retention-days: 90
   commit-lint:
     name: commit-lint
     if: ${{ inputs.commit_lint && github.event_name == 'pull_request' }}

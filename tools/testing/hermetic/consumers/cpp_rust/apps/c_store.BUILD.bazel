@@ -30,7 +30,6 @@ cc_library(
     ],
     linkstatic = True,
     copts = ["-std=c11"],
-    linkstatic = True,
     visibility = _PUBLIC,
     deps = ["@c_app_cjson//:cjson"],
 )

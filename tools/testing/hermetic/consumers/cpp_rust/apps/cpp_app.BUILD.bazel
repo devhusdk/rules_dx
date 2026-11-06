@@ -6,7 +6,6 @@ cc_library(
     hdrs = ["report.h"],
     linkstatic = True,
     copts = ["-std=c++17"],
-    linkstatic = True,
     deps = [
         "//cc/tests/fixtures/cpp-app/core",
         "@cpp_app_fmt//:fmt",

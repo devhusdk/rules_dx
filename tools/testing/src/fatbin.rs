@@ -5,7 +5,7 @@ const FATBIN_VERSION: u16 = 1;
 const FATBIN_HEADER_SIZE: usize = 16;
 const ENTRY_VERSION: u16 = 0x0101;
 const ENTRY_MIN_HEADER: usize = 32;
-const FATBIN_SECTIONS: [&str; 2] = [".nv_fatbin", "__nv_relfatbin"];
+const FATBIN_SECTIONS: [&str; 3] = [".nv_fatbin", ".nv_fatb", "__nv_relfatbin"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Kind {
@@ -686,6 +686,8 @@ mod tests {
         assert_eq!(device_code(&object).unwrap().len(), 3);
         let rdc = coff(0xAA64, &[("__nv_relfatbin", fatbin(&[entry(2, 86, b"")]))]);
         assert_eq!(device_code(&rdc).unwrap().len(), 1);
+        let short = coff(0x8664, &[(".nv_fatb", fixture_fatbin())]);
+        assert_eq!(device_code(&short).unwrap().len(), 3);
     }
 
     #[test]

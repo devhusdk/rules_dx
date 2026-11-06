@@ -1,6 +1,7 @@
 """Runs protoc with its C# generator over one proto_library."""
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+load("@rules_dx//libs/exec_os:defs.bzl", "ExecOsInfo")
 
 def pascal_case(name):
     """Returns the .cs base name protoc's C# generator writes for a proto basename."""
@@ -45,7 +46,7 @@ def _csharp_proto_srcs_impl(ctx):
     descriptors = proto_info.transitive_descriptor_sets
     args = ctx.actions.args()
     args.add("--csharp_out=" + "/".join([ctx.bin_dir.path, ctx.label.package, ctx.label.name]).replace("//", "/"))
-    args.add_joined("--descriptor_set_in", descriptors, join_with = ":", format_each = "%s", omit_if_empty = True, map_each = _path)
+    args.add_joined("--descriptor_set_in", descriptors, join_with = ";" if ctx.attr._exec_os[ExecOsInfo].windows else ":", format_each = "%s", omit_if_empty = True, map_each = _path)
     args.add_all(protos)
     ctx.actions.run(
         executable = ctx.executable._protoc,
@@ -61,6 +62,11 @@ csharp_proto_srcs = rule(
     implementation = _csharp_proto_srcs_impl,
     attrs = {
         "proto": attr.label(mandatory = True, providers = [ProtoInfo]),
+        "_exec_os": attr.label(
+            default = "@rules_dx//libs/exec_os",
+            cfg = "exec",
+            providers = [ExecOsInfo],
+        ),
         "_protoc": attr.label(
             default = "@protobuf//:protoc",
             executable = True,

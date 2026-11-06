@@ -1,6 +1,7 @@
 """py_grpc_library: Python gRPC stubs for a proto_library."""
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+load("//libs/exec_os:defs.bzl", "ExecOsInfo")
 load("//python/rules:defs.bzl", "python_binary", "python_library")
 
 def _out_dir(ctx, info):
@@ -31,11 +32,10 @@ def _srcs_impl(ctx):
         names.append(path)
         outs.append(ctx.actions.declare_file(src.basename[:-len(".proto")] + "_pb2_grpc.py", sibling = src))
 
-    windows = ctx.target_platform_has_constraint(ctx.attr._windows[platform_common.ConstraintValueInfo])
     args = ctx.actions.args()
     args.add_joined(
         info.transitive_descriptor_sets,
-        join_with = ";" if windows else ":",
+        join_with = ";" if ctx.attr._exec_os[ExecOsInfo].windows else ":",
         format_joined = "--descriptor_set_in=%s",
     )
     args.add("--grpc_python_out=" + _out_dir(ctx, info))
@@ -55,7 +55,11 @@ _py_grpc_srcs = rule(
     attrs = {
         "proto": attr.label(mandatory = True, providers = [ProtoInfo]),
         "tool": attr.label(mandatory = True, executable = True, cfg = "exec"),
-        "_windows": attr.label(default = "@platforms//os:windows"),
+        "_exec_os": attr.label(
+            default = "//libs/exec_os",
+            cfg = "exec",
+            providers = [ExecOsInfo],
+        ),
     },
 )
 

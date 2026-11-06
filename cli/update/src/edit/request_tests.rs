@@ -1920,6 +1920,11 @@ fn cabal_request(package: &str, version: &str) -> Result<UpdateRequest, EditErro
     configured(
         ConfiguredKind::Cabal,
         &["hs/app.cabal"],
+        None,
+        &format!("set:{package}"),
+        version,
+    )
+}
 
 fn cabal_edit(package: &str, version: &str) -> Result<String, EditError> {
     cabal_request(package, version)?.plan_edit(CABAL)

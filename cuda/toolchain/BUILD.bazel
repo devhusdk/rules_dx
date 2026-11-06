@@ -45,6 +45,7 @@ alias(
         "@platforms//os:windows": "@cuda//:cuda_runtime",
         "//conditions:default": "@cuda//:cuda_runtime_static",
     }),
+    tags = ["manual"],
 )
 
 cuda_toolkit_check(

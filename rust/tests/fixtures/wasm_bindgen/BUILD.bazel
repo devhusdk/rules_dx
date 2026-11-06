@@ -275,7 +275,7 @@ rust_library(
     crate_root = "src/stale_lib.rs",
     edition = "2021",
     tags = ["manual"],
-    deps = ["@crates//:wasm-bindgen-0.2.128"],
+    deps = ["@crates//:wasm-bindgen-0.2.130"],
 )
 
 # keep

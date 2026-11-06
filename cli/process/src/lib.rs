@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicI32, Ordering};
 
+pub mod bazel_sh;
 pub mod groups;
 pub mod lifecycle;
 pub mod procs;

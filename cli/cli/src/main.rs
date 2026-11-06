@@ -268,6 +268,23 @@ fn run() -> i32 {
             invocation.output == OutputMode::Json,
         );
     }
+    if cfg!(windows) && dx_plan::args::help::runs_bazel(invocation.command) {
+        let exists = |path: &Path| path.is_file();
+        match dx_process::bazel_sh::resolve_bazel_sh(&|name| std::env::var_os(name), &exists) {
+            Ok(Some(bash)) => std::env::set_var("BAZEL_SH", bash),
+            Ok(None) => {}
+            Err(error) => {
+                let message = error.to_string();
+                return startup_failure(
+                    &format!("dx: {message}"),
+                    "wsl_bash",
+                    &message,
+                    pre_exec_code(),
+                    invocation.output == OutputMode::Json,
+                );
+            }
+        }
+    }
     let cwd = match dx_process::current_directory() {
         Ok(cwd) => cwd,
         Err(error) => {

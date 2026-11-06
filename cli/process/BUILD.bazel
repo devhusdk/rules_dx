@@ -9,6 +9,7 @@ dx_rust_crate(
     name = "dx_process",
     package_name = "cli/dx_process",
     srcs = [
+        "src/bazel_sh.rs",
         "src/groups.rs",
         "src/lib.rs",
         "src/lifecycle.rs",
@@ -35,6 +36,7 @@ dx_rust_crate(
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
     test_srcs = [
+        "src/bazel_sh_tests.rs",
         "src/groups_tests.rs",
         "src/lib_tests.rs",
         "src/lifecycle_tests.rs",

@@ -155,7 +155,7 @@ pub(crate) fn exit_codes(command: Command) -> &'static str {
 }
 
 /// Whether `dx <command>` can launch Bazel and so preserve its exit code.
-pub(crate) fn runs_bazel(command: Command) -> bool {
+pub fn runs_bazel(command: Command) -> bool {
     !matches!(
         command,
         Command::Security

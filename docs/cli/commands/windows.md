@@ -13,8 +13,10 @@ winget install --id Git.Git -e
 
 ## Shell
 
-Genrules need the Git bash. When `BAZEL_SH` is unset, Bazel takes the first
-`bash.exe` on `PATH`. With WSL installed, that is `C:\Windows\System32\bash.exe`,
+Genrules need the Git bash. `dx` sets `BAZEL_SH` to the Git bash next to `git.exe`
+on `PATH` when it is unset, and exits with an error when only the WSL launcher is
+found. It never replaces a value you set. Plain `bazel` is different: when
+`BAZEL_SH` is unset, Bazel takes the first `bash.exe` on `PATH`. With WSL installed, that is `C:\Windows\System32\bash.exe`,
 and genrules fail with `Bash/Service/0x8007274c`. Point Bazel at the Git bash for
 your user:
 

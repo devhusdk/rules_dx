@@ -67,7 +67,7 @@ pub(super) fn created_time(epoch: Option<&str>, today: &str) -> String {
         .unwrap_or_else(|| format!("{today}T00:00:00Z"))
 }
 
-fn license_value(license: &str) -> String {
+pub(super) fn license_value(license: &str) -> String {
     if dx_sbom::license_error("license", license).is_some() || license == "UNKNOWN" {
         dx_sbom::NOASSERTION.to_owned()
     } else {
@@ -75,7 +75,7 @@ fn license_value(license: &str) -> String {
     }
 }
 
-fn id_part(text: &str) -> String {
+pub(super) fn id_part(text: &str) -> String {
     text.chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || c == '.' {
@@ -87,7 +87,7 @@ fn id_part(text: &str) -> String {
         .collect()
 }
 
-fn purl(package: &LicensedPackage) -> String {
+pub(super) fn purl(package: &LicensedPackage) -> String {
     let kind = match package.set.as_str() {
         "cargo" => "cargo",
         "npm" => "npm",

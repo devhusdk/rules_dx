@@ -1659,12 +1659,17 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut reports_ok = true;
     for planned in &planned_reports {
         let name = planned.format.name();
-        if name == "spdx" {
+        if name == "spdx" || name == "cyclonedx" {
             let created = audit_spdx::created_time(
                 std::env::var("SOURCE_DATE_EPOCH").ok().as_deref(),
                 &today,
             );
-            let document = match audit_spdx::license_spdx(&effective, &licensed, &created) {
+            let rendered = if name == "spdx" {
+                audit_spdx::license_spdx(&effective, &licensed, &created)
+            } else {
+                audit_cyclonedx::license_cyclonedx(&effective, &licensed, &created)
+            };
+            let document = match rendered {
                 Ok(document) => document,
                 Err(error) => {
                     reports_ok = false;
@@ -1672,7 +1677,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                         out,
                         err,
                         invocation.output,
-                        &format!("failed to render SPDX report: {error}"),
+                        &format!("failed to render {name} report: {error}"),
                     ) {
                         return exit;
                     }
@@ -1687,7 +1692,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     out,
                     err,
                     invocation.output,
-                    &format!("failed to write spdx report to {error}"),
+                    &format!("failed to write {name} report to {error}"),
                 ) {
                     return exit;
                 }
@@ -1696,14 +1701,14 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             if invocation.output == OutputMode::Json {
                 if let Err(exit) = emit_built(
                     out,
-                    report_event("spdx", planned.destination.display(), !any_incomplete),
+                    report_event(name, planned.destination.display(), !any_incomplete),
                 ) {
                     return exit;
                 }
             } else if verbose && planned.destination != Destination::Stdout {
                 if let Err(exit) = check_stdout_write(writeln!(
                     out,
-                    "Wrote spdx report to {}.",
+                    "Wrote {name} report to {}.",
                     planned.destination.display()
                 )) {
                     return exit;
@@ -1892,6 +1897,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[path = "audit_license.rs"]
 mod audit_license;
 use audit_license::*;
+#[path = "audit_cyclonedx.rs"]
+mod audit_cyclonedx;
 #[path = "audit_spdx.rs"]
 mod audit_spdx;
 #[path = "audit_uncovered.rs"]

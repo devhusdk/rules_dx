@@ -18,6 +18,8 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+pub mod cyclonedx;
+
 /// Counts the packages of one SPDX document, None when it is not readable JSON with a packages array.
 pub fn spdx_package_count(path: &std::path::Path) -> Option<usize> {
     let bytes = std::fs::read(path).ok()?;

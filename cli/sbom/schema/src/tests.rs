@@ -111,3 +111,55 @@ fn a_label_as_element_id_passes_the_schema_but_fails_the_reference_check() {
         "{errors:?}"
     );
 }
+
+fn cyclonedx_document() -> dx_sbom::cyclonedx::CycloneDxDocument {
+    use dx_sbom::cyclonedx::*;
+    let mut document = CycloneDxDocument::new("//app", "1970-01-01T00:00:00Z", "dx-license");
+    for (index, license) in ["MIT", "MIT OR Apache-2.0", "UNKNOWN"].iter().enumerate() {
+        document.add_library(CdxComponent {
+            kind: "library".to_owned(),
+            bom_ref: format!("pkg-{index}"),
+            name: format!("dep{index}"),
+            version: "1.0.0".to_owned(),
+            purl: format!("pkg:cargo/dep{index}@1.0.0"),
+            licenses: license_choices(license),
+        });
+    }
+    document
+}
+
+#[test]
+fn the_cyclonedx_builder_output_passes() {
+    let text = serde_json::to_string(&cyclonedx_document()).expect("render");
+    assert_eq!(cyclonedx_errors(&text), Vec::<String>::new());
+}
+
+#[test]
+fn a_cyclonedx_document_with_a_bad_license_id_fails_the_schema() {
+    let mut value = serde_json::to_value(cyclonedx_document()).expect("value");
+    value["components"][0]["licenses"] = json!([{"license": {"id": "Not-A-License"}}]);
+    assert!(!cyclonedx_schema_errors(&value).is_empty());
+}
+
+#[test]
+fn a_cyclonedx_document_without_a_spec_version_fails_the_schema() {
+    let mut value = serde_json::to_value(cyclonedx_document()).expect("value");
+    value.as_object_mut().expect("object").remove("specVersion");
+    assert!(!cyclonedx_schema_errors(&value).is_empty());
+}
+
+#[test]
+fn a_dangling_cyclonedx_dependency_fails_the_reference_check() {
+    let mut document = cyclonedx_document();
+    document.dependencies[0]
+        .depends_on
+        .push("missing".to_owned());
+    let text = serde_json::to_string(&document).expect("render");
+    assert!(
+        cyclonedx_errors(&text)
+            .iter()
+            .any(|e| e.contains("missing")),
+        "{:?}",
+        cyclonedx_errors(&text)
+    );
+}

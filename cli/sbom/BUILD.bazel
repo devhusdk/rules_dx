@@ -11,7 +11,10 @@ exports_files([
 dx_rust_crate(
     name = "dx_sbom",
     package_name = "cli/dx_sbom",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/cyclonedx.rs",
+        "src/lib.rs",
+    ],
     test_srcs = ["src/tests.rs"],
     deps = [
         "serde",

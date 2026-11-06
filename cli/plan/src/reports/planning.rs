@@ -15,6 +15,7 @@ pub enum StandardFormat {
     Failures,
     Results,
     Spdx,
+    Cyclonedx,
 }
 
 impl StandardFormat {
@@ -27,6 +28,7 @@ impl StandardFormat {
             StandardFormat::Failures => "failures",
             StandardFormat::Results => "results",
             StandardFormat::Spdx => "spdx",
+            StandardFormat::Cyclonedx => "cyclonedx",
         }
     }
 
@@ -39,6 +41,7 @@ impl StandardFormat {
             "failures" => Some(StandardFormat::Failures),
             "results" => Some(StandardFormat::Results),
             "spdx" => Some(StandardFormat::Spdx),
+            "cyclonedx" => Some(StandardFormat::Cyclonedx),
             _ => None,
         }
     }

@@ -898,6 +898,46 @@ fn license_spdx_report_is_valid_and_repeatable() {
 }
 
 #[test]
+fn license_writes_spdx_and_cyclonedx_from_one_run() {
+    use dx_plan::args::parse;
+    let runner = AuditRunner::clean();
+    let mut documents = Vec::new();
+    for _ in 0..2 {
+        let harness = Harness::new("audit-reports-cyclonedx");
+        write_hubs(&harness);
+        write_cargo_license_set(&harness);
+        let invocation = parse(&[
+            "license".to_owned(),
+            "//rust/tests/fixtures/hello:hello".to_owned(),
+            "--report=spdx=out.spdx.json".to_owned(),
+            "--report=cyclonedx=out.cdx.json".to_owned(),
+        ])
+        .expect("parse");
+        let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
+        assert_eq!(code, 0, "{out_text}{err_text}");
+        let spdx = std::fs::read_to_string(harness.workspace.join("out.spdx.json")).expect("spdx");
+        assert_eq!(dx_sbom_schema::spdx_errors(&spdx), Vec::<String>::new());
+        documents.push(
+            std::fs::read_to_string(harness.workspace.join("out.cdx.json")).expect("cyclonedx"),
+        );
+    }
+    assert_eq!(documents[0], documents[1]);
+    assert_eq!(
+        dx_sbom_schema::cyclonedx_errors(&documents[0]),
+        Vec::<String>::new()
+    );
+    let value: serde_json::Value = serde_json::from_str(&documents[0]).expect("cyclonedx JSON");
+    let serde = value["components"]
+        .as_array()
+        .expect("components")
+        .iter()
+        .find(|component| component["name"] == "serde")
+        .expect("serde component");
+    assert_eq!(serde["version"], "1.0.100");
+    assert_eq!(serde["licenses"][0]["license"]["id"], "MIT");
+}
+
+#[test]
 fn security_rejects_the_spdx_report() {
     use dx_plan::args::parse;
     let runner = AuditRunner::clean();

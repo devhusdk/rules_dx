@@ -74,7 +74,7 @@ A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
 
 ## C and C++ toolchains
 
-- Microsoft `cl.exe` (`--//cc/toolchains:compiler=msvc`): the Visual Studio Build Tools come from the hermetic `@dx_msvc` repo, not an installed Visual Studio. The download needs the Visual Studio Build Tools license, accepted with `msvc.license(accept = ["visual-studio-build-tools"])`. Qualified on `windows_x86_64` only: [run 42171584868](https://github.com/devhusdk/rules_dx/actions/runs/42171584868) passed `msvc_hello_test` and `msvc_spaced_test`, but `msvc_shared_test` still fails to link (LNK2019, #5954). No `_MSC_FULL_VER` is recorded yet. `windows_arm64` has no passing run. See the [support matrix](docs/support-matrix.md).
+- Microsoft `cl.exe` (`--//cc/toolchains:compiler=msvc`): the Visual Studio Build Tools come from the hermetic `@dx_msvc` repo, not an installed Visual Studio. The download needs the Visual Studio Build Tools license, accepted with `msvc.license(accept = ["visual-studio-build-tools"])`. Qualified on `windows_x86_64` only: [run 42171584868](https://github.com/devhusdk/rules_dx/actions/runs/42171584868) passed `msvc_hello_test` and `msvc_spaced_test`, but `msvc_shared_test` still fails to link (LNK2019, #5954). No `_MSC_FULL_VER` is recorded yet. `windows_arm64` passed `msvc_arm64_hello_test` and `msvc_arm64_pe_machine_test` in [run 42183869292](https://github.com/devhusdk/rules_dx/actions/runs/42183869292). See the [support matrix](docs/support-matrix.md).
 
 ## Next
 

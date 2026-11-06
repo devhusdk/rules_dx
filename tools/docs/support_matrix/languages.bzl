@@ -221,6 +221,8 @@ ROWS = [
     },
     {
         "ci_tests": [
+            "//cc/toolchains:msvc_arm64_hello_test",
+            "//cc/toolchains:msvc_arm64_pe_machine_test",
             "//cc/toolchains:msvc_c_test",
             "//cc/toolchains:msvc_hello_c_test",
             "//cc/toolchains:msvc_hello_lib_test",

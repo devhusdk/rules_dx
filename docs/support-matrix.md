@@ -70,7 +70,7 @@ Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.
 | --- | --- | --- | --- |
 | GCC 16.2.0 (`gcc`) | gnu | gcov | `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux |
 | LLVM 23.1.2 (`llvm`, default) | gnu | llvm | none |
-| Microsoft cl.exe (`msvc`) | msvc | no | `linux_x86_64`, `linux_arm64`, `macos_arm64`: Microsoft cl.exe runs only on Windows; `windows_arm64`: not tested yet |
+| Microsoft cl.exe (`msvc`) | msvc | no | `linux_x86_64`, `linux_arm64`, `macos_arm64`: Microsoft cl.exe runs only on Windows |
 
 ## Quality
 

@@ -391,12 +391,12 @@ jobs:
             done
             cd demo-app
             printf 'local_path_override(module_name = "rules_dx", path = "%s")\n' "$checkout" >> MODULE.bazel
-            bazel build --noshow_progress --config=android :demo-app_apk_file
-            bazel build --noshow_progress --config=android :demo-app_release_sign
-            bazel test --noshow_progress --config=android :demo-app_check_test
+            bazel build --noshow_progress :demo-app_apk_file
+            bazel build --noshow_progress :demo-app_release_sign
+            bazel test --noshow_progress :demo-app_check_test
             adb -s emulator-5554 logcat -c
-            bazel run --noshow_progress --config=android :demo-app_install
-            bazel run --noshow_progress --config=android :demo-app_start
+            bazel run --noshow_progress :demo-app_install
+            bazel run --noshow_progress :demo-app_start
             waited=0
             until adb -s emulator-5554 logcat -d -s DxApp:I | grep -q 'greeting=Hello from Rust on Android!'; do
               if [ "$waited" -ge 60 ]; then

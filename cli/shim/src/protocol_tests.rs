@@ -358,3 +358,17 @@ fn intel_mac_is_still_unsupported() {
         assert_eq!(platform("macos", arch), None);
     }
 }
+
+#[test]
+fn other_hosts_skip_sysctl() {
+    let never = |key: &str| -> Option<String> { panic!("sysctl {key} probed") };
+    for (os, arch) in [
+        ("linux", "x86_64"),
+        ("linux", "aarch64"),
+        ("windows", "x86_64"),
+        ("macos", "aarch64"),
+    ] {
+        assert_eq!(effective_arch(os, arch, &never), arch);
+        assert!(platform(os, arch).is_some());
+    }
+}

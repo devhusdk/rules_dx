@@ -183,10 +183,13 @@ pub fn effective_arch(
     arch: &'static str,
     sysctl: &dyn Fn(&str) -> Option<String>,
 ) -> &'static str {
+    if os != "macos" || arch != "x86_64" {
+        return arch;
+    }
     let on_apple_silicon = ["hw.optional.arm64", "sysctl.proc_translated"]
         .iter()
         .any(|key| sysctl(key).is_some_and(|value| value.trim() == "1"));
-    if os == "macos" && arch == "x86_64" && on_apple_silicon {
+    if on_apple_silicon {
         "aarch64"
     } else {
         arch

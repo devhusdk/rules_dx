@@ -80,10 +80,13 @@ pub fn effective_arch<'a>(
     arch: &'a str,
     sysctl: &dyn Fn(&str) -> Option<String>,
 ) -> &'a str {
+    if os != "macos" || arch != "x86_64" {
+        return arch;
+    }
     let on_apple_silicon = ["hw.optional.arm64", "sysctl.proc_translated"]
         .iter()
         .any(|key| sysctl(key).is_some_and(|value| value.trim() == "1"));
-    if os == "macos" && arch == "x86_64" && on_apple_silicon {
+    if on_apple_silicon {
         "aarch64"
     } else {
         arch
@@ -265,11 +268,15 @@ mod tests {
 
     #[test]
     fn other_hosts_ignore_sysctl() {
-        let set = [("hw.optional.arm64", "1")];
-        assert_eq!(
-            effective_arch("linux", "x86_64", &sysctl_with(&set)),
-            "x86_64"
-        );
+        let never = |key: &str| -> Option<String> { panic!("sysctl {key} probed") };
+        for (os, arch) in [
+            ("linux", "x86_64"),
+            ("linux", "aarch64"),
+            ("windows", "x86_64"),
+            ("macos", "aarch64"),
+        ] {
+            assert_eq!(effective_arch(os, arch, &never), arch);
+        }
     }
 
     #[test]

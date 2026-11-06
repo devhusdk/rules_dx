@@ -614,6 +614,7 @@ hermetic_qualification(
         "//qt/tests/fixtures/qt-tasks/store:task_model.cc": "qt/tests/fixtures/qt-tasks/store/task_model.cc",
         "//qt/tests/fixtures/qt-tasks/store:task_model.h": "qt/tests/fixtures/qt-tasks/store/task_model.h",
     },
+    compatible_with = LINUX_MACOS_WINDOWS,
     languages = [
         "cpp",
         "qml",
@@ -623,6 +624,7 @@ hermetic_qualification(
     platform = select({
         "//qt/platforms:cell_linux_arm64": "//:qt_linux_arm64",
         "//qt/platforms:cell_macos_arm64": "//:qt_macos_arm64",
+        "//qt/platforms:cell_windows_x86_64": "//:qt_windows_x86_64",
         "//conditions:default": "//:qt_linux_x86_64",
     }),
 )
@@ -758,6 +760,7 @@ hermetic_qualification(
     files = {
         "consumers/cuda/apps/format.BUILD.bazel": "cuda/tests/fixtures/cuda-app/format/BUILD.bazel",
         "consumers/cuda/apps/format_test.sh": "cuda/tests/fixtures/cuda-app/format/format_test.sh",
+        "consumers/cuda/consumer.bazelrc": ".bazelrc",
         "//:.clang-format": "cuda/tests/fixtures/cuda-app/format/.clang-format",
         "//cuda/tests/fixtures/cuda-app/app:BUILD.bazel": "cuda/tests/fixtures/cuda-app/app/BUILD.bazel",
         "//cuda/tests/fixtures/cuda-app/app:main.cc": "cuda/tests/fixtures/cuda-app/app/main.cc",
@@ -769,6 +772,7 @@ hermetic_qualification(
         "//cuda/tests/fixtures/cuda-app/kernels:stencil.cu": "cuda/tests/fixtures/cuda-app/kernels/stencil.cu",
         "//cuda/tests/fixtures/cuda-app/kernels:vector_add.cu": "cuda/tests/fixtures/cuda-app/kernels/vector_add.cu",
     },
+    compatible_with = LINUX_MACOS_WINDOWS,
     languages = [
         "cpp",
         "cuda",

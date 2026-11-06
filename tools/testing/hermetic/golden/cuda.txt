@@ -1,6 +1,7 @@
 language cpp
 language cuda
 pattern //...
+file .bazelrc
 file cuda/tests/fixtures/cuda-app/app/BUILD.bazel
 file cuda/tests/fixtures/cuda-app/app/main.cc
 file cuda/tests/fixtures/cuda-app/app/output_test.sh

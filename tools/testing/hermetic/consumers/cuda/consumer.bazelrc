@@ -1,0 +1,5 @@
+build --enable_platform_specific_config
+# nvcc on Windows only drives cl.exe.
+common:windows --@my_dx//cc/toolchains:compiler=msvc
+common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
+common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1

@@ -1,5 +1,9 @@
 common --enable_platform_specific_config
 build:linux --platforms=//:qt_linux_x86_64
 build:macos --platforms=//:qt_macos_arm64
+build:windows --platforms=//:qt_windows_x86_64
+common:windows --@my_dx//cc/toolchains:compiler=msvc
+common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
+common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1
 build:dx_dev --compilation_mode=fastbuild
 build:dx_release --compilation_mode=opt

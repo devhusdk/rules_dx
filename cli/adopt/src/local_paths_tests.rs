@@ -47,5 +47,9 @@ fn machine_local_paths_live_under_dx_local() {
             }
         }
     }
-    assert!(checked > 10, "found only {checked} sources in {}", dir.display());
+    assert!(
+        checked > 10,
+        "found only {checked} sources in {}",
+        dir.display()
+    );
 }

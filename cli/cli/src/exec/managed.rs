@@ -114,10 +114,11 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    if !json && verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary)) {
-            return exit;
-        }
+    if !json
+        && verbose
+        && let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary))
+    {
+        return exit;
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,

@@ -24,7 +24,7 @@ const USAGE: &str =
 const ABOUT: &str = "install the staged environment tree into .dx/local/bin";
 
 fn usage_error(message: &str) -> i32 {
-    tracing::error!("dx env: {message}");
+    tracing::error!("dx sync: {message}");
     tracing::error!("{USAGE}");
     2
 }
@@ -86,19 +86,21 @@ fn plan(args: &[String]) -> Result<Plan, String> {
 fn installed_message(outcome: &RefreshOutcome, count: usize, identity: &str) -> String {
     match outcome {
         RefreshOutcome::AlreadyCurrent => {
-            format!("dx env: already current (.dx/local/bin {identity})")
+            format!("dx sync: already current (.dx/local/bin {identity})")
         }
         RefreshOutcome::InstalledFresh => {
-            format!("dx env: installed {count} tool(s) (.dx/local/bin {identity})")
+            format!("dx sync: installed {count} tool(s) (.dx/local/bin {identity})")
         }
         RefreshOutcome::InstalledReplacement => {
-            format!("dx env: replaced managed tree with {count} tool(s) (.dx/local/bin {identity})")
+            format!(
+                "dx sync: replaced managed tree with {count} tool(s) (.dx/local/bin {identity})"
+            )
         }
     }
 }
 
 fn help(out: &mut impl std::io::Write) -> i32 {
-    match writeln!(out, "dx env: {ABOUT}").and_then(|()| writeln!(out, "{USAGE}")) {
+    match writeln!(out, "dx sync: {ABOUT}").and_then(|()| writeln!(out, "{USAGE}")) {
         Ok(()) => 0,
         Err(_) => 1,
     }
@@ -145,13 +147,13 @@ fn run() -> i32 {
         Ok(text) => match parse_staged(&text, options.os == "windows") {
             Ok(tools) => tools,
             Err(error) => {
-                tracing::error!("dx env: {error}");
+                tracing::error!("dx sync: {error}");
                 return 1;
             }
         },
         Err(error) => {
             tracing::error!(
-                "dx env: cannot read staged metadata {}: {error}",
+                "dx sync: cannot read staged metadata {}: {error}",
                 metadata.display()
             );
             return 1;
@@ -166,7 +168,7 @@ fn run() -> i32 {
             0
         }
         Err(error) => {
-            tracing::error!("dx env: {error}");
+            tracing::error!("dx sync: {error}");
             1
         }
     }
@@ -376,7 +378,7 @@ mod tests {
         let mut out = Vec::new();
         assert_eq!(help(&mut out), 0);
         let text = String::from_utf8(out).expect("utf8");
-        assert_eq!(text, format!("dx env: {ABOUT}\n{USAGE}\n"));
+        assert_eq!(text, format!("dx sync: {ABOUT}\n{USAGE}\n"));
         assert_eq!(help(&mut FailingWriter), 1);
         std::io::Write::flush(&mut FailingWriter).expect("flush is a no-op");
     }
@@ -386,15 +388,15 @@ mod tests {
         let identity = "ab".repeat(32);
         assert_eq!(
             installed_message(&RefreshOutcome::AlreadyCurrent, 3, &identity),
-            format!("dx env: already current (.dx/local/bin {identity})")
+            format!("dx sync: already current (.dx/local/bin {identity})")
         );
         assert_eq!(
             installed_message(&RefreshOutcome::InstalledFresh, 3, &identity),
-            format!("dx env: installed 3 tool(s) (.dx/local/bin {identity})")
+            format!("dx sync: installed 3 tool(s) (.dx/local/bin {identity})")
         );
         assert_eq!(
             installed_message(&RefreshOutcome::InstalledReplacement, 3, &identity),
-            format!("dx env: replaced managed tree with 3 tool(s) (.dx/local/bin {identity})")
+            format!("dx sync: replaced managed tree with 3 tool(s) (.dx/local/bin {identity})")
         );
     }
 }

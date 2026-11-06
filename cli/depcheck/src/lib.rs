@@ -34,9 +34,7 @@ pub use missing::{find_missing, find_missing_go, MissingDep};
 pub use types::{
     DepInfo, DepcheckError, Ecosystem, Exception, LockVersions, Usage, WorkspaceLocks,
 };
-pub use unused::{
-    declared, find_unused, parse_set_exceptions, DeclaredDep, SetException, UnusedDep,
-};
+pub use unused::{declared, find_unused, DeclaredDep, UnusedDep};
 pub use usage::{cmd_usage, find_usages, is_test_file};
 pub use version::satisfies_for;
 

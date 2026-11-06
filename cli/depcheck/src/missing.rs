@@ -91,7 +91,16 @@ pub fn find_missing_go(
             .unwrap_or(&path)
             .to_string_lossy()
             .replace('\\', "/");
-        for (line, import) in go_imports(&String::from_utf8_lossy(&bytes))? {
+        let text = String::from_utf8_lossy(&bytes);
+        let lines: Vec<&str> = text.lines().collect();
+        for (line, import) in go_imports(&text)? {
+            let kept = lines
+                .get(line - 1)
+                .and_then(|l| l.split_once("//"))
+                .is_some_and(|(_, comment)| comment.trim_start().starts_with("dx-keep"));
+            if kept {
+                continue;
+            }
             let first = import.split('/').next().unwrap_or("");
             let declared = !first.contains('.')
                 || covers(&file.module, &import)
@@ -209,7 +218,7 @@ mod tests {
         write(
             dir.path(),
             "main.go",
-            "package main\n\nimport (\n\t\"fmt\"\n\t\"example.com/app/util\"\n\tx \"github.com/a/b/sub\"\n\t\"github.com/c/d\"\n)\n\nimport \"github.com/e/f\"\n",
+            "package main\n\nimport (\n\t\"fmt\"\n\t\"example.com/app/util\"\n\tx \"github.com/a/b/sub\"\n\t\"github.com/c/d\"\n)\n\nimport \"github.com/e/f\"\n\nimport _ \"github.com/i/j\" // dx-keep\n",
         );
         write(dir.path(), "nested/go.mod", "module example.com/nested\n");
         write(

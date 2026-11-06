@@ -12,49 +12,6 @@ pub struct UnusedDep {
     pub line: usize,
 }
 
-/// One `[[exception]]` entry of `depcheck.toml`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SetException {
-    pub set: String,
-    pub name: String,
-    pub reason: String,
-}
-
-/// Reads the `[[exception]] set, name, reason` entries; a missing file has none.
-pub fn parse_set_exceptions(path: &Path) -> Result<Vec<SetException>, DepcheckError> {
-    let text = match std::fs::read_to_string(path) {
-        Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(error) => return Err(DepcheckError::ExceptionsIo(error)),
-    };
-    let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::ExceptionsToml)?;
-    let items = data
-        .get("exception")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let field = |item: &toml::Value, key: &str| {
-        item.get(key)
-            .and_then(crate::toml_util::toml_string)
-            .unwrap_or_default()
-            .trim()
-            .to_owned()
-    };
-    let mut out = Vec::new();
-    for item in items {
-        let name = field(&item, "name");
-        if name.is_empty() {
-            return Err(DepcheckError::ExceptionEntry);
-        }
-        out.push(SetException {
-            set: field(&item, "set"),
-            name,
-            reason: field(&item, "reason"),
-        });
-    }
-    Ok(out)
-}
-
 /// A dependency declared in a manifest, as the Bazel graph would name it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclaredDep {
@@ -193,27 +150,5 @@ mod tests {
         assert_eq!(hubs, vec![("re", "regex"), ("serde", "serde")]);
         let found = find_unused(Ecosystem::Rust, &manifest, dir.path(), &[]).expect("unused");
         assert!(found.iter().all(|d| d.name != "cc"));
-    }
-
-    #[test]
-    fn set_exceptions_read_set_name_and_reason() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        assert!(parse_set_exceptions(&dir.path().join("depcheck.toml"))
-            .expect("missing")
-            .is_empty());
-        write(
-            dir.path(),
-            "depcheck.toml",
-            "[[exception]]\nset = \"npm\"\nname = \"left-pad\"\nreason = \"loaded by a plugin\"\n",
-        );
-        let got = parse_set_exceptions(&dir.path().join("depcheck.toml")).expect("parse");
-        assert_eq!(
-            got,
-            vec![SetException {
-                set: "npm".into(),
-                name: "left-pad".into(),
-                reason: "loaded by a plugin".into()
-            }]
-        );
     }
 }

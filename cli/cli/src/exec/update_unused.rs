@@ -9,8 +9,6 @@ use std::path::Path;
 pub(crate) const CODE_UPDATE_UNUSED: &str = "update_unused";
 pub(crate) const CODE_UPDATE_MISSING: &str = "update_missing";
 
-const EXCEPTIONS_FILE: &str = "depcheck.toml";
-
 #[derive(Debug, Eq, PartialEq)]
 pub(super) struct Unused {
     pub set: String,
@@ -256,6 +254,49 @@ fn find_unused_in_graph(
     )
 }
 
+/// Name of a Go module as gazelle spells its repository: `github.com/a/b` is `com_github_a_b`.
+fn go_repo_name(module: &str) -> String {
+    let (host, rest) = module.split_once('/').unwrap_or((module, ""));
+    let mut parts: Vec<&str> = host.split('.').collect();
+    parts.reverse();
+    underscored(&format!("{}/{rest}", parts.join(".")).replace('.', "_")).to_lowercase()
+}
+
+/// Manifest entries named in the deps of a target tagged `dx-keep`, for sets without a hub
+/// to query (go, ruby, cc).
+fn tagged_deps(
+    target: &ResolvedTarget,
+    eco: dx_depcheck::Ecosystem,
+    manifest: &Path,
+    workspace: &Path,
+    query: &dyn QueryRunner,
+    startup: &[String],
+) -> Vec<String> {
+    let expression = "deps(attr(tags, \"dx-keep\", //...), 1)";
+    let Ok(labels) = run_label_query_file(expression, expression, workspace, query, startup) else {
+        return Vec::new();
+    };
+    let labels: Vec<String> = labels
+        .iter()
+        .map(|l| underscored(&l.to_lowercase()))
+        .collect();
+    let Ok(declared) = dx_depcheck::declared(eco, manifest) else {
+        return Vec::new();
+    };
+    declared
+        .into_iter()
+        .filter(|dep| {
+            let key = if target.set.ecosystem == Ecosystem::Go {
+                go_repo_name(&dep.name)
+            } else {
+                underscored(&dep.name.to_lowercase())
+            };
+            labels.iter().any(|label| label.contains(&key))
+        })
+        .map(|dep| dep.name)
+        .collect()
+}
+
 /// Declared dependencies of the resolved sets that nothing uses: no BUILD target for sets with a
 /// hub, no source under the manifest's directory otherwise.
 pub(super) fn find(
@@ -264,36 +305,28 @@ pub(super) fn find(
     query: &dyn QueryRunner,
     startup: &[String],
 ) -> Vec<Unused> {
-    let exceptions =
-        dx_depcheck::parse_set_exceptions(&workspace.join(EXCEPTIONS_FILE)).unwrap_or_default();
     let mut out = Vec::new();
     for target in resolved {
         let Some(eco) = depcheck_ecosystem(target.set.ecosystem) else {
             continue;
         };
         let set = target.set.name.as_str();
-        let excepted: Vec<String> = exceptions
-            .iter()
-            .filter(|exception| exception.set == set)
-            .map(|exception| exception.name.clone())
-            .collect();
         for manifest in &target.set.manifests {
             let path = workspace.join(manifest);
             let root = path.parent().unwrap_or(workspace);
-            let from_graph = used_labels(target, manifest, workspace, query, startup)
-                .and_then(|used| {
+            let from_graph =
+                used_labels(target, manifest, workspace, query, startup).and_then(|used| {
                     find_unused_in_graph(target, eco, manifest, &path, workspace, &used)
-                })
-                .map(|found| {
-                    found
-                        .into_iter()
-                        .filter(|dep| !excepted.contains(&dep.name))
-                        .collect()
                 });
             let found = match from_graph {
                 Some(found) => found,
                 None if graph_only(target.set.ecosystem) => continue,
-                None => match dx_depcheck::find_unused(eco, &path, root, &excepted) {
+                None => match dx_depcheck::find_unused(
+                    eco,
+                    &path,
+                    root,
+                    &tagged_deps(target, eco, &path, workspace, query, startup),
+                ) {
                     Ok(found) => found,
                     Err(_) => continue,
                 },
@@ -337,8 +370,6 @@ pub(super) fn find_missing(
     query: &dyn QueryRunner,
     startup: &[String],
 ) -> Vec<Missing> {
-    let exceptions =
-        dx_depcheck::parse_set_exceptions(&workspace.join(EXCEPTIONS_FILE)).unwrap_or_default();
     let mut out = Vec::new();
     for target in resolved {
         let Some(eco) = depcheck_ecosystem(target.set.ecosystem) else {
@@ -346,11 +377,7 @@ pub(super) fn find_missing(
         };
         let ecosystem = target.set.ecosystem;
         let set = target.set.name.as_str();
-        let excepted: Vec<String> = exceptions
-            .iter()
-            .filter(|exception| exception.set == set)
-            .map(|exception| exception.name.clone())
-            .collect();
+        let excepted: Vec<String> = Vec::new();
         if ecosystem == Ecosystem::Cargo {
             missing_hubs(workspace, target, eco, &excepted, query, startup, &mut out);
         }
@@ -845,12 +872,27 @@ mod tests {
             "unused: crates: regex (declared in rs/Cargo.toml:6)\n\
              unused: npm: left-pad (declared in web/package.json:3)\n"
         );
+    }
+
+    #[test]
+    fn a_dx_keep_target_keeps_the_go_modules_it_depends_on() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
         write(
             root,
-            "depcheck.toml",
-            "[[exception]]\nset = \"npm\"\nname = \"left-pad\"\nreason = \"loaded by a plugin\"\n",
+            "go.mod",
+            "module example.com/app\n\ngo 1.22\n\nrequire (\n\tgithub.com/a/b v1.0.0\n\tgithub.com/c/d v1.0.0\n)\n",
         );
-        assert_eq!(find(root, &resolved, &NoQuery, &[]).len(), 1);
+        let resolved = [target("go", Ecosystem::Go, "go.mod")];
+        let names = |query: &dyn QueryRunner| -> Vec<String> {
+            find(root, &resolved, query, &[])
+                .into_iter()
+                .map(|u| u.name)
+                .collect()
+        };
+        assert_eq!(names(&NoQuery), ["github.com/a/b", "github.com/c/d"]);
+        let tagged = Labels("@@gazelle++go_deps+com_github_a_b//pkg:pkg\n");
+        assert_eq!(names(&tagged), ["github.com/c/d"]);
     }
 
     #[test]

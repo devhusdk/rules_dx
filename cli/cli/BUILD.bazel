@@ -154,6 +154,14 @@ rust_library(
     ],
 )
 
+# rustc always passes /DEBUG on MSVC, and the PDB GUID it embeds hashes the
+# execroot, so release builds drop debug info to stay reproducible (#6950).
+config_setting(
+    name = "windows_opt",
+    constraint_values = ["@platforms//os:windows"],
+    values = {"compilation_mode": "opt"},
+)
+
 rust_binary(
     name = "dx",
     srcs = ["src/main.rs"],
@@ -165,6 +173,10 @@ rust_binary(
     crate_root = "src/main.rs",
     data = ["//cli/prebuilt:pins.bzl"],
     edition = "2021",
+    rustc_flags = select({
+        ":windows_opt": ["-Clink-arg=/DEBUG:NONE"],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "cli/dx_cli",

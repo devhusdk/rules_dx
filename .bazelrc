@@ -45,7 +45,7 @@ build:macos --@rules_rust//rust/settings:pipelined_compilation=true
 build:windows --@rules_rust//rust/settings:pipelined_compilation=true
 # Statically link the MSVC CRT so Windows binaries need no vcruntime DLLs.
 build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+crt-static
-# Zero the PE timestamp and derive the debug GUID from content so rebuilds match (#6950).
+# Zero the PE timestamp (content hash) so rebuilds match (#6950).
 build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Clink-arg=/Brepro
 
 build --javacopt=-Xlint:all

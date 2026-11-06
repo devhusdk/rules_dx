@@ -2,10 +2,20 @@
 #![cfg(windows)]
 
 use std::path::{Path, PathBuf};
+use std::sync::{RwLock, RwLockReadGuard};
 
 use hermetic::{Isolation, Net, Outcome, WINDOWS_DENIED_MARKER, capture};
 
 const OUTSIDE: &str = "1.1.1.1:443";
+
+/// The MSVC deny test rewrites ACLs on host-wide trees, so it runs alone; the others share.
+static HOST_ACLS: RwLock<()> = RwLock::new(());
+
+fn shared() -> RwLockReadGuard<'static, ()> {
+    HOST_ACLS
+        .read()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 struct Scene {
     isolation: Isolation,
@@ -57,6 +67,7 @@ fn text(path: &Path) -> String {
 
 #[test]
 fn network_denied_blocks_outbound_but_keeps_loopback() {
+    let _shared = shared();
     let scene = scene("denied");
     let outbound = scene.run(Net::Denied, &["connect", OUTSIDE]);
     assert_ne!(outbound.exit, 0, "{}", outbound.stdout);
@@ -73,6 +84,7 @@ fn network_denied_blocks_outbound_but_keeps_loopback() {
 
 #[test]
 fn files_are_visible_only_where_granted() {
+    let _shared = shared();
     let scene = scene("files");
     let secret = scene.ungranted.join("secret.txt");
     std::fs::write(&secret, "hidden").expect("secret");
@@ -95,6 +107,7 @@ fn icacls(path: &Path) -> String {
 
 #[test]
 fn directories_above_a_grant_are_listable_but_not_readable() {
+    let _shared = shared();
     let scene = scene("above");
     let above = scene.root.join("above.txt");
     std::fs::write(&above, "hidden").expect("above");
@@ -108,6 +121,7 @@ fn directories_above_a_grant_are_listable_but_not_readable() {
 
 #[test]
 fn a_granted_directory_can_be_canonicalized() {
+    let _shared = shared();
     let scene = scene("canon");
     let outcome = scene.run(Net::Denied, &["canon", &text(&scene.granted)]);
     assert_eq!(outcome.exit, 0, "{}", outcome.stderr);
@@ -115,12 +129,16 @@ fn a_granted_directory_can_be_canonicalized() {
 
 #[test]
 fn network_allowed_reaches_the_outside() {
+    let _shared = shared();
     let outcome = scene("allowed").run(Net::Allowed, &["connect", OUTSIDE]);
     assert_eq!(outcome.exit, 0, "{}", outcome.stderr);
 }
 
 #[test]
 fn the_msvc_denies_hide_visual_studio_and_restore_its_acls() {
+    let _alone = HOST_ACLS
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let scene = scene("msvc");
     let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
     let program_files_x86 = std::env::var_os("ProgramFiles(x86)").map(PathBuf::from);

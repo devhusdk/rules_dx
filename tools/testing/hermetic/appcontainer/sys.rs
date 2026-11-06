@@ -64,6 +64,26 @@ fn check(code: u32, what: &str) -> Result<(), String> {
     }
 }
 
+/// The parent's environment as a sorted UTF-16 block.
+fn environment_block() -> Vec<u16> {
+    let mut vars: Vec<(String, String)> = std::env::vars_os()
+        .map(|(name, value)| {
+            (
+                name.to_string_lossy().into_owned(),
+                value.to_string_lossy().into_owned(),
+            )
+        })
+        .collect();
+    vars.sort_by_key(|(name, _)| name.to_uppercase());
+    let mut block = Vec::new();
+    for (name, value) in vars {
+        block.extend(format!("{name}={value}").encode_utf16());
+        block.push(0);
+    }
+    block.push(0);
+    block
+}
+
 fn profile_sid(name: &str) -> Result<*mut c_void, String> {
     let wname = wide(name);
     let mut sid: *mut c_void = null_mut();
@@ -228,6 +248,7 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
     }
     startup.lpAttributeList = list;
 
+    let environment = environment_block();
     let mut line = wide(&command_line(&config.command));
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let created = unsafe {
@@ -238,7 +259,7 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
             null(),
             1,
             EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
-            null(),
+            environment.as_ptr() as *const c_void,
             null(),
             &startup.StartupInfo,
             &mut info,

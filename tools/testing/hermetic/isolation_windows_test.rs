@@ -14,9 +14,9 @@ struct Scene {
     ungranted: PathBuf,
 }
 
-fn scene() -> Scene {
+fn scene(name: &str) -> Scene {
     let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set under Bazel"));
-    let root = tmp.join("appcontainer probe");
+    let root = tmp.join(format!("appcontainer probe {name}"));
     hermetic::remove_root(&root);
     let granted = root.join("granted");
     let ungranted = root.join("ungranted");
@@ -54,7 +54,7 @@ fn text(path: &Path) -> String {
 
 #[test]
 fn network_denied_blocks_outbound_but_keeps_loopback() {
-    let scene = scene();
+    let scene = scene("denied");
     let outbound = scene.run(Net::Denied, &["connect", OUTSIDE]);
     assert_ne!(outbound.exit, 0, "{}", outbound.stdout);
     assert!(
@@ -70,7 +70,7 @@ fn network_denied_blocks_outbound_but_keeps_loopback() {
 
 #[test]
 fn files_are_visible_only_where_granted() {
-    let scene = scene();
+    let scene = scene("files");
     let secret = scene.ungranted.join("secret.txt");
     std::fs::write(&secret, "hidden").expect("secret");
     let open = scene.granted.join("open.txt");
@@ -84,6 +84,6 @@ fn files_are_visible_only_where_granted() {
 
 #[test]
 fn network_allowed_reaches_the_outside() {
-    let outcome = scene().run(Net::Allowed, &["connect", OUTSIDE]);
+    let outcome = scene("allowed").run(Net::Allowed, &["connect", OUTSIDE]);
     assert_eq!(outcome.exit, 0, "{}", outcome.stderr);
 }

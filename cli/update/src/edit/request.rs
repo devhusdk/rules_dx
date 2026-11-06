@@ -38,6 +38,8 @@ pub enum ConfiguredKind {
     Cpan,
     /// A pub set; only the package's constraint in pubspec.yaml is edited.
     Pub,
+    /// A cabal set; only the package's bound in the `.cabal` file is edited.
+    Cabal,
     /// A composer set; only the constraint in composer.json is edited, then composer.lock is refreshed.
     Composer,
 }
@@ -54,6 +56,7 @@ impl ConfiguredKind {
             ConfiguredKind::Cpan => UpdateSet::Cpan,
             ConfiguredKind::Pub => UpdateSet::Pub,
             ConfiguredKind::Composer => UpdateSet::Composer,
+            ConfiguredKind::Cabal => UpdateSet::Cabal,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -256,6 +259,7 @@ fn configured_refresh_selector(
         | ConfiguredKind::Cargo
         | ConfiguredKind::Maven
         | ConfiguredKind::Nuget
+        | ConfiguredKind::Cabal
         | ConfiguredKind::Go => set.name.clone(),
         ConfiguredKind::Ruby
         | ConfiguredKind::Cpan
@@ -295,6 +299,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::NuGet
         | UpdateSet::Cpan
         | UpdateSet::Pub
+        | UpdateSet::Cabal
         | UpdateSet::Ruby
         | UpdateSet::Composer => "",
     }
@@ -381,6 +386,7 @@ impl UpdateRequest {
             | ConfiguredKind::Ruby
             | ConfiguredKind::Cpan
             | ConfiguredKind::Pub
+            | ConfiguredKind::Cabal
             | ConfiguredKind::Composer => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
@@ -560,6 +566,7 @@ impl UpdateRequest {
             UpdateSet::Ruby => plan_gemfile(manifest, content, &self.package, &self.version),
             UpdateSet::Cpan => plan_cpanfile(manifest, content, &self.package, &self.version),
             UpdateSet::Pub => plan_pubspec(manifest, content, &self.package, &self.version),
+            UpdateSet::Cabal => plan_cabal(manifest, content, &self.package, &self.version),
             UpdateSet::Composer => {
                 plan_composer_json(manifest, content, &self.package, &self.version)
             }

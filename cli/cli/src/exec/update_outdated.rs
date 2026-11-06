@@ -7,8 +7,8 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cargo, composer, containers, cpan, github, go, maven, npm, nuget, pub_dev, pypi, ruby,
-    Candidate, Fetch, Findings, Registry,
+    bcr, cabal, cargo, composer, containers, cpan, github, go, maven, npm, nuget, pub_dev, pypi,
+    ruby, Candidate, Fetch, Findings, Registry,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -316,6 +316,28 @@ pub(super) fn collect(
                     cpan::outdated(name, &texts, only, prereleases, cpan::DEFAULT_BASE, fetch),
                 );
             }
+            Ecosystem::Cabal => {
+                registries.insert(name.to_owned(), Registry::Hackage);
+                let cabal_files = cabal_files(workspace, &target.set.manifests);
+                let freezes: Vec<String> = target
+                    .set
+                    .locks
+                    .iter()
+                    .filter(|lock| lock.ends_with("cabal.project.freeze"))
+                    .cloned()
+                    .collect();
+                merge(
+                    &mut found,
+                    cabal::outdated(
+                        name,
+                        &read_texts(workspace, &cabal_files),
+                        &read_texts(workspace, &freezes),
+                        only,
+                        cabal::DEFAULT_BASE,
+                        fetch,
+                    ),
+                );
+            }
             Ecosystem::Pub => {
                 registries.insert(name.to_owned(), Registry::PubDev);
                 let texts = read_texts(workspace, &target.set.locks);
@@ -402,6 +424,29 @@ pub(super) fn registry_for(
         return Some(Registry::BazelReleases);
     }
     registries.get(&candidate.set).copied()
+}
+
+/// The `.cabal` files next to each `cabal.project`.
+pub(super) fn cabal_files(workspace: &Path, projects: &[String]) -> Vec<String> {
+    let mut files = Vec::new();
+    for project in projects {
+        let dir = project.rsplit_once('/').map_or("", |(dir, _)| dir);
+        let Ok(entries) = std::fs::read_dir(workspace.join(dir)) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let file = entry.file_name().to_string_lossy().into_owned();
+            if file.ends_with(".cabal") {
+                files.push(if dir.is_empty() {
+                    file
+                } else {
+                    format!("{dir}/{file}")
+                });
+            }
+        }
+    }
+    files.sort();
+    files
 }
 
 fn read_texts(workspace: &Path, manifests: &[String]) -> Vec<String> {

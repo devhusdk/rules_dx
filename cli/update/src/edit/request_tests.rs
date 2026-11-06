@@ -593,9 +593,9 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ),
     ];
     assert_eq!(
-        cases.len() + 2,
+        cases.len() + 3,
         UpdateSet::ALL.len(),
-        "one case per set but cpan and pub, which only configured sets edit"
+        "one case per set but cabal, cpan and pub, which only configured sets edit"
     );
     for (selector, version) in cases {
         let update = UpdateRequest::parse_grammar(selector, version).expect("parse");
@@ -1914,4 +1914,81 @@ fn containers_update_refuses_tags_and_short_digests() {
             "{bad}"
         );
     }
+}
+
+fn cabal_request(package: &str, version: &str) -> Result<UpdateRequest, EditError> {
+    configured(
+        ConfiguredKind::Cabal,
+        &["hs/app.cabal"],
+        None,
+        &format!("set:{package}"),
+        version,
+    )
+}
+
+fn cabal_edit(package: &str, version: &str) -> Result<String, EditError> {
+    cabal_request(package, version)?.plan_edit(CABAL)
+}
+
+const CABAL: &str = "name: app
+library
+  build-depends:
+      base >=4.18 && <4.21
+    , safe ==0.3.21 -- pinned
+    , aeson ^>=2.2.0.0
+    , containers ==0.6.*
+    , text
+executable tool
+  build-depends: split ==0.2.5, base
+";
+
+#[test]
+fn cabal_edit_rewrites_the_bound_of_the_package() {
+    let request = cabal_request("safe", "0.3.22").expect("cabal");
+    assert_eq!(request.set, UpdateSet::Cabal);
+    assert_eq!(
+        cabal_edit("safe", "0.3.22").expect("exact"),
+        CABAL.replace("safe ==0.3.21", "safe ==0.3.22")
+    );
+    assert_eq!(
+        cabal_edit("aeson", "2.3.0.0").expect("caret"),
+        CABAL.replace("^>=2.2.0.0", "^>=2.3.0.0")
+    );
+    assert_eq!(
+        cabal_edit("containers", "0.7.1").expect("wildcard"),
+        CABAL.replace("==0.6.*", "==0.7.*")
+    );
+    assert_eq!(
+        cabal_edit("split", "0.2.6").expect("second stanza"),
+        CABAL.replace("split ==0.2.5", "split ==0.2.6")
+    );
+}
+
+#[test]
+fn cabal_edit_moves_the_upper_bound_of_a_range() {
+    let source = "library\n  build-depends: base >=4.18 && <4.21\n";
+    assert_eq!(
+        cabal_request("base", "4.22.0.0")
+            .expect("cabal")
+            .plan_edit(source)
+            .expect("range"),
+        "library\n  build-depends: base >=4.18 && <4.23\n"
+    );
+}
+
+#[test]
+fn cabal_refuses_undeclared_unbounded_and_repeated_packages() {
+    assert!(matches!(
+        cabal_edit("missing", "1.0"),
+        Err(EditError::NotFound { .. })
+    ));
+    assert!(matches!(
+        cabal_edit("text", "2.2"),
+        Err(EditError::UnsupportedManifest { .. })
+    ));
+    assert!(matches!(
+        cabal_edit("base", "4.20"),
+        Err(EditError::Ambiguous { count: 2, .. })
+    ));
+    assert!(cabal_request("safe", "^0.3").is_err());
 }

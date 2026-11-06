@@ -116,14 +116,24 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Composer if foreign => {
             Some(dx_update::edit::ConfiguredKind::Composer)
         }
+        dx_adopt::dependency_sets::Ecosystem::Cabal if foreign => {
+            Some(dx_update::edit::ConfiguredKind::Cabal)
+        }
         _ => None,
     };
     match (set.ecosystem, kind) {
         (_, Some(kind)) => {
-            let arity_ok = if kind == dx_update::edit::ConfiguredKind::Cargo {
-                !set.manifests.is_empty()
+            let cabal_manifests;
+            let manifests = if kind == dx_update::edit::ConfiguredKind::Cabal {
+                cabal_manifests = super::update_outdated::cabal_files(workspace, &set.manifests);
+                &cabal_manifests
             } else {
-                set.manifests.len() == 1
+                &set.manifests
+            };
+            let arity_ok = if kind == dx_update::edit::ConfiguredKind::Cargo {
+                !manifests.is_empty()
+            } else {
+                manifests.len() == 1
             };
             if !arity_ok {
                 return Err(operational(
@@ -148,6 +158,7 @@ pub(crate) fn configured_set(
                             dx_update::edit::ConfiguredKind::Pub => "exactly one pubspec.yaml",
                             dx_update::edit::ConfiguredKind::Composer =>
                                 "exactly one composer.json",
+                            dx_update::edit::ConfiguredKind::Cabal => "exactly one .cabal file",
                         },
                         set.name
                     ),
@@ -155,7 +166,7 @@ pub(crate) fn configured_set(
             }
             Ok(Some(ConfiguredTarget {
                 name: set.name.clone(),
-                manifests: set.manifests.clone(),
+                manifests: manifests.clone(),
                 kind,
                 repository: set.repository.clone(),
             }))
@@ -778,6 +789,7 @@ fn refresh_plan(
         // go sums cover the whole module graph, so a go refresh is always a full one.
         dx_update::edit::ConfiguredKind::Cargo
         | dx_update::edit::ConfiguredKind::Maven
+        | dx_update::edit::ConfiguredKind::Cabal
         | dx_update::edit::ConfiguredKind::Go => (
             dx_adopt::dependency_sets::Selection::Full,
             dx_update::backend::UvClosure::default(),

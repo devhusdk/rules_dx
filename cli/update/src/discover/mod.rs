@@ -1,6 +1,7 @@
 //! Finds packages whose newest stable version is outside the declared requirement.
 
 pub mod bcr;
+pub mod cabal;
 pub mod cargo;
 pub mod composer;
 pub mod containers;
@@ -88,6 +89,7 @@ pub fn wanted(only: &[String], package: &str) -> bool {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Registry {
     Bcr,
+    Hackage,
     Crates,
     Npm,
     Pypi,
@@ -107,6 +109,7 @@ impl Registry {
     pub fn url(self, package: &str) -> String {
         match self {
             Registry::Bcr => format!("https://registry.bazel.build/modules/{package}"),
+            Registry::Hackage => format!("https://hackage.haskell.org/package/{package}"),
             Registry::Crates => format!("https://crates.io/crates/{package}"),
             Registry::Npm => format!("https://www.npmjs.com/package/{package}"),
             Registry::Pypi => format!("https://pypi.org/project/{package}"),

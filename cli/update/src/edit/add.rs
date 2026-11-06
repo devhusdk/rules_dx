@@ -163,6 +163,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit pubspec.yaml and run `dart pub get`",
             }),
+            UpdateSet::Cabal => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit the .cabal file and run the haskell_deps_resolve target",
+            }),
             UpdateSet::Cpan => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit the cpanfile and run `carton install`",

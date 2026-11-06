@@ -641,6 +641,98 @@ pub(super) fn plan_cpanfile(
     Ok(edited)
 }
 
+/// Rewrites the bound of one package in the `build-depends` fields of a `.cabal` file.
+///
+/// A single `^>=`, `>=` or `==` bound takes the new version; a `>=L && <U` range keeps its
+/// lower bound and gets the upper bound of the new major.
+pub(super) fn plan_cabal(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Gem(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected a cabal version".to_owned(),
+        });
+    };
+    let unsupported = |reason: &str| EditError::UnsupportedManifest {
+        manifest: manifest.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let hits: Vec<_> = crate::discover::cabal::build_depends(content)
+        .into_iter()
+        .filter(|depend| depend.name == package)
+        .collect();
+    let depend = match hits.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [depend] => depend,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    let bound = &content[depend.bound.clone()];
+    let parts: Vec<&str> = bound.split("&&").map(str::trim).collect();
+    let replaced = match parts.as_slice() {
+        [single] => single_bound(single, new),
+        [lower, upper]
+            if lower.starts_with(">=") && upper.starts_with('<') && !upper.starts_with("<=") =>
+        {
+            let major = next_major(new)
+                .ok_or_else(|| unsupported("the new version is not dotted numbers"))?;
+            Some(format!("{lower} && <{major}"))
+        }
+        _ => None,
+    };
+    let Some(replaced) = replaced else {
+        return Err(unsupported(
+            "the bound needs to be one of ^>=X, >=X, ==X, ==X.* or >=X && <Y",
+        ));
+    };
+    let mut edited = content.to_owned();
+    edited.replace_range(depend.bound.clone(), &replaced);
+    Ok(edited)
+}
+
+fn single_bound(bound: &str, new: &str) -> Option<String> {
+    let number_at = bound.find(|c: char| c.is_ascii_digit())?;
+    let (operator, number) = bound.split_at(number_at);
+    if !matches!(operator, "^>=" | ">=" | "==") {
+        return None;
+    }
+    match number.strip_suffix(".*") {
+        Some(prefix) if operator == "==" => {
+            let keep = prefix.split('.').count();
+            let cut: Vec<&str> = new.split('.').take(keep).collect();
+            Some(format!("=={}.*", cut.join(".")))
+        }
+        Some(_) => None,
+        None if number.chars().all(|c| c.is_ascii_digit() || c == '.') => {
+            Some(format!("{operator}{new}"))
+        }
+        None => None,
+    }
+}
+
+fn next_major(version: &str) -> Option<String> {
+    let mut parts = version.split('.').map(|part| part.parse::<u64>().ok());
+    let first = parts.next()??;
+    Some(match parts.next() {
+        Some(second) => format!("{first}.{}", second? + 1),
+        None => format!("{}", first + 1),
+    })
+}
+
 /// Rewrites the constraint of one scalar `package: <constraint>` entry in the
 /// `dependencies` or `dev_dependencies` of a pubspec.yaml, keeping its `^` or range form.
 pub(super) fn plan_pubspec(
@@ -1148,6 +1240,17 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("cpan module names are words joined by '::'")
+            }
+        }
+        UpdateSet::Cabal => {
+            if !package.is_empty()
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-')
+            {
+                Ok(())
+            } else {
+                Err("cabal package names use letters, digits and '-'")
             }
         }
         UpdateSet::Pub => {

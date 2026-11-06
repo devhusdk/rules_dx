@@ -47,6 +47,7 @@ filegroup(
         "//quality/tiers/phpcs:files",
         "//quality/tiers/phpstan:files",
         "//quality/tiers/pmd:files",
+        "//quality/tiers/pydoclint:files",
         "//quality/tiers/psscriptanalyzer:files",
         "//quality/tiers/redocly:files",
         "//quality/tiers/regal:files",

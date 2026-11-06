@@ -410,12 +410,12 @@ Edit the tool's own root file. Where the Base column says `extends`, the file ex
 | --- | --- | --- | --- | --- | --- |
 | `ansible_lint` | catalog | `*.ansible-lint`, `*.yml`, `*.yaml` | none | ansible-lint moderate and production profiles |  |
 | `bicep` | curated | `bicepconfig.json` | none | dx |  |
-| `biome` | curated | `*.json` | none |  |  |
+| `biome` | curated | `*.json` | none | dx |  |
 | `buf` | catalog | `*.yaml` | none |  |  |
-| `buildifier` | curated | `*.json` | none |  |  |
+| `buildifier` | curated | `*.json` | none | dx |  |
 | `cfn_lint` | curated | `*.cfnlintrc`, `*.yaml`, `*.yml` | none | dx |  |
 | `checkmake` | catalog | `*.ini` | none |  |  |
-| `checkstyle` | catalog | `*.xml` | none |  |  |
+| `checkstyle` | catalog | `*.xml` | none | dx |  |
 | `clang_format` | curated | `*.clang-format` | none | dx |  |
 | `clang_tidy` | curated | `*.clang-tidy` | none | dx |  |
 | `cmakelint` | catalog | `*.cmakelintrc` | none |  |  |
@@ -427,18 +427,18 @@ Edit the tool's own root file. Where the Base column says `extends`, the file ex
 | `djlint` | catalog | `djlint.toml`, `*.djlintrc` | none |  |  |
 | `elvis` | catalog | `elvis.config`, `*.config` | none | dx |  |
 | `errcheck` | curated | `*.txt` | none | dx |  |
-| `eslint` | catalog | `eslint.config.mjs`, `eslint.config.js`, `eslint.config.cjs`, `eslint.config.ts`, `.eslintrc*` | extends |  |  |
-| `ffmt` | curated | `*.toml` | none |  |  |
+| `eslint` | catalog | `eslint.config.mjs`, `eslint.config.js`, `eslint.config.cjs`, `eslint.config.ts`, `.eslintrc*` | extends | dx |  |
+| `ffmt` | curated | `ffmt.toml` | none |  |  |
 | `fortitude` | curated | `*.toml` | none |  |  |
 | `fsharplint` | catalog | `*.json` | none |  |  |
 | `gersemi` | catalog | `*.gersemirc`, `*.yaml`, `*.yml` | none |  |  |
 | `govet` | curated | `*.json` | none | dx |  |
 | `gplint` | catalog | `*.gplintrc`, `*.json` | none | dx |  |
-| `graphql_eslint` | catalog | `*.json` | none |  |  |
+| `graphql_eslint` | catalog | `*.json` | none | dx |  |
 | `hadolint` | curated | `*.yaml`, `*.yml` | none | dx |  |
 | `hlint` | catalog | `.hlint.yaml` | override copy |  |  |
 | `ktlint` | catalog | `*.editorconfig` | none |  |  |
-| `kubeconform` | curated | `*.kubeconform.json` | none | dx |  |
+| `kubeconform` | curated | `kubernetes.kubeconform.json` | none | dx |  |
 | `latexindent` | catalog | `*.yaml`, `*.yml` | none | dx |  |
 | `luals` | catalog | `*.json` | none |  |  |
 | `markdown_check` | curated | `*.txt` | none | dx |  |
@@ -449,22 +449,23 @@ Edit the tool's own root file. Where the Base column says `extends`, the file ex
 | `pmd` | curated | `*.xml` | none |  |  |
 | `prettier` | curated | `*.prettierrc`, `*.json`, `*.json5`, `*.yaml`, `*.yml`, `*.toml`, `*.mjs`, `*.cjs`, `*.js` | none |  |  |
 | `psscriptanalyzer` | catalog | `PSScriptAnalyzerSettings.psd1` | override copy |  |  |
+| `pydoclint` | catalog | `*.toml` | override copy | dx |  |
 | `qmlformat` | catalog | `*.qmlformat.ini` | none |  |  |
 | `qmllint` | catalog | `*.qmllint.ini` | none |  |  |
 | `redocly` | catalog | `*.yaml`, `*.yml` | none | redocly spec and all rulesets |  |
-| `regal` | catalog | `*.yaml`, `*.yml` | none | dx |  |
+| `regal` | catalog | `.regal/config.yaml` | none | dx |  |
 | `remark` | curated | `*.json` | none |  |  |
 | `roslyn` | catalog | `*.globalconfig` | none |  |  |
 | `rubocop` | catalog | `*.yml`, `*.yaml` | none | dx |  |
-| `ruff` | curated | `ruff.toml`, `.ruff.toml` | extends |  |  |
+| `ruff` | curated | `ruff.toml`, `.ruff.toml` | extends | dx |  |
 | `rustfmt` | curated | `*.toml` | none |  |  |
 | `scalafix` | catalog | `*.conf` | none |  |  |
 | `scalafmt` | curated | `*.conf` | none |  |  |
 | `selene` | catalog | `*.toml` | none |  |  |
 | `shellcheck` | curated | `*.shellcheckrc`, `shellcheckrc` | none | dx |  |
-| `sqlfluff` | catalog | `*.sqlfluff`, `*.cfg`, `*.ini` | none |  |  |
+| `sqlfluff` | catalog | `*.sqlfluff`, `*.cfg`, `*.ini` | none | dx |  |
 | `standardrb` | catalog | `*.yml`, `*.yaml` | none |  |  |
-| `staticcheck` | curated | `*.conf` | none | dx |  |
+| `staticcheck` | curated | `staticcheck.conf` | none | dx |  |
 | `stylelint` | catalog | `.stylelintrc.json`, `.stylelintrc*`, `stylelint.config.*` | extends |  |  |
 | `stylua` | catalog | `*.toml` | none |  |  |
 | `swift_format` | catalog | `*.swift-format`, `*.json` | none |  |  |
@@ -472,7 +473,7 @@ Edit the tool's own root file. Where the Base column says `extends`, the file ex
 | `tflint` | catalog | `*.hcl` | none | dx |  |
 | `trivy_config` | catalog | `*.txt` | none | dx |  |
 | `tsc` | curated | `tsconfig.json` | extends |  |  |
-| `ty` | curated | `*.toml` | none |  |  |
+| `ty` | curated | `*.toml` | none | dx |  |
 | `vale` | catalog | `*.ini` | none | dx |  |
 | `yamlfmt` | curated | `*.yaml`, `*.yml`, `*.yamlfmt` | none |  |  |
 | `yamllint` | curated | `*.yaml`, `*.yml`, `*.yamllint` | none |  |  |

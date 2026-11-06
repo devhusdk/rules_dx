@@ -62,6 +62,18 @@ def _cc_case(tool, capability, name, target, contains, absent, policy = _CC_POLI
         "windows_arm64": True,
     }
 
+def _ruff_tier_case(tier, name, contains, absent):
+    return {
+        "name": "real_result_ruff_%s_%s" % (tier, name),
+        "target": "//quality/testdata/python_tiers:%s_%s" % (tier, name),
+        "policy": "//quality/testdata/python_tiers:ruff_policy",
+        "tool": "ruff",
+        "capability": "lint",
+        "class": "python",
+        "contains": contains,
+        "absent": absent,
+    }
+
 def _objc_case(name, contains, absent):
     return {
         "name": "real_result_clang_syntax_objc_" + name,
@@ -224,6 +236,10 @@ REAL_RESULT_CASES = [
         "contains": ["quality/testdata/ocaml_owned/shadow.ml", "shadows"],
         "absent": [],
     },
+    _ruff_tier_case("standard", "clean", ["python_tiers/clean.py"], ["D413", "D417", "F401", "Failed to"]),
+    _ruff_tier_case("strict", "clean", ["python_tiers/clean.py"], ["D413", "D417", "F401", "Failed to"]),
+    _ruff_tier_case("standard", "strict_only", ["python_tiers/strict_only.py"], ["D417"]),
+    _ruff_tier_case("strict", "strict_only", ["python_tiers/strict_only.py", "D417"], []),
     _go_case("errcheck", "lint", "clean", "//go/tests/fixtures/errcheck:clean", ["errcheck"], ["unchecked error"]),
     _go_case("errcheck", "lint", "dirty", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], []),
     _go_case("govet", "lint", "clean", "//go/tests/fixtures/govet:clean", ["govet"], ["non-constant format string"]),

@@ -1997,6 +1997,8 @@ TOOLS = [
     tool(
         id = "pydoclint",
         adapters = {"lint": ["python", "python_stub"]},
+        config = config(suffixes = [".toml"], ext = "toml", comment = "#", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2177,6 +2179,20 @@ TOOLS = [
             init_order = 1,
             family = "python",
             tier_active = True,
+        ),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "E9": "error",
+                "F82": "error",
+                "S1": "error",
+                "S2": "error",
+                "S3": "error",
+                "S4": "error",
+                "S5": "error",
+                "S6": "error",
+                "S7": "error",
+            },
         ),
         support = [
             row(
@@ -2763,6 +2779,7 @@ TOOLS = [
         id = "ty",
         adapters = {"typecheck": ["jupyter", "python", "python_stub"]},
         config = config(suffixes = [".toml"], tier_active = True),
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "typecheck",

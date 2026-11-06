@@ -149,6 +149,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "pydoclint",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
         "redocly",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -167,6 +174,23 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
             categories: &[("Security/", crate::ToolSeverity::Error)],
+        },
+    ),
+    (
+        "ruff",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("E9", crate::ToolSeverity::Error),
+                ("F82", crate::ToolSeverity::Error),
+                ("S1", crate::ToolSeverity::Error),
+                ("S2", crate::ToolSeverity::Error),
+                ("S3", crate::ToolSeverity::Error),
+                ("S4", crate::ToolSeverity::Error),
+                ("S5", crate::ToolSeverity::Error),
+                ("S6", crate::ToolSeverity::Error),
+                ("S7", crate::ToolSeverity::Error),
+            ],
         },
     ),
     (
@@ -191,6 +215,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         "tinymist",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "ty",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
             categories: &[],
         },
     ),

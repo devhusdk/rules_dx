@@ -1,0 +1,11 @@
+# Numpy-style docstrings. Every docstring is checked, including class attributes and yields.
+[tool.pydoclint]
+style = "numpy"
+skip-checking-short-docstrings = false
+check-arg-order = true
+check-class-attributes = true
+check-yield-types = true
+check-style-mismatch = true
+check-arg-defaults = true
+require-return-section-when-returning-nothing = true
+require-yield-section-when-yielding-nothing = true

@@ -110,7 +110,7 @@ impl Entry {
             family: config.family,
             extensions: config.extensions,
             ext: config.ext,
-            root: config.files[0],
+            root: config.files.first().copied().unwrap_or_default(),
             root_template: config.extends_syntax,
             comment: present(config.comment),
             mode: if config.extends_syntax.is_empty() {

@@ -5086,6 +5086,25 @@ fn git_run_until_reports_a_stop_and_otherwise_matches_run() {
     assert_eq!(read, crate::git::run(&fixture.main, &args).expect("run"));
 }
 
+#[test]
+fn git_run_with_input_handles_stdin_larger_than_a_pipe_buffer() {
+    let fixture = Fixture::new();
+    let mut input = Vec::new();
+    for index in 0..6000 {
+        input.extend_from_slice(format!("deps/{index:0>60}\0").as_bytes());
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let main = fixture.main.clone();
+    std::thread::spawn(move || {
+        let args = ["check-ignore", "-z", "--stdin"];
+        let _ = sender.send(crate::git::run_with_input(&main, &args, &input));
+    });
+    let result = receiver
+        .recv_timeout(std::time::Duration::from_secs(60))
+        .expect("git did not hang");
+    assert!(result.is_ok());
+}
+
 #[cfg(unix)]
 #[test]
 fn git_run_removes_a_worktree_whose_dir_name_is_not_utf8() {

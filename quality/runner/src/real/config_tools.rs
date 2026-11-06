@@ -644,20 +644,24 @@ fn scan_chart(
             .resolve(Path::new(chart_root))
             .map_err(|err| execution(tool_id, format!("chart root: {err}")))?
     };
-    let relative: Vec<String> = call
+    let staged: Vec<(String, &Path)> = call
         .staged
         .pairs
         .iter()
-        .filter_map(|(_, absolute)| absolute.strip_prefix(&chart_abs).ok())
-        .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+        .filter_map(|(_, absolute)| {
+            let rel = absolute.strip_prefix(&chart_abs).ok()?;
+            Some((rel.to_string_lossy().replace('\\', "/"), absolute.as_path()))
+        })
         .collect();
-    let relative: Vec<&str> = relative.iter().map(String::as_str).collect();
+    let relative: Vec<&str> = staged.iter().map(|(rel, _)| rel.as_str()).collect();
     let invocation = commands::trivy_config_check(&call.tool.binary, &chart_abs, cache);
     let out = backend.run(tool_id, call.tool, &invocation, scratch)?;
     let report = parsers::parse_trivy_config(&out.stdout, &out.stderr, out.code, &relative);
     let mut findings = parsed(tool_id, report)?;
     for found in &mut findings {
-        found.file = chart_abs.join(&found.file).to_string_lossy().into_owned();
+        if let Some((_, absolute)) = staged.iter().find(|(rel, _)| *rel == found.file) {
+            found.file = absolute.to_string_lossy().into_owned();
+        }
         found.finding.start = TextPosition { line: 1, column: 1 };
         found.finding.end = None;
     }

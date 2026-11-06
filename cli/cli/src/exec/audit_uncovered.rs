@@ -14,6 +14,7 @@ const UNOWNED_NAMES: &[(&str, &str)] = &[
     ("vcpkg.json", "vcpkg"),
     ("poetry.lock", "pypi"),
     ("Pipfile.lock", "pypi"),
+    ("dub.selections.json", "dub"),
 ];
 
 const SKIPPED_DIRS: &[&str] = &["node_modules", dx_path::state::DX_DIR, ".git"];
@@ -87,6 +88,7 @@ mod tests {
         for rel in [
             "pkg/mix.lock",
             "poetry.lock",
+            "d/dub.selections.json",
             "app/pubspec.lock",
             "node_modules/x/composer.lock",
             "bazel-out/mix.lock",
@@ -101,6 +103,7 @@ mod tests {
         assert_eq!(
             messages,
             [
+                "dx: no dependency set for d/dub.selections.json (dub); advisories not checked, see #7296",
                 "dx: no dependency set for pkg/mix.lock (hex); advisories not checked, see #7296",
                 "dx: no dependency set for poetry.lock (pypi); advisories not checked, use a uv set",
             ]

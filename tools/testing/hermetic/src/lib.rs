@@ -284,6 +284,9 @@ fn windows_host_dirs() -> Vec<PathBuf> {
 
 pub const AMBIENT_MARKER: &str = "dx-hermetic: undeclared ambient tool";
 
+/// Bazel's strict action PATH on Windows is fixed, so the shim never runs there and PowerShell reports the tool missing.
+pub const WINDOWS_AMBIENT_MARKER: &str = "CommandNotFoundException";
+
 pub const NETWORK_MARKER: &str = "Network is unreachable";
 
 pub const HOME_MARKER: &str = "dx-hermetic: home config absent";
@@ -293,7 +296,7 @@ pub fn markers(os: &str) -> (&'static str, &'static str, &'static str) {
     if os == "macos" {
         (MACOS_DENIED_MARKER, MACOS_DENIED_MARKER, HOME_MARKER)
     } else if os == "windows" {
-        (AMBIENT_MARKER, WINDOWS_DENIED_MARKER, HOME_MARKER)
+        (WINDOWS_AMBIENT_MARKER, WINDOWS_DENIED_MARKER, HOME_MARKER)
     } else {
         (AMBIENT_MARKER, NETWORK_MARKER, HOME_MARKER)
     }

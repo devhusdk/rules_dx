@@ -1734,7 +1734,10 @@ fn markers_follow_the_host_os() {
             HOME_MARKER
         )
     );
-    assert_eq!(markers("windows").1, WINDOWS_DENIED_MARKER);
+    assert_eq!(
+        markers("windows"),
+        (WINDOWS_AMBIENT_MARKER, WINDOWS_DENIED_MARKER, HOME_MARKER)
+    );
     assert_eq!(
         probe_expectation("network", "macos").1,
         "Operation not permitted"

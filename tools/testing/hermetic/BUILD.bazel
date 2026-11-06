@@ -2,7 +2,7 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
-load(":defs.bzl", "HERMETIC_COMPATIBLE_WITH", "MANIFEST_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
+load(":defs.bzl", "MANIFEST_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
@@ -18,6 +18,12 @@ exports_files(
 )
 
 WINDOWS = ["@platforms//os:windows"]
+
+LINUX_MACOS = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
 
 LINUX_MACOS_WINDOWS = select({
     "@platforms//os:linux": [],
@@ -313,7 +319,6 @@ hermetic_qualification(
         "//javascript/tests/fixtures/node-app/registry/...",
     ],
     smoke = True,
-    compatible_with = LINUX_MACOS_WINDOWS,
     # macOS takes about 870s (run 42173489188), Linux 653s (run 42178777570).
     timeout = "eternal",
 )
@@ -339,7 +344,6 @@ hermetic_qualification(
         "@rules_dx_beam//elixir/tests/fixtures/elixir-app/stock:test/ledger_test.exs": "elixir/tests/fixtures/elixir-app/stock/test/ledger_test.exs",
         "@rules_dx_beam//elixir/tests/fixtures/elixir-app/stock:test/test_helper.exs": "elixir/tests/fixtures/elixir-app/stock/test/test_helper.exs",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["elixir"],
     module_fragment = "consumers/elixir/module_fragment.bazel",
     patterns = ["//..."],
@@ -365,7 +369,6 @@ hermetic_qualification(
         "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot": "perl/tests/fixtures/perl-app/third_party/cpanfile.snapshot",
         "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json": "perl/tests/fixtures/perl-app/third_party/cpanfile.snapshot.lock.json",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["perl"],
     module_fragment = "consumers/perl/module_fragment.bazel",
     patterns = ["//..."],
@@ -401,7 +404,6 @@ hermetic_qualification(
         "consumers/prose/consumer.bazelrc": ".bazelrc",
         "consumers/prose/root.BUILD.bazel": "BUILD.bazel",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = [
         "asciidoc",
         "latex",
@@ -421,7 +423,6 @@ hermetic_qualification(
         "//tools/testing/starters/fixtures:julia/src/DemoApp.jl.fixture": "src/DemoApp.jl",
         "//tools/testing/starters/fixtures:julia/test/runtests.jl.fixture": "test/runtests.jl",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["julia"],
     module_fragment = "consumers/julia_fixture/module_fragment.bazel",
     patterns = ["//..."],
@@ -446,7 +447,6 @@ hermetic_qualification(
         "consumers/proto_bindings/roundtrip/produce.go": "roundtrip/produce.go",
     },
     generate = True,
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["go", "python", "java", "cc"],
     module_fragment = "consumers/proto_bindings/module_fragment.bazel",
     patterns = ["//..."],
@@ -470,7 +470,6 @@ hermetic_qualification(
         "//lua/tests/fixtures/lua-app/report:init.lua": "lua/tests/fixtures/lua-app/report/init.lua",
         "//lua/tests/fixtures/lua-app/report:report_test.lua": "lua/tests/fixtures/lua-app/report/report_test.lua",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["lua"],
     module_fragment = "consumers/lua/module_fragment.bazel",
     patterns = ["//..."],
@@ -502,7 +501,6 @@ hermetic_qualification(
         "@rules_dx_beam//erlang/tests/fixtures/erlang-app/cli:src/kvctl.erl": "erlang/tests/fixtures/erlang-app/cli/src/kvctl.erl",
         "@rules_dx_beam//erlang/tests/fixtures/erlang-app/cli:test/kvctl_SUITE.erl": "erlang/tests/fixtures/erlang-app/cli/test/kvctl_SUITE.erl",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["erlang"],
     module_fragment = "consumers/erlang/module_fragment.bazel",
     patterns = ["//..."],
@@ -525,7 +523,6 @@ hermetic_qualification(
         "//haskell/tests/fixtures/haskell-app/cli:src/ReportWithoutSplit.hs": "haskell/tests/fixtures/haskell-app/cli/src/ReportWithoutSplit.hs",
         "//haskell/tests/fixtures/haskell-app/cli:test/CliTest.hs": "haskell/tests/fixtures/haskell-app/cli/test/CliTest.hs",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["haskell"],
     module_fragment = "consumers/haskell/module_fragment.bazel",
     patterns = ["//..."],
@@ -568,7 +565,6 @@ hermetic_qualification(
         "//ocaml/tests/fixtures/ocaml-app/diagnostics:BUILD.bazel": "ocaml/tests/fixtures/ocaml-app/diagnostics/BUILD.bazel",
         "//ocaml/tests/fixtures/ocaml-app/diagnostics:syntax_error.ml": "ocaml/tests/fixtures/ocaml-app/diagnostics/syntax_error.ml",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["ocaml"],
     module_fragment = "consumers/ocaml/module_fragment.bazel",
     patterns = ["//..."],
@@ -607,7 +603,6 @@ hermetic_qualification(
         "//qt/tests/fixtures/qt-tasks/store:task_model.cc": "qt/tests/fixtures/qt-tasks/store/task_model.cc",
         "//qt/tests/fixtures/qt-tasks/store:task_model.h": "qt/tests/fixtures/qt-tasks/store/task_model.h",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = [
         "cpp",
         "qml",
@@ -632,7 +627,6 @@ hermetic_qualification(
         "consumers/scala_scalafix/root.BUILD.bazel": "BUILD.bazel",
         "consumers/scala_scalafix/scalafix.conf": "scalafix.conf",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["scala"],
     module_fragment = "consumers/scala_scalafix/module_fragment.bazel",
     patterns = [
@@ -661,7 +655,6 @@ hermetic_qualification(
         "//zig/tests/fixtures/zig-app/cli:report.zig": "zig/tests/fixtures/zig-app/cli/report.zig",
         "//zig/tests/fixtures/zig-app/cli:report_test.zig": "zig/tests/fixtures/zig-app/cli/report_test.zig",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["zig"],
     module_fragment = "consumers/zig/module_fragment.bazel",
     patterns = ["//..."],
@@ -688,7 +681,6 @@ hermetic_qualification(
         "//third_party/dart:BUILD.bazel": "third_party/dart/BUILD.bazel",
         "//third_party/dart:pubspec.lock": "third_party/dart/pubspec.lock",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["dart"],
     module_fragment = "consumers/dart/module_fragment.bazel",
     patterns = ["//..."],
@@ -703,7 +695,6 @@ hermetic_qualification(
         "//flutter/tests/fixtures/flutter-app/failures:undeclared_dep": "is not a direct dependency of",
         "//flutter/tests/fixtures/flutter-app/failures:bad_abi": "android_abi 'x86' is unknown",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     families = ["android"],
     files = {
         "//flutter/tests/fixtures/flutter-app/android:BUILD.bazel": "flutter/tests/fixtures/flutter-app/android/BUILD.bazel",
@@ -764,7 +755,6 @@ hermetic_qualification(
         "//cuda/tests/fixtures/cuda-app/kernels:stencil.cu": "cuda/tests/fixtures/cuda-app/kernels/stencil.cu",
         "//cuda/tests/fixtures/cuda-app/kernels:vector_add.cu": "cuda/tests/fixtures/cuda-app/kernels/vector_add.cu",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = [
         "cpp",
         "cuda",
@@ -786,7 +776,6 @@ hermetic_qualification(
         "//msix/tests/fixtures/msix-app/greet:greet.c": "msix/tests/fixtures/msix-app/greet/greet.c",
         "//msix/tests/fixtures/msix-app/greet:greet.h": "msix/tests/fixtures/msix-app/greet/greet.h",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["msix"],
     module_fragment = "consumers/msix/module_fragment.bazel",
     patterns = ["//..."],
@@ -873,6 +862,7 @@ hermetic_qualification(
     platform = select({
         "//qt/platforms:cell_linux_arm64": "//:qt_linux_arm64",
         "//qt/platforms:cell_macos_arm64": "//:qt_macos_arm64",
+        "//qt/platforms:cell_windows_x86_64": "//:qt_windows_x86_64",
         "//conditions:default": "//:qt_linux_x86_64",
     }),
 )
@@ -902,7 +892,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "adopt_android",
-    compatible_with = LINUX_MACOS_WINDOWS,
     families = ["android"],
     files = {
         "@rules_dx_android//tests/fixtures/adopt-android/app:BUILD.bazel": "android/tests/fixtures/adopt-android/app/BUILD.bazel",
@@ -953,6 +942,7 @@ hermetic_qualification(
         "//appimage/tests/fixtures/appimage-app/greet:greet.c": "appimage/tests/fixtures/appimage-app/greet/greet.c",
         "//appimage/tests/fixtures/appimage-app/greet:greet.h": "appimage/tests/fixtures/appimage-app/greet/greet.h",
     },
+    compatible_with = LINUX_MACOS,
     languages = ["appimage"],
     module_fragment = "consumers/appimage/module_fragment.bazel",
     patterns = ["//..."],
@@ -988,7 +978,6 @@ hermetic_qualification(
         "consumers/python/ruff.toml": "ruff.toml",
         "consumers/python/service.BUILD.bazel": "ledger/service/BUILD.bazel",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["python"],
     module_fragment = "consumers/python/module_fragment.bazel",
     patterns = ["//ledger/..."],
@@ -1008,7 +997,6 @@ hermetic_qualification(
         "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["c"],
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
@@ -1030,6 +1018,7 @@ hermetic_qualification(
         "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
     },
+    compatible_with = LINUX_MACOS,
     languages = ["c"],
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
@@ -1072,7 +1061,6 @@ hermetic_qualification(
         "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
     },
-    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["cpp"],
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
@@ -1094,6 +1082,7 @@ hermetic_qualification(
         "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
     },
+    compatible_with = LINUX_MACOS,
     languages = ["cpp"],
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
@@ -1124,7 +1113,7 @@ hermetic_qualification(
 
 rustfmt_test(
     name = "hermetic_fmt_test",
-    target_compatible_with = HERMETIC_COMPATIBLE_WITH,
+    target_compatible_with = LINUX_MACOS,
     targets = [
         ":adopt_android",
         ":cuda_gpu_facts_test",
@@ -1157,7 +1146,7 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "hermetic_clippy_test",
-    target_compatible_with = HERMETIC_COMPATIBLE_WITH,
+    target_compatible_with = LINUX_MACOS,
     targets = [
         ":adopt_android",
         ":appimage",

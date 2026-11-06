@@ -15,6 +15,11 @@ platform(
     parents = ["@rules_dx//qt/platforms:linux_x86_64"],
 )
 
+platform(
+    name = "qt_windows_x86_64",
+    parents = ["@rules_dx//qt/platforms:windows_x86_64"],
+)
+
 quality_family(
     name = "cc_family",
     disabled = [

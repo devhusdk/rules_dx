@@ -536,36 +536,6 @@ fn pydoclint_reports_and_is_check_only() {
 }
 
 #[test]
-fn vulture_reports_unused_code_across_files_and_is_check_only() {
-    let backend = backend_for("vulture", plain_tool(), roundtrip_vulture);
-    let mut files = single("a.py", "def unused_fn():\n    pass\n");
-    files.insert("b.py".to_owned(), "\n".to_owned());
-    let findings = backend
-        .diagnose("vulture", "unused", &files)
-        .expect("diagnosed");
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].tool_id, "vulture");
-    assert_eq!(findings[0].rule_id, "unused-function");
-    assert_eq!(findings[0].path, "a.py");
-    assert_eq!(
-        findings[0].severity,
-        quality_result::proto::Severity::Warning as i32
-    );
-    files.insert("b.py".to_owned(), "from a import unused_fn\n".to_owned());
-    assert!(backend
-        .diagnose("vulture", "unused", &files)
-        .expect("diagnosed")
-        .is_empty());
-    let text = "def unused_fn():\n    pass\n";
-    assert_eq!(
-        backend
-            .apply_fix("vulture", "a.py", text, "lint")
-            .expect("check-only"),
-        text
-    );
-}
-
-#[test]
 fn biome_lint_uses_pinned_defaults_and_is_check_only() {
     let backend = backend_for("biome", plain_tool(), biome_defaults);
     let findings = backend
@@ -3610,72 +3580,6 @@ fn deadnix_reports_and_removes_dead_code() {
     );
 }
 
-const DEBRIDE_DIRTY: &str = "class Foo\n  def bar\n  end\nend\n";
-
-fn debride_tool(
-    argv: &[OsString],
-    _cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    assert!(argv.iter().any(|arg| arg == "--json"));
-    let mut bars = Vec::new();
-    for arg in argv
-        .iter()
-        .filter(|arg| arg.to_string_lossy().ends_with(".rb"))
-    {
-        let file = arg.to_string_lossy().into_owned();
-        let body = std::fs::read_to_string(&file).expect("read staged ruby file");
-        if body.contains("def bar") {
-            bars.push(serde_json::json!(["bar", format!("{file}:2-3")]));
-        }
-    }
-    let missing = if bars.is_empty() {
-        serde_json::json!({})
-    } else {
-        serde_json::json!({"Foo": bars})
-    };
-    Ok(ChildOutput {
-        code: Some(0),
-        stdout: serde_json::json!({"missing": missing})
-            .to_string()
-            .into_bytes(),
-        stderr: Vec::new(),
-    })
-}
-
-fn debride_garbage(
-    _argv: &[OsString],
-    _cwd: &Path,
-    _env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    Ok(ChildOutput {
-        code: Some(0),
-        stdout: b"Foo\n  bar lib/foo.rb:2\n".to_vec(),
-        stderr: Vec::new(),
-    })
-}
-
-#[test]
-fn debride_reports_one_uncalled_method() {
-    let backend = backend_for("debride", plain_tool(), debride_tool);
-    let findings = backend
-        .diagnose("debride", "unused", &single("lib/foo.rb", DEBRIDE_DIRTY))
-        .expect("diagnosed");
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].tool_id, "debride");
-    assert_eq!(findings[0].rule_id, "uncalled_method");
-    assert_eq!(findings[0].path, "lib/foo.rb");
-}
-
-#[test]
-fn debride_garbage_fails_the_action() {
-    let backend = backend_for("debride", plain_tool(), debride_garbage);
-    backend
-        .diagnose("debride", "unused", &single("lib/foo.rb", DEBRIDE_DIRTY))
-        .expect_err("garbage is never clean");
-}
-
 #[test]
 fn deadnix_garbage_fails_the_action() {
     let backend = backend_for("deadnix", plain_tool(), deadnix_garbage);
@@ -5887,59 +5791,6 @@ fn detekt_reports_an_unused_private_function_as_info() {
     assert!(clean.is_empty());
 }
 
-fn knip_fake(
-    argv: &[OsString],
-    cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    assert!(argv.iter().any(|arg| arg == "json"), "knip asks for json");
-    assert!(
-        cwd.ends_with("web"),
-        "knip runs in the package root: {cwd:?}"
-    );
-    let unused = std::fs::read_to_string(cwd.join("src/a.ts"))
-        .expect("read staged file")
-        .contains("export const unused");
-    let (code, body) = if unused {
-        (
-            1,
-            r#"{"files":[],"issues":[{"file":"src/a.ts","exports":[{"name":"unused","line":1,"col":14}]}]}"#,
-        )
-    } else {
-        (0, r#"{"files":[],"issues":[]}"#)
-    };
-    Ok(ChildOutput {
-        code: Some(code),
-        stdout: body.as_bytes().to_vec(),
-        stderr: Vec::new(),
-    })
-}
-
-fn knip_files(source: &str) -> std::collections::BTreeMap<String, String> {
-    let mut files = single("web/src/a.ts", source);
-    files.insert("web/package.json".to_owned(), "{}\n".to_owned());
-    files
-}
-
-#[test]
-fn knip_reports_an_unused_export_as_a_warning_from_the_package_root() {
-    let backend = backend_for("knip", plain_tool(), knip_fake);
-    let findings = backend
-        .diagnose("knip", "unused", &knip_files("export const unused = 1;\n"))
-        .expect("knip diagnose");
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].rule_id, "exports");
-    assert_eq!(
-        findings[0].severity,
-        quality_result::proto::Severity::Warning as i32
-    );
-    let clean = backend
-        .diagnose("knip", "unused", &knip_files("export const used = 1;\n"))
-        .expect("knip clean");
-    assert!(clean.is_empty());
-}
-
 fn credo_fake(
     argv: &[OsString],
     cwd: &Path,
@@ -6273,50 +6124,6 @@ fn dialyzer_stages_owned_directories_and_reports_each_source_path() {
         .expect("diagnosed");
     let seen: Vec<&str> = findings.iter().map(|f| f.path.as_str()).collect();
     assert_eq!(seen, vec!["pkg/lib/a/w.ex", "pkg/lib/b/w.ex"]);
-}
-
-fn xref_report(
-    argv: &[OsString],
-    _cwd: &Path,
-    _env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    let text: Vec<String> = argv
-        .iter()
-        .map(|arg| arg.to_string_lossy().into_owned())
-        .collect();
-    assert!(text[1].ends_with("dx-xref/dx_xref.escript"), "{text:?}");
-    let dep = text.iter().position(|a| a == "--dep").expect("dep flag");
-    assert!(text[dep + 1].ends_with("/dep.beam"), "{text:?}");
-    assert!(
-        text[dep + 2].ends_with("dx-xref/owned/0/a.beam"),
-        "{text:?}"
-    );
-    Ok(ChildOutput {
-        code: Some(0),
-        stdout: b"/w/lib/src/a.erl:3: a:f/0\nother.erl:1: other:g/0\n".to_vec(),
-        stderr: Vec::new(),
-    })
-}
-
-#[test]
-fn xref_passes_dependencies_and_keeps_owned_findings() {
-    let tool = RealTool {
-        tool_files: vec![
-            ("dx-xref/dx_xref.escript".to_owned(), b"s".to_vec()),
-            ("dx-xref/aux/0/dep.beam".to_owned(), b"d".to_vec()),
-            ("dx-xref/owned/0/a.beam".to_owned(), b"a".to_vec()),
-        ],
-        ..plain_tool()
-    };
-    let backend = backend_for("xref", tool, xref_report);
-    let findings = backend
-        .diagnose("xref", "unused", &single("lib/src/a.erl", DIALYZER_SRC))
-        .expect("diagnosed");
-    let seen: Vec<(&str, &str)> = findings
-        .iter()
-        .map(|f| (f.path.as_str(), f.rule_id.as_str()))
-        .collect();
-    assert_eq!(seen, vec![("lib/src/a.erl", "unused_export")]);
 }
 
 #[test]

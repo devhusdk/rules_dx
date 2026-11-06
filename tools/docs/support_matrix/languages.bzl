@@ -94,30 +94,30 @@ DOC_TOOLS = {
 
 # The tool and rule that report unused code per row. A language row missing here has no dead-code tool yet; "none" marks a language where none exists.
 DEAD_CODE = {
-    "cc": ["cppcheck unusedFunction (dx unused)"],
+    "cc": ["none"],
     "csharp": ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
     "cuda": ["none"],
     "d": ["dscanner unused_variable_check, unused_parameter_check"],
     "dart": ["dart unused_element"],
     "fortran": ["fortitude C191 unreachable-statement"],
-    "go": ["staticcheck U1000 (dx lint)", "deadcode (dx unused)"],
+    "go": ["staticcheck U1000"],
     "haskell": ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
-    "javascript": ["knip (dx unused)", "eslint no-unused-vars"],
+    "javascript": ["eslint no-unused-vars"],
     "julia": ["none"],
     "kotlin": ["detekt"],
     "lua": ["selene unused_variable"],
     "nix": ["deadnix"],
     "ocaml": ["ocamlc warnings 26, 27, 32 to 39"],
     "perl": ["perlcritic ProhibitUnusedVariables"],
-    "php": ["phpstan unused-public (dx unused)"],
+    "php": ["none"],
     "powershell": ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
-    "python": ["vulture (dx unused)", "ruff F401, F841"],
-    "ruby": ["debride (dx unused)", "rubocop Lint/UselessAssignment"],
+    "python": ["ruff F401, F841"],
+    "ruby": ["rubocop Lint/UselessAssignment"],
     "rust": ["rustc dead_code"],
     "scala": ["scalac -Wunused"],
     "shell": ["shellcheck SC2034"],
     "starlark": ["buildifier unused-variable"],
-    "typescript": ["knip (dx unused)", "eslint no-unused-vars"],
+    "typescript": ["eslint no-unused-vars"],
 }
 
 # The coverage collector each row's tests write LCOV with. A row in neither dict has no coverage to report.

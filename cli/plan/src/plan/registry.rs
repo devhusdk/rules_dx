@@ -100,21 +100,6 @@ pub fn spec(command: Command) -> CommandSpec {
             ],
             reports: &[StandardFormat::Sarif],
         },
-        Command::Unused => CommandSpec {
-            command,
-            aspects: &[
-                "quality:families/js.bzl%real_js_unused_aspect",
-                "quality:families/python.bzl%real_python_unused_aspect",
-                "quality:families/ruby.bzl%real_ruby_unused_aspect",
-                "quality:families/beam.bzl%real_erlang_unused_aspect",
-                "quality:families/beam.bzl%real_elixir_unused_aspect",
-                "quality:families/cc.bzl%real_cc_unused_aspect",
-                "quality:families/php.bzl%real_php_unused_aspect",
-                "quality:real_aspects.bzl%real_go_unused_aspect",
-            ],
-            probes: &[],
-            reports: &[],
-        },
         Command::Typecheck => CommandSpec {
             command,
             aspects: &[

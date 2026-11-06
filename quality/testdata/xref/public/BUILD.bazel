@@ -1,9 +1,0 @@
-load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
-
-erlang_app(
-    name = "erlang_public",
-    app_name = "dx_xref_public",
-    app_version = "1.0.0",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
-    visibility = ["//visibility:public"],
-)

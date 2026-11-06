@@ -21,7 +21,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["ruff"],
                     "lint": ["ruff", "typos"],
                     "typecheck": ["ty"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -32,7 +31,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["biome"],
                     "lint": ["biome", "typos"],
                     "typecheck": ["tsc"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -43,7 +41,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["biome"],
                     "lint": ["biome", "typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -54,7 +51,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["biome"],
                     "lint": ["biome"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -65,7 +61,6 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["julialint", "typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -76,7 +71,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -87,7 +81,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -98,7 +91,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": ["tsc"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -109,7 +101,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["remark"],
                     "lint": ["lychee", "typos"],
                     "typecheck": ["tsc"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -120,7 +111,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": ["tsc"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -131,7 +121,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": ["tsc"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -142,7 +131,6 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["hadolint", "typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -153,7 +141,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["rustfmt"],
                     "lint": ["clippy", "typos"],
                     "typecheck": ["rustc"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -164,7 +151,6 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -175,7 +161,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["ffmt"],
                     "lint": ["fortitude", "typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -186,7 +171,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["topiary"],
                     "lint": ["typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -197,7 +181,6 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -208,7 +191,6 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -219,7 +201,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["dart"],
                     "lint": ["dart", "typos"],
                     "typecheck": ["dart"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -230,7 +211,6 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["deadnix", "typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -241,7 +221,6 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -252,7 +231,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["zig_fmt"],
                     "lint": ["typos", "zig_ast_check"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -263,7 +241,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["gofumpt"],
                     "lint": ["errcheck", "govet", "staticcheck", "typos"],
                     "typecheck": ["gotype"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -274,7 +251,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["clang_format"],
                     "lint": ["clang_tidy", "typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -285,7 +261,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["google_java_format"],
                     "lint": ["pmd", "spotbugs", "typos"],
                     "typecheck": ["javac"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -296,7 +271,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["ktfmt"],
                     "lint": ["detekt", "typos"],
                     "typecheck": ["kotlinc"],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -307,7 +281,6 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["lychee", "markdown_check", "typos"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -318,7 +291,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["yamlfmt"],
                     "lint": ["yamllint"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
             expect_equal(
@@ -329,7 +301,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["yamlfmt"],
                     "lint": ["actionlint", "zizmor"],
                     "typecheck": [],
-                    "unused": [],
                 },
             ),
         ],

@@ -10,7 +10,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["prettier"],
         typecheck: &["tsc"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "bicep",
@@ -18,7 +17,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["bicep"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "cc",
@@ -26,7 +24,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["clang_format"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "cloudformation",
@@ -34,7 +31,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "core",
@@ -42,7 +38,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["yamlfmt"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "d",
@@ -50,7 +45,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "dart",
@@ -58,7 +52,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["dart"],
         typecheck: &["dart"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "dockerfile",
@@ -66,7 +59,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "fortran",
@@ -74,7 +66,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["ffmt"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "go",
@@ -82,7 +73,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["gofumpt"],
         typecheck: &["gotype"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "go_module",
@@ -90,7 +80,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["modfmt"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "graphql",
@@ -98,7 +87,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["prettier"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "haskell",
@@ -106,7 +94,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "helm",
@@ -114,7 +101,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "html",
@@ -122,7 +108,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["prettier"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "java",
@@ -130,7 +115,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["google_java_format"],
         typecheck: &["javac"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "javascript",
@@ -138,7 +122,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["biome"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "json",
@@ -146,7 +129,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["biome"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "julia",
@@ -154,7 +136,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "kotlin",
@@ -162,7 +143,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["ktfmt"],
         typecheck: &["kotlinc"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "kubernetes",
@@ -170,7 +150,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "markdown",
@@ -178,7 +157,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "mdx",
@@ -186,7 +164,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["remark"],
         typecheck: &["tsc"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "nix",
@@ -194,7 +171,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "ocaml",
@@ -202,7 +178,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["topiary"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "powershell",
@@ -210,7 +185,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "python",
@@ -218,7 +192,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["ruff"],
         typecheck: &["ty"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "rust",
@@ -226,7 +199,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["rustfmt"],
         typecheck: &["rustc"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "scala",
@@ -234,7 +206,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["scalafmt"],
         typecheck: &["scalac"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "shell",
@@ -242,7 +213,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["shfmt"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "starlark",
@@ -250,7 +220,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["buildifier"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "svelte",
@@ -258,7 +227,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["prettier"],
         typecheck: &["tsc"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "swift",
@@ -266,7 +234,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "text",
@@ -274,7 +241,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &[],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "toml",
@@ -282,7 +248,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["taplo"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "typescript",
@@ -290,7 +255,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["biome"],
         typecheck: &["tsc"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "vue",
@@ -298,7 +262,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["prettier"],
         typecheck: &["tsc"],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "yaml",
@@ -306,7 +269,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["yamlfmt"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
     CuratedFamily {
         id: "zig",
@@ -314,7 +276,6 @@ pub const FAMILIES: &[CuratedFamily] = &[
         format: &["zig_fmt"],
         typecheck: &[],
         audit: &[],
-        unused: &[],
     },
 ];
 
@@ -352,9 +313,7 @@ pub const TOOLS: &[&str] = &[
     "csharpier",
     "cue",
     "dart",
-    "deadcode",
     "deadnix",
-    "debride",
     "detekt",
     "dfmt",
     "dialyzer",
@@ -389,7 +348,6 @@ pub const TOOLS: &[&str] = &[
     "julia_format",
     "julialint",
     "keep_sorted",
-    "knip",
     "kotlinc",
     "ktfmt",
     "ktlint",
@@ -457,10 +415,8 @@ pub const TOOLS: &[&str] = &[
     "typos",
     "typstyle",
     "vale",
-    "vulture",
     "weeder",
     "xmllint",
-    "xref",
     "yamlfmt",
     "yamllint",
     "zanuda",

@@ -1,9 +1,8 @@
 """Erlang and Elixir real quality aspects."""
 
-load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo", "XrefToolInfo")
+load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//quality:unused_roots.bzl", "unused_roots_aspect", "unused_roots_context")
 
 TOOLS = {
     "credo": {
@@ -34,13 +33,6 @@ TOOLS = {
         "resources": "medium",
         "shard": "erlang",
     },
-    "xref": {
-        "attr": attr.label(default = "//config:tool_xref", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//erlang/tools:xref",
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "erlang",
-    },
     "mix_format": {
         "attr": attr.label(default = "//config:tool_mix_format", allow_files = True, cfg = "exec"),
         "fallback": "=@rules_dx//elixir/tools:mix_format",
@@ -59,14 +51,7 @@ SHARD_SPECS = {
     },
     "real_erlang_lint": {
         "capability": "lint",
-        "doc": "Additive Erlang lint family aspect (elvis, xref).",
-        "shard": "erlang",
-        "suffix": "-erlang",
-    },
-    "real_erlang_unused": {
-        "capability": "unused",
-        "doc": "Additive Erlang unused-code family aspect (xref).",
-        "requires": [unused_roots_aspect],
+        "doc": "Additive Erlang lint family aspect (elvis).",
         "shard": "erlang",
         "suffix": "-erlang",
     },
@@ -84,14 +69,7 @@ SHARD_SPECS = {
     },
     "real_elixir_lint": {
         "capability": "lint",
-        "doc": "Additive Elixir lint family aspect (credo, xref).",
-        "shard": "elixir",
-        "suffix": "-elixir",
-    },
-    "real_elixir_unused": {
-        "capability": "unused",
-        "doc": "Additive Elixir unused-code family aspect (xref).",
-        "requires": [unused_roots_aspect],
+        "doc": "Additive Elixir lint family aspect (credo).",
         "shard": "elixir",
         "suffix": "-elixir",
     },
@@ -114,22 +92,6 @@ def _stage_beams(target, prefix, tool_files, inputs):
         seen_aux[beam.path] = True
         stage(tool_files, inputs, "%s/aux/%d/%s" % (prefix, index, beam.basename), beam)
 
-def _xref_hook(target, ctx, resolved, capability, what, _shared):
-    if BeamInfo not in target or len(target[BeamInfo].owned.to_list()) == 0:
-        return without(resolved, "xref")
-    tool_target = getattr(ctx.attr, "_xref")
-    if XrefToolInfo not in tool_target:
-        fail(what + ": xref needs its driver script; set --@rules_dx//config:tool_xref=@rules_dx//erlang/tools:xref")
-    tool_files = []
-    inputs = []
-    stage(tool_files, inputs, "dx-xref/dx_xref.escript", tool_target[XrefToolInfo].script)
-    _stage_beams(target, "dx-xref", tool_files, inputs)
-    if capability == "unused":
-        roots = unused_roots_context(target, ctx, ["erl", "ex"])
-        tool_files += roots.tool_files
-        inputs += roots.inputs
-    return real_context(tool_files = tool_files, inputs = inputs)
-
 def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
     if BeamInfo not in target or len(target[BeamInfo].owned.to_list()) == 0:
         return without(resolved, "dialyzer")
@@ -151,9 +113,9 @@ def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
     _stage_beams(target, "dx-dialyzer", tool_files, inputs)
     return real_context(tool_files = tool_files, inputs = inputs)
 
-HOOK_ORDER = ["dialyzer", "xref"]
+HOOK_ORDER = ["dialyzer"]
 
-HOOKS = {"dialyzer": _dialyzer_hook, "xref": _xref_hook}
+HOOKS = {"dialyzer": _dialyzer_hook}
 
 _CFG = real_config(
     tools = TOOLS,
@@ -170,13 +132,9 @@ real_elixir_format_aspect = real_make_aspect(_CFG, "real_elixir_format")
 
 real_elixir_lint_aspect = real_make_aspect(_CFG, "real_elixir_lint")
 
-real_elixir_unused_aspect = real_make_aspect(_CFG, "real_elixir_unused")
-
 real_erlang_format_aspect = real_make_aspect(_CFG, "real_erlang_format")
 
 real_erlang_lint_aspect = real_make_aspect(_CFG, "real_erlang_lint")
-
-real_erlang_unused_aspect = real_make_aspect(_CFG, "real_erlang_unused")
 
 real_erlang_typecheck_aspect = real_make_aspect(_CFG, "real_erlang_typecheck")
 

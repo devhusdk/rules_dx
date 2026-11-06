@@ -11,7 +11,6 @@ use super::quality_reconcile::{reconcile, Conflict, Producer};
 #[derive(Default)]
 struct Staged {
     tools: Vec<String>,
-    analyzed: Vec<(String, String)>,
     initial: Vec<DiagnosticEvent>,
     terminal: Vec<DiagnosticEvent>,
     changes: Vec<FileChange>,
@@ -78,7 +77,6 @@ fn build_dep_key(event: &DiagnosticEvent) -> Option<BuildDepKey> {
 impl Staged {
     fn absorb(&mut self, other: Staged) {
         self.tools.extend(other.tools);
-        self.analyzed.extend(other.analyzed);
         self.initial.extend(other.initial);
         self.terminal.extend(other.terminal);
         self.changes.extend(other.changes);
@@ -130,9 +128,6 @@ fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Stage
     let mut staged = Staged::default();
     for stage in &result.stages {
         staged.tools.push(stage.tool_id.clone());
-        for path in &stage.source_paths {
-            staged.analyzed.push((stage.tool_id.clone(), path.clone()));
-        }
     }
     if let Some(convergence) = quality_result::unstable(result.convergence) {
         staged.unstable.push(Unstable {
@@ -183,7 +178,6 @@ fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Stage
 
 pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
-    pub(crate) analyzed_by: BTreeMap<String, BTreeSet<(String, String)>>,
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
     pub(crate) changes: Vec<FileChange>,
@@ -475,7 +469,6 @@ pub(crate) fn collect_results_in(
 ) -> Result<Collected, (String, String)> {
     let account = collect_output_account(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
-    let mut analyzed_by: BTreeMap<String, BTreeSet<(String, String)>> = BTreeMap::new();
     let mut initial = Vec::new();
     let mut producers = Vec::new();
     let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
@@ -533,10 +526,6 @@ pub(crate) fn collect_results_in(
             origin.configuration.clone_from(&target.configuration);
         }
         tools.extend(staged.tools.iter().cloned());
-        analyzed_by
-            .entry(target.label.clone())
-            .or_default()
-            .extend(staged.analyzed.iter().cloned());
         for mut item in staged.unstable {
             item.label = target.label.clone();
             item.configuration = target.configuration.clone();
@@ -604,7 +593,6 @@ pub(crate) fn collect_results_in(
     }
     Ok(Collected {
         tools: tools.into_iter().collect(),
-        analyzed_by,
         initial,
         terminal: reconciled.terminal,
         changes: reconciled.changes,

@@ -23,7 +23,6 @@ fn curated_tools_are_known_tools() {
             .chain(family.format)
             .chain(family.typecheck)
             .chain(family.audit)
-            .chain(family.unused)
         {
             assert!(TOOLS.contains(tool), "{} uses unknown {tool}", family.id);
         }

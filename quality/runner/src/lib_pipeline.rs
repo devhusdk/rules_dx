@@ -147,7 +147,6 @@ fn all_capabilities_run() {
         ("typecheck", Capability::Typecheck as i32),
         ("format", Capability::Format as i32),
         ("audit", Capability::Audit as i32),
-        ("unused", Capability::Unused as i32),
     ] {
         let result =
             synthetic::run_pipeline("//quality:test", capability, &stages, &files).unwrap();

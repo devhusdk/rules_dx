@@ -218,11 +218,11 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `clang_tidy` on MSVC toolchains runs in clang-cl mode and names flags it cannot model: `/Yc`, `/Yu`, `/clr`, `/ZW`.
 
-`clang_tidy` uses a dx default `.clang-tidy` when no `clang_tidy_config` is bound. It enables `misc-unused-parameters`, `misc-unused-using-decls` and `readability-redundant-declaration`. `cppcheck` runs with `--enable=unusedFunction`. Findings from these checks are reported as info. cppcheck sees only the files of one target, so a function used only from another target is reported as unused.
+`clang_tidy` uses a dx default `.clang-tidy` when no `clang_tidy_config` is bound. It enables `misc-unused-parameters`, `misc-unused-using-decls` and `readability-redundant-declaration`. Findings from these checks are reported as info.
 
 `standard` and `strict` clang-tidy profiles live in `quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a profile is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
 
-`cppcheck` takes extra check sets from `--//config:cppcheck_enable=warning,performance,portability`, merged into one `--enable=`. The default is empty. Allowed values are `warning`, `style`, `performance`, `portability` and `information`; `unusedFunction` and `all` are rejected, use `dx unused`. The standard profile uses `warning,performance,portability` and strict adds `style`.
+`cppcheck` takes extra check sets from `--//config:cppcheck_enable=warning,performance,portability`, merged into one `--enable=`. The default is empty. Allowed values are `warning`, `style`, `performance`, `portability` and `information`; `unusedFunction` and `all` are rejected. The standard profile uses `warning,performance,portability` and strict adds `style`.
 
 ### JVM and .NET
 
@@ -252,7 +252,6 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `pydoclint` | Lint Python | |
 | `ty` | Typecheck Python and Jupyter | |
 | `rubocop` | Lint Ruby | `windows_x86_64`, `windows_arm64` |
-| `debride` | Report Ruby methods nothing calls (info) | `windows_x86_64`, `windows_arm64` |
 | `standardrb` | Format Ruby | `windows_x86_64`, `windows_arm64` |
 | `sorbet` | Typecheck Ruby | `windows_x86_64`, `windows_arm64` |
 | `phpcs` | Lint PHP | `windows_arm64` |
@@ -270,7 +269,6 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `dialyzer` | Typecheck Erlang and Elixir | `windows_x86_64`, `windows_arm64` |
 | `erlfmt` | Format Erlang | `windows_x86_64`, `windows_arm64` |
 | `elvis` | Lint Erlang | `windows_x86_64`, `windows_arm64` |
-| `xref` | Lint unused exports in Erlang and Elixir | `windows_x86_64`, `windows_arm64` |
 | `ormolu` | Format Haskell | `linux_arm64`, `macos_arm64` |
 | `hlint` | Lint Haskell | `linux_arm64`, `macos_arm64` |
 | `ghc` | Typecheck Haskell | |
@@ -290,7 +288,6 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | --- | --- | --- |
 | `biome` | Format and lint JavaScript, TypeScript, JSON | |
 | `eslint` | Lint Astro, JavaScript, MDX, Svelte, TSX, TypeScript, Vue | |
-| `knip` | Lint unused files, exports and dependencies in JavaScript and TypeScript | |
 | `tsc` | Typecheck Astro, JavaScript, JSX, MDX, Svelte, TSX, TypeScript, Vue | |
 | `prettier` | Format Astro, CSS, HTML, JSON, Svelte, TypeScript, Vue, GraphQL | |
 | `stylelint` | Lint CSS, SCSS, Less | |
@@ -442,23 +439,3 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | OCaml formatting | no | none | `.ocamlformat` | none |
 
 Formatters run on their tool defaults. dx ships no style for them, and `dx init` writes no formatter file.
-
-## Unused code
-
-`dx unused` runs the tools that judge code across files: `knip` for JavaScript and TypeScript, `vulture` for Python, `debride` for Ruby and `xref` for Erlang and Elixir. They guess entry points, so reflection, plugins and exported APIs come back as findings. `dx lint` and `dx check` never run them.
-
-```sh
-tools/dx unused //...
-tools/dx unused --affected
-tools/dx unused --fail-on=warning //pkg/...
-```
-
-Every finding is a `warning` with no fix. `dx unused` exits `0` by default. Pass `--fail-on=warning` to exit `1` on a finding; `--fail-on=none` is the default and only `dx unused` accepts it. JSON output uses the lint schema with `capability` set to `unused`.
-
-`dx unused` builds only the top-level targets of the scope: a target that another target in the scope uses through its inputs is skipped, and its code is analyzed as part of the target that uses it. When several top-level targets analyze the same file, a finding in that file is kept only if every one of them reports it, so a function that one binary calls is not reported. The graph links every attribute, not only the ones the analysis follows, so a library reached only through `data` is skipped and its findings can be missed, never invented.
-
-A consumer policy lists these tools under `unused` in `quality_family`. Moving a tool such as `vulture` out of `lint = [...]` and into `unused = [...]` is required: listing it under `lint` fails analysis.
-
-`vulture` runs once per target over its whole dependency closure. Findings in a `*_binary` or `*_test` main, or in a `//visibility:public` target, are dropped for names without a leading `_`. Everything in a target tagged `dx-keep` is dropped.
-
-`knip`, `debride` and `xref` read the same roots. Every finding in a main, a `//visibility:public` target or a `dx-keep` target is dropped. `knip` also receives those files as `entry` files in a generated config, so what they import counts as used; a package with its own knip config keeps it.

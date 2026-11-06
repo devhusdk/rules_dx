@@ -60,16 +60,6 @@
             "array",
             "null"
           ]
-        },
-        "unused": {
-          "default": null,
-          "items": {
-            "type": "string"
-          },
-          "type": [
-            "array",
-            "null"
-          ]
         }
       },
       "type": "object"

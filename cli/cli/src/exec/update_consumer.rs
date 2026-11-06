@@ -2284,8 +2284,12 @@ source = { registry = "https://pypi.org/simple" }
             OPAM_FILE.replace("0.8.5", "0.9.0").as_bytes()
         );
         let launches = runner.launches.borrow();
-        assert!(launches.iter().any(|run| run.argv.iter().any(|a| a == "upgrade")));
-        assert!(launches.iter().any(|run| run.argv.iter().any(|a| a == "lock")));
+        assert!(launches
+            .iter()
+            .any(|run| run.argv.iter().any(|a| a == "upgrade")));
+        assert!(launches
+            .iter()
+            .any(|run| run.argv.iter().any(|a| a == "lock")));
     }
 
     #[test]

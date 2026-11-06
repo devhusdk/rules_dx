@@ -10,7 +10,6 @@ pub struct CuratedFamily {
     pub format: &'static [&'static str],
     pub typecheck: &'static [&'static str],
     pub audit: &'static [&'static str],
-    pub unused: &'static [&'static str],
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -20,7 +19,6 @@ pub struct FamilySelection {
     pub format: Vec<String>,
     pub typecheck: Vec<String>,
     pub audit: Vec<String>,
-    pub unused: Vec<String>,
 }
 
 impl FamilySelection {
@@ -30,7 +28,6 @@ impl FamilySelection {
             .chain(&self.format)
             .chain(&self.typecheck)
             .chain(&self.audit)
-            .chain(&self.unused)
     }
 }
 
@@ -134,7 +131,6 @@ fn apply(
         format: pick(&over.format, curated.format)?,
         typecheck: pick(&over.typecheck, curated.typecheck)?,
         audit: pick(&over.audit, curated.audit)?,
-        unused: pick(&over.unused, curated.unused)?,
     })
 }
 

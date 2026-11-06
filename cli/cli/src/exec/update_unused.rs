@@ -666,7 +666,10 @@ mod tests {
         assert_eq!(name("@crates//sha-1-0.10.1:sha-1-0.10.1"), "sha-1");
         assert_eq!(name("@crates//:sha-1"), "sha-1");
         assert_eq!(name("@crates//:ripgrep__rg"), "ripgrep");
-        assert_eq!(name("@crates//ripgrep-14.1.0:ripgrep-14.1.0__rg"), "ripgrep");
+        assert_eq!(
+            name("@crates//ripgrep-14.1.0:ripgrep-14.1.0__rg"),
+            "ripgrep"
+        );
     }
 
     #[test]
@@ -688,7 +691,8 @@ mod tests {
     fn a_crate_used_only_through_its_tool_label_is_used() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        let manifest = "[package]\nname = \"x\"\n\n[dependencies]\nripgrep = \"14\"\nregex = \"1\"\n";
+        let manifest =
+            "[package]\nname = \"x\"\n\n[dependencies]\nripgrep = \"14\"\nregex = \"1\"\n";
         let resolved = cargo_set(root, manifest);
         let query = Labels("@@rules_rust++crate+crates//:ripgrep__rg\n");
         let found = find(root, &resolved, &query, &[]);

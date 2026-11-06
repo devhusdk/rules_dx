@@ -11,56 +11,48 @@ CURATED_DEFAULTS = {
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
-        "unused": [],
     },
     "bicep": {
         "audit": [],
         "format": ["bicep"],
         "lint": ["bicep", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "cc": {
         "audit": [],
         "format": ["clang_format"],
         "lint": ["clang_tidy", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "cloudformation": {
         "audit": [],
         "format": [],
         "lint": ["cfn_lint", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "core": {
         "audit": [],
         "format": ["yamlfmt"],
         "lint": ["actionlint", "zizmor"],
         "typecheck": [],
-        "unused": [],
     },
     "d": {
         "audit": [],
         "format": [],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
     },
     "dart": {
         "audit": [],
         "format": ["dart"],
         "lint": ["dart", "typos"],
         "typecheck": ["dart"],
-        "unused": [],
     },
     "dockerfile": {
         "audit": [],
         "format": [],
         "lint": ["hadolint", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     # flang typecheck stays opt-in: it replays every compile action (heavy tier).
     "fortran": {
@@ -68,28 +60,24 @@ CURATED_DEFAULTS = {
         "format": ["ffmt"],
         "lint": ["fortitude", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "go": {
         "audit": [],
         "format": ["gofumpt"],
         "lint": ["errcheck", "govet", "staticcheck", "typos"],
         "typecheck": ["gotype"],
-        "unused": [],
     },
     "go_module": {
         "audit": [],
         "format": ["modfmt"],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
     },
     "graphql": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
     },
     # ghc typecheck stays opt-in: it replays every compile action (heavy tier).
     "haskell": {
@@ -97,77 +85,66 @@ CURATED_DEFAULTS = {
         "format": [],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
     },
     "html": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
     },
     "java": {
         "audit": [],
         "format": ["google_java_format"],
         "lint": ["pmd", "spotbugs", "typos"],
         "typecheck": ["javac"],
-        "unused": [],
     },
     "javascript": {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "json": {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome"],
         "typecheck": [],
-        "unused": [],
     },
     "julia": {
         "audit": [],
         "format": [],
         "lint": ["julialint", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "kotlin": {
         "audit": [],
         "format": ["ktfmt"],
         "lint": ["detekt", "typos"],
         "typecheck": ["kotlinc"],
-        "unused": [],
     },
     "helm": {
         "audit": [],
         "format": [],
         "lint": ["helm", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "kubernetes": {
         "audit": [],
         "format": [],
         "lint": ["kubeconform", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "markdown": {
         "audit": [],
         "format": [],
         "lint": ["lychee", "markdown_check", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "mdx": {
         "audit": [],
         "format": ["remark"],
         "lint": ["lychee", "typos"],
         "typecheck": ["tsc"],
-        "unused": [],
     },
     # nixfmt is pinned for linux_x86_64 only, so nix has no formatter (#8045).
     "nix": {
@@ -175,7 +152,6 @@ CURATED_DEFAULTS = {
         "format": [],
         "lint": ["deadnix", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     # ocaml typecheck stays opt-in: it replays every compile action (heavy tier).
     "ocaml": {
@@ -183,105 +159,90 @@ CURATED_DEFAULTS = {
         "format": ["topiary"],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
     },
     "powershell": {
         "audit": [],
         "format": [],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
     },
     "python": {
         "audit": [],
         "format": ["ruff"],
         "lint": ["ruff", "typos"],
         "typecheck": ["ty"],
-        "unused": [],
     },
     "rust": {
         "audit": [],
         "format": ["rustfmt"],
         "lint": ["clippy", "typos"],
         "typecheck": ["rustc"],
-        "unused": [],
     },
     "scala": {
         "audit": [],
         "format": ["scalafmt"],
         "lint": ["typos"],
         "typecheck": ["scalac"],
-        "unused": [],
     },
     "shell": {
         "audit": [],
         "format": ["shfmt"],
         "lint": ["shellcheck", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "starlark": {
         "audit": [],
         "format": ["buildifier"],
         "lint": ["buildifier", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "svelte": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
-        "unused": [],
     },
     "swift": {
         "audit": [],
         "format": [],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
     },
     "text": {
         "audit": [],
         "format": [],
         "lint": ["keep_sorted", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "toml": {
         "audit": [],
         "format": ["taplo"],
         "lint": ["taplo", "typos"],
         "typecheck": [],
-        "unused": [],
     },
     "typescript": {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome", "typos"],
         "typecheck": ["tsc"],
-        "unused": [],
     },
     "vue": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
-        "unused": [],
     },
     "yaml": {
         "audit": [],
         "format": ["yamlfmt"],
         "lint": ["yamllint"],
         "typecheck": [],
-        "unused": [],
     },
     "zig": {
         "audit": [],
         "format": ["zig_fmt"],
         "lint": ["typos", "zig_ast_check"],
         "typecheck": [],
-        "unused": [],
     },
 }
 
@@ -315,8 +276,8 @@ def curated_schema_error():
         if not _is_canonical_token(family):
             return "curated defaults: non-canonical family '" + str(family) + "'"
         entry = CURATED_DEFAULTS[family]
-        if sorted(entry.keys()) != ["audit", "format", "lint", "typecheck", "unused"]:
-            return "curated defaults: family '" + family + "' must carry exactly audit/format/lint/typecheck/unused"
+        if sorted(entry.keys()) != ["audit", "format", "lint", "typecheck"]:
+            return "curated defaults: family '" + family + "' must carry exactly audit/format/lint/typecheck"
         for capability in entry:
             for tool in entry[capability]:
                 if not _is_canonical_token(tool):

@@ -987,28 +987,16 @@ fn clang_tidy_check_carries_config_and_compile_commands() {
 #[test]
 fn cppcheck_check_is_xml_with_optional_suppressions() {
     let file = Path::new("/scratch/Sample.c");
-    let bare = cppcheck_check(Path::new(BIN), &[file], None, false, &[]);
+    let bare = cppcheck_check(Path::new(BIN), &[file], None, &[]);
     assert_eq!(
         argv_strings(&bare),
         vec![BIN, "--xml", "--xml-version=2", "/scratch/Sample.c"]
     );
     assert_eq!(bare.cwd_rel, "");
-    let unused = cppcheck_check(Path::new(BIN), &[file], None, true, &[]);
-    assert_eq!(
-        argv_strings(&unused),
-        vec![
-            BIN,
-            "--xml",
-            "--xml-version=2",
-            "--enable=unusedFunction",
-            "/scratch/Sample.c"
-        ]
-    );
     let hinted = cppcheck_check(
         Path::new(BIN),
         &[file],
         Some(Path::new("/scratch/suppressions.txt")),
-        false,
         &[],
     );
     assert!(
@@ -1019,7 +1007,7 @@ fn cppcheck_check_is_xml_with_optional_suppressions() {
     );
     assert!(!argv_strings(&hinted).contains(&"--enable=all".to_owned()));
     let sets = ["warning".to_owned(), "style".to_owned()];
-    let enabled = cppcheck_check(Path::new(BIN), &[file], None, false, &sets);
+    let enabled = cppcheck_check(Path::new(BIN), &[file], None, &sets);
     assert_eq!(
         argv_strings(&enabled),
         vec![
@@ -1030,8 +1018,6 @@ fn cppcheck_check_is_xml_with_optional_suppressions() {
             "/scratch/Sample.c"
         ]
     );
-    let merged = cppcheck_check(Path::new(BIN), &[file], None, true, &sets);
-    assert!(argv_strings(&merged).contains(&"--enable=unusedFunction,warning,style".to_owned()));
 }
 
 #[test]

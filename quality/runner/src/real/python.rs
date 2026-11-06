@@ -1,6 +1,6 @@
 use quality_adapter::{commands, parsers};
 
-use super::check::{unused_roots, ToolDef};
+use super::check::ToolDef;
 use super::*;
 
 /// Python linters, formatters and notebook checks.
@@ -220,29 +220,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     parsed(
                         tool_id,
                         parsers::parse_pydoclint(&out.stderr, out.code, names),
-                    )
-                },
-            )
-        },
-    },
-    ToolDef {
-        id: "vulture",
-        run: |backend, call| {
-            let tool_id = call.tool_id;
-            let tool = call.tool;
-            let scratch = &call.staged.scratch;
-            let pairs = &call.staged.pairs;
-            let roots = unused_roots(tool_id, tool, pairs)?;
-            backend.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::vulture_check(&tool.binary, files)),
-                |out, names| {
-                    parsed(
-                        tool_id,
-                        parsers::parse_vulture_unused(&out.stdout, out.code, names, &roots),
                     )
                 },
             )

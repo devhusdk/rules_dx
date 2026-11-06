@@ -132,17 +132,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
             )
         },
     },
-    ToolDef {
-        id: "knip",
-        run: |backend, call| {
-            backend.check_knip(
-                call.tool_id,
-                call.tool,
-                &call.staged.scratch,
-                &call.staged.pairs,
-            )
-        },
-    },
 ];
 
 type LogParser = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;

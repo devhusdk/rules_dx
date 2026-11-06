@@ -104,12 +104,6 @@ SHARD_SPECS = {
         "shard": "cc",
         "suffix": "-cc",
     },
-    "real_cc_unused": {
-        "capability": "unused",
-        "doc": "Additive C/C++ unused-code family aspect (cppcheck unusedFunction).",
-        "shard": "cc",
-        "suffix": "-cc",
-    },
     "real_cc_typecheck": {
         "capability": "typecheck",
         "doc": "Additive C/C++/Objective-C/CUDA typecheck family aspect (compiler -fsyntax-only replay, nvcc -cuda replay).",
@@ -157,7 +151,7 @@ def _cppcheck_hook(_target, ctx, _resolved, _capability, what, _shared):
         enable = ctx.attr._cppcheck_enable[BuildSettingInfo].value
     for check in enable:
         if check in ("unusedFunction", "all"):
-            fail("%s: --//config:cppcheck_enable=%s is not allowed; use dx unused for unused code" % (what, check))
+            fail("%s: --//config:cppcheck_enable=%s is not allowed; unused code is not checked" % (what, check))
         if check not in _CPPCHECK_ENABLE:
             fail("%s: --//config:cppcheck_enable=%s must be one of %s" % (what, check, ", ".join(_CPPCHECK_ENABLE)))
     return real_context(options = {"args": enable} if enable else {})
@@ -220,8 +214,6 @@ real_cc_format_aspect = real_make_aspect(_CFG, "real_cc_format")
 real_cc_lint_aspect = real_make_aspect(_CFG, "real_cc_lint")
 
 real_cc_typecheck_aspect = real_make_aspect(_CFG, "real_cc_typecheck")
-
-real_cc_unused_aspect = real_make_aspect(_CFG, "real_cc_unused")
 
 CcShardProbeInfo = provider(
     doc = "Shard names the cc shard probe found for one target and capability.",

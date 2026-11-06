@@ -466,10 +466,10 @@ impl Invocation {
     pub fn quality_request(&self) -> Result<QualityRequest, String> {
         if !matches!(
             self.command,
-            Command::Lint | Command::Typecheck | Command::Format | Command::Unused
+            Command::Lint | Command::Typecheck | Command::Format
         ) {
             return Err(format!(
-                "option \"--command\" is not supported by dx {}: want lint|typecheck|format|unused",
+                "option \"--command\" is not supported by dx {}: want lint|typecheck|format",
                 self.command.name()
             ));
         }

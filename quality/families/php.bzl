@@ -23,10 +23,7 @@ TOOLS = {
 }
 
 _PHPSTAN_ATTRS = {
-    "_phpstan_unused_public": attr.label(default = "@dx_unused_public//:files", cfg = "exec", doc = "The pinned unused-public extension."),
     "_phpstan_strict_rules": attr.label(default = "@dx_phpstan_strict_rules//:files", cfg = "exec", doc = "The pinned phpstan-strict-rules the strict profile includes."),
-    "_phpstan_assert": attr.label(default = "@dx_webmozart_assert//:files", cfg = "exec", doc = "The pinned webmozart/assert the extension needs."),
-    "_phpstan_autoload": attr.label(default = "//php/tools:phpstan_autoload.php", allow_single_file = True, cfg = "exec", doc = "Autoloads the extension classes inside the phar run."),
 }
 
 SHARD_SPECS = {
@@ -43,16 +40,9 @@ SHARD_SPECS = {
         "shard": "php",
         "suffix": "-php",
     },
-    "real_php_unused": {
-        "capability": "unused",
-        "doc": "Additive PHP unused-code family aspect (phpstan unused-public).",
-        "extra_attrs": _PHPSTAN_ATTRS,
-        "shard": "php",
-        "suffix": "-php",
-    },
 }
 
-def _phpstan_hook(target, ctx, resolved, capability, _what, shared):
+def _phpstan_hook(target, ctx, resolved, _capability, _what, shared):
     if PhpInfo not in target:
         return without(resolved, "phpstan")
 
@@ -73,12 +63,6 @@ def _phpstan_hook(target, ctx, resolved, capability, _what, shared):
             stage(tool_files, inputs, "dx-phpstan/pkg/" + staged_path(pkg_file), pkg_file)
     for f in ctx.files._phpstan_strict_rules:
         stage(tool_files, inputs, "vendor/phpstan/phpstan-strict-rules/" + f.short_path.split("/", 2)[2], f)
-    if capability == "unused":
-        for f in ctx.files._phpstan_unused_public:
-            stage(tool_files, inputs, "dx-phpstan/ext/unused-public/" + f.short_path.split("/", 2)[2], f)
-        for f in ctx.files._phpstan_assert:
-            stage(tool_files, inputs, "dx-phpstan/ext/assert/" + f.short_path.split("/", 2)[2], f)
-        stage(tool_files, inputs, "dx-phpstan/ext/autoload.php", ctx.file._phpstan_autoload)
     return real_context(tool_files = tool_files, inputs = inputs)
 
 HOOK_ORDER = ["phpstan"]
@@ -99,8 +83,6 @@ _CFG = real_config(
 real_php_lint_aspect = real_make_aspect(_CFG, "real_php_lint")
 
 real_php_typecheck_aspect = real_make_aspect(_CFG, "real_php_typecheck")
-
-real_php_unused_aspect = real_make_aspect(_CFG, "real_php_unused")
 
 PhpShardProbeInfo = provider(
     doc = "Shard names the php shard probe found for one target and capability.",

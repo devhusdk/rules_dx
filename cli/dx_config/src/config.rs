@@ -52,8 +52,6 @@ pub struct FamilyConfig {
     pub typecheck: Option<Vec<String>>,
     #[serde(default)]
     pub audit: Option<Vec<String>>,
-    #[serde(default)]
-    pub unused: Option<Vec<String>>,
     /// Turns the whole family off.
     #[serde(default)]
     pub disabled: bool,

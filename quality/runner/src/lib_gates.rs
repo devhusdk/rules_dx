@@ -557,7 +557,6 @@ fn minimal_edits_trim_common_prefix_and_suffix() {
 #[test]
 fn per_capability_round_caps_short_circuit_check_only() {
     assert_eq!(max_rounds_for_capability("audit"), 1);
-    assert_eq!(max_rounds_for_capability("unused"), 1);
     assert_eq!(max_rounds_for_capability("typecheck"), 1);
     assert_eq!(max_rounds_for_capability("lint"), MAX_COMPLETED_ROUNDS);
     assert_eq!(max_rounds_for_capability("format"), MAX_COMPLETED_ROUNDS);

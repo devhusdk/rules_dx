@@ -415,11 +415,7 @@ fn parse_inner<S: AsRef<OsStr>>(
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_FAIL_ON_ENV),
-        if command == Command::Unused {
-            "none"
-        } else {
-            "warning"
-        },
+        "warning",
     );
     let build_slots = resolve_build_slots(build_slots, env_get)?;
     let color_name = invocation_defaults::resolve_string(
@@ -482,16 +478,12 @@ fn parse_inner<S: AsRef<OsStr>>(
             value: fail_on_name,
         });
     }
-    let fail_on_none = fail_on_name == "none" && command == Command::Unused;
-    if fail_on_name == "none" && !fail_on_none {
+    if fail_on_name == "none" {
         return Err(ArgsError::BadFailOn {
             value: fail_on_name,
         });
     }
-    let mut fail_on = if fail_on_none {
-        // The unused tools only emit warnings, so only a tool error fails the run.
-        Threshold::Error
-    } else if matches!(
+    let mut fail_on = if matches!(
         fail_on_name.as_str(),
         "uncovered" | "no-collector" | "unused"
     ) {

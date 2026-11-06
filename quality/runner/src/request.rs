@@ -27,7 +27,6 @@ pub struct RequestTool {
 /// Helper names each tool may be given on its `PATH`. One row per tool that shells out.
 pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
     ("vale", &["rst2html", "asciidoctor"]),
-    ("deadcode", &["go", "deadcode"]),
     ("helm", &["kubeconform"]),
     ("trivy_config", &["bicep"]),
     ("pkl_lsp", &["java", "pkl-lsp.jar"]),
@@ -55,7 +54,7 @@ pub enum RequestError {
     UnsupportedSchema { found: u32 },
     #[error("empty producer: want a non-empty producer")]
     EmptyProducer,
-    #[error("unknown capability {capability:?}: want lint, typecheck, format, audit, or unused")]
+    #[error("unknown capability {capability:?}: want lint, typecheck, format, or audit")]
     UnknownCapability { capability: String },
     #[error("empty stages: want at least one stage")]
     EmptyStages,
@@ -354,7 +353,7 @@ pub fn parse_real_request(bytes: &[u8]) -> Result<RealRequest, RequestError> {
         return Err(RequestError::EmptyProducer);
     }
     match doc.capability.as_str() {
-        "lint" | "typecheck" | "format" | "audit" | "unused" => {}
+        "lint" | "typecheck" | "format" | "audit" => {}
         _ => {
             return Err(RequestError::UnknownCapability {
                 capability: doc.capability.clone(),
@@ -608,11 +607,6 @@ mod tests {
                 capability: "frobnicate".to_owned()
             }
         );
-        let (stages, sources, tools) = one_source();
-        let mut raw: serde_json::Value =
-            serde_json::from_slice(&skeleton(stages, sources, tools)).expect("skeleton decodes");
-        raw["capability"] = json!("unused");
-        assert!(parse_real_request(&serde_json::to_vec(&raw).expect("encodes")).is_ok());
         assert_eq!(
             parse_skeleton(json!([]), json!([]), json!({})).expect_err("no stages"),
             RequestError::EmptyStages

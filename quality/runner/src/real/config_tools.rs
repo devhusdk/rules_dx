@@ -1,43 +1,10 @@
 use quality_adapter::{commands, parsers, TextPosition};
 
-use super::check::{group_by_parent, unused_roots, without_scratch_url, ToolDef};
+use super::check::{group_by_parent, without_scratch_url, ToolDef};
 use super::*;
 
 /// Config, policy and text tools that build their own invocation and parse.
 pub(super) const TOOLS: &[ToolDef] = &[
-    ToolDef {
-        id: "deadcode",
-        run: |backend, call| {
-            let tool_id = call.tool_id;
-            let tool = call.tool;
-            let pairs = &call.staged.pairs;
-            let scratch = &call.staged.scratch;
-            let workspace: Vec<(String, PathBuf)> = pairs
-                .iter()
-                .map(|(name, _)| (name.clone(), PathBuf::from(name)))
-                .collect();
-            let roots = unused_roots(tool_id, tool, &workspace)?;
-            let Some((_, deadcode)) = tool.path_tools.iter().find(|(name, _)| name == "deadcode")
-            else {
-                return Err(execution(
-                    tool_id,
-                    "deadcode binary is not staged".to_owned(),
-                ));
-            };
-            let invocation = commands::deadcode_check(&tool.binary, deadcode);
-            let out = backend.run(tool_id, tool, &invocation, scratch)?;
-            let names: Vec<&str> = pairs.iter().map(|(name, _)| name.as_str()).collect();
-            let mut findings = parsed(
-                tool_id,
-                parsers::parse_deadcode(&out.stdout, out.code, &names, &roots),
-            )?;
-            for found in &mut findings {
-                let absolute = reanchor(tool_id, pairs, &found.file)?;
-                found.file = absolute.to_string_lossy().into_owned();
-            }
-            Ok(findings)
-        },
-    },
     ToolDef {
         id: "cue",
         run: |backend, call| {
@@ -395,31 +362,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     )
                 },
             )
-        },
-    },
-    ToolDef {
-        id: "debride",
-        run: |backend, call| {
-            let tool_id = call.tool_id;
-            let tool = call.tool;
-            let pairs = &call.staged.pairs;
-            let scratch = &call.staged.scratch;
-            let roots = unused_roots(tool_id, tool, pairs)?;
-            let mut found = backend.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::debride_check(&tool.binary, files)),
-                |out, names| {
-                    parsed(
-                        tool_id,
-                        parsers::parse_debride(&out.stdout, &out.stderr, out.code, names),
-                    )
-                },
-            )?;
-            roots.drop_rooted(&mut found);
-            Ok(found)
         },
     },
     ToolDef {

@@ -4,7 +4,6 @@ load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("//php/rules:php.bzl", "staged_path")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//quality:unused_roots.bzl", "unused_closure_sources", "unused_roots_aspect", "unused_roots_context")
 
 TOOLS = {
     "sorbet": {
@@ -12,13 +11,6 @@ TOOLS = {
         "fallback": "=@rules_dx//ruby/tools:sorbet",
         "kind": "setting",
         "resources": "heavy",
-        "shard": "ruby",
-    },
-    "debride": {
-        "attr": attr.label(default = "//quality/tools/ruby:debride", cfg = "exec", executable = True),
-        "capabilities": ["unused"],
-        "kind": "executable",
-        "resources": "medium",
         "shard": "ruby",
     },
     "rubocop": {
@@ -54,13 +46,6 @@ SHARD_SPECS = {
         "shard": "ruby",
         "suffix": "-ruby",
     },
-    "real_ruby_unused": {
-        "capability": "unused",
-        "doc": "Additive Ruby unused-code family aspect (debride over the target's whole closure).",
-        "requires": [unused_roots_aspect],
-        "shard": "ruby",
-        "suffix": "-ruby",
-    },
 }
 
 def _sorbet_hook(target, _ctx, _resolved, _capability, _what, shared):
@@ -78,15 +63,9 @@ def _sorbet_hook(target, _ctx, _resolved, _capability, _what, shared):
                 stage(tool_files, inputs, "dx-sorbet/dep/" + staged_path(dep_file), dep_file)
     return real_context(tool_files = tool_files, inputs = inputs)
 
-def _debride_hook(target, ctx, _resolved, _capability, _what, _shared):
-    return unused_roots_context(target, ctx, ["rb"])
+HOOK_ORDER = ["sorbet"]
 
-def _harness_sources(target, capability, direct_sources):
-    return unused_closure_sources(target, capability, direct_sources, {"rb": "ruby"})
-
-HOOK_ORDER = ["sorbet", "debride"]
-
-HOOKS = {"sorbet": _sorbet_hook, "debride": _debride_hook}
+HOOKS = {"sorbet": _sorbet_hook}
 
 _CFG = real_config(
     tools = TOOLS,
@@ -94,7 +73,7 @@ _CFG = real_config(
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
     source_recognizers = [],
-    harness_sources = _harness_sources,
+    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
     toolchain = None,
     check_policy = False,
 )
@@ -102,8 +81,6 @@ _CFG = real_config(
 real_ruby_format_aspect = real_make_aspect(_CFG, "real_ruby_format")
 
 real_ruby_lint_aspect = real_make_aspect(_CFG, "real_ruby_lint")
-
-real_ruby_unused_aspect = real_make_aspect(_CFG, "real_ruby_unused")
 
 real_ruby_typecheck_aspect = real_make_aspect(_CFG, "real_ruby_typecheck")
 

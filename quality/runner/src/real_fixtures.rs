@@ -1267,57 +1267,6 @@ pub(super) fn roundtrip_pydoclint(
     })
 }
 
-pub(super) fn roundtrip_vulture(
-    argv: &[OsString],
-    _cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    assert!(
-        argv.windows(2)
-            .any(|pair| pair[0] == "--min-confidence" && pair[1] == "60"),
-        "vulture keeps the 60% floor"
-    );
-    let first_file = argv
-        .iter()
-        .position(|arg| arg == "60")
-        .map_or(0, |at| at + 1);
-    let files: Vec<(String, String)> = argv[first_file..]
-        .iter()
-        .map(|arg| {
-            let file = arg.to_string_lossy().into_owned();
-            let bytes = std::fs::read(&file).expect("checked file is materialized");
-            (
-                file,
-                String::from_utf8(bytes).expect("checked bytes stay UTF-8"),
-            )
-        })
-        .collect();
-    let mentions: usize = files
-        .iter()
-        .map(|(_, text)| text.matches("unused_fn").count())
-        .sum();
-    let mut stdout = String::new();
-    if mentions == 1 {
-        for (file, text) in &files {
-            if let Some(row) = text
-                .lines()
-                .position(|line| line.starts_with("def unused_fn"))
-            {
-                stdout.push_str(&format!(
-                    "{file}:{}: unused function 'unused_fn' (60% confidence)\n",
-                    row + 1
-                ));
-            }
-        }
-    }
-    Ok(ChildOutput {
-        code: Some(if stdout.is_empty() { 0 } else { 3 }),
-        stdout: stdout.into_bytes(),
-        stderr: Vec::new(),
-    })
-}
-
 pub(super) fn vale_hinted(
     argv: &[OsString],
     cwd: &Path,

@@ -180,7 +180,11 @@ mod tests {
     #[test]
     fn aggregate_gets_every_shard_once_in_order() {
         let shards = [PathBuf::from("/w/a/a.shard"), PathBuf::from("/w/b/b.shard")];
-        let argv = aggregate_argv(Path::new("/t/agg"), &shards, Path::new("/w/.dx/local/docs/work"));
+        let argv = aggregate_argv(
+            Path::new("/t/agg"),
+            &shards,
+            Path::new("/w/.dx/local/docs/work"),
+        );
         let argv: Vec<String> = argv.iter().map(|arg| arg.replace('\\', "/")).collect();
         assert_eq!(argv[0], "/t/agg");
         assert_eq!(

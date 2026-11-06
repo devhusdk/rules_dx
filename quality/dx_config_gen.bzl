@@ -21,7 +21,7 @@ def curated_rust():
     for family in sorted(CURATED_DEFAULTS.keys()):
         entry = CURATED_DEFAULTS[family]
         out += "    CuratedFamily {\n        id: \"%s\",\n" % family
-        for capability in ["lint", "format", "typecheck", "audit", "unused"]:
+        for capability in ["lint", "format", "typecheck", "audit"]:
             out += "        %s: %s,\n" % (capability, _slice(entry[capability]))
         out += "    },\n"
     out += "];\n\npub const CROSS_FAMILY_TOOLS: &[&str] = &[\n"

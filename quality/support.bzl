@@ -35,7 +35,6 @@ CUDA_CLANG_FORMAT_SUPPORT = _record("cuda", "clang_format", "format")
 DOCKERFILE_PRETTIER_FORMAT_SUPPORT = _record("dockerfile", "prettier", "format")
 GHERKIN_GPLINT_LINT_SUPPORT = _record("gherkin", "gplint", "lint")
 GHERKIN_PRETTIER_FORMAT_SUPPORT = _record("gherkin", "prettier", "format")
-GO_DEADCODE_UNUSED_SUPPORT = _record("go", "deadcode", "unused")
 JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT = _record("jupyter", "notebook_outputs", "lint")
 JUPYTER_RUFF_FORMAT_SUPPORT = _record("jupyter", "ruff", "format")
 JUPYTER_RUFF_LINT_SUPPORT = _record("jupyter", "ruff", "lint")
@@ -47,7 +46,6 @@ PYTHON_PYDOCLINT_LINT_SUPPORT = _record("python", "pydoclint", "lint")
 PYTHON_RUFF_FORMAT_SUPPORT = _record("python", "ruff", "format")
 PYTHON_RUFF_LINT_SUPPORT = _record("python", "ruff", "lint")
 PYTHON_TY_TYPECHECK_SUPPORT = _record("python", "ty", "typecheck")
-PYTHON_VULTURE_UNUSED_SUPPORT = _record("python", "vulture", "unused")
 RUST_RUSTFMT_FORMAT_SUPPORT = _record("rust", "rustfmt", "format")
 SQL_SQLFLUFF_FORMAT_SUPPORT = _record("sql", "sqlfluff", "format")
 SQL_SQLFLUFF_LINT_SUPPORT = _record("sql", "sqlfluff", "lint")
@@ -132,7 +130,7 @@ def support_record_error(record):
     family = record["family"]
     if not _is_canonical_token(tool):
         return "support: non-canonical tool '" + str(tool) + "'"
-    if capability not in ["audit", "format", "lint", "typecheck", "unused"]:
+    if capability not in ["audit", "format", "lint", "typecheck"]:
         return "support: unknown capability '" + str(capability) + "' for tool '" + tool + "'"
     if not _is_canonical_token(family):
         return "support: non-canonical family '" + str(family) + "'"

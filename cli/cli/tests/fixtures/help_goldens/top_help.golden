@@ -36,7 +36,6 @@ Commands:
   fuzz        run dx-fuzz targets for a time budget and store crashes under .dx/local/fuzz
   mutate      run dx-mutate targets for a time budget and report surviving mutants
   release     derive the next version from conventional commits, list the manifests that carry it, and with --apply bump them, commit and tag
-  unused      report cross-file unused code over resolved scopes (non-mutating; warnings only unless --fail-on=warning)
 
 Options:
   -h, --help

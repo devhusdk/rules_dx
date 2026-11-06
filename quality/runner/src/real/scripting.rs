@@ -18,10 +18,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
         run: dialyzer,
     },
     ToolDef {
-        id: "xref",
-        run: xref,
-    },
-    ToolDef {
         id: "phpcs",
         run: phpcs,
     },
@@ -161,55 +157,6 @@ fn dialyzer(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>,
             found.file = absolute.to_string_lossy().into_owned();
         }
     }
-    Ok(findings)
-}
-
-fn xref(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {
-    let tool_id = call.tool_id;
-    let tool = call.tool;
-    let scratch = &call.staged.scratch;
-    let pairs = &call.staged.pairs;
-    let staged = |prefix: &str| -> Vec<PathBuf> {
-        let mut rels: Vec<&String> = tool
-            .tool_files
-            .iter()
-            .map(|(rel, _)| rel)
-            .filter(|rel| rel.starts_with(prefix) && rel.ends_with(".beam"))
-            .collect();
-        rels.sort();
-        rels.into_iter()
-            .map(|rel| scratch.root().join(rel))
-            .collect()
-    };
-    let owned = staged("dx-xref/owned/");
-    if owned.is_empty() {
-        return Ok(Vec::new());
-    }
-    let deps = staged("dx-xref/aux/");
-    let code_dir = scratch.root().join("dx-xref/pa");
-    let code_dirs: Vec<&Path> = if staged("dx-xref/pa/").is_empty() {
-        Vec::new()
-    } else {
-        vec![code_dir.as_path()]
-    };
-    let script = scratch.root().join("dx-xref/dx_xref.escript");
-    let dep_refs: Vec<&Path> = deps.iter().map(PathBuf::as_path).collect();
-    let owned_refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
-    let name_refs: Vec<&str> = pairs.iter().map(|(rel, _)| rel.as_str()).collect();
-    let roots = super::check::unused_roots(tool_id, tool, pairs)?;
-    let invocation =
-        commands::xref_check(&tool.binary, &script, &code_dirs, &dep_refs, &owned_refs);
-    let out = backend.run(tool_id, tool, &invocation, scratch)?;
-    let mut findings = parsed(
-        tool_id,
-        parsers::parse_xref(&out.stdout, out.code, &name_refs),
-    )?;
-    for found in &mut findings {
-        if let Some((_, absolute)) = pairs.iter().find(|(rel, _)| *rel == found.file) {
-            found.file = absolute.to_string_lossy().into_owned();
-        }
-    }
-    roots.drop_rooted(&mut findings);
     Ok(findings)
 }
 
@@ -500,12 +447,6 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
         Some(path) => Some(real_launcher(path)),
         None => None,
     };
-    let extension = tool
-        .tool_files
-        .iter()
-        .any(|(rel, _)| rel.starts_with("dx-phpstan/ext/"))
-        .then(|| root.join("dx-phpstan/ext"));
-    let autoload = extension.as_ref().map(|dir| dir.join("autoload.php"));
     let neon = work.join("dx.neon");
     std::fs::write(
         &neon,
@@ -514,12 +455,12 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
             PHPSTAN_LEVEL,
             &tmp_dir,
             &scan_refs,
-            extension.as_deref(),
+            None,
         ),
     )
     .map_err(|err| execution(tool_id, format!("write phpstan config: {err}")))?;
     let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
-    let invocation = commands::phpstan_check(&tool.binary, &neon, autoload.as_deref(), &path_refs);
+    let invocation = commands::phpstan_check(&tool.binary, &neon, None, &path_refs);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
     let real_names: Vec<String> = owned
         .iter()
@@ -530,9 +471,6 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
         tool_id,
         parsers::parse_phpstan(&out.stdout, out.code, &real_strs),
     )?;
-    if call.capability == "unused" {
-        findings = parsers::keep_unused_public(findings);
-    }
     for found in &mut findings {
         if let Some((_, absolute)) = owned
             .iter()

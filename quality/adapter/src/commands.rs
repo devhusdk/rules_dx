@@ -387,7 +387,6 @@ const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
 const CLANG_FORMAT_FIX_PREFIX: &[&str] = &["-i"];
 const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
 const CPPCHECK_PREFIX: &[&str] = &["--xml", "--xml-version=2"];
-const CPPCHECK_UNUSED_CHECK: &str = "unusedFunction";
 const FSHARPLINT_CONFIG_FLAG: &[&str] = &["--config"];
 const SCALAFIX_CHECK_FLAGS: &[&str] = &["--check", "--no-stale-semanticdb"];
 
@@ -1057,13 +1056,11 @@ pub fn clang_tidy_check(
     assemble(binary, head, files, "")
 }
 
-/// `unused` turns on the cross-file unusedFunction check, which lint leaves off.
 /// `enable` holds further check sets; both go into one `--enable=` argument.
 pub fn cppcheck_check(
     binary: &Path,
     files: &[&Path],
     suppressions: Option<&Path>,
-    unused: bool,
     enable: &[String],
 ) -> Invocation {
     let mut invocation = optional_joined(
@@ -1075,11 +1072,7 @@ pub fn cppcheck_check(
         files,
         "",
     );
-    let mut checks: Vec<&str> = Vec::new();
-    if unused {
-        checks.push(CPPCHECK_UNUSED_CHECK);
-    }
-    checks.extend(enable.iter().map(String::as_str));
+    let checks: Vec<&str> = enable.iter().map(String::as_str).collect();
     if !checks.is_empty() {
         invocation.argv.insert(
             1 + CPPCHECK_PREFIX.len(),

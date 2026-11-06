@@ -627,22 +627,11 @@ TOOLS = [
         id = "cppcheck",
         adapters = {
             "lint": ["c", "cpp"],
-            "unused": ["c", "cpp"],
         },
         config = config(suffixes = [".txt"]),
         support = [
             row(
                 capability = "lint",
-                classes = ["c", "cpp"],
-                context = "owned",
-                family = "cc",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "batched",
-            ),
-            row(
-                capability = "unused",
                 classes = ["c", "cpp"],
                 context = "owned",
                 family = "cc",
@@ -789,22 +778,6 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "deadcode",
-        adapters = {"unused": ["go"]},
-        support = [
-            row(
-                capability = "unused",
-                classes = ["go"],
-                context = "owned",
-                family = "go",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                state = "qualified",
-                transport = "single",
-            ),
-        ],
-    ),
-    tool(
         id = "deadnix",
         adapters = {"lint": ["nix"]},
         support = [
@@ -817,26 +790,6 @@ TOOLS = [
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
                 state = "supported",
                 transport = "batched",
-            ),
-        ],
-    ),
-    tool(
-        id = "debride",
-        adapters = {"unused": ["ruby"]},
-        support = [
-            row(
-                capability = "unused",
-                classes = ["ruby"],
-                context = "owned",
-                family = "ruby",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                state = "supported",
-                transport = "batched",
-                unsupported = {
-                    "windows_arm64": "Ruby portable builds ship no Windows interpreter",
-                    "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
-                },
             ),
         ],
     ),
@@ -1543,32 +1496,6 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "knip",
-        adapters = {"unused": ["javascript", "tsx", "typescript"]},
-        support = [
-            row(
-                capability = "unused",
-                classes = ["javascript"],
-                context = "owned",
-                family = "javascript",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "batched",
-            ),
-            row(
-                capability = "unused",
-                classes = ["tsx", "typescript"],
-                context = "owned",
-                family = "typescript",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "batched",
-            ),
-        ],
-    ),
-    tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
         config = config(suffixes = [".kubeconform.json"]),
@@ -1903,25 +1830,11 @@ TOOLS = [
         id = "phpstan",
         adapters = {
             "typecheck": ["php"],
-            "unused": ["php"],
         },
         config = config(suffixes = [".neon", ".neon.dist"]),
         support = [
             row(
                 capability = "typecheck",
-                classes = ["php"],
-                context = "target_coupled",
-                family = "php",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "batched",
-                unsupported = {
-                    "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
-                },
-            ),
-            row(
-                capability = "unused",
                 classes = ["php"],
                 context = "target_coupled",
                 family = "php",
@@ -2962,22 +2875,6 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "vulture",
-        adapters = {"unused": ["python"]},
-        support = [
-            row(
-                capability = "unused",
-                classes = ["python"],
-                context = "owned",
-                family = "python",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "qualified",
-                transport = "single",
-            ),
-        ],
-    ),
-    tool(
         id = "weeder",
         adapters = {"lint": ["haskell"]},
         support = [
@@ -3012,40 +2909,6 @@ TOOLS = [
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
                 state = "supported",
                 transport = "batched",
-            ),
-        ],
-    ),
-    tool(
-        id = "xref",
-        adapters = {"unused": ["erlang", "elixir"]},
-        support = [
-            row(
-                capability = "unused",
-                classes = ["erlang"],
-                context = "target_coupled",
-                family = "erlang",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                state = "supported",
-                transport = "batched",
-                unsupported = {
-                    "windows_arm64": "No OTP Windows cell is pinned",
-                    "windows_x86_64": "No OTP Windows cell is pinned",
-                },
-            ),
-            row(
-                capability = "unused",
-                classes = ["elixir"],
-                context = "target_coupled",
-                family = "elixir",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                state = "supported",
-                transport = "batched",
-                unsupported = {
-                    "windows_arm64": "No OTP Windows cell is pinned",
-                    "windows_x86_64": "No OTP Windows cell is pinned",
-                },
             ),
         ],
     ),

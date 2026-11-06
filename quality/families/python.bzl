@@ -2,19 +2,10 @@
 
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//quality:unused_roots.bzl", "unused_closure_sources", "unused_roots_aspect", "unused_roots_context")
 
 TOOLS = {
     "pydoclint": {
         "attr": attr.label(default = "//quality/tools/python:pydoclint", cfg = "exec", executable = True),
-        "kind": "executable",
-        "resources": "medium",
-        "runfiles_env": True,
-        "shard": "py",
-    },
-    "vulture": {
-        "attr": attr.label(default = "//quality/tools/python:vulture", cfg = "exec", executable = True),
-        "capabilities": ["unused"],
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,
@@ -54,13 +45,6 @@ SHARD_SPECS = {
         "shard": "py",
         "suffix": "-py",
     },
-    "real_python_unused": {
-        "capability": "unused",
-        "doc": "Additive Python unused-code family aspect (vulture over the target's whole closure).",
-        "requires": [unused_roots_aspect],
-        "shard": "py",
-        "suffix": "-py",
-    },
 }
 
 def _ty_hook(target, _ctx, _resolved, _capability, _what, _shared):
@@ -80,15 +64,9 @@ def _ty_hook(target, _ctx, _resolved, _capability, _what, _shared):
             search_dirs.append(f)
     return real_context(early_inputs = search_dirs, resolve_pairs = pairs, options = {"search_paths": search_dirs})
 
-def _vulture_hook(target, ctx, _resolved, _capability, _what, _shared):
-    return unused_roots_context(target, ctx, ["py"])
+HOOK_ORDER = ["ty"]
 
-def _harness_sources(target, capability, direct_sources):
-    return unused_closure_sources(target, capability, direct_sources, {"py": "python"})
-
-HOOK_ORDER = ["ty", "vulture"]
-
-HOOKS = {"ty": _ty_hook, "vulture": _vulture_hook}
+HOOKS = {"ty": _ty_hook}
 
 _CFG = real_config(
     tools = TOOLS,
@@ -96,7 +74,7 @@ _CFG = real_config(
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
     source_recognizers = [],
-    harness_sources = _harness_sources,
+    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
     toolchain = None,
     check_policy = False,
 )
@@ -104,8 +82,6 @@ _CFG = real_config(
 real_python_format_aspect = real_make_aspect(_CFG, "real_python_format")
 
 real_python_lint_aspect = real_make_aspect(_CFG, "real_python_lint")
-
-real_python_unused_aspect = real_make_aspect(_CFG, "real_python_unused")
 
 real_python_typecheck_aspect = real_make_aspect(_CFG, "real_python_typecheck")
 

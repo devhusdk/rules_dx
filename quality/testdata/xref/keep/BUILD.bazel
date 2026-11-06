@@ -1,0 +1,10 @@
+load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
+
+erlang_app(
+    name = "erlang_keep",
+    app_name = "dx_xref_keep",
+    app_version = "1.0.0",
+    tags = ["dx-keep"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = ["//quality/testdata:__pkg__"],
+)

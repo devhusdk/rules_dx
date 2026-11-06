@@ -84,6 +84,7 @@ def _npm_config_impl(ctx):
         ctx,
         "npm",
         {
+            "api_compat": ctx.attr.api_compat,
             "feed_rloc": rlocation_path(ctx, ctx.file.feed),
             "tarball_rloc": rlocation_path(ctx, ctx.file.tarball),
         },
@@ -94,13 +95,19 @@ _npm_config = rule(
     implementation = _npm_config_impl,
     doc = "Writes the deploy config for one npm deployment.",
     attrs = {
+        "api_compat": attr.string(doc = "Public API check against the latest published package: off, warn or fail.", values = ["off", "warn", "fail"], default = "off"),
         "feed": attr.label(allow_single_file = True, mandatory = True, doc = "Packed feed JSON."),
         "tarball": attr.label(allow_single_file = True, mandatory = True, doc = "Packed tarball."),
     },
 )
 
-def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", profile = "release", sbom = None):
-    """Packs files into a local npm feed with public or restricted access and a provenance policy."""
+def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", profile = "release", sbom = None, api_compat = "off"):
+    """Packs files into a local npm feed with public or restricted access and a provenance policy.
+
+    api_compat diffs the api-extractor report of the package types entry with
+    the latest published package (off, warn, fail); a breaking change fails
+    unless the version bump is major. api-extractor and npm are found on PATH.
+    """
     pkg_error = npm_package_error(package)
     if pkg_error != "":
         fail(pkg_error + " (in " + native.package_name() + ":" + name + ")")
@@ -137,6 +144,7 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         name = config_target,
         feed = ":" + feed,
         tarball = ":" + tarball,
+        api_compat = api_compat,
     )
 
     dx_deployment(

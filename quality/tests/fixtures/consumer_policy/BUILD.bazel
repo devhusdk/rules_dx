@@ -108,6 +108,21 @@ workspace_policy(
 )
 
 quality_family(
+    name = "eslint_ts_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "typescript",
+    lint = ["eslint"],
+)
+
+workspace_policy(
+    name = "ts_eslint_policy",
+    families = [":eslint_ts_family"],
+)
+
+quality_family(
     name = "clang_tidy_cc_family",
     disabled = [
         "format",

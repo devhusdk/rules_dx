@@ -533,6 +533,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_js",
         },
         {
+            "case": "js_eslint_typed",
+            "expected_dx_results": [
+                "typed_ts-real-lint-js.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:ts_eslint_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy/typed_ts:typed_ts",
+        },
+        {
             "case": "cc_clang_tidy",
             "expected_dx_results": [
                 "clean_c-real-lint-cc.pb",
@@ -600,6 +608,7 @@ test_suite(
         ":consumer_policy_cloudformation_linted_test",
         ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_js_eslint_test",
+        ":consumer_policy_js_eslint_typed_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",
         ":consumer_policy_jupyter_formatted_test",

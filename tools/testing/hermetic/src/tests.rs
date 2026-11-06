@@ -738,6 +738,7 @@ fn fake_host() -> FakeHost {
     FakeHost { dir, host }
 }
 
+#[cfg(unix)]
 #[test]
 fn plan_with_masks_fake_tools_sdks_and_home_config_but_keeps_needed_paths() {
     let fake = fake_host();
@@ -767,6 +768,7 @@ fn plan_with_masks_fake_tools_sdks_and_home_config_but_keeps_needed_paths() {
     assert_eq!(isolation.tools, vec![real.join("cc"), real.join("gcc-13")]);
 }
 
+#[cfg(unix)]
 #[test]
 fn plan_with_fails_without_ip() {
     let mut fake = fake_host();
@@ -922,6 +924,7 @@ fn fake_elf() -> Vec<u8> {
     head
 }
 
+#[cfg(unix)]
 #[test]
 fn bazelisk_comes_from_the_override_then_path() {
     let dir = tempfile::tempdir().unwrap();
@@ -1046,6 +1049,7 @@ fn remove_root_clears_read_only_trees_without_following_links() {
     std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o700)).unwrap();
 }
 
+#[cfg(unix)]
 #[test]
 fn host_names_this_machine() {
     let host = host();
@@ -1525,6 +1529,7 @@ fn macos_evidence_is_checked_against_macos_markers() {
     assert!(verify_evidence(&linux, "abc123", &manifest).is_ok());
 }
 
+#[cfg(unix)]
 #[test]
 fn copy_test_logs_keeps_layout_and_returns_heads() {
     let dir = tempfile::tempdir().unwrap();

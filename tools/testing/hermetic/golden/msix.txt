@@ -9,5 +9,6 @@ file msix/tests/fixtures/msix-app/app/tools_test.sh
 file msix/tests/fixtures/msix-app/greet/BUILD.bazel
 file msix/tests/fixtures/msix-app/greet/greet.c
 file msix/tests/fixtures/msix-app/greet/greet.h
+bazel_dep rules_cc
 bazel_dep platforms
 bazel_dep rules_shell

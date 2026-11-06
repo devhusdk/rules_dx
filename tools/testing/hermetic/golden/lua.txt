@@ -7,7 +7,7 @@ file lua/tests/fixtures/lua-app/catalog/init.lua
 file lua/tests/fixtures/lua-app/catalog/parse.lua
 file lua/tests/fixtures/lua-app/catalog/units.tsv
 file lua/tests/fixtures/lua-app/cli/BUILD.bazel
-file lua/tests/fixtures/lua-app/cli/exit_codes.sh
+file lua/tests/fixtures/lua-app/cli/exit_codes_test.lua
 file lua/tests/fixtures/lua-app/cli/main.lua
 file lua/tests/fixtures/lua-app/inspect.BUILD.bazel
 file lua/tests/fixtures/lua-app/report/BUILD.bazel

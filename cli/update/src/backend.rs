@@ -550,6 +550,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Conan => {
                 "dx does not resolve Conan packages; edit conanfile and regenerate conan.lock with `conan lock create`"
             }
+            Ecosystem::Dub => {
+                "dx does not resolve DUB packages; edit dub.json, run `dub upgrade`, and refresh dub.digests.json"
+            }
             Ecosystem::Composer => {
                 "dx does not resolve Composer packages; edit composer.json and regenerate composer.lock with `composer update`"
             }
@@ -673,12 +676,14 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => {
-            Ok(BackendPlan::Noop)
-        }
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
-            Err(pinned_selective(set))
-        }
+        (
+            Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Dub,
+            Selection::Full,
+        ) => Ok(BackendPlan::Noop),
+        (
+            Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Dub,
+            Selection::Packages(_),
+        ) => Err(pinned_selective(set)),
         (Ecosystem::Hex, request) => {
             if frozen {
                 return Err(BackendError::FrozenLocked {
@@ -1090,12 +1095,14 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => {
-            Ok(CheckPlan::Pinned)
-        }
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
-            Err(pinned_selective(set))
-        }
+        (
+            Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Dub,
+            Selection::Full,
+        ) => Ok(CheckPlan::Pinned),
+        (
+            Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Dub,
+            Selection::Packages(_),
+        ) => Err(pinned_selective(set)),
         (Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Staged(hex_staged(
             set,
             head,

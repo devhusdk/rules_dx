@@ -268,6 +268,15 @@ pub struct ComposerLock<'a> {
     pub line: usize,
 }
 
+/// One `dub.lock` tag of the rules_dx dub extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DubLock<'a> {
+    pub name: &'a str,
+    pub selections: &'a str,
+    pub digests: &'a str,
+    pub line: usize,
+}
+
 /// One `ocaml.packages` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OpamPackages<'a> {
@@ -950,6 +959,23 @@ impl ModuleFile {
                 Ok(CpanInstall {
                     name: required(call, TAG, "name")?,
                     lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `dub.lock` tag of the rules_dx dub extension in source order.
+    pub fn dub_locks(&self) -> Result<Vec<DubLock<'_>>, ModuleError> {
+        const TAG: &str = "dub.lock";
+        let own = self.tags_of("//d/dub:extensions.bzl".to_owned(), "dub", "lock");
+        self.tags(RUBY_MODULE, "d/dub:extensions.bzl", "dub", "lock")
+            .chain(own)
+            .map(|call| {
+                Ok(DubLock {
+                    name: required(call, TAG, "name")?,
+                    selections: required(call, TAG, "selections")?,
+                    digests: required(call, TAG, "digests")?,
                     line: call.line,
                 })
             })

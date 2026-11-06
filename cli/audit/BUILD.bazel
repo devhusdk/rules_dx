@@ -36,6 +36,7 @@ dx_rust_crate(
         "src/locks_conan.rs",
         "src/locks_cabal.rs",
         "src/locks_cpan.rs",
+        "src/locks_dub.rs",
         "src/locks_licenses.rs",
         "src/locks_npm.rs",
         "src/locks_opam.rs",

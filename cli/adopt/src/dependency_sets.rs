@@ -31,13 +31,15 @@ pub const ECOSYSTEM_HEX: &str = "hex";
 
 pub const ECOSYSTEM_COMPOSER: &str = "composer";
 
+pub const ECOSYSTEM_DUB: &str = "dub";
+
 pub const ECOSYSTEM_OPAM: &str = "opam";
 
 pub const ECOSYSTEM_SWIFTPM: &str = "swiftpm";
 
 pub const ECOSYSTEM_CABAL: &str = "cabal";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal";
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -70,6 +72,12 @@ pub const PROJECT_TOML: &str = "Project.toml";
 pub const JULIA_MANIFEST: &str = "Manifest.toml";
 
 pub const JULIA_BAZEL_MANIFEST: &str = "Manifest.bazel.json";
+pub const DUB_SELECTIONS: &str = "dub.selections.json";
+
+pub const DUB_DIGESTS: &str = "dub.digests.json";
+
+const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
+
 pub const COMPOSER_JSON: &str = "composer.json";
 
 pub const COMPOSER_LOCK: &str = "composer.lock";
@@ -111,6 +119,7 @@ pub enum Ecosystem {
     Julia,
     Hex,
     Composer,
+    Dub,
     Opam,
     SwiftPm,
     Cabal,
@@ -134,6 +143,7 @@ impl Ecosystem {
             Ecosystem::Julia => ECOSYSTEM_JULIA,
             Ecosystem::Hex => ECOSYSTEM_HEX,
             Ecosystem::Composer => ECOSYSTEM_COMPOSER,
+            Ecosystem::Dub => ECOSYSTEM_DUB,
             Ecosystem::Opam => ECOSYSTEM_OPAM,
             Ecosystem::Cabal => ECOSYSTEM_CABAL,
             Ecosystem::SwiftPm => ECOSYSTEM_SWIFTPM,
@@ -157,6 +167,7 @@ impl Ecosystem {
             ECOSYSTEM_JULIA => Some(Ecosystem::Julia),
             ECOSYSTEM_HEX => Some(Ecosystem::Hex),
             ECOSYSTEM_COMPOSER => Some(Ecosystem::Composer),
+            ECOSYSTEM_DUB => Some(Ecosystem::Dub),
             ECOSYSTEM_OPAM => Some(Ecosystem::Opam),
             ECOSYSTEM_CABAL => Some(Ecosystem::Cabal),
             ECOSYSTEM_SWIFTPM => Some(Ecosystem::SwiftPm),
@@ -182,6 +193,7 @@ impl Ecosystem {
             | Ecosystem::Julia
             | Ecosystem::Hex
             | Ecosystem::Composer
+            | Ecosystem::Dub
             | Ecosystem::Opam
             | Ecosystem::Cabal => "pinned",
         }
@@ -205,6 +217,7 @@ impl Ecosystem {
             | Ecosystem::Julia
             | Ecosystem::Hex
             | Ecosystem::Composer
+            | Ecosystem::Dub
             | Ecosystem::Opam
             | Ecosystem::Cabal => "pinned",
         }
@@ -241,6 +254,7 @@ impl Ecosystem {
             | Ecosystem::Julia
             | Ecosystem::Hex
             | Ecosystem::Composer
+            | Ecosystem::Dub
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
             | Ecosystem::Cabal => "audit",
@@ -262,6 +276,7 @@ impl Ecosystem {
             Ecosystem::Julia => Some("julia"),
             Ecosystem::Hex => Some("hex"),
             Ecosystem::Composer => Some("packagist"),
+            Ecosystem::Dub => None,
             Ecosystem::Opam => Some("opam"),
             Ecosystem::Cabal => Some("hackage"),
             Ecosystem::SwiftPm => Some("swifturl"),
@@ -287,6 +302,7 @@ impl Ecosystem {
             Ecosystem::Julia => PROJECT_TOML,
             Ecosystem::Hex => MIX_EXS,
             Ecosystem::Composer => COMPOSER_JSON,
+            Ecosystem::Dub => "dub.json",
             Ecosystem::Opam => "<name>.opam",
             Ecosystem::Cabal => CABAL_PROJECT,
             Ecosystem::SwiftPm => PACKAGE_SWIFT,
@@ -310,6 +326,7 @@ impl Ecosystem {
             | Ecosystem::Julia
             | Ecosystem::Hex
             | Ecosystem::Composer
+            | Ecosystem::Dub
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
             | Ecosystem::Cabal => false,
@@ -470,6 +487,14 @@ pub enum DependencySetsError {
         "dependency set {name:?} has a stale {lock}: {detail}; regenerate the digests for composer.lock"
     )]
     StaleComposerLock {
+        name: String,
+        lock: String,
+        detail: String,
+    },
+    #[error(
+        "dependency set {name:?} has a stale {lock}: {detail}; regenerate dub.digests.json for dub.selections.json"
+    )]
+    StaleDubLock {
         name: String,
         lock: String,
         detail: String,
@@ -658,6 +683,21 @@ pub fn discover(
                 vec![lock, path(composer.digests)?],
             )?);
         }
+        for dub in module.dub_locks().map_err(hub)? {
+            let selections = path(dub.selections)?;
+            let dir = manifest_dir(std::slice::from_ref(&selections));
+            let manifest = DUB_MANIFESTS
+                .iter()
+                .map(|file| in_dir(&dir, file))
+                .find(|candidate| read(candidate).is_ok())
+                .unwrap_or_else(|| in_dir(&dir, DUB_MANIFESTS[0]));
+            sets.push(hub_set(
+                dub.name,
+                Ecosystem::Dub,
+                vec![manifest],
+                vec![selections, path(dub.digests)?],
+            )?);
+        }
         for opam in module.opam_packages().map_err(hub)? {
             let lock = path(opam.lock)?;
             let manifest = lock.strip_suffix(".locked").unwrap_or(&lock).to_owned();
@@ -834,6 +874,7 @@ fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
         let file = manifest.rsplit('/').next().unwrap_or(manifest);
         let allowed = match set.ecosystem {
             Ecosystem::Conan => CONANFILES.contains(&file),
+            Ecosystem::Dub => DUB_MANIFESTS.contains(&file),
             Ecosystem::Opam => file.ends_with(".opam") && file != ".opam",
             _ => false,
         };
@@ -1050,6 +1091,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Julia
         | Ecosystem::Hex
         | Ecosystem::Composer
+        | Ecosystem::Dub
         | Ecosystem::Opam
         | Ecosystem::Cabal
         | Ecosystem::SwiftPm
@@ -1440,6 +1482,7 @@ pub fn check_backend_settings(
         Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
+        Ecosystem::Dub => check_dub_layout(workspace, set),
         Ecosystem::Opam => check_opam_layout(set),
         Ecosystem::Cabal => check_cabal_layout(workspace, set),
         Ecosystem::SwiftPm => check_pinned_lock(set, PACKAGE_RESOLVED),
@@ -1645,6 +1688,58 @@ fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
             &bazel,
             format!("it has {extra}, which {manifest} lacks"),
         ));
+    }
+    Ok(())
+}
+
+/// A dub set keeps `dub.digests.json` on the versions of `dub.selections.json`.
+fn check_dub_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    check_pinned_lock(set, DUB_SELECTIONS)?;
+    let digests = in_dir(&set.dir, DUB_DIGESTS);
+    if !set.locks.contains(&digests) {
+        return Err(DependencySetsError::MissingPinnedLock {
+            name: set.name.clone(),
+            path: digests,
+            ecosystem: set.ecosystem.name(),
+        });
+    }
+    let stale = |detail: String| DependencySetsError::StaleDubLock {
+        name: set.name.clone(),
+        lock: digests.clone(),
+        detail,
+    };
+    let read = |file: &str| -> Result<serde_json::Value, DependencySetsError> {
+        let text = std::fs::read_to_string(workspace.join(file))
+            .map_err(|error| stale(format!("cannot read {file}: {error}")))?;
+        serde_json::from_str(&text).map_err(|error| stale(format!("cannot parse {file}: {error}")))
+    };
+    let selections = in_dir(&set.dir, DUB_SELECTIONS);
+    let selected = read(&selections)?;
+    let digested = read(&digests)?;
+    let Some(versions) = selected
+        .get("versions")
+        .and_then(serde_json::Value::as_object)
+    else {
+        return Ok(());
+    };
+    for (name, version) in versions {
+        let Some(version) = version.as_str() else {
+            continue;
+        };
+        let have = digested
+            .get("packages")
+            .and_then(|packages| packages.get(name))
+            .and_then(|entry| entry.get("version"))
+            .and_then(serde_json::Value::as_str);
+        match have {
+            None => return Err(stale(format!("it has no digest for {name}"))),
+            Some(have) if have != version => {
+                return Err(stale(format!(
+                    "its version of {name} is {have}, but {selections} has {version}"
+                )));
+            }
+            Some(_) => {}
+        }
     }
     Ok(())
 }
@@ -2569,6 +2664,66 @@ mod tests {
         );
     }
 
+    fn dub_workspace(digest_version: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-dub-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("d")).expect("dir");
+        std::fs::write(
+            root.join("d/dub.selections.json"),
+            "{\"fileVersion\":1,\"versions\":{\"semver\":\"0.8.0\"}}",
+        )
+        .expect("selections");
+        std::fs::write(
+            root.join("d/dub.digests.json"),
+            format!("{{\"packages\":{{\"semver\":{{\"version\":\"{digest_version}\"}}}}}}"),
+        )
+        .expect("digests");
+        let set = ResolvedSet {
+            name: "dub".to_owned(),
+            ecosystem: Ecosystem::Dub,
+            dir: "d".to_owned(),
+            manifests: vec!["d/dub.json".to_owned()],
+            locks: vec![
+                "d/dub.selections.json".to_owned(),
+                "d/dub.digests.json".to_owned(),
+            ],
+            repository: None,
+        };
+        (scratch, set)
+    }
+
+    #[test]
+    fn dub_locks_become_dub_sets() {
+        let module = "dub = use_extension(\"@rules_dx//d/dub:extensions.bzl\", \"dub\")\ndub.lock(name = \"dub_deps\", selections = \"//d:dub.selections.json\", digests = \"//d:dub.digests.json\")\n";
+        let read = |path: &str| match path {
+            "d/dub.sdl" => Ok(String::new()),
+            _ => Err("none".to_owned()),
+        };
+        let registry = discover(module, &read)
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("dub_deps").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Dub);
+        assert_eq!(set.manifests, ["d/dub.sdl"]);
+        assert_eq!(set.locks, ["d/dub.selections.json", "d/dub.digests.json"]);
+    }
+
+    #[test]
+    fn dub_layout_accepts_matching_digests() {
+        let (scratch, set) = dub_workspace("0.8.0");
+        assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
+    }
+
+    #[test]
+    fn dub_layout_rejects_a_stale_digest() {
+        let (scratch, set) = dub_workspace("0.7.0");
+        let message = check_backend_settings(scratch.path(), &set)
+            .expect_err("stale")
+            .to_string();
+        assert!(message.contains("semver"), "{message}");
+        assert!(message.contains("0.7.0"), "{message}");
+    }
+
     #[test]
     fn composer_layout_accepts_matching_digests() {
         let (scratch, set) = composer_workspace("aaa");
@@ -3229,7 +3384,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub"
         );
     }
 

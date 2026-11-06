@@ -62,7 +62,7 @@ DEPENDENCIES = {
     "cc": "`conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set",
     "csharp": "`nuget`",
     "cuda": "none: the CUDA toolkit is a pinned download",
-    "d": "none for `dub.selections.json`: no dub set yet (#8633)",
+    "d": "`dub` (pinned, no advisories)",
     "dart": "`pub`",
     "elixir": "`hex`",
     "erlang": "`hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it",

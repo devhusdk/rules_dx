@@ -14,7 +14,7 @@ const UNOWNED_NAMES: &[(&str, &str, bool)] = &[
     ("vcpkg.json", "vcpkg", false),
     ("poetry.lock", "pypi", false),
     ("Pipfile.lock", "pypi", false),
-    ("dub.selections.json", "dub", false),
+    ("dub.selections.json", "dub", true),
 ];
 
 const SKIPPED_DIRS: &[&str] = &["node_modules", dx_path::state::DX_DIR, ".git"];

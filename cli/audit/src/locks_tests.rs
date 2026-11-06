@@ -1627,6 +1627,24 @@ fn conan_lock_rejects_malformed_input() {
 }
 
 #[test]
+fn dub_selections_list_versions() {
+    let text =
+        r#"{"fileVersion": 1, "versions": {"vibe-d": "0.9.6", "semver": {"version": "0.8.0"}}}"#;
+    let packages = parse_dub_selections(text).expect("parses");
+    let pairs: Vec<_> = packages
+        .iter()
+        .map(|p| (p.set.as_str(), p.name.as_str(), p.version.as_str()))
+        .collect();
+    assert_eq!(
+        pairs,
+        [("dub", "semver", "0.8.0"), ("dub", "vibe-d", "0.9.6")]
+    );
+    for text in ["not json", "{}", r#"{"versions": {"a": 1}}"#] {
+        assert!(parse_dub_selections(text).is_err(), "{text}");
+    }
+}
+
+#[test]
 fn cpanfile_snapshot_lists_distribution_names_and_versions() {
     let text = "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Text-CSV-2.06\n    pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\n    provides:\n      Text::CSV 2.06\n    requirements:\n      perl 5.006001\n  Try-Tiny-v0.31\n    pathname: E/ET/ETHER/Try-Tiny-0.31.tar.gz\n";
     let packages = parse_cpanfile_snapshot(text).expect("parses");

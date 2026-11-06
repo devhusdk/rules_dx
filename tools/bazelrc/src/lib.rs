@@ -119,7 +119,7 @@ const RUNFILES_FLAGS: [Flag; 3] = [
     ),
 ];
 
-const WINDOWS_FLAGS: [Flag; 2] = [
+const WINDOWS_FLAGS: [Flag; 4] = [
     (
         "build:windows --enable_runfiles",
         "On Windows, give tests a runfiles directory instead of only a manifest.",
@@ -127,6 +127,14 @@ const WINDOWS_FLAGS: [Flag; 2] = [
     (
         "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
         "On Windows, rustc links with rust-lld; clang-cl cannot drive a Rust link.",
+    ),
+    (
+        "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
+        "On Windows, build host tools on the MSVC-ABI host so rustc and clang-cl agree on the ABI.",
+    ),
+    (
+        "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host",
+        "On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.",
     ),
 ];
 
@@ -832,6 +840,12 @@ mod tests {
         assert!(text.contains("build --@my_dx//config:clippy_output_diagnostics=true\n"));
         assert!(text.contains("build --@my_dx//config:rustc_output_diagnostics=true\n"));
         assert!(text.contains("build:windows --@my_dx//config:toolchain_linker_preference=rust\n"));
+        assert!(text.contains(
+            "common:windows --host_platform=@my_dx//tools/platforms:windows_msvc_host\n"
+        ));
+        assert!(text.contains(
+            "common:windows --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@platforms//host\n"
+        ));
         assert!(!text.contains("@rules_dx//"));
         assert!(layer_is_current(&text, Layer::Correctness, "my_dx"));
         assert!(!layer_is_current(&text, Layer::Correctness, DEFAULT_REPO));
@@ -862,6 +876,8 @@ mod tests {
                 "common --incompatible_strict_action_env",
                 "build:windows --enable_runfiles",
                 "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
+                "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
+                "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host",
                 "common --repo_env=DO_NOT_TRACK=1",
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",
@@ -961,8 +977,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 37);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 37);
+        assert_eq!(total, 39);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 39);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1070,7 +1086,7 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 37);
+        assert_eq!(flags.len(), 39);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

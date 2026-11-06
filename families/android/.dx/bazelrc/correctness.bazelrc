@@ -47,6 +47,12 @@ build:windows --enable_runfiles
 # On Windows, rustc links with rust-lld; clang-cl cannot drive a Rust link.
 build:windows --@rules_dx//config:toolchain_linker_preference=rust
 
+# On Windows, build host tools on the MSVC-ABI host so rustc and clang-cl agree on the ABI.
+common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host
+
+# On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.
+common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host
+
 # Opt out of aspect_tools_telemetry usage reports.
 common --repo_env=DO_NOT_TRACK=1
 

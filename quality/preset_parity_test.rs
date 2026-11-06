@@ -53,6 +53,8 @@ fn preset_parity() {
             "build:dx_toolchain --compilation_mode=fastbuild",
             "build:windows --enable_runfiles",
             "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
+            "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
+            "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host",
             "common --repo_env=DO_NOT_TRACK=1",
             "build --@rules_dx//config:clippy_output_diagnostics=true",
             "build --@rules_dx//config:rustc_output_diagnostics=true",

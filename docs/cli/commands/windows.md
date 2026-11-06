@@ -68,7 +68,19 @@ startup:windows --windows_enable_symlinks
 
 ## Linker
 
-The consumer preset links Rust with rust-lld on Windows.
+The consumer preset links Rust with rust-lld on Windows. It also sets the host
+and execution platform to `//tools/platforms:windows_msvc_host`, so rustc and
+the C++ toolchain both use the MSVC ABI.
+
+The MSVC runtime and the Windows SDK need their licences accepted. The preset
+does not do that for you. Add this to `user.bazelrc`:
+
+```text
+common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
+common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1
+```
+
+Without these lines the toolchain fetch fails and names the missing variable.
 
 ## Long paths
 

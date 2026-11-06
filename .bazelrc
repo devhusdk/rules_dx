@@ -26,9 +26,7 @@ common:macos --local_resources=nested_bazel=1
 startup:windows --output_user_root=C:/bz
 startup:windows --windows_enable_symlinks
 
-common:windows --host_platform=//tools/platforms:windows_msvc_host
 common:windows --experimental_override_platform_cpu_name=//tools/platforms:windows_msvc_host=wx
-common:windows --extra_execution_platforms=//tools/platforms:windows_msvc_host,@platforms//host
 common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
 common:windows --extra_toolchains=@pythons_hub//:all
 common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1

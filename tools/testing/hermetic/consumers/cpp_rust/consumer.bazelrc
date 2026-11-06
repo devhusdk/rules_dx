@@ -1,20 +1,15 @@
+import %workspace%/.dx/bazelrc/correctness.bazelrc
 build --config=consumer
 build:consumer --copt=-DDX_CONSUMER_CONFIG=1
 build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 build --jvmopt=-Ddx.consumer.choice=kept
 build --enable_platform_specific_config
-# Windows: build on the MSVC-ABI host like the rules_dx root does. Moves to the preset in #8466.
-common:windows --host_platform=@my_dx//tools/platforms:windows_msvc_host
-common:windows --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@platforms//host
 common:windows --experimental_override_platform_cpu_name=@my_dx//tools/platforms:windows_msvc_host=wx
 common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
 common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1
 build:windows --per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
-build:windows --@my_dx//config:toolchain_linker_preference=rust
-build:windows --nobuild_runfile_links
-build:windows --enable_runfiles
 # build, not coverage: the fetch_coverage probe runs build --collect_code_coverage.
 build:windows --features=-coverage
 build:windows --features=-gcc_coverage_map_format

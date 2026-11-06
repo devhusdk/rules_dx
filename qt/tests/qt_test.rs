@@ -236,6 +236,10 @@ fn expected_platform_plugins() -> BTreeSet<String> {
     if cfg!(target_os = "macos") {
         plugins.insert("cocoa".to_owned());
     }
+    // The Windows archive ships these in plugins/platforms beside the pinned ones.
+    if cfg!(windows) {
+        plugins.extend(["direct2d".to_owned(), "windows".to_owned()]);
+    }
     plugins
 }
 

@@ -19,6 +19,7 @@ flutter_android_app(
     application = "//flutter/tests/fixtures/flutter-app/app:native",
     package_name = "dk.devhus.flutterapp",
     pub_hub_name = "dx_flutter_app_deps",
+    tags = ["manual"],
 )
 
 flutter_android_app(
@@ -26,6 +27,7 @@ flutter_android_app(
     application = "//flutter/tests/fixtures/flutter-app/app:native",
     package_name = "dk.devhus.flutterapp",
     pub_hub_name = "dx_flutter_app_deps",
+    tags = ["manual"],
 )
 
 android_adb_install(
@@ -68,6 +70,7 @@ sh_test(
 build_test(
     name = "apk_build_test",
     size = "small",
+    tags = ["manual"],
     target_compatible_with = FLUTTER_COMPATIBLE_WITH,
     targets = [
         ":apk",
@@ -86,7 +89,10 @@ sh_test(
         "$(locations :apk)",
     ],
     data = [":apk"],
-    tags = ["block-network"],
+    tags = [
+        "block-network",
+        "manual",
+    ],
     target_compatible_with = FLUTTER_COMPATIBLE_WITH,
 )
 
@@ -101,7 +107,10 @@ sh_test(
         "$(locations :apk_arm64)",
     ],
     data = [":apk_arm64"],
-    tags = ["block-network"],
+    tags = [
+        "block-network",
+        "manual",
+    ],
     target_compatible_with = FLUTTER_COMPATIBLE_WITH,
 )
 

@@ -56,9 +56,11 @@ def swift_linux_toolchain(name, cpu):
     archive = "@dx_swift_linux_" + cpu
     sysroot = "@dx_swift_sysroot_linux_" + cpu
     sysroot_root = Label(sysroot + "//:files").workspace_root
+    tags = ["manual"] if cpu == "aarch64" else []
 
     swift_tools(
         name = "tools_" + cpu,
+        tags = tags,
         target_compatible_with = _LINUX,
         additional_inputs = [archive + "//:files", sysroot + "//:files"],
         swift_autolink_extract = archive + "//:usr/bin/swift-autolink-extract",
@@ -68,6 +70,7 @@ def swift_linux_toolchain(name, cpu):
 
     _runtime_files(
         name = "dynamic_runtime_" + cpu,
+        tags = tags,
         target_compatible_with = _LINUX,
         srcs = [archive + "//:files"],
         dirs = ["usr/lib/swift/linux/"],
@@ -76,6 +79,7 @@ def swift_linux_toolchain(name, cpu):
 
     _runtime_files(
         name = "static_runtime_" + cpu,
+        tags = tags,
         target_compatible_with = _LINUX,
         srcs = [archive + "//:files"],
         dirs = [
@@ -91,6 +95,7 @@ def swift_linux_toolchain(name, cpu):
 
     swift_toolchain(
         name = "inner_toolchain_" + cpu,
+        tags = tags,
         target_compatible_with = _LINUX,
         arch = cpu,
         dynamic_runtime = [":dynamic_runtime_" + cpu],
@@ -113,6 +118,7 @@ def swift_linux_toolchain(name, cpu):
 
     cc_library(
         name = "linux_link_libs_" + cpu,
+        tags = tags,
         target_compatible_with = _LINUX,
         additional_linker_inputs = [
             sysroot + "//:link_libs/libcurl.so",
@@ -130,6 +136,7 @@ def swift_linux_toolchain(name, cpu):
 
     _with_link_libs(
         name = "swift_toolchain_" + cpu,
+        tags = tags,
         target_compatible_with = _LINUX,
         link_libs = ":linux_link_libs_" + cpu,
         toolchain = ":inner_toolchain_" + cpu,

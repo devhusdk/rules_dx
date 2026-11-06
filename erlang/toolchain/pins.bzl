@@ -1,5 +1,7 @@
 """Pinned Erlang/OTP runtime, native closure and rules_erlang identities."""
 
+load("//libs/starlark:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
+
 OTP_VERSION = "29.1.2"
 
 # Moves with OTP_VERSION: the erts-* directory of the pinned OTP archive.
@@ -63,7 +65,7 @@ TOOL_SOURCES = {
 
 GLIBC_FLOOR = "2.35"
 
-RUNTIME_MIRROR = "https://launchpad.net/ubuntu/+archive/primary/+files"
+RUNTIME_MIRROR = JAMMY_RUNTIME_MIRROR
 
 _WINDOWS_OTP_URL = "https://github.com/erlang/otp/releases/download/OTP-" + OTP_VERSION + "/otp_win64_" + OTP_VERSION + ".zip"
 
@@ -75,112 +77,14 @@ CELLS = {
         otp_sha256 = "1df9e6285b4d14319a789176db60c273131abebdfa6b5474a084dba49b0e54a2",
         otp_url = "https://builds.hex.pm/builds/otp/amd64/ubuntu-22.04/OTP-" + OTP_VERSION + ".tar.gz",
         strip_prefix = "OTP-" + OTP_VERSION,
-        runtime = [
-            struct(
-                deb = "libtinfo6_6.3-2ubuntu0.3_amd64.deb",
-                libraries = {"libtinfo.so.6": "lib/x86_64-linux-gnu/libtinfo.so.6"},
-                license = "X11",
-                copyright = "usr/share/doc/libtinfo6/copyright",
-                package = "libtinfo6",
-                sha256 = "3b8dff43a31168f5020928f2ab9a97324c5b47ae708311781f6bd01306c96214",
-            ),
-            struct(
-                deb = "zlib1g_1.2.11.dfsg-2ubuntu9.2_amd64.deb",
-                libraries = {"libz.so.1": "lib/x86_64-linux-gnu/libz.so.1"},
-                license = "Zlib",
-                copyright = "usr/share/doc/zlib1g/copyright",
-                package = "zlib1g",
-                sha256 = "9dc17e51a1be2d9ed63b7b84ef0e4e29c5abe6f1bc62cb03e7181483cce8a2f2",
-            ),
-            struct(
-                copyright = "usr/share/doc/gcc-12-base/copyright",
-                deb = "gcc-12-base_12.3.0-1ubuntu1~22.04.3_amd64.deb",
-                libraries = {},
-                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
-                package = "gcc-12-base",
-                sha256 = "7f9253b7e0976f0526fc21346c73ee006e185a7b2f2f865048ea78a2af55bc8d",
-            ),
-            struct(
-                deb = "libgcc-s1_12.3.0-1ubuntu1~22.04.3_amd64.deb",
-                libraries = {"libgcc_s.so.1": "lib/x86_64-linux-gnu/libgcc_s.so.1"},
-                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
-                copyright = None,
-                package = "libgcc-s1",
-                sha256 = "d383e642d83263147f7b4b69fb92cf1036e5246c6be3accf10b77f986684589a",
-            ),
-            struct(
-                deb = "libstdc++6_12.3.0-1ubuntu1~22.04.3_amd64.deb",
-                libraries = {"libstdc++.so.6": "usr/lib/x86_64-linux-gnu/libstdc++.so.6"},
-                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
-                copyright = None,
-                package = "libstdc++6",
-                sha256 = "29ef3d289b272704b75141906c8f683db0f2bdb0942061366691333bfb289bdc",
-            ),
-            struct(
-                deb = "libssl3_3.0.2-0ubuntu1.30_amd64.deb",
-                libraries = {"libcrypto.so.3": "usr/lib/x86_64-linux-gnu/libcrypto.so.3"},
-                license = "Apache-2.0",
-                copyright = "usr/share/doc/libssl3/copyright",
-                package = "libssl3",
-                sha256 = "d1b4636e32ac6d3b95d583ac05ac548b1aa248414bae1c51b14f54be0f8fd7bc",
-            ),
-        ],
+        runtime = JAMMY_RUNTIME["linux_amd64"],
     ),
     "linux_arm64": struct(
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
         otp_sha256 = "8e16954a07278e83de260489ed4af9bcca0e22ab7e99eb11de781ec6f01e95d9",
         otp_url = "https://builds.hex.pm/builds/otp/arm64/ubuntu-22.04/OTP-" + OTP_VERSION + ".tar.gz",
         strip_prefix = "OTP-" + OTP_VERSION,
-        runtime = [
-            struct(
-                deb = "libtinfo6_6.3-2ubuntu0.3_arm64.deb",
-                libraries = {"libtinfo.so.6": "lib/aarch64-linux-gnu/libtinfo.so.6"},
-                license = "X11",
-                copyright = "usr/share/doc/libtinfo6/copyright",
-                package = "libtinfo6",
-                sha256 = "971b5fd1cf8f7d68ba00f40d8eec6474fae6a6adbe19883aa42dd2b74c672e4a",
-            ),
-            struct(
-                deb = "zlib1g_1.2.11.dfsg-2ubuntu9.2_arm64.deb",
-                libraries = {"libz.so.1": "lib/aarch64-linux-gnu/libz.so.1"},
-                license = "Zlib",
-                copyright = "usr/share/doc/zlib1g/copyright",
-                package = "zlib1g",
-                sha256 = "cfd99d1ca41e710fdd3f68bfdc4d36dd24e14377656764f00b215b89cf6976e8",
-            ),
-            struct(
-                copyright = "usr/share/doc/gcc-12-base/copyright",
-                deb = "gcc-12-base_12.3.0-1ubuntu1~22.04.3_arm64.deb",
-                libraries = {},
-                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
-                package = "gcc-12-base",
-                sha256 = "b2bc566681989941dd059d6391b01c41854857f26d83c53358287d620dfb0fd4",
-            ),
-            struct(
-                deb = "libgcc-s1_12.3.0-1ubuntu1~22.04.3_arm64.deb",
-                libraries = {"libgcc_s.so.1": "lib/aarch64-linux-gnu/libgcc_s.so.1"},
-                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
-                copyright = None,
-                package = "libgcc-s1",
-                sha256 = "46626e1af6b159061e055f843654ee1f0f1e65fa280331ed47ee76ba1b1f6045",
-            ),
-            struct(
-                deb = "libstdc++6_12.3.0-1ubuntu1~22.04.3_arm64.deb",
-                libraries = {"libstdc++.so.6": "usr/lib/aarch64-linux-gnu/libstdc++.so.6"},
-                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
-                copyright = None,
-                package = "libstdc++6",
-                sha256 = "59d244119e6129c7e9c0897491c0e210e925d15881b2dedcf8965ceb4fbf1aa3",
-            ),
-            struct(
-                deb = "libssl3_3.0.2-0ubuntu1.30_arm64.deb",
-                libraries = {"libcrypto.so.3": "usr/lib/aarch64-linux-gnu/libcrypto.so.3"},
-                license = "Apache-2.0",
-                copyright = "usr/share/doc/libssl3/copyright",
-                package = "libssl3",
-                sha256 = "1c4b8cc736eed8a0caafc385f854fa6852382221d84be4795f1d19a52b9fec53",
-            ),
-        ],
+        runtime = JAMMY_RUNTIME["linux_arm64"],
     ),
     "macos_arm64": struct(
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],

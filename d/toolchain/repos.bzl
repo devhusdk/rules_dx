@@ -1,6 +1,6 @@
 """Hermetic LDC acquisition, the pinned rules_d sources and toolchain registration."""
 
-load("//erlang/toolchain:pins.bzl", "CELLS", "RUNTIME_MIRROR")
+load("//libs/starlark:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load("//libs/starlark:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
@@ -283,7 +283,7 @@ def ldc_runtime(cell):
     wanted = LDC_CELLS[cell].runtime
     if not wanted:
         return []
-    packages = [package for package in CELLS[cell].runtime if package.package in wanted]
+    packages = [package for package in JAMMY_RUNTIME[cell] if package.package in wanted]
     if len(packages) != len(wanted):
         fail("LDC cell " + cell + " names runtime packages the cell does not pin: " + repr(wanted))
     return packages
@@ -324,7 +324,7 @@ def _ldc_impl(rctx):
     for path in ldc_required_paths(cell):
         if not rctx.path(path).exists:
             fail("LDC archive " + cell.archive + " has no " + path)
-    deb_closure(rctx, RUNTIME_MIRROR, ldc_runtime(rctx.attr.cell), CLOSURE_DIR)
+    deb_closure(rctx, JAMMY_RUNTIME_MIRROR, ldc_runtime(rctx.attr.cell), CLOSURE_DIR)
     compiler = cell.compiler
     if cell.wrapper:
         compiler = COMPILER_WRAPPER

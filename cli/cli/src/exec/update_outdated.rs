@@ -135,7 +135,10 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
                 Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
             },
             Ok(None) if selectors.is_empty() => Vec::new(),
-            Ok(None) => return pre_exec(invocation.output, out, err, "no dependency sets"),
+            Ok(None) => {
+                let message = super::update::no_sets_message(workspace);
+                return pre_exec(invocation.output, out, err, &message);
+            }
             Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
         }
     };

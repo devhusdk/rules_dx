@@ -97,14 +97,15 @@ pub(super) fn uv_closure(
     runner: &dyn dx_process::Runner,
     query_runner: &dyn dx_plan::resolve::QueryRunner,
     workspace: &std::path::Path,
-    invocation: &Invocation,
+    startup: &[String],
+    offline: bool,
 ) -> dx_update::backend::UvClosure {
     let bazel = QueryBazel {
         query_runner,
         workspace,
-        startup: &invocation.bazel_startup_options,
+        startup,
     };
-    UvTools::new(runner, &bazel, invocation.offline).closure()
+    UvTools::new(runner, &bazel, offline).closure()
 }
 
 /// What each set run reports back.
@@ -346,14 +347,7 @@ fn launch(
         .map(|(key, value)| (key.as_str(), value.as_str()))
         .collect();
     let bazel = dx_update::backend::runs_bazel(argv);
-    let windows_env: Vec<(&str, String)> = if cfg!(windows) && !bazel {
-        ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
-            .into_iter()
-            .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let windows_env = if bazel { Vec::new() } else { windows_env() };
     for (key, value) in &windows_env {
         env_refs.push((key, value.as_str()));
     }
@@ -365,6 +359,17 @@ fn launch(
     } else {
         runner.run_hermetic(argv, workspace, &env_refs)
     }
+}
+
+/// The host variables a hermetic tool still needs on Windows; none elsewhere.
+pub(crate) fn windows_env() -> Vec<(&'static str, String)> {
+    if !cfg!(windows) {
+        return Vec::new();
+    }
+    ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
+        .into_iter()
+        .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
+        .collect()
 }
 
 /// Runs a generator on copies of the set's inputs and compares what it wrote with the

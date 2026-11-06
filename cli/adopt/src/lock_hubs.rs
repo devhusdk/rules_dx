@@ -102,6 +102,28 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
     }
 }
 
+/// The root manifests that `dx generate --apply` can lock: `Cargo.toml` without a `Cargo.lock`
+/// (an empty one counts as missing) and a uv `pyproject.toml` without a `uv.lock`.
+pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    let cargo_lock = std::fs::metadata(root.join(CARGO_LOCK));
+    if root.join("Cargo.toml").is_file() && cargo_lock.map_or(true, |meta| meta.len() == 0) {
+        out.push("Cargo.toml");
+    }
+    let pyproject = std::fs::read_to_string(root.join("pyproject.toml"))
+        .ok()
+        .and_then(|text| text.parse::<toml::Table>().ok());
+    if let Some(table) = pyproject {
+        let tool = table.get("tool").and_then(|tool| tool.as_table());
+        let other =
+            tool.is_some_and(|tool| tool.contains_key("poetry") || tool.contains_key("pdm"));
+        if table.contains_key("project") && !other && !root.join(UV_LOCK).exists() {
+            out.push("pyproject.toml");
+        }
+    }
+    out
+}
+
 /// Plans the stanzas for the lock files at the root of `root`. Writes nothing.
 pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
     let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
@@ -457,6 +479,37 @@ mod tests {
         assert_eq!(hubs.notes.len(), 2, "{:?}", hubs.notes);
         assert!(hubs.notes[0].contains("libs/*"), "{:?}", hubs.notes);
         assert!(hubs.notes[1].contains("gone"), "{:?}", hubs.notes);
+    }
+
+    fn unlocked(files: &[(&str, &str)]) -> Vec<&'static str> {
+        let dir = scratch("unlocked");
+        for (rel, text) in files {
+            write(dir.path(), rel, text);
+        }
+        unlocked_manifests(dir.path())
+    }
+
+    #[test]
+    fn a_missing_or_empty_cargo_lock_is_unlocked() {
+        assert_eq!(unlocked(&[("Cargo.toml", "")]), ["Cargo.toml"]);
+        assert_eq!(
+            unlocked(&[("Cargo.toml", ""), ("Cargo.lock", "")]),
+            ["Cargo.toml"]
+        );
+        assert!(unlocked(&[("Cargo.toml", ""), ("Cargo.lock", "version = 4\n")]).is_empty());
+        assert!(unlocked(&[("Cargo.lock", "")]).is_empty());
+    }
+
+    #[test]
+    fn only_uv_pyprojects_without_a_lock_are_unlocked() {
+        let project = "[project]\nname = \"app\"\n";
+        assert_eq!(unlocked(&[("pyproject.toml", project)]), ["pyproject.toml"]);
+        assert!(unlocked(&[("pyproject.toml", project), ("uv.lock", "")]).is_empty());
+        assert!(unlocked(&[("pyproject.toml", "[tool.ruff]\n")]).is_empty());
+        for tool in ["[tool.poetry]\n", "[tool.pdm]\n"] {
+            let text = format!("{project}{tool}");
+            assert!(unlocked(&[("pyproject.toml", &text)]).is_empty(), "{tool}");
+        }
     }
 
     #[test]

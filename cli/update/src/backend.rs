@@ -430,7 +430,8 @@ pub fn host_env_refusal(
 }
 
 /// Fetches a configured hub repository (cargo or maven), re-evaluating its module extension.
-fn configured_fetch_argv(
+/// `bazel fetch` of one crate_universe repository; `cargo_env` decides whether it repins.
+pub fn configured_fetch_argv(
     head: &dx_process::BazelHead,
     repository: &str,
     offline: bool,
@@ -1435,7 +1436,7 @@ fn hex_staged(
 }
 
 fn closure_path(
-    set: &ResolvedSet,
+    name: &str,
     path: &Option<String>,
     detail: &Option<String>,
     var: &'static str,
@@ -1444,7 +1445,7 @@ fn closure_path(
     match path {
         Some(path) if Path::new(path).is_absolute() => Ok(path.clone()),
         _ => Err(BackendError::BackendUnavailable {
-            set: set.name.clone(),
+            set: name.to_owned(),
             tool: "uv",
             var,
             what,
@@ -1459,15 +1460,26 @@ fn configured_uv_argv(
     check: bool,
     offline: bool,
 ) -> Result<Vec<String>, BackendError> {
+    uv_lock_argv(&set.name, &set.dir, closure, check, offline)
+}
+
+/// `uv lock` in `dir` with the pinned uv and interpreter; `name` names the set in errors.
+pub fn uv_lock_argv(
+    name: &str,
+    dir: &str,
+    closure: &UvClosure,
+    check: bool,
+    offline: bool,
+) -> Result<Vec<String>, BackendError> {
     let uv = closure_path(
-        set,
+        name,
         &closure.uv,
         &closure.uv_detail,
         UV_BIN_VAR,
         UV_BIN_WHAT,
     )?;
     let python = closure_path(
-        set,
+        name,
         &closure.python,
         &closure.python_detail,
         UV_PYTHON_VAR,
@@ -1479,7 +1491,7 @@ fn configured_uv_argv(
     }
     argv.extend(strings(&[
         "--directory",
-        &set.dir,
+        dir,
         "--no-config",
         "--no-cache",
         "--no-python-downloads",

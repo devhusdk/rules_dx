@@ -52,7 +52,21 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return update_consumer::execute_configured(invocation, env, &registry, verbose, mode);
     }
-    pre_exec(invocation.output, env.out, env.err, "no dependency sets")
+    let message = no_sets_message(env.workspace);
+    pre_exec(invocation.output, env.out, env.err, &message)
+}
+
+/// Why update has nothing to do: a manifest generate has not locked yet, or no sets at all.
+pub(super) fn no_sets_message(workspace: &std::path::Path) -> String {
+    let unlocked = dx_adopt::unlocked_manifests(workspace);
+    if unlocked.is_empty() {
+        "no dependency sets".to_owned()
+    } else {
+        format!(
+            "no lock yet for {}; run dx generate --apply",
+            unlocked.join(", ")
+        )
+    }
 }
 
 fn prune_unused(
@@ -580,15 +594,17 @@ fn status_summary(report: &dx_update::outcome::UpdateReport, mode: RunMode) -> S
 mod update_check;
 #[path = "update_consumer.rs"]
 mod update_consumer;
+pub(super) use update_consumer::windows_env;
 
 /// The pinned uv and interpreter a configured uv set refreshes with.
 pub(super) fn configured_uv_closure(
     runner: &dyn dx_process::Runner,
     query_runner: &dyn dx_plan::resolve::QueryRunner,
     workspace: &std::path::Path,
-    invocation: &Invocation,
+    startup: &[String],
+    offline: bool,
 ) -> dx_update::backend::UvClosure {
-    update_consumer::uv_closure(runner, query_runner, workspace, invocation)
+    update_consumer::uv_closure(runner, query_runner, workspace, startup, offline)
 }
 #[cfg(test)]
 #[path = "update_live.rs"]

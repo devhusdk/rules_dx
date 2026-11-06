@@ -139,6 +139,15 @@ impl GenerateRequest {
     pub fn chatty(&self) -> bool {
         self.common.chatty()
     }
+
+    /// The startup flags and profile config a generate Bazel call starts with.
+    pub fn bazel_head(&self) -> dx_process::BazelHead {
+        dx_process::BazelHead {
+            startup: self.bazel_startup_options.clone(),
+            options: vec![Profile::default_for(Command::Generate).config_flag()],
+            settings: crate::plan::head_settings(crate::plan::rules_dx_repo()),
+        }
+    }
 }
 
 impl UmbrellaRequest {

@@ -14,6 +14,18 @@ fn update_without_dependency_sets_reports_none() {
 }
 
 #[test]
+fn update_names_a_manifest_without_a_lock() {
+    let harness = Harness::new("update-unlocked");
+    harness.write_source("Cargo.toml", "[package]\nname = \"app\"\n");
+    let (code, _, err) = harness.run(&["update"]);
+    assert_eq!(code, 2, "{err}");
+    assert!(
+        err.contains("no lock yet for Cargo.toml; run dx generate --apply"),
+        "{err}"
+    );
+}
+
+#[test]
 fn update_ignores_a_stray_dx_toml() {
     let harness = Harness::new("update-stray-dx-toml");
     harness.write_source("dx.toml", "[[dependency_set]]\nname = \"x\"\nnot toml {{");

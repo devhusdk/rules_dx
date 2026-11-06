@@ -557,8 +557,18 @@ pub fn plan_init_files_at(
     if root.is_dir() {
         files.extend(plan_profile_files(root, &extensions, profile));
     }
+    let planned = files.iter().any(|file| file.path == ROOT_BUILD);
+    if !planned && !root.join("BUILD").exists() && !root.join(ROOT_BUILD).exists() {
+        files.push(ScaffoldFile {
+            path: ROOT_BUILD.to_owned(),
+            content: with_header(Ownership::Once, ROOT_BUILD, ""),
+            kind: FileKind::WriteOnce,
+        });
+    }
     Ok(files)
 }
+
+const ROOT_BUILD: &str = "BUILD.bazel";
 
 fn plan_init_files_full(
     module_name: &str,
@@ -1060,6 +1070,43 @@ mod tests {
             .iter()
             .map(|id| id.as_str().expect("string").to_owned())
             .collect()
+    }
+
+    fn root_builds(files: &[(&str, &str)]) -> Vec<(String, super::FileKind)> {
+        let scratch = dx_test_scratch::scratch("dx-adopt-root-build-");
+        for (path, text) in files {
+            std::fs::write(scratch.path().join(path), text).expect("file");
+        }
+        let plan = super::plan_init_files_at(scratch.path(), "demo", None).expect("init plans");
+        scratch.close().expect("cleanup");
+        plan.into_iter()
+            .filter(|f| f.path == "BUILD.bazel")
+            .map(|f| (f.content, f.kind))
+            .collect()
+    }
+
+    #[test]
+    fn init_writes_a_root_build_once_when_there_is_none() {
+        assert_eq!(
+            root_builds(&[("README.md", "hi\n")]),
+            [(
+                super::with_header(super::Ownership::Once, "BUILD.bazel", ""),
+                super::FileKind::WriteOnce
+            )]
+        );
+    }
+
+    #[test]
+    fn init_keeps_an_existing_root_build() {
+        assert!(root_builds(&[("BUILD", "")]).is_empty());
+        assert!(root_builds(&[("BUILD.bazel", "")]).is_empty());
+    }
+
+    #[test]
+    fn init_plans_one_root_build_with_profile_exports() {
+        let builds = root_builds(&[("main.py", "print(1)\n")]);
+        assert_eq!(builds.len(), 1);
+        assert!(builds[0].0.contains("exports_files(["));
     }
 
     #[test]

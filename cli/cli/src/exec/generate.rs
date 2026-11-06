@@ -46,14 +46,39 @@ fn finish_incomplete_generate(
 }
 
 /// Adds the `MODULE.bazel` stanzas for the root lock files and the rules_dx modules
-/// with `--apply`; otherwise says what `--apply` would add. Problems are reported on `err`
-/// and never change the exit code.
-fn wire_module(workspace: &Path, apply: bool, err: &mut dyn Write) {
+/// with `--apply`, first creating the root locks that are missing; otherwise says what
+/// `--apply` would do. Problems are reported on `err` and never change the exit code.
+fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) {
+    let workspace = env.workspace;
+    let apply = request.applies();
+    let unlocked = dx_adopt::unlocked_manifests(workspace);
+    let mut seeded_cargo = false;
+    for manifest in &unlocked {
+        let lock = lock_for(manifest);
+        if !apply {
+            let _ = writeln!(env.err, "dx: would create {lock}; run dx generate --apply");
+        } else if *manifest == "Cargo.toml" {
+            match std::fs::write(workspace.join(lock), "") {
+                Ok(()) => seeded_cargo = true,
+                Err(error) => {
+                    let _ = writeln!(env.err, "dx: {lock} not created: {error}");
+                }
+            }
+        } else {
+            seed_uv_lock(request, env);
+        }
+    }
     let hubs = dx_adopt::plan_lock_hubs(workspace).map(|hubs| (hubs.notes, hubs.edit));
+    if matches!(&hubs, Ok((_, Some(_)))) && !has_root_build(workspace) {
+        let _ = writeln!(
+            env.err,
+            "dx: the lock labels need a root BUILD.bazel; run dx init --apply"
+        );
+    }
     wire(
         workspace,
         apply,
-        err,
+        env.err,
         "lock files",
         "stanzas for the lock files at the root",
         hubs,
@@ -63,11 +88,98 @@ fn wire_module(workspace: &Path, apply: bool, err: &mut dyn Write) {
     wire(
         workspace,
         apply,
-        err,
+        env.err,
         "rules_dx modules",
         "the rules_dx modules it needs",
         deps,
     );
+    if seeded_cargo {
+        fill_cargo_lock(request, env);
+    }
+}
+
+fn lock_for(manifest: &str) -> &'static str {
+    if manifest == "Cargo.toml" {
+        "Cargo.lock"
+    } else {
+        "uv.lock"
+    }
+}
+
+fn has_root_build(workspace: &Path) -> bool {
+    workspace.join("BUILD").exists() || workspace.join("BUILD.bazel").exists()
+}
+
+/// Runs `uv lock` at the root with the pinned uv and interpreter.
+fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>) {
+    let closure = super::update::configured_uv_closure(
+        env.runner,
+        env.query_runner,
+        env.workspace,
+        &request.bazel_startup_options,
+        false,
+    );
+    let argv = match dx_update::backend::uv_lock_argv("uv.lock", ".", &closure, false, false) {
+        Ok(argv) => argv,
+        Err(error) => {
+            let _ = writeln!(env.err, "dx: uv.lock not created: {error}");
+            return;
+        }
+    };
+    let host = super::update::windows_env();
+    let pairs: Vec<(&str, &str)> = host
+        .iter()
+        .map(|(key, value)| (*key, value.as_str()))
+        .collect();
+    report_seed(
+        env.workspace,
+        env.err,
+        "uv.lock",
+        "uv lock",
+        env.runner.run_hermetic(&argv, env.workspace, &pairs),
+    );
+}
+
+/// Fills the empty `Cargo.lock` with the crate_universe repin `dx update` runs.
+fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>) {
+    let argv = dx_update::backend::configured_fetch_argv(&request.bazel_head(), "crates", false);
+    let vars = dx_update::backend::cargo_env("workspace", "crates");
+    let pairs: Vec<(&str, &str)> = vars
+        .iter()
+        .map(|(key, value)| (key.as_str(), value.as_str()))
+        .collect();
+    report_seed(
+        env.workspace,
+        env.err,
+        "Cargo.lock",
+        "bazel fetch",
+        env.runner.run(&argv, env.workspace, &pairs),
+    );
+}
+
+fn report_seed(
+    workspace: &Path,
+    err: &mut dyn Write,
+    lock: &str,
+    tool: &str,
+    status: std::io::Result<dx_process::ChildStatus>,
+) {
+    let written = std::fs::metadata(workspace.join(lock)).is_ok_and(|meta| meta.len() > 0);
+    let _ = match status {
+        Ok(status) if status.code == Some(0) && written => writeln!(err, "dx: wrote {lock}"),
+        Ok(status) if status.code == Some(0) => writeln!(
+            err,
+            "dx: {lock} is still empty after {tool}; run dx generate --apply again"
+        ),
+        Ok(status) => writeln!(
+            err,
+            "dx: {lock} not written: {tool} exited {}; run dx generate --apply again",
+            status
+                .code
+                .map_or_else(|| "by signal".to_owned(), |code| code.to_string())
+        ),
+        Err(error) => writeln!(err, "dx: {lock} not written: {tool}: {error}"),
+    };
 }
 
 fn wire(
@@ -137,7 +249,7 @@ pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) ->
 
 fn run_generate_request(
     request: &GenerateRequest,
-    env: Env<'_>,
+    mut env: Env<'_>,
     kind: &mut PhaseKind,
     effects: &mut PhaseEffects,
 ) -> i32 {
@@ -160,7 +272,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
-    wire_module(env.workspace, apply, env.err);
+    wire_module(request, &mut env);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     let _ = std::fs::remove_file(&patch);
@@ -453,6 +565,87 @@ mod tests {
         assert!(err.contains("run dx generate --apply"), "{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert_eq!(module, "module(name = \"app\")\n");
+    }
+
+    fn cargo_workspace(name: &str, mode: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
+        harness.write_source("BUILD.bazel", "");
+        harness.write_source("Cargo.toml", "[package]\nname = \"app\"\n");
+        harness.intended = Some(intended_witness(mode, true, "", ""));
+        harness
+    }
+
+    #[test]
+    fn generate_apply_seeds_cargo_lock_and_repins_crates() {
+        let harness = cargo_workspace("generate-seed-cargo", "default");
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert!(
+            module.contains("cargo_lockfile = \"//:Cargo.lock\""),
+            "{module}"
+        );
+        let builds = harness.build_argv.borrow();
+        let fetch = builds
+            .iter()
+            .position(|argv| argv.iter().any(|arg| arg == "--repo=@crates"))
+            .expect("crate repin");
+        assert!(builds[fetch].iter().any(|arg| arg == "fetch"), "{builds:?}");
+        let env = &harness.seen_env.borrow()[fetch];
+        assert!(env.contains(&("CARGO_BAZEL_REPIN".to_owned(), "workspace".to_owned())));
+        assert!(env.contains(&("CARGO_BAZEL_REPIN_ONLY".to_owned(), "crates".to_owned())));
+        assert!(
+            err.contains(
+                "dx: Cargo.lock is still empty after bazel fetch; run dx generate --apply again"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("dx init"), "{err}");
+    }
+
+    #[test]
+    fn generate_check_says_which_lock_it_would_create() {
+        let harness = cargo_workspace("generate-seed-check", "check");
+        let (code, out, err) = harness.run(&["generate"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            err.contains("dx: would create Cargo.lock; run dx generate --apply"),
+            "{err}"
+        );
+        assert!(!harness.workspace.join("Cargo.lock").exists());
+        assert!(!harness
+            .build_argv
+            .borrow()
+            .iter()
+            .any(|argv| argv.iter().any(|arg| arg == "--repo=@crates")));
+    }
+
+    #[test]
+    fn generate_leaves_a_full_cargo_lock_alone_and_asks_for_a_root_build() {
+        let mut harness = Harness::new("generate-seed-full");
+        harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
+        harness.write_source("Cargo.toml", "[package]\nname = \"app\"\n");
+        harness.write_source("Cargo.lock", "version = 4\n");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(err.contains("run dx init --apply"), "{err}");
+        assert!(!err.contains("Cargo.lock not written"), "{err}");
+        let lock = std::fs::read_to_string(harness.workspace.join("Cargo.lock")).expect("read");
+        assert_eq!(lock, "version = 4\n");
+    }
+
+    #[test]
+    fn generate_reports_a_uv_lock_it_cannot_create() {
+        let mut harness = Harness::new("generate-seed-uv");
+        harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
+        harness.write_source("pyproject.toml", "[project]\nname = \"app\"\n");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(err.contains("dx: uv.lock not created:"), "{err}");
+        assert!(!harness.workspace.join("uv.lock").exists());
     }
 
     #[test]

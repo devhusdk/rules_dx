@@ -832,7 +832,8 @@ fn refresh_plan(
                         runner,
                         query_runner,
                         workspace,
-                        invocation,
+                        &invocation.bazel_startup_options,
+                        invocation.offline,
                     )
                 }
                 _ => dx_update::backend::UvClosure::default(),

@@ -80,6 +80,7 @@ dx_rust_crate(
         "tempfile",
     ],
     extra_deps = [
+        "//cli/dx_config",
         "//cli/digest:dx_digest",
         "//cli/sbom:dx_sbom",
         "//libs/gomod:dx_gomod",

@@ -1,4 +1,3 @@
-use chrono::{Datelike, NaiveDate};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -179,15 +178,16 @@ pub fn validate_uncovered(
 }
 
 pub fn check_expiry(expires: &str, today: &str) -> Result<(), ExceptionProblem> {
-    let expires_date = parse_audit_date(expires)?;
-    let today_date = parse_audit_date(today)?;
-    if expires_date <= today_date {
-        return Err(ExceptionProblem::Expired {
-            expires: expires.to_owned(),
-            today: today.to_owned(),
-        });
-    }
-    Ok(())
+    use dx_config::conventions::{self, ConventionProblem};
+    conventions::check_expiry(expires, today).map_err(|problem| match problem {
+        ConventionProblem::Expired { expires, today } => {
+            ExceptionProblem::Expired { expires, today }
+        }
+        ConventionProblem::InvalidDate { value } => ExceptionProblem::InvalidDate { value },
+        other => ExceptionProblem::InvalidDate {
+            value: other.to_string(),
+        },
+    })
 }
 
 pub fn cargo_assess(scope: &str, version: &str) -> VersionScope {
@@ -209,31 +209,6 @@ pub fn cargo_assess(scope: &str, version: &str) -> VersionScope {
 
 pub fn version_in_scope(scope: &str, version: &str) -> bool {
     cargo_assess(scope, version) == VersionScope::Affected
-}
-
-fn parse_audit_date(value: &str) -> Result<NaiveDate, ExceptionProblem> {
-    if !is_date_shape(value) {
-        return Err(ExceptionProblem::InvalidDate {
-            value: value.to_owned(),
-        });
-    }
-    match NaiveDate::parse_from_str(value, "%Y-%m-%d") {
-        Ok(date) if date.year() >= 1 => Ok(date),
-        _ => Err(ExceptionProblem::InvalidDate {
-            value: value.to_owned(),
-        }),
-    }
-}
-
-fn is_date_shape(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
-        return false;
-    }
-    bytes
-        .iter()
-        .enumerate()
-        .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
 }
 
 fn parse_file(text: &str) -> Result<SecurityFile, SecurityProblem> {

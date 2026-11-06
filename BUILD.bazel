@@ -419,6 +419,13 @@ real_source_target(
 )
 
 json_schema(
+    name = "dx_schema",
+    src = "//cli/dx_config:schema/dx.schema.json",
+    files = [],
+    url = "https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/dx_config/schema/dx.schema.json",
+)
+
+json_schema(
     name = "security_schema",
     src = "//cli/audit:schema/security.schema.json",
     files = [
@@ -443,6 +450,7 @@ json_schema(
 json_schemas(
     name = "json_schemas",
     schemas = [
+        ":dx_schema",
         ":licenses_schema",
         ":security_schema",
     ],

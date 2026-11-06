@@ -1,5 +1,5 @@
 {
-  "checksum": "f88e5deb5376407c3c7074d4a57cd0a1d1c809cf26d8e0bc0c3a42a0421c28db",
+  "checksum": "a93488526f59803570cc9ab1e9ee424280501d594a205e17da3fc7d64f5ca1c7",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7419,6 +7419,59 @@
         {
           "Library": {
             "crate_name": "dx_codegen",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_config 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "schemars 1.2.3",
+            "target": "schemars"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          },
+          {
+            "id": "toml 1.1.6+spec-1.1.0",
+            "target": "toml"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "jsonschema 0.60.2",
+            "target": "jsonschema"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_config",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_config",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_config",
             "crate_root": "src/lib.rs"
           }
         }
@@ -28642,6 +28695,7 @@
     "dx_clean 0.0.0": "cli/dx_clean",
     "dx_cli 0.0.0": "cli/dx_cli",
     "dx_codegen 0.0.0": "cli/dx_codegen",
+    "dx_config 0.0.0": "cli/dx_config",
     "dx_depcheck 0.0.0": "cli/dx_depcheck",
     "dx_deploy_tools 0.0.0": "deploy/dx_deploy_tools",
     "dx_diff 0.0.0": "cli/dx_diff",

@@ -690,6 +690,7 @@ real_source_target(
         "coverage_sources_tests.bzl",
         "curated_defaults.bzl",
         "curated_defaults_tests.bzl",
+        "dx_config_gen.bzl",
         "execution_requirements.bzl",
         "execution_requirements_tests.bzl",
         "unavailable_tool.bzl",

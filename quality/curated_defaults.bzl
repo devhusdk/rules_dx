@@ -271,6 +271,17 @@ CURATED_DEFAULTS = {
     },
 }
 
+# Tools that several families select. They always use the root profile, so a family
+# profile never changes how they run.
+CROSS_FAMILY_TOOLS = [
+    "biome",
+    "lychee",
+    "markdown_check",
+    "prettier",
+    "tsc",
+    "typos",
+]
+
 def curated_families():
     """Returns the sorted curated families in the manifest."""
     return sorted(CURATED_DEFAULTS.keys())

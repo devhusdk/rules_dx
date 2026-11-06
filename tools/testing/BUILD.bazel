@@ -86,7 +86,7 @@ rust_library(
     ],
     crate_name = "dx_nested",
     crate_root = "src/nested.rs",
-    visibility = VIS_TOOLS_PUBLIC,
+    visibility = VIS_TOOLS_PUBLIC + ["//cli/cli/tests/cli_argv_e2e:__pkg__"],
     deps = [
         ":dx_testing",
         "//cli/path:dx_path",

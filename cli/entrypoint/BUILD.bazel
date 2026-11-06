@@ -45,6 +45,7 @@ rust_test(
         "@dx_consumer_sets//:security_composer_json.txt",
         "@dx_consumer_sets//:security_json.txt",
         "@dx_consumer_sets//:security_ruby_json.txt",
+        "@dx_consumer_sets//:security_swiftpm_json.txt",
         "@dx_consumer_sets//:update_pinned.txt",
     ],
     env = {
@@ -71,6 +72,7 @@ rust_test(
         "DX_SETS_SECURITY_CARGO": "$(rootpath @dx_consumer_sets//:security_cargo_json.txt)",
         "DX_SETS_SECURITY_CPAN": "$(rootpath @dx_consumer_sets//:security_cpan_json.txt)",
         "DX_SETS_SECURITY_COMPOSER": "$(rootpath @dx_consumer_sets//:security_composer_json.txt)",
+        "DX_SETS_SECURITY_SWIFTPM": "$(rootpath @dx_consumer_sets//:security_swiftpm_json.txt)",
         "DX_SETS_SECURITY_RUBY": "$(rootpath @dx_consumer_sets//:security_ruby_json.txt)",
         "DX_SETS_UPDATE_PINNED": "$(rootpath @dx_consumer_sets//:update_pinned.txt)",
         "DX_SCAFFOLD_BAZELVERSION": "$(rootpath @dx_consumer_scaffold//:foreign/myproj/.bazelversion)",

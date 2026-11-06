@@ -2608,6 +2608,79 @@ source = { registry = "https://pypi.org/simple" }
         assert!(runner.calls.borrow().is_empty());
     }
 
+    const SWIFT_MODULE: &str = "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//apps/swift:Package.resolved\", swift = \"//apps/swift:Package.swift\")\n";
+    const SWIFT_MANIFEST: &str = "apps/swift/Package.swift";
+
+    fn swift_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, SWIFT_MODULE, true);
+        harness.write_source(
+            SWIFT_MANIFEST,
+            "import PackageDescription\nlet package = Package(name: \"app\", dependencies: [\n    .package(url: \"https://github.com/apple/swift-argument-parser\", exact: \"1.8.2\"),\n    .package(url: \"https://github.com/apple/swift-log.git\", branch: \"main\"),\n], targets: [])\n",
+        );
+        harness.write_source(
+            "apps/swift/Package.resolved",
+            "{\"pins\":[],\"version\":3}\n",
+        );
+        harness
+    }
+
+    #[test]
+    fn consumer_swiftpm_apply_edits_the_manifest_then_updates_the_pin() {
+        let harness = swift_harness("swift-apply");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &[
+                "update",
+                "--apply",
+                "swiftpm:swift-argument-parser",
+                "1.9.0",
+            ],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        let manifest = String::from_utf8(read_bytes(&harness, SWIFT_MANIFEST)).expect("utf8");
+        assert!(manifest.contains("exact: \"1.9.0\""), "{manifest}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1, "{launches:?}");
+        let argv = &launches[0].argv;
+        assert_eq!(
+            argv[argv.len() - 4..],
+            strings_of(&["--", "package", "update", "swift-argument-parser"])[..],
+            "{argv:?}"
+        );
+    }
+
+    #[test]
+    fn consumer_swiftpm_refusals_launch_nothing_and_keep_the_manifest() {
+        let harness = swift_harness("swift-refuse");
+        let before = read_bytes(&harness, SWIFT_MANIFEST);
+        let runner = ScriptRunner::new(&[]);
+        for package in ["swift-log", "missing"] {
+            let (code, _, err) = run_with(
+                &["update", "--apply", &format!("swiftpm:{package}"), "1.0.0"],
+                &runner,
+                &harness,
+            );
+            assert_ne!(code, 0, "{package}: {err}");
+        }
+        let (code, _, err) = run_with(
+            &[
+                "update",
+                "--apply",
+                "--frozen",
+                "swiftpm:swift-argument-parser",
+                "1.9.0",
+            ],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("frozen_locked"), "{err}");
+        assert_eq!(read_bytes(&harness, SWIFT_MANIFEST), before);
+        assert!(runner.launches.borrow().is_empty());
+    }
+
     const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"cpan_deps\", lock = \"//perl/third_party:cpanfile.snapshot.lock.json\")\n";
     const CPAN_FILES: [&str; 3] = [
         "perl/third_party/cpanfile",

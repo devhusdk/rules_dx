@@ -497,6 +497,15 @@ An opam set is discovered from a `<name>.opam` file with a `<name>.opam.locked` 
 - `dx update <set>:<package> <version>` edits the one literal version constraint of the package in `depends:` of the `.opam` file. It keeps the operator and the filters (`{>= "1.1.0" & with-test}`), and refuses a package that `depends:` does not list, one without a constraint, and one with two constraints. The version starts with a digit and may hold `.`, `+`, `-`, `~` and `_`, such as `1.3.0` or `0.9.0~rc1`.
 - `--apply` then runs `opam upgrade <package>` and `opam lock` from the pinned opam and the opam-repository snapshot. It fails with `offline_required` under `--offline` and `frozen_locked` under `--frozen`.
 
+### swiftpm
+
+A swiftpm set comes from a `from_package` tag of `swift_deps` in `MODULE.bazel`, with its `Package.swift` and `Package.resolved`. The first set is `swiftpm`, the next `swiftpm-2`.
+
+- `dx update <set>` resolves `Package.swift` with the managed Swift in a copy and compares the result with `Package.resolved`.
+- `dx update --apply <set>:<package> <version>` edits the `from:` or `exact:` version of the package, named by the last segment of its URL, then runs `swift package update <package>`. A package that is not declared, or pinned by `branch:` or `revision:`, is refused.
+- `dx update --outdated` compares the pins with the newest semver tag on GitHub.
+- `dx security` matches `Package.resolved` against `.dx/advisory/swifturl.json`.
+
 ### hex
 
 - `mix.exs` must sit beside `mix.lock`.

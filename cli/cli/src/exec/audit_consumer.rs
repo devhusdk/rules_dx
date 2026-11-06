@@ -768,6 +768,49 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("vuln/GHSA"), "{out}");
     }
 
+    const SWIFT_MODULE: &str = "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//apps/swift:Package.resolved\", swift = \"//apps/swift:Package.swift\")\n";
+
+    const SWIFT_ADVISORY: &str = r#"[{
+        "id": "GHSA-swift-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "SwiftURL", "name": "github.com/apple/swift-argument-parser"},
+            "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "1.8.3"}]}]
+        }]
+    }]"#;
+
+    fn swift_harness(name: &str, version: &str) -> Harness {
+        let harness = consumer_harness(name, SWIFT_MODULE, false);
+        harness.write_source(
+            "apps/swift/Package.swift",
+            "// swift-tools-version: 6.0\nimport PackageDescription\nlet package = Package(name: \"app\", dependencies: [.package(url: \"https://github.com/apple/swift-argument-parser\", exact: \"1.8.2\")], targets: [])\n",
+        );
+        harness.write_source(
+            "apps/swift/Package.resolved",
+            &format!(
+                "{{\"pins\":[{{\"identity\":\"swift-argument-parser\",\"kind\":\"remoteSourceControl\",\"location\":\"https://github.com/apple/swift-argument-parser\",\"state\":{{\"revision\":\"abc\",\"version\":\"{version}\"}}}}],\"version\":3}}"
+            ),
+        );
+        harness
+    }
+
+    #[test]
+    fn consumer_swiftpm_set_reports_a_vulnerable_pin_and_passes_the_fixed_one() {
+        let harness = swift_harness("swift-vuln", "1.8.2");
+        write_advisory(&harness, "swifturl", SWIFT_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "swiftpm"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/GHSA-swift-0001"), "{out}");
+        assert!(out.contains("apps/swift/Package.resolved"), "{out}");
+        let fixed = swift_harness("swift-fixed", "1.8.3");
+        write_advisory(&fixed, "swifturl", SWIFT_ADVISORY);
+        let (code, out, err) = run_with(&["security", "--output=json", "swiftpm"], &runner, &fixed);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/GHSA"), "{out}");
+    }
+
     const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = \"//third_party:maven_install.json\")\nuse_repo(maven, \"maven\")\n";
 
     const MAVEN_ADVISORY: &str = r#"[{

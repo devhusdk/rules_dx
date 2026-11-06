@@ -240,6 +240,16 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
         !cpan.contains("no advisory coverage"),
         "configured cpan sets have advisory coverage: {cpan}"
     );
+    let swiftpm = read("DX_SETS_SECURITY_SWIFTPM");
+    assert!(
+        swiftpm.contains("failed to assess swiftpm")
+            && swiftpm.contains(".dx/advisory/swifturl.json"),
+        "audit checks configured swiftpm sets against the swifturl snapshot: {swiftpm}"
+    );
+    assert!(
+        !swiftpm.contains("no advisory coverage"),
+        "configured swiftpm sets have advisory coverage: {swiftpm}"
+    );
     let edit = read("DX_SETS_EDIT_CARGO");
     assert!(
         edit.contains("update pending: crates:serde 2.0.0 is not declared in apps/rs/Cargo.toml"),

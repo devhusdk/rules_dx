@@ -141,6 +141,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "security_json.txt",
         "security_npm_json.txt",
         "security_ruby_json.txt",
+        "security_swiftpm_json.txt",
         "update_pinned.txt",
         "sets_ok/MODULE.bazel",
         "sets_ok/.dx/pins",
@@ -157,6 +158,8 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/perl/cpanfile",
         "sets_ok/perl/cpanfile.snapshot",
         "sets_ok/perl/cpanfile.snapshot.lock.json",
+        "sets_ok/apps/swift/Package.swift",
+        "sets_ok/apps/swift/Package.resolved",
         "sets_ok/apps/php/composer.json",
         "sets_ok/apps/php/composer.lock",
         "sets_ok/apps/php/composer.digests.json",
@@ -191,6 +194,8 @@ crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(name = "crates", cargo_lockfile = "//apps/rs:Cargo.lock", manifests = ["//apps/rs:Cargo.toml"])
 cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
 cpan.install(name = "cpan_deps", lock = "//perl:cpanfile.snapshot.lock.json")
+swift_deps = use_extension("@rules_swift_package_manager//:extensions.bzl", "swift_deps")
+swift_deps.from_package(resolved = "//apps/swift:Package.resolved", swift = "//apps/swift:Package.swift")
 composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
 composer.lock(name = "vendor", lock = "//apps/php:composer.lock", digests = "//apps/php:composer.digests.json")
 EOF
@@ -202,6 +207,8 @@ DISTRIBUTIONS
     pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz
 EOF
 echo '{"Text-CSV": {"strip_prefix": "Text-CSV-2.06"}}' > "$(location sets_ok/perl/cpanfile.snapshot.lock.json)"
+echo 'import PackageDescription' > "$(location sets_ok/apps/swift/Package.swift)"
+echo '{"pins": [], "version": 3}' > "$(location sets_ok/apps/swift/Package.resolved)"
 echo '{"require": {"psr/log": "^1.1"}}' > "$(location sets_ok/apps/php/composer.json)"
 echo '{"packages": [], "packages-dev": []}' > "$(location sets_ok/apps/php/composer.lock)"
 echo '{"packages": {}}' > "$(location sets_ok/apps/php/composer.digests.json)"
@@ -344,6 +351,16 @@ grep -q "failed to assess cpan_deps" "$(location security_cpan_json.txt)"
 grep -q ".dx/advisory/cpan.json" "$(location security_cpan_json.txt)"
 if grep -q "no advisory coverage" "$(location security_cpan_json.txt)"; then
   echo "security reported a configured cpan set as uncovered" >&2
+  exit 1
+fi
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" swiftpm > "$(location security_swiftpm_json.txt)" 2>/dev/null; then
+  echo "security passed without a swifturl advisory snapshot" >&2
+  exit 1
+fi
+grep -q "failed to assess swiftpm" "$(location security_swiftpm_json.txt)"
+grep -q ".dx/advisory/swifturl.json" "$(location security_swiftpm_json.txt)"
+if grep -q "no advisory coverage" "$(location security_swiftpm_json.txt)"; then
+  echo "security reported a configured swiftpm set as uncovered" >&2
   exit 1
 fi
 if "$$public" update gems:rack 1.0 --workspace "$$ok" > "$(location edit_pinned.txt)" 2>&1; then

@@ -23,8 +23,9 @@ load(
     _ocamllex = "ocamllex",
     _ocamlyacc = "ocamlyacc",
 )
+load("//cc/rules:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "OCamlCmtInfo", "WERROR_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
@@ -38,6 +39,8 @@ OCAML_COMPATIBLE_WITH = cells_compatible_with(OCAML_CELLS, "//ocaml/toolchain", 
 OCAML_TOOLCHAIN_FLAG = "@rules_ocaml//toolchain"
 
 OCAML_EMITTER_FLAG = str(Label("//ocaml/toolchain:emitter"))
+
+_FEATURES = "//command_line_option:features"
 
 COVERAGE_ACTIVE = str(Label("//tools/coverage/ocaml:coverage_active"))
 
@@ -77,13 +80,23 @@ def toolchain_choice(current, emitter):
         return NATIVE_TOOLCHAIN
     return OCAML_DEFAULT_TOOLCHAIN if current == UPSTREAM_DEFAULT_TOOLCHAIN else current
 
+def toolchain_settings(settings):
+    """Returns the toolchain choice, plus LLVM coverage features for the C stubs a native link takes in."""
+    emitter = settings[OCAML_EMITTER_FLAG]
+    out = {OCAML_TOOLCHAIN_FLAG: toolchain_choice(settings[OCAML_TOOLCHAIN_FLAG], emitter)}
+    if emitter == "sys":
+        out.update(cc_coverage_settings(settings))
+    else:
+        out[_FEATURES] = settings[_FEATURES]
+    return out
+
 def _toolchain_impl(settings, _attr):
-    return {OCAML_TOOLCHAIN_FLAG: toolchain_choice(settings[OCAML_TOOLCHAIN_FLAG], settings[OCAML_EMITTER_FLAG])}
+    return toolchain_settings(settings)
 
 _toolchain = transition(
     implementation = _toolchain_impl,
-    inputs = [OCAML_TOOLCHAIN_FLAG, OCAML_EMITTER_FLAG],
-    outputs = [OCAML_TOOLCHAIN_FLAG],
+    inputs = [OCAML_TOOLCHAIN_FLAG, OCAML_EMITTER_FLAG] + CC_COVERAGE_INPUTS,
+    outputs = [OCAML_TOOLCHAIN_FLAG, _FEATURES],
 )
 
 def _cmt_providers(ctx, upstream):
@@ -155,18 +168,22 @@ def _run_environment_info(ctx, upstream):
     out = run_environment(upstream_env, upstream_inherited, ctx.attr.env, ctx.attr.env_inherit)
     return RunEnvironmentInfo(environment = out.environment, inherited_environment = out.inherited_environment)
 
-def _coverage_launcher(ctx, upstream, bytecode):
-    info = upstream[DefaultInfo]
-    runtime = ctx.attr._ocamlrun[DefaultInfo]
-    ocamlrun = runtime.files.to_list()[0]
-    runfiles = ctx.runfiles([bytecode, ocamlrun]).merge_all(
-        [info.default_runfiles, runtime.default_runfiles] + [dep[DefaultInfo].default_runfiles for dep in ctx.attr.data],
+def _native_coverage(ctx, upstream, exe):
+    native = dx_native_test_coverage(ctx, upstream)
+    metadata = native.instrumented.metadata_files.to_list()
+    if exe != None and not ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo]):
+        objects = ctx.actions.declare_file(ctx.label.name + "_runtime_objects_list.txt")
+        ctx.actions.write(objects, exe.short_path + "\n")
+        metadata.append(objects)
+    return struct(
+        env = {key: native.env.environment[key] for key in ["CC_CODE_COVERAGE_SCRIPT", "LLVM_COV", "LLVM_PROFDATA"]},
+        metadata = metadata,
     )
-    inner = ctx.actions.declare_file(ctx.label.name + ".run")
-    ctx.actions.write(
-        inner,
-        launcher_script(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)),
-        is_executable = True,
+
+def _coverage_launcher(ctx, upstream, inner, files, native, runtime_runfiles = []):
+    info = upstream[DefaultInfo]
+    runfiles = ctx.runfiles(files).merge_all(
+        [info.default_runfiles] + runtime_runfiles + [dep[DefaultInfo].default_runfiles for dep in ctx.attr.data],
     )
     launcher = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.symlink(output = launcher, target_file = ctx.executable._bisect_collect, is_executable = True)
@@ -176,6 +193,7 @@ def _coverage_launcher(ctx, upstream, bytecode):
     report = ctx.attr._bisect_report[DefaultInfo]
     to_lcov = ctx.attr._bisect_to_lcov[DefaultInfo]
     env = dict(_run_environment_info(ctx, upstream).environment)
+    env.update(native.env)
     env.update({
         "DX_BISECT_REPORT": runfiles_path(ctx.workspace_name, report.files_to_run.executable.short_path),
         "DX_BISECT_SOURCES": runfiles_path(ctx.workspace_name, manifest.short_path),
@@ -183,17 +201,28 @@ def _coverage_launcher(ctx, upstream, bytecode):
         "DX_BISECT_WORKSPACE": ctx.workspace_name,
         "DX_TO_LCOV": runfiles_path(ctx.workspace_name, to_lcov.files_to_run.executable.short_path),
     })
-    runfiles = runfiles.merge(ctx.runfiles([launcher, inner, manifest, report.files_to_run.executable] + sources)).merge_all([
+    runfiles = runfiles.merge(ctx.runfiles([launcher, manifest, report.files_to_run.executable] + sources)).merge_all([
         report.default_runfiles,
         to_lcov.default_runfiles,
         ctx.attr._bisect_collect[DefaultInfo].default_runfiles,
     ])
     return [
         DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles),
-        coverage_common.instrumented_files_info(ctx, dependency_attributes = ["upstream"]),
+        coverage_common.instrumented_files_info(ctx, dependency_attributes = ["upstream"], metadata_files = native.metadata),
         dx_quality_sources(ctx.files.srcs, _OCAML, str(ctx.label)),
         RunEnvironmentInfo(environment = env, inherited_environment = _run_environment_info(ctx, upstream).inherited_environment),
     ]
+
+def _bytecode_coverage_launcher(ctx, upstream, bytecode):
+    runtime = ctx.attr._ocamlrun[DefaultInfo]
+    ocamlrun = runtime.files.to_list()[0]
+    inner = ctx.actions.declare_file(ctx.label.name + ".run")
+    ctx.actions.write(
+        inner,
+        launcher_script(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)),
+        is_executable = True,
+    )
+    return _coverage_launcher(ctx, upstream, inner, [inner, bytecode, ocamlrun], _native_coverage(ctx, upstream, None), [runtime.default_runfiles])
 
 def _launcher_impl(ctx):
     upstream = dx_upstream(ctx)
@@ -201,10 +230,13 @@ def _launcher_impl(ctx):
     bytecode = info.files_to_run.executable
     if bytecode == None:
         fail("ocaml_*: upstream target has no executable: " + str(upstream.label))
-    if ctx.attr._emitter[BuildSettingInfo].value != "sys" and ctx.configuration.coverage_enabled and hasattr(ctx.attr, "_bisect_collect") and ctx.attr._bisect_report[DefaultInfo].files_to_run.executable != None:
-        return _coverage_launcher(ctx, upstream, bytecode)
+    sys = ctx.attr._emitter[BuildSettingInfo].value == "sys"
+    if ctx.configuration.coverage_enabled and hasattr(ctx.attr, "_bisect_collect") and ctx.attr._bisect_report[DefaultInfo].files_to_run.executable != None:
+        if sys:
+            return _coverage_launcher(ctx, upstream, bytecode, [bytecode], _native_coverage(ctx, upstream, bytecode))
+        return _bytecode_coverage_launcher(ctx, upstream, bytecode)
     launcher = ctx.actions.declare_file(ctx.label.name)
-    if ctx.attr._emitter[BuildSettingInfo].value == "sys":
+    if sys:
         ctx.actions.symlink(output = launcher, target_file = bytecode, is_executable = True)
         runfiles = ctx.runfiles([launcher, bytecode]).merge_all(
             [info.default_runfiles] + [dep[DefaultInfo].default_runfiles for dep in ctx.attr.data],
@@ -254,11 +286,13 @@ _ocaml_forward_test = rule(
     doc = "Runs one rules_ocaml bytecode test on the pinned ocamlrun.",
     test = True,
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-    attrs = _launcher_attrs(dict(dx_lcov_merger_attr(), **{
+    toolchains = dx_native_coverage_toolchains(),
+    attrs = _launcher_attrs(dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
         "_bisect_collect": attr.label(default = "//tools/coverage/ocaml:collect", executable = True, cfg = "target"),
         "_bisect_report": attr.label(default = "//tools/coverage/ocaml:report_or_none", cfg = "target"),
         "_bisect_to_lcov": attr.label(default = "//tools/coverage/ocaml:to_lcov_or_none", cfg = "target"),
-    })),
+        "_macos": attr.label(default = "@platforms//os:macos"),
+    }),
 )
 
 def owned_sources(*files):

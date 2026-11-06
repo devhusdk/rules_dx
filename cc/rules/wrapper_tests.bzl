@@ -7,7 +7,10 @@ load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "msvc_crt_reset_settings
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":defs.bzl", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_unsupported", "cc_param_file_features")
+load(":defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_settings", "cc_coverage_unsupported", "cc_param_file_features")
+
+def _coverage_inputs(features, collect, compiler, compiler_flag):
+    return dict(zip(CC_COVERAGE_INPUTS, [features, collect, compiler, compiler_flag]))
 
 def cc_wrapper_contract_tests(name):
     """Instantiates C, C++ and Objective-C wrapper contract tests."""
@@ -27,6 +30,9 @@ def cc_wrapper_contract_tests(name):
             expect_equal("gcc gets no llvm maps", cc_coverage_features(["a"], True, "gcc"), ["a"]),
             expect_equal("msvc gets no llvm maps", cc_coverage_features(["a"], True, "msvc-cl"), ["a"]),
             expect_equal("custom compiler gets no llvm maps", cc_coverage_features(["a"], True, "icx"), ["a"]),
+            expect_equal("coverage settings off keep features", cc_coverage_settings(_coverage_inputs(["a"], False, "", "")), {"//command_line_option:features": ["a"]}),
+            expect_equal("coverage settings on add llvm maps", cc_coverage_settings(_coverage_inputs([], True, "", "")), {"//command_line_option:features": ["llvm_coverage_map_format", "-gcc_coverage_map_format"]}),
+            expect_equal("coverage settings follow the gcc flag", cc_coverage_settings(_coverage_inputs(["a"], True, "", "gcc")), {"//command_line_option:features": ["a"]}),
             expect_equal("llvm coverage supported", cc_coverage_unsupported("clang"), ""),
             expect_equal("unknown compiler not blocked", cc_coverage_unsupported("icx"), ""),
             expect_equal("gcc coverage supported", cc_coverage_unsupported("gcc"), ""),

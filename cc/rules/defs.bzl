@@ -62,7 +62,10 @@ def cc_coverage_features(features, collect_code_coverage, compiler = ""):
         return features
     return features + [f for f in _LLVM_COVERAGE_FEATURES if f not in features]
 
-def _cc_coverage_transition_impl(settings, _attr):
+CC_COVERAGE_INPUTS = ["//command_line_option:features", "//command_line_option:collect_code_coverage", "//command_line_option:compiler", _COMPILER_FLAG]
+
+def cc_coverage_settings(settings):
+    """Returns the features setting a transition over CC_COVERAGE_INPUTS gives C and C++ code built for coverage."""
     features = cc_coverage_features(
         settings["//command_line_option:features"],
         settings["//command_line_option:collect_code_coverage"],
@@ -70,9 +73,12 @@ def _cc_coverage_transition_impl(settings, _attr):
     )
     return {"//command_line_option:features": features}
 
+def _cc_coverage_transition_impl(settings, _attr):
+    return cc_coverage_settings(settings)
+
 _cc_coverage_transition = transition(
     implementation = _cc_coverage_transition_impl,
-    inputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage", "//command_line_option:compiler", _COMPILER_FLAG],
+    inputs = CC_COVERAGE_INPUTS,
     outputs = ["//command_line_option:features"],
 )
 

@@ -39,3 +39,33 @@ _manifest_test = analysistest.make(
 def ocaml_coverage_manifest_test(name, target_under_test, expected = ""):
     """Asserts the bisect source manifest of a test is the expected text under the instrumentation filter."""
     _manifest_test(name = name, size = "small", target_under_test = target_under_test, expected = expected)
+
+def _sys_coverage_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    writes = {a.outputs.to_list()[0].basename: a.content for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite"}
+    manifests = [content for name, content in writes.items() if name.endswith(".bisect_sources")]
+    asserts.equals(env, [ctx.attr.sources], manifests)
+    linux = not ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo])
+    metadata = [f.short_path for f in target[InstrumentedFilesInfo].metadata_files.to_list()]
+    asserts.equals(env, linux, len([m for m in metadata if m.endswith("runtime_objects_list.txt")]) == 1, str(metadata))
+    asserts.true(env, "LLVM_PROFDATA" in target[RunEnvironmentInfo].environment)
+    asserts.false(env, "DX_COVERAGE_CLANG_OBJECTS" in target[RunEnvironmentInfo].environment)
+    return analysistest.end(env)
+
+_sys_coverage_test = analysistest.make(
+    _sys_coverage_impl,
+    attrs = {
+        "sources": attr.string(),
+        "_macos": attr.label(default = "@platforms//os:macos"),
+    },
+    config_settings = {
+        "//command_line_option:collect_code_coverage": True,
+        "//command_line_option:instrumentation_filter": "^//",
+        str(Label("//ocaml/toolchain:emitter")): "sys",
+    },
+)
+
+def ocaml_sys_coverage_test(name, target_under_test, sources):
+    """Asserts a native (sys) test runs under the bisect collector and, off macOS, lists its executable for LLVM coverage of its C stubs."""
+    _sys_coverage_test(name = name, size = "small", target_under_test = target_under_test, sources = sources)

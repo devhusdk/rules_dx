@@ -14,6 +14,7 @@ exports_files([
     "llvm.libunwind_copy.patch",
     "protobuf.no_crate_universe.patch",
     "rules_android.bundle_keystore_properties.patch",
+    "rules_cuda.msvc_dlink_crt.patch",
     "rules_cuda.redist_cccl_key.patch",
     "rules_dart.coverage.patch",
     "rules_flutter.missing_font.patch",

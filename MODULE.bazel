@@ -155,12 +155,15 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975)
+# floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975) and to pass the dynamic CRT flag to nvcc -dlink (#4704)
 bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
 single_version_override(
     module_name = "rules_cuda",
     patch_strip = 1,
-    patches = ["//patches/rules_cuda:redist_cccl_key.patch"],
+    patches = [
+        "//patches/rules_cuda:msvc_dlink_crt.patch",
+        "//patches/rules_cuda:redist_cccl_key.patch",
+    ],
     version = "0.4.0-beta1",
 )
 

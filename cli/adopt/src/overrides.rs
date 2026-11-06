@@ -237,10 +237,16 @@ pub const OVERRIDES: &[Override] = &[
         version: "0.4.0-beta1",
         patch_strip: 1,
         archive: None,
-        patches: &[OverridePatch {
-            file: "redist_cccl_key.patch",
-            content: include_str!("../../../patches/rules_cuda/redist_cccl_key.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "msvc_dlink_crt.patch",
+                content: include_str!("../../../patches/rules_cuda/msvc_dlink_crt.patch"),
+            },
+            OverridePatch {
+                file: "redist_cccl_key.patch",
+                content: include_str!("../../../patches/rules_cuda/redist_cccl_key.patch"),
+            },
+        ],
     },
     Override {
         module: "rules_flutter",

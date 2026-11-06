@@ -18,7 +18,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Avro | none |
 | C and C++ | none |
 | C# | none |
-| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_x86_64`, `windows_arm64`: not tested yet |
+| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_arm64`: not tested yet |
 | D | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK |
 | Elixir | none |

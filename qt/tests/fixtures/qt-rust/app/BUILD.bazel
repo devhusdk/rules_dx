@@ -5,10 +5,10 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# The QML plugin DLL imports QtQmlMeta; linking Quick stages it next to the test.
+# The QML plugin imports QtQmlMeta; linking Quick stages it with the binary.
 _QML_META = select({
-    "@platforms//os:windows": ["@dx_qt//:quick"],
-    "//conditions:default": [],
+    "@platforms//os:linux": [],
+    "//conditions:default": ["@dx_qt//:quick"],
 })
 
 # Rust std on Windows imports ntdll.
@@ -23,7 +23,7 @@ qt_cc_binary(
     linkopts = _NTDLL,
     modules = ["qml"],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    deps = ["//qt/tests/fixtures/qt-rust/ui"],
+    deps = ["//qt/tests/fixtures/qt-rust/ui"] + _QML_META,
 )
 
 qt_cc_test(

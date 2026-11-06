@@ -2,7 +2,7 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//cc/toolchains:select.bzl", "cc_toolchain_binary")
+load("//cc/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -234,6 +234,25 @@ qt_cc_test(
     ],
     target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [":gui"],
+)
+
+cc_toolchain_test(
+    name = "qt_test_msvc",
+    compiler = "msvc",
+    tags = [
+        "block-network",
+        "no-remote-exec",
+    ],
+    target_compatible_with = _WINDOWS_X86_64,
+    test = ":qt_test",
+)
+
+cc_toolchain_test(
+    name = "gui_test_msvc",
+    compiler = "msvc",
+    tags = ["no-remote-exec"],
+    target_compatible_with = _WINDOWS_X86_64,
+    test = ":gui_test",
 )
 
 qt_cc_binary(

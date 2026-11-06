@@ -90,6 +90,9 @@ def _assert_no_host_flags(env, action):
     for name in ["HOST_CFLAGS", "HOST_CXXFLAGS"]:
         asserts.equals(env, "", action.env.get(name), "{} is not empty when HOST == TARGET".format(name))
 
+def _provisioned(path):
+    return path.startswith("external/") or path.startswith("${pwd}/external/") or "dx_msvc" in path
+
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
     action = _run_action(env)
@@ -101,7 +104,12 @@ def _msvc_impl(ctx):
     include = action.env.get("INCLUDE", "")
     asserts.true(env, include != "", "INCLUDE is not set")
     for part in include.split(";"):
-        asserts.true(env, part.startswith("external/") or part.startswith("${pwd}/external/") or "dx_msvc" in part, "INCLUDE entry outside the provisioned SDK: {}".format(part))
+        asserts.true(env, _provisioned(part), "INCLUDE entry outside the provisioned SDK: {}".format(part))
+    for name in ["LIB", "LIBPATH", "PATH"]:
+        for part in action.env.get(name, "").split(";"):
+            asserts.true(env, part == "" or _provisioned(part), "{} entry outside the provisioned SDK: {}".format(name, part))
+    for name in ["VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir"]:
+        asserts.false(env, name in action.env, "{} leaks a preinstalled Visual Studio: {}".format(name, action.env.get(name)))
     for name in _C_FLAGS + _CXX_FLAGS:
         value = action.env.get(name, "")
         asserts.false(env, _UNDEF_ISO_STDIO in value.split(" "), "{} drops ISO wide stdio outside coverage: {}".format(name, value))
@@ -175,7 +183,7 @@ def build_script_libstdcxx_test(name, target):
     )
 
 def build_script_compiler_tests(name, target):
-    """Asserts the build script runs with the pinned GCC under gcc and with other tools under llvm.
+    """Asserts the build script runs with the pinned GCC under gcc and with LLVM under llvm, also on Windows x64.
 
     Args:
         name: Name of the test suite.
@@ -201,6 +209,14 @@ def build_script_compiler_tests(name, target):
                 target_under_test = target,
             )
             tests.append(arm64)
+    llvm_windows = name + "_llvm_windows"
+    _llvm_test(
+        name = llvm_windows,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        target_under_test = target,
+    )
+    tests.append(llvm_windows)
     native.test_suite(name = name, tests = tests)
 
 cross_build_script_tool_inputs_test = analysistest.make(
@@ -326,6 +342,20 @@ def _link_llvm_impl(ctx):
     asserts.false(env, "dx_gcc" in linker, "linker is GCC under llvm: {}".format(linker))
     return analysistest.end(env)
 
+def _link_msvc_impl(ctx):
+    env = analysistest.begin(ctx)
+    linker, link_args = _link_args(_rustc_action(env))
+    name = linker.replace("\\", "/").split("/")[-1].lower()
+    asserts.equals(env, "link.exe", name, "linker is not link.exe: {}".format(linker))
+    asserts.true(env, "dx_msvc" in linker, "linker is not the provisioned MSVC: {}".format(linker))
+    for tool in ["clang-cl", "llvm_toolchain"]:
+        asserts.false(env, tool in linker, "linker is {}: {}".format(tool, linker))
+    for arg in link_args:
+        for prefix in ["-LIBPATH:", "/LIBPATH:"]:
+            if arg.startswith(prefix):
+                asserts.true(env, arg[len(prefix):].startswith("external/"), "MSVC lib dir is outside the execroot: {}".format(arg))
+    return analysistest.end(env)
+
 def _link_windows_impl(ctx):
     env = analysistest.begin(ctx)
     linker, _ = _link_args(_rustc_action(env))
@@ -352,6 +382,7 @@ def _link_windows_impl(ctx):
 
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
+_link_msvc_test = analysistest.make(_link_msvc_impl, config_settings = {_COMPILER: "msvc"})
 
 # The forwarder's static CRT settings, so the crate under test and the upstream share one build script config.
 _link_windows_test = analysistest.make(_link_windows_impl, config_settings = {
@@ -376,7 +407,7 @@ def rust_link_windows_test(name, target):
     )
 
 def rust_link_compiler_tests(name, target):
-    """Asserts the Rust link step uses the pinned GCC under gcc and not under llvm.
+    """Asserts the Rust link step uses the pinned GCC under gcc, not under llvm, and link.exe under msvc.
 
     Args:
         name: Name of the test suite.
@@ -402,6 +433,14 @@ def rust_link_compiler_tests(name, target):
                 target_under_test = target,
             )
             tests.append(arm64)
+    msvc = name + "_msvc"
+    _link_msvc_test(
+        name = msvc,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        target_under_test = target,
+    )
+    tests.append(msvc)
     native.test_suite(name = name, tests = tests)
 
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))

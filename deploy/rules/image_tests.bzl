@@ -39,7 +39,12 @@ def image_unit_tests(name):
                 "app/server.py",
             ),
             expect_equal(
-                "image_default_main leaves java and dotnet alone",
+                "image_default_main names the dotnet assembly of a label",
+                image_default_main("dotnet", "//app:server", "other"),
+                "app/server.dll",
+            ),
+            expect_equal(
+                "image_default_main leaves java alone",
                 image_default_main("java", ":server", "app"),
                 None,
             ),

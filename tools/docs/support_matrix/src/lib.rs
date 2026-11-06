@@ -93,6 +93,9 @@ pub struct Facts {
     /// Row name to the label of its unsupported constraint_value.
     #[serde(default)]
     pub unsupported_constraints: BTreeMap<String, String>,
+    /// Language row name to the cell of its dependency sets, or none with the reason.
+    #[serde(default)]
+    pub dependencies: BTreeMap<String, String>,
     pub not_languages: Vec<String>,
     pub computed_constraints: BTreeMap<String, Vec<Vec<String>>>,
 }

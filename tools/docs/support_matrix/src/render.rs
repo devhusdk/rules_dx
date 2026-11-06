@@ -69,6 +69,21 @@ fn build_table(
     table(&[heading, "Not supported on"], &rows)
 }
 
+fn language_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> String {
+    let rows: Vec<Vec<String>> = rows_in(facts, "languages")
+        .into_iter()
+        .map(|row| {
+            let dependencies = facts.dependencies.get(&row.name).cloned();
+            vec![
+                row.title.clone(),
+                unsupported_cell(facts, platforms, row),
+                dependencies.unwrap_or_else(|| "none".to_owned()),
+            ]
+        })
+        .collect();
+    table(&["Language", "Not supported on", "Dependencies"], &rows)
+}
+
 fn compiler_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> String {
     let rows: Vec<Vec<String>> = rows_in(facts, "compilers")
         .into_iter()
@@ -295,7 +310,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
         "Do not edit this page. Run `{UPDATE_COMMAND}` to refresh it.\n\n"
     ));
     out.push_str("## Languages\n\n");
-    out.push_str(&build_table(facts, platforms, "languages", "Language"));
+    out.push_str(&language_table(facts, platforms));
     out.push_str("\n## Targets\n\n");
     out.push_str(&build_table(facts, platforms, "targets", "Target"));
     out.push_str("\n## Compilers\n\n");
@@ -398,7 +413,7 @@ mod tests {
         assert_eq!(page, render(&facts, &platforms));
         assert!(page.is_ascii());
         assert!(
-            page.contains("| Go | `macos_arm64`: not tested yet |\n"),
+            page.contains("| Go | `macos_arm64`: not tested yet | none |\n"),
             "{page}"
         );
         assert!(

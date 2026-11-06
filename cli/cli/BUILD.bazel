@@ -363,6 +363,7 @@ rust_test(
         "src/exec/testdata/bazel_profile.json",
         "src/exec/unsupported.json",
         "//docs:cli/commands/init.md",
+        "//docs:support-matrix.md",
     ],
     crate_name = "dx_cli",
     crate_root = "src/lib.rs",

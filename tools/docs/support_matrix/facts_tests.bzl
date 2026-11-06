@@ -14,7 +14,7 @@ load("//tools/docs/python:defs.bzl", "python_doc_shard")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
 load("//tools/docs/site:site.bzl", "docs_site")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
-load(":languages.bzl", "DOC_TOOLS", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "DEPENDENCIES", "DOC_TOOLS", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
 
 # Loading each symbol proves the shard rule exists; the names are what DOC_TOOLS may point at.
 _SHARD_RULES = {
@@ -47,6 +47,11 @@ def _doc_problems(facts):
         elif entry and entry["shard"] not in _SHARD_RULES:
             problems.append(name + " names missing shard " + entry["shard"])
     return problems
+
+def _dependency_problems(facts):
+    languages = [row["name"] for row in facts["rows"] if row["section"] == "languages"]
+    problems = ["missing " + name for name in languages if name not in DEPENDENCIES]
+    return problems + ["unknown row " + name for name in DEPENDENCIES if name not in languages]
 
 def _families_resolve(facts):
     return [
@@ -85,6 +90,7 @@ def support_matrix_facts_tests(name):
                 [platform["id"] for platform in PLATFORMS],
             ),
             expect_equal("every language has a doc tool or a gap", _doc_problems(facts), []),
+            expect_equal("every language shows its dependency sets or none", _dependency_problems(facts), []),
             expect_equal("every family resolves", _families_resolve(facts), []),
             expect_equal(
                 "rows are sorted by name",

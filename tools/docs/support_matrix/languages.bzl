@@ -55,6 +55,43 @@ COMPUTED_CONSTRAINTS = {
     "//qt/rules:defs.bzl%QT_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
+# What each language row shows in the Dependencies column: the dependency set names, or none with the reason. Lock files without a set are named so `dx security` warnings can point here.
+DEPENDENCIES = {
+    "astro": "`npm`",
+    "avro": "none: schemas only, no packages",
+    "cc": "`conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set",
+    "csharp": "`nuget`",
+    "cuda": "none: the CUDA toolkit is a pinned download",
+    "d": "none for `dub.selections.json`: no dub set yet (#8633)",
+    "dart": "`pub`",
+    "elixir": "`hex`",
+    "erlang": "`hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it",
+    "flutter": "`pub`",
+    "fortran": "none: no package manager",
+    "fsharp": "`nuget`",
+    "go": "`go`",
+    "haskell": "`hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`: only cabal has a set",
+    "java": "`maven`",
+    "javascript": "`npm`",
+    "julia": "`julia`",
+    "kotlin": "`maven`",
+    "lua": "none: no LuaRocks support, rockspec packages are pinned with `http_archive`",
+    "mdx": "`npm`",
+    "ocaml": "`opam`",
+    "perl": "`cpan`",
+    "php": "`packagist`",
+    "powershell": "`powershell` (pinned, no advisories)",
+    "protobuf": "none: schemas only, no packages",
+    "python": "`uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager",
+    "ruby": "`ruby`",
+    "rust": "`cargo`",
+    "scala": "`maven`",
+    "svelte": "`npm`",
+    "typescript": "`npm`",
+    "vue": "`npm`",
+    "zig": "none for `build.zig.zon`: the zig family does not fetch `.dependencies`",
+}
+
 # The API doc tool per language and the *_doc_shard macro or rule that runs it (docs_site for Rust, which takes the crate itself). None marks a gap.
 DOC_TOOLS = {
     "astro": {"tool": "astro-compiler", "shard": "astro_doc_shard"},

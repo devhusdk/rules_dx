@@ -1,20 +1,20 @@
 use std::path::Path;
 
-/// Lock and manifest names dx knows an ecosystem for but has no dependency set to read.
-const UNOWNED_NAMES: &[(&str, &str)] = &[
-    ("mix.lock", "hex"),
-    ("rebar.lock", "hex"),
-    ("pubspec.lock", "pub"),
-    ("composer.lock", "composer"),
-    ("stack.yaml.lock", "hackage"),
-    ("opam.locked", "opam"),
-    ("cpanfile.snapshot", "cpan"),
-    ("build.zig.zon", "zig"),
-    ("conan.lock", "conan"),
-    ("vcpkg.json", "vcpkg"),
-    ("poetry.lock", "pypi"),
-    ("Pipfile.lock", "pypi"),
-    ("dub.selections.json", "dub"),
+/// Lock and manifest names dx knows an ecosystem for but no workspace set owns. The flag marks ecosystems that have a set kind; the others show `none` in the Dependencies column of docs/support-matrix.md.
+const UNOWNED_NAMES: &[(&str, &str, bool)] = &[
+    ("mix.lock", "hex", true),
+    ("rebar.lock", "hex", false),
+    ("pubspec.lock", "pub", true),
+    ("composer.lock", "composer", true),
+    ("stack.yaml.lock", "hackage", false),
+    ("opam.locked", "opam", true),
+    ("cpanfile.snapshot", "cpan", true),
+    ("build.zig.zon", "zig", false),
+    ("conan.lock", "conan", true),
+    ("vcpkg.json", "vcpkg", false),
+    ("poetry.lock", "pypi", false),
+    ("Pipfile.lock", "pypi", false),
+    ("dub.selections.json", "dub", false),
 ];
 
 const SKIPPED_DIRS: &[&str] = &["node_modules", dx_path::state::DX_DIR, ".git"];
@@ -31,7 +31,7 @@ impl UnownedLock {
         let advice = if self.uv_hint {
             "use a uv set"
         } else {
-            "see #7296"
+            "see docs/support-matrix.md"
         };
         format!(
             "dx: no dependency set for {} ({}); advisories not checked, {advice}",
@@ -68,7 +68,8 @@ fn walk(dir: &Path, rel: &str, owned: &[&str], found: &mut Vec<UnownedLock>) {
             }
         } else if kind.is_file()
             && !owned.contains(&path.as_str())
-            && let Some((_, ecosystem)) = UNOWNED_NAMES.iter().find(|(known, _)| *known == name)
+            && let Some((_, ecosystem, _)) =
+                UNOWNED_NAMES.iter().find(|(known, _, _)| *known == name)
         {
             found.push(UnownedLock {
                 path,
@@ -81,7 +82,23 @@ fn walk(dir: &Path, rel: &str, owned: &[&str], found: &mut Vec<UnownedLock>) {
 
 #[cfg(test)]
 mod tests {
-    use super::find_unowned;
+    use super::{UNOWNED_NAMES, find_unowned};
+
+    const MATRIX: &str = include_str!("../../../../docs/support-matrix.md");
+
+    #[test]
+    fn locks_without_a_set_have_a_none_reason_in_the_matrix() {
+        for (name, _, _) in UNOWNED_NAMES.iter().filter(|(_, _, has_set)| !has_set) {
+            let shown = MATRIX.lines().any(|line| {
+                line.contains(&format!("`{name}`"))
+                    && (line.contains("none for ") || line.contains("| none:"))
+            });
+            assert!(
+                shown,
+                "docs/support-matrix.md has no none reason for {name}"
+            );
+        }
+    }
 
     #[test]
     fn reports_unowned_locks_and_skips_owned_and_vendored_dirs() {
@@ -104,8 +121,8 @@ mod tests {
         assert_eq!(
             messages,
             [
-                "dx: no dependency set for d/dub.selections.json (dub); advisories not checked, see #7296",
-                "dx: no dependency set for pkg/mix.lock (hex); advisories not checked, see #7296",
+                "dx: no dependency set for d/dub.selections.json (dub); advisories not checked, see docs/support-matrix.md",
+                "dx: no dependency set for pkg/mix.lock (hex); advisories not checked, see docs/support-matrix.md",
                 "dx: no dependency set for poetry.lock (pypi); advisories not checked, use a uv set",
             ]
         );

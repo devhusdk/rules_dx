@@ -12,41 +12,41 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 
 ## Languages
 
-| Language | Not supported on |
-| --- | --- |
-| Astro | none |
-| Avro | none |
-| C and C++ | none |
-| C# | none |
-| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_arm64`: not tested yet |
-| D | `windows_x86_64`, `windows_arm64`: not tested yet |
-| Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK |
-| Elixir | none |
-| Erlang | none |
-| Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) |
-| Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build |
-| F# | none |
-| Go | none |
-| Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist |
-| Java | none |
-| JavaScript | none |
-| Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build |
-| Kotlin | none |
-| Lua | none |
-| MDX | none |
-| OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package |
-| Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build |
-| PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build |
-| PowerShell | none |
-| Protobuf | none |
-| Python | none |
-| Ruby | none |
-| Rust | none |
-| Scala | none |
-| Svelte | none |
-| TypeScript | none |
-| Vue | none |
-| Zig | none |
+| Language | Not supported on | Dependencies |
+| --- | --- | --- |
+| Astro | none | `npm` |
+| Avro | none | none: schemas only, no packages |
+| C and C++ | none | `conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set |
+| C# | none | `nuget` |
+| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_arm64`: not tested yet | none: the CUDA toolkit is a pinned download |
+| D | `windows_x86_64`, `windows_arm64`: not tested yet | none for `dub.selections.json`: no dub set yet (#8633) |
+| Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` |
+| Elixir | none | `hex` |
+| Erlang | none | `hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it |
+| Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` |
+| Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | none: no package manager |
+| F# | none | `nuget` |
+| Go | none | `go` |
+| Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`: only cabal has a set |
+| Java | none | `maven` |
+| JavaScript | none | `npm` |
+| Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` |
+| Kotlin | none | `maven` |
+| Lua | none | none: no LuaRocks support, rockspec packages are pinned with `http_archive` |
+| MDX | none | `npm` |
+| OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package | `opam` |
+| Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build | `cpan` |
+| PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build | `packagist` |
+| PowerShell | none | `powershell` (pinned, no advisories) |
+| Protobuf | none | none: schemas only, no packages |
+| Python | none | `uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager |
+| Ruby | none | `ruby` |
+| Rust | none | `cargo` |
+| Scala | none | `maven` |
+| Svelte | none | `npm` |
+| TypeScript | none | `npm` |
+| Vue | none | `npm` |
+| Zig | none | none for `build.zig.zon`: the zig family does not fetch `.dependencies` |
 
 ## Targets
 

@@ -1178,6 +1178,17 @@ fn consumer_module_composes_the_snippet_and_escapes_the_checkout() {
 }
 
 #[test]
+fn consumer_module_drops_the_init_header_and_module_call() {
+    let init = format!("# dx: yours; dx adds its missing lines\n{SNIPPET}");
+    let module = consumer_module(&init, Path::new("/src")).expect("module");
+    assert_eq!(module.matches("module(").count(), 1, "{module}");
+    let multi = "module(\n    name = \"x\",\n)\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
+    let module = consumer_module(multi, Path::new("/src")).expect("module");
+    assert_eq!(module.matches("module(").count(), 1, "{module}");
+    assert!(!module.contains("name = \"x\""), "{module}");
+}
+
+#[test]
 fn consumer_module_rejects_bad_snippets() {
     for snippet in [
         "",

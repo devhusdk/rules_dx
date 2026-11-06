@@ -331,10 +331,19 @@ fn rules_dx_override(checkout: &Path) -> String {
 
 /// Builds the consumer MODULE.bazel from the `dx init` snippet and the rules_dx checkout.
 pub fn consumer_module(init_module: &str, checkout: &Path) -> Result<String, String> {
-    let snippet = init_module
-        .strip_prefix("module(")
-        .and_then(|rest| rest.split_once('\n'))
-        .map_or(init_module, |(_, rest)| rest.trim_start());
+    let mut kept = Vec::new();
+    let mut in_module = false;
+    for line in init_module.lines() {
+        if line.starts_with("module(") {
+            in_module = !line.trim_end().ends_with(')');
+        } else if in_module {
+            in_module = line.trim_end() != ")";
+        } else {
+            kept.push(line);
+        }
+    }
+    let snippet = kept.join("\n");
+    let snippet = snippet.trim();
     if snippet.matches("bazel_dep(name = \"rules_dx\", ").count() != 1 {
         return Err(format!(
             "dx init snippet must declare rules_dx exactly once: {snippet}"

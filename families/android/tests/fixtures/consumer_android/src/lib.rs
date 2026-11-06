@@ -10,7 +10,7 @@ pub fn greeting() -> &'static str {
 }
 
 /// Returns the greeting as a NUL-terminated C string for the activity.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn app_greeting() -> *const c_char {
     GREETING.as_ptr().cast()
 }

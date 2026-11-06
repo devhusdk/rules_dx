@@ -1,6 +1,6 @@
 use std::ffi::{c_char, CStr};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn ledger_total(text: *const c_char) -> i64 {
     if text.is_null() {
         return -1;
@@ -21,7 +21,7 @@ pub extern "C" fn ledger_total(text: *const c_char) -> i64 {
     total
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn ledger_platform() -> *const c_char {
     if cfg!(all(target_os = "ios", target_abi = "sim")) {
         c"iphonesimulator".as_ptr()

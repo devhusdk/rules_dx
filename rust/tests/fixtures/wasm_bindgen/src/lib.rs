@@ -15,7 +15,7 @@ pub fn add(left: u32, right: u32) -> u32 {
 }
 
 #[wasm_bindgen(inline_js = "export function snippet_add(left, right) { return left + right; }")]
-extern "C" {
+unsafe extern "C" {
     fn snippet_add(left: u32, right: u32) -> u32;
 }
 

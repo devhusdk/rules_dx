@@ -2,7 +2,7 @@ use std::ffi::{c_char, CStr};
 
 use shared_tasks::{reply, Board};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn shared_core_open(board: *const c_char) -> i32 {
     if board.is_null() {
         return -1;

@@ -22,12 +22,12 @@ pub fn adler32(data: &[u8]) -> u32 {
     (b << 16) | a
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn adopt_word_count(ptr: *const u8, len: usize) -> usize {
     word_count(bytes(ptr, len))
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn adopt_adler32(ptr: *const u8, len: usize) -> u32 {
     adler32(bytes(ptr, len))
 }

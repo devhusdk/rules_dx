@@ -8,18 +8,18 @@ unsafe extern "C" {
     fn native_offset() -> i32;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn native_lib_add(left: i32, right: i32) -> i32 {
     unsafe { native_add(left, right) }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn native_lib_offset() -> i32 {
     unsafe { native_offset() }
 }
 
 #[cfg(feature = "neon")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn native_lib_accelerated() -> u32 {
     1
 }

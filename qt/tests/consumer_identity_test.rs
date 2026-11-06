@@ -50,9 +50,8 @@ fn ledger_runs_from_the_extracted_archive() {
     let core = std::env::var("DX_QT_CORE_MEMBER").expect("DX_QT_CORE_MEMBER must be set");
     assert!(dir.join(&core).exists(), "{core} is not staged");
 
-    if cfg!(target_os = "macos") {
-        resign(&dir);
-    }
+    #[cfg(target_os = "macos")]
+    resign(&dir);
 
     let out = std::process::Command::new(dir.join("ledger"))
         .args(["5", "7"])
@@ -67,6 +66,7 @@ fn ledger_runs_from_the_extracted_archive() {
     );
 }
 
+#[cfg(target_os = "macos")]
 fn resign(dir: &std::path::Path) {
     let mut files = Vec::new();
     collect(dir, &mut files);
@@ -83,6 +83,7 @@ fn resign(dir: &std::path::Path) {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn collect(dir: &std::path::Path, files: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).expect("read_dir").flatten() {
         let path = entry.path();

@@ -3882,7 +3882,7 @@
     },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "CqfLkTaZ0SmMQh5StLB3grqgKwsgu9dU4vrJx6MZl50=",
+        "bzlTransitiveDigest": "Skt+N+xFCkGjoy508K502T1nijNVj3MHbM/KxqWiD5I=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

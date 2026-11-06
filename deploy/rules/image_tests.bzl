@@ -1,7 +1,7 @@
 """Unit tests for oci_image_from_binary."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":image.bzl", "image_binary_name", "image_entrypoint", "image_options_error")
+load(":image.bzl", "image_binary_name", "image_default_main", "image_entrypoint", "image_options_error")
 
 def image_unit_tests(name):
     starlark_test(
@@ -22,6 +22,26 @@ def image_unit_tests(name):
                 "image_binary_name reads a local label",
                 image_binary_name(":server"),
                 "server",
+            ),
+            expect_equal(
+                "image_default_main names the python script of a label",
+                image_default_main("python", "//app:server", "other"),
+                "app/server.py",
+            ),
+            expect_equal(
+                "image_default_main uses the package for a local label",
+                image_default_main("node", ":server", "app"),
+                "app/server.js",
+            ),
+            expect_equal(
+                "image_default_main reads a bare package label",
+                image_default_main("python", "//app/server", ""),
+                "app/server.py",
+            ),
+            expect_equal(
+                "image_default_main leaves java and dotnet alone",
+                image_default_main("java", ":server", "app"),
+                None,
             ),
             expect_equal(
                 "image_options_error accepts the defaults",

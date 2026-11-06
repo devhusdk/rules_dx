@@ -25,6 +25,20 @@ def image_binary_name(binary):
         return binary.rsplit(":", 1)[1]
     return binary.rsplit("/", 1)[-1]
 
+def image_default_main(base, binary, package):
+    """Returns the entry script a python or node binary label implies, or None."""
+    ext = {"python": ".py", "node": ".js"}.get(base)
+    if not ext:
+        return None
+    pkg = package
+    if binary.startswith("//"):
+        label = binary[2:]
+        pkg = label.split(":")[0] if ":" in label else label.rpartition("/")[0]
+    elif not binary.startswith(":"):
+        return None
+    name = image_binary_name(binary)
+    return (pkg + "/" if pkg else "") + name + ext
+
 def image_options_error(binary, base, platforms, main = None, main_class = None):
     """Validates the oci_image_from_binary arguments."""
     if type(binary) != "string" or binary == "":
@@ -125,9 +139,12 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     The python, java and node bases run on the distroless interpreter images
     and the dotnet base on the Microsoft runtime image.
     The python, node and dotnet bases need main, the workspace path of the entry script
-    or assembly, and run it from the binary's runfiles. The java base needs main_class and puts the
+    or assembly, and run it from the binary's runfiles. python and node default main to
+    the binary's package and name with .py or .js. The java base needs main_class and puts the
     binary's runtime jars under /app/lib.
     """
+    if not main and type(binary) == "string":
+        main = image_default_main(base, binary, native.package_name())
     error = image_options_error(binary, base, platforms, main, main_class)
     if error != "":
         fail(error + " (in " + native.package_name() + ":" + name + ")")

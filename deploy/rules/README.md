@@ -745,6 +745,9 @@ oci_deploy(
   entrypoint is `/app/<binary name>`.
 - `base`: `static` (default) or `cc`, the pinned distroless images from the
   `containers` family.
+- `main`: the entry script of a `python` or `node` base. It defaults to the
+  binary's package and name with `.py` or `.js`, so `//app:server` runs
+  `app/server.py`.
 - `platforms`: defaults to `["linux/amd64"]`. One platform gives an
   `oci_image` and an `<name>_load` target that `dx run` loads into a local
   runtime. Several platforms give an `oci_image_index` that builds the binary

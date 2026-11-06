@@ -334,3 +334,7 @@ unsafe fn watch(parent: i32, report: i32) -> ! {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "terminal_tests.rs"]
+mod terminal_tests;

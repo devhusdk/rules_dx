@@ -43,6 +43,7 @@ dx_rust_crate(
         "src/rc_tests.rs",
         "src/runner_tests.rs",
         "src/slot_pool_tests.rs",
+        "src/terminal_tests.rs",
     ],
     deps = [
         "libc",

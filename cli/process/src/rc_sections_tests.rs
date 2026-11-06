@@ -349,3 +349,14 @@ fn startup_relative_joins_workspace_and_empty_clears() {
     );
     assert_eq!(root(&empty), None);
 }
+
+#[test]
+fn startup_output_paths_read_the_workspace_rc_for_the_host_os() {
+    let rc = "startup --output_base=base\nstartup:nowhere --output_user_root=ignored\n";
+    let read = |path: &Path| (path == Path::new("/ws/.bazelrc")).then(|| rc.to_owned());
+    let env = |_: &str| None;
+    let startup = vec!["--output_user_root=root".to_owned()];
+    let paths = startup_output_paths(&env, Path::new(WS), &read, false, &startup);
+    assert_eq!(paths.output_base, Some(PathBuf::from("/ws/base")));
+    assert_eq!(paths.output_user_root, Some(PathBuf::from("/ws/root")));
+}

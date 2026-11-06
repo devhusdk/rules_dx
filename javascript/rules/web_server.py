@@ -184,7 +184,10 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
 
 def check_manifest(root):
-    """Fails when the staged manifest names files the directory lacks."""
+    """Fails when a staged Wasm manifest names files the directory lacks.
+
+    Other manifest.json files, such as a PWA manifest, are not ours.
+    """
     manifest = os.path.join(root, "manifest.json")
     if not os.path.isfile(manifest):
         return None
@@ -193,6 +196,8 @@ def check_manifest(root):
             described = json.load(handle)
     except (OSError, ValueError) as error:
         return "unreadable manifest.json: " + str(error)
+    if not isinstance(described, dict) or not ("entry" in described or "wasm" in described):
+        return None
     for key in ("entry", "wasm"):
         name = described.get(key)
         if not name or not os.path.isfile(os.path.join(root, name)):

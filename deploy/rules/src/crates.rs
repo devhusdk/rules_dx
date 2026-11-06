@@ -968,17 +968,32 @@ mod tests {
     #[test]
     fn api_check_with_the_pinned_semver_checks_binary() {
         let pinned = std::env::var("CARGO_SEMVER_CHECKS").unwrap_or_default();
-        let cargo_ok = with_env(&[], || {
-            std::process::Command::new("cargo")
-                .arg("--version")
-                .output()
-                .is_ok_and(|probe| probe.status.success())
-        });
-        if pinned.is_empty() || !cargo_ok {
-            println!("skipped: pinned cargo-semver-checks or cargo is not available");
+        let cargo = std::env::var("DX_TEST_CARGO").unwrap_or_default();
+        if pinned.is_empty() || cargo.is_empty() {
+            println!("skipped: run under Bazel for the pinned cargo-semver-checks and toolchain");
+            return;
+        }
+        if env_test_in_child("crates::tests::api_check_with_the_pinned_semver_checks_binary") {
             return;
         }
         let tool = resolve_runfile(&pinned).expect("pinned tool");
+        let cargo = resolve_runfile(&cargo).expect("cargo");
+        let rustc =
+            resolve_runfile(&std::env::var("DX_TEST_RUSTC").expect("rustc")).expect("rustc");
+        let rustdoc =
+            resolve_runfile(&std::env::var("DX_TEST_RUSTDOC").expect("rustdoc")).expect("rustdoc");
+        let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+        for bin in [&cargo, &rustc, &rustdoc] {
+            let dir = bin.parent().expect("tool dir").to_path_buf();
+            if !dirs.contains(&dir) {
+                dirs.push(dir);
+            }
+        }
+        if let Some(old) = std::env::var_os("PATH") {
+            dirs.extend(std::env::split_paths(&old));
+        }
+        let path = std::env::join_paths(dirs).expect("PATH");
+        let path = path.to_str().expect("PATH is UTF-8").to_string();
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         let manifest = "[package]\nname = \"pkg\"\nversion = \"1.2.0\"\nedition = \"2021\"\n";
@@ -1013,8 +1028,21 @@ mod tests {
         ];
         let mapped = crates_package_paths(&files).expect("paths");
         let repo_dir = repo.display().to_string();
+        let cargo_home = scratch.path().join("cargo-home").display().to_string();
+        let cargo = cargo.display().to_string();
+        let rustc = rustc.display().to_string();
+        let rustdoc = rustdoc.display().to_string();
+        let env = [
+            ("BUILD_WORKSPACE_DIRECTORY", Some(repo_dir.as_str())),
+            ("PATH", Some(path.as_str())),
+            ("CARGO", Some(cargo.as_str())),
+            ("RUSTC", Some(rustc.as_str())),
+            ("RUSTDOC", Some(rustdoc.as_str())),
+            ("CARGO_HOME", Some(cargo_home.as_str())),
+            ("CARGO_NET_OFFLINE", Some("true")),
+        ];
         let run = |version: &str| {
-            with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
+            with_env(&env, || {
                 crates_api_check(
                     Some(&tool),
                     &mapped,

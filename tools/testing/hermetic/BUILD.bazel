@@ -362,6 +362,24 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "proto_bindings",
+    files = {
+        "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
+        "consumers/proto_bindings/go.mod": "go.mod",
+        "consumers/proto_bindings/go.sum": "go.sum",
+        "consumers/proto_bindings/api/v1/greeting.proto": "api/v1/greeting.proto",
+        "consumers/proto_bindings/go/main.go": "go/main.go",
+        "consumers/proto_bindings/py/main.py": "py/main.py",
+        "consumers/proto_bindings/java/Main.java": "java/Main.java",
+        "consumers/proto_bindings/cc/main.cc": "cc/main.cc",
+    },
+    generate = True,
+    languages = ["go", "python", "java", "cc"],
+    module_fragment = "consumers/proto_bindings/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "lua",
     files = {
         "//lua/tests/fixtures/lua-app:BUILD.bazel": "lua/tests/fixtures/lua-app/BUILD.bazel",

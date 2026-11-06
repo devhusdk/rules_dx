@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package api.v1;
+
+option go_package = "example.com/proto_bindings/api/v1;apiv1";
+option java_package = "com.example.api.v1";
+option java_multiple_files = true;
+
+message Greeting {
+  string name = 1;
+  int32 times = 2;
+}

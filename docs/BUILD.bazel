@@ -61,6 +61,7 @@ real_source_target(
         "cli/commands/watch.md",
         "cli/commands/windows.md",
         "cli/commands/worktree.md",
+        "design/quality-config.md",
         "editors.md",
         "github-ci.md",
         "licenses.md",

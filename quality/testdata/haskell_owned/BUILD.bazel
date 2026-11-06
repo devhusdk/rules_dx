@@ -1,7 +1,7 @@
 load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
-package(default_visibility = ["//quality/testdata:__pkg__"])
+package(default_visibility = ["//quality:__pkg__", "//quality/testdata:__pkg__"])
 
 quality_family(
     name = "haskell_family",
@@ -17,6 +17,22 @@ quality_family(
 workspace_policy(
     name = "policy",
     families = [":haskell_family"],
+)
+
+quality_family(
+    name = "hlint_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "haskell",
+    lint = ["hlint"],
+)
+
+workspace_policy(
+    name = "hlint_policy",
+    families = [":hlint_family"],
 )
 
 haskell_library(

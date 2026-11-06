@@ -24,7 +24,7 @@ load(":pipeline_tests.bzl", "pipeline_unit_tests")
 load(":policy.bzl", "quality_family", "workspace_policy")
 load(":policy_subject.bzl", "policy_subject")
 load(":policy_tests.bzl", "policy_analysis_tests", "policy_unit_tests")
-load(":real_pipeline_tests.bzl", "real_pipeline_unit_tests", "rustc_request_analysis_tests")
+load(":real_pipeline_tests.bzl", "real_pipeline_unit_tests", "rustc_request_analysis_tests", "unsupported_platform_analysis_tests")
 load(":registry_tests.bzl", "registry_unit_tests")
 load(":sources_tests.bzl", "sources_registry_tests")
 load(":support_tests.bzl", "support_unit_tests")
@@ -162,6 +162,8 @@ wrapper_unit_tests(name = "wrapper_owners_unit")
 real_pipeline_unit_tests(name = "real_pipeline_unit")
 
 rustc_request_analysis_tests(name = "rustc_request_analysis")
+
+unsupported_platform_analysis_tests(name = "unsupported_platform_analysis")
 
 dart_context_unit_tests(name = "dart_context_unit")
 
@@ -606,6 +608,7 @@ test_suite(
         ":policy_unit",
         ":real_pipeline_unit",
         ":rustc_request_analysis",
+        ":unsupported_platform_analysis",
         ":registry_unit",
         ":sources_registry",
         ":support_unit",

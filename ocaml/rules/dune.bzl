@@ -61,6 +61,10 @@ if [ "$(uname -s)" = Darwin ] && [ -f "${{PATH%%:*}}/../lib/libzstd.a" ]; then
   ln -s "$(cd "${{PATH%%:*}}/../lib" && pwd)/libzstd.a" "$SCRATCH/static/libzstd.a"
   export CONDA_OCAML_MKEXE="$CONDA_OCAML_MKEXE -L$SCRATCH/static"
 fi
+# Fallback for dylib links: executables built and run inside one action find libzstd through the tree's lib directory.
+if [ "$(uname -s)" = Darwin ]; then
+  export CONDA_OCAML_MKEXE="$CONDA_OCAML_MKEXE -Wl,-rpath,$(cd "${{PATH%%:*}}/../lib" && pwd)"
+fi
 export DUNE_CACHE=disabled
 export HOME="$SCRATCH/home" XDG_CACHE_HOME="$SCRATCH/home/.cache" XDG_CONFIG_HOME="$SCRATCH/home/.config" XDG_DATA_HOME="$SCRATCH/home/.local"
 export TMPDIR="$SCRATCH/tmp"

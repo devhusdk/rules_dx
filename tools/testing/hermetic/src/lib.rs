@@ -114,6 +114,9 @@ pub const SDK_DIR_PREFIXES: &[(&str, &str)] = &[
 
 /// Lists the host SDK directories, including versioned LLVM trees.
 pub fn sdk_candidates() -> Vec<PathBuf> {
+    if cfg!(windows) {
+        return windows_host_dirs();
+    }
     let mut dirs: Vec<PathBuf> = SDK_DIRS.iter().map(PathBuf::from).collect();
     for (parent, prefix) in SDK_DIR_PREFIXES {
         let Ok(entries) = std::fs::read_dir(parent) else {
@@ -144,7 +147,11 @@ impl HostPaths {
         Self {
             ip_candidates: IP_CANDIDATES.iter().map(PathBuf::from).collect(),
             sdk_candidates: sdk_candidates(),
-            tool_dirs: TOOL_DIRS.iter().map(PathBuf::from).collect(),
+            tool_dirs: if cfg!(windows) {
+                windows_host_dirs()
+            } else {
+                TOOL_DIRS.iter().map(PathBuf::from).collect()
+            },
         }
     }
 }
@@ -164,7 +171,68 @@ pub const HOME_CONFIG: &[&str] = &[
 
 pub const ACTION_PATH: &str = "/usr/bin:/bin";
 
+#[cfg(unix)]
 pub const SHIM: &str = "#!/bin/sh\necho \"dx-hermetic: undeclared ambient tool $0\" >&2\nexit 97\n";
+
+#[cfg(windows)]
+pub const SHIM: &str =
+    "@echo off\r\necho dx-hermetic: undeclared ambient tool %0 1>&2\r\nexit /b 97\r\n";
+
+/// The file name of the ambient-tool shim.
+pub const SHIM_NAME: &str = if cfg!(windows) {
+    "ambient-tool.cmd"
+} else {
+    "ambient-tool"
+};
+
+/// The PATH of every action: system directories only, plus the shim directory on Windows.
+pub fn action_path(system_root: Option<&str>, shim_dir: Option<&Path>) -> String {
+    if !cfg!(windows) {
+        return ACTION_PATH.to_owned();
+    }
+    let root = system_root.unwrap_or(r"C:\Windows");
+    let mut dirs = vec![format!(r"{root}\System32"), root.to_owned()];
+    dirs.extend(shim_dir.map(|dir| dir.to_string_lossy().into_owned()));
+    dirs.join(";")
+}
+
+/// The Windows tool directories under Program Files and the local profile: Python, Node, JDK and LLVM.
+pub fn windows_tool_dirs(
+    program_files: Option<&Path>,
+    local_app_data: Option<&Path>,
+) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    let mut versioned_under = |parent: PathBuf, prefix: &str, sub: &str| {
+        let Ok(entries) = std::fs::read_dir(&parent) else {
+            return;
+        };
+        let mut found: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().starts_with(prefix))
+            .map(|entry| entry.path().join(sub))
+            .collect();
+        found.sort();
+        dirs.extend(found);
+    };
+    if let Some(root) = program_files {
+        versioned_under(root.to_path_buf(), "Python", "");
+        versioned_under(root.join("Java"), "jdk", "bin");
+        versioned_under(root.to_path_buf(), "nodejs", "");
+        versioned_under(root.to_path_buf(), "LLVM", "bin");
+    }
+    if let Some(local) = local_app_data {
+        versioned_under(local.join("Programs").join("Python"), "Python", "");
+    }
+    dirs.retain(|dir| dir.is_dir());
+    dirs
+}
+
+/// The directories the Windows host keeps compilers and interpreters in.
+fn windows_host_dirs() -> Vec<PathBuf> {
+    let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
+    let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    windows_tool_dirs(program_files.as_deref(), local.as_deref())
+}
 
 pub const AMBIENT_MARKER: &str = "dx-hermetic: undeclared ambient tool";
 
@@ -181,6 +249,27 @@ pub fn markers(os: &str) -> (&'static str, &'static str, &'static str) {
     } else {
         (AMBIENT_MARKER, NETWORK_MARKER, HOME_MARKER)
     }
+}
+
+/// Host variables a Windows action still needs: the system root and the Visual Studio and MSYS locations Bazel reads.
+pub const WINDOWS_PASSTHROUGH: &[&str] = &[
+    "SystemRoot",
+    "windir",
+    "ComSpec",
+    "PATHEXT",
+    "ProgramFiles",
+    "ProgramFiles(x86)",
+    "ProgramData",
+    "BAZEL_SH",
+    "BAZEL_VC",
+    "BAZEL_VC_FULL_VERSION",
+    "BAZEL_LLVM",
+];
+
+/// How a probe starts on Windows, where the environment and directory are set on the process instead of by `env` and `sh`.
+pub struct WindowsRun {
+    pub env: Vec<(String, String)>,
+    pub shutdown: Vec<String>,
 }
 
 pub const APPCONTAINER_ENV: &str = "DX_HERMETIC_APPCONTAINER";
@@ -461,6 +550,25 @@ pub fn leaks_build(tool: &str) -> String {
     )
 }
 
+/// Returns the leak package with PowerShell genrules, for a Windows host.
+pub fn leaks_build_windows(tool: &str) -> String {
+    let ambient = format!("{tool} --version | Out-File -FilePath '$@'; exit $$LASTEXITCODE");
+    let home = "if ($$env:DX_HOME_CONFIG -eq 'present') { Set-Content -Path '$@' -Value present } else { [Console]::Error.WriteLine('dx-hermetic: home config absent'); exit 1 }";
+    let network = "try { $$null = New-Object System.Net.Sockets.TcpClient('1.1.1.1', 443); Set-Content -Path '$@' -Value connected } catch { $$e = $$_.Exception; if ($$e.InnerException) { $$e = $$e.InnerException }; [Console]::Error.WriteLine('connect failed: os error ' + $$e.NativeErrorCode); exit 1 }";
+    format!(
+        "genrule(\n    name = \"ambient_tool\",\n    outs = [\"ambient_tool.txt\"],\n    cmd_ps = \"{ambient}\",\n    tags = [\"manual\"],\n)\n\ngenrule(\n    name = \"home_config\",\n    outs = [\"home_config.txt\"],\n    cmd_ps = \"{home}\",\n    tags = [\"manual\"],\n)\n\ngenrule(\n    name = \"network\",\n    outs = [\"network.txt\"],\n    cmd_ps = \"{network}\",\n    tags = [\n        \"manual\",\n        \"requires-network\",\n    ],\n)\n"
+    )
+}
+
+/// Returns the leak package for the host this qualification runs on.
+pub fn leaks_build_host(tool: &str) -> String {
+    if cfg!(windows) {
+        leaks_build_windows(tool)
+    } else {
+        leaks_build(tool)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expect {
     Pass,
@@ -532,7 +640,8 @@ pub fn ambient_tools(dirs: &[PathBuf], names: &[&str]) -> Vec<(String, PathBuf)>
                 entries.extend(extra);
             }
             for entry in entries {
-                let Ok(real) = std::fs::canonicalize(dir.join(&entry)) else {
+                let file = format!("{entry}{}", std::env::consts::EXE_SUFFIX);
+                let Ok(real) = std::fs::canonicalize(dir.join(&file)) else {
                     continue;
                 };
                 if real.is_file() && !found.iter().any(|(_, seen)| *seen == real) {
@@ -838,18 +947,45 @@ impl Session {
             .map(|platform| format!("--platforms={platform}"))
     }
 
-    fn bazel_argv(&self, probe: &Probe) -> Vec<String> {
+    fn action_path(&self) -> String {
+        action_path(
+            std::env::var("SystemRoot").ok().as_deref(),
+            Some(&self.root.join("bin").join("shims")),
+        )
+    }
+
+    /// The environment a Windows action gets: nothing inherited but the system and toolchain variables.
+    pub fn windows_env(&self, home: &Path, path: &str) -> Vec<(String, String)> {
+        if !cfg!(windows) {
+            return Vec::new();
+        }
+        let temp = self.root.join("tmp");
+        let _ = std::fs::create_dir_all(&temp);
+        let mut env = vec![
+            ("HOME".to_owned(), home.to_string_lossy().into_owned()),
+            (
+                "USERPROFILE".to_owned(),
+                home.to_string_lossy().into_owned(),
+            ),
+            ("PATH".to_owned(), path.to_owned()),
+            (
+                "BAZELISK_HOME".to_owned(),
+                self.bazelisk_home.to_string_lossy().into_owned(),
+            ),
+            ("TEMP".to_owned(), temp.to_string_lossy().into_owned()),
+            ("TMP".to_owned(), temp.to_string_lossy().into_owned()),
+        ];
+        for key in WINDOWS_PASSTHROUGH {
+            if let Ok(value) = std::env::var(key) {
+                env.push(((*key).to_owned(), value));
+            }
+        }
+        env
+    }
+
+    /// The bazelisk command line of one probe, without the process wrapper.
+    fn bazel_tail(&self, probe: &Probe) -> Vec<String> {
         let mut argv = vec![
-            "/usr/bin/env".to_owned(),
-            "-i".to_owned(),
-            format!("HOME={}", probe.home.display()),
-            format!("PATH={ACTION_PATH}"),
-            format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
-            "/bin/sh".to_owned(),
-            "-c".to_owned(),
-            "cd \"$0\" && \"$@\"; rc=$?; \"$1\" \"$2\" \"$3\" \"$4\" shutdown >/dev/null 2>&1; exit $rc"
-                .to_owned(),
-            self.workspace.to_string_lossy().into_owned(),
             self.bazelisk.to_string_lossy().into_owned(),
             "--nosystem_rc".to_owned(),
             format!("--output_user_root={}", probe.output_root.display()),
@@ -865,12 +1001,38 @@ impl Session {
         argv
     }
 
+    fn bazel_argv(&self, probe: &Probe) -> Vec<String> {
+        let mut argv = vec![
+            "/usr/bin/env".to_owned(),
+            "-i".to_owned(),
+            format!("HOME={}", probe.home.display()),
+            format!("PATH={ACTION_PATH}"),
+            format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
+            "/bin/sh".to_owned(),
+            "-c".to_owned(),
+            "cd \"$0\" && \"$@\"; rc=$?; \"$1\" \"$2\" \"$3\" \"$4\" shutdown >/dev/null 2>&1; exit $rc"
+                .to_owned(),
+            self.workspace.to_string_lossy().into_owned(),
+        ];
+        argv.extend(self.bazel_tail(probe));
+        argv
+    }
+
     // LCOV_EXCL_START - reason: runs only inside the isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
     /// Writes a `bazel` that runs the resolved bazelisk, so dx finds it on its PATH.
     fn bazel_bin(&self, output_root: &Path) -> Result<PathBuf, String> {
         let dir = self.root.join("bin").join("path");
         std::fs::create_dir_all(&dir)
             .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
+        if cfg!(windows) {
+            let script = format!(
+                "@echo off\r\n\"{}\" --nosystem_rc --output_user_root={} %*\r\n",
+                self.bazelisk.display(),
+                output_root.display()
+            );
+            write(&dir.join("bazel.cmd"), &script)?;
+            return Ok(dir);
+        }
         let script = format!(
             "#!/bin/sh\nexec {} --nosystem_rc --output_user_root={} \"$@\"\n",
             shell_quote(&self.bazelisk.to_string_lossy()),
@@ -911,6 +1073,21 @@ impl Session {
         }
         args.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
         args.extend(self.platform_flag());
+        if cfg!(windows) {
+            let path = format!("{};{}", bin.display(), self.action_path());
+            let mut argv = vec![self.manifest.dx.to_string_lossy().into_owned()];
+            argv.extend(args);
+            let expect = if command == "lint" {
+                Expect::Findings
+            } else {
+                Expect::Pass
+            };
+            let run = WindowsRun {
+                env: self.windows_env(home, &path),
+                shutdown: self.windows_shutdown(output_root),
+            };
+            return self.execute(name, net, home, &argv, argv.clone(), &expect, Some(run));
+        }
         let mut argv = vec![
             "/usr/bin/env".to_owned(),
             "-i".to_owned(),
@@ -932,11 +1109,27 @@ impl Session {
         } else {
             Expect::Pass
         };
-        self.execute(name, net, home, &argv, recorded, &expect)
+        self.execute(name, net, home, &argv, recorded, &expect, None)
     }
 
     /// Runs one probe, logs it and records its verdict.
     pub fn run(&mut self, probe: Probe) -> Result<Outcome, String> {
+        if cfg!(windows) {
+            let argv = self.bazel_tail(&probe);
+            let run = WindowsRun {
+                env: self.windows_env(probe.home, &self.action_path()),
+                shutdown: self.windows_shutdown(probe.output_root),
+            };
+            return self.execute(
+                &probe.name,
+                probe.net,
+                probe.home,
+                &argv,
+                argv.clone(),
+                &probe.expect,
+                Some(run),
+            );
+        }
         let argv = self.bazel_argv(&probe);
         let recorded = argv[9..].to_vec();
         self.execute(
@@ -946,7 +1139,17 @@ impl Session {
             &argv,
             recorded,
             &probe.expect,
+            None,
         )
+    }
+
+    fn windows_shutdown(&self, output_root: &Path) -> Vec<String> {
+        vec![
+            self.bazelisk.to_string_lossy().into_owned(),
+            "--nosystem_rc".to_owned(),
+            format!("--output_user_root={}", output_root.display()),
+            "shutdown".to_owned(),
+        ]
     }
 
     fn execute(
@@ -957,9 +1160,25 @@ impl Session {
         argv: &[String],
         recorded: Vec<String>,
         expect: &Expect,
+        windows: Option<WindowsRun>,
     ) -> Result<Outcome, String> {
         let started = Instant::now();
-        let outcome = capture(self.isolation.command(net, argv))?;
+        let outcome = match windows {
+            Some(run) => {
+                let launch = |inner: &[String]| {
+                    let mut command = self.isolation.command(net, inner);
+                    command
+                        .env_clear()
+                        .envs(run.env.iter().cloned())
+                        .current_dir(&self.workspace);
+                    capture(command)
+                };
+                let outcome = launch(argv)?;
+                let _ = launch(&run.shutdown);
+                outcome
+            }
+            None => capture(self.isolation.command(net, argv))?,
+        };
         let seconds = started.elapsed().as_secs();
         let log = format!("{}{}", outcome.stdout, outcome.stderr);
         let logs = self.out.join("logs");
@@ -1446,7 +1665,9 @@ fn native(path: &Path) -> bool {
     ]
     .iter()
     .any(|magic| head.starts_with(magic));
-    mach_o || (head.starts_with(b"\x7fELF") && dx_binfmt::machine(&head).is_some())
+    mach_o
+        || head.starts_with(b"MZ")
+        || (head.starts_with(b"\x7fELF") && dx_binfmt::machine(&head).is_some())
 }
 
 fn find_bazelisk(chosen: Option<&str>, path: &str) -> Result<PathBuf, String> {
@@ -1461,8 +1682,8 @@ fn find_bazelisk(chosen: Option<&str>, path: &str) -> Result<PathBuf, String> {
         return Ok(chosen);
     }
     for name in ["bazelisk", "bazel"] {
-        for dir in path.split(':').filter(|dir| !dir.is_empty()) {
-            let candidate = Path::new(dir).join(name);
+        for dir in std::env::split_paths(path).filter(|dir| !dir.as_os_str().is_empty()) {
+            let candidate = dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
             if candidate.is_file() && native(&candidate) {
                 return Ok(candidate);
             }
@@ -1600,7 +1821,7 @@ pub fn materialize(
     }
     write(
         &workspace.join(LEAKS_PACKAGE).join("BUILD.bazel"),
-        &leaks_build(ambient),
+        &leaks_build_host(ambient),
     )
 }
 
@@ -1683,17 +1904,24 @@ fn run_all(
     )?;
     std::fs::create_dir_all(root.join("bin"))
         .map_err(|err| format!("cannot create {}: {err}", root.display()))?;
-    let bazelisk = root.join("bin").join("bazelisk");
+    let bazelisk = root
+        .join("bin")
+        .join(format!("bazelisk{}", std::env::consts::EXE_SUFFIX));
     copy(&found, &bazelisk)?;
     executable(&bazelisk)?;
-    let shim = root.join("bin").join("ambient-tool");
+    let shim_dir = root.join("bin").join("shims");
+    let shim = root.join("bin").join(SHIM_NAME);
     write(&shim, SHIM)?;
     executable(&shim)?;
-    let passwd = std::fs::read_to_string("/etc/passwd").unwrap_or_default();
-    let real_home = real_ids()
-        .ok()
-        .and_then(|(uid, _)| passwd_home(&passwd, uid))
-        .or_else(|| std::env::var_os("HOME").map(PathBuf::from));
+    let real_home = if cfg!(windows) {
+        std::env::var_os("USERPROFILE").map(PathBuf::from)
+    } else {
+        let passwd = std::fs::read_to_string("/etc/passwd").unwrap_or_default();
+        real_ids()
+            .ok()
+            .and_then(|(uid, _)| passwd_home(&passwd, uid))
+            .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
+    };
     let keep = vec![root.to_path_buf(), out.to_path_buf(), source.clone()];
     let host = HostPaths::detect();
     let isolation = Isolation::plan_with(&host, &shim, &keep, real_home.as_deref())?;
@@ -1702,13 +1930,19 @@ fn run_all(
         .find(|(_, path)| isolation.tools.contains(path))
         .map(|(name, _)| name)
         .ok_or("no ambient compiler or interpreter on this host for the ambient-tool probe")?;
+    if cfg!(windows) {
+        write(&shim_dir.join(format!("{ambient}.cmd")), SHIM)?;
+    }
+    let path = action_path(std::env::var("SystemRoot").ok().as_deref(), Some(&shim_dir));
     evidence["isolation"] = json!({
         "network": if cfg!(target_os = "macos") {
             "sandbox-exec profile, loopback only"
+        } else if cfg!(windows) {
+            "AppContainer without network capabilities"
         } else {
             "fresh network namespace with loopback only"
         },
-        "path": ACTION_PATH,
+        "path": path,
         "masked_tools": isolation.tools,
         "masked_sdk_dirs": isolation.sdk_dirs,
         "masked_home": isolation.home_dirs.iter().chain(&isolation.home_files).collect::<Vec<_>>(),
@@ -1782,7 +2016,10 @@ fn run_all(
     })?;
     if !coverage.is_empty() {
         let mut fetched = coverage.clone();
-        fetched.push(format!("@{}//dx:generate_check", session.manifest.repo_name));
+        fetched.push(format!(
+            "@{}//dx:generate_check",
+            session.manifest.repo_name
+        ));
         session.run(Probe {
             name: "fetch_coverage".to_owned(),
             net: Net::Allowed,
@@ -1804,8 +2041,9 @@ fn run_all(
         command
             .env_clear()
             .env("HOME", &clean_home)
-            .env("PATH", ACTION_PATH)
+            .env("PATH", &path)
             .env("BAZELISK_HOME", &session.bazelisk_home)
+            .envs(session.windows_env(&clean_home, &path))
             .current_dir(&session.workspace)
             .arg("--version");
         command

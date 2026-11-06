@@ -1551,3 +1551,56 @@ fn copy_test_logs_keeps_layout_and_returns_heads() {
     assert!(text.contains("line 40") && !text.contains("line 41"));
     assert_eq!(copy_test_logs(&dir.path().join("missing"), &dest), "");
 }
+
+#[test]
+fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
+    let root = std::env::temp_dir().join(format!("dx-hermetic-win-{}", std::process::id()));
+    let pf = root.join("pf");
+    let local = root.join("local");
+    for dir in [
+        pf.join("Python312"),
+        pf.join("nodejs"),
+        pf.join("Java").join("jdk-21").join("bin"),
+        pf.join("LLVM").join("bin"),
+        local.join("Programs").join("Python").join("Python311"),
+        pf.join("Other"),
+    ] {
+        std::fs::create_dir_all(&dir).unwrap();
+    }
+    let dirs = windows_tool_dirs(Some(&pf), Some(&local));
+    let _ = std::fs::remove_dir_all(&root);
+    assert_eq!(
+        dirs,
+        [
+            pf.join("Python312"),
+            pf.join("Java").join("jdk-21").join("bin"),
+            pf.join("nodejs"),
+            pf.join("LLVM").join("bin"),
+            local.join("Programs").join("Python").join("Python311"),
+        ]
+    );
+    assert!(windows_tool_dirs(None, None).is_empty());
+}
+
+#[test]
+fn windows_leak_package_uses_powershell_and_keeps_the_markers() {
+    let build = leaks_build_windows("python");
+    assert!(build.contains("cmd_ps = \"python --version | Out-File"));
+    assert!(build.contains("dx-hermetic: home config absent"));
+    assert!(build.contains("TcpClient('1.1.1.1', 443)"));
+    assert!(build.contains("os error "));
+    assert!(!build.contains("/dev/tcp"));
+    assert_eq!(build.matches("\"manual\"").count(), 3);
+    assert!(build.contains("\"requires-network\""));
+}
+
+#[test]
+fn action_path_is_system_only() {
+    if cfg!(windows) {
+        let path = action_path(Some(r"D:\Win"), Some(Path::new(r"C:\q\shims")));
+        assert_eq!(path, r"D:\Win\System32;D:\Win;C:\q\shims");
+    } else {
+        assert_eq!(action_path(None, None), ACTION_PATH);
+    }
+    assert_eq!(SHIM_NAME.ends_with(".cmd"), cfg!(windows));
+}

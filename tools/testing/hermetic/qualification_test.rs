@@ -4,6 +4,12 @@ use std::path::PathBuf;
 fn consumer_qualifies_without_installs_or_network() {
     let rel =
         std::env::var("DX_HERMETIC_MANIFEST").expect("DX_HERMETIC_MANIFEST names the manifest");
+    if let Ok(launcher) = std::env::var("DX_HERMETIC_APPCONTAINER") {
+        std::env::set_var(
+            "DX_HERMETIC_APPCONTAINER",
+            dx_testing::resolve_runfiles(&launcher),
+        );
+    }
     let manifest_path = dx_testing::resolve_runfiles(&rel);
     let text = std::fs::read_to_string(&manifest_path).expect("manifest is readable");
     let base = std::env::current_dir().expect("runfiles cwd");

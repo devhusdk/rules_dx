@@ -1069,7 +1069,7 @@ impl Session {
     }
 
     /// The bazelisk command line of one probe, without the process wrapper. Build-like
-    /// verbs carry the settings dx adds, so probe builds match what `dx` builds.
+    /// verbs carry the settings and disk cache dx adds, so dx reuses the probe builds.
     fn bazel_tail(&self, probe: &Probe) -> Vec<String> {
         let mut argv = vec![self.bazel.to_string_lossy().into_owned()];
         argv.extend(startup_flags(probe.output_root));
@@ -1082,12 +1082,29 @@ impl Session {
         if dx_process::takes_shared_settings(probe.command) {
             argv.extend(dx_process::head_settings(&self.manifest.repo_name));
         }
+        argv.extend(self.dx_verb_options(probe.home, probe.output_root, probe.command));
         argv.extend(self.platform_flag());
         argv.extend(self.shell_flag());
         argv.extend(probe.extra.iter().cloned());
         argv.push("--".to_owned());
         argv.extend(probe.targets.iter().cloned());
         argv
+    }
+
+    /// The cache and gc flags dx adds after `command` for this home and output root.
+    fn dx_verb_options(&self, home: &Path, output_root: &Path, command: &str) -> Vec<String> {
+        let cache = cache_home(output_root);
+        let env_get = |key: &str| match key {
+            "HOME" => Some(home.to_string_lossy().into_owned()),
+            "XDG_CACHE_HOME" => Some(cache.to_string_lossy().into_owned()),
+            _ => None,
+        };
+        let read = |path: &Path| std::fs::read_to_string(path).ok();
+        dx_process::RcPolicy::from_env(&env_get, &self.workspace, &read).verb_options(
+            command,
+            None,
+            &[],
+        )
     }
 
     fn bazel_argv(&self, probe: &Probe) -> Vec<String> {
@@ -1097,6 +1114,7 @@ impl Session {
             format!("HOME={}", probe.home.display()),
             format!("PATH={ACTION_PATH}"),
             format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
+            format!("XDG_CACHE_HOME={}", cache_home(probe.output_root).display()),
             "/bin/sh".to_owned(),
             "-c".to_owned(),
             "cd \"$0\" && \"$@\"; rc=$?; \"$1\" \"$2\" \"$3\" \"$4\" shutdown >/dev/null 2>&1; exit $rc"
@@ -1179,8 +1197,10 @@ impl Session {
             } else {
                 Expect::Pass
             };
+            let mut env = self.windows_env(home, &path);
+            env.push(xdg_cache_home(output_root));
             let run = WindowsRun {
-                env: self.windows_env(home, &path),
+                env,
                 shutdown: self.windows_shutdown(output_root),
             };
             return self.execute(name, net, home, &argv, argv.clone(), &expect, Some(run));
@@ -1191,6 +1211,7 @@ impl Session {
             format!("HOME={}", home.display()),
             format!("PATH={}:{ACTION_PATH}", bin.display()),
             format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
+            format!("XDG_CACHE_HOME={}", cache_home(output_root).display()),
             "/bin/sh".to_owned(),
             "-c".to_owned(),
             "cd \"$0\" && \"$@\"; rc=$?; bazel --max_idle_secs=60 shutdown >/dev/null 2>&1; exit $rc"
@@ -1199,7 +1220,7 @@ impl Session {
             self.manifest.dx.to_string_lossy().into_owned(),
         ];
         argv.extend(args);
-        let recorded = argv[9..].to_vec();
+        let recorded = argv[10..].to_vec();
         // Lint exits 1 when it reports findings, which the manifest then compares.
         let expect = if command == "lint" {
             Expect::Findings
@@ -1213,8 +1234,10 @@ impl Session {
     pub fn run(&mut self, probe: Probe) -> Result<Outcome, String> {
         if cfg!(windows) {
             let argv = self.bazel_tail(&probe);
+            let mut env = self.windows_env(probe.home, &self.action_path());
+            env.push(xdg_cache_home(probe.output_root));
             let run = WindowsRun {
-                env: self.windows_env(probe.home, &self.action_path()),
+                env,
                 shutdown: self.windows_shutdown(probe.output_root),
             };
             return self.execute(
@@ -1228,7 +1251,7 @@ impl Session {
             );
         }
         let argv = self.bazel_argv(&probe);
-        let recorded = argv[9..].to_vec();
+        let recorded = argv[10..].to_vec();
         self.execute(
             &probe.name,
             probe.net,
@@ -2026,6 +2049,22 @@ fn startup_flags_for(output_root: &Path, windows: bool) -> Vec<String> {
 
 fn startup_flags(output_root: &Path) -> Vec<String> {
     startup_flags_for(output_root, cfg!(windows))
+}
+
+/// The user cache dir of every Bazel and dx call on `output_root`. dx puts its disk cache
+/// there, so raw probes and dx share one cache per root and `warm` stays cold to `cold`.
+fn cache_home(output_root: &Path) -> PathBuf {
+    let name = output_root
+        .file_name()
+        .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
+    output_root.with_file_name(format!("{name}_cache"))
+}
+
+fn xdg_cache_home(output_root: &Path) -> (String, String) {
+    (
+        "XDG_CACHE_HOME".to_owned(),
+        cache_home(output_root).to_string_lossy().into_owned(),
+    )
 }
 
 /// Removes a qualification root, including Bazel's read-only trees.

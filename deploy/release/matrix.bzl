@@ -128,11 +128,12 @@ def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx", pdb = "//c
         )
         symbols = release_cell_symbols(cell)
         if symbols:
+            # The entry keeps the PDB basename that /pdbaltpath:%_PDB% writes into the exe.
             native.genrule(
                 name = cell_name + "_pdb_archive",
                 srcs = [pdb],
                 outs = [symbols],
-                cmd = "$(execpath @bazel_tools//tools/zip:zipper) c $@ dx.pdb=$(location " + pdb + ")",
+                cmd = "$(execpath @bazel_tools//tools/zip:zipper) c $@ $$(basename $(location " + pdb + "))=$(location " + pdb + ")",
                 target_compatible_with = constraints,
                 tools = ["@bazel_tools//tools/zip:zipper"],
             )

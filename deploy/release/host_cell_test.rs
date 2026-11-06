@@ -56,7 +56,8 @@ fn windows_host_cell_ships_its_symbols_zip() {
     );
     let listing = dx_deploy_tools::archive_listing(&symbols).expect("symbols listing");
     let names: Vec<&str> = listing.iter().map(|(name, _, _)| name.as_str()).collect();
-    assert_eq!(names, ["dx.pdb"]);
+    // dx.exe names the PDB of the upstream rust_binary (/pdbaltpath:%_PDB%).
+    assert_eq!(names, ["dx_upstream.pdb"]);
 }
 
 #[test]

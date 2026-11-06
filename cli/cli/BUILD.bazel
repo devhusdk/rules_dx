@@ -193,7 +193,7 @@ filegroup(
 
 dx_msvc_opt_pdb_tests(
     name = "dx_opt_pdb_test",
-    expected = "dx.pdb",
+    expected = "dx_upstream.pdb",
     target = ":dx",
 )
 

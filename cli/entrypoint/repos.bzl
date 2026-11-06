@@ -131,6 +131,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "bad_kind.txt",
         "edit_cargo.txt",
         "edit_composer.txt",
+        "edit_opam.txt",
         "edit_pinned.txt",
         "edit_unsupported.txt",
         "license_json.txt",
@@ -163,6 +164,8 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/php/composer.json",
         "sets_ok/apps/php/composer.lock",
         "sets_ok/apps/php/composer.digests.json",
+        "sets_ok/apps/ml/ocaml_app.opam",
+        "sets_ok/apps/ml/ocaml_app.opam.locked",
         "sets_bad/MODULE.bazel",
         "sets_bad/.dx/pins",
         "sets_nolock/MODULE.bazel",
@@ -198,6 +201,8 @@ swift_deps = use_extension("@rules_swift_package_manager//:extensions.bzl", "swi
 swift_deps.from_package(resolved = "//apps/swift:Package.resolved", swift = "//apps/swift:Package.swift")
 composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
 composer.lock(name = "vendor", lock = "//apps/php:composer.lock", digests = "//apps/php:composer.digests.json")
+ocaml = use_extension("@rules_dx//ocaml/toolchain:repos.bzl", "ocaml")
+ocaml.packages(name = "ocaml_app", lock = "//apps/ml:ocaml_app.opam.locked")
 EOF
 echo "requires 'Text::CSV', '== 2.06';" > "$(location sets_ok/perl/cpanfile)"
 cat > "$(location sets_ok/perl/cpanfile.snapshot)" <<'EOF'
@@ -213,6 +218,9 @@ echo '{"require": {"psr/log": "^1.1"}}' > "$(location sets_ok/apps/php/composer.
 echo '{"packages": [], "packages-dev": []}' > "$(location sets_ok/apps/php/composer.lock)"
 echo '{"packages": {}}' > "$(location sets_ok/apps/php/composer.digests.json)"
 cp "$(location sets_ok/apps/php/composer.json)" "$$orig/consumer_sets_composer_json.orig"
+printf 'opam-version: "2.0"\ndepends: [\n  "astring" {>= "0.8.5"}\n]\n' > "$(location sets_ok/apps/ml/ocaml_app.opam)"
+printf 'opam-version: "2.0"\ndepends: [\n  "astring" {= "0.8.5"}\n]\n' > "$(location sets_ok/apps/ml/ocaml_app.opam.locked)"
+cp "$(location sets_ok/apps/ml/ocaml_app.opam)" "$$orig/consumer_sets_opam.orig"
 cat > "$(location sets_ok/apps/rs/Cargo.toml)" <<'EOF'
 [package]
 name = "app"
@@ -331,6 +339,11 @@ if "$$public" update vendor:acme/other 1.0.0 --apply --workspace "$$ok" > "$(loc
   exit 1
 fi
 cmp "$$orig/consumer_sets_composer_json.orig" "$(location sets_ok/apps/php/composer.json)"
+if "$$public" update ocaml_app:lwt 5.7.0 --apply --workspace "$$ok" > "$(location edit_opam.txt)" 2>&1; then
+  echo "update declared a package in a configured opam set" >&2
+  exit 1
+fi
+cmp "$$orig/consumer_sets_opam.orig" "$(location sets_ok/apps/ml/ocaml_app.opam)"
 "$$public" update --workspace "$$ok" gems > "$(location update_pinned.txt)" 2>&1
 grep -q "gems pins are manual" "$(location update_pinned.txt)"
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" gems > "$(location security_ruby_json.txt)" 2>/dev/null; then

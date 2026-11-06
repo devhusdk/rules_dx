@@ -6,6 +6,7 @@ exports_files(
     [
         "BUILD.bazel",
         "astring.BUILD.bazel",
+        "ocaml_app.opam",
         "ocaml_app.opam.locked",
     ],
     visibility = ["//visibility:public"],

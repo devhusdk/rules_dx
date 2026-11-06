@@ -468,6 +468,7 @@ hermetic_qualification(
     files = {
         "//ocaml/tests/fixtures/ocaml-app:BUILD.bazel": "ocaml/tests/fixtures/ocaml-app/BUILD.bazel",
         "//ocaml/tests/fixtures/ocaml-app:astring.BUILD.bazel": "ocaml/tests/fixtures/ocaml-app/astring.BUILD.bazel",
+        "//ocaml/tests/fixtures/ocaml-app:ocaml_app.opam": "ocaml/tests/fixtures/ocaml-app/ocaml_app.opam",
         "//ocaml/tests/fixtures/ocaml-app:ocaml_app.opam.locked": "ocaml/tests/fixtures/ocaml-app/ocaml_app.opam.locked",
         "//ocaml/tests/fixtures/ocaml-app/lexer:BUILD.bazel": "ocaml/tests/fixtures/ocaml-app/lexer/BUILD.bazel",
         "//ocaml/tests/fixtures/ocaml-app/lexer:lexer_test.ml": "ocaml/tests/fixtures/ocaml-app/lexer/lexer_test.ml",

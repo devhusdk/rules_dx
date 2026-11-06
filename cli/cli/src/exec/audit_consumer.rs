@@ -599,6 +599,37 @@ source = { registry = "https://pypi.org/simple" }
         assert!(out.contains("apps/php/composer.lock"), "{out}");
     }
 
+    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.packages(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";
+
+    const OPAM_ADVISORY: &str = r#"[{
+        "id": "OSV-OPAM-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "opam", "name": "astring"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0.8.6"}]}]
+        }]
+    }]"#;
+
+    #[test]
+    fn consumer_opam_set_reads_its_opam_locked_and_the_opam_snapshot() {
+        let harness = consumer_harness("opam-vuln", OPAM_MODULE, false);
+        harness.write_source("apps/ml/ocaml_app.opam", "opam-version: \"2.0\"\n");
+        harness.write_source(
+            "apps/ml/ocaml_app.opam.locked",
+            "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {= \"0.8.5\"}\n]\n",
+        );
+        write_advisory(&harness, "opam", OPAM_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "ocaml_app"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/OSV-OPAM-0001"), "{out}");
+        assert!(out.contains("apps/ml/ocaml_app.opam.locked"), "{out}");
+    }
+
     #[test]
     fn consumer_ruby_missing_snapshot_fails_and_is_never_clean() {
         for extra in [None, Some("--offline")] {

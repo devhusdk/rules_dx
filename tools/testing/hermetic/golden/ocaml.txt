@@ -27,6 +27,7 @@ file ocaml/tests/fixtures/ocaml-app/ledger/ledger_test.ml
 file ocaml/tests/fixtures/ocaml-app/lexer/BUILD.bazel
 file ocaml/tests/fixtures/ocaml-app/lexer/lexer_test.ml
 file ocaml/tests/fixtures/ocaml-app/lexer/tokens.mll
+file ocaml/tests/fixtures/ocaml-app/ocaml_app.opam
 file ocaml/tests/fixtures/ocaml-app/ocaml_app.opam.locked
 failure //ocaml/tests/fixtures/ocaml-app/cli:report_without_astring
 failure //ocaml/tests/fixtures/ocaml-app/diagnostics:syntax_error

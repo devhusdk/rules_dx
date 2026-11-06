@@ -2255,6 +2255,56 @@ source = { registry = "https://pypi.org/simple" }
         assert!(launches[0].argv.iter().any(|arg| arg == "deps.update"));
     }
 
+    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.packages(name = \"ocaml_app\", lock = \"//ocaml/app:ocaml_app.opam.locked\")\n";
+
+    const OPAM_FILE: &str = "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {>= \"0.8.5\"}\n  \"ocaml\" {>= \"5.5\"}\n]\n";
+
+    fn opam_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, OPAM_MODULE, false);
+        harness.write_source("ocaml/app/ocaml_app.opam", OPAM_FILE);
+        harness.write_source(
+            "ocaml/app/ocaml_app.opam.locked",
+            "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {= \"0.8.5\"}\n]\n",
+        );
+        harness
+    }
+
+    #[test]
+    fn consumer_opam_edits_the_constraint_and_runs_upgrade_then_lock() {
+        let harness = opam_harness("opam-edit");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "ocaml_app:astring", "0.9.0"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            read_bytes(&harness, "ocaml/app/ocaml_app.opam"),
+            OPAM_FILE.replace("0.8.5", "0.9.0").as_bytes()
+        );
+        let launches = runner.launches.borrow();
+        assert!(launches.iter().any(|run| run.argv.iter().any(|a| a == "upgrade")));
+        assert!(launches.iter().any(|run| run.argv.iter().any(|a| a == "lock")));
+    }
+
+    #[test]
+    fn consumer_opam_refuses_an_undeclared_package_and_writes_nothing() {
+        let harness = opam_harness("opam-undeclared");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "ocaml_app:lwt", "5.7.0"],
+            &runner,
+            &harness,
+        );
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(runner.launches.borrow().is_empty());
+        assert_eq!(
+            read_bytes(&harness, "ocaml/app/ocaml_app.opam"),
+            OPAM_FILE.as_bytes()
+        );
+    }
+
     #[test]
     fn consumer_hex_offline_needs_network_and_launches_nothing() {
         let harness = hex_harness("hex-offline");

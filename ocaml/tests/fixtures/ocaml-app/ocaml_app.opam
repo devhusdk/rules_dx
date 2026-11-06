@@ -1,0 +1,7 @@
+opam-version: "2.0"
+name: "ocaml_app"
+version: "0.0.0"
+depends: [
+  "astring" {>= "0.8.5"}
+  "ocaml" {>= "5.5"}
+]

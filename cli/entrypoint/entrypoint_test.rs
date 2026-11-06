@@ -274,6 +274,11 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
         edit.contains("acme/other"),
         "update refuses an undeclared composer package: {edit}"
     );
+    let edit = read("DX_SETS_EDIT_OPAM");
+    assert!(
+        edit.contains("lwt"),
+        "update refuses an undeclared opam package: {edit}"
+    );
 }
 
 #[test]

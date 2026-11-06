@@ -23,9 +23,9 @@ CURATED_DEFAULTS = {
     "cc": {
         "audit": [],
         "format": ["clang_format"],
-        "lint": ["typos"],
+        "lint": ["clang_tidy", "typos"],
         "typecheck": [],
-        "unused": ["cppcheck"],
+        "unused": [],
     },
     "cloudformation": {
         "audit": [],
@@ -34,10 +34,17 @@ CURATED_DEFAULTS = {
         "typecheck": [],
         "unused": [],
     },
+    "core": {
+        "audit": [],
+        "format": ["yamlfmt"],
+        "lint": ["actionlint", "zizmor"],
+        "typecheck": [],
+        "unused": [],
+    },
     "d": {
         "audit": [],
-        "format": ["dfmt"],
-        "lint": ["dscanner", "typos"],
+        "format": [],
+        "lint": ["typos"],
         "typecheck": [],
         "unused": [],
     },
@@ -66,9 +73,9 @@ CURATED_DEFAULTS = {
     "go": {
         "audit": [],
         "format": ["gofumpt"],
-        "lint": ["govet", "staticcheck", "typos"],
+        "lint": ["errcheck", "govet", "staticcheck", "typos"],
         "typecheck": ["gotype"],
-        "unused": ["deadcode"],
+        "unused": [],
     },
     "go_module": {
         "audit": [],
@@ -87,8 +94,8 @@ CURATED_DEFAULTS = {
     # ghc typecheck stays opt-in: it replays every compile action (heavy tier).
     "haskell": {
         "audit": [],
-        "format": ["ormolu"],
-        "lint": ["hlint", "typos"],
+        "format": [],
+        "lint": ["typos"],
         "typecheck": [],
         "unused": [],
     },
@@ -102,7 +109,7 @@ CURATED_DEFAULTS = {
     "java": {
         "audit": [],
         "format": ["google_java_format"],
-        "lint": ["checkstyle", "pmd", "spotbugs", "typos"],
+        "lint": ["pmd", "spotbugs", "typos"],
         "typecheck": ["javac"],
         "unused": [],
     },
@@ -115,7 +122,7 @@ CURATED_DEFAULTS = {
     },
     "json": {
         "audit": [],
-        "format": ["prettier"],
+        "format": ["biome"],
         "lint": ["biome"],
         "typecheck": [],
         "unused": [],
@@ -130,7 +137,7 @@ CURATED_DEFAULTS = {
     "kotlin": {
         "audit": [],
         "format": ["ktfmt"],
-        "lint": ["detekt", "ktlint", "typos"],
+        "lint": ["detekt", "typos"],
         "typecheck": ["kotlinc"],
         "unused": [],
     },
@@ -151,14 +158,14 @@ CURATED_DEFAULTS = {
     "markdown": {
         "audit": [],
         "format": [],
-        "lint": ["lychee", "markdown_check", "typos", "vale"],
+        "lint": ["lychee", "markdown_check", "typos"],
         "typecheck": [],
         "unused": [],
     },
     "mdx": {
         "audit": [],
         "format": ["remark"],
-        "lint": ["typos"],
+        "lint": ["lychee", "typos"],
         "typecheck": ["tsc"],
         "unused": [],
     },
@@ -166,7 +173,7 @@ CURATED_DEFAULTS = {
     "nix": {
         "audit": [],
         "format": [],
-        "lint": ["deadnix", "statix", "typos"],
+        "lint": ["deadnix", "typos"],
         "typecheck": [],
         "unused": [],
     },
@@ -174,23 +181,23 @@ CURATED_DEFAULTS = {
     "ocaml": {
         "audit": [],
         "format": ["topiary"],
-        "lint": ["typos", "zanuda"],
+        "lint": ["typos"],
         "typecheck": [],
         "unused": [],
     },
     "powershell": {
         "audit": [],
-        "format": ["psscriptanalyzer"],
-        "lint": ["psscriptanalyzer", "typos"],
+        "format": [],
+        "lint": ["typos"],
         "typecheck": [],
         "unused": [],
     },
     "python": {
         "audit": [],
         "format": ["ruff"],
-        "lint": ["pydoclint", "ruff", "typos"],
+        "lint": ["ruff", "typos"],
         "typecheck": ["ty"],
-        "unused": ["vulture"],
+        "unused": [],
     },
     "rust": {
         "audit": [],
@@ -229,8 +236,8 @@ CURATED_DEFAULTS = {
     },
     "swift": {
         "audit": [],
-        "format": ["swift_format"],
-        "lint": ["swift_lint", "typos"],
+        "format": [],
+        "lint": ["typos"],
         "typecheck": [],
         "unused": [],
     },
@@ -262,6 +269,13 @@ CURATED_DEFAULTS = {
         "typecheck": ["tsc"],
         "unused": [],
     },
+    "yaml": {
+        "audit": [],
+        "format": ["yamlfmt"],
+        "lint": ["yamllint"],
+        "typecheck": [],
+        "unused": [],
+    },
     "zig": {
         "audit": [],
         "format": ["zig_fmt"],
@@ -280,6 +294,7 @@ CROSS_FAMILY_TOOLS = [
     "prettier",
     "tsc",
     "typos",
+    "yamlfmt",
 ]
 
 def curated_families():

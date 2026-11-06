@@ -20,6 +20,7 @@ WRAPPER_OWNERS = {
     "make": "//make/rules:defs.bzl",
     "capnp": "//capnproto/rules:defs.bzl",
     "cmake": "//cmake/rules:defs.bzl",
+    "core": "other",
     "d": "//d/rules:defs.bzl",
     "dart": "//dart/rules:defs.bzl",
     "elixir": "//elixir/rules:defs.bzl",

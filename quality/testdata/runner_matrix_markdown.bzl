@@ -60,7 +60,7 @@ MARKDOWN_CASES = [
     {
         "name": "matrix_markdown_lint_fail",
         "generated": {
-            "matrix/markdown_dirty.md": "# Matrix dirty\n\nSee [missing](matrix/missing.md).\n",
+            "matrix/markdown_dirty.md": "# Matrix dirty\n\n# Again\n",
         },
         "capability": "lint",
         "stages": ["markdown_check;markdown;matrix/markdown_dirty.md", "vale;markdown;matrix/markdown_dirty.md"],

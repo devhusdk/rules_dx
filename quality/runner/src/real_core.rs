@@ -20,7 +20,7 @@ pub(super) fn markdown_links(
             let text = String::from_utf8(bytes).expect("checked bytes are UTF-8");
             if text.contains("BROKEN") {
                 out.push_str(&format!(
-                    "{{\"path\":\"{workspace}\",\"line\":2,\"kind\":\"missing-file-target\",\"message\":\"link target nope.md does not match a checked source\"}}\n"
+                    "{{\"path\":\"{workspace}\",\"line\":2,\"kind\":\"heading-hierarchy\",\"message\":\"link target nope.md does not match a checked source\"}}\n"
                 ));
             }
             index += 1;
@@ -459,7 +459,7 @@ pub(super) fn markdown_check_reports_workspace_keyed_findings() {
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "markdown_check");
-    assert_eq!(findings[0].rule_id, "missing-file-target");
+    assert_eq!(findings[0].rule_id, "heading-hierarchy");
     assert_eq!(findings[0].path, "doc/guide.md");
     assert_eq!(findings[0].start_byte, Some(8));
     assert_eq!(findings[0].end_byte, Some(8));
@@ -499,7 +499,7 @@ pub(super) fn markdown_sibling_links(
             let text = String::from_utf8(bytes).expect("checked bytes are UTF-8");
             if text.contains("BROKEN") && !seen_sibling {
                 out.push_str(&format!(
-                    "{{\"path\":\"{workspace}\",\"line\":2,\"kind\":\"missing-file-target\",\"message\":\"link target nope.md does not match a checked source\"}}\n"
+                    "{{\"path\":\"{workspace}\",\"line\":2,\"kind\":\"heading-hierarchy\",\"message\":\"link target nope.md does not match a checked source\"}}\n"
                 ));
             }
             index += 1;

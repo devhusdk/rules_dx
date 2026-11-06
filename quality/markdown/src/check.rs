@@ -1,17 +1,13 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use clap::error::ErrorKind;
 use clap::Parser as ClapParser;
-use pulldown_cmark::{BrokenLink, Event, LinkType, Options, Parser, Tag, TagEnd};
 use serde::Serialize;
 
-use super::frontmatter::{check_headings, code_regions, headings, line_of, line_starts};
-use super::links::{broken_label, check_target, scan_bare_autolinks, BrokenRef, DocLink, Span};
+use super::frontmatter::{check_headings, code_regions, headings, line_starts};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FindingKind {
-    MissingFileTarget,
-    MissingAnchor,
     HeadingHierarchy,
     MissingCodeFenceLanguage,
     UnclosedCodeFence,
@@ -27,7 +23,6 @@ pub struct Finding {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CheckOutcome {
     pub findings: Vec<Finding>,
-    pub skipped_remotes: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -42,22 +37,12 @@ impl From<String> for MarkdownError {
     }
 }
 
-pub fn check_markdown(
-    source_path: &str,
-    text: &str,
-    siblings: &BTreeMap<String, String>,
-) -> CheckOutcome {
+pub fn check_markdown(text: &str) -> CheckOutcome {
     let mut outcome = CheckOutcome::default();
-    let mut doc_links: Vec<DocLink> = Vec::new();
 
     let starts = line_starts(text);
     let regions = code_regions(text, &starts);
-    let source_lines: Vec<&str> = text.lines().collect();
-    let mut suppressed: BTreeSet<u32> = BTreeSet::new();
     for region in &regions {
-        for line in region.start_line..=region.end_line {
-            suppressed.insert(line);
-        }
         let Some(info) = region.fence_info.as_deref() else {
             continue;
         };
@@ -79,121 +64,7 @@ pub fn check_markdown(
         }
     }
 
-    let mut code_spans: Vec<Span> = Vec::new();
-    let mut link_spans: Vec<Span> = Vec::new();
-    let mut html_spans: Vec<Span> = Vec::new();
-    let mut html_start: Option<usize> = None;
-    let mut broken: Vec<BrokenRef> = Vec::new();
-    {
-        let callbacks = &mut |link: BrokenLink| {
-            broken.push(BrokenRef {
-                span: link.span.clone(),
-                link_type: link.link_type,
-                reference: link.reference.to_string(),
-            });
-            None
-        };
-        let parser = Parser::new_with_broken_link_callback(text, Options::empty(), Some(callbacks));
-        for (event, range) in parser.into_offset_iter() {
-            match event {
-                Event::Start(Tag::Link {
-                    link_type,
-                    dest_url,
-                    ..
-                })
-                | Event::Start(Tag::Image {
-                    link_type,
-                    dest_url,
-                    ..
-                }) => {
-                    if link_type == LinkType::Email {
-                        link_spans.push(range);
-                        continue;
-                    }
-                    let at = line_of(&starts, range.start);
-                    link_spans.push(range.clone());
-                    doc_links.push(DocLink::Dest {
-                        line: at,
-                        col: range.start,
-                        target: dest_url.to_string(),
-                    });
-                }
-                Event::Code(_) => {
-                    code_spans.push(range);
-                }
-                Event::Start(Tag::HtmlBlock) => {
-                    html_start = Some(range.start);
-                }
-                Event::End(TagEnd::HtmlBlock) => {
-                    if let Some(start) = html_start.take() {
-                        for line in line_of(&starts, start)..=line_of(&starts, range.end.max(1) - 1)
-                        {
-                            suppressed.insert(line);
-                        }
-                    }
-                }
-                Event::Html(_) | Event::InlineHtml(_) => {
-                    html_spans.push(range);
-                }
-                _ => {}
-            }
-        }
-    }
-    for broken_ref in &broken {
-        if broken_ref.link_type == LinkType::Shortcut {
-            continue;
-        }
-        let at = line_of(&starts, broken_ref.span.start);
-        doc_links.push(DocLink::UndefinedRef {
-            line: at,
-            col: broken_ref.span.start,
-            label: broken_label(text, broken_ref),
-        });
-    }
-
-    for (index, line) in source_lines.iter().enumerate() {
-        let line_no = (index as u32) + 1;
-        if suppressed.contains(&line_no) {
-            continue;
-        }
-        let base = starts[index];
-        doc_links.extend(scan_bare_autolinks(
-            line,
-            base,
-            line_no,
-            &code_spans,
-            &link_spans,
-            &html_spans,
-        ));
-    }
-
-    let headings = headings(text, &starts);
-
-    doc_links.sort_by_key(|link| (link.line(), link.col()));
-    check_headings(&headings, &mut outcome);
-    let own_slugs: BTreeSet<String> = headings.into_iter().map(|h| h.slug).collect();
-    for link in &doc_links {
-        match link {
-            DocLink::Dest { line, target, .. } => {
-                check_target(
-                    source_path,
-                    *line,
-                    target,
-                    siblings,
-                    &own_slugs,
-                    &mut outcome,
-                );
-            }
-            DocLink::UndefinedRef { line, label, .. } => {
-                push_finding(
-                    &mut outcome,
-                    *line,
-                    FindingKind::MissingFileTarget,
-                    &format!("reference link label has no definition: [{label}]"),
-                );
-            }
-        }
-    }
+    check_headings(&headings(text, &starts), &mut outcome);
     outcome.findings.sort_by_key(|f| (f.line, f.kind));
     outcome
 }
@@ -220,8 +91,6 @@ pub(crate) struct FindingLine<'a> {
 }
 pub fn kind_id(kind: FindingKind) -> &'static str {
     match kind {
-        FindingKind::MissingFileTarget => "missing-file-target",
-        FindingKind::MissingAnchor => "missing-anchor",
         FindingKind::HeadingHierarchy => "heading-hierarchy",
         FindingKind::MissingCodeFenceLanguage => "missing-code-fence-language",
         FindingKind::UnclosedCodeFence => "unclosed-code-fence",
@@ -378,21 +247,15 @@ pub fn run_cli(
         .into_iter()
         .map(|mapping| (mapping.ws, mapping.exec))
         .collect();
-    let sibling_specs: Vec<(String, String)> = cli
-        .sibling
-        .into_iter()
-        .map(|mapping| (mapping.ws, mapping.exec))
-        .collect();
-
-    let mut siblings: BTreeMap<String, String> = BTreeMap::new();
     let mut ordered_ws: Vec<String> = Vec::new();
     for (ws, _) in &sources {
         if !ordered_ws.contains(ws) {
             ordered_ws.push(ws.clone());
         }
     }
-    for (ws, exec) in sources.iter().chain(sibling_specs.iter()) {
-        if siblings.contains_key(ws) {
+    let mut texts: BTreeMap<String, String> = BTreeMap::new();
+    for (ws, exec) in &sources {
+        if texts.contains_key(ws) {
             continue;
         }
         let bytes = match read_file(exec) {
@@ -409,13 +272,12 @@ pub fn run_cli(
                 return 2;
             }
         };
-        siblings.insert(ws.clone(), text);
+        texts.insert(ws.clone(), text);
     }
 
-    let mut seen_remotes: Vec<String> = Vec::new();
     for ws in &ordered_ws {
-        let text = siblings.get(ws).cloned().unwrap_or_default();
-        let outcome = check_markdown(ws, &text, &siblings);
+        let text = texts.get(ws).map(String::as_str).unwrap_or_default();
+        let outcome = check_markdown(text);
         for finding in &outcome.findings {
             let line = FindingLine {
                 path: ws.as_str(),
@@ -426,12 +288,6 @@ pub fn run_cli(
             match dx_fingerprint::to_json(&line) {
                 Ok(rendered) => print_out(&rendered),
                 Err(error) => print_err(&error.to_string()),
-            }
-        }
-        for remote in &outcome.skipped_remotes {
-            if !seen_remotes.iter().any(|seen| seen == remote) {
-                seen_remotes.push(remote.clone());
-                print_err(&format!("skipped remote target (never fetched): {remote}"));
             }
         }
     }

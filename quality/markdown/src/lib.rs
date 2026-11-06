@@ -11,7 +11,6 @@
 mod check;
 pub mod entry;
 mod frontmatter;
-mod links;
 
 #[cfg(test)]
 #[path = "lib_tests.rs"]
@@ -21,4 +20,3 @@ pub use check::{
     check_markdown, kind_id, run_cli, CheckOutcome, Finding, FindingKind, MarkdownError,
 };
 pub use frontmatter::slug;
-pub use links::resolve_target;

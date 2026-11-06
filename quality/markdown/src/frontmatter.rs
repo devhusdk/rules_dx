@@ -1,5 +1,3 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 use unicode_properties::{GeneralCategory, UnicodeGeneralCategory};
 
@@ -8,7 +6,6 @@ use super::check::{push_finding, CheckOutcome, FindingKind};
 pub(crate) struct Heading {
     pub(crate) level: usize,
     pub(crate) line: u32,
-    pub(crate) slug: String,
     pub(crate) top_level: bool,
 }
 
@@ -56,16 +53,8 @@ pub(crate) fn check_headings(headings: &[Heading], outcome: &mut CheckOutcome) {
     }
 }
 
-pub(crate) fn slugs_in(content: &str) -> BTreeSet<String> {
-    headings(content, &line_starts(content))
-        .into_iter()
-        .map(|h| h.slug)
-        .collect()
-}
-
 pub(crate) fn headings(text: &str, starts: &[usize]) -> Vec<Heading> {
     let mut out = Vec::new();
-    let mut slugger = Slugger::default();
     let mut depth = 0usize;
     let mut open: Option<(usize, u32, bool, String)> = None;
     for (event, range) in Parser::new_ext(text, Options::empty()).into_offset_iter() {
@@ -93,12 +82,10 @@ pub(crate) fn headings(text: &str, starts: &[usize]) -> Vec<Heading> {
                 }
             }
             Event::End(TagEnd::Heading(_)) => {
-                if let Some((level, line, top_level, buf)) = open.take() {
-                    let slug = slugger.slug(&buf);
+                if let Some((level, line, top_level, _)) = open.take() {
                     out.push(Heading {
                         level,
                         line,
-                        slug,
                         top_level,
                     });
                 }
@@ -125,7 +112,6 @@ pub(crate) fn line_of(starts: &[usize], offset: usize) -> u32 {
 
 pub(crate) struct CodeRegion {
     pub(crate) start_line: u32,
-    pub(crate) end_line: u32,
     pub(crate) fence_info: Option<String>,
     pub(crate) unclosed: bool,
 }
@@ -168,7 +154,6 @@ pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
             }
             Event::End(TagEnd::CodeBlock) => {
                 if let Some((start_line, fence_info, fence, _, content_end)) = open.take() {
-                    let end_line = line_of(starts, range.end.saturating_sub(1)).max(start_line);
                     let unclosed = match (fence_info.is_some(), fence) {
                         (false, _) => false,
                         (true, None) => true,
@@ -182,7 +167,6 @@ pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
                     };
                     regions.push(CodeRegion {
                         start_line,
-                        end_line,
                         fence_info,
                         unclosed,
                     });
@@ -218,25 +202,4 @@ pub fn slug(text: &str) -> String {
             },
         })
         .collect()
-}
-
-#[derive(Default)]
-struct Slugger {
-    occurrences: BTreeMap<String, usize>,
-    taken: BTreeSet<String>,
-}
-
-impl Slugger {
-    fn slug(&mut self, text: &str) -> String {
-        let base = slug(text);
-        let mut candidate = base.clone();
-        while self.taken.contains(&candidate) {
-            let n = self.occurrences.entry(base.clone()).or_insert(0);
-            *n += 1;
-            candidate = format!("{base}-{n}");
-        }
-        self.occurrences.entry(base).or_insert(0);
-        self.taken.insert(candidate.clone());
-        candidate
-    }
 }

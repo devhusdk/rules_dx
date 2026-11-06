@@ -19,8 +19,6 @@ pub fn parse_markdown_findings(
     const TOOL: &str = "markdown_check";
     check_output_size(TOOL, stdout)?;
     const KINDS: &[&str] = &[
-        "missing-file-target",
-        "missing-anchor",
         "heading-hierarchy",
         "missing-code-fence-language",
         "unclosed-code-fence",
@@ -85,21 +83,21 @@ mod tests {
     #[test]
     fn markdown_parses_workspace_keyed_findings() {
         let stdout = concat!(
-            "{\"path\":\"doc/guide.md\",\"line\":3,\"kind\":\"missing-file-target\",\"message\":\"link target \\\"nope.md\\\" does not match a checked source\"}\n",
-            "{\"path\":\"doc/guide.md\",\"line\":7,\"kind\":\"missing-anchor\",\"message\":\"anchor \\\"#nope\\\" not found\"}\n",
+            "{\"path\":\"doc/guide.md\",\"line\":3,\"kind\":\"heading-hierarchy\",\"message\":\"first heading must be h1\"}\n",
+            "{\"path\":\"doc/guide.md\",\"line\":7,\"kind\":\"unclosed-code-fence\",\"message\":\"never closed\"}\n",
         );
         let findings =
             parse_markdown_findings(stdout.as_bytes(), Some(0), &["doc/guide.md"]).expect("parsed");
         assert_eq!(findings.len(), 2);
         assert_eq!(findings[0].file, "doc/guide.md");
         assert_eq!(findings[0].finding.tool_id, "markdown_check");
-        assert_eq!(findings[0].finding.rule_id, "missing-file-target");
+        assert_eq!(findings[0].finding.rule_id, "heading-hierarchy");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(
             (findings[0].finding.start, findings[0].finding.end),
             (TextPosition { line: 3, column: 1 }, None)
         );
-        assert_eq!(findings[1].finding.rule_id, "missing-anchor");
+        assert_eq!(findings[1].finding.rule_id, "unclosed-code-fence");
         assert!(findings[0].finding.suggestions.is_empty());
         assert!(parse_markdown_findings(b"\n", Some(0), &["doc/guide.md"])
             .expect("parsed")
@@ -109,16 +107,14 @@ mod tests {
     #[test]
     fn markdown_accepts_every_current_checker_kind() {
         let stdout = concat!(
-            "{\"path\":\"doc/guide.md\",\"line\":3,\"kind\":\"missing-file-target\",\"message\":\"t\"}\n",
-            "{\"path\":\"doc/guide.md\",\"line\":4,\"kind\":\"missing-anchor\",\"message\":\"a\"}\n",
             "{\"path\":\"doc/guide.md\",\"line\":1,\"kind\":\"heading-hierarchy\",\"message\":\"h\"}\n",
             "{\"path\":\"doc/guide.md\",\"line\":5,\"kind\":\"missing-code-fence-language\",\"message\":\"l\"}\n",
             "{\"path\":\"doc/guide.md\",\"line\":5,\"kind\":\"unclosed-code-fence\",\"message\":\"u\"}\n",
         );
         let findings =
             parse_markdown_findings(stdout.as_bytes(), Some(0), &["doc/guide.md"]).expect("parsed");
-        assert_eq!(findings.len(), 5);
-        assert_eq!(findings[2].finding.rule_id, "heading-hierarchy");
+        assert_eq!(findings.len(), 3);
+        assert_eq!(findings[0].finding.rule_id, "heading-hierarchy");
         let stale =
             "{\"path\":\"doc/guide.md\",\"line\":1,\"kind\":\"missing-heading\",\"message\":\"m\"}";
         assert!(parse_markdown_findings(stale.as_bytes(), Some(0), &["doc/guide.md"]).is_err());

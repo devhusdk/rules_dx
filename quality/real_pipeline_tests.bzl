@@ -144,8 +144,8 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("biome", "typecheck"),
                 ],
                 [
-                    ["javascript", "json", "jsx", "tsx", "typescript"],
-                    ["javascript", "json", "jsx", "tsx", "typescript"],
+                    ["javascript", "json", "jsonc", "jsx", "tsx", "typescript"],
+                    ["javascript", "json", "jsonc", "jsx", "tsx", "typescript"],
                     [],
                 ],
             ),
@@ -183,7 +183,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("prettier", "format"),
                     real_supported_classes("prettier", "typecheck"),
                 ],
-                [[], ["ansible", "api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "kubernetes", "less", "php", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"], []],
+                [[], ["api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "json5", "less", "php", "scss", "svelte", "vue", "xml"], []],
             ),
             expect_equal(
                 "real_supported_classes returns buildifier lint support",
@@ -471,20 +471,6 @@ def real_pipeline_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "pipeline_stages orders javascript format alternatives in registry order",
-                pipeline_stages(
-                    ["javascript"],
-                    "format",
-                    {"javascript": ["prettier", "biome"]},
-                    REAL_CLASS_TO_FAMILY,
-                    REAL_ADAPTERS,
-                ),
-                [
-                    {"classes": ["javascript"], "tool": "biome"},
-                    {"classes": ["javascript"], "tool": "prettier"},
-                ],
-            ),
-            expect_equal(
                 "pipeline_stages builds one tsc typecheck stage",
                 pipeline_stages(
                     ["typescript", "tsx"],
@@ -517,37 +503,6 @@ def real_pipeline_unit_tests(name):
                 ),
                 [
                     {"classes": ["javascript", "json", "typescript"], "tool": "biome"},
-                ],
-            ),
-            expect_equal(
-                "pipeline_stages scopes javascript-only prettier away from typescript, tsx, and json",
-                [
-                    pipeline_stages(
-                        ["typescript"],
-                        "format",
-                        {"javascript": ["prettier"]},
-                        REAL_CLASS_TO_FAMILY,
-                        REAL_ADAPTERS,
-                    ),
-                    pipeline_stages(
-                        ["json"],
-                        "format",
-                        {"javascript": ["prettier"]},
-                        REAL_CLASS_TO_FAMILY,
-                        REAL_ADAPTERS,
-                    ),
-                    pipeline_stages(
-                        ["javascript", "jsx"],
-                        "format",
-                        {"javascript": ["prettier"]},
-                        REAL_CLASS_TO_FAMILY,
-                        REAL_ADAPTERS,
-                    ),
-                ],
-                [
-                    [],
-                    [],
-                    [{"classes": ["javascript", "jsx"], "tool": "prettier"}],
                 ],
             ),
             expect_equal(

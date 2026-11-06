@@ -12,7 +12,6 @@ rust_library(
         "src/entry.rs",
         "src/frontmatter.rs",
         "src/lib.rs",
-        "src/links.rs",
     ],
     aliases = aliases(
         package_name = "quality/quality_markdown",
@@ -83,7 +82,6 @@ rust_test(
         "src/frontmatter.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
-        "src/links.rs",
     ],
     aliases = aliases(
         package_name = "quality/quality_markdown",

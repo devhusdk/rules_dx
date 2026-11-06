@@ -22,11 +22,11 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "cc",
-        lint: &["typos"],
+        lint: &["clang_tidy", "typos"],
         format: &["clang_format"],
         typecheck: &[],
         audit: &[],
-        unused: &["cppcheck"],
+        unused: &[],
     },
     CuratedFamily {
         id: "cloudformation",
@@ -37,9 +37,17 @@ pub const FAMILIES: &[CuratedFamily] = &[
         unused: &[],
     },
     CuratedFamily {
+        id: "core",
+        lint: &["actionlint", "zizmor"],
+        format: &["yamlfmt"],
+        typecheck: &[],
+        audit: &[],
+        unused: &[],
+    },
+    CuratedFamily {
         id: "d",
-        lint: &["dscanner", "typos"],
-        format: &["dfmt"],
+        lint: &["typos"],
+        format: &[],
         typecheck: &[],
         audit: &[],
         unused: &[],
@@ -70,11 +78,11 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "go",
-        lint: &["govet", "staticcheck", "typos"],
+        lint: &["errcheck", "govet", "staticcheck", "typos"],
         format: &["gofumpt"],
         typecheck: &["gotype"],
         audit: &[],
-        unused: &["deadcode"],
+        unused: &[],
     },
     CuratedFamily {
         id: "go_module",
@@ -94,8 +102,8 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "haskell",
-        lint: &["hlint", "typos"],
-        format: &["ormolu"],
+        lint: &["typos"],
+        format: &[],
         typecheck: &[],
         audit: &[],
         unused: &[],
@@ -118,7 +126,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "java",
-        lint: &["checkstyle", "pmd", "spotbugs", "typos"],
+        lint: &["pmd", "spotbugs", "typos"],
         format: &["google_java_format"],
         typecheck: &["javac"],
         audit: &[],
@@ -135,7 +143,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     CuratedFamily {
         id: "json",
         lint: &["biome"],
-        format: &["prettier"],
+        format: &["biome"],
         typecheck: &[],
         audit: &[],
         unused: &[],
@@ -150,7 +158,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "kotlin",
-        lint: &["detekt", "ktlint", "typos"],
+        lint: &["detekt", "typos"],
         format: &["ktfmt"],
         typecheck: &["kotlinc"],
         audit: &[],
@@ -166,7 +174,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "markdown",
-        lint: &["lychee", "markdown_check", "typos", "vale"],
+        lint: &["lychee", "markdown_check", "typos"],
         format: &[],
         typecheck: &[],
         audit: &[],
@@ -174,7 +182,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "mdx",
-        lint: &["typos"],
+        lint: &["lychee", "typos"],
         format: &["remark"],
         typecheck: &["tsc"],
         audit: &[],
@@ -182,7 +190,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "nix",
-        lint: &["deadnix", "statix", "typos"],
+        lint: &["deadnix", "typos"],
         format: &[],
         typecheck: &[],
         audit: &[],
@@ -190,7 +198,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "ocaml",
-        lint: &["typos", "zanuda"],
+        lint: &["typos"],
         format: &["topiary"],
         typecheck: &[],
         audit: &[],
@@ -198,19 +206,19 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "powershell",
-        lint: &["psscriptanalyzer", "typos"],
-        format: &["psscriptanalyzer"],
+        lint: &["typos"],
+        format: &[],
         typecheck: &[],
         audit: &[],
         unused: &[],
     },
     CuratedFamily {
         id: "python",
-        lint: &["pydoclint", "ruff", "typos"],
+        lint: &["ruff", "typos"],
         format: &["ruff"],
         typecheck: &["ty"],
         audit: &[],
-        unused: &["vulture"],
+        unused: &[],
     },
     CuratedFamily {
         id: "rust",
@@ -254,8 +262,8 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "swift",
-        lint: &["swift_lint", "typos"],
-        format: &["swift_format"],
+        lint: &["typos"],
+        format: &[],
         typecheck: &[],
         audit: &[],
         unused: &[],
@@ -293,6 +301,14 @@ pub const FAMILIES: &[CuratedFamily] = &[
         unused: &[],
     },
     CuratedFamily {
+        id: "yaml",
+        lint: &["yamllint"],
+        format: &["yamlfmt"],
+        typecheck: &[],
+        audit: &[],
+        unused: &[],
+    },
+    CuratedFamily {
         id: "zig",
         lint: &["typos", "zig_ast_check"],
         format: &["zig_fmt"],
@@ -309,6 +325,7 @@ pub const CROSS_FAMILY_TOOLS: &[&str] = &[
     "prettier",
     "tsc",
     "typos",
+    "yamlfmt",
 ];
 
 pub const TOOLS: &[&str] = &[

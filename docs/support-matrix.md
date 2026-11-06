@@ -93,7 +93,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` | `staticcheck U1000 (dx lint)`, `deadcode (dx unused)` |
 | Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists), `typos`, `weeder` (not on `linux_arm64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `macos_arm64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_x86_64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_arm64`: weeder is built from Hackage and only the linux_x86_64 build is verified) | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` | no | `hpc` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
 | Java | `checkstyle`, `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` | no |
-| JavaScript | `biome`, `eslint`, `typos` | `biome`, `prettier` | `tsc` | no | `jest` | `knip (dx unused)`, `eslint no-unused-vars` |
+| JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | no | `jest` | `knip (dx unused)`, `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | `CoverageTools` | none |
 | Kotlin | `detekt`, `ktlint`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
 | Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` | `selene unused_variable` |
@@ -108,15 +108,15 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` | `scalac -Wunused` |
 | Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring | no |
-| TypeScript | `biome`, `eslint`, `typos` | `biome`, `prettier` | `tsc` | `typedoc` | `jest` | `knip (dx unused)`, `eslint no-unused-vars` |
+| TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `knip (dx unused)`, `eslint no-unused-vars` |
 | Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring | no |
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) | no |
 | Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | no: no dx coverage wiring in the Apple rules | n/a |
 | CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a | n/a |
-| Dockerfile | `hadolint`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | Make | `checkmake`, `typos` | `mbake` | n/a | n/a | n/a | n/a |
 | Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker), `typos` | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | n/a | no: no dx coverage wiring in the Qt rules | n/a |
-| Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
 | Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
@@ -132,7 +132,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |
 | Jsonnet | `jsonnet_lint`, `typos` | `jsonnetfmt` | n/a | n/a | n/a | n/a |
 | Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a | n/a |
-| Kubernetes | `kubeconform`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| Kubernetes | `kubeconform`, `trivy_config`, `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
 | Markdown | `lychee`, `markdown_check`, `typos`, `vale` | no | no | n/a | n/a | n/a |
 | Nix | `deadnix`, `statix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a | `deadnix` |
@@ -141,7 +141,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |
 | reStructuredText | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
 | Shell | `shellcheck`, `typos` | `shfmt` | no | n/a | n/a | `shellcheck SC2034` |
-| SQL | `sqlfluff`, `typos` | `prettier`, `sqlfluff` | n/a | n/a | n/a | n/a |
+| SQL | `sqlfluff`, `typos` | `sqlfluff` | n/a | n/a | n/a | n/a |
 | Starlark | `buildifier`, `typos` | `buildifier` | no | n/a | n/a | `buildifier unused-variable` |
 | Terraform | `tflint`, `trivy_config`, `typos` | `terraform` | `terraform` | n/a | n/a | n/a |
 | Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64), `typos` | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | n/a | n/a |

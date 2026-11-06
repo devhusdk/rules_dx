@@ -41,29 +41,29 @@ def js_responsibilities_unit_tests(name):
         mode = "unit",
         checks = [
             expect_equal(
-                "biome and prettier both claim javascript format",
+                "biome alone formats javascript",
                 _claimants("format", "javascript"),
-                ["biome", "prettier"],
+                ["biome"],
             ),
             expect_equal(
-                "biome and prettier both claim jsx format",
+                "biome alone formats jsx",
                 _claimants("format", "jsx"),
-                ["biome", "prettier"],
+                ["biome"],
             ),
             expect_equal(
-                "biome and prettier both claim typescript format",
+                "biome alone formats typescript",
                 _claimants("format", "typescript"),
-                ["biome", "prettier"],
+                ["biome"],
             ),
             expect_equal(
-                "biome and prettier both claim tsx format",
+                "biome alone formats tsx",
                 _claimants("format", "tsx"),
-                ["biome", "prettier"],
+                ["biome"],
             ),
             expect_equal(
-                "biome and prettier both claim json format",
-                _claimants("format", "json"),
-                ["biome", "prettier"],
+                "biome alone formats json and jsonc",
+                [_claimants("format", "json"), _claimants("format", "jsonc")],
+                [["biome"], ["biome"]],
             ),
             expect_equal(
                 "biome and eslint share javascript lint; knip no longer lints",
@@ -91,13 +91,13 @@ def js_responsibilities_unit_tests(name):
                 [[], []],
             ),
             expect_equal(
-                "only tsc typechecks typescript and tsx, nothing typechecks javascript",
+                "only tsc typechecks typescript, tsx and javascript",
                 [
                     _claimants("typecheck", "typescript"),
                     _claimants("typecheck", "tsx"),
                     _claimants("typecheck", "javascript"),
                 ],
-                [["tsc"], ["tsc"], []],
+                [["tsc"], ["tsc"], ["tsc"]],
             ),
             expect_equal(
                 "deferred framework classes stay outside JS tool claims",
@@ -107,39 +107,39 @@ def js_responsibilities_unit_tests(name):
             expect_equal(
                 "astro is formatted by prettier, linted by eslint, and typechecked by tsc",
                 [_claimants("format", "astro"), _claimants("lint", "astro"), _claimants("typecheck", "astro")],
-                [["prettier"], ["eslint"], ["tsc"]],
+                [["prettier"], ["eslint", "typos"], ["tsc"]],
             ),
             expect_equal(
                 "mdx is formatted by remark, linted by eslint, and typechecked by tsc",
                 [_claimants("format", "mdx"), _claimants("lint", "mdx"), _claimants("typecheck", "mdx")],
-                [["remark"], ["eslint"], ["tsc"]],
+                [["remark"], ["eslint", "lychee", "typos"], ["tsc"]],
             ),
             expect_equal(
                 "svelte is formatted by prettier, linted by eslint, and typechecked by tsc",
                 [_claimants("format", "svelte"), _claimants("lint", "svelte"), _claimants("typecheck", "svelte")],
-                [["prettier"], ["eslint"], ["tsc"]],
+                [["prettier"], ["eslint", "typos"], ["tsc"]],
             ),
             expect_equal(
                 "vue is formatted by prettier, linted by eslint, and typechecked by tsc",
                 [_claimants("format", "vue"), _claimants("lint", "vue"), _claimants("typecheck", "vue")],
-                [["prettier"], ["eslint"], ["tsc"]],
+                [["prettier"], ["eslint", "typos"], ["tsc"]],
             ),
             expect_equal(
                 "default format selections stay single-formatter per family",
                 _DEFAULT_FORMAT_SELECTIONS,
                 {
                     "javascript": ["biome"],
-                    "json": ["prettier"],
+                    "json": ["biome"],
                     "typescript": ["biome"],
                 },
             ),
             expect_equal(
-                "default lint selections stay biome-only per family",
+                "default lint selections are biome plus typos per family",
                 _DEFAULT_LINT_SELECTIONS,
                 {
-                    "javascript": ["biome"],
+                    "javascript": ["biome", "typos"],
                     "json": ["biome"],
-                    "typescript": ["biome"],
+                    "typescript": ["biome", "typos"],
                 },
             ),
             expect_equal(
@@ -152,12 +152,11 @@ def js_responsibilities_unit_tests(name):
                     REAL_ADAPTERS,
                 ),
                 [
-                    {"classes": ["javascript", "jsx", "tsx", "typescript"], "tool": "biome"},
-                    {"classes": ["json"], "tool": "prettier"},
+                    {"classes": ["javascript", "json", "jsx", "tsx", "typescript"], "tool": "biome"},
                 ],
             ),
             expect_equal(
-                "default lint resolves to one biome stage with no eslint",
+                "default lint resolves to biome and typos stages with no eslint",
                 pipeline_stages(
                     ["javascript", "jsx", "typescript", "tsx", "json"],
                     "lint",
@@ -167,6 +166,7 @@ def js_responsibilities_unit_tests(name):
                 ),
                 [
                     {"classes": ["javascript", "json", "jsx", "tsx", "typescript"], "tool": "biome"},
+                    {"classes": ["javascript", "jsx", "tsx", "typescript"], "tool": "typos"},
                 ],
             ),
             expect_equal(
@@ -181,28 +181,10 @@ def js_responsibilities_unit_tests(name):
                 ),
                 [
                     {
-                        "classes": ["javascript", "jsx", "tsx", "typescript"],
-                        "sources": ["src/app.js", "src/app.tsx", "src/main.ts", "src/view.jsx"],
+                        "classes": ["javascript", "json", "jsx", "tsx", "typescript"],
+                        "sources": ["config/data.json", "src/app.js", "src/app.tsx", "src/main.ts", "src/view.jsx"],
                         "tool": "biome",
                     },
-                    {
-                        "classes": ["json"],
-                        "sources": ["config/data.json"],
-                        "tool": "prettier",
-                    },
-                ],
-            ),
-            expect_equal(
-                "consumer prettier selection formats javascript without biome",
-                pipeline_stages(
-                    ["javascript"],
-                    "format",
-                    {"javascript": ["prettier"]},
-                    REAL_CLASS_TO_FAMILY,
-                    REAL_ADAPTERS,
-                ),
-                [
-                    {"classes": ["javascript"], "tool": "prettier"},
                 ],
             ),
             expect_equal(

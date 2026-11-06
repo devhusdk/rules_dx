@@ -142,18 +142,19 @@ These fail: `disabled` without `extends`, a disabled ID the base lacks, a family
 | Family | Format | Lint | Typecheck |
 | --- | --- | --- | --- |
 | `astro` | `prettier` | `typos` | `tsc` |
-| `cc` | `clang_format` | `typos` | disabled |
+| `cc` | `clang_format` | `clang_tidy`, `typos` | disabled |
+| `core` | `yamlfmt` | `actionlint`, `zizmor` | disabled |
 | `dockerfile` | disabled | `hadolint`, `typos` | disabled |
-| `go` | `gofumpt` | `typos` | `gotype` |
+| `go` | `gofumpt` | `errcheck`, `govet`, `staticcheck`, `typos` | `gotype` |
 | `graphql` | `prettier` | `typos` | disabled |
 | `html` | `prettier` | `typos` | disabled |
-| `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs`, `typos` | `javac` |
+| `java` | `google_java_format` | `pmd`, `spotbugs`, `typos` | `javac` |
 | `javascript` | `biome` | `biome`, `typos` | disabled |
-| `json` | `prettier` | `biome` | disabled |
-| `kotlin` | `ktfmt` | `ktlint`, `typos` | `kotlinc` |
-| `markdown` | disabled | `lychee`, `markdown_check`, `typos`, `vale` | disabled |
-| `mdx` | `remark` | `typos` | disabled |
-| `python` | `ruff` | `pydoclint`, `ruff`, `typos`, `vulture` | `ty` |
+| `json` | `biome` | `biome` | disabled |
+| `kotlin` | `ktfmt` | `detekt`, `typos` | `kotlinc` |
+| `markdown` | disabled | `lychee`, `markdown_check`, `typos` | disabled |
+| `mdx` | `remark` | `lychee`, `typos` | disabled |
+| `python` | `ruff` | `ruff`, `typos` | `ty` |
 | `rust` | `rustfmt` | `clippy`, `typos` | `rustc` |
 | `scala` | `scalafmt` | `typos` | `scalac` |
 | `shell` | `shfmt` | `shellcheck`, `typos` | disabled |
@@ -163,6 +164,7 @@ These fail: `disabled` without `extends`, a disabled ID the base lacks, a family
 | `toml` | `taplo` | `taplo`, `typos` | disabled |
 | `typescript` | `biome` | `biome`, `typos` | `tsc` |
 | `vue` | `prettier` | `typos` | disabled |
+| `yaml` | `yamlfmt` | `yamllint` | disabled |
 
 Families outside this table are opt-in: select their tools in your own policy.
 
@@ -227,7 +229,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | Tool | Checks | Not on |
 | --- | --- | --- |
 | `google_java_format` | Format Java | |
-| `checkstyle`, `pmd`, `spotbugs` | Lint Java | |
+| `pmd`, `spotbugs` | Lint Java | |
 | `javac` | Typecheck Java | |
 | `ktfmt` | Format Kotlin | |
 | `ktlint` | Lint Kotlin | |

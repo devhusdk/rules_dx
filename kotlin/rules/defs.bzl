@@ -3,7 +3,7 @@
 load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_library = "kt_jvm_library", _kt_jvm_test = "kt_jvm_test")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forwarded_run_environment", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
@@ -58,6 +58,18 @@ _kotlin_binary_forward = dx_executable_forward_rule(
     toolchains = [_KT_TOOLCHAIN_TYPE],
 )
 
+_KOTLIN_TEST_MAIN_CLASS = "com.google.testing.junit.runner.BazelTestRunner"
+
+def _kotlin_test_coverage(ctx, upstream):
+    """Names the test main class for JacocoCoverageRunner; the Windows launcher does not export it."""
+    if InstrumentedFilesInfo not in upstream:
+        fail("kotlin_*: upstream target has no InstrumentedFilesInfo: " + str(upstream.label))
+    return struct(
+        instrumented = upstream[InstrumentedFilesInfo],
+        env = dx_forwarded_run_environment(upstream, {"JACOCO_MAIN_CLASS": ctx.attr.main_class}),
+        runfiles = None,
+    )
+
 _kotlin_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES,
@@ -66,8 +78,12 @@ _kotlin_forward_test = dx_executable_forward_rule(
     what = "kotlin_*",
     allow_files = True,
     upstream_providers = [[JavaInfo]],
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dict(
+        dx_lcov_merger_attr(),
+        main_class = attr.string(default = _KOTLIN_TEST_MAIN_CLASS),
+    ),
     optional_providers = [JavaInfo],
+    coverage_providers = _kotlin_test_coverage,
 )
 
 def _kotlin_werror_opts_impl(ctx):
@@ -156,4 +172,13 @@ def kotlin_test(name, srcs = None, visibility = None, **kwargs):
     upstream_kwargs = kotlin_test_entry_kwargs(name, srcs, package, kotlin_kotlinc_opts_with_werror(name, kwargs))
     if upstream_kwargs.get("test_class") in (None, "") and upstream_kwargs.get("main_class") in (None, ""):
         fail("kotlin_test //{}:{}: cannot infer test_class from srcs; set test_class.".format(package, name))
-    dx_wrap_test(name, _kt_jvm_test, _kotlin_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
+    dx_wrap_test(
+        name,
+        _kt_jvm_test,
+        _kotlin_forward_test,
+        srcs,
+        visibility = visibility,
+        upstream_kwargs = upstream_kwargs,
+        extra_forward_kwargs = {"main_class": upstream_kwargs.get("main_class") or _KOTLIN_TEST_MAIN_CLASS},
+        **dx_without_warnings_attr(kwargs)
+    )

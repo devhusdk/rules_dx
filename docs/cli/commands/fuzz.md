@@ -18,7 +18,7 @@ Go: `go_fuzz_test(name, fuzz = "FuzzParse", srcs = ..., ...)` from `//go/rules:d
 
 Python: `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` from `//python/rules:defs.bzl` declares a binary that calls `atheris.Setup` and `atheris.Fuzz`, tags it and adds the `<name>_run` runner. Linux x86_64 only: there is no atheris wheel for Windows.
 
-Rust: `rust_fuzz_test(name, srcs, crate_root = ...)` from `//rust/rules:defs.bzl` builds a `libfuzzer-sys` binary with sancov and AddressSanitizer using `RUSTC_BOOTSTRAP=1` and the pinned LLVM's libFuzzer, tags it and adds the `<name>_run` runner. The source is `#![no_main]` and calls `fuzz_target!`. Tested on linux x86_64 only.
+Rust: `rust_fuzz_test(name, srcs, crate_root = ...)` from `//rust/rules:defs.bzl` builds a `libfuzzer-sys` binary with sancov and AddressSanitizer using `RUSTC_BOOTSTRAP=1` and the pinned LLVM's libFuzzer, tags it and adds the `<name>_run` runner. The source is `#![no_main]` and calls `fuzz_target!`. `libfuzzer-sys` comes from rules_dx's pinned crate hub by default; pass `libfuzzer_sys = "@<your_hub>//:libfuzzer-sys"` to use your own hub, for example when you use `arbitrary`. Tested on linux x86_64 only.
 
 | Flag | What it does |
 | --- | --- |

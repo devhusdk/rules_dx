@@ -381,6 +381,7 @@ hermetic_qualification(
     module_fragment = "consumers/proto_bindings/module_fragment.bazel",
     patterns = ["//..."],
     smoke = True,
+    timeout = "long",
 )
 
 hermetic_qualification(

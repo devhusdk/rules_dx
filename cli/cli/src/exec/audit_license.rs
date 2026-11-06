@@ -236,12 +236,8 @@ pub(super) fn run_license(
         }
         // The exception matches the whole expression, so it approves every leaf.
         let approved = |_: &str| -> bool { approved_hit };
-        let outcome = dx_audit::license_expr::evaluate_license(
-            &licensed.license,
-            tier,
-            &lookup,
-            &approved,
-        );
+        let outcome =
+            dx_audit::license_expr::evaluate_license(&licensed.license, tier, &lookup, &approved);
         let fails = dx_audit::license_expr::fails_in_tier(outcome, tier);
         let level = if fails { "error" } else { "info" };
         let text_present = notice_present

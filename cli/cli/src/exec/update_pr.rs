@@ -454,11 +454,7 @@ fn publish(
             locks,
         };
         let result = publish_one(root, tools, group, labels, &ctx, step);
-        if existing.is_none()
-            && result
-                .as_ref()
-                .is_ok_and(|text| text.starts_with("opened"))
-        {
+        if existing.is_none() && result.as_ref().is_ok_and(|text| text.starts_with("opened")) {
             open.push((0, group.branch.clone()));
         }
         if result.is_err() {

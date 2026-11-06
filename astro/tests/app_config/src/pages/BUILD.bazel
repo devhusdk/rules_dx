@@ -1,8 +1,0 @@
-load("@rules_dx//astro/rules:defs.bzl", "astro_library")
-
-astro_library(
-    name = "index",
-    testonly = True,
-    srcs = ["index.astro"],
-    visibility = ["//visibility:public"],
-)

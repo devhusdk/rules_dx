@@ -13,5 +13,4 @@ PUBLIC_RUST_CRATES = [
     "//tools/docs/site/build:dx_site_build",
     "//tools/docs/site/check:dx_site_check",
     "//tools/docs/typescript/extract:dx_docs_typescript_extract",
-    "//wasi/testing:wasi_run",
 ]

@@ -17,6 +17,7 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:resolve rust dx_bep //cli/bep:dx_bep
 # gazelle:resolve rust dx_clean //cli/clean:dx_clean
 # gazelle:resolve rust dx_codegen //cli/codegen:dx_codegen
+# gazelle:resolve rust dx_config //cli/dx_config:dx_config
 # gazelle:resolve rust dx_diff //cli/diff:dx_diff
 # gazelle:resolve rust cc_context //cc/context:cc_context
 # gazelle:resolve rust dx_deploy_tools //deploy/rules:dx_deploy_tools

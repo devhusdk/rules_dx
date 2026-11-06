@@ -185,7 +185,10 @@ mod tests {
     fn a_package_directory_matches_the_manifest_beside_its_build_file() {
         let manifests = vec!["a/Cargo.toml".to_owned(), "b/Cargo.toml".to_owned()];
         assert_eq!(manifest_for(&manifests, "b").unwrap(), "b/Cargo.toml");
-        assert_eq!(manifest_for(&manifests, "b/src/lib.rs").unwrap(), "b/Cargo.toml");
+        assert_eq!(
+            manifest_for(&manifests, "b/src/lib.rs").unwrap(),
+            "b/Cargo.toml"
+        );
         assert_eq!(manifest_for(&manifests, "ab").unwrap(), "a/Cargo.toml");
     }
 

@@ -69,7 +69,7 @@ def _field(name, value):
             return line
         return "        %s: &[\n%s        ],\n" % (name, "".join(["            %s,\n" % _str(item) for item in value]))
     line = "        %s: %s,\n" % (name, value)
-    if len(line) <= 101:
+    if len(line) <= 101 or value.startswith('"'):
         return line
     return "        %s:\n            %s,\n" % (name, value)
 

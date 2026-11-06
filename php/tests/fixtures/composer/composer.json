@@ -1,0 +1,7 @@
+{
+    "name": "rules-dx/php-fixture",
+    "require": {
+        "psr/http-factory": "^1.1",
+        "symfony/deprecation-contracts": "^3.6"
+    }
+}

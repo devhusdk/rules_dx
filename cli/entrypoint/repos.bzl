@@ -130,12 +130,14 @@ _SETS_BUILD_BAZEL = '''genrule(
     outs = [
         "bad_kind.txt",
         "edit_cargo.txt",
+        "edit_composer.txt",
         "edit_pinned.txt",
         "edit_unsupported.txt",
         "license_json.txt",
         "nolock_license.txt",
         "security_cargo_json.txt",
         "security_cpan_json.txt",
+        "security_composer_json.txt",
         "security_json.txt",
         "security_npm_json.txt",
         "security_ruby_json.txt",
@@ -155,6 +157,9 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/perl/cpanfile",
         "sets_ok/perl/cpanfile.snapshot",
         "sets_ok/perl/cpanfile.snapshot.lock.json",
+        "sets_ok/apps/php/composer.json",
+        "sets_ok/apps/php/composer.lock",
+        "sets_ok/apps/php/composer.digests.json",
         "sets_bad/MODULE.bazel",
         "sets_bad/.dx/pins",
         "sets_nolock/MODULE.bazel",
@@ -186,6 +191,8 @@ crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(name = "crates", cargo_lockfile = "//apps/rs:Cargo.lock", manifests = ["//apps/rs:Cargo.toml"])
 cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
 cpan.install(name = "cpan_deps", lock = "//perl:cpanfile.snapshot.lock.json")
+composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
+composer.lock(name = "vendor", lock = "//apps/php:composer.lock", digests = "//apps/php:composer.digests.json")
 EOF
 echo "requires 'Text::CSV', '== 2.06';" > "$(location sets_ok/perl/cpanfile)"
 cat > "$(location sets_ok/perl/cpanfile.snapshot)" <<'EOF'
@@ -195,6 +202,10 @@ DISTRIBUTIONS
     pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz
 EOF
 echo '{"Text-CSV": {"strip_prefix": "Text-CSV-2.06"}}' > "$(location sets_ok/perl/cpanfile.snapshot.lock.json)"
+echo '{"require": {"psr/log": "^1.1"}}' > "$(location sets_ok/apps/php/composer.json)"
+echo '{"packages": [], "packages-dev": []}' > "$(location sets_ok/apps/php/composer.lock)"
+echo '{"packages": {}}' > "$(location sets_ok/apps/php/composer.digests.json)"
+cp "$(location sets_ok/apps/php/composer.json)" "$$orig/consumer_sets_composer_json.orig"
 cat > "$(location sets_ok/apps/rs/Cargo.toml)" <<'EOF'
 [package]
 name = "app"
@@ -262,7 +273,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
 fi
 grep -q "failed to assess pypi-frontend" "$(location security_json.txt)"
 grep -q ".dx/advisory/pypi.json" "$(location security_json.txt)"
-if grep -Eq 'no advisory coverage for [^"]*(pypi-frontend|gems|crates|cpan_deps|web|pypi-worker)' "$(location security_json.txt)"; then
+if grep -Eq 'no advisory coverage for [^"]*(pypi-frontend|gems|crates|cpan_deps|vendor|web|pypi-worker)' "$(location security_json.txt)"; then
   echo "security reported configured uv, npm, or ruby sets as uncovered" >&2
   exit 1
 fi
@@ -298,6 +309,21 @@ if "$$public" update --workspace "$$ok" crates >> "$(location edit_cargo.txt)" 2
 fi
 grep -q 'cannot resolve cargo hub "crates": MODULE.bazel must list "crates" in use_repo' "$(location edit_cargo.txt)"
 cmp "$$orig/consumer_sets_cargo_lock.orig" "$(location sets_ok/apps/rs/Cargo.lock)"
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" vendor > "$(location security_composer_json.txt)" 2>/dev/null; then
+  echo "security passed without a Packagist advisory snapshot" >&2
+  exit 1
+fi
+grep -q "failed to assess vendor" "$(location security_composer_json.txt)"
+grep -q ".dx/advisory/packagist.json" "$(location security_composer_json.txt)"
+if grep -q "no advisory coverage" "$(location security_composer_json.txt)"; then
+  echo "security reported a configured composer set as uncovered" >&2
+  exit 1
+fi
+if "$$public" update vendor:acme/other 1.0.0 --apply --workspace "$$ok" > "$(location edit_composer.txt)" 2>&1; then
+  echo "update declared a package in a configured composer set" >&2
+  exit 1
+fi
+cmp "$$orig/consumer_sets_composer_json.orig" "$(location sets_ok/apps/php/composer.json)"
 "$$public" update --workspace "$$ok" gems > "$(location update_pinned.txt)" 2>&1
 grep -q "gems pins are manual" "$(location update_pinned.txt)"
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" gems > "$(location security_ruby_json.txt)" 2>/dev/null; then

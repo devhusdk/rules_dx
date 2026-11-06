@@ -249,6 +249,21 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
         edit.contains("cannot resolve cargo hub \"crates\""),
         "update refuses a cargo hub missing from use_repo: {edit}"
     );
+    let composer = read("DX_SETS_SECURITY_COMPOSER");
+    assert!(
+        composer.contains("failed to assess vendor")
+            && composer.contains(".dx/advisory/packagist.json"),
+        "audit checks configured composer sets against the Packagist snapshot: {composer}"
+    );
+    assert!(
+        !composer.contains("no advisory coverage"),
+        "configured composer sets have advisory coverage: {composer}"
+    );
+    let edit = read("DX_SETS_EDIT_COMPOSER");
+    assert!(
+        edit.contains("acme/other"),
+        "update refuses an undeclared composer package: {edit}"
+    );
 }
 
 #[test]

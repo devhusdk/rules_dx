@@ -5,6 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "composer.digests.json",
+    "composer.json",
     "composer.lock",
 ])
 

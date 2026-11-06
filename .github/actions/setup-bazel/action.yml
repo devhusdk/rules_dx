@@ -1,57 +1,48 @@
 name: setup-bazel
-description: Install the pinned Bazelisk with bazel-contrib/setup-bazel and restore the shared Bazel repository cache.
+description: Install Bazelisk with bazel-contrib/setup-bazel and locate the Bazel repository cache.
 inputs:
   cache-save:
-    description: Save the Bazelisk cache.
+    description: Save the setup-bazel caches.
     required: false
     default: "false"
-  restore-repository-cache:
-    description: Restore the shared Bazel repository cache.
+  bazelisk-version:
+    description: Bazelisk version. Defaults to BAZELISK_VERSION in tools/bazelisk/pin.env when that file exists.
     required: false
-    default: "true"
+    default: ""
+  bazelrc:
+    description: Lines for ~/.bazelrc, which Bazel reads after the workspace rc files.
+    required: false
+    default: ""
 outputs:
   repository-cache-root:
     description: The Bazel repository cache directory.
     value: ${{ steps.repo-cache.outputs.path }}
-  repository-cache-path:
-    description: The content_addressable directory the cache saves.
-    value: ${{ steps.repo-cache.outputs.path }}/content_addressable
-  repository-cache-key:
-    description: The key the cache saves under.
-    value: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
-  repository-cache-hit:
-    description: Whether the restore hit the exact key.
-    value: ${{ steps.repo-cache-restore.outputs.cache-hit }}
 runs:
   using: composite
   steps:
-    - name: Read the Bazelisk pin
+    - name: Resolve the setup inputs
       id: pin
       shell: bash
+      env:
+        BAZELISK_VERSION_INPUT: ${{ inputs.bazelisk-version }}
       run: |
-        version="$(sed -n 's/^BAZELISK_VERSION=//p' tools/bazelisk/pin.env)"
-        test -n "$version"
+        version="$BAZELISK_VERSION_INPUT"
+        if [ -z "$version" ] && [ -f tools/bazelisk/pin.env ]; then
+          version="$(sed -n 's/^BAZELISK_VERSION=//p' tools/bazelisk/pin.env)"
+        fi
         echo "version=$version" >> "$GITHUB_OUTPUT"
+        if [ "$RUNNER_OS" = Windows ] && [ -z "${BAZEL_SH:-}" ] && [ -x /usr/bin/bash.exe ]; then
+          echo "BAZEL_SH=$(cygpath -m /usr/bin/bash.exe)" >> "$GITHUB_ENV"
+        fi
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}
-        bazelisk-cache: true
+        bazelisk-cache: false
         cache-save: ${{ inputs.cache-save }}
+        bazelrc: ${{ inputs.bazelrc }}
     - name: Locate the Bazel repository cache
       id: repo-cache
       shell: bash
       run: |
         path="$(bazel info repository_cache)"
         echo "path=$path" >> "$GITHUB_OUTPUT"
-    - name: Restore the Bazel repository cache
-      id: repo-cache-restore
-      if: ${{ inputs.restore-repository-cache == 'true' }}
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-        key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-        restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-    - name: Stamp the restored Bazel repository cache
-      if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-      shell: bash
-      run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"

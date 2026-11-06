@@ -647,7 +647,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Build the bootstrap closure
@@ -721,58 +720,6 @@ jobs:
         run: |
           line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
-      - name: Prune the Bazel repository cache to this run's downloads
-        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.setup.outputs.repository-cache-hit != 'true' && steps.setup.outputs.repository-cache-root != '' }}
-        shell: bash
-        env:
-          DX_REPO_CACHE: ${{ steps.setup.outputs.repository-cache-path }}
-        run: |
-          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
-          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
-          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
-            exit 0
-          fi
-          pruned=0
-          for entry in "$DX_REPO_CACHE"/*/*/; do
-            entry="${entry%/}"
-            [ -d "$entry" ] || continue
-            if [ ! "$entry/file" -nt "$stamp" ]; then
-              rm -rf "$entry"
-              pruned=$((pruned + 1))
-            fi
-          done
-          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
-          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.setup.outputs.repository-cache-hit != 'true' && steps.setup.outputs.repository-cache-root != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.setup.outputs.repository-cache-path }}
-          key: ${{ steps.setup.outputs.repository-cache-key }}
-  repo-cache-prune:
-    name: repo-cache-prune (keep newest repository cache per platform)
-    needs: [preflight]
-    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      actions: write
-    steps:
-      - name: Delete older repository caches
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          for p in Linux-X64 Linux-ARM64 macOS-ARM64 Windows-X64 Windows-ARM64; do
-            for id in $(gh cache list --key "dx-repo-$p-" --ref refs/heads/main --sort created_at --order desc --limit 100 --json id --jq '.[1:][].id'); do
-              gh cache delete "$id"
-            done
-          done
-          {
-            echo "### Remaining repository caches"
-            gh cache list --key "dx-repo-" --ref refs/heads/main --limit 100 --json key,sizeInBytes --jq '.[] | "\(.key) \(.sizeInBytes)"'
-          } >> "$GITHUB_STEP_SUMMARY"
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
     timeout-minutes: 15

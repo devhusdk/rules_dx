@@ -471,7 +471,6 @@ rust_test(
     name = "setup_bazel_test",
     srcs = ["setup_bazel_test.rs"],
     data = [
-        ":input_validation.rs",
         "//.github:actions",
         "//.github:workflows",
         "//ci/gitlab:dx.gitlab-ci.yml",

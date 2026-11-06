@@ -252,10 +252,7 @@ _raw_cc_library(
     name = "native_md",
     srcs = ["native.c"],
     hdrs = ["native.h"],
-    features = [
-        "-static_link_msvcrt",
-        "dynamic_link_msvcrt",
-    ],
+    copts = ["/MD"],
     tags = ["manual"],
 )
 

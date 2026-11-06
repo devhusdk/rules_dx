@@ -31,8 +31,6 @@ def _dx_msvc_crt_aspect_impl(target, ctx):
                 crt_static = crt_static or dep[DxMsvcCrtInfo].crt_static
                 transitive.append(dep[DxMsvcCrtInfo].dynamic)
     for action in target.actions:
-        if action.mnemonic in ["Rustc", "CppCompile"]:
-            print("DXDBG", target.label, action.mnemonic, action.argv)  # buildifier: disable=print
         if action.mnemonic == "Rustc" and _crt_static(action.argv or []):
             crt_static = True
         elif action.mnemonic == "CppCompile" and any([flag in (action.argv or []) for flag in _DYNAMIC]):

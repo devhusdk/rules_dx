@@ -22,7 +22,17 @@ fn identity_records_the_os_supplied_runtime() {
             .lines()
             .filter_map(|line| line.strip_prefix("runtime: "))
             .collect();
-        if want.is_empty() {
+        let tasks_record = std::env::var("DX_QT_TASKS_RECORD")
+            .ok()
+            .filter(|_| archive.to_string_lossy().contains("tasks_release"));
+        if let Some(record) = tasks_record {
+            assert_eq!(
+                records,
+                [record.as_str()],
+                "{}: {identity}",
+                archive.display()
+            );
+        } else if want.is_empty() {
             assert!(records.is_empty(), "{}: {identity}", archive.display());
         } else if let Some((head, tail)) = want.split_once('*') {
             assert!(

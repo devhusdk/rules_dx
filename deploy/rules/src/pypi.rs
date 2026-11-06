@@ -630,28 +630,30 @@ mod tests {
         let repo = scratch.path().join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");
         write_crate_file(&repo, "src/pkg/__init__.py", "def hello(): ...\n");
-        for args in [
-            vec!["init", "-q"],
-            vec!["add", "."],
-            vec![
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@example.com",
-                "commit",
-                "-q",
-                "-m",
-                "x",
-            ],
-            vec!["tag", "v1.2.0"],
-        ] {
-            let status = std::process::Command::new("git")
-                .args(&args)
-                .current_dir(&repo)
-                .status()
-                .expect("git");
-            assert!(status.success(), "git {args:?}");
-        }
+        with_env(&[], || {
+            for args in [
+                vec!["init", "-q"],
+                vec!["add", "."],
+                vec![
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@example.com",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "x",
+                ],
+                vec!["tag", "v1.2.0"],
+            ] {
+                let status = std::process::Command::new("git")
+                    .args(&args)
+                    .current_dir(&repo)
+                    .status()
+                    .expect("git");
+                assert!(status.success(), "git {args:?}");
+            }
+        });
         let args_log = scratch.path().join("args");
         let fake = scratch.path().join("griffe");
         std::fs::write(

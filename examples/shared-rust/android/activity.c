@@ -55,6 +55,8 @@ static void on_destroy(ANativeActivity *activity) {
   LOG("lifecycle=destroy");
 }
 
+static ANativeActivity *g_activity;
+
 static int drain_input(int fd, int events, void *data) {
   (void)fd;
   (void)events;
@@ -68,7 +70,10 @@ static int drain_input(int fd, int events, void *data) {
     int handled = 1;
     if (type == AINPUT_EVENT_TYPE_KEY &&
         AKeyEvent_getKeyCode(event) == AKEYCODE_BACK) {
-      handled = 0;
+      handled = 1;
+      if (AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP) {
+        ANativeActivity_finish(g_activity);
+      }
     } else if (type == AINPUT_EVENT_TYPE_MOTION &&
         (AMotionEvent_getAction(event) & AMOTION_EVENT_ACTION_MASK) ==
             AMOTION_EVENT_ACTION_DOWN) {
@@ -84,7 +89,7 @@ static int drain_input(int fd, int events, void *data) {
 
 static void on_input_queue_created(ANativeActivity *activity,
                                    AInputQueue *queue) {
-  (void)activity;
+  g_activity = activity;
   AInputQueue_attachLooper(queue, ALooper_forThread(), ALOOPER_POLL_CALLBACK,
                            drain_input, queue);
 }

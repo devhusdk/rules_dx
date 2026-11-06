@@ -2,6 +2,8 @@ load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library", "kotlin_test")
 
 _PUBLIC = ["//visibility:public"]
 
+# gazelle:exclude without_gson
+
 genrule(
     name = "build_info",
     srcs = ["VERSION"],
@@ -11,12 +13,13 @@ genrule(
 
 kotlin_library(
     name = "grades",
+    testonly = True,
     srcs = [
         "GradeException.kt",
         "GradeReader.kt",
         "Stats.kt",
         "Student.kt",
-        ":build_info",
+        ":build_info",  # keep
     ],
     resource_strip_prefix = "kotlin/tests/fixtures/kotlin-app",
     resources = ["grades.json"],
@@ -25,21 +28,6 @@ kotlin_library(
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_guava_guava",
     ],
-)
-
-kotlin_library(
-    name = "grades_without_gson",
-    srcs = [
-        "GradeException.kt",
-        "GradeReader.kt",
-        "Stats.kt",
-        "Student.kt",
-        ":build_info",
-    ],
-    resource_strip_prefix = "kotlin/tests/fixtures/kotlin-app",
-    resources = ["grades.json"],
-    tags = ["manual"],
-    deps = ["@maven//:com_google_guava_guava"],
 )
 
 kotlin_test(
@@ -73,4 +61,16 @@ kotlin_test(
         "@maven//:com_google_guava_guava",
         "@maven//:junit_junit",
     ],
+)
+
+filegroup(
+    name = "grades_srcs",
+    srcs = [
+        "GradeException.kt",
+        "GradeReader.kt",
+        "Stats.kt",
+        "Student.kt",
+        ":build_info",
+    ],
+    visibility = _PUBLIC,
 )

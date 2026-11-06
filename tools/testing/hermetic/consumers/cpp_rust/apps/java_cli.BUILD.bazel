@@ -1,23 +1,22 @@
 load("@rules_dx//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
+# gazelle:exclude indirect
 # gazelle:resolve java billing.BuildInfo //java/tests/fixtures/java-app/billing
+
+_PUBLIC = ["//visibility:public"]
 
 java_library(
     name = "cli",
+    testonly = True,
     srcs = ["Cli.java"],
+    visibility = _PUBLIC,
     deps = ["//java/tests/fixtures/java-app/billing"],
-)
-
-java_library(
-    name = "cli_indirect",
-    srcs = ["Cli.java"],
-    tags = ["manual"],
-    deps = [":cli"],
 )
 
 java_binary(
     name = "invoice",
+    testonly = True,
     srcs = ["Main.java"],
     main_class = "cli.Main",
     deps = [":cli"],
@@ -27,10 +26,7 @@ java_test(
     name = "cli_test",
     srcs = ["CliTest.java"],
     test_class = "cli.CliTest",
-    deps = [
-        ":cli",
-        "@maven//:junit_junit",
-    ],
+    deps = [":cli"],
 )
 
 sh_test(
@@ -44,5 +40,11 @@ java_test(
     name = "consumer_choice_test",
     srcs = ["ConsumerChoiceTest.java"],
     test_class = "cli.ConsumerChoiceTest",
-    deps = ["@maven//:junit_junit"],
+    deps = [":cli"],
+)
+
+filegroup(
+    name = "cli_srcs",
+    srcs = ["Cli.java"],
+    visibility = _PUBLIC,
 )

@@ -1,0 +1,8 @@
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
+
+kotlin_library(
+    name = "without_gson",
+    srcs = ["//kotlin/tests/fixtures/kotlin-app/grades:grades_srcs"],
+    tags = ["manual"],
+    deps = ["@maven//:com_google_guava_guava"],
+)

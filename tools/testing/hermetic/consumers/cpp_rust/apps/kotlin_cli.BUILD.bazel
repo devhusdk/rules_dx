@@ -3,14 +3,19 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 # gazelle:resolve kotlin grades.BuildInfo //kotlin/tests/fixtures/kotlin-app/grades
 
+_PUBLIC = ["//visibility:public"]
+
 kotlin_library(
     name = "cli",
+    testonly = True,
     srcs = ["Cli.kt"],
+    visibility = _PUBLIC,
     deps = ["//kotlin/tests/fixtures/kotlin-app/grades"],
 )
 
 kotlin_binary(
     name = "grades",
+    testonly = True,
     srcs = ["Main.kt"],
     main_class = "cli.MainKt",
     deps = [":cli"],
@@ -37,5 +42,8 @@ kotlin_test(
     name = "consumer_choice_test",
     srcs = ["ConsumerChoiceTest.kt"],
     test_class = "cli.ConsumerChoiceTest",
-    deps = ["@maven//:junit_junit"],
+    deps = [
+        ":cli",
+        "@maven//:junit_junit",
+    ],
 )

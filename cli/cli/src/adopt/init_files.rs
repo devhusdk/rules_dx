@@ -610,6 +610,87 @@ mod tests {
         scratch.close().expect("cleanup");
     }
 
+    #[test]
+    fn fresh_init_files_start_with_their_header_where_the_format_has_comments() {
+        let scratch = dx_test_scratch::scratch("dx-init-headers-");
+        let root = scratch.path();
+        let files = plan(root, "my_project", true, &[]).expect("plan");
+        let commentless = [
+            ".bazelversion",
+            ".dx/pins",
+            ".devcontainer/devcontainer.json",
+            ".vscode/settings.json",
+            ".vscode/extensions.json",
+        ];
+        let mut headed = 0;
+        for file in &files {
+            let owned_by_scaffold = matches!(file.kind, super::Kind::Scaffold(_))
+                || file.path == ".bazelrc"
+                || file.path == ".gitignore";
+            if !owned_by_scaffold {
+                continue;
+            }
+            if commentless.contains(&file.path.as_str()) {
+                assert!(!file.content.starts_with("# dx:"), "{}", file.path);
+                continue;
+            }
+            let header = file.ownership().header(&file.path, None).expect(&file.path);
+            assert_eq!(
+                file.content.lines().next(),
+                Some(header.as_str()),
+                "{}",
+                file.path
+            );
+            headed += 1;
+        }
+        assert!(headed >= 10, "{headed}");
+        assert!(files.iter().any(|file| file.path == "MODULE.bazel"));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_workspace_with_only_the_fresh_files_is_still_fresh() {
+        let scratch = dx_test_scratch::scratch("dx-init-headers-fresh-");
+        let root = scratch.path();
+        for file in dx_adopt::plan_fresh_files("demo") {
+            std::fs::write(root.join(&file.path), &file.content).expect("write");
+        }
+        assert!(dx_adopt::is_fresh_dir(root));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn init_keeps_hand_written_files_after_a_fresh_init() {
+        let scratch = dx_test_scratch::scratch("dx-init-headers-keep-");
+        let root = scratch.path();
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let ci = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("ci");
+        assert!(ci.starts_with("# dx: yours, except the rules_dx pin\n"));
+
+        let other = dx_test_scratch::scratch("dx-init-headers-hand-");
+        let root = other.path();
+        std::fs::write(root.join("main.rs"), "fn main() {}\n").expect("source");
+        std::fs::write(root.join(".editorconfig"), "root = true\n").expect("editorconfig");
+        std::fs::write(root.join(".gitignore"), "target/\n").expect("gitignore");
+        std::fs::create_dir_all(root.join(".github/workflows")).expect("workflows");
+        let hand = ci.lines().skip(1).collect::<Vec<_>>().join("\n") + "\n";
+        std::fs::write(root.join(".github/workflows/ci.yml"), &hand).expect("ci");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let read = |path: &str| std::fs::read_to_string(root.join(path)).expect(path);
+        assert_eq!(read(".editorconfig"), "root = true\n");
+        assert!(read(".gitignore").starts_with("target/\n"));
+        assert!(!read(".gitignore").contains("dx: yours"));
+        assert_eq!(read(".github/workflows/ci.yml"), hand);
+        let drift = drift_of(root);
+        for path in [".editorconfig", ".gitignore", ".github/workflows/ci.yml"] {
+            assert!(!drift.stale.iter().any(|stale| stale == path), "{path}");
+        }
+        other.close().expect("cleanup");
+        scratch.close().expect("cleanup");
+    }
+
     const INIT_DOC: &str = include_str!("../../../../docs/cli/commands/init.md");
 
     /// The `(paths, label)` of each row in the "Fixed file set" table.

@@ -129,6 +129,8 @@ touches after you edit the file:
 
 `dx status --files` lists every planned file with its label and state.
 
+A file that dx creates and whose format has comments starts with a one-line `dx:` comment that says what dx does to it. JSON and Markdown files, `.bazelversion` and `.dx/pins` have none. A file that already exists keeps its bytes.
+
 | Path | dx owns | What `dx init --apply` updates |
 | --- | --- | --- |
 | `.dx/pins` | whole | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx upgrade --apply` deletes the old `.dx/version`. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |

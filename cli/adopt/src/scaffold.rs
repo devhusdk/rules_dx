@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use crate::Ownership;
+
 use super::{plan_profile_files, release_pins, AdoptError, Profile, DX_VERSION};
 
 /// How a scaffold file is treated when it already exists.
@@ -79,7 +81,16 @@ pub const BAZELIGNORE_LINES: [&str; 12] = [
     ".dx/bench",
 ];
 
-/// Content `dx init` writes to a new `.bazelignore`.
+/// `body` under the one-line header that says what dx does to `path`; `body` alone when the
+/// format has no comments.
+pub(crate) fn with_header(ownership: Ownership, path: &str, body: &str) -> String {
+    match ownership.header(path, None) {
+        Some(header) => format!("{header}\n{body}"),
+        None => body.to_owned(),
+    }
+}
+
+/// The `.bazelignore` lines `dx init` writes, without the header.
 pub fn bazelignore_content() -> String {
     format!("{}\n", BAZELIGNORE_LINES.join("\n"))
 }
@@ -94,6 +105,9 @@ pub fn bazelignore_has_bare_dx(text: &str) -> bool {
 }
 
 fn merge_bazelignore(existing: &str, generated: &str) -> String {
+    let generated = generated
+        .strip_prefix(&with_header(Ownership::Lines, ".bazelignore", ""))
+        .unwrap_or(generated);
     let mut out = String::new();
     let mut replaced = false;
     for line in existing.split_inclusive('\n') {
@@ -323,23 +337,25 @@ pub fn render_consumer_caller() -> String {
 }
 
 pub fn render_consumer_caller_for(branch: &str) -> String {
-    format!(
+    let body = format!(
         "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      contents: read\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
         pin = CONSUMER_WORKFLOW_PIN,
-    )
+    );
+    with_header(Ownership::Pin, ".github/workflows/ci.yml", &body)
 }
 
 pub fn render_release_caller() -> String {
-    format!(
+    let body = format!(
         "name: release\non:\n  push:\n    tags: ['v*']\njobs:\n  release:\n    uses: {owner}/{repo}/{path}@{pin}\n    secrets: inherit\n    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n      packages: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = RELEASE_WORKFLOW_PATH,
         pin = CONSUMER_WORKFLOW_PIN,
-    )
+    );
+    with_header(Ownership::Pin, ".github/workflows/release.yml", &body)
 }
 
 fn editor_settings_value() -> serde_json::Value {
@@ -532,22 +548,26 @@ fn plan_init_files_full(
         },
         ScaffoldFile {
             path: ".bazelignore".to_owned(),
-            content: bazelignore_content(),
+            content: with_header(Ownership::Lines, ".bazelignore", &bazelignore_content()),
             kind: FileKind::Bazelignore,
         },
         ScaffoldFile {
             path: ".editorconfig".to_owned(),
-            content: editorconfig_content(extensions),
+            content: with_header(
+                Ownership::Keys,
+                ".editorconfig",
+                &editorconfig_content(extensions),
+            ),
             kind: FileKind::EditorconfigKeys,
         },
         ScaffoldFile {
             path: ".gitattributes".to_owned(),
-            content: GITATTRIBUTES_CONTENT.to_owned(),
+            content: with_header(Ownership::Once, ".gitattributes", GITATTRIBUTES_CONTENT),
             kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".envrc".to_owned(),
-            content: ENVRC_CONTENT.to_owned(),
+            content: with_header(Ownership::Once, ".envrc", ENVRC_CONTENT),
             kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
@@ -567,7 +587,11 @@ fn plan_init_files_full(
         },
         ScaffoldFile {
             path: ".github/workflows/dx-update.yml".to_owned(),
-            content: DX_UPDATE_WORKFLOW.to_owned(),
+            content: with_header(
+                Ownership::Once,
+                ".github/workflows/dx-update.yml",
+                DX_UPDATE_WORKFLOW,
+            ),
             kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
@@ -864,7 +888,7 @@ mod tests {
             .iter()
             .find(|f| f.path == ".envrc")
             .expect("envrc scaffold");
-        assert_eq!(envrc.content, super::ENVRC_CONTENT);
+        assert!(envrc.content.ends_with(super::ENVRC_CONTENT));
         assert!(envrc.content.contains("tools/dx env --shell=direnv"));
         assert!(!envrc.content.contains(".dx"));
     }
@@ -1088,10 +1112,12 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-editorconfig-new-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
-        assert_eq!(editorconfig_file(&root).content, EDITORCONFIG_CONTENT);
+        assert!(editorconfig_file(&root)
+            .content
+            .ends_with(EDITORCONFIG_CONTENT));
         std::fs::write(root.join("Main.kt"), "fun main() {}\n").expect("kt");
         let content = editorconfig_file(&root).content;
-        assert!(content.starts_with(EDITORCONFIG_CONTENT));
+        assert!(content.contains(EDITORCONFIG_CONTENT));
         assert!(content.ends_with(
             "\n[*.{kt,kts}]\nktlint_code_style = intellij_idea\nij_kotlin_imports_layout = *\n\
              ktlint_standard_function-signature = disabled\n\
@@ -1264,7 +1290,10 @@ mod tests {
             })
             .map(|l| format!("{l}\n"))
             .collect();
-        assert_eq!(generated, without_defaults);
+        assert_eq!(
+            generated.lines().skip(1).collect::<Vec<_>>(),
+            without_defaults.lines().collect::<Vec<_>>()
+        );
     }
 
     #[test]

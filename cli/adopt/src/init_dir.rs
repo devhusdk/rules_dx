@@ -3,7 +3,8 @@
 use std::path::Path;
 
 use super::AdoptError;
-use crate::scaffold::{FileKind, ScaffoldFile};
+use crate::scaffold::{with_header, FileKind, ScaffoldFile};
+use crate::Ownership;
 
 /// The module name `dx init` uses for the current directory.
 pub const DEFAULT_INIT_MODULE: &str = "my_project";
@@ -150,7 +151,10 @@ fn is_fresh_module(path: &Path) -> bool {
     let Ok(text) = std::fs::read_to_string(path) else {
         return false;
     };
+    let header = with_header(Ownership::Lines, "MODULE.bazel", "");
     let Some(module) = text
+        .strip_prefix(header.as_str())
+        .unwrap_or(&text)
         .strip_prefix("module(name = \"")
         .and_then(|rest| rest.split_once('"'))
         .map(|(name, _)| name)
@@ -166,10 +170,14 @@ pub fn plan_fresh_files(module: &str) -> Vec<ScaffoldFile> {
     vec![
         ScaffoldFile {
             path: "MODULE.bazel".to_owned(),
-            content: format!(
-                "module(name = \"{module}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\ninclude(\"{}\")\n",
-                super::DX_VERSION,
-                crate::overrides::OVERRIDES_INCLUDE
+            content: with_header(
+                Ownership::Lines,
+                "MODULE.bazel",
+                &format!(
+                    "module(name = \"{module}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\ninclude(\"{}\")\n",
+                    super::DX_VERSION,
+                    crate::overrides::OVERRIDES_INCLUDE
+                ),
             ),
             kind: FileKind::WriteOnce,
         },
@@ -302,7 +310,9 @@ mod tests {
             "bazel_dep(name = \"rules_dx\", version = \"{}\")",
             super::super::DX_VERSION
         )));
-        assert!(module.content.starts_with("module(name = \"demo\")\n"));
+        assert!(module
+            .content
+            .starts_with("# dx: yours; dx adds its missing lines\nmodule(name = \"demo\")\n"));
     }
 
     #[test]

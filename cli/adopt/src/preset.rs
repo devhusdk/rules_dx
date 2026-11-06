@@ -12,7 +12,8 @@ use crate::preset_fragment::{
     render_layer_with, ImportState, Layer, CONSUMER_DIR, REPO_DIR,
 };
 use crate::profiles::Profile;
-use crate::scaffold::{scaffold_dest_within_root, Applied};
+use crate::scaffold::{scaffold_dest_within_root, with_header, Applied};
+use crate::Ownership;
 
 /// The root `.bazelrc` file.
 pub const BAZELRC: &str = ".bazelrc";
@@ -216,10 +217,21 @@ pub fn preset_files(root: &Path, profile: Option<Profile>) -> Vec<(String, Strin
         .map(|layer| dx_preset::import_line(CONSUMER_DIR, *layer))
         .collect();
     let mut files = vec![
-        (BAZELRC.to_owned(), format!("{}\n", imports.join("\n"))),
+        (
+            BAZELRC.to_owned(),
+            with_header(
+                Ownership::Lines,
+                BAZELRC,
+                &format!("{}\n", imports.join("\n")),
+            ),
+        ),
         (
             GITIGNORE.to_owned(),
-            format!("{}\n", IGNORE_LINES.join("\n")),
+            with_header(
+                Ownership::Lines,
+                GITIGNORE,
+                &format!("{}\n", IGNORE_LINES.join("\n")),
+            ),
         ),
     ];
     files.extend(
@@ -310,6 +322,7 @@ fn ignores(lines: &[&str], entry: &str) -> bool {
 }
 
 fn ignore_with_missing(text: Option<String>) -> Option<String> {
+    let new_file = text.is_none();
     let mut text = text.unwrap_or_default();
     let lines: Vec<&str> = text.lines().collect();
     let missing: Vec<&str> = IGNORE_LINES
@@ -320,6 +333,9 @@ fn ignore_with_missing(text: Option<String>) -> Option<String> {
         return None;
     }
     let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
+    if new_file {
+        text = with_header(Ownership::Lines, GITIGNORE, "");
+    }
     if !text.is_empty() && !text.ends_with('\n') {
         text.push_str(eol);
     }
@@ -396,7 +412,10 @@ pub fn write_preset(
         applied.wrote.push(rel);
     }
     if state.will_import() {
-        let text = prepend_imports(&state.rc_text, CONSUMER_DIR, &Layer::ALL);
+        let mut text = prepend_imports(&state.rc_text, CONSUMER_DIR, &Layer::ALL);
+        if !state.rc_exists {
+            text = with_header(Ownership::Lines, BAZELRC, &text);
+        }
         write(root, BAZELRC, &text)?;
         applied.wrote.push(BAZELRC.to_owned());
     }
@@ -782,7 +801,7 @@ mod tests {
         }
         assert_eq!(
             ignore_with_missing(None).expect("all").lines().count(),
-            IGNORE_LINES.len()
+            IGNORE_LINES.len() + 1
         );
     }
 

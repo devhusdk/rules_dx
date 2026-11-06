@@ -1063,3 +1063,16 @@ func TestGenerateNoBenchmarkWithoutBenchmarkFunc(t *testing.T) {
 		t.Fatalf("generated %d rules, want 2 (library + test)", len(result.Gen))
 	}
 }
+
+func TestGenerateJSWasmFileDropsSyscallJS(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/demo.go":    "package demo\n",
+		"pkg/demo/wasm_js.go": "//go:build js && wasm\n\npackage demo\n\nimport \"syscall/js\"\n\nvar _ = js.Global\n",
+	}, []string{"demo.go", "wasm_js.go"})
+	if len(result.Imports) == 0 {
+		t.Fatal("no import sets generated")
+	}
+	if got := importNames(t, result.Imports[0]); len(got) != 0 {
+		t.Errorf("library imports = %v, want none (syscall/js is stdlib)", got)
+	}
+}

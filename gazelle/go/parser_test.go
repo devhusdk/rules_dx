@@ -76,7 +76,7 @@ func TestParsePackage(t *testing.T) {
 }
 
 func TestIsStdLibExact(t *testing.T) {
-	for _, name := range []string{"fmt", "net/http", "encoding/json", "sync/atomic", "testing"} {
+	for _, name := range []string{"fmt", "net/http", "encoding/json", "sync/atomic", "syscall/js", "testing"} {
 		if !IsStdLib(name) {
 			t.Errorf("IsStdLib(%q) = false, want true", name)
 		}

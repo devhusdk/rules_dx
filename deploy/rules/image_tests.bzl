@@ -36,7 +36,7 @@ def image_unit_tests(name):
             expect_equal(
                 "image_options_error rejects an unknown base",
                 image_options_error(":server", "alpine", ["linux/amd64"]),
-                "oci_image_from_binary: invalid base 'alpine': want one of cc, java, node, python, static",
+                "oci_image_from_binary: invalid base 'alpine': want one of cc, dotnet, java, node, python, static",
             ),
             expect_equal(
                 "image_options_error rejects an empty platform list",
@@ -76,7 +76,7 @@ def image_unit_tests(name):
             expect_equal(
                 "image_options_error rejects main on a static base",
                 image_options_error(":server", "static", ["linux/amd64"], main = "server.py"),
-                "oci_image_from_binary: main and main_class only apply to the python, java and node bases",
+                "oci_image_from_binary: main and main_class only apply to the python, java, node and dotnet bases",
             ),
             expect_equal(
                 "image_entrypoint runs a binary from /app",
@@ -105,6 +105,16 @@ def image_unit_tests(name):
                 "image_entrypoint runs node from the runfiles",
                 image_entrypoint("node", "server", main = "app/server.js"),
                 (["/nodejs/bin/node", "/app/server.runfiles/_main/app/server.js"], {}),
+            ),
+            expect_equal(
+                "image_options_error wants main for dotnet",
+                image_options_error(":server", "dotnet", ["linux/amd64"]),
+                "oci_image_from_binary: base 'dotnet' needs main, the workspace path of the entry script",
+            ),
+            expect_equal(
+                "image_entrypoint runs dotnet on the assembly in the runfiles",
+                image_entrypoint("dotnet", "server", main = "app/server.dll"),
+                (["dotnet", "/app/server.runfiles/_main/app/server.dll"], {}),
             ),
             expect_equal(
                 "image_entrypoint runs java from the jar directory",

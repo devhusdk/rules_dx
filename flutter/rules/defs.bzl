@@ -167,13 +167,16 @@ def flutter_android_app(name, application, package_name, android_abi = "arm64", 
             visibility = visibility,
         )
         return
+    app_kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    if not app_kwargs.get("tags"):
+        app_kwargs["tags"] = ["manual"]
     _flutter_android_app(
         name = name,
         application = application,
         package_name = package_name,
         android_abi = android_abi,
         visibility = visibility,
-        **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+        **app_kwargs
     )
 
 def flutter_ios_app(name, application, bundle_id, **kwargs):

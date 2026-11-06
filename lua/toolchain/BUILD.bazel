@@ -21,6 +21,7 @@ lua_toolchain(
     name = "lua",
     launcher = "//lua/runtime:launcher",
     luac = "@lua//:bin/luac",
+    tags = ["manual"],
     version = LUA_VERSION,
 )
 

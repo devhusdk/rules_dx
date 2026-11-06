@@ -441,6 +441,5 @@ pub fn reaped_message(group: &Reaped) -> String {
 }
 
 #[cfg(test)]
-#[cfg(unix)]
 #[path = "groups_tests.rs"]
 mod groups_tests;

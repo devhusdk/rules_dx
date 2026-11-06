@@ -19,7 +19,6 @@ dx_rust_crate(
         "src/runner.rs",
         "src/slot_pool.rs",
         "src/stderr_tail.rs",
-        "src/terminal.rs",
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -47,6 +46,10 @@ dx_rust_crate(
         "src/runner_tests.rs",
         "src/slot_pool_tests.rs",
         "src/terminal_tests.rs",
+    ],
+    unix_srcs = [
+        "src/lifecycle_unix.rs",
+        "src/terminal.rs",
     ],
     deps = [
         "libc",

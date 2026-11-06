@@ -30,6 +30,7 @@ def dx_rust_crate(
         crate_name = None,
         srcs = None,
         test_srcs = None,
+        unix_srcs = None,
         compile_data = None,
         size = "small",
         testonly = None,
@@ -37,6 +38,10 @@ def dx_rust_crate(
     """Single-crate boilerplate: lib + test + lint tests + manifest."""
     crate = name if crate_name == None else crate_name
     lib_srcs = srcs or ["src/lib.rs"]
+    platform_srcs = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": unix_srcs,
+    }) if unix_srcs else []
     if test_srcs and srcs == None:
         fail("dx_rust_crate test_srcs needs srcs")
     overlap = [src for src in (test_srcs or []) if src in lib_srcs]
@@ -48,7 +53,7 @@ def dx_rust_crate(
     ) + (extra_deps or [])
     rust_library(
         name = name,
-        srcs = lib_srcs,
+        srcs = lib_srcs + platform_srcs,
         aliases = _aliases(
             package_name = package_name,
             normal = True,
@@ -73,7 +78,7 @@ def dx_rust_crate(
         rust_test(
             name = name + "_test",
             size = size,
-            srcs = lib_srcs + test_srcs,
+            srcs = lib_srcs + test_srcs + platform_srcs,
             aliases = test_aliases,
             compile_data = compile_data or [],
             crate_name = crate,

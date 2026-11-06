@@ -69,6 +69,13 @@ mod tests {
     }
 
     #[test]
+    fn the_tee_writes_every_byte_through() {
+        let mut tee = Tee;
+        assert_eq!(tee.write(b"tee\n").expect("write"), 4);
+        tee.flush().expect("flush");
+    }
+
+    #[test]
     fn only_bazel_programs_are_copied() {
         assert!(!wanted(std::ffi::OsStr::new("/usr/bin/git")));
     }

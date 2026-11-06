@@ -1,7 +1,10 @@
 use super::*;
+#[cfg(unix)]
 use std::os::unix::process::CommandExt;
+#[cfg(unix)]
 use std::process::Command;
 
+#[cfg(unix)]
 fn sleeper() -> std::process::Child {
     Command::new(dx_testing::process_probe())
         .arg("--sleep-ms=30000")
@@ -10,6 +13,7 @@ fn sleeper() -> std::process::Child {
         .expect("sleeper starts")
 }
 
+#[cfg(unix)]
 #[test]
 fn a_lease_without_a_live_dx_stops_its_group() {
     let scratch = dx_test_scratch::scratch("dx-groups-dead-");
@@ -30,6 +34,7 @@ fn a_lease_without_a_live_dx_stops_its_group() {
     assert!(reap_in(&dir).is_empty());
 }
 
+#[cfg(unix)]
 #[test]
 fn a_lease_held_by_a_live_dx_is_left_alone() {
     let scratch = dx_test_scratch::scratch("dx-groups-live-");
@@ -49,6 +54,7 @@ fn a_lease_held_by_a_live_dx_is_left_alone() {
     drop(held);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_lease_for_a_finished_group_is_dropped_quietly() {
     let scratch = dx_test_scratch::scratch("dx-groups-gone-");
@@ -76,6 +82,7 @@ fn unrelated_files_are_ignored() {
     assert!(dir.join("notes.txt").exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn a_lease_naming_a_reused_group_number_is_dropped_without_a_signal() {
     let scratch = dx_test_scratch::scratch("dx-groups-reused-");
@@ -94,6 +101,7 @@ fn a_lease_naming_a_reused_group_number_is_dropped_without_a_signal() {
     assert!(!dir.join("424245-0.lock").exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn a_lease_from_another_pid_namespace_is_left_alone() {
     let scratch = dx_test_scratch::scratch("dx-groups-namespace-");
@@ -111,6 +119,7 @@ fn a_lease_from_another_pid_namespace_is_left_alone() {
     assert!(path.exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn a_lease_dropped_with_its_group_still_running_leaves_nothing_to_reap() {
     let scratch = dx_test_scratch::scratch("dx-groups-drop-");
@@ -130,6 +139,7 @@ fn a_lease_dropped_with_its_group_still_running_leaves_nothing_to_reap() {
     );
 }
 
+#[cfg(unix)]
 fn leases(dir: &Path) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -141,6 +151,7 @@ fn leases(dir: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+#[cfg(unix)]
 fn probe_spec(args: &[&str], group: crate::lifecycle::StreamGroup) -> crate::lifecycle::StreamSpec {
     use crate::lifecycle::{EnvPolicy, StreamOutput, StreamSpec, StreamStdin};
     let mut argv = vec![dx_testing::process_probe().into_os_string()];
@@ -163,6 +174,7 @@ const QUICK: crate::lifecycle::CleanupBudget = crate::lifecycle::CleanupBudget {
     drain: Duration::from_millis(500),
 };
 
+#[cfg(unix)]
 #[test]
 fn an_owned_run_holds_a_lease_naming_its_group_and_removes_it() {
     use std::cell::Cell;
@@ -203,6 +215,7 @@ fn an_owned_run_holds_a_lease_naming_its_group_and_removes_it() {
     assert!(!group_alive(pgid));
 }
 
+#[cfg(unix)]
 #[test]
 fn a_terminal_run_takes_no_lease() {
     let scratch = dx_test_scratch::scratch("dx-groups-terminal-");
@@ -228,6 +241,7 @@ fn a_terminal_run_takes_no_lease() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn a_failed_owned_spawn_leaves_no_lease() {
     let scratch = dx_test_scratch::scratch("dx-groups-missing-");
@@ -349,6 +363,7 @@ fn verdict_drops_a_dash_namespace_on_linux() {
     assert_eq!(verdict(&rec, &now), Verdict::Drop);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_lease_with_unknown_start_is_dropped_without_a_signal() {
     let scratch = dx_test_scratch::scratch("dx-groups-unknown-");
@@ -396,6 +411,7 @@ fn a_three_field_lease_is_unparseable() {
     assert!(parse_lease("4242 pid:[1] 77 boot-a").is_some());
 }
 
+#[cfg(unix)]
 #[test]
 fn a_stop_is_written_to_the_reap_log() {
     let scratch = dx_test_scratch::scratch("dx-groups-log-");
@@ -450,6 +466,7 @@ fn the_reap_log_rotates_once_it_passes_its_cap() {
     assert_eq!(fresh.lines().count(), 1);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_group_that_ignores_the_first_signal_is_killed() {
     let scratch = dx_test_scratch::scratch("dx-groups-kill-");
@@ -497,6 +514,7 @@ fn a_leader_matches_only_when_present_with_the_recorded_start_or_gone() {
     assert!(!leader_matches(&Leader::Unknown, "7"));
 }
 
+#[cfg(unix)]
 #[test]
 fn a_gone_leader_still_counts_as_the_recorded_one() {
     let mut rec = recorded("77");
@@ -532,4 +550,23 @@ fn a_stat_read_is_classified_by_its_outcome() {
         sys::leader_from_stat(Err(Error::from(ErrorKind::PermissionDenied))),
         Leader::Unknown
     );
+}
+
+#[cfg(not(unix))]
+#[test]
+fn without_unix_groups_nothing_is_known_and_a_lease_is_dropped() {
+    assert!(!group_alive(4000));
+    sys::signal_group(4000, 9);
+    assert_eq!(sys::cmdline(4000), "");
+    assert!(sys::start_time(4000).is_none());
+    assert!(sys::own_groups().is_empty());
+    assert_eq!(sys::leader(4000), Leader::Unknown);
+    assert!(lease_line(4000).is_none());
+    let scratch = dx_test_scratch::scratch("dx-groups-portable-");
+    let dir = scratch.path().join("groups");
+    std::fs::create_dir_all(&dir).expect("dir");
+    let path = dir.join("424260-0.lock");
+    std::fs::write(&path, "4000 - 77 -\n").expect("lease");
+    assert!(reap_in(&dir).is_empty());
+    assert!(!path.exists());
 }

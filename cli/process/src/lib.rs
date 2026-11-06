@@ -795,15 +795,12 @@ fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
 
     let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
     let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-    if unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) } != 0 {
-        return None; // LCOV_EXCL_LINE - reason: statvfs fails only for a directory that vanished mid-call, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
+    (unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) } == 0).then_some(())?;
     let stat = unsafe { stat.assume_init() };
     let unit = widen(stat.f_frsize);
-    let total = widen(stat.f_blocks).checked_mul(unit)?;
-    if total == 0 {
-        return None; // LCOV_EXCL_LINE - reason: no portable directory reports zero blocks, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
+    let total = widen(stat.f_blocks)
+        .checked_mul(unit)
+        .filter(|total| *total != 0)?;
     // `f_bavail` is the space available to unprivileged users, the same figure `df` reports.
     let free = widen(stat.f_bavail).checked_mul(unit)?;
     Some(DiskSpace { free, total })

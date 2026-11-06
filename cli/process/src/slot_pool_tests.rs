@@ -41,16 +41,20 @@ fn an_exclusively_held_index_is_busy_and_not_waited_on() {
     assert_eq!(reserve.held.len(), 1);
 }
 
-#[cfg(unix)]
 #[test]
 fn a_read_only_slot_file_still_takes_a_shared_lock() {
-    use std::os::unix::fs::PermissionsExt;
     let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-");
     let path = slot_path(scratch.path(), 0);
     std::fs::write(&path, "").expect("file");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+    let mut permissions = std::fs::metadata(&path).expect("metadata").permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(&path, permissions.clone()).expect("read-only");
     let reserve = hold_reserve(scratch.path(), 0..1);
     assert_eq!((reserve.held.len(), reserve.busy.len()), (1, 0));
+    drop(reserve);
+    #[allow(clippy::permissions_set_readonly_false)]
+    permissions.set_readonly(false);
+    std::fs::set_permissions(&path, permissions).expect("writable again");
 }
 
 #[test]

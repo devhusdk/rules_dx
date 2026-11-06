@@ -385,8 +385,7 @@
         "@gazelle//internal:go_repository.bzl%go_repository"
       ],
       "toolchains": [
-        "//tools/platforms:protoc_windows_arm64",
-        "@dotnet_toolchains//:all"
+        "//tools/platforms:protoc_windows_arm64"
       ]
     },
     "d": {
@@ -471,6 +470,7 @@
         "third_party"
       ],
       "extensions": [
+        "@rules_dx//dotnet:extensions.bzl%dotnet",
         "@rules_dx//dotnet:repos.bzl%dotnet_tools",
         "@rules_dx//third_party/dotnet:extension.bzl%paket"
       ],
@@ -485,7 +485,9 @@
       "module": "rules_dx_dotnet",
       "path": "families/dotnet",
       "repo_rules": [],
-      "toolchains": []
+      "toolchains": [
+        "@dotnet_toolchains//:all"
+      ]
     },
     "fortran": {
       "aspects": [

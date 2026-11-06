@@ -474,11 +474,8 @@ use_repo(
     "dotnet_apphost_x86_64-pc-windows-msvc",
     "dotnet_apphost_x86_64-unknown-linux-gnu",
     "dotnet_arm64-unknown-linux-gnu",
-    "dotnet_toolchains",
     "dotnet_x86_64-unknown-linux-gnu",
 )
-
-register_toolchains("@dotnet_toolchains//:all")
 
 paket = use_extension("//third_party/dotnet:extension.bzl", "paket")
 use_repo(

@@ -1,9 +1,9 @@
 # C#
 
 Build and test C# with a pinned .NET SDK 10.0.403. Nothing is installed on the
-host and nothing is fetched until a target needs it. rules_dx registers the
-toolchain. The rules live in the `rules_dx_dotnet` module, a `bazel_dep` next to
-`rules_dx`.
+host and nothing is fetched until a target needs it. The rules live in the
+`rules_dx_dotnet` module, which also registers the toolchain, so the only setup
+in `MODULE.bazel` is `bazel_dep(name = "rules_dx_dotnet", version = "...")`.
 
 ## Start
 

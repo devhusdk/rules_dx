@@ -22,6 +22,11 @@ bazel_dep(name = "rules_shell", version = "0.8.0")
 dotnet_tools = use_extension("@rules_dx//dotnet:repos.bzl", "dotnet_tools")
 use_repo(dotnet_tools, "rules_dotnet")
 
+dotnet = use_extension("@rules_dx//dotnet:extensions.bzl", "dotnet")
+use_repo(dotnet, "dotnet_toolchains")
+
+register_toolchains("@dotnet_toolchains//:all")
+
 paket = use_extension("@rules_dx//third_party/dotnet:extension.bzl", "paket")
 use_repo(paket, "paket.main")
 

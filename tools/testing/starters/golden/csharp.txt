@@ -4,3 +4,4 @@ HelloTest.cs
 Program.cs
 README.md
 bazel_dep rules_dx
+bazel_dep rules_dx_dotnet

@@ -12,7 +12,10 @@ QualitySourcesInfo = provider(
 
 QualityToolsInfo = provider(
     doc = "Quality tools a rule carries, keyed by tool ID.",
-    fields = {"tools": "Dict[str, FilesToRunProvider]: tool ID to executable."},
+    fields = {
+        "tools": "Dict[str, FilesToRunProvider]: tool ID to executable.",
+        "unavailable": "List[str]: tool IDs whose executable is an unavailable stub on this platform.",
+    },
 )
 
 

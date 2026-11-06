@@ -156,7 +156,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("eslint", "format"),
                     real_supported_classes("eslint", "typecheck"),
                 ],
-                [["astro", "javascript", "jsx", "mdx", "svelte", "vue"], [], []],
+                [["astro", "javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns graphql_eslint lint support only",
@@ -516,7 +516,7 @@ def real_pipeline_unit_tests(name):
                 [{"classes": ["tsx", "typescript"], "tool": "tsc"}],
             ),
             expect_equal(
-                "pipeline_stages omits eslint for typescript with no matching configuration",
+                "pipeline_stages keeps eslint for typescript",
                 pipeline_stages(
                     ["typescript"],
                     "lint",
@@ -524,7 +524,7 @@ def real_pipeline_unit_tests(name):
                     REAL_CLASS_TO_FAMILY,
                     REAL_ADAPTERS,
                 ),
-                [],
+                [{"classes": ["typescript"], "tool": "eslint"}],
             ),
             expect_equal(
                 "pipeline_stages unions biome across javascript, json, and typescript families",
@@ -727,6 +727,11 @@ def real_pipeline_unit_tests(name):
                     real_unavailable_tools({"zanuda": _FILE_TOOL | {"kind": "executable"}}, ["zanuda"], {"zanuda": True}, {}, {"zanuda": True}),
                 ],
                 [["zanuda"], []],
+            ),
+            expect_equal(
+                "a marked target-carried setting tool is unavailable",
+                real_unavailable_tools({"swift_lint": _FILE_TOOL | {"kind": "setting", "target_tool": True}}, ["swift_lint"], {}, {}, {"swift_lint": True}),
+                ["swift_lint"],
             ),
             expect_equal(
                 "skip notes name the tool and the reason when known",
@@ -1255,6 +1260,7 @@ def _marked_tool_test(platform):
 
 _zanuda_marked_test = _marked_tool_test("//qt/platforms:macos_arm64")
 _psscriptanalyzer_marked_test = _marked_tool_test("//qt/platforms:windows_x86_64")
+_swift_format_marked_test = _marked_tool_test("//qt/platforms:macos_arm64")
 
 _zanuda_policy_test = analysistest.make(
     _unsupported_platform_impl,
@@ -1282,9 +1288,14 @@ def unsupported_platform_analysis_tests(name):
         size = "small",
         target_under_test = "//quality/tools/powershell:psscriptanalyzer_tool",
     )
+    _swift_format_marked_test(
+        name = name + "_swift_format_tool",
+        size = "small",
+        target_under_test = "//swift/tools:swift_format",
+    )
     _zanuda_policy_test(
         name = name + "_zanuda_macos",
         size = "small",
         target_under_test = "//quality/testdata/ocaml_owned:clean",
     )
-    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_psscriptanalyzer_tool", name + "_zanuda_macos"])
+    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_psscriptanalyzer_tool", name + "_swift_format_tool", name + "_zanuda_macos"])

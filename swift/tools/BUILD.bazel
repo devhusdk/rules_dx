@@ -1,14 +1,30 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load(":swift_tool.bzl", "swift_format_tool")
 
 package(default_visibility = ["//visibility:public"])
 
 swift_format_tool(
-    name = "swift_format",
+    name = "swift_format_linux",
     srcs = select({
         "@platforms//cpu:aarch64": ["@dx_swift_linux_aarch64//:files"],
         "//conditions:default": ["@dx_swift_linux_x86_64//:files"],
+    }),
+)
+
+dx_unavailable_tool(
+    name = "swift_format_unsupported",
+    tool = "swift_format",
+)
+
+# The Swift archives are Linux builds; elsewhere the alias is a marked stub and
+# the aspect skips the stage with a note.
+alias(
+    name = "swift_format",
+    actual = select({
+        "@platforms//os:linux": ":swift_format_linux",
+        "//conditions:default": ":swift_format_unsupported",
     }),
 )
 

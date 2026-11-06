@@ -390,6 +390,10 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     delegated = {tool: True for tool, found in contexts.items() if found.delegated}
     pinned_counts = {tool: len(getattr(ctx.files, "_" + tool)) for tool in stage_tools if cfg.tools[tool]["kind"] == "file" and "fallback" in cfg.tools[tool]}
     marked = {tool: True for tool in stage_tools if cfg.tools[tool]["kind"] == "executable" and DxUnavailableToolInfo in getattr(ctx.attr, "_" + tool)}
+    target_unavailable = getattr(target[QualityToolsInfo], "unavailable", []) if QualityToolsInfo in target else []
+    for tool in stage_tools:
+        if cfg.tools[tool].get("target_tool", False) and tool in target_unavailable and getattr(ctx.attr, "_" + tool)[DefaultInfo].files_to_run.executable == None:
+            marked[tool] = True
     unavailable = real_unavailable_tools(cfg.tools, stage_tools, delegated, pinned_counts, marked)
     skip_groups = {}
     if len(unavailable) > 0:

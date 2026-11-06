@@ -25,6 +25,7 @@ _LIBSTDCXX_READY = Label("//rust/rules:libstdcxx_ready")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNWIND = Label("//rust/rules:unwind")
 _MSVC = Label("//rust/rules:msvc")
+_CL_EXE = Label("//cc/toolchains:msvc_selected")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
@@ -71,14 +72,14 @@ _rust_binary_transition = transition(
 
 _LIBSTDCXX_ATTRS = {
     "libstdcxx": attr.bool(doc = "Whether the target platform uses libstdc++."),
-    "msvc": attr.bool(doc = "Whether the target platform uses the MSVC ABI."),
+    "msvc": attr.bool(doc = "Whether cl.exe is the selected C++ compiler."),
 }
 
 def _libstdcxx_forward():
     """Returns the forwarder kwargs that mark libstdc++ platforms."""
     return {
         "libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False}),
-        "msvc": select({_MSVC: True, "//conditions:default": False}),
+        "msvc": select({_CL_EXE: True, "//conditions:default": False}),
     }
 
 def _libstdcxx_upstream(kwargs, link):

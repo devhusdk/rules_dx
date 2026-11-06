@@ -20,18 +20,18 @@ real_source_target(
 
 dx_dune_build(
     name = "bisect_driver_exe",
-    srcs = ["@dx_ocaml_bisect_duniverse//:srcs"],
+    srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
     dune = "//quality/tools/ocaml:dune",
     target = "bisect_ppx/src/driver/driver.exe",
-    workspace = "@dx_ocaml_bisect_duniverse//:dune-project",
+    workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )
 
 dx_dune_build(
     name = "bisect_report",
-    srcs = ["@dx_ocaml_bisect_duniverse//:srcs"],
+    srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
     dune = "//quality/tools/ocaml:dune",
     target = "bisect_ppx/src/report/main.exe",
-    workspace = "@dx_ocaml_bisect_duniverse//:dune-project",
+    workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )
 
 ocaml_executable_marker(
@@ -43,14 +43,14 @@ ocaml_executable_marker(
 genrule(
     name = "runtime_sources",
     srcs = [
-        "@dx_ocaml_bisect_duniverse//:bisect_ppx/src/runtime/native/runtime.ml",
-        "@dx_ocaml_bisect_duniverse//:bisect_ppx/src/runtime/native/runtime.mli",
+        "@dx_ocaml_tools_duniverse//:bisect_ppx/src/runtime/native/runtime.ml",
+        "@dx_ocaml_tools_duniverse//:bisect_ppx/src/runtime/native/runtime.mli",
     ],
     outs = [
         "bisect_runtime.ml",
         "bisect_runtime.mli",
     ],
-    cmd = "cp $(location @dx_ocaml_bisect_duniverse//:bisect_ppx/src/runtime/native/runtime.ml) $(location bisect_runtime.ml) && cp $(location @dx_ocaml_bisect_duniverse//:bisect_ppx/src/runtime/native/runtime.mli) $(location bisect_runtime.mli)",
+    cmd = "cp $(location @dx_ocaml_tools_duniverse//:bisect_ppx/src/runtime/native/runtime.ml) $(location bisect_runtime.ml) && cp $(location @dx_ocaml_tools_duniverse//:bisect_ppx/src/runtime/native/runtime.mli) $(location bisect_runtime.mli)",
 )
 
 genrule(
@@ -61,14 +61,14 @@ genrule(
 
 ocaml_signature(
     name = "bisect_common_sig",
-    src = "@dx_ocaml_bisect_duniverse//:bisect_ppx/src/common/bisect_common.mli",
+    src = "@dx_ocaml_tools_duniverse//:bisect_ppx/src/common/bisect_common.mli",
 )
 
 ocaml_module(
     name = "bisect_common",
     instrument_coverage = False,
     sig = ":bisect_common_sig",
-    struct = "@dx_ocaml_bisect_duniverse//:bisect_ppx/src/common/bisect_common.ml",
+    struct = "@dx_ocaml_tools_duniverse//:bisect_ppx/src/common/bisect_common.ml",
 )
 
 ocaml_signature(
@@ -156,5 +156,5 @@ sh_test(
 
 filegroup(
     name = "bisect_licenses",
-    srcs = ["@dx_ocaml_bisect_duniverse//:licenses"],
+    srcs = ["@dx_ocaml_tools_duniverse//:licenses"],
 )

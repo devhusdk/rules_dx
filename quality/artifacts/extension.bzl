@@ -222,8 +222,11 @@ def _dx_tools_impl(ctx):
             "os_windows": os_windows,
         })},
     )
+    declared = {}
     for source in TOOL_SOURCES:
-        _source_repo(source)
+        if source["repo"] not in declared:
+            declared[source["repo"]] = True
+            _source_repo(source)
     return ctx.extension_metadata(reproducible = True)
 
 _platform = tag_class(attrs = {

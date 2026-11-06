@@ -161,7 +161,7 @@ findings report the same workspace path.
   shared `//quality/tools/ocaml:dune` bootstrap (`dx_dune_bootstrap`) using the pinned native OCaml,
   the resolved C toolchain, no network and no dune cache. The 22 source
   archives are pinned in `quality/artifacts/zanuda.bzl` and unpacked side by
-  side by `@dx_ocaml_duniverse`. The rule is generic over sources and target.
+  side by `@dx_ocaml_tools_duniverse`. The rule is generic over sources and target.
 - **Patches.** `quality/tools/ocaml/patches/` removes zanuda's dynamic plugin
   loading, adds `-cmt-list FILE` (analyze listed sources and `.cmt` files
   without loading a dune project, and exit non-zero for a skipped or

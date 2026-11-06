@@ -18,16 +18,16 @@ exports_files(glob(["patches/*.patch"]) + [
 # licenses of the whole source closure are in :zanuda_licenses.
 dx_dune_bootstrap(
     name = "dune",
-    srcs = ["@dx_ocaml_duniverse//:dune_src"],
+    srcs = ["@dx_ocaml_tools_duniverse//:dune_src"],
     visibility = ["//visibility:public"],
 )
 
 dx_dune_build(
     name = "zanuda",
     dune = ":dune",
-    srcs = ["@dx_ocaml_duniverse//:srcs"],
+    srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
     target = "zanuda/src/main.exe",
-    workspace = "@dx_ocaml_duniverse//:dune-project",
+    workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )
 
 # The aspect's tool attribute. The hermetic OCaml toolchain has no cell for most
@@ -57,7 +57,7 @@ dx_unavailable_tool(
 
 filegroup(
     name = "zanuda_licenses",
-    srcs = ["@dx_ocaml_duniverse//:licenses"],
+    srcs = ["@dx_ocaml_tools_duniverse//:licenses"],
 )
 
 ocaml_tools_tests(name = "pins_test")

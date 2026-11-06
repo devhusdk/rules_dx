@@ -74,10 +74,18 @@ def metadata_tests(name):
     for artifact in TOOL_ARTIFACTS:
         checks += _artifact_checks(artifact)
 
+    first = {}
     for source in TOOL_SOURCES:
+        repo = source["repo"]
+        if source["kind"] == "duniverse":
+            lock = [source["packages"], source["patches"]]
+            if repo in first:
+                checks.append(expect_equal(repo + " is one lock for all its tools", first[repo], lock))
+                continue
+            first[repo] = lock
         checks += _source_checks(source)
-    repos = [source["repo"] for source in TOOL_SOURCES]
-    checks.append(expect_equal("source repos are unique", len(repos), len(depset(repos).to_list())))
+    tools = [source["tool"] for source in TOOL_SOURCES]
+    checks.append(expect_equal("source tools are unique", len(tools), len(depset(tools).to_list())))
 
     derived_repos = sorted(["dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"]) for artifact in TOOL_ARTIFACTS])
     checks.append(expect_equal("dx tool repos match metadata", DX_TOOL_REPOS, derived_repos))

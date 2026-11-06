@@ -179,6 +179,30 @@ fn tool(variable: &str) -> PathBuf {
     dx_testing::resolve_runfiles(&rel)
 }
 
+/// Windows searches the executable's directory before System32 and PATH, so the pinned
+/// MSVC runtime is copied beside a private copy of the executable.
+#[cfg(windows)]
+fn runnable(variable: &str) -> PathBuf {
+    let exe = tool(variable);
+    let dir = dx_testing::mkscratch("qt-exe").expect("scratch directory");
+    let copy = dir.join(exe.file_name().expect("executable name"));
+    std::fs::copy(&exe, &copy).expect("copy executable");
+    let paths = std::env::var("DX_QT_VCRUNTIME").expect("DX_QT_VCRUNTIME must name files");
+    for path in paths
+        .split_whitespace()
+        .filter(|path| path.ends_with(".dll"))
+    {
+        let source = dx_testing::resolve_runfiles(path);
+        std::fs::copy(&source, dir.join(file_name(path))).expect("copy MSVC runtime");
+    }
+    copy
+}
+
+#[cfg(not(windows))]
+fn runnable(variable: &str) -> PathBuf {
+    tool(variable)
+}
+
 fn scratch_file(name: &str, text: &str) -> PathBuf {
     let dir = dx_testing::mkscratch("qt").expect("scratch directory");
     let path = dir.join(name);
@@ -282,7 +306,7 @@ fn spdx_package(document: &Value, name: &str) -> Value {
 
 #[test]
 fn probe_evaluates_qml_against_only_pinned_libraries() {
-    let probe = tool("DX_QT_PROBE");
+    let probe = runnable("DX_QT_PROBE");
     let path = runtime_path();
     let mut envs = vec![("PATH", path.as_str())];
     envs.extend(&HOST_ROUTES[1..]);
@@ -381,7 +405,13 @@ fn run_gui(platform: &str) -> dx_testing::Run {
         envs.push(("FONTCONFIG_PATH", fonts));
     }
     envs.extend(&HOST_ROUTES[2..]);
-    dx_testing::run(&tool("DX_QT_GUI"), &[], &envs).expect("run gui check")
+    // Without these Qt reports a fatal error in a message box that waits for a click.
+    #[cfg(windows)]
+    envs.extend([
+        ("QT_ASSUME_STDERR_HAS_CONSOLE", "1"),
+        ("QT_FORCE_STDERR_LOGGING", "1"),
+    ]);
+    dx_testing::run(&runnable("DX_QT_GUI"), &[], &envs).expect("run gui check")
 }
 
 #[test]
@@ -522,9 +552,14 @@ fn tools_ignore_host_routes_and_load_pinned_plugins() {
     );
 }
 
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(target_os = "macos")]
 fn expected_licenses() -> BTreeSet<String> {
     BTreeSet::from(["qt".to_owned()])
+}
+
+#[cfg(windows)]
+fn expected_licenses() -> BTreeSet<String> {
+    BTreeSet::from(["msvc-redistributable".to_owned(), "qt".to_owned()])
 }
 
 #[cfg(target_os = "linux")]
@@ -632,6 +667,25 @@ fn run_fresh_copy(copy: &Path) -> std::process::Output {
     panic!("{copy:?} stayed busy: a concurrent fork kept its write handle open");
 }
 
+#[cfg(not(windows))]
+fn assert_launcher_refusal(code: Option<i32>, stderr: &str) {
+    assert_eq!(code, Some(127));
+    assert!(
+        stderr.starts_with("rules_dx: cannot find the Qt runfiles of ")
+            && stderr.ends_with(" for bin/qmllint\n"),
+        "{stderr}"
+    );
+}
+
+#[cfg(windows)]
+fn assert_launcher_refusal(code: Option<i32>, stderr: &str) {
+    assert_eq!(code, Some(1), "{stderr}");
+    assert!(
+        stderr.starts_with("exec_launcher: no runfiles beside "),
+        "{stderr}"
+    );
+}
+
 #[test]
 fn launcher_fails_explicitly_without_the_pinned_runfiles() {
     let launcher = std::fs::canonicalize(tool("DX_QMLLINT")).expect("launcher");
@@ -640,14 +694,9 @@ fn launcher_fails_explicitly_without_the_pinned_runfiles() {
         .join("qmllint");
     std::fs::copy(&launcher, &copy).expect("copy launcher");
     let output = run_fresh_copy(&copy);
-    assert_eq!(output.status.code(), Some(127));
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.starts_with("rules_dx: cannot find the Qt runfiles of ")
-            && stderr.ends_with(" for bin/qmllint\n"),
-        "{stderr}"
-    );
+    assert_launcher_refusal(output.status.code(), &stderr);
 }
 
 #[cfg(target_os = "linux")]

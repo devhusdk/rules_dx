@@ -7,6 +7,7 @@ load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_bundle", "qt_cc_binary", "
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/testing:child_runfiles.bzl", "child_runfiles")
 load(":rules_tests.bzl", "qt_rules_tests")
 
 _MACOS_ARM64 = [
@@ -123,11 +124,31 @@ alias(
     tags = ["manual"],
 )
 
+# A tool run as a data dependency has no runfiles of its own on Windows, so each one carries its manifest.
+_WINDOWS_CHILD_TOOLS = [
+    "moc",
+    "qmlformat",
+    "qmllint",
+    "uic",
+]
+
 _QT_FONTS = select({
     "@platforms//os:macos": [],
     "@platforms//os:windows": [],
     "//conditions:default": ["@dx_qt//:fonts"],
 })
+
+[
+    child_runfiles(
+        name = name + "_child",
+        binary = "@dx_qt//:" + name,
+        tags = ["manual"],
+        target_compatible_with = ["@platforms//os:windows"],
+    )
+    for name in _WINDOWS_CHILD_TOOLS
+]
+
+_WINDOWS_CHILDREN = [":" + name + "_child" for name in _WINDOWS_CHILD_TOOLS]
 
 _VCRUNTIME = select({
     "@platforms//os:windows": ["//cc/toolchains:msvc_vcruntime"],
@@ -173,7 +194,10 @@ rust_test(
         "@dx_qt//:runtime",
         "@dx_qt//:sbom",
         "@dx_qt//:uic",
-    ] + _QT_FONTS + _VCRUNTIME,
+    ] + _QT_FONTS + _VCRUNTIME + select({
+        "@platforms//os:windows": _WINDOWS_CHILDREN,
+        "//conditions:default": [],
+    }),
     env = select({
         "@platforms//os:macos": _QT_TEST_ENV,
         "@platforms//os:windows": dict(

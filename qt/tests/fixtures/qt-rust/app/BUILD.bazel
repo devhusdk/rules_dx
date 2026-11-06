@@ -5,9 +5,9 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# The QML plugin DLL imports QtQmlMeta, which the test does not link.
+# The QML plugin DLL imports QtQmlMeta; linking Quick stages it next to the test.
 _QML_META = select({
-    "@platforms//os:windows": ["@dx_qt//:qml_meta"],
+    "@platforms//os:windows": ["@dx_qt//:quick"],
     "//conditions:default": [],
 })
 

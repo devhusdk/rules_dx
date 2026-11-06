@@ -416,6 +416,8 @@ def _consumer_tarball_impl(ctx):
             fail("consumer_archive " + str(ctx.label) + ": invalid member '" + member + "'")
     out = ctx.actions.declare_file(ctx.attr.tarball_name)
     args = ctx.actions.args()
+    args.use_param_file("@%s", use_always = True)
+    args.set_param_file_format("multiline")
     args.add("--members")
     args.add(out.path)
     args.add("--executable", stage.executable)

@@ -797,24 +797,28 @@ struct HttpFetch(ureq::Agent, Option<String>);
 
 const MANIFEST_ACCEPT: &str = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json";
 
+fn agent(https_only: bool) -> ureq::Agent {
+    let tls = ureq::tls::TlsConfig::builder()
+        .root_certs(ureq::tls::RootCerts::PlatformVerifier)
+        .build();
+    ureq::Agent::config_builder()
+        .https_only(https_only)
+        .http_status_as_error(false)
+        .tls_config(tls)
+        .proxy(ureq::Proxy::try_from_env())
+        .user_agent(concat!("rules_dx/", env!("CARGO_PKG_VERSION")))
+        .timeout_connect(Some(Duration::from_secs(30)))
+        .timeout_global(Some(Duration::from_secs(60)))
+        .build()
+        .into()
+}
+
 impl HttpFetch {
     fn new() -> HttpFetch {
-        let tls = ureq::tls::TlsConfig::builder()
-            .root_certs(ureq::tls::RootCerts::PlatformVerifier)
-            .build();
-        let agent = ureq::Agent::config_builder()
-            .https_only(true)
-            .tls_config(tls)
-            .proxy(ureq::Proxy::try_from_env())
-            .user_agent(concat!("rules_dx/", env!("CARGO_PKG_VERSION")))
-            .timeout_connect(Some(Duration::from_secs(30)))
-            .timeout_global(Some(Duration::from_secs(60)))
-            .build()
-            .into();
         let token = ["GH_TOKEN", "GITHUB_TOKEN"]
             .iter()
             .find_map(|name| std::env::var(name).ok().filter(|value| !value.is_empty()));
-        HttpFetch(agent, token)
+        HttpFetch(agent(true), token)
     }
 }
 
@@ -826,6 +830,9 @@ impl Fetch for HttpFetch {
             .header("Accept", MANIFEST_ACCEPT)
             .call()
             .map_err(|e| e.to_string())?;
+        if !response.status().is_success() {
+            return Err(format!("HTTP {}", response.status().as_u16()));
+        }
         response
             .headers()
             .get("docker-content-digest")
@@ -855,6 +862,57 @@ impl Fetch for HttpFetch {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
+
+    fn serve_once(response: &'static str) -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/x", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+        url
+    }
+
+    const NOT_FOUND: &str =
+        "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+    #[test]
+    fn http_fetch_reports_404_as_http_404() {
+        let fetch = HttpFetch(agent(false), None);
+        assert_eq!(
+            fetch.get(&serve_once(NOT_FOUND)),
+            Err("HTTP 404".to_owned())
+        );
+        assert_eq!(
+            fetch.digest(&serve_once(NOT_FOUND)),
+            Err("HTTP 404".to_owned())
+        );
+    }
+
+    #[test]
+    fn http_fetch_reports_500_as_http_500() {
+        let url = serve_once(
+            "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        );
+        assert_eq!(
+            HttpFetch(agent(false), None).get(&url),
+            Err("HTTP 500".to_owned())
+        );
+    }
+
+    #[test]
+    fn http_fetch_digest_reads_header() {
+        let url = serve_once(
+            "HTTP/1.1 200 OK\r\nDocker-Content-Digest: sha256:abc\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        );
+        assert_eq!(
+            HttpFetch(agent(false), None).digest(&url),
+            Ok("sha256:abc".to_owned())
+        );
+    }
 
     #[test]
     fn a_missing_manifest_is_a_lookup_error() {

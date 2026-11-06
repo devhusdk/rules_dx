@@ -1,4 +1,6 @@
 # gazelle:ignore
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
@@ -622,6 +624,25 @@ sources_registry_tests(name = "sources_registry")
 
 fixtures_unit_tests(name = "fixtures_unit")
 
+genquery(
+    name = "fixture_real_rust_converters",
+    expression = "filter('asciidoctor|rst2html', deps(//quality/testdata:fixture_real_rust))",
+    scope = ["//quality/testdata:fixture_real_rust"],
+)
+
+write_file(
+    name = "no_converters",
+    out = "no_converters.txt",
+    content = [],
+)
+
+# A target without rst or asciidoc sources must not pull in Node or Python.
+diff_test(
+    name = "fixture_real_rust_converters_test",
+    file1 = ":fixture_real_rust_converters",
+    file2 = ":no_converters",
+)
+
 js_responsibilities_unit_tests(name = "js_responsibilities_unit")
 
 support_unit_tests(name = "support_unit")
@@ -696,6 +717,7 @@ test_suite(
         ":consumer_policy_yaml_formatted_test",
         ":curated_defaults_unit",
         ":execution_requirements_unit",
+        ":fixture_real_rust_converters_test",
         ":fixtures_unit",
         ":js_responsibilities_unit",
         ":native_config_unit",

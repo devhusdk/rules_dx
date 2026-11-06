@@ -135,16 +135,16 @@ def _real_source_target_impl(ctx):
         QualitySourcesInfo(direct_sources = direct_sources),
     ]
     converters = {}
-    if len(ctx.files.rst_srcs) > 0 and ctx.attr.rst_converter:
+    if len(ctx.files.rst_srcs) > 0 and ctx.attr.rst2html:
         # Mirrors rst_library: the owner carries the Vale converter.
-        converters["rst2html"] = ctx.attr._rst2html[DefaultInfo].files_to_run
-    if len(ctx.files.asciidoc_srcs) > 0 and ctx.attr.asciidoc_converter:
-        converters["asciidoctor"] = ctx.attr._asciidoctor[DefaultInfo].files_to_run
+        converters["rst2html"] = ctx.attr.rst2html[DefaultInfo].files_to_run
+    if len(ctx.files.asciidoc_srcs) > 0 and ctx.attr.asciidoctor:
+        converters["asciidoctor"] = ctx.attr.asciidoctor[DefaultInfo].files_to_run
     if len(converters) > 0:
         providers.append(QualityToolsInfo(tools = converters))
     return providers
 
-real_source_target = rule(
+_real_source_target = rule(
     implementation = _real_source_target_impl,
     doc = "Sources by language for real quality aspects.",
     attrs = {
@@ -320,21 +320,13 @@ real_source_target = rule(
             allow_files = [".tex", ".sty", ".cls"],
             default = [],
         ),
-        "rst_converter": attr.bool(
-            doc = "Whether rst_srcs carry the rst2html converter, as rst_library does.",
-            default = True,
-        ),
-        "_rst2html": attr.label(
-            default = Label("//quality/tools/python:rst2html"),
+        "rst2html": attr.label(
+            doc = "Converter that rst_srcs carry for Vale, as rst_library does.",
             cfg = "exec",
             executable = True,
         ),
-        "asciidoc_converter": attr.bool(
-            doc = "Whether asciidoc_srcs carry the asciidoctor converter, as asciidoc_library does.",
-            default = True,
-        ),
-        "_asciidoctor": attr.label(
-            default = Label("//quality/tools/javascript/bin:asciidoctor"),
+        "asciidoctor": attr.label(
+            doc = "Converter that asciidoc_srcs carry for Vale, as asciidoc_library does.",
             cfg = "exec",
             executable = True,
         ),
@@ -397,3 +389,34 @@ real_source_target = rule(
         ),
     },
 )
+
+_CONVERTERS = [
+    ("rst_srcs", "rst_converter", "rst2html", Label("//quality/tools/python:rst2html")),
+    ("asciidoc_srcs", "asciidoc_converter", "asciidoctor", Label("//quality/tools/javascript/bin:asciidoctor")),
+]
+
+def converter_attrs(kwargs):
+    """Returns the converter labels a real_source_target with these arguments needs.
+
+    A target only depends on a converter when it has the matching sources, so
+    targets without rst or asciidoc never fetch Python or Node.
+    """
+    attrs = {}
+    for srcs_attr, flag, attr, label in _CONVERTERS:
+        srcs = kwargs.get(srcs_attr, [])
+        has_srcs = type(srcs) == "select" or len(srcs) > 0
+        if has_srcs and kwargs.get(flag, True) != False:
+            attrs[attr] = label
+    return attrs
+
+def real_source_target(name, rst_converter = True, asciidoc_converter = True, **kwargs):
+    """Sources by language for real quality aspects.
+
+    Args:
+        name: Target name.
+        rst_converter: Whether rst_srcs carry the rst2html converter, as rst_library does.
+        asciidoc_converter: Whether asciidoc_srcs carry the asciidoctor converter, as asciidoc_library does.
+        **kwargs: Attributes of the underlying rule, such as rust_srcs or markdown_srcs.
+    """
+    flags = dict(kwargs, rst_converter = rst_converter, asciidoc_converter = asciidoc_converter)
+    _real_source_target(name = name, **dict(converter_attrs(flags), **kwargs))

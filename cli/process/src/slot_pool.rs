@@ -71,63 +71,67 @@ fn tightest(total: Option<u64>, limit: Option<u64>) -> Option<u64> {
 }
 
 /// Total memory visible to this process, honoring a cgroup limit.
+#[cfg(target_os = "linux")]
 pub fn available_memory() -> Option<u64> {
-    #[cfg(target_os = "linux")]
-    {
-        let total = std::fs::read_to_string("/proc/meminfo")
-            .ok()
-            .and_then(|text| parse_meminfo(&text));
-        let limit = cgroup_limit();
-        return tightest(total, limit);
+    let total = std::fs::read_to_string("/proc/meminfo")
+        .ok()
+        .and_then(|text| parse_meminfo(&text));
+    tightest(total, cgroup_limit())
+}
+
+/// Physical memory reported by `hw.memsize`.
+#[cfg(target_os = "macos")]
+pub fn available_memory() -> Option<u64> {
+    let mut value: u64 = 0;
+    let mut size = std::mem::size_of::<u64>();
+    let name = c"hw.memsize";
+    let status = unsafe {
+        libc::sysctlbyname(
+            name.as_ptr(),
+            (&mut value as *mut u64).cast(),
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (status == 0).then_some(value)
+}
+
+/// Physical memory reported by `GlobalMemoryStatusEx`.
+#[cfg(windows)]
+pub fn available_memory() -> Option<u64> {
+    #[repr(C)]
+    struct MemoryStatus {
+        length: u32,
+        load: u32,
+        total_phys: u64,
+        avail_phys: u64,
+        total_page: u64,
+        avail_page: u64,
+        total_virtual: u64,
+        avail_virtual: u64,
+        avail_extended: u64,
     }
-    #[cfg(target_os = "macos")]
-    {
-        let mut value: u64 = 0;
-        let mut size = std::mem::size_of::<u64>();
-        let name = c"hw.memsize";
-        let status = unsafe {
-            libc::sysctlbyname(
-                name.as_ptr(),
-                (&mut value as *mut u64).cast(),
-                &mut size,
-                std::ptr::null_mut(),
-                0,
-            )
-        };
-        return (status == 0).then_some(value);
+    extern "system" {
+        fn GlobalMemoryStatusEx(status: *mut MemoryStatus) -> i32;
     }
-    #[cfg(windows)]
-    {
-        #[repr(C)]
-        struct MemoryStatus {
-            length: u32,
-            load: u32,
-            total_phys: u64,
-            avail_phys: u64,
-            total_page: u64,
-            avail_page: u64,
-            total_virtual: u64,
-            avail_virtual: u64,
-            avail_extended: u64,
-        }
-        extern "system" {
-            fn GlobalMemoryStatusEx(status: *mut MemoryStatus) -> i32;
-        }
-        let mut status = MemoryStatus {
-            length: std::mem::size_of::<MemoryStatus>() as u32,
-            load: 0,
-            total_phys: 0,
-            avail_phys: 0,
-            total_page: 0,
-            avail_page: 0,
-            total_virtual: 0,
-            avail_virtual: 0,
-            avail_extended: 0,
-        };
-        let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
-        return (ok != 0).then_some(status.total_phys);
-    }
-    #[allow(unreachable_code)]
+    let mut status = MemoryStatus {
+        length: std::mem::size_of::<MemoryStatus>() as u32,
+        load: 0,
+        total_phys: 0,
+        avail_phys: 0,
+        total_page: 0,
+        avail_page: 0,
+        total_virtual: 0,
+        avail_virtual: 0,
+        avail_extended: 0,
+    };
+    let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
+    (ok != 0).then_some(status.total_phys)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+pub fn available_memory() -> Option<u64> {
     None
 }
 

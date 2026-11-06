@@ -195,21 +195,17 @@ impl Drop for Blocked {
     }
 }
 
-/// A close-on-exec, non-blocking pipe: (read end, write end).
-fn report_pipe() -> Option<(File, File)> {
-    let mut fds = [0i32; 2];
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    {
-        if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC | libc::O_NONBLOCK) } != 0 {
-            return None; // LCOV_EXCL_LINE - reason: pipe2 fails only without descriptors, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        }
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    {
-        if unsafe { libc::pipe(fds.as_mut_ptr()) } != 0 {
-            return None;
-        }
-        for fd in fds {
+/// Fills `fds` with a close-on-exec, non-blocking pipe; false if the pipe failed.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn raw_pipe(fds: &mut [i32; 2]) -> bool {
+    unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC | libc::O_NONBLOCK) == 0 }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn raw_pipe(fds: &mut [i32; 2]) -> bool {
+    let made = unsafe { libc::pipe(fds.as_mut_ptr()) } == 0;
+    if made {
+        for &fd in fds.iter() {
             unsafe {
                 libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
                 let flags = libc::fcntl(fd, libc::F_GETFL);
@@ -217,9 +213,29 @@ fn report_pipe() -> Option<(File, File)> {
             }
         }
     }
+    made
+}
+
+/// A close-on-exec, non-blocking pipe: (read end, write end).
+fn report_pipe() -> Option<(File, File)> {
+    let mut fds = [0i32; 2];
+    if !raw_pipe(&mut fds) {
+        return None; // LCOV_EXCL_LINE - reason: pipe fails only without descriptors, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+    }
     let [read, write] = fds;
     // SAFETY: pipe returned two fresh descriptors this function owns.
     Some(unsafe { (File::from_raw_fd(read), File::from_raw_fd(write)) })
+}
+
+/// Whether a signal with this `si_code` was sent by a process rather than the kernel.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn user_sent(code: i32) -> bool {
+    code <= 0
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn user_sent(_code: i32) -> bool {
+    true
 }
 
 /// Whether dx sent this signal itself, so the child already has it.
@@ -231,11 +247,7 @@ unsafe fn from_parent(info: *const libc::siginfo_t) -> bool {
     if sender != WATCHER_PARENT.load(Ordering::Relaxed) {
         return false;
     }
-    if cfg!(any(target_os = "linux", target_os = "android")) {
-        unsafe { (*info).si_code <= 0 }
-    } else {
-        true // LCOV_EXCL_LINE - reason: other unix hosts, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
+    user_sent(unsafe { (*info).si_code })
 }
 
 extern "C" fn report_signal(signo: libc::c_int, info: *mut libc::siginfo_t, _: *mut libc::c_void) {

@@ -1654,10 +1654,9 @@ fn a_stop_seen_after_registering_sends_one_sigint() {
         if calls.fetch_add(1, Ordering::SeqCst) == 0 {
             return None;
         }
-        let deadline = Instant::now() + Duration::from_secs(10);
-        while !log.exists() && Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        dx_test_scratch::eventually("sigint log", Duration::from_secs(10), || {
+            log.exists().then_some(())
+        });
         Some(2)
     };
     assert_eq!(

@@ -58,21 +58,33 @@ fn info_from(pid: i32, code: i32) -> libc::siginfo_t {
     info
 }
 
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn info_from(pid: i32, code: i32) -> libc::siginfo_t {
+    let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+    info.si_code = code;
+    info.si_pid = pid;
+    info
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+const KERNEL: (i32, bool) = (libc::SI_KERNEL, false);
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+const KERNEL: (i32, bool) = (0x80, true);
+
 #[test]
 fn a_null_signal_info_is_not_from_dx() {
     let _lock = STATICS.lock().unwrap();
     assert!(!unsafe { from_parent(std::ptr::null()) });
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn only_user_sent_signals_from_dx_are_filtered() {
     let _lock = STATICS.lock().unwrap();
     WATCHER_PARENT.store(4242, Ordering::SeqCst);
     let user = info_from(4242, 0);
     assert!(unsafe { from_parent(&user) });
-    let kernel = info_from(4242, libc::SI_KERNEL);
-    assert!(!unsafe { from_parent(&kernel) });
+    let kernel = info_from(4242, KERNEL.0);
+    assert_eq!(unsafe { from_parent(&kernel) }, KERNEL.1);
     let stranger = info_from(77, 0);
     assert!(!unsafe { from_parent(&stranger) });
 }

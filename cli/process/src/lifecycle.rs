@@ -855,25 +855,34 @@ mod backend {
             }
         }
 
+        // LCOV_EXCL_START - reason: runs in the forked child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        /// Runs in the child between fork and exec: die with the parent, and fail if it is already gone.
+        #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+        fn child_guard(parent: i32) -> io::Result<()> {
+            unsafe extern "C" {
+                fn getppid() -> i32;
+            }
+            #[cfg(target_os = "linux")]
+            {
+                const PR_SET_PDEATHSIG: i32 = 1;
+                unsafe extern "C" {
+                    fn prctl(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> i32;
+                }
+                unsafe { prctl(PR_SET_PDEATHSIG, SIGTERM as u64, 0, 0, 0) };
+            }
+            if unsafe { getppid() } != parent {
+                return Err(io::Error::from(io::ErrorKind::BrokenPipe));
+            }
+            Ok(())
+        }
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+
         #[cfg(target_os = "linux")]
         fn stop_with_parent(command: &mut Command) {
             use std::os::unix::process::CommandExt;
-            const PR_SET_PDEATHSIG: i32 = 1;
-            unsafe extern "C" {
-                fn prctl(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> i32;
-                fn getppid() -> i32;
-            }
             let parent = std::process::id() as i32;
             unsafe {
-                // LCOV_EXCL_START - reason: runs in the forked child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-                command.pre_exec(move || {
-                    prctl(PR_SET_PDEATHSIG, SIGTERM as u64, 0, 0, 0);
-                    if getppid() != parent {
-                        return Err(io::Error::from(io::ErrorKind::BrokenPipe));
-                    }
-                    Ok(())
-                });
-                // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+                command.pre_exec(move || child_guard(parent));
             }
         }
 

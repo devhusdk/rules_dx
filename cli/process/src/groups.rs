@@ -162,9 +162,24 @@ mod sys {
             .unwrap_or_else(|_| "-".to_owned())
     }
 
+    #[cfg(target_os = "linux")]
+    pub fn cmdline(pgid: i32) -> String {
+        std::fs::read(format!("/proc/{pgid}/cmdline"))
+            .map(|bytes| {
+                let text = String::from_utf8_lossy(&bytes).replace('\0', " ");
+                text.chars().take(200).collect::<String>()
+            })
+            .unwrap_or_default()
+    }
+
     #[cfg(not(target_os = "linux"))]
     pub fn namespace() -> String {
         "-".to_owned()
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn cmdline(_pgid: i32) -> String {
+        String::new()
     }
 
     pub fn start_time(pid: i32) -> Option<String> {
@@ -182,6 +197,10 @@ mod sys {
 
     pub fn namespace() -> String {
         "-".to_owned()
+    }
+
+    pub fn cmdline(_pgid: i32) -> String {
+        String::new()
     }
 
     pub fn start_time(_pid: i32) -> Option<String> {
@@ -256,8 +275,11 @@ fn verdict(recorded: &Recorded, now: &Observed) -> Verdict {
     if recorded.namespace != now.namespace {
         return Verdict::Keep;
     }
-    if cfg!(target_os = "linux") && recorded.namespace == "-" {
-        return Verdict::Drop;
+    #[cfg(target_os = "linux")]
+    {
+        if recorded.namespace == "-" {
+            return Verdict::Drop;
+        }
     }
     if !now.group_alive || recorded.start == "-" {
         return Verdict::Drop;
@@ -297,12 +319,7 @@ fn log_decision(dir: &Path, what: &str, pid: u32, recorded: &Recorded, now: &Obs
     if std::fs::metadata(&log).is_ok_and(|meta| meta.len() > LOG_CAP) {
         let _ = std::fs::rename(&log, dir.join(format!("{LOG_NAME}.1")));
     }
-    let cmdline = std::fs::read(format!("/proc/{}/cmdline", recorded.pgid))
-        .map(|bytes| {
-            let text = String::from_utf8_lossy(&bytes).replace('\0', " ");
-            text.chars().take(200).collect::<String>()
-        })
-        .unwrap_or_default();
+    let cmdline = sys::cmdline(recorded.pgid);
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs());

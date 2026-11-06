@@ -118,9 +118,9 @@ fn a_v1_memory_controller_limit_combines_with_v2() {
     assert_eq!(cgroup_limit_in("", root), Some(3000));
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 #[test]
-fn available_memory_reports_something_on_linux() {
+fn available_memory_reports_something() {
     assert!(available_memory().is_some_and(|bytes| bytes > 0));
 }
 

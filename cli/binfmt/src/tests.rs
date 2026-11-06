@@ -328,11 +328,12 @@ fn inspect_rejects_other_files() {
 fn inspect_reads_the_running_test_binary() {
     let bytes = std::fs::read(std::env::current_exe().unwrap()).unwrap();
     let images = inspect(&bytes).unwrap();
-    let want = match std::env::consts::OS {
-        "windows" => Format::Pe,
-        "macos" | "ios" => Format::MachO,
-        _ => Format::Elf,
-    };
+    #[cfg(windows)]
+    let want = Format::Pe;
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    let want = Format::MachO;
+    #[cfg(not(any(windows, target_os = "macos", target_os = "ios")))]
+    let want = Format::Elf;
     assert_eq!(images[0].format, want);
     assert!(images
         .iter()

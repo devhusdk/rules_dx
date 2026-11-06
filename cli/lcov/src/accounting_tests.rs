@@ -384,7 +384,10 @@ fn windows_cells_mark_c_and_cpp_unsupported() {
         let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &blank_sources());
         assert!(result.errors.is_empty(), "{cell}: {:?}", result.errors);
         assert!(result.absent.is_empty(), "{cell}: {:?}", result.absent);
-        assert_eq!(result.files["lua/runtime/launcher.cc"], Disposition::Unsupported);
+        assert_eq!(
+            result.files["lua/runtime/launcher.cc"],
+            Disposition::Unsupported
+        );
         assert_eq!(result.files["a.h"], Disposition::Unsupported);
         assert_eq!(result.unsupported_files, 2);
         assert!(result.meets(100), "{cell}");

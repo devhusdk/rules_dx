@@ -47,7 +47,7 @@ cc_binary(
 )
 ```
 
-This is tested on Linux x86_64 with LLVM and GCC, and with LLVM cross-compiling to Linux arm64. `bash` is the only host tool.
+This is tested on Linux x86_64 with LLVM and GCC, with LLVM cross-compiling to Linux arm64, and on Windows x64 with MSVC (cl.exe through the Ninja generator). On Linux, `bash` is the only host tool. On Windows, ninja is a pinned prebuilt binary.
 
 ## Options
 

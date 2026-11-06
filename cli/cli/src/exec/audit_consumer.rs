@@ -794,6 +794,29 @@ source = { registry = "https://pypi.org/simple" }
         harness
     }
 
+    const HEX_MODULE: &str = "elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.mix(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+
+    const HEX_ADVISORY: &str = r#"[{
+        "id": "GHSA-hex-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "Hex", "name": "plug"},
+            "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "1.15.1"}]}]
+        }]
+    }]"#;
+
+    fn hex_harness(name: &str, version: &str) -> Harness {
+        let harness = consumer_harness(name, HEX_MODULE, false);
+        harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");
+        harness.write_source(
+            "third_party/elixir/mix.lock",
+            &format!(
+                "%{{\n  \"plug\": {{:hex, :plug, \"{version}\", \"h\", [:mix], [], \"hexpm\", \"h2\"}},\n}}\n"
+            ),
+        );
+        harness
+    }
+
     #[test]
     fn consumer_swiftpm_set_reports_a_vulnerable_pin_and_passes_the_fixed_one() {
         let harness = swift_harness("swift-vuln", "1.8.2");
@@ -809,6 +832,22 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err) = run_with(&["security", "--output=json", "swiftpm"], &runner, &fixed);
         assert_eq!(code, 0, "{out}{err}");
         assert!(!out.contains("vuln/GHSA"), "{out}");
+    }
+
+    #[test]
+    fn consumer_hex_set_reports_a_vulnerable_lock_and_passes_the_fixed_one() {
+        let harness = hex_harness("hex-vuln", "1.15.0");
+        write_advisory(&harness, "hex", HEX_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["security", "--output=json", "deps"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/GHSA-hex-0001"), "{out}");
+        assert!(out.contains("third_party/elixir/mix.lock"), "{out}");
+        let fixed = hex_harness("hex-fixed", "1.15.1");
+        write_advisory(&fixed, "hex", HEX_ADVISORY);
+        let (code, out, err) = run_with(&["security", "--output=json", "deps"], &runner, &fixed);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("GHSA-hex"), "{out}");
     }
 
     const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = \"//third_party:maven_install.json\")\nuse_repo(maven, \"maven\")\n";

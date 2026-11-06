@@ -78,13 +78,21 @@ impl ScriptRunner {
         for (path, bytes) in self.writes.borrow_mut().drain(..) {
             std::fs::write(&path, bytes)?;
         }
-        if let Some(folder) = argv
+        let folder = argv
             .iter()
             .skip_while(|arg| *arg != "--output-folder" && *arg != "-C")
             .nth(1)
-        {
+            .cloned()
+            .or_else(|| {
+                argv.iter().find_map(|arg| {
+                    arg.strip_prefix("--run_under=cd '")?
+                        .strip_suffix("' &&")
+                        .map(str::to_owned)
+                })
+            });
+        if let Some(folder) = folder {
             for (name, bytes) in self.staged_outputs.borrow_mut().drain(..) {
-                std::fs::write(Path::new(folder).join(name), bytes)?;
+                std::fs::write(Path::new(&folder).join(name), bytes)?;
             }
         }
         let key = Self::key_for(argv);

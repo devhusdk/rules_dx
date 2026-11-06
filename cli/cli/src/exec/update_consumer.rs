@@ -2218,6 +2218,52 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!scratch_out(&runner).exists());
     }
 
+    const HEX_MODULE: &str = "elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.mix(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+
+    fn hex_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, HEX_MODULE, false);
+        harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");
+        harness.write_source("third_party/elixir/mix.lock", "%{}\n");
+        harness
+    }
+
+    #[test]
+    fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
+        let harness = hex_harness("hex-apply");
+        let runner = ScriptRunner::new(&[]);
+        stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+        let (code, out, err) = run_with(&["update", "deps"], &runner, &harness);
+        assert_ne!(code, 0, "{out}{err}");
+        assert_eq!(
+            read_bytes(&harness, "third_party/elixir/mix.lock"),
+            b"%{}\n"
+        );
+
+        let runner = ScriptRunner::new(&[]);
+        stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+        let (code, out, err) = run_with(&["update", "--apply", "deps"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            read_bytes(&harness, "third_party/elixir/mix.lock"),
+            b"%{\"jason\" => 1}\n"
+        );
+        assert_eq!(
+            read_bytes(&harness, "third_party/elixir/mix.exs"),
+            b"defmodule App do\nend\n"
+        );
+        let launches = runner.launches.borrow();
+        assert!(launches[0].argv.iter().any(|arg| arg == "deps.update"));
+    }
+
+    #[test]
+    fn consumer_hex_offline_needs_network_and_launches_nothing() {
+        let harness = hex_harness("hex-offline");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--offline", "deps"], &runner, &harness);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(runner.launches.borrow().is_empty());
+    }
+
     #[test]
     fn consumer_nuget_undeclared_or_missing_output_fails_and_writes_nothing() {
         for (name, files, want) in [

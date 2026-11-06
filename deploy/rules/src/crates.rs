@@ -975,6 +975,10 @@ mod tests {
                 .is_ok_and(|probe| probe.status.success())
         });
         if pinned.is_empty() || !cargo_ok {
+            assert!(
+                std::env::var_os("GITHUB_ACTIONS").is_none(),
+                "CI must run this test: pinned={pinned:?} cargo_ok={cargo_ok}"
+            );
             println!("skipped: pinned cargo-semver-checks or cargo is not available");
             return;
         }

@@ -292,6 +292,13 @@ rust_test(
         "MAVEN_GNUPG_PUBKEY": "$(rlocationpath testdata/maven/gnupg/pubkey.asc)",
         "MAVEN_GNUPG_SIGNATURE": "$(rlocationpath testdata/maven/gnupg/payload.txt.asc)",
     },
+    env_inherit = [
+        "CARGO_HOME",
+        "GITHUB_ACTIONS",
+        "HOME",
+        "PATH",
+        "RUSTUP_HOME",
+    ],
     deps = all_crate_deps(
         package_name = "deploy/dx_deploy_tools",
         normal = True,

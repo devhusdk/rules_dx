@@ -862,6 +862,58 @@ fn audit_reports_sarif_to_file() {
 }
 
 #[test]
+fn license_spdx_report_is_valid_and_repeatable() {
+    use dx_plan::args::parse;
+    let runner = AuditRunner::clean();
+    let mut documents = Vec::new();
+    for _ in 0..2 {
+        let harness = Harness::new("audit-reports-spdx");
+        write_hubs(&harness);
+        write_cargo_license_set(&harness);
+        let invocation = parse(&[
+            "license".to_owned(),
+            "//rust/tests/fixtures/hello:hello".to_owned(),
+            "--report=spdx=out.spdx.json".to_owned(),
+        ])
+        .expect("parse");
+        let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
+        assert_eq!(code, 0, "{out_text}{err_text}");
+        documents
+            .push(std::fs::read_to_string(harness.workspace.join("out.spdx.json")).expect("spdx"));
+    }
+    assert_eq!(documents[0], documents[1]);
+    assert_eq!(
+        dx_sbom_schema::spdx_errors(&documents[0]),
+        Vec::<String>::new()
+    );
+    let value: serde_json::Value = serde_json::from_str(&documents[0]).expect("spdx JSON");
+    let serde = value["packages"]
+        .as_array()
+        .expect("packages")
+        .iter()
+        .find(|package| package["name"] == "serde")
+        .expect("serde package");
+    assert_eq!(serde["versionInfo"], "1.0.100");
+    assert_eq!(serde["licenseConcluded"], "MIT");
+}
+
+#[test]
+fn security_rejects_the_spdx_report() {
+    use dx_plan::args::parse;
+    let runner = AuditRunner::clean();
+    let harness = Harness::new("audit-reports-spdx-security");
+    write_hubs(&harness);
+    let invocation = parse(&["security".to_owned(), "--report=spdx=x".to_owned()]);
+    match invocation {
+        Err(error) => assert!(error.to_string().contains("spdx"), "{error}"),
+        Ok(invocation) => {
+            let (code, _, _) = harness.execute_with(&invocation, &runner);
+            assert_ne!(code, 0);
+        }
+    }
+}
+
+#[test]
 fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     use dx_plan::args::parse;
     let runner = AuditRunner::clean();

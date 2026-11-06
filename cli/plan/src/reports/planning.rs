@@ -14,6 +14,7 @@ pub enum StandardFormat {
     Sources,
     Failures,
     Results,
+    Spdx,
 }
 
 impl StandardFormat {
@@ -25,6 +26,7 @@ impl StandardFormat {
             StandardFormat::Sources => "sources",
             StandardFormat::Failures => "failures",
             StandardFormat::Results => "results",
+            StandardFormat::Spdx => "spdx",
         }
     }
 
@@ -36,6 +38,7 @@ impl StandardFormat {
             "sources" => Some(StandardFormat::Sources),
             "failures" => Some(StandardFormat::Failures),
             "results" => Some(StandardFormat::Results),
+            "spdx" => Some(StandardFormat::Spdx),
             _ => None,
         }
     }

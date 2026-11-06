@@ -14,7 +14,7 @@ tools/dx security --report sarif=security.sarif quality/tools/python
 
 ```text
 dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error|uncovered] [--report sarif=<dest>] [scope...]
-dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif|spdx=<dest>] [scope...]
 ```
 
 | Flag | What it does |
@@ -26,6 +26,7 @@ dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning
 | `--fail-on info\|warning\|error` | Fails at this severity. |
 | `--fail-on uncovered` | `dx security` only: also fails when a known lock file (`mix.lock`, `pubspec.lock`, `poetry.lock` and others) has no dependency set. Without it, each such file prints one warning line. An `[[uncovered]]` entry whose `set` is the file path silences it. |
 | `--report sarif=<dest>` | Writes SARIF. Repeatable. `-` is stdout. |
+| `--report spdx=<dest>` | `dx license` only: writes an SPDX 2.3 JSON SBOM of the scoped dependencies with their licenses. Sorted, and dated from `SOURCE_DATE_EPOCH` or `DX_AUDIT_TODAY`, so reruns match byte for byte. |
 | `--output text\|json` | Sets the output format. |
 
 Scopes: dependency-set, package or target selectors. No scope means `//...`. See [Scope Defaults](scope-defaults.md). With `--affected` and no changes, or no owned set for `dx license`, they print `no affected targets` and exit `0`. With changes that no set owns, `dx security` runs only the secrets scan. Bazel options do not apply.

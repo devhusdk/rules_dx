@@ -804,6 +804,7 @@ struct SecurityResult {
 }
 
 struct LicenseResult {
+    licensed: Vec<dx_audit::locks::LicensedPackage>,
     status: dx_audit::outcome::FamilyStatus,
     diagnostics: Vec<DiagnosticEvent>,
     detail: String,
@@ -1553,6 +1554,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut sarif_tools: BTreeSet<String> = BTreeSet::new();
     let mut family_messages: BTreeMap<String, String> = BTreeMap::new();
     let mut family_codes: BTreeMap<String, &'static str> = BTreeMap::new();
+    let mut licensed: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
     let mut any_incomplete = false;
     for family in &request.families {
         match *family {
@@ -1588,6 +1590,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             dx_audit::AuditFamily::License => {
                 let result = run_license(workspace, &sets, &effective, invocation.fail_on, &today);
                 sarif_tools.insert("license".to_owned());
+                licensed = result.licensed.clone();
                 diagnostics.extend(result.diagnostics.clone());
                 if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
                     any_incomplete = true;
@@ -1656,6 +1659,58 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut reports_ok = true;
     for planned in &planned_reports {
         let name = planned.format.name();
+        if name == "spdx" {
+            let created = audit_spdx::created_time(
+                std::env::var("SOURCE_DATE_EPOCH").ok().as_deref(),
+                &today,
+            );
+            let document = match audit_spdx::license_spdx(&effective, &licensed, &created) {
+                Ok(document) => document,
+                Err(error) => {
+                    reports_ok = false;
+                    if let Err(exit) = report_failed(
+                        out,
+                        err,
+                        invocation.output,
+                        &format!("failed to render SPDX report: {error}"),
+                    ) {
+                        return exit;
+                    }
+                    continue;
+                }
+            };
+            if let Err(error) =
+                write_report_document(out, workspace, &planned.destination, &document)
+            {
+                reports_ok = false;
+                if let Err(exit) = report_failed(
+                    out,
+                    err,
+                    invocation.output,
+                    &format!("failed to write spdx report to {error}"),
+                ) {
+                    return exit;
+                }
+                continue;
+            }
+            if invocation.output == OutputMode::Json {
+                if let Err(exit) = emit_built(
+                    out,
+                    report_event("spdx", planned.destination.display(), !any_incomplete),
+                ) {
+                    return exit;
+                }
+            } else if verbose && planned.destination != Destination::Stdout {
+                if let Err(exit) = check_stdout_write(writeln!(
+                    out,
+                    "Wrote spdx report to {}.",
+                    planned.destination.display()
+                )) {
+                    return exit;
+                }
+            }
+            continue;
+        }
         if name == "sarif" {
             let tools: Vec<String> = sarif_tools.iter().cloned().collect();
             let snapshots = BTreeMap::new();
@@ -1837,6 +1892,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[path = "audit_license.rs"]
 mod audit_license;
 use audit_license::*;
+#[path = "audit_spdx.rs"]
+mod audit_spdx;
 #[path = "audit_uncovered.rs"]
 mod audit_uncovered;
 

@@ -16,6 +16,7 @@ pub(super) fn run_license(
                 diagnostics: Vec::new(),
                 detail: error.to_string(),
                 code: CODE_AUDIT_FAILED,
+                licensed: Vec::new(),
             };
         }
         Ok(policy) => policy,
@@ -27,6 +28,7 @@ pub(super) fn run_license(
             diagnostics: Vec::new(),
             detail: detail.clone(),
             code: CODE_AUDIT_FAILED,
+            licensed: Vec::new(),
         };
     }
     for adjustment in &policy.sets {
@@ -37,6 +39,7 @@ pub(super) fn run_license(
                 diagnostics: Vec::new(),
                 detail: detail.clone(),
                 code: CODE_AUDIT_FAILED,
+                licensed: Vec::new(),
             };
         }
     }
@@ -48,6 +51,7 @@ pub(super) fn run_license(
                 diagnostics: Vec::new(),
                 detail: detail.clone(),
                 code: CODE_AUDIT_FAILED,
+                licensed: Vec::new(),
             };
         }
     }
@@ -398,6 +402,7 @@ pub(super) fn run_license(
         diagnostics,
         detail,
         code: CODE_AUDIT_FAILED,
+        licensed: licensed_all,
     }
 }
 

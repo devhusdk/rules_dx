@@ -328,7 +328,7 @@ pub fn spec(command: Command) -> CommandSpec {
             command,
             aspects: &[],
             probes: &[],
-            reports: &[StandardFormat::Sarif],
+            reports: &[StandardFormat::Sarif, StandardFormat::Spdx],
         },
         Command::Update => CommandSpec {
             command,
@@ -748,7 +748,10 @@ mod tests {
             assert!(entry.aspects.is_empty());
         }
         assert_eq!(spec(Command::Security).reports, &[StandardFormat::Sarif]);
-        assert_eq!(spec(Command::License).reports, &[StandardFormat::Sarif]);
+        assert_eq!(
+            spec(Command::License).reports,
+            &[StandardFormat::Sarif, StandardFormat::Spdx]
+        );
         let update = spec(Command::Update);
         assert!(update.aspects.is_empty());
         assert!(update.reports.is_empty());
@@ -763,6 +766,7 @@ mod tests {
             StandardFormat::Sources,
             StandardFormat::Failures,
             StandardFormat::Results,
+            StandardFormat::Spdx,
         ] {
             assert_eq!(StandardFormat::parse(format.name()), Some(format));
         }
@@ -781,6 +785,7 @@ mod tests {
             StandardFormat::Sources,
             StandardFormat::Failures,
             StandardFormat::Results,
+            StandardFormat::Spdx,
         ] {
             assert!(
                 Command::value_variants()

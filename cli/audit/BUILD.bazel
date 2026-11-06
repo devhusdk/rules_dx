@@ -70,6 +70,7 @@ dx_rust_crate(
         "profiles/security/strict.toml",
         "schema/licenses.schema.json",
         "schema/security.schema.json",
+        "//:audit_bases",
         "//:licenses.toml",
         "//:security.toml",
         "//docs:cli/commands/config.md",

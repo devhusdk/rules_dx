@@ -28,3 +28,45 @@ pub fn base_text(file: &str, profile: Profile) -> Option<&'static str> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const COMMITTED: [(&str, Profile, &str); 4] = [
+        (
+            "licenses",
+            Profile::Standard,
+            include_str!("../../../.dx/config/licenses/standard.toml"),
+        ),
+        (
+            "licenses",
+            Profile::Strict,
+            include_str!("../../../.dx/config/licenses/strict.toml"),
+        ),
+        (
+            "security",
+            Profile::Standard,
+            include_str!("../../../.dx/config/security/standard.toml"),
+        ),
+        (
+            "security",
+            Profile::Strict,
+            include_str!("../../../.dx/config/security/strict.toml"),
+        ),
+    ];
+
+    #[test]
+    fn committed_bases_match_the_embedded_ones() {
+        for (file, profile, committed) in COMMITTED {
+            let (header, body) = committed.split_once('\n').expect("header line");
+            assert!(header.starts_with("# dx: generated"), "{file} {profile:?}");
+            assert_eq!(
+                Some(body),
+                base_text(file, profile),
+                "{} differs; run dx init --apply",
+                base_rel(file, profile)
+            );
+        }
+    }
+}

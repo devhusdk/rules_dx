@@ -69,6 +69,70 @@ impl InitFile {
 }
 
 /// The files each agent tool owns; the one place that maps an agent to its files.
+const AUDIT_FILES: [&str; 2] = ["licenses", "security"];
+
+fn audit_profile(profile: dx_adopt::Profile) -> dx_audit::profile_base::Profile {
+    match profile {
+        dx_adopt::Profile::Standard => dx_audit::profile_base::Profile::Standard,
+        dx_adopt::Profile::Strict => dx_audit::profile_base::Profile::Strict,
+    }
+}
+
+/// The licenses and security bases for every workspace, and the root file that extends one.
+fn audit_policy_files(root: &Path, profile: dx_adopt::Profile) -> Vec<ScaffoldFile> {
+    let mut files = Vec::new();
+    for name in AUDIT_FILES {
+        for base in [dx_adopt::Profile::Standard, dx_adopt::Profile::Strict] {
+            let base = audit_profile(base);
+            let Some(text) = dx_audit::profile_base::base_text(name, base) else {
+                continue;
+            };
+            let path = dx_audit::profile_base::base_rel(name, base);
+            let header = Ownership::Whole.header(&path, None);
+            files.push(ScaffoldFile {
+                content: format!("{}\n{text}", header.unwrap_or_default()),
+                path,
+                kind: FileKind::Generated,
+            });
+        }
+        if !root.join(format!("{name}.toml")).exists() {
+            let base = dx_audit::profile_base::base_rel(name, audit_profile(profile));
+            let path = format!("{name}.toml");
+            let header = Ownership::Once.header(&path, None).unwrap_or_default();
+            files.push(ScaffoldFile {
+                path,
+                content: format!(
+                    "{header}\n\n#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/{name}.schema.json\nextends = \"{base}\"\n"
+                ),
+                kind: FileKind::WriteOnce,
+            });
+        }
+    }
+    files
+}
+
+/// One line for each audit root file that exists without an `extends` line.
+pub(super) fn audit_policy_notes(root: &Path) -> Vec<String> {
+    AUDIT_FILES
+        .iter()
+        .filter_map(|name| {
+            let text = std::fs::read_to_string(root.join(format!("{name}.toml"))).ok()?;
+            let extends = text
+                .lines()
+                .any(|line| line.trim_start().starts_with("extends"));
+            (!extends).then(|| {
+                format!(
+                    "{name}.toml: existing config kept; add extends = \"{}\" to use a base",
+                    dx_audit::profile_base::base_rel(
+                        name,
+                        dx_audit::profile_base::Profile::Standard
+                    )
+                )
+            })
+        })
+        .collect()
+}
+
 fn agent_paths(agent: Agent) -> &'static [&'static str] {
     match agent {
         Agent::Claude => &[setup::SETTINGS, claude_md::FILE],
@@ -108,6 +172,7 @@ pub(super) fn plan_with_profile(
         Vec::new()
     };
     scaffold.extend(dx_adopt::plan_init_files_at(root, module, profile)?);
+    scaffold.extend(audit_policy_files(root, profile.unwrap_or_default()));
     let mut entries: Vec<(String, String, Kind)> = scaffold
         .into_iter()
         .map(|file| (file.path, file.content, Kind::Scaffold(file.kind)))
@@ -656,6 +721,33 @@ mod tests {
             std::fs::write(root.join(&file.path), &file.content).expect("write");
         }
         assert!(dx_adopt::is_fresh_dir(root));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn init_writes_the_audit_bases_and_keeps_a_root_file_without_extends() {
+        let scratch = dx_test_scratch::scratch("dx-init-audit-");
+        let root = scratch.path();
+        std::fs::write(root.join("licenses.toml"), "[policy]\nblocked = []\n").expect("licenses");
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--profile", "strict"]),
+            root,
+        );
+        assert_eq!(code, 0, "{err}");
+        for path in [
+            ".dx/config/licenses/standard.toml",
+            ".dx/config/licenses/strict.toml",
+            ".dx/config/security/standard.toml",
+            ".dx/config/security/strict.toml",
+        ] {
+            let text = std::fs::read_to_string(root.join(path)).expect(path);
+            assert!(text.starts_with("# dx: generated"), "{path}");
+        }
+        let security = std::fs::read_to_string(root.join("security.toml")).expect("security");
+        assert!(security.contains("extends = \".dx/config/security/strict.toml\""));
+        let licenses = std::fs::read_to_string(root.join("licenses.toml")).expect("licenses");
+        assert_eq!(licenses, "[policy]\nblocked = []\n");
+        assert!(err.contains("licenses.toml: existing config kept"), "{err}");
         scratch.close().expect("cleanup");
     }
 

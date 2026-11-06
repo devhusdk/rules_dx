@@ -146,6 +146,8 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added; existing ids stay in order. |
 | `.dx/config/ruff/standard.toml`, `.dx/config/ruff/strict.toml` | whole | Generated. Written when the tree has Python files. Rewritten when it differs. |
 | `ruff.toml` | once | Written when missing and the tree has Python files. Its `extend` line picks the base. Never rewritten. |
+| `.dx/config/licenses/standard.toml`, `.dx/config/licenses/strict.toml`, `.dx/config/security/standard.toml`, `.dx/config/security/strict.toml` | whole | Generated in every workspace. Rewritten when it differs. |
+| `licenses.toml`, `security.toml` | once | Written when missing, with an `extends` line that picks the base. An existing file is kept, and init prints a line when it has no `extends`. |
 | `.devcontainer/devcontainer.json` | pin | Written when missing. Only the `image` and the bazel feature version are updated, and only while they still name the image and feature dx wrote. Another image or feature is kept. |
 | `.editorconfig` | keys | Written when missing. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. On every `dx init`/`dx upgrade`, if the repo has Kotlin sources, dx sets the ktlint keys under `[*.{kt,kts}]`. It never changes other keys or sections, and it overwrites a ktlint key that you changed. |
 | `.gitattributes` | once | Written when missing. Never rewritten. It sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |

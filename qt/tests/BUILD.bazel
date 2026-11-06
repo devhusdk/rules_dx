@@ -539,7 +539,7 @@ qt_cc_test(
         env = {
             "DX_QT_ARCHIVES": "$(rootpaths :consumer_archives_" + cell + ")",
             "DX_QT_CORE_MEMBER": core,
-        } | ({"DX_QT_RUN_LEDGER": "1"} if os == "linux" else {}) | {
+        } | ({"DX_QT_RUN_LEDGER": "1"} if os != "windows" else {}) | {
             "DX_QT_RUNTIME_RECORD": "msvc_vcruntime * app_local" if os == "windows" else ("os_runtime_" + cell + " " + glibc + " os_supplied" if glibc else ""),
         },
         target_compatible_with = ["@platforms//os:" + os, "@platforms//cpu:" + cpu],

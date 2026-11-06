@@ -125,6 +125,8 @@ def _roslyn_impl(target, ctx):
         mapped.append({"label": str(dep.label), "refs": paths})
         rows += ["%s\tReference\t%s\t" % (path, dep.label) for path in paths]
     ctx.actions.write(declared, "".join([row + "\n" for row in rows]))
+    if "dx-keep" in attrs.tags:
+        mapped = []
     ctx.actions.write(deps_map, json.encode({"package": target.label.package, "target": target.label.name.removesuffix("_upstream"), "deps": mapped}))
     trimmer = [f for f in ctx.files._reference_trimmer if f.basename == "ReferenceTrimmer.Analyzer.dll"]
 

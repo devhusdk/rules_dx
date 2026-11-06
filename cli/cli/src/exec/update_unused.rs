@@ -52,7 +52,8 @@ fn depcheck_ecosystem(ecosystem: Ecosystem) -> Option<dx_depcheck::Ecosystem> {
     }
 }
 
-/// Crate name behind a label of a crate_universe hub: `serde-1.0.229` is `serde`, `cc` stays.
+/// Crate name behind a label of a crate_universe hub: `serde-1.0.229` is `serde`, `cc` stays, and
+/// the binary target `ripgrep__rg` of a tool crate is `ripgrep`.
 fn crate_name(label: &str) -> Option<String> {
     let (repository, rest) = label.split_once("//")?;
     if !repository.starts_with('@') {
@@ -67,6 +68,7 @@ fn crate_name(label: &str) -> Option<String> {
                 .iter()
                 .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
     };
+    let target = target.split_once("__").map_or(target, |(krate, _)| krate);
     let name = target
         .match_indices('-')
         .find(|(at, _)| semver(&target[at + 1..]))
@@ -670,6 +672,8 @@ mod tests {
         assert_eq!(name("@@rules_rust++crate+crates//:cc"), "cc");
         assert_eq!(name("@crates//sha-1-0.10.1:sha-1-0.10.1"), "sha-1");
         assert_eq!(name("@crates//:sha-1"), "sha-1");
+        assert_eq!(name("@crates//:ripgrep__rg"), "ripgrep");
+        assert_eq!(name("@crates//ripgrep-14.1.0:ripgrep-14.1.0__rg"), "ripgrep");
     }
 
     #[test]
@@ -682,6 +686,18 @@ mod tests {
         let query = Labels(
             "@@rules_rust++crate+crates//serde-1.0.229:serde-1.0.229\n@@rules_rust++crate+crates//:cc\n",
         );
+        let found = find(root, &resolved, &query, &[]);
+        let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
+        assert_eq!(names, ["regex"]);
+    }
+
+    #[test]
+    fn a_crate_used_only_through_its_tool_label_is_used() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let manifest = "[package]\nname = \"x\"\n\n[dependencies]\nripgrep = \"14\"\nregex = \"1\"\n";
+        let resolved = cargo_set(root, manifest);
+        let query = Labels("@@rules_rust++crate+crates//:ripgrep__rg\n");
         let found = find(root, &resolved, &query, &[]);
         let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
         assert_eq!(names, ["regex"]);

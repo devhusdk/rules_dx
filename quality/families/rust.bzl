@@ -102,6 +102,8 @@ def _crate_deps_files(target, ctx, tool):
     """Writes the crate name to dependency target map that places unused-dependency findings."""
     if ctx.label.workspace_name or _rust_common.crate_info not in target:
         return []
+    if "dx-keep" in ctx.rule.attr.tags:
+        return []
     deps = {}
     for attr_name in ["deps", "proc_macro_deps"]:
         for dep in getattr(ctx.rule.attr, attr_name, []):

@@ -93,7 +93,7 @@ def _unused_deps_map(target, ctx, attrs, implicit = []):
 def _unused_deps_files(target, ctx, attrs):
     """Files the runner reads to find direct deps whose jars the compiler never used."""
     jdeps = [o.jdeps for o in target[JavaInfo].java_outputs if o.jdeps]
-    if not jdeps:
+    if not jdeps or "dx-keep" in attrs.tags:
         return []
     return [_unused_deps_map(target, ctx, attrs), jdeps[0]]
 
@@ -339,7 +339,7 @@ def _scalac_check(target, ctx, attrs):
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
-    unused_deps = [_unused_deps_map(target, ctx, attrs, implicit)] if analyzer else []
+    unused_deps = [_unused_deps_map(target, ctx, attrs, implicit)] if analyzer and "dx-keep" not in attrs.tags else []
     return [JvmCheckInfo(log = log, tool = "scalac", unused_deps = unused_deps)]
 
 def _jvm_check_impl(target, ctx):

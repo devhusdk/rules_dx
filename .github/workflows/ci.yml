@@ -280,6 +280,51 @@ jobs:
           name: hermetic-evidence-linux_arm64
           path: ${{ runner.temp }}/hermetic-evidence
           retention-days: 7
+  hermetic-macos:
+    name: hermetic-macos (macOS-compatible consumer qualifications on macos_arm64)
+    timeout-minutes: 90
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Qualify the consumer without installs or network
+        run: |
+          test "$(uname -s)" = Darwin
+          # The qualifications compatible with macOS; widen this list with the target (#8258).
+          printf '%s\n' //tools/testing/hermetic:cpp_rust > "$RUNNER_TEMP/hermetic-targets"
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          # shellcheck disable=SC2046
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
+      - name: Verify the evidence
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          while read -r label; do
+            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"
+          done < "$RUNNER_TEMP/hermetic-targets"
+      - name: Collect the evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/hermetic-evidence"
+          while read -r label; do
+            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+            mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
+            cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
+          done < "$RUNNER_TEMP/hermetic-targets"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: hermetic-evidence-macos_arm64
+          path: ${{ runner.temp }}/hermetic-evidence
+          retention-days: 7
   gcc-cross-build:
     name: gcc-cross-build (linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45
@@ -827,6 +872,7 @@ jobs:
         gcc-cross-run-arm64,
         hermetic,
         hermetic-arm64,
+        hermetic-macos,
         msix-install,
         network,
         preflight,
@@ -847,6 +893,7 @@ jobs:
           NEEDS_GCC_CROSS_RUN_ARM64: ${{ needs.gcc-cross-run-arm64.result }}
           NEEDS_HERMETIC: ${{ needs.hermetic.result }}
           NEEDS_HERMETIC_ARM64: ${{ needs.hermetic-arm64.result }}
+          NEEDS_HERMETIC_MACOS: ${{ needs.hermetic-macos.result }}
           NEEDS_MSIX_INSTALL: ${{ needs.msix-install.result }}
           NEEDS_NETWORK: ${{ needs.network.result }}
           NEEDS_PREFLIGHT: ${{ needs.preflight.result }}
@@ -855,7 +902,7 @@ jobs:
         run: |
           set -eu
           export LC_ALL=C
-          required=(coverage-cells dogfood docs devcontainer-check families gate gcc-cross-run-arm64 hermetic hermetic-arm64 msix-install network preflight starter-consumer workflow-check)
+          required=(coverage-cells dogfood docs devcontainer-check families gate gcc-cross-run-arm64 hermetic hermetic-arm64 hermetic-macos msix-install network preflight starter-consumer workflow-check)
           failing=()
           for name in "${required[@]}"; do
             var="NEEDS_${name^^}"

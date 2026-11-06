@@ -80,6 +80,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "gcc-cross-run-arm64",
         "hermetic",
         "hermetic-arm64",
+        "hermetic-macos",
         "msix-install",
         "network",
         "preflight",

@@ -152,7 +152,7 @@ struct OwnedEditorconfigSection {
 /// Sections of `.editorconfig` whose keys dx sets while the tree has files of these extensions.
 const OWNED_EDITORCONFIG_SECTIONS: [OwnedEditorconfigSection; 1] = [OwnedEditorconfigSection {
     extensions: &[".kt", ".kts"],
-    keys: include_str!("../templates/config/ktlint/standard.editorconfig"),
+    keys: include_str!("../../../quality/tiers/ktlint/standard.editorconfig"),
 }];
 
 /// The section header and `key = value` pairs of an owned section's text.

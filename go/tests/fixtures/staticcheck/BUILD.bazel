@@ -44,13 +44,13 @@ real_source_target(
 
 copy_file(
     name = "standard_conf",
-    src = "//cli/adopt/templates/config:staticcheck/standard.conf",
+    src = "//quality/tiers/staticcheck:standard.conf",
     out = "standard/staticcheck.conf",
 )
 
 copy_file(
     name = "strict_conf",
-    src = "//cli/adopt/templates/config:staticcheck/strict.conf",
+    src = "//quality/tiers/staticcheck:strict.conf",
     out = "strict/staticcheck.conf",
 )
 

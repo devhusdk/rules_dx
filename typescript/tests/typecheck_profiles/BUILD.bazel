@@ -14,7 +14,7 @@ package(
 [
     copy_file(
         name = "%s_base" % profile,
-        src = "//cli/adopt/templates/config:tsconfig/%s.json" % profile,
+        src = "//quality/tiers/tsconfig:%s.json" % profile,
         out = ".dx/config/tsconfig/%s.json" % profile,
     )
     for profile in [

@@ -1,3 +1,0 @@
-{
-  "extends": ["./standard.json", "stylelint-config-recess-order"]
-}

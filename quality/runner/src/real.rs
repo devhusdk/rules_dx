@@ -104,8 +104,7 @@ const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
 const HLINT_DEFAULTS_REL: &str = "dx-hlint-default/hlint.yaml";
 /// An empty hint list keeps the built-in hints and stops hlint from searching for `.hlint.yaml`.
-const HLINT_DEFAULTS_BYTES: &[u8] =
-    include_bytes!("../../../cli/adopt/templates/config/hlint/standard.yaml");
+const HLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hlint/standard.yaml");
 /// The stock rulesets for every staged `.erl` and `.hrl`, at any depth.
 const ELVIS_DEFAULTS_REL: &str = "dx-elvis-default/elvis.config";
 const ELVIS_DEFAULTS_BYTES: &[u8] = b"[{config, [
@@ -120,8 +119,7 @@ const DFMT_DEFAULTS_BYTES: &[u8] = b"root = true\n\n[*.d]\nend_of_line = lf\n";
 /// dscanner is always pointed at this file (see `commands::DSCANNER_CONFIG_REL`); a bound config
 /// is staged there instead. Upstream leaves the unused variable and parameter checks off, so the
 /// default turns them on; the rest stay at their upstream defaults.
-const DSCANNER_DEFAULTS_BYTES: &[u8] =
-    include_bytes!("../../../cli/adopt/templates/config/dscanner/standard.ini");
+const DSCANNER_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/dscanner/standard.ini");
 const STATIX_DEFAULTS_REL: &str = "dx-statix-default/statix.toml";
 /// An empty `statix.toml` keeps every lint on and stops statix searching upward for one.
 const STATIX_DEFAULTS_BYTES: &[u8] = b"";

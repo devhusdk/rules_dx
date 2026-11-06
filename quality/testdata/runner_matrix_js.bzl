@@ -336,9 +336,9 @@ JS_CASES = [
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_standard.mjs",
-            "//cli/adopt/templates/config:eslint/standard.mjs",
-            "//cli/adopt/templates/config:eslint/strict.mjs",
-            "//cli/adopt/templates/config:eslint/frameworks.mjs",
+            "//quality/tiers/eslint:standard.mjs",
+            "//quality/tiers/eslint:strict.mjs",
+            "//quality/tiers/eslint:frameworks.mjs",
         ],
         "toolfile_rels": [
             "eslint.config.mjs",
@@ -363,9 +363,9 @@ JS_CASES = [
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_strict.mjs",
-            "//cli/adopt/templates/config:eslint/standard.mjs",
-            "//cli/adopt/templates/config:eslint/strict.mjs",
-            "//cli/adopt/templates/config:eslint/frameworks.mjs",
+            "//quality/tiers/eslint:standard.mjs",
+            "//quality/tiers/eslint:strict.mjs",
+            "//quality/tiers/eslint:frameworks.mjs",
         ],
         "toolfile_rels": [
             "eslint.config.mjs",
@@ -388,10 +388,10 @@ JS_CASES = [
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_standard.mjs",
-            "//cli/adopt/templates/config:eslint/standard.mjs",
-            "//cli/adopt/templates/config:eslint/strict.mjs",
+            "//quality/tiers/eslint:standard.mjs",
+            "//quality/tiers/eslint:strict.mjs",
             ":eslint_cfg/frameworks_vue.mjs",
-            "//cli/adopt/templates/config:eslint/frameworks/vue.mjs",
+            "//quality/tiers/eslint:frameworks/vue.mjs",
         ],
         "toolfile_rels": [
             "eslint.config.mjs",

@@ -97,7 +97,7 @@ those frameworks, such as `[net8.0]`. When `target_frameworks` is a
 `.globalconfig` is the profile: it spells out every severity, so `dx` and the
 C# Dev Kit, which picks it up by its name, report the same findings. The dx
 bases are `standard.globalconfig` and `strict.globalconfig` in
-`cli/adopt/templates/config/roslyn/`.
+`quality/tiers/roslyn/`.
 
 `dx typecheck` runs `csc`, which reports only the compiler diagnostics (`CS*`)
 from the same per-framework compilation that `roslyn` uses, so no extra

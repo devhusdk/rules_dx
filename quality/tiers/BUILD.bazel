@@ -1,0 +1,112 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load(":corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "TYPOS_UNSAFE", "tier_labels")
+
+# gazelle:exclude eslint
+# gazelle:exclude vale
+_VISIBILITY = [
+    "//cli/adopt:__subpackages__",
+    "//quality/runner:__subpackages__",
+    "//go/tests:__subpackages__",
+    "//go/tools/analysis:__subpackages__",
+    "//quality/testdata:__subpackages__",
+    "//quality/tests/fixtures:__subpackages__",
+    "//typescript/tests:__subpackages__",
+    "//tools/testing/hermetic:__subpackages__",
+]
+
+filegroup(
+    name = "all",
+    srcs = [
+        "//quality/tiers/ansible_lint:files",
+        "//quality/tiers/biome:files",
+        "//quality/tiers/checkstyle:files",
+        "//quality/tiers/clang_tidy:files",
+        "//quality/tiers/credo:files",
+        "//quality/tiers/dart:files",
+        "//quality/tiers/detekt:files",
+        "//quality/tiers/dscanner:files",
+        "//quality/tiers/elvis:files",
+        "//quality/tiers/eslint:files",
+        "//quality/tiers/fortitude:files",
+        "//quality/tiers/fsharplint:files",
+        "//quality/tiers/hlint:files",
+        "//quality/tiers/ktlint:files",
+        "//quality/tiers/luals:files",
+        "//quality/tiers/perlcritic:files",
+        "//quality/tiers/phpcs:files",
+        "//quality/tiers/phpstan:files",
+        "//quality/tiers/pmd:files",
+        "//quality/tiers/psscriptanalyzer:files",
+        "//quality/tiers/regal:files",
+        "//quality/tiers/roslyn:files",
+        "//quality/tiers/rubocop:files",
+        "//quality/tiers/ruff:files",
+        "//quality/tiers/scalafix:files",
+        "//quality/tiers/selene:files",
+        "//quality/tiers/sqlfluff:files",
+        "//quality/tiers/staticcheck:files",
+        "//quality/tiers/stylelint:files",
+        "//quality/tiers/swift_format:files",
+        "//quality/tiers/tflint:files",
+        "//quality/tiers/tsconfig:files",
+        "//quality/tiers/ty:files",
+        "//quality/tiers/vale:files",
+        "//quality/tiers/yamllint:files",
+    ],
+    visibility = _VISIBILITY,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "corpora.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_javascript",
+    javascript_srcs = tier_labels(TIER_JAVASCRIPT),  # keep
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_json",
+    json_srcs = tier_labels(TIER_JSON),  # keep
+)
+
+real_source_target(
+    name = "corpus_toml",
+    toml_srcs = tier_labels([path for path in TIER_TOML if path not in TYPOS_UNSAFE]),  # keep
+)
+
+real_source_target(
+    name = "corpus_yaml",
+    tags = ["corpus"],
+    yaml_srcs = tier_labels(TIER_YAML),  # keep
+)
+
+_CORPORA = [
+    ":corpus_javascript",
+    ":corpus_json",
+    ":corpus_toml",
+    ":corpus_yaml",
+]
+
+rust_test(
+    name = "tiers_test",
+    srcs = ["tiers_test.rs"],
+    data = [":all"] + _CORPORA,
+    env = {
+        "DX_TIER_CORPORA": " ".join(["$(rootpaths %s)" % corpus for corpus in _CORPORA]),
+        "DX_TIER_FILES": "$(rootpaths :all)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "tiers_fmt_test",
+    targets = [":tiers_test"],
+)

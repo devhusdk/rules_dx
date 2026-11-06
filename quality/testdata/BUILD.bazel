@@ -114,7 +114,7 @@ exports_files(
 [
     copy_file(
         name = "vale_profile_%s" % profile,
-        src = "//cli/adopt/templates/config:vale/%s.ini" % profile,
+        src = "//quality/tiers/vale:%s.ini" % profile,
         out = "vale_profile/%s/.vale.ini" % profile,
     )
     for profile in ["standard", "strict"]

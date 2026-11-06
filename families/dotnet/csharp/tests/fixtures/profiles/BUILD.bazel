@@ -22,12 +22,12 @@ real_source_target(
 
 roslyn_config(
     name = "standard_config",
-    src = "@rules_dx//cli/adopt/templates/config/roslyn:standard.globalconfig",
+    src = "@rules_dx//quality/tiers/roslyn:standard.globalconfig",
 )
 
 roslyn_config(
     name = "strict_config",
-    src = "@rules_dx//cli/adopt/templates/config/roslyn:strict.globalconfig",
+    src = "@rules_dx//quality/tiers/roslyn:strict.globalconfig",
 )
 
 csharp_library(
@@ -67,11 +67,11 @@ rust_test(
         ":sdk_recommended",
         ":standard_sarif",
         ":strict_sarif",
-        "@rules_dx//cli/adopt/templates/config/roslyn:standard.globalconfig",
+        "@rules_dx//quality/tiers/roslyn:standard.globalconfig",
     ],
     env = {
         "DX_SDK_RECOMMENDED": "$(rootpath :sdk_recommended)",
-        "DX_STANDARD_TEMPLATE": "$(rootpath @rules_dx//cli/adopt/templates/config/roslyn:standard.globalconfig)",
+        "DX_STANDARD_TEMPLATE": "$(rootpath @rules_dx//quality/tiers/roslyn:standard.globalconfig)",
         "DX_STANDARD_SARIF": "$(rootpath :standard_sarif)",
         "DX_STRICT_SARIF": "$(rootpath :strict_sarif)",
     },

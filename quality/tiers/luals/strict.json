@@ -1,0 +1,10 @@
+{
+  "diagnostics.groupFileStatus": {
+    "strong": "Any"
+  },
+  "diagnostics.severity": {
+    "unused-local": "Error",
+    "unused-function": "Error",
+    "unused-vararg": "Error"
+  }
+}

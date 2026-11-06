@@ -1,7 +1,0 @@
-exports_files(
-    [
-        "standard.json",
-        "strict.json",
-    ],
-    visibility = ["//visibility:public"],
-)

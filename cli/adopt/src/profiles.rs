@@ -67,26 +67,26 @@ const FRAMEWORKS: &[Framework] = &[
     Framework {
         name: "astro",
         extensions: &[".astro"],
-        template: include_str!("../templates/config/eslint/frameworks/astro.mjs"),
+        template: include_str!("../../../quality/tiers/eslint/frameworks/astro.mjs"),
     },
     Framework {
         name: "react",
         extensions: &[".jsx", ".tsx"],
-        template: include_str!("../templates/config/eslint/frameworks/react.mjs"),
+        template: include_str!("../../../quality/tiers/eslint/frameworks/react.mjs"),
     },
     Framework {
         name: "svelte",
         extensions: &[".svelte"],
-        template: include_str!("../templates/config/eslint/frameworks/svelte.mjs"),
+        template: include_str!("../../../quality/tiers/eslint/frameworks/svelte.mjs"),
     },
     Framework {
         name: "vue",
         extensions: &[".vue"],
-        template: include_str!("../templates/config/eslint/frameworks/vue.mjs"),
+        template: include_str!("../../../quality/tiers/eslint/frameworks/vue.mjs"),
     },
 ];
 
-const NO_FRAMEWORKS: &str = include_str!("../templates/config/eslint/frameworks.mjs");
+const NO_FRAMEWORKS: &str = include_str!("../../../quality/tiers/eslint/frameworks.mjs");
 
 const TABLE: &[Entry] = &[
     Entry {
@@ -102,8 +102,8 @@ const TABLE: &[Entry] = &[
         config_rule: true,
         configured: &["ruff.toml", ".ruff.toml"],
         pyproject_table: Some("ruff"),
-        standard: include_str!("../templates/config/ruff/standard.toml"),
-        strict: include_str!("../templates/config/ruff/strict.toml"),
+        standard: include_str!("../../../quality/tiers/ruff/standard.toml"),
+        strict: include_str!("../../../quality/tiers/ruff/strict.toml"),
     },
     Entry {
         tool: "eslint",
@@ -123,8 +123,8 @@ const TABLE: &[Entry] = &[
             ".eslintrc*",
         ],
         pyproject_table: None,
-        standard: include_str!("../templates/config/eslint/standard.mjs"),
-        strict: include_str!("../templates/config/eslint/strict.mjs"),
+        standard: include_str!("../../../quality/tiers/eslint/standard.mjs"),
+        strict: include_str!("../../../quality/tiers/eslint/strict.mjs"),
     },
     Entry {
         tool: "tsconfig",
@@ -138,8 +138,8 @@ const TABLE: &[Entry] = &[
         config_rule: false,
         configured: &["tsconfig.json"],
         pyproject_table: None,
-        standard: include_str!("../templates/config/tsconfig/standard.json"),
-        strict: include_str!("../templates/config/tsconfig/strict.json"),
+        standard: include_str!("../../../quality/tiers/tsconfig/standard.json"),
+        strict: include_str!("../../../quality/tiers/tsconfig/strict.json"),
     },
     Entry {
         tool: "stylelint",
@@ -153,8 +153,8 @@ const TABLE: &[Entry] = &[
         config_rule: true,
         configured: &[".stylelintrc*", "stylelint.config.*"],
         pyproject_table: None,
-        standard: include_str!("../templates/config/stylelint/standard.json"),
-        strict: include_str!("../templates/config/stylelint/strict.json"),
+        standard: include_str!("../../../quality/tiers/stylelint/standard.json"),
+        strict: include_str!("../../../quality/tiers/stylelint/strict.json"),
     },
     Entry {
         tool: "dart",
@@ -168,8 +168,8 @@ const TABLE: &[Entry] = &[
         config_rule: true,
         configured: &["analysis_options.yaml"],
         pyproject_table: None,
-        standard: include_str!("../templates/config/dart/standard.yaml"),
-        strict: include_str!("../templates/config/dart/strict.yaml"),
+        standard: include_str!("../../../quality/tiers/dart/standard.yaml"),
+        strict: include_str!("../../../quality/tiers/dart/strict.yaml"),
     },
     Entry {
         tool: "psscriptanalyzer",
@@ -183,8 +183,8 @@ const TABLE: &[Entry] = &[
         config_rule: true,
         configured: &["PSScriptAnalyzerSettings.psd1"],
         pyproject_table: None,
-        standard: include_str!("../templates/config/psscriptanalyzer/standard.psd1"),
-        strict: include_str!("../templates/config/psscriptanalyzer/strict.psd1"),
+        standard: include_str!("../../../quality/tiers/psscriptanalyzer/standard.psd1"),
+        strict: include_str!("../../../quality/tiers/psscriptanalyzer/strict.psd1"),
     },
     Entry {
         tool: "hlint",
@@ -198,8 +198,8 @@ const TABLE: &[Entry] = &[
         config_rule: true,
         configured: &[".hlint.yaml"],
         pyproject_table: None,
-        standard: include_str!("../templates/config/hlint/standard.yaml"),
-        strict: include_str!("../templates/config/hlint/strict.yaml"),
+        standard: include_str!("../../../quality/tiers/hlint/standard.yaml"),
+        strict: include_str!("../../../quality/tiers/hlint/strict.yaml"),
     },
     Entry {
         tool: "dscanner",
@@ -213,8 +213,8 @@ const TABLE: &[Entry] = &[
         config_rule: true,
         configured: &["dscanner.ini"],
         pyproject_table: None,
-        standard: include_str!("../templates/config/dscanner/standard.ini"),
-        strict: include_str!("../templates/config/dscanner/strict.ini"),
+        standard: include_str!("../../../quality/tiers/dscanner/standard.ini"),
+        strict: include_str!("../../../quality/tiers/dscanner/strict.ini"),
     },
 ];
 
@@ -551,7 +551,7 @@ mod tests {
         );
         assert_eq!(
             find("PSScriptAnalyzerSettings.psd1").content,
-            include_str!("../templates/config/psscriptanalyzer/strict.psd1")
+            include_str!("../../../quality/tiers/psscriptanalyzer/strict.psd1")
         );
         find(".dx/config/dart/standard.yaml");
         find(".dx/config/psscriptanalyzer/strict.psd1");
@@ -682,9 +682,7 @@ mod tests {
         );
         assert!(files[0].content.starts_with("// Generated by dx;"));
         assert!(files[5].content.starts_with('{'));
-        assert!(files[5]
-            .content
-            .contains("\"extends\": \"./standard.json\""));
+        assert!(!files[5].content.contains("standard.json"));
         assert_eq!(infer_profile_of(&files), Profile::Strict);
     }
 

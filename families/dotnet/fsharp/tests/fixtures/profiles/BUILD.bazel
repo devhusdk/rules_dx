@@ -27,8 +27,8 @@ real_source_target(
     )
     for name, configs in {
         "default": [],
-        "standard": ["@rules_dx//cli/adopt/templates/config/fsharplint:standard.json"],
-        "strict": ["@rules_dx//cli/adopt/templates/config/fsharplint:strict.json"],
+        "standard": ["@rules_dx//quality/tiers/fsharplint:standard.json"],
+        "strict": ["@rules_dx//quality/tiers/fsharplint:strict.json"],
     }.items()
 ]
 

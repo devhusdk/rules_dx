@@ -45,8 +45,8 @@ rust_library(
         normal = True,
     ),
     compile_data = [
-        "//cli/adopt/templates/config:dscanner/standard.ini",
-        "//cli/adopt/templates/config:hlint/standard.yaml",
+        "//quality/tiers/dscanner:standard.ini",
+        "//quality/tiers/hlint:standard.yaml",
         "//quality/tools/jvm:pmd_default.xml",
         "//quality/tools/jvm:scalafmt_default.conf",
         "//quality/tools/lua:lua54.yml",
@@ -197,8 +197,8 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
-        "//cli/adopt/templates/config:dscanner/standard.ini",
-        "//cli/adopt/templates/config:hlint/standard.yaml",
+        "//quality/tiers/dscanner:standard.ini",
+        "//quality/tiers/hlint:standard.yaml",
         "//quality/tools/jvm:pmd_default.xml",
         "//quality/tools/jvm:scalafmt_default.conf",
         "//quality/tools/lua:lua54.yml",

@@ -218,7 +218,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `clang_tidy` uses a dx default `.clang-tidy` when no `clang_tidy_config` is bound. It enables `misc-unused-parameters`, `misc-unused-using-decls` and `readability-redundant-declaration`. `cppcheck` runs with `--enable=unusedFunction`. Findings from these checks are reported as info. cppcheck sees only the files of one target, so a function used only from another target is reported as unused.
 
-`standard` and `strict` clang-tidy profiles live in `cli/adopt/templates/config/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a profile is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
+`standard` and `strict` clang-tidy profiles live in `quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a profile is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
 
 `cppcheck` takes extra check sets from `--//config:cppcheck_enable=warning,performance,portability`, merged into one `--enable=`. The default is empty. Allowed values are `warning`, `style`, `performance`, `portability` and `information`; `unusedFunction` and `all` are rejected, use `dx unused`. The standard profile uses `warning,performance,portability` and strict adds `style`.
 
@@ -407,24 +407,24 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | --- | --- | --- | --- | --- |
 | `biome` | lint only | `biome.json` | | `biome_config` |
 | `buildifier` | yes | `.buildifier.json` | | `buildifier_config` |
-| `checkstyle` | yes | `checkstyle.xml`; bases `standard.xml` (Google checks, warnings) and `strict.xml` (errors plus `MagicNumber`) in `cli/adopt/templates/config/checkstyle/` | | `checkstyle_config` |
+| `checkstyle` | yes | `checkstyle.xml`; bases `standard.xml` (Google checks, warnings) and `strict.xml` (errors plus `MagicNumber`) in `quality/tiers/checkstyle/` | | `checkstyle_config` |
 | `eslint` | yes | `eslint.config.mjs` | | `eslint_config` |
 | `graphql-eslint` | yes | `graphql_lint.json` | | `graphql_eslint_config` |
 | `kubeconform` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas` from `@rules_dx//kubernetes/rules:defs.bzl` |
 | `helm` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas`, shared with `kubeconform` |
 | `detekt` | no | `.yml` or `.yaml`; replaces detekt's defaults, so rules not in the file do not run | | `detekt_config` |
 | `ktlint` | no | `.editorconfig`, default `intellij_idea` style with three rules off | | `ktlint_config` |
-| `roslyn` | no | `.globalconfig`, replaces the dx default; bases `standard.globalconfig` (the SDK Recommended tier written out) and `strict.globalconfig` (every CA rule at warning, Security and Reliability rules at error) in `cli/adopt/templates/config/roslyn/` | | `roslyn_config` |
+| `roslyn` | no | `.globalconfig`, replaces the dx default; bases `standard.globalconfig` (the SDK Recommended tier written out) and `strict.globalconfig` (every CA rule at warning, Security and Reliability rules at error) in `quality/tiers/roslyn/` | | `roslyn_config` |
 | `ruff` | yes | `ruff.toml` | | `ruff_config` |
-| `scalafix` | no | `.scalafix.conf`, default `rules = [RemoveUnused]`; `RemoveUnused` needs the `@rules_dx//scala/toolchain:semanticdb` toolchain, which sets `-Wunused` and `-Wconf:cat=unused:info`; bases `standard.conf` (`RemoveUnused`, `DisableSyntax` and two more rules) and `strict.conf` (adds `ExplicitResultTypes`, `OrganizeImports` and stricter `DisableSyntax`) in `cli/adopt/templates/config/scalafix/` | | `scalafix_config` |
+| `scalafix` | no | `.scalafix.conf`, default `rules = [RemoveUnused]`; `RemoveUnused` needs the `@rules_dx//scala/toolchain:semanticdb` toolchain, which sets `-Wunused` and `-Wconf:cat=unused:info`; bases `standard.conf` (`RemoveUnused`, `DisableSyntax` and two more rules) and `strict.conf` (adds `ExplicitResultTypes`, `OrganizeImports` and stricter `DisableSyntax`) in `quality/tiers/scalafix/` | | `scalafix_config` |
 | `scalafmt` | no | `.scalafmt.conf`, default `version = 3.11.4` and `runner.dialect = scala213` (`quality/tools/jvm/scalafmt_default.conf`) | | `scalafmt_config` |
 | `sqlfluff` | yes | `.sqlfluff` | | `sqlfluff_config` |
 | `vale` | yes | `.vale.ini` | | `vale_config` |
-| `pmd` | no | `.xml` ruleset, default unused-code rules at info (`quality/tools/jvm/pmd_default.xml`); bases `standard.xml` (quickstart plus unused code) and `strict.xml` (adds the bestpractices, errorprone, multithreading and performance categories) in `cli/adopt/templates/config/pmd/` | | `pmd_config` |
+| `pmd` | no | `.xml` ruleset, default unused-code rules at info (`quality/tools/jvm/pmd_default.xml`); bases `standard.xml` (quickstart plus unused code) and `strict.xml` (adds the bestpractices, errorprone, multithreading and performance categories) in `quality/tiers/pmd/` | | `pmd_config` |
 | `spotbugs` | no | No file. Set `--//config:spotbugs_effort` (`min`, `less`, `default`, `more`, `max`) and `--//config:spotbugs_threshold` (`high`, `medium`, `low`); strict means `max` and `low` | | `--//config:...` flags |
-| `perlcritic` | no | `.perlcriticrc`, replaces the default severity 5 plus unused-variable selection (`--profile`); bases `standard.perlcriticrc` (severity 3) and `strict.perlcriticrc` (severity 1, no `RequireTidyCode`) in `cli/adopt/templates/config/perlcritic/`; `Variables::ProhibitUnusedVariables` stays at 5 | | `perlcritic_config` |
-| `selene` | no | `.toml`; bases `standard.toml` and `strict.toml` (every lint `deny`, complexity limit 3) in `cli/adopt/templates/config/selene/` | | `selene_config` |
-| `luals` | no | `.json`, flat `.luarc.json` keys; bases `standard.json` and `strict.json` (errors for unused code, the `strong` group on) in `cli/adopt/templates/config/luals/` | | `luals_config` |
+| `perlcritic` | no | `.perlcriticrc`, replaces the default severity 5 plus unused-variable selection (`--profile`); bases `standard.perlcriticrc` (severity 3) and `strict.perlcriticrc` (severity 1, no `RequireTidyCode`) in `quality/tiers/perlcritic/`; `Variables::ProhibitUnusedVariables` stays at 5 | | `perlcritic_config` |
+| `selene` | no | `.toml`; bases `standard.toml` and `strict.toml` (every lint `deny`, complexity limit 3) in `quality/tiers/selene/` | | `selene_config` |
+| `luals` | no | `.json`, flat `.luarc.json` keys; bases `standard.json` and `strict.json` (errors for unused code, the `strong` group on) in `quality/tiers/luals/` | | `luals_config` |
 | `clang-format` | no | `.clang-format` | | `clang_format_config` |
 | `djlint` | no | `djlint.toml` or `.djlintrc` | Workspace configs | `djlint_config` |
 | `latexindent` | no | YAML settings file | `localSettings.yaml` | `latexindent_config` |

@@ -4,7 +4,7 @@ load("//typescript/rules:defs.bzl", "typescript_project")
 
 copy_file(
     name = "standard_base",
-    src = "//cli/adopt/templates/config:tsconfig/standard.json",
+    src = "//quality/tiers/tsconfig:standard.json",
     out = ".dx/config/tsconfig/standard.json",
 )
 

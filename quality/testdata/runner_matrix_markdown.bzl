@@ -25,7 +25,7 @@ def _vale_profile_case(name, profile, family, path, text):
         "tool_names": ["vale"],
         "tool_binaries": ["@dx_tools//:vale"],
         "toolfile_tools": ["vale"] * (1 + len(styles)),
-        "toolfile_srcs": [ini] + ["//cli/adopt/templates/config:vale/styles/" + s for s in styles],
+        "toolfile_srcs": [ini] + ["//quality/tiers/vale:styles/" + s for s in styles],
         "toolfile_rels": [""] + [root + ".dx/config/vale/styles/" + s for s in styles],
         "config_tools": ["vale"],
         "config_files": [ini],

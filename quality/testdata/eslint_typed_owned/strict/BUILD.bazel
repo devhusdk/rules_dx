@@ -23,7 +23,7 @@ workspace_policy(
 
 copy_file(
     name = "standard_base",
-    src = "//cli/adopt/templates/config:tsconfig/standard.json",
+    src = "//quality/tiers/tsconfig:standard.json",
     out = ".dx/config/tsconfig/standard.json",
 )
 
@@ -35,19 +35,19 @@ ts_config(
 
 copy_file(
     name = "eslint_profile",
-    src = "//cli/adopt/templates/config:eslint/strict.mjs",
+    src = "//quality/tiers/eslint:strict.mjs",
     out = ".dx/config/eslint/strict.mjs",
 )
 
 copy_file(
     name = "eslint_standard",
-    src = "//cli/adopt/templates/config:eslint/standard.mjs",
+    src = "//quality/tiers/eslint:standard.mjs",
     out = ".dx/config/eslint/standard.mjs",
 )
 
 copy_file(
     name = "eslint_frameworks",
-    src = "//cli/adopt/templates/config:eslint/frameworks.mjs",
+    src = "//quality/tiers/eslint:frameworks.mjs",
     out = ".dx/config/eslint/frameworks.mjs",
 )
 

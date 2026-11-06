@@ -135,6 +135,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "license_json.txt",
         "nolock_license.txt",
         "security_cargo_json.txt",
+        "security_cpan_json.txt",
         "security_json.txt",
         "security_npm_json.txt",
         "security_ruby_json.txt",
@@ -151,6 +152,9 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/rb/Gemfile.lock",
         "sets_ok/apps/rs/Cargo.toml",
         "sets_ok/apps/rs/Cargo.lock",
+        "sets_ok/perl/cpanfile",
+        "sets_ok/perl/cpanfile.snapshot",
+        "sets_ok/perl/cpanfile.snapshot.lock.json",
         "sets_bad/MODULE.bazel",
         "sets_bad/.dx/pins",
         "sets_nolock/MODULE.bazel",
@@ -180,7 +184,17 @@ ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
 ruby.bundle_fetch(name = "gems", gemfile = "//apps/rb:Gemfile", gemfile_lock = "//apps/rb:Gemfile.lock")
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(name = "crates", cargo_lockfile = "//apps/rs:Cargo.lock", manifests = ["//apps/rs:Cargo.toml"])
+cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
+cpan.install(name = "cpan_deps", lock = "//perl:cpanfile.snapshot.lock.json")
 EOF
+echo "requires 'Text::CSV', '== 2.06';" > "$(location sets_ok/perl/cpanfile)"
+cat > "$(location sets_ok/perl/cpanfile.snapshot)" <<'EOF'
+# carton snapshot format: version 1.0
+DISTRIBUTIONS
+  Text-CSV-2.06
+    pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz
+EOF
+echo '{"Text-CSV": {"strip_prefix": "Text-CSV-2.06"}}' > "$(location sets_ok/perl/cpanfile.snapshot.lock.json)"
 cat > "$(location sets_ok/apps/rs/Cargo.toml)" <<'EOF'
 [package]
 name = "app"
@@ -248,7 +262,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
 fi
 grep -q "failed to assess pypi-frontend" "$(location security_json.txt)"
 grep -q ".dx/advisory/pypi.json" "$(location security_json.txt)"
-if grep -Eq 'no advisory coverage for [^"]*(pypi-frontend|gems|crates|web|pypi-worker)' "$(location security_json.txt)"; then
+if grep -Eq 'no advisory coverage for [^"]*(pypi-frontend|gems|crates|cpan_deps|web|pypi-worker)' "$(location security_json.txt)"; then
   echo "security reported configured uv, npm, or ruby sets as uncovered" >&2
   exit 1
 fi
@@ -294,6 +308,16 @@ grep -q "failed to assess gems" "$(location security_ruby_json.txt)"
 grep -q ".dx/advisory/rubygems.json" "$(location security_ruby_json.txt)"
 if grep -q "no advisory coverage" "$(location security_ruby_json.txt)"; then
   echo "security reported a configured ruby set as uncovered" >&2
+  exit 1
+fi
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" cpan_deps > "$(location security_cpan_json.txt)" 2>/dev/null; then
+  echo "security passed without a cpan advisory snapshot" >&2
+  exit 1
+fi
+grep -q "failed to assess cpan_deps" "$(location security_cpan_json.txt)"
+grep -q ".dx/advisory/cpan.json" "$(location security_cpan_json.txt)"
+if grep -q "no advisory coverage" "$(location security_cpan_json.txt)"; then
+  echo "security reported a configured cpan set as uncovered" >&2
   exit 1
 fi
 if "$$public" update gems:rack 1.0 --workspace "$$ok" > "$(location edit_pinned.txt)" 2>&1; then

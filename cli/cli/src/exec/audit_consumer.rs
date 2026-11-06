@@ -890,4 +890,67 @@ source = { registry = "https://pypi.org/simple" }
             }
         }
     }
+
+    const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_app_cpan\", lock = \"//perl/third_party:cpanfile.snapshot.lock.json\")\n";
+
+    const CPANSA: &str = "{\"Mojolicious\":{\"distribution\":\"Mojolicious\",\"advisories\":[{\"id\":\"CPANSA-Mojolicious-2018-03\",\"affected_versions\":[\">=7.0,<7.58\"],\"fixed_versions\":[\">=7.58\"],\"severity\":\"high\"}]}}";
+
+    fn cpan_harness(name: &str, release: &str) -> Harness {
+        let harness = consumer_harness(name, CPAN_MODULE, false);
+        harness.write_source("perl/third_party/cpanfile", "requires 'Mojolicious';\n");
+        harness.write_source(
+            "perl/third_party/cpanfile.snapshot",
+            &format!(
+                "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  {release}\n    pathname: S/SR/SRI/{release}.tar.gz\n    provides:\n      Mojolicious {}\n",
+                release.trim_start_matches("Mojolicious-")
+            ),
+        );
+        harness.write_source(
+            "perl/third_party/cpanfile.snapshot.lock.json",
+            &format!("{{\"Mojolicious\":{{\"strip_prefix\":\"{release}\"}}}}\n"),
+        );
+        let prepared = dx_audit::advisory_prep::cpan_snapshot(
+            CPANSA,
+            "1.002",
+            super::super::super::test_support::TEST_AUDIT_TODAY,
+        )
+        .expect("prepared");
+        harness.write_source(
+            &prepared.snapshot.path,
+            std::str::from_utf8(&prepared.payload).expect("utf8"),
+        );
+        harness.write_source(
+            &dx_audit::advisory::identity_rel("cpan"),
+            &serde_json::to_string(&prepared.snapshot).expect("identity"),
+        );
+        harness
+    }
+
+    #[test]
+    fn consumer_cpan_set_reads_its_snapshot_and_the_cpansa_advisories() {
+        let harness = cpan_harness("cpan-vuln", "Mojolicious-7.57");
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "perl_app_cpan"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/CPANSA-Mojolicious-2018-03"), "{out}");
+        assert!(out.contains("perl/third_party/cpanfile.snapshot"), "{out}");
+        assert!(!out.contains("no advisory coverage"), "{out}");
+    }
+
+    #[test]
+    fn consumer_cpan_set_with_the_patched_release_is_clean() {
+        let harness = cpan_harness("cpan-clean", "Mojolicious-7.58");
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "perl_app_cpan"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/CPANSA"), "{out}");
+    }
 }

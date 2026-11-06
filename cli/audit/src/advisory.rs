@@ -69,6 +69,7 @@ pub fn advisory_source(family: &str) -> Option<&'static str> {
         "julia" => Some("https://osv-vulnerabilities.storage.googleapis.com/Julia/all.zip"),
         "opam" => Some("https://osv-vulnerabilities.storage.googleapis.com/opam/all.zip"),
         "cran" => Some("https://osv-vulnerabilities.storage.googleapis.com/CRAN/all.zip"),
+        "cpan" => Some(crate::advisory_prep::CPANSA_URL),
         _ => None,
     }
 }
@@ -331,7 +332,10 @@ mod tests {
             "sets must map to a family first"
         );
         assert_eq!(advisory_family("cpan"), Some("cpan"));
-        assert_eq!(advisory_source("cpan"), None);
+        assert_eq!(
+            advisory_source("cpan"),
+            Some("https://metacpan.org/release/CPANSA-DB")
+        );
         assert_eq!(advisory_family("uv"), None);
         assert_eq!(advisory_family("unknown-set"), None);
     }

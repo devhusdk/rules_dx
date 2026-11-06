@@ -663,6 +663,70 @@ dependencies = ["anyio>=4"]
         assert!(!harness.build_argv.borrow().is_empty());
     }
 
+    const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"cpan_deps\", lock = \"//pl:cpanfile.snapshot.lock.json\")\n";
+    const CPANFILE: &str = "requires 'Text::CSV', '== 2.06';\n";
+
+    fn seed_cpan_set(harness: &Harness) {
+        harness.write_source("MODULE.bazel", CPAN_MODULE);
+        harness.write_source("pl/cpanfile", CPANFILE);
+        harness.write_source(
+            "pl/cpanfile.snapshot",
+            "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Text-CSV-2.06\n",
+        );
+        harness.write_source(
+            "pl/cpanfile.snapshot.lock.json",
+            "{\"Text-CSV\":{\"strip_prefix\":\"Text-CSV-2.06\"}}\n",
+        );
+        harness.write_source(
+            "pl/BUILD.bazel",
+            "cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n",
+        );
+    }
+
+    #[test]
+    fn consumer_cpan_set_widens_the_cpanfile_and_refreshes() {
+        let harness = Harness::new("update-consumer-cpan");
+        seed_cpan_set(&harness);
+        let (code, out, err) = harness.run(&["update", "cpan_deps:Text::CSV", "2.07", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            read(&harness, "pl/cpanfile"),
+            CPANFILE.replace("2.06", "2.07")
+        );
+        let runs = harness.build_argv.borrow();
+        assert_eq!(runs.len(), 2, "{runs:?}");
+        assert!(
+            runs[0]
+                .iter()
+                .any(|arg| arg == "@rules_dx//perl/tools:carton"),
+            "{:?}",
+            runs[0]
+        );
+        assert!(
+            runs[1].iter().any(|arg| arg == "//pl:compiler"),
+            "{:?}",
+            runs[1]
+        );
+    }
+
+    #[test]
+    fn consumer_cpan_set_refusals_write_nothing_and_launch_nothing() {
+        let harness = Harness::new("update-consumer-cpan-refuse");
+        seed_cpan_set(&harness);
+        let (code, _, err) = harness.run(&["update", "cpan_deps:Other::Mod", "1.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        let (code, _, err) = harness.run(&[
+            "update",
+            "cpan_deps:Text::CSV",
+            "2.07",
+            "--apply",
+            "--frozen",
+        ]);
+        assert_eq!(code, 1, "{err}");
+        assert_unchanged(&harness, &[("pl/cpanfile", CPANFILE)]);
+        assert!(harness.build_argv.borrow().is_empty());
+    }
+
     const CARGO_A: &str =
         "[package]\nname = \"a\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n";
     const CARGO_B: &str =

@@ -2606,4 +2606,127 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("must be named Cargo.toml"), "{err}");
         assert!(runner.calls.borrow().is_empty());
     }
+
+    const CPAN_MODULE: &str = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"cpan_deps\", lock = \"//perl/third_party:cpanfile.snapshot.lock.json\")\n";
+    const CPAN_FILES: [&str; 3] = [
+        "perl/third_party/cpanfile",
+        "perl/third_party/cpanfile.snapshot",
+        "perl/third_party/cpanfile.snapshot.lock.json",
+    ];
+
+    fn cpan_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, CPAN_MODULE, true);
+        harness.write_source(
+            "perl/third_party/cpanfile",
+            "requires 'Text::CSV', '== 2.06';\n",
+        );
+        harness.write_source(
+            "perl/third_party/cpanfile.snapshot",
+            "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Text-CSV-2.06\n    pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\n",
+        );
+        harness.write_source(
+            "perl/third_party/cpanfile.snapshot.lock.json",
+            "{\"Text-CSV\":{\"strip_prefix\":\"Text-CSV-2.06\"}}\n",
+        );
+        harness.write_source(
+            "perl/third_party/BUILD.bazel",
+            "cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n",
+        );
+        harness
+    }
+
+    fn cpan_bytes(harness: &Harness) -> Vec<Vec<u8>> {
+        CPAN_FILES
+            .iter()
+            .map(|rel| read_bytes(harness, rel))
+            .collect()
+    }
+
+    fn carton_tail(argv: &[String]) -> &[String] {
+        let at = argv
+            .iter()
+            .position(|arg| arg == "@rules_dx//perl/tools:carton")
+            .expect("carton target");
+        &argv[at..]
+    }
+
+    #[test]
+    fn consumer_cpan_check_installs_the_snapshot_in_deployment_mode() {
+        let harness = cpan_harness("cpan-check");
+        let before = cpan_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "cpan_deps"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1, "{launches:?}");
+        let argv = &launches[0].argv;
+        assert!(
+            argv.iter()
+                .any(|arg| arg.starts_with("--run_under=cd '") && arg.contains("perl/third_party")),
+            "{argv:?}"
+        );
+        assert_eq!(
+            carton_tail(argv),
+            &strings_of(&[
+                "@rules_dx//perl/tools:carton",
+                "--",
+                "install",
+                "--deployment"
+            ])[..],
+            "{argv:?}"
+        );
+        assert_eq!(launches[0].env[0].0, "PERL_CARTON_PATH");
+        assert_eq!(cpan_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_cpan_apply_module_runs_carton_then_the_compiler() {
+        let harness = cpan_harness("cpan-apply");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "cpan_deps:Text::CSV"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 2, "{launches:?}");
+        assert_eq!(
+            carton_tail(&launches[0].argv),
+            &strings_of(&["@rules_dx//perl/tools:carton", "--", "update", "Text::CSV"])[..]
+        );
+        assert_eq!(
+            launches[1].argv[launches[1].argv.len() - 3..],
+            strings_of(&["//perl/third_party:compiler", "--", "--incremental"])[..]
+        );
+    }
+
+    #[test]
+    fn consumer_cpan_refusals_launch_nothing() {
+        let harness = cpan_harness("cpan-refuse");
+        let before = cpan_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        let (code, _, err) = run_with(&["update", "--offline", "cpan_deps"], &runner, &harness);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("offline_required"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--frozen", "cpan_deps:Text::CSV"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("frozen_locked"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--offline", "cpan_deps:Text::CSV"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("offline_required"), "{err}");
+        let (code, _, err) = run_with(&["update", "cpan_deps:Text::CSV"], &runner, &harness);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("update_set_unsupported"), "{err}");
+        assert!(runner.launches.borrow().is_empty());
+        assert_eq!(cpan_bytes(&harness), before);
+    }
 }

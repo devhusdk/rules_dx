@@ -231,6 +231,15 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
         !cargo.contains("no advisory coverage"),
         "configured cargo sets have advisory coverage: {cargo}"
     );
+    let cpan = read("DX_SETS_SECURITY_CPAN");
+    assert!(
+        cpan.contains("failed to assess cpan_deps") && cpan.contains(".dx/advisory/cpan.json"),
+        "audit checks configured cpan sets against the cpan snapshot: {cpan}"
+    );
+    assert!(
+        !cpan.contains("no advisory coverage"),
+        "configured cpan sets have advisory coverage: {cpan}"
+    );
     let edit = read("DX_SETS_EDIT_CARGO");
     assert!(
         edit.contains("update pending: crates:serde 2.0.0 is not declared in apps/rs/Cargo.toml"),

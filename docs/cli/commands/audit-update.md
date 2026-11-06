@@ -416,7 +416,7 @@ JSON emits an `add_declared` notice for an insert, an `update_widened` notice pe
 | `julia_pkg.from_manifest` of `@rules_julia//julia/pkg:extensions.bzl` | `name` | `Project.toml` beside the lockfile | `Manifest.toml` and `Manifest.bazel.json` beside the lockfile |
 | rules_dotnet `paket` extension | `nuget` | `paket.dependencies` | `paket.lock`, `paket.<group>.bzl` |
 
-A `julia` set is pinned: `update` reports it as pinned, `security` reads the versioned packages of `Manifest.toml` (format 2.0, stdlibs skipped) and matches them against the `Julia` advisories, and the layout check needs both locks to name the same versions. A `conan` set is pinned like `cpan`; `security` lists the packages of `conan.lock` but does not match them against advisories. A `pub` set is pinned the same way: `security` reads the hosted packages of `pubspec.lock` and matches them against the `Pub` advisories. A `cpan` set is pinned: `update` reports it as pinned, `update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN, and `security` reads the distributions of `cpanfile.snapshot`; advisories for it are not wired yet. `dx update <set>:<Module> --apply` runs `carton update <Module>` and then `bazel run` of the `cpan_compiler` whose `lockfile` is the lock JSON, with `--incremental`, so both files change together; without such a compiler in the lock's `BUILD.bazel` it refuses. The layout check fails when the distributions of the lock JSON differ from those of `cpanfile.snapshot`. A `uv.project` at the workspace root is named `<hub_name>`. A set's scopes are the directories of its manifests and locks, except `MODULE.bazel`. A path that names a manifest or lock, such as `//:cargo-bazel-lock.json`, selects only its owner. The scope `.` owns the root package: `//:x` and `//:` select sets scoped `.`; `//pkg:x` and `//pkg/...` never do. Overlapping scopes select every owner.
+A `julia` set is pinned: `update` reports it as pinned, `security` reads the versioned packages of `Manifest.toml` (format 2.0, stdlibs skipped) and matches them against the `Julia` advisories, and the layout check needs both locks to name the same versions. A `conan` set is pinned; `security` lists the packages of `conan.lock` but does not match them against advisories. A `pub` set is pinned the same way: `security` reads the hosted packages of `pubspec.lock` and matches them against the `Pub` advisories. A `cpan` set is checked with `carton install --deployment`; `update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN, and `security` reads the distributions of `cpanfile.snapshot` and matches them against the CPANSA advisories (see the `cpan` section). `dx update <set>:<Module> --apply` runs `carton update <Module>` and then `bazel run` of the `cpan_compiler` whose `lockfile` is the lock JSON, with `--incremental`, so both files change together; without such a compiler in the lock's `BUILD.bazel` it refuses. The layout check fails when the distributions of the lock JSON differ from those of `cpanfile.snapshot`. A `uv.project` at the workspace root is named `<hub_name>`. A set's scopes are the directories of its manifests and locks, except `MODULE.bazel`. A path that names a manifest or lock, such as `//:cargo-bazel-lock.json`, selects only its owner. The scope `.` owns the root package: `//:x` and `//:` select sets scoped `.`; `//pkg:x` and `//pkg/...` never do. Overlapping scopes select every owner.
 
 With no hubs, `dx update` exits `2` with `no dependency sets`, and `dx security` exits non-zero with an example hub. Hub arguments must be literal. A computed argument, two sets with one name, or two sets owning one manifest or lock exit `2` before anything runs.
 
@@ -525,6 +525,23 @@ paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "mai
 - `--apply --frozen` runs. `--offline` fails with `offline_required` in both modes.
 - A set takes no `set:package` for update. Edit `paket.dependencies`, run `paket update`, then `dx update <set>`.
 - `dx security` matches `paket.lock` against `.dx/advisory/nuget.json`. `dx license` needs `[[inventory]]` with `set = "nuget"`.
+
+### cpan
+
+```starlark
+cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
+cpan.install(
+    name = "perl_app_cpan",
+    lock = "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json",
+)
+```
+
+- The `cpanfile` and `cpanfile.snapshot` sit beside the lock JSON. The distributions of the snapshot and the lock JSON must match.
+- A check runs `carton install --deployment` in the set's directory through `bazel run @rules_dx//perl/tools:carton`, with carton's `local/` tree outside the workspace. `--offline` fails with `offline_required`. A set takes no `set:package` for a check.
+- `dx update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN.
+- `dx update <set>:<Module> --apply` runs `carton update <Module>`, then the `cpan_compiler` of the lock's `BUILD.bazel` with `--incremental`, so the snapshot and the lock JSON change together. Without such a compiler it is refused. `--offline` and `--frozen` fail with `offline_required` and `frozen_locked`.
+- `dx update <set>:<Module> <version> --apply` first rewrites the version in the module's `requires` line of `cpanfile`, keeping the operator, then refreshes as above.
+- `dx security` matches the distributions of `cpanfile.snapshot` against `.dx/advisory/cpan.json`. `bazel run @rules_dx//cli/advisory_prep --` builds it from `CPANSA::DB` through the pinned `//perl/tools:cpansa_dump`, not from the host perl.
 
 ### go
 

@@ -20,7 +20,7 @@ use std::process::Command as Process;
 use dx_atomic_fs::write_atomic;
 use dx_audit::advisory_prep::{
     convert_entries, cpan_snapshot, fetch_plan, identity_bytes, needed_families,
-    split_cpansa_output, FetchLimits, PrepError, CPANSA_URL, DEFAULT_LIMITS,
+    split_cpansa_output, FetchLimits, PrepError, DEFAULT_LIMITS,
 };
 
 pub const DEFAULT_OUT: &str = ".dx/advisory";
@@ -106,11 +106,7 @@ pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, Pre
     families.dedup();
     let mut out = Vec::new();
     for family in families {
-        let url = match family {
-            "cpan" => Some(CPANSA_URL),
-            _ => dx_audit::advisory::advisory_source(family),
-        }
-        .ok_or_else(|| PrepError::UnsupportedSet {
+        let url = dx_audit::advisory::advisory_source(family).ok_or_else(|| PrepError::UnsupportedSet {
             set: family.to_owned(),
         })?;
         out.push((family, url.to_owned()));

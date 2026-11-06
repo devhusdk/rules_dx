@@ -464,7 +464,7 @@ hermetic_qualification(
         "//lua/tests/fixtures/lua-app/catalog:parse.lua": "lua/tests/fixtures/lua-app/catalog/parse.lua",
         "//lua/tests/fixtures/lua-app/catalog:units.tsv": "lua/tests/fixtures/lua-app/catalog/units.tsv",
         "//lua/tests/fixtures/lua-app/cli:BUILD.bazel": "lua/tests/fixtures/lua-app/cli/BUILD.bazel",
-        "//lua/tests/fixtures/lua-app/cli:exit_codes.sh": "lua/tests/fixtures/lua-app/cli/exit_codes.sh",
+        "//lua/tests/fixtures/lua-app/cli:exit_codes_test.lua": "lua/tests/fixtures/lua-app/cli/exit_codes_test.lua",
         "//lua/tests/fixtures/lua-app/cli:main.lua": "lua/tests/fixtures/lua-app/cli/main.lua",
         "//lua/tests/fixtures/lua-app/report:BUILD.bazel": "lua/tests/fixtures/lua-app/report/BUILD.bazel",
         "//lua/tests/fixtures/lua-app/report:init.lua": "lua/tests/fixtures/lua-app/report/init.lua",

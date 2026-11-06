@@ -1,5 +1,4 @@
-load("@rules_dx//lua/rules:defs.bzl", "lua_binary")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_dx//lua/rules:defs.bzl", "lua_binary", "lua_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 APPS = ["//lua/tests/fixtures/lua-app:__subpackages__"]
@@ -7,7 +6,7 @@ APPS = ["//lua/tests/fixtures/lua-app:__subpackages__"]
 exports_files(
     [
         "BUILD.bazel",
-        "exit_codes.sh",
+        "exit_codes_test.lua",
         "main.lua",
     ],
     visibility = ["//tools/testing/hermetic:__pkg__"] + APPS,
@@ -24,14 +23,12 @@ lua_binary(
     ],
 )
 
-sh_test(
+lua_test(
     name = "exit_codes_test",
-    size = "small",
-    srcs = ["exit_codes.sh"],
-    args = ["$(rootpath :units)"],
+    args = ["$(rlocationpath :units)"],
     data = [":units"],
     env = {"UNITS": "_main/lua/tests/fixtures/lua-app/catalog/units.tsv"},
-    tags = ["no-coverage"],
+    main = "exit_codes_test.lua",
 )
 
 real_source_target(

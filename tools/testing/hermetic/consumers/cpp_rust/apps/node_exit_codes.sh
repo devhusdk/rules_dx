@@ -49,7 +49,7 @@ case "$where" in
   ;;
 esac
 case "$where" in
-*"/semver@7.6.3/node_modules/semver 7.6.3"*) ;;
+*"/semver@7.8.6/node_modules/semver 7.8.6"*) ;;
 *)
   echo "FAIL: where semver -> '$where'"
   failures=$((failures + 1))

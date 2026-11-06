@@ -172,9 +172,9 @@ fn where_reports_the_staged_entry_and_the_pinned_dependency() {
     );
     assert!(std::path::Path::new(data).is_file(), "{data}");
     let semver = lines[2].strip_prefix("semver ").expect("semver line");
-    assert!(semver.ends_with(" 7.6.3"), "{semver}");
+    assert!(semver.ends_with(" 7.8.6"), "{semver}");
     assert!(
-        semver.contains("/semver@7.6.3/node_modules/semver "),
+        semver.contains("/semver@7.8.6/node_modules/semver "),
         "{semver}"
     );
     assert_eq!(lines[3], "same true");

@@ -1,6 +1,7 @@
 """Runs protoc with protoc-gen-es over one proto_library."""
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+load("//libs/exec_os:defs.bzl", "ExecOsInfo")
 
 def _es_files(proto_info):
     """Returns the proto path, relative to the import root, of each direct source."""
@@ -38,7 +39,7 @@ def _ts_proto_srcs_impl(ctx):
     args = ctx.actions.args()
     args.add("--plugin=protoc-gen-es=" + plugin.path)
     args.add("--es_out=target=ts:" + _out_dir(ctx, proto_info))
-    args.add_joined("--descriptor_set_in", descriptors, join_with = ":", format_each = "%s", omit_if_empty = True, map_each = _path)
+    args.add_joined("--descriptor_set_in", descriptors, join_with = ";" if ctx.attr._exec_os[ExecOsInfo].windows else ":", format_each = "%s", omit_if_empty = True, map_each = _path)
     args.add_all(protos)
     ctx.actions.run(
         executable = ctx.executable._protoc,
@@ -59,6 +60,11 @@ ts_proto_srcs = rule(
     implementation = _ts_proto_srcs_impl,
     attrs = {
         "proto": attr.label(mandatory = True, providers = [ProtoInfo]),
+        "_exec_os": attr.label(
+            default = "//libs/exec_os",
+            cfg = "exec",
+            providers = [ExecOsInfo],
+        ),
         "_protoc": attr.label(
             default = "@protobuf//:protoc",
             executable = True,

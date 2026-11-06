@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package fixture;
+
+import "google/protobuf/timestamp.proto";
+
+message Event {
+  google.protobuf.Timestamp at = 1;
+}

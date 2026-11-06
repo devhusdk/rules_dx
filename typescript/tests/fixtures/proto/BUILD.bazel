@@ -1,6 +1,7 @@
 # gazelle:ignore
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("//typescript/rules:defs.bzl", "ts_proto_library")
+load(":proto_args_tests.bzl", "proto_args_tests")
 
 package(
     default_testonly = True,
@@ -44,4 +45,23 @@ ts_proto_library(
     deps = ["//:node_modules/@bufbuild/protobuf"],
     proto = ":item_proto",
     tsconfig = "tsconfig.json",
+)
+
+proto_library(
+    name = "event_proto",
+    srcs = ["event.proto"],
+    strip_import_prefix = "/",
+    deps = ["@protobuf//:timestamp_proto"],
+)
+
+ts_proto_library(
+    name = "event_proto_ts",
+    deps = ["//:node_modules/@bufbuild/protobuf"],
+    proto = ":event_proto",
+    tsconfig = "tsconfig.json",
+)
+
+proto_args_tests(
+    name = "proto_args_test",
+    target = ":event_proto_ts_srcs",
 )

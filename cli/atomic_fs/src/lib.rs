@@ -29,7 +29,6 @@ fn staging_for(path: &Path) -> io::Result<tempfile::NamedTempFile> {
     if let Some(parent) = parent {
         std::fs::create_dir_all(long_path(parent)?)?;
     }
-    let dir = long_path(parent.unwrap_or(Path::new(".")))?;
     tempfile::Builder::new()
         .prefix(&staging_prefix(path))
         .suffix(STAGING_SUFFIX)

@@ -176,12 +176,19 @@ pub const HOME_MARKER: &str = "dx-hermetic: home config absent";
 pub fn markers(os: &str) -> (&'static str, &'static str, &'static str) {
     if os == "macos" {
         (MACOS_DENIED_MARKER, MACOS_DENIED_MARKER, HOME_MARKER)
+    } else if os == "windows" {
+        (AMBIENT_MARKER, WINDOWS_DENIED_MARKER, HOME_MARKER)
     } else {
         (AMBIENT_MARKER, NETWORK_MARKER, HOME_MARKER)
     }
 }
 
+pub const APPCONTAINER_ENV: &str = "DX_HERMETIC_APPCONTAINER";
+
 pub const MACOS_DENIED_MARKER: &str = "Operation not permitted";
+
+/// WSAEACCES, which an AppContainer without network capabilities gets from connect.
+pub const WINDOWS_DENIED_MARKER: &str = "os error 10013";
 
 pub const MISS_MARKER: &str = "Unknown host";
 
@@ -557,6 +564,10 @@ pub struct Isolation {
     pub ip: PathBuf,
     pub uid: u32,
     pub gid: u32,
+    /// The Windows AppContainer launcher, from `DX_HERMETIC_APPCONTAINER`.
+    pub launcher: PathBuf,
+    /// The paths the AppContainer may use: everything the run itself needs.
+    pub grants: Vec<PathBuf>,
 }
 
 impl Isolation {
@@ -574,7 +585,7 @@ impl Isolation {
         home: Option<&Path>,
     ) -> Result<Self, String> {
         let (uid, gid) = real_ids()?;
-        let ip = if cfg!(target_os = "macos") {
+        let ip = if cfg!(any(target_os = "macos", windows)) {
             PathBuf::new()
         } else {
             host.ip_candidates
@@ -622,6 +633,10 @@ impl Isolation {
             ip,
             uid,
             gid,
+            launcher: std::env::var_os(APPCONTAINER_ENV)
+                .map(PathBuf::from)
+                .unwrap_or_default(),
+            grants: keep.to_vec(),
         })
     }
 
@@ -665,6 +680,9 @@ impl Isolation {
         if cfg!(target_os = "macos") {
             return self.macos_command(net, inner);
         }
+        if cfg!(windows) {
+            return self.windows_command(net, inner);
+        }
         let mut command = Command::new("/usr/bin/unshare");
         command.env_clear();
         command.env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
@@ -687,6 +705,28 @@ fn profile_path(path: &Path) -> String {
 }
 
 impl Isolation {
+    /// Wraps one command in a per-run Windows AppContainer made by the launcher.
+    pub fn windows_command(&self, net: Net, inner: &[String]) -> Command {
+        static RUNS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let run = RUNS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let mut command = Command::new(&self.launcher);
+        command.args([
+            "--name",
+            &format!("dx-hermetic-{}-{run}", std::process::id()),
+        ]);
+        if net == Net::Allowed {
+            command.arg("--net");
+        }
+        for grant in &self.grants {
+            let text = grant.to_string_lossy();
+            command.arg("--grant");
+            command.arg(text.strip_prefix(r"\\?\").unwrap_or(&text));
+        }
+        command.arg("--");
+        command.args(inner);
+        command
+    }
+
     /// The macOS sandbox profile: network denied except loopback when asked, planned paths hidden.
     pub fn macos_profile(&self, net: Net) -> String {
         let mut profile = "(version 1)(allow default)".to_owned();
@@ -727,6 +767,9 @@ impl Isolation {
 
 /// The real user and group id: /proc/self/status on Linux, `id` elsewhere.
 fn real_ids() -> Result<(u32, u32), String> {
+    if cfg!(windows) {
+        return Ok((0, 0));
+    }
     if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
         let uid = status_id(&status, "Uid:").ok_or("no Uid in /proc/self/status")?;
         let gid = status_id(&status, "Gid:").ok_or("no Gid in /proc/self/status")?;
@@ -1480,6 +1523,12 @@ pub fn consumer_build(text: &str, repo_name: &str) -> String {
     format!("{}\n", text.trim_end())
 }
 
+#[cfg(windows)]
+fn executable(_path: &Path) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(unix)]
 fn executable(path: &Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
@@ -1572,12 +1621,15 @@ pub fn remove_root(root: &Path) {
 // LCOV_EXCL_START - reason: runs only inside the isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
 /// Confirms this host can create the namespaces the qualification needs.
 pub fn preflight(isolation: &Isolation) -> Result<(), String> {
-    let true_bin = if cfg!(target_os = "macos") {
-        "/usr/bin/true"
+    let probe: &[&str] = if cfg!(windows) {
+        &["cmd.exe", "/c", "exit 0"]
+    } else if cfg!(target_os = "macos") {
+        &["/usr/bin/true"]
     } else {
-        "/bin/true"
+        &["/bin/true"]
     };
-    let outcome = capture(isolation.command(Net::Denied, &[true_bin.to_owned()]))?;
+    let probe: Vec<String> = probe.iter().map(|arg| (*arg).to_owned()).collect();
+    let outcome = capture(isolation.command(Net::Denied, &probe))?;
     if outcome.exit != 0 {
         return Err(format!(
             "namespace isolation is unavailable on this host (exit {}): {}; unprivileged user, mount and network namespaces are required, and Ubuntu 24.04 needs kernel.apparmor_restrict_unprivileged_userns=0",

@@ -250,6 +250,7 @@ fn passwd_and_status_name_the_real_user() {
     assert_eq!(status_id(status, "Groups:"), None);
 }
 
+#[cfg(unix)]
 #[test]
 fn ambient_tools_resolve_links_once() {
     let dir = tempfile::tempdir().unwrap();
@@ -267,6 +268,7 @@ fn ambient_tools_resolve_links_once() {
     assert_eq!(found, vec![("cc".to_owned(), real)]);
 }
 
+#[cfg(unix)]
 #[test]
 fn isolation_script_masks_before_dropping_to_the_real_user() {
     let isolation = Isolation {
@@ -278,6 +280,8 @@ fn isolation_script_masks_before_dropping_to_the_real_user() {
         ip: PathBuf::from("/usr/sbin/ip"),
         uid: 1001,
         gid: 118,
+        launcher: PathBuf::new(),
+        grants: Vec::new(),
     };
     assert_eq!(
         isolation.script(Net::Denied),
@@ -680,6 +684,7 @@ fn the_consumer_materializes_from_dx_init() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn materialize_reports_each_missing_input() {
     let real = runfiles_manifest();
@@ -798,6 +803,7 @@ fn host_paths_detect_uses_the_host_constants() {
     assert_eq!(strs(&host.sdk_candidates)[..SDK_DIRS.len()], *SDK_DIRS);
 }
 
+#[cfg(unix)]
 #[test]
 fn capture_keeps_exit_and_both_streams() {
     let mut command = Command::new("/bin/sh");
@@ -944,6 +950,7 @@ fn bazelisk_comes_from_the_override_then_path() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn bazelisk_refuses_wrapper_scripts() {
     let dir = tempfile::tempdir().unwrap();
@@ -980,6 +987,7 @@ fn bazelisk_refuses_wrapper_scripts() {
     assert_eq!(find_bazelisk(None, &both).unwrap(), real);
 }
 
+#[cfg(unix)]
 #[test]
 fn file_helpers_create_parents_and_name_the_failing_path() {
     use std::os::unix::fs::PermissionsExt;
@@ -1012,6 +1020,7 @@ fn file_helpers_create_parents_and_name_the_failing_path() {
     assert!(err.starts_with("cannot mark "), "{err}");
 }
 
+#[cfg(unix)]
 #[test]
 fn remove_root_clears_read_only_trees_without_following_links() {
     use std::os::unix::fs::PermissionsExt;
@@ -1441,6 +1450,42 @@ fn macos_profile_hides_planned_paths_even_with_network_allowed() {
 }
 
 #[test]
+fn windows_command_runs_the_launcher_with_grants_and_network_flag() {
+    let isolation = Isolation {
+        launcher: PathBuf::from("appcontainer_run.exe"),
+        grants: vec![PathBuf::from("C:\\q\\work"), PathBuf::from("C:\\tools")],
+        ..Isolation::default()
+    };
+    let inner = ["cmd.exe".to_owned(), "/c".to_owned()];
+    let args = |net| -> Vec<String> {
+        let command = isolation.windows_command(net, &inner);
+        assert_eq!(command.get_program(), "appcontainer_run.exe");
+        command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect()
+    };
+    let denied = args(Net::Denied);
+    assert_eq!(denied[0], "--name");
+    assert!(denied[1].starts_with("dx-hermetic-"));
+    assert_eq!(
+        denied[2..],
+        [
+            "--grant",
+            "C:\\q\\work",
+            "--grant",
+            "C:\\tools",
+            "--",
+            "cmd.exe",
+            "/c"
+        ]
+    );
+    let allowed = args(Net::Allowed);
+    assert_eq!(allowed[2], "--net");
+    assert_ne!(allowed[1], denied[1]);
+}
+
+#[test]
 fn markers_follow_the_host_os() {
     assert_eq!(
         markers("linux"),
@@ -1454,6 +1499,7 @@ fn markers_follow_the_host_os() {
             HOME_MARKER
         )
     );
+    assert_eq!(markers("windows").1, WINDOWS_DENIED_MARKER);
     assert_eq!(
         probe_expectation("network", "macos").1,
         "Operation not permitted"
@@ -1490,8 +1536,12 @@ fn copy_test_logs_keeps_layout_and_returns_heads() {
     std::fs::write(case.join("test.xml"), "<testsuites/>").unwrap();
     let dest = dir.path().join("out/testlogs");
     let text = copy_test_logs(&logs, &dest);
-    assert!(dest.join("javascript/cli/exit_codes_test/test.log").is_file());
-    assert!(!dest.join("javascript/cli/exit_codes_test/test.xml").exists());
+    assert!(dest
+        .join("javascript/cli/exit_codes_test/test.log")
+        .is_file());
+    assert!(!dest
+        .join("javascript/cli/exit_codes_test/test.xml")
+        .exists());
     assert!(text.contains("javascript/cli/exit_codes_test/test.log"));
     assert!(text.contains("line 40") && !text.contains("line 41"));
     assert_eq!(copy_test_logs(&dir.path().join("missing"), &dest), "");

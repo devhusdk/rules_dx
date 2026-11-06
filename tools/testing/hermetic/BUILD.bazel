@@ -19,7 +19,9 @@ exports_files(
 
 LINUX = ["@platforms//os:linux"]
 
-LINUX_MACOS = MANIFEST_COMPATIBLE_WITH
+WINDOWS = ["@platforms//os:windows"]
+
+MANIFEST_HOSTS = MANIFEST_COMPATIBLE_WITH
 
 # The fragments of the hermetic consumers, read by //modules:consumer_deps_test.
 filegroup(
@@ -42,7 +44,7 @@ rust_library(
     crate_name = "hermetic",
     crate_root = "src/lib.rs",
     edition = "2021",
-    target_compatible_with = LINUX_MACOS,
+    target_compatible_with = MANIFEST_HOSTS,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
@@ -71,7 +73,7 @@ rust_test(
         "DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)",
     },
     tags = ["no-remote-exec"],
-    target_compatible_with = LINUX_MACOS,
+    target_compatible_with = MANIFEST_HOSTS,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
@@ -108,8 +110,60 @@ rust_test(
     name = "isolation_probe_test",
     srcs = ["isolation_test.rs"],
     tags = QUALIFICATION_TAGS,
-    target_compatible_with = LINUX_MACOS,
+    target_compatible_with = MANIFEST_HOSTS,
     deps = [":hermetic"],
+)
+
+rust_binary(
+    name = "appcontainer_run",
+    srcs = [
+        "appcontainer/args.rs",
+        "appcontainer/main.rs",
+        "appcontainer/sys.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ),
+    crate_root = "appcontainer/main.rs",
+    edition = "2021",
+    target_compatible_with = WINDOWS,
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "appcontainer_args_test",
+    srcs = ["appcontainer/args.rs"],
+)
+
+rust_binary(
+    name = "isolation_windows_probe",
+    testonly = True,
+    srcs = ["isolation_windows_probe.rs"],
+    edition = "2021",
+    target_compatible_with = WINDOWS,
+)
+
+rust_test(
+    name = "isolation_windows_probe_test",
+    srcs = ["isolation_windows_test.rs"],
+    data = [
+        ":appcontainer_run",
+        ":isolation_windows_probe",
+    ],
+    env = {
+        "DX_HERMETIC_APPCONTAINER": "$(rlocationpath :appcontainer_run)",
+        "DX_HERMETIC_WINDOWS_PROBE": "$(rlocationpath :isolation_windows_probe)",
+    },
+    tags = QUALIFICATION_TAGS,
+    target_compatible_with = WINDOWS,
+    deps = [
+        ":hermetic",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 hermetic_qualification(

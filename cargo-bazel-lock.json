@@ -1,5 +1,5 @@
 {
-  "checksum": "368fcbcf5a3523ef2b6d11fc0c53c1c62ed36d9bd8cbe5b889d6c7467c5eb7df",
+  "checksum": "3f187cb4cb86a98c9e21ab5c2f13fcc2aaea3463e35dab9c1172f8a09373e805",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8571,16 +8571,26 @@
     },
     "dx_testing 0.0.0": {
       "common_attrs": {
-        "deps": [
-          {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
+        "deps": {
+          "common": [
+            {
+              "id": "serde_json 1.0.151",
+              "target": "serde_json"
+            },
+            {
+              "id": "sha2 0.10.9",
+              "target": "sha2"
+            }
+          ],
+          "selects": {
+            "cfg(windows)": [
+              {
+                "id": "windows-sys 0.61.2",
+                "target": "windows_sys"
+              }
+            ]
           }
-        ],
+        },
         "deps_dev": [
           {
             "id": "tempfile 3.27.0",
@@ -27098,11 +27108,13 @@
           "Win32_Security",
           "Win32_Security_Authorization",
           "Win32_Security_Cryptography",
+          "Win32_Security_Isolation",
           "Win32_Storage",
           "Win32_Storage_FileSystem",
           "Win32_System",
           "Win32_System_Console",
           "Win32_System_IO",
+          "Win32_System_JobObjects",
           "Win32_System_SystemInformation",
           "Win32_System_Threading",
           "Win32_System_WindowsProgramming",

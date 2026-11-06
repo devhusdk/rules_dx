@@ -1,0 +1,297 @@
+use std::ffi::c_void;
+use std::os::windows::ffi::OsStrExt;
+use std::ptr::{null, null_mut};
+
+use windows_sys::Win32::Foundation::{CloseHandle, LocalFree, ERROR_SUCCESS, HANDLE};
+use windows_sys::Win32::Security::Authorization::{
+    ConvertStringSidToSidW, GetNamedSecurityInfoW, SetEntriesInAclW, SetNamedSecurityInfoW,
+    EXPLICIT_ACCESS_W, TRUSTEE_W,
+};
+use windows_sys::Win32::Security::Isolation::{
+    CreateAppContainerProfile, DeleteAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
+};
+use windows_sys::Win32::Security::{ACL, SECURITY_CAPABILITIES, SID_AND_ATTRIBUTES};
+use windows_sys::Win32::System::Console::{
+    GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+};
+use windows_sys::Win32::System::JobObjects::{
+    AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+};
+use windows_sys::Win32::System::Threading::{
+    CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess,
+    InitializeProcThreadAttributeList, ResumeThread, UpdateProcThreadAttribute,
+    WaitForSingleObject, PROCESS_INFORMATION, STARTUPINFOEXW,
+};
+
+use crate::args::{command_line, Config};
+
+const ALREADY_EXISTS: i32 = 0x800700B7_u32 as i32;
+const SE_GROUP_ENABLED: u32 = 4;
+const PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES: usize = 0x0002_0009;
+const EXTENDED_STARTUPINFO_PRESENT: u32 = 0x0008_0000;
+const CREATE_SUSPENDED: u32 = 0x4;
+const CREATE_UNICODE_ENVIRONMENT: u32 = 0x400;
+const STARTF_USESTDHANDLES: u32 = 0x100;
+const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: u32 = 0x2000;
+const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS: i32 = 9;
+const INFINITE: u32 = 0xFFFF_FFFF;
+const FILE_ALL_ACCESS: u32 = 0x001F_01FF;
+const GRANT_ACCESS: i32 = 1;
+const REVOKE_ACCESS: i32 = 4;
+const SUB_CONTAINERS_AND_OBJECTS_INHERIT: u32 = 3;
+const TRUSTEE_IS_SID: i32 = 0;
+const TRUSTEE_IS_UNKNOWN: i32 = 0;
+const NO_MULTIPLE_TRUSTEE: i32 = 0;
+const SE_FILE_OBJECT: i32 = 1;
+const DACL_SECURITY_INFORMATION: u32 = 4;
+
+// S-1-15-3-1 internetClient, S-1-15-3-3 privateNetworkClientServer.
+const NET_CAPABILITIES: [&str; 2] = ["S-1-15-3-1", "S-1-15-3-3"];
+
+fn wide(text: &str) -> Vec<u16> {
+    std::ffi::OsStr::new(text)
+        .encode_wide()
+        .chain(Some(0))
+        .collect()
+}
+
+fn check(code: u32, what: &str) -> Result<(), String> {
+    if code == ERROR_SUCCESS {
+        Ok(())
+    } else {
+        Err(format!("{what} failed with error {code}"))
+    }
+}
+
+fn profile_sid(name: &str) -> Result<*mut c_void, String> {
+    let wname = wide(name);
+    let mut sid: *mut c_void = null_mut();
+    let hr = unsafe {
+        CreateAppContainerProfile(
+            wname.as_ptr(),
+            wname.as_ptr(),
+            wname.as_ptr(),
+            null(),
+            0,
+            &mut sid,
+        )
+    };
+    if hr == ALREADY_EXISTS {
+        let hr = unsafe { DeriveAppContainerSidFromAppContainerName(wname.as_ptr(), &mut sid) };
+        if hr < 0 {
+            return Err(format!("cannot derive the container SID (HRESULT {hr:#x})"));
+        }
+    } else if hr < 0 {
+        return Err(format!(
+            "cannot create the container profile (HRESULT {hr:#x})"
+        ));
+    }
+    Ok(sid)
+}
+
+/// Adds (or removes) an inheritable full-access entry for the container on one path.
+fn set_access(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
+    let wpath = wide(path);
+    let mut old: *mut ACL = null_mut();
+    let mut descriptor: *mut c_void = null_mut();
+    check(
+        unsafe {
+            GetNamedSecurityInfoW(
+                wpath.as_ptr(),
+                SE_FILE_OBJECT,
+                DACL_SECURITY_INFORMATION,
+                null_mut(),
+                null_mut(),
+                &mut old,
+                null_mut(),
+                &mut descriptor,
+            )
+        },
+        &format!("reading the ACL of {path}"),
+    )?;
+    let entry = EXPLICIT_ACCESS_W {
+        grfAccessPermissions: FILE_ALL_ACCESS,
+        grfAccessMode: mode,
+        grfInheritance: SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+        Trustee: TRUSTEE_W {
+            pMultipleTrustee: null_mut(),
+            MultipleTrusteeOperation: NO_MULTIPLE_TRUSTEE,
+            TrusteeForm: TRUSTEE_IS_SID,
+            TrusteeType: TRUSTEE_IS_UNKNOWN,
+            ptstrName: sid as *mut u16,
+        },
+    };
+    let mut merged: *mut ACL = null_mut();
+    let result = check(
+        unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
+        "building the ACL",
+    )
+    .and_then(|()| {
+        check(
+            unsafe {
+                SetNamedSecurityInfoW(
+                    wpath.as_ptr(),
+                    SE_FILE_OBJECT,
+                    DACL_SECURITY_INFORMATION,
+                    null_mut(),
+                    null_mut(),
+                    merged,
+                    null_mut(),
+                )
+            },
+            &format!("setting the ACL of {path}"),
+        )
+    });
+    unsafe {
+        LocalFree(merged as _);
+        LocalFree(descriptor as _);
+    }
+    result
+}
+
+fn kill_on_close_job() -> Result<HANDLE, String> {
+    let job = unsafe { CreateJobObjectW(null(), null()) };
+    if job.is_null() {
+        return Err("cannot create the job object".to_owned());
+    }
+    let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
+    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    let ok = unsafe {
+        SetInformationJobObject(
+            job,
+            JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS,
+            &info as *const _ as *const c_void,
+            std::mem::size_of_val(&info) as u32,
+        )
+    };
+    if ok == 0 {
+        return Err("cannot configure the job object".to_owned());
+    }
+    Ok(job)
+}
+
+fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> {
+    let mut capabilities: Vec<SID_AND_ATTRIBUTES> = Vec::new();
+    if config.net {
+        for text in NET_CAPABILITIES {
+            let mut cap: *mut c_void = null_mut();
+            if unsafe { ConvertStringSidToSidW(wide(text).as_ptr(), &mut cap) } == 0 {
+                return Err(format!("cannot convert capability SID {text}"));
+            }
+            capabilities.push(SID_AND_ATTRIBUTES {
+                Sid: cap,
+                Attributes: SE_GROUP_ENABLED,
+            });
+        }
+    }
+    let security = SECURITY_CAPABILITIES {
+        AppContainerSid: sid,
+        Capabilities: if capabilities.is_empty() {
+            null_mut()
+        } else {
+            capabilities.as_mut_ptr()
+        },
+        CapabilityCount: capabilities.len() as u32,
+        Reserved: 0,
+    };
+
+    let mut size = 0usize;
+    unsafe { InitializeProcThreadAttributeList(null_mut(), 1, 0, &mut size) };
+    let mut buffer = vec![0u8; size];
+    let list = buffer.as_mut_ptr() as *mut c_void;
+    if unsafe { InitializeProcThreadAttributeList(list, 1, 0, &mut size) } == 0 {
+        return Err("cannot initialize the attribute list".to_owned());
+    }
+    if unsafe {
+        UpdateProcThreadAttribute(
+            list,
+            0,
+            PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
+            &security as *const _ as *const c_void,
+            std::mem::size_of::<SECURITY_CAPABILITIES>(),
+            null_mut(),
+            null(),
+        )
+    } == 0
+    {
+        return Err("cannot set the security capabilities".to_owned());
+    }
+
+    let mut startup: STARTUPINFOEXW = unsafe { std::mem::zeroed() };
+    startup.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
+    startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    unsafe {
+        startup.StartupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        startup.StartupInfo.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+        startup.StartupInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    }
+    startup.lpAttributeList = list;
+
+    let mut line = wide(&command_line(&config.command));
+    let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
+    let created = unsafe {
+        CreateProcessW(
+            null(),
+            line.as_mut_ptr(),
+            null(),
+            null(),
+            1,
+            EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+            null(),
+            null(),
+            &startup.StartupInfo,
+            &mut info,
+        )
+    };
+    unsafe { DeleteProcThreadAttributeList(list) };
+    for cap in &capabilities {
+        unsafe { LocalFree(cap.Sid as _) };
+    }
+    if created == 0 {
+        let err = std::io::Error::last_os_error();
+        return Err(format!("cannot start {}: {err}", config.command[0]));
+    }
+    if unsafe { AssignProcessToJobObject(job, info.hProcess) } == 0 {
+        return Err("cannot put the command in the job object".to_owned());
+    }
+    unsafe {
+        ResumeThread(info.hThread);
+        CloseHandle(info.hThread);
+        WaitForSingleObject(info.hProcess, INFINITE);
+    }
+    let mut code = 1u32;
+    unsafe {
+        GetExitCodeProcess(info.hProcess, &mut code);
+        CloseHandle(info.hProcess);
+    }
+    Ok(code as i32)
+}
+
+pub fn run(config: &Config) -> Result<i32, String> {
+    let sid = profile_sid(&config.name)?;
+    let mut granted = Vec::new();
+    let mut outcome = Ok(1);
+    for path in &config.grants {
+        if let Err(err) = set_access(path, sid, GRANT_ACCESS) {
+            outcome = Err(err);
+            break;
+        }
+        granted.push(path);
+    }
+    if outcome.is_ok() {
+        outcome = kill_on_close_job().and_then(|job| {
+            let code = spawn(config, sid, job);
+            unsafe { CloseHandle(job) };
+            code
+        });
+    }
+    for path in granted {
+        let _ = set_access(path, sid, REVOKE_ACCESS);
+    }
+    unsafe {
+        DeleteAppContainerProfile(wide(&config.name).as_ptr());
+        LocalFree(sid);
+    }
+    outcome
+}

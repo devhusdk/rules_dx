@@ -11,6 +11,7 @@ check() {
   shift 2
   err=$("$bin" "$@" 2>&1 >/dev/null)
   code=$?
+  err=$(printf '%s' "$err" | tr -d '\r')
   if [ "$code" != "$want_code" ] || [ "$err" != "$want_err" ]; then
     echo "FAIL: $* -> $code '$err' (want $want_code '$want_err')"
     failures=$((failures + 1))

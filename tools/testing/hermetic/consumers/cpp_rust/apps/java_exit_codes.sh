@@ -11,6 +11,7 @@ check() {
   shift 2
   err=$("$bin" "$@" 2>&1 >/dev/null)
   code=$?
+  err=$(printf '%s' "$err" | tr -d '\r')
   if [ "$code" != "$want_code" ] || [ "$err" != "$want_err" ]; then
     echo "FAIL: $* -> $code '$err' (want $want_code '$want_err')"
     failures=$((failures + 1))
@@ -33,7 +34,7 @@ bad single_quoted "[{'id':'A','customer':'c','items':[]}]" "invoice file is not 
 check 4 "invoice: no invoice INV-9" show INV-9
 check 3 "invoice: cannot read invoice file" --file "$tmp/absent.json" list
 
-total=$("$bin" total)
+total=$("$bin" total | tr -d '\r')
 if [ "$total" != "total 68.00" ]; then
   echo "FAIL: total -> '$total'"
   failures=$((failures + 1))

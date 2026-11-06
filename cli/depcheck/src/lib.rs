@@ -31,6 +31,7 @@ pub use ecosystem::haskell::{parse_haskell_lock, parse_haskell_manifest};
 pub use ecosystem::js::{parse_js_manifest, parse_pnpm_lock};
 pub use ecosystem::julia::{parse_julia_lock, parse_julia_manifest};
 pub use ecosystem::jvm::{parse_jvm_lock, parse_jvm_manifest, parse_maven_artifacts_list};
+pub use ecosystem::lua::{parse_lua_lock, parse_lua_manifest};
 pub use ecosystem::perl::{parse_perl_lock, parse_perl_manifest};
 pub use ecosystem::php::{parse_php_lock, parse_php_manifest};
 pub use ecosystem::powershell::{parse_powershell_lock, parse_powershell_manifest};

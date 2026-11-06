@@ -696,6 +696,7 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => "jvm_deps.toml",
         Ecosystem::Csharp | Ecosystem::Fsharp => "paket.dependencies",
         Ecosystem::Cc => "cc_deps.toml",
+        Ecosystem::Lua => "mixed-1.0-1.rockspec",
         Ecosystem::Ruby => "Gemfile",
         Ecosystem::Perl => "cpanfile",
         Ecosystem::Zig => "build.zig.zon",
@@ -730,6 +731,7 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Elixir => "mix.lock",
         Ecosystem::Erlang => "rebar.lock",
         Ecosystem::Fortran => "fpm.lock",
+        Ecosystem::Lua => "luarocks.lock",
         Ecosystem::D => "dub.selections.json",
         Ecosystem::Haskell => "cabal.project.freeze",
         Ecosystem::Swift => "Package.resolved",
@@ -763,6 +765,7 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Haskell => "haskell",
         Ecosystem::Swift => "swift",
         Ecosystem::Powershell => "powershell",
+        Ecosystem::Lua => "lua",
     }
 }
 
@@ -1265,6 +1268,7 @@ fn ecosystem_parse_covers_every_name() {
         ("haskell", Ecosystem::Haskell),
         ("swift", Ecosystem::Swift),
         ("powershell", Ecosystem::Powershell),
+        ("lua", Ecosystem::Lua),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -3211,4 +3215,77 @@ fn powershell_usage_covers_import_using_and_requires() {
     assert!(hits["Pester"].test && !hits["Pester"].src);
     assert!(!hits["Nope"].src);
     assert!(!hits["Foo"].src);
+}
+
+#[test]
+fn lua_manifest_reads_tables_and_skips_lua() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let rockspec = dir.path().join("a-1.0-1.rockspec");
+    write_file(
+        &rockspec,
+        "package = \"a\"\ndependencies = {\n  \"lua >= 5.1\", -- interpreter\n  \"luasocket >= 3.0, < 4\",\n  'penlight',\n}\nbuild_dependencies = { \"luarocks-build-rust-mlua\" }\ntest_dependencies = { \"busted\" }\n",
+    );
+    let deps = parse_lua_manifest(&rockspec).expect("parse");
+    let names: Vec<&str> = deps.keys().map(String::as_str).collect();
+    assert_eq!(
+        names,
+        [
+            "busted",
+            "luarocks-build-rust-mlua",
+            "luasocket",
+            "penlight"
+        ]
+    );
+    assert_eq!(deps["luasocket"].spec, ">= 3.0, < 4");
+    assert_eq!(deps["penlight"].spec, "*");
+    assert_eq!(deps["busted"].category, "dev");
+    assert_eq!(deps["luarocks-build-rust-mlua"].category, "build");
+}
+
+#[test]
+fn lua_lock_drops_the_rock_revision() {
+    let lock = parse_lua_lock(&testdata_root().join("lua/mixed/luarocks.lock")).expect("parse");
+    assert_eq!(lock["luasocket"], "3.1.0");
+    assert_eq!(lock["lua-cjson"], "2.1.0");
+}
+
+#[test]
+fn lua_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("lua/mixed");
+    let manifest = base.join("mixed-1.0-1.rockspec");
+    let lock = base.join("luarocks.lock");
+    assert_eq!(consistency(Ecosystem::Lua, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Lua, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["penlight"]);
+    let missing = find_missing(Ecosystem::Lua, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(found, [("lpeg", "src/mixed.lua", 3)]);
+}
+
+#[test]
+fn lua_usage_covers_require_forms() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(
+        &dir.path().join("a.lua"),
+        "local s = require(\"socket.http\")\n",
+    );
+    write_file(&dir.path().join("b.lua"), "local c = require 'cjson'\n");
+    write_file(&dir.path().join("spec/c_spec.lua"), "require(\"busted\")\n");
+    write_file(
+        &dir.path().join("d.lua"),
+        "-- x\nlocal z = require(\"socketx\")\n",
+    );
+    let names: Vec<String> = ["luasocket", "lua-cjson", "busted", "other"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::Lua, dir.path(), &names).expect("usages");
+    assert!(hits["luasocket"].src);
+    assert!(hits["lua-cjson"].src);
+    assert!(hits["busted"].test && !hits["busted"].src);
+    assert!(!hits["other"].src);
 }

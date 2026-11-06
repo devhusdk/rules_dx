@@ -20,6 +20,7 @@ rust_library(
         "src/ecosystem/js.rs",
         "src/ecosystem/julia.rs",
         "src/ecosystem/jvm.rs",
+        "src/ecosystem/lua.rs",
         "src/ecosystem/mod.rs",
         "src/ecosystem/perl.rs",
         "src/ecosystem/php.rs",
@@ -97,6 +98,7 @@ rust_test(
         ":kotlin_testdata",
         ":d_testdata",
         ":fortran_testdata",
+        ":lua_testdata",
         ":perl_testdata",
         ":php_testdata",
         ":powershell_testdata",
@@ -285,6 +287,7 @@ rust_test(
         "haskell",
         "swift",
         "powershell",
+        "lua",
     ]
 ]
 

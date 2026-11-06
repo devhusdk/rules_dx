@@ -169,6 +169,7 @@ fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckErr
             .collect()),
         Ecosystem::Swift => Ok(crate::parse_swift_lock(lock)?.into_keys().collect()),
         Ecosystem::Powershell => Ok(crate::parse_powershell_lock(lock)?.into_keys().collect()),
+        Ecosystem::Lua => Ok(crate::parse_lua_lock(lock)?.into_keys().collect()),
         _ => Ok(Vec::new()),
     }
 }
@@ -220,6 +221,7 @@ pub fn find_missing(
         Ecosystem::D => "dub.json",
         Ecosystem::Haskell => "package.cabal",
         Ecosystem::Swift => "Package.swift",
+        Ecosystem::Lua => "luarocks.lock",
         _ => "package.json",
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;

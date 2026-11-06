@@ -98,6 +98,9 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         }
         Ecosystem::Swift => s.contains("/Tests/") || name.ends_with("Tests.swift"),
         Ecosystem::Powershell => name.ends_with(".Tests.ps1") || s.contains("/tests/"),
+        Ecosystem::Lua => {
+            name.ends_with("_spec.lua") || s.contains("/spec/") || s.contains("/tests/")
+        }
         Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
         Ecosystem::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
         Ecosystem::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
@@ -156,6 +159,7 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         ".swift",
         ".ps1",
         ".psm1",
+        ".lua",
     ]
     .into_iter()
     .collect()
@@ -203,9 +207,20 @@ fn skip_names() -> BTreeSet<&'static str> {
         "stack.yaml.lock",
         "Package.swift",
         "Package.resolved",
+        "luarocks.lock",
     ]
     .into_iter()
     .collect()
+}
+
+/// Rocks whose module name is unrelated to the rock name.
+fn lua_module_alias(rock: &str) -> Option<&'static str> {
+    match rock {
+        "penlight" => Some("pl"),
+        "luafilesystem" => Some("lfs"),
+        "luaposix" => Some("posix"),
+        _ => None,
+    }
 }
 
 fn regex_escape(text: &str) -> String {
@@ -416,6 +431,22 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
             let name = regex_escape(dep);
             vec![format!(
                 r"(?m)^\s*(?:using|import)\s+(?:[^\n#:]*,\s*)?{name}\b(?:\s*[:,]|\s*(?:#.*)?$|\.)"
+            )]
+        }
+        Ecosystem::Lua => {
+            let mut names = vec![dep.to_owned()];
+            let trimmed = dep.strip_suffix(".lua").unwrap_or(dep);
+            let trimmed = trimmed.strip_prefix("lua-").unwrap_or(trimmed);
+            names.push(trimmed.to_owned());
+            names.push(trimmed.replace('-', "_"));
+            names.push(trimmed.strip_prefix("lua").unwrap_or(trimmed).to_owned());
+            names.extend(lua_module_alias(dep).map(str::to_owned));
+            names.sort();
+            names.dedup();
+            let names: Vec<String> = names.iter().map(|name| regex_escape(name)).collect();
+            vec![format!(
+                r#"\brequire\s*\(?\s*['"](?:{})(?:\.[^'"]*)?['"]"#,
+                names.join("|")
             )]
         }
         Ecosystem::Zig => {

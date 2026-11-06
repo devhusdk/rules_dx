@@ -9,6 +9,7 @@ pub mod haskell;
 pub mod js;
 pub mod julia;
 pub mod jvm;
+pub mod lua;
 pub mod perl;
 pub mod php;
 pub mod powershell;

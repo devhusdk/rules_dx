@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::ecosystem::{
-    beam, cc, dart, dlang, dotnet, fortran, go, haskell, js, julia, jvm, parse_paren_lock, perl,
+    beam, cc, dart, dlang, dotnet, fortran, go, haskell, js, julia, jvm, lua, parse_paren_lock, perl,
     php, powershell, python, ruby, rust, swift, zig,
 };
 use crate::version::satisfies_for;
@@ -33,6 +33,7 @@ pub(crate) fn load_manifest(
         Ecosystem::Haskell => haskell::parse_haskell_manifest(manifest),
         Ecosystem::Swift => swift::parse_swift_manifest(manifest),
         Ecosystem::Powershell => powershell::parse_powershell_manifest(manifest),
+        Ecosystem::Lua => lua::parse_lua_manifest(manifest),
     }
 }
 
@@ -66,6 +67,7 @@ fn load_lock(eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError>
         Ecosystem::Haskell => single(haskell::parse_haskell_lock(lock)),
         Ecosystem::Swift => single(swift::parse_swift_lock(lock)),
         Ecosystem::Powershell => single(powershell::parse_powershell_lock(lock)),
+        Ecosystem::Lua => single(lua::parse_lua_lock(lock)),
     }
 }
 

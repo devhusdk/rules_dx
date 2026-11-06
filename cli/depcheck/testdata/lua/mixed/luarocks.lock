@@ -1,0 +1,8 @@
+return {
+  dependencies = {
+    ["lua-cjson"] = "2.1.0-1",
+    ["luasocket"] = "3.1.0-1",
+    ["penlight"] = "1.13.1-1",
+    ["lpeg"] = "1.1.0-1",
+  },
+}

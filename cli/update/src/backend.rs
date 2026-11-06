@@ -799,9 +799,8 @@ pub fn plan_configured(
                 },
             ]))
         }
-        (Ecosystem::SwiftPm, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Opam, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::SwiftPm, Selection::Packages(packages)) => {
+        (Ecosystem::SwiftPm, selection) => {
             if offline {
                 return Err(BackendError::OfflineRequired {
                     set: set.name.clone(),
@@ -813,7 +812,9 @@ pub fn plan_configured(
                 });
             }
             let mut command = vec!["package".to_owned(), "update".to_owned()];
-            command.extend(packages.iter().map(|name| swift_identity(name)));
+            if let Selection::Packages(packages) = selection {
+                command.extend(packages.iter().map(|name| swift_identity(name)));
+            }
             Ok(BackendPlan::Run {
                 argv: swift_argv(workspace, set, head, true, &command)?,
                 env: Vec::new(),

@@ -172,7 +172,8 @@ impl Ecosystem {
             | Ecosystem::Cargo
             | Ecosystem::Maven
             | Ecosystem::Nuget
-            | Ecosystem::Go => "check",
+            | Ecosystem::Go
+            | Ecosystem::SwiftPm => "check",
             Ecosystem::Bazel
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
@@ -183,7 +184,6 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Opam
-            | Ecosystem::SwiftPm
             | Ecosystem::Cabal => "pinned",
         }
     }
@@ -195,7 +195,8 @@ impl Ecosystem {
             | Ecosystem::Cargo
             | Ecosystem::Maven
             | Ecosystem::Nuget
-            | Ecosystem::Go => "update",
+            | Ecosystem::Go
+            | Ecosystem::SwiftPm => "update",
             Ecosystem::Bazel
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
@@ -206,7 +207,6 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Opam
-            | Ecosystem::SwiftPm
             | Ecosystem::Cabal => "pinned",
         }
     }

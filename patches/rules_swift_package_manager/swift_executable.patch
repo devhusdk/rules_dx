@@ -36,7 +36,15 @@ diff -ruN a/swiftpkg/bzlmod/swift_deps.bzl b/swiftpkg/bzlmod/swift_deps.bzl
              id = dep.registry.pin.identity,
              make_files_read_only = from_package.make_files_read_only,
              registries = from_package.registries,
-@@ -829,9 +836,14 @@
+@@ -781,6 +788,7 @@
+         ),
+         netrc = from_package.netrc,
+         registries = from_package.registries,
++        swift_executable = from_package.swift_executable,
+         **config_swift_package_kwargs
+     )
+ 
+@@ -829,9 +837,14 @@
              available = ", ".join(sorted(available_target_mod_repos.keys())),
              unknown = ", ".join(sorted(unknown_target_mod_repos)),
          ))
@@ -53,7 +61,7 @@ diff -ruN a/swiftpkg/bzlmod/swift_deps.bzl b/swiftpkg/bzlmod/swift_deps.bzl
      )
  
  _from_package_tag = tag_class(
-@@ -910,6 +922,13 @@
+@@ -910,6 +923,13 @@
                  allow_files = [".swift"],
                  doc = "A `Package.swift`.",
              ),
@@ -126,3 +134,78 @@ diff -ruN a/swiftpkg/internal/repository_utils.bzl b/swiftpkg/internal/repositor
  
      # It is critical that the SPM commands execute using the host's default
      # SDK. This is typically MacOS.  If the SDKROOT is set to iOS for example,
+diff -ruN a/swiftpkg/internal/swift_package_lib.sh b/swiftpkg/internal/swift_package_lib.sh
+--- a/swiftpkg/internal/swift_package_lib.sh
++++ b/swiftpkg/internal/swift_package_lib.sh
+@@ -59,6 +59,7 @@
+ #   --replace_scm_with_registry <true|false>
+ #   --use_registry_identity_for_scm <true|false>
+ #   --env <KEY=VAL>               (optional, may be repeated)
++#   --swift_executable <path>     (optional, absolute path to swift)
+ #   --manifest_swiftc_flags <flags>  (optional, space-separated)
+ #
+ # Any remaining arguments after -- are appended to the swift package
+@@ -78,6 +79,7 @@
+   local replace_scm_with_registry="false"
+   local use_registry_identity_for_scm="false"
+   local env_vars=()
++  local swift_executable_override=""
+   local manifest_swiftc_flags=""
+   local extra_args=()
+ 
+@@ -143,6 +145,10 @@
+         manifest_swiftc_flags="$2"
+         shift 2
+         ;;
++      --swift_executable)
++        swift_executable_override="$2"
++        shift 2
++        ;;
+       --)
+         shift
+         extra_args+=("$@")
+@@ -179,7 +185,11 @@
+ 
+   # Resolve swift executable.
+   local swift_executable
+-  swift_executable="$(spl_resolve_swift_executable)"
++  if [[ -n ${swift_executable_override} ]]; then
++    swift_executable="${swift_executable_override}"
++  else
++    swift_executable="$(spl_resolve_swift_executable)"
++  fi
+ 
+   # Construct dynamic arguments.
+   local args=()
+diff -ruN a/swiftpkg/internal/swift_package_tool_repo.bzl b/swiftpkg/internal/swift_package_tool_repo.bzl
+--- a/swiftpkg/internal/swift_package_tool_repo.bzl
++++ b/swiftpkg/internal/swift_package_tool_repo.bzl
+@@ -67,6 +67,12 @@
+         for k, v in attr.env.items():
+             args.extend(["--env", "%s=%s" % (k, v)])
+ 
++    if attr.swift_executable:
++        args.extend([
++            "--swift_executable",
++            str(repository_ctx.path(attr.swift_executable)),
++        ])
++
+     manifest_flags = " ".join(manifest_swiftc_args.BAZEL_DEFINE)
+     if manifest_flags:
+         args.extend(["--manifest_swiftc_flags", manifest_flags])
+@@ -135,6 +141,15 @@
+                 mandatory = True,
+             ),
+         },
++        {
++            "swift_executable": attr.label(
++                allow_single_file = True,
++                doc = """\
++Optional `swift` executable used by the `update` and `resolve` targets instead \
++of the one found on the host `PATH` or through `xcrun`.\
++""",
++            ),
++        },
+         swift_package_tool_attrs.swift_package_tool_config,
+         swift_package_tool_attrs.swift_package_registry,
+     ),

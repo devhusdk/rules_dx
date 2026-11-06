@@ -15006,7 +15006,7 @@
     },
     "@@rules_swift_package_manager+//:extensions.bzl%swift_deps": {
       "general": {
-        "bzlTransitiveDigest": "S/PxYQD2Oa1b6qun4RkjJh9tM1o2aU+Lvgbrn4yBMuc=",
+        "bzlTransitiveDigest": "zowmf+/xIP5BEtbczHDpItdKRiBtUlpbbxIukWipZPY=",
         "usagesDigest": "+Mer49Dj5TaKX4xrFJF8SNv6Zl06kOslHjXx6dnMIPU=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_swift_host +swift+dx_swift_host",
@@ -15020,7 +15020,8 @@
             "repoRuleId": "@@rules_swift_package_manager+//swiftpkg/internal:swift_package_tool_repo.bzl%swift_package_tool_repo",
             "attributes": {
               "env": {},
-              "package": "swift/tests/fixtures/swift-app/Package.swift"
+              "package": "swift/tests/fixtures/swift-app/Package.swift",
+              "swift_executable": "@@+swift+dx_swift_host//:swift"
             }
           },
           "swift_deps_package_repos": {

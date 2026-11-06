@@ -75,6 +75,7 @@ func newLang() *pythonLang {
 		ExtraKinds:     []string{testKind, binaryKind, ruffKind},
 		KindDefs:       map[string]string{ruffKind: nativeDefs},
 		ConfigureExt:   configureRuff,
+		Directives:     []string{common.PolicyConfigDirective},
 		Kinds:          pythonKinds,
 		DefsPackage:    "python/rules:defs.bzl",
 		ImportAttr:     "srcs",
@@ -351,7 +352,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		if r.Kind() == ruffKind {
 			continue
 		}
-		if hints := withRuffHint(existingRule(args.File, r.Kind(), r.Name()), ruff, args.Rel); len(hints) > 0 {
+		if hints := withRuffHint(args.Config, existingRule(args.File, r.Kind(), r.Name()), ruff, args.Rel); len(hints) > 0 {
 			r.SetAttr("aspect_hints", hints)
 		}
 		if isFixturePath(args.Rel) {

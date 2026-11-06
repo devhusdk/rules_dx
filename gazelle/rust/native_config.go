@@ -10,6 +10,7 @@ import (
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
@@ -217,7 +218,7 @@ func nativeVisibility(rel string) string {
 	return "//" + rel + ":__subpackages__"
 }
 
-func applyNativeHints(rel string, r *rule.Rule, plan *nativePlan) {
+func applyNativeHints(c *config.Config, rel string, r *rule.Rule, plan *nativePlan) {
 	if _, owned := rustKinds[r.Kind()]; !owned || isNativeConfigKind(r.Kind()) || r.Kind() == corpusKind {
 		return
 	}
@@ -245,7 +246,7 @@ func applyNativeHints(rel string, r *rule.Rule, plan *nativePlan) {
 			continue
 		}
 		name, ok := plan.resolved[tool.id]
-		if !ok || present[name] {
+		if !ok || present[name] || common.PolicyBinds(c, tool.id, "//"+rel+":"+name) {
 			continue
 		}
 		additions = append(additions, ":"+name)

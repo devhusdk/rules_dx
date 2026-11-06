@@ -65,7 +65,10 @@ func ruffProfileFiles(repoRoot, rel string) []string {
 	return data
 }
 
-func configureRuff(c *config.Config, rel string, _ *rule.File, _ common.Reporter) {
+func configureRuff(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
+	for _, msg := range common.ConfigurePolicyConfig(c, f) {
+		rep.Fail(common.InPackage(rel), "%s", msg)
+	}
 	if file := ruffFile(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))); file != "" {
 		c.Exts[ruffExt] = &ruffState{rel: rel, file: file}
 	}
@@ -90,12 +93,15 @@ func ruffRule(c *config.Config, state *ruffState, rel string) *rule.Rule {
 }
 
 // withRuffHint returns the user's aspect_hints plus the ruff config label.
-func withRuffHint(existing *rule.Rule, state *ruffState, rel string) []string {
+func withRuffHint(c *config.Config, existing *rule.Rule, state *ruffState, rel string) []string {
 	var hints []string
 	if existing != nil {
 		hints = existing.AttrStrings("aspect_hints")
 	}
 	if state == nil {
+		return hints
+	}
+	if common.PolicyBinds(c, "ruff", state.label()) {
 		return hints
 	}
 	label := state.label()

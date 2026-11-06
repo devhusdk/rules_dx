@@ -47,6 +47,7 @@ go_library(
         "manifest.go",
         "moduledeps.go",
         "naming.go",
+        "policyconfig.go",
         "nodestdlib.go",
         "npmhub.go",
         "pnpmworkspace.go",

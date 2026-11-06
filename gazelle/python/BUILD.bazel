@@ -51,6 +51,7 @@ go_test(
         "lang_test.go",
         "naming_test.go",
         "parser_test.go",
+        "ruff_test.go",
     ],
     embed = [":python"],
     pure = "on",

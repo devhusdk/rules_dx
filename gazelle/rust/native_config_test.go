@@ -344,12 +344,12 @@ rustfmt_config(
 func TestNativeHintsIgnoreNonRustAndConfigRules(t *testing.T) {
 	plan := &nativePlan{resolved: map[string]string{"rustfmt": "rustfmt_config"}}
 	foreign := rule.NewRule("filegroup", "assets")
-	applyNativeHints("site", foreign, plan)
+	applyNativeHints(config.New(), "site", foreign, plan)
 	if foreign.Attr("aspect_hints") != nil {
 		t.Errorf("foreign rule received hints: %v", foreign.AttrStrings("aspect_hints"))
 	}
 	configRule := rule.NewRule("rustfmt_config", "rustfmt_config")
-	applyNativeHints("site", configRule, plan)
+	applyNativeHints(config.New(), "site", configRule, plan)
 	if configRule.Attr("aspect_hints") != nil {
 		t.Errorf("native config rule received Rust hints: %v", configRule.AttrStrings("aspect_hints"))
 	}
@@ -363,7 +363,7 @@ func TestNativeRootCanonicalHintSurvives(t *testing.T) {
 		resolved: map[string]string{"rustfmt": "rustfmt_config"},
 		existing: map[string]*rule.Rule{"root": existing, "rustfmt_config": rule.NewRule("rustfmt_config", "rustfmt_config")},
 	}
-	applyNativeHints("", lib, plan)
+	applyNativeHints(config.New(), "", lib, plan)
 	if got := strings.Join(lib.AttrStrings("aspect_hints"), ","); got != "//:rustfmt_config" {
 		t.Errorf("root hints = %q, want canonical existing hint", got)
 	}
@@ -751,5 +751,51 @@ func TestValeStylesWalkErrorNamesDirectory(t *testing.T) {
 	_, errs := valeStylesData(root, root, "", vale)
 	if len(errs) != 1 || !strings.Contains(errs[0].Error(), filepath.Join(root, "nope")) {
 		t.Fatalf("errs = %v, want one naming the styles directory", errs)
+	}
+}
+
+func policyConfig(t *testing.T, rel, directives string) *config.Config {
+	t.Helper()
+	file, err := rule.LoadData("BUILD.bazel", rel, []byte(directives))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.New()
+	(&rustLang{}).Configure(cfg, rel, file)
+	return cfg
+}
+
+func TestNativePolicyBoundConfigSkipsHint(t *testing.T) {
+	cfg := policyConfig(t, "", "# gazelle:dx_policy_config rustfmt //:rustfmt_config\n")
+	lib := rule.NewRule(libraryKind, "root")
+	plan := &nativePlan{resolved: map[string]string{"rustfmt": "rustfmt_config"}}
+	applyNativeHints(cfg, "", lib, plan)
+	if lib.Attr("aspect_hints") != nil {
+		t.Errorf("bound config still hinted: %v", lib.AttrStrings("aspect_hints"))
+	}
+}
+
+func TestNativePolicyNestedOverrideKeepsHint(t *testing.T) {
+	cfg := policyConfig(t, "", "# gazelle:dx_policy_config rustfmt //:rustfmt_config\n")
+	lib := rule.NewRule(libraryKind, "site")
+	plan := &nativePlan{resolved: map[string]string{"rustfmt": "rustfmt_config"}}
+	applyNativeHints(cfg, "site", lib, plan)
+	if got := strings.Join(lib.AttrStrings("aspect_hints"), ","); got != ":rustfmt_config" {
+		t.Errorf("override hints = %q, want :rustfmt_config", got)
+	}
+}
+
+func TestNativePolicyKeepsHandWrittenHint(t *testing.T) {
+	cfg := policyConfig(t, "", "# gazelle:dx_policy_config rustfmt //:rustfmt_config\n")
+	existing := rule.NewRule(libraryKind, "root")
+	existing.SetAttr("aspect_hints", []string{"//:rustfmt_config"})
+	lib := rule.NewRule(libraryKind, "root")
+	plan := &nativePlan{
+		resolved: map[string]string{"rustfmt": "rustfmt_config"},
+		existing: map[string]*rule.Rule{"root": existing, "rustfmt_config": rule.NewRule("rustfmt_config", "rustfmt_config")},
+	}
+	applyNativeHints(cfg, "", lib, plan)
+	if got := strings.Join(lib.AttrStrings("aspect_hints"), ","); got != "//:rustfmt_config" {
+		t.Errorf("hints = %q, want hand-written hint kept", got)
 	}
 }

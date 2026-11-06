@@ -383,14 +383,9 @@ mod tests {
             Err(io::ErrorKind::WouldBlock)
         );
         drop(first);
-        eventually(
-            "release of the first holder",
-            || match acquire_exclusive_at(&path, Duration::from_millis(100)) {
-                Ok(lease) => Some(lease),
-                Err(error) if error.kind() == io::ErrorKind::WouldBlock => None,
-                Err(error) => panic!("acquire after drop: {error:?}"),
-            },
-        );
+        eventually("release of the first holder", || {
+            acquire_exclusive_at(&path, Duration::from_millis(100)).ok()
+        });
     }
 
     #[test]
@@ -445,11 +440,18 @@ mod tests {
     #[test]
     fn inherit_value_round_trips_through_the_child_entry() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let saved = std::env::var_os(LEASE_ENV_VAR);
-        inherit_value_checks();
-        match saved {
-            Some(value) => std::env::set_var(LEASE_ENV_VAR, value),
-            None => std::env::remove_var(LEASE_ENV_VAR),
+        for preset in [true, false] {
+            if preset {
+                std::env::set_var(LEASE_ENV_VAR, "preset");
+            } else {
+                std::env::remove_var(LEASE_ENV_VAR);
+            }
+            let saved = std::env::var_os(LEASE_ENV_VAR);
+            inherit_value_checks();
+            match saved {
+                Some(value) => std::env::set_var(LEASE_ENV_VAR, value),
+                None => std::env::remove_var(LEASE_ENV_VAR),
+            }
         }
     }
 
@@ -507,9 +509,11 @@ mod tests {
     fn wait_for(path: &Path, what: &str) {
         let start = std::time::Instant::now();
         while !path.exists() {
+            // LCOV_EXCL_START - reason: test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             if start.elapsed() > Duration::from_secs(30) {
                 panic!("timed out waiting for {what}");
             }
+            // LCOV_EXCL_STOP - reason: end test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             std::thread::sleep(Duration::from_millis(25));
         }
     }
@@ -519,11 +523,13 @@ mod tests {
         loop {
             if let Some(value) = probe() {
                 return value;
-            }
+            } // LCOV_EXCL_LINE - reason: the probe succeeds on the first poll, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+              // LCOV_EXCL_START - reason: test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             if start.elapsed() > Duration::from_secs(30) {
                 panic!("timed out waiting for {what}");
             }
             std::thread::sleep(Duration::from_millis(25));
+            // LCOV_EXCL_STOP - reason: end test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
 
@@ -540,11 +546,13 @@ mod tests {
                 drop(held);
             }
             "die" => {
+                // LCOV_EXCL_START - reason: runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 let _held = acquire_shared(root, GenerationUse::Generated, HEX_B, Duration::ZERO)
                     .expect("child acquires");
                 std::fs::write(&ready, b"ready").expect("signal ready");
                 wait_for(&release, "release");
             }
+            // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             "contend" => {
                 let verdict = match acquire_shared(
                     root,
@@ -557,16 +565,17 @@ mod tests {
                         "acquired"
                     }
                     Err(error) if error.kind() == io::ErrorKind::WouldBlock => "blocked",
-                    Err(error) => panic!("contention probe wants WouldBlock, got {error:?}"),
+                    Err(error) => panic!("contention probe wants WouldBlock, got {error:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 };
                 std::fs::write(root.join("child-verdict"), verdict).expect("signal verdict");
             }
-            other => panic!("unknown child mode {other:?}"),
+            other => panic!("unknown child mode {other:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
 
     #[test]
     fn killed_holder_releases_the_generation() {
+        // LCOV_EXCL_START - reason: runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         if let Some(mode) =
             std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
         {
@@ -576,6 +585,7 @@ mod tests {
             child_main(&root, &mode);
             return;
         }
+        // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         let scratch = dx_test_scratch::scratch("dx-lease-crash-");
         let root = root(scratch.path());
         let mut child = spawn_child("killed_holder_releases_the_generation", &root, "", "die");
@@ -596,6 +606,7 @@ mod tests {
 
     #[test]
     fn surviving_child_keeps_the_generation_after_its_parent_releases() {
+        // LCOV_EXCL_START - reason: runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         if let Some(mode) =
             std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
         {
@@ -605,6 +616,7 @@ mod tests {
             child_main(&root, &mode);
             return;
         }
+        // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         let scratch = dx_test_scratch::scratch("dx-lease-inherit-");
         let root = root(scratch.path());
         let parent = acquire_shared(
@@ -639,6 +651,7 @@ mod tests {
 
     #[test]
     fn shared_acquire_fails_closed_while_cleanup_holds_exclusive() {
+        // LCOV_EXCL_START - reason: runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         if let Some(mode) =
             std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
         {
@@ -648,6 +661,7 @@ mod tests {
             child_main(&root, &mode);
             return;
         }
+        // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         let scratch = dx_test_scratch::scratch("dx-lease-contend-");
         let root = root(scratch.path());
         let exclusive = try_acquire_exclusive(&root, GenerationUse::Generated, HEX_B)

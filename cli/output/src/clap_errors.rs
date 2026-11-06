@@ -113,6 +113,57 @@ mod tests {
             .expect_err("args must be rejected")
     }
 
+    fn with_context(
+        kind: clap::error::ContextKind,
+        value: clap::error::ContextValue,
+    ) -> clap::Error {
+        let mut error = clap::Error::new(clap::error::ErrorKind::InvalidValue);
+        error.insert(kind, value);
+        error
+    }
+
+    #[test]
+    fn invalid_token_reads_string_lists_and_other_values() {
+        use clap::error::{ContextKind::InvalidArg, ContextValue};
+        let listed = with_context(
+            InvalidArg,
+            ContextValue::Strings(vec!["--a".to_owned(), "--b".to_owned()]),
+        );
+        assert_eq!(invalid_token(&listed), "--a");
+        let empty = with_context(InvalidArg, ContextValue::Strings(Vec::new()));
+        assert_eq!(invalid_token(&empty), "");
+        let other = with_context(InvalidArg, ContextValue::Number(3));
+        assert_eq!(invalid_token(&other), "");
+        let absent = clap::Error::new(clap::error::ErrorKind::InvalidValue);
+        assert_eq!(invalid_token(&absent), "");
+    }
+
+    #[test]
+    fn rejected_value_reads_every_context_shape() {
+        use clap::error::{ContextKind::InvalidValue, ContextValue};
+        let one = with_context(InvalidValue, ContextValue::String("bad".to_owned()));
+        assert_eq!(rejected_value(&one).as_deref(), Some("bad"));
+        let many = with_context(
+            InvalidValue,
+            ContextValue::Strings(vec!["x".to_owned(), "y".to_owned()]),
+        );
+        assert_eq!(rejected_value(&many).as_deref(), Some("x"));
+        let empty = with_context(InvalidValue, ContextValue::Strings(Vec::new()));
+        assert_eq!(rejected_value(&empty), None);
+        let other = with_context(InvalidValue, ContextValue::Bool(true));
+        assert_eq!(rejected_value(&other), None);
+        let absent = clap::Error::new(clap::error::ErrorKind::InvalidValue);
+        assert_eq!(rejected_value(&absent), None);
+    }
+
+    #[test]
+    fn other_error_kinds_report_their_first_line() {
+        let help = clap::Error::new(clap::error::ErrorKind::MissingRequiredArgument);
+        let line = parse_error(&help, &[]);
+        assert_eq!(line, first_line(&help));
+        assert!(!line.is_empty());
+    }
+
     #[test]
     fn parse_error_names_the_flag_and_echoes_its_value() {
         let unknown = error(&["--nope=value"]);

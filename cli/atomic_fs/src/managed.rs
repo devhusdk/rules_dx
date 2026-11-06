@@ -220,9 +220,11 @@ mod tests {
     fn skip_without_link_privileges(result: io::Result<()>) -> bool {
         if result.is_ok() {
             return false;
-        }
+        } // LCOV_EXCL_LINE - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+          // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         eprintln!("host refuses links; the copy path covers this case instead");
         true
+        // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 
     #[test]
@@ -400,8 +402,10 @@ mod tests {
         std::fs::write(&probe_source, b"probe\n").expect("probe source");
         let probe_link = scratch.path().join("probe-link");
         if skip_without_link_privileges(file_pointer(&probe_source, &probe_link)) {
+            // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             scratch.close().expect("cleanup");
             return;
+            // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         remove_managed(&probe_link).expect("remove probe link");
         let source = scratch.path().join("pointer.bin");
@@ -659,8 +663,10 @@ mod tests {
         std::fs::create_dir(&first).expect("first dir");
         let pointer = scratch.path().join("current");
         if skip_without_link_privileges(directory_pointer(&first, &pointer)) {
+            // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             scratch.close().expect("cleanup");
             return;
+            // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         assert_eq!(classify(&pointer).expect("pointer"), EntryKind::Link);
         remove_managed(&pointer).expect("remove pointer");
@@ -677,8 +683,10 @@ mod tests {
         std::fs::create_dir(&other).expect("other dir");
         let link = scratch.path().join("link");
         if skip_without_link_privileges(directory_pointer(&target, &link)) {
+            // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             scratch.close().expect("cleanup");
             return;
+            // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         let file = scratch.path().join("file");
         std::fs::write(&file, b"file\n").expect("file");

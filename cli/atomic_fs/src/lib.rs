@@ -275,23 +275,14 @@ mod tests {
                 .expect("spawn bare-path child")
         };
         let poisoned = spawn("panic");
-        assert!(
-            !poisoned.status.success(),
-            "panicking child must fail: {}",
-            String::from_utf8_lossy(&poisoned.stdout)
-        );
+        assert!(!poisoned.status.success(), "{poisoned:?}");
         assert_eq!(
             std::env::current_dir().expect("cwd"),
             original,
             "child cwd dies with the child"
         );
         let ok = spawn("run");
-        assert!(
-            ok.status.success(),
-            "child failed: {}{}",
-            String::from_utf8_lossy(&ok.stdout),
-            String::from_utf8_lossy(&ok.stderr)
-        );
+        assert!(ok.status.success(), "{ok:?}");
         assert!(
             scratch.path().join("dx-atomic-fs-bare-child-ok").exists(),
             "child ran the assertions"
@@ -398,6 +389,27 @@ mod tests {
             target,
             Path::new("/w/.out.sarif.abc.tmp")
         ));
+    }
+
+    #[test]
+    fn truncated_name_cuts_on_a_char_boundary() {
+        let name = format!("a{}", "\u{e9}".repeat(150));
+        let cut = truncated_name(Path::new(&name));
+        assert_eq!(cut.len(), STAGING_NAME_MAX - 1);
+        assert!(name.starts_with(&cut));
+    }
+
+    #[test]
+    fn a_path_without_a_file_name_is_not_a_staging_sibling() {
+        assert!(!is_staging_sibling(Path::new("/w/out"), Path::new("/w/..")));
+    }
+
+    #[test]
+    fn remove_stale_staging_ignores_bare_and_missing_parents() {
+        remove_stale_staging(Path::new("bare-name-without-parent"));
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-stale-missing-");
+        remove_stale_staging(&scratch.path().join("missing").join("file"));
+        scratch.close().expect("cleanup");
     }
 
     #[test]

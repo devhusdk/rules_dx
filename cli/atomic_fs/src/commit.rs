@@ -214,7 +214,7 @@ mod tests {
                 let pid = format!("pid {}", std::process::id());
                 assert!(holder.as_deref().expect("holder").contains(&pid));
             }
-            other => panic!("expected busy: {other:?}"),
+            other => panic!("expected busy: {other:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         assert!(busy
             .to_string()
@@ -248,7 +248,7 @@ mod tests {
                 assert_eq!(path, &root.lock_path());
                 assert!(!reason.is_empty());
             }
-            LockError::Busy { .. } => panic!("a directory lock file is not busy: {error:?}"),
+            LockError::Busy { .. } => panic!("a directory lock file is not busy: {error:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         assert!(root.lock_path().is_dir(), "the foreign directory survives");
         scratch.close().expect("cleanup");
@@ -307,11 +307,13 @@ mod tests {
     }
 
     fn links_allowed(probe: io::Result<()>) -> bool {
-        if probe.is_ok() {
-            return true;
-        }
-        eprintln!("host refuses links; link cases are covered on hosts that allow them");
-        false
+        // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        probe
+            .map_err(|_| {
+                eprintln!("host refuses links; link cases are covered on hosts that allow them")
+            })
+            .is_ok()
+        // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 
     #[test]
@@ -336,7 +338,7 @@ mod tests {
             clear_stale_stage(&stage).expect("clear file link");
             assert!(stage.symlink_metadata().is_err(), "file link removed");
             assert!(file.is_file(), "the linked file survives");
-        }
+        } // LCOV_EXCL_LINE - reason: implicit else on hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
         std::fs::write(&stage, "foreign").expect("foreign staged file");
         clear_stale_stage(&stage).expect("clear foreign staged file");

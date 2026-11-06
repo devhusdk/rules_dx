@@ -681,9 +681,9 @@ mod sh {
     }
 
     #[test]
-    fn update_apply_cargo_repins_when_dx_does_not_build() {
+    fn update_apply_dx_crates_repins_when_dx_does_not_build() {
         for args in [
-            &["update", "--apply", "cargo"][..],
+            &["update", "--apply", "dx_crates"][..],
             &["update", "--apply"][..],
         ] {
             let repo = source_repo("dx-launcher-repin-");
@@ -702,9 +702,11 @@ mod sh {
     #[test]
     fn checks_and_other_launches_never_repin() {
         for args in [
-            &["update", "cargo"][..],
-            &["update", "--apply", "--frozen", "cargo"][..],
-            &["update", "--apply", "--offline", "cargo"][..],
+            &["update", "dx_crates"][..],
+            &["update", "--apply", "--frozen", "dx_crates"][..],
+            &["update", "--apply", "--offline", "dx_crates"][..],
+            &["update", "--apply", "cargo"][..],
+            &["update", "--apply", "dx_crates:anyhow"][..],
             &["update", "--apply", "npm"][..],
             &["status"][..],
         ] {
@@ -723,7 +725,7 @@ mod sh {
     #[test]
     fn a_healthy_build_does_not_repin() {
         let repo = source_repo("dx-launcher-healthy-");
-        let (code, _, err) = repo.run_in(&repo.root(), &["update", "--apply", "cargo"]);
+        let (code, _, err) = repo.run_in(&repo.root(), &["update", "--apply", "dx_crates"]);
         assert_eq!(code, Some(0), "{err}");
         assert_eq!((repo.builds(), repo.repins()), (1, 0));
     }
@@ -732,7 +734,7 @@ mod sh {
     fn a_failed_repin_without_a_previous_dx_reports_the_failed_build() {
         let repo = source_repo("dx-launcher-repin-fails-");
         repo.break_build();
-        let (code, _, err) = repo.run_in(&repo.root(), &["update", "--apply", "cargo"]);
+        let (code, _, err) = repo.run_in(&repo.root(), &["update", "--apply", "dx_crates"]);
         assert_eq!(code, Some(1), "{err}");
         assert!(err.contains("dx: bazel build //:dx failed"), "{err}");
         assert_eq!(repo.builds(), 2);
@@ -1570,6 +1572,20 @@ mod cmd {
             })
         }
 
+        fn repin_gated(&self) {
+            std::fs::write(
+                self.base.join("stub/bazel.cmd"),
+                "@echo off\r\nif \"%1\"==\"query\" echo //cli/cli:BUILD.bazel\r\nif not \"%1\"==\"build\" exit /b 0\r\necho build>>\"%STUB_LOG%\"\r\nif not \"%CARGO_BAZEL_REPIN%\"==\"1\" exit /b 1\r\necho repin>>\"%STUB_LOG%\"\r\nif not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\ncopy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\nexit /b 0\r\n",
+            )
+            .expect("gated bazel stub");
+        }
+
+        fn repins(&self) -> usize {
+            std::fs::read_to_string(self.base.join("calls")).map_or(0, |text| {
+                text.lines().filter(|l| l.trim() == "repin").count()
+            })
+        }
+
         fn state_files(&self) -> Vec<String> {
             let mut names: Vec<String> = std::fs::read_dir(state(&self.root()))
                 .expect("state dir")
@@ -1583,6 +1599,27 @@ mod cmd {
         fn inputs(&self) -> String {
             std::fs::read_to_string(state(&self.root()).join("inputs")).expect("inputs")
         }
+    }
+
+    #[test]
+    fn cmd_update_apply_dx_crates_repins_when_dx_does_not_build() {
+        for args in [
+            &["update", "--apply", "dx_crates"][..],
+            &["update", "--apply"][..],
+        ] {
+            let repo = source_repo("dx-launcher-cmd-repin-");
+            repo.repin_gated();
+            repo.run(args);
+            assert_eq!((repo.builds(), repo.repins()), (2, 1), "{args:?}");
+        }
+    }
+
+    #[test]
+    fn cmd_update_apply_cargo_does_not_repin() {
+        let repo = source_repo("dx-launcher-cmd-norepin-");
+        repo.repin_gated();
+        repo.run(&["update", "--apply", "cargo"]);
+        assert_eq!((repo.builds(), repo.repins()), (1, 0));
     }
 
     #[test]

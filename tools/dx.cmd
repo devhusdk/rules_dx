@@ -151,7 +151,7 @@ if /i "%~1"=="--frozen" exit /b 0
 if /i "%~1"=="--offline" exit /b 0
 set "DX_WORD=%~1"
 if "%DX_WORD:~0,1%"=="-" goto dxwantsloop
-if /i not "%~1"=="cargo" exit /b 0
+if /i not "%~1"=="dx_crates" exit /b 0
 set /a DX_SEL+=1
 goto dxwantsloop
 :dxwantsend

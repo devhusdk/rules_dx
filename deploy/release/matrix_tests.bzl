@@ -103,8 +103,11 @@ def matrix_unit_tests(name):
                     "      \"name\": \"dx-windows-x86_64\",\n" +
                     "      \"os\": \"windows\",\n" +
                     "      \"runtime\": [\n" +
-                    "        \"msvc_vcruntime\",\n" +
-                    "        \"windows_ucrt\"\n" +
+                    "        \"msvcp140.dll\",\n" +
+                    "        \"msvcp140_1.dll\",\n" +
+                    "        \"msvcp140_2.dll\",\n" +
+                    "        \"vcruntime140.dll\",\n" +
+                    "        \"vcruntime140_1.dll\"\n" +
                     "      ]\n" +
                     "    },\n" +
                     "    {\n" +
@@ -115,8 +118,11 @@ def matrix_unit_tests(name):
                     "      \"name\": \"dx-windows-arm64\",\n" +
                     "      \"os\": \"windows\",\n" +
                     "      \"runtime\": [\n" +
-                    "        \"msvc_vcruntime\",\n" +
-                    "        \"windows_ucrt\"\n" +
+                    "        \"msvcp140.dll\",\n" +
+                    "        \"msvcp140_1.dll\",\n" +
+                    "        \"msvcp140_2.dll\",\n" +
+                    "        \"vcruntime140.dll\",\n" +
+                    "        \"vcruntime140_1.dll\"\n" +
                     "      ]\n" +
                     "    }\n" +
                     "  ],\n" +

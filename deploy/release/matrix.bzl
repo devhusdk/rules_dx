@@ -7,6 +7,18 @@ load(":notice.bzl", "notice_bundle")
 
 RELEASE_MATRIX_SCHEMA = "release-matrix/v1"
 
+# Top-level archive members each runtime target ships. The Universal CRT is supplied by Windows.
+RUNTIME_MEMBERS = {
+    "//cc/toolchains:msvc_vcruntime": [
+        "msvcp140.dll",
+        "msvcp140_1.dll",
+        "msvcp140_2.dll",
+        "vcruntime140.dll",
+        "vcruntime140_1.dll",
+    ],
+    "//cc/toolchains:windows_ucrt": [],
+}
+
 def _cell(os, arch, min_runtime):
     """Returns one declared release cell; linkage and min_runtime are declared, not measured."""
     windows = os == "windows"
@@ -70,7 +82,7 @@ def release_matrix_json():
             "machine": cell["machine"],
             "name": cell["name"],
             "os": cell["os"],
-            "runtime": [Label(runtime).name for runtime in cell["runtime"]],
+            "runtime": [member for runtime in cell["runtime"] for member in RUNTIME_MEMBERS[runtime]],
         }
         for cell in RELEASE_MATRIX
     ]

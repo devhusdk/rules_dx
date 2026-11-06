@@ -898,6 +898,7 @@ TOOLS = [
     tool(
         id = "deadnix",
         adapters = {"lint": ["nix"]},
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -1422,6 +1423,7 @@ TOOLS = [
             comment = "#",
             init_order = 7,
             family = "haskell",
+            tier_active = True,
         ),
         support = [
             row(
@@ -1514,6 +1516,7 @@ TOOLS = [
     tool(
         id = "julialint",
         adapters = {"lint": ["julia"]},
+        config = config(suffixes = [".toml"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -1841,6 +1844,7 @@ TOOLS = [
     tool(
         id = "ormolu",
         adapters = {"format": ["haskell"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2828,6 +2832,7 @@ TOOLS = [
     tool(
         id = "topiary",
         adapters = {"format": ["ocaml"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -3135,6 +3140,7 @@ TOOLS = [
     tool(
         id = "zanuda",
         adapters = {"lint": ["ocaml"]},
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",

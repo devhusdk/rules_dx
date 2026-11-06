@@ -129,6 +129,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 call.tool,
                 &call.staged.scratch,
                 &call.staged.pairs,
+                call.config,
             )
         },
     },

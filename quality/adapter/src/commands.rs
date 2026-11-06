@@ -1790,11 +1790,12 @@ pub fn jet_check(binary: &Path, config: &Path, scratch: &Path, report: &Path) ->
     }
 }
 
-/// `lint.jl --scratch DIR --report OUT FILE...`; the report is the only write.
+/// `lint.jl --scratch DIR --report OUT --config JuliaLint.toml FILE...`; the report is the only write.
 pub fn julialint_check(
     binary: &Path,
     scratch: &Path,
     report: &Path,
+    config: &Path,
     files: &[&Path],
 ) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
@@ -1802,6 +1803,8 @@ pub fn julialint_check(
     argv.push(scratch.as_os_str().to_owned());
     argv.push(OsString::from("--report"));
     argv.push(report.as_os_str().to_owned());
+    argv.push(OsString::from("--config"));
+    argv.push(config.as_os_str().to_owned());
     argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
     Invocation {
         argv,
@@ -1959,11 +1962,16 @@ pub fn selene_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> In
 
 /// Check-only: zanuda reads the typed trees (`.cmt`/`.cmti`) named by `list`, one
 /// `impl|intf<TAB>source<TAB>cmt` line each, and writes its findings to `out` as rdjsonl.
-pub fn zanuda_check(binary: &Path, list: &Path, out: &Path) -> Invocation {
+pub fn zanuda_check(binary: &Path, list: &Path, out: &Path, disabled: &[&str]) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     argv.push(OsString::from("-cmt-list"));
     argv.push(list.as_os_str().to_owned());
     argv.extend(ZANUDA_CHECK_ARGS.iter().map(OsString::from));
+    argv.extend(
+        disabled
+            .iter()
+            .map(|lint| OsString::from(format!("-no-{lint}"))),
+    );
     argv.push(OsString::from("-ordjsonl"));
     argv.push(out.as_os_str().to_owned());
     Invocation {
@@ -2656,8 +2664,23 @@ pub fn cmakelint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocat
     }
 }
 
-pub fn deadnix_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, DEADNIX_CHECK_ARGS, files, "")
+/// `lambda_arg` and `lambda_pattern_names` report unused lambda arguments and pattern names.
+pub fn deadnix_check(
+    binary: &Path,
+    files: &[&Path],
+    lambda_arg: bool,
+    lambda_pattern_names: bool,
+) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(DEADNIX_CHECK_ARGS[..3].iter().map(OsString::from));
+    if !lambda_arg {
+        head.push(OsString::from("--no-lambda-arg"));
+    }
+    if !lambda_pattern_names {
+        head.push(OsString::from("--no-lambda-pattern-names"));
+    }
+    head.push(OsString::from("--"));
+    assemble(binary, head, files, "")
 }
 
 pub fn deadnix_fix(binary: &Path, files: &[&Path]) -> Invocation {

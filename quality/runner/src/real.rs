@@ -100,6 +100,30 @@ const MBAKE_DEFAULTS_REL: &str = "dx-mbake-default/.bake.toml";
 const MBAKE_DEFAULTS_BYTES: &[u8] = b"[formatter]\nensure_final_newline = true\n";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 const HADOLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hadolint/standard.yaml");
+const DEADNIX_STANDARD: &str = include_str!("../../tiers/deadnix/standard.txt");
+const ZANUDA_STANDARD: &str = include_str!("../../tiers/zanuda/standard.txt");
+const ZANUDA_STRICT: &str = include_str!("../../tiers/zanuda/strict.txt");
+const JULIALINT_STANDARD: &str = include_str!("../../tiers/julialint/standard.toml");
+
+/// The non-empty lines of the bound tier file, or of the standard tier when none is bound.
+fn tier_lines(
+    tool_id: &str,
+    config: Option<&Path>,
+    standard: &str,
+) -> Result<Vec<String>, RunnerError> {
+    let text = match config {
+        Some(path) => std::fs::read_to_string(path)
+            .map_err(|err| execution(tool_id, format!("read {}: {err}", path.display())))?,
+        None => standard.to_owned(),
+    };
+    Ok(text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect())
+}
+
 const HLINT_DEFAULTS_REL: &str = "dx-hlint-default/hlint.yaml";
 /// An empty hint list keeps the built-in hints and stops hlint from searching for `.hlint.yaml`.
 const HLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hlint/standard.yaml");

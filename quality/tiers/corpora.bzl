@@ -50,6 +50,8 @@ TIER_TOML = [
     "pydoclint/strict.toml",
     "mbake/standard.toml",
     "mbake/strict.toml",
+    "julialint/standard.toml",
+    "julialint/strict.toml",
     "ruff/standard.toml",
     "ruff/strict.toml",
     "rustfmt/standard.toml",

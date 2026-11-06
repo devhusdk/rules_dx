@@ -1347,6 +1347,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         Path::new(BIN),
         Path::new("/scratch/dx-zanuda/list.tsv"),
         Path::new("/scratch/dx-zanuda/out.jsonl"),
+        &["if_bool"],
     );
     assert_eq!(
         argv_strings(&zanuda),
@@ -1356,6 +1357,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/dx-zanuda/list.tsv",
             "-no-top_file_license",
             "-no-check-filesystem",
+            "-no-if_bool",
             "-ordjsonl",
             "/scratch/dx-zanuda/out.jsonl"
         ]
@@ -2512,7 +2514,20 @@ fn file_family_lint_checks_are_check_only() {
 fn nix_tools_pin_their_flags() {
     let nix = Path::new("/scratch/-a.nix");
     assert_eq!(
-        argv_strings(&deadnix_check(Path::new(BIN), &[nix])),
+        argv_strings(&deadnix_check(Path::new(BIN), &[nix], false, false)),
+        vec![
+            BIN,
+            "--fail",
+            "-o",
+            "json",
+            "--no-lambda-arg",
+            "--no-lambda-pattern-names",
+            "--",
+            "/scratch/-a.nix"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&deadnix_check(Path::new(BIN), &[nix], true, true)),
         vec![BIN, "--fail", "-o", "json", "--", "/scratch/-a.nix"]
     );
     assert_eq!(
@@ -3428,6 +3443,7 @@ fn julialint_check_names_the_files_and_writes_only_the_report() {
         Path::new(BIN),
         Path::new("/s"),
         Path::new("/s/.dx-julialint/report.json"),
+        Path::new("/s/JuliaLint.toml"),
         &[Path::new("/s/a.jl"), Path::new("/s/b.jl")],
     );
     assert_eq!(
@@ -3438,6 +3454,8 @@ fn julialint_check_names_the_files_and_writes_only_the_report() {
             "/s",
             "--report",
             "/s/.dx-julialint/report.json",
+            "--config",
+            "/s/JuliaLint.toml",
             "/s/a.jl",
             "/s/b.jl",
         ]

@@ -33,6 +33,7 @@ filegroup(
         "//quality/tiers/cppcheck:files",
         "//quality/tiers/credo:files",
         "//quality/tiers/dart:files",
+        "//quality/tiers/deadnix:files",
         "//quality/tiers/detekt:files",
         "//quality/tiers/djlint:files",
         "//quality/tiers/elvis:files",
@@ -47,6 +48,7 @@ filegroup(
         "//quality/tiers/graphql_eslint:files",
         "//quality/tiers/hadolint:files",
         "//quality/tiers/hlint:files",
+        "//quality/tiers/julialint:files",
         "//quality/tiers/ktlint:files",
         "//quality/tiers/luals:files",
         "//quality/tiers/markdown_check:files",
@@ -82,6 +84,7 @@ filegroup(
         "//quality/tiers/yamlfmt:files",
         "//quality/tiers/yamllint:files",
         "//quality/tiers/zizmor:files",
+        "//quality/tiers/zanuda:files",
     ],
     visibility = _VISIBILITY,
 )

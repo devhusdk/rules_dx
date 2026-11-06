@@ -422,7 +422,10 @@ fn zanuda_behavior(
     assert_eq!(argv[1], OsString::from("-cmt-list"));
     assert_eq!(argv[3], OsString::from("-no-top_file_license"));
     assert_eq!(argv[4], OsString::from("-no-check-filesystem"));
-    assert_eq!(argv[5], OsString::from("-ordjsonl"));
+    let out = argv.len() - 2;
+    assert_eq!(argv[out], OsString::from("-ordjsonl"));
+    let off = |lint: &str| argv.contains(&OsString::from(format!("-no-{lint}")));
+    assert!(off("camel_cased_types") && !off("exc_error_swallowing"));
     let list = std::fs::read_to_string(&argv[2]).expect("read the list");
     let mut report = String::new();
     let mut crash = false;
@@ -450,7 +453,7 @@ fn zanuda_behavior(
             report.push('\n');
         }
     }
-    std::fs::write(&argv[6], report)?;
+    std::fs::write(&argv[out + 1], report)?;
     Ok(ChildOutput {
         code: Some(i32::from(crash)),
         stdout: Vec::new(),
@@ -534,7 +537,7 @@ fn hlint_behavior(
     );
     assert_eq!(argv[3], OsString::from("--"));
     let staged = std::fs::read(config.trim_start_matches("--hint=")).expect("staged config");
-    assert_eq!(staged, b"[]\n");
+    assert_eq!(staged, include_bytes!("../../tiers/hlint/standard.yaml"));
     let file = last_file(argv);
     let text = std::fs::read_to_string(&file).expect("read staged file");
     let (code, stdout) = if text.contains("crash") {

@@ -325,12 +325,23 @@ pub(super) const TOOLS: &[ToolDef] = &[
             if !tool.upstream_diagnostics.is_empty() {
                 return backend.check_file_family_delegated(tool_id, tool, pairs);
             }
+            let checks = tier_lines(tool_id, call.config, DEADNIX_STANDARD)?;
+            let reports = |name: &str| checks.iter().any(|check| check == name);
+            let (lambda_arg, lambda_pattern_names) =
+                (reports("lambda-arg"), reports("lambda-pattern-names"));
             backend.check_files(
                 tool_id,
                 tool,
                 scratch,
                 pairs,
-                |files| Ok(commands::deadnix_check(&tool.binary, files)),
+                |files| {
+                    Ok(commands::deadnix_check(
+                        &tool.binary,
+                        files,
+                        lambda_arg,
+                        lambda_pattern_names,
+                    ))
+                },
                 |out, names| {
                     parsed(
                         tool_id,

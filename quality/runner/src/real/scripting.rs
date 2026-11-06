@@ -314,7 +314,16 @@ fn julialint(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>
     std::fs::create_dir_all(&work)
         .map_err(|err| execution(tool_id, format!("stage julialint work dir: {err}")))?;
     let report = work.join("report.json");
-    let invocation = commands::julialint_check(&tool.binary, &work, &report, &refs);
+    let config = match call.config {
+        Some(path) => path.to_path_buf(),
+        None => {
+            let path = work.join("JuliaLint.toml");
+            std::fs::write(&path, JULIALINT_STANDARD)
+                .map_err(|err| execution(tool_id, format!("stage julialint config: {err}")))?;
+            path
+        }
+    };
+    let invocation = commands::julialint_check(&tool.binary, &work, &report, &config, &refs);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
     let body = std::fs::read(&report).map_err(|err| {
         execution(

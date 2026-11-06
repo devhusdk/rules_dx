@@ -79,10 +79,11 @@ end
 function main(args)
     scratch = option(args, "--scratch")
     report = option(args, "--report")
+    config = option(args, "--config")
     files = String[]
     index = 1
     while index <= length(args)
-        if args[index] in ("--scratch", "--report")
+        if args[index] in ("--scratch", "--report", "--config")
             index += 2
         else
             push!(files, args[index])
@@ -90,7 +91,7 @@ function main(args)
         end
     end
     if scratch === nothing || report === nothing || isempty(files)
-        println(stderr, "usage: lint.jl --scratch DIR --report OUT FILE...")
+        println(stderr, "usage: lint.jl --scratch DIR --report OUT [--config JuliaLint.toml] FILE...")
         return 2
     end
     mkpath(scratch)
@@ -106,6 +107,9 @@ function main(args)
         TextFile(filepath2uri(joinpath(root, "Project.toml")), SourceText("", "toml")),
         TextFile(filepath2uri(joinpath(root, "Manifest.toml")), SourceText("manifest_format = \"2.0\"\n", "toml")),
     ]
+    if config !== nothing
+        push!(textfiles, TextFile(filepath2uri(joinpath(root, "JuliaLint.toml")), SourceText(read(config, String), "toml")))
+    end
     for file in files
         text = read(file, String)
         uri = filepath2uri(abspath(file))

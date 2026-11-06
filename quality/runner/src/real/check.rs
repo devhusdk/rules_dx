@@ -91,7 +91,15 @@ impl RealBackend {
         tool: &RealTool,
         scratch: &Scratch,
         pairs: &[(String, PathBuf)],
+        config: Option<&Path>,
     ) -> Result<Vec<FileFinding>, RunnerError> {
+        let enabled = tier_lines(tool_id, config, ZANUDA_STANDARD)?;
+        let known = tier_lines(tool_id, None, ZANUDA_STRICT)?;
+        let disabled: Vec<&str> = known
+            .iter()
+            .filter(|lint| !enabled.contains(lint))
+            .map(String::as_str)
+            .collect();
         let mut lines = Vec::with_capacity(pairs.len());
         for (workspace, absolute) in pairs {
             let kind = if workspace.ends_with(".mli") {
@@ -126,7 +134,7 @@ impl RealBackend {
         let report = dir.join("out.jsonl");
         std::fs::write(&list, lines.join("\n") + "\n")
             .map_err(|err| execution(tool_id, format!("write {}: {err}", list.display())))?;
-        let invocation = commands::zanuda_check(&tool.binary, &list, &report);
+        let invocation = commands::zanuda_check(&tool.binary, &list, &report, &disabled);
         let out = self.run(tool_id, tool, &invocation, scratch)?;
         if out.code != Some(0) {
             let tail = String::from_utf8_lossy(&out.stderr);

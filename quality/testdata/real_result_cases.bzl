@@ -166,8 +166,8 @@ REAL_RESULT_CASES = [
         "tool": "zanuda",
         "capability": "lint",
         "class": "ocaml",
-        "contains": ["quality/testdata/zanuda_owned/dirty.ml", "if_bool", "list_length_comparisons"],
-        "absent": [],
+        "contains": ["quality/testdata/zanuda_owned/dirty.ml", "list_length_comparisons"],
+        "absent": ["if_bool"],
     },
     {
         "name": "real_result_ocaml_clean",

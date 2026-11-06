@@ -46,6 +46,10 @@ on:
         type: boolean
         required: false
         default: false
+      tune:
+        description: "TEMP speed A/B knobs."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -77,11 +81,30 @@ jobs:
       - name: Prepare the Windows runner
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          DX_TUNE: ${{ inputs.tune }}
         run: |
-          Set-MpPreference -DisableRealtimeMonitoring $true
-          Add-MpPreference -ExclusionPath $env:GITHUB_WORKSPACE, $env:RUNNER_TEMP, 'D:\_bazel', 'D:\bz', 'C:\bz', "$env:LOCALAPPDATA\bazelisk"
-          New-Item -ItemType Directory -Force -Path D:\bz | Out-Null
-          New-Item -ItemType Junction -Path C:\bz -Target D:\bz | Out-Null
+          if ($env:DX_TUNE -match 'defender=disable') { Set-MpPreference -DisableRealtimeMonitoring $true }
+          $root = $null
+          if (Test-Path 'D:\') {
+            $root = 'D:\bz'
+          } elseif ($env:DX_TUNE -match 'devdrive') {
+            $vhd = 'C:\devdrive.vhdx'
+            "create vdisk file=$vhd maximum=40960 type=expandable`nselect vdisk file=$vhd`nattach vdisk`ncreate partition primary`nassign letter=E" | Set-Content -Encoding ascii "$env:RUNNER_TEMP\devdrive.txt"
+            diskpart /s "$env:RUNNER_TEMP\devdrive.txt"
+            Format-Volume -DriveLetter E -DevDrive -Confirm:$false -Force | Out-Null
+            fsutil devdrv query E:
+            $root = 'E:\bz'
+          }
+          $paths = @($env:GITHUB_WORKSPACE, $env:RUNNER_TEMP, 'C:\bz', 'D:\_bazel', "$env:LOCALAPPDATA\bazelisk")
+          if ($root) {
+            New-Item -ItemType Directory -Force -Path $root | Out-Null
+            New-Item -ItemType Junction -Path C:\bz -Target $root | Out-Null
+            $paths += $root
+          }
+          Add-MpPreference -ExclusionPath $paths
+          Add-MpPreference -ExclusionProcess 'java.exe', 'bazel.exe', 'bazelisk.exe'
+          Get-MpPreference | Format-List DisableRealtimeMonitoring, ExclusionPath, ExclusionProcess
       - name: Free disk space
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
@@ -91,8 +114,18 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+        id: setup
         with:
-          repo-contents-cache: ${{ runner.os == 'Windows' }}
+          repo-cache: ${{ contains(inputs.tune, 'repo=none') && 'none' || contains(inputs.tune, 'repo=download') && 'download' || contains(inputs.tune, 'repo=contents') && 'contents' || '' }}
+          bazelrc: |
+            startup --host_jvm_args=-XX:MaxRAMPercentage=${{ contains(inputs.tune, 'heap=40') && '40' || '50' }}
+            startup --host_jvm_args=-XX:MinHeapFreeRatio=40
+            startup --host_jvm_args=-XX:MaxHeapFreeRatio=70
+            ${{ contains(inputs.tune, 'remote_contents') && runner.os == 'Windows' && 'startup --experimental_remote_repo_contents_cache' || '' }}
+      - name: Fetch the dx dependencies
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          bazel fetch --noshow_progress "--profile=$RUNNER_TEMP/evidence/fetch-profile.gz" --noslim_profile //cli/cli:dx
       - name: Validate workflow inputs
         id: inputs
         env:
@@ -137,23 +170,6 @@ jobs:
             echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
           } >> user.bazelrc
           [ "$DX_PLATFORM" != linux_x86_64 ] || echo "common --config=rbe" >> user.bazelrc
-      - name: Record the Apple executor
-        if: ${{ matrix.platform == 'macos_arm64' }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/evidence"
-          {
-            sw_vers
-            uname -m
-            xcode-select -p
-            xcodebuild -version
-            xcodebuild -showsdks
-            ls -d /Applications/Xcode*.app
-            xcrun simctl list runtimes
-            xcrun swift -version
-            xcrun --sdk macosx --show-sdk-version
-            xcrun --sdk iphonesimulator --show-sdk-version
-            xcrun --sdk iphoneos --show-sdk-version
-          } 2>&1 | tee "$RUNNER_TEMP/evidence/executor.txt"
       - name: Enable KVM
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
@@ -250,14 +266,15 @@ jobs:
           export DX_HERMETIC_BAZELISK
           startup=()
           extra=()
+          profile=("--profile=$RUNNER_TEMP/evidence/profile.gz" --noslim_profile)
           run_task() {
             log="$1"
             if [ "$DX_TASK" = "build" ]; then
-              bazel "${startup[@]}" build --noshow_progress "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" build --noshow_progress "${profile[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             elif [ "$DX_TASK" = "coverage" ]; then
-              bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
+              bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
-              bazel "${startup[@]}" test --keep_going --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             fi
           }
           run_task evidence.log
@@ -266,6 +283,7 @@ jobs:
             rm -rf "$base"
             startup=("--output_base=$base")
             extra=(--disk_cache= --noremote_accept_cached)
+            profile=()
             run_task relocated.log
             differ=0
             if [ "$DX_TASK" = build ]; then
@@ -297,31 +315,33 @@ jobs:
             bazel "--output_base=$base" shutdown
             exit "$differ"
           fi
-      - name: TEMP measure the repo caches
-        if: ${{ always() && runner.os == 'Windows' && steps.inputs.outcome == 'success' }}
-        env:
-          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
+      - name: Record the Apple executor
+        if: ${{ always() && matrix.platform == 'macos_arm64' }}
         run: |
-          read -ra patterns <<< "$DX_SCOPE"
-          rc="$(bazel info repository_cache | tr -d '\r')"
-          echo "repo cache $rc"
-          du -sh "$rc/content_addressable" "$rc/contents" || true
-          find "$rc/contents" -mindepth 2 -maxdepth 2 -name '*.recorded_inputs' | wc -l
-          start=$(date +%s)
-          bytes="$(tar -cf - -C "$rc" --exclude=contents/gc_lock --exclude=contents/_trash contents | zstd -T0 | wc -c)"
-          echo "contents tar.zst bytes=$bytes seconds=$(( $(date +%s) - start ))"
-          bytes="$(tar -cf - -C "$rc" content_addressable | zstd -T0 | wc -c)"
-          echo "content_addressable tar.zst bytes=$bytes"
+          mkdir -p "$RUNNER_TEMP/evidence"
+          {
+            sw_vers
+            uname -m
+            xcode-select -p
+            xcodebuild -version
+            xcodebuild -showsdks
+            ls -d /Applications/Xcode*.app
+            xcrun simctl list runtimes
+            xcrun swift -version
+            xcrun --sdk macosx --show-sdk-version
+            xcrun --sdk iphonesimulator --show-sdk-version
+            xcrun --sdk iphoneos --show-sdk-version
+          } 2>&1 | tee "$RUNNER_TEMP/evidence/executor.txt"
+      - name: Break down the Bazel profiles
+        if: ${{ always() && steps.inputs.outcome == 'success' }}
+        run: |
+          for name in fetch-profile profile; do
+            file="$RUNNER_TEMP/evidence/$name.gz"
+            [ -f "$file" ] || continue
+            bazel analyze-profile "$file" > "$RUNNER_TEMP/evidence/$name.txt" 2>&1 || true
+            head -n 40 "$RUNNER_TEMP/evidence/$name.txt"
+          done
           bazel shutdown
-          touch "$RUNNER_TEMP/stamp2"
-          sleep 2
-          start=$(date +%s)
-          bazel --output_base=D:/_b2 test --noshow_progress --test_output=errors "${patterns[@]}" 2>&1 | grep -E "Analyzed|Elapsed|processes" || true
-          echo "warm contents fresh output base seconds=$(( $(date +%s) - start ))"
-          find "$rc/content_addressable" -name file -newer "$RUNNER_TEMP/stamp2" > "$RUNNER_TEMP/touched.txt"
-          echo "content_addressable entries touched by warm run: $(wc -l < "$RUNNER_TEMP/touched.txt")"
-          tr '\n' '\0' < "$RUNNER_TEMP/touched.txt" | du -ch --files0-from=- | tail -1
-          bazel --output_base=D:/_b2 shutdown
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}
         run: |
@@ -452,6 +472,15 @@ jobs:
         run: |
           set -o pipefail
           bazel test --noshow_progress --test_output=all --test_env=PATH --test_env=HOME --test_env=ANDROID_HOME //flutter/tests/fixtures/flutter-app/android:interaction_test 2>&1 | tail -n 80
+      - name: TEMP save the repo contents cache
+        if: ${{ always() && steps.setup.outputs.repo-contents-cache-path != '' && steps.setup.outputs.repo-contents-cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ steps.setup.outputs.repo-contents-cache-path }}
+            !${{ steps.setup.outputs.repo-contents-cache-path }}/gc_lock
+            !${{ steps.setup.outputs.repo-contents-cache-path }}/_trash
+          key: ${{ steps.setup.outputs.repo-contents-cache-key }}
       - name: Collect test logs
         if: ${{ always() && steps.inputs.outcome == 'success' }}
         run: |

@@ -704,11 +704,7 @@ mod tests {
         let mut value: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&settings).expect("settings"))
                 .expect("json");
-        let key = value
-            .as_object()
-            .and_then(|map| map.keys().next().cloned())
-            .expect("a dx key");
-        value[key.as_str()] = serde_json::json!(7);
+        value["files.watcherExclude"]["**/bazel-*/**"] = serde_json::json!(false);
         std::fs::write(&settings, value.to_string()).expect("edit");
         let (_code, out, _err) = run(&invocation(&["status", "--files"]), &root);
         assert_eq!(state_of(&out, ".vscode/settings.json"), "keys stale");

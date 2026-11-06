@@ -17,7 +17,7 @@ dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options...]
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Select the setup. Also refreshes the editor files in `.dx/local/ide/`. |
-| `--shell=direnv` | Print `PATH_add .dx/local/bin` and `watch_file .dx/local/bin`. Runs no Bazel and writes nothing. Ignores `--apply`, the label, and `--output`. |
+| `--shell=direnv` | Print `PATH_add .dx/local/bin` and `watch_file .dx/local/bin` when that directory exists, and always `watch_file .dx/local/current`. Runs no Bazel and writes nothing. Ignores `--apply`, the label, and `--output`. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 
@@ -55,7 +55,7 @@ JSON emits `command_started`, an `operation` event, a `managed_drift` notice on 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Drift, `invalid_result`, `no_capability`, `unreadable_bep`, `managed_commit_failed`, a Bazel launch failure, or `--shell=direnv` with no `.dx/local/bin`. |
+| `1` | Drift, `invalid_result`, `no_capability`, `unreadable_bep`, `managed_commit_failed`, or a Bazel launch failure. |
 | `2` | Usage or scope error, a conflicting diagnostics flag, a rejected arg, or a failed label query. |
 | Bazel's code | Bazel failed. |
 

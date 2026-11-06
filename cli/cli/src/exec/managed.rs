@@ -10,22 +10,15 @@ use dx_plan::resolve::expand_codegen_roots;
 use dx_process::ForwardError;
 use std::path::Path;
 
-/// Prints the direnv lines for `.dx/local/bin`. Runs no Bazel.
+/// Prints the direnv lines. `.dx/local/bin` joins the path once it exists; the selected setup
+/// is watched either way so direnv reloads after `dx env --apply`. Runs no Bazel.
 pub(crate) fn execute_env_shell(env: Env<'_>) -> i32 {
-    let Env {
-        workspace,
-        out,
-        err,
-        ..
-    } = env;
-    if !dx_path::state::local_dir(workspace).join("bin").is_dir() {
-        let _ = writeln!(
-            err,
-            "dx env: missing .dx/local/bin; run `dx env --apply` to regenerate"
-        );
-        return 1;
+    let Env { workspace, out, .. } = env;
+    let local = dx_path::state::local_dir(workspace);
+    if local.join(dx_path::state::BIN).is_dir() {
+        let _ = writeln!(out, "PATH_add .dx/local/bin\nwatch_file .dx/local/bin");
     }
-    let _ = writeln!(out, "PATH_add .dx/local/bin\nwatch_file .dx/local/bin");
+    let _ = writeln!(out, "watch_file .dx/local/{}", dx_path::state::CURRENT);
     0
 }
 
@@ -406,6 +399,18 @@ mod tests {
     use super::super::managed_env::{empty_env_id, stage_env_side};
     use super::super::test_support::*;
     use dx_setup::{read_current_pair, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME};
+
+    #[test]
+    fn env_shell_succeeds_before_any_bin_exists() {
+        let harness = Harness::new("env-shell-no-bin");
+        let (code, out, err) = harness.run(&["env", "--shell=direnv"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(out, "watch_file .dx/local/current\n");
+        std::fs::create_dir_all(harness.workspace.join(".dx/local/bin")).expect("bin");
+        let (code, out, err) = harness.run(&["env", "--shell=direnv"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.starts_with("PATH_add .dx/local/bin\n"), "{out}");
+    }
 
     #[test]
     fn managed_live_empty_selection_commits_with_empty_counterparts() {

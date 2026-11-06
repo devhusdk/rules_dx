@@ -348,43 +348,84 @@ pub fn render_release_caller() -> String {
     with_header(Ownership::Pin, ".github/workflows/release.yml", &body)
 }
 
-fn editor_settings_value() -> serde_json::Value {
+fn editor_settings_value(extensions: &BTreeSet<String>) -> serde_json::Value {
+    let has = |own: &[&str]| own.iter().any(|ext| extensions.contains(*ext));
     let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
     let ide = format!("${{workspaceFolder}}/{}", dx_ide::IDE_DIR);
     let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/local/ide/**": true});
-    let settings = serde_json::json!({
-        "rust-analyzer.workspace.discoverConfig": {
-            "command": [
-                format!("{ide}/rust_analyzer/discover_bazel_rust_project.exe"),
-                format!("--bazel_startup_option={base}"),
-                "{arg}",
-            ],
-            "progressLabel": "rules_rust",
-            "filesToWatch": ["BUILD", "BUILD.bazel", "MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel"],
-        },
-        "rust-analyzer.check.overrideCommand": [
-            format!("{ide}/rust_analyzer/flycheck.exe"),
-            format!("--output-base=${{workspaceFolder}}/{IDE_CHECK_OUTPUT_BASE}"),
-            "--saved-file",
-            "$saved_file",
-        ],
+    let mut settings = serde_json::json!({
         "files.watcherExclude": excludes,
         "search.exclude": excludes,
-        "python.defaultInterpreterPath": format!("{ide}/python/python"),
-        "typescript.tsdk": format!("{ide}/typescript/lib"),
-        "go.toolsManagement.checkForUpdates": "off",
-        "clangd.path": format!("{ide}/cc/clangd"),
-        "clangd.arguments": [format!("--compile-commands-dir={ide}/cc")],
-        "java.configuration.updateBuildConfiguration": "manual",
-        "java.jdt.ls.java.home": format!("{ide}/jdk/home"),
-        "kotlin.java.home": format!("{ide}/jdk/home"),
-        "kotlin.languageServer.enabled": true,
     });
+    let mut add = |own: &[&str], entries: serde_json::Value| {
+        if has(own) {
+            if let (Some(target), Some(entries)) = (settings.as_object_mut(), entries.as_object()) {
+                target.extend(entries.clone());
+            }
+        }
+    };
+    add(
+        &[".rs"],
+        serde_json::json!({
+            "rust-analyzer.workspace.discoverConfig": {
+                "command": [
+                    format!("{ide}/rust_analyzer/discover_bazel_rust_project.exe"),
+                    format!("--bazel_startup_option={base}"),
+                    "{arg}",
+                ],
+                "progressLabel": "rules_rust",
+                "filesToWatch": ["BUILD", "BUILD.bazel", "MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel"],
+            },
+            "rust-analyzer.check.overrideCommand": [
+                format!("{ide}/rust_analyzer/flycheck.exe"),
+                format!("--output-base=${{workspaceFolder}}/{IDE_CHECK_OUTPUT_BASE}"),
+                "--saved-file",
+                "$saved_file",
+            ],
+        }),
+    );
+    add(
+        &[".py", ".pyi"],
+        serde_json::json!({"python.defaultInterpreterPath": format!("{ide}/python/python")}),
+    );
+    add(
+        &[".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"],
+        serde_json::json!({"typescript.tsdk": format!("{ide}/typescript/lib")}),
+    );
+    add(
+        &[".go"],
+        serde_json::json!({"go.toolsManagement.checkForUpdates": "off"}),
+    );
+    add(
+        &[".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp"],
+        serde_json::json!({
+            "clangd.path": format!("{ide}/cc/clangd"),
+            "clangd.arguments": [format!("--compile-commands-dir={ide}/cc")],
+        }),
+    );
+    add(
+        &[".java"],
+        serde_json::json!({
+            "java.configuration.updateBuildConfiguration": "manual",
+            "java.jdt.ls.java.home": format!("{ide}/jdk/home"),
+        }),
+    );
+    add(
+        &[".kt", ".kts"],
+        serde_json::json!({
+            "kotlin.java.home": format!("{ide}/jdk/home"),
+            "kotlin.languageServer.enabled": true,
+        }),
+    );
     settings
 }
 
-pub fn render_editor_settings() -> String {
-    format!("{}\n", editor_settings_value())
+/// The `.vscode/settings.json` text for the languages in `extensions`, pretty-printed.
+pub fn render_editor_settings(extensions: &BTreeSet<String>) -> String {
+    let mut text = serde_json::to_string_pretty(&editor_settings_value(extensions))
+        .expect("settings serialize");
+    text.push('\n');
+    text
 }
 
 const NESTED_SETTINGS: [&str; 2] = ["files.watcherExclude", "search.exclude"];
@@ -397,7 +438,7 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
         FileKind::Bazelignore => Ok(merge_bazelignore(existing, generated)),
         FileKind::EditorconfigKeys => Ok(merge_editorconfig_keys(existing, generated)),
         FileKind::VscodeKeys => {
-            let value = editor_settings_value();
+            let value = dx_merge::jsonc::parse(generated)?;
             let mut edits: Vec<(Vec<&str>, serde_json::Value)> = Vec::new();
             for (key, setting) in value.as_object().into_iter().flatten() {
                 match setting.as_object() {
@@ -562,7 +603,7 @@ fn plan_init_files_full(
         },
         ScaffoldFile {
             path: ".vscode/settings.json".to_owned(),
-            content: render_editor_settings(),
+            content: render_editor_settings(extensions),
             kind: FileKind::VscodeKeys,
         },
         ScaffoldFile {
@@ -956,7 +997,8 @@ mod tests {
 
     #[test]
     fn init_scaffold_covers_admitted_editors() {
-        let files = plan_init_files("demo").expect("init plans");
+        let files =
+            super::plan_init_files_full("demo", "main", &all_families()).expect("init plans");
         let settings = files
             .iter()
             .find(|f| f.path == ".vscode/settings.json")
@@ -1406,9 +1448,28 @@ mod tests {
         }
     }
 
+    fn all_families() -> std::collections::BTreeSet<String> {
+        super::LANGUAGE_EDITOR_EXTENSIONS
+            .iter()
+            .flat_map(|(_, own)| own.iter().map(|ext| (*ext).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn editor_settings_are_pretty_and_only_for_the_repo_families() {
+        let java: std::collections::BTreeSet<String> = [".java".to_owned()].into();
+        let text = render_editor_settings(&java);
+        assert!(text.lines().count() > 5, "{text}");
+        for absent in ["clangd", "python", "rust-analyzer", "typescript", "kotlin"] {
+            assert!(!text.contains(absent), "{absent} in {text}");
+        }
+        assert!(text.contains("java.jdt.ls.java.home"), "{text}");
+        assert!(text.contains("search.exclude"), "{text}");
+    }
+
     #[test]
     fn editor_settings_use_plugin_paths() {
-        let settings = render_editor_settings();
+        let settings = render_editor_settings(&all_families());
         let parsed: serde_json::Value = serde_json::from_str(&settings).expect("valid JSON");
         assert_eq!(
             parsed["python.defaultInterpreterPath"],
@@ -1435,7 +1496,7 @@ mod tests {
 
     #[test]
     fn editor_settings_point_only_at_plugin_outputs() {
-        let value = editor_settings_value();
+        let value = editor_settings_value(&all_families());
         let base = format!("${{workspaceFolder}}/{}/", dx_ide::IDE_DIR);
         for key in [
             "python.defaultInterpreterPath",
@@ -1477,7 +1538,7 @@ mod tests {
             "$saved_file"
         ]);
         let parsed: serde_json::Value =
-            serde_json::from_str(&render_editor_settings()).expect("json");
+            serde_json::from_str(&render_editor_settings(&all_families())).expect("json");
         let discover = &parsed["rust-analyzer.workspace.discoverConfig"];
         assert_eq!(discover["command"], discover_argv);
         assert_eq!(discover["progressLabel"], "rules_rust");
@@ -1549,7 +1610,10 @@ mod tests {
             .iter()
             .find(|file| file.path == ".vscode/settings.json")
             .expect("settings file");
-        assert_eq!(settings.content, render_editor_settings());
+        assert_eq!(
+            settings.content,
+            render_editor_settings(&std::collections::BTreeSet::new())
+        );
     }
 
     #[test]
@@ -1634,7 +1698,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
     }
 
     fn refreshed(root: &std::path::Path) -> Vec<String> {
-        let files = plan_init_files("refresh").expect("plan");
+        let files = super::plan_init_files_full("refresh", "main", &all_families()).expect("plan");
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         applied.wrote
@@ -1740,7 +1804,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let parsed: serde_json::Value = serde_json::from_str(&text).expect("json");
         assert_eq!(
             parsed["rust-analyzer.check.overrideCommand"],
-            editor_settings_value()["rust-analyzer.check.overrideCommand"]
+            editor_settings_value(&all_families())["rust-analyzer.check.overrideCommand"]
         );
         scratch.close().expect("cleanup");
     }
@@ -1773,7 +1837,10 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
             std::fs::read(root.join(".github/workflows/ci.yml")).expect("read"),
             ci
         );
-        assert!(refreshed(root).is_empty());
+        let files = super::plan_init_files_at(root, "refresh", None).expect("plan");
+        let mut applied = super::Applied::default();
+        super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
+        assert!(applied.wrote.is_empty(), "{:?}", applied.wrote);
         scratch.close().expect("cleanup");
     }
 

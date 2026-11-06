@@ -69,11 +69,18 @@ _ALLOW_UNSUPPORTED_COMPILER = select({
     "//conditions:default": ["nvcc_allow_unsupported_compiler"],
 })
 
+# The host link uses the static CRT; nvcc objects default to /MD, which clashes with
+# cudadevrt.lib in rdc links (LNK4098).
+_STATIC_MSVCRT = select({
+    Label("@platforms//os:windows"): ["static_link_msvcrt_no_debug", "static_link_msvcrt_debug"],
+    "//conditions:default": [],
+})
+
 def _cuda_features(features):
     features = features or []
     if type(features) == "select":
-        return features + _ALLOW_UNSUPPORTED_COMPILER
-    return list(features) + _ALLOW_UNSUPPORTED_COMPILER
+        return features + _ALLOW_UNSUPPORTED_COMPILER + _STATIC_MSVCRT
+    return list(features) + _ALLOW_UNSUPPORTED_COMPILER + _STATIC_MSVCRT
 
 def cuda_target_compatible_with(target_compatible_with):
     """Returns the target constraints of a dx CUDA target."""

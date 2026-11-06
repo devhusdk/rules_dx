@@ -1,5 +1,5 @@
 {
-  "checksum": "844c0224ac27af8c979a7200364b967944c247db736440de99b777f27cb4aba7",
+  "checksum": "eae1c44efbc81bee3d5dc9f146f4d6f95b2a32dadd7a7a4d02fe676370d75c73",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2109,11 +2109,11 @@
           },
           "selects": {
             "aarch64-pc-windows-msvc": {
-              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+              "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
             },
             "x86_64-pc-windows-msvc": {
-              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
               "CARGO_FEATURE_PREFER_INTRINSICS": "1"
             }
           }
@@ -13988,12 +13988,12 @@
           "common": {},
           "selects": {
             "aarch64-pc-windows-msvc": {
-              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+              "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
             },
             "x86_64-pc-windows-msvc": {
-              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+              "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
             }
           }
         },
@@ -19783,12 +19783,12 @@
           "common": {},
           "selects": {
             "aarch64-pc-windows-msvc": {
-              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+              "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
             },
             "x86_64-pc-windows-msvc": {
-              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+              "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
             }
           }
         },

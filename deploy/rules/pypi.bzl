@@ -60,6 +60,9 @@ def _pypi_config_impl(ctx):
         "repository_url": ctx.attr.repository_url,
         "wheel_rloc": wheel_rloc,
     }
+    griffe = ctx.attr._griffe[DefaultInfo]
+    if ctx.attr.api_compat != "off":
+        values["griffe_rloc"] = rlocation_path(ctx, ctx.executable._griffe)
     files = [wheel_file]
     if ctx.attr.sdist:
         sdist_files = ctx.attr.sdist[DefaultInfo].files.to_list()
@@ -74,7 +77,10 @@ def _pypi_config_impl(ctx):
         values["sdist_rloc"] = rlocation_path(ctx, sdist_file)
         files.append(sdist_file)
 
-    return deploy_config(ctx, "pypi", values, ctx.runfiles(files = files))
+    runfiles = ctx.runfiles(files = files)
+    if ctx.attr.api_compat != "off":
+        runfiles = runfiles.merge(griffe.default_runfiles)
+    return deploy_config(ctx, "pypi", values, runfiles)
 
 _pypi_config = rule(
     implementation = _pypi_config_impl,
@@ -90,6 +96,11 @@ _pypi_config = rule(
         ),
         "api_src": attr.string(
             doc = "Workspace-relative source directory griffe searches for the package.",
+        ),
+        "_griffe": attr.label(
+            default = Label("//quality/tools/python:griffe_check"),
+            executable = True,
+            cfg = "exec",
         ),
         "dist_name": attr.string(
             doc = "PyPI distribution name, taken from the deployment target name.",
@@ -114,7 +125,7 @@ _pypi_config = rule(
 def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, profile = "release", sbom = None, api_compat = "off", api_package = "", api_src = ""):
     """Publishes one wheel plus an optional sdist as a local-first PyPI deployment.
 
-    api_compat runs `griffe check` (found on PATH) against the previous
+    api_compat runs the pinned griffe library against the previous
     v<version> git tag (off, warn, fail); a breaking change fails unless the
     version bump is major. api_src is the workspace-relative source directory
     and api_package the import name, which defaults to the distribution name.

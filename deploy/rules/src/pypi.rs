@@ -426,6 +426,7 @@ pub struct PypiApiCheck<'a> {
     pub mode: &'a str,
     pub package: &'a str,
     pub src: &'a str,
+    pub griffe_rloc: &'a str,
 }
 
 /// Counts the breaking changes in `griffe check` output: one `path.py:line: ...` line each.
@@ -456,7 +457,7 @@ fn pypi_api_check(
         return Ok(());
     }
     let Some(program) = griffe else {
-        println!("api compat: griffe not found on PATH; skipped");
+        println!("api compat: griffe not found; skipped");
         return Ok(());
     };
     let tag = match previous_git_tag(version) {
@@ -515,6 +516,7 @@ pub fn pypi_main(
         mode: "off",
         package: "",
         src: "",
+        griffe_rloc: "",
     };
     pypi_main_checked(
         wheel_rloc,
@@ -571,8 +573,13 @@ pub fn pypi_main_checked(
         .and_then(|(_, version)| {
             let workspace =
                 std::env::var("BUILD_WORKSPACE_DIRECTORY").unwrap_or_else(|_| ".".to_owned());
+            let griffe = if api.griffe_rloc.is_empty() {
+                which_on_path("griffe")
+            } else {
+                run.resolve(api.griffe_rloc)
+            };
             pypi_api_check(
-                which_on_path("griffe").as_deref(),
+                griffe.as_deref(),
                 &version,
                 api,
                 Path::new(&workspace),
@@ -660,6 +667,7 @@ mod tests {
             mode,
             package: "pkg",
             src: "src",
+            griffe_rloc: "",
         };
         let repo_dir = repo.display().to_string();
         let run = |version: &str, mode: &'static str| {

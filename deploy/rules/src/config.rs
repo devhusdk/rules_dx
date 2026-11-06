@@ -84,6 +84,8 @@ pub struct PypiConfig {
     pub api_package: String,
     #[serde(default)]
     pub api_src: String,
+    #[serde(default)]
+    pub griffe_rloc: String,
 }
 
 /// Pins one Helm chart push: the chart files, the pinned helm and the target.
@@ -383,6 +385,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 mode: &pypi.api_compat,
                 package: &pypi.api_package,
                 src: &pypi.api_src,
+                griffe_rloc: &pypi.griffe_rloc,
             },
             argv,
         ),
@@ -653,6 +656,7 @@ mod tests {
                 api_compat: String::new(),
                 api_package: String::new(),
                 api_src: String::new(),
+                griffe_rloc: String::new(),
             }))
         );
         assert_eq!(
@@ -939,6 +943,7 @@ mod tests {
                 api_compat: String::new(),
                 api_package: String::new(),
                 api_src: String::new(),
+                griffe_rloc: String::new(),
             }),
             DeployConfig::HelmChart(HelmChartConfig {
                 deploy_name: "demo".to_owned(),

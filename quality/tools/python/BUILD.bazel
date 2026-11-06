@@ -239,6 +239,30 @@ py_unittest_test(
     deps = ["@pypi//griffelib"],
 )
 
+py_binary(
+    name = "griffe_check",
+    srcs = [
+        "griffe_check.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    imports = ["."],
+    main = "griffe_check.py",
+    visibility = ["//deploy/rules:__pkg__"],
+    deps = ["@pypi//griffelib"],
+)
+
+py_unittest_test(
+    name = "griffe_check_test",
+    srcs = [
+        "griffe_check.py",
+        "griffe_check_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//griffelib"],
+)
+
 py_unittest_test(
     name = "tool_bootstrap_test",
     srcs = [

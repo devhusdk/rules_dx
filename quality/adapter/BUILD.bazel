@@ -1,9 +1,12 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:tools_gen.bzl", "severity_gen")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY", "VIS_QUALITY_CLI")
 
 package(default_visibility = VIS_QUALITY)
+
+severity_gen(name = "update_severity")
 
 rust_library(
     name = "quality_adapter",
@@ -158,6 +161,8 @@ rust_library(
         "src/parsers/zig_fmt.rs",
         "src/parsers/zizmor.rs",
         "src/pointer_index.rs",
+        "src/severity.rs",
+        "src/severity_gen.rs",
         "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
     ],
@@ -338,6 +343,8 @@ rust_test(
         "src/parsers/zig_fmt.rs",
         "src/parsers/zizmor.rs",
         "src/pointer_index.rs",
+        "src/severity.rs",
+        "src/severity_gen.rs",
         "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
     ],

@@ -24,7 +24,7 @@ def tools_gen(name):
     write_source_files(
         name = name,
         files = {"src/real/tools_gen.rs": ":" + name + "_generated"},
-        additional_update_targets = ["//cli/adopt:update_tools"],
+        additional_update_targets = ["//cli/adopt:update_tools", "//quality/adapter:update_severity"],
     )
 
 _CONFIG_HEADER = """// Generated from quality/tools.bzl. Run `bazel run //quality:update_tools` to refresh it.
@@ -124,4 +124,42 @@ def adopt_tools_gen(name, visibility):
         name = name,
         files = {"src/tools_gen.rs": ":" + name + "_generated"},
         visibility = visibility,
+    )
+
+_SEVERITY_HEADER = """// Generated from quality/tools.bzl. Run `bazel run //quality:update_tools` to refresh it.
+
+pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
+"""
+
+def severity_rust():
+    """Returns the full text of quality/adapter/src/severity_gen.rs."""
+    out = _SEVERITY_HEADER
+    mapped = [tool for tool in TOOLS if tool.severity.default != None or tool.severity.categories]
+    if not mapped:
+        return out.rstrip("\n") + "];\n"
+    for tool in sorted(TOOLS, key = lambda tool: tool.id):
+        severity = tool.severity
+        if severity.default == None and not severity.categories:
+            continue
+        default = "None" if severity.default == None else "Some(%s)" % _level(severity.default)
+        out += "    (\n        %s,\n        crate::severity::ToolSeverityMap {\n            default: %s,\n            categories: &[\n" % (_str(tool.id), default)
+        for key in sorted(severity.categories.keys()):
+            out += "                (%s, %s),\n" % (_str(key), _level(severity.categories[key]))
+        out += "            ],\n        },\n    ),\n"
+    return out + "];\n"
+
+def _level(level):
+    return {"error": "crate::ToolSeverity::Error", "info": "crate::ToolSeverity::Info", "warning": "crate::ToolSeverity::Warning"}[level]
+
+def severity_gen(name):
+    """Declares the generated severity table and its update target."""
+    write_file(
+        name = name + "_generated",
+        out = name + ".rs",
+        content = severity_rust().splitlines() + [""],
+    )
+    write_source_files(
+        name = name,
+        files = {"src/severity_gen.rs": ":" + name + "_generated"},
+        visibility = ["//quality/runner:__pkg__"],
     )

@@ -20,6 +20,8 @@ pub mod kubernetes_preflight;
 pub mod launch;
 pub mod parsers;
 pub mod pointer_index;
+pub mod severity;
+mod severity_gen;
 pub mod sqlfluff_config;
 pub mod sqlfluff_preflight;
 
@@ -292,7 +294,13 @@ pub fn place_finding_with<'t>(
         .map(|item| place_related(item, finding.encoding, &lookup))
         .collect();
     Ok(Diagnostic {
-        severity: finding.severity.proto(),
+        severity: severity::resolve(
+            severity_gen::TOOL_SEVERITIES,
+            &finding.tool_id,
+            &finding.rule_id,
+            finding.severity,
+        )
+        .proto(),
         message: finding.message.clone(),
         tool_id: finding.tool_id.clone(),
         rule_id: finding.rule_id.clone(),

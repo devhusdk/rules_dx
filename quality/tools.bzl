@@ -72,12 +72,38 @@ def config(
 
 _NO_CONFIG = config(kind = "none")
 
-def tool(id, adapters, support = [], config = _NO_CONFIG):
+_LEVELS = ["error", "warning", "info"]
+
+def severity(default = None, categories = {}):
+    """Returns a tool's severity map, applied once after its parser has run.
+
+    Severity follows the rule's category, not the parser. Style categories (style, naming,
+    readability, pedantic, codestyle) map to `warning`, so strict-only style rules fail under the
+    default `--fail-on warning`. `info` is only for what the tool itself labels a suggestion or
+    hint (hlint `Suggestion`, staticcheck `QF`, vale `suggestion`).
+
+    Args:
+      default: level for a rule that matches no key; None keeps the parser's severity.
+      categories: rule code prefix or category to `error`, `warning` or `info`. The longest
+        matching prefix of the rule code the parser emits wins.
+
+    Returns:
+      The severity struct.
+    """
+    for level in [default] + categories.values():
+        if level != None and level not in _LEVELS:
+            fail("severity level %r is not one of %s" % (level, _LEVELS))
+    return struct(categories = categories, default = default)
+
+_NO_SEVERITY = severity()
+
+def tool(id, adapters, support = [], config = _NO_CONFIG, severity = _NO_SEVERITY):
     """Returns one tool: its adapter classes per capability and its support records."""
     return struct(
         adapters = adapters,
         config = config,
         id = id,
+        severity = severity,
         support = [dict(record, tool = id) for record in support],
     )
 

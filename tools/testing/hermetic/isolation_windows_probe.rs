@@ -1,4 +1,4 @@
-//! Runs inside the AppContainer: `connect ADDR`, `loopback`, `serve`, `parent` or `read PATH`.
+//! Runs inside the AppContainer: `connect ADDR`, `loopback`, `serve`, `parent`, `read PATH` or `canon PATH`.
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::process::{Command, Stdio};
@@ -75,7 +75,12 @@ fn main() {
         ["read", path] => std::fs::read_to_string(path)
             .map(|text| println!("{text}"))
             .map_err(|err| err.to_string()),
-        _ => Err("usage: connect ADDR | loopback | serve | parent | read PATH".to_owned()),
+        ["canon", path] => std::fs::canonicalize(path)
+            .map(|real| println!("{}", real.display()))
+            .map_err(|err| err.to_string()),
+        _ => Err(
+            "usage: connect ADDR | loopback | serve | parent | read PATH | canon PATH".to_owned(),
+        ),
     };
     match result {
         Ok(()) => println!("ok"),

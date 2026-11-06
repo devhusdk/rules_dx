@@ -9,6 +9,7 @@ const OUTSIDE: &str = "1.1.1.1:443";
 
 struct Scene {
     isolation: Isolation,
+    root: PathBuf,
     probe: PathBuf,
     granted: PathBuf,
     ungranted: PathBuf,
@@ -34,6 +35,7 @@ fn scene(name: &str) -> Scene {
     };
     Scene {
         isolation,
+        root,
         probe,
         granted,
         ungranted,
@@ -80,6 +82,27 @@ fn files_are_visible_only_where_granted() {
     let allowed = scene.run(Net::Denied, &["read", &text(&open)]);
     assert_eq!(allowed.exit, 0, "{}", allowed.stderr);
     assert!(allowed.stdout.contains("visible"));
+}
+
+fn icacls(path: &Path) -> String {
+    let out = std::process::Command::new("icacls")
+        .arg(path)
+        .output()
+        .expect("icacls runs");
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+#[test]
+fn directories_above_a_grant_are_listable_but_not_readable() {
+    let scene = scene("above");
+    let above = scene.root.join("above.txt");
+    std::fs::write(&above, "hidden").expect("above");
+    let before = icacls(&scene.root);
+    let canon = scene.run(Net::Denied, &["canon", &text(&scene.granted)]);
+    assert_eq!(canon.exit, 0, "{}", canon.stderr);
+    let read = scene.run(Net::Denied, &["read", &text(&above)]);
+    assert_ne!(read.exit, 0, "{}", read.stdout);
+    assert_eq!(icacls(&scene.root), before);
 }
 
 #[test]

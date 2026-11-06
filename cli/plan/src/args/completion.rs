@@ -703,7 +703,7 @@ mod tests {
             (Vec::new(), true)
         );
         let one = vec![String::from("//a:one")];
-        for command in [Command::Env, Command::Completion, Command::Deploy] {
+        for command in [Command::Sync, Command::Completion, Command::Deploy] {
             assert_eq!(
                 slot_candidates(command, &one, "", &[]),
                 (Vec::new(), false),

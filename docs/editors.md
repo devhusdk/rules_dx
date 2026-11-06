@@ -1,6 +1,6 @@
 # Use JetBrains IDEs and other editors
 
-`dx env --apply` writes the files editors need under `.dx/local/ide/`. `dx init --apply` writes `.vscode/settings.json` for the languages in the repo and points at these paths, so run `dx env --apply` after it.
+`dx sync` writes the files editors need under `.dx/local/ide/`. `dx init --apply` writes `.vscode/settings.json` for the languages in the repo and points at these paths, so run `dx sync` after it.
 
 | Path | Used for |
 | --- | --- |

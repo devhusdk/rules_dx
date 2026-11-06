@@ -412,7 +412,7 @@ mod tests {
             "coverage",
             "deploy",
             "docs",
-            "env",
+            "sync",
             "generate",
             "init",
             "status",

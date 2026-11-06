@@ -15,7 +15,7 @@ pub enum Command {
     Check,
     Clean,
     Update,
-    Env,
+    Sync,
     Init,
     Upgrade,
     Status,
@@ -308,12 +308,12 @@ pub static COMMANDS: [CommandMeta; 26] = [
         labels: LabelsPolicy::Always,
     },
     CommandMeta {
-        command: Command::Env,
-        name: "env",
+        command: Command::Sync,
+        name: "sync",
         scope_policy: "default-repo|exact-label",
-        describe: "collect managed tools and generated source (check by default; --apply writes managed state)",
-        usage: "Usage: dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options ...]",
-        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/env.md).",
+        describe: "select the managed tools and generated source and refresh the IDE files",
+        usage: "Usage: dx sync [--shell=direnv] [<label>] [-- bazel-options ...]",
+        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/sync.md).",
         is_managed: true,
         is_adoption: false,
         default_release: false,
@@ -584,8 +584,8 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 14] = [
-        Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Env, Init, Upgrade, Watch,
+    pub(crate) const APPLY_COMMANDS: [Command; 13] = [
+        Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Init, Upgrade, Watch,
         Worktree, Release,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
@@ -694,9 +694,9 @@ mod tests {
         assert_eq!(Command::Coverage.name(), "coverage");
         assert_eq!(Command::Bench.name(), "bench");
         assert_eq!(Command::Run.name(), "run");
-        assert_eq!(Command::Env.name(), "env");
-        assert!(Command::Env.is_managed());
-        assert!(!Command::Env.is_adoption());
+        assert_eq!(Command::Sync.name(), "sync");
+        assert!(Command::Sync.is_managed());
+        assert!(!Command::Sync.is_adoption());
         assert!(!Command::Clean.is_managed());
         assert_eq!(Command::Docs.name(), "docs");
         assert!(!Command::Docs.is_adoption());
@@ -725,7 +725,7 @@ mod tests {
             Command::Check,
             Command::Clean,
             Command::Update,
-            Command::Env,
+            Command::Sync,
             Command::Init,
             Command::Upgrade,
             Command::Status,
@@ -777,7 +777,6 @@ mod tests {
             Command::Format,
             Command::Generate,
             Command::Check,
-            Command::Env,
             Command::Clean,
             Command::Update,
             Command::Init,
@@ -825,7 +824,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|release",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|release",
             "pipe_list order must match declaration order"
         );
     }

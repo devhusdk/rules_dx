@@ -90,7 +90,7 @@ fn generate_shares_the_startup_prefix() {
 fn managed_builds_share_the_startup_prefix() {
     local();
     let plan = plan_managed_with_roots(
-        Command::Env,
+        Command::Sync,
         &["//a:x".to_owned()],
         &[],
         "/tmp/bep.json",

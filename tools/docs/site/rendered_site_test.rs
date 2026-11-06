@@ -144,7 +144,7 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/completion.html",
         "docs/cli/commands/scope-defaults.html",
         "docs/cli/commands/audit-update.html",
-        "docs/cli/commands/env.html",
+        "docs/cli/commands/sync.html",
     ] {
         assert!(
             routes.contains(&page.to_string()),

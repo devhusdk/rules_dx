@@ -449,19 +449,14 @@ fn ide_check(root: &Path) -> Option<StatusCheck> {
             .iter()
             .map(|path| format!("missing {path}"))
             .collect();
-        return Some(check(
-            "ide",
-            "error",
-            list.join("; "),
-            "tools/dx env --apply",
-        ));
+        return Some(check("ide", "error", list.join("; "), "tools/dx sync"));
     }
     if failed.is_empty() {
         return Some(check(
             "ide",
             "ok",
             "editor files are current".to_owned(),
-            "tools/dx env --apply",
+            "tools/dx sync",
         ));
     }
     let names: Vec<String> = failed
@@ -472,7 +467,7 @@ fn ide_check(root: &Path) -> Option<StatusCheck> {
         "ide",
         "error",
         format!("failed: {}", names.join("; ")),
-        "tools/dx env --apply",
+        "tools/dx sync",
     ))
 }
 
@@ -530,7 +525,7 @@ mod tests {
         let bad = super::ide_check(root).expect("error");
         assert_eq!(bad.status, "error");
         assert!(bad.detail.contains("typescript: boom"), "{}", bad.detail);
-        assert_eq!(bad.hint, "tools/dx env --apply");
+        assert_eq!(bad.hint, "tools/dx sync");
         scratch.close().expect("cleanup");
     }
 
@@ -823,7 +818,7 @@ mod tests {
             name: "tools".to_owned(),
             status: "error".to_owned(),
             detail: "unavailable: observed".to_owned(),
-            hint: "dx env --apply".to_owned(),
+            hint: "dx sync".to_owned(),
         };
         let checks =
             super::observed_status_checks(&dir, Ok(MODULE_VERSION.to_owned()), tools.clone());

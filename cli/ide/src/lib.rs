@@ -8,7 +8,7 @@
     )
 )]
 
-//! Editor support files under `.dx/local/ide/`, refreshed from `dx env --apply` and `dx upgrade`.
+//! Editor support files under `.dx/local/ide/`, refreshed from `dx sync` and `dx upgrade`.
 
 mod cc;
 mod go;

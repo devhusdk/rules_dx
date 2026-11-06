@@ -120,7 +120,7 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
             "next: check that the workspace and .dx are readable and writable and run the command again."
         }
         "managed_commit_failed" => {
-            "next: run `dx env --apply` again; if it still fails, check that .dx is writable."
+            "next: run `dx sync` again; if it still fails, check that .dx is writable."
         }
         _ => return None,
     })

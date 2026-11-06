@@ -1277,8 +1277,8 @@ command_args! {
         max_prs: MaxPrsFlag,
         floor: FloorArgs,
     };
-    /// The flags `dx env` accepts.
-    Env => 15, BazelTail, { output: OutputFlag, apply: ApplyFlag, shell: EnvShellFlag, };
+    /// The flags `dx sync` accepts.
+    Sync => 15, BazelTail, { output: OutputFlag, shell: EnvShellFlag, };
     /// The flags `dx init` accepts.
     Init => 16, NoPassthroughTail, {
         output: OutputFlag,

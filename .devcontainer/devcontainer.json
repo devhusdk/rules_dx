@@ -7,5 +7,5 @@
     "source=dx-bazel-cache,target=/home/vscode/.cache/bazel,type=volume"
   ],
   "onCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.cache",
-  "postCreateCommand": "tools/dx env --apply"
+  "postCreateCommand": "tools/dx sync"
 }

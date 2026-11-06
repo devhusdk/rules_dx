@@ -127,12 +127,12 @@ fn bare_commands_check_by_default_and_check_spelling_agrees() {
         let command = *command;
         let bare = parse(&plain_words(command)).unwrap_or_else(|error| panic!("parse: {error}"));
         assert!(!bare.apply, "dx {} must not apply unasked", command.name());
-        assert_eq!(
-            bare.operation(),
-            OperationMode::Check,
-            "dx {} defaults to check",
-            command.name()
-        );
+        let want = if command == Command::Sync {
+            OperationMode::Apply
+        } else {
+            OperationMode::Check
+        };
+        assert_eq!(bare.operation(), want, "dx {}", command.name());
     }
 }
 

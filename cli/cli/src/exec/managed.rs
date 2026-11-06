@@ -1,17 +1,16 @@
 use super::common::*;
 use super::managed_prepare::{map_commit_error, prepare_managed_sides};
 use dx_output::{
-    ActionCounts, FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started,
-    notice_event, operation_event, selection_event,
+    ActionCounts, FinishedCounts, OutputMode, command_finished, command_started, operation_event,
+    selection_event,
 };
-use dx_plan::args::{Command, Invocation};
+use dx_plan::args::Invocation;
 use dx_plan::plan::{bep_path, plan_managed, plan_managed_with_roots};
 use dx_plan::resolve::expand_codegen_roots;
 use dx_process::ForwardError;
-use std::path::Path;
 
 /// Prints the direnv lines. `.dx/local/bin` joins the path once it exists; the selected setup
-/// is watched either way so direnv reloads after `dx env --apply`. Runs no Bazel.
+/// is watched either way so direnv reloads after `dx sync`. Runs no Bazel.
 pub(crate) fn execute_env_shell(env: Env<'_>) -> i32 {
     let Env { workspace, out, .. } = env;
     let local = dx_path::state::local_dir(workspace);
@@ -99,15 +98,13 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let verbose = invocation.chatty();
     let json = invocation.output == OutputMode::Json;
-    let apply = invocation.applies();
-    let mode = if apply { "default" } else { "check" };
     let op_scope: Option<Vec<String>> = match (&scope, &expanded) {
         (_, Some(roots)) => Some(roots.clone()),
         (dx_setup::SetupScope::Exact(label), None) => Some(vec![label.clone()]),
         (dx_setup::SetupScope::Repository, None) => None,
     };
     if json {
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
             return exit;
         }
         if let Err(exit) = emit_built(
@@ -117,11 +114,10 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    if !json
-        && verbose
-        && let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary))
-    {
-        return exit;
+    if !json && verbose {
+        if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary)) {
+            return exit;
+        }
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
@@ -157,22 +153,6 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
         }
         return bazel_code;
-    }
-    if !apply {
-        return check_managed(
-            CheckInputs {
-                invocation,
-                workspace,
-                temp_dir,
-                scope: &scope,
-                bep: &bep,
-                json,
-                verbose,
-                actions: action_counts,
-            },
-            out,
-            err,
-        );
     }
     let (sides, staged_leases) = match prepare_managed_sides(workspace, workspace, &bep) {
         Ok(prepared) => prepared,
@@ -245,156 +225,11 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     0
 }
 
-fn apply_hint(command: Command, scope: &dx_setup::SetupScope) -> String {
-    match scope {
-        dx_setup::SetupScope::Repository => format!("dx {} --apply", command.name()),
-        dx_setup::SetupScope::Exact(label) => format!("dx {} --apply {label}", command.name()),
-    }
-}
-
-struct CheckInputs<'a> {
-    invocation: &'a Invocation,
-    workspace: &'a Path,
-    temp_dir: &'a Path,
-    scope: &'a dx_setup::SetupScope,
-    bep: &'a Path,
-    json: bool,
-    verbose: bool,
-    actions: Option<ActionCounts>,
-}
-
 fn with_actions(actions: Option<ActionCounts>) -> FinishedCounts {
     FinishedCounts {
         actions,
         ..FinishedCounts::default()
     }
-}
-
-fn check_managed(
-    inputs: CheckInputs<'_>,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-) -> i32 {
-    let CheckInputs {
-        invocation,
-        workspace,
-        temp_dir,
-        scope,
-        bep,
-        json,
-        verbose,
-        actions,
-    } = inputs;
-    let scratch = temp_dir.join("managed-check");
-    if let Err(error) = std::fs::create_dir_all(&scratch) {
-        let _ = std::fs::remove_file(bep);
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_MANAGED_COMMIT_FAILED,
-            &format!("cannot create {}: {error}", scratch.display()),
-        );
-    }
-    let (sides, staged_leases) = match prepare_managed_sides(workspace, &scratch, bep) {
-        Ok(prepared) => prepared,
-        Err((code, message)) => {
-            let _ = std::fs::remove_file(bep);
-            return operational(invocation, out, err, &code, &message);
-        }
-    };
-    let current = match dx_setup::read_current_pair(workspace) {
-        Ok(current) => current,
-        Err(error) => {
-            let (code, message) = map_commit_error(error);
-            drop(staged_leases);
-            let _ = std::fs::remove_file(bep);
-            return operational(invocation, out, err, &code, &message);
-        }
-    };
-    let intended = match dx_setup::resolve_pair(dx_setup::PairInputs {
-        prepared_environment: sides.prepared_environment,
-        prepared_generated: sides.prepared_generated,
-        current: current.clone(),
-        empty_environment: sides.empty_environment,
-        empty_generated: sides.empty_generated,
-    }) {
-        Ok(intended) => intended,
-        Err(_) => {
-            let (code, message) = map_commit_error(dx_setup::CommitError::NoCapability);
-            drop(staged_leases);
-            let _ = std::fs::remove_file(bep);
-            return operational(invocation, out, err, &code, &message);
-        }
-    };
-    drop(staged_leases);
-    let _ = std::fs::remove_file(bep);
-    let setup = dx_setup::setup_hex(&intended);
-    if current.as_ref() == Some(&intended) {
-        if json {
-            if let Err(exit) = emit_event(out, &command_finished(0, &with_actions(actions))) {
-                return exit;
-            }
-            return 0;
-        }
-        if verbose {
-            let written = writeln!(
-                out,
-                "dx {}: already selected setup {setup} (environment {}, generated {})",
-                invocation.command.name(),
-                intended.environment.as_str(),
-                intended.generated.as_str(),
-            );
-            return match check_stdout_write(written) {
-                Ok(()) => 0,
-                Err(exit) => exit,
-            };
-        }
-        return 0;
-    }
-    let detail = match &current {
-        Some(pair) => format!(
-            "stale selection: current setup {} want setup {setup} (environment {}, generated {})",
-            dx_setup::setup_hex(pair),
-            intended.environment.as_str(),
-            intended.generated.as_str(),
-        ),
-        None => format!(
-            "no current selection: intended setup {setup} (environment {}, generated {})",
-            intended.environment.as_str(),
-            intended.generated.as_str(),
-        ),
-    };
-    let hint = apply_hint(invocation.command, scope);
-    if json {
-        if let Err(exit) = emit_built(
-            out,
-            notice_event(&NoticeEvent {
-                related_command: Some(invocation.command.name().to_owned()),
-                ..NoticeEvent::info(
-                    CODE_MANAGED_DRIFT,
-                    format!(
-                        "dx {}: {detail}; run `{hint}` to select it",
-                        invocation.command.name()
-                    ),
-                )
-            }),
-        ) {
-            return exit;
-        }
-        if let Err(exit) = emit_event(out, &command_finished(1, &with_actions(actions))) {
-            return exit;
-        }
-        return 1;
-    }
-    if verbose {
-        let written = writeln!(out, "dx {}: {detail}", invocation.command.name())
-            .and_then(|()| writeln!(out, "run `{hint}` to select it"));
-        if let Err(exit) = check_stdout_write(written) {
-            return exit;
-        }
-    }
-    1
 }
 
 #[cfg(test)]
@@ -407,11 +242,11 @@ mod tests {
     #[test]
     fn env_shell_succeeds_before_any_bin_exists() {
         let harness = Harness::new("env-shell-no-bin");
-        let (code, out, err) = harness.run(&["env", "--shell=direnv"]);
+        let (code, out, err) = harness.run(&["sync", "--shell=direnv"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(out, "watch_file .dx/local/current\n");
         std::fs::create_dir_all(harness.workspace.join(".dx/local/bin")).expect("bin");
-        let (code, out, err) = harness.run(&["env", "--shell=direnv"]);
+        let (code, out, err) = harness.run(&["sync", "--shell=direnv"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.starts_with("PATH_add .dx/local/bin\n"), "{out}");
     }
@@ -419,10 +254,10 @@ mod tests {
     #[test]
     fn managed_live_empty_selection_commits_with_empty_counterparts() {
         {
-            let command = "env";
+            let command = "sync";
             let name = format!("managed-commit-{command}");
             let harness = Harness::new(&name);
-            let (code, out, err) = harness.run(&[command, "--apply"]);
+            let (code, out, err) = harness.run(&[command]);
             assert_eq!(code, 0, "{out}{err}");
             assert!(
                 out.contains(&format!("Running {command} for //...")),
@@ -453,7 +288,7 @@ mod tests {
                     "{command} stages its {side} generation"
                 );
             }
-            let (code, out, err) = harness.run(&[command, "--apply"]);
+            let (code, out, err) = harness.run(&[command]);
             assert_eq!(code, 0, "{out}{err}");
             assert!(out.contains("already selected setup "), "{out}");
             assert_eq!(err, "", "{err}");
@@ -463,11 +298,11 @@ mod tests {
     #[test]
     fn managed_live_exact_sides_commit_with_empty_counterparts() {
         {
-            let command = "env";
+            let command = "sync";
             let name = format!("managed-exact-{command}");
             let harness = Harness::new(&name);
             harness.query.script_stdout("\n");
-            let (code, out, err) = harness.run(&[command, "--apply", "//a:one"]);
+            let (code, out, err) = harness.run(&[command, "//a:one"]);
             assert_eq!(code, 0, "{out}{err}");
             assert!(out.contains("selected setup "), "{out}");
             let pair = read_current_pair(&harness.workspace)
@@ -504,36 +339,13 @@ mod tests {
 
     #[test]
     fn managed_exact_env_expands_bare_schema_to_projections() {
-        let harness = Harness::new("managed-expand-check");
-        harness.query.script_graph(&prost_fixture_graph());
-        let (_, out, err) = harness.run(&["env", "//generation:result_proto"]);
-        assert!(
-            out.contains(
-                "Running env for //generation:codegen_prost_fixture //generation:result_proto"
-            ),
-            "{out}{err}"
-        );
-        assert_eq!(
-            harness.query.calls.borrow().len(),
-            1,
-            "check mode still runs the expansion query"
-        );
-        assert_eq!(
-            harness.query.calls.borrow()[0].last().map(String::as_str),
-            Some("kind('rule', //...)"),
-            "expansion reads the rule graph"
-        );
-        for argv in harness.query.calls.borrow().iter() {
-            assert!(!argv.iter().any(|arg| arg.contains("rdeps(")), "{argv:?}");
-        }
-
         let harness = Harness::new("managed-expand-live");
         harness.query.script_graph(&prost_fixture_graph());
-        let (code, out, err) = harness.run(&["env", "--apply", "//generation:result_proto"]);
+        let (code, out, err) = harness.run(&["sync", "//generation:result_proto"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains(
-                "Running env for //generation:codegen_prost_fixture //generation:result_proto"
+                "Running sync for //generation:codegen_prost_fixture //generation:result_proto"
             ),
             "{out}"
         );
@@ -550,7 +362,7 @@ mod tests {
             stdout: Vec::new(),
             stderr: b"query failed: blah".to_vec(),
         });
-        let (code, _, err) = harness.run(&["env", "//generation:result_proto"]);
+        let (code, _, err) = harness.run(&["sync", "//generation:result_proto"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("query failed: blah"), "{err}");
         assert!(
@@ -562,7 +374,7 @@ mod tests {
     #[test]
     fn managed_live_quiet_commit_prints_nothing() {
         let harness = Harness::new("managed-quiet-commit");
-        let (code, out, err) = harness.run(&["env", "--apply", "--quiet"]);
+        let (code, out, err) = harness.run(&["sync", "--quiet"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(out, "", "{out}");
         assert_eq!(err, "", "{err}");
@@ -577,14 +389,14 @@ mod tests {
     #[test]
     fn managed_live_malformed_current_fails_commit_without_mutation() {
         let harness = Harness::new("managed-bad-current");
-        let (code, _, _) = harness.run(&["env", "--apply"]);
+        let (code, _, _) = harness.run(&["sync"]);
         assert_eq!(code, 0);
         let generations = dx_path::state::local_dir(&harness.workspace).join(GENERATED_DIR_NAME);
         assert!(generations.is_dir(), "first commit stages generations");
         let pointer = harness.workspace.join(".dx/local/setups/current");
         dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
-        let (code, _, err) = harness.run(&["env"]);
+        let (code, _, err) = harness.run(&["sync"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("dx: managed_commit_failed:"), "{err}");
         assert!(
@@ -625,7 +437,7 @@ mod tests {
             io_error: true,
             ..Harness::new("managed-launch-failed")
         };
-        let (code, _, err) = harness.run(&["env"]);
+        let (code, _, err) = harness.run(&["sync"]);
         assert_eq!(code, 1);
         assert!(err.contains("dx: launch_failed: failed to launch Bazel"));
     }
@@ -636,7 +448,7 @@ mod tests {
             signalled: true,
             ..Harness::new("managed-signalled")
         };
-        let (code, _, err) = harness.run(&["env"]);
+        let (code, _, err) = harness.run(&["sync"]);
         assert_eq!(code, 1);
         assert!(err.contains("dx: bazel_signalled: Bazel terminated by signal"));
     }
@@ -647,9 +459,9 @@ mod tests {
             bazel_code: 3,
             ..Harness::new("managed-bazel-failed")
         };
-        let (code, out, err) = harness.run(&["env"]);
+        let (code, out, err) = harness.run(&["sync"]);
         assert_eq!(code, 3, "{out}{err}");
-        assert!(out.contains("Running env for //..."), "{out}");
+        assert!(out.contains("Running sync for //..."), "{out}");
     }
 
     #[test]
@@ -658,7 +470,7 @@ mod tests {
             skip_bep: true,
             ..Harness::new("managed-missing-bep")
         };
-        let (code, _, err) = harness.run(&["env"]);
+        let (code, _, err) = harness.run(&["sync"]);
         assert_eq!(code, 1);
         assert!(err.contains("dx: unreadable_bep: failed to read build events"));
     }
@@ -669,7 +481,7 @@ mod tests {
             raw_bep: Some(vec!["{not json".to_owned()]),
             ..Harness::new("managed-bad-bep")
         };
-        let (code, _, err) = harness.run(&["env"]);
+        let (code, _, err) = harness.run(&["sync"]);
         assert_eq!(code, 1);
         assert!(err.contains("dx: invalid_bep: invalid build events"));
     }
@@ -677,7 +489,7 @@ mod tests {
     #[test]
     fn managed_policy_conflict_fails_before_execution() {
         let harness = Harness::new("managed-conflict");
-        let (code, _, _) = harness.run(&["env", "--", "--aspects=//other.bzl%aspect"]);
+        let (code, _, _) = harness.run(&["sync", "--", "--aspects=//other.bzl%aspect"]);
         assert_eq!(code, 2);
         assert!(
             harness.seen_env.borrow().is_empty(),
@@ -688,10 +500,10 @@ mod tests {
     #[test]
     fn managed_live_json_streams_selection() {
         {
-            let command = "env";
+            let command = "sync";
             let name = format!("managed-live-json-{command}");
             let harness = Harness::new(&name);
-            let (code, out, err) = harness.run(&[command, "--apply", "--output=json"]);
+            let (code, out, err) = harness.run(&[command, "--output=json"]);
             assert_eq!(code, 0, "{out}{err}");
             let events = json_events(&out);
             let kinds = event_kinds(&events);
@@ -728,7 +540,7 @@ mod tests {
             bazel_code: 3,
             ..Harness::new("managed-json-bazel-fail")
         };
-        let (code, out, _) = harness.run(&["env", "--output=json"]);
+        let (code, out, _) = harness.run(&["sync", "--output=json"]);
         assert_eq!(code, 3, "{out}");
         let events = json_events(&out);
         let error = event(&events, "error");
@@ -741,44 +553,12 @@ mod tests {
     }
 
     #[test]
-    fn managed_default_reports_missing_selection_without_writing() {
-        {
-            let command = "env";
-            let name = format!("managed-check-missing-{command}");
-            let harness = Harness::new(&name);
-            let (code, out, err) = harness.run(&[command]);
-            assert_eq!(code, 1, "{out}{err}");
-            assert!(out.contains("Running "), "{out}");
-            assert!(out.contains("no current selection"), "{out}");
-            assert!(
-                out.contains(&format!("dx {command} --apply")),
-                "drift names its apply: {out}"
-            );
-            assert_eq!(err, "", "{err}");
-            assert_eq!(
-                harness.seen_env.borrow().len(),
-                1,
-                "{command} check still collects through one Bazel build"
-            );
-            assert!(
-                !harness.workspace.join(".dx").exists(),
-                "{command} check stages nothing into the workspace"
-            );
-            assert_eq!(
-                read_current_pair(&harness.workspace).expect("read current"),
-                None,
-                "{command} check commits no selection"
-            );
-        }
-    }
-
-    #[test]
     fn managed_check_current_selection_succeeds_without_touching_state() {
         {
-            let command = "env";
+            let command = "sync";
             let name = format!("managed-check-current-{command}");
             let harness = Harness::new(&name);
-            let (code, _, err) = harness.run(&[command, "--apply"]);
+            let (code, _, err) = harness.run(&[command]);
             assert_eq!(code, 0, "{err}");
             let before = read_current_pair(&harness.workspace)
                 .expect("read current")
@@ -798,44 +578,12 @@ mod tests {
     }
 
     #[test]
-    fn managed_check_stale_selection_reports_drift_without_committing() {
-        let harness = Harness::new("managed-check-stale");
-        let (code, _, err) = harness.run(&["env", "--apply"]);
-        assert_eq!(code, 0, "{err}");
-        let foreign = dx_setup::SetupPair {
-            environment: dx_setup::GenerationId::new(&"3".repeat(64)).expect("fixture id"),
-            generated: dx_setup::GenerationId::new(&"4".repeat(64)).expect("fixture id"),
-        };
-        dx_setup::commit_pair(&harness.workspace, &foreign).expect("foreign commit");
-        let (code, out, err) = harness.run(&["env"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(out.contains("stale selection"), "{out}");
-        assert!(out.contains("dx env --apply"), "{out}");
-        assert_eq!(err, "", "{err}");
-        assert_eq!(
-            read_current_pair(&harness.workspace)
-                .expect("reread current")
-                .expect("selection kept"),
-            foreign,
-            "check leaves the stale selection in place"
-        );
-    }
-
-    #[test]
-    fn env_json_reports_action_counts() {
+    fn sync_json_reports_action_counts() {
         let mut harness = Harness::new("managed-actions");
-        let (_, out, _) = harness.run(&["env", "--output=json"]);
+        let (_, out, _) = harness.run(&["sync", "--output=json"]);
         assert_eq!(finished_actions(&out), None, "{out}");
         harness.build_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
-        let (code, out, err) = harness.run(&["env", "--output=json"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert_eq!(
-            finished_actions(&out),
-            Some(
-                serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
-            )
-        );
-        let (code, out, err) = harness.run(&["env", "--apply", "--output=json"]);
+        let (code, out, err) = harness.run(&["sync", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
             finished_actions(&out),
@@ -843,111 +591,6 @@ mod tests {
                 serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
             )
         );
-    }
-
-    #[test]
-    fn managed_check_json_emits_drift_notice() {
-        let harness = Harness::new("managed-check-json-drift");
-        let (code, out, err) = harness.run(&["env", "--output=json"]);
-        assert_eq!(code, 1, "{out}{err}");
-        let events = json_events(&out);
-        let kinds = event_kinds(&events);
-        assert_eq!(kinds[0], "command_started");
-        assert!(kinds.contains(&"operation"), "{kinds:?}");
-        assert!(kinds.contains(&"notice"), "{kinds:?}");
-        assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        let started = event(&events, "command_started");
-        assert_eq!(started["mode"], serde_json::json!("check"));
-        let notice = event(&events, "notice");
-        assert_eq!(notice["code"], serde_json::json!("managed_drift"));
-        assert!(
-            notice["message"]
-                .as_str()
-                .expect("message")
-                .contains("no current selection"),
-            "{notice}"
-        );
-        assert!(
-            !events
-                .iter()
-                .any(|event| event["event"] == serde_json::json!("selection")),
-            "{out}"
-        );
-        assert_eq!(
-            events.last().expect("finished")["exit_code"],
-            serde_json::json!(1)
-        );
-        assert_eq!(err, "", "{err}");
-        assert!(
-            !harness.workspace.join(".dx").exists(),
-            "json check stages nothing into the workspace"
-        );
-    }
-
-    #[test]
-    fn managed_check_malformed_current_fails_closed() {
-        let harness = Harness::new("managed-check-bad-current");
-        let generations = dx_path::state::local_dir(&harness.workspace).join(GENERATED_DIR_NAME);
-        std::fs::create_dir_all(&generations).expect("generations dir");
-        let pointer = harness.workspace.join(".dx/local/setups/current");
-        std::fs::create_dir_all(pointer.parent().expect("parent")).expect("setups dir");
-        std::fs::write(&pointer, "not a symlink").expect("file pointer");
-        let (code, out, err) = harness.run(&["env"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("dx: managed_commit_failed:"), "{err}");
-        assert!(
-            !generations.join(empty_generated_id().as_str()).exists(),
-            "malformed current stages nothing into the workspace"
-        );
-    }
-
-    #[test]
-    fn managed_check_exact_scope_reports_drift_without_committing() {
-        let harness = Harness::new("managed-check-exact");
-        harness.query.script_stdout("\n");
-        let (code, out, err) = harness.run(&["env", "//a:one"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(out.contains("Running env for //a:one"), "{out}");
-        assert!(out.contains("no current selection"), "{out}");
-        assert!(out.contains("dx env --apply //a:one"), "{out}");
-        assert_eq!(
-            read_current_pair(&harness.workspace).expect("read current"),
-            None,
-            "exact-scope check commits nothing"
-        );
-    }
-
-    #[test]
-    fn managed_check_json_stale_drift_names_apply_command() {
-        let harness = Harness::new("managed-json-stale");
-        let (code, _, err) = harness.run(&["env", "--apply"]);
-        assert_eq!(code, 0, "{err}");
-        let foreign = dx_setup::SetupPair {
-            environment: dx_setup::GenerationId::new(&"3".repeat(64)).expect("fixture id"),
-            generated: dx_setup::GenerationId::new(&"4".repeat(64)).expect("fixture id"),
-        };
-        dx_setup::commit_pair(&harness.workspace, &foreign).expect("foreign commit");
-        let (code, out, err) = harness.run(&["env", "--output=json"]);
-        assert_eq!(code, 1, "{out}{err}");
-        let events = json_events(&out);
-        let notice = event(&events, "notice");
-        assert_eq!(notice["code"], serde_json::json!("managed_drift"));
-        let message = notice["message"].as_str().expect("message");
-        assert!(message.contains("stale selection"), "{notice}");
-        assert!(message.contains("`dx env --apply`"), "{notice}");
-        assert_eq!(err, "", "{err}");
-    }
-
-    #[test]
-    fn managed_check_json_exact_scope_drift_names_scoped_apply() {
-        let harness = Harness::new("managed-json-exact");
-        harness.query.script_stdout("\n");
-        let (code, out, err) = harness.run(&["env", "//a:one", "--output=json"]);
-        assert_eq!(code, 1, "{out}{err}");
-        let events = json_events(&out);
-        let notice = event(&events, "notice");
-        let message = notice["message"].as_str().expect("message");
-        assert!(message.contains("`dx env --apply //a:one`"), "{notice}");
     }
 }
 

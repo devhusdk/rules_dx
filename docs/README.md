@@ -5,7 +5,7 @@ Find your task.
 - Start a project: [Tutorial](tutorial.md), [`dx init`](cli/commands/init.md).
 - Build and test: [Build, test, coverage](cli/commands/build-test-coverage.md).
 - Format, lint and typecheck: [Quality](cli/commands/quality.md).
-- Add a dependency: [Generate](cli/commands/generate.md), [Environment](cli/commands/env.md).
+- Add a dependency: [Generate](cli/commands/generate.md), [Sync](cli/commands/sync.md).
 - Set up CI: [GitHub CI](github-ci.md).
 - Upgrade dx: [Upgrade](cli/commands/upgrade.md).
 - Use with an AI agent: [Init](cli/commands/init.md), [Agent sessions](cli/commands/worktree.md#agent-sessions).
@@ -33,7 +33,7 @@ Find your task.
 - [Check, clean](cli/commands/check-clean.md)
 - [Generate](cli/commands/generate.md)
 - [Docs](cli/commands/docs.md)
-- [Environment](cli/commands/env.md)
+- [Sync](cli/commands/sync.md)
 - [Audit and update](cli/commands/audit-update.md)
 - [Config reference](cli/commands/config.md)
 - [Explain](cli/commands/explain.md)

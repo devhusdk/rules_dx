@@ -205,7 +205,7 @@ def _dx_env_shard_impl(ctx):
 
 dx_env_shard = rule(
     implementation = _dx_env_shard_impl,
-    doc = "Declares environment plan entries for dx env.",
+    doc = "Declares environment plan entries for dx sync.",
     attrs = {
         "deps": attr.label_list(
             doc = "Dependency labels declared for the environment shard.",

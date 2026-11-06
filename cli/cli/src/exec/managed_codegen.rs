@@ -193,7 +193,7 @@ mod tests {
         let shard = harness.temp.join("bad.dxcodegen.pb");
         std::fs::write(&shard, b"not a codegen shard").expect("shard");
         harness.raw_bep = Some(managed_shard_bep(&shard, dx_codegen::OUTPUT_GROUP));
-        let (code, _, err) = harness.run(&["env"]);
+        let (code, _, err) = harness.run(&["sync"]);
         assert_eq!(code, 1, "{err}");
         assert!(
             err.contains("dx: invalid_result: invalid codegen plan"),

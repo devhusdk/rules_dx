@@ -1,4 +1,4 @@
-//! Refreshes `.dx/local/ide/` after `dx env --apply` and `dx upgrade`. Never changes the exit code.
+//! Refreshes `.dx/local/ide/` after `dx sync` and `dx upgrade`. Never changes the exit code.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};

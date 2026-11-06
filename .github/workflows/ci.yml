@@ -105,7 +105,7 @@ jobs:
       - name: Validate devcontainer definition shape
         run: |
           post_create="$(jq -er '.postCreateCommand' .devcontainer/devcontainer.json)"
-          grep -Fq -- 'tools/dx env --apply' <<<"$post_create"
+          grep -Fq -- 'tools/dx sync' <<<"$post_create"
           if grep -Fq 'bazel build //...' <<<"$post_create"; then echo "devcontainer: postCreateCommand runs bazel build //..." >&2; exit 1; fi
           echo "devcontainer definition valid: $post_create"
       - name: Write job summary

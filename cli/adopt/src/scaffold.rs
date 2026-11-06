@@ -43,7 +43,7 @@ pub const DEVCONTAINER_JSON: &str = concat!(
     "    \"source=dx-bazel-cache,target=/home/vscode/.cache/bazel,type=volume\"\n",
     "  ],\n",
     "  \"onCreateCommand\": \"sudo chown -R vscode:vscode /home/vscode/.cache\",\n",
-    "  \"postCreateCommand\": \"tools/dx env --apply\"\n",
+    "  \"postCreateCommand\": \"tools/dx sync\"\n",
     "}\n",
 );
 
@@ -1004,7 +1004,7 @@ mod tests {
                 .expect("cache mount")
                 .contains("type=volume")
         );
-        assert_eq!(parsed["postCreateCommand"], "tools/dx env --apply");
+        assert_eq!(parsed["postCreateCommand"], "tools/dx sync");
     }
 
     #[test]

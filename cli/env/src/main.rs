@@ -128,7 +128,7 @@ fn run() -> i32 {
             Some(paths) => paths,
             None => {
                 tracing::error!(
-                    "dx env: default tree not found in runfiles; pass --staged-bin and --metadata explicitly"
+                    "dx sync: default tree not found in runfiles; pass --staged-bin and --metadata explicitly"
                 );
                 return 1;
             }

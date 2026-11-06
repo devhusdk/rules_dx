@@ -112,7 +112,7 @@ mod tests {
         use dx_setup::SetupScope;
 
         let plan = plan_managed(
-            Command::Env,
+            Command::Sync,
             &SetupScope::Repository,
             &strings(&["--jobs=4"]),
             "/tmp/bep.json",
@@ -140,7 +140,7 @@ mod tests {
                 "@rules_dx//dx:codegen",
             ])
         );
-        assert_eq!(plan.summary, "Running env for //...");
+        assert_eq!(plan.summary, "Running sync for //...");
     }
 
     #[test]
@@ -148,9 +148,9 @@ mod tests {
         use dx_setup::SetupScope;
 
         let scope = SetupScope::Exact("//a:one".to_owned());
-        let plan = plan_managed(Command::Env, &scope, &[], "/tmp/bep.json", &[]).expect("plan");
+        let plan = plan_managed(Command::Sync, &scope, &[], "/tmp/bep.json", &[]).expect("plan");
         assert_eq!(plan.argv.last(), Some(&"//a:one".to_owned()));
-        assert_eq!(plan.summary, "Running env for //a:one");
+        assert_eq!(plan.summary, "Running sync for //a:one");
     }
 
     #[test]
@@ -159,8 +159,8 @@ mod tests {
             "//generation:codegen_prost_fixture",
             "//generation:result_proto",
         ]);
-        let plan =
-            plan_managed_with_roots(Command::Env, &roots, &[], "/tmp/bep.json", &[]).expect("plan");
+        let plan = plan_managed_with_roots(Command::Sync, &roots, &[], "/tmp/bep.json", &[])
+            .expect("plan");
         assert_eq!(
             plan.argv.last(),
             Some(&"//generation:result_proto".to_owned())
@@ -171,7 +171,7 @@ mod tests {
         );
         assert_eq!(
             plan.summary,
-            "Running env for //generation:codegen_prost_fixture //generation:result_proto"
+            "Running sync for //generation:codegen_prost_fixture //generation:result_proto"
         );
         for command in [Command::Build, Command::Lint] {
             let err = plan_managed_with_roots(command, &roots, &[], "/tmp/bep.json", &[])
@@ -197,7 +197,7 @@ mod tests {
         let options = strings(&["--config=remote", "--jobs=4"]);
         let roots = strings(&["//a:one"]);
         {
-            let command = Command::Env;
+            let command = Command::Sync;
             let plans = [
                 plan_managed(
                     command,
@@ -259,7 +259,7 @@ mod tests {
             ),
         ] {
             let plan = plan_managed(
-                Command::Env,
+                Command::Sync,
                 &SetupScope::Repository,
                 &strings(&[option]),
                 "/tmp/bep.json",
@@ -270,7 +270,7 @@ mod tests {
             assert_eq!(last_download_flag(&plan.argv), Some(expected), "{plan:?}");
         }
         let plan = plan_managed(
-            Command::Env,
+            Command::Sync,
             &SetupScope::Repository,
             &strings(&["--remote_download_all", "--remote_download_toplevel"]),
             "/tmp/bep.json",
@@ -298,7 +298,7 @@ mod tests {
             "--remote_download_outputs=minimal",
         ] {
             let err = plan_managed(
-                Command::Env,
+                Command::Sync,
                 &SetupScope::Repository,
                 &strings(&[conflicting]),
                 "/tmp/bep.json",
@@ -311,7 +311,7 @@ mod tests {
             );
         }
         let err = plan_managed(
-            Command::Env,
+            Command::Sync,
             &SetupScope::Repository,
             &strings(&["--home_rc"]),
             "/tmp/bep.json",

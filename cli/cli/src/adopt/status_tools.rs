@@ -7,7 +7,7 @@ use dx_setup::{CURRENT_LINK_NAME, CommitError, ENVIRONMENTS_DIR_NAME, SETUPS_DIR
 
 use crate::exec::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 
-const REFRESH: &str = "dx env --apply";
+const REFRESH: &str = "dx sync";
 
 fn tools(status: &str, detail: String, hint: &str) -> StatusCheck {
     StatusCheck {
@@ -96,7 +96,7 @@ pub(crate) fn managed_tools_check(workspace: &Path) -> StatusCheck {
         return tools(
             "ok",
             format!("not applicable: environment {short} declares no managed tools"),
-            "dx env --check",
+            "dx sync",
         );
     }
     let artifacts = dir.join(ENV_ARTIFACTS_DIR);
@@ -118,7 +118,7 @@ pub(crate) fn managed_tools_check(workspace: &Path) -> StatusCheck {
             "available: {} managed {noun} in environment {short}",
             keys.len()
         ),
-        "dx env --check",
+        "dx sync",
     )
 }
 
@@ -181,7 +181,7 @@ mod tests {
         let check = managed_tools_check(scratch.path());
         assert_eq!(check.status, "warn");
         assert!(check.detail.starts_with("unknown:"), "{}", check.detail);
-        assert_eq!(check.hint, "dx env --apply");
+        assert_eq!(check.hint, "dx sync");
     }
 
     #[test]
@@ -226,7 +226,7 @@ mod tests {
             check.detail,
             "unavailable: environment aaaaaaaaaaaa: absent is missing; gone points at a missing Bazel artifact; plain is not a managed link"
         );
-        assert_eq!(check.hint, "dx env --apply");
+        assert_eq!(check.hint, "dx sync");
         std::fs::write(env.join("values.json"), "not json").expect("values");
         let corrupt = managed_tools_check(root);
         assert_eq!(corrupt.status, "error");
@@ -268,7 +268,7 @@ mod tests {
         );
         assert_eq!(
             check.hint,
-            "remove .dx/local/setups/current, then run dx env --apply"
+            "remove .dx/local/setups/current, then run dx sync"
         );
     }
 }

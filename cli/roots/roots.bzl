@@ -1,4 +1,4 @@
-"""Repository-root candidates for dx env."""
+"""Repository-root candidates for dx sync."""
 
 def _repository_roots_file_impl(ctx):
     content = "\n".join(ctx.attr.roots)

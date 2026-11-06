@@ -266,7 +266,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     (Command::Check, &["check --affected", "check --apply"]),
     (Command::Clean, &["clean", "clean --apply"]),
     (Command::Update, &["update --outdated", "update --apply"]),
-    (Command::Env, &["env", "env --apply --shell=direnv"]),
+    (Command::Sync, &["sync", "sync --shell=direnv"]),
     (Command::Init, &["init", "init --apply"]),
     (
         Command::Upgrade,

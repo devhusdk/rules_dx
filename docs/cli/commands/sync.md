@@ -1,35 +1,31 @@
-# `dx env`
+# `dx sync`
 
-Collects the managed tools for `.dx/local/bin`, the env values, and the declared generated source in one Bazel build. It upgrades nothing.
+Selects the managed tools for `.dx/local/bin`, the env values, and the declared generated source in one Bazel build, and refreshes the editor files. It upgrades nothing. It always writes; run `dx status` to see drift first.
 
 ```sh
-dx env
-dx env --apply
-dx env --apply //proto:api
-dx env --apply --shell=direnv
-dx env --output json
+dx sync
+dx sync //proto:api
+dx sync --shell=direnv
+dx sync --output json
 ```
 
 ```text
-dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options...]
+dx sync [--shell=direnv] [<label>] [-- bazel-options...]
 ```
 
 | Flag | What it does |
 | --- | --- |
-| `--apply` | Select the setup. Also refreshes the editor files in `.dx/local/ide/`. |
-| `--shell=direnv` | Print `PATH_add .dx/local/bin` and `watch_file .dx/local/bin` when that directory exists, and always `watch_file .dx/local/current`. Runs no Bazel and writes nothing. Ignores `--apply`, the label, and `--output`. |
+| `--shell=direnv` | Print `PATH_add .dx/local/bin` and `watch_file .dx/local/bin` when that directory exists, and always `watch_file .dx/local/current`. Runs no Bazel and writes nothing. Ignores the label and `--output`. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 
-`--fail-on` and `--report` are usage errors.
+`--apply`, `--fail-on` and `--report` are usage errors.
 
 Scopes: none selects the whole repository. One exact `//` or `@` label selects that label and every codegen shard that depends on it. A pattern, relative label, path, empty value, or second label is a usage error.
 
-Run `dx env --apply` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a codegen rule reads. Selected outputs link under `.dx/local/setups/current/generated`.
+Run `dx sync` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a codegen rule reads. Selected outputs link under `.dx/local/setups/current/generated`. A second run with nothing changed reports the setup is already selected and writes nothing. Managed state lives under `.dx/local/`. `dx clean` reports unselected state.
 
-Without `--apply`, dx reports drift and writes nothing. A missing selection is drift. Managed state lives under `.dx/local/`. `dx clean` reports unselected state.
-
-`--apply` refreshes `.dx/local/ide/`: the TypeScript `lib` link, `cc/compile_commands.json` and the `cc/clangd` link for C and C++ trees, `go/gopackagesdriver` for Go trees, and for Rust trees `rust_analyzer/flycheck.exe`, `rust_analyzer/discover_bazel_rust_project.exe` and a `user_config.json` that makes flycheck run clippy. Set `go.toolsEnvVars.GOPACKAGESDRIVER` to the Go wrapper. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
+`dx sync` refreshes `.dx/local/ide/`: the TypeScript `lib` link, `cc/compile_commands.json` and the `cc/clangd` link for C and C++ trees, `go/gopackagesdriver` for Go trees, and for Rust trees `rust_analyzer/flycheck.exe`, `rust_analyzer/discover_bazel_rust_project.exe` and a `user_config.json` that makes flycheck run clippy. Set `go.toolsEnvVars.GOPACKAGESDRIVER` to the Go wrapper. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
 
 ## Bazel args
 
@@ -39,23 +35,21 @@ These args exit `2`: `--aspects`, `--output_groups`, `--remote_download_minimal`
 
 ## Output
 
-Text starts with `Running env for <roots>`, then one result line:
+Text starts with `Running sync for <roots>`, then one result line:
 
-- Up to date: `dx env: already selected setup <setup> <pair>`.
-- Stale: `dx env: stale selection: current setup <setup> want setup <setup> <pair>`.
-- None selected: `dx env: no current selection: intended setup <setup> <pair>`.
-- With `--apply`: `dx env: selected setup <setup> <pair>`.
+- Up to date: `dx sync: already selected setup <setup> <pair>`.
+- Changed: `dx sync: selected setup <setup> <pair>`.
 
-Drift adds ``run `dx env --apply [<label>]` to select it``. `--quiet` hides all lines.
+`--quiet` hides all lines.
 
-JSON emits `command_started`, an `operation` event, a `managed_drift` notice on drift, a `selection` event with `--apply`, and `command_finished` with `actions`. Failures emit an `error` with a code such as `bazel_failed`, `invalid_result`, `no_capability`, `unreadable_bep`, or `managed_commit_failed`.
+JSON emits `command_started`, an `operation` event, a `selection` event, and `command_finished` with `actions`. Failures emit an `error` with a code such as `bazel_failed`, `invalid_result`, `no_capability`, `unreadable_bep`, or `managed_commit_failed`.
 
 ## Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Drift, `invalid_result`, `no_capability`, `unreadable_bep`, `managed_commit_failed`, or a Bazel launch failure. |
+| `1` | `invalid_result`, `no_capability`, `unreadable_bep`, `managed_commit_failed`, or a Bazel launch failure. |
 | `2` | Usage or scope error, a conflicting diagnostics flag, a rejected arg, or a failed label query. |
 | Bazel's code | Bazel failed. |
 
@@ -63,7 +57,7 @@ JSON emits `command_started`, an `operation` event, a `managed_drift` notice on 
 
 The plan admits these generator and language pairs: protobuf/rust, flatbuffers/cpp, flatbuffers/rust, flatbuffers/java, capnp/cpp, capnp/rust, capnp/java, thrift/cpp, thrift/rust, thrift/java, avro/cpp, openapi/typescript, openapi/go, openapi/python, and openapi/rust.
 
-Each pair has a library rule and a shard rule. The shard rule binds a plan entry, matched by an `EXEC_PATH` suffix, to a generated file. Verify generated sources with `dx env`.
+Each pair has a library rule and a shard rule. The shard rule binds a plan entry, matched by an `EXEC_PATH` suffix, to a generated file. Select generated sources with `dx sync`.
 
 | Pair | Library rule | Shard rule |
 | --- | --- | --- |

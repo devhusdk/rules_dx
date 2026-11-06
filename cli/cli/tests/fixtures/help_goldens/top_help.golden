@@ -24,7 +24,7 @@ Commands:
   check       run generate+format+lint+typecheck in order (check by default; --apply writes fixes, then verifies with a read-only check)
   clean       prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
   update      update dependencies per set, or widen or add one package to a version (check by default; --apply writes)
-  env         collect managed tools and generated source (check by default; --apply writes managed state)
+  sync        select the managed tools and generated source and refresh the IDE files
   init        start or adopt a dx workspace in this or a new directory (check by default; --apply scaffolds and is safe to re-run)
   upgrade     move the pin to any version, newer or older, and refresh existing launchers and the AGENTS.md block (check by default; --apply moves)
   status      report workspace status; --capabilities adds command capabilities

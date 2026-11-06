@@ -449,7 +449,7 @@ fn output_contract_has_no_silent_ignore() {
         "license",
         "update",
         "clean",
-        "env",
+        "sync",
         "docs",
     ] {
         let got = parse(&strings(&[command, "--output=json"])).expect("json capable");
@@ -489,7 +489,7 @@ fn output_contract_has_no_silent_ignore() {
     }
     for words in [
         vec!["clean", "--diff"],
-        vec!["env", "--diff"],
+        vec!["sync", "--diff"],
         vec!["run", "//app:bin", "--diff"],
         vec!["init", "proj", "--diff"],
         vec!["watch", "build", "--diff"],
@@ -514,7 +514,7 @@ fn output_contract_has_no_silent_ignore() {
         vec!["update", "--diff"],
         vec!["status", "--diff"],
         vec!["clean", "--diff"],
-        vec!["env", "--diff"],
+        vec!["sync", "--diff"],
         vec!["docs", "--diff"],
         vec!["update", "cargo:anyhow", "1.2.3", "--diff"],
         vec!["upgrade", "--to=2.0.0", "--diff"],
@@ -587,9 +587,9 @@ fn version_flags_stay_with_their_commands() {
 
 #[test]
 fn env_shell_flag_takes_direnv_only() {
-    let got = parse(&strings(&["env", "--shell=direnv"])).expect("shell parses");
+    let got = parse(&strings(&["sync", "--shell=direnv"])).expect("shell parses");
     assert_eq!(got.shell.as_deref(), Some("direnv"));
-    assert!(parse(&strings(&["env", "--shell=fish"])).is_err());
+    assert!(parse(&strings(&["sync", "--shell=fish"])).is_err());
     assert!(parse(&strings(&["lint", "--shell=direnv"])).is_err());
 }
 
@@ -689,7 +689,7 @@ fn color_parses_globally_with_bad_values_rejected() {
 #[test]
 fn managed_commands_parse_repo_and_exact_scopes() {
     {
-        let command = "env";
+        let command = "sync";
         let got = parse(&strings(&[command])).expect("parse");
         assert!(got.command.is_managed());
         assert!(got.targets.is_empty());
@@ -701,16 +701,16 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         assert_eq!(got.targets, strings(&["@repo//pkg:lib"]));
     }
     assert_eq!(
-        parse(&strings(&["env", "//a:one", "//b:two"])),
+        parse(&strings(&["sync", "//a:one", "//b:two"])),
         Err(ArgsError::UnsupportedOption {
-            command: "env",
+            command: "sync",
             option: "//b:two".to_owned(),
         })
     );
     for words in [
-        vec!["env", "//a/..."],
-        vec!["env", ":target"],
-        vec!["env", ""],
+        vec!["sync", "//a/..."],
+        vec!["sync", ":target"],
+        vec!["sync", ""],
     ] {
         assert!(
             matches!(
@@ -725,9 +725,9 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         );
     }
     for words in [
-        vec!["env", "--fail-on=error"],
-        vec!["env", "--report=sarif=out.sarif"],
-        vec!["env", "--to=0.1.0"],
+        vec!["sync", "--fail-on=error"],
+        vec!["sync", "--report=sarif=out.sarif"],
+        vec!["sync", "--to=0.1.0"],
     ] {
         assert!(
             matches!(
@@ -738,12 +738,11 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         );
     }
     {
-        let command = "env";
+        let command = "sync";
         let got = parse(&strings(&[command])).expect("bare parses");
-        assert_eq!(got.operation(), OperationMode::Check);
-        assert!(!got.applies());
-        let got = parse(&strings(&[command, "--apply"])).expect("apply parses");
+        assert_eq!(got.operation(), OperationMode::Apply);
         assert!(got.applies());
+        assert!(parse(&strings(&[command, "--apply"])).is_err());
     }
 }
 
@@ -852,7 +851,7 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         vec!["clean", "--here"],
         vec!["update", "--here"],
         vec!["update", "cargo:anyhow", "1.2.3", "--here"],
-        vec!["env", "--here"],
+        vec!["sync", "--here"],
         vec!["run", "//app:bin", "--here"],
         vec!["deploy", "//app:bin", "--here"],
         vec!["status", "--here"],
@@ -916,7 +915,7 @@ fn offline_and_frozen_are_independent_policies_on_audit_and_update() {
         vec!["lint", "--offline"],
         vec!["build", "//a:one", "--offline"],
         vec!["clean", "--offline"],
-        vec!["env", "--offline"],
+        vec!["sync", "--offline"],
         vec!["status", "--offline"],
         vec!["docs", "--offline"],
         vec!["upgrade", "--to=2.0.0", "--offline"],
@@ -959,7 +958,7 @@ fn a_refused_output_diff_is_named_before_any_other_flag_the_command_refuses() {
         ("clean", "--report=junit=one.xml"),
         ("update", "--report=junit=one.xml"),
         ("upgrade", "--report=junit=one.xml"),
-        ("env", "--report=junit=one.xml"),
+        ("sync", "--report=junit=one.xml"),
         ("docs", "--port=1"),
     ] {
         let words = owned_option_words(

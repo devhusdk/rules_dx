@@ -414,9 +414,9 @@ impl Invocation {
         }
     }
 
-    /// The operation the flags authorize: explicit `--apply` opts into mutation, else check.
+    /// The operation the flags authorize: explicit `--apply` opts into mutation, else check. `dx sync` always applies.
     pub fn operation(&self) -> OperationMode {
-        if self.apply {
+        if self.apply || self.command == Command::Sync {
             OperationMode::Apply
         } else {
             OperationMode::Check

@@ -1445,14 +1445,14 @@ mod tests {
             argvs.push((name.to_owned(), plan.expect("plan").argv));
         }
         let plan = dx_plan::plan::plan_managed(
-            Command::Env,
+            Command::Sync,
             &dx_setup::SetupScope::Repository,
             &[],
             "/tmp/bep.json",
             &[],
         )
         .expect("managed plan");
-        argvs.push(("env".to_owned(), plan.argv));
+        argvs.push(("sync".to_owned(), plan.argv));
         let selection = dx_plan::resolve::SelectionContext::for_test_execution(
             dx_plan::args::Profile::Dev,
             &[],

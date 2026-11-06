@@ -19,7 +19,7 @@ tools/dx lint //... -- --jobs=4
 - [`dx check`](check-clean.md): run generate, format, lint and typecheck.
 - [`dx clean`](check-clean.md): remove build outputs.
 - [`dx generate`](generate.md): update BUILD files with Gazelle.
-- [`dx env`](env.md): set up the toolchain environment.
+- [`dx sync`](sync.md): select the pinned tools and generated sources and refresh the IDE files.
 - [`dx security`](audit-update.md): run the security audit.
 - [`dx license`](audit-update.md): run the license audit.
 - [`dx update`](audit-update.md): update dependencies.

@@ -77,7 +77,7 @@ warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists ea
 `dx init --apply` prints `dx: .bazelignore lacks .dx/local; add the dx lines so Bazel skips dx state`
 to stderr if it lists neither `.dx` nor `.dx/local`. The editor settings point at the managed
 interpreter and tools with host-native names. For Rust they point
-rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx env --apply` copies to
+rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx sync` copies to
 `.dx/local/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/local/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/local/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).

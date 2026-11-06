@@ -200,9 +200,7 @@ pub(crate) fn execute_init(
         &mut notes,
     );
     if result.is_ok() {
-        notes.push(
-            "next: run `tools/dx env --apply` to fill .dx/local, then `direnv allow`".to_owned(),
-        );
+        notes.push("next: run `tools/dx sync` to fill .dx/local, then `direnv allow`".to_owned());
     }
     let code = super::wiring::report(
         invocation,

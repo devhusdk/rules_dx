@@ -141,7 +141,7 @@ def _environment_tool_impl(ctx):
 
 environment_tool = rule(
     implementation = _environment_tool_impl,
-    doc = "One tool that dx env puts on PATH under its names.",
+    doc = "One tool that dx sync puts on PATH under its names.",
     attrs = {
         "aliases": attr.string_list(
             doc = "Extra command names exposed on PATH for the same tool.",

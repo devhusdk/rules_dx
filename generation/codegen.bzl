@@ -234,7 +234,7 @@ def _dx_codegen_shard_impl(ctx):
 
 dx_codegen_shard = rule(
     implementation = _dx_codegen_shard_impl,
-    doc = "Declares codegen plan entries for dx env.",
+    doc = "Declares codegen plan entries for dx sync.",
     attrs = {
         "deps": attr.label_list(
             doc = "Other codegen shard targets whose plans are collected.",

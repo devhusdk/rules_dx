@@ -281,7 +281,7 @@ pub fn spec(command: Command) -> CommandSpec {
             probes: &[],
             reports: &[],
         },
-        Command::Env => CommandSpec {
+        Command::Sync => CommandSpec {
             command,
             aspects: &[],
             probes: &[],
@@ -731,10 +731,10 @@ mod tests {
         let clean = spec(Command::Clean);
         assert!(clean.aspects.is_empty());
         assert!(clean.reports.is_empty());
-        let env = spec(Command::Env);
+        let env = spec(Command::Sync);
         assert!(env.aspects.is_empty());
         assert!(env.reports.is_empty());
-        assert!(Command::Env.is_managed());
+        assert!(Command::Sync.is_managed());
         for command in [Command::Security, Command::License] {
             let entry = spec(command);
             assert!(entry.aspects.is_empty());

@@ -186,7 +186,7 @@ mod tests {
         assert_eq!(code, 0);
         assert!(out.contains(".dx/pins"), "{out}");
         assert_eq!(err.lines().count(), 1, "{err}");
-        assert!(err.contains("next: run `tools/dx env --apply`"), "{err}");
+        assert!(err.contains("next: run `tools/dx sync`"), "{err}");
 
         let scratch = dx_test_scratch::scratch("dx-adopt-run-refused-");
         let (code, out, err) = run(&invocation(&["init", "../escape"]), scratch.path());

@@ -226,7 +226,7 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Check
             | Command::Deploy
             | Command::Generate
-            | Command::Env
+            | Command::Sync
             | Command::Security
             | Command::License
             | Command::Docs
@@ -2784,7 +2784,7 @@ mod tests {
             Command::Format,
             Command::Deploy,
             Command::Generate,
-            Command::Env,
+            Command::Sync,
             Command::Security,
             Command::License,
             Command::Docs,

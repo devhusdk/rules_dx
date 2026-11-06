@@ -119,7 +119,7 @@ fn consumer_status_keeps_unobserved_evidence_unknown() {
             .starts_with("unknown:"),
         "{tools}"
     );
-    assert_eq!(tools["hint"], "dx env --apply");
+    assert_eq!(tools["hint"], "dx sync");
     assert_eq!(run.tools_record()["availability"], "unknown");
 }
 
@@ -168,7 +168,7 @@ fn consumer_status_detects_missing_and_corrupt_tools() {
             format!("unavailable: environment aaaaaaaaaaaa: {problem}").as_str(),
             "{key}"
         );
-        assert_eq!(tools["hint"], "dx env --apply", "{key}");
+        assert_eq!(tools["hint"], "dx sync", "{key}");
         assert_eq!(run.tools_record()["availability"], "unavailable", "{key}");
     }
 }

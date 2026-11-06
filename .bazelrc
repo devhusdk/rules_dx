@@ -62,8 +62,10 @@ build --@rules_rust//cargo/settings:use_default_shell_env=False
 coverage:macos --copt=-fno-profile-instr-generate
 coverage:macos --copt=-fno-coverage-mapping
 
+
 # The conda ocamlc finds its stdlib relative to the unresolved executable path, which the darwin sandbox leaves without lib/ocaml.
 build:macos --modify_execution_info=CompileOcaml.*=+no-sandbox,CompileOCaml.*=+no-sandbox,ArchiveOCaml.*=+no-sandbox,LinkOCaml.*=+no-sandbox
+
 coverage:windows --features=-coverage
 coverage:windows --features=-gcc_coverage_map_format
 coverage:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=

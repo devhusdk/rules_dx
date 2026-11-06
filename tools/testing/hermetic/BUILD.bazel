@@ -364,6 +364,7 @@ hermetic_qualification(
 hermetic_qualification(
     name = "proto_bindings",
     files = {
+        "consumers/proto_bindings/consumer.bazelrc": ".bazelrc",
         "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
         "consumers/proto_bindings/go.mod": "go.mod",
         "consumers/proto_bindings/go.sum": "go.sum",

@@ -15,7 +15,7 @@ fn consumer_qualifies_without_installs_or_network() {
     let base = std::env::current_dir().expect("runfiles cwd");
     let manifest = hermetic::parse_manifest(&text, &base).expect("manifest parses");
     let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set under Bazel"));
-    let root = tmp.join("qualification");
+    let root = hermetic::qualification_root(&tmp);
     let out = std::env::var("TEST_UNDECLARED_OUTPUTS_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| tmp.join("outputs"));

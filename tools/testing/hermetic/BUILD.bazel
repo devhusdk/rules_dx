@@ -27,6 +27,13 @@ LINUX_MACOS = select({
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
+LINUX_MACOS_WINDOWS = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "@platforms//os:windows": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
 MANIFEST_HOSTS = MANIFEST_COMPATIBLE_WITH
 
 # The fragments of the hermetic consumers, read by //modules:consumer_deps_test.
@@ -318,7 +325,7 @@ hermetic_qualification(
         "//javascript/tests/fixtures/node-app/registry/...",
     ],
     smoke = True,
-    compatible_with = LINUX_MACOS,
+    compatible_with = LINUX_MACOS_WINDOWS,
     # macOS takes about 870s (run 42173489188), Linux 653s (run 42178777570).
     timeout = "eternal",
 )

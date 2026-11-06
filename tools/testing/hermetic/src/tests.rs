@@ -884,6 +884,61 @@ fn hermetic_test_builds_generate_check_only_with_coverage_targets() {
 }
 
 #[test]
+fn qualification_root_stays_under_tmp_off_windows() {
+    let tmp = Path::new("/tmp/t");
+    assert_eq!(
+        qualification_root_for(tmp, false),
+        tmp.join("qualification")
+    );
+}
+
+#[test]
+fn qualification_root_on_windows_is_short_and_stable() {
+    let tmp = Path::new(r"D:\_bazel\execroot\_main\_tmp\0123456789abcdef0123456789abcdef");
+    let root = qualification_root_for(tmp, true);
+    let text = root.to_string_lossy().into_owned();
+    assert!(text.starts_with(r"D:\q\"), "{text}");
+    assert_eq!(text.len(), r"D:\q\".len() + 8);
+    assert_eq!(qualification_root_for(tmp, true), root);
+    assert_ne!(qualification_root_for(Path::new(r"D:\other"), true), root);
+    let relative = Path::new("tmp");
+    assert_eq!(
+        qualification_root_for(relative, true),
+        relative.join("qualification")
+    );
+}
+
+#[test]
+fn longest_npm_package_dir_fits_the_windows_chdir_limit() {
+    let tmp = Path::new(r"D:\_bazel\execroot\_main\_tmp\0123456789abcdef0123456789abcdef");
+    let package = "bazel-out/x64_windows-fastbuild/bin/javascript/tests/fixtures/node-app/node_modules/.aspect_rules_js/@babel+plugin-syntax-logical-assignment-operators@7.10.4/node_modules/@babel/plugin-syntax-logical-assignment-operators";
+    assert_eq!(package.len(), 220);
+    let output_base = startup_flags_for(&qualification_root_for(tmp, true).join("cold"), true)
+        .iter()
+        .find_map(|flag| flag.strip_prefix("--output_base=").map(str::to_owned))
+        .expect("windows pins the output base");
+    let dir = format!(r"{output_base}\execroot\_main\{package}");
+    assert!(dir.len() <= 258, "{} characters: {dir}", dir.len());
+}
+
+#[test]
+fn startup_flags_pin_the_output_base_only_on_windows() {
+    let root = Path::new(r"D:\q\abc\cold");
+    assert_eq!(
+        startup_flags_for(root, true),
+        [
+            "--nosystem_rc".to_owned(),
+            format!("--output_user_root={}", root.display()),
+            format!(r"--output_base={}\o", root.display()),
+        ]
+    );
+    assert_eq!(
+        startup_flags_for(Path::new("/q/cold"), false),
+        ["--nosystem_rc", "--output_user_root=/q/cold"]
+    );
+}
+
+#[test]
 fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
     let argv = fixture_session().bazel_argv(&fixture_probe());
     assert_eq!(
@@ -1609,7 +1664,7 @@ fn markers_follow_the_host_os() {
 }
 
 #[test]
-fn cache_miss_marker_follows_the_host_os() {
+fn cache_miss_expectation_follows_the_host_os() {
     assert_eq!(probe_expectation("cache_miss", "linux").1, MISS_MARKER);
     assert_eq!(probe_expectation("cache_miss", "windows").1, MISS_MARKER);
     assert_eq!(

@@ -1070,14 +1070,13 @@ impl Session {
 
     /// The bazelisk command line of one probe, without the process wrapper.
     fn bazel_tail(&self, probe: &Probe) -> Vec<String> {
-        let mut argv = vec![
-            self.bazel.to_string_lossy().into_owned(),
-            "--nosystem_rc".to_owned(),
-            format!("--output_user_root={}", probe.output_root.display()),
+        let mut argv = vec![self.bazel.to_string_lossy().into_owned()];
+        argv.extend(startup_flags(probe.output_root));
+        argv.extend([
             "--max_idle_secs=60".to_owned(),
             probe.command.to_owned(),
             format!("--repository_cache={}", probe.repos.display()),
-        ];
+        ]);
         argv.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
         argv.extend(self.platform_flag());
         argv.extend(self.shell_flag());
@@ -1112,9 +1111,9 @@ impl Session {
             .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
         if cfg!(windows) {
             let script = format!(
-                "@echo off\r\n\"{}\" --nosystem_rc --output_user_root={} %*\r\n",
+                "@echo off\r\n\"{}\" {} %*\r\n",
                 self.bazel.display(),
-                output_root.display()
+                startup_flags(output_root).join(" ")
             );
             write(&dir.join("bazel.cmd"), &script)?;
             return Ok(dir);
@@ -1234,12 +1233,10 @@ impl Session {
     }
 
     fn windows_shutdown(&self, output_root: &Path) -> Vec<String> {
-        vec![
-            self.bazel.to_string_lossy().into_owned(),
-            "--nosystem_rc".to_owned(),
-            format!("--output_user_root={}", output_root.display()),
-            "shutdown".to_owned(),
-        ]
+        let mut argv = vec![self.bazel.to_string_lossy().into_owned()];
+        argv.extend(startup_flags(output_root));
+        argv.push("shutdown".to_owned());
+        argv
     }
 
     fn execute(
@@ -1980,6 +1977,40 @@ fn host() -> Value {
         "arch": std::env::consts::ARCH,
         "kernel": kernel.trim(),
     })
+}
+
+/// Where a qualification runs. Windows gets a short root on the drive of `tmp`, because
+/// bsdtar changes into each npm package directory and `SetCurrentDirectory` stops at 258
+/// characters; the nested execroot under `TEST_TMPDIR` is too deep for that.
+pub fn qualification_root_for(tmp: &Path, windows: bool) -> PathBuf {
+    let text = tmp.to_string_lossy();
+    let bytes = text.as_bytes();
+    if !windows || bytes.len() < 2 || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' {
+        return tmp.join("qualification");
+    }
+    let digest = sha256_hex(text.as_bytes());
+    PathBuf::from(format!("{}\\q\\{}", &text[..2], &digest[..8]))
+}
+
+pub fn qualification_root(tmp: &Path) -> PathBuf {
+    qualification_root_for(tmp, cfg!(windows))
+}
+
+/// The startup flags of every nested Bazel. On Windows the output base is pinned to a short
+/// `o` instead of Bazel's 32-character hash, for the same path length reason.
+fn startup_flags_for(output_root: &Path, windows: bool) -> Vec<String> {
+    let mut flags = vec![
+        "--nosystem_rc".to_owned(),
+        format!("--output_user_root={}", output_root.display()),
+    ];
+    if windows {
+        flags.push(format!("--output_base={}\\o", output_root.display()));
+    }
+    flags
+}
+
+fn startup_flags(output_root: &Path) -> Vec<String> {
+    startup_flags_for(output_root, cfg!(windows))
 }
 
 /// Removes a qualification root, including Bazel's read-only trees.

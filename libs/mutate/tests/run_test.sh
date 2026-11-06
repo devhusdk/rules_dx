@@ -42,11 +42,12 @@ fake pitest 'cat >target/pit-reports/mutations.xml <<XML
 <mutations>
 <mutation detected='"'"'true'"'"' status='"'"'KILLED'"'"' numberOfTestsRun='"'"'1'"'"'><sourceFile>A.java</sourceFile><mutatedClass>p.A</mutatedClass><lineNumber>7</lineNumber><description>negated conditional</description></mutation>
 <mutation detected='"'"'false'"'"' status='"'"'SURVIVED'"'"' numberOfTestsRun='"'"'1'"'"'><sourceFile>A.java</sourceFile><mutatedClass>p.A</mutatedClass><lineNumber>12</lineNumber><description>replaced return with 0</description></mutation>
+<mutation detected='"'"'false'"'"' status='"'"'SURVIVED'"'"' numberOfTestsRun='"'"'1'"'"'><sourceFile>A.java</sourceFile><mutatedClass>p.A</mutatedClass><mutatedMethod>abs</mutatedMethod><methodDescription>(I)I</methodDescription><lineNumber>2</lineNumber><mutator>org.pitest.mutationtest.engine.gregor.mutators.InvertNegsMutator</mutator><indexes><index>6</index></indexes><blocks><block>1</block></blocks><killingTest/><description>removed negation</description></mutation>
 <mutation detected='"'"'false'"'"' status='"'"'RUN_ERROR'"'"'><sourceFile>A.java</sourceFile><lineNumber>13</lineNumber><description>x</description></mutation>
 </mutations>
 XML'
 PITEST="$work/bin/pitest" "$run" pitest pkg --out .dx/pitest
-check pitest '{"killed": 1, "survived": 1, "timed_out": 0, "survivors": [{"file": "A.java", "line": 12, "mutation": "replaced return with 0"}]}'
+check pitest '{"killed": 1, "survived": 2, "timed_out": 0, "survivors": [{"file": "A.java", "line": 12, "mutation": "replaced return with 0"},{"file": "A.java", "line": 2, "mutation": "removed negation"}]}'
 
 status=0
 GREMLINS=missing-tool "$run" gremlins pkg --out "$work/o2" 2>/dev/null || status=$?

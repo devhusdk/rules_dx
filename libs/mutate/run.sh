@@ -40,7 +40,7 @@ case "$kind" in
     mutmut) tool="${MUTMUT:-}" ;;
     gremlins) tool="${GREMLINS:-gremlins}"; fallback=gremlins ;;
     stryker) tool="${STRYKER:-}" ;;
-    pitest) tool="${PITEST:-mvn -q org.pitest:pitest-maven:1.30.2:mutationCoverage -DtimestampedReports=false}" ;;
+    pitest) tool="${PITEST:-mvn -q test-compile org.pitest:pitest-maven:1.30.2:mutationCoverage -DtimestampedReports=false -DoutputFormats=XML}" ;;
     *) echo "unknown mutation tool kind: $kind" >&2; exit 2 ;;
 esac
 # The pinned binary is used only when the tool is not overridden or on PATH.

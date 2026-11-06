@@ -89,6 +89,6 @@ The override variable replaces the whole tool command. Without it the runner use
 - `go_mutate`: gremlins v0.6.0 on Linux x86_64 and macOS arm64.
 - `python_mutate`: `uv run --with mutmut==3.8.1 mutmut`, which needs `uv` and runs in the project's environment.
 - `ts_mutate`: `npx --yes --package @stryker-mutator/core@10.1.1 stryker`.
-- `java_mutate`, `kotlin_mutate`: `mvn org.pitest:pitest-maven:1.30.2:mutationCoverage`.
+- `java_mutate`, `kotlin_mutate`: `mvn test-compile org.pitest:pitest-maven:1.30.2:mutationCoverage` with `-DoutputFormats=XML`, which needs a JDK and Maven and a pom with a JUnit dependency.
 
-The mutmut and stryker readers were checked against real runs of those versions; pitest was checked against its documented `mutations.xml` only. mutmut does not report lines, so its survivors show line 0. Survivors that stryker and pitest report as uncovered count as survived.
+The mutmut, stryker and pitest readers were checked against real runs of those versions (pitest on JDK 21 with Maven 3.9.9). mutmut does not report lines, so its survivors show line 0. Survivors that stryker and pitest report as uncovered count as survived.

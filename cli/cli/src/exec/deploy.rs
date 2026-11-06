@@ -3,6 +3,10 @@ use dx_plan::args::{Command, DX_BUILD_MODE_ENV, Invocation, Profile, resolve_pro
 use dx_plan::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{check_deployable, resolve_deploy};
+use std::io::Write;
+
+/// Tells the deploy launcher to publish (1) or dry run (0).
+const DEPLOY_LIVE_ENV: &str = "DX_DEPLOY_LIVE";
 
 pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
@@ -14,7 +18,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         nonce: _,
         out,
         err,
-        ci: _,
+        ci,
         audit_today: _,
         actions: _,
         proc_root: _,
@@ -34,6 +38,9 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(label) => label,
         Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
+    if let Some(code) = refuse_agent_apply(invocation, ci, &label, out, err) {
+        return code;
+    }
     let info = match check_deployable(
         &label,
         workspace,
@@ -67,65 +74,13 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(plans) => plans,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
-    if !invocation.applies() {
-        if !invocation.quiet {
-            let _ = writeln!(err, "{}", build_plan.summary);
-        }
-        let build_code = match run_bazel(
-            invocation,
-            out,
-            err,
-            workspace,
-            runner,
-            &build_plan.argv,
-            &[],
-        ) {
-            Ok(code) => code,
-            Err(exit) => return exit,
-        };
-        if build_code != 0 {
-            return build_code;
-        }
-        if !invocation.quiet {
-            if !info.size_budget.is_empty() {
-                let _ = writeln!(
-                    err,
-                    "Size of {label}: {}",
-                    size_line(workspace, &info.size_stamp, &info.size_budget)
-                );
-            }
-            if !info.sbom.is_empty() {
-                let _ = writeln!(err, "SBOM of {label}: {}", sbom_line(workspace, &info.sbom));
-            }
-            let mut words = vec!["dx".to_owned(), "deploy".to_owned(), "--apply".to_owned()];
-            if invocation.debug {
-                words.push("--debug".to_owned());
-            }
-            if invocation.release {
-                words.push("--release".to_owned());
-            }
-            words.push(label.clone());
-            if !invocation.app_args().is_empty() {
-                let (safe, withheld) =
-                    dx_plan::plan::quality::partition_provenance_options(invocation.app_args());
-                words.push("--".to_owned());
-                words.extend(safe);
-                words.extend(withheld);
-            }
-            let _ = writeln!(
-                err,
-                "Validated {label} (built, not published; publish with: {})",
-                shell_join(&words)
-            );
-        }
-        return 0;
-    }
     if !invocation.quiet {
-        let _ = writeln!(
-            err,
-            "Running deploy for {label} (profile {})",
-            profile.name()
-        );
+        let summary = if invocation.applies() {
+            format!("Running deploy for {label} (profile {})", profile.name())
+        } else {
+            build_plan.summary.clone()
+        };
+        let _ = writeln!(err, "{summary}");
     }
     let build_code = match run_bazel(
         invocation,
@@ -142,15 +97,37 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     if build_code != 0 {
         return build_code;
     }
-    let profile_name = profile.name();
-    match run_bazel_app(
+    if !invocation.applies() && !invocation.quiet {
+        if !info.size_budget.is_empty() {
+            let _ = writeln!(
+                err,
+                "Size of {label}: {}",
+                size_line(workspace, &info.size_stamp, &info.size_budget)
+            );
+        }
+        if !info.sbom.is_empty() {
+            let _ = writeln!(err, "SBOM of {label}: {}", sbom_line(workspace, &info.sbom));
+        }
+    }
+    if !invocation.applies() && !info.has_provider {
+        if !invocation.quiet {
+            let _ = writeln!(
+                err,
+                "Validated {label} (built, not published; publish with: {})",
+                publish_command(invocation, &label)
+            );
+        }
+        return 0;
+    }
+    let live = if invocation.applies() { "1" } else { "0" };
+    let code = match run_bazel_app(
         invocation,
         out,
         err,
         workspace,
         runner,
         &run_plan.argv,
-        &[(DX_BUILD_MODE_ENV, profile_name)],
+        &[(DX_BUILD_MODE_ENV, profile_name), (DEPLOY_LIVE_ENV, live)],
     ) {
         Ok(AppExit {
             code,
@@ -161,7 +138,56 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Ok(app) => app.code,
         Err(exit) => exit,
+    };
+    if code == 0 && !invocation.applies() && !invocation.quiet {
+        let _ = writeln!(
+            err,
+            "Dry run of {label} (nothing published; publish with: {})",
+            publish_command(invocation, &label)
+        );
     }
+    code
+}
+
+/// Refuses `dx deploy --apply` in an agent session outside CI; a human or CI publishes.
+fn refuse_agent_apply(
+    invocation: &Invocation,
+    ci: bool,
+    label: &str,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Option<i32> {
+    if !invocation.applies() || !invocation.agent || ci {
+        return None;
+    }
+    let message = format!(
+        "dx deploy --apply publishes {label}, so a human or CI must run it; dry run with: dx deploy {label}"
+    );
+    Some(report_failure(
+        invocation.output,
+        out,
+        err,
+        &Failure::new(CODE_DEPLOY_NEEDS_HUMAN, &message, 1).without_usage(),
+    ))
+}
+
+fn publish_command(invocation: &Invocation, label: &str) -> String {
+    let mut words = vec!["dx".to_owned(), "deploy".to_owned(), "--apply".to_owned()];
+    if invocation.debug {
+        words.push("--debug".to_owned());
+    }
+    if invocation.release {
+        words.push("--release".to_owned());
+    }
+    words.push(label.to_owned());
+    if !invocation.app_args().is_empty() {
+        let (safe, withheld) =
+            dx_plan::plan::quality::partition_provenance_options(invocation.app_args());
+        words.push("--".to_owned());
+        words.extend(safe);
+        words.extend(withheld);
+    }
+    shell_join(&words)
 }
 
 fn sbom_line(workspace: &std::path::Path, sbom: &str) -> String {
@@ -262,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    fn deploy_check_builds_without_publishing() {
+    fn deploy_without_apply_runs_the_dry_run() {
         let harness = harness_with_deploy("deploy-check", "True|release|None|True");
         let (code, _, err) = harness.run(&["deploy", "//deploy:prod", "--", "--port=8080"]);
         assert_eq!(code, 0, "{err}");
@@ -271,24 +297,82 @@ mod tests {
             "{err}"
         );
         assert!(
-            err.contains("dx deploy --apply //deploy:prod -- --port=8080"),
+            err.contains("Dry run of //deploy:prod (nothing published; publish with: dx deploy --apply //deploy:prod -- --port=8080)"),
             "{err}"
         );
-        assert!(!err.contains("Running deploy for //deploy:prod"), "{err}");
         let harness = harness_with_deploy("deploy-check-probe", "True|release|None|True");
         let inv = invocation(&["deploy", "//deploy:prod", "--", "--port=8080"]);
-        let run = harness.probe_with(&inv, &[Some(0)]);
+        let run = harness.probe_with(&inv, &[Some(0), Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
-        assert_eq!(
-            run.argv.len(),
-            1,
-            "build only, the deploy step never launches: {run:?}"
-        );
+        assert_eq!(run.argv.len(), 2, "build then dry run: {run:?}");
         assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
         assert!(
             !run.argv[0].contains(&"--port=8080".to_owned()),
             "app args stay out of the validation build: {run:?}"
         );
+        assert!(run.argv[1].contains(&"--port=8080".to_owned()), "{run:?}");
+        let seen_env = harness.seen_env.borrow();
+        assert!(
+            seen_env[1].contains(&("DX_DEPLOY_LIVE".to_owned(), "0".to_owned())),
+            "{seen_env:?}"
+        );
+    }
+
+    #[test]
+    fn deploy_without_apply_only_builds_a_plain_executable() {
+        let harness = harness_with_deploy("deploy-check-exe", "False|NONE|NONE|True");
+        let inv = invocation(&["deploy", "//app:bin"]);
+        let mut err = Vec::new();
+        let run = harness.probe_streams(&inv, &[Some(0)], &mut Vec::new(), &mut err);
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(run.code, 0, "{err}");
+        assert_eq!(
+            run.argv.len(),
+            1,
+            "a plain executable never runs without --apply: {run:?}"
+        );
+        assert!(
+            err.contains("Validated //app:bin (built, not published; publish with: dx deploy --apply //app:bin)"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn deploy_dry_run_failure_keeps_the_code_and_skips_the_hint() {
+        let harness = harness_with_deploy("deploy-check-runfail", "True|release|None|True");
+        let inv = invocation(&["deploy", "//deploy:prod"]);
+        let mut err = Vec::new();
+        let run = harness.probe_streams(&inv, &[Some(0), Some(5)], &mut Vec::new(), &mut err);
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(run.code, 5, "{err}");
+        assert!(!err.contains("Dry run of"), "{err}");
+    }
+
+    #[test]
+    fn deploy_apply_in_an_agent_session_needs_a_human() {
+        let harness = harness_with_deploy("deploy-agent", "True|release|None|True");
+        let mut inv = invocation(&["deploy", "--apply", "//deploy:prod"]);
+        inv.agent = true;
+        let runner = harness.runner();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = super::execute_deploy(&inv, harness.env(&runner, &mut out, &mut err));
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("deploy_needs_human"), "{err}");
+        assert!(err.contains("dx deploy //deploy:prod"), "{err}");
+        assert!(harness.seen_env.borrow().is_empty(), "nothing ran");
+        let harness = harness_with_deploy("deploy-agent-ci", "True|release|None|True");
+        let runner = harness.runner();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let mut env = harness.env(&runner, &mut out, &mut err);
+        env.ci = true;
+        let code = super::execute_deploy(&inv, env);
+        assert_eq!(code, 0, "{}", String::from_utf8_lossy(&err));
+        let harness = harness_with_deploy("deploy-agent-dry", "True|release|None|True");
+        let mut inv = invocation(&["deploy", "//deploy:prod"]);
+        inv.agent = true;
+        let run = harness.probe_with(&inv, &[Some(0), Some(0)]);
+        assert_eq!(run.code, 0, "an agent may dry run: {run:?}");
     }
 
     #[test]
@@ -335,6 +419,10 @@ mod tests {
         assert_eq!(seen_env.len(), 2);
         assert!(
             seen_env[1].contains(&("DX_BUILD_MODE".to_owned(), "release".to_owned())),
+            "{seen_env:?}"
+        );
+        assert!(
+            seen_env[1].contains(&("DX_DEPLOY_LIVE".to_owned(), "1".to_owned())),
             "{seen_env:?}"
         );
         let harness = harness_with_deploy("deploy-attr", "True|debug|None|True");

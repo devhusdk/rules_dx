@@ -131,7 +131,7 @@ pub fn promotion_build(
         format!("secret-refs: {} (names only, never values)", refs.join(","))
     };
     let manifest = format!(
-        "# would-run manifest for promotion_deploy (publishes nothing; live gates need PROMOTION_LIVE=1 plus PROMOTION_APPROVED=1)\n{}\n{}\nrollback: set PROMOTION_ROLLBACK=1 plus PROMOTION_ROLLBACK_TO=<version> to record a rollback pointer (history lives in the promotion dir or registry)\nartifact-sha256: {digest}  {base}\n{refs_line}\nregistry-auth: env-only (PROMOTION_REGISTRY_USER/PROMOTION_REGISTRY_TOKEN), never from BUILD\n",
+        "# would-run manifest for promotion_deploy (publishes nothing; publish with PROMOTION_APPROVED=1 dx deploy --apply)\n{}\n{}\nrollback: set PROMOTION_ROLLBACK=1 plus PROMOTION_ROLLBACK_TO=<version> to record a rollback pointer (history lives in the promotion dir or registry)\nartifact-sha256: {digest}  {base}\n{refs_line}\nregistry-auth: env-only (PROMOTION_REGISTRY_USER/PROMOTION_REGISTRY_TOKEN), never from BUILD\n",
         promotion_promote_command(&base, from_env, to_env, version),
         health.manifest_line(),
     );
@@ -414,7 +414,7 @@ pub fn promotion_main(
         || std::env::var("PROMOTION_REGISTRY_REQUIRED").unwrap_or_default() == "1"
     {
         eprintln!(
-            "promotion_deploy: local default stages only; health and registry gates apply to the live path (PROMOTION_LIVE=1); staged without running them"
+            "promotion_deploy: local default stages only; health and registry gates apply to the live path (dx deploy --apply); staged without running them"
         );
     }
     match promotion_build(

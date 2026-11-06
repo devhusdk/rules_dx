@@ -607,7 +607,7 @@ pub fn npm_deploy_main_checked(
 ) -> i32 {
     if std::env::var_os("NPM_PUBLISH_DRY_RUN").is_some() {
         eprintln!(
-            "npm_deploy: NPM_PUBLISH_DRY_RUN is not supported; publishing needs NPM_PUBLISH_LIVE=1"
+            "npm_deploy: NPM_PUBLISH_DRY_RUN is not supported; publish with dx deploy --apply"
         );
         return 1;
     }

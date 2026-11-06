@@ -234,6 +234,7 @@ pub(crate) const CODE_UPDATE_FAILED: &str = "update_failed";
 pub(crate) const CODE_UPDATE_WIDEN_FAILED: &str = "update_widen_failed";
 pub(crate) const CODE_OFFLINE_REQUIRED: &str = "offline_required";
 pub(crate) const CODE_FROZEN_LOCKED: &str = "frozen_locked";
+pub(crate) const CODE_DEPLOY_NEEDS_HUMAN: &str = "deploy_needs_human";
 /// Runs `git` in `workspace` and returns its stdout; a launch error or a non-zero exit is an error.
 pub(super) fn git_output(
     runner: &dyn QueryRunner,

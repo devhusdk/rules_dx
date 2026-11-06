@@ -18,6 +18,9 @@ pub(crate) struct OwnerGate {
     pub(crate) live: &'static str,
 }
 
+/// Set by dx deploy: 1 publishes, 0 is the dry run; overrides the launcher's own live var.
+pub(crate) const DEPLOY_LIVE_ENV: &str = "DX_DEPLOY_LIVE";
+
 /// Reads an env var, empty when unset.
 pub(crate) fn env_or_empty(key: &str) -> String {
     std::env::var(key).unwrap_or_default()
@@ -45,9 +48,14 @@ impl Secrets {
 }
 
 impl OwnerGate {
-    /// True when the live path is requested (the live var is exactly 1).
+    /// True when the live path is requested: DX_DEPLOY_LIVE when set, else the live var, exactly 1.
     pub(crate) fn requested(&self, var: impl Fn(&str) -> String) -> bool {
-        var(self.live) == "1"
+        let deploy = var(DEPLOY_LIVE_ENV);
+        if deploy.is_empty() {
+            var(self.live) == "1"
+        } else {
+            deploy == "1"
+        }
     }
 
     /// Returns the refusal message, or None when credentials and approval are present.
@@ -533,6 +541,14 @@ mod tests {
             );
         }
         assert!(!TEST_GATE.requested(lookup(&[])));
+    }
+
+    #[test]
+    fn dx_deploy_live_overrides_the_launcher_live_var() {
+        assert!(!TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "0"), ("TEST_LIVE", "1")])));
+        assert!(TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "1")])));
+        assert!(TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "1"), ("TEST_LIVE", "0")])));
+        assert!(!TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "true")])));
     }
 
     #[test]

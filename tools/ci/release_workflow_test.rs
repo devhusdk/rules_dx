@@ -5,15 +5,15 @@ use dx_testing::{read_runfiles, resolve_runfiles};
 
 const WORKFLOW: &str = ".github/workflows/reusable-release.yml";
 
-/// Returns every gate env var name that an `OwnerGate` in deploy/rules/src declares.
-fn gate_names() -> Vec<String> {
+/// Returns every gate env var name of one `OwnerGate` field (`approved` or `live`) in deploy/rules/src.
+fn gate_names(field: &str) -> Vec<String> {
     let run = resolve_runfiles("deploy/rules/src/run.rs");
     let dir = run.parent().expect("run.rs has a directory");
     let mut names = Vec::new();
     for entry in std::fs::read_dir(dir).expect("read deploy/rules/src") {
         let path = entry.expect("dir entry").path();
         if path.extension().is_some_and(|ext| ext == "rs") {
-            names.extend(declared(&path));
+            names.extend(declared(&path, field));
         }
     }
     names.sort();
@@ -21,20 +21,18 @@ fn gate_names() -> Vec<String> {
     names
 }
 
-/// Returns the approved and live names declared in one source file.
-fn declared(path: &Path) -> Vec<String> {
+/// Returns the names one gate field declares in one source file.
+fn declared(path: &Path, field: &str) -> Vec<String> {
     let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
     let mut names = Vec::new();
     for line in text.lines() {
         let line = line.trim();
-        for field in ["approved: \"", "live: \""] {
-            let Some(rest) = line.strip_prefix(field) else {
-                continue;
-            };
-            let name = rest.split('"').next().unwrap_or_default();
-            if !name.starts_with("TEST_") {
-                names.push(name.to_owned());
-            }
+        let Some(rest) = line.strip_prefix(&format!("{field}: \"")) else {
+            continue;
+        };
+        let name = rest.split('"').next().unwrap_or_default();
+        if !name.starts_with("TEST_") {
+            names.push(name.to_owned());
         }
     }
     names
@@ -46,21 +44,28 @@ fn publish_script() -> String {
 
 #[test]
 fn gate_names_are_found() {
-    let names = gate_names();
-    assert!(names.len() >= 20, "found too few gates: {names:?}");
-    assert!(names.contains(&"PUB_PUBLISH_LIVE".to_owned()));
+    let names = gate_names("approved");
+    assert!(names.len() >= 15, "found too few gates: {names:?}");
+    assert!(names.contains(&"PUB_PUBLISH_APPROVED".to_owned()));
+    assert!(gate_names("live").contains(&"PUB_PUBLISH_LIVE".to_owned()));
 }
 
 #[test]
-fn publish_step_exports_every_deploy_gate() {
+fn publish_step_exports_only_the_approval_gates() {
     let script = publish_script();
     let words: Vec<&str> = script
         .split(|c: char| !(c.is_ascii_uppercase() || c == '_'))
         .collect();
-    for name in gate_names() {
+    for name in gate_names("approved") {
         assert!(
             words.contains(&name.as_str()),
             "the release job does not export {name}"
+        );
+    }
+    for name in gate_names("live") {
+        assert!(
+            !words.contains(&name.as_str()),
+            "the release job exports {name}; dx deploy --apply asks for the live path"
         );
     }
 }

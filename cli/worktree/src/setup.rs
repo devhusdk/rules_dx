@@ -110,25 +110,45 @@ pub fn allow_rules() -> Vec<String> {
         .collect()
 }
 
+/// Commands Claude Code must ask before running: `dx deploy --apply` publishes.
+const ASK: [&str; 2] = [
+    "Bash(tools/dx deploy --apply *)",
+    "Bash(tools/dx deploy * --apply*)",
+];
+
+/// The `permissions.ask` rules a fresh settings file carries.
+pub fn ask_rules() -> Vec<String> {
+    ASK.into_iter().map(str::to_owned).collect()
+}
+
 fn parse(text: &str) -> Value {
     dx_merge::jsonc::parse(text).unwrap_or(Value::Null)
 }
 
-/// Allow rules an existing settings file lacks.
-pub fn missing_allow(existing: &str) -> Vec<String> {
+fn missing_rules(existing: &str, list: &str, rules: Vec<String>) -> Vec<String> {
     let parsed = parse(existing);
     let have: Vec<&str> = parsed
         .get("permissions")
-        .and_then(|permissions| permissions.get("allow"))
+        .and_then(|permissions| permissions.get(list))
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
         .filter_map(Value::as_str)
         .collect();
-    allow_rules()
+    rules
         .into_iter()
         .filter(|rule| !have.contains(&rule.as_str()))
         .collect()
+}
+
+/// Allow rules an existing settings file lacks.
+pub fn missing_allow(existing: &str) -> Vec<String> {
+    missing_rules(existing, "allow", allow_rules())
+}
+
+/// Ask rules an existing settings file lacks.
+pub fn missing_ask(existing: &str) -> Vec<String> {
+    missing_rules(existing, "ask", ask_rules())
 }
 
 /// The hooks file a fresh repository gets.
@@ -145,7 +165,7 @@ pub fn settings_text(file: &HookFile) -> String {
         settings["version"] = json!(1);
     }
     if file.allow {
-        settings["permissions"] = json!({ "allow": allow_rules() });
+        settings["permissions"] = json!({ "allow": allow_rules(), "ask": ask_rules() });
     }
     let text = serde_json::to_string_pretty(&settings).unwrap_or_default();
     format!("{text}\n")
@@ -210,6 +230,8 @@ pub struct Outcome {
     pub missing: Vec<(&'static str, Vec<String>)>,
     /// The allow rules an existing Claude Code settings file lacks.
     pub missing_allow: Vec<String>,
+    /// The ask rules an existing Claude Code settings file lacks.
+    pub missing_ask: Vec<String>,
 }
 
 /// Writes each absent hooks file whose path is in `create` and adds missing entries to existing ones in place.
@@ -243,6 +265,9 @@ fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
         for rule in missing_allow(existing) {
             text = dx_merge::jsonc::append_missing(&text, &["permissions", "allow"], json!(rule))?;
         }
+        for rule in missing_ask(existing) {
+            text = dx_merge::jsonc::append_missing(&text, &["permissions", "ask"], json!(rule))?;
+        }
     }
     Ok(text)
 }
@@ -252,19 +277,20 @@ fn sync(workspace: &Path, write: bool, create: &[&str]) -> io::Result<Outcome> {
         wrote: Vec::new(),
         missing: Vec::new(),
         missing_allow: Vec::new(),
+        missing_ask: Vec::new(),
     };
     for file in HOOK_FILES {
         let path = workspace.join(file.path);
         if path.exists() {
             let existing = std::fs::read_to_string(&path)?;
-            let rules = if file.allow {
-                missing_allow(&existing)
+            let (rules, ask) = if file.allow {
+                (missing_allow(&existing), missing_ask(&existing))
             } else {
-                Vec::new()
+                (Vec::new(), Vec::new())
             };
             let missing = missing_entries(file, &existing);
             if write
-                && (!missing.is_empty() || !rules.is_empty())
+                && (!missing.is_empty() || !rules.is_empty() || !ask.is_empty())
                 && let Ok(merged) = merge(file, &existing)
             {
                 dx_atomic_fs::write_atomic(&path, merged.as_bytes())?;
@@ -272,6 +298,7 @@ fn sync(workspace: &Path, write: bool, create: &[&str]) -> io::Result<Outcome> {
                 continue;
             }
             outcome.missing_allow.extend(rules);
+            outcome.missing_ask.extend(ask);
             if !missing.is_empty() {
                 outcome.missing.push((file.path, missing));
             }
@@ -369,6 +396,7 @@ mod tests {
         assert!(text.contains("\"command\": \"mine\""));
         assert!(missing_entries(&CLAUDE, &text).is_empty());
         assert!(missing_allow(&text).is_empty());
+        assert!(missing_ask(&text).is_empty());
         let parsed = parse(&text);
         assert_eq!(commands(&parsed, "PreToolUse").len(), 2);
         assert_eq!(parsed["model"], "opus");
@@ -384,6 +412,7 @@ mod tests {
         assert_eq!(*path, CLAUDE.path);
         assert!(missing.iter().any(|entry| entry.contains("WorktreeCreate")));
         assert_eq!(outcome.missing_allow, allow_rules());
+        assert_eq!(outcome.missing_ask, ask_rules());
         assert_eq!(
             std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read"),
             USER_SETTINGS
@@ -483,7 +512,12 @@ mod tests {
         apply(dir.path(), &ALL).expect("apply");
         let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
         assert!(missing_allow(&settings).is_empty());
+        assert!(missing_ask(&settings).is_empty());
         assert_eq!(allow_rules().len(), 6);
+        assert!(!allow_rules().iter().any(|rule| rule.contains("deploy")));
+        assert!(ask_rules()
+            .iter()
+            .all(|rule| rule.contains("tools/dx deploy")));
         for file in [&CODEX, &GEMINI] {
             let text = std::fs::read_to_string(dir.path().join(file.path)).expect("file");
             assert!(!text.contains("permissions"), "{}", file.path);
@@ -495,6 +529,26 @@ mod tests {
         let hooks_only = "{\"hooks\": {}}\n";
         assert_eq!(missing_allow(hooks_only), allow_rules());
         assert_eq!(missing_allow("not json"), allow_rules());
+        assert_eq!(missing_ask(hooks_only), ask_rules());
+    }
+
+    #[test]
+    fn an_existing_allow_list_gains_the_deploy_ask_rules() {
+        let dir = scratch("dx-worktree-setup-ask-");
+        std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
+        let fresh = settings_text(&CLAUDE);
+        let mut parsed = parse(&fresh);
+        parsed["permissions"]
+            .as_object_mut()
+            .expect("permissions")
+            .remove("ask");
+        let old = serde_json::to_string_pretty(&parsed).expect("json");
+        std::fs::write(dir.path().join(CLAUDE.path), &old).expect("settings");
+        let outcome = apply(dir.path(), &ALL).expect("apply");
+        assert!(outcome.wrote.contains(&CLAUDE.path.to_owned()));
+        let text = std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read");
+        assert_eq!(parse(&text)["permissions"]["ask"], json!(ask_rules()));
+        assert!(missing_allow(&text).is_empty());
     }
 
     fn commands(settings: &Value, event: &str) -> Vec<String> {

@@ -50,6 +50,10 @@
       "Bash(tools/dx status *)",
       "Bash(export DX_WORKTREE_SESSION=*)",
       "Bash(export DX_WORKTREE_HOLDER=*)"
+    ],
+    "ask": [
+      "Bash(tools/dx deploy --apply *)",
+      "Bash(tools/dx deploy * --apply*)"
     ]
   }
 }

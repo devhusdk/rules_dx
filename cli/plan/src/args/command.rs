@@ -255,7 +255,7 @@ pub static COMMANDS: [CommandMeta; 26] = [
         command: Command::Deploy,
         name: "deploy",
         scope_policy: "require-label",
-        describe: "build and run a single deployable target",
+        describe: "dry run one deploy target; --apply publishes it",
         usage: "Usage: dx deploy [--apply] [--debug|--release] <label> [-- app-args ...]",
         scopes: "Scopes: exactly one main-workspace label (//pkg:target); patterns (//...), multiple labels, and file/path scopes are usage failures.",
         is_managed: false,

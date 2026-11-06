@@ -661,6 +661,10 @@ mod tests {
             settings["permissions"]["allow"],
             serde_json::json!(dx_worktree::setup::allow_rules())
         );
+        assert_eq!(
+            settings["permissions"]["ask"],
+            serde_json::json!(dx_worktree::setup::ask_rules())
+        );
     }
 
     #[test]
@@ -691,7 +695,10 @@ mod tests {
         assert_eq!(code, 0);
         assert!(out.contains("wrote .claude/settings.json"), "{out}");
         let text = std::fs::read_to_string(root.join(".claude/settings.json")).expect("read");
-        for rule in dx_worktree::setup::allow_rules() {
+        for rule in dx_worktree::setup::allow_rules()
+            .into_iter()
+            .chain(dx_worktree::setup::ask_rules())
+        {
             assert!(text.contains(&rule), "{rule}: {text}");
         }
     }

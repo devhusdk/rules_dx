@@ -20,7 +20,7 @@ Commands:
   coverage    collect LCOV coverage with optional threshold
   bench       run dx-bench tagged tests and print their numbers
   run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
-  deploy      build and run a single deployable target
+  deploy      dry run one deploy target; --apply publishes it
   check       run generate+format+lint+typecheck in order (check by default; --apply writes fixes, then verifies with a read-only check)
   clean       prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
   update      update dependencies per set, or widen or add one package to a version (check by default; --apply writes)

@@ -348,6 +348,13 @@ pub(super) fn apply(
                 outcome.missing_allow.join("; ")
             ));
         }
+        if !outcome.missing_ask.is_empty() {
+            notes.push(format!(
+                "{prefix}{} exists; add these permissions.ask entries: {}",
+                setup::SETTINGS,
+                outcome.missing_ask.join("; ")
+            ));
+        }
     }
     if has(|kind| *kind == Kind::AgentsBlock)
         && agents::write(root, true).map_err(|error| error.to_string())?

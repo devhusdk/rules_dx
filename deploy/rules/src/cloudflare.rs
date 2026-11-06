@@ -419,7 +419,7 @@ fn pages_check_run(
     let _ = writeln!(out, "  files: {} ({bytes} bytes)", files.len());
     let _ = writeln!(
         out,
-        "  publish: set CLOUDFLARE_PAGES_LIVE=1 and CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN"
+        "  publish: CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"
     );
     0
 }
@@ -1186,7 +1186,7 @@ exit 7
         assert!(out.contains("  intent: preview\n"), "{out}");
         assert!(out.contains("  files: 3 ("), "{out}");
         assert!(
-            out.contains("  publish: set CLOUDFLARE_PAGES_LIVE=1 and CLOUDFLARE_PAGES_APPROVED=1"),
+            out.contains("  publish: CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"),
             "{out}"
         );
         assert!(!out.contains("deployment:"), "{out}");

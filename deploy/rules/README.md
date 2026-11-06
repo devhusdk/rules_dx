@@ -1,5 +1,13 @@
 # dx_deployment
 
+`dx deploy <label>` builds the target and runs its dry run: it stages,
+validates and prints what would be published, and contacts no registry.
+`dx deploy --apply <label>` publishes. Each launcher still needs its own
+`<X>_APPROVED=1` and credentials, which dx never sets: a human sets them in
+the shell, CI sets them in `reusable-release.yml`. In an agent session
+`--apply` is refused unless `CI=true`. A plain `bazel run` of a launcher
+publishes only with `<X>_LIVE=1`.
+
 `size_budget` is optional, such as `25MB` (decimal `B`, `KB`, `MB` or `GB`).
 Building the deployment fails when its `artifacts` together are larger, and
 prints both sizes in bytes. Empty means no budget.
@@ -71,10 +79,10 @@ Setup:
 Run:
 
 ```
-MAVEN_PUBLISH_LIVE=1 MAVEN_PUBLISH_APPROVED=1 \
+MAVEN_PUBLISH_APPROVED=1 \
 MAVEN_USERNAME=... MAVEN_PASSWORD=... \
 MAVEN_GPG_KEY=... MAVEN_GPG_PASSPHRASE=... \
-bazel run //pkg:maven_demo
+dx deploy --apply //pkg:maven_demo
 ```
 
 Live upload builds the same signed file repository as a default run, zips
@@ -139,8 +147,8 @@ Setup:
 Run:
 
 ```
-NPM_PUBLISH_LIVE=1 NPM_PUBLISH_APPROVED=1 NPM_TOKEN=... \
-bazel run //pkg:npm_demo
+NPM_PUBLISH_APPROVED=1 NPM_TOKEN=... \
+dx deploy --apply //pkg:npm_demo
 ```
 
 `NPM_PUBLISH_DRY_RUN` is refused.
@@ -182,14 +190,7 @@ dx deploy //pkg:site_deploy
 ```
 
 This builds the target and validates the site files, the account, the project
-and the branch. Nothing is uploaded.
-
-A run without `CLOUDFLARE_PAGES_LIVE=1` checks the same things and uploads
-nothing. It needs no token:
-
-```
-dx deploy --apply //pkg:site_deploy
-```
+and the branch. Nothing is uploaded and no token is needed. It prints:
 
 ```
 cloudflare_pages_deploy: checked my-site (branch feature/x, preview, profile: release); nothing uploaded
@@ -198,18 +199,18 @@ cloudflare_pages_deploy: checked my-site (branch feature/x, preview, profile: re
   branch: feature/x
   intent: preview
   files: 12 (48213 bytes)
-  publish: set CLOUDFLARE_PAGES_LIVE=1 and CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN
+  publish: CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply
 ```
 
 Publish:
 
 ```
-CLOUDFLARE_PAGES_LIVE=1 CLOUDFLARE_PAGES_APPROVED=1 \
+CLOUDFLARE_PAGES_APPROVED=1 \
 CLOUDFLARE_API_TOKEN=... \
 dx deploy --apply //pkg:site_deploy
 ```
 
-`CLOUDFLARE_PAGES_LIVE=1` without `CLOUDFLARE_PAGES_APPROVED=1` is refused.
+`dx deploy --apply` without `CLOUDFLARE_PAGES_APPROVED=1` is refused.
 The token needs the Cloudflare Pages edit permission. It is read only on a
 live run. It is never written into the build. Wrangler runs without prompts,
 telemetry or project discovery.
@@ -383,7 +384,7 @@ Default run stages `<name>-vendor/vendor/<name>/` and
 Publish with `cargo` on `PATH`:
 
 ```
-CRATES_PUBLISH_LIVE=1 CRATES_PUBLISH_APPROVED=1 CARGO_REGISTRY_TOKEN=... \
+CRATES_PUBLISH_APPROVED=1 CARGO_REGISTRY_TOKEN=... \
 dx deploy --apply //pkg:crates_demo
 ```
 
@@ -423,7 +424,7 @@ No credentials needed, nothing is uploaded.
 Publish with `mix` or `rebar3` on `PATH`:
 
 ```
-HEX_PUBLISH_LIVE=1 HEX_PUBLISH_APPROVED=1 HEX_API_KEY=... \
+HEX_PUBLISH_APPROVED=1 HEX_API_KEY=... \
 dx deploy --apply //pkg:hex_demo
 ```
 
@@ -464,7 +465,7 @@ credentials needed.
 Push with `gem` on `PATH` or from `ruby`:
 
 ```
-RUBYGEMS_PUBLISH_LIVE=1 RUBYGEMS_PUBLISH_APPROVED=1 RUBYGEMS_API_TOKEN=... \
+RUBYGEMS_PUBLISH_APPROVED=1 RUBYGEMS_API_TOKEN=... \
 dx deploy --apply //pkg:rubygems_demo
 ```
 
@@ -506,7 +507,7 @@ so a budget can be set from it. Without `gh` or network, it prints why that rele
 Create the draft with `gh` on `PATH` and logged in:
 
 ```
-GH_RELEASE_LIVE=1 GH_RELEASE_APPROVED=1 dx deploy --apply //pkg:github_demo
+GH_RELEASE_APPROVED=1 dx deploy --apply //pkg:github_demo
 ```
 
 This runs `gh release create <tag> <assets> --draft --verify-tag`, so the
@@ -542,7 +543,7 @@ Default run writes `<name>-tap/Formula/<formula>.rb` and `would-run.txt` into th
 Push the formula with `gh` on `PATH`:
 
 ```
-HOMEBREW_TAP_PUBLISH_LIVE=1 HOMEBREW_TAP_PUBLISH_APPROVED=1 HOMEBREW_TAP_API_TOKEN=... \
+HOMEBREW_TAP_PUBLISH_APPROVED=1 HOMEBREW_TAP_API_TOKEN=... \
 dx deploy --apply //pkg:tool_tap
 ```
 
@@ -574,8 +575,8 @@ linux_package_deploy(
 
 `bazel build //pkg:demo_deb` writes `demo_<version>_<arch>.deb`; each format
 has its own `<name>_<format>` target. `dx deploy //pkg:demo` stages the
-packages like `github_deploy`, and the live run (`GH_RELEASE_LIVE=1
-GH_RELEASE_APPROVED=1`) attaches them to the draft release. `nfpm` runs on
+packages like `github_deploy`, and the live run (`GH_RELEASE_APPROVED=1 dx deploy
+--apply`) attaches them to the draft release. `nfpm` runs on
 Linux x86_64, Linux arm64 and macOS arm64 hosts.
 
 # pub_deploy
@@ -608,7 +609,7 @@ the tool on `PATH` the run prints a skip line. No credentials needed.
 Publish with `dart` (or `flutter`) on `PATH`:
 
 ```
-PUB_PUBLISH_LIVE=1 PUB_PUBLISH_APPROVED=1 PUB_TOKEN=... \
+PUB_PUBLISH_APPROVED=1 PUB_TOKEN=... \
 dx deploy --apply //pkg:pub_demo
 ```
 
@@ -640,7 +641,7 @@ Default run stages `<name>-feed/` with the nupkg. No credentials needed.
 Push with `dotnet` on `PATH`:
 
 ```
-NUGET_PUBLISH_LIVE=1 NUGET_PUBLISH_APPROVED=1 NUGET_API_KEY=... \
+NUGET_PUBLISH_APPROVED=1 NUGET_API_KEY=... \
 dx deploy --apply //pkg:nuget_demo
 ```
 
@@ -679,7 +680,7 @@ default run stages `<name>-sdist/` with the sdist. No credentials needed.
 Upload with `cabal` on `PATH`:
 
 ```
-HACKAGE_PUBLISH_LIVE=1 HACKAGE_PUBLISH_APPROVED=1 HACKAGE_API_TOKEN=... \
+HACKAGE_PUBLISH_APPROVED=1 HACKAGE_API_TOKEN=... \
 dx deploy --apply //pkg:hackage-demo
 ```
 
@@ -712,7 +713,7 @@ with the rockspec; it does not run `luarocks`. No credentials needed.
 Upload with `luarocks` on `PATH`:
 
 ```
-LUAROCKS_PUBLISH_LIVE=1 LUAROCKS_PUBLISH_APPROVED=1 LUAROCKS_API_KEY=... \
+LUAROCKS_PUBLISH_APPROVED=1 LUAROCKS_API_KEY=... \
 dx deploy --apply //pkg:luarocks_demo
 ```
 
@@ -797,7 +798,7 @@ credentials needed.
 Push:
 
 ```
-OCI_PUBLISH_LIVE=1 OCI_PUBLISH_APPROVED=1 \
+OCI_PUBLISH_APPROVED=1 \
 OCI_REGISTRY_USER=... OCI_REGISTRY_TOKEN=... \
 dx deploy --apply //pkg:oci_demo
 ```
@@ -852,7 +853,7 @@ needed.
 Push with `octo` on `PATH`:
 
 ```
-OCTOPUS_PUBLISH_LIVE=1 OCTOPUS_PUBLISH_APPROVED=1 OCTOPUS_API_KEY=... \
+OCTOPUS_PUBLISH_APPROVED=1 OCTOPUS_API_KEY=... \
 OCTOPUS_URL=https://octopus.example.com \
 dx deploy --apply //pkg:octopus_demo
 ```
@@ -901,7 +902,7 @@ registry gates do not run.
 Promote:
 
 ```
-PROMOTION_LIVE=1 PROMOTION_APPROVED=1 dx deploy --apply //pkg:promotion_demo
+PROMOTION_APPROVED=1 dx deploy --apply //pkg:promotion_demo
 ```
 
 A live run refuses version `0.0.0` and checks the approval, the registry env,
@@ -976,9 +977,7 @@ pypi_deploy: staged <name> (profile: <profile>)
   index: <path>/<name>-wheelhouse/simple-index/<project>/index.html
 ```
 
-A run without the live variable needs no credentials.
-
-Set `PYPI_PUBLISH_LIVE=1`. Only the value `1` counts. A live run also needs:
+A dry run needs no credentials. `dx deploy --apply` publishes and needs:
 
 - `PYPI_PUBLISH_APPROVED=1`
 - `PYPI_API_TOKEN`: sent to `twine` as the password, with username `__token__`.
@@ -1003,7 +1002,7 @@ version` and exits 1.
 keep-list in Common behavior pass through.
 
 ```
-PYPI_PUBLISH_LIVE=1 PYPI_PUBLISH_APPROVED=1 PYPI_API_TOKEN=... \
+PYPI_PUBLISH_APPROVED=1 PYPI_API_TOKEN=... \
 dx deploy --apply //pkg:pypi_demo
 ```
 
@@ -1034,7 +1033,7 @@ helm_chart_deploy(
 - `helm`: defaults to the pinned helm from `//config:tool_helm`.
 
 A dry run runs `helm lint`, then `helm package`, and prints the `.tgz` path.
-A live run uses the OCI credentials: `OCI_PUBLISH_LIVE=1`,
+A live run (`dx deploy --apply`) uses the OCI credentials:
 `OCI_PUBLISH_APPROVED=1`, `OCI_REGISTRY_USER` and `OCI_REGISTRY_TOKEN`. It logs
 in with `helm registry login` into a throwaway registry config, runs
 `helm push <chart>.tgz oci://<registry>/<repository>`, and removes the config.

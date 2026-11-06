@@ -132,37 +132,21 @@ jobs:
           set -euo pipefail
           for gate in \
             CLOUDFLARE_PAGES_APPROVED \
-            CLOUDFLARE_PAGES_LIVE \
             CRATES_PUBLISH_APPROVED \
-            CRATES_PUBLISH_LIVE \
             GH_RELEASE_APPROVED \
-            GH_RELEASE_LIVE \
             HACKAGE_PUBLISH_APPROVED \
-            HACKAGE_PUBLISH_LIVE \
             HEX_PUBLISH_APPROVED \
-            HEX_PUBLISH_LIVE \
             HOMEBREW_TAP_PUBLISH_APPROVED \
-            HOMEBREW_TAP_PUBLISH_LIVE \
             LUAROCKS_PUBLISH_APPROVED \
-            LUAROCKS_PUBLISH_LIVE \
             MAVEN_PUBLISH_APPROVED \
-            MAVEN_PUBLISH_LIVE \
             NPM_PUBLISH_APPROVED \
-            NPM_PUBLISH_LIVE \
             NUGET_PUBLISH_APPROVED \
-            NUGET_PUBLISH_LIVE \
             OCI_PUBLISH_APPROVED \
-            OCI_PUBLISH_LIVE \
             OCTOPUS_PUBLISH_APPROVED \
-            OCTOPUS_PUBLISH_LIVE \
             PROMOTION_APPROVED \
-            PROMOTION_LIVE \
             PUB_PUBLISH_APPROVED \
-            PUB_PUBLISH_LIVE \
             PYPI_PUBLISH_APPROVED \
-            PYPI_PUBLISH_LIVE \
-            RUBYGEMS_PUBLISH_APPROVED \
-            RUBYGEMS_PUBLISH_LIVE; do
+            RUBYGEMS_PUBLISH_APPROVED; do
             export "${gate}=1"
           done
           published=()

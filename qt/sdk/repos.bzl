@@ -19,6 +19,8 @@ load(
 
 HUB_NAME = "dx_qt"
 
+VCRUNTIME_FILES = ["vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll"]
+
 SHARED_TARGETS = ["licenses", "needs", "runtime", "sbom"]
 
 TOOLS = {
@@ -811,6 +813,16 @@ def _acquire_runtime(ctx, extractor, cells):
             for text in ctx.path("licenses/" + package.license_from).readdir():
                 ctx.symlink(text, "licenses/" + package.name + "/" + text.basename)
 
+def _place_vcruntime(ctx):
+    arch = "arm64" if "arm64" in ctx.attr.cell else "x64"
+    redist = ctx.path(Label("@dx_msvc//:BUILD.bazel")).dirname.get_child("redist").get_child(arch)
+    if not redist.exists:
+        return
+    for directory in redist.readdir():
+        for dll in directory.readdir():
+            if dll.basename.lower() in VCRUNTIME_FILES:
+                ctx.symlink(dll, "bin/" + dll.basename)
+
 def _normalize_frameworks(ctx):
     for framework in ctx.path("lib").readdir():
         if not framework.basename.endswith(".framework"):
@@ -866,6 +878,7 @@ def _qt_cell_repo_impl(ctx):
     if entry.runtime != None:
         _acquire_runtime(ctx, extractor, cells)
     if layout.os == "windows":
+        _place_vcruntime(ctx)
         ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(Label("//cc/toolchains:notices/MSVC_REDISTRIBUTABLE.txt")))
     if layout.link == "framework":
         _normalize_frameworks(ctx)

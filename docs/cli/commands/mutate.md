@@ -70,7 +70,7 @@ Reports: none.
 
 ## Rust
 
-`rust_mutate(name = "mutate")` from `@rules_dx//rust/rules:mutate.bzl` declares the `dx-mutate` target and its runner. The runner runs `cargo-mutants` (from `PATH`, or `CARGO_MUTANTS`) in the package directory, which needs a `Cargo.toml`, and converts its `caught.txt`, `missed.txt` and `timeout.txt` into `mutants.json`.
+`rust_mutate(name = "mutate")` from `@rules_dx//rust/rules:mutate.bzl` declares the `dx-mutate` target and its runner. The runner runs `cargo-mutants` (`CARGO_MUTANTS`, then `PATH`, then the pinned prebuilt v27.1.0 on Linux x86_64 and macOS) in the package directory, which needs a `Cargo.toml`, and converts its `caught.txt`, `missed.txt` and `timeout.txt` into `mutants.json`.
 
 ## Other languages
 
@@ -84,4 +84,4 @@ Each wrapper declares the target the same way and the runner runs the tool in th
 | `java_mutate` | `@rules_dx//java/rules:mutate.bzl` | `pitest-maven` | `PITEST` |
 | `kotlin_mutate` | `@rules_dx//kotlin/rules:mutate.bzl` | `pitest-maven` | `PITEST` |
 
-The override variable replaces the whole tool command. mutmut does not report lines, so its survivors show line 0. Survivors that stryker and pitest report as uncovered count as survived.
+The override variable replaces the whole tool command. `go_mutate` falls back to a pinned gremlins v0.6.0 on Linux x86_64 and macOS arm64 when the tool is not on `PATH`. The other tools are not fetched. mutmut does not report lines, so its survivors show line 0. Survivors that stryker and pitest report as uncovered count as survived.

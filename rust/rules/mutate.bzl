@@ -5,8 +5,8 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 def rust_mutate(name, visibility = None, tags = None):
     """Declares a dx-mutate target and its `<name>_run` runner.
 
-    The runner needs `cargo-mutants` on PATH (or CARGO_MUTANTS) and a Cargo
-    manifest in this package.
+    The runner uses `CARGO_MUTANTS`, then `cargo-mutants` on PATH, then the pinned prebuilt binary.
+    It needs a Cargo manifest in this package.
 
     Args:
       name: target name; the runner is `<name>_run`.
@@ -21,7 +21,8 @@ def rust_mutate(name, visibility = None, tags = None):
     sh_binary(
         name = name + "_run",
         srcs = [Label("//rust/rules:mutate_run.sh")],
-        args = [native.package_name()],
+        args = [native.package_name(), "$(rootpath %s)" % Label("//libs/mutate:cargo_mutants")],
+        data = [Label("//libs/mutate:cargo_mutants")],
         testonly = True,
         visibility = visibility,
     )

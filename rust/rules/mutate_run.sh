@@ -4,6 +4,13 @@ set -eu
 usage="usage: bazel run <name>_run -- [--time <seconds>] --out <dir>"
 package="$1"
 shift
+bundled="${1:-}"
+case "$bundled" in
+    ""|--*) bundled="" ;;
+    /*) shift ;;
+    *) bundled="$PWD/$bundled"; shift ;;
+esac
+[ -x "$bundled" ] && [ -f "$bundled" ] || bundled=""
 
 seconds=60
 out=""
@@ -25,6 +32,9 @@ esac
 mkdir -p "$out"
 
 tool="${CARGO_MUTANTS:-cargo-mutants}"
+if [ -n "$bundled" ] && [ "$tool" = cargo-mutants ] && ! command -v "$tool" >/dev/null 2>&1; then
+    tool="$bundled"
+fi
 command -v "$tool" >/dev/null 2>&1 || { echo "cargo-mutants not found; install it or set CARGO_MUTANTS" >&2; exit 1; }
 
 work="$(mktemp -d)"

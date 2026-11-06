@@ -10,4 +10,4 @@ def go_mutate(name, visibility = None, tags = None):
       visibility: visibility of both targets.
       tags: extra tags.
     """
-    dx_mutate(name, "gremlins", visibility, tags)
+    dx_mutate(name, "gremlins", visibility, tags, Label("//libs/mutate:gremlins"))

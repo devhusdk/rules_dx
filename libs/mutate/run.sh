@@ -5,6 +5,13 @@ usage="usage: bazel run <name>_run -- [--time <seconds>] --out <dir>"
 kind="$1"
 package="$2"
 shift 2
+bundled="${1:-}"
+case "$bundled" in
+    ""|--*) bundled="" ;;
+    /*) shift ;;
+    *) bundled="$PWD/$bundled"; shift ;;
+esac
+[ -x "$bundled" ] && [ -f "$bundled" ] || bundled=""
 
 seconds=60
 out=""
@@ -31,11 +38,15 @@ rows="$work/rows"
 
 case "$kind" in
     mutmut) tool="${MUTMUT:-mutmut}" ;;
-    gremlins) tool="${GREMLINS:-gremlins}" ;;
+    gremlins) tool="${GREMLINS:-gremlins}"; fallback=gremlins ;;
     stryker) tool="${STRYKER:-npx --no-install stryker}" ;;
     pitest) tool="${PITEST:-mvn -q org.pitest:pitest-maven:mutationCoverage -DtimestampedReports=false}" ;;
     *) echo "unknown mutation tool kind: $kind" >&2; exit 2 ;;
 esac
+# The pinned binary is used only when the tool is not overridden or on PATH.
+if [ -n "$bundled" ] && [ "${fallback:-}" = "$tool" ] && ! command -v "$tool" >/dev/null 2>&1; then
+    tool="$bundled"
+fi
 first="${tool%% *}"
 command -v "$first" >/dev/null 2>&1 || { echo "$first not found; install it or set $(echo "$kind" | tr a-z A-Z)" >&2; exit 1; }
 

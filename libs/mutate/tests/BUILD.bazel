@@ -21,3 +21,10 @@ sh_test(
     srcs = ["run_test.sh"],
     data = ["//libs/mutate:run.sh"],
 )
+
+sh_test(
+    name = "never_asserts_test",
+    timeout = "short",
+    srcs = ["never_asserts_test.sh"],
+    data = ["//libs/mutate:run.sh"],
+)

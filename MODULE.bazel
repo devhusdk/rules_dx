@@ -1933,6 +1933,34 @@ _http_archive(
     urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Darwin_arm64.tar.gz"],
 )
 
+_http_archive(
+    name = "cargo_mutants_linux_x86_64",
+    build_file_content = 'exports_files(["cargo-mutants"])',
+    sha256 = "dfe6dc37d0342c891d2829b5a695aa57c2d0edecef7e7d0399a30cc6e206411e",
+    urls = ["https://github.com/sourcefrog/cargo-mutants/releases/download/v27.1.0/cargo-mutants-x86_64-unknown-linux-gnu.tar.gz"],
+)
+
+_http_archive(
+    name = "cargo_mutants_macos_x86_64",
+    build_file_content = 'exports_files(["cargo-mutants"])',
+    sha256 = "7109a9e9673fe0b977f622e6f32383b6d1cbbf3fbb63b7c30db3267462c74670",
+    urls = ["https://github.com/sourcefrog/cargo-mutants/releases/download/v27.1.0/cargo-mutants-x86_64-apple-darwin.tar.gz"],
+)
+
+_http_archive(
+    name = "gremlins_linux_x86_64",
+    build_file_content = 'exports_files(["gremlins"])',
+    sha256 = "b02a42e47935f891c9a411d68c07e211c7082609e79c2435b67c85ee9658c538",
+    urls = ["https://github.com/go-gremlins/gremlins/releases/download/v0.6.0/gremlins_0.6.0_linux_amd64.tar.gz"],
+)
+
+_http_archive(
+    name = "gremlins_macos_arm64",
+    build_file_content = 'exports_files(["gremlins"])',
+    sha256 = "90de858ffad3eea5018e41cdf28747b7003966684b9420f4605eb10bdad0c301",
+    urls = ["https://github.com/go-gremlins/gremlins/releases/download/v0.6.0/gremlins_0.6.0_darwin_arm64.tar.gz"],
+)
+
 _http_file(
     name = "dx_opam_linux_x86_64",
     executable = True,

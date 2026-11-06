@@ -340,4 +340,68 @@ mod tests {
         assert!(is_lower_hex(&digest_hex, DIGEST_LEN));
         assert_eq!(is_hex(&digest_hex), is_lower_hex(&digest_hex, DIGEST_LEN));
     }
+
+    #[test]
+    fn digest_wrapper_round_trips_its_bytes() {
+        let raw = blake3(b"x");
+        let digest = Digest::new(raw);
+        assert_eq!(digest.as_bytes(), &raw);
+        assert_eq!(Digest::blake3(b"x"), digest);
+        assert_eq!(Digest::parse_hex(&digest.to_hex()), Ok(digest));
+        assert_eq!(RawDigest::from(Digest::from(raw)), raw);
+        assert_eq!(digest.into_bytes(), raw);
+    }
+
+    #[test]
+    fn commit_sha_accepts_sha1_and_sha256_lengths_in_any_case() {
+        assert!(is_commit_sha(&"aB".repeat(SHA1_LEN)));
+        assert!(is_commit_sha(&"aB".repeat(DIGEST_LEN)));
+        assert!(!is_commit_sha("abc"));
+        assert_eq!(to_hex_bytes(&[0xab, 0x01]), "ab01");
+    }
+
+    #[test]
+    fn sha256_of_a_file_matches_the_bytes_hash() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("data");
+        std::fs::write(&path, b"abc").unwrap();
+        assert_eq!(sha256_file_hex(&path).unwrap(), sha256_hex(b"abc"));
+        assert!(sha256_file_hex(&dir.path().join("missing")).is_err());
+    }
+
+    struct Flaky(u8);
+
+    impl io::Read for Flaky {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            self.0 += 1;
+            match self.0 {
+                1 => Err(io::ErrorKind::Interrupted.into()),
+                2 => {
+                    buf[..3].copy_from_slice(b"abc");
+                    Ok(3)
+                }
+                _ => Ok(0),
+            }
+        }
+    }
+
+    struct Broken;
+
+    impl io::Read for Broken {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+            Err(io::Error::other("broken"))
+        }
+    }
+
+    #[test]
+    fn reader_hash_retries_interrupted_reads_and_reports_other_errors() {
+        assert_eq!(sha256_reader_hex(Flaky(0)).unwrap(), sha256_hex(b"abc"));
+        assert!(sha256_reader_hex(Broken).is_err());
+    }
+
+    #[test]
+    fn writer_flush_succeeds() {
+        let mut writer = Sha256Writer::new();
+        io::Write::flush(&mut writer).unwrap();
+    }
 }

@@ -199,4 +199,49 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn exact_target_accepts_none_or_one_label() {
+        assert_eq!(resolve_exact_target(&[]), Ok(None));
+        assert_eq!(
+            resolve_exact_target(&labels(&["//a:b"])),
+            Ok(Some(label("//a:b")))
+        );
+        assert_eq!(
+            resolve_exact_target(&labels(&["@repo//a:b"])),
+            Ok(Some(label("@repo//a:b")))
+        );
+    }
+
+    #[test]
+    fn exact_target_rejects_patterns_and_non_labels_and_lists() {
+        for pattern in ["//a/...", "//a:*", "//a:b?"] {
+            let error = resolve_exact_target(&labels(&[pattern])).unwrap_err();
+            assert_eq!(
+                error,
+                ExactScopeError::TargetPattern {
+                    value: label(pattern)
+                }
+            );
+            assert!(error.to_string().contains("patterns never select scope"));
+        }
+        let error = resolve_exact_target(&labels(&["a:b"])).unwrap_err();
+        assert_eq!(
+            error,
+            ExactScopeError::NotTargetLabel {
+                value: label("a:b")
+            }
+        );
+        assert!(error.to_string().contains("want an exact // or @ label"));
+        let error = resolve_exact_target(&labels(&["//a", "//b"])).unwrap_err();
+        assert_eq!(error, ExactScopeError::MultipleTargets { count: 2 });
+        assert_eq!(error.to_string(), "expected at most one target, found 2");
+    }
+
+    #[test]
+    fn monolithic_plan_ignores_the_canonical_targets() {
+        let plan = RepositoryRootPlan::monolithic_aggregate("//:all");
+        assert_eq!(invocation_targets(&plan, "//x:y"), labels(&["//:all"]));
+        assert_eq!(repository_plan(), RepositoryRootPlan::baseline());
+    }
 }

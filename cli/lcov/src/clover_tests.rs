@@ -49,3 +49,10 @@ fn rejects_a_non_numeric_count() {
     let xml = r#"<file name="a.php"><line num="1" type="stmt" count="x"/></file>"#;
     assert!(clover_to_lcov(xml).is_err());
 }
+
+#[test]
+fn attribute_skips_earlier_attributes_and_stops_at_bad_quoting() {
+    assert_eq!(super::attribute("a=\"1\" b='2'", "b"), Some("2".to_owned()));
+    assert_eq!(super::attribute("a=\"1\" b=2", "b"), None);
+    assert_eq!(super::attribute("a=\"1\"", "c"), None);
+}

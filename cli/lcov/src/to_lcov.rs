@@ -81,6 +81,7 @@ fn run(args: &[String]) -> Result<(), String> {
     fs::write(&args.output, lcov).map_err(|e| format!("cannot write {}: {e}", args.output))
 }
 
+// LCOV_EXCL_START - reason: process entry point that exits, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     if let Err(message) = run(&args) {
@@ -88,6 +89,7 @@ fn main() {
         process::exit(1);
     }
 }
+// LCOV_EXCL_STOP - reason: end process entry point, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
 #[cfg(test)]
 mod tests {
@@ -163,5 +165,36 @@ mod tests {
         run(&args).expect("converts");
         let lcov = fs::read_to_string(&output).expect("read output");
         assert_eq!(lcov, "SF:src/a.zig\nDA:1,2\nLF:1\nLH:1\nend_of_record\n");
+    }
+
+    #[test]
+    fn reports_unreadable_input_sources_and_unwritable_output() {
+        let dir = env::temp_dir().join(format!("to_lcov_err_{}", process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let input = dir.join("clover.xml");
+        fs::write(
+            &input,
+            "<coverage><project><file name=\"/w/a.php\"><line num=\"1\" type=\"stmt\" count=\"1\"/></file></project></coverage>",
+        ).expect("write input");
+        let missing = dir.join("missing").display().to_string();
+        let input = input.display().to_string();
+        let output = dir.join("no_dir").join("out").display().to_string();
+
+        let read = run(&strings(&["--from", "clover", &missing, &output]));
+        assert!(read.expect_err("input").starts_with("cannot read"));
+
+        let sources = run(&strings(&[
+            "--from",
+            "clover",
+            "--sources",
+            &missing,
+            &input,
+            &output,
+        ]));
+        assert!(sources.expect_err("sources").starts_with("cannot read"));
+
+        let write = run(&strings(&["--from", "clover", &input, &output]));
+        let message = write.expect_err("output");
+        assert!(message.starts_with("cannot write"), "{message}");
     }
 }

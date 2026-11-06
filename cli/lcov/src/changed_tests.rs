@@ -281,3 +281,33 @@ fn unreadable_source_is_an_error() {
         got.errors
     );
 }
+
+#[test]
+fn quoted_paths_decode_every_git_escape() {
+    let diff = "--- \"a/\\n\\t\\a\\b\\f\\v\\r\\1x\\0412.py\"\n+++ \"b/\\n\\t\\a\\b\\f\\v\\r\\1x\\0412.py\"\n@@ -0,0 +1 @@\n+a\n";
+    let parsed = parse_added_lines(diff);
+    assert_eq!(
+        parsed.keys().collect::<Vec<_>>(),
+        ["\n\t\u{7}\u{8}\u{c}\u{b}\r\u{1}x!2.py"]
+    );
+}
+
+#[test]
+fn quoted_path_ending_in_a_backslash_reads_as_a_separator() {
+    let diff = "--- \"a/x\\\"\n+++ \"b/x\\\"\n@@ -0,0 +1 @@\n+a\n";
+    assert_eq!(parse_added_lines(diff).keys().collect::<Vec<_>>(), ["x/"]);
+}
+
+#[test]
+fn malformed_ignore_marker_is_an_error() {
+    let marker = ["LCOV", "_EXCL", "_LINE"].concat();
+    let source = format!("a = 1  # {marker}\n");
+    let report = [lcov("src/a.py", &[(1, 0)])];
+    let got = gate(
+        OWNS_A,
+        &report,
+        &added(&[("src/a.py", &[1])]),
+        &[("src/a.py", &source)],
+    );
+    assert_eq!(got.errors.len(), 1, "{:?}", got.errors);
+}

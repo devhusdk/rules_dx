@@ -29,6 +29,7 @@ _CL_EXE = Label("//cc/toolchains:msvc_selected")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
+_CRT_STATIC_FLAG = "-Ctarget-feature=+crt-static"
 _MSVC_STATIC_CRT = ["-dynamic_link_msvcrt", "static_link_msvcrt"]
 
 _COVERAGE = "//command_line_option:collect_code_coverage"
@@ -44,7 +45,7 @@ def _cpp_runtime_transition_impl(settings, attr):
     features = settings["//command_line_option:features"]
     if attr.libstdcxx and _NO_STATIC_CPP_RUNTIMES not in features:
         features = features + [_NO_STATIC_CPP_RUNTIMES]
-    if attr.msvc and "-Ctarget-feature=+crt-static" in settings[_EXTRA_RUSTC_FLAG]:
+    if attr.msvc and (attr.crt_static or _CRT_STATIC_FLAG in settings[_EXTRA_RUSTC_FLAG]):
         features = features + [f for f in _MSVC_STATIC_CRT if f not in features]
     return {"//command_line_option:features": features}
 
@@ -73,13 +74,16 @@ _rust_binary_transition = transition(
 _LIBSTDCXX_ATTRS = {
     "libstdcxx": attr.bool(doc = "Whether the target platform uses libstdc++."),
     "msvc": attr.bool(doc = "Whether cl.exe is the selected C++ compiler."),
+    "crt_static": attr.bool(doc = "Whether the target's own rustc_flags set +crt-static."),
 }
 
-def _libstdcxx_forward():
-    """Returns the forwarder kwargs that mark libstdc++ platforms."""
+def _libstdcxx_forward(rustc_flags = None):
+    """Returns the forwarder kwargs that mark libstdc++ platforms and static CRT targets."""
+    crt_static = type(rustc_flags) == "list" and any(["+crt-static" in flag for flag in rustc_flags])
     return {
         "libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False}),
         "msvc": select({_CL_EXE: True, "//conditions:default": False}),
+        "crt_static": crt_static,
     }
 
 def _libstdcxx_upstream(kwargs, link):
@@ -203,7 +207,7 @@ def rust_library(
         srcs,
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
-        extra_forward_kwargs = _libstdcxx_forward(),
+        extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
         **kwargs
     )
 
@@ -228,7 +232,7 @@ def rust_binary(
         srcs,
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
-        extra_forward_kwargs = _libstdcxx_forward() | {"wasm": wasm or ""},
+        extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")) | {"wasm": wasm or ""},
         **kwargs
     )
 
@@ -305,7 +309,7 @@ def rust_test(
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
     upstream_kwargs["crate_name"] = _crate_name(name, kwargs.get("crate_name"))
-    forward_kwargs = _libstdcxx_forward()
+    forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags"))
     if crate != None:
         forward_kwargs["crate"] = crate
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, **kwargs)
@@ -369,7 +373,7 @@ def rust_proc_macro(
         srcs,
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
-        extra_forward_kwargs = _libstdcxx_forward(),
+        extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
         **kwargs
     )
 
@@ -388,7 +392,7 @@ def rust_shared_library(
         srcs,
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
-        extra_forward_kwargs = _libstdcxx_forward(),
+        extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
         **kwargs
     )
 
@@ -407,7 +411,7 @@ def rust_static_library(
         srcs,
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
-        extra_forward_kwargs = _libstdcxx_forward(),
+        extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
         **kwargs
     )
 

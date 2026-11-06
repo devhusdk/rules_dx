@@ -264,9 +264,19 @@ rust_test(
     deps = [":native_call_build_script"],
 )
 
+rust_test(
+    name = "native_target_crt_test",
+    crate = ":native_call",
+    link_deps = [":native_c"],
+    rustc_flags = ["-Ctarget-feature=+crt-static"],
+    tags = ["manual"],
+    deps = [":native_call_build_script"],
+)
+
 rust_msvc_crt_tests(
     name = "native_call_msvc_crt_tests",
     bad = ":native_md_crt_test",
+    target_flag = ":native_target_crt_test",
     ok = ":native_call_test",
 )
 

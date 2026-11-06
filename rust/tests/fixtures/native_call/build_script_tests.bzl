@@ -351,26 +351,29 @@ def _crt_bad_impl(ctx):
     return analysistest.end(env)
 
 _crt_ok_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG)
+_crt_target_flag_test = analysistest.make(_crt_ok_impl, config_settings = {_COMPILER: "msvc"})
 _crt_bad_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG, expect_failure = True)
 
-def rust_msvc_crt_tests(name, ok, bad):
+def rust_msvc_crt_tests(name, ok, bad, target_flag):
     """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones on MSVC.
 
     Args:
         name: Name of the test suite.
         ok: A rust_test whose C deps are compiled /MT.
         bad: A rust_test with a C dep compiled /MD.
+        target_flag: A rust_test that sets +crt-static in its own rustc_flags.
     """
     ok_name = name + "_ok"
     bad_name = name + "_bad"
-    for test, rule, target in [(ok_name, _crt_ok_test, ok), (bad_name, _crt_bad_test, bad)]:
+    target_flag_name = name + "_target_flag"
+    for test, rule, target in [(ok_name, _crt_ok_test, ok), (bad_name, _crt_bad_test, bad), (target_flag_name, _crt_target_flag_test, target_flag)]:
         rule(
             name = test,
             size = "small",
             target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
             target_under_test = target,
         )
-    native.test_suite(name = name, tests = [ok_name, bad_name])
+    native.test_suite(name = name, tests = [ok_name, bad_name, target_flag_name])
 
 def rust_msvc_crt_library_tests(name, shared, static):
     """Asserts +crt-static Rust shared and static libraries reject /MD C deps on MSVC.

@@ -44,9 +44,16 @@ def _dx_coverage_sources_aspect_impl(target, ctx):
         return []
     test = ctx.rule.kind.endswith("_test") or getattr(ctx.rule.attr, "testonly", False)
     files = target[InstrumentedFilesInfo].instrumented_files if InstrumentedFilesInfo in target else depset()
+    deps = list(getattr(ctx.rule.attr, "deps", []))
+    for name in ["main", "upstream"]:
+        dep = getattr(ctx.rule.attr, name, None)
+        if type(dep) == "Target":
+            deps.append(dep)
+        elif type(dep) == "list":
+            deps.extend(dep)
     dep_prod = [
         dep[DxCoverageSourcesInfo].prod
-        for dep in getattr(ctx.rule.attr, "deps", [])
+        for dep in deps
         if type(dep) == "Target" and DxCoverageSourcesInfo in dep
     ]
     prod = depset(transitive = dep_prod + ([] if test else [files]))
@@ -67,7 +74,7 @@ def _dx_coverage_sources_aspect_impl(target, ctx):
 dx_coverage_sources_aspect = aspect(
     implementation = _dx_coverage_sources_aspect_impl,
     doc = "Writes the instrumented main-repo sources of a top-level target.",
-    attr_aspects = ["deps"],
+    attr_aspects = ["deps", "main", "upstream"],
     attrs = {
         "_cpu_arm64": attr.label(default = "@platforms//cpu:arm64"),
         "_cpu_x86_64": attr.label(default = "@platforms//cpu:x86_64"),

@@ -32,7 +32,10 @@ fn sorted(mut entries: Vec<Entry>) -> Vec<Entry> {
 fn archive_holds_sass_for_each_sm_and_ptx_for_each_compute() {
     let archives = std::env::var("DX_CUDA_ARCHIVES").unwrap();
     let mut checked = 0;
-    for path in archives.split_whitespace().filter(|p| p.ends_with(".a")) {
+    for path in archives
+        .split_whitespace()
+        .filter(|p| p.ends_with(".a") || p.ends_with(".lib"))
+    {
         let entries = fatbin::device_code(&runfile(path)).unwrap();
         assert_eq!(sorted(entries), sorted(expected()), "{path}");
         checked += 1;
@@ -48,6 +51,15 @@ fn binary_holds_device_code_and_links_the_static_runtime() {
         sorted(expected())
     );
     let needed = fatbin::needed_libraries(&binary).unwrap();
+    if cfg!(windows) {
+        assert!(
+            needed
+                .iter()
+                .any(|lib| lib.to_ascii_lowercase().starts_with("cudart64_")),
+            "windows has no static runtime, expected a cudart64_*.dll import: {needed:?}"
+        );
+        return;
+    }
     assert!(!needed.is_empty(), "the binary links libc dynamically");
     assert!(
         needed.iter().all(|lib| !lib.starts_with("libcudart")),

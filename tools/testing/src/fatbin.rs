@@ -1,4 +1,4 @@
-//! Reads CUDA device code and dynamic dependencies from ELF objects, archives and binaries.
+//! Reads CUDA device code and dynamic dependencies from ELF and COFF/PE objects, archives and binaries.
 
 pub const FATBIN_MAGIC: u32 = 0xBA55_ED50;
 const FATBIN_VERSION: u16 = 1;
@@ -240,23 +240,179 @@ pub fn archive_members(bytes: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
     Ok(members)
 }
 
-/// Returns the device code embedded in an ELF file or in every ELF member of an ar archive.
+const COFF_MACHINES: [u16; 3] = [0x8664, 0xAA64, 0x014C];
+
+fn is_coff_object(bytes: &[u8]) -> bool {
+    bytes.len() >= 20
+        && COFF_MACHINES.contains(&u16::from_le_bytes([bytes[0], bytes[1]]))
+        && bytes[2..4] != [0, 0]
+}
+
+fn is_pe_image(bytes: &[u8]) -> bool {
+    bytes.starts_with(b"MZ")
+}
+
+struct PeLayout {
+    coff: usize,
+    optional: usize,
+    sections: usize,
+    count: usize,
+}
+
+fn pe_layout(bytes: &[u8]) -> Result<PeLayout, String> {
+    let (coff, optional_size) = if is_pe_image(bytes) {
+        let pe = to_usize(u64::from(u32_at(bytes, 0x3C)?))?;
+        if bytes.get(pe..pe + 4) != Some(b"PE\0\0".as_slice()) {
+            return Err("not a PE file".to_string());
+        }
+        let coff = pe + 4;
+        (coff, usize::from(u16_at(bytes, coff + 16)?))
+    } else {
+        (0, usize::from(u16_at(bytes, 16)?))
+    };
+    Ok(PeLayout {
+        coff,
+        optional: coff + 20,
+        sections: coff + 20 + optional_size,
+        count: usize::from(u16_at(bytes, coff + 2)?),
+    })
+}
+
+struct CoffSection<'a> {
+    section: Section<'a>,
+    virtual_address: usize,
+    virtual_size: usize,
+    raw_offset: usize,
+    raw_size: usize,
+}
+
+fn coff_sections(bytes: &[u8]) -> Result<Vec<CoffSection<'_>>, String> {
+    let layout = pe_layout(bytes)?;
+    let symbols = to_usize(u64::from(u32_at(bytes, layout.coff + 8)?))?;
+    let symbol_count = to_usize(u64::from(u32_at(bytes, layout.coff + 12)?))?;
+    let strings = symbols
+        .checked_add(symbol_count * 18)
+        .filter(|_| symbols != 0)
+        .and_then(|at| bytes.get(at..))
+        .unwrap_or(&[]);
+    let mut out = Vec::with_capacity(layout.count);
+    for index in 0..layout.count {
+        let at = layout.sections + index * 40;
+        let raw_name = bytes
+            .get(at..at + 8)
+            .ok_or_else(|| format!("truncated COFF section header {index}"))?;
+        let end = raw_name.iter().position(|b| *b == 0).unwrap_or(8);
+        let short = String::from_utf8_lossy(&raw_name[..end]).to_string();
+        let name = match short.strip_prefix('/').map(str::parse::<usize>) {
+            Some(Ok(offset)) => c_string(strings, offset)?,
+            _ => short,
+        };
+        let virtual_size = to_usize(u64::from(u32_at(bytes, at + 8)?))?;
+        let virtual_address = to_usize(u64::from(u32_at(bytes, at + 12)?))?;
+        let raw_size = to_usize(u64::from(u32_at(bytes, at + 16)?))?;
+        let raw_offset = to_usize(u64::from(u32_at(bytes, at + 20)?))?;
+        let characteristics = u32_at(bytes, at + 36)?;
+        let data: &[u8] = if raw_size == 0 || characteristics & 0x80 != 0 {
+            &[]
+        } else {
+            bytes
+                .get(raw_offset..raw_offset.saturating_add(raw_size))
+                .ok_or_else(|| format!("COFF section {name} overruns the file"))?
+        };
+        out.push(CoffSection {
+            section: Section {
+                name,
+                kind: 1,
+                link: 0,
+                data,
+            },
+            virtual_address,
+            virtual_size,
+            raw_offset,
+            raw_size,
+        });
+    }
+    Ok(out)
+}
+
+fn coff_device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
+    let mut entries = Vec::new();
+    for section in coff_sections(bytes)? {
+        if FATBIN_SECTIONS.contains(&section.section.name.as_str()) {
+            entries.extend(fatbin_entries(section.section.data)?);
+        }
+    }
+    Ok(entries)
+}
+
+fn object_device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
+    if bytes.starts_with(b"\x7fELF") {
+        elf_device_code(bytes)
+    } else if is_pe_image(bytes) || is_coff_object(bytes) {
+        coff_device_code(bytes)
+    } else {
+        Err("not an ELF, COFF or PE file".to_string())
+    }
+}
+
+/// Returns the device code embedded in an ELF, COFF or PE file, or in every object member of an
+/// ar archive.
 pub fn device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
     if bytes.starts_with(b"!<arch>\n") {
         let mut entries = Vec::new();
         for (name, data) in archive_members(bytes)? {
-            if data.starts_with(b"\x7fELF") {
-                entries.extend(elf_device_code(data).map_err(|e| format!("{name}: {e}"))?);
+            if data.starts_with(b"\x7fELF") || is_coff_object(data) {
+                entries.extend(object_device_code(data).map_err(|e| format!("{name}: {e}"))?);
             }
         }
         Ok(entries)
     } else {
-        elf_device_code(bytes)
+        object_device_code(bytes)
     }
 }
 
-/// Returns the DT_NEEDED entries of an ELF file.
+fn pe_imports(bytes: &[u8]) -> Result<Vec<String>, String> {
+    let layout = pe_layout(bytes)?;
+    let directories = match u16_at(bytes, layout.optional)? {
+        0x20B => layout.optional + 112,
+        0x10B => layout.optional + 96,
+        other => return Err(format!("unknown PE optional header magic {other:#x}")),
+    };
+    let table = to_usize(u64::from(u32_at(bytes, directories + 8)?))?;
+    if table == 0 {
+        return Ok(Vec::new());
+    }
+    let sections = coff_sections(bytes)?;
+    let offset = |rva: usize| -> Result<usize, String> {
+        sections
+            .iter()
+            .find(|s| {
+                rva >= s.virtual_address && rva < s.virtual_address + s.virtual_size.max(s.raw_size)
+            })
+            .map(|s| rva - s.virtual_address + s.raw_offset)
+            .ok_or_else(|| format!("PE address {rva:#x} is not in any section"))
+    };
+    let mut at = offset(table)?;
+    let mut needed = Vec::new();
+    loop {
+        let descriptor = bytes
+            .get(at..at + 20)
+            .ok_or("PE import table overruns the file")?;
+        if descriptor.iter().all(|b| *b == 0) {
+            break;
+        }
+        let name = to_usize(u64::from(u32_at(descriptor, 12)?))?;
+        needed.push(c_string(bytes, offset(name)?)?);
+        at += 20;
+    }
+    Ok(needed)
+}
+
+/// Returns the DT_NEEDED entries of an ELF file or the imported DLL names of a PE file.
 pub fn needed_libraries(bytes: &[u8]) -> Result<Vec<String>, String> {
+    if is_pe_image(bytes) {
+        return pe_imports(bytes);
+    }
     let sections = elf_sections(bytes)?;
     let mut needed = Vec::new();
     for section in sections.iter().filter(|s| s.kind == 6) {
@@ -486,6 +642,110 @@ mod tests {
             needed_libraries(&binary).unwrap(),
             vec!["libc.so.6", "libcudart.so.13"]
         );
+    }
+
+    fn coff(machine: u16, sections: &[(&str, Vec<u8>)]) -> Vec<u8> {
+        let mut strings = vec![0u8; 4];
+        let mut out = vec![0u8; 20];
+        out[0..2].copy_from_slice(&machine.to_le_bytes());
+        out[2..4].copy_from_slice(&(sections.len() as u16).to_le_bytes());
+        let mut at = 20 + 40 * sections.len();
+        let mut headers = Vec::new();
+        let mut bodies: Vec<u8> = Vec::new();
+        for (name, data) in sections {
+            let mut header = vec![0u8; 40];
+            if name.len() > 8 {
+                let field = format!("/{}", strings.len());
+                header[..field.len()].copy_from_slice(field.as_bytes());
+                strings.extend(name.as_bytes());
+                strings.push(0);
+            } else {
+                header[..name.len()].copy_from_slice(name.as_bytes());
+            }
+            header[16..20].copy_from_slice(&(data.len() as u32).to_le_bytes());
+            header[20..24].copy_from_slice(&(at as u32).to_le_bytes());
+            headers.extend(header);
+            bodies.extend(data);
+            at += data.len();
+        }
+        out[8..12].copy_from_slice(&(at as u32).to_le_bytes());
+        out.extend(headers);
+        out.extend(bodies);
+        let len = strings.len() as u32;
+        strings[0..4].copy_from_slice(&len.to_le_bytes());
+        out.extend(strings);
+        out
+    }
+
+    #[test]
+    fn fatbin_device_code_reads_coff_sections() {
+        let object = coff(
+            0x8664,
+            &[(".text", vec![0xC3]), (".nv_fatbin", fixture_fatbin())],
+        );
+        assert_eq!(device_code(&object).unwrap().len(), 3);
+        let rdc = coff(0xAA64, &[("__nv_relfatbin", fatbin(&[entry(2, 86, b"")]))]);
+        assert_eq!(device_code(&rdc).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn fatbin_device_code_reads_msvc_lib_members() {
+        let object = coff(0x8664, &[(".nv_fatbin", fixture_fatbin())]);
+        let import_member = vec![
+            0, 0, 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ];
+        let archive = ar(&[
+            ("", vec![0, 0, 0, 0]),
+            ("", vec![0, 0, 0, 0]),
+            ("a.obj", object),
+            ("d.dll", import_member),
+        ]);
+        assert_eq!(device_code(&archive).unwrap().len(), 3);
+    }
+
+    fn pe(imports: &[&str]) -> Vec<u8> {
+        let mut out = vec![0u8; 0x40];
+        out[0..2].copy_from_slice(b"MZ");
+        out[0x3C..0x40].copy_from_slice(&0x40u32.to_le_bytes());
+        out.extend(b"PE\0\0");
+        let mut coff = vec![0u8; 20];
+        coff[0..2].copy_from_slice(&0x8664u16.to_le_bytes());
+        coff[2..4].copy_from_slice(&1u16.to_le_bytes());
+        coff[16..18].copy_from_slice(&240u16.to_le_bytes());
+        out.extend(coff);
+        let mut optional = vec![0u8; 240];
+        optional[0..2].copy_from_slice(&0x20Bu16.to_le_bytes());
+        optional[112 + 8..112 + 12].copy_from_slice(&0x1000u32.to_le_bytes());
+        out.extend(optional);
+        let raw = 0x200usize;
+        let mut section = vec![0u8; 40];
+        section[..6].copy_from_slice(b".idata");
+        section[8..12].copy_from_slice(&0x400u32.to_le_bytes());
+        section[12..16].copy_from_slice(&0x1000u32.to_le_bytes());
+        section[16..20].copy_from_slice(&0x400u32.to_le_bytes());
+        section[20..24].copy_from_slice(&(raw as u32).to_le_bytes());
+        out.extend(section);
+        out.resize(raw, 0);
+        let mut body = vec![0u8; 20 * (imports.len() + 1)];
+        for (index, name) in imports.iter().enumerate() {
+            let rva = 0x1000 + body.len() as u32;
+            body[index * 20 + 12..index * 20 + 16].copy_from_slice(&rva.to_le_bytes());
+            body.extend(name.as_bytes());
+            body.push(0);
+        }
+        body.resize(0x400, 0);
+        out.extend(body);
+        out
+    }
+
+    #[test]
+    fn fatbin_needed_libraries_reads_pe_imports() {
+        let binary = pe(&["KERNEL32.dll", "cudart64_13.dll"]);
+        assert_eq!(
+            needed_libraries(&binary).unwrap(),
+            vec!["KERNEL32.dll", "cudart64_13.dll"]
+        );
+        assert!(device_code(&binary).unwrap().is_empty());
     }
 
     #[test]

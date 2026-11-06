@@ -34,7 +34,9 @@ pub enum LicenseExpr {
 }
 
 pub fn parse_license(text: &str) -> LicenseExpr {
-    let expr = match spdx::Expression::parse(text) {
+    let parsed = spdx::Expression::parse(text)
+        .or_else(|_| spdx::Expression::parse_mode(text, spdx::ParseMode::LAX));
+    let expr = match parsed {
         Ok(expr) => expr,
         Err(_) => return LicenseExpr::Unknown,
     };
@@ -102,6 +104,18 @@ fn merge_and(lhs: LicenseExpr, rhs: LicenseExpr) -> LicenseExpr {
         other => conjuncts.push(other),
     }
     LicenseExpr::And(conjuncts)
+}
+
+pub fn evaluate_license(
+    text: &str,
+    tier: Tier,
+    lookup: &dyn Fn(&str) -> IdClass,
+    approved: &dyn Fn(&str) -> bool,
+) -> TierOutcome {
+    if approved(text) {
+        return TierOutcome::Allow;
+    }
+    evaluate(&parse_license(text), tier, lookup, approved)
 }
 
 pub fn evaluate(
@@ -519,10 +533,43 @@ mod tests {
     }
 
     #[test]
+    fn parse_lax_slash_is_or() {
+        assert_eq!(
+            parse_license("MIT/Apache-2.0"),
+            LicenseExpr::Or(vec![ident("MIT"), ident("Apache-2.0")])
+        );
+        assert_eq!(
+            parse_license("Apache-2.0 / MIT"),
+            LicenseExpr::Or(vec![ident("Apache-2.0"), ident("MIT")])
+        );
+    }
+
+    #[test]
+    fn whole_string_exception_clears_unknown_and_composites() {
+        let table = contract_table();
+        let lookup = lookup(&table);
+        let run = |text: &str, approved: &dyn Fn(&str) -> bool| {
+            evaluate_license(text, Tier::Distributed, &lookup, approved)
+        };
+        assert_eq!(run("UNKNOWN", &none_approved()), TierOutcome::Deny);
+        assert_eq!(run("UNKNOWN", &approved(&["UNKNOWN"])), TierOutcome::Allow);
+        assert_eq!(
+            run("MIT AND GPL-3.0-only", &none_approved()),
+            TierOutcome::Deny
+        );
+        assert_eq!(
+            run("MIT AND GPL-3.0-only", &approved(&["MIT AND GPL-3.0-only"])),
+            TierOutcome::Allow
+        );
+        assert_eq!(run("MIT/Apache-2.0", &none_approved()), TierOutcome::Allow);
+    }
+
+    #[test]
     fn parse_unknown_identities_fail_closed() {
         assert_eq!(parse_license("MIT OR NOPE"), LicenseExpr::Unknown);
         assert_eq!(parse_license("Made-Up-1.0"), LicenseExpr::Unknown);
         assert_eq!(parse_license(""), LicenseExpr::Unknown);
+        assert_eq!(parse_license("UNKNOWN"), LicenseExpr::Unknown);
         assert_eq!(parse_license("not a license !!!"), LicenseExpr::Unknown);
     }
 

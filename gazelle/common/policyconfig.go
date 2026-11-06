@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -55,6 +56,27 @@ func PolicyBinds(c *config.Config, tool, label string) bool {
 		return false
 	}
 	return normalizePolicyLabel(want) == normalizePolicyLabel(label)
+}
+
+// InitOwnedConfigs maps each tool to the src of the <tool>_config rule dx init
+// writes in .dx/config/BUILD.bazel, or returns nil when that file is missing
+// or does not parse.
+func InitOwnedConfigs(repoRoot string) map[string]string {
+	f, err := rule.LoadFile(filepath.Join(repoRoot, ".dx", "config", "BUILD.bazel"), ".dx/config")
+	if err != nil {
+		return nil
+	}
+	owned := map[string]string{}
+	for _, r := range f.Rules {
+		tool, ok := strings.CutSuffix(r.Kind(), "_config")
+		if !ok || tool == "" {
+			continue
+		}
+		if src := r.AttrString("src"); src != "" {
+			owned[tool] = src
+		}
+	}
+	return owned
 }
 
 func normalizePolicyLabel(label string) string {

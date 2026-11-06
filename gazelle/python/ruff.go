@@ -3,7 +3,6 @@ package python
 import (
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -22,6 +21,8 @@ const (
 type ruffState struct {
 	rel  string
 	file string
+	// initOwned is set when .dx/config/BUILD.bazel already defines the root config.
+	initOwned bool
 }
 
 func (s *ruffState) label() string { return "//" + s.rel + ":" + ruffName }
@@ -48,29 +49,14 @@ func ruffFile(dir string) string {
 	return ""
 }
 
-// ruffProfileFiles lists the profile bases dx init stages under .dx/config/ruff, for the root only.
-func ruffProfileFiles(repoRoot, rel string) []string {
-	if rel != "" {
-		return nil
-	}
-	matches, err := filepath.Glob(filepath.Join(repoRoot, ".dx", "config", "ruff", "*.toml"))
-	if err != nil {
-		return nil
-	}
-	var data []string
-	for _, match := range matches {
-		data = append(data, ".dx/config/ruff/"+filepath.Base(match))
-	}
-	sort.Strings(data)
-	return data
-}
-
 func configureRuff(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
 	for _, msg := range common.ConfigurePolicyConfig(c, f) {
 		rep.Fail(common.InPackage(rel), "%s", msg)
 	}
 	if file := ruffFile(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))); file != "" {
-		c.Exts[ruffExt] = &ruffState{rel: rel, file: file}
+		state := &ruffState{rel: rel, file: file}
+		state.initOwned = rel == "" && common.InitOwnedConfigs(c.RepoRoot)["ruff"] == "//:"+file
+		c.Exts[ruffExt] = state
 	}
 }
 
@@ -82,12 +68,9 @@ func ruffAt(c *config.Config) *ruffState {
 	return state
 }
 
-func ruffRule(c *config.Config, state *ruffState, rel string) *rule.Rule {
+func ruffRule(state *ruffState, rel string) *rule.Rule {
 	r := rule.NewRule(ruffKind, ruffName)
 	r.SetAttr("src", state.file)
-	if data := ruffProfileFiles(c.RepoRoot, rel); len(data) > 0 {
-		r.SetAttr("data", data)
-	}
 	r.SetAttr("visibility", []string{"//" + rel + ":__subpackages__"})
 	return r
 }
@@ -100,6 +83,15 @@ func withRuffHint(c *config.Config, existing *rule.Rule, state *ruffState, rel s
 	}
 	if state == nil {
 		return hints
+	}
+	if state.initOwned {
+		var kept []string
+		for _, hint := range hints {
+			if hint != state.label() && !(rel == "" && hint == ":"+ruffName) {
+				kept = append(kept, hint)
+			}
+		}
+		return kept
 	}
 	if common.PolicyBinds(c, "ruff", state.label()) {
 		return hints

@@ -218,6 +218,10 @@ func mergeRefs(refs []common.ImportRef) []common.ImportRef {
 }
 
 func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
+	if args.Rel == ".dx" || strings.HasPrefix(args.Rel, ".dx/") {
+		// dx init owns these packages, including the root ruff config.
+		return language.GenerateResult{}
+	}
 	var sources []string
 	stubs := make(map[string]bool)
 	for _, name := range args.RegularFiles {
@@ -231,8 +235,8 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	sort.Strings(sources)
 	ruff := ruffAt(args.Config)
 	var result language.GenerateResult
-	if ruff != nil && ruff.rel == args.Rel {
-		result.Gen = append(result.Gen, ruffRule(args.Config, ruff, args.Rel))
+	if ruff != nil && ruff.rel == args.Rel && !ruff.initOwned {
+		result.Gen = append(result.Gen, ruffRule(ruff, args.Rel))
 		result.Imports = append(result.Imports, common.WrapImportSet(nil))
 	}
 	if len(sources) == 0 {

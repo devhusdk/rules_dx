@@ -73,6 +73,8 @@ Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They ap
 | `dx_cuda_platforms <spec> <spec>...` | Set `platforms` of a generated `cuda_library`. Required for `.cu` and `.cuh` files. |
 | `lang <languages>` | Must list `dx_dispatch`, for example `go,dx_dispatch`. |
 
+When `.dx/config/BUILD.bazel` from `dx init` already has a `ruff_config` for the root ruff file, gazelle writes no root `ruff_config` and no `aspect_hints` for it.
+
 `dx_ignore_import` languages: `astro`, `cc`, `csharp`, `dart`, `elixir`, `erlang`, `fsharp`, `go`, `haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `ocaml`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`, `scala`, `svelte`, `swift`, `typescript`, `vue`, `zig`.
 
 `dx_external` ecosystems: `go` (`go.mod`, no repo), `maven` (`maven_install.json`, repo `maven`), `python` (`uv.lock`, repo `pypi`), `pub` (`pubspec.lock`, repo `pub_deps`), `npm` (root `package.json`). Repeat the line to use several files. `off` drops an inherited file. Without the directive, a `go.mod`, `maven_install.json`, `uv.lock`, `pubspec.lock`, or root `package.json` applies to its directory and below.

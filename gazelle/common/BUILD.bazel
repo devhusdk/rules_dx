@@ -132,6 +132,7 @@ go_test(
         "jstestconfig_test.go",
         "manifest_test.go",
         "naming_test.go",
+        "policyconfig_test.go",
         "npmhub_test.go",
         "registry_test.go",
         "remedy_test.go",

@@ -72,7 +72,7 @@ real_source_target(
         "testdata/proto_import/README.md",
         "testdata/pyproject_no_ruff/README.md",
         "testdata/pytest_plugins/README.md",
-        "testdata/ruff_profile/README.md",
+        "testdata/ruff_init_owned/README.md",
         "testdata/ruff_pyproject/README.md",
         "testdata/source_only/README.md",
         "testdata/src_layout/README.md",

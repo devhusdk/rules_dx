@@ -118,7 +118,7 @@ func TestDefaultMatchesStandardProfile(t *testing.T) {
 		t.Errorf("default checks differ from standard.conf:\n%v\n%v", got, want)
 	}
 	for _, off := range []string{"ST1000", "ST1003", "SA9003"} {
-		if slices.Contains(got, off) || !strings.Contains(string(data), "-"+off) {
+		if slices.Contains(got, off) || strings.Contains(string(data), "\""+off+"\"") {
 			t.Errorf("%s should be off in both", off)
 		}
 	}

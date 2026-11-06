@@ -507,7 +507,7 @@ TOOLS = [
     tool(
         id = "clang_format",
         adapters = {"format": ["c", "cpp", "cuda", "objc", "objcpp"]},
-        config = config(suffixes = [".clang-format"]),
+        config = config(suffixes = [".clang-format"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -576,7 +576,18 @@ TOOLS = [
     tool(
         id = "clang_tidy",
         adapters = {"lint": ["c", "cpp", "cuda", "objc", "objcpp"]},
-        config = config(suffixes = [".clang-tidy"]),
+        config = config(suffixes = [".clang-tidy"], tier_active = True),
+        severity = severity(categories = {
+            "bugprone-": "warning",
+            "cert-": "warning",
+            "clang-analyzer-": "warning",
+            "clang-diagnostic-error": "error",
+            "cppcoreguidelines-": "warning",
+            "misc-": "warning",
+            "modernize-": "warning",
+            "performance-": "warning",
+            "readability-": "warning",
+        }),
         support = [
             row(
                 capability = "lint",
@@ -628,7 +639,7 @@ TOOLS = [
         adapters = {
             "lint": ["c", "cpp"],
         },
-        config = config(suffixes = [".txt"]),
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -914,6 +925,8 @@ TOOLS = [
     tool(
         id = "errcheck",
         adapters = {"lint": ["go"]},
+        config = config(suffixes = [".txt"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1148,6 +1161,7 @@ TOOLS = [
     tool(
         id = "gofumpt",
         adapters = {"format": ["go"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1180,6 +1194,7 @@ TOOLS = [
     tool(
         id = "gotype",
         adapters = {"typecheck": ["go"]},
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "typecheck",
@@ -1196,6 +1211,8 @@ TOOLS = [
     tool(
         id = "govet",
         adapters = {"lint": ["go"]},
+        config = config(suffixes = [".json"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2413,7 +2430,12 @@ TOOLS = [
     tool(
         id = "staticcheck",
         adapters = {"lint": ["go"]},
-        config = config(suffixes = [".conf"]),
+        config = config(suffixes = [".conf"], tier_active = True, stage_native = True),
+        severity = severity(categories = {
+            "QF": "info",
+            "S": "warning",
+            "U1000": "warning",
+        }),
         support = [
             row(
                 capability = "lint",

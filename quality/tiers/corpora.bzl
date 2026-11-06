@@ -15,6 +15,8 @@ TIER_JSON = [
     "biome/strict.json",
     "fsharplint/standard.json",
     "fsharplint/strict.json",
+    "govet/standard.json",
+    "govet/strict.json",
     "luals/standard.json",
     "luals/strict.json",
     "stylelint/standard.json",

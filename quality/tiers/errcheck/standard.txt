@@ -1,0 +1,14 @@
+(*bytes.Buffer).Write
+(*bytes.Buffer).WriteByte
+(*bytes.Buffer).WriteRune
+(*bytes.Buffer).WriteString
+(*strings.Builder).Write
+(*strings.Builder).WriteByte
+(*strings.Builder).WriteRune
+(*strings.Builder).WriteString
+(*os.File).Close
+(io.Closer).Close
+(net/http.ResponseWriter).Write
+fmt.Fprint
+fmt.Fprintf
+fmt.Fprintln

@@ -3,6 +3,7 @@ use std::path::Path;
 
 const NO_FORMATTER: &[&str] = &[
     "cfg",
+    "clang-format",
     "clang-tidy",
     "conf",
     "config",
@@ -14,6 +15,7 @@ const NO_FORMATTER: &[&str] = &[
     "neon",
     "perlcriticrc",
     "psd1",
+    "txt",
     "xml",
 ];
 

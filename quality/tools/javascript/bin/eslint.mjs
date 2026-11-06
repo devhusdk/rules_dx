@@ -3,12 +3,14 @@ import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const MANAGED = [
+  "@eslint-react/eslint-plugin",
   "@eslint/js",
   "@typescript-eslint/parser",
   "astro-eslint-parser",
   "eslint",
   "eslint-plugin-astro",
   "eslint-plugin-mdx",
+  "eslint-plugin-react-hooks",
   "eslint-plugin-svelte",
   "eslint-plugin-vue",
   "globals",

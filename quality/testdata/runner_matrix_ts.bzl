@@ -211,4 +211,33 @@ TS_CASES = [
         "config_rels": ["eslint.config.mjs"],
         "expected_file": ":matrix/matrix_typescript_eslint_strict_profile_fail.expected.txt",
     },
+    {
+        "name": "matrix_tsx_eslint_framework_profile_fail",
+        "generated": {
+            "quality/testdata/eslint_profile/c.tsx": "import { useState } from \"react\";\nexport function useThing(flag: boolean) {\n  if (flag) {\n    const [value] = useState(0);\n    return value;\n  }\n  return 0;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["eslint;tsx;quality/testdata/eslint_profile/c.tsx"],
+        "tool_names": ["eslint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "toolfile_tools": ["eslint", "eslint", "eslint", "eslint", "eslint"],
+        "toolfile_srcs": [
+            ":eslint_cfg/profile_standard.mjs",
+            "//cli/adopt/templates/config:eslint/standard.mjs",
+            "//cli/adopt/templates/config:eslint/strict.mjs",
+            ":eslint_cfg/frameworks_react.mjs",
+            "//cli/adopt/templates/config:eslint/frameworks/react.mjs",
+        ],
+        "toolfile_rels": [
+            "eslint.config.mjs",
+            ".dx/config/eslint/standard.mjs",
+            ".dx/config/eslint/strict.mjs",
+            ".dx/config/eslint/frameworks.mjs",
+            ".dx/config/eslint/frameworks/react.mjs",
+        ],
+        "config_tools": ["eslint"],
+        "config_files": [":eslint_cfg/profile_standard.mjs"],
+        "config_rels": ["eslint.config.mjs"],
+        "expected_file": ":matrix/matrix_tsx_eslint_framework_profile_fail.expected.txt",
+    },
 ]

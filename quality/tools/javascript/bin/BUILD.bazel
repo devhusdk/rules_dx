@@ -15,12 +15,14 @@ package(default_visibility = ["//:__subpackages__"])
 js_binary(
     name = "eslint_generated",
     data = [
+        "//quality/tools/javascript:node_modules/@eslint-react/eslint-plugin",
         "//quality/tools/javascript:node_modules/@eslint/js",
         "//quality/tools/javascript:node_modules/@typescript-eslint/parser",
         "//quality/tools/javascript:node_modules/astro-eslint-parser",
         "//quality/tools/javascript:node_modules/eslint",
         "//quality/tools/javascript:node_modules/eslint-plugin-astro",
         "//quality/tools/javascript:node_modules/eslint-plugin-mdx",
+        "//quality/tools/javascript:node_modules/eslint-plugin-react-hooks",
         "//quality/tools/javascript:node_modules/eslint-plugin-svelte",
         "//quality/tools/javascript:node_modules/eslint-plugin-vue",
         "//quality/tools/javascript:node_modules/globals",

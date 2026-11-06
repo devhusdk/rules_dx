@@ -1,0 +1,13 @@
+producer //quality/testdata:matrix_tsx_eslint_framework_profile_fail
+capability LINT
+stages 1
+stage eslint classes=tsx sources=quality/testdata/eslint_profile/c.tsx
+completed_rounds 1
+convergence STABLE
+initial 2
+initial ERROR eslint @eslint-react/rules-of-hooks quality/testdata/eslint_profile/c.tsx 110 118 fixable=false "React Hook \"useState\" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?"
+initial ERROR eslint react-hooks/rules-of-hooks quality/testdata/eslint_profile/c.tsx 110 118 fixable=false "React Hook \"useState\" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?"
+terminal 2
+terminal ERROR eslint @eslint-react/rules-of-hooks quality/testdata/eslint_profile/c.tsx 110 118 fixable=false "React Hook \"useState\" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?"
+terminal ERROR eslint react-hooks/rules-of-hooks quality/testdata/eslint_profile/c.tsx 110 118 fixable=false "React Hook \"useState\" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?"
+replacements 0

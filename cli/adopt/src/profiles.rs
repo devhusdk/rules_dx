@@ -52,6 +52,38 @@ struct Entry {
     strict: &'static str,
 }
 
+/// A framework block of the eslint config, written when one of its extensions occurs.
+struct Framework {
+    name: &'static str,
+    extensions: &'static [&'static str],
+    template: &'static str,
+}
+
+const FRAMEWORKS: &[Framework] = &[
+    Framework {
+        name: "astro",
+        extensions: &[".astro"],
+        template: include_str!("../templates/config/eslint/frameworks/astro.mjs"),
+    },
+    Framework {
+        name: "react",
+        extensions: &[".jsx", ".tsx"],
+        template: include_str!("../templates/config/eslint/frameworks/react.mjs"),
+    },
+    Framework {
+        name: "svelte",
+        extensions: &[".svelte"],
+        template: include_str!("../templates/config/eslint/frameworks/svelte.mjs"),
+    },
+    Framework {
+        name: "vue",
+        extensions: &[".vue"],
+        template: include_str!("../templates/config/eslint/frameworks/vue.mjs"),
+    },
+];
+
+const NO_FRAMEWORKS: &str = include_str!("../templates/config/eslint/frameworks.mjs");
+
 const TABLE: &[Entry] = &[
     Entry {
         tool: "ruff",
@@ -255,6 +287,9 @@ pub fn plan_profile_files(
                 kind: FileKind::Generated,
             });
         }
+        if entry.tool == "eslint" {
+            files.extend(plan_framework_files(entry, extensions));
+        }
         if !already_configured(root, entry) {
             files.push(ScaffoldFile {
                 path: entry.root.to_owned(),
@@ -263,6 +298,41 @@ pub fn plan_profile_files(
             });
         }
     }
+    files
+}
+
+/// The framework files for the extensions found and the `frameworks.mjs` that imports them.
+fn plan_framework_files(entry: &Entry, extensions: &BTreeSet<String>) -> Vec<ScaffoldFile> {
+    let found: Vec<&Framework> = FRAMEWORKS
+        .iter()
+        .filter(|framework| framework.extensions.iter().any(|ext| extensions.contains(*ext)))
+        .collect();
+    let mut files: Vec<ScaffoldFile> = found
+        .iter()
+        .map(|framework| ScaffoldFile {
+            path: format!(".dx/config/eslint/frameworks/{}.mjs", framework.name),
+            content: format!("{}{}", base_header(entry), framework.template),
+            kind: FileKind::Generated,
+        })
+        .collect();
+    let body = if found.is_empty() {
+        NO_FRAMEWORKS.to_owned()
+    } else {
+        let imports: String = found
+            .iter()
+            .map(|framework| format!("import {0} from \"./frameworks/{0}.mjs\";\n", framework.name))
+            .collect();
+        let spread: String = found
+            .iter()
+            .map(|framework| format!("  ...{},\n", framework.name))
+            .collect();
+        format!("{imports}\nexport default [\n{spread}];\n")
+    };
+    files.push(ScaffoldFile {
+        path: ".dx/config/eslint/frameworks.mjs".to_owned(),
+        content: format!("{}{body}", base_header(entry)),
+        kind: FileKind::Generated,
+    });
     files
 }
 
@@ -341,6 +411,45 @@ mod tests {
     }
 
     #[test]
+    fn vue_fixture_writes_the_vue_block_and_imports_only_it() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-profiles-");
+        let files = plan_profile_files(scratch.path(), &exts(&[".ts", ".vue"]), None);
+        let find = |path: &str| files.iter().find(|file| file.path == path);
+        let vue = find(".dx/config/eslint/frameworks/vue.mjs").expect("vue block");
+        assert_eq!(vue.kind, FileKind::Generated);
+        assert!(vue.content.contains("eslint-plugin-vue"));
+        let index = find(".dx/config/eslint/frameworks.mjs").expect("frameworks.mjs");
+        assert_eq!(index.kind, FileKind::Generated);
+        assert!(index.content.contains("import vue from \"./frameworks/vue.mjs\";"));
+        assert!(index.content.contains("  ...vue,\n"));
+        assert_eq!(index.content.matches("import ").count(), 1);
+        assert!(find(".dx/config/eslint/frameworks/react.mjs").is_none());
+    }
+
+    #[test]
+    fn react_covers_jsx_and_tsx() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-profiles-");
+        let files = plan_profile_files(scratch.path(), &exts(&[".tsx"]), None);
+        assert!(files
+            .iter()
+            .any(|file| file.path == ".dx/config/eslint/frameworks/react.mjs"));
+    }
+
+    #[test]
+    fn typescript_only_fixture_gets_the_empty_frameworks_file() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-profiles-");
+        let files = plan_profile_files(scratch.path(), &exts(&[".ts"]), None);
+        assert!(!files
+            .iter()
+            .any(|file| file.path.starts_with(".dx/config/eslint/frameworks/")));
+        let index = files
+            .iter()
+            .find(|file| file.path == ".dx/config/eslint/frameworks.mjs")
+            .expect("frameworks.mjs");
+        assert!(index.content.ends_with("export default [];\n"));
+    }
+
+    #[test]
     fn strict_on_python_and_go_writes_ruff_files_only() {
         let scratch = dx_test_scratch::scratch("dx-adopt-profiles-");
         let files = plan_profile_files(
@@ -379,6 +488,7 @@ mod tests {
             [
                 ".dx/config/eslint/standard.mjs",
                 ".dx/config/eslint/strict.mjs",
+                ".dx/config/eslint/frameworks.mjs",
                 "eslint.config.mjs",
                 ".dx/config/tsconfig/standard.json",
                 ".dx/config/tsconfig/strict.json",
@@ -386,16 +496,16 @@ mod tests {
             ]
         );
         assert_eq!(
-            files[2].content,
+            files[3].content,
             "export { default } from \"./.dx/config/eslint/strict.mjs\";\n"
         );
         assert_eq!(
-            files[5].content,
+            files[6].content,
             "{ \"extends\": \"./.dx/config/tsconfig/strict.json\" }\n"
         );
         assert!(files[0].content.starts_with("// Generated by dx;"));
-        assert!(files[3].content.starts_with('{'));
-        assert!(files[4]
+        assert!(files[5].content.starts_with('{'));
+        assert!(files[5]
             .content
             .contains("\"extends\": \"./standard.json\""));
         assert_eq!(infer_profile_of(&files), Profile::Strict);
@@ -444,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn python_ts_go_gets_six_bases_and_three_root_files() {
+    fn python_ts_go_gets_seven_bases_and_three_root_files() {
         let scratch = mixed_repo();
         let root = scratch.path();
         let extensions = exts(&[".py", ".ts", ".go"]);
@@ -455,14 +565,14 @@ mod tests {
             .filter(|f| f.kind == FileKind::WriteOnce)
             .map(|f| f.path.as_str())
             .collect();
-        assert_eq!(bases.count(), 6);
+        assert_eq!(bases.count(), 7);
         assert_eq!(roots, ["ruff.toml", "eslint.config.mjs", "tsconfig.json"]);
         assert!(strict.iter().all(|f| !f.path.contains("go")));
         let mut applied = crate::scaffold::Applied::default();
         crate::scaffold::apply_scaffold(root, &strict, &mut applied).expect("apply");
         let standard = plan_profile_files(root, &extensions, Some(Profile::Standard));
         assert!(standard.iter().all(|f| f.kind == FileKind::Generated));
-        assert_eq!(standard.len(), 6);
+        assert_eq!(standard.len(), 7);
         assert_eq!(profile_notes(root, Profile::Standard).len(), 3);
         assert!(profile_notes(root, Profile::Strict).is_empty());
     }

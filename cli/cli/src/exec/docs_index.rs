@@ -39,16 +39,36 @@ pub(crate) fn built_shards(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>,
     Ok(shards)
 }
 
-/// Resolves an exec path; files of other repos sit beside `bazel-out` in the execroot.
-fn tool_path(workspace: &Path, path: &str) -> PathBuf {
-    if path.starts_with("external/") {
-        workspace.join("bazel-out/..").join(path)
-    } else {
-        workspace.join(path)
+/// Resolves an exec path; files of other repos sit in the execution root, not the workspace.
+fn tool_path(workspace: &Path, execution_root: Option<&Path>, path: &str) -> PathBuf {
+    match execution_root {
+        Some(root) if path.starts_with("external/") => {
+            dx_tool_resolve::join_under(&root.to_string_lossy(), path)
+        }
+        _ => workspace.join(path),
     }
 }
 
-fn built_tools(bep: &Path, workspace: &Path) -> Result<Tools, (String, String)> {
+/// The execution root `bazel info` reports, or `None` when it cannot be read.
+#[allow(clippy::disallowed_methods)] // info takes no build settings
+pub(crate) fn execution_root(
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
+    workspace: &Path,
+    startup: &[String],
+) -> Option<PathBuf> {
+    let mut argv = dx_process::startup_argv(startup);
+    argv.extend(["info".to_owned(), "execution_root".to_owned()]);
+    let result = query_runner.run_info(&argv, workspace).ok()?;
+    let text = String::from_utf8_lossy(&result.stdout);
+    let line = text.trim();
+    (result.code == Some(0) && !line.is_empty()).then(|| PathBuf::from(line))
+}
+
+fn built_tools(
+    bep: &Path,
+    workspace: &Path,
+    execution_root: Option<&Path>,
+) -> Result<Tools, (String, String)> {
     let account = collect_output_account(bep, DOCS_TOOLS_OUTPUT_GROUP, workspace)?;
     let mut tools = std::collections::BTreeMap::new();
     for artifact in account
@@ -58,7 +78,7 @@ fn built_tools(bep: &Path, workspace: &Path) -> Result<Tools, (String, String)> 
     {
         for line in String::from_utf8_lossy(&artifact.bytes).lines() {
             if let Some((name, path)) = line.split_once('\t') {
-                tools.insert(name.to_owned(), tool_path(workspace, path));
+                tools.insert(name.to_owned(), tool_path(workspace, execution_root, path));
             }
         }
     }
@@ -133,10 +153,11 @@ fn run_tool(
 pub(crate) fn build_index(
     bep: &Path,
     workspace: &Path,
+    execution_root: Option<&Path>,
     shards: &[PathBuf],
     runner: &dyn Runner,
 ) -> Result<PathBuf, (String, String)> {
-    let tools = built_tools(bep, workspace)?;
+    let tools = built_tools(bep, workspace, execution_root)?;
     let root = workspace.join(INDEX_DIR);
     let work = root.join("work");
     let out = root.join("index");
@@ -176,6 +197,21 @@ pub(crate) fn build_index(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn external_tools_resolve_under_the_execution_root() {
+        let root = Path::new("/out/execroot/_main");
+        let path = tool_path(Path::new("/w"), Some(root), "external/mdbook+/bin/mdbook");
+        assert_eq!(
+            path,
+            root.join("external")
+                .join("mdbook+")
+                .join("bin")
+                .join("mdbook")
+        );
+        let path = tool_path(Path::new("/w"), Some(root), "bazel-out/k8/bin/agg");
+        assert_eq!(path, Path::new("/w").join("bazel-out/k8/bin/agg"));
+    }
 
     #[test]
     fn aggregate_gets_every_shard_once_in_order() {

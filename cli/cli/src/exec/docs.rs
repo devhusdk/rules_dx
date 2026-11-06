@@ -1,5 +1,5 @@
 use super::common::*;
-use super::docs_index::{build_index, built_shards};
+use super::docs_index::{build_index, built_shards, execution_root};
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started, operation_event};
 use dx_plan::args::Invocation;
 use dx_plan::plan::{DOCS_SITE_OUTPUT_GROUP, bep_path, plan_docs};
@@ -207,7 +207,14 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     if matches!(&sites, Ok(sites) if sites.is_empty()) {
         match built_shards(&bep, workspace) {
             Ok(shards) if shards.is_empty() => {}
-            Ok(shards) => match build_index(&bep, workspace, &shards, runner) {
+            Ok(shards) => match build_index(
+                &bep,
+                workspace,
+                execution_root(query_runner, workspace, &invocation.bazel_startup_options)
+                    .as_deref(),
+                &shards,
+                runner,
+            ) {
                 Ok(dir) => {
                     if !json && invocation.chatty() {
                         let page = dir.join("index.html");

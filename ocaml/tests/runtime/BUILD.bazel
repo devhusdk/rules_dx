@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_signature", "ocaml_test")
-load("//ocaml/rules:wrapper_tests.bzl", "ocaml_coverage_files_test")
+load("//ocaml/rules:wrapper_tests.bzl", "ocaml_coverage_files_test", "ocaml_coverage_manifest_test")
 load(":cmt_check.bzl", "cmt_check")
 
 ocaml_module(
@@ -103,5 +103,10 @@ build_test(
 ocaml_coverage_files_test(
     name = "greet_coverage_files_test",
     source = "ocaml/tests/runtime/greet.ml",
+    target_under_test = ":greet_test",
+)
+
+ocaml_coverage_manifest_test(
+    name = "greet_coverage_filter_test",
     target_under_test = ":greet_test",
 )

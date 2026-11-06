@@ -155,30 +155,6 @@ def _run_environment_info(ctx, upstream):
     out = run_environment(upstream_env, upstream_inherited, ctx.attr.env, ctx.attr.env_inherit)
     return RunEnvironmentInfo(environment = out.environment, inherited_environment = out.inherited_environment)
 
-OCamlCoverageSources = provider(
-    doc = "The hand-written .ml files a target is built from.",
-    fields = {"srcs": "depset of source files"},
-)
-
-_SOURCE_EDGES = ["upstream", "deps", "main", "manifest"]
-
-def _sources_aspect_impl(_target, ctx):
-    own = []
-    if hasattr(ctx.rule.files, "struct"):
-        own = [f for f in ctx.rule.files.struct if f.is_source]
-    deps = []
-    for edge in _SOURCE_EDGES:
-        value = getattr(ctx.rule.attr, edge, None)
-        for dep in value if type(value) == "list" else [value]:
-            if dep != None and OCamlCoverageSources in dep:
-                deps.append(dep[OCamlCoverageSources].srcs)
-    return [OCamlCoverageSources(srcs = depset(own, transitive = deps))]
-
-_sources_aspect = aspect(
-    implementation = _sources_aspect_impl,
-    attr_aspects = _SOURCE_EDGES,
-)
-
 def _coverage_launcher(ctx, upstream, bytecode):
     info = upstream[DefaultInfo]
     runtime = ctx.attr._ocamlrun[DefaultInfo]
@@ -194,7 +170,7 @@ def _coverage_launcher(ctx, upstream, bytecode):
     )
     launcher = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.symlink(output = launcher, target_file = ctx.executable._bisect_collect, is_executable = True)
-    sources = [f for f in upstream[OCamlCoverageSources].srcs.to_list() if not f.short_path.startswith("../")]
+    sources = [f for f in upstream[InstrumentedFilesInfo].instrumented_files.to_list() if f.extension == "ml" and not f.short_path.startswith("../")]
     manifest = ctx.actions.declare_file(ctx.label.name + ".bisect_sources")
     ctx.actions.write(manifest, "".join([f.short_path + "\n" for f in sources]))
     report = ctx.attr._bisect_report[DefaultInfo]
@@ -282,7 +258,7 @@ _ocaml_forward_test = rule(
         "_bisect_collect": attr.label(default = "//tools/coverage/ocaml:collect", executable = True, cfg = "target"),
         "_bisect_report": attr.label(default = "//tools/coverage/ocaml:report_or_none", cfg = "target"),
         "_bisect_to_lcov": attr.label(default = "//tools/coverage/ocaml:to_lcov_or_none", cfg = "target"),
-    }), upstream_aspects = [_sources_aspect]),
+    })),
 )
 
 def owned_sources(*files):

@@ -22,6 +22,7 @@ rust_library(
         "src/ecosystem/jvm.rs",
         "src/ecosystem/lua.rs",
         "src/ecosystem/mod.rs",
+        "src/ecosystem/ocaml.rs",
         "src/ecosystem/perl.rs",
         "src/ecosystem/php.rs",
         "src/ecosystem/powershell.rs",
@@ -99,6 +100,7 @@ rust_test(
         ":d_testdata",
         ":fortran_testdata",
         ":lua_testdata",
+        ":ocaml_testdata",
         ":perl_testdata",
         ":php_testdata",
         ":powershell_testdata",
@@ -288,6 +290,7 @@ rust_test(
         "swift",
         "powershell",
         "lua",
+        "ocaml",
     ]
 ]
 

@@ -101,6 +101,7 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         Ecosystem::Lua => {
             name.ends_with("_spec.lua") || s.contains("/spec/") || s.contains("/tests/")
         }
+        Ecosystem::Ocaml => s.contains("/test/") || s.contains("/tests/"),
         Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
         Ecosystem::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
         Ecosystem::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
@@ -160,6 +161,7 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         ".ps1",
         ".psm1",
         ".lua",
+        "dune",
     ]
     .into_iter()
     .collect()
@@ -208,6 +210,7 @@ fn skip_names() -> BTreeSet<&'static str> {
         "Package.swift",
         "Package.resolved",
         "luarocks.lock",
+        "opam.locked",
     ]
     .into_iter()
     .collect()
@@ -447,6 +450,10 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
             vec![format!(
                 r#"\brequire\s*\(?\s*['"](?:{})(?:\.[^'"]*)?['"]"#,
                 names.join("|")
+        Ecosystem::Ocaml => {
+            let name = regex_escape(dep);
+            vec![format!(
+                r"\((?:libraries|pps|preprocess_deps)\b[^()]*?[\s(]{name}(?:\.[\w.]+)?[\s)]"
             )]
         }
         Ecosystem::Zig => {

@@ -18,5 +18,6 @@ pub(crate) fn normalize_dep_key(eco: Ecosystem, raw: &str) -> String {
         Ecosystem::Haskell => raw.to_owned(),
         Ecosystem::Powershell => normalize_lower(raw),
         Ecosystem::Lua => raw.to_owned(),
+        Ecosystem::Ocaml => raw.to_owned(),
     }
 }

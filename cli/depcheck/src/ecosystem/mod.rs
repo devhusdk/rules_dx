@@ -10,6 +10,7 @@ pub mod js;
 pub mod julia;
 pub mod jvm;
 pub mod lua;
+pub mod ocaml;
 pub mod perl;
 pub mod php;
 pub mod powershell;

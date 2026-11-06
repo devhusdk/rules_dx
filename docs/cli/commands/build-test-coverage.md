@@ -116,7 +116,7 @@ A whole-repository run (`//...`) also fails on a tracked source no Bazel target 
 
 The correctness preset sets `coverage --instrument_test_targets`, so sources a test compiles itself are counted. Test-only sources count as support, not as eligible lines.
 
-Tests in these languages fail with `no_coverage_collector`: Perl. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
+A test tagged `dx-no-coverage-collector` fails with `no_coverage_collector`. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
 
 Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources (the preset instruments test targets).
 

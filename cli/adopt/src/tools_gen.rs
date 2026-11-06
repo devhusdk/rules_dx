@@ -1575,7 +1575,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         strict: include_str!("../../../quality/tiers/yamllint/strict.yaml"),
     },
     ToolConfig {
-        id: "zizmor",
+        id: "zanuda",
         suffixes: &[".txt"],
         files: &[],
         ext: "",
@@ -1596,7 +1596,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         strict: "",
     },
     ToolConfig {
-        id: "zanuda",
+        id: "zizmor",
         suffixes: &[".txt"],
         files: &[],
         ext: "",

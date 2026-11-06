@@ -87,7 +87,8 @@ Each package is the label `@dub_packages//<name>`, for example
 `d_test`. The package's own `dependencies` that appear in the selections become
 deps. `sourcePaths`, `sourceFiles`, `importPaths` and `stringImportPaths` of its `dub.json` set
 the sources and imports; without `sourcePaths` the `source` or `src` directory is
-used. `@dub_packages//:all_packages` groups every package.
+used, and without `stringImportPaths` the `views` directory is used if it exists.
+`@dub_packages//:all_packages` groups every package.
 
 Only plain versions are supported: a `path` or `repository` selection fails, and
 so does a package that has a `dub.sdl` instead of a `dub.json`.

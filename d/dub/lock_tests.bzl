@@ -22,6 +22,9 @@ def _checks():
     build = spoke_build("a", {"stringImportPaths": ["views"]}, ["source", "views"], ["hub__b"], "//d/rules:defs.bzl")
     custom = spoke_build("a", {"sourcePaths": ["lib/"], "importPaths": ["inc"]}, [], [], "//d/rules:defs.bzl")
     files = spoke_build("a", {"sourceFiles": ["a.d"], "importPaths": ["."]}, [], [], "//d/rules:defs.bzl")
+    views_default = spoke_build("a", {}, ["source", "views"], [], "//d/rules:defs.bzl")
+    no_views = spoke_build("a", {}, ["source"], [], "//d/rules:defs.bzl")
+    explicit = spoke_build("a", {"stringImportPaths": ["res"]}, ["source", "views"], [], "//d/rules:defs.bzl")
     return [
         expect_equal("a good selection has no errors", ok.errors, []),
         expect_equal("pinned packages carry the digest", ok.packages["b"].sha256, _SHA),
@@ -42,6 +45,11 @@ def _checks():
         expect_contains("the default source dir is globbed", build, "\"source/**/*.d\""),
         expect_contains("dependency edges are labels", build, "\"@hub__b//:pkg\""),
         expect_contains("string import paths are passed", build, "string_imports = [\"views\"]"),
+        expect_contains("views is the default string import dir", views_default, "string_imports = [\"views\"]"),
+        expect_contains("the default views dir is globbed", views_default, "\"views/**\""),
+        expect_equal("no views dir means no string attrs", "string_imports" in no_views, False),
+        expect_contains("explicit stringImportPaths win", explicit, "string_imports = [\"res\"]"),
+        expect_equal("explicit stringImportPaths replace views", "views" in explicit, False),
         expect_contains("importPaths default to sourcePaths", build, "imports = [\"source\"]"),
         expect_contains("explicit importPaths win", custom, "imports = [\"inc\"]"),
         expect_contains("explicit sourcePaths win", custom, "\"lib/**/*.d\""),

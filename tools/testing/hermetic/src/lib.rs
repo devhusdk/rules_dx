@@ -1067,7 +1067,7 @@ impl Session {
             args.push("--apply".to_owned());
         }
         if name == "dx_generate_check" {
-            args.extend(["--output".to_owned(), "diff".to_owned()]);
+            args.push("--diff".to_owned());
         }
         args.extend([
             "--".to_owned(),

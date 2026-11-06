@@ -643,7 +643,7 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn a_sibling_tree_and_manifest_are_found_under_a_non_utf8_path() {
         use std::ffi::OsStr;

@@ -56,6 +56,15 @@ const NPM: Ecosystem = Ecosystem {
     binding: "npm",
     hub: "npm",
 };
+const TYPESCRIPT: Ecosystem = Ecosystem {
+    dep: "aspect_rules_ts",
+    version: dx_versions::ASPECT_RULES_TS_VERSION,
+    bzl: "@aspect_rules_ts//ts:extensions.bzl",
+    ext: "typescript",
+    binding: "typescript",
+    hub: "npm_typescript",
+};
+const TSCONFIG: &str = "tsconfig.json";
 
 const PNPM: Ecosystem = Ecosystem {
     dep: "aspect_rules_js",
@@ -162,7 +171,8 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
         plan.report_missing_locks();
         plan.cargo()?;
         plan.uv()?;
-        plan.npm()
+        plan.npm()?;
+        plan.typescript()
     })
 }
 
@@ -458,6 +468,25 @@ impl Planner<'_> {
         self.add(&PNPM, &[], &[PNPM.hub])
     }
 
+    fn typescript(&mut self) -> Result<(), AdoptError> {
+        let wanted = self.exists(TSCONFIG)
+            || self
+                .lock_dirs(PNPM_LOCK, "package.json")
+                .iter()
+                .any(|dir| self.exists(&format!("{dir}/{TSCONFIG}")));
+        if !wanted || self.files.iter().any(|file| binds_name(file, &TYPESCRIPT)) {
+            return Ok(());
+        }
+        let tags = vec![tag(
+            "deps",
+            vec![
+                ("version", string(dx_versions::TYPESCRIPT_VERSION)),
+                ("integrity", string(dx_versions::TYPESCRIPT_INTEGRITY)),
+            ],
+        )];
+        self.add(&TYPESCRIPT, &tags, &[TYPESCRIPT.hub])
+    }
+
     fn add(&mut self, eco: &Ecosystem, tags: &[NewTag], hubs: &[&str]) -> Result<(), AdoptError> {
         let declared = self
             .files
@@ -626,6 +655,65 @@ mod tests {
         assert!(
             text.contains("npm.npm_translate_lock(\n    name = \"npm\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n)\nuse_repo(npm, \"npm\")\n"),
             "{text}"
+        );
+    }
+
+    #[test]
+    fn tsconfig_gets_the_typescript_hub() {
+        let hubs = plan(&[
+            ("pnpm-lock.yaml", ""),
+            ("package.json", "{}"),
+            ("tsconfig.json", "{}"),
+        ]);
+        let text = new_text(&hubs);
+        assert!(
+            text.contains("bazel_dep(name = \"aspect_rules_ts\""),
+            "{text}"
+        );
+        assert!(
+            text.contains("typescript = use_extension(\"@aspect_rules_ts//ts:extensions.bzl\", \"typescript\")\ntypescript.deps(\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains(&format!("version = \"{}\"", dx_versions::TYPESCRIPT_VERSION)),
+            "{text}"
+        );
+        assert!(text.ends_with("use_repo(typescript, \"npm_typescript\")\n"), "{text}");
+    }
+
+    #[test]
+    fn no_tsconfig_means_no_typescript_hub() {
+        let hubs = plan(&[("pnpm-lock.yaml", ""), ("package.json", "{}")]);
+        assert!(!new_text(&hubs).contains("npm_typescript"));
+    }
+
+    #[test]
+    fn a_second_typescript_run_plans_nothing() {
+        let dir = scratch("lock_hubs_ts_twice");
+        write(dir.path(), MODULE_FILE, MODULE);
+        write(dir.path(), "tsconfig.json", "{}");
+        write(dir.path(), "pnpm-lock.yaml", "");
+        write(dir.path(), "package.json", "{}");
+        let first = plan_lock_hubs(dir.path()).expect("plan");
+        assert!(new_text(&first).contains("npm_typescript"));
+        write(dir.path(), MODULE_FILE, new_text(&first));
+        assert_eq!(
+            plan_lock_hubs(dir.path()).expect("plan"),
+            LockHubs::default()
+        );
+    }
+
+    #[test]
+    fn a_hand_written_typescript_stanza_is_left_alone() {
+        let module = format!(
+            "{MODULE}\nts = use_extension(\"@aspect_rules_ts//ts:extensions.bzl\", \"typescript\")\nts.deps(version = \"5.0.0\")\nuse_repo(ts, \"npm_typescript\")\n"
+        );
+        let dir = scratch("lock_hubs_ts_manual");
+        write(dir.path(), MODULE_FILE, &module);
+        write(dir.path(), "tsconfig.json", "{}");
+        assert_eq!(
+            plan_lock_hubs(dir.path()).expect("plan"),
+            LockHubs::default()
         );
     }
 

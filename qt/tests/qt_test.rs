@@ -468,6 +468,32 @@ fn gui_refuses_a_platform_plugin_it_does_not_pin() {
     );
 }
 
+/// Bazel gives a Windows test no console window, so Qt must report the error instead of waiting on a message box.
+#[cfg(windows)]
+#[test]
+fn qt_cc_test_without_a_console_exits_on_a_missing_platform_plugin() {
+    use std::os::windows::process::CommandExt;
+    let platforms = directory_of("DX_QT_PLATFORMS", OFFSCREEN);
+    let path = runtime_path();
+    let envs = [
+        ("PATH", path.as_str()),
+        ("QT_QPA_PLATFORM", "xcb"),
+        ("QT_QPA_PLATFORM_PLUGIN_PATH", platforms.as_str()),
+    ];
+    let mut command =
+        dx_testing::command_for(&runnable("DX_QT_CONSOLE_FIXTURE"), &envs).expect("command");
+    // DETACHED_PROCESS: the child has no console window, as under Bazel.
+    command.creation_flags(0x0000_0008);
+    let run = dx_testing::run_command(&mut command, std::time::Duration::from_secs(30))
+        .expect("run fixture");
+    assert!(!run.status.success(), "{}", run.combined());
+    assert!(
+        run.stderr.contains("Available platform plugins are:"),
+        "{}",
+        run.stderr
+    );
+}
+
 #[test]
 fn tools_report_the_pinned_version() {
     for (variable, name) in [

@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
@@ -75,4 +76,12 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "windows_test_console",
+    srcs = ["windows_test_console.cc"],
+    alwayslink = True,
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:windows"],
 )

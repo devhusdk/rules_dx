@@ -196,13 +196,14 @@ rust_test(
         "@dx_qt//:sbom",
         "@dx_qt//:uic",
     ] + _QT_FONTS + _VCRUNTIME + select({
-        "@platforms//os:windows": _WINDOWS_CHILDREN,
+        "@platforms//os:windows": _WINDOWS_CHILDREN + [":console_fixture_windows_x86_64"],
         "//conditions:default": [],
     }),
     env = select({
         "@platforms//os:macos": _QT_TEST_ENV,
         "@platforms//os:windows": dict(
             _QT_TEST_ENV,
+            DX_QT_CONSOLE_FIXTURE = "$(rootpath :console_fixture_windows_x86_64)",
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
             DX_QT_VCRUNTIME = "$(rootpaths //cc/toolchains:msvc_vcruntime)",
         ),
@@ -359,6 +360,29 @@ alias(
         "@dx_qt//:windows_x86_64": ":gui_check_windows_x86_64",
     }),
     tags = ["manual"],
+)
+
+qt_cc_test(
+    name = "console_fixture",
+    testonly = True,
+    srcs = ["fixtures/console_app.cc"],
+    env = {"QT_QPA_PLATFORM": "xcb"},
+    modules = [
+        "core",
+        "gui",
+    ],
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS_X86_64,
+)
+
+cc_toolchain_binary(
+    name = "console_fixture_windows_x86_64",
+    testonly = True,
+    binary = ":console_fixture",
+    compiler = "msvc",
+    platforms = ["//qt/platforms:windows_x86_64"],
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS_X86_64,
 )
 
 qt_cc_library(

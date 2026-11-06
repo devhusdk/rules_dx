@@ -764,6 +764,19 @@ def qt_qml_module(
 def _uses_qml(modules):
     return len([module for module in modules if module in _QML_MODULES]) > 0
 
+_GUI_MODULES = ["gui", "quick", "widgets"]
+
+_WINDOWS_TEST_CONSOLE = Label("//qt/rules:windows_test_console")
+
+def _windows_console(test, modules):
+    # Qt opens a blocking MessageBox for a failed platform plugin when the process has no console window.
+    if not test or len([module for module in modules if module in _GUI_MODULES]) == 0:
+        return []
+    return select({
+        "@platforms//os:windows": [_WINDOWS_TEST_CONSOLE],
+        "//conditions:default": [],
+    })
+
 def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, plugins, copts, visibility, kwargs):
     for plugin in plugins:
         if plugin not in RUNTIME_PLUGINS:
@@ -792,7 +805,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         name = name + "_upstream",
         srcs = srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
         copts = copts + _include_copts(name),
-        deps = effective_deps + [":" + name + "_qt_frameworks"],
+        deps = effective_deps + [":" + name + "_qt_frameworks"] + _windows_console(test, modules),
         tags = dx_upstream_tags(tags),
         visibility = ["//visibility:private"],
         **upstream_kwargs

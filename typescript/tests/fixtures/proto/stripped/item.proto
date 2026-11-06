@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package fixtures.stripped;
+
+message Item {
+  string sku = 1;
+}

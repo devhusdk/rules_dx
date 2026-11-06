@@ -19,3 +19,29 @@ ts_proto_library(
     proto = ":user_proto",
     tsconfig = "tsconfig.json",
 )
+
+proto_library(
+    name = "order_proto",
+    srcs = ["v1/order.proto"],
+    strip_import_prefix = "/",
+)
+
+ts_proto_library(
+    name = "order_proto_ts",
+    deps = ["//:node_modules/@bufbuild/protobuf"],
+    proto = ":order_proto",
+    tsconfig = "tsconfig.json",
+)
+
+proto_library(
+    name = "item_proto",
+    srcs = ["stripped/item.proto"],
+    strip_import_prefix = "stripped",
+)
+
+ts_proto_library(
+    name = "item_proto_ts",
+    deps = ["//:node_modules/@bufbuild/protobuf"],
+    proto = ":item_proto",
+    tsconfig = "tsconfig.json",
+)

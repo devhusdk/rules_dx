@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package grpc_test.stripped;
+
+message PingRequest {}
+
+message PingReply {}
+
+service Ping {
+  rpc Send(PingRequest) returns (PingReply);
+}

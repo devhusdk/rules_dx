@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package grpc_test.v1;
+
+message EchoRequest {
+  string text = 1;
+}
+
+message EchoReply {
+  string text = 1;
+}
+
+service Echo {
+  rpc Say(EchoRequest) returns (EchoReply);
+}

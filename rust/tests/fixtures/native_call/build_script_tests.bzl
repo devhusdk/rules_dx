@@ -494,3 +494,29 @@ def build_script_msvc_coverage_test(name, target):
         target_compatible_with = ["@platforms//os:windows"],
         target_under_test = target,
     )
+
+def _absolute_tool_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    for name in ["CC", "CXX", "AR", "HOST_CC", "HOST_CXX", "HOST_AR", "TARGET_CC", "TARGET_CXX", "TARGET_AR"]:
+        asserts.equals(env, "C:/fake/bin/cl.exe", action.env.get(name), "{} is not the drive-letter tool path".format(name))
+    return analysistest.end(env)
+
+_absolute_tool_test = analysistest.make(
+    _absolute_tool_impl,
+    config_settings = {"//command_line_option:extra_toolchains": [str(Label("//cc/toolchains/external:fake_windows_cc_toolchain"))]},
+)
+
+def build_script_absolute_tool_test(name, target):
+    """Asserts a Windows drive-letter cc tool path reaches the build script without a ${pwd}/ prefix.
+
+    Args:
+        name: Name of the test.
+        target: A cargo_build_script that uses the cc toolchain.
+    """
+    _absolute_tool_test(
+        name = name,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows"],
+        target_under_test = target,
+    )

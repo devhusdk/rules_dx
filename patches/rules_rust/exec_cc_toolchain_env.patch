@@ -1,19 +1,17 @@
 --- a/cargo/private/cargo_build_script.bzl
 +++ b/cargo/private/cargo_build_script.bzl
-@@ -100,6 +100,12 @@
+@@ -100,6 +100,10 @@
      )
      return cc_c_args, cc_cxx_args, cc_env
  
 +def _pwd_tool(path):
 +    """Makes an execroot-relative tool path absolute at run time; the runner expands ${pwd}."""
-+    if path.startswith("/") or path.startswith("${pwd}"):
-+        return path
-+    return "${pwd}/" + path
++    return "${pwd}/" + path if _should_prefix_pwd(path) else path
 +
  # These get replaced with the non-hermetic values magically, and result in
  # absolute paths, so they shouldn't have PWD prefixed.
  # https://github.com/bazelbuild/apple_support/blob/20913e2a9ad4a00a1849a464b856d04b5cd3bdcb/lib/apple_support.bzl#L174-L198
-@@ -569,6 +575,60 @@
+@@ -569,6 +573,60 @@
          # that doing so is more likely to hurt than help. If you need to change
          # ARFLAGS, make changes to cc-rs.
  
@@ -74,7 +72,7 @@
      # Inform build scripts of rustc flags
      # https://github.com/rust-lang/cargo/issues/9600
      env["CARGO_ENCODED_RUSTFLAGS"] = "\\x1f".join([
-@@ -941,6 +1001,10 @@
+@@ -941,6 +999,10 @@
              allow_files = True,
              default = Label("//cargo/private:no_cxx"),
          ),

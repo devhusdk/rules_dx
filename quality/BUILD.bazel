@@ -189,6 +189,16 @@ consumer_policy_tests(
             "subject": "//d/tests/fixtures/hello:greet",
         },
         {
+            "case": "default_fortran",
+            "expected_dx_results": [
+                "calc-real-format-fortran.pb",
+                "calc-real-lint-fortran.pb",
+                "calc-real-lint-text.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//fortran/tests/fixtures/calc:calc",
+        },
+        {
             "case": "default_dart",
             "expected_dx_results": [
                 "inventory_cli-real-format-dart.pb",

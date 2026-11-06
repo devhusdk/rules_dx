@@ -168,6 +168,17 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
+                "fortran curated defaults are ffmt + fortitude",
+                CURATED_DEFAULTS["fortran"],
+                {
+                    "audit": [],
+                    "format": ["ffmt"],
+                    "lint": ["fortitude", "typos"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
                 "d curated defaults are dfmt + D-Scanner",
                 CURATED_DEFAULTS["d"],
                 {

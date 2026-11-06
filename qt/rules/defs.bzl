@@ -504,6 +504,7 @@ def _run_environment(ctx, gui):
         if ctx.attr._headless:
             environment["QT_QPA_PLATFORM"] = "offscreen"
             environment["QT_QUICK_BACKEND"] = "software"
+            environment["QT_FORCE_STDERR_LOGGING"] = "1"
     if RunEnvironmentInfo in ctx.attr.upstream:
         environment.update(ctx.attr.upstream[RunEnvironmentInfo].environment)
         inherited = ctx.attr.upstream[RunEnvironmentInfo].inherited_environment

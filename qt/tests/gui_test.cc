@@ -28,6 +28,8 @@
 // psapi.h must follow windows.h.
 #include <psapi.h>
 
+#include <process.h>
+
 #include <cstdio>
 #include <vector>
 #endif
@@ -258,7 +260,30 @@ void GuiTest::loadsOnlyPinnedLibraries() {
 #endif
 }
 
+#if defined(_WIN32)
+namespace {
+QtMessageHandler previousHandler = nullptr;
+
+// qAbort ends in __fastfail, which Windows Error Reporting can hold forever.
+void exitOnFatal(QtMsgType type, const QMessageLogContext &context,
+                 const QString &message) {
+  if (previousHandler != nullptr) {
+    previousHandler(type, context, message);
+  } else {
+    std::fprintf(stderr, "%s\n", qPrintable(message));
+  }
+  if (type == QtFatalMsg) {
+    std::fflush(nullptr);
+    _exit(1);
+  }
+}
+}  // namespace
+#endif
+
 int main(int argc, char **argv) {
+#if defined(_WIN32)
+  previousHandler = qInstallMessageHandler(exitOnFatal);
+#endif
   QApplication app(argc, argv);
   GuiTest test;
   return QTest::qExec(&test, argc, argv);

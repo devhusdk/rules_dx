@@ -411,13 +411,14 @@ fn run_gui(platform: &str) -> std::io::Result<dx_testing::Run> {
         envs.push(("FONTCONFIG_PATH", fonts));
     }
     envs.extend(&HOST_ROUTES[2..]);
-    // Without these Qt reports a fatal error in a message box that waits for a click.
+    let mut command = dx_testing::command_for(&runnable("DX_QT_GUI"), &envs)?;
     #[cfg(windows)]
-    envs.extend([
-        ("QT_ASSUME_STDERR_HAS_CONSOLE", "1"),
-        ("QT_FORCE_STDERR_LOGGING", "1"),
-    ]);
-    dx_testing::run(&runnable("DX_QT_GUI"), &[], &envs)
+    {
+        use std::os::windows::process::CommandExt;
+        // Qt shows a blocking MessageBox when there is no console window.
+        command.creation_flags(0x0000_0010);
+    }
+    dx_testing::run_command(&mut command, std::time::Duration::from_secs(120))
 }
 
 #[test]
@@ -442,20 +443,7 @@ fn gui_renders_offscreen_against_only_pinned_libraries() {
 
 #[test]
 fn gui_refuses_a_platform_plugin_it_does_not_pin() {
-    let run = match run_gui("xcb") {
-        Ok(run) => run,
-        // Windows leaves the aborted process waiting after it reports the error.
-        Err(error) if cfg!(windows) && error.kind() == std::io::ErrorKind::TimedOut => {
-            assert!(
-                error
-                    .to_string()
-                    .contains("Could not find the Qt platform plugin \"xcb\""),
-                "{error}"
-            );
-            return;
-        }
-        Err(error) => panic!("run gui check: {error}"),
-    };
+    let run = run_gui("xcb").expect("run gui check");
     assert!(!run.status.success(), "{}", run.combined());
     assert!(
         run.stderr

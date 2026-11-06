@@ -115,9 +115,17 @@ pub fn run_within(
     envs: &[(&str, &str)],
     limit: std::time::Duration,
 ) -> std::io::Result<Run> {
+    run_command(command_for(bin, envs)?.args(args), limit)
+}
+
+/// Like `run_within` for a prepared command; the caller sets any platform flags.
+pub fn run_command(
+    command: &mut std::process::Command,
+    limit: std::time::Duration,
+) -> std::io::Result<Run> {
     use std::process::Stdio;
-    let mut child = command_for(bin, envs)?
-        .args(args)
+    let program = PathBuf::from(command.get_program());
+    let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -163,7 +171,7 @@ pub fn run_within(
             std::io::ErrorKind::TimedOut,
             format!(
                 "{} outlived {limit:?} and was killed\nstdout:\n{}\nstderr:\n{}",
-                bin.display(),
+                program.display(),
                 run.stdout,
                 run.stderr
             ),

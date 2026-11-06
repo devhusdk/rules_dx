@@ -57,6 +57,7 @@ exports_files([
     "sources.bzl",
     "support.bzl",
     "tools.bzl",
+    "unavailable_tool.bzl",
 ] + glob(["families/*.bzl"]))
 
 exports_files([
@@ -649,6 +650,7 @@ real_source_target(
         "curated_defaults_tests.bzl",
         "execution_requirements.bzl",
         "execution_requirements_tests.bzl",
+        "unavailable_tool.bzl",
         "dart_context.bzl",
         "dart_context_tests.bzl",
         "unused_roots_tests.bzl",

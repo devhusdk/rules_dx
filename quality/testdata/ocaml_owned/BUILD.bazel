@@ -1,7 +1,10 @@
 load("//ocaml/rules:defs.bzl", "ocaml_module")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
-package(default_visibility = ["//quality/testdata:__pkg__"])
+package(default_visibility = [
+    "//quality:__pkg__",
+    "//quality/testdata:__pkg__",
+])
 
 quality_family(
     name = "ocaml_family",
@@ -17,6 +20,22 @@ quality_family(
 workspace_policy(
     name = "policy",
     families = [":ocaml_family"],
+)
+
+quality_family(
+    name = "zanuda_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "ocaml",
+    lint = ["zanuda"],
+)
+
+workspace_policy(
+    name = "zanuda_policy",
+    families = [":zanuda_family"],
 )
 
 ocaml_module(

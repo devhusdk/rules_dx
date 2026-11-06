@@ -9,6 +9,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
+load("//quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//quality:support.bzl", "support_unpinned_tools", "support_unsupported_reasons")
 
 _REAL_TOOL_KINDS = ["executable", "file", "setting", "toolchain", "upstream"]
@@ -43,12 +44,12 @@ def _unique(items):
     """Returns items without repeats, in first-seen order."""
     return list({item: True for item in items}.keys())
 
-def real_unavailable_tools(tools, stage_tools, delegated, pinned_counts):
-    """Returns the optional pinned file tools of the stages that resolved to no file here."""
+def real_unavailable_tools(tools, stage_tools, delegated, pinned_counts, marked = {}):
+    """Returns the stage tools with no usable artifact here: empty optional pins and marked stubs."""
     return sorted([
         tool
         for tool in _unique(stage_tools)
-        if tool not in delegated and tools[tool]["kind"] == "file" and "fallback" in tools[tool] and pinned_counts.get(tool, 1) == 0
+        if tool not in delegated and (marked.get(tool, False) or (tools[tool]["kind"] == "file" and "fallback" in tools[tool] and pinned_counts.get(tool, 1) == 0))
     ])
 
 def real_skip_notes(tools, reasons):
@@ -90,6 +91,9 @@ def _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, w
                 extra[tool] = runtime
         elif kind == "executable":
             tool_target = getattr(ctx.attr, "_" + tool)
+            if DxUnavailableToolInfo in tool_target:
+                # Unreachable for stages real_unavailable_tools already dropped.
+                fail(what + ": " + tool + " is unavailable on this execution platform")
             binaries[tool] = getattr(ctx.executable, "_" + tool)
             if spec.get("extra") == "files":
                 extra[tool] = tool_target[DefaultInfo].files.to_list()
@@ -385,7 +389,8 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     stage_tools = [stage["tool"] for stage in resolved]
     delegated = {tool: True for tool, found in contexts.items() if found.delegated}
     pinned_counts = {tool: len(getattr(ctx.files, "_" + tool)) for tool in stage_tools if cfg.tools[tool]["kind"] == "file" and "fallback" in cfg.tools[tool]}
-    unavailable = real_unavailable_tools(cfg.tools, stage_tools, delegated, pinned_counts)
+    marked = {tool: True for tool in stage_tools if cfg.tools[tool]["kind"] == "executable" and DxUnavailableToolInfo in getattr(ctx.attr, "_" + tool)}
+    unavailable = real_unavailable_tools(cfg.tools, stage_tools, delegated, pinned_counts, marked)
     skip_groups = {}
     if len(unavailable) > 0:
         resolved = [stage for stage in resolved if stage["tool"] not in unavailable]

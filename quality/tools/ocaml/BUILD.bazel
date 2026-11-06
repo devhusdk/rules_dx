@@ -1,6 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_dx//quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load(":cmt_list.bzl", "ocaml_cmt_list")
 load(":dune_build.bzl", "dx_dune_build")
 load(":tools_tests.bzl", "ocaml_tools_tests")
@@ -25,8 +26,8 @@ dx_dune_build(
 
 # The aspect's tool attribute. The hermetic OCaml toolchain has no cell for most
 # exec platforms, so the real zanuda resolves only where it is supported
-# (linux_x86_64); elsewhere the aspect still analyzes and the stub fails closed
-# if it is ever run.
+# (linux_x86_64); elsewhere the alias selects a marked stub and the aspect skips
+# the stage with a note.
 alias(
     name = "zanuda_tool",
     actual = select({
@@ -43,9 +44,9 @@ config_setting(
     ],
 )
 
-sh_binary(
+dx_unavailable_tool(
     name = "zanuda_unsupported",
-    srcs = ["zanuda_unsupported.sh"],
+    tool = "zanuda",
 )
 
 filegroup(

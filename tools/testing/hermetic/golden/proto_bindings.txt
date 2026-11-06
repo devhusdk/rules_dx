@@ -14,6 +14,9 @@ file go/greeting.go
 file go/greeting_test.go
 file java/Greeter.java
 file pylib/greeting.py
+file roundtrip/BUILD.bazel
+file roundtrip/consume_test.py
+file roundtrip/produce.go
 bazel_dep platforms
 bazel_dep rules_cc
 bazel_dep rules_go

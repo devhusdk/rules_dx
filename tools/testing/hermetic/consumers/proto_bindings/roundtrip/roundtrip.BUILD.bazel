@@ -1,0 +1,30 @@
+# gazelle:ignore
+
+load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+go_binary(
+    name = "produce",
+    testonly = True,
+    srcs = ["produce.go"],
+    importpath = "example.com/proto_bindings/roundtrip",
+    deps = [
+        "//api/v1:v1_go_proto",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+
+genrule(
+    name = "greeting_bin",
+    testonly = True,
+    outs = ["greeting.bin"],
+    cmd = "$(execpath :produce) > $@",
+    tools = [":produce"],
+)
+
+py_test(
+    name = "consume_test",
+    srcs = ["consume_test.py"],
+    data = [":greeting_bin"],
+    deps = ["//api/v1:v1_py_proto"],
+)

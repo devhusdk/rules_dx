@@ -146,7 +146,9 @@ void GuiTest::runsOnTheOffscreenPlatform() {
 }
 
 void GuiTest::seesOnlyThePinnedFonts() {
-#if defined(__APPLE__) || defined(_WIN32)
+#if defined(_WIN32)
+  QSKIP("the Windows cell pins no fonts");
+#elif defined(__APPLE__)
   QVERIFY(!PinnedFont().isEmpty());
   QVERIFY2(QFontDatabase::families().contains(PinnedFont()),
            qPrintable(PinnedFont()));

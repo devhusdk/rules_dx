@@ -11,6 +11,31 @@ Install Git for Windows. It provides Git Bash, which runs the `dx init` hooks.
 winget install --id Git.Git -e
 ```
 
+## Shell
+
+Genrules need the Git bash. When `BAZEL_SH` is unset, Bazel takes the first
+`bash.exe` on `PATH`. With WSL installed, that is `C:\Windows\System32\bash.exe`,
+and genrules fail with `Bash/Service/0x8007274c`. Point Bazel at the Git bash for
+your user:
+
+```powershell
+[Environment]::SetEnvironmentVariable('BAZEL_SH', 'C:\Program Files\Git\usr\bin\bash.exe', 'User')
+```
+
+Change the path if Git is installed somewhere else. Open a new shell afterwards.
+If you start Bazel from WSL through `cmd.exe`, run `wsl --shutdown` first so WSL
+picks up the new variable, then check it:
+
+```sh
+cmd.exe /c echo %BAZEL_SH%
+```
+
+Or set the shell for Bazel only, in `user.bazelrc`:
+
+```text
+build:windows "--shell_executable=C:/Program Files/Git/usr/bin/bash.exe"
+```
+
 ## PowerShell
 
 `tools\dx.cmd` uses PowerShell to download the pinned `dx` release binary from

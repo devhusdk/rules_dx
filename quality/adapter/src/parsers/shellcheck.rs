@@ -20,7 +20,7 @@ pub fn parse_shellcheck(
         let severity = match level.trim() {
             "error" => ToolSeverity::Error,
             "warning" => ToolSeverity::Warning,
-            "info" | "note" | "style" => ToolSeverity::Info,
+            "info" | "note" | "style" => ToolSeverity::Warning,
             _ => return Err(missing(TOOL, "level", line)),
         };
         let rest = rest.trim();
@@ -80,5 +80,20 @@ mod tests {
         assert_eq!(findings[0].file, file);
         assert_eq!(findings[0].finding.start.line, 3);
         assert_eq!(findings[0].finding.start.column, 1);
+    }
+
+    #[test]
+    fn shellcheck_info_and_style_are_warnings() {
+        let text = "a.sh:1:1: info: Use x [SC2001]\na.sh:2:1: style: Use y [SC2250]\na.sh:3:1: error: Bad [SC1000]\n";
+        let findings = parse_shellcheck(text.as_bytes(), Some(1), &["a.sh"]).expect("parsed");
+        let levels: Vec<_> = findings.iter().map(|f| f.finding.severity).collect();
+        assert_eq!(
+            levels,
+            [
+                ToolSeverity::Warning,
+                ToolSeverity::Warning,
+                ToolSeverity::Error
+            ]
+        );
     }
 }

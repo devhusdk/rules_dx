@@ -5,11 +5,11 @@ stage shellcheck classes=shell sources=matrix/shellcheck_dirty.sh
 completed_rounds 1
 convergence STABLE
 initial 3
-initial INFO shellcheck SC2086 matrix/shellcheck_dirty.sh 38 38 fixable=false "Double quote to prevent globbing and word splitting."
+initial WARNING shellcheck SC2086 matrix/shellcheck_dirty.sh 38 38 fixable=false "Double quote to prevent globbing and word splitting."
 initial WARNING shellcheck SC2154 matrix/shellcheck_dirty.sh 38 38 fixable=false "hello is referenced but not assigned."
 initial WARNING shellcheck SC2034 matrix/shellcheck_dirty.sh 45 45 fixable=false "unused appears unused. Verify use (or export if used externally)."
 terminal 3
-terminal INFO shellcheck SC2086 matrix/shellcheck_dirty.sh 38 38 fixable=false "Double quote to prevent globbing and word splitting."
+terminal WARNING shellcheck SC2086 matrix/shellcheck_dirty.sh 38 38 fixable=false "Double quote to prevent globbing and word splitting."
 terminal WARNING shellcheck SC2154 matrix/shellcheck_dirty.sh 38 38 fixable=false "hello is referenced but not assigned."
 terminal WARNING shellcheck SC2034 matrix/shellcheck_dirty.sh 45 45 fixable=false "unused appears unused. Verify use (or export if used externally)."
 replacements 0

@@ -37,6 +37,27 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "credo",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "dialyzer",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            categories: &[],
+        },
+    ),
+    (
+        "elvis",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
         "errcheck",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -68,9 +89,7 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         "hadolint",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
-            categories: &[
-                ("DL1", crate::ToolSeverity::Error),
-            ],
+            categories: &[("DL1", crate::ToolSeverity::Error)],
         },
     ),
     (
@@ -102,6 +121,27 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "perlcritic",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "phpcs",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "phpstan",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            categories: &[("phpstan/public.", crate::ToolSeverity::Info)],
+        },
+    ),
+    (
         "pkl_lsp",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -123,6 +163,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "rubocop",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[("Security/", crate::ToolSeverity::Error)],
+        },
+    ),
+    (
         "staticcheck",
         crate::severity::ToolSeverityMap {
             default: None,
@@ -137,9 +184,7 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         "tflint",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
-            categories: &[
-                ("tflint-diagnostic", crate::ToolSeverity::Error),
-            ],
+            categories: &[("tflint-diagnostic", crate::ToolSeverity::Error)],
         },
     ),
     (

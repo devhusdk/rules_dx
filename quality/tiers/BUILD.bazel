@@ -53,6 +53,7 @@ filegroup(
         "//quality/tiers/ruff:files",
         "//quality/tiers/scalafix:files",
         "//quality/tiers/selene:files",
+        "//quality/tiers/shellcheck:files",
         "//quality/tiers/sqlfluff:files",
         "//quality/tiers/staticcheck:files",
         "//quality/tiers/stylelint:files",

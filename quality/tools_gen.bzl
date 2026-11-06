@@ -146,8 +146,12 @@ def severity_rust():
         if not severity.categories:
             out += "            categories: &[],\n        },\n    ),\n"
             continue
+        keys = sorted(severity.categories.keys())
+        if len(keys) == 1:
+            out += "            categories: &[(%s, %s)],\n        },\n    ),\n" % (_str(keys[0]), _level(severity.categories[keys[0]]))
+            continue
         out += "            categories: &[\n"
-        for key in sorted(severity.categories.keys()):
+        for key in keys:
             out += "                (%s, %s),\n" % (_str(key), _level(severity.categories[key]))
         out += "            ],\n        },\n    ),\n"
     return out + "];\n"

@@ -68,6 +68,7 @@ DEPENDENCIES
   rspec (= 3.13.0)
   rubocop (= 1.73.2)
   rubocop-ast (= 1.41.0)
+  rubocop-performance (= 1.24.0)
   standard (= 1.47.0)
 
 BUNDLED WITH

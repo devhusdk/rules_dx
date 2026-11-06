@@ -4,12 +4,16 @@ stages 1
 stage credo classes=elixir sources=matrix/credo_profile_strict/dirty.ex
 completed_rounds 1
 convergence STABLE
-initial 3
+initial 5
 initial WARNING credo credo/Readability.ModuleDoc matrix/credo_profile_strict/dirty.ex 10 10 fixable=false "Modules should have a @moduledoc tag."
+initial WARNING credo credo/Readability.Specs matrix/credo_profile_strict/dirty.ex 32 32 fixable=false "Functions should have a @spec type specification."
 initial WARNING credo credo/Warning.IoInspect matrix/credo_profile_strict/dirty.ex 45 45 fixable=false "There should be no calls to `IO.inspect/1`."
+initial WARNING credo credo/Readability.Specs matrix/credo_profile_strict/dirty.ex 66 66 fixable=false "Functions should have a @spec type specification."
 initial WARNING credo credo/Design.AliasUsage matrix/credo_profile_strict/dirty.ex 78 78 fixable=false "Nested modules could be aliased at the top of the invoking module."
-terminal 3
+terminal 5
 terminal WARNING credo credo/Readability.ModuleDoc matrix/credo_profile_strict/dirty.ex 10 10 fixable=false "Modules should have a @moduledoc tag."
+terminal WARNING credo credo/Readability.Specs matrix/credo_profile_strict/dirty.ex 32 32 fixable=false "Functions should have a @spec type specification."
 terminal WARNING credo credo/Warning.IoInspect matrix/credo_profile_strict/dirty.ex 45 45 fixable=false "There should be no calls to `IO.inspect/1`."
+terminal WARNING credo credo/Readability.Specs matrix/credo_profile_strict/dirty.ex 66 66 fixable=false "Functions should have a @spec type specification."
 terminal WARNING credo credo/Design.AliasUsage matrix/credo_profile_strict/dirty.ex 78 78 fixable=false "Nested modules could be aliased at the top of the invoking module."
 replacements 0

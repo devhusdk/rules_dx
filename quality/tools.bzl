@@ -660,7 +660,8 @@ TOOLS = [
     tool(
         id = "credo",
         adapters = {"lint": ["elixir"]},
-        config = config(suffixes = [".exs"]),
+        config = config(suffixes = [".exs"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -828,6 +829,7 @@ TOOLS = [
     tool(
         id = "dialyzer",
         adapters = {"typecheck": ["erlang", "elixir"]},
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "typecheck",
@@ -888,7 +890,8 @@ TOOLS = [
     tool(
         id = "elvis",
         adapters = {"lint": ["erlang"]},
-        config = config(suffixes = ["elvis.config", ".config"]),
+        config = config(suffixes = ["elvis.config", ".config"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -909,6 +912,7 @@ TOOLS = [
     tool(
         id = "erlfmt",
         adapters = {"format": ["erlang"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1604,6 +1608,7 @@ TOOLS = [
     tool(
         id = "mix_format",
         adapters = {"format": ["elixir"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1740,7 +1745,8 @@ TOOLS = [
     tool(
         id = "perlcritic",
         adapters = {"lint": ["perl"]},
-        config = config(suffixes = [".perlcriticrc", "perlcriticrc"]),
+        config = config(suffixes = [".perlcriticrc", "perlcriticrc"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1760,6 +1766,7 @@ TOOLS = [
     tool(
         id = "perltidy",
         adapters = {"format": ["perl"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1779,7 +1786,8 @@ TOOLS = [
     tool(
         id = "phpcs",
         adapters = {"lint": ["php"]},
-        config = config(suffixes = [".xml", ".xml.dist"]),
+        config = config(suffixes = [".xml", ".xml.dist"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1801,7 +1809,8 @@ TOOLS = [
         adapters = {
             "typecheck": ["php"],
         },
-        config = config(suffixes = [".neon", ".neon.dist"]),
+        config = config(suffixes = [".neon", ".neon.dist"], tier_active = True),
+        severity = severity(default = "error", categories = {"phpstan/public.": "info"}),
         support = [
             row(
                 capability = "typecheck",
@@ -2131,7 +2140,8 @@ TOOLS = [
     tool(
         id = "rubocop",
         adapters = {"lint": ["ruby"]},
-        config = config(suffixes = [".yml", ".yaml"]),
+        config = config(suffixes = [".yml", ".yaml"], tier_active = True),
+        severity = severity(default = "warning", categories = {"Security/": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -2307,7 +2317,7 @@ TOOLS = [
     tool(
         id = "shellcheck",
         adapters = {"lint": ["shell"]},
-        config = config(suffixes = [".shellcheckrc", "shellcheckrc"]),
+        config = config(suffixes = [".shellcheckrc", "shellcheckrc"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2324,6 +2334,7 @@ TOOLS = [
     tool(
         id = "shfmt",
         adapters = {"format": ["shell"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",

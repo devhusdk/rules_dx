@@ -15,6 +15,7 @@ const NO_FORMATTER: &[&str] = &[
     "neon",
     "perlcriticrc",
     "psd1",
+    "shellcheckrc",
     "txt",
     "xml",
 ];

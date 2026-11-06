@@ -1,44 +1,94 @@
-//! Rewrites the `SHA256` values in `cli/prebuilt/pins.bzl` from a verified `dx-sha256sums.txt`.
+//! Rewrites the `SHA256` and `GAZELLE_SHA256` values in `cli/prebuilt/pins.bzl`
+//! from a verified `dx-sha256sums.txt` and `dx-gazelle-sha256sums.txt`.
 
 use dx_adopt::{LauncherPins, RELEASE_ASSETS};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 pub const MANIFEST: &str = "dx-sha256sums.txt";
+pub const GAZELLE_MANIFEST: &str = "dx-gazelle-sha256sums.txt";
 pub const BUNDLE: &str = "dx-sha256sums.txt.sigstore.json";
 
-/// Reads the manifest from `dir`, checks it with `verify`, and returns the new `pins.bzl` text.
+/// The gazelle release asset beside each dx release asset.
+pub fn gazelle_assets() -> Vec<String> {
+    RELEASE_ASSETS
+        .iter()
+        .map(|asset| format!("dx-gazelle-{}", asset.trim_start_matches("dx-")))
+        .collect()
+}
+
+/// Reads both manifests from `dir`, checks each with `verify`, and returns the new `pins.bzl` text.
 pub fn fill(
     tag: &str,
     dir: &Path,
     pins_bzl: &str,
     repo: &str,
-    verify: impl FnOnce(&Path, &Path) -> Result<(), String>,
+    verify: impl Fn(&Path, &Path) -> Result<(), String>,
 ) -> Result<String, String> {
     check_tag(tag, pins_bzl)?;
     let manifest = dir.join(MANIFEST);
+    let gazelle = dir.join(GAZELLE_MANIFEST);
     let bundle = dir.join(BUNDLE);
-    for file in [&manifest, &bundle] {
+    for file in [&manifest, &gazelle, &bundle] {
         if !file.is_file() {
             return Err(format!("{} is missing", file.display()));
         }
     }
     verify(&manifest, &bundle)?;
-    let text = std::fs::read_to_string(&manifest).map_err(|e| format!("read {MANIFEST}: {e}"))?;
-    fill_from_manifest(tag, &text, pins_bzl, repo)
+    verify(&gazelle, &bundle)?;
+    let read = |path: &Path| {
+        std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))
+    };
+    fill_from_manifest(tag, &read(&manifest)?, &read(&gazelle)?, pins_bzl, repo)
 }
 
-/// Fills `pins_bzl` from manifest text that the caller has already trusted.
+/// Fills `pins_bzl` from manifest texts that the caller has already trusted.
 /// The release URL points at `repo`, written `OWNER/NAME`.
 pub fn fill_from_manifest(
     tag: &str,
     manifest_text: &str,
+    gazelle_text: &str,
     pins_bzl: &str,
     repo: &str,
 ) -> Result<String, String> {
     check_tag(tag, pins_bzl)?;
     check_repo(repo)?;
     let pins = LauncherPins::from_sha256sums(manifest_text).map_err(|e| e.to_string())?;
-    rewrite_repo(&rewrite(pins_bzl, &pins)?, repo)
+    let mut hashes = parse_gazelle_manifest(gazelle_text)?;
+    for asset in RELEASE_ASSETS {
+        let hash = pins
+            .get(asset)
+            .ok_or_else(|| format!("{asset} has no pin"))?;
+        hashes.insert(asset.to_owned(), hash.to_owned());
+    }
+    rewrite_repo(&rewrite(pins_bzl, &hashes)?, repo)
+}
+
+/// Parses `dx-gazelle-sha256sums.txt`: exactly one `<hash>  <asset>` line per
+/// gazelle asset, hash as 64 lowercase hex, nothing else.
+pub fn parse_gazelle_manifest(text: &str) -> Result<BTreeMap<String, String>, String> {
+    let assets = gazelle_assets();
+    let mut hashes = BTreeMap::new();
+    for line in text.lines() {
+        let Some((hash, asset)) = line.split_once("  ") else {
+            return Err(format!("{GAZELLE_MANIFEST}: bad line {line:?}"));
+        };
+        if !assets.iter().any(|known| known == asset) {
+            return Err(format!("{GAZELLE_MANIFEST}: unknown asset {asset:?}"));
+        }
+        if hash.len() != 64 || !hash.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+            return Err(format!(
+                "{GAZELLE_MANIFEST}: {asset} hash is not 64 lowercase hex"
+            ));
+        }
+        if hashes.insert(asset.to_owned(), hash.to_owned()).is_some() {
+            return Err(format!("{GAZELLE_MANIFEST}: {asset} is listed twice"));
+        }
+    }
+    if let Some(missing) = assets.iter().find(|asset| !hashes.contains_key(*asset)) {
+        return Err(format!("{GAZELLE_MANIFEST}: {missing} is missing"));
+    }
+    Ok(hashes)
 }
 
 fn check_tag(tag: &str, pins_bzl: &str) -> Result<(), String> {
@@ -79,7 +129,7 @@ fn rewrite_repo(pins_bzl: &str, repo: &str) -> Result<String, String> {
     Ok(out)
 }
 
-/// Passes when `pins_bzl` is all empty, or when its hashes equal the verified manifest in `dir`.
+/// Passes when `pins_bzl` is all empty, or when its hashes equal the verified manifests in `dir`.
 /// With `filled`, all-empty pins fail.
 /// `fetch` runs only when there are pins to compare.
 pub fn check(
@@ -89,7 +139,7 @@ pub fn check(
     repo: &str,
     filled: bool,
     fetch: impl FnOnce() -> Result<(), String>,
-    verify: impl FnOnce(&Path, &Path) -> Result<(), String>,
+    verify: impl Fn(&Path, &Path) -> Result<(), String>,
 ) -> Result<(), String> {
     let values = current_values(pins_bzl)?;
     let empty = values.iter().filter(|value| value.is_empty()).count();
@@ -106,14 +156,20 @@ pub fn check(
     let expected = fill(tag, dir, pins_bzl, repo, verify)?;
     if expected != pins_bzl {
         return Err(format!(
-            "pins.bzl differs from the attested {MANIFEST} of {tag}"
+            "pins.bzl differs from the attested {MANIFEST} and {GAZELLE_MANIFEST} of {tag}"
         ));
     }
     Ok(())
 }
 
+fn all_assets() -> Vec<String> {
+    let mut assets: Vec<String> = RELEASE_ASSETS.iter().map(|a| (*a).to_owned()).collect();
+    assets.extend(gazelle_assets());
+    assets
+}
+
 fn current_values(pins_bzl: &str) -> Result<Vec<String>, String> {
-    RELEASE_ASSETS
+    all_assets()
         .iter()
         .map(|asset| {
             let prefix = format!("    \"{asset}\": \"");
@@ -136,16 +192,17 @@ fn declared_version(pins_bzl: &str) -> Result<String, String> {
         .ok_or_else(|| "pins.bzl has no DX_VERSION".to_owned())
 }
 
-fn rewrite(pins_bzl: &str, pins: &LauncherPins) -> Result<String, String> {
+fn rewrite(pins_bzl: &str, hashes: &BTreeMap<String, String>) -> Result<String, String> {
+    let assets = all_assets();
     let mut out = String::new();
     let mut replaced = 0;
     for line in pins_bzl.split_inclusive('\n') {
-        let asset = RELEASE_ASSETS
+        let asset = assets
             .iter()
             .find(|asset| line.starts_with(&format!("    \"{asset}\": \"")));
         match asset {
             Some(asset) => {
-                let hash = pins
+                let hash = hashes
                     .get(asset)
                     .ok_or_else(|| format!("{asset} has no pin"))?;
                 let ending = &line[line.trim_end_matches(['\r', '\n']).len()..];
@@ -155,10 +212,10 @@ fn rewrite(pins_bzl: &str, pins: &LauncherPins) -> Result<String, String> {
             None => out.push_str(line),
         }
     }
-    if replaced != RELEASE_ASSETS.len() {
+    if replaced != assets.len() {
         return Err(format!(
             "pins.bzl lists {replaced} of {} assets",
-            RELEASE_ASSETS.len()
+            assets.len()
         ));
     }
     Ok(out)

@@ -1,11 +1,11 @@
-//! `fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE]`
+//! `fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE --gazelle-manifest FILE]`
 //! fills or, with `--check`, checks `cli/prebuilt/pins.bzl` against a release.
-//! `--manifest` fills from a local manifest without downloading or verifying it.
+//! `--manifest` and `--gazelle-manifest` fill from local manifests without downloading or verifying them.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-const USAGE: &str = "usage: fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE]";
+const USAGE: &str = "usage: fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE --gazelle-manifest FILE]";
 
 fn main() -> ExitCode {
     match run() {
@@ -28,6 +28,7 @@ fn run() -> Result<String, String> {
     let tag = args.next().ok_or(USAGE)?;
     let mut repo = "devhusdk/rules_dx".to_owned();
     let mut manifest = None;
+    let mut gazelle_manifest = None;
     let mut filled = false;
     let mut dir = None;
     let mut pins = PathBuf::from("cli/prebuilt/pins.bzl");
@@ -47,11 +48,15 @@ fn run() -> Result<String, String> {
             "--pins" => pins = PathBuf::from(value),
             "--repo" => repo = value,
             "--manifest" => manifest = Some(PathBuf::from(value)),
+            "--gazelle-manifest" => gazelle_manifest = Some(PathBuf::from(value)),
             _ => return Err(format!("unknown flag {flag}")),
         }
     }
     if filled && !check {
         return Err("--filled only works with --check".to_owned());
+    }
+    if manifest.is_some() != gazelle_manifest.is_some() {
+        return Err("--manifest and --gazelle-manifest go together".to_owned());
     }
     if manifest.is_some() && (check || dir.is_some()) {
         return Err("--manifest cannot be combined with --check or --dir".to_owned());
@@ -59,10 +64,12 @@ fn run() -> Result<String, String> {
     let scratch = std::env::temp_dir().join(format!("dx-fill-pins-{}", std::process::id()));
     let text =
         std::fs::read_to_string(&pins).map_err(|e| format!("read {}: {e}", pins.display()))?;
-    if let Some(manifest) = manifest {
-        let manifest_text = std::fs::read_to_string(&manifest)
-            .map_err(|e| format!("read {}: {e}", manifest.display()))?;
-        let out = fill_pins::fill_from_manifest(&tag, &manifest_text, &text, &repo)?;
+    if let (Some(manifest), Some(gazelle)) = (manifest, gazelle_manifest) {
+        let read = |path: &Path| {
+            std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))
+        };
+        let out =
+            fill_pins::fill_from_manifest(&tag, &read(&manifest)?, &read(&gazelle)?, &text, &repo)?;
         std::fs::write(&pins, out).map_err(|e| format!("write {}: {e}", pins.display()))?;
         return Ok(format!("wrote {}", pins.display()));
     }
@@ -91,7 +98,11 @@ fn download(tag: &str, repo: &str, dir: &Path) -> Result<(), String> {
     command
         .args(["release", "download", tag, "--repo", repo, "--dir"])
         .arg(dir);
-    for name in [fill_pins::MANIFEST, fill_pins::BUNDLE] {
+    for name in [
+        fill_pins::MANIFEST,
+        fill_pins::GAZELLE_MANIFEST,
+        fill_pins::BUNDLE,
+    ] {
         command.args(["--pattern", name]);
     }
     run_command(&mut command)

@@ -91,7 +91,8 @@ jobs:
           test "$CELLS_VERSION" = "${RELEASE_TAG#v}" || { echo "want ${RELEASE_TAG#v}, got $CELLS_VERSION" >&2; exit 1; }
           test "$CELLS_SHA" = "$CANDIDATE_COMMIT" || { echo "want $CANDIDATE_COMMIT, got $CELLS_SHA" >&2; exit 1; }
           : > sums.tmp
-          files="dx-sha256sums.txt dx-sha256sums.txt.sigstore.json"
+          : > out/dx-gazelle-sha256sums.txt
+          files="dx-sha256sums.txt dx-sha256sums.txt.sigstore.json dx-gazelle-sha256sums.txt"
           for asset in dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64; do
             case "$asset" in dx-windows-*) archive="$asset.zip" ;; *) archive="$asset.tar.gz" ;; esac
             for file in "$archive" "$archive.sha256" "$archive.spdx.json"; do
@@ -103,6 +104,11 @@ jobs:
             printf '%s  %s\n' "$(sha256sum "out/$archive.spdx.json" | cut -d' ' -f1)" "$archive.spdx.json" >> sums.tmp
             cat "out/$asset.sha256" "out/$archive.sha256" >> sums.tmp
             files="$files $asset $asset.sha256 $archive $archive.sha256 $archive.spdx.json"
+            gazelle="dx-gazelle-${asset#dx-}"
+            test -s "out/$gazelle" || { echo "want a non-empty out/$gazelle" >&2; exit 1; }
+            printf '%s  %s\n' "$(sha256sum "out/$gazelle" | cut -d' ' -f1)" "$gazelle" > "out/$gazelle.sha256"
+            cat "out/$gazelle.sha256" >> out/dx-gazelle-sha256sums.txt
+            files="$files $gazelle $gazelle.sha256"
             case "$asset" in dx-windows-*)
               pdb="$asset-pdb.zip"
               for file in "$pdb" "$pdb.sha256" "$pdb.spdx.json"; do
@@ -118,6 +124,8 @@ jobs:
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
           test "$(wc -l < out/dx-sha256sums.txt)" -eq 19 || { echo "want 19 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
+          test "$(wc -l < out/dx-gazelle-sha256sums.txt)" -eq 5 || { echo "want 5 gazelle manifest lines, got $(wc -l < out/dx-gazelle-sha256sums.txt)" >&2; exit 1; }
+          (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
       - name: Build and verify the source archive
         env:
           SOURCE_DIR: ${{ runner.temp }}/source
@@ -125,9 +133,9 @@ jobs:
           set -euo pipefail
           pins="$RUNNER_TEMP/pins.bzl"
           cp cli/prebuilt/pins.bzl "$pins"
-          bazel run //tools/ci:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
+          bazel run //tools/ci:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --gazelle-manifest "$PWD/out/dx-gazelle-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
           bazel run //deploy/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
-          for file in dx-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64; do
+          for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64; do
             case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
             cp "out/$file" "$SOURCE_DIR/"
           done
@@ -301,7 +309,7 @@ jobs:
       - name: Check the release inputs
         run: |
           set -euo pipefail
-          (cd out && sha256sum -c dx-sha256sums.txt)
+          (cd out && sha256sum -c dx-sha256sums.txt && sha256sum -c dx-gazelle-sha256sums.txt)
           src="rules_dx-${RELEASE_TAG#v}.tar.gz"
           test -s "out/$src"
           test -s "out/$src.sha256"
@@ -343,7 +351,7 @@ jobs:
         if: ${{ !inputs.dry_run && steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG) }}
         run: |
           set -euo pipefail
-          { cat out/dx-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt); } > "$RUNNER_TEMP/subjects.txt"
+          { cat out/dx-sha256sums.txt out/dx-gazelle-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt); } > "$RUNNER_TEMP/subjects.txt"
       - name: Attest the checksum manifest
         id: attest
         if: ${{ !inputs.dry_run && steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG) }}
@@ -453,7 +461,7 @@ jobs:
           src="rules_dx-${RELEASE_TAG#v}.tar.gz"
           mkdir -p verify
           gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --pattern 'dx-*' --dir verify
-          (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt)
+          (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt && sha256sum -c dx-gazelle-sha256sums.txt)
           tar -xzf verify/dx-linux-x86_64.tar.gz -C verify dx
           verify/dx --version
 

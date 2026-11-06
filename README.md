@@ -65,6 +65,21 @@ dx_prebuilt.asset(name = "dx-linux-x86_64", url = "https://...", sha256 = "...")
 Or build `dx` from source with `dx_prebuilt.from_source()`. That needs Rust
 and C toolchains. Only the root module's tags count.
 
+The Gazelle binary behind `dx generate` works the same way. Each release
+ships a pure-Go `dx-gazelle-<os>-<cpu>` per platform, pinned in
+`GAZELLE_SHA256` under the same `DX_VERSION`, so the first `dx generate`
+fetches no Go SDK. It builds from source instead when `rules_dx` is the root
+module, when no gazelle binary is pinned, or when a module other than
+`rules_dx` adds a `dx_gazelle.language`, because the release binary holds only
+the languages `rules_dx` registers. The root module can override it:
+
+```starlark
+dx_gazelle = use_extension("@rules_dx//gazelle/dispatch:extension.bzl", "dx_gazelle")
+dx_gazelle.asset(name = "dx-gazelle-linux-x86_64", url = "https://...", sha256 = "...")
+```
+
+or build it with `dx_gazelle.from_source()`, which needs a Go toolchain.
+
 `dx init --apply` writes the overrides `rules_dx` needs; see
 [patches/README.md](patches/README.md).
 

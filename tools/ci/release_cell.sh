@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the dx release archive twice and qualifies it as one release cell.
+# Builds the dx release archive and the pure-Go dx gazelle twice and qualifies them as one release cell.
 # usage: release_cell.sh OUT
 # Reads CELL, WORKFLOW_REF, WORKFLOW_SHA, RUN_ID, JOB and SHA, plus RUNNER_TEMP and GITHUB_WORKSPACE.
 # Run by release-cells.yml and by evidence.yml with release_cell=true.
@@ -19,7 +19,11 @@ case "$CELL" in dx-windows-*) symbols="$CELL-pdb.zip" ;; esac
 if [ -n "$symbols" ]; then
   bazel build --config=dx_release //deploy/release:dx_host_cell_pdb //deploy/release:dx_host_cell_pdb_sbom
 fi
+gazelle_flags=(--config=dx_release --@rules_go//go/config:pure)
+bazel build "${gazelle_flags[@]}" @dx_gazelle//:gazelle
 root="$(bazel info --config=dx_release execution_root)"
+gazelle_asset="dx-gazelle-${CELL#dx-}"
+cp "$root/$(bazel cquery "${gazelle_flags[@]}" --output=files @dx_gazelle//:gazelle)" "$out/$gazelle_asset"
 dx="$root/$(bazel cquery --config=dx_release --output=files //cli/cli:dx)"
 tool="$root/$(bazel cquery --config=dx_release --output=files //deploy/release:release_cell)"
 matrix="$root/$(bazel cquery --config=dx_release --output=files //deploy/release:release_matrix)"
@@ -54,6 +58,12 @@ if [ -n "$symbols" ]; then
   rebuilt_pdb="$rebuild_root/$(bazel --output_base="$rebuild_base" cquery --config=dx_release --output=files //deploy/release:dx_host_cell_pdb)"
   cp "$rebuilt_pdb" "$RUNNER_TEMP/rebuilt-$symbols"
   symbols_args=(--symbols "$out/$symbols" --symbols-rebuild "$RUNNER_TEMP/rebuilt-$symbols")
+fi
+bazel --output_base="$rebuild_base" build "${gazelle_flags[@]}" --disk_cache= --remote_cache= @dx_gazelle//:gazelle
+rebuilt_gazelle="$rebuild_root/$(bazel --output_base="$rebuild_base" cquery "${gazelle_flags[@]}" --output=files @dx_gazelle//:gazelle)"
+if ! cmp "$out/$gazelle_asset" "$rebuilt_gazelle"; then
+  echo "$gazelle_asset differs between two builds" >&2
+  exit 1
 fi
 bazel --output_base="$rebuild_base" shutdown
 status=0

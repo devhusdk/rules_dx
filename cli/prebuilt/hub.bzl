@@ -8,6 +8,14 @@ ASSET_PLATFORMS = {
     "dx-windows-x86_64": ("windows", "x86_64"),
 }
 
+GAZELLE_ASSET_PLATFORMS = {
+    "dx-gazelle-linux-arm64": ("linux", "aarch64"),
+    "dx-gazelle-linux-x86_64": ("linux", "x86_64"),
+    "dx-gazelle-macos-arm64": ("macos", "aarch64"),
+    "dx-gazelle-windows-arm64": ("windows", "aarch64"),
+    "dx-gazelle-windows-x86_64": ("windows", "x86_64"),
+}
+
 KNOWN_OS = ["android", "freebsd", "ios", "linux", "macos", "openbsd", "windows"]
 
 KNOWN_CPU = ["aarch64", "arm", "i386", "ppc64le", "riscv64", "s390x", "x86_32", "x86_64"]
@@ -27,11 +35,12 @@ def valid_sha256(text):
     """Returns whether text is 64 lowercase hex digits."""
     return len(text) == 64 and all([c in _HEX for c in text.elems()])
 
-def plan_root(modules):
+def plan_root(modules, ext = "dx_prebuilt"):
     """Reads the module tags: returns struct(error, source, overrides).
 
     Args:
       modules: Structs with name, is_root and tags.asset / tags.from_source.
+      ext: The extension name the error texts use.
 
     Returns:
       A struct with the first error text (empty when fine), whether dx builds
@@ -45,24 +54,24 @@ def plan_root(modules):
             rules_dx_is_root = True
         if not mod.is_root:
             if mod.tags.asset or mod.tags.from_source:
-                return struct(error = "dx_prebuilt: only the root module may set asset or from_source tags; {} sets them".format(mod.name), source = False, overrides = {})
+                return struct(error = ext + ": only the root module may set asset or from_source tags; {} sets them".format(mod.name), source = False, overrides = {})
             continue
         if mod.tags.from_source:
             from_source = True
         for tag in mod.tags.asset:
             if not valid_sha256(tag.sha256):
-                return struct(error = "dx_prebuilt.asset(name = \"{}\"): sha256 must be 64 lowercase hex digits".format(tag.name), source = False, overrides = {})
+                return struct(error = ext + ".asset(name = \"{}\"): sha256 must be 64 lowercase hex digits".format(tag.name), source = False, overrides = {})
             overrides[tag.name] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
     return struct(error = "", source = rules_dx_is_root or from_source, overrides = overrides)
 
-def repo_name(asset):
+def repo_name(asset, prefix = "dx_prebuilt_", strip = "dx-"):
     """Returns the http_file repo name for a release asset."""
-    return "dx_prebuilt_" + "".join([c if c.isalnum() else "_" for c in asset.removeprefix("dx-").elems()])
+    return prefix + "".join([c if c.isalnum() else "_" for c in asset.removeprefix(strip).elems()])
 
 def _supported(assets):
     return ", ".join(["{} {}".format(a.os, a.cpu) for a in assets])
 
-def plan_assets(version, pins, url_template, overrides):
+def plan_assets(version, pins, url_template, overrides, platforms = ASSET_PLATFORMS, exe = "dx", repo_prefix = "dx_prebuilt_", strip = "dx-"):
     """Returns one struct per asset: its platform and, when pinned, a verified download.
 
     Args:
@@ -70,27 +79,32 @@ def plan_assets(version, pins, url_template, overrides):
       pins: Release asset name to sha256; empty means unpinned.
       url_template: Download URL with {version} and {asset}.
       overrides: Asset name to struct(url, sha256, os, cpu) from root module tags.
+      platforms: Release asset name to (os, cpu).
+      exe: The file name the download is saved as, without .exe.
+      repo_prefix: The http_file repo name prefix, also the extension name with a trailing _.
+      strip: The asset name prefix the repo name drops.
 
     Returns:
       A list of structs sorted by asset name.
     """
+    ext = repo_prefix.removesuffix("_")
     names = sorted({name: None for name in list(pins.keys()) + list(overrides.keys())}.keys())
     planned = []
     seen = {}
     for name in names:
         override = overrides.get(name)
-        os, cpu = ASSET_PLATFORMS.get(name, ("", ""))
+        os, cpu = platforms.get(name, ("", ""))
         if override and override.os:
             os = override.os
         if override and override.cpu:
             cpu = override.cpu
         if not os or not cpu:
-            fail("dx_prebuilt.asset(name = \"{}\") needs os and cpu: it is not a dx release asset".format(name))
+            fail(ext + ".asset(name = \"{}\") needs os and cpu: it is not a dx release asset".format(name))
         if os not in KNOWN_OS or cpu not in KNOWN_CPU:
-            fail("dx_prebuilt.asset(name = \"{}\"): os must be one of {} and cpu one of {}".format(name, KNOWN_OS, KNOWN_CPU))
+            fail(ext + ".asset(name = \"{}\"): os must be one of {} and cpu one of {}".format(name, KNOWN_OS, KNOWN_CPU))
         key = "{}_{}".format(os, cpu)
         if key in seen:
-            fail("dx_prebuilt: assets {} and {} both target {} {}".format(seen[key], name, os, cpu))
+            fail(ext + ": assets {} and {} both target {} {}".format(seen[key], name, os, cpu))
         seen[key] = name
         if override:
             url, sha256 = override.url, override.sha256
@@ -99,10 +113,10 @@ def plan_assets(version, pins, url_template, overrides):
         planned.append(struct(
             asset = name,
             cpu = cpu,
-            exe = "dx.exe" if os == "windows" else "dx",
+            exe = exe + ".exe" if os == "windows" else exe,
             key = key,
             os = os,
-            repo = repo_name(name) if sha256 else "",
+            repo = repo_name(name, repo_prefix, strip) if sha256 else "",
             sha256 = sha256,
             url = url if sha256 else "",
         ))

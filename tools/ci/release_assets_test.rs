@@ -134,7 +134,9 @@ fn the_assets_go_through_the_release_driver_without_clobber() {
                 .expect("check")
     );
     let source = &text[text.find("\n  source:\n").expect("source job")..];
-    assert!(source.contains("files=\"dx-sha256sums.txt dx-sha256sums.txt.sigstore.json\""));
+    assert!(source.contains(
+        "files=\"dx-sha256sums.txt dx-sha256sums.txt.sigstore.json dx-gazelle-sha256sums.txt\""
+    ));
     assert!(source.contains(
         "files=\"$files $asset $asset.sha256 $archive $archive.sha256 $archive.spdx.json\""
     ));
@@ -185,6 +187,61 @@ fn the_checksum_manifest_is_built_checked_and_uploaded() {
         "tar -xzOf \"out/$archive\" dx",
     ] {
         assert!(text.contains(needle), "{WORKFLOW} lacks {needle:?}");
+    }
+}
+
+#[test]
+fn the_gazelle_manifest_is_separate_checked_attested_and_filled() {
+    let text = workflow();
+    for needle in [
+        "gazelle=\"dx-gazelle-${asset#dx-}\"",
+        "cat \"out/$gazelle.sha256\" >> out/dx-gazelle-sha256sums.txt",
+        "files=\"$files $gazelle $gazelle.sha256\"",
+        "test \"$(wc -l < out/dx-gazelle-sha256sums.txt)\" -eq 5",
+        "(cd out && sha256sum -c dx-gazelle-sha256sums.txt)",
+        "--gazelle-manifest \"$PWD/out/dx-gazelle-sha256sums.txt\"",
+        "cat out/dx-sha256sums.txt out/dx-gazelle-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt); }",
+        "sha256sum -c dx-sha256sums.txt && sha256sum -c dx-gazelle-sha256sums.txt)",
+    ] {
+        assert!(text.contains(needle), "{WORKFLOW} lacks {needle:?}");
+    }
+    assert!(
+        !text.contains("$gazelle.sha256\" >> sums.tmp"),
+        "gazelle lines must stay out of dx-sha256sums.txt: old launchers reject unknown assets"
+    );
+    for asset in ASSETS {
+        let gazelle = format!("dx-gazelle-{}", asset.trim_start_matches("dx-"));
+        assert!(
+            text.contains(&format!(" {gazelle}")),
+            "{WORKFLOW} does not copy {gazelle}"
+        );
+    }
+}
+
+#[test]
+fn every_cell_builds_and_compares_the_pure_gazelle() {
+    let text = read_runfiles(CELL_SCRIPT);
+    for needle in [
+        "gazelle_flags=(--config=dx_release --@rules_go//go/config:pure)",
+        "gazelle_asset=\"dx-gazelle-${CELL#dx-}\"",
+        "cmp \"$out/$gazelle_asset\" \"$rebuilt_gazelle\"",
+    ] {
+        assert!(text.contains(needle), "{CELL_SCRIPT} lacks {needle:?}");
+    }
+}
+
+#[test]
+fn the_gazelle_pins_sit_after_the_dx_pins_under_one_version() {
+    let pins = read_runfiles(PINS);
+    let dx = pins.find("\nSHA256 = {\n").expect("SHA256 map");
+    let gazelle = pins
+        .find("\nGAZELLE_SHA256 = {\n")
+        .expect("GAZELLE_SHA256 map");
+    assert!(dx < gazelle);
+    assert_eq!(pins.matches("_VERSION = ").count(), 1);
+    for asset in ASSETS {
+        let name = format!("\"dx-gazelle-{}\": ", asset.trim_start_matches("dx-"));
+        assert!(pins[gazelle..].contains(&name), "{PINS} lacks {name}");
     }
 }
 
@@ -260,8 +317,15 @@ const CELL_SCRIPT: &str = "tools/ci/release_cell.sh";
 fn both_workflows_run_the_one_release_cell_script() {
     for path in [CELLS_WORKFLOW, EVIDENCE_WORKFLOW] {
         let text = read_runfiles(path);
-        assert_eq!(text.matches(CELL_SCRIPT).count(), 1, "{path} calls {CELL_SCRIPT} once");
-        assert!(!text.contains("\"$tool\" qualify"), "{path} must not copy the cell procedure");
+        assert_eq!(
+            text.matches(CELL_SCRIPT).count(),
+            1,
+            "{path} calls {CELL_SCRIPT} once"
+        );
+        assert!(
+            !text.contains("\"$tool\" qualify"),
+            "{path} must not copy the cell procedure"
+        );
     }
     assert!(read_runfiles(CELL_SCRIPT).contains("\"$tool\" qualify"));
 }
@@ -275,7 +339,10 @@ fn the_evidence_release_cell_runs_uncached_and_only_on_request() {
     let cache = text
         .find("- name: Use the BuildBuddy remote cache\n        env:\n          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}\n          DX_PLATFORM")
         .expect("evidence BuildBuddy step");
-    assert!(step < cache, "the cell must build before the remote cache is configured");
+    assert!(
+        step < cache,
+        "the cell must build before the remote cache is configured"
+    );
     assert!(text[step..cache].contains("if: ${{ inputs.release_cell }}"));
 }
 
@@ -561,7 +628,7 @@ fn a_published_release_is_checked_by_running_the_downloaded_dx() {
         .find("--pattern 'dx-*' --dir verify")
         .expect("download");
     let check = text
-        .find("sha256sum -c dx-sha256sums.txt)")
+        .find("sha256sum -c dx-sha256sums.txt && sha256sum -c dx-gazelle-sha256sums.txt)")
         .expect("manifest check");
     let run = text
         .find("tar -xzf verify/dx-linux-x86_64.tar.gz -C verify dx")

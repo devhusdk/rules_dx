@@ -2,7 +2,7 @@ use std::path::Path;
 use tempfile::TempDir;
 
 const REPO: &str = "devhusdk/rules_dx";
-const PINS: &str = "\"\"\"Pins.\"\"\"\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{version}/{asset}\"\n\nSHA256 = {\n    \"dx-linux-arm64\": \"\",\n    \"dx-linux-x86_64\": \"\",\n    \"dx-macos-arm64\": \"\",\n    \"dx-windows-arm64\": \"\",\n    \"dx-windows-x86_64\": \"\",\n}\n";
+const PINS: &str = "\"\"\"Pins.\"\"\"\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{version}/{asset}\"\n\nSHA256 = {\n    \"dx-linux-arm64\": \"\",\n    \"dx-linux-x86_64\": \"\",\n    \"dx-macos-arm64\": \"\",\n    \"dx-windows-arm64\": \"\",\n    \"dx-windows-x86_64\": \"\",\n}\n\nGAZELLE_SHA256 = {\n    \"dx-gazelle-linux-arm64\": \"\",\n    \"dx-gazelle-linux-x86_64\": \"\",\n    \"dx-gazelle-macos-arm64\": \"\",\n    \"dx-gazelle-windows-arm64\": \"\",\n    \"dx-gazelle-windows-x86_64\": \"\",\n}\n";
 
 fn hash(n: usize) -> String {
     format!("{n:x}").repeat(64)[..64].to_owned()
@@ -22,9 +22,22 @@ fn manifest() -> String {
     lines.concat()
 }
 
+fn gazelle_manifest() -> String {
+    fill_pins::gazelle_assets()
+        .iter()
+        .enumerate()
+        .map(|(n, asset)| format!("{}  {asset}\n", hash(n + 11)))
+        .collect()
+}
+
 fn release_dir(text: &str, bundle: bool) -> TempDir {
     let dir = dx_test_scratch::scratch("fill_pins");
     std::fs::write(dir.path().join(fill_pins::MANIFEST), text).unwrap();
+    std::fs::write(
+        dir.path().join(fill_pins::GAZELLE_MANIFEST),
+        gazelle_manifest(),
+    )
+    .unwrap();
     if bundle {
         std::fs::write(dir.path().join(fill_pins::BUNDLE), "{}").unwrap();
     }
@@ -36,7 +49,7 @@ fn ok(_: &Path, _: &Path) -> Result<(), String> {
 }
 
 #[test]
-fn writes_the_five_hashes_and_nothing_else() {
+fn writes_the_ten_hashes_and_nothing_else() {
     let dir = release_dir(&manifest(), true);
     let out = fill_pins::fill("v1.2.3", dir.path(), PINS, REPO, ok).unwrap();
     let mut expected = PINS.to_owned();
@@ -46,7 +59,91 @@ fn writes_the_five_hashes_and_nothing_else() {
             &format!("\"{asset}\": \"{}\"", hash(n + 1)),
         );
     }
+    for (n, asset) in fill_pins::gazelle_assets().iter().enumerate() {
+        expected = expected.replace(
+            &format!("\"{asset}\": \"\""),
+            &format!("\"{asset}\": \"{}\"", hash(n + 11)),
+        );
+    }
     assert_eq!(out, expected);
+}
+
+#[test]
+fn verifies_both_manifests_with_the_one_bundle() {
+    let dir = release_dir(&manifest(), true);
+    let seen = std::cell::RefCell::new(Vec::new());
+    fill_pins::fill("v1.2.3", dir.path(), PINS, REPO, |manifest, bundle| {
+        assert!(bundle.ends_with(fill_pins::BUNDLE));
+        seen.borrow_mut()
+            .push(manifest.file_name().unwrap().to_string_lossy().into_owned());
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(
+        seen.into_inner(),
+        [fill_pins::MANIFEST, fill_pins::GAZELLE_MANIFEST]
+    );
+}
+
+#[test]
+fn refuses_a_missing_gazelle_manifest() {
+    let dir = release_dir(&manifest(), true);
+    std::fs::remove_file(dir.path().join(fill_pins::GAZELLE_MANIFEST)).unwrap();
+    let error = fill_pins::fill("v1.2.3", dir.path(), PINS, REPO, ok).unwrap_err();
+    assert!(error.contains(fill_pins::GAZELLE_MANIFEST), "{error}");
+}
+
+#[test]
+fn the_gazelle_manifest_needs_exactly_its_five_lines() {
+    let good = gazelle_manifest();
+    let first = good.lines().next().unwrap().to_owned();
+    for (text, want) in [
+        (
+            good.lines()
+                .skip(1)
+                .map(|l| format!("{l}\n"))
+                .collect::<String>(),
+            "is missing",
+        ),
+        (format!("{good}{first}\n"), "listed twice"),
+        (
+            format!("{good}{}  dx-linux-x86_64\n", hash(1)),
+            "unknown asset",
+        ),
+        (
+            good.replacen(&hash(11), &hash(11).to_uppercase(), 1),
+            "64 lowercase hex",
+        ),
+        (format!("{good}nonsense\n"), "bad line"),
+    ] {
+        let error = fill_pins::parse_gazelle_manifest(&text).unwrap_err();
+        assert!(error.contains(want), "{want}: {error}");
+    }
+    assert_eq!(fill_pins::parse_gazelle_manifest(&good).unwrap().len(), 5);
+}
+
+#[test]
+fn check_fails_when_only_the_gazelle_pins_are_empty() {
+    let dir = release_dir(&manifest(), true);
+    let mut pins = filled();
+    for (n, asset) in fill_pins::gazelle_assets().iter().enumerate() {
+        pins = pins.replace(
+            &format!("\"{asset}\": \"{}\"", hash(n + 11)),
+            &format!("\"{asset}\": \"\""),
+        );
+    }
+    let error =
+        fill_pins::check("v1.2.3", dir.path(), &pins, REPO, false, nothing, ok).unwrap_err();
+    assert!(error.contains("mixes"), "{error}");
+}
+
+#[test]
+fn check_fails_on_a_differing_gazelle_pin() {
+    let dir = release_dir(&manifest(), true);
+    let pins = filled().replace(&hash(11), &hash(9));
+    let error =
+        fill_pins::check("v1.2.3", dir.path(), &pins, REPO, false, nothing, ok).unwrap_err();
+    assert!(error.contains("differs from the attested"), "{error}");
 }
 
 #[test]
@@ -166,13 +263,21 @@ fn check_fails_when_the_tag_differs_from_dx_version() {
 
 #[test]
 fn manifest_mode_fills_without_a_bundle() {
-    let out = fill_pins::fill_from_manifest("v1.2.3", &manifest(), PINS, REPO).unwrap();
+    let out = fill_pins::fill_from_manifest("v1.2.3", &manifest(), &gazelle_manifest(), PINS, REPO)
+        .unwrap();
     assert_eq!(out, filled());
 }
 
 #[test]
 fn manifest_mode_points_the_url_at_the_repo() {
-    let out = fill_pins::fill_from_manifest("v1.2.3", &manifest(), PINS, "fork/rules_dx").unwrap();
+    let out = fill_pins::fill_from_manifest(
+        "v1.2.3",
+        &manifest(),
+        &gazelle_manifest(),
+        PINS,
+        "fork/rules_dx",
+    )
+    .unwrap();
     let want = PINS.replace("devhusdk/rules_dx", "fork/rules_dx");
     assert_eq!(out.lines().count(), want.lines().count());
     assert!(out.contains("https://github.com/fork/rules_dx/releases/download/"));
@@ -182,14 +287,18 @@ fn manifest_mode_points_the_url_at_the_repo() {
 #[test]
 fn manifest_mode_refuses_a_bad_repo() {
     for repo in ["", "rules_dx", "a/b/c", "/b", "a/", "a b/c", "a/b\n"] {
-        let error = fill_pins::fill_from_manifest("v1.2.3", &manifest(), PINS, repo).unwrap_err();
+        let error =
+            fill_pins::fill_from_manifest("v1.2.3", &manifest(), &gazelle_manifest(), PINS, repo)
+                .unwrap_err();
         assert!(error.contains("OWNER/NAME"), "{repo:?} {error}");
     }
 }
 
 #[test]
 fn manifest_mode_refuses_a_tag_that_differs_from_dx_version() {
-    let error = fill_pins::fill_from_manifest("v1.2.4", &manifest(), PINS, REPO).unwrap_err();
+    let error =
+        fill_pins::fill_from_manifest("v1.2.4", &manifest(), &gazelle_manifest(), PINS, REPO)
+            .unwrap_err();
     assert!(error.contains("differs from DX_VERSION"), "{error}");
 }
 

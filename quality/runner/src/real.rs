@@ -863,6 +863,7 @@ mod bicep;
 mod cfn_lint;
 mod check;
 mod cmakelint;
+mod config_tools;
 mod delegated;
 mod helm;
 mod jvm;
@@ -1226,6 +1227,16 @@ mod tests {
         for tool_id in ["buildifier", "biome"] {
             assert!(!reads_own_manifest(tool_id));
             assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit);
+        }
+    }
+
+    #[test]
+    fn every_real_tool_has_exactly_one_tool_def() {
+        for &tool_id in REAL_TOOLS {
+            let count = super::check::all_tool_defs()
+                .filter(|def| def.id == tool_id)
+                .count();
+            assert_eq!(count, 1, "{tool_id} has {count} ToolDefs");
         }
     }
 

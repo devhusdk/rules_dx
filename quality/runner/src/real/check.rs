@@ -32,6 +32,21 @@ pub(super) const TOOL_DEFS: &[&ToolDef] = &[
     &super::sqlfluff::TOOL,
 ];
 
+pub(super) fn all_tool_defs() -> impl Iterator<Item = &'static ToolDef> {
+    TOOL_DEFS
+        .iter()
+        .copied()
+        .chain(super::config_tools::TOOLS.iter())
+        .chain(super::delegated::TOOLS.iter())
+        .chain(super::native::TOOLS.iter())
+        .chain(super::python::TOOLS.iter())
+        .chain(super::jvm::TOOLS.iter())
+        .chain(super::schema::TOOLS.iter())
+        .chain(super::scripting::TOOLS.iter())
+        .chain(super::single_run::TOOLS.iter())
+        .chain(super::web::TOOLS.iter())
+}
+
 impl RealBackend {
     pub(super) fn run_check(
         &self,
@@ -40,33 +55,9 @@ impl RealBackend {
         capability: &str,
         staged: &StagedScratch,
     ) -> Result<Vec<FileFinding>, RunnerError> {
-        let pairs = &staged.pairs;
-        let resolve_pairs = &staged.resolve_pairs;
         let scratch = &staged.scratch;
-        let refs: Vec<&Path> = pairs
-            .iter()
-            .map(|(_, absolute)| absolute.as_path())
-            .collect();
-        let names: Vec<String> = pairs
-            .iter()
-            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
-            .collect();
-        let strs: Vec<&str> = names.iter().map(String::as_str).collect();
         let config = self.config_abs(tool_id, tool, scratch)?;
-        let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
-        if let Some(def) = TOOL_DEFS
-            .iter()
-            .copied()
-            .chain(super::delegated::TOOLS.iter())
-            .chain(super::native::TOOLS.iter())
-            .chain(super::python::TOOLS.iter())
-            .chain(super::jvm::TOOLS.iter())
-            .chain(super::schema::TOOLS.iter())
-            .chain(super::scripting::TOOLS.iter())
-            .chain(super::single_run::TOOLS.iter())
-            .chain(super::web::TOOLS.iter())
-            .find(|def| def.id == tool_id)
-        {
+        if let Some(def) = all_tool_defs().find(|def| def.id == tool_id) {
             let call = CheckCall {
                 tool_id,
                 tool,
@@ -76,413 +67,10 @@ impl RealBackend {
             };
             return (def.run)(self, &call);
         }
-        match tool_id {
-            "deadcode" => {
-                let workspace: Vec<(String, PathBuf)> = pairs
-                    .iter()
-                    .map(|(name, _)| (name.clone(), PathBuf::from(name)))
-                    .collect();
-                let roots = unused_roots(tool_id, tool, &workspace)?;
-                let Some((_, deadcode)) =
-                    tool.path_tools.iter().find(|(name, _)| name == "deadcode")
-                else {
-                    return Err(execution(
-                        tool_id,
-                        "deadcode binary is not staged".to_owned(),
-                    ));
-                };
-                let invocation = commands::deadcode_check(&tool.binary, deadcode);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let names: Vec<&str> = pairs.iter().map(|(name, _)| name.as_str()).collect();
-                let mut findings = parsed(
-                    tool_id,
-                    parsers::parse_deadcode(&out.stdout, out.code, &names, &roots),
-                )?;
-                for found in &mut findings {
-                    let absolute = reanchor(tool_id, pairs, &found.file)?;
-                    found.file = absolute.to_string_lossy().into_owned();
-                }
-                Ok(findings)
-            }
-            "cue" if capability == "typecheck" => self.check_cue_vet(tool_id, tool, staged),
-            "pkl" if capability == "typecheck" => self.check_pkl_eval(tool_id, tool, staged),
-            "terraform" if capability == "typecheck" => {
-                self.check_terraform_validate(tool_id, tool, staged)
-            }
-            "cue" => {
-                let invocation = commands::cue_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let cwd = scratch.root().join(&cwd_rel);
-                parsed(
-                    tool_id,
-                    parsers::parse_cue(&out.stdout, &out.stderr, out.code, &strs, &cwd),
-                )
-            }
-            "regal" => {
-                let Some(config) = config.as_deref() else {
-                    return Err(execution(tool_id, "regal needs a config path".to_owned()));
-                };
-                std::fs::create_dir_all(scratch.root().join(".regal"))
-                    .map_err(|err| execution(tool_id, format!("stage .regal: {err}")))?;
-                let relative: Vec<&Path> = pairs
-                    .iter()
-                    .map(|(workspace, _)| Path::new(workspace.as_str()))
-                    .collect();
-                let workspaces: Vec<&str> = pairs
-                    .iter()
-                    .map(|(workspace, _)| workspace.as_str())
-                    .collect();
-                let invocation = commands::regal_lint(&tool.binary, &relative, config);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let mut findings = parsed(
-                    tool_id,
-                    parsers::parse_regal(&out.stdout, &out.stderr, out.code, &workspaces),
-                )?;
-                for item in &mut findings {
-                    item.file = reanchor(tool_id, pairs, &item.file)?
-                        .to_string_lossy()
-                        .into_owned();
-                }
-                Ok(findings)
-            }
-            "opa" => {
-                if capability == "format" {
-                    let mut findings = Vec::new();
-                    for (workspace, absolute) in pairs {
-                        let invocation = commands::opa_fmt_check(&tool.binary, absolute);
-                        let out = self.run(tool_id, tool, &invocation, scratch)?;
-                        let input = std::fs::read(absolute).map_err(|err| {
-                            execution(tool_id, format!("read {workspace}: {err}"))
-                        })?;
-                        let file = absolute.to_string_lossy();
-                        findings.extend(parsed(
-                            tool_id,
-                            parsers::parse_opa_fmt(
-                                &out.stdout,
-                                &out.stderr,
-                                out.code,
-                                &input,
-                                &file,
-                            ),
-                        )?);
-                    }
-                    Ok(findings)
-                } else {
-                    let mut all: Vec<&Path> = refs.clone();
-                    for (_, absolute) in resolve_pairs {
-                        if !all.contains(&absolute.as_path()) {
-                            all.push(absolute.as_path());
-                        }
-                    }
-                    let invocation = commands::opa_check(&tool.binary, &all);
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    let known: Vec<String> = all
-                        .iter()
-                        .map(|path| path.to_string_lossy().into_owned())
-                        .collect();
-                    let known: Vec<&str> = known.iter().map(String::as_str).collect();
-                    let mut findings = parsed(
-                        tool_id,
-                        parsers::parse_opa_check(&out.stdout, &out.stderr, out.code, &known),
-                    )?;
-                    let reported: Vec<String> = findings.iter().map(|f| f.file.clone()).collect();
-                    findings.retain(|found| strs.contains(&found.file.as_str()));
-                    if findings.is_empty() && !reported.is_empty() {
-                        let mut names: Vec<String> = resolve_pairs
-                            .iter()
-                            .filter(|(_, absolute)| {
-                                reported
-                                    .iter()
-                                    .any(|r| r.as_str() == absolute.to_string_lossy())
-                            })
-                            .map(|(workspace, _)| workspace.clone())
-                            .collect();
-                        names.sort();
-                        names.dedup();
-                        return Err(execution(
-                            tool_id,
-                            format!(
-                                "opa check failed in dependencies before the owned files were type checked: {}",
-                                names.join(", ")
-                            ),
-                        ));
-                    }
-                    Ok(findings)
-                }
-            }
-            "pkl" => {
-                let invocation = commands::pkl_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_pkl(&out.stdout, &out.stderr, out.code, &strs),
-                )
-            }
-            "modfmt" => {
-                let invocation = commands::modfmt_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(tool_id, parsers::parse_modfmt(&out.stdout, out.code, &strs))
-            }
-            "tflint" => {
-                let Some(config) = config.as_deref() else {
-                    return Err(execution(tool_id, "tflint needs a config path".to_owned()));
-                };
-                let mut merged = Vec::new();
-                for (dir, members) in group_by_parent(scratch.root(), pairs) {
-                    let names: Vec<&Path> = members
-                        .iter()
-                        .map(|(name, _, _)| Path::new(name.as_str()))
-                        .collect();
-                    let invocation = commands::tflint_check(&tool.binary, &dir, &names, config);
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    let reported: Vec<&str> =
-                        members.iter().map(|(_, rel, _)| rel.as_str()).collect();
-                    let mut found = parsed(
-                        tool_id,
-                        parsers::parse_tflint(&out.stdout, out.code, &reported),
-                    )?;
-                    for entry in &mut found {
-                        if let Some((_, _, absolute)) =
-                            members.iter().find(|(_, rel, _)| *rel == entry.file)
-                        {
-                            entry.file.clone_from(absolute);
-                        }
-                    }
-                    merged.extend(found);
-                }
-                Ok(merged)
-            }
-            "terraform" => {
-                let invocation = commands::terraform_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let cwd = scratch.root().join(&cwd_rel);
-                parsed(
-                    tool_id,
-                    parsers::parse_terraform(&out.stdout, &out.stderr, out.code, &strs, &cwd),
-                )
-            }
-            "yamlfmt" => {
-                let invocation = commands::yamlfmt_check(&tool.binary, &refs, config.as_deref());
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_yamlfmt(&out.stderr, out.code, &strs),
-                )
-            }
-            "shfmt" => {
-                let invocation = commands::shfmt_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(tool_id, parsers::parse_shfmt(&out.stdout, out.code, &strs))
-            }
-            "psscriptanalyzer" => {
-                if capability == "format" {
-                    let invocation = commands::psscriptanalyzer_format_check(
-                        &tool.binary,
-                        &refs,
-                        config.as_deref(),
-                    );
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    return parsed(
-                        tool_id,
-                        parsers::parse_psscriptanalyzer_format(&out.stdout, out.code, &strs),
-                    );
-                }
-                let invocation =
-                    commands::psscriptanalyzer_check(&tool.binary, &refs, config.as_deref());
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_psscriptanalyzer(&out.stdout, out.code, &strs),
-                )
-            }
-            "statix" => {
-                if !tool.upstream_diagnostics.is_empty() {
-                    return self.check_file_family_delegated(tool_id, tool, pairs);
-                }
-                let Some(config) = config.as_deref() else {
-                    return Err(execution(tool_id, "statix needs a config path".to_owned()));
-                };
-                let mut findings = Vec::new();
-                for name in &strs {
-                    let invocation = commands::statix_check(&tool.binary, Path::new(name), config);
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    let report =
-                        parsers::parse_statix(&out.stdout, &out.stderr, out.code, &[*name]);
-                    findings.extend(parsed(tool_id, report)?);
-                }
-                Ok(findings)
-            }
-            "deadnix" => {
-                if !tool.upstream_diagnostics.is_empty() {
-                    return self.check_file_family_delegated(tool_id, tool, pairs);
-                }
-                self.check_files(
-                    tool_id,
-                    tool,
-                    scratch,
-                    pairs,
-                    |files| Ok(commands::deadnix_check(&tool.binary, files)),
-                    |out, names| {
-                        parsed(
-                            tool_id,
-                            parsers::parse_deadnix(&out.stdout, &out.stderr, out.code, names),
-                        )
-                    },
-                )
-            }
-            "debride" => {
-                let roots = unused_roots(tool_id, tool, pairs)?;
-                let mut found = self.check_files(
-                    tool_id,
-                    tool,
-                    scratch,
-                    pairs,
-                    |files| Ok(commands::debride_check(&tool.binary, files)),
-                    |out, names| {
-                        parsed(
-                            tool_id,
-                            parsers::parse_debride(&out.stdout, &out.stderr, out.code, names),
-                        )
-                    },
-                )?;
-                roots.drop_rooted(&mut found);
-                Ok(found)
-            }
-            "nixfmt" => self.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::nixfmt_check(&tool.binary, files)),
-                |out, names| {
-                    parsed(
-                        tool_id,
-                        parsers::parse_nixfmt(&out.stdout, &out.stderr, out.code, names),
-                    )
-                },
-            ),
-            "topiary" => self.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::topiary_check(&tool.binary, files)),
-                |out, names| {
-                    parsed(
-                        tool_id,
-                        parsers::parse_topiary(&out.stdout, out.code, names),
-                    )
-                },
-            ),
-            "ansible_lint" => {
-                let roots = staging::ansible_collections_roots(
-                    tool.tool_files.iter().map(|(rel, _)| rel.as_str()),
-                )
-                .map_err(|detail| execution(tool_id, detail))?;
-                let mut collections = Vec::with_capacity(roots.len());
-                for root in &roots {
-                    collections.push(if root.is_empty() {
-                        scratch.root().to_path_buf()
-                    } else {
-                        scratch
-                            .resolve(Path::new(root))
-                            .map_err(|err| execution(tool_id, format!("collections root: {err}")))?
-                    });
-                }
-                let collection_refs: Vec<&Path> =
-                    collections.iter().map(PathBuf::as_path).collect();
-                let context = commands::AnsibleLintContext {
-                    config: config.as_deref(),
-                    collections: &collection_refs,
-                    project_dir: scratch.root(),
-                };
-                let invocation = commands::ansible_lint_check(&tool.binary, &refs, &context);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_ansible_lint(&out.stdout, &out.stderr, out.code, &strs),
-                )
-            }
-            "typos" => self.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::typos_check(&tool.binary, files)),
-                |out, names| parsed(tool_id, parsers::parse_typos(&out.stdout, out.code, names)),
-            ),
-            "zizmor" => {
-                let invocation = commands::zizmor_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_zizmor(&out.stdout, &out.stderr, out.code, &strs),
-                )
-            }
-            "actionlint" => self.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::actionlint_check(&tool.binary, files)),
-                |out, names| {
-                    parsed(
-                        tool_id,
-                        parsers::parse_actionlint(&out.stdout, &out.stderr, out.code, names),
-                    )
-                },
-            ),
-            "lychee" => {
-                let root = scratch.root();
-                let online = tool
-                    .extra_env
-                    .iter()
-                    .any(|(name, value)| name == "DX_LINT_ONLINE" && value == "1");
-                let reported = self.check_files(
-                    tool_id,
-                    tool,
-                    scratch,
-                    pairs,
-                    |files| Ok(commands::lychee_check(&tool.binary, files, root, online)),
-                    |out, names| {
-                        parsed(
-                            tool_id,
-                            parsers::parse_lychee(&out.stdout, &out.stderr, out.code, names),
-                        )
-                    },
-                )?;
-                Ok(reported
-                    .into_iter()
-                    .map(|mut found| {
-                        found.finding.message = without_scratch_url(&found.finding.message, root);
-                        found
-                    })
-                    .collect())
-            }
-            "keep_sorted" => {
-                if !tool.upstream_diagnostics.is_empty() {
-                    self.check_file_family_delegated(tool_id, tool, pairs)
-                } else {
-                    self.check_files(
-                        tool_id,
-                        tool,
-                        scratch,
-                        pairs,
-                        |files| Ok(commands::keep_sorted_check(&tool.binary, files)),
-                        |out, names| {
-                            parsed(
-                                tool_id,
-                                parsers::parse_keep_sorted_lint(&out.stdout, out.code, names),
-                            )
-                        },
-                    )
-                }
-            }
-            _ => Err(execution(
-                tool_id,
-                format!("unsupported real tool: {tool_id}"),
-            )),
-        }
+        Err(execution(
+            tool_id,
+            format!("unsupported real tool: {tool_id}"),
+        ))
     }
 
     /// Knip analyses a whole package, so it runs once in each package root: the nearest
@@ -618,7 +206,7 @@ impl RealBackend {
         parsed(tool_id, parsers::parse_zanuda(&bytes, out.code, &strs))
     }
 
-    fn check_cue_vet(
+    pub(super) fn check_cue_vet(
         &self,
         tool_id: &str,
         tool: &RealTool,
@@ -736,7 +324,7 @@ impl RealBackend {
     /// only loaded (`-x 1`), since rendering one reports its by-design unset properties. Values
     /// are lazy: only what the module renders is forced, so hidden or unused members are not
     /// checked. An error whose first frame is a non-owned file is an execution error.
-    fn check_pkl_eval(
+    pub(super) fn check_pkl_eval(
         &self,
         tool_id: &str,
         tool: &RealTool,
@@ -813,7 +401,7 @@ impl RealBackend {
     /// that directory. A failure that names no file is an execution error, never clean. The
     /// root run and a child module's own run both see the child's errors, so findings are
     /// de-duplicated. An error only in a non-owned file is an execution error, as for pkl.
-    fn check_terraform_validate(
+    pub(super) fn check_terraform_validate(
         &self,
         tool_id: &str,
         tool: &RealTool,
@@ -1050,7 +638,7 @@ pub(super) fn unused_roots(
 }
 
 /// Drops the scratch directory from `file://` links so messages read the same on every host.
-fn without_scratch_url(message: &str, root: &Path) -> String {
+pub(super) fn without_scratch_url(message: &str, root: &Path) -> String {
     let root = root.to_string_lossy().replace('\\', "/");
     let root = root.trim_start_matches('/');
     message.replace(&format!("file:///{root}/"), "")

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -u
-runner="$1"
+runner="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 tmp="${TEST_TMPDIR:-$(mktemp -d)}"
 fake="$tmp/fake_tidy"
 printf '#!/usr/bin/env bash\nfor a in "$@"; do echo "ARG:$a"; done\n' >"$fake"
@@ -11,6 +11,12 @@ env DEVELOPER_DIR=/dev SDKROOT=/sdk "$runner" "$tmp/a.log" "$fake" -isysroot __B
 grep -qx 'ARG:-isysroot' "$tmp/a.log" && grep -qx 'ARG:/sdk' "$tmp/a.log" || fail "sdkroot not expanded"
 grep -qx 'ARG:-F/dev/x' "$tmp/a.log" || fail "developer dir not expanded"
 grep -qx "ARG:-I$PWD/inc" "$tmp/a.log" || fail "execution root not expanded"
+
+mkdir "$tmp/a&b"
+(cd "$tmp/a&b" && env DEVELOPER_DIR='/d&v' SDKROOT='/s&k' "$runner" "$tmp/amp.log" "$fake" __BAZEL_XCODE_SDKROOT__ -F__BAZEL_XCODE_DEVELOPER_DIR__/x -I__BAZEL_EXECUTION_ROOT__/inc) || fail "ampersand run exits 0"
+grep -qxF 'ARG:/s&k' "$tmp/amp.log" || fail "ampersand in sdkroot"
+grep -qxF 'ARG:-F/d&v/x' "$tmp/amp.log" || fail "ampersand in developer dir"
+grep -qxF "ARG:-I$tmp/a&b/inc" "$tmp/amp.log" || fail "ampersand in execution root"
 
 if env -u DEVELOPER_DIR -u SDKROOT "$runner" "$tmp/b.log" "$fake" -isysroot __BAZEL_XCODE_SDKROOT__ 2>/dev/null; then
   fail "unset env with a placeholder must fail"

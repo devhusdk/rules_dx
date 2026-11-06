@@ -183,10 +183,8 @@ mod tests {
     }
 
     #[cfg(unix)]
-    #[test]
-    fn removed_function_needs_a_major_bump() {
-        let scratch = scratch_dir();
-        let repo = scratch.path().join("repo");
+    fn git_fixture(scratch: &Path) -> std::path::PathBuf {
+        let repo = scratch.join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");
         write_crate_file(&repo, "lib/go.mod", "module example.com/lib\n\ngo 1.22\n");
         write_crate_file(&repo, "lib/lib.go", "package lib\n\nfunc Hello() {}\n");
@@ -212,6 +210,14 @@ mod tests {
                 .expect("git");
             assert!(status.success(), "git {args:?}");
         }
+        repo
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn removed_function_needs_a_major_bump() {
+        let scratch = scratch_dir();
+        let repo = git_fixture(scratch.path());
         let args_log = scratch.path().join("args");
         let fake = scratch.path().join("apidiff");
         std::fs::write(
@@ -239,5 +245,42 @@ mod tests {
         assert!(!args_log.exists(), "off must not run the tool");
         let listed = git(&repo, &["worktree", "list"]).expect("list");
         assert_eq!(listed.lines().count(), 1, "{listed}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn real_apidiff_flags_a_removed_function() {
+        let (Some(apidiff), Some(go)) = (
+            std::env::var("APIDIFF_BIN").ok(),
+            std::env::var("DX_TEST_GO").ok(),
+        ) else {
+            println!("skipped: run under Bazel for the apidiff pin and the Go toolchain");
+            return;
+        };
+        let apidiff = crate::stage::resolve_runfile(&apidiff).expect("apidiff");
+        let go = crate::stage::resolve_runfile(&go).expect("go");
+        let go_dir = go.parent().expect("go dir").to_string_lossy().into_owned();
+        let scratch = scratch_dir();
+        let repo = git_fixture(scratch.path());
+        write_crate_file(&repo, "lib/lib.go", "package lib\n");
+        let cache = scratch.path().join("gocache");
+        let path = format!("{go_dir}:/usr/bin:/bin");
+        with_env(
+            &[
+                ("PATH", Some(path.as_str())),
+                ("GOCACHE", cache.to_str()),
+                ("GOFLAGS", Some("-mod=mod")),
+                ("GOPROXY", Some("off")),
+            ],
+            || {
+                let modules = vec!["lib".to_owned()];
+                let run = |tag: &str| {
+                    go_api_check(Some(&apidiff), &repo, &modules, tag, ApiCompatMode::Fail)
+                };
+                let refused = run("v1.3.0").expect_err("minor bump refused");
+                assert!(refused.contains("v1.2.0 -> v1.3.0"), "{refused}");
+                run("v2.0.0").expect("a major bump allows the removal");
+            },
+        );
     }
 }

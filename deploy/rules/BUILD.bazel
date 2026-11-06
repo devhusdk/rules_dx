@@ -16,6 +16,7 @@ load(":defs.bzl", "dx_deployment")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
 load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
+load(":go_sdk.bzl", "go_binary_file")
 load(":hackage.bzl", "hackage_deploy")
 load(":hackage_tests.bzl", "hackage_unit_tests")
 load(":helm_tests.bzl", "helm_unit_tests")
@@ -67,6 +68,7 @@ exports_files([
     "deploy_tests.bzl",
     "github.bzl",
     "github_tests.bzl",
+    "go_sdk.bzl",
     "hackage.bzl",
     "hackage_tests.bzl",
     "helm.bzl",
@@ -288,6 +290,8 @@ rust_test(
         ":maven_api_new_lib",
         ":maven_api_old_lib",
         ":maven_demo_lib",
+        ":go_binary",
+        "//deploy/rules/pins:apidiff",
         "//deploy/rules/pins:cargo_semver_checks",
         "//deploy/rules/pins:japicmp",
         "@rules_java//toolchains:current_java_runtime",
@@ -297,8 +301,10 @@ rust_test(
         "@rules_rust//rust/toolchain:current_rustdoc_files",
     ],
     env = {
+        "APIDIFF_BIN": "$(rlocationpath //deploy/rules/pins:apidiff)",
         "CARGO_SEMVER_CHECKS": "$(rlocationpaths //deploy/rules/pins:cargo_semver_checks)",
         "DX_TEST_CARGO": "$(rlocationpath @rules_rust//cargo:current_cargo_toolchain)",
+        "DX_TEST_GO": "$(rlocationpath :go_binary)",
         "DX_TEST_RUSTC": "$(rlocationpath @rules_rust//rust/toolchain:current_rustc_files)",
         "DX_TEST_RUSTDOC": "$(rlocationpath @rules_rust//rust/toolchain:current_rustdoc_files)",
         "JAPICMP_JAR": "$(rlocationpath //deploy/rules/pins:japicmp)",
@@ -1736,6 +1742,8 @@ java_library(
     name = "maven_api_old_lib",
     srcs = ["testdata/maven/api_old/Api.java"],
 )
+
+go_binary_file(name = "go_binary")
 
 java_library(
     name = "maven_api_new_lib",

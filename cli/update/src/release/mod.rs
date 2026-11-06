@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::io;
 use std::path::Path;
 
 use semver::Version;
@@ -13,79 +12,16 @@ pub mod conventional;
 
 use conventional::Bump;
 
-const DEFAULT_TAG_PREFIX: &str = "v";
+pub const TAG_PREFIX: &str = "v";
 
-/// What `release.toml` sets.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Config {
-    pub tag_prefix: String,
-    /// Subject prefixes `--commits` lets through, such as `Merge `.
-    pub skip: Vec<String>,
-    /// Keep a `CHANGELOG.md` in Keep a Changelog form.
-    pub changelog: bool,
-}
+/// The `git log` arguments every release read uses: merge commits are never read.
+pub const LOG_ARGS: [&str; 3] = ["log", "--no-merges", "--format=%H%x00%s%x00%b%x1e"];
 
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            tag_prefix: DEFAULT_TAG_PREFIX.to_owned(),
-            skip: Vec::new(),
-            changelog: false,
-        }
-    }
-}
-
-/// Reads `release.toml` at the workspace root; a missing file is the defaults.
-pub fn read_config(workspace: &Path) -> Result<Config, String> {
-    let path = workspace.join("release.toml");
-    let text = match fs::read_to_string(&path) {
-        Ok(text) => text,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Config::default()),
-        Err(error) => return Err(format!("cannot read {}: {error}", path.display())),
-    };
-    parse_config(&text).map_err(|error| format!("{}: {error}", path.display()))
-}
-
-fn parse_config(text: &str) -> Result<Config, String> {
-    let doc: toml_edit::DocumentMut = text.parse().map_err(|error| format!("{error}"))?;
-    let mut config = Config::default();
-    if let Some(item) = doc.get("tag_prefix") {
-        config.tag_prefix = item
-            .as_str()
-            .ok_or("tag_prefix must be a string")?
-            .to_owned();
-    }
-    if let Some(item) = doc.get("changelog") {
-        config.changelog = item.as_bool().ok_or("changelog must be true or false")?;
-    }
-    if let Some(item) = doc.get("skip") {
-        let table = item.as_table_like().ok_or("skip must be a table")?;
-        if let Some(item) = table.get("subjects") {
-            config.skip = item
-                .as_array()
-                .and_then(|array| {
-                    array
-                        .iter()
-                        .map(|v| v.as_str().map(str::to_owned))
-                        .collect()
-                })
-                .ok_or("skip.subjects must be an array of strings")?;
-        }
-    }
-    Ok(config)
-}
-
-/// The commits in `log` whose subject is not a conventional commit and does not start with a `skip` entry, as `(hash, subject)`.
-pub fn lint(config: &Config, log: &str) -> Vec<(String, String)> {
+/// The commits in `log` whose subject is not a conventional commit, as `(hash, subject)`.
+pub fn lint(log: &str) -> Vec<(String, String)> {
     conventional::parse(log)
         .into_iter()
         .filter(|commit| commit.kind == conventional::Kind::Other)
-        .filter(|commit| {
-            !config
-                .skip
-                .iter()
-                .any(|s| commit.subject.starts_with(s.as_str()))
-        })
         .map(|commit| (commit.hash, commit.subject))
         .collect()
 }
@@ -208,8 +144,8 @@ pub fn breaking_targets(
     Ok(breaking)
 }
 
-fn parse_tag(tag: &str, prefix: &str) -> Option<Version> {
-    Version::parse(tag.strip_prefix(prefix).unwrap_or(tag)).ok()
+fn parse_tag(tag: &str) -> Option<Version> {
+    Version::parse(tag.strip_prefix(TAG_PREFIX).unwrap_or(tag)).ok()
 }
 
 fn most_common(manifests: &[Manifest]) -> Option<Version> {
@@ -246,7 +182,6 @@ fn bumped(current: &Version, bump: Bump) -> Option<Version> {
 /// Builds the report from the last tag, the `git log` since it and the manifests found.
 pub fn plan(
     workspace: &Path,
-    config: &Config,
     last_tag: Option<&str>,
     log: &str,
     forced: Option<&str>,
@@ -256,7 +191,7 @@ pub fn plan(
     let commits = conventional::parse(log);
     let bump = conventional::bump(&commits);
     let current = last_tag
-        .and_then(|tag| parse_tag(tag, &config.tag_prefix))
+        .and_then(parse_tag)
         .or_else(|| most_common(&manifests));
     let next = match forced {
         Some(raw) => Some(Version::parse(raw).map_err(|error| format!("--to {raw}: {error}"))?),
@@ -306,8 +241,6 @@ pub fn tag_message(tag: &str, log: &str) -> String {
     format!("{tag}\n\n{}", notes(log))
 }
 
-const CHANGELOG_HEADER: &str = "# Changelog\n\nAll notable changes to this project are documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).\n";
-
 /// The `## [version] - date` section for the commits in `log`, with the headings lowered one level.
 pub fn changelog_section(version: &str, date: &str, log: &str) -> String {
     let body: String = notes(log)
@@ -320,19 +253,32 @@ pub fn changelog_section(version: &str, date: &str, log: &str) -> String {
     format!("## [{version}] - {date}\n\n{body}")
 }
 
-/// `existing` with `section` placed above the older release sections; a missing file starts with the Keep a Changelog header.
-pub fn prepend_section(existing: Option<&str>, section: &str) -> String {
-    let existing = existing.unwrap_or(CHANGELOG_HEADER);
+/// `existing` with `section` placed above the older release sections.
+pub fn prepend_section(existing: &str, section: &str) -> String {
     match existing.find("\n## ") {
         Some(at) => {
             let (head, tail) = existing.split_at(at + 1);
             format!("{head}{section}\n{tail}")
         }
-        None => format!(
-            "{}\n{section}",
-            existing.trim_end_matches('\n').to_owned() + "\n"
-        ),
+        None => format!("{}\n\n{section}", existing.trim_end_matches('\n')),
     }
+}
+
+/// Adds the section for `version` to `CHANGELOG.md` when the workspace has one; true when it was written.
+pub fn write_changelog(
+    workspace: &Path,
+    version: &str,
+    date: &str,
+    log: &str,
+) -> Result<bool, String> {
+    let path = workspace.join("CHANGELOG.md");
+    let Ok(existing) = fs::read_to_string(&path) else {
+        return Ok(false);
+    };
+    let section = changelog_section(version, date, log);
+    fs::write(&path, prepend_section(&existing, &section))
+        .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
+    Ok(true)
 }
 
 /// Today's UTC date as `YYYY-MM-DD`.

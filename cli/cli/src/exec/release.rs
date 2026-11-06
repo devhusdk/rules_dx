@@ -6,8 +6,8 @@ use std::process::Command as Process;
 use super::common::*;
 use dx_plan::args::Invocation;
 use dx_update::release::{
-    apply, breaking_targets, changelog_section, lint, plan, prepend_section, read_config,
-    tag_message, today,
+    apply, breaking_targets, changelog_section, lint, plan, tag_message, today, write_changelog,
+    LOG_ARGS, TAG_PREFIX,
 };
 
 fn git(workspace: &Path, args: &[&str]) -> Option<String> {
@@ -30,14 +30,10 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ..
     } = env;
-    let config = match read_config(workspace) {
-        Ok(config) => config,
-        Err(message) => return refusal(invocation.output, out, err, &message),
-    };
     if let Some(range) = invocation.commits.as_deref() {
-        return lint_commits(invocation, workspace, &config, range, out, err);
+        return lint_commits(invocation, workspace, range, out, err);
     }
-    let pattern = format!("{}*", config.tag_prefix);
+    let pattern = format!("{TAG_PREFIX}*");
     let tag = git(
         workspace,
         &["describe", "--tags", "--abbrev=0", "--match", &pattern],
@@ -45,7 +41,7 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
     .map(|tag| tag.trim().to_owned())
     .filter(|tag| !tag.is_empty());
     let range = tag.as_ref().map(|tag| format!("{tag}..HEAD"));
-    let mut args = vec!["log", "--format=%H%x00%s%x00%b%x1e"];
+    let mut args = LOG_ARGS.to_vec();
     args.extend(range.as_deref());
     let Some(log) = git(workspace, &args) else {
         return operational(
@@ -56,13 +52,7 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
             "cannot read the git log; run dx release inside a git checkout",
         );
     };
-    let mut report = match plan(
-        workspace,
-        &config,
-        tag.as_deref(),
-        &log,
-        invocation.to.as_deref(),
-    ) {
+    let mut report = match plan(workspace, tag.as_deref(), &log, invocation.to.as_deref()) {
         Ok(report) => report,
         Err(message) => return refusal(invocation.output, out, err, &message),
     };
@@ -78,7 +68,8 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         return exit;
     }
     if !invocation.apply {
-        if let (true, Some(next)) = (config.changelog, report.next.as_deref()) {
+        let has_changelog = workspace.join("CHANGELOG.md").is_file();
+        if let (true, Some(next)) = (has_changelog, report.next.as_deref()) {
             let section = changelog_section(next, &today(), &log);
             let text = format!("CHANGELOG.md would gain:\n\n{section}");
             if let Err(exit) = check_stdout_write(out.write_all(text.as_bytes())) {
@@ -95,7 +86,7 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
             "nothing to release: no feat, fix or breaking commits; pass --to <x.y.z> to force a version",
         );
     };
-    match commit_and_tag(workspace, &config, next, &log, invocation.push) {
+    match commit_and_tag(workspace, next, &log, invocation.push) {
         Ok(tag) => {
             let line = if invocation.push {
                 format!("committed, tagged and pushed {tag}")
@@ -142,7 +133,6 @@ fn api_breaking(workspace: &Path, candidate: &str) -> Result<Vec<String>, String
 fn lint_commits(
     invocation: &Invocation,
     workspace: &Path,
-    config: &dx_update::release::Config,
     range: &str,
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
@@ -155,10 +145,7 @@ fn lint_commits(
             "--commits only checks; it cannot be combined with --apply or --to",
         );
     }
-    let Some(log) = git(
-        workspace,
-        &["log", "--no-merges", "--format=%H%x00%s%x00%b%x1e", range],
-    ) else {
+    let Some(log) = git(workspace, &[&LOG_ARGS[..], &[range]].concat()) else {
         return operational(
             invocation,
             out,
@@ -167,7 +154,7 @@ fn lint_commits(
             &format!("cannot read the commits in {range}; check the range and that this is a git checkout"),
         );
     };
-    let bad = lint(config, &log);
+    let bad = lint(&log);
     if bad.is_empty() {
         return 0;
     }
@@ -208,12 +195,11 @@ fn refresh_locks(workspace: &Path, changed: &[String]) -> Result<Vec<String>, St
 
 fn commit_and_tag(
     workspace: &Path,
-    config: &dx_update::release::Config,
     version: &str,
     log: &str,
     push: bool,
 ) -> Result<String, String> {
-    let tag = format!("{}{version}", config.tag_prefix);
+    let tag = format!("{TAG_PREFIX}{version}");
     let branch = git(workspace, &["symbolic-ref", "--quiet", "--short", "HEAD"])
         .map(|name| name.trim().to_owned())
         .filter(|name| !name.is_empty())
@@ -237,12 +223,7 @@ fn commit_and_tag(
     }
     let changed = apply(workspace, version)?;
     let mut files = changed.clone();
-    if config.changelog {
-        let path = workspace.join("CHANGELOG.md");
-        let existing = std::fs::read_to_string(&path).ok();
-        let section = changelog_section(version, &today(), log);
-        std::fs::write(&path, prepend_section(existing.as_deref(), &section))
-            .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
+    if write_changelog(workspace, version, &today(), log)? {
         files.push("CHANGELOG.md".to_owned());
     }
     files.extend(refresh_locks(workspace, &changed)?);

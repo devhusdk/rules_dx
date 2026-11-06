@@ -1,6 +1,6 @@
 # `dx release`
 
-Works out the next version from conventional commits since the last tag and lists every manifest that carries a version. With `--apply` it also writes the version into every manifest, commits and tags. Without it, no files change.
+Works out the next version from conventional commits since the last tag and lists every manifest that carries a version. With `--apply` it also writes the version into every manifest, commits and tags. If a `CHANGELOG.md` exists, `--apply` also prepends a `## [x.y.z] - date` section with the grouped notes and commits it, and `--check` prints the section it would add. Without it, no files change.
 
 ```sh
 dx release
@@ -24,20 +24,10 @@ dx release [--check [--commits <range>] | --apply [--push]] [--to <x.y.z>] [--no
 | `--no-api-compat` | Skip the api-compat step of `--check`. |
 | `--workspace`, `-q`, `-v`, `--color` | Global flags. |
 
-The base is the newest tag that starts with the tag prefix (`v` by default). With no tag, the base is the version most manifests carry. Commits since the tag decide the bump: `feat:` is minor, `fix:` and `perf:` are patch, and `!` after the type or a `BREAKING CHANGE:` footer is major. Other commits do not bump.
+The base is the newest tag that starts with `v`. With no tag, the base is the version most manifests carry. Commits since the tag decide the bump: `feat:` is minor, `fix:` and `perf:` are patch, and `!` after the type or a `BREAKING CHANGE:` footer is major. Other commits do not bump.
 
 With `--check`, every `crates_deploy` target with `api_compat` other than `off` is run in warn mode against the last tag. When any reports breaking changes, the bump becomes major and the output names the target. This needs Bazel and cargo-semver-checks; `--to` and `--apply` skip it.
 
 The manifests are `Cargo.toml`, `package.json`, `pyproject.toml`, `pubspec.yaml`, `build.gradle(.kts)`, `*.csproj`, `mix.exs`, `MODULE.bazel`, `*.gemspec` and `Chart.yaml`. A manifest that does not carry the base version is listed as out of sync.
-
-## release.toml
-
-An optional `release.toml` at the workspace root.
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `tag_prefix` | `"v"` | The prefix of release tags. |
-| `changelog` | `false` | When `true`, `--apply` prepends a `## [x.y.z] - date` section with the grouped notes to `CHANGELOG.md` (created with a Keep a Changelog header) and commits it; `--check` prints the section it would add. |
-| `skip.subjects` | `[]` | Subject prefixes `--commits` lets through, for example `["Revert "]`. |
 
 Scopes: none. Targets and `-- bazel-options` are usage errors. `--output` is not supported.

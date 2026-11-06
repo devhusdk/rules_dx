@@ -67,7 +67,7 @@ struct Event {
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
-    ts: Option<u64>,
+    ts: Option<i64>,
     #[serde(default)]
     dur: Option<u64>,
     #[serde(default)]
@@ -141,7 +141,7 @@ pub(crate) fn build(
         let (Some(cat), Some(micros)) = (event.cat.as_deref(), event.dur) else {
             continue;
         };
-        let end = event.ts.unwrap_or(0).saturating_add(micros);
+        let end = event.ts.unwrap_or(0).saturating_add_unsigned(micros).max(0) as u64;
         report.wall_micros = report.wall_micros.max(end);
         let timed = || Timed {
             name: event.name.clone().unwrap_or_default(),
@@ -463,6 +463,15 @@ mod tests {
             report.json()["build_metrics"]["mnemonics"][0]["cpu_ms"],
             1500
         );
+    }
+
+    #[test]
+    fn report_accepts_events_that_start_before_the_profile() {
+        let trace = r#"{"traceEvents":[
+            {"cat":"build phase marker","name":"Launch Blaze","ph":"X","ts":-5000,"dur":5000},
+            {"cat":"action processing","name":"a","ts":10,"dur":90}]}"#;
+        let report = build(trace, None, None).expect("report");
+        assert_eq!(report.wall_micros, 100);
     }
 
     #[test]

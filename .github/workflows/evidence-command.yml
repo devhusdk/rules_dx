@@ -46,13 +46,13 @@ jobs:
           key=
           for token in ${line#/evidence}; do
             case "$token" in
-              platforms=* | task=* | scope=* | test_timeout=* | displays=* | android=* | qualify=* | relocate=*)
+              platforms=* | task=* | scope=* | test_timeout=* | displays=* | android=* | qualify=* | relocate=* | release_cell=*)
                 key=${token%%=*}
                 args+=("$key=${token#*=}")
                 ;;
               *)
                 if [ "$key" != scope ]; then
-                  reply "/evidence could not read '$token'. Use platforms=, task=, scope=, test_timeout=, displays=, android=, qualify= or relocate=."
+                  reply "/evidence could not read '$token'. Use platforms=, task=, scope=, test_timeout=, displays=, android=, qualify=, relocate= or release_cell=."
                   exit 1
                 fi
                 args[${#args[@]}-1]+=" $token"

@@ -41,6 +41,11 @@ on:
         type: boolean
         required: false
         default: false
+      release_cell:
+        description: "Build and qualify the dx release cell of each platform with the script release-cells.yml runs, uncached, before the scope task."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -96,7 +101,7 @@ jobs:
   evidence:
     name: evidence (${{ matrix.platform }})
     needs: [validate]
-    timeout-minutes: 60
+    timeout-minutes: ${{ inputs.release_cell && 90 || 60 }}
     defaults:
       run:
         shell: bash
@@ -117,6 +122,22 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+      - name: Build and qualify the release cell
+        if: ${{ inputs.release_cell }}
+        env:
+          DX_PLATFORM: ${{ matrix.platform }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          RUN_ID: ${{ github.run_id }}
+          JOB: ${{ github.job }}
+          SHA: ${{ github.sha }}
+        run: |
+          export CELL="dx-${DX_PLATFORM/_/-}"
+          out="$RUNNER_TEMP/evidence/release-cell"
+          status=0
+          tools/ci/release_cell.sh "$out" || status=$?
+          cp "$RUNNER_TEMP"/rebuilt-* "$out/" 2>/dev/null || true
+          exit "$status"
       - name: Use the BuildBuddy remote cache
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -421,7 +442,7 @@ jobs:
         run: |
           out="$RUNNER_TEMP/evidence/testlogs"
           mkdir -p "$out"
-          cp evidence.log "$RUNNER_TEMP/evidence/"
+          cp evidence.log "$RUNNER_TEMP/evidence/" 2>/dev/null || true
           cp relocated.log "$RUNNER_TEMP/evidence/" 2>/dev/null || true
           [ -e bazel-testlogs ] || exit 0
           find -L bazel-testlogs/ -name test.log -print | while read -r log; do

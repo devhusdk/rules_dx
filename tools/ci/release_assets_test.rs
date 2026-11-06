@@ -250,6 +250,31 @@ fn the_source_archive_is_uploaded_without_clobber() {
 }
 
 const CELLS_WORKFLOW: &str = ".github/workflows/release-cells.yml";
+const EVIDENCE_WORKFLOW: &str = ".github/workflows/evidence.yml";
+const CELL_SCRIPT: &str = "tools/ci/release_cell.sh";
+
+#[test]
+fn both_workflows_run_the_one_release_cell_script() {
+    for path in [CELLS_WORKFLOW, EVIDENCE_WORKFLOW] {
+        let text = read_runfiles(path);
+        assert_eq!(text.matches(CELL_SCRIPT).count(), 1, "{path} calls {CELL_SCRIPT} once");
+        assert!(!text.contains("\"$tool\" qualify"), "{path} must not copy the cell procedure");
+    }
+    assert!(read_runfiles(CELL_SCRIPT).contains("\"$tool\" qualify"));
+}
+
+#[test]
+fn the_evidence_release_cell_runs_uncached_and_only_on_request() {
+    let text = read_runfiles(EVIDENCE_WORKFLOW);
+    let step = text
+        .find("- name: Build and qualify the release cell")
+        .expect("release cell step");
+    let cache = text
+        .find("- name: Use the BuildBuddy remote cache\n        env:\n          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}\n          DX_PLATFORM")
+        .expect("evidence BuildBuddy step");
+    assert!(step < cache, "the cell must build before the remote cache is configured");
+    assert!(text[step..cache].contains("if: ${{ inputs.release_cell }}"));
+}
 
 fn upload_job(text: &str) -> &str {
     let start = text.find("\n  attest:\n").expect("upload job");

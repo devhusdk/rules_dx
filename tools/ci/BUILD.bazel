@@ -844,9 +844,11 @@ rust_test(
     name = "release_assets_test",
     srcs = ["release_assets_test.rs"],
     data = [
+        "release_cell.sh",
         "//:MODULE.bazel",
         "//:RELEASING.md",
         "//.github:workflows/ci.yml",
+        "//.github:workflows/evidence.yml",
         "//.github:workflows/release.yml",
         "//.github:workflows/release-cells.yml",
         "//.github:workflows/release-consumer.yml",

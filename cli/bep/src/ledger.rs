@@ -278,4 +278,11 @@ mod tests {
         let b: Value = serde_json::from_str(r#"{"x":{"a":[{"c":3,"d":2}],"b":1}}"#).expect("b");
         assert_eq!(canonical(&a), canonical(&b));
     }
+
+    #[test]
+    fn an_event_without_an_id_records_nothing_but_the_end() {
+        let found = ledger(&[r#"{"lastMessage":true}"#]);
+        assert!(found.ended());
+        assert!(found.gaps(&["targetCompleted"]).is_empty());
+    }
 }

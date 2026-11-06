@@ -502,6 +502,27 @@ mod tests {
     }
 
     #[test]
+    fn non_shard_artifact_paths_skip_shard_files() {
+        let artifact = |name: &str| CollectedArtifact {
+            exec_path: PathBuf::from(name),
+            bytes: Vec::new(),
+        };
+        let output = TargetOutput {
+            label: "//a:t".to_owned(),
+            aspect: None,
+            configuration: None,
+            success: true,
+            declared: true,
+            incomplete: false,
+            artifacts: vec![artifact("out/a.shard.pb"), artifact("out/b.pb")],
+        };
+        assert_eq!(
+            non_shard_artifact_paths(&[output], ".shard.pb"),
+            ["out/b.pb"]
+        );
+    }
+
+    #[test]
     fn build_tool_version_comes_from_the_started_event() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("bep.json");
@@ -514,7 +535,11 @@ mod tests {
             stream_build_tool_version(&path).unwrap().as_deref(),
             Some("9.0.0")
         );
-        std::fs::write(&path, "{\"id\":{\"started\":{}},\"started\":{}}\n").expect("write");
+        std::fs::write(
+            &path,
+            "{\"id\":{\"started\":{}},\"started\":{}}\n{\"id\":{\"progress\":{}}}\n",
+        )
+        .expect("write");
         assert_eq!(stream_build_tool_version(&path).unwrap(), None);
         assert!(stream_build_tool_version(Path::new("/nonexistent/dx/bep.json")).is_err());
     }
@@ -522,7 +547,9 @@ mod tests {
     /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             format!("file:///C:/out/{rel}")
+            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             format!("file:///out/{rel}")
         }
@@ -531,7 +558,9 @@ mod tests {
     /// A hand-written file URI naming the fixture root with a localhost authority.
     fn localhost_uri(rel: &str) -> String {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             format!("file://localhost/C:/out/{rel}")
+            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             format!("file://localhost/out/{rel}")
         }
@@ -573,6 +602,7 @@ mod tests {
         assert!(exec_matches(Path::new("/out/rustc"), "rustc"));
         assert!(!exec_matches(Path::new("/out/xrustc"), "rustc"));
         assert!(!exec_matches(Path::new("/out/rustc"), ""));
+        assert!(suffix_matches("bin/rustc", "bin/rustc"));
         assert!(suffix_matches("bazel-out/bin/rustc", "bin/rustc"));
         assert!(!suffix_matches("bazel-out/xbin/rustc", "bin/rustc"));
     }
@@ -606,7 +636,9 @@ mod tests {
         assert_eq!(
             file_uri_to_path("file:///C:/out/a.pb").expect("drive"),
             PathBuf::from(if cfg!(windows) {
+                // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 r"C:\out\a.pb"
+                // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             } else {
                 "/C:/out/a.pb"
             })
@@ -626,6 +658,7 @@ mod tests {
             );
         }
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             assert_eq!(
                 file_uri_to_path("file://otherhost/out/a.pb").expect("unc host"),
                 PathBuf::from(r"\\otherhost\out\a.pb")
@@ -634,6 +667,7 @@ mod tests {
                 file_uri_to_path("file://srv/share/a%23b.pb").expect("unc share"),
                 PathBuf::from(r"\\srv\share\a#b.pb")
             );
+            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             for uri in ["file://relative/path", "file://otherhost/out/a.pb"] {
                 assert!(
@@ -797,6 +831,7 @@ mod tests {
         for label in ["//pkg:", "pkg/t", "not-a-label"] {
             let err =
                 testlog_path(&locations, None, label, "test.xml", IDENTITY).expect_err("must fail");
+            // LCOV_EXCL_START - reason: failure arm of a test assertion, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             let BepError::MissingTestOutput {
                 label: got,
                 run,
@@ -807,6 +842,7 @@ mod tests {
             else {
                 panic!("want MissingTestOutput, got {err:?}");
             };
+            // LCOV_EXCL_STOP - reason: end failure arm of a test assertion, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             assert_eq!(got, label);
             assert_eq!((run, shard, attempt), (1, 1, 1));
         }

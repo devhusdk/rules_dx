@@ -716,7 +716,9 @@ mod tests {
     /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: Windows-only URI, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             format!("file:///C:/out/{rel}")
+            // LCOV_EXCL_STOP - reason: end Windows-only URI, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             format!("file:///out/{rel}")
         }
@@ -945,9 +947,11 @@ mod tests {
         ];
         for (stream, path, wording) in cases {
             let err = outputs(Cursor::new(stream), || None).expect_err("must fail closed");
+            // LCOV_EXCL_START - reason: failure arm of a test assertion, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             let BepError::MalformedEvent { line, reason } = err else {
                 panic!("want MalformedEvent, got {err:?}");
             };
+            // LCOV_EXCL_STOP - reason: end failure arm of a test assertion, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             assert_eq!(line, 1);
             assert!(
                 reason.contains(path),
@@ -1368,9 +1372,11 @@ mod tests {
         )]
         .join("\n");
         let got = outputs(Cursor::new(stream), || {
+            // LCOV_EXCL_START - reason: must never run for file URIs, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             calls.set(calls.get() + 1);
             None
         })
+        // LCOV_EXCL_STOP - reason: end never-run closure, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         .expect("file outputs");
         assert_eq!(got.len(), 1);
         assert_eq!(calls.get(), 0);
@@ -1643,5 +1649,62 @@ mod tests {
         let events = collect_test_events(Cursor::new(stream), || None).expect("events");
         assert!(events.filtered.is_empty(), "{:?}", events.filtered);
         assert_eq!(events.unbuilt.len(), 1);
+    }
+
+    #[test]
+    fn path_prefix_entries_must_be_strings() {
+        let stream = r#"{"id":{"testResult":{"label":"//a:t"}},"testResult":{"testActionOutput":[{"name":"test.xml","uri":"file:///out/a.xml","pathPrefix":["ok",1]}]}}"#;
+        let err = collect_test_events(Cursor::new(stream), || None).expect_err("must fail");
+        let reason = err.to_string();
+        assert!(reason.contains("pathPrefix"), "{reason}");
+        assert!(reason.contains("entries must be strings"), "{reason}");
+    }
+
+    #[test]
+    fn shard_counts_must_fit_in_u32() {
+        for count in ["\"x\"", "4294967296"] {
+            let stream = format!(
+                r#"{{"id":{{"testSummary":{{"label":"//a:t"}}}},"testSummary":{{"shardCount":{count}}}}}"#
+            );
+            let err = collect_test_events(Cursor::new(stream), || None).expect_err("must fail");
+            let reason = err.to_string();
+            assert!(reason.contains("testSummary.shardCount"), "{reason}");
+        }
+    }
+
+    #[test]
+    fn aborted_and_aspect_completions_do_not_make_unbuilt_tests() {
+        let skipped =
+            r#"{"id":{"targetCompleted":{"label":"//a:s"}},"aborted":{"reason":"SKIPPED"}}"#;
+        let aspect = r#"{"id":{"targetCompleted":{"label":"//a:t","aspect":"//x:a.bzl%a"}},"completed":{"success":false}}"#;
+        let stream = [
+            configured_test("//a:s"),
+            configured_test("//a:t"),
+            skipped.to_owned(),
+            aspect.to_owned(),
+        ]
+        .join("\n");
+        let events = collect_test_events(Cursor::new(stream), || None).expect("events");
+        assert!(events.unbuilt.is_empty(), "{:?}", events.unbuilt);
+        assert_eq!(events.skipped.len(), 1);
+    }
+
+    #[test]
+    fn rule_language_comes_from_the_rule_kind() {
+        let configured = |kind: &str| -> serde_json::Map<String, Value> {
+            serde_json::from_str(&format!(r#"{{"configured":{{"targetKind":"{kind}"}}}}"#))
+                .expect("object")
+        };
+        assert_eq!(rule_language(&configured("rust_test rule")), "rust");
+        assert_eq!(rule_language(&configured("_zig_forward_test rule")), "zig");
+        assert_eq!(rule_language(&configured("")), "other");
+    }
+
+    #[test]
+    fn a_test_result_without_outputs_still_counts() {
+        let stream = r#"{"id":{"testResult":{"label":"//a:t"}},"testResult":{"status":"PASSED"}}"#;
+        let events = collect_test_events(Cursor::new(stream), || None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        assert!(events.results[0].files.is_empty());
     }
 }

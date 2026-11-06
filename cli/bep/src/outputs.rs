@@ -410,7 +410,9 @@ mod tests {
     /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: Windows-only URI, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             format!("file:///C:/out/{rel}")
+            // LCOV_EXCL_STOP - reason: end Windows-only URI, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             format!("file:///out/{rel}")
         }
@@ -562,6 +564,19 @@ mod tests {
             .expect("account");
         assert_eq!(account.targets.len(), 1);
         assert_eq!(account.problem, None);
+    }
+
+    #[test]
+    fn an_incomplete_group_marks_the_target_incomplete() {
+        let group = r#"{"name": "dx_results", "incomplete": true, "fileSets": [{"id": "1"}]}"#;
+        let stream = [
+            r#"{"id": {"namedSetOfFiles": {"id": "1"}}}"#.to_owned(),
+            completed("//q:a", true, group),
+        ]
+        .join("\n");
+        let account = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
+            .expect("account");
+        assert!(account.targets[0].incomplete);
     }
 
     #[test]
@@ -1041,7 +1056,9 @@ mod tests {
         let dir = tempfile::TempDir::new().expect("scratch");
         let root = dx_path::manifest(dir.path());
         let names: &[(&str, &str)] = if cfg!(windows) {
+            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             &[("a b.pb", "a%20b.pb"), ("a%20b.pb", "a%2520b.pb")]
+            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             &[
                 ("a b.pb", "a%20b.pb"),

@@ -415,7 +415,9 @@ mod tests {
 
     fn action_line(label: &str, config: &str, mnemonic: &str, output: &str) -> String {
         let stderr = if cfg!(windows) {
+            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             "file:///C:/out/stderr-1"
+            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             "file:///out/stderr-1"
         };
@@ -561,5 +563,167 @@ mod tests {
         let ok = r#"{"id":{"targetCompleted":{"label":"//a:t"}},"completed":{"success":true}}"#;
         let action = r#"{"id":{"actionCompleted":{"label":"//a:t"}},"action":{"success":true,"type":"Rustc"}}"#;
         assert!(collect(&[ok, action]).failures.is_empty());
+    }
+
+    #[test]
+    fn stage_and_kind_names_are_stable() {
+        let stages = [
+            (FailureStage::Analysis, "analysis"),
+            (FailureStage::ToolAcquisition, "tool_acquisition"),
+            (FailureStage::Compilation, "compilation"),
+            (FailureStage::Linking, "linking"),
+            (FailureStage::TestExecution, "test_execution"),
+            (FailureStage::Other, "other"),
+            (FailureStage::Unknown, "unknown"),
+        ];
+        for (stage, name) in stages {
+            assert_eq!(stage.name(), name);
+        }
+        let kinds = [
+            (FailedTargetKind::Test, "test"),
+            (FailedTargetKind::Other, "other"),
+            (FailedTargetKind::Unknown, "unknown"),
+        ];
+        for (kind, name) in kinds {
+            assert_eq!(kind.name(), name);
+        }
+    }
+
+    fn action_with(extra: &str) -> String {
+        format!(
+            r#"{{"id":{{"actionCompleted":{{"primaryOutput":"o","label":"//a:b"}}}},"action":{{"success":false,{extra}}}}}"#
+        )
+    }
+
+    #[test]
+    fn failure_details_classify_the_stage() {
+        let cases = [
+            (r#""failureDetail":{"analysis":{}}"#, "analysis_failed"),
+            (r#""failureDetail":{"packageLoading":{}}"#, "loading_failed"),
+            (r#""failureDetail":{"fetch":{}}"#, "tool_unavailable"),
+            (
+                r#""failureDetail":{"externalRepository":{}}"#,
+                "tool_unavailable",
+            ),
+            (
+                r#""failureDetail":"text","type":"Genrule""#,
+                "action_failed",
+            ),
+            (
+                r#""failureDetail":{"spawn":{}},"type":"Genrule""#,
+                "action_failed",
+            ),
+        ];
+        for (extra, category) in cases {
+            let found = collect(&[&action_with(extra)]);
+            assert_eq!(found.failures[0].category, category, "{extra}");
+        }
+    }
+
+    #[test]
+    fn mnemonics_pick_the_stage() {
+        let cases = [
+            (r#""type":"TestRunner""#, FailureStage::TestExecution),
+            (r#""type":"CppArchive""#, FailureStage::Linking),
+            (r#""type":"Javac""#, FailureStage::Compilation),
+            (r#""type":"Genrule""#, FailureStage::Other),
+            (r#""exitCode":2"#, FailureStage::Unknown),
+        ];
+        for (extra, stage) in cases {
+            let found = collect(&[&action_with(extra)]);
+            assert_eq!(found.failures[0].stage, stage, "{extra}");
+        }
+    }
+
+    #[test]
+    fn exit_codes_and_stderr_uris_are_read_leniently() {
+        let text = collect(&[&action_with(r#""exitCode":"7""#)]);
+        assert_eq!(text.failures[0].exit_code, Some(7));
+        let junk = collect(&[&action_with(r#""exitCode":true"#)]);
+        assert_eq!(junk.failures[0].exit_code, None);
+        let bad_uri = collect(&[&action_with(r#""stderr":{"uri":"https://host/x"}"#)]);
+        assert_eq!(bad_uri.failures[0].stderr, StderrRef::Absent);
+    }
+
+    #[test]
+    fn aborted_targets_are_classified_by_reason() {
+        let aborted = |reason: &str| {
+            format!(
+                r#"{{"id":{{"targetCompleted":{{"label":"//a:t"}}}},"aborted":{{"reason":"{reason}"}}}}"#
+            )
+        };
+        let cases = [
+            ("LOADING_FAILURE", Some("loading_failed")),
+            ("SKIPPED", Some("skipped")),
+            ("OTHER", Some("aborted")),
+            ("NO_BUILD", None),
+            ("NO_ANALYZE", None),
+        ];
+        for (reason, category) in cases {
+            let found = collect(&[&aborted(reason)]);
+            assert_eq!(
+                found.failures.first().map(|failure| failure.category),
+                category,
+                "{reason}"
+            );
+        }
+    }
+
+    #[test]
+    fn unreadable_blank_and_idless_lines_are_handled() {
+        let mut bytes = b"\n{\"note\":1}\n".to_vec();
+        bytes.extend_from_slice(&[0xff, 0xfe, b'\n']);
+        let found = collect_build_failures(bytes.as_slice());
+        assert!(found.failures.is_empty());
+        let problem = found.problem.expect("problem");
+        assert!(problem.starts_with("line 3: unreadable"), "{problem}");
+    }
+
+    #[test]
+    fn configured_kinds_label_failed_targets() {
+        let other = r#"{"id":{"targetConfigured":{"label":"//a:lib"}},"configured":{"targetKind":"rust_library rule"}}"#;
+        let kind = r#"{"id":{"targetConfigured":{"label":"//a:t"}},"configured":{"targetKind":"rust_test rule"}}"#;
+        let failed = |label: &str| {
+            format!(
+                r#"{{"id":{{"targetCompleted":{{"label":"{label}"}}}},"completed":{{"success":false}}}}"#
+            )
+        };
+        let found = collect(&[other, kind, &failed("//a:lib"), &failed("//a:t")]);
+        assert_eq!(found.failures[0].target_kind, FailedTargetKind::Other);
+        assert_eq!(found.failures[1].target_kind, FailedTargetKind::Test);
+    }
+
+    #[test]
+    fn events_without_labels_or_classes_are_dropped() {
+        let nameless_abort = r#"{"id":{"progress":{}},"aborted":{"reason":"SKIPPED"}}"#;
+        let silent_abort =
+            r#"{"id":{"targetCompleted":{"label":"//a:t"}},"aborted":{"reason":"NO_BUILD"}}"#;
+        let nameless_completion = r#"{"id":{"progress":{}},"completed":{"success":false}}"#;
+        let found = collect(&[nameless_abort, silent_abort, nameless_completion]);
+        assert!(found.failures.is_empty());
+    }
+
+    #[test]
+    fn a_target_failure_repeats_once() {
+        let failed =
+            r#"{"id":{"targetCompleted":{"label":"//a:t"}},"completed":{"success":false}}"#;
+        assert_eq!(collect(&[failed, failed]).failures.len(), 1);
+    }
+
+    #[test]
+    fn identity_less_actions_fall_back_to_the_event_id() {
+        let line = r#"{"id":{"actionCompleted":{"label":"//a:b","configuration":{"id":"c9"}}},"action":{"success":false,"type":"Rustc"}}"#;
+        let found = collect(&[line]);
+        assert_eq!(found.failures[0].target.as_deref(), Some("//a:b"));
+        assert_eq!(found.failures[0].configuration.as_deref(), Some("c9"));
+    }
+
+    #[test]
+    fn odd_ids_and_descriptions_leave_no_message() {
+        let blank = r#"{"id":{"targetCompleted":{},"configuredLabel":{"label":"//a:t"}},"aborted":{"reason":"SKIPPED","description":"  \n"}}"#;
+        let found = collect(&[blank]);
+        assert_eq!(found.failures[0].message, None);
+        let other_id = r#"{"id":{"progress":{}},"configured":{"targetKind":"rust_test rule"}}"#;
+        assert!(collect(&[other_id]).failures.is_empty());
     }
 }

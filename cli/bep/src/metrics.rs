@@ -294,4 +294,28 @@ mod tests {
         let line = r#"{"id":{"progress":{}},"progress":{"stderr":"\"buildMetrics\""}}"#;
         assert_eq!(collect(&[line]), None);
     }
+
+    #[test]
+    fn metrics_skips_events_that_only_mention_build_metrics_in_the_body() {
+        let line = r#"{"id":{"started":{}},"note":"buildMetrics"}"#;
+        assert_eq!(collect(&[line]), None);
+    }
+
+    #[test]
+    fn metrics_skips_cut_off_bytes_received_line() {
+        let line =
+            r#"{"buildMetrics":{"networkMetrics":{"systemNetworkStats":{"bytesRecv":"7"}}}}"#;
+        let cut = &line[..line.len() - 8];
+        assert_eq!(collect_bytes_received(cut.as_bytes()), None);
+        let both = format!("{cut}\n{line}");
+        assert_eq!(collect_bytes_received(both.as_bytes()), Some(7));
+    }
+
+    #[test]
+    fn totals_skip_cut_off_and_metricless_lines() {
+        let metricless = r#"{"id":{"started":{}},"note":"buildMetrics"}"#;
+        let cut = r#"{"buildMetrics":{"timingMetrics"#;
+        let input = format!("{cut}\n{metricless}");
+        assert_eq!(collect_build_totals(input.as_bytes()), None);
+    }
 }

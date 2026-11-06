@@ -59,7 +59,9 @@ fn binary_holds_device_code_and_links_the_static_runtime() {
     let needed = fatbin::needed_libraries(&binary).unwrap();
     assert!(!needed.is_empty(), "the binary links libc dynamically");
     assert!(
-        needed.iter().all(|lib| !lib.to_ascii_lowercase().contains("cudart")),
+        needed
+            .iter()
+            .all(|lib| !lib.to_ascii_lowercase().contains("cudart")),
         "static runtime must not need libcudart: {needed:?}"
     );
 }

@@ -9,7 +9,7 @@ std::vector<float> ToFloat(const std::vector<int> &values) {
   return std::vector<float>(values.begin(), values.end());
 }
 
-}  // namespace
+} // namespace
 
 extern "C" int dx_gpu_test_main(void) {
   const int n = 4096;

@@ -2,7 +2,7 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use shared_tasks::{asset_report, reply, Board};
+use shared_tasks::{Board, asset_report, reply};
 
 static BOARD: Mutex<Option<Board>> = Mutex::new(None);
 
@@ -19,7 +19,7 @@ unsafe fn text<'a>(data: *const u8, len: usize) -> Option<&'a str> {
         }
         &[][..]
     } else {
-        std::slice::from_raw_parts(data, len)
+        unsafe { std::slice::from_raw_parts(data, len) }
     };
     std::str::from_utf8(bytes).ok()
 }
@@ -27,8 +27,10 @@ unsafe fn text<'a>(data: *const u8, len: usize) -> Option<&'a str> {
 unsafe fn copy_out(value: &str, out: *mut u8, cap: usize) -> usize {
     if !out.is_null() && cap > 0 {
         let count = value.len().min(cap - 1);
-        std::ptr::copy_nonoverlapping(value.as_ptr(), out, count);
-        *out.add(count) = 0;
+        unsafe {
+            std::ptr::copy_nonoverlapping(value.as_ptr(), out, count);
+            *out.add(count) = 0;
+        }
     }
     value.len()
 }
@@ -38,9 +40,9 @@ unsafe fn copy_out(value: &str, out: *mut u8, cap: usize) -> usize {
 /// # Safety
 ///
 /// `data` must point to `len` readable bytes.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_load(data: *const u8, len: usize) -> i32 {
-    let Some(loaded) = text(data, len).and_then(|text| Board::load(text).ok()) else {
+    let Some(loaded) = unsafe { text(data, len) }.and_then(|text| Board::load(text).ok()) else {
         return -1;
     };
     let count = i32::try_from(loaded.tasks().len()).unwrap_or(i32::MAX);
@@ -53,15 +55,15 @@ pub unsafe extern "C" fn tasks_load(data: *const u8, len: usize) -> i32 {
 /// # Safety
 ///
 /// `data` must point to `len` readable bytes and `out` to `cap` writable bytes.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_apply(data: *const u8, len: usize, out: *mut u8, cap: usize) -> i32 {
     let mut guard = board();
-    let (Some(command), Some(current)) = (text(data, len), guard.as_mut()) else {
-        copy_out("err:no_board", out, cap);
+    let (Some(command), Some(current)) = (unsafe { text(data, len) }, guard.as_mut()) else {
+        unsafe { copy_out("err:no_board", out, cap) };
         return -1;
     };
     let answer = reply(current, command);
-    copy_out(&answer, out, cap);
+    unsafe { copy_out(&answer, out, cap) };
     i32::from(answer.starts_with("err:"))
 }
 
@@ -70,10 +72,10 @@ pub unsafe extern "C" fn tasks_apply(data: *const u8, len: usize, out: *mut u8, 
 /// # Safety
 ///
 /// `out` must point to `cap` writable bytes.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_summary(out: *mut u8, cap: usize) -> usize {
     match board().as_ref() {
-        Some(current) => copy_out(&current.summary().to_string(), out, cap),
+        Some(current) => unsafe { copy_out(&current.summary().to_string(), out, cap) },
         None => 0,
     }
 }
@@ -83,7 +85,7 @@ pub unsafe extern "C" fn tasks_summary(out: *mut u8, cap: usize) -> usize {
 /// # Safety
 ///
 /// `name` and `data` must point to `name_len` and `len` readable bytes, `out` to `cap` writable bytes.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_asset_report(
     name: *const u8,
     name_len: usize,
@@ -92,7 +94,7 @@ pub unsafe extern "C" fn tasks_asset_report(
     out: *mut u8,
     cap: usize,
 ) -> usize {
-    let Some(name) = text(name, name_len) else {
+    let Some(name) = (unsafe { text(name, name_len) }) else {
         return 0;
     };
     if data.is_null() && len != 0 {
@@ -101,9 +103,9 @@ pub unsafe extern "C" fn tasks_asset_report(
     let bytes = if data.is_null() {
         &[][..]
     } else {
-        std::slice::from_raw_parts(data, len)
+        unsafe { std::slice::from_raw_parts(data, len) }
     };
-    copy_out(&asset_report(name, bytes), out, cap)
+    unsafe { copy_out(&asset_report(name, bytes), out, cap) }
 }
 
 #[cfg(test)]

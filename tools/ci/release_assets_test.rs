@@ -174,11 +174,14 @@ fn the_checksum_manifest_is_built_checked_and_uploaded() {
         "\"$archive.spdx.json\" >> sums.tmp",
         "for file in \"$archive\" \"$archive.sha256\" \"$archive.spdx.json\"; do",
         "LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt",
-        "test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 15",
+        "test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 19",
         "(cd out && sha256sum -c dx-sha256sums.txt)",
         "--pattern 'dx-*' --dir verify",
         "sha256sum -c dx-sha256sums.txt)",
         "unzip -p \"out/$archive\" dx.exe",
+        "pdb=\"$asset-pdb.zip\"",
+        "files=\"$files $pdb $pdb.sha256 $pdb.spdx.json\"",
+        "dx-windows-x86_64-pdb.zip dx-windows-arm64-pdb.zip; do",
         "tar -xzOf \"out/$archive\" dx",
     ] {
         assert!(text.contains(needle), "{WORKFLOW} lacks {needle:?}");
@@ -457,7 +460,7 @@ fn the_upload_checks_name_the_wanted_and_actual_values() {
         "|| { echo \"want ${RELEASE_TAG#v}, got $CELLS_VERSION\" >&2; exit 1; }",
         "|| { echo \"want $CANDIDATE_COMMIT, got $CELLS_SHA\" >&2; exit 1; }",
         "|| { echo \"want a non-empty out/$file\" >&2; exit 1; }",
-        "|| { echo \"want 15 manifest lines, got $(wc -l < out/dx-sha256sums.txt)\" >&2; exit 1; }",
+        "|| { echo \"want 19 manifest lines, got $(wc -l < out/dx-sha256sums.txt)\" >&2; exit 1; }",
     ] {
         assert!(text.contains(needle), "{WORKFLOW} lacks {needle:?}");
     }

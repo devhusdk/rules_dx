@@ -103,10 +103,20 @@ jobs:
             printf '%s  %s\n' "$(sha256sum "out/$archive.spdx.json" | cut -d' ' -f1)" "$archive.spdx.json" >> sums.tmp
             cat "out/$asset.sha256" "out/$archive.sha256" >> sums.tmp
             files="$files $asset $asset.sha256 $archive $archive.sha256 $archive.spdx.json"
+            case "$asset" in dx-windows-*)
+              pdb="$asset-pdb.zip"
+              for file in "$pdb" "$pdb.sha256" "$pdb.spdx.json"; do
+                test -s "out/$file" || { echo "want a non-empty out/$file" >&2; exit 1; }
+              done
+              printf '%s  %s\n' "$(sha256sum "out/$pdb.spdx.json" | cut -d' ' -f1)" "$pdb.spdx.json" >> sums.tmp
+              cat "out/$pdb.sha256" >> sums.tmp
+              files="$files $pdb $pdb.sha256 $pdb.spdx.json"
+              ;;
+            esac
           done
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 15 || { echo "want 15 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 19 || { echo "want 19 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
       - name: Build and verify the source archive
         env:
@@ -363,7 +373,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for archive in dx-linux-x86_64.tar.gz dx-linux-arm64.tar.gz dx-macos-arm64.tar.gz dx-windows-x86_64.zip dx-windows-arm64.zip; do
+          for archive in dx-linux-x86_64.tar.gz dx-linux-arm64.tar.gz dx-macos-arm64.tar.gz dx-windows-x86_64.zip dx-windows-arm64.zip dx-windows-x86_64-pdb.zip dx-windows-arm64-pdb.zip; do
             for file in "$archive" "$archive.spdx.json"; do
             gh attestation verify "out/$file" \
               --bundle out/dx-sha256sums.txt.sigstore.json \

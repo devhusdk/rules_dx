@@ -150,6 +150,19 @@ pub fn command_line(command: &[String]) -> String {
         .join(" ")
 }
 
+/// The command line for CreateProcessWithLogonW, which rejects lines over 1024 characters
+/// with only "The parameter is incorrect".
+pub fn logon_command_line(command: &[String]) -> Result<String, String> {
+    let line = command_line(command);
+    if line.encode_utf16().count() > 1024 {
+        return Err(format!(
+            "the command line of {} is longer than the 1024 characters the run account accepts",
+            command[0]
+        ));
+    }
+    Ok(line)
+}
+
 fn quote(arg: &str) -> String {
     if !arg.is_empty() && !arg.contains([' ', '\t', '\n', '"']) {
         return arg.to_owned();
@@ -298,6 +311,15 @@ mod tests {
         ] {
             assert!(parse(&strings(&args)).is_err(), "{args:?}");
         }
+    }
+
+    #[test]
+    fn logon_command_line_stops_at_1024_characters() {
+        let fits = strings(&["bazel.exe", &"a".repeat(1014)]);
+        assert_eq!(logon_command_line(&fits).unwrap().len(), 1024);
+        let long = strings(&["bazel.exe", &"a".repeat(1015)]);
+        let err = logon_command_line(&long).unwrap_err();
+        assert!(err.contains("bazel.exe"), "{err}");
     }
 
     #[test]

@@ -35,7 +35,7 @@ use windows_sys::Win32::System::Threading::{
 use windows_sys::Win32::UI::Shell::DeleteProfileW;
 use windows_sys::core::GUID;
 
-use crate::args::{Config, command_line, environment, password, user_name};
+use crate::args::{Config, environment, logon_command_line, password, user_name};
 use crate::sys::{
     CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
     REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, set_access, user_defaults, wide,
@@ -321,7 +321,7 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     let (environment, _) = environment(&parent, &user_defaults()?);
     let cwd = std::env::current_dir().map_err(|err| format!("cannot read the directory: {err}"))?;
     let cwd = wide(&cwd.to_string_lossy());
-    let mut line = wide(&command_line(&config.command));
+    let mut line = wide(&logon_command_line(&config.command)?);
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let created = unsafe {
         CreateProcessWithLogonW(

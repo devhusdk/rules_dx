@@ -1086,8 +1086,10 @@ impl Session {
         argv.extend(self.platform_flag());
         argv.extend(self.shell_flag());
         argv.extend(probe.extra.iter().cloned());
-        argv.push("--".to_owned());
-        argv.extend(probe.targets.iter().cloned());
+        if !probe.targets.is_empty() {
+            argv.push("--".to_owned());
+            argv.extend(probe.targets.iter().cloned());
+        }
         argv
     }
 
@@ -2370,6 +2372,9 @@ fn run_all(
         extra: vec!["--test_output=errors".to_owned()],
         expect: Expect::Pass,
     })?;
+    // From a file: on Windows the run account's command line is capped at 1024 characters.
+    let query = clean_home.join("artifacts.query");
+    write(&query, &built_query(&patterns))?;
     let listed = session.run(Probe {
         name: "artifacts".to_owned(),
         net: Net::Denied,
@@ -2377,8 +2382,11 @@ fn run_all(
         output_root: &cold,
         repos: &repos,
         command: "cquery",
-        targets: vec![built_query(&patterns)],
-        extra: vec!["--output=files".to_owned()],
+        targets: Vec::new(),
+        extra: vec![
+            "--output=files".to_owned(),
+            format!("--query_file={}", query.display()),
+        ],
         expect: Expect::Pass,
     })?;
     let built = artifacts(&session.workspace, &listed.stdout)?;

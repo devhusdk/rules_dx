@@ -34,6 +34,9 @@ sh_test(
     srcs = ["exit_codes.sh"],
     args = ["$(rootpath :grades)"],
     data = [":grades"],
+    # Bazel's sh_test cannot collect coverage of a JVM binary in data: it runs the
+    # gcov collector without a C++ toolchain. The JVM tests cover this code.
+    tags = ["no-coverage"],
 )
 
 kotlin_test(

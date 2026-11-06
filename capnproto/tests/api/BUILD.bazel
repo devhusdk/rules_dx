@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//capnproto/rules:defs.bzl", "capnp_library")
 load("//quality:fixtures.bzl", "real_source_target")
 

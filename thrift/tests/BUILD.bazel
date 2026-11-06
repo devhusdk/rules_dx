@@ -1,3 +1,4 @@
+# gazelle:ignore
 # gazelle:resolve cc common_types.h //thrift/tests:shapes_cc
 # gazelle:resolve cc shape_types.h //thrift/tests:shapes_cc
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")

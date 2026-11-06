@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//cc/rules:defs.bzl", "cc_test")
 load("//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard", "flatbuffers_java_library", "flatbuffers_rust_library")
 load("//flatbuffers/rules:conform.bzl", "flatbuffers_conform_test")

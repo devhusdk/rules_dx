@@ -88,7 +88,11 @@ hermetic_manifest = rule(
 )
 
 # Read by the support matrix (tools/docs/support_matrix) for the hermetic_qualification kind.
-HERMETIC_COMPATIBLE_WITH = ["@platforms//os:linux"]
+HERMETIC_COMPATIBLE_WITH = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
 
 # The manifest only lists the consumer; the unit tests read it on macOS and Windows too.
 MANIFEST_COMPATIBLE_WITH = select({

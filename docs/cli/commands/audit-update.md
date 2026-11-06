@@ -374,6 +374,7 @@ Without `--apply` it exits `0` when the manifest already declares the version, a
 | `cargo` | Crate in its manifests, then repins the hub with `dx update --apply <set>`. |
 | `composer` | Constraint in `require` or `require-dev` of `composer.json`, keeping the operator, then `composer update <package> --with-all-dependencies --no-install` and the digest refresh. A package that is not declared, or a constraint that is not one literal version, is refused. |
 | `go` | `require` line of the `go.mod`, then regenerates `go.sum`. If go fails or would change `go.mod`, the widen stays, `go.sum` is untouched, and the report names `go mod tidy` then `dx update <set>`. |
+| `hex` | Requirement of the `{:name, "<op> x.y.z"}` tuple in `mix.exs`, keeping the operator, then `mix deps.update <package>` with the pinned mix. A package that is not declared, or a requirement that is not one literal version, is refused. |
 | `maven` | Literal coordinate in the set's `maven.install`, then `@<set>//:pin`. Use `<set>:<group>:<artifact> <version>`. |
 | `npm`, `uv` | `package.json` or `pyproject.toml`, then refreshes the lock. |
 | `nuget` | `paket.dependencies` only. Run `paket update`, then `dx update <set>`. |
@@ -481,6 +482,13 @@ An opam set is discovered from a `<name>.opam` file with a `<name>.opam.locked` 
 
 - `dx update <set>:<package> <version>` edits the one literal version constraint of the package in `depends:` of the `.opam` file. It keeps the operator and the filters (`{>= "1.1.0" & with-test}`), and refuses a package that `depends:` does not list, one without a constraint, and one with two constraints. The version starts with a digit and may hold `.`, `+`, `-`, `~` and `_`, such as `1.3.0` or `0.9.0~rc1`.
 - `--apply` then runs `opam upgrade <package>` and `opam lock` from the pinned opam and the opam-repository snapshot. It fails with `offline_required` under `--offline` and `frozen_locked` under `--frozen`.
+
+### hex
+
+- `mix.exs` must sit beside `mix.lock`.
+- `dx update <set>` checks the lock with `mix deps.get` and `dx update --apply <set>` runs `mix deps.update --all`, both with the pinned mix.
+- `dx update <set>:<package> <version>` edits the requirement in the `deps` of `mix.exs`, keeping the operator, then runs `mix deps.update <package>`.
+- `dx update --outdated` compares `mix.lock` with the newest release on hex.pm.
 
 ### cargo
 

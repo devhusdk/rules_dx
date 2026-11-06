@@ -922,6 +922,73 @@ fn swift_string_after<'a>(call: &'a str, label: &str) -> Option<(&'a str, usize,
     Some((&call[open..open + len], open, len))
 }
 
+/// Rewrites the requirement of the one `{:package, "<op> x.y.z"}` tuple in a mix.exs,
+/// keeping its operator.
+pub(super) fn plan_mix_exs(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Semver(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected exact semver".to_owned(),
+        });
+    };
+    let head = format!("{{:{package},");
+    let mut offset = 0;
+    let mut hits = Vec::new();
+    for line in content.split_inclusive('\n') {
+        if !line.trim_start().starts_with('#') {
+            let mut from = 0;
+            while let Some(found) = line[from..].find(&head) {
+                hits.push(offset + from + found + head.len());
+                from += found + head.len();
+            }
+        }
+        offset += line.len();
+    }
+    let at = match hits.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [at] => *at,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    let unsupported = || EditError::UnsupportedManifest {
+        manifest: manifest.to_owned(),
+        reason: "the dependency needs one literal requirement such as \"~> 1.2\"".to_owned(),
+    };
+    let rest = &content[at..];
+    let lead = rest.len() - rest.trim_start().len();
+    let literal = rest[lead..].strip_prefix('"').ok_or_else(unsupported)?;
+    let end = literal.find('"').ok_or_else(unsupported)?;
+    let requirement = &literal[..end];
+    let number = requirement.trim_start_matches(['~', '>', '<', '=', ' ']);
+    let operator = &requirement[..requirement.len() - number.len()];
+    let single = number.starts_with(|c: char| c.is_ascii_digit()) && !number.contains([' ', ',']);
+    if !single {
+        return Err(unsupported());
+    }
+    let start = at + lead + 1;
+    let mut edited = content.to_owned();
+    edited.replace_range(
+        start..start + requirement.len(),
+        &format!("{operator}{new}"),
+    );
+    Ok(edited)
+}
+
 pub(super) fn plan_maven_module_bazel(
     manifest: &str,
     content: &str,
@@ -1377,6 +1444,18 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("opam package names use letters, digits, '-', '_' and '+'")
+            }
+        }
+        UpdateSet::Hex => {
+            if !package.is_empty()
+                && package.starts_with(|c: char| c.is_ascii_lowercase())
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            {
+                Ok(())
+            } else {
+                Err("hex package names use lowercase letters, digits and '_'")
             }
         }
         UpdateSet::Containers => {

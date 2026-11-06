@@ -46,6 +46,8 @@ pub enum ConfiguredKind {
     SwiftPm,
     /// An opam set; only the package's constraint in `depends:` of the `.opam` file is edited.
     Opam,
+    /// A hex set; only the requirement in the `deps` of mix.exs is edited.
+    Hex,
 }
 
 impl ConfiguredKind {
@@ -63,6 +65,7 @@ impl ConfiguredKind {
             ConfiguredKind::Cabal => UpdateSet::Cabal,
             ConfiguredKind::SwiftPm => UpdateSet::SwiftPm,
             ConfiguredKind::Opam => UpdateSet::Opam,
+            ConfiguredKind::Hex => UpdateSet::Hex,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -272,7 +275,8 @@ fn configured_refresh_selector(
         | ConfiguredKind::Pub
         | ConfiguredKind::Composer
         | ConfiguredKind::SwiftPm
-        | ConfiguredKind::Opam => {
+        | ConfiguredKind::Opam
+        | ConfiguredKind::Hex => {
             format!("{}:{package}", set.name)
         }
     })
@@ -310,6 +314,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::Pub
         | UpdateSet::Cabal
         | UpdateSet::SwiftPm
+        | UpdateSet::Hex
         | UpdateSet::Ruby
         | UpdateSet::Composer => "",
     }
@@ -399,7 +404,8 @@ impl UpdateRequest {
             | ConfiguredKind::Cabal
             | ConfiguredKind::Composer
             | ConfiguredKind::SwiftPm
-            | ConfiguredKind::Opam => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Opam
+            | ConfiguredKind::Hex => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -579,6 +585,7 @@ impl UpdateRequest {
             UpdateSet::Cpan => plan_cpanfile(manifest, content, &self.package, &self.version),
             UpdateSet::Pub => plan_pubspec(manifest, content, &self.package, &self.version),
             UpdateSet::Cabal => plan_cabal(manifest, content, &self.package, &self.version),
+            UpdateSet::Hex => plan_mix_exs(manifest, content, &self.package, &self.version),
             UpdateSet::Composer => {
                 plan_composer_json(manifest, content, &self.package, &self.version)
             }

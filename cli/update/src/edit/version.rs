@@ -68,6 +68,7 @@ pub fn parse(set: UpdateSet, text: &str) -> Result<WidenVersion, VersionError> {
         | UpdateSet::Maven
         | UpdateSet::Pub
         | UpdateSet::SwiftPm
+        | UpdateSet::Hex
         | UpdateSet::NuGet => parse_semver(set.name(), trimmed),
         UpdateSet::GithubActions => parse_git(set.name(), trimmed),
         UpdateSet::Ruby | UpdateSet::Composer | UpdateSet::Cabal => parse_gem(set.name(), trimmed),

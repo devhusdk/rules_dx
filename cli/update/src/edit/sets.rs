@@ -8,6 +8,7 @@ pub enum UpdateSet {
     Cpan,
     GithubActions,
     Go,
+    Hex,
     Maven,
     Npm,
     NuGet,
@@ -18,7 +19,7 @@ pub enum UpdateSet {
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 15] = [
+    pub const ALL: [UpdateSet; 16] = [
         UpdateSet::Bazel,
         UpdateSet::Cabal,
         UpdateSet::Cargo,
@@ -27,6 +28,7 @@ impl UpdateSet {
         UpdateSet::Cpan,
         UpdateSet::GithubActions,
         UpdateSet::Go,
+        UpdateSet::Hex,
         UpdateSet::Maven,
         UpdateSet::Npm,
         UpdateSet::NuGet,
@@ -56,6 +58,7 @@ impl UpdateSet {
             UpdateSet::Cpan => "cpan",
             UpdateSet::GithubActions => "github-actions",
             UpdateSet::Go => "go",
+            UpdateSet::Hex => "hex",
             UpdateSet::Maven => "maven",
             UpdateSet::Npm => "npm",
             UpdateSet::NuGet => "nuget",
@@ -76,6 +79,7 @@ impl UpdateSet {
             "cpan" => Some(UpdateSet::Cpan),
             "github-actions" => Some(UpdateSet::GithubActions),
             "go" => Some(UpdateSet::Go),
+            "hex" => Some(UpdateSet::Hex),
             "maven" => Some(UpdateSet::Maven),
             "npm" => Some(UpdateSet::Npm),
             "nuget" => Some(UpdateSet::NuGet),
@@ -120,7 +124,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 15);
+        assert_eq!(seen.len(), 16);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
@@ -155,6 +159,7 @@ mod tests {
                 "cpan",
                 "github-actions",
                 "go",
+                "hex",
                 "maven",
                 "npm",
                 "nuget",
@@ -200,6 +205,7 @@ mod tests {
         assert!(UpdateSet::Pub.needs_update_refresh());
         assert!(UpdateSet::Cabal.needs_update_refresh());
         assert!(UpdateSet::Opam.needs_update_refresh());
+        assert!(UpdateSet::Hex.needs_update_refresh());
     }
 
     #[test]

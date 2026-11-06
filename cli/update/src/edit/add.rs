@@ -175,6 +175,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit the .opam file and run `opam lock`",
             }),
+            UpdateSet::Hex => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit mix.exs and run `mix deps.get`",
+            }),
             UpdateSet::Cpan => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit the cpanfile and run `carton install`",

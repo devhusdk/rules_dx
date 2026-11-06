@@ -593,9 +593,9 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ),
     ];
     assert_eq!(
-        cases.len() + 5,
+        cases.len() + 6,
         UpdateSet::ALL.len(),
-        "one case per set but cabal, cpan, opam, pub and swiftpm, which only configured sets edit"
+        "one case per set but cabal, cpan, hex, opam, pub and swiftpm, which only configured sets edit"
     );
     for (selector, version) in cases {
         let update = UpdateRequest::parse_grammar(selector, version).expect("parse");

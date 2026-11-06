@@ -61,6 +61,10 @@ TOOLS = {
     },
 }
 
+_ACTIONLINT_ATTRS = {
+    "_actionlint_shellcheck": attr.label(default = "@dx_tools//:shellcheck", allow_single_file = True, cfg = "exec", doc = "The pinned shellcheck actionlint runs on run: blocks."),
+}
+
 SHARD_SPECS = {
     "real_format": {
         "capability": "format",
@@ -72,6 +76,7 @@ SHARD_SPECS = {
     "real_lint": {
         "capability": "lint",
         "doc": "Registers the exact-input real lint pipeline action in dx_results.",
+        "extra_attrs": _ACTIONLINT_ATTRS,
         "shard": "core",
         "shared_attrs": True,
         "suffix": "",
@@ -115,9 +120,16 @@ def _vale_hook(target, _ctx, resolved, _capability, what, _shared):
         options = {"path_tools": [(name, converter.executable) for (name, converter) in converters]},
     )
 
-HOOK_ORDER = ["vale"]
+def _actionlint_hook(_target, ctx, _resolved, _capability, _what, _shared):
+    return real_context(
+        inputs = [ctx.file._actionlint_shellcheck],
+        options = {"path_tools": [("shellcheck", ctx.file._actionlint_shellcheck)]},
+    )
+
+HOOK_ORDER = ["actionlint", "vale"]
 
 HOOKS = {
+    "actionlint": _actionlint_hook,
     "vale": _vale_hook,
 }
 

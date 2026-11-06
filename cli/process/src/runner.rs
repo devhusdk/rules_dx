@@ -37,6 +37,7 @@ fn stream_spec(
         .iter()
         .map(|(key, value)| ((*key).into(), (*value).into()))
         .collect();
+    let argv = stderr_tail::keep_terminal_ui(argv);
     StreamSpec {
         argv: argv.iter().map(Into::into).collect(),
         cwd: cwd.to_path_buf(),
@@ -51,7 +52,7 @@ fn stream_spec(
         } else {
             StreamOutput::Forward(Box::new(io::stderr()))
         },
-        stderr: bazel_stderr(argv),
+        stderr: bazel_stderr(&argv),
         group: lifecycle::stream_group(),
         held,
     }

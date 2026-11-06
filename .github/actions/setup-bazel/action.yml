@@ -25,6 +25,9 @@ runs:
         if [ "$RUNNER_OS" = Windows ] && [ -z "${BAZEL_SH:-}" ] && [ -x /usr/bin/bash.exe ]; then
           echo "BAZEL_SH=$(cygpath -m /usr/bin/bash.exe)" >> "$GITHUB_ENV"
         fi
+        if [ "$RUNNER_OS" = Windows ] && [ -d /d ]; then
+          echo "startup:windows --output_user_root=D:/bz" >> user.bazelrc
+        fi
     - name: Configure the remote cache credential helper
       shell: bash
       run: |

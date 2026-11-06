@@ -95,19 +95,16 @@ rust_library(
 )
 
 # keep
-rust_binary(
-    name = "evidence_inputs_bin",
-    srcs = ["evidence_inputs_main.rs"],
-    deps = [":evidence_inputs"],
-)
-
-# keep
 rust_test(
     name = "evidence_inputs_test",
     srcs = ["evidence_inputs_test.rs"],
-    data = ["//.github:workflows/evidence.yml"],
+    data = [
+        "evidence_inputs.sh",
+        "//.github:workflows/evidence.yml",
+    ],
     deps = [
         ":evidence_inputs",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -962,7 +959,6 @@ rustfmt_test(
         ":input_validation_bin",
         ":input_validation_test",
         ":evidence_inputs",
-        ":evidence_inputs_bin",
         ":docs_scope",
         ":docs_scope_bin",
         ":docs_scope_test",

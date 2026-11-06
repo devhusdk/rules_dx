@@ -96,7 +96,8 @@ const CACHE_FREE: &[&str] = &[
 
 #[test]
 fn consumer_workflows_cache_only_the_checks_disk_cache_from_the_default_branch() {
-    let main_only = "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}";
+    let main_only =
+        "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}";
     for (name, document) in setup_bazel_documents() {
         if !CACHE_FREE.contains(&name.as_str()) || name.ends_with("upgrade-e2e.yml") {
             continue;
@@ -122,7 +123,10 @@ fn consumer_workflows_cache_only_the_checks_disk_cache_from_the_default_branch()
                     );
                 }
                 if with.get("disk-cache").is_some() {
-                    assert_eq!(job, "checks", "{name} job {job} sets setup-bazel disk-cache");
+                    assert_eq!(
+                        job, "checks",
+                        "{name} job {job} sets setup-bazel disk-cache"
+                    );
                     assert_eq!(
                         with["cache-save"].as_str(),
                         Some(main_only),
@@ -277,4 +281,23 @@ fn no_setup_bazel_job_caches_the_repository_cache() {
         }
     }
     assert!(checked > 0, "no workflow job runs setup-bazel");
+}
+
+#[test]
+fn windows_jobs_put_the_output_root_on_d_before_the_first_bazel_call() {
+    let action = action_document();
+    let steps = action["runs"]["steps"].as_array().expect("action steps");
+    let resolve = action_index(steps, RESOLVE);
+    let run = steps[resolve]["run"].as_str().unwrap();
+    assert!(
+        run.contains("echo \"startup:windows --output_user_root=D:/bz\" >> user.bazelrc"),
+        "{ACTION_FILE} must write the D:/bz output root to user.bazelrc, which dx reads"
+    );
+    assert!(resolve < action_index(steps, LOCATE));
+    for (name, text) in workflows() {
+        assert!(
+            !text.contains("ItemType Junction"),
+            "{name} links C:\\bz to D:, which restarts the Bazel server"
+        );
+    }
 }

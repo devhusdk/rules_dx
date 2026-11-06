@@ -1,18 +1,80 @@
-use dx_testing::read_runfiles;
+use dx_testing::{read_runfiles, resolve_runfiles};
 use evidence_inputs::{PLATFORMS, validate};
+use std::process::Command;
+
+const SCRIPT: &str = "tools/ci/evidence_inputs.sh";
+
+const VARS: [&str; 7] = [
+    "DX_SCOPE",
+    "DX_TASK",
+    "DX_PLATFORMS",
+    "DX_DISPLAYS",
+    "DX_TEST_TIMEOUT",
+    "DX_FLAGS",
+    "DX_RELOCATE",
+];
+
+fn lookup<'a>(inputs: &[(&str, &'a str)], name: &str) -> &'a str {
+    inputs
+        .iter()
+        .find(|(key, _)| *key == name)
+        .map_or("", |(_, value)| value)
+}
+
+fn has_jq() -> bool {
+    Command::new("jq")
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success())
+}
+
+/// Runs evidence_inputs.sh and returns what it wrote to GITHUB_OUTPUT, or None when it rejects the inputs.
+fn script(inputs: &[(&str, &str)], jq: bool) -> Option<String> {
+    let dir = dx_test_scratch::scratch("evidence-inputs");
+    let out = dir.path().join("github_output");
+    let mut command = Command::new("bash");
+    command
+        .arg(resolve_runfiles(SCRIPT))
+        .env("GITHUB_OUTPUT", out.to_string_lossy().replace('\\', "/"))
+        .env_remove("DX_EVIDENCE_NO_JQ");
+    for name in VARS {
+        command.env(name, lookup(inputs, name));
+    }
+    if !jq {
+        command.env("DX_EVIDENCE_NO_JQ", "1");
+    }
+    let output = command.output().expect("run evidence_inputs.sh");
+    let written = std::fs::read_to_string(&out).unwrap_or_default();
+    output.status.success().then_some(written)
+}
+
+/// Validates with evidence_inputs.rs and checks that the script agrees with and without jq.
+fn check(inputs: &[(&str, &str)]) -> Result<Vec<(String, String)>, String> {
+    let validated = validate(|name| lookup(inputs, name).to_string()).map(|done| done.outputs);
+    let expected = validated.as_ref().ok().map(|outputs| {
+        outputs
+            .iter()
+            .map(|(key, value)| format!("{key}={value}\n"))
+            .collect::<String>()
+    });
+    let modes: &[bool] = if has_jq() { &[false, true] } else { &[false] };
+    for &jq in modes {
+        assert_eq!(
+            script(inputs, jq),
+            expected,
+            "{SCRIPT} (jq: {jq}) disagrees with evidence_inputs.rs on {inputs:?}"
+        );
+    }
+    validated
+}
 
 fn run(scope: &str, platforms: &str, timeout: &str) -> Result<Vec<(String, String)>, String> {
-    validate(|name| {
-        match name {
-            "DX_SCOPE" => scope,
-            "DX_TASK" => "test",
-            "DX_PLATFORMS" => platforms,
-            "DX_TEST_TIMEOUT" => timeout,
-            _ => "",
-        }
-        .to_string()
-    })
-    .map(|done| done.outputs)
+    check(&[
+        ("DX_SCOPE", scope),
+        ("DX_TASK", "test"),
+        ("DX_PLATFORMS", platforms),
+        ("DX_TEST_TIMEOUT", timeout),
+    ])
 }
 
 const OK: &str = r#"["linux_x86_64"]"#;
@@ -84,27 +146,23 @@ fn rejects_bad_inputs_naming_the_value() {
 
 #[test]
 fn rejects_unknown_task_and_displays() {
-    let task = validate(|name| {
-        if name == "DX_TASK" {
-            "deploy"
-        } else {
-            "//a/..."
-        }
-        .to_string()
-    });
+    let task = check(&[
+        ("DX_SCOPE", "//a/..."),
+        ("DX_TASK", "deploy"),
+        ("DX_PLATFORMS", OK),
+        ("DX_TEST_TIMEOUT", "600"),
+    ]);
     assert!(
         task.err()
             .is_some_and(|e| e.contains("task must be one of"))
     );
-    let displays = validate(|name| {
-        match name {
-            "DX_TASK" => "test",
-            "DX_PLATFORMS" => OK,
-            "DX_DISPLAYS" => "mir",
-            _ => "//a/...",
-        }
-        .to_string()
-    });
+    let displays = check(&[
+        ("DX_SCOPE", "//a/..."),
+        ("DX_TASK", "test"),
+        ("DX_PLATFORMS", OK),
+        ("DX_DISPLAYS", "mir"),
+        ("DX_TEST_TIMEOUT", "600"),
+    ]);
     assert!(
         displays
             .err()
@@ -114,32 +172,23 @@ fn rejects_unknown_task_and_displays() {
 
 #[test]
 fn accepts_the_coverage_task() {
-    let done = validate(|name| {
-        match name {
-            "DX_SCOPE" => "//...",
-            "DX_TASK" => "coverage",
-            "DX_PLATFORMS" => OK,
-            "DX_TEST_TIMEOUT" => "600",
-            _ => "",
-        }
-        .to_string()
-    });
+    let done = check(&[
+        ("DX_SCOPE", "//..."),
+        ("DX_TASK", "coverage"),
+        ("DX_PLATFORMS", OK),
+        ("DX_TEST_TIMEOUT", "600"),
+    ]);
     assert!(done.is_ok());
 }
 
 fn with_flags(flags: &str) -> Result<Vec<(String, String)>, String> {
-    validate(|name| {
-        match name {
-            "DX_SCOPE" => "//a:t",
-            "DX_TASK" => "test",
-            "DX_PLATFORMS" => OK,
-            "DX_TEST_TIMEOUT" => "600",
-            "DX_FLAGS" => flags,
-            _ => "",
-        }
-        .to_string()
-    })
-    .map(|done| done.outputs)
+    check(&[
+        ("DX_SCOPE", "//a:t"),
+        ("DX_TASK", "test"),
+        ("DX_PLATFORMS", OK),
+        ("DX_TEST_TIMEOUT", "600"),
+        ("DX_FLAGS", flags),
+    ])
 }
 
 #[test]
@@ -165,18 +214,13 @@ fn rejects_other_flags() {
 }
 
 fn relocate_result(task: &str, relocate: &str) -> Result<Vec<(String, String)>, String> {
-    validate(|name| {
-        match name {
-            "DX_SCOPE" => "//a:t",
-            "DX_TASK" => task,
-            "DX_PLATFORMS" => OK,
-            "DX_TEST_TIMEOUT" => "600",
-            "DX_RELOCATE" => relocate,
-            _ => "",
-        }
-        .to_string()
-    })
-    .map(|validated| validated.outputs)
+    check(&[
+        ("DX_SCOPE", "//a:t"),
+        ("DX_TASK", task),
+        ("DX_PLATFORMS", OK),
+        ("DX_TEST_TIMEOUT", "600"),
+        ("DX_RELOCATE", relocate),
+    ])
 }
 
 #[test]
@@ -223,4 +267,40 @@ fn the_workflow_runner_map_matches_platforms() {
     map.sort_unstable();
     expected.sort_unstable();
     assert_eq!(map, expected);
+}
+
+#[test]
+fn the_script_knows_the_same_platforms() {
+    let text = read_runfiles(SCRIPT);
+    let known: Vec<&str> = text
+        .lines()
+        .find_map(|line| line.strip_prefix("known=(")?.strip_suffix(')'))
+        .expect("evidence_inputs.sh declares known=(...)")
+        .split_whitespace()
+        .collect();
+    let expected: Vec<&str> = PLATFORMS.iter().map(|(name, _)| *name).collect();
+    assert_eq!(known, expected);
+}
+
+#[test]
+fn the_script_accepts_spaced_platform_lists() {
+    for platforms in [
+        r#"["linux_x86_64", "windows_arm64"]"#,
+        r#"[ "windows_x86_64" ]"#,
+        r#"["windows_x86_64","windows_arm64","linux_x86_64"]"#,
+    ] {
+        run("//cli/process/...", platforms, "600").unwrap();
+    }
+}
+
+#[test]
+fn the_workflow_validates_with_the_script_before_setting_up_bazel() {
+    let text = read_runfiles(".github/workflows/evidence.yml");
+    let validate = text
+        .find("run: bash tools/ci/evidence_inputs.sh")
+        .expect("evidence.yml runs evidence_inputs.sh");
+    let setup = text
+        .find("uses: ./.github/actions/setup-bazel")
+        .expect("evidence.yml sets up Bazel");
+    assert!(validate < setup);
 }

@@ -1498,10 +1498,14 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
 }
 
 /// On Windows the strict action PATH has no shim directory, so the ambient-tool action takes the
-/// isolated PATH, where the ambient tool resolves to the shim.
+/// isolated PATH, where the ambient tool resolves to the shim. It also takes PATHEXT: the strict
+/// env drops it, and without it PowerShell does not resolve the `.cmd` shim.
 pub fn leak_flags(name: &str) -> Vec<String> {
     if cfg!(windows) && name == "ambient_tool" {
-        vec!["--action_env=PATH".to_owned()]
+        vec![
+            "--action_env=PATH".to_owned(),
+            "--action_env=PATHEXT".to_owned(),
+        ]
     } else {
         Vec::new()
     }

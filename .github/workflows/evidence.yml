@@ -451,11 +451,11 @@ jobs:
             dir="$(dirname "$log")"
             rel="${dir#bazel-testlogs/}"
             mkdir -p "$out/$rel"
-            cp "$dir/test.log" "$out/$rel/"
+            cp "$dir/test.log" "$out/$rel/" 2>/dev/null || true
             cp "$dir/test.xml" "$out/$rel/" 2>/dev/null || true
             cp "$dir/coverage.dat" "$out/$rel/" 2>/dev/null || true
             if [ -d "$dir/test.outputs" ]; then
-              cp -RL "$dir/test.outputs" "$out/$rel/"
+              cp -RL "$dir/test.outputs" "$out/$rel/" 2>/dev/null || true
             fi
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -27,6 +27,7 @@ rust_library(
         "src/ecosystem/ruby.rs",
         "src/ecosystem/rust.rs",
         "src/ecosystem/zig.rs",
+        "src/ecosystem/swift.rs",
         "src/dep_key.rs",
         "src/lib.rs",
         "src/missing.rs",
@@ -101,6 +102,7 @@ rust_test(
         ":ruby_testdata",
         ":rust_testdata",
         ":scala_testdata",
+        ":swift_testdata",
         ":ts_testdata",
         ":zig_testdata",
     ],
@@ -279,6 +281,7 @@ rust_test(
         "fortran",
         "d",
         "haskell",
+        "swift",
     ]
 ]
 

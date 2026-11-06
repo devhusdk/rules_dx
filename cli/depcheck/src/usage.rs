@@ -96,6 +96,7 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
                 || s.contains("/test/")
                 || s.contains("/tests/")
         }
+        Ecosystem::Swift => s.contains("/Tests/") || name.ends_with("Tests.swift"),
         Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
         Ecosystem::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
         Ecosystem::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
@@ -151,6 +152,7 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         ".di",
         ".hs",
         ".lhs",
+        ".swift",
     ]
     .into_iter()
     .collect()
@@ -196,6 +198,8 @@ fn skip_names() -> BTreeSet<&'static str> {
         "dub.selections.json",
         "cabal.project.freeze",
         "stack.yaml.lock",
+        "Package.swift",
+        "Package.resolved",
     ]
     .into_iter()
     .collect()
@@ -406,6 +410,12 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(r#"\b(?:lazyDependency|dependency)\(\s*"{name}""#),
                 format!(r#"@import\(\s*"{name}"\s*\)"#),
             ]
+        }
+        Ecosystem::Swift => {
+            let module = regex_escape(dep);
+            vec![format!(
+                r"(?m)^\s*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:struct|class|enum|protocol|typealias|func|var|let)\s+)?{module}\b"
+            )]
         }
         Ecosystem::Perl => {
             let module = regex_escape(dep);

@@ -81,6 +81,7 @@ pub enum Ecosystem {
     Fortran,
     D,
     Haskell,
+    Swift,
 }
 
 impl std::str::FromStr for Ecosystem {
@@ -117,6 +118,7 @@ impl Ecosystem {
             "fortran" => Some(Self::Fortran),
             "d" => Some(Self::D),
             "haskell" => Some(Self::Haskell),
+            "swift" => Some(Self::Swift),
             _ => None,
         }
     }
@@ -145,6 +147,7 @@ impl Ecosystem {
             Self::Fortran => "fortran",
             Self::D => "d",
             Self::Haskell => "haskell",
+            Self::Swift => "swift",
         }
     }
 

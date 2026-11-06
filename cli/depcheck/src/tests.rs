@@ -707,6 +707,7 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Fortran => "fpm.toml",
         Ecosystem::D => "dub.json",
         Ecosystem::Haskell => "hello.cabal",
+        Ecosystem::Swift => "Package.swift",
     }
 }
 
@@ -730,6 +731,7 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Fortran => "fpm.lock",
         Ecosystem::D => "dub.selections.json",
         Ecosystem::Haskell => "cabal.project.freeze",
+        Ecosystem::Swift => "Package.resolved",
     }
 }
 
@@ -757,6 +759,7 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Fortran => "fortran",
         Ecosystem::D => "d",
         Ecosystem::Haskell => "haskell",
+        Ecosystem::Swift => "swift",
     }
 }
 
@@ -1257,6 +1260,7 @@ fn ecosystem_parse_covers_every_name() {
         ("fortran", Ecosystem::Fortran),
         ("d", Ecosystem::D),
         ("haskell", Ecosystem::Haskell),
+        ("swift", Ecosystem::Swift),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -3037,4 +3041,90 @@ fn haskell_usage_covers_import_forms() {
     assert!(hits["text"].src && hits["containers"].src && hits["acme-widgets"].src);
     assert!(hits["hspec"].test && !hits["hspec"].src);
     assert!(is_test_file(Ecosystem::Haskell, Path::new("test/Spec.hs")));
+}
+
+#[test]
+fn swift_manifest_reads_products_specs_and_skips_paths() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let manifest = dir.path().join("Package.swift");
+    write_file(
+        &manifest,
+        "let package = Package(\n    dependencies: [\n        .package(url: \"https://github.com/a/Foo.git\", .upToNextMinor(from: \"1.2.0\")),\n        .package(path: \"../local\"),\n        .package(url: \"https://github.com/a/bar\", \"1.0.0\"..<\"2.0.0\"),\n        .package(url: \"https://github.com/a/baz\", branch: \"main\"),\n    ],\n    targets: [\n        .target(name: \"T\", dependencies: [.product(name: \"FooKit\", package: \"Foo\")]),\n        .testTarget(name: \"TTests\", dependencies: [.product(name: \"FooKit\", package: \"Foo\"), .product(name: \"Bar\", package: \"bar\")]),\n    ] // .package(url: \"https://github.com/a/commented\", from: \"1.0.0\")\n)\n",
+    );
+    let deps = parse_swift_manifest(&manifest).expect("parse");
+    assert_eq!(deps["FooKit"].spec, ">= 1.2.0, < 1.3.0");
+    assert_eq!(deps["FooKit"].category, "prod");
+    assert_eq!(deps["FooKit"].package, "foo");
+    assert_eq!(deps["Bar"].spec, ">= 1.0.0, < 2.0.0");
+    assert_eq!(deps["Bar"].category, "dev");
+    assert_eq!(deps["baz"].spec, "*");
+    assert!(!deps.contains_key("commented") && !deps.contains_key("local"));
+}
+
+#[test]
+fn swift_lock_reads_every_resolved_format() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let v1 = dir.path().join("v1.resolved");
+    write_file(
+        &v1,
+        r#"{"object":{"pins":[{"package":"Foo","repositoryURL":"https://github.com/a/Foo.git","state":{"branch":null,"revision":"abc","version":"1.0.0"}}]},"version":1}"#,
+    );
+    assert_eq!(parse_swift_lock(&v1).expect("v1")["foo"], "1.0.0");
+    let lock = testdata_root().join("swift/mixed/Package.resolved");
+    let lock = parse_swift_lock(&lock).expect("v2");
+    assert_eq!(lock["swift-argument-parser"], "1.2.3");
+}
+
+#[test]
+fn swift_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("swift/mixed");
+    let manifest = base.join("Package.swift");
+    let lock = base.join("Package.resolved");
+    assert_eq!(consistency(Ecosystem::Swift, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Swift, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["Vapor"]);
+    let missing = find_missing(Ecosystem::Swift, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(found, [("Alamofire", "Sources/App/main.swift", 2)]);
+}
+
+#[test]
+fn swift_usage_covers_import_forms() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("a.swift"), "import Foo\n");
+    write_file(
+        &dir.path().join("b.swift"),
+        "@_exported import struct Bar.Thing\n",
+    );
+    write_file(&dir.path().join("Tests/c.swift"), "@testable import Baz\n");
+    write_file(
+        &dir.path().join("d.swift"),
+        "import FooBar\n// import Nope\n",
+    );
+    let names: Vec<String> = ["Foo", "Bar", "Baz", "Nope"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::Swift, dir.path(), &names).expect("usages");
+    assert!(hits["Foo"].src && hits["Bar"].src);
+    assert!(hits["Baz"].test && !hits["Baz"].src);
+    assert!(!hits["Nope"].src);
+}
+
+#[test]
+fn swift_missing_reads_library_products_from_checkouts() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let lock = dir.path().join("Package.resolved");
+    write_file(
+        &dir.path().join(".build/checkouts/swift-log/Package.swift"),
+        "products: [.library(name: \"Logging\", targets: [\"Logging\"])]",
+    );
+    let names = crate::ecosystem::swift::module_candidates(&lock, "swift-log");
+    assert_eq!(names, ["Logging"]);
+    let names = crate::ecosystem::swift::module_candidates(&lock, "swift-nio");
+    assert_eq!(names, ["SwiftNio", "Nio"]);
 }

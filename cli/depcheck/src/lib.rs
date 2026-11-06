@@ -37,6 +37,7 @@ pub use ecosystem::python::{normalize_py, parse_python_lock, parse_python_manife
 pub use ecosystem::ruby::parse_ruby_manifest;
 pub use ecosystem::rust::{parse_rust_lock, parse_rust_manifest};
 pub use ecosystem::zig::{parse_zig_lock, parse_zig_manifest};
+pub use ecosystem::swift::{parse_swift_lock, parse_swift_manifest};
 pub use ecosystem::{normalize_lower, normalize_snake, parse_paren_lock};
 pub use missing::{find_missing, find_missing_go, MissingDep};
 pub use types::{DepInfo, DepcheckError, Ecosystem, LockVersions, Usage, WorkspaceLocks};

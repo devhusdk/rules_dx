@@ -167,6 +167,7 @@ fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckErr
             .into_keys()
             .filter(|name| name != "base")
             .collect()),
+        Ecosystem::Swift => Ok(crate::parse_swift_lock(lock)?.into_keys().collect()),
         _ => Ok(Vec::new()),
     }
 }
@@ -184,7 +185,17 @@ pub fn find_missing(
     let declared = crate::consistency::load_manifest(eco, manifest)?;
     let key = |name: &str| crate::dep_key::normalize_dep_key(eco, name);
     let excepted: BTreeSet<String> = excepted.iter().map(|name| key(name)).collect();
-    let mut candidates: Vec<String> = lock_packages(eco, lock)?
+    let mut pinned = lock_packages(eco, lock)?;
+    if eco == Ecosystem::Swift {
+        let taken: BTreeSet<&str> = declared.values().map(|dep| dep.package.as_str()).collect();
+        pinned
+            .retain(|package| !taken.contains(package.as_str()) && !declared.contains_key(package));
+        pinned = pinned
+            .iter()
+            .flat_map(|package| crate::ecosystem::swift::module_candidates(lock, package))
+            .collect();
+    }
+    let mut candidates: Vec<String> = pinned
         .into_iter()
         .filter(|name| {
             let name = key(name);
@@ -207,6 +218,7 @@ pub fn find_missing(
         Ecosystem::Fortran => "fpm.toml",
         Ecosystem::D => "dub.json",
         Ecosystem::Haskell => "package.cabal",
+        Ecosystem::Swift => "Package.swift",
         _ => "package.json",
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;

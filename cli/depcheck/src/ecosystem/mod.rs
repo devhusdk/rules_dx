@@ -15,6 +15,7 @@ pub mod python;
 pub mod ruby;
 pub mod rust;
 pub mod zig;
+pub mod swift;
 
 use std::collections::BTreeMap;
 use std::path::Path;

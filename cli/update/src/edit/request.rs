@@ -38,6 +38,8 @@ pub enum ConfiguredKind {
     Cpan,
     /// A pub set; only the package's constraint in pubspec.yaml is edited.
     Pub,
+    /// An opam set; only the package's constraint in `<name>.opam` `depends` is edited.
+    Opam,
     /// A cabal set; only the package's bound in the `.cabal` file is edited.
     Cabal,
     /// A composer set; only the constraint in composer.json is edited, then composer.lock is refreshed.
@@ -57,6 +59,7 @@ impl ConfiguredKind {
             ConfiguredKind::Pub => UpdateSet::Pub,
             ConfiguredKind::Composer => UpdateSet::Composer,
             ConfiguredKind::Cabal => UpdateSet::Cabal,
+            ConfiguredKind::Opam => UpdateSet::Opam,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -263,6 +266,7 @@ fn configured_refresh_selector(
         | ConfiguredKind::Go => set.name.clone(),
         ConfiguredKind::Ruby
         | ConfiguredKind::Cpan
+        | ConfiguredKind::Opam
         | ConfiguredKind::Pub
         | ConfiguredKind::Composer => {
             format!("{}:{package}", set.name)
@@ -300,6 +304,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::Cpan
         | UpdateSet::Pub
         | UpdateSet::Cabal
+        | UpdateSet::Opam
         | UpdateSet::Ruby
         | UpdateSet::Composer => "",
     }
@@ -387,6 +392,7 @@ impl UpdateRequest {
             | ConfiguredKind::Cpan
             | ConfiguredKind::Pub
             | ConfiguredKind::Cabal
+            | ConfiguredKind::Opam
             | ConfiguredKind::Composer => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
@@ -567,6 +573,7 @@ impl UpdateRequest {
             UpdateSet::Cpan => plan_cpanfile(manifest, content, &self.package, &self.version),
             UpdateSet::Pub => plan_pubspec(manifest, content, &self.package, &self.version),
             UpdateSet::Cabal => plan_cabal(manifest, content, &self.package, &self.version),
+            UpdateSet::Opam => plan_opam(manifest, content, &self.package, &self.version),
             UpdateSet::Composer => {
                 plan_composer_json(manifest, content, &self.package, &self.version)
             }

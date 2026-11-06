@@ -733,6 +733,196 @@ fn next_major(version: &str) -> Option<String> {
     })
 }
 
+/// Rewrites the version constraint of one package in the `depends` list of an `.opam` file.
+///
+/// Filters such as `with-test` or `os = "linux"` stay. A single `>=`, `>`, `=` or `~`
+/// constraint takes the new version; a `>= "L" & < "U"` pair keeps its operators and gets the
+/// upper bound of the new major.
+pub(super) fn plan_opam(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Gem(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected an opam version".to_owned(),
+        });
+    };
+    let unsupported = |reason: &str| EditError::UnsupportedManifest {
+        manifest: manifest.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let hits: Vec<_> = opam_depends(content)
+        .into_iter()
+        .filter(|(name, _)| name == package)
+        .collect();
+    let filter = match hits.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [(_, filter)] => filter,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    let constraints = filter
+        .as_ref()
+        .map(|range| opam_constraints(content, range.clone()))
+        .unwrap_or_default();
+    let mut edits: Vec<(std::ops::Range<usize>, String)> = Vec::new();
+    match constraints.as_slice() {
+        [(op, range)] if matches!(op.as_str(), ">=" | ">" | "=" | "~") => {
+            edits.push((range.clone(), new.clone()));
+        }
+        [(low, low_range), (high, high_range)]
+            if matches!(low.as_str(), ">=" | ">") && high == "<" =>
+        {
+            let major = next_major(new)
+                .ok_or_else(|| unsupported("the new version is not dotted numbers"))?;
+            edits.push((low_range.clone(), new.clone()));
+            edits.push((high_range.clone(), major));
+        }
+        [] => return Err(unsupported("the package has no version constraint")),
+        _ => {
+            return Err(unsupported(
+                "the constraint needs to be one of >= \"X\", > \"X\", = \"X\", ~ \"X\" or >= \"X\" & < \"Y\"",
+            ));
+        }
+    }
+    let mut edited = content.to_owned();
+    for (range, text) in edits.into_iter().rev() {
+        edited.replace_range(range, &text);
+    }
+    Ok(edited)
+}
+
+/// The packages of the `depends:` list with the byte range inside the braces of their filter.
+fn opam_depends(content: &str) -> Vec<(String, Option<std::ops::Range<usize>>)> {
+    let Some(start) = content
+        .match_indices("depends:")
+        .map(|(at, _)| at)
+        .find(|at| *at == 0 || content[..*at].ends_with('\n'))
+    else {
+        return Vec::new();
+    };
+    let bytes = content.as_bytes();
+    let mut at = start + "depends:".len();
+    let mut out = Vec::new();
+    let mut depth = 0;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'#' => {
+                while at < bytes.len() && bytes[at] != b'\n' {
+                    at += 1;
+                }
+                continue;
+            }
+            b'[' => depth += 1,
+            b']' => {
+                depth -= 1;
+                if depth <= 0 {
+                    break;
+                }
+            }
+            b'"' => {
+                let from = at + 1;
+                at = opam_string_end(content, from);
+                let name = content[from..at].to_owned();
+                let mut next = at + 1;
+                while next < bytes.len() && bytes[next].is_ascii_whitespace() {
+                    next += 1;
+                }
+                if bytes.get(next) == Some(&b'{') {
+                    let mut braces = 0;
+                    let mut close = next;
+                    while close < bytes.len() {
+                        match bytes[close] {
+                            b'{' => braces += 1,
+                            b'}' => {
+                                braces -= 1;
+                                if braces == 0 {
+                                    break;
+                                }
+                            }
+                            b'"' => close = opam_string_end(content, close + 1),
+                            _ => {}
+                        }
+                        close += 1;
+                    }
+                    out.push((name, Some(next + 1..close.min(bytes.len()))));
+                    at = close;
+                } else {
+                    out.push((name, None));
+                }
+            }
+            _ => {}
+        }
+        at += 1;
+    }
+    out
+}
+
+/// The index of the closing quote of a string whose contents start at `from`.
+fn opam_string_end(content: &str, from: usize) -> usize {
+    let bytes = content.as_bytes();
+    let mut at = from;
+    while at < bytes.len() && bytes[at] != b'"' {
+        at += if bytes[at] == b'\\' { 2 } else { 1 };
+    }
+    at.min(bytes.len())
+}
+
+/// The version constraints (`>= "1.0"`) of a filter, skipping variable tests like `os = "linux"`.
+fn opam_constraints(
+    content: &str,
+    filter: std::ops::Range<usize>,
+) -> Vec<(String, std::ops::Range<usize>)> {
+    let bytes = content.as_bytes();
+    let mut out = Vec::new();
+    let mut at = filter.start;
+    let mut previous = b'{';
+    while at < filter.end {
+        let c = bytes[at];
+        if c == b'"' {
+            at = opam_string_end(content, at + 1) + 1;
+            previous = b'"';
+            continue;
+        }
+        if matches!(c, b'<' | b'>' | b'=' | b'!' | b'~') {
+            let from = at;
+            while at < filter.end && matches!(bytes[at], b'<' | b'>' | b'=' | b'!' | b'~') {
+                at += 1;
+            }
+            let operator = &content[from..at];
+            while at < filter.end && bytes[at].is_ascii_whitespace() {
+                at += 1;
+            }
+            let after_connective = matches!(previous, b'{' | b'&' | b'|' | b'(' | b'!');
+            if bytes.get(at) == Some(&b'"') && after_connective {
+                let end = opam_string_end(content, at + 1);
+                out.push((operator.to_owned(), at + 1..end));
+                at = end + 1;
+            }
+            previous = b'=';
+            continue;
+        }
+        if !c.is_ascii_whitespace() {
+            previous = c;
+        }
+        at += 1;
+    }
+    out
+}
+
 /// Rewrites the constraint of one scalar `package: <constraint>` entry in the
 /// `dependencies` or `dev_dependencies` of a pubspec.yaml, keeping its `^` or range form.
 pub(super) fn plan_pubspec(
@@ -1251,6 +1441,17 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("cabal package names use letters, digits and '-'")
+            }
+        }
+        UpdateSet::Opam => {
+            if !package.is_empty()
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '+'))
+            {
+                Ok(())
+            } else {
+                Err("opam package names use letters, digits and '-', '_' or '+'")
             }
         }
         UpdateSet::Pub => {

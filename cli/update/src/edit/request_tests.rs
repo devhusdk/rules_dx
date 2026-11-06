@@ -593,9 +593,9 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ),
     ];
     assert_eq!(
-        cases.len() + 3,
+        cases.len() + 4,
         UpdateSet::ALL.len(),
-        "one case per set but cabal, cpan and pub, which only configured sets edit"
+        "one case per set but cabal, cpan, opam and pub, which only configured sets edit"
     );
     for (selector, version) in cases {
         let update = UpdateRequest::parse_grammar(selector, version).expect("parse");
@@ -1991,4 +1991,71 @@ fn cabal_refuses_undeclared_unbounded_and_repeated_packages() {
         Err(EditError::Ambiguous { count: 2, .. })
     ));
     assert!(cabal_request("safe", "^0.3").is_err());
+}
+
+const OPAM: &str = r#"opam-version: "2.0"
+depends: [
+  "ocaml" {>= "4.14"}
+  "dune" {>= "3.0" & < "4.0"}
+  "alcotest" {with-test & >= "1.7.0"}
+  "ppx_deriving" {os = "linux" & = "5.2"}
+  "astring"
+  "fmt" # comment {>= "1"}
+]
+"#;
+
+fn opam_request(package: &str, version: &str) -> Result<UpdateRequest, EditError> {
+    configured(
+        ConfiguredKind::Opam,
+        &["ocaml/app.opam"],
+        None,
+        &format!("set:{package}"),
+        version,
+    )
+}
+
+fn opam_edit(package: &str, version: &str) -> Result<String, EditError> {
+    opam_request(package, version)?.plan_edit(OPAM)
+}
+
+#[test]
+fn opam_edit_rewrites_the_constraint_and_keeps_filters() {
+    assert_eq!(opam_request("ocaml", "5.1").expect("opam").set, UpdateSet::Opam);
+    assert_eq!(
+        opam_edit("ocaml", "5.1").expect("lower bound"),
+        OPAM.replace(r#"{>= "4.14"}"#, r#"{>= "5.1"}"#)
+    );
+    assert_eq!(
+        opam_edit("alcotest", "1.9.0").expect("filtered"),
+        OPAM.replace(r#"& >= "1.7.0""#, r#"& >= "1.9.0""#)
+    );
+    assert_eq!(
+        opam_edit("ppx_deriving", "5.3").expect("variable test kept"),
+        OPAM.replace(r#"& = "5.2""#, r#"& = "5.3""#)
+    );
+}
+
+#[test]
+fn opam_edit_moves_the_upper_bound_of_a_range() {
+    assert_eq!(
+        opam_edit("dune", "3.16").expect("range"),
+        OPAM.replace(r#"{>= "3.0" & < "4.0"}"#, r#"{>= "3.16" & < "3.17"}"#)
+    );
+}
+
+#[test]
+fn opam_refuses_undeclared_unconstrained_and_commented_packages() {
+    assert!(matches!(
+        opam_edit("missing", "1.0"),
+        Err(EditError::NotFound { .. })
+    ));
+    assert!(matches!(
+        opam_edit("astring", "0.9"),
+        Err(EditError::UnsupportedManifest { .. })
+    ));
+    assert!(matches!(
+        opam_edit("fmt", "0.9"),
+        Err(EditError::UnsupportedManifest { .. })
+    ));
+    assert!(opam_request("dune", "^3").is_err());
 }

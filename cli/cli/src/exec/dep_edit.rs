@@ -119,6 +119,9 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Cabal if foreign => {
             Some(dx_update::edit::ConfiguredKind::Cabal)
         }
+        dx_adopt::dependency_sets::Ecosystem::Opam if foreign => {
+            Some(dx_update::edit::ConfiguredKind::Opam)
+        }
         _ => None,
     };
     match (set.ecosystem, kind) {
@@ -158,6 +161,7 @@ pub(crate) fn configured_set(
                             dx_update::edit::ConfiguredKind::Pub => "exactly one pubspec.yaml",
                             dx_update::edit::ConfiguredKind::Composer =>
                                 "exactly one composer.json",
+                            dx_update::edit::ConfiguredKind::Opam => "exactly one .opam file",
                             dx_update::edit::ConfiguredKind::Cabal => "exactly one .cabal file",
                         },
                         set.name
@@ -780,6 +784,7 @@ fn refresh_plan(
         }
         dx_update::edit::ConfiguredKind::Npm
         | dx_update::edit::ConfiguredKind::Cpan
+        | dx_update::edit::ConfiguredKind::Opam
         | dx_update::edit::ConfiguredKind::Pub
         | dx_update::edit::ConfiguredKind::Composer => (
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),

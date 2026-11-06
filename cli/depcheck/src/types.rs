@@ -82,6 +82,7 @@ pub enum Ecosystem {
     D,
     Haskell,
     Swift,
+    Powershell,
 }
 
 impl std::str::FromStr for Ecosystem {
@@ -119,6 +120,7 @@ impl Ecosystem {
             "d" => Some(Self::D),
             "haskell" => Some(Self::Haskell),
             "swift" => Some(Self::Swift),
+            "powershell" => Some(Self::Powershell),
             _ => None,
         }
     }
@@ -148,6 +150,7 @@ impl Ecosystem {
             Self::D => "d",
             Self::Haskell => "haskell",
             Self::Swift => "swift",
+            Self::Powershell => "powershell",
         }
     }
 

@@ -97,6 +97,7 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
                 || s.contains("/tests/")
         }
         Ecosystem::Swift => s.contains("/Tests/") || name.ends_with("Tests.swift"),
+        Ecosystem::Powershell => name.ends_with(".Tests.ps1") || s.contains("/tests/"),
         Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
         Ecosystem::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
         Ecosystem::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
@@ -153,6 +154,8 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         ".hs",
         ".lhs",
         ".swift",
+        ".ps1",
+        ".psm1",
     ]
     .into_iter()
     .collect()
@@ -398,6 +401,17 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(r"(?m)^\s*import\s+{spec}"),
             ]
         }
+        Ecosystem::Powershell => {
+            let module = regex_escape(dep);
+            let end = r#"(?:['"\s,;)]|$)"#;
+            vec![
+                format!(r#"(?mi)^\s*Import-Module\s+(?:-Name\s+)?['"]?{module}{end}"#),
+                format!(r#"(?mi)^\s*using\s+module\s+['"]?{module}{end}"#),
+                format!(
+                    r#"(?mi)^\s*#requires\s+.*-modules\s+(?:[\w.-]+\s*,\s*)*['"]?{module}{end}"#
+                ),
+            ]
+        }
         Ecosystem::Julia => {
             let name = regex_escape(dep);
             vec![format!(
@@ -528,7 +542,15 @@ pub(crate) fn find_first_imports(
         let hits: Vec<&(String, String)> = texts
             .iter()
             .filter(|(_, text)| {
-                eco == Ecosystem::Php || forms.iter().any(|form| text.contains(form.as_str()))
+                if eco == Ecosystem::Php {
+                    return true;
+                }
+                let text = if eco == Ecosystem::Powershell {
+                    text.to_lowercase()
+                } else {
+                    text.clone()
+                };
+                forms.iter().any(|form| text.contains(form.as_str()))
             })
             .collect();
         if hits.is_empty() {

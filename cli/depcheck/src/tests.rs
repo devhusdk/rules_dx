@@ -708,6 +708,7 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::D => "dub.json",
         Ecosystem::Haskell => "hello.cabal",
         Ecosystem::Swift => "Package.swift",
+        Ecosystem::Powershell => "Hello.psd1",
     }
 }
 
@@ -732,6 +733,7 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::D => "dub.selections.json",
         Ecosystem::Haskell => "cabal.project.freeze",
         Ecosystem::Swift => "Package.resolved",
+        Ecosystem::Powershell => "installed_modules.txt",
     }
 }
 
@@ -760,6 +762,7 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::D => "d",
         Ecosystem::Haskell => "haskell",
         Ecosystem::Swift => "swift",
+        Ecosystem::Powershell => "powershell",
     }
 }
 
@@ -1261,6 +1264,7 @@ fn ecosystem_parse_covers_every_name() {
         ("d", Ecosystem::D),
         ("haskell", Ecosystem::Haskell),
         ("swift", Ecosystem::Swift),
+        ("powershell", Ecosystem::Powershell),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -3127,4 +3131,84 @@ fn swift_missing_reads_library_products_from_checkouts() {
     assert_eq!(names, ["Logging"]);
     let names = crate::ecosystem::swift::module_candidates(&lock, "swift-nio");
     assert_eq!(names, ["SwiftNio", "Nio"]);
+}
+
+#[test]
+fn powershell_manifest_reads_names_and_pins() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let psd1 = dir.path().join("M.psd1");
+    write_file(
+        &psd1,
+        "@{\n  RequiredModules = @(\n    'A', # note\n    @{ ModuleName = 'B'; ModuleVersion = '1.2' },\n    @{ ModuleName = 'C'; RequiredVersion = '2.0'; GUID = 'x' },\n    @{ ModuleName = 'D'; ModuleVersion = '1.0'; MaximumVersion = '3.0' }\n  )\n  FunctionsToExport = @('Not-AModule')\n}\n",
+    );
+    let deps = parse_powershell_manifest(&psd1).expect("parse");
+    let names: Vec<&str> = deps.keys().map(String::as_str).collect();
+    assert_eq!(names, ["a", "b", "c", "d"]);
+    assert_eq!(deps["a"].raw, "A");
+    assert_eq!(deps["a"].spec, "*");
+    assert_eq!(deps["b"].spec, ">= 1.2");
+    assert_eq!(deps["c"].spec, ">= 2.0, <= 2.0");
+    assert_eq!(deps["d"].spec, ">= 1.0, <= 3.0");
+}
+
+#[test]
+fn powershell_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("powershell/mixed");
+    let manifest = base.join("Hello.psd1");
+    let lock = base.join("installed_modules.txt");
+    assert_eq!(consistency(Ecosystem::Powershell, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Powershell, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["PSReadLine"]);
+    let missing =
+        find_missing(Ecosystem::Powershell, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(found, [("known", "src/Hello.psm1", 2)]);
+}
+
+#[test]
+fn powershell_consistency_flags_old_install() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let psd1 = dir.path().join("M.psd1");
+    let lock = dir.path().join("installed_modules.txt");
+    write_file(
+        &psd1,
+        "@{ RequiredModules = @(@{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }) }\n",
+    );
+    write_file(&lock, "pester 4.10.1\n");
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Powershell, &psd1, &lock, &mut out, &mut err);
+    assert_eq!(code, 1);
+    assert!(err.contains("stale lock entry for 'Pester'"), "{err}");
+}
+
+#[test]
+fn powershell_usage_covers_import_using_and_requires() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(
+        &dir.path().join("a.ps1"),
+        "Import-Module 'Foo.Bar' -Force\n",
+    );
+    write_file(&dir.path().join("b.psm1"), "using module Baz\n");
+    write_file(&dir.path().join("c.ps1"), "#Requires -Modules Qux, Other\n");
+    write_file(&dir.path().join("d.Tests.ps1"), "Import-Module Pester\n");
+    write_file(
+        &dir.path().join("e.ps1"),
+        "Import-Module Foo.BarBaz\n# Import-Module Nope\n",
+    );
+    let names: Vec<String> = ["Foo.Bar", "Baz", "Other", "Pester", "Nope", "Foo"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::Powershell, dir.path(), &names).expect("usages");
+    assert!(hits["Foo.Bar"].src);
+    assert!(hits["Baz"].src);
+    assert!(hits["Other"].src);
+    assert!(hits["Pester"].test && !hits["Pester"].src);
+    assert!(!hits["Nope"].src);
+    assert!(!hits["Foo"].src);
 }

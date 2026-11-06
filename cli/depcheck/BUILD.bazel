@@ -23,6 +23,7 @@ rust_library(
         "src/ecosystem/mod.rs",
         "src/ecosystem/perl.rs",
         "src/ecosystem/php.rs",
+        "src/ecosystem/powershell.rs",
         "src/ecosystem/python.rs",
         "src/ecosystem/ruby.rs",
         "src/ecosystem/rust.rs",
@@ -98,6 +99,7 @@ rust_test(
         ":fortran_testdata",
         ":perl_testdata",
         ":php_testdata",
+        ":powershell_testdata",
         ":python_testdata",
         ":ruby_testdata",
         ":rust_testdata",
@@ -282,6 +284,7 @@ rust_test(
         "d",
         "haskell",
         "swift",
+        "powershell",
     ]
 ]
 

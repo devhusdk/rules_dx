@@ -168,6 +168,7 @@ fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckErr
             .filter(|name| name != "base")
             .collect()),
         Ecosystem::Swift => Ok(crate::parse_swift_lock(lock)?.into_keys().collect()),
+        Ecosystem::Powershell => Ok(crate::parse_powershell_lock(lock)?.into_keys().collect()),
         _ => Ok(Vec::new()),
     }
 }

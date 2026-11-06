@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::ecosystem::{
     beam, cc, dart, dlang, dotnet, fortran, go, haskell, js, julia, jvm, parse_paren_lock, perl,
-    php, python, ruby, rust, swift, zig,
+    php, powershell, python, ruby, rust, swift, zig,
 };
 use crate::version::satisfies_for;
 use crate::{DepInfo, DepcheckError, Ecosystem, LockVersions, WorkspaceLocks};
@@ -32,6 +32,7 @@ pub(crate) fn load_manifest(
         Ecosystem::D => dlang::parse_d_manifest(manifest),
         Ecosystem::Haskell => haskell::parse_haskell_manifest(manifest),
         Ecosystem::Swift => swift::parse_swift_manifest(manifest),
+        Ecosystem::Powershell => powershell::parse_powershell_manifest(manifest),
     }
 }
 
@@ -64,6 +65,7 @@ fn load_lock(eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError>
         Ecosystem::D => single(dlang::parse_d_lock(lock)),
         Ecosystem::Haskell => single(haskell::parse_haskell_lock(lock)),
         Ecosystem::Swift => single(swift::parse_swift_lock(lock)),
+        Ecosystem::Powershell => single(powershell::parse_powershell_lock(lock)),
     }
 }
 

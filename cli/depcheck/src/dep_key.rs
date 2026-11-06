@@ -16,5 +16,6 @@ pub(crate) fn normalize_dep_key(eco: Ecosystem, raw: &str) -> String {
         Ecosystem::Ruby | Ecosystem::Elixir | Ecosystem::Erlang => normalize_lower(raw),
         Ecosystem::Fortran | Ecosystem::D => normalize_lower(raw),
         Ecosystem::Haskell => raw.to_owned(),
+        Ecosystem::Powershell => normalize_lower(raw),
     }
 }

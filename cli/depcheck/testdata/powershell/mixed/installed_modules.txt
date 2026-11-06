@@ -1,0 +1,5 @@
+# installed modules
+PSReadLine 2.3.4
+Pester 5.5.0
+PSScriptAnalyzer 1.21.0
+Known 1.0.0

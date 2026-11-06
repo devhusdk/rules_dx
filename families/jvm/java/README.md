@@ -23,7 +23,7 @@ java_test(
 )
 ```
 
-`java_binary` and `java_test` infer `main_class` and `test_class` from the sources and the package path. Set them to override.
+`java_binary` and `java_test` infer `main_class` and `test_class` from the sources and the package path. Set them to override. Without `srcs`, or with `select()` srcs, the class comes from the package path; if the package path has no Java root, the build fails and asks for `test_class` or `main_class`.
 
 ## Third-party dependencies
 

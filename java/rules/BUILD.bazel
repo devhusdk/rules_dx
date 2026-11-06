@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "java_entry_class", "java_entry_kwargs", "java_javacopts_with_werror")
+load(":defs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_werror")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -125,8 +125,53 @@ dx_wrapper_contract_tests(
             "com.x.FooTest",
         ),
         expect_equal(
-            "non-list srcs infer nothing",
+            "missing srcs use package path",
             java_entry_class("FooTest", None, "java/foo"),
+            "foo.FooTest",
+        ),
+        expect_equal(
+            "select srcs use package path",
+            java_entry_class("FooTest", select({"//conditions:default": ["x/FooTest.java"]}), "src/test/java/com/x"),
+            "com.x.FooTest",
+        ),
+        expect_equal(
+            "test without srcs gains package class",
+            java_entry_kwargs("FooTest", None, "src/test/java/com/x", {}, "test_class"),
+            {"test_class": "com.x.FooTest"},
+        ),
+        expect_equal(
+            "binary with select srcs gains package class",
+            java_entry_kwargs("Main", select({"//conditions:default": ["Main.java"]}), "src/main/java/com/x", {}, "main_class"),
+            {"main_class": "com.x.Main"},
+        ),
+        expect_equal(
+            "binary with None srcs gains nothing",
+            java_entry_kwargs("M", None, "java/x", {}, "main_class"),
+            {},
+        ),
+        expect_equal(
+            "uninferable test is an error",
+            java_entry_error("X", ["X.java"], "p", {}, "test_class"),
+            "java_test //p:X: cannot infer test_class from srcs or package; set test_class.",
+        ),
+        expect_equal(
+            "uninferable binary is an error",
+            java_entry_error("X", ["X.java"], "p", {}, "main_class"),
+            "java_binary //p:X: cannot infer main_class from srcs or package; set main_class.",
+        ),
+        expect_equal(
+            "explicit test class is no error",
+            java_entry_error("X", ["X.java"], "p", {"test_class": "a.B"}, "test_class"),
+            None,
+        ),
+        expect_equal(
+            "test without testrunner is no error",
+            java_entry_error("X", ["X.java"], "p", {"use_testrunner": False}, "test_class"),
+            None,
+        ),
+        expect_equal(
+            "binary without srcs is no error",
+            java_entry_error("X", [], "p", {}, "main_class"),
             None,
         ),
         expect_equal(

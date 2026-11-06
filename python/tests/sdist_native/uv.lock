@@ -45,12 +45,9 @@ wheels = [
 
 [[package]]
 name = "python-geohash"
-version = "0.9.2"
+version = "0.8.5"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/da/3b/3819a06959801ab8d0f38be2b0bfe93c87bdd6a29c91543c68f08d88ec79/python_geohash-0.9.2.tar.gz", hash = "sha256:dd2da7eb381e0cd40cd2111590417b4f41e552c29167ac9b04d7523fdf3d21e4", size = 17922, upload-time = "2026-06-02T23:14:01.223Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5f/ec/92f29f9eb788aa250a2cb6db5eeea2815a4097461eb535790ed240af90d3/python_geohash-0.9.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7216af6842b8b19f7ebfd450e997969b1e61a4b6bab1d7f759e43cf4d324ef29", size = 256306, upload-time = "2026-06-02T23:13:59.82Z" },
-]
+sdist = { url = "https://files.pythonhosted.org/packages/9c/e2/1a3507af7c8f91f8a4975d651d4aeb6a846dfdf74713954186ade4205850/python-geohash-0.8.5.tar.gz", hash = "sha256:05a21fcf4eda1a5eddbd291890ade23fc5ddaa6bb98f2ee23d2d384ed14f086d", size = 17636, upload-time = "2014-08-13T07:09:57.318Z" }
 
 [[package]]
 name = "sdist-native"
@@ -65,7 +62,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "build" },
-    { name = "python-geohash", specifier = ">=0.9.2" },
+    { name = "python-geohash", specifier = "==0.8.5" },
     { name = "setuptools" },
 ]
 

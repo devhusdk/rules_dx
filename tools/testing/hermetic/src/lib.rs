@@ -1972,7 +1972,25 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         _ => module,
     };
     write(&workspace.join("MODULE.bazel"), &module)?;
+    rename_preset(workspace, &manifest.repo_name)?;
     copy(&manifest.bazelversion, &workspace.join(".bazelversion"))
+}
+
+/// Points the preset layers `dx init` wrote at the repo name the composed MODULE.bazel gives rules_dx.
+pub fn rename_preset(workspace: &Path, repo_name: &str) -> Result<(), String> {
+    let dir = workspace.join(".dx").join("bazelrc");
+    let entries =
+        std::fs::read_dir(&dir).map_err(|err| format!("cannot list {}: {err}", dir.display()))?;
+    for entry in entries {
+        let path = entry
+            .map_err(|err| format!("cannot list {}: {err}", dir.display()))?
+            .path();
+        let text = std::fs::read_to_string(&path)
+            .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
+        let renamed = text.replace("@rules_dx//", &format!("@{repo_name}//"));
+        write(&path, &renamed)?;
+    }
+    Ok(())
 }
 
 /// Builds the consumer workspace with the public dx entry point and its own files.

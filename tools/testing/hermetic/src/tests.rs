@@ -1885,3 +1885,20 @@ fn windows_bash_prefers_bazel_sh_then_the_first_existing_candidate() {
     assert_eq!(windows_bash(None, &system_root, &candidates), Some(msys));
     assert_eq!(windows_bash(Some(&missing), &system_root, &[stub]), None);
 }
+
+#[test]
+fn rename_preset_points_layers_at_the_consumer_repo_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let layer = dir.path().join(".dx/bazelrc/correctness.bazelrc");
+    std::fs::create_dir_all(layer.parent().unwrap()).unwrap();
+    std::fs::write(
+        &layer,
+        "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host\n",
+    )
+    .unwrap();
+    rename_preset(dir.path(), "my_dx").unwrap();
+    assert_eq!(
+        std::fs::read_to_string(&layer).unwrap(),
+        "common:windows --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@platforms//host\n"
+    );
+}

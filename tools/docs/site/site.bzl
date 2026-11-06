@@ -135,6 +135,7 @@ def _docs_api_impl(ctx):
     check.add("--records", records)
     check.add_all(shards, before_each = "--shard")
     check.add_all(ctx.files.prose, before_each = "--prose")
+    # run_shell: The shell touches the output file only after the check passes.
     ctx.actions.run_shell(
         command = "check=$1; out=$2; shift 2; \"$check\" \"$@\" && : > \"$out\"",
         arguments = [check],

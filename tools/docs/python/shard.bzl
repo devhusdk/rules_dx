@@ -1,15 +1,12 @@
 """The Python API reference shard action shared by the rule and the docs aspect."""
 
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
 load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
 
-def _runfiles_path(ctx, file):
-    if file.short_path.startswith("../"):
-        return file.short_path[3:]
-    return ctx.workspace_name + "/" + file.short_path
 
 def _import_relative(ctx, file, imports):
     """Returns the path of one file relative to its longest matching import root."""
-    path = _runfiles_path(ctx, file)
+    path = rlocation_path(ctx, file)
     for root in imports:
         if path.startswith(root + "/"):
             return path[len(root) + 1:]

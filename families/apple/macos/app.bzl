@@ -29,6 +29,7 @@ load(
     "version_below",
 )
 load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("@rules_dx//libs/starlark:rlocation.bzl", "rlocation_path")
 
 _CELL = "macos/arm64"
 
@@ -251,11 +252,6 @@ _macos_cell = rule(
     fragments = ["apple"],
 )
 
-def _runfiles_path(ctx, file):
-    path = file.short_path
-    if path.startswith("../"):
-        return path[3:]
-    return ctx.workspace_name + "/" + path
 
 def _lines(names):
     return "\n".join(names)
@@ -344,7 +340,7 @@ def _macos_app_check_impl(ctx):
             executable = launcher,
             runfiles = ctx.runfiles(files = [zipped]),
         ),
-        RunEnvironmentInfo(environment = {"DX_MACOS_APP_ZIP": _runfiles_path(ctx, zipped)}),
+        RunEnvironmentInfo(environment = {"DX_MACOS_APP_ZIP": rlocation_path(ctx, zipped)}),
         info,
         OutputGroupInfo(**groups),
     ]

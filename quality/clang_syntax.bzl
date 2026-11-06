@@ -238,6 +238,7 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
     return struct(argv = [tidy] + _config_flag(config) + [src, "--"] + flags, error = "")
 
 def _failing_tidy(ctx, log, src, error):
+    # run_shell: The shell redirects output or runs the bash runner script.
     ctx.actions.run_shell(
         mnemonic = "ClangTidy",
         progress_message = "clang-tidy %{label}: " + src,
@@ -327,6 +328,7 @@ def _clang_syntax_impl(target, ctx):
                 _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
                 tidy_diagnostics.append(tidy_log)
                 continue
+            # run_shell: The shell redirects output or runs the bash runner script.
             ctx.actions.run_shell(
                 mnemonic = "ClangTidy",
                 progress_message = "clang-tidy %{label}: " + src,
@@ -360,6 +362,7 @@ def _clang_syntax_impl(target, ctx):
         syntax_env = dict(action.env)
         if identity.driver == "msvc":
             syntax_env.update(_MSYS_NO_CONVERSION)
+        # run_shell: The shell redirects output or runs the bash runner script.
         ctx.actions.run_shell(
             mnemonic = "ClangSyntax",
             progress_message = "Syntax check %{label}: " + src,
@@ -374,6 +377,7 @@ def _clang_syntax_impl(target, ctx):
         if tidy_argv.error != "":
             _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
         else:
+            # run_shell: The shell redirects output or runs the bash runner script.
             ctx.actions.run_shell(
                 mnemonic = "ClangTidy",
                 progress_message = "clang-tidy %{label}: " + src,

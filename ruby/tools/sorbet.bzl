@@ -1,5 +1,7 @@
 """The sorbet_tool rule: the pinned Sorbet binary as one executable."""
 
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
+
 _LAUNCHER = """#!/usr/bin/env bash
 set -euo pipefail
 runfiles="${{RUNFILES_DIR:-}}"
@@ -9,15 +11,11 @@ fi
 exec "$runfiles/{binary}" "$@"
 """
 
-def _runfiles_path(workspace_name, file):
-    if file.short_path.startswith("../"):
-        return file.short_path[3:]
-    return workspace_name + "/" + file.short_path
 
 def _sorbet_tool_impl(ctx):
     binary = ctx.file.binary
     launcher = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(launcher, _LAUNCHER.format(binary = _runfiles_path(ctx.workspace_name, binary)), is_executable = True)
+    ctx.actions.write(launcher, _LAUNCHER.format(binary = rlocation_path(ctx, binary)), is_executable = True)
     return [DefaultInfo(
         executable = launcher,
         files = depset([launcher]),

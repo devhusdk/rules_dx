@@ -97,6 +97,7 @@ def _go_client_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".go")
     stamp = _preflight(ctx, info, root)
     sdk = ctx.toolchains["@rules_go//go:toolchain"].sdk
+    # run_shell: The shell turns the Go path into an absolute PATH entry and sets HOME to the execroot.
     ctx.actions.run_shell(
         tools = [ctx.executable._oapi_codegen],
         inputs = depset([stamp, sdk.go], transitive = [info.files, sdk.srcs, sdk.libs, sdk.tools, sdk.headers]),

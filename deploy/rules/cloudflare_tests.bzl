@@ -12,6 +12,7 @@ def _site_dir_impl(ctx):
     for src in ctx.files.srcs:
         rel = src.short_path.removeprefix(ctx.attr.strip + "/")
         commands.append("mkdir -p $(dirname {out}/{rel}) && cp {src} {out}/{rel}".format(out = out.path, rel = rel, src = src.path))
+    # run_shell: The commands create directories and copy files into one tree.
     ctx.actions.run_shell(
         outputs = [out],
         inputs = ctx.files.srcs,

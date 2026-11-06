@@ -11,6 +11,7 @@ def _swift_format_impl(ctx):
     if exe == None:
         fail("the Swift toolchain archive has no usr/bin/swift-format")
     copy = ctx.actions.declare_file(ctx.label.name + "/usr/bin/swift-format")
+    # run_shell: A copy, not a symlink, so the binary finds its libraries next to its real path.
     ctx.actions.run_shell(
         inputs = [exe],
         outputs = [copy],

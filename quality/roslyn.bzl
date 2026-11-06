@@ -191,6 +191,7 @@ def _roslyn_impl(target, ctx):
             toolchain = _TOOLCHAIN,
         )
     else:
+        # run_shell: The shell records the exit status of the command in a file.
         ctx.actions.run_shell(
             mnemonic = "CSharpRoslyn",
             progress_message = "Roslyn analyzers %{label}",

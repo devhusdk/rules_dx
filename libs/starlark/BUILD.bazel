@@ -14,6 +14,7 @@ exports_files([
     "plan_shard.bzl",
     "repo.bzl",
     "resources.bzl",
+    "rlocation.bzl",
     "seven_zip.bzl",
     "tag_probe.bzl",
     "wrapper.bzl",

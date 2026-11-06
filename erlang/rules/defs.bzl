@@ -372,15 +372,7 @@ def _erlang_nif_impl(ctx):
         fail(str(ctx.label) + ": lib must build exactly one " + wanted)
     library = libraries[0]
     placed = ctx.actions.declare_file(nif_priv_path(ctx.label.name, target_is_windows(ctx)))
-    ctx.actions.run_shell(
-        inputs = [library],
-        outputs = [placed],
-        command = 'cp -f "$1" "$2"',
-        arguments = [library.path, placed.path],
-        mnemonic = "ErlangNif",
-        toolchain = None,
-        progress_message = "Placing NIF %{output}",
-    )
+    ctx.actions.symlink(output = placed, target_file = library)
     objects = ctx.actions.declare_file(ctx.label.name + "_runtime_objects_list.txt")
     ctx.actions.write(objects, placed.short_path + "\n")
     return [
@@ -475,6 +467,7 @@ def _erlang_release_impl(ctx):
             for f in app[ErlangNifInfo].libraries.to_list():
                 inputs.append(f)
                 lines.append('cp -f "' + f.path + '" ' + base + "/priv/" + f.basename)
+    # run_shell: The script copies files into the release tree.
     ctx.actions.run_shell(
         inputs = inputs,
         outputs = [out],

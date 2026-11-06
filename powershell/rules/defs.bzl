@@ -1,5 +1,6 @@
 """Minimal PowerShell wrappers."""
 
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo", _pwsh_binary = "pwsh_binary", _pwsh_library = "pwsh_library", _pwsh_test = "pwsh_test")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -43,11 +44,6 @@ def _workspace_path(file):
         return file.short_path[3:]
     return file.short_path
 
-def _rlocation(ctx, file):
-    path = file.short_path
-    if path.startswith("../"):
-        return path[3:]
-    return ctx.workspace_name + "/" + path
 
 def _pwsh_test_coverage(ctx, upstream):
     """Lists the instrumented sources for DxCoverage, which writes the LCOV from Pester."""
@@ -63,14 +59,14 @@ def _pwsh_test_coverage(ctx, upstream):
     lines = []
     for file in instrumented.instrumented_files.to_list():
         if file.extension in ["ps1", "psm1"] and not file.short_path.endswith("/DxCoverage/DxCoverage.psm1"):
-            lines.append(_rlocation(ctx, file) + "\t" + _workspace_path(file))
+            lines.append(rlocation_path(ctx, file) + "\t" + _workspace_path(file))
     ctx.actions.write(sources, "\n".join(lines) + "\n")
     env = {}
     inherited = []
     if RunEnvironmentInfo in upstream:
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
-    env["DX_POWERSHELL_COVERAGE_SOURCES"] = _rlocation(ctx, sources)
+    env["DX_POWERSHELL_COVERAGE_SOURCES"] = rlocation_path(ctx, sources)
     return struct(
         instrumented = instrumented,
         env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),

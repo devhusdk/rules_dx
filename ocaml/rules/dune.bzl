@@ -162,6 +162,7 @@ def _dune_bootstrap_impl(ctx):
     if len(scripts) != 1:
         fail("srcs must hold exactly one boot/bootstrap.ml, found {}".format(len(scripts)))
     out = ctx.actions.declare_file(ctx.label.name + ".exe")
+    # run_shell: The script exports the toolchain environment and runs several commands in one action.
     ctx.actions.run_shell(
         outputs = [out],
         inputs = depset(ctx.files.srcs, transitive = [inputs]),
@@ -195,6 +196,7 @@ def _dune_build_impl(ctx):
     prelude, inputs = _context(ctx)
     dune = ctx.executable.dune
     out = ctx.actions.declare_file(ctx.label.name)
+    # run_shell: The script exports the toolchain environment and runs several commands in one action.
     ctx.actions.run_shell(
         outputs = [out],
         inputs = depset(ctx.files.srcs + [dune], transitive = [inputs]),
@@ -250,6 +252,7 @@ def _dune_library_impl(ctx):
     ocamlpath = 'export OCAMLPATH="{}"'.format(":".join(sorted(dep_dirs))) if dep_dirs else ""
     stubs = ctx.actions.declare_file("{}_archive/lib{}_stubs.a".format(ctx.label.name, library)) if ctx.attr.stubs else None
     archives = [ctx.actions.declare_file("{}_archive/{}".format(ctx.label.name, n)) for n in names]
+    # run_shell: The script exports the toolchain environment and runs several commands in one action.
     ctx.actions.run_shell(
         outputs = [tree] + archives + ([stubs] if stubs else []),
         inputs = depset(ctx.files.srcs + [dune], transitive = [inputs, dep_trees]),

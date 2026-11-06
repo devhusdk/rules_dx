@@ -1,5 +1,7 @@
 """Runs a native test under kcov and writes its LCOV report for Bazel coverage."""
 
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
+
 def dx_kcov_attrs():
     """Returns the attributes kcov coverage needs."""
     return {
@@ -21,11 +23,6 @@ def dx_kcov_attrs():
         ),
     }
 
-def _rlocation(ctx, file):
-    path = file.short_path
-    if path.startswith("../"):
-        return path[3:]
-    return ctx.workspace_name + "/" + path
 
 def dx_kcov_test_coverage(ctx, upstream, sources, dependency_attributes = ["upstream"]):
     """Returns coverage providers that run the upstream test under kcov over sources, or None off Linux."""
@@ -48,10 +45,10 @@ def dx_kcov_test_coverage(ctx, upstream, sources, dependency_attributes = ["upst
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
     env.update({
-        "DX_KCOV": _rlocation(ctx, kcov),
-        "DX_KCOV_SOURCES": _rlocation(ctx, manifest),
-        "DX_KCOV_UPSTREAM": _rlocation(ctx, exe),
-        "DX_TO_LCOV": _rlocation(ctx, to_lcov.files_to_run.executable),
+        "DX_KCOV": rlocation_path(ctx, kcov),
+        "DX_KCOV_SOURCES": rlocation_path(ctx, manifest),
+        "DX_KCOV_UPSTREAM": rlocation_path(ctx, exe),
+        "DX_TO_LCOV": rlocation_path(ctx, to_lcov.files_to_run.executable),
     })
     runfiles = ctx.runfiles(files = [manifest, exe, kcov] + sources).merge_all([
         upstream[DefaultInfo].default_runfiles,

@@ -1,6 +1,7 @@
 """LCOV coverage for Haskell test forwarders, converted from hpc."""
 
 load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
 
 _SCRIPT = """#!/usr/bin/env bash
 set -uo pipefail
@@ -41,11 +42,6 @@ def dx_haskell_coverage_attrs():
         ),
     }
 
-def _rlocation(ctx, file):
-    path = file.short_path
-    if path.startswith("../"):
-        return path[3:]
-    return ctx.workspace_name + "/" + path
 
 def dx_haskell_test_coverage(ctx, upstream):
     """Returns coverage providers that convert the upstream test's hpc data to LCOV."""
@@ -53,8 +49,8 @@ def dx_haskell_test_coverage(ctx, upstream):
     lcov = ctx.attr._dx_hpc_lcov[0][DefaultInfo]
     script = ctx.actions.declare_file(ctx.label.name + "_upstream_coverage.sh")
     ctx.actions.write(script, _SCRIPT.format(
-        upstream = _rlocation(ctx, upstream_exe),
-        lcov = _rlocation(ctx, lcov.files_to_run.executable),
+        upstream = rlocation_path(ctx, upstream_exe),
+        lcov = rlocation_path(ctx, lcov.files_to_run.executable),
     ), is_executable = True)
     instrumented = coverage_common.instrumented_files_info(
         ctx,

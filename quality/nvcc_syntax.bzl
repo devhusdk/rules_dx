@@ -163,6 +163,7 @@ def _nvcc_syntax_impl(target, ctx):
         log = ctx.actions.declare_file("dx_nvcc_syntax/%s.log" % stem)
         status = ctx.actions.declare_file("dx_nvcc_syntax/%s.exit" % stem)
         all_inputs = depset(transitive = [action.inputs, headers])
+        # run_shell: Redirects keep the log and the exit status of the command.
         ctx.actions.run_shell(
             mnemonic = "NvccSyntax",
             progress_message = "CUDA front-end check %{label}: " + src,

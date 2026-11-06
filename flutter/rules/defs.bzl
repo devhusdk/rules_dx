@@ -85,6 +85,7 @@ _flutter_application_forward = dx_library_forward_rule(
 
 def _missing_font_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".missing_font")
+    # run_shell: The action only prints the error to stderr and fails.
     ctx.actions.run_shell(
         outputs = [out],
         command = "echo 'flutter_library {}: fonts_json names font asset \"{}\" but font_files does not provide it' >&2; exit 1".format(ctx.label.name, ctx.attr.asset),

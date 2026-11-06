@@ -27,11 +27,7 @@ pub const HEADER_MARKER: &str = "# Vendored Bazel execution preset -- GENERATED"
 /// One generated line: the flag and the comment rendered directly above it.
 type Flag = (&'static str, &'static str);
 
-const UPSTREAM_FLAGS: [Flag; 3] = [
-    (
-        "common --enable_bzlmod",
-        "Resolve external dependencies through MODULE.bazel.",
-    ),
+const UPSTREAM_FLAGS: [Flag; 2] = [
     (
         "build --verbose_failures",
         "Print the full command line of a failed action.",
@@ -104,20 +100,10 @@ const BUILD_PROFILES: [Flag; 7] = [
     ),
 ];
 
-const RUNFILES_FLAGS: [Flag; 3] = [
-    (
-        "common --nolegacy_external_runfiles",
-        "Keep external repositories out of the main runfiles directory.",
-    ),
-    (
-        "build:windows --nobuild_runfile_links",
-        "On Windows, build runfiles trees only for actions that run.",
-    ),
-    (
-        "common --incompatible_strict_action_env",
-        "Give actions a fixed PATH instead of the host shell env.",
-    ),
-];
+const RUNFILES_FLAGS: [Flag; 1] = [(
+    "build:windows --nobuild_runfile_links",
+    "On Windows, build runfiles trees only for actions that run.",
+)];
 
 const WINDOWS_FLAGS: [Flag; 4] = [
     (
@@ -861,7 +847,6 @@ mod tests {
         assert_eq!(
             flag_sequence(&render_layer(Layer::Correctness, DEFAULT_REPO)),
             [
-                "common --enable_bzlmod",
                 "build --verbose_failures",
                 "test --test_output=errors",
                 "common --enable_platform_specific_config",
@@ -871,9 +856,7 @@ mod tests {
                 "coverage --enable_runfiles",
                 "coverage --instrumentation_filter=^//",
                 "coverage --instrument_test_targets",
-                "common --nolegacy_external_runfiles",
                 "build:windows --nobuild_runfile_links",
-                "common --incompatible_strict_action_env",
                 "build:windows --enable_runfiles",
                 "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
@@ -977,8 +960,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 39);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 39);
+        assert_eq!(total, 36);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 36);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1082,11 +1065,9 @@ mod tests {
     #[test]
     fn flag_lines_skip_comments_and_blanks() {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
-        assert!(flags.contains("common --enable_bzlmod"));
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 39);
+        assert_eq!(flags.len(), 36);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

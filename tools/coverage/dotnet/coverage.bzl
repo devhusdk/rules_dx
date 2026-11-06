@@ -1,5 +1,6 @@
 """Coverlet coverage for .NET test forwarders."""
 
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 
 DxDotnetCoverageInfo = provider(
@@ -54,11 +55,6 @@ def dx_dotnet_coverage_attrs():
         ),
     }
 
-def _rlocation(ctx, file):
-    path = file.short_path
-    if path.startswith("../"):
-        return path[3:]
-    return ctx.workspace_name + "/" + path
 
 def dx_dotnet_test_coverage(ctx, upstream):
     """Returns coverage providers that run the upstream .NET test under coverlet."""
@@ -78,10 +74,10 @@ def dx_dotnet_test_coverage(ctx, upstream):
     launcher = ctx.attr._dx_coverlet_launcher[DefaultInfo]
     lines = [
         "workspace\t" + ctx.workspace_name,
-        "upstream\t" + _rlocation(ctx, upstream_exe),
-        "coverlet\t" + _rlocation(ctx, coverlet.files_to_run.executable),
-        "test_assembly\t" + _rlocation(ctx, test_dll),
-    ] + ["instrument\t" + _rlocation(ctx, a) for a in assemblies]
+        "upstream\t" + rlocation_path(ctx, upstream_exe),
+        "coverlet\t" + rlocation_path(ctx, coverlet.files_to_run.executable),
+        "test_assembly\t" + rlocation_path(ctx, test_dll),
+    ] + ["instrument\t" + rlocation_path(ctx, a) for a in assemblies]
     config = ctx.actions.declare_file(ctx.label.name + ".coverlet.cfg")
     ctx.actions.write(config, "\n".join(lines) + "\n")
 
@@ -95,7 +91,7 @@ def dx_dotnet_test_coverage(ctx, upstream):
     if RunEnvironmentInfo in upstream:
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
-    env["DX_COVERLET_CONFIG"] = _rlocation(ctx, config)
+    env["DX_COVERLET_CONFIG"] = rlocation_path(ctx, config)
     runfiles = ctx.runfiles(
         files = [config, upstream_exe, coverlet.files_to_run.executable] + assemblies + pdbs,
         transitive_files = instrumented.instrumented_files,

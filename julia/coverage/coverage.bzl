@@ -1,5 +1,7 @@
 """Coverage.jl-style LCOV for Julia test forwarders."""
 
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
+
 DxJuliaCoverageInfo = provider(
     doc = "Instrumented first-party Julia sources under one target.",
     fields = {"files": "Depset of instrumented source files."},
@@ -35,11 +37,6 @@ def dx_julia_coverage_attrs():
         ),
     }
 
-def _rlocation(ctx, file):
-    path = file.short_path
-    if path.startswith("../"):
-        return path[3:]
-    return ctx.workspace_name + "/" + path
 
 def dx_julia_test_coverage(ctx, upstream):
     """Returns coverage providers that run the upstream Julia test and write LCOV."""
@@ -57,7 +54,7 @@ def dx_julia_test_coverage(ctx, upstream):
     paths = sorted({f.short_path: True for f in sources.to_list() if not f.short_path.startswith("../")}.keys())
     config = ctx.actions.declare_file(ctx.label.name + ".julia_coverage.cfg")
     ctx.actions.write(config, "\n".join(
-        ["workspace\t" + ctx.workspace_name, "upstream\t" + _rlocation(ctx, upstream_exe)] +
+        ["workspace\t" + ctx.workspace_name, "upstream\t" + rlocation_path(ctx, upstream_exe)] +
         ["source\t" + p for p in paths],
     ) + "\n")
     env = {}
@@ -65,7 +62,7 @@ def dx_julia_test_coverage(ctx, upstream):
     if RunEnvironmentInfo in upstream:
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
-    env["DX_JULIA_COVERAGE_CONFIG"] = _rlocation(ctx, config)
+    env["DX_JULIA_COVERAGE_CONFIG"] = rlocation_path(ctx, config)
     return struct(
         instrumented = instrumented,
         env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),

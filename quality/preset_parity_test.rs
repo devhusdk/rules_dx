@@ -34,7 +34,6 @@ fn preset_parity() {
         &[
             "GENERATED, do not edit",
             "Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.",
-            "common --enable_bzlmod",
             "build --verbose_failures",
             "test --test_output=errors",
             "common --enable_platform_specific_config",
@@ -58,7 +57,6 @@ fn preset_parity() {
             "common --repo_env=DO_NOT_TRACK=1",
             "build --@rules_dx//config:clippy_output_diagnostics=true",
             "build --@rules_dx//config:rustc_output_diagnostics=true",
-            "common --incompatible_strict_action_env",
             "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
             "startup --host_jvm_args=-XX:MinHeapFreeRatio=10",
             "startup --host_jvm_args=-XX:MaxRAMPercentage=25",

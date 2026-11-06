@@ -7,6 +7,7 @@ def _tsc_report_impl(ctx):
     if ctx.attr.kind == "exit":
         return [DefaultInfo(files = depset([info.status]))]
     out = ctx.actions.declare_file(ctx.label.name + ".txt")
+    # run_shell: A pipe and a redirect normalize the output.
     ctx.actions.run_shell(
         inputs = [info.stdout],
         outputs = [out],

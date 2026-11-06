@@ -1,5 +1,6 @@
 """Julia real quality aspects."""
 
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
@@ -49,11 +50,6 @@ SHARD_SPECS = {
     },
 }
 
-def _runfiles_path(ctx, file):
-    """Returns the runfiles-relative path of one file."""
-    if file.short_path.startswith("../"):
-        return file.short_path[3:]
-    return ctx.workspace_name + "/" + file.short_path
 
 def _jet_staging(target, ctx, path_to_file):
     """Returns the staged dependency sources and the analysis config of one Julia target."""
@@ -74,7 +70,7 @@ def _jet_staging(target, ctx, path_to_file):
         if f.is_directory or f.path in seen:
             continue
         seen[f.path] = True
-        staged.append(("dx-jet/rf/" + _runfiles_path(ctx, f), f))
+        staged.append(("dx-jet/rf/" + rlocation_path(ctx, f), f))
     config = ctx.actions.declare_file(target.label.name + "-jet-config.toml")
     ctx.actions.write(
         output = config,

@@ -61,6 +61,7 @@ def _wrong_arch_link_impl(ctx):
         variables = variables,
     )
     command = " ".join([tool] + [_quote(a) for a in args])
+    # run_shell: A redirect captures the linker output and exit code.
     ctx.actions.run_shell(
         outputs = [log],
         inputs = depset([archives[0]], transitive = [cc_toolchain.all_files]),

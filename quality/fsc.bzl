@@ -129,6 +129,7 @@ def _fsc_impl(target, ctx):
             toolchain.fsharp_compiler.default_runfiles.files,
         ],
     )
+    # run_shell: Redirects keep the log and the exit status of the command.
     ctx.actions.run_shell(
         mnemonic = "FSharpFsc",
         progress_message = "fsc diagnostics %{label}",

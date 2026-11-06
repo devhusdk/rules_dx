@@ -28,6 +28,11 @@ on:
         required: false
         default: true
         type: boolean
+      buf_breaking_on_pr:
+        description: "On pull_request events, run dx lint with --breaking-against so buf breaking compares the proto files with the pull request base."
+        required: false
+        default: false
+        type: boolean
       link_check_online:
         description: "Run dx lint with --online so lychee also checks external links. Pull requests always stay offline; call this workflow from a schedule to use it."
         required: false
@@ -192,13 +197,14 @@ jobs:
     env:
       DX_AFFECTED: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr }}
       DX_LINK_CHECK_ONLINE: ${{ github.event_name != 'pull_request' && inputs.link_check_online }}
+      DX_BUF_BREAKING: ${{ github.event_name == 'pull_request' && inputs.buf_breaking_on_pr }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-          fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || env.DX_AFFECTED == 'true' && '2' || '1' }}
+          fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || (env.DX_AFFECTED == 'true' || env.DX_BUF_BREAKING == 'true') && '2' || '1' }}
       - name: Pin the pull request base for --affected
-        if: ${{ env.DX_AFFECTED == 'true' || (github.event_name == 'pull_request' && needs.validate.outputs.min_changed_line_coverage != '') }}
+        if: ${{ env.DX_AFFECTED == 'true' || env.DX_BUF_BREAKING == 'true' || (github.event_name == 'pull_request' && needs.validate.outputs.min_changed_line_coverage != '') }}
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
           DX_PR_BASE: ${{ github.event.pull_request.base.sha }}
@@ -274,6 +280,9 @@ jobs:
             done
             if [ "$id" = "lint" ] && [ "$DX_LINK_CHECK_ONLINE" = "true" ]; then
               args+=(--online)
+            fi
+            if [ "$id" = "lint" ] && [ "$DX_BUF_BREAKING" = "true" ]; then
+              args+=(--breaking-against)
             fi
             args+=("$scope")
             if [ "$passthrough" = "true" ]; then

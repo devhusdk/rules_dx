@@ -417,6 +417,21 @@ fn link_check_online_is_off_by_default_and_never_runs_on_pull_requests() {
 }
 
 #[test]
+fn buf_breaking_is_off_by_default_and_runs_only_on_pull_requests() {
+    let doc = document(WORKFLOW);
+    let input = &doc["on"]["workflow_call"]["inputs"]["buf_breaking_on_pr"];
+    assert_eq!(input["type"], json!("boolean"), "{WORKFLOW} type");
+    assert_eq!(input["default"], json!(false), "{WORKFLOW} default");
+    let checks = job(WORKFLOW, MATRIX_JOB);
+    let breaking = scope_text(&checks["env"]["DX_BUF_BREAKING"]);
+    for needle in ["== 'pull_request'", "inputs.buf_breaking_on_pr"] {
+        assert!(breaking.contains(needle), "DX_BUF_BREAKING: {breaking}");
+    }
+    let script = text_at(&matrix_step("Run the checks")["run"], "checks run step");
+    assert!(script.contains("args+=(--breaking-against)"), "{script}");
+}
+
+#[test]
 fn mutate_is_off_by_default_and_runs_only_on_the_default_branch_schedule() {
     let doc = document(WORKFLOW);
     let input = &doc["on"]["workflow_call"]["inputs"]["mutate"];

@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::{flag_value, import_path, sets_flag, tokenize, unquote, MAX_IMPORT_DEPTH};
+use super::{MAX_IMPORT_DEPTH, flag_value, import_path, sets_flag, tokenize, unquote};
 
 const MAX_CONFIG_DEPTH: usize = 32;
 
@@ -205,9 +205,11 @@ fn rc_files(
     let mut files = Vec::new();
     if read_user_rc {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             if let Some(data) = non_empty("ProgramData") {
                 files.push(PathBuf::from(data).join("bazel.bazelrc"));
             }
+            // LCOV_EXCL_STOP
         } else {
             files.push(PathBuf::from("/etc/bazel.bazelrc"));
         }
@@ -276,9 +278,7 @@ fn load(
             continue;
         }
         let words = tokenize(line);
-        let Some(first) = words.first().map(String::as_str) else {
-            continue;
-        };
+        let first = words[0].as_str();
         if matches!(first, "import" | "try-import") {
             let rest = line[first.len()..].trim();
             let target = import_path(unquote(rest), workspace);

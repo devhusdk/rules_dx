@@ -1613,3 +1613,88 @@ fn a_stop_seen_after_registering_sends_one_sigint() {
     );
     assert_eq!(sigints(&log, 1), 1);
 }
+
+#[test]
+fn a_new_slot_is_free_and_unclaimed() {
+    let slot = Slot::new();
+    assert_eq!(slot.target.load(Ordering::SeqCst), 0);
+    assert!(!slot.claimed.load(Ordering::SeqCst));
+}
+
+#[test]
+fn a_zero_target_takes_no_slot() {
+    static TABLE: [Slot; 1] = [Slot::new()];
+    let forwarding = Forwarding::register_in(&TABLE, 0);
+    assert!(forwarding.slot.is_none());
+    assert!(!forwarding.claimed());
+    assert_eq!(TABLE[0].target.load(Ordering::SeqCst), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_zero_target_is_never_signaled() {
+    backend::send(0, 2);
+    assert!(!backend::tree_alive(0));
+}
+
+#[test]
+fn waiting_with_nothing_pending_returns() {
+    let mut pending = Vec::new();
+    await_drained(&mut pending, Instant::now() + Duration::from_millis(10));
+    assert!(pending.is_empty());
+}
+
+#[test]
+fn a_missing_pipe_drains_to_nothing() {
+    let rx = drain_pipe(None::<std::io::Empty>, 16);
+    assert!(matches!(
+        collect(&rx, Instant::now() + Duration::from_secs(10)),
+        Drain::Ready(buf) if buf.is_empty()
+    ));
+}
+
+struct FlakyPipe {
+    reads: u8,
+}
+
+impl io::Read for FlakyPipe {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.reads += 1;
+        match self.reads {
+            1 => Err(io::ErrorKind::Interrupted.into()),
+            2 => {
+                buf[..2].copy_from_slice(b"ok");
+                Ok(2)
+            }
+            _ => Err(io::ErrorKind::BrokenPipe.into()),
+        }
+    }
+}
+
+#[test]
+fn a_drain_retries_interrupts_and_keeps_what_it_read_after_an_error() {
+    let rx = drain_pipe(Some(FlakyPipe { reads: 0 }), 16);
+    assert!(matches!(
+        collect(&rx, Instant::now() + Duration::from_secs(10)),
+        Drain::Ready(buf) if buf == b"ok"
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_child_that_ignores_term_is_killed_after_the_graceful_wait() {
+    let script = "trap '' TERM; exec sleep 30";
+    let spec = controlled_spec(
+        vec!["/bin/sh".into(), "-c".into(), script.into()],
+        Duration::from_millis(200),
+    );
+    let budget = CleanupBudget {
+        graceful: Duration::from_millis(200),
+        forced: Duration::from_secs(5),
+        drain: Duration::from_secs(5),
+    };
+    assert_eq!(
+        run_within(&spec, budget).expect("timeout is an outcome"),
+        ChildOutcome::TimedOut
+    );
+}

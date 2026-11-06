@@ -149,3 +149,39 @@ fn a_missing_or_non_file_slot_keeps_the_open_error() {
     std::fs::create_dir(&dir).expect("dir");
     assert!(lock_slot(&dir, false).is_err());
 }
+
+#[test]
+fn the_tighter_of_memory_and_cgroup_limit_wins() {
+    assert_eq!(tightest(Some(8), Some(4)), Some(4));
+    assert_eq!(tightest(Some(4), Some(8)), Some(4));
+    assert_eq!(tightest(Some(8), None), Some(8));
+    assert_eq!(tightest(None, Some(4)), Some(4));
+    assert_eq!(tightest(None, None), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_slot_file_keeps_the_permission_error() {
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-unreadable-");
+    let path = slot_path(scratch.path(), 0);
+    std::fs::write(&path, "").expect("file");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).expect("chmod");
+    let error = lock_slot(&path, true).expect_err("no access");
+    assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_slot_file_locks_exclusive_and_reports_contention() {
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-exclusive-");
+    let path = slot_path(scratch.path(), 0);
+    std::fs::write(&path, "").expect("file");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+    let first = lock_slot(&path, false).expect("lock").expect("held");
+    assert!(matches!(lock_slot(&path, false), Ok(None)));
+    assert!(matches!(lock_slot(&path, true), Ok(None)));
+    drop(first);
+    assert!(matches!(lock_slot(&path, true), Ok(Some(_))));
+}

@@ -2,7 +2,7 @@ use super::*;
 
 use std::collections::HashMap;
 
-use crate::{build_workflow_argv_with, startup_argv_with, ArgvPolicy};
+use crate::{ArgvPolicy, build_workflow_argv_with, startup_argv_with};
 
 struct Machine {
     env: HashMap<&'static str, String>,
@@ -659,6 +659,29 @@ fn a_live_share_source_is_read_on_every_call() {
     assert_eq!(share().map(|s| s.cpus), Some(2));
     set_share(None);
     assert_eq!(share(), None);
+    let live = set_share_source(|| SHARE_4);
+    assert_eq!(share(), Some(SHARE_4));
+    clear_share_source(live);
+    assert_eq!(share(), None);
+}
+
+#[test]
+fn a_poisoned_share_lock_is_left_alone() {
+    let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    set_share(Some(SHARE_4));
+    let _ = std::thread::spawn(|| {
+        let _held = SHARE.write().expect("lock");
+        panic!("poison the share lock");
+    })
+    .join();
+    assert!(SHARE.is_poisoned());
+    set_share(None);
+    clear_share(&SHARE_4);
+    clear_share_source(set_share_source(|| SHARE_4));
+    assert_eq!(share(), None);
+    SHARE.clear_poison();
+    assert_eq!(share(), Some(SHARE_4));
+    set_share(None);
 }
 
 fn idle_delay(secs: u64) -> String {

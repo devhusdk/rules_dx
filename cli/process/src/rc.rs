@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, RwLock};
 
-use crate::{is_ci_value, WORKFLOW_STARTUP_OPTS};
+use crate::{WORKFLOW_STARTUP_OPTS, is_ci_value};
 
 pub(crate) const MAX_IMPORT_DEPTH: usize = 16;
 
@@ -425,9 +425,11 @@ fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
 fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<PathBuf> {
     let mut roots = Vec::new();
     if cfg!(windows) {
+        // LCOV_EXCL_START - reason: windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         if let Some(data) = env_get("ProgramData").filter(|value| !value.is_empty()) {
             roots.push(PathBuf::from(data).join("bazel.bazelrc"));
         }
+        // LCOV_EXCL_STOP
     } else {
         roots.push(PathBuf::from("/etc/bazel.bazelrc"));
     }
@@ -496,7 +498,7 @@ pub fn repository_caches(
         }
         bases.push(PathBuf::from("/private/var/tmp"));
         if cfg!(windows) {
-            bases.extend(non_empty("USERPROFILE").map(PathBuf::from));
+            bases.extend(non_empty("USERPROFILE").map(PathBuf::from)); // LCOV_EXCL_LINE - reason: windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         for base in bases {
             candidates.push(
@@ -694,7 +696,7 @@ pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
 mod sections;
 
 pub use sections::{
-    explicit_rc_files, nested_bazel_selected, remote_execution, startup_output_paths, StartupPaths,
+    StartupPaths, explicit_rc_files, nested_bazel_selected, remote_execution, startup_output_paths,
 };
 
 #[cfg(test)]

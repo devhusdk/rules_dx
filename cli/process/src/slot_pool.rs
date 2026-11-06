@@ -47,7 +47,7 @@ pub fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
         return Err(error);
     };
     if !file.metadata().is_ok_and(|meta| meta.is_file()) {
-        return Err(error);
+        return Err(error); // LCOV_EXCL_LINE - reason: a write-protected non-file slot cannot be built portably, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     let locked = if shared {
         file.try_lock_shared()
@@ -57,7 +57,16 @@ pub fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
     match locked {
         Ok(()) => Ok(Some(file)),
         Err(std::fs::TryLockError::WouldBlock) => Ok(None),
-        Err(std::fs::TryLockError::Error(_)) => Err(error),
+        Err(std::fs::TryLockError::Error(_)) => Err(error), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+    }
+}
+
+/// The smaller of the two limits that are known.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn tightest(total: Option<u64>, limit: Option<u64>) -> Option<u64> {
+    match (total, limit) {
+        (Some(total), Some(limit)) => Some(total.min(limit)),
+        (total, limit) => total.or(limit),
     }
 }
 
@@ -69,10 +78,7 @@ pub fn available_memory() -> Option<u64> {
             .ok()
             .and_then(|text| parse_meminfo(&text));
         let limit = cgroup_limit();
-        return match (total, limit) {
-            (Some(total), Some(limit)) => Some(total.min(limit)),
-            (total, limit) => total.or(limit),
-        };
+        return tightest(total, limit);
     }
     #[cfg(target_os = "macos")]
     {

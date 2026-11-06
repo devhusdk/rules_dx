@@ -5,9 +5,9 @@ use std::io;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc;
-use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 /// How the child sees the environment.
@@ -217,17 +217,20 @@ pub fn run_command_until(
                 let remaining = soft.saturating_duration_since(Instant::now());
                 std::thread::sleep(POLL_INTERVAL.min(remaining));
             }
+            // LCOV_EXCL_START - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             Err(err) => {
                 wait_error = Some(err);
                 break;
-            }
+            } // LCOV_EXCL_STOP
         }
     }
+    // LCOV_EXCL_START - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     if let Some(err) = wait_error {
         backend::terminate_forced(&mut owned);
         let _ = poll_exit(&mut owned, hard);
         return Err(err);
     }
+    // LCOV_EXCL_STOP
     match status {
         Some(exit) => {
             backend::end_owned_descendants(&mut owned);
@@ -297,7 +300,7 @@ fn poll_exit(owned: &mut backend::OwnedChild, until: Instant) -> Option<ExitStat
                 }
                 std::thread::sleep(POLL_INTERVAL.min(until - now));
             }
-            Err(_) => return None,
+            Err(_) => return None, // LCOV_EXCL_LINE - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
 }
@@ -313,7 +316,7 @@ fn collect(rx: &mpsc::Receiver<Vec<u8>>, until: Instant) -> Drain {
     match rx.recv_timeout(remaining) {
         Ok(buf) => Drain::Ready(buf),
         Err(mpsc::RecvTimeoutError::Timeout) => Drain::Late,
-        Err(mpsc::RecvTimeoutError::Disconnected) => Drain::Panicked,
+        Err(mpsc::RecvTimeoutError::Disconnected) => Drain::Panicked, // LCOV_EXCL_LINE - reason: the drain thread cannot panic, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -457,9 +460,11 @@ pub fn console_stop_signal(ctrl_type: u32) -> Option<i32> {
 }
 
 /// Records a stop signal and forwards it once to each running child's group; safe inside a signal handler.
+// LCOV_EXCL_START - reason: the signal handler entry records a process-wide interrupt, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 pub fn forward_stop(signo: i32) {
     forward_from(&FORWARDS, signo, crate::record_interrupt);
 }
+// LCOV_EXCL_STOP
 
 fn forward_from(slots: &[Slot], signo: i32, record: fn(i32)) {
     let mut targets = [0; FORWARD_SLOTS];
@@ -490,7 +495,7 @@ pub fn terminal_foreground() -> bool {
 /// The group a streamed child joins: the terminal foreground when this process holds it, else its own.
 pub fn stream_group() -> StreamGroup {
     if terminal_foreground() {
-        StreamGroup::Terminal
+        StreamGroup::Terminal // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     } else {
         StreamGroup::Owned
     }
@@ -613,7 +618,7 @@ pub(crate) fn run_streamed_in(
     };
     let group = match (&job, owned) {
         (_, true) => backend::Group::Owned,
-        (Some(job), false) => backend::Group::Join(job.pgid()),
+        (Some(job), false) => backend::Group::Join(job.pgid()), // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         (None, false) => backend::Group::Own,
     };
     let own_group = matches!(group, backend::Group::Own);
@@ -630,7 +635,7 @@ pub(crate) fn run_streamed_in(
     let target = backend::stream_target(&child, group);
     let mut forwarding = Forwarding::register(target);
     if let Some(job) = job.as_ref() {
-        record_reported(job);
+        record_reported(job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     let mut stopped = stop();
     if let Some(signal) = stopped.filter(|_| !forwarding.claimed()) {
@@ -652,15 +657,16 @@ pub(crate) fn run_streamed_in(
         match child.try_wait() {
             Ok(Some(status)) => break Some(status),
             Ok(None) => {}
+            // LCOV_EXCL_START - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             Err(err) => {
                 backend::force_stream(&mut child, target);
                 drop(job);
                 return Err(err);
-            }
+            } // LCOV_EXCL_STOP
         }
         if let Some(job) = job.as_ref() {
-            record_reported(job);
-            job.tend(child.id() as i32);
+            record_reported(job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            job.tend(child.id() as i32); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         if stopped.is_none() {
             stopped = stop();
@@ -680,14 +686,14 @@ pub(crate) fn run_streamed_in(
             abandon_at = Some(now + cleanup.forced);
         }
         if abandon_at.is_some_and(|at| now >= at) {
-            break None;
+            break None; // LCOV_EXCL_LINE - reason: a child that survives SIGKILL cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         std::thread::sleep(POLL_INTERVAL);
     };
     if !owned {
         forwarding.clear();
         if let Some(job) = job.take() {
-            record_reported(&job);
+            record_reported(&job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
     let deadline = Instant::now() + cleanup.drain;
@@ -734,11 +740,13 @@ pub(crate) fn run_streamed_in(
 }
 
 /// Records the stop signals the terminal delivered straight to the child's group; they are not forwarded again.
+// LCOV_EXCL_START - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 fn record_reported(job: &backend::TerminalJob) {
     while let Some(signo) = job.take_reported() {
         crate::record_interrupt(signo);
     }
 }
+// LCOV_EXCL_STOP
 
 fn settle_owned_tree(target: i32, cleanup: CleanupBudget) {
     if !wait_tree_gone(target, Instant::now() + cleanup.graceful) {
@@ -857,6 +865,7 @@ mod backend {
             }
             let parent = std::process::id() as i32;
             unsafe {
+                // LCOV_EXCL_START - reason: runs in the forked child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 command.pre_exec(move || {
                     prctl(PR_SET_PDEATHSIG, SIGTERM as u64, 0, 0, 0);
                     if getppid() != parent {
@@ -864,6 +873,7 @@ mod backend {
                     }
                     Ok(())
                 });
+                // LCOV_EXCL_STOP
             }
         }
 
@@ -933,6 +943,7 @@ mod backend {
             // SAFETY: the hook only calls fcntl on descriptors collected before
             // the fork; it allocates nothing and takes no locks.
             unsafe {
+                // LCOV_EXCL_START - reason: runs in the forked child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 command.pre_exec(move || {
                     for &fd in &fds {
                         let flags = fcntl(fd, F_GETFD);
@@ -942,6 +953,7 @@ mod backend {
                     }
                     Ok(())
                 });
+                // LCOV_EXCL_STOP
             }
         }
 
@@ -956,9 +968,11 @@ mod backend {
                     command.process_group(0);
                     stop_with_parent(command);
                 }
+                // LCOV_EXCL_START - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 Group::Join(pgid) => {
                     command.process_group(pgid);
                 }
+                // LCOV_EXCL_STOP
                 Group::Own => {
                     command.process_group(0);
                 }
@@ -970,7 +984,7 @@ mod backend {
         /// The negative group id every forwarded signal goes to.
         pub fn stream_target(child: &Child, group: Group) -> i32 {
             match group {
-                Group::Join(pgid) => -pgid,
+                Group::Join(pgid) => -pgid, // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 Group::Owned | Group::Own => -(child.id() as i32),
             }
         }
@@ -1013,8 +1027,8 @@ mod backend {
             let Ok(tty) = std::fs::File::open("/dev/tty") else {
                 return false;
             };
-            let foreground = unsafe { tcgetpgrp(tty.as_raw_fd()) };
-            foreground > 0 && foreground == unsafe { getpgrp() }
+            let foreground = unsafe { tcgetpgrp(tty.as_raw_fd()) }; // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            foreground > 0 && foreground == unsafe { getpgrp() } // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
 
@@ -1430,13 +1444,13 @@ mod backend {
     }
 
     #[cfg(unix)]
-    pub use super::terminal::{allow_background_tty_writes, TerminalJob};
+    pub use super::terminal::{TerminalJob, allow_background_tty_writes};
 
     #[cfg(unix)]
     pub use unix::{
-        end_owned_descendants, force_stream, send, send_kill, spawn_owned, spawn_streamed,
-        stream_target, terminal_foreground, terminate_forced, terminate_graceful,
-        termination_signal, tree_alive, OwnedChild,
+        OwnedChild, end_owned_descendants, force_stream, send, send_kill, spawn_owned,
+        spawn_streamed, stream_target, terminal_foreground, terminate_forced, terminate_graceful,
+        termination_signal, tree_alive,
     };
 
     #[cfg(not(unix))]
@@ -1506,16 +1520,16 @@ mod backend {
     pub use plain_stream::spawn_streamed;
     #[cfg(not(unix))]
     pub use plain_stream::{
-        allow_background_tty_writes, force_stream, send, send_kill, stream_target,
-        terminal_foreground, tree_alive, TerminalJob,
+        TerminalJob, allow_background_tty_writes, force_stream, send, send_kill, stream_target,
+        terminal_foreground, tree_alive,
     };
     #[cfg(not(unix))]
     pub fn end_owned_descendants(_owned: &mut OwnedChild) {}
 
     #[cfg(windows)]
     pub use windows::{
-        install_console_stop, spawn_owned, spawn_streamed, terminate_forced, terminate_graceful,
-        termination_signal, OwnedChild,
+        OwnedChild, install_console_stop, spawn_owned, spawn_streamed, terminate_forced,
+        terminate_graceful, termination_signal,
     };
 
     #[cfg(not(any(unix, windows)))]
@@ -1566,7 +1580,7 @@ mod backend {
 
     #[cfg(not(any(unix, windows)))]
     pub use portable::{
-        spawn_owned, terminate_forced, terminate_graceful, termination_signal, OwnedChild,
+        OwnedChild, spawn_owned, terminate_forced, terminate_graceful, termination_signal,
     };
 }
 

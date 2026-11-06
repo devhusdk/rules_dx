@@ -35,6 +35,7 @@ pub struct TerminalJob {
     _guard: Guard,
 }
 
+// LCOV_EXCL_START - reason: needs a controlling terminal in the foreground, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 impl TerminalJob {
     /// Starts a watcher-led foreground group, or `None` when this process
     /// has no terminal in the foreground or any step fails.
@@ -154,6 +155,7 @@ impl Drop for TerminalJob {
         }
     }
 }
+// LCOV_EXCL_STOP
 
 /// Lets this thread write to the terminal while dx is in the background.
 pub fn allow_background_tty_writes() {
@@ -199,7 +201,7 @@ fn report_pipe() -> Option<(File, File)> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC | libc::O_NONBLOCK) } != 0 {
-            return None;
+            return None; // LCOV_EXCL_LINE - reason: pipe2 fails only without descriptors, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -232,7 +234,7 @@ unsafe fn from_parent(info: *const libc::siginfo_t) -> bool {
     if cfg!(any(target_os = "linux", target_os = "android")) {
         unsafe { (*info).si_code <= 0 }
     } else {
-        true
+        true // LCOV_EXCL_LINE - reason: other unix hosts, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -256,6 +258,7 @@ unsafe fn report(signo: libc::c_int) {
     }
 }
 
+// LCOV_EXCL_START - reason: runs only in the forked watcher, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 /// Closes every descriptor from 3 up except `keep`.
 unsafe fn close_others(keep: i32) {
     #[cfg(target_os = "linux")]
@@ -334,6 +337,8 @@ unsafe fn watch(parent: i32, report: i32) -> ! {
         }
     }
 }
+
+// LCOV_EXCL_STOP
 
 #[cfg(test)]
 #[path = "terminal_tests.rs"]

@@ -80,7 +80,7 @@ lines join the Erlang lines in the report.
 `erlang_app` and `test_erlang_app` pass `tags` to every target they build; the
 generated targets are `manual`, so `//...` builds only the app.
 
-`DEFAULT_ERLC_OPTS` and `DEFAULT_TEST_ERLC_OPTS` hold the default flags.
+`DEFAULT_TEST_ERLC_OPTS` holds the default test flags.
 
 Tests run without `epmd` and without a distributed node. `ct_suite` writes its
 logs to the test's undeclared outputs.

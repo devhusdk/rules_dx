@@ -1,11 +1,11 @@
 load("//modules:powershell.bzl", "PWSH_VERSION")
-load("//powershell/rules:defs.bzl", "pwsh_binary")
+load("//powershell/rules:defs.bzl", "powershell_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-pwsh_binary(
+powershell_binary(
     name = "version",
     srcs = ["Version.ps1"],
 )

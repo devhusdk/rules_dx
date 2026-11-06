@@ -1,4 +1,4 @@
-load("//powershell/rules:defs.bzl", "pwsh_library", "pwsh_test")
+load("//powershell/rules:defs.bzl", "powershell_library", "powershell_test")
 load("//powershell/rules:wrapper_tests.bzl", "pwsh_coverage_env_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -7,12 +7,12 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-pwsh_library(
+powershell_library(
     name = "greeter_lib",
     srcs = ["Greeter.psm1"],
 )
 
-pwsh_test(
+powershell_test(
     name = "greeter_test",
     srcs = ["Greeter.Tests.ps1"],
     data = ["Greeter.Describe.ps1"],

@@ -22,9 +22,10 @@ Load the rules from `@rules_dx//elixir/rules:defs.bzl`. They wrap
 attributes.
 
 ```python
-load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "escript_archive", "escript_headers", "ex_unit_test")
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "elixir_test", "escript_archive", "escript_headers")
 
 elixir_app(
+    name = "erlang_app",
     app_name = "stock",
     app_version = "1.0.0",
     app_module = "Stock.Application",
@@ -32,7 +33,7 @@ elixir_app(
     deps = ["//catalog:erlang_app"],
 )
 
-ex_unit_test(
+elixir_test(
     name = "ledger_test",
     srcs = [
         "test/ledger_test.exs",
@@ -51,7 +52,7 @@ escript_archive(
 | Rule | What it makes |
 | --- | --- |
 | `elixir_app` | OTP application from `lib/**/*.ex`, compiled with `--warnings-as-errors` |
-| `ex_unit_test` | ExUnit test; `test_helper.exs` in `srcs` runs first |
+| `elixir_test` | ExUnit test; `test_helper.exs` in `srcs` runs first |
 | `escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
 
 - `elixir_app` is named `erlang_app` unless you pass `name`.
@@ -120,7 +121,7 @@ rules_dx is not released yet. Install starts with the first BCR release.
 5. Run `bazel test //...`.
 
 Each directory with a `mix.exs` gets one `elixir_app` from `lib/**/*.ex` and
-one `ex_unit_test` from `test/**/*_test.exs` and `test/test_helper.exs`. An
+one `elixir_test` from `test/**/*_test.exs` and `test/test_helper.exs`. An
 umbrella root gets no rule. A module named in code resolves to the
 `elixir_app` that defines it. Modules that ship with Elixir need no dependency.
 
@@ -185,11 +186,11 @@ See `docs/cli/commands/quality.md`.
 | `linux_x86_64` | Qualified |
 | `linux_arm64` | Qualified |
 | `macos_arm64` | Qualified |
-| `windows_x86_64` | Qualified for build, `ex_unit_test`, `mix_format` and `credo`. No dialyzer yet. |
-| `windows_arm64` | Qualified for build, `ex_unit_test`, `mix_format` and `credo`. No dialyzer yet. |
+| `windows_x86_64` | Qualified for build, `elixir_test`, `mix_format` and `credo`. No dialyzer yet. |
+| `windows_arm64` | Qualified for build, `elixir_test`, `mix_format` and `credo`. No dialyzer yet. |
 
 On other platforms Elixir targets fail toolchain resolution.
 
 ## Coverage
 
-`ex_unit_test` writes LCOV under `dx coverage`. A script cover-compiles the workspace apps in the test's `deps` and writes their line hits when the VM exits. Apps from other repositories are not counted. Tag a test `no-coverage` to skip it.
+`elixir_test` writes LCOV under `dx coverage`. A script cover-compiles the workspace apps in the test's `deps` and writes their line hits when the VM exits. Apps from other repositories are not counted. Tag a test `no-coverage` to skip it.

@@ -72,7 +72,7 @@ var conformanceRows = map[string]conformanceRow{
 			"lib/demo.ex": "defmodule Demo do\n  def f, do: true\nend\n",
 		},
 		kind: "elixir_app", target: "demo", defs: "elixir/rules:defs.bzl",
-		symbols: []string{"elixir_app", "ex_unit_test"},
+		symbols: []string{"elixir_app", "elixir_test"},
 		oldSrcs: []string{"lib/old.ex"},
 	},
 	"erlang": {
@@ -153,8 +153,8 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"powershell": {
 		files: map[string]string{"Demo.psm1": "function Get-Greeting { 'hi' }\n"},
-		kind:  "pwsh_library", target: "demo", defs: "powershell/rules:defs.bzl",
-		symbols: []string{"pwsh_library", "pwsh_test"},
+		kind:  "powershell_library", target: "demo", defs: "powershell/rules:defs.bzl",
+		symbols: []string{"powershell_library", "powershell_test"},
 		oldSrcs: []string{"Old.psm1"},
 	},
 	"protobuf": {

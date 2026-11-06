@@ -75,7 +75,7 @@ ocaml_test(
 
 - A module is named after its target, capitalized. A module with an
   `ocaml_signature` in `sig` is named after the `.mli` file.
-- `ocamllex` and `ocamlyacc` are re-exported unchanged.
+- `ocamllex` is re-exported unchanged, because lexers need it to build.
 - Modules and signatures compile with `-bin-annot` (opt out with
   `-no-bin-annot`) and expose their `.cmt` and `.cmti` files through
   `OCamlCmtInfo` (`//ocaml/rules:providers.bzl`) and the `cmt` and `cmti`

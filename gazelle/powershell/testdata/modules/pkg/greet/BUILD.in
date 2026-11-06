@@ -1,25 +1,25 @@
-load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
+load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 
 # gazelle:dx_ignore_import powershell Pester
 
-pwsh_binary(
+powershell_binary(
     name = "hello",
     srcs = ["Hello.ps1"],
     deps = [":greet"],
 )
 
-pwsh_test(
+powershell_test(
     name = "greet_test",
     srcs = ["Greet.Tests.ps1"],
     data = ["Greet.Describe.ps1"],
 )
 
-pwsh_test(
+powershell_test(
     name = "old_test",
     srcs = ["Old.Tests.ps1"],
 )
 
-pwsh_test(
+powershell_test(
     name = "pack_test",
     srcs = ["pack_test.ps1"],
     deps = [":greet"],

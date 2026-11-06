@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary")
 load("@rules_erlang//:ct.bzl", _ct_suite = "ct_suite")
-load("@rules_erlang//:erlang_app.bzl", _DEFAULT_ERLC_OPTS = "DEFAULT_ERLC_OPTS", _DEFAULT_TEST_ERLC_OPTS = "DEFAULT_TEST_ERLC_OPTS", _erlang_app = "erlang_app", _test_erlang_app = "test_erlang_app")
+load("@rules_erlang//:erlang_app.bzl", _DEFAULT_TEST_ERLC_OPTS = "DEFAULT_TEST_ERLC_OPTS", _erlang_app = "erlang_app", _test_erlang_app = "test_erlang_app")
 load("@rules_erlang//:erlang_app_info.bzl", "flat_deps", _ErlangAppInfo = "ErlangAppInfo")
 load("@rules_erlang//:erlang_bytecode2.bzl", _erlang_bytecode = "erlang_bytecode", _erlc_opts = "erlc_opts")
 load("@rules_erlang//:erlang_xrl_yrl.bzl", _erlang_xrl_yrl = "erlang_xrl_yrl")
@@ -28,10 +28,9 @@ ERLANG_NIF_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ERLANG_CELLS 
 
 ERLANG_DIALYZER_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ERLANG_CELLS if cell not in OTP_DIALYZER_UNPORTED_CELLS])
 
-DEFAULT_ERLC_OPTS = _DEFAULT_ERLC_OPTS
-
 DEFAULT_TEST_ERLC_OPTS = _DEFAULT_TEST_ERLC_OPTS
 
+# Re-exported unchanged: BUILD files need it.
 erlc_opts = _erlc_opts
 
 erlang_xrl_yrl = _erlang_xrl_yrl

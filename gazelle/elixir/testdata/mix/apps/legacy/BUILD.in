@@ -1,4 +1,4 @@
-load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "ex_unit_test")
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "elixir_test")
 
 elixir_app(
     name = "erlang_app",
@@ -7,12 +7,12 @@ elixir_app(
     app_version = "9.9.9",
 )
 
-ex_unit_test(
+elixir_test(
     name = "a_test",
     srcs = ["test/a_test.exs"],
 )
 
-ex_unit_test(
+elixir_test(
     name = "b_test",
     srcs = [
         "test/b_test.exs",

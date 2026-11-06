@@ -1,6 +1,6 @@
-load("@rules_dx//powershell/rules:defs.bzl", "pwsh_library")
+load("@rules_dx//powershell/rules:defs.bzl", "powershell_library")
 
-pwsh_library(
+powershell_library(
     name = "app",
     srcs = ["App.psm1"],
     visibility = ["//visibility:public"],

@@ -9,7 +9,7 @@ import (
 
 const (
 	AppKind      = "elixir_app"
-	TestKind     = "ex_unit_test"
+	TestKind     = "elixir_test"
 	MixFile      = "mix.exs"
 	LibDir       = "lib"
 	TestDir      = "test"

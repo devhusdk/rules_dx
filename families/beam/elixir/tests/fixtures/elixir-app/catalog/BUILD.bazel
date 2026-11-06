@@ -1,4 +1,4 @@
-load("@rules_dx//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app", "ex_unit_test")
+load("@rules_dx//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app", "elixir_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -28,6 +28,7 @@ printf 'defmodule Catalog.Units do\\n  @moduledoc false\\n\\n  def all, do: [%s]
 )
 
 elixir_app(
+    name = "erlang_app",
     srcs = glob(["lib/**/*.ex"]) + [":units"],
     app_description = "Item parsing and JSON ledgers.",
     app_name = "catalog",
@@ -37,7 +38,7 @@ elixir_app(
     deps = ["@elixir_app_deps//:jason"],
 )
 
-ex_unit_test(
+elixir_test(
     name = "catalog_test",
     srcs = [
         "test/catalog_test.exs",

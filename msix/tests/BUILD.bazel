@@ -2,7 +2,7 @@ load("//cc/rules:defs.bzl", "cc_binary")
 load("//msix:defs.bzl", "dx_msix", "msix_sign")
 load("//msix:repos.bzl", "UNACCEPTED")
 load("//msix:toolchain.bzl", "msix_toolchain")
-load("//powershell/rules:defs.bzl", "pwsh_test")
+load("//powershell/rules:defs.bzl", "powershell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":cell_tests.bzl", "arch_on_arm64_test", "arch_on_x64_test", "arm64_action_test", "attribute_failure_test", "data_paths_test", "fake_exe", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
 load(":transition.bzl", "msix_variant")
@@ -435,7 +435,7 @@ msix_variant(
     platform = "@llvm//platforms:windows_aarch64",
 )
 
-pwsh_test(
+powershell_test(
     name = "pack_test",
     srcs = ["pack_test.ps1"],
     data = [
@@ -493,7 +493,7 @@ dx_msix(
     version = "1.2.3.0",
 )
 
-pwsh_test(
+powershell_test(
     name = "tools_test",
     srcs = ["tools_test.ps1"],
     data = [
@@ -508,7 +508,7 @@ pwsh_test(
     deps = ["@rules_powershell//powershell/runfiles"],
 )
 
-pwsh_test(
+powershell_test(
     name = "inspect_test",
     srcs = ["inspect_test.ps1"],
     data = [
@@ -525,7 +525,7 @@ pwsh_test(
     deps = ["@rules_powershell//powershell/runfiles"],
 )
 
-pwsh_test(
+powershell_test(
     name = "sign_test",
     srcs = ["sign_test.ps1"],
     data = [
@@ -554,7 +554,7 @@ sign_env_test(
 
 # size: medium, timed out at 300s on windows, see #6357
 [
-    pwsh_test(
+    powershell_test(
         name = "install_" + case + "_test",
         size = "medium",
         srcs = ["install_test.ps1"],

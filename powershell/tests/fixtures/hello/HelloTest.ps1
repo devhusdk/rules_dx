@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Plain pwsh_test for the hello fixture (exit code is the verdict).
+# Plain powershell_test for the hello fixture (exit code is the verdict).
 # Pester mapping lives in //powershell/tests/fixtures/pester.
 $ErrorActionPreference = "Stop"
 $expected = "hello powershell"

@@ -10,6 +10,7 @@ load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_e
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_extra_toolchains", "swift_linux_platform", "swift_linux_transition")
 
+# Re-exported unchanged: BUILD files need it to expose C modules to Swift.
 swift_interop_hint = _swift_interop_hint
 
 _PLATFORM_ATTR = {

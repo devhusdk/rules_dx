@@ -1,4 +1,4 @@
-load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "escript_archive", "escript_headers", "ex_unit_test")
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "elixir_test", "escript_archive", "escript_headers")
 
 elixir_app(
     name = "demo-app",
@@ -12,7 +12,7 @@ escript_archive(
     headers = escript_headers("Hello.CLI"),
 )
 
-ex_unit_test(
+elixir_test(
     name = "demo-app_test",
     srcs = [
         "test/hello_test.exs",

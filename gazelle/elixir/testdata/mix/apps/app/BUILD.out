@@ -1,4 +1,4 @@
-load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "ex_unit_test")
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "elixir_test")
 
 elixir_app(
     name = "app",
@@ -17,7 +17,7 @@ elixir_app(
     ],
 )
 
-ex_unit_test(
+elixir_test(
     name = "app_test",
     srcs = [
         "test/app_test.exs",

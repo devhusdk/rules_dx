@@ -14,7 +14,7 @@ import (
 )
 
 // UnresolvedHint tells users how to settle an import no rule owns.
-const UnresolvedHint = "add a pwsh_library that owns that module, an exact # gazelle:resolve powershell mapping; module names match case-sensitively"
+const UnresolvedHint = "add a powershell_library that owns that module, an exact # gazelle:resolve powershell mapping; module names match case-sensitively"
 
 var pwshKinds = map[string]rule.KindInfo{
 	LibraryKind: common.LibraryKindInfo(),
@@ -52,7 +52,7 @@ func isModuleFile(src string) bool {
 	return strings.HasSuffix(src, ModuleExt) || strings.HasSuffix(src, ManifestExt)
 }
 
-// Imports indexes a pwsh_library once per module, so Greet.psd1 and
+// Imports indexes a powershell_library once per module, so Greet.psd1 and
 // Greet.psm1 together export a single Greet.
 func (l *pwshLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind {

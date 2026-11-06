@@ -1,4 +1,4 @@
-load("//powershell/rules:defs.bzl", "pwsh_library")
+load("//powershell/rules:defs.bzl", "powershell_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -42,7 +42,7 @@ powershell_doc_shard(
     package = "Scoped",
 )
 
-pwsh_library(
+powershell_library(
     name = "tally_library",
     srcs = ["Tally/Tally.psm1"],
 )

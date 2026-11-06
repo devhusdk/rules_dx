@@ -73,7 +73,7 @@ func TestOwns(t *testing.T) {
 		{mk(TestKind, "pack_test.ps1"), false},
 		{mk(TestKind, "consumers/msix/A.Tests.ps1"), false},
 		{mk(TestKind, "A.Tests.ps1", "B.Tests.ps1"), false},
-		{mk("pwsh_binary", "Hello.ps1"), false},
+		{mk("powershell_binary", "Hello.ps1"), false},
 	}
 	for _, tc := range cases {
 		if got := Owns(tc.r); got != tc.want {

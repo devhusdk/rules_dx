@@ -1,4 +1,4 @@
-load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "ex_unit_test")
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "elixir_test")
 
 elixir_app(
     name = "erlang_app",
@@ -9,7 +9,7 @@ elixir_app(
     visibility = ["//visibility:public"],
 )
 
-ex_unit_test(
+elixir_test(
     name = "legacy_test",
     srcs = [
         "test/a_test.exs",

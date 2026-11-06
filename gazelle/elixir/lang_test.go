@@ -84,7 +84,7 @@ func TestGenerateAppAndTest(t *testing.T) {
 	if lang.(*elixirLang).Failed() {
 		t.Fatal(errorsText(lang))
 	}
-	want := "elixir_app:app:lib/app.ex,ex_unit_test:app_test:test/app_test.exs+test/test_helper.exs"
+	want := "elixir_app:app:lib/app.ex,elixir_test:app_test:test/app_test.exs+test/test_helper.exs"
 	if got := summary(result); got != want {
 		t.Fatalf("rules = %s, want %s", got, want)
 	}
@@ -139,14 +139,14 @@ func TestGenerateSkipsMixDepsAndBuild(t *testing.T) {
 func TestGenerateReusesNamedApp(t *testing.T) {
 	file := buildFile(t, `elixir_app(name = "erlang_app", app_name = "app", app_env = "[]")
 
-ex_unit_test(name = "app_test_old", srcs = ["test/app_test.exs"])
+elixir_test(name = "app_test_old", srcs = ["test/app_test.exs"])
 `)
 	lang := NewLanguage()
 	result := generate(t, lang, "apps/app", file, appTree)
 	if lang.(*elixirLang).Failed() {
 		t.Fatal(errorsText(lang))
 	}
-	want := "elixir_app:erlang_app:lib/app.ex,ex_unit_test:app_test_old:test/app_test.exs+test/test_helper.exs"
+	want := "elixir_app:erlang_app:lib/app.ex,elixir_test:app_test_old:test/app_test.exs+test/test_helper.exs"
 	if got := summary(result); got != want || len(result.Empty) != 0 {
 		t.Fatalf("rules = %s (empty %d), want %s", got, len(result.Empty), want)
 	}
@@ -157,9 +157,9 @@ func TestGenerateRemovesOnlyOwnedRules(t *testing.T) {
 
 elixir_app(name = "gen", srcs = [":gen_src"], app_name = "gen")
 
-ex_unit_test(name = "a_test", srcs = ["test/a_test.exs"])
+elixir_test(name = "a_test", srcs = ["test/a_test.exs"])
 
-ex_unit_test(name = "b_test", srcs = ["test/b_test.exs", "test/support/x.ex"])
+elixir_test(name = "b_test", srcs = ["test/b_test.exs", "test/support/x.ex"])
 `)
 	lang := NewLanguage()
 	result := generate(t, lang, "apps/app", file, appTree)
@@ -167,7 +167,7 @@ ex_unit_test(name = "b_test", srcs = ["test/b_test.exs", "test/support/x.ex"])
 	for _, r := range result.Empty {
 		empty = append(empty, r.Kind()+":"+r.Name())
 	}
-	if got := strings.Join(empty, ","); got != "elixir_app:old,ex_unit_test:a_test" {
+	if got := strings.Join(empty, ","); got != "elixir_app:old,elixir_test:a_test" {
 		t.Errorf("removed = %s", got)
 	}
 }
@@ -199,7 +199,7 @@ func TestGenerateFollowsSymlinkedLibAndTest(t *testing.T) {
 	if lang.(*elixirLang).Failed() {
 		t.Fatal(errorsText(lang))
 	}
-	want := "elixir_app:web:lib/app.ex,ex_unit_test:web_test:test/app_test.exs+test/test_helper.exs"
+	want := "elixir_app:web:lib/app.ex,elixir_test:web_test:test/app_test.exs+test/test_helper.exs"
 	if got := summary(result); got != want || len(result.Empty) != 0 {
 		t.Fatalf("rules = %s (empty %d), want %s", got, len(result.Empty), want)
 	}

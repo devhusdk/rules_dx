@@ -24,9 +24,9 @@ Load the rules from `@rules_dx//powershell/rules:defs.bzl`. They wrap
 the same attributes.
 
 ```python
-load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
+load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 
-pwsh_library(
+powershell_library(
     name = "hello_lib",
     srcs = [
         "Hello.psd1",
@@ -34,14 +34,14 @@ pwsh_library(
     ],
 )
 
-pwsh_binary(
+powershell_binary(
     name = "hello",
     srcs = ["Main.ps1"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [":hello_lib"],
 )
 
-pwsh_test(
+powershell_test(
     name = "hello_test",
     srcs = ["Hello.Tests.ps1"],
     target_compatible_with = ["@platforms//os:linux"],
@@ -51,9 +51,9 @@ pwsh_test(
 
 | Rule | What it makes |
 | --- | --- |
-| `pwsh_library` | Module from `.ps1`, `.psm1` and `.psd1` files |
-| `pwsh_binary` | Script run with `bazel run`. `srcs` takes `.ps1` files and is optional |
-| `pwsh_test` | Script run with `bazel test`. `srcs` takes `.ps1` files |
+| `powershell_library` | Module from `.ps1`, `.psm1` and `.psd1` files |
+| `powershell_binary` | Script run with `bazel run`. `srcs` takes `.ps1` files and is optional |
+| `powershell_test` | Script run with `bazel test`. `srcs` takes `.ps1` files |
 
 ## Gallery modules
 
@@ -77,7 +77,7 @@ module name. A wrong digest fails the fetch.
 ## Pester
 
 To test with the pinned Pester 5.7.1, add `@rules_dx//powershell/gallery:pester`
-to the `deps` of a `pwsh_test` and import it by version:
+to the `deps` of a `powershell_test` and import it by version:
 
 ```powershell
 Import-Module Pester -RequiredVersion 5.7.1
@@ -108,8 +108,8 @@ bazel run @rules_dx//:dx -- lint //scripts/...
 
 ## Generating BUILD files
 
-`dx generate --apply` writes a `pwsh_library` per directory of `.psm1`
-modules and a `pwsh_test` per `*.Tests.ps1` script. The
+`dx generate --apply` writes a `powershell_library` per directory of `.psm1`
+modules and a `powershell_test` per `*.Tests.ps1` script. The
 `powershell/tests/fixtures/adopt-powershell` tree shows a full layout.
 
 ## Platforms

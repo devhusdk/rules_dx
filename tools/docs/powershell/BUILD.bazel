@@ -1,4 +1,4 @@
-load("//powershell/rules:defs.bzl", "pwsh_test")
+load("//powershell/rules:defs.bzl", "powershell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -47,7 +47,7 @@ rustfmt_test(
 )
 
 # keep
-pwsh_test(
+powershell_test(
     name = "extract_script_test",
     srcs = ["extract_script.Tests.ps1"],
     data = [

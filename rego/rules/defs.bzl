@@ -98,7 +98,7 @@ _rego_test = rule(
     },
 )
 
-def rego_test(name, **kwargs):
+def rego_test(name, srcs = [], visibility = None, **kwargs):
     """Runs opa test over Rego files and their library dependencies."""
     kwargs.setdefault("size", "small")
-    _rego_test(name = name, **kwargs)
+    _rego_test(name = name, srcs = srcs, visibility = visibility, **kwargs)

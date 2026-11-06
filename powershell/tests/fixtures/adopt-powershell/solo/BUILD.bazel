@@ -1,21 +1,21 @@
-load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
+load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-pwsh_library(
+powershell_library(
     name = "solo",
     srcs = ["Pure.psm1"],
 )
 
-pwsh_binary(
+powershell_binary(
     name = "hello",
     srcs = ["Hello.ps1"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [":solo"],
 )
 
-pwsh_test(
+powershell_test(
     name = "pure_test",
     srcs = ["Pure.Tests.ps1"],
     target_compatible_with = ["@platforms//os:linux"],

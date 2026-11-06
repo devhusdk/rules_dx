@@ -1,4 +1,4 @@
-# Loaded by every ex_unit_test under `bazel coverage`. It cover-compiles the
+# Loaded by every elixir_test under `bazel coverage`. It cover-compiles the
 # workspace apps of the test and writes their line hits as LCOV when the VM exits.
 defmodule DxCover do
   def start(apps, sources, output) do

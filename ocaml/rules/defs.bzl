@@ -21,7 +21,6 @@ load(
     _ocaml_module = "ocaml_module",
     _ocaml_signature = "ocaml_signature",
     _ocamllex = "ocamllex",
-    _ocamlyacc = "ocamlyacc",
 )
 load("//cc/rules:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
@@ -30,9 +29,8 @@ load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "OCamlCmtInfo", "WERROR_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
 
+# Re-exported unchanged: BUILD files need it to generate lexers.
 ocamllex = _ocamllex
-
-ocamlyacc = _ocamlyacc
 
 OCAML_COMPATIBLE_WITH = cells_compatible_with(OCAML_CELLS, "//ocaml/toolchain", sorted(OCAML_CELLS.keys()))
 

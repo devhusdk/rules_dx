@@ -77,7 +77,7 @@ func TestGenerateLibraryAndTests(t *testing.T) {
 	if lang.(*pwshLang).Failed() {
 		t.Fatal("generation failed")
 	}
-	if got, want := names(result), "pwsh_library:greet:Greet.psd1+Greet.psm1,pwsh_test:greet_test:Greet.Tests.ps1"; got != want {
+	if got, want := names(result), "powershell_library:greet:Greet.psd1+Greet.psm1,powershell_test:greet_test:Greet.Tests.ps1"; got != want {
 		t.Fatalf("rules = %s, want %s", got, want)
 	}
 	if got := result.Imports[0].(common.ImportSet).Names; strings.Join(got, ",") != "Microsoft.PowerShell.Utility,Shared" {
@@ -106,15 +106,15 @@ func TestGenerateFixtureLibraryWithoutDirectiveIsNotTestonly(t *testing.T) {
 }
 
 func TestGenerateKeepsHandwrittenRules(t *testing.T) {
-	file := buildFile(t, `pwsh_library(name = "stale", srcs = ["Old.psm1"])
+	file := buildFile(t, `powershell_library(name = "stale", srcs = ["Old.psm1"])
 
-pwsh_test(name = "old_test", srcs = ["Old.Tests.ps1"])
+powershell_test(name = "old_test", srcs = ["Old.Tests.ps1"])
 
-pwsh_test(name = "pack_test", srcs = ["pack_test.ps1"])
+powershell_test(name = "pack_test", srcs = ["pack_test.ps1"])
 
-pwsh_binary(name = "hello", srcs = ["Hello.ps1"])
+powershell_binary(name = "hello", srcs = ["Hello.ps1"])
 
-pwsh_library(name = "mixed", srcs = ["Greet.psm1", "helpers.ps1"])
+powershell_library(name = "mixed", srcs = ["Greet.psm1", "helpers.ps1"])
 `)
 	lang := NewLanguage()
 	result := generateArgs(t, lang, "pkg/greet", file, greetPackage)
@@ -125,15 +125,15 @@ pwsh_library(name = "mixed", srcs = ["Greet.psm1", "helpers.ps1"])
 	for _, r := range result.Empty {
 		empty = append(empty, r.Kind()+":"+r.Name())
 	}
-	if got := strings.Join(empty, ","); got != "pwsh_library:stale,pwsh_test:old_test" {
+	if got := strings.Join(empty, ","); got != "powershell_library:stale,powershell_test:old_test" {
 		t.Errorf("removed = %s, want only the stale generated-shape rules", got)
 	}
 }
 
 func TestGenerateWithoutSourcesRemovesOnlyOwnedRules(t *testing.T) {
-	file := buildFile(t, `pwsh_library(name = "greet", srcs = ["Greet.psm1"])
+	file := buildFile(t, `powershell_library(name = "greet", srcs = ["Greet.psm1"])
 
-pwsh_test(name = "pack_test", srcs = ["pack_test.ps1"])
+powershell_test(name = "pack_test", srcs = ["pack_test.ps1"])
 `)
 	result := generateArgs(t, NewLanguage(), "pkg/greet", file, map[string]string{"pack_test.ps1": ""})
 	if len(result.Gen) != 0 || len(result.Empty) != 1 || result.Empty[0].Name() != "greet" {
@@ -150,14 +150,14 @@ func TestGenerateRequirementsManifestAlone(t *testing.T) {
 
 func TestGenerateFailsOnNameClaimedByHandwrittenRule(t *testing.T) {
 	lang := NewLanguage()
-	file := buildFile(t, "pwsh_binary(name = \"greet\", srcs = [\"Hello.ps1\"])\n")
+	file := buildFile(t, "powershell_binary(name = \"greet\", srcs = [\"Hello.ps1\"])\n")
 	result := generateArgs(t, lang, "pkg/greet", file, greetPackage)
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %s, want none", names(result))
 	}
 	lang.(*pwshLang).AfterResolvingDeps(context.Background())
 	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")
-	for _, want := range []string{`"greet" is claimed by generated pwsh_library(pkg/greet) and existing pwsh_binary`, "# gazelle:exclude"} {
+	for _, want := range []string{`"greet" is claimed by generated powershell_library(pkg/greet) and existing powershell_binary`, "# gazelle:exclude"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("errors = %q, want it to contain %q", msg, want)
 		}

@@ -120,6 +120,7 @@ _CREDO_BUILD = """load("@rules_dx//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WI
 package(default_visibility = ["//visibility:public"])
 
 elixir_app(
+    name = "erlang_app",
     app_name = "{package}",
     app_version = "{version}",
     data = glob([".*", "LICENSE*"], allow_empty = True),

@@ -1,4 +1,4 @@
-load("//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
+load("//powershell/rules:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -6,7 +6,7 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-pwsh_library(
+powershell_library(
     name = "hello_lib",
     srcs = [
         "Greet.psd1",
@@ -14,13 +14,13 @@ pwsh_library(
     ],
 )
 
-pwsh_binary(
+powershell_binary(
     name = "hello",
     srcs = ["Hello.ps1"],
     deps = [":hello_lib"],
 )
 
-pwsh_test(
+powershell_test(
     name = "hello_test",
     srcs = ["HelloTest.ps1"],
     deps = [":hello_lib"],

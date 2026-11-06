@@ -267,7 +267,7 @@ dx rule that wraps it.
 | `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx//cuda/rules:defs.bzl` | `cuda_library`, `cuda_objects` |
 | `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d/rules:defs.bzl` | `d_binary`, `d_library`, `d_test` |
 | `@rules_elixir//:elixir_app.bzl` | `elixir_app` | `@rules_dx//elixir/rules:defs.bzl` | `elixir_app` |
-| `@rules_elixir//:ex_unit_test.bzl` | `ex_unit_test` | `@rules_dx//elixir/rules:defs.bzl` | `ex_unit_test` |
+| `@rules_elixir//:ex_unit_test.bzl` | `ex_unit_test` | `@rules_dx//elixir/rules:defs.bzl` | `elixir_test` |
 | `@rules_erlang//:erlang_app.bzl` | `erlang_app`, `test_erlang_app` | `@rules_dx//erlang/rules:defs.bzl` | `erlang_app`, `test_erlang_app` |
 | `@rules_erlang//:ct.bzl` | `ct_suite` | `@rules_dx//erlang/rules:defs.bzl` | `ct_suite` |
 | `@rules_erlang//:erlang_bytecode2.bzl` | `erlang_bytecode` | `@rules_dx//erlang/rules:defs.bzl` | `erlang_bytecode` |
@@ -284,7 +284,7 @@ dx rule that wraps it.
 | `@rules_julia//julia:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` | `@rules_dx//julia/rules:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` |
 | `@rules_kotlin//kotlin:jvm.bzl` | `kt_jvm_binary`, `kt_jvm_library`, `kt_jvm_test` | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_binary`, `kotlin_library`, `kotlin_test` |
 | `@rules_perl//perl:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` | `@rules_dx//perl/rules:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` |
-| `@rules_powershell//powershell:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` | `@rules_dx//powershell/rules:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` |
+| `@rules_powershell//powershell:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` | `@rules_dx//powershell/rules:defs.bzl` | `powershell_binary`, `powershell_library`, `powershell_test` |
 | `@rules_py//py:defs.bzl` | `py_binary` | `@rules_dx//python/rules:defs.bzl` | `python_binary` |
 | `@rules_py//py:defs.bzl` | `py_library` | `@rules_dx//python/rules:defs.bzl` | `python_library` |
 | `@rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python/rules:defs.bzl` | `python_test` |

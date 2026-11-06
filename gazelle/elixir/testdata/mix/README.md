@@ -1,7 +1,7 @@
 # Mix Project Generation
 
 Each directory with a `mix.exs` gets one `elixir_app` from `lib/**/*.ex` and
-one `ex_unit_test` from `test/**/*_test.exs` plus `test/test_helper.exs`. An
+one `elixir_test` from `test/**/*_test.exs` plus `test/test_helper.exs`. An
 umbrella root gets no rule.
 
 A module reference resolves to the `elixir_app` that defines the module.

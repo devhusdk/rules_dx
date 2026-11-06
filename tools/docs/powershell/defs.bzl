@@ -132,7 +132,7 @@ powershell_doc_shard = rule(
             allow_files = [".ps1", ".psm1", ".psd1"],
             allow_empty = False,
             mandatory = True,
-            doc = "The module's .psm1 and every .ps1 it dot-sources, or pwsh_library targets.",
+            doc = "The module's .psm1 and every .ps1 it dot-sources, or powershell_library targets.",
         ),
         "_extract": attr.label(
             cfg = "exec",

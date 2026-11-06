@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	LibraryKind  = "pwsh_library"
-	TestKind     = "pwsh_test"
+	LibraryKind  = "powershell_library"
+	TestKind     = "powershell_test"
 	ModuleExt    = ".psm1"
 	ManifestExt  = ".psd1"
 	TestSuffix   = ".Tests.ps1"
@@ -24,7 +24,7 @@ func IsTestSource(name string) bool {
 }
 
 // IsModuleSource reports whether name belongs in the directory's
-// pwsh_library. A .psd1 counts only next to a .psm1 with the same basename, so
+// powershell_library. A .psd1 counts only next to a .psm1 with the same basename, so
 // data files such as PSGallery.requirements.psd1 stay out.
 func IsModuleSource(name string, present map[string]bool) bool {
 	switch {
@@ -47,7 +47,7 @@ func ModuleName(src string) string {
 	return strings.TrimSuffix(base, ManifestExt)
 }
 
-// TestTargetName names the pwsh_test for a Name.Tests.ps1 script name_test.
+// TestTargetName names the powershell_test for a Name.Tests.ps1 script name_test.
 func TestTargetName(src string) (string, error) {
 	stem := strings.TrimSuffix(path.Base(src), TestSuffix)
 	name, err := common.Normalize(strings.ToLower(stem))

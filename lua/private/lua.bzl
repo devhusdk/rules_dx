@@ -259,3 +259,20 @@ lua_test = rule(
     test = True,
     toolchains = LUA_TOOLCHAINS,
 )
+
+LUA_SOURCE_SPECS = [("lua", ["lua"])]
+
+LUA_DEFERRED_SKIP_TAGS = []
+
+def lua_quality_srcs(main, srcs):
+    """Returns the Lua files one target owns: main first, then srcs."""
+    owned = [main] if main != None else []
+    return owned + [s for s in srcs if s != main]
+
+def lua_deferred_tags(tags):
+    """Adds the skip tags that keep the deferred lua class out of quality aspects."""
+    out = list(tags or [])
+    for tag in LUA_DEFERRED_SKIP_TAGS:
+        if tag not in out:
+            out.append(tag)
+    return out

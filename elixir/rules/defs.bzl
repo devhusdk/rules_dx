@@ -24,6 +24,7 @@ ELIXIR_SOURCE_GLOBS = ["lib/**/*.ex"]
 
 WERROR_ELIXIRC_OPTS = ["--warnings-as-errors"]
 
+# Re-exported unchanged: BUILD files need it to build escripts.
 escript_archive = _escript_archive
 
 def escript_headers(module):
@@ -154,7 +155,7 @@ def elixir_kwargs(kwargs):
     """Returns kwargs with the Elixir platform guard appended."""
     return dx_language_kwargs(kwargs, [], ELIXIR_COMPATIBLE_WITH)
 
-def elixir_app(name = "erlang_app", visibility = None, testonly = False, **kwargs):
+def elixir_app(name, visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_elixir elixir_app macro."""
     kwargs = elixir_kwargs(kwargs)
     tags = kwargs.pop("tags", None)
@@ -200,7 +201,7 @@ def cover_opts(opts):
     })
     return load_script + (opts or [])
 
-def ex_unit_test(name, srcs, visibility = None, **kwargs):
+def elixir_test(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_elixir ex_unit_test rule."""
     kwargs = elixir_kwargs(kwargs)
     upstream = dict(kwargs, elixir_opts = cover_opts(kwargs.get("elixir_opts")))

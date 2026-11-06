@@ -1,11 +1,11 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 # gazelle:exclude DxCoverage
-load("//powershell/rules:defs.bzl", "pwsh_library")
+load("//powershell/rules:defs.bzl", "powershell_library")
 
 package(default_visibility = ["//visibility:public"])
 
-pwsh_library(
+powershell_library(
     name = "dx_coverage",
     srcs = ["DxCoverage/DxCoverage.psm1"],
     deps = ["//powershell/gallery:pester"],

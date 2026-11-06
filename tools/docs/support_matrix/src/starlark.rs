@@ -577,7 +577,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
         Constraint::Appended("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH"),
     ),
     (
-        "ex_unit_test",
+        "elixir_test",
         Constraint::Appended("//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH"),
     ),
     (
@@ -626,7 +626,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("owns_dockerfile_class_test", Constraint::AsWritten),
     ("owns_make_class_test", Constraint::AsWritten),
     ("probe_failure_test", Constraint::AsWritten),
-    ("pwsh_test", Constraint::AsWritten),
+    ("powershell_test", Constraint::AsWritten),
     ("python_test", Constraint::AsWritten),
     ("ruby_test", Constraint::AsWritten),
     ("rust_test", Constraint::AsWritten),

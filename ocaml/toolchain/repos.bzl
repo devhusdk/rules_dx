@@ -239,25 +239,32 @@ filegroup(
 )
 """
 
-def _snapshot_opam(mctx, package, version):
+def _fact_key(package, version):
+    return "{}/{}.{}".format(OPAM_REPOSITORY_COMMIT, package, version)
+
+def _snapshot_fact(mctx, package, version):
     path = "opam_snapshot/packages/{p}/{p}.{v}/opam".format(p = package, v = version)
     if not mctx.path(path).exists:
         fail("opam-repository {} has no {} {}".format(OPAM_REPOSITORY_COMMIT, package, version))
-    return mctx.read(path)
+    opam = mctx.read(path)
+    url = parse_url(opam)
+    return {
+        "needs": [n for n in parse_depend_names(opam) if not is_toolchain_package(n)],
+        "sha256": url.sha256,
+        "src": url.src,
+    }
 
-def _declare_packages(mctx, tag, annotations):
+def _declare_packages(mctx, tag, locked, annotations, facts):
     packages = {}
-    locked = parse_depends(mctx.read(tag.lock))
     for package, version in locked.items():
         if is_toolchain_package(package):
             continue
-        opam = _snapshot_opam(mctx, package, version)
-        url = parse_url(opam)
+        fact = facts[_fact_key(package, version)]
         annotation = annotations.get(package)
         if annotation and annotation.build_file:
             build_file = mctx.read(annotation.build_file)
         else:
-            needs = [n for n in parse_depend_names(opam) if not is_toolchain_package(n)]
+            needs = fact["needs"]
             missing = [n for n in needs if n not in locked]
             if missing:
                 fail("{} {} depends on {}, which {} does not lock".format(package, version, ", ".join(missing), tag.lock))
@@ -266,9 +273,9 @@ def _declare_packages(mctx, tag, annotations):
         pinned_archive(
             name = package_repo_name(tag.name, package),
             files = {"BUILD.bazel": build_file},
-            sha256 = url.sha256,
+            sha256 = fact["sha256"],
             strip_prefix = annotation.strip_prefix if annotation else "{}-{}".format(package, version),
-            urls = [url.src],
+            urls = [fact["src"]],
         )
         packages[package] = version
     hub_repo(name = tag.name, files = {"BUILD.bazel": packages_hub_build(tag.name, packages)})
@@ -299,17 +306,27 @@ def _ocaml_impl(mctx):
         urls = [DUNE_URL],
     )
     tags = [tag for module in mctx.modules for tag in module.tags.packages]
-    if tags:
+    locks = [parse_depends(mctx.read(tag.lock)) for tag in tags]
+    wanted = {}
+    for locked in locks:
+        for package, version in locked.items():
+            if not is_toolchain_package(package):
+                wanted[_fact_key(package, version)] = (package, version)
+    facts = {key: mctx.facts.get(key) for key in wanted}
+    if None in facts.values():
         mctx.download_and_extract(
             url = [OPAM_REPOSITORY_URL],
             output = "opam_snapshot",
             sha256 = OPAM_REPOSITORY_SHA256,
             strip_prefix = "opam-repository-" + OPAM_REPOSITORY_COMMIT,
         )
+        for key, (package, version) in wanted.items():
+            if not facts[key]:
+                facts[key] = _snapshot_fact(mctx, package, version)
     annotations = {tag.package: tag for module in mctx.modules for tag in module.tags.annotation}
-    for tag in tags:
-        _declare_packages(mctx, tag, annotations)
-    return mctx.extension_metadata(reproducible = True)
+    for tag, locked in zip(tags, locks):
+        _declare_packages(mctx, tag, locked, annotations, facts)
+    return mctx.extension_metadata(reproducible = True, facts = facts)
 
 ocaml = module_extension(
     implementation = _ocaml_impl,

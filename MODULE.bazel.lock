@@ -15473,6 +15473,22 @@
     }
   },
   "facts": {
+    "//ocaml/toolchain:repos.bzl%ocaml": {
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/astring.0.8.5": {
+        "needs": [
+          "ocamlfind",
+          "ocamlbuild",
+          "topkg"
+        ],
+        "sha256": "865692630c07c3ab87c66cdfc2734c0fdfc9c34a57f8e89ffec7c7d15e7a70fa",
+        "src": "https://erratique.ch/software/astring/releases/astring-0.8.5.tbz"
+      },
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/either.1.0.0": {
+        "needs": [],
+        "sha256": "bf674de3312dee7b7215f07df1e8a96eb3d679164b8a918cdd95b8d97e505884",
+        "src": "https://github.com/mirage/either/releases/download/1.0.0/either-1.0.0.tbz"
+      }
+    },
     "//tools/testing:repos.bzl%nested_bazel": {
       "9.3.1": {
         "darwin-arm64": "19c4958626e0e3a564a61c2e85eeaab97b550a30632b82341191aa61ed0ccc1b",

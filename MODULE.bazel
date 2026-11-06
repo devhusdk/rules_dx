@@ -1078,9 +1078,19 @@ register_toolchains("@dx_fortran_toolchains//:all")
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.4.6.bcr.1")
-single_version_override(
+
+# BCR serves lua from www.lua.org, which times out in CI; same tarball and sha256 from mirrors, with the BCR overlay as a patch (#1375)
+archive_override(
     module_name = "lua",
-    version = "5.4.6.bcr.1",
+    integrity = "sha256-fV6huctqoLWco93hxq3LV++DobqOVDLA7NBr9DmzrYg=",
+    patch_strip = 1,
+    patches = ["//patches/lua:overlay.patch"],
+    strip_prefix = "lua-5.4.6",
+    urls = [
+        "https://distfiles.macports.org/lua/lua-5.4.6.tar.gz",
+        "https://sources.buildroot.net/lua/lua-5.4.6.tar.gz",
+        "https://www.lua.org/ftp/lua-5.4.6.tar.gz",
+    ],
 )
 
 register_toolchains("//lua/toolchain:all")

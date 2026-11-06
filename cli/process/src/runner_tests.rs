@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use super::*;
-use crate::lib_tests::probe_argv;
+use crate::lib_tests::{held_spawn, probe_argv};
 use std::path::PathBuf;
 
 fn runner() -> BinaryRunner {
@@ -161,6 +161,7 @@ fn detached_descendant_argv() -> Vec<String> {
 #[cfg(unix)]
 #[test]
 fn run_app_hands_held_lock_to_detached_descendant() {
+    let _serial = held_spawn();
     let scratch = dx_test_scratch::scratch("dx-run-app-held");
     let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
@@ -183,6 +184,7 @@ fn run_app_hands_held_lock_to_detached_descendant() {
 #[cfg(unix)]
 #[test]
 fn holding_run_does_not_inherit_held() {
+    let _serial = held_spawn();
     let scratch = dx_test_scratch::scratch("dx-holding-run");
     let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
@@ -196,12 +198,64 @@ fn holding_run_does_not_inherit_held() {
     assert_eq!(status.code, Some(0));
     drop(held);
     assert!(
-        dx_atomic_fs::lease::try_lock_file(&path, false)
-            .expect("probe")
-            .is_some(),
-        "plain runs carry no held handle"
+        lock_comes_free(&path),
+        "plain runs carry no held handle; holders: {}",
+        lock_holders(&path)
     );
 }
+
+/// Another thread's fork can carry the lock until its child execs, so give
+/// the probe a short window before calling the lock leaked.
+#[cfg(unix)]
+fn lock_comes_free(path: &std::path::Path) -> bool {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        if dx_atomic_fs::lease::try_lock_file(path, false)
+            .expect("probe")
+            .is_some()
+        {
+            return true;
+        }
+        // LCOV_EXCL_START - reason: failure-only retry, never reached when the lock is free at once, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        // LCOV_EXCL_STOP
+    }
+}
+
+// LCOV_EXCL_START - reason: failure-only message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+/// The `/proc/locks` rows on the file's inode, each with the holder's cmdline.
+#[cfg(unix)]
+fn lock_holders(path: &std::path::Path) -> String {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(inode) = std::fs::metadata(path).map(|meta| meta.ino()) else {
+        return "unknown".to_owned();
+    };
+    let Ok(locks) = std::fs::read_to_string("/proc/locks") else {
+        return "no /proc/locks".to_owned();
+    };
+    let suffix = format!(":{inode}");
+    let mut holders = Vec::new();
+    for line in locks.lines() {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        let Some(index) = fields.iter().position(|field| field.ends_with(&suffix)) else {
+            continue;
+        };
+        let pid = fields[index - 1];
+        let cmdline = std::fs::read(format!("/proc/{pid}/cmdline"))
+            .map(|raw| String::from_utf8_lossy(&raw).replace('\0', " "))
+            .unwrap_or_default();
+        holders.push(format!("[{line}] pid {pid}: {}", cmdline.trim_end()));
+    }
+    if holders.is_empty() {
+        "none".to_owned()
+    } else {
+        holders.join("; ")
+    }
+}
+// LCOV_EXCL_STOP
 
 #[test]
 fn new_stops_on_process_interrupts() {

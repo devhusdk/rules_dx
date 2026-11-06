@@ -939,6 +939,16 @@ pub(crate) fn probe_argv(flags: &[&str]) -> Vec<String> {
     argv
 }
 
+static HELD_SPAWN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Serializes tests that hand lock handles to children or probe whether a
+/// lock came free, so one test's spawn never briefly carries another's lock.
+pub(crate) fn held_spawn() -> std::sync::MutexGuard<'static, ()> {
+    HELD_SPAWN
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[test]
 fn pinned_tool_defaults_to_unset() {
     let runner = FakeRunner {

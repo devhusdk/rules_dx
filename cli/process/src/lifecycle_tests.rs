@@ -1307,6 +1307,7 @@ fn wait_alive(lock: &std::path::Path) {
 
 #[test]
 fn streamed_held_lock_is_held_while_the_child_runs() {
+    let _serial = crate::lib_tests::held_spawn();
     let scratch = dx_test_scratch::scratch("dx-stream-held-run");
     let lease = scratch.path().join("lease.lock");
     let alive = scratch.path().join("child.alive");
@@ -1336,6 +1337,7 @@ fn streamed_held_lock_is_held_while_the_child_runs() {
 #[cfg(unix)]
 #[test]
 fn streamed_held_lock_outlives_parent_in_descendant() {
+    let _serial = crate::lib_tests::held_spawn();
     let scratch = dx_test_scratch::scratch("dx-stream-held-descendant");
     let lease = scratch.path().join("lease.lock");
     let alive = scratch.path().join("descendant.alive");
@@ -1370,6 +1372,7 @@ fn streamed_held_lock_outlives_parent_in_descendant() {
 #[cfg(unix)]
 #[test]
 fn streamed_sibling_spawn_does_not_inherit_held() {
+    let _serial = crate::lib_tests::held_spawn();
     let scratch = dx_test_scratch::scratch("dx-stream-held-sibling");
     let lease = scratch.path().join("lease.lock");
     let child_alive = scratch.path().join("child.alive");
@@ -1415,6 +1418,7 @@ fn streamed_sibling_spawn_does_not_inherit_held() {
 #[cfg(unix)]
 #[test]
 fn streamed_without_held_is_unchanged() {
+    let _serial = crate::lib_tests::held_spawn();
     let scratch = dx_test_scratch::scratch("dx-stream-unheld");
     let lease = scratch.path().join("lease.lock");
     let alive = scratch.path().join("descendant.alive");

@@ -30,6 +30,7 @@ struct Entry {
 
 std::unique_ptr<Runfiles> g_runfiles;
 std::string g_source_repo;
+std::string g_main;
 
 [[noreturn]] void Die(const std::string &message) {
   std::fprintf(stderr, "lua: %s\n", message.c_str());
@@ -142,10 +143,26 @@ int RunfilesRlocation(lua_State *L) {
   return 1;
 }
 
+int RunfilesSources(lua_State *L) {
+  lua_newtable(L);
+  lua_pushstring(L, g_main.c_str());
+  lua_rawseti(L, -2, 1);
+  lua_getfield(L, LUA_REGISTRYINDEX, kModulesKey);
+  lua_Integer next = 2;
+  lua_pushnil(L);
+  while (lua_next(L, -2) != 0) {
+    lua_rawseti(L, -4, next++);
+  }
+  lua_pop(L, 1);
+  return 1;
+}
+
 int OpenRunfiles(lua_State *L) {
   lua_newtable(L);
   lua_pushcfunction(L, RunfilesRlocation);
   lua_setfield(L, -2, "rlocation");
+  lua_pushcfunction(L, RunfilesSources);
+  lua_setfield(L, -2, "sources");
   return 1;
 }
 
@@ -219,6 +236,7 @@ int main(int argc, char **argv) {
     Die("argv[0] is empty");
   Entry entry = LoadEntry(argv[0]);
   g_source_repo = entry.source_repo;
+  g_main = entry.main;
 
   std::string error;
   g_runfiles.reset(Runfiles::Create(argv[0], entry.source_repo, &error));

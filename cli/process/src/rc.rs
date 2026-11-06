@@ -682,14 +682,17 @@ pub(crate) fn unquote(token: &str) -> &str {
         .unwrap_or(token)
 }
 
+/// Resolves an rc import against the workspace one component at a time, so a `\\?\` workspace
+/// never ends up with a `/` separator inside it.
 pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
-    let expanded = raw.replace("%workspace%", &workspace.to_string_lossy());
-    let path = PathBuf::from(expanded);
-    if path.is_absolute() {
-        path
-    } else {
-        workspace.join(path)
-    }
+    let relative = match raw.strip_prefix("%workspace%") {
+        Some(rest) => rest,
+        None if Path::new(raw).is_absolute() => return PathBuf::from(raw),
+        None => raw,
+    };
+    let mut path = workspace.to_path_buf();
+    path.extend(relative.split(['/', '\\']).filter(|part| !part.is_empty()));
+    path
 }
 
 #[path = "rc_sections.rs"]

@@ -1105,6 +1105,33 @@ fn read_file_is_none_for_a_missing_or_unreadable_path() {
 }
 
 #[test]
+fn import_path_joins_workspace_imports_per_component() {
+    let ws = Path::new("/ws");
+    assert_eq!(
+        import_path("%workspace%/tools/bazelrc/a.bazelrc", ws),
+        ws.join("tools").join("bazelrc").join("a.bazelrc")
+    );
+    assert_eq!(
+        import_path("tools\\b.bazelrc", ws),
+        ws.join("tools").join("b.bazelrc")
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn import_path_reads_under_a_verbatim_workspace() {
+    let dir = dx_test_scratch::scratch("dx-rc-verbatim-");
+    let ws = std::fs::canonicalize(dir.path()).expect("canonicalize");
+    assert!(ws.to_string_lossy().starts_with(r"\\?\"));
+    std::fs::create_dir_all(ws.join("tools")).expect("mkdir");
+    std::fs::write(ws.join("tools").join("x.bazelrc"), "build --x\n").expect("write");
+    assert_eq!(
+        read_file(&import_path("%workspace%/tools/x.bazelrc", &ws)).as_deref(),
+        Some("build --x\n")
+    );
+}
+
+#[test]
 fn verb_mask_ignores_unknown_verbs() {
     let mask = VerbMask::NONE.with("build").with("not-a-verb");
     assert!(mask.contains("build"));

@@ -54,3 +54,28 @@ def ocaml_hermetic_link_test(name, target):
         target_under_test = target,
         target_compatible_with = _LINUX,
     )
+
+def _link_archive_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [a for a in analysistest.target_actions(env) if a.mnemonic.startswith("LinkOCaml")]
+    asserts.true(env, len(actions) > 0, "no link action")
+    argv = [arg for action in actions for arg in action.argv]
+    found = [arg for arg in argv if arg.endswith("/" + ctx.attr.archive)]
+    asserts.true(env, len(found) > 0, "argv: " + str(argv))
+    return analysistest.end(env)
+
+_link_archive_test = analysistest.make(
+    _link_archive_impl,
+    attrs = {"archive": attr.string()},
+    config_settings = {_EMITTER: "sys"},
+)
+
+def ocaml_link_archive_test(name, target, archive):
+    """Checks the native link action passes the C stub archive on its command line."""
+    _link_archive_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        archive = archive,
+        target_compatible_with = _LINUX,
+    )

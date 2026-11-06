@@ -179,6 +179,7 @@ rust_test(
         "@platforms//os:windows": dict(
             _QT_TEST_ENV,
             DX_QT_VCRUNTIME = "$(rootpaths //cc/toolchains:msvc_vcruntime)",
+            RUST_TEST_NOCAPTURE = "1",
         ),
         "//conditions:default": dict(
             _QT_TEST_ENV,

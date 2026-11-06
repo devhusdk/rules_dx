@@ -8,6 +8,7 @@ load(":pins.bzl", "OCAML_CELLS")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "libtool_ar.sh",
     "metadata_tests.bzl",
     "ocaml.bzl",
     "pins.bzl",

@@ -451,6 +451,7 @@ jobs:
             mkdir -p "$out/$rel"
             cp "$dir/test.log" "$out/$rel/"
             cp "$dir/test.xml" "$out/$rel/" 2>/dev/null || true
+            cp "$dir/coverage.dat" "$out/$rel/" 2>/dev/null || true
             if [ -d "$dir/test.outputs" ]; then
               cp -RL "$dir/test.outputs" "$out/$rel/"
             fi

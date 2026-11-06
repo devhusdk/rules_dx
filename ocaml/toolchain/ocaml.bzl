@@ -40,22 +40,32 @@ def toolchain_fields(info, extra):
     fields.update(extra)
     return fields
 
-def native_cc_env(cc, assembler, linker, archiver, dist_bin):
+def native_cc_env(cc, assembler, linker, archiver, dist_bin, macos = False, ar_wrapper = None, link_env = {}):
     """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools.
 
     The conda wrappers fall back to host as and cc when a variable is unset, so
     every tool ocamlopt runs is named here. The dist bin directory comes first on
     PATH so the wrappers themselves resolve; /usr/bin and /bin are the accepted
-    host baseline (bash, dirname).
+    host baseline (bash, dirname). link_env holds the C toolchain's link
+    variables. On macOS, plugins resolve runtime symbols from the host
+    executable, and a libtool archiver is reached through ar_wrapper, which
+    takes ar's arguments.
     """
-    return {
+    env = dict(link_env)
+    env.update({
         "CONDA_OCAML_AR": archiver,
         "CONDA_OCAML_AS": assembler + " -c",
         "CONDA_OCAML_CC": cc,
         "CONDA_OCAML_MKDLL": linker + " -shared",
         "CONDA_OCAML_MKEXE": linker,
         "PATH": dist_bin + ":/usr/bin:/bin",
-    }
+    })
+    if macos:
+        env["CONDA_OCAML_MKDLL"] = linker + " -shared -undefined dynamic_lookup"
+        if ar_wrapper and "libtool" in archiver:
+            env["CONDA_OCAML_AR"] = ar_wrapper
+            env["DX_OCAML_LIBTOOL"] = archiver
+    return env
 
 def _native_fields(ctx):
     cc = find_cc_toolchain(ctx)
@@ -67,13 +77,20 @@ def _native_fields(ctx):
     )
     tool = lambda action: cc_common.get_tool_for_action(feature_configuration = features, action_name = action)
     return {
-        "cc_files": depset(ctx.files.native_tools, transitive = [cc.all_files]),
+        "cc_files": depset(ctx.files.native_tools + [ctx.file._libtool_ar], transitive = [cc.all_files]),
         "cc_link_env_vars": native_cc_env(
             cc = tool(ACTION_NAMES.c_compile),
             assembler = tool(ACTION_NAMES.assemble),
             linker = tool(ACTION_NAMES.cpp_link_executable),
             archiver = tool(ACTION_NAMES.cpp_link_static_library),
             dist_bin = ctx.file.compiler.dirname,
+            macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo]),
+            ar_wrapper = ctx.file._libtool_ar.path,
+            link_env = cc_common.get_environment_variables(
+                feature_configuration = features,
+                action_name = ACTION_NAMES.cpp_link_executable,
+                variables = cc_common.empty_variables(),
+            ),
         ),
         "cc_toolchain": "clang",
     }
@@ -101,6 +118,8 @@ dx_ocaml_toolchain = rule(
         "native_tools": attr.label_list(allow_files = True, doc = "The conda-ocaml-* wrapper scripts ocamlopt runs; they must sit beside each other in the action sandbox."),
         "native": attr.bool(default = False, doc = "Whether ocamlopt assembles and links with the C toolchain."),
         "vmruntime": attr.label(allow_single_file = True, executable = True, cfg = "exec", mandatory = True, doc = "The ocamlrun interpreter."),
+        "_libtool_ar": attr.label(default = Label("//ocaml/toolchain:libtool_ar.sh"), allow_single_file = True),
+        "_macos": attr.label(default = Label("@platforms//os:macos")),
     },
     toolchains = use_cc_toolchain(),
     fragments = ["cpp"],

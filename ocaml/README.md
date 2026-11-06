@@ -152,8 +152,8 @@ archive natively (the bytecode cell does not support C stubs). See
 
 ### Coverage with your own ppx
 
-Under `bazel coverage` on Linux x86_64, `ocaml_module` runs the bisect_ppx
-instrumenter on hand-written `.ml` files. A module that sets its own `ppx` is
+Under `bazel coverage` on Linux x86_64, Linux arm64 and macOS arm64,
+`ocaml_module` runs the bisect_ppx instrumenter on hand-written `.ml` files. A module that sets its own `ppx` is
 left alone, because rules_ocaml takes one ppx executable per module. To cover
 such a module, link `//tools/coverage/ocaml:bisect_ppx_rewriter` (the
 bisect_ppx rewriter as a library) into your ppxlib driver and set

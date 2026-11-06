@@ -14,6 +14,7 @@ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolcha
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_ocaml//build:providers.bzl", "OCamlArchiveProvider", "OCamlCcInfo", "OCamlDepsProvider", "OCamlImportProvider")
+load("//ocaml/toolchain:ocaml.bzl", "native_cc_env")
 load(":defs.bzl", "OCAML_COMPATIBLE_WITH")
 
 DEPSET_ORDER = "postorder"
@@ -40,21 +41,6 @@ exec $REAL_AS "${{args[@]}}"
 ASM
 chmod +x "$SCRATCH/bin/as"
 export CONDA_OCAML_AS="$SCRATCH/bin/as"
-# ocamlopt calls the archiver as ar does ("rc out objects"); the macOS toolchain archives with libtool, which wants "-static -o out objects".
-case "$CONDA_OCAML_AR" in
-  *libtool*)
-    export REAL_AR="$CONDA_OCAML_AR"
-    cat > "$SCRATCH/bin/ar" <<'ARW'
-#!/bin/bash
-shift
-out="$1"
-shift
-exec $REAL_AR -static -o "$out" "$@"
-ARW
-    chmod +x "$SCRATCH/bin/ar"
-    export CONDA_OCAML_AR="$SCRATCH/bin/ar"
-    ;;
-esac
 # The conda zstd dylib is loaded through an rpath the executables lack, so link libzstd.a from the zstd-static pin instead.
 # ld prefers a dylib found in any -L directory, so search the directories in order and put ours first.
 if [ "$(uname -s)" = Darwin ] && [ -f "${{PATH%%:*}}/../lib/libzstd.a" ]; then
@@ -142,7 +128,7 @@ def _env(ctx, tree):
     )
     tool = lambda action: _abs(cc_common.get_tool_for_action(feature_configuration = features, action_name = action))
     compiler = _find(tree, "/bin/ocamlopt.opt")
-    env = {
+    link_env = {
         key: _abs(value) if "/" in value and not value.startswith("-") else value
         for key, value in cc_common.get_environment_variables(
             feature_configuration = features,
@@ -150,14 +136,16 @@ def _env(ctx, tree):
             variables = cc_common.empty_variables(),
         ).items()
     }
-    env.update({
-        "CONDA_OCAML_AR": tool(ACTION_NAMES.cpp_link_static_library),
-        "CONDA_OCAML_AS": tool(ACTION_NAMES.assemble) + " -c",
-        "CONDA_OCAML_CC": tool(ACTION_NAMES.c_compile),
-        "CONDA_OCAML_MKDLL": tool(ACTION_NAMES.cpp_link_executable) + " -shared",
-        "CONDA_OCAML_MKEXE": tool(ACTION_NAMES.cpp_link_executable),
-        "PATH": _abs(compiler.dirname) + ":/usr/bin:/bin",
-    })
+    env = native_cc_env(
+        cc = tool(ACTION_NAMES.c_compile),
+        assembler = tool(ACTION_NAMES.assemble),
+        linker = tool(ACTION_NAMES.cpp_link_executable),
+        archiver = tool(ACTION_NAMES.cpp_link_static_library),
+        dist_bin = _abs(compiler.dirname),
+        macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo]),
+        ar_wrapper = _abs(ctx.file._libtool_ar.path),
+        link_env = link_env,
+    )
     return env, cc.all_files
 
 def _shell_env(env):
@@ -166,7 +154,7 @@ def _shell_env(env):
 def _context(ctx):
     tree = ctx.attr._tree[DefaultInfo].files.to_list()
     env, cc_files = _env(ctx, tree)
-    return _PRELUDE.format(env = _shell_env(env)), depset(tree, transitive = [cc_files])
+    return _PRELUDE.format(env = _shell_env(env)), depset(tree + [ctx.file._libtool_ar], transitive = [cc_files])
 
 def _dune_bootstrap_impl(ctx):
     prelude, inputs = _context(ctx)
@@ -194,6 +182,8 @@ dx_dune_bootstrap = rule(
     attrs = {
         "jobs": attr.int(default = 4, doc = "Bootstrap parallelism."),
         "srcs": attr.label_list(allow_files = True, mandatory = True, doc = "Dune's source tree, including boot/bootstrap.ml."),
+        "_libtool_ar": attr.label(default = "//ocaml/toolchain:libtool_ar.sh", allow_single_file = True),
+        "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
     executable = True,
@@ -235,6 +225,8 @@ dx_dune_build = rule(
         "target": attr.string(mandatory = True, doc = "The executable, relative to the workspace root, for example zanuda/src/main.exe."),
         "workspace": attr.label(allow_single_file = True, mandatory = True, doc = "The workspace's root dune-project file."),
         "_stdlib": attr.label(default = "@dx_ocaml_toolchains//:stdlib", cfg = "exec", allow_files = True, doc = "The OCaml standard library the built tool reads .cmi files from at run time; zanuda finds it through OCAMLLIB."),
+        "_libtool_ar": attr.label(default = "//ocaml/toolchain:libtool_ar.sh", allow_single_file = True),
+        "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
     executable = True,
@@ -331,6 +323,8 @@ _dx_dune_library = rule(
         "stubs": attr.bool(doc = "Link lib<library>_stubs.a, the package's C stubs, into native links."),
         "workspace": attr.label(allow_single_file = True, mandatory = True, doc = "The workspace's root dune-project file."),
         "_emitter": attr.label(default = "//ocaml/toolchain:emitter"),
+        "_libtool_ar": attr.label(default = "//ocaml/toolchain:libtool_ar.sh", allow_single_file = True),
+        "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
     toolchains = use_cc_toolchain(),

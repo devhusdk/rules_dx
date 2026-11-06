@@ -119,42 +119,42 @@ def cc_toolchain_identity_tests(name):
             expect_equal(
                 "clang on x86_64-unknown-linux-gnu",
                 cc_compiler_identity("clang", "x86_64-unknown-linux-gnu"),
-                struct(family = "clang", driver = "gnu", abi = "itanium", coverage = "llvm", syntax_only = "-fsyntax-only"),
+                struct(family = "clang", driver = "gnu", abi = "itanium", coverage = "llvm", syntax_only = "-fsyntax-only", target = "x86_64-unknown-linux-gnu"),
             ),
             expect_equal(
                 "clang on x86_64-pc-windows-msvc",
                 cc_compiler_identity("clang", "x86_64-pc-windows-msvc"),
-                struct(family = "clang", driver = "gnu", abi = "msvc", coverage = "llvm", syntax_only = "-fsyntax-only"),
+                struct(family = "clang", driver = "gnu", abi = "msvc", coverage = "llvm", syntax_only = "-fsyntax-only", target = "x86_64-pc-windows-msvc"),
             ),
             expect_equal(
                 "clang-cl on x86_64-pc-windows-msvc",
                 cc_compiler_identity("clang-cl", "x86_64-pc-windows-msvc"),
-                struct(family = "clang-cl", driver = "msvc", abi = "msvc", coverage = "llvm", syntax_only = "/Zs"),
+                struct(family = "clang-cl", driver = "msvc", abi = "msvc", coverage = "llvm", syntax_only = "/Zs", target = "x86_64-pc-windows-msvc"),
             ),
             expect_equal(
                 "msvc-cl on x86_64-pc-windows-msvc",
                 cc_compiler_identity("msvc-cl", "x86_64-pc-windows-msvc"),
-                struct(family = "msvc", driver = "msvc", abi = "msvc", coverage = "", syntax_only = "/Zs"),
+                struct(family = "msvc", driver = "msvc", abi = "msvc", coverage = "", syntax_only = "/Zs", target = "x86_64-pc-windows-msvc"),
             ),
             expect_equal(
                 "msvc-cl on empty target",
                 cc_compiler_identity("msvc-cl", ""),
-                struct(family = "msvc", driver = "msvc", abi = "msvc", coverage = "", syntax_only = "/Zs"),
+                struct(family = "msvc", driver = "msvc", abi = "msvc", coverage = "", syntax_only = "/Zs", target = ""),
             ),
             expect_equal(
                 "gcc on x86_64-linux-gnu",
                 cc_compiler_identity("gcc", "x86_64-linux-gnu"),
-                struct(family = "gcc", driver = "gnu", abi = "itanium", coverage = "gcov", syntax_only = "-fsyntax-only"),
+                struct(family = "gcc", driver = "gnu", abi = "itanium", coverage = "gcov", syntax_only = "-fsyntax-only", target = "x86_64-linux-gnu"),
             ),
             expect_equal(
                 "mingw-gcc on x86_64-w64-mingw32",
                 cc_compiler_identity("mingw-gcc", "x86_64-w64-mingw32"),
-                struct(family = "gcc", driver = "gnu", abi = "itanium", coverage = "gcov", syntax_only = "-fsyntax-only"),
+                struct(family = "gcc", driver = "gnu", abi = "itanium", coverage = "gcov", syntax_only = "-fsyntax-only", target = "x86_64-w64-mingw32"),
             ),
             expect_equal(
                 "empty compiler on empty target",
                 cc_compiler_identity("", ""),
-                struct(family = "unknown", driver = "unknown", abi = "unknown", coverage = "", syntax_only = ""),
+                struct(family = "unknown", driver = "unknown", abi = "unknown", coverage = "", syntax_only = "", target = ""),
             ),
             expect_equal(
                 "no resolved toolchain gives the unknown identity",
@@ -164,7 +164,7 @@ def cc_toolchain_identity_tests(name):
             expect_equal(
                 "icx on x86_64-unknown-linux-gnu",
                 cc_compiler_identity("icx", "x86_64-unknown-linux-gnu"),
-                struct(family = "unknown", driver = "unknown", abi = "unknown", coverage = "", syntax_only = ""),
+                struct(family = "unknown", driver = "unknown", abi = "unknown", coverage = "", syntax_only = "", target = "x86_64-unknown-linux-gnu"),
             ),
         ],
     )

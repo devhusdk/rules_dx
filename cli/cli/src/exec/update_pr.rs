@@ -593,11 +593,16 @@ fn publish_one(
     git(&commit)?;
     let numstat = git(&["diff", "--numstat", sha, "HEAD"])?;
     let text = body(group, &lock_numstat(&numstat, locks));
-    let _ = git(&[
+    let tracking = format!("refs/remotes/origin/{branch}");
+    let fetched = git(&[
         "fetch",
         "origin",
-        &format!("+refs/heads/{branch}:refs/remotes/origin/{branch}"),
+        &format!("+refs/heads/{branch}:{tracking}"),
     ]);
+    if fetched.is_err() {
+        // The remote branch is gone; a stale tracking ref would fail the lease.
+        let _ = git(&["update-ref", "-d", &tracking]);
+    }
     if let Some(number) = existing {
         let remote = format!("origin/{branch}");
         let same_tree = git(&["rev-parse", &format!("{remote}^{{tree}}")])
@@ -1182,6 +1187,31 @@ mod tests {
         assert_eq!(parent.trim(), main.trim());
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert_eq!(argv.matches("pr edit").count(), 2);
+    }
+
+    #[test]
+    fn a_deleted_remote_branch_does_not_fail_the_lease() {
+        let fx = fixture("[]");
+        let mut step = editing(fx.work.clone(), None);
+        let publish_once = |step: &mut dyn FnMut(&[String]) -> Result<(), String>| {
+            publish(
+                &fx.work,
+                &fx.tools,
+                &plans(),
+                &scope(),
+                &[],
+                &rules(),
+                &[],
+                step,
+            )
+            .expect("publish")
+        };
+        publish_once(&mut step);
+        sh(&fx.origin, &["branch", "-D", "dx-update/cargo"]);
+        let second = publish_once(&mut step);
+        assert!(second[0].result.is_ok(), "{:?}", second[0].result);
+        let pushed = sh(&fx.origin, &["rev-parse", "--verify", "dx-update/cargo"]);
+        assert!(!pushed.trim().is_empty());
     }
 
     #[test]

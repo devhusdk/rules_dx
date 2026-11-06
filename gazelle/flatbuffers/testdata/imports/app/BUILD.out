@@ -1,0 +1,8 @@
+load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+
+flatbuffers_library(
+    name = "app",
+    srcs = ["line.fbs"],
+    visibility = ["//visibility:public"],
+    deps = ["//lib"],
+)

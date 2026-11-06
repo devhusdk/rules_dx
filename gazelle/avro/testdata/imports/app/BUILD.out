@@ -1,0 +1,8 @@
+load("@rules_dx//avro/rules:defs.bzl", "avro_library")
+
+avro_library(
+    name = "app",
+    srcs = ["line.avdl"],
+    visibility = ["//visibility:public"],
+    deps = ["//lib"],
+)

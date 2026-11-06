@@ -1,0 +1,7 @@
+@namespace("demo")
+protocol App {
+  import idl "lib/point.avdl";
+  record Line {
+    Point from;
+  }
+}

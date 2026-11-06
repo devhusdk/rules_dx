@@ -2,12 +2,15 @@ package dispatch
 
 import (
 	_ "github.com/devhusdk/rules_dx/gazelle/astro"
+	_ "github.com/devhusdk/rules_dx/gazelle/avro"
+	_ "github.com/devhusdk/rules_dx/gazelle/capnproto"
 	_ "github.com/devhusdk/rules_dx/gazelle/cc"
 	_ "github.com/devhusdk/rules_dx/gazelle/csharp"
 	_ "github.com/devhusdk/rules_dx/gazelle/d"
 	_ "github.com/devhusdk/rules_dx/gazelle/dart"
 	_ "github.com/devhusdk/rules_dx/gazelle/elixir"
 	_ "github.com/devhusdk/rules_dx/gazelle/erlang"
+	_ "github.com/devhusdk/rules_dx/gazelle/flatbuffers"
 	_ "github.com/devhusdk/rules_dx/gazelle/fsharp"
 	_ "github.com/devhusdk/rules_dx/gazelle/go"
 	_ "github.com/devhusdk/rules_dx/gazelle/haskell"
@@ -28,6 +31,7 @@ import (
 	_ "github.com/devhusdk/rules_dx/gazelle/scala"
 	_ "github.com/devhusdk/rules_dx/gazelle/svelte"
 	_ "github.com/devhusdk/rules_dx/gazelle/swift"
+	_ "github.com/devhusdk/rules_dx/gazelle/thrift"
 	_ "github.com/devhusdk/rules_dx/gazelle/typescript"
 	_ "github.com/devhusdk/rules_dx/gazelle/vue"
 	_ "github.com/devhusdk/rules_dx/gazelle/zig"

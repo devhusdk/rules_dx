@@ -1,0 +1,10 @@
+load("@rules_dx//capnproto/rules:defs.bzl", "capnp_library")
+
+capnp_library(
+    name = "lib",
+    srcs = [
+        "path.capnp",
+        "point.capnp",
+    ],
+    visibility = ["//visibility:public"],
+)

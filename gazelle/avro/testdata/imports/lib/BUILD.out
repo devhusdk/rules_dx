@@ -1,0 +1,10 @@
+load("@rules_dx//avro/rules:defs.bzl", "avro_library")
+
+avro_library(
+    name = "lib",
+    srcs = [
+        "path.avdl",
+        "point.avdl",
+    ],
+    visibility = ["//visibility:public"],
+)

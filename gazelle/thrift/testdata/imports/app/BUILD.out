@@ -1,0 +1,8 @@
+load("@rules_dx//thrift/rules:defs.bzl", "thrift_library")
+
+thrift_library(
+    name = "app",
+    srcs = ["line.thrift"],
+    visibility = ["//visibility:public"],
+    deps = ["//lib"],
+)

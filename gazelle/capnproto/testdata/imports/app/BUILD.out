@@ -1,0 +1,8 @@
+load("@rules_dx//capnproto/rules:defs.bzl", "capnp_library")
+
+capnp_library(
+    name = "app",
+    srcs = ["line.capnp"],
+    visibility = ["//visibility:public"],
+    deps = ["//lib"],
+)

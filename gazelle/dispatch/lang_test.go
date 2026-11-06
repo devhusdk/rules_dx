@@ -471,23 +471,27 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	const jvm = "add a local library, a maven_install.json artifact, or a # gazelle:resolve mapping on the qualified import or its package"
 	const csharp = "add a local library that declares the namespace or a # gazelle:resolve mapping on the full namespace"
 	hints := map[string]string{
-		"astro":  oneSourceRelative,
-		"cc":     "includes with a directory resolve by workspace or package-relative path; otherwise add a local one-header library or an exact # gazelle:resolve mapping",
-		"csharp": csharp,
-		"fsharp": oneSource,
-		"java":   jvm,
-		"javascript": oneSource + ", or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
-		"kotlin": jvm,
-		"lua":    oneSource,
-		"mdx":    oneSourceRelative,
-		"perl":   oneSource,
-		"php":    "add a local php_library that declares the class, or a # gazelle:resolve / resolve_regexp mapping",
-		"protobuf": "add a proto_library that owns that file or an exact # gazelle:resolve protobuf mapping",
-		"python": oneSource,
-		"ruby":   oneSource,
-		"scala":  jvm,
-		"svelte": oneSourceRelative,
-		"vue":    oneSourceRelative,
+		"astro":       oneSourceRelative,
+		"cc":          "includes with a directory resolve by workspace or package-relative path; otherwise add a local one-header library or an exact # gazelle:resolve mapping",
+		"csharp":      csharp,
+		"fsharp":      oneSource,
+		"java":        jvm,
+		"javascript":  oneSource + ", or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
+		"kotlin":      jvm,
+		"lua":         oneSource,
+		"mdx":         oneSourceRelative,
+		"perl":        oneSource,
+		"php":         "add a local php_library that declares the class, or a # gazelle:resolve / resolve_regexp mapping",
+		"protobuf":    "add a proto_library that owns that file or an exact # gazelle:resolve protobuf mapping",
+		"python":      oneSource,
+		"avro":        "add an avro_library that owns that file or an exact # gazelle:resolve avro mapping",
+		"capnproto":   "add a capnp_library that owns that file or an exact # gazelle:resolve capnproto mapping",
+		"flatbuffers": "add a flatbuffers_library that owns that file or an exact # gazelle:resolve flatbuffers mapping",
+		"thrift":      "add a thrift_library that owns that file or an exact # gazelle:resolve thrift mapping",
+		"ruby":        oneSource,
+		"scala":       jvm,
+		"svelte":      oneSourceRelative,
+		"vue":         oneSourceRelative,
 	}
 	composed := map[string]language.Language{}
 	for _, lang := range composedLanguages() {
@@ -571,7 +575,7 @@ func TestConfigureRejectsUnknownIgnoreLanguage(t *testing.T) {
 			t.Errorf("%q: errors = %v, want one containing %q", tc.value, l.errors, tc.want)
 			continue
 		}
-		if strings.HasPrefix(tc.want, "unknown") && !strings.Contains(l.errors[0].Message, "use one of: astro, cc,") {
+		if strings.HasPrefix(tc.want, "unknown") && !strings.Contains(l.errors[0].Message, "use one of: astro, avro, capnproto, cc,") {
 			t.Errorf("%q: error %q must list the accepted languages", tc.value, l.errors[0].Message)
 		}
 	}

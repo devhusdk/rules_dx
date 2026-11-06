@@ -554,7 +554,11 @@
         ".thrift"
       ],
       "gazelle": [
-        "//gazelle/protobuf"
+        "//gazelle/avro",
+        "//gazelle/capnproto",
+        "//gazelle/flatbuffers",
+        "//gazelle/protobuf",
+        "//gazelle/thrift"
       ],
       "repo_rules": [],
       "toolchains": []

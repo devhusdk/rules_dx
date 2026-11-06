@@ -1,0 +1,10 @@
+load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+
+flatbuffers_library(
+    name = "lib",
+    srcs = [
+        "path.fbs",
+        "point.fbs",
+    ],
+    visibility = ["//visibility:public"],
+)

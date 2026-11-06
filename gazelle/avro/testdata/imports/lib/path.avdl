@@ -1,0 +1,7 @@
+@namespace("demo")
+protocol Path {
+  import idl "point.avdl";
+  record Path {
+    array<Point> points;
+  }
+}

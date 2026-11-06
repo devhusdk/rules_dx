@@ -1,0 +1,10 @@
+load("@rules_dx//thrift/rules:defs.bzl", "thrift_library")
+
+thrift_library(
+    name = "lib",
+    srcs = [
+        "path.thrift",
+        "point.thrift",
+    ],
+    visibility = ["//visibility:public"],
+)

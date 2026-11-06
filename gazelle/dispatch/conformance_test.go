@@ -163,6 +163,26 @@ var conformanceRows = map[string]conformanceRow{
 		symbols:    []string{"proto_library"},
 		extraLoads: map[string][]string{"@rules_rust_prost//:defs.bzl": {"rust_prost_library"}, "@rules_dx//typescript/rules:defs.bzl": {"ts_proto_library"}, "@rules_dx_dotnet//csharp/rules:defs.bzl": {"csharp_proto_library"}, "@grpc-java//:java_grpc_library.bzl": {"java_grpc_library"}, "@grpc//bazel:cc_grpc_library.bzl": {"cc_grpc_library"}, "@protobuf//bazel:cc_proto_library.bzl": {"cc_proto_library"}, "@protobuf//bazel:java_proto_library.bzl": {"java_proto_library"}, "@protobuf//bazel:py_proto_library.bzl": {"py_proto_library"}, "@rules_dx//python/rules:grpc.bzl": {"py_grpc_library"}, "@rules_go//proto:def.bzl": {"go_proto_library"}},
 	},
+	"avro": {
+		files: map[string]string{"demo.avdl": "protocol Demo {\n}\n"},
+		kind:  "avro_library", target: "demo", defs: "avro/rules:defs.bzl",
+		symbols: []string{"avro_library"},
+	},
+	"capnproto": {
+		files: map[string]string{"demo.capnp": "@0xdbb9ad1f14bf0b36;\n"},
+		kind:  "capnp_library", target: "demo", defs: "capnproto/rules:defs.bzl",
+		symbols: []string{"capnp_library"},
+	},
+	"flatbuffers": {
+		files: map[string]string{"demo.fbs": "table Demo {}\n"},
+		kind:  "flatbuffers_library", target: "demo", defs: "flatbuffers/rules:defs.bzl",
+		symbols: []string{"flatbuffers_library"},
+	},
+	"thrift": {
+		files: map[string]string{"demo.thrift": "struct Demo {}\n"},
+		kind:  "thrift_library", target: "demo", defs: "thrift/rules:defs.bzl",
+		symbols: []string{"thrift_library"},
+	},
 	"python": {
 		files: map[string]string{"demo.py": "x = 1\n"},
 		kind:  "python_library", target: "demo", defs: "python/rules:defs.bzl",

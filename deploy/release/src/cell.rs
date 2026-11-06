@@ -117,7 +117,7 @@ fn cell_error(cell: &Cell) -> Option<String> {
     }
     let mut members: BTreeSet<&str> = ["LICENSE", "NOTICE", "IDENTITY.txt"].into_iter().collect();
     for member in std::iter::once(&cell.exe).chain(&cell.runtime) {
-        if member.contains('/') {
+        if member == &cell.exe && member.contains('/') {
             return Some(format!("member {member:?} must be a top-level name"));
         }
         if let Some(reason) = dx_deploy_tools::member_name_error(member) {

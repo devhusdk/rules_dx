@@ -196,7 +196,10 @@ fn many_files_are_fetched_by_one_bounded_parallel_curl() {
     assert_eq!(position.map(|at| plan.argv[at + 1].as_str()), Some("16"));
     assert!(plan.argv.contains(&"--parallel".to_owned()));
     assert!(plan.argv.contains(&"--max-time".to_owned()));
-    assert_eq!(plan.argv.iter().filter(|arg| *arg == "--output").count(), 40);
+    assert_eq!(
+        plan.argv.iter().filter(|arg| *arg == "--output").count(),
+        40
+    );
 }
 
 #[test]

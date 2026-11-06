@@ -1588,8 +1588,8 @@ crate.annotation(
     crate = "ring",
     patch_args = ["-p1"],
     patches = [
-        "//patches/ring:clang_cl_aarch64_windows.patch",
-        "//patches/ring:msvc_fiat_include_path.patch",
+        "@rules_dx//patches/ring:clang_cl_aarch64_windows.patch",
+        "@rules_dx//patches/ring:msvc_fiat_include_path.patch",
     ],
     repositories = ["dx_crates"],
     version = "0.17.14",
@@ -1637,7 +1637,7 @@ crate.annotation_select(
 crate.annotation(
     crate = "gomod-parser",
     patch_args = ["-p1"],
-    patches = ["//patches/gomod-parser:glued_comment.patch"],
+    patches = ["@rules_dx//patches/gomod-parser:glued_comment.patch"],
     repositories = ["dx_crates"],
     version = "0.5.3",
 )

@@ -21,6 +21,12 @@ LINUX = ["@platforms//os:linux"]
 
 WINDOWS = ["@platforms//os:windows"]
 
+LINUX_MACOS = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
 MANIFEST_HOSTS = MANIFEST_COMPATIBLE_WITH
 
 # The fragments of the hermetic consumers, read by //modules:consumer_deps_test.
@@ -308,6 +314,7 @@ hermetic_qualification(
         "//javascript/tests/fixtures/node-app/registry/...",
     ],
     smoke = True,
+    compatible_with = LINUX_MACOS,
     timeout = "long",
 )
 

@@ -142,6 +142,8 @@ _rust_forward_cc = dx_library_forward_rule(
     upstream_providers = [[_rust_common.test_crate_info]],
     extra_attrs = _LIBSTDCXX_ATTRS,
     upstream_cfg = _cpp_runtime_transition,
+    upstream_aspects = [dx_msvc_crt_aspect],
+    validate = dx_msvc_crt_validate,
 )
 
 _rust_forward_binary = dx_executable_forward_rule(

@@ -7,8 +7,8 @@ load("//cc/rules:defs.bzl", "cc_library")
 load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
-load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_msvc_crt_tests")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
+load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_msvc_crt_library_tests", "rust_msvc_crt_tests")
 
 package(
     default_testonly = True,
@@ -268,6 +268,30 @@ rust_msvc_crt_tests(
     name = "native_call_msvc_crt_tests",
     bad = ":native_md_crt_test",
     ok = ":native_call_test",
+)
+
+rust_shared_library(
+    name = "native_md_shared",
+    srcs = ["src/md_lib.rs"],
+    crate_name = "native_md_shared",
+    edition = "2021",
+    tags = ["manual"],
+    deps = [":native_md"],
+)
+
+rust_static_library(
+    name = "native_md_static",
+    srcs = ["src/md_lib.rs"],
+    crate_name = "native_md_static",
+    edition = "2021",
+    tags = ["manual"],
+    deps = [":native_md"],
+)
+
+rust_msvc_crt_library_tests(
+    name = "native_md_library_crt_tests",
+    shared = ":native_md_shared",
+    static = ":native_md_static",
 )
 
 _raw_cc_library(

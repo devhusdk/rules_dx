@@ -371,3 +371,23 @@ def rust_msvc_crt_tests(name, ok, bad):
             target_under_test = target,
         )
     native.test_suite(name = name, tests = [ok_name, bad_name])
+
+def rust_msvc_crt_library_tests(name, shared, static):
+    """Asserts +crt-static Rust shared and static libraries reject /MD C deps on MSVC.
+
+    Args:
+        name: Name of the test suite.
+        shared: A rust_shared_library with a C dep compiled /MD.
+        static: A rust_static_library with a C dep compiled /MD.
+    """
+    tests = []
+    for kind, target in [("shared", shared), ("static", static)]:
+        test = "{}_{}_bad".format(name, kind)
+        _crt_bad_test(
+            name = test,
+            size = "small",
+            target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+            target_under_test = target,
+        )
+        tests.append(test)
+    native.test_suite(name = name, tests = tests)

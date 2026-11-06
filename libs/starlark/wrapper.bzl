@@ -382,7 +382,7 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
     else:
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
 
-def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, quality_tools = None, instrument_srcs = False, extra_providers = None, toolchains = None, validate = None):
+def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, quality_tools = None, instrument_srcs = False, extra_providers = None, toolchains = None, validate = None, upstream_aspects = None):
     """Creates the public forwarding rule for one library wrapper.
 
     `extra_providers`, when set, is `fn(ctx, upstream) -> list` of providers the wrapper adds.
@@ -408,6 +408,7 @@ def dx_library_forward_rule(provides, required_providers, quality_specs, what, a
         upstream_providers = upstream_providers,
         extra_attrs = extra_attrs,
         upstream_cfg = upstream_cfg,
+        upstream_aspects = upstream_aspects,
     )
     attrs.update(_dx_tool_attrs(quality_tools))
     return rule(

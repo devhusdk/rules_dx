@@ -45,6 +45,18 @@ def oci_registry_error(registry):
     if "://" in registry:
         return ("oci_deploy: invalid registry '" + registry +
                 "': want a host plus optional path, never a URL scheme")
+    if "/" in registry:
+        path = registry.split("/", 1)[1]
+        if "//" in path:
+            return ("oci_deploy: invalid registry '" + registry +
+                    "': want no empty path segments")
+        if path != path.lower():
+            return ("oci_deploy: invalid registry '" + registry +
+                    "': want a lowercase path after the host")
+        for segment in path.split("/"):
+            error = _oci_repository_segment_error(segment)
+            if error != "":
+                return "oci_deploy: invalid registry '" + registry + "': " + error
     return ""
 
 def _oci_repository_segment_error(segment):

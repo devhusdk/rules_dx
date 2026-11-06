@@ -811,7 +811,8 @@ uncompressed.
 
 - Auth: `OCI_REGISTRY_USER` and `OCI_REGISTRY_TOKEN`, sent as a Basic login or
   exchanged for a bearer token, as the registry asks.
-- `registry` may carry a path prefix, such as `ghcr.io/example`.
+- `registry` may carry a path prefix, such as `ghcr.io/example`. The host is
+  case-insensitive; the path after it must be lowercase with no empty segments.
 - `docker.io` pushes to `registry-1.docker.io`; a single-segment repository
   gets `library/`.
 - Plain-HTTP registries are not supported.
@@ -1029,7 +1030,8 @@ helm_chart_deploy(
 
 - `chart`: a `helm_chart` target. Its files are copied to a staging directory.
 - `version`: must equal `version` in `Chart.yaml`, or the run fails.
-- `registry`: host plus optional path. `repository` adds a path below it.
+- `registry`: host plus optional path (lowercase, no empty segments, as for
+  `oci_deploy`). `repository` adds a path below it.
 - `helm`: defaults to the pinned helm from `//config:tool_helm`.
 
 A dry run runs `helm lint`, then `helm package`, and prints the `.tgz` path.

@@ -41,6 +41,34 @@ def oci_unit_tests(name):
                 "",
             ),
             expect_equal(
+                "oci_registry_error rejects an uppercase path",
+                oci_registry_error("ghcr.io/MyOrg"),
+                "oci_deploy: invalid registry 'ghcr.io/MyOrg': " +
+                "want a lowercase path after the host",
+            ),
+            expect_equal(
+                "oci_registry_error rejects empty path segments",
+                oci_registry_error("ghcr.io/a//b"),
+                "oci_deploy: invalid registry 'ghcr.io/a//b': " +
+                "want no empty path segments",
+            ),
+            expect_equal(
+                "oci_registry_error accepts an uppercase host",
+                oci_registry_error("GHCR.io/org"),
+                "",
+            ),
+            expect_equal(
+                "oci_registry_error rejects a bad path segment",
+                oci_registry_error("ghcr.io/a/-b"),
+                "oci_deploy: invalid registry 'ghcr.io/a/-b': " +
+                "want each path segment to start and end with [a-z0-9]",
+            ),
+            expect_equal(
+                "oci_registry_error keeps the port in the host",
+                oci_registry_error("localhost:5000/team"),
+                "",
+            ),
+            expect_equal(
                 "oci_registry_error rejects a URL scheme",
                 oci_registry_error("https://ghcr.io"),
                 "oci_deploy: invalid registry 'https://ghcr.io': want a " +

@@ -292,6 +292,7 @@ rust_test(
         "src/exec/quality_reporting.rs",
         "src/exec/quality_reports.rs",
         "src/exec/quality_shared.rs",
+        "src/exec/quality_skip_notes_tests.rs",
         "src/exec/results.rs",
         "src/exec/unused_shared.rs",
         "src/exec/run.rs",

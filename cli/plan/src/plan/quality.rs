@@ -8,7 +8,7 @@ use super::{
     registry::{aspects_for, probes_for, spec},
     rules_dx_label, BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP,
     DOCS_TOOLS_OUTPUT_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
-    SKIP_INCOMPATIBLE_FLAG,
+    SKIP_INCOMPATIBLE_FLAG, SKIP_OUTPUT_GROUP,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
@@ -184,7 +184,8 @@ pub fn plan_build_with(
         None => spec(command).aspects.to_vec(),
     };
     let aspects = joined_labels(select_aspects(aspects, selection.shards));
-    let mut required = shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path);
+    let groups = format!("{OUTPUT_GROUP},{SKIP_OUTPUT_GROUP}");
+    let mut required = shaped_options(&aspects, &groups, bazel_options, bep_path);
     if command == Command::Lint {
         required.push(unused_dependencies_flag());
     }
@@ -649,7 +650,7 @@ mod tests {
                         &format!("--aspects={probe_label}")
                     ),
                     (
-                        &"--output_groups=dx_results".to_owned(),
+                        &"--output_groups=dx_results,dx_skips".to_owned(),
                         &"--output_groups=dx_shards".to_owned()
                     ),
                     (
@@ -810,7 +811,7 @@ mod tests {
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
                 "--aspects=@rules_dx//quality:families/cc.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_make_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_cmake_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_terraform_lint_aspect,@rules_dx//quality:families/dotnet.bzl%real_dotnet_lint_aspect,@rules_dx//quality:families/generation.bzl%real_capnp_lint_aspect,@rules_dx//quality:families/generation.bzl%real_flatbuffers_lint_aspect,@rules_dx//quality:families/generation.bzl%real_thrift_lint_aspect,@rules_dx//quality:families/generation.bzl%real_avro_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_go_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:families/js.bzl%real_js_lint_aspect,@rules_dx//quality:families/python.bzl%real_python_lint_aspect,@rules_dx//quality:families/generation.bzl%real_protobuf_lint_aspect,@rules_dx//quality:families/powershell.bzl%real_powershell_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_jvm_lint_aspect,@rules_dx//quality:families/ruby.bzl%real_ruby_lint_aspect,@rules_dx//quality:families/rust.bzl%real_rust_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_nix_lint_aspect,@rules_dx//quality:families/lua.bzl%real_lua_lint_aspect,@rules_dx//quality:families/ocaml.bzl%real_ocaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_kubernetes_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ansible_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_cloudformation_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_bicep_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_sql_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rego_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jsonnet_lint_aspect,@rules_dx//quality:families/fortran.bzl%real_fortran_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_typst_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_xml_lint_aspect,@rules_dx//quality:families/haskell.bzl%real_haskell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_latex_lint_aspect,@rules_dx//quality:families/beam.bzl%real_erlang_lint_aspect,@rules_dx//quality:families/beam.bzl%real_elixir_lint_aspect,@rules_dx//quality:families/php.bzl%real_php_lint_aspect,@rules_dx//quality:families/dart.bzl%real_dart_lint_aspect,@rules_dx//quality:families/d.bzl%real_d_lint_aspect,@rules_dx//quality:families/perl.bzl%real_perl_lint_aspect,@rules_dx//quality:families/swift.bzl%real_swift_lint_aspect,@rules_dx//quality:families/zig.bzl%real_zig_lint_aspect,@rules_dx//quality:families/julia.bzl%real_julia_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_pkl_lint_aspect",
-                "--output_groups=dx_results",
+                "--output_groups=dx_results,dx_skips",
                 "--remote_download_outputs=toplevel",
             ]
         );

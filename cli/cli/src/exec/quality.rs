@@ -18,7 +18,9 @@ use dx_output::{
     NoticeEvent, OutputMode, Severity,
 };
 use dx_plan::args::{Command, Invocation, QualityRequest, BREAKING_AGAINST_OPTION};
-use dx_plan::plan::{bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP};
+use dx_plan::plan::{
+    bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP,
+};
 use dx_plan::reports::{plan_reports, BaselineReport, Destination};
 use dx_plan::resolve::{resolve, RuleGraph};
 use std::collections::BTreeSet;
@@ -279,6 +281,27 @@ fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
     Some(shards)
 }
 
+/// The skip notes of every target in the event file, one per tool however many targets dropped it.
+pub(super) fn read_skip_notes(bep: &Path, workspace: &Path) -> Vec<String> {
+    let Ok(account) = collect_output_account(bep, SKIP_OUTPUT_GROUP, workspace) else {
+        return Vec::new();
+    };
+    let mut seen = BTreeSet::new();
+    let mut notes = Vec::new();
+    for target in account.targets.iter().chain(&account.no_work) {
+        for artifact in &target.artifacts {
+            for line in String::from_utf8_lossy(&artifact.bytes).lines() {
+                let tool = line.split(':').next().unwrap_or(line);
+                if !line.is_empty() && seen.insert(tool.to_owned()) {
+                    notes.push(line.to_owned());
+                }
+            }
+        }
+    }
+    notes.sort();
+    notes
+}
+
 fn run_quality_request(
     request: &QualityRequest,
     env: Env<'_>,
@@ -503,6 +526,11 @@ fn run_quality_request(
             return operational_output(request.common.output, out, err, &code, &message);
         }
     };
+    if request.common.output != OutputMode::Json {
+        for note in read_skip_notes(&bep, workspace) {
+            let _ = writeln!(err, "dx: note: {note}");
+        }
+    }
     let _ = std::fs::remove_file(&bep);
     if bazel_code != 0 {
         let crashed = server_died(bazel_code);
@@ -829,6 +857,9 @@ mod quality_reporting;
 #[cfg(test)]
 #[path = "quality_shared.rs"]
 mod quality_shared;
+#[cfg(test)]
+#[path = "quality_skip_notes_tests.rs"]
+mod quality_skip_notes_tests;
 #[cfg(test)]
 #[path = "text_output_tests.rs"]
 mod text_output_tests;

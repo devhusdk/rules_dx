@@ -214,6 +214,9 @@ pub const DOCS_SHARD_OUTPUT_GROUP: &str = "dx_docs_shards";
 /// The output group of the manifest naming the tools that build that index.
 pub const DOCS_TOOLS_OUTPUT_GROUP: &str = "dx_docs_tools";
 
+/// The output group of notes naming the tools a target dropped because none is pinned for the platform.
+pub const SKIP_OUTPUT_GROUP: &str = "dx_skips";
+
 /// The output group the shard probe writes `{"shards":[...]}` files to.
 pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";
 

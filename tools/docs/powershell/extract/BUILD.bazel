@@ -32,6 +32,7 @@ rust_library(
     ),
     crate_name = "dx_docs_powershell_extract",
     crate_root = "src/lib.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "tools/docs/powershell/powershell_extract",
         normal = True,
@@ -50,6 +51,7 @@ rust_binary(
     ),
     crate_name = "powershell_extract",
     crate_root = "src/main.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "tools/docs/powershell/powershell_extract",
         normal = True,
@@ -72,6 +74,7 @@ rust_test(
     ),
     crate_name = "dx_docs_powershell_extract",
     crate_root = "src/lib.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "tools/docs/powershell/powershell_extract",
         normal = True,

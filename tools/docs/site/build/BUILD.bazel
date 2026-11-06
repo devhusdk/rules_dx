@@ -24,6 +24,7 @@ rust_library(
     ),
     crate_name = "dx_site_build",
     crate_root = "src/lib.rs",
+    edition = "2024",
     visibility = VIS_TOOLS_PUBLIC,
     deps = [],
 )
@@ -41,6 +42,7 @@ rust_test(
     ),
     crate_name = "dx_site_build",
     crate_root = "src/lib.rs",
+    edition = "2024",
     deps = [],
 )
 
@@ -53,6 +55,7 @@ rust_binary(
     ),
     crate_name = "site_build",
     crate_root = "src/main.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_build",
         normal = True,

@@ -69,16 +69,17 @@ rust_library(
     ),
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
     ) + [
         "//cli/audit:dx_audit",
-        "//libs/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/sbom:dx_sbom",
         "//deploy/rules:dx_deploy_tools",
+        "//libs/binfmt:dx_binfmt",
         "@crates//:serde",
     ],
 )
@@ -92,6 +93,7 @@ rust_binary(
     ),
     crate_name = "release_tool",
     crate_root = "src/bin_release_tool.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -122,18 +124,19 @@ rust_test(
     ),
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
     ) + [
         "//cli/audit:dx_audit",
-        "//libs/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/sbom:dx_sbom",
         "//cli/sbom/schema:dx_sbom_schema",
         "//deploy/rules:dx_deploy_tools",
+        "//libs/binfmt:dx_binfmt",
         "@crates//:serde",
     ],
 )
@@ -276,6 +279,7 @@ rust_binary(
     ),
     crate_name = "publish_dry_run_check",
     crate_root = "src/bin_publish_dry_run_check.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -291,6 +295,7 @@ rust_binary(
     ),
     crate_name = "release_cell",
     crate_root = "src/bin_release_cell.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -306,6 +311,7 @@ rust_binary(
     ),
     crate_name = "bcr_ledger",
     crate_root = "src/bin_bcr_ledger.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -321,6 +327,7 @@ rust_binary(
     ),
     crate_name = "release_driver",
     crate_root = "src/bin_release_driver.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -339,6 +346,7 @@ rust_binary(
     ),
     crate_name = "source_archive",
     crate_root = "src/bin_source_archive.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -354,6 +362,7 @@ rust_binary(
     ),
     crate_name = "bump_version",
     crate_root = "src/bin_bump_version.rs",
+    edition = "2024",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -760,6 +769,7 @@ rust_binary(
     ),
     crate_name = "release_deploy_tool",
     crate_root = "src/bin_release_deploy_tool.rs",
+    edition = "2024",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",

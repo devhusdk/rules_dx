@@ -425,6 +425,10 @@ fn finished_empty(
         if let Err(exit) = emit_built(out, started) {
             return exit;
         }
+    } else if invocation.output == OutputMode::Diff {
+        if writeln!(err, "no affected targets").is_err() {
+            return 1;
+        }
     } else if writeln!(out, "no affected targets").is_err() {
         return 1;
     }
@@ -823,6 +827,25 @@ mod tests {
             String::from_utf8(out).expect("utf8"),
             String::from_utf8(err).expect("utf8"),
         )
+    }
+
+    #[test]
+    fn empty_selection_in_diff_mode_leaves_stdout_empty() {
+        let dir = repo();
+        for words in [
+            ["format", "--affected", "--diff"],
+            ["lint", "--affected", "--diff"],
+            ["check", "--affected", "--diff"],
+        ] {
+            let (code, out, err) = empty_exit(dir.path(), &words);
+            assert_eq!(code, 0, "{words:?}");
+            assert_eq!(out, "", "{words:?}");
+            assert_eq!(err, "no affected targets\n", "{words:?}");
+        }
+        let (code, out, err) = empty_exit(dir.path(), &["format", "--affected"]);
+        assert_eq!(code, 0);
+        assert_eq!(out, "no affected targets\n");
+        assert_eq!(err, "");
     }
 
     #[test]

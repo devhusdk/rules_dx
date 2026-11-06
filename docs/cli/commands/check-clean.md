@@ -30,7 +30,7 @@ Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `-
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 
-Scopes: no scope means `//...`. `--here` and `--affected` do not combine with scopes. See [Scope defaults](scope-defaults.md). With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`.
+Scopes: no scope means `//...`. `--here` and `--affected` do not combine with scopes. See [Scope defaults](scope-defaults.md). With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty.
 
 ### Phases
 

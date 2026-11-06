@@ -41,7 +41,7 @@ Each changed file maps to its owning targets, then to their reverse dependencies
 - `test` and `coverage` keep only test targets.
 - `security` and `license` keep only targets a dependency set owns. `security` still runs the secrets scan when any file changed.
 - `check --affected` runs the checks, then the affected tests. `check --apply --affected` skips the tests.
-- With no changes or no affected targets, dx prints `no affected targets` and exits `0`.
+- With no changes or no affected targets, dx prints `no affected targets` and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty.
 
 ### What widens the scope
 

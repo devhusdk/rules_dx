@@ -30,7 +30,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | `-o, --output text\|json` | Result shape. Default `text`. |
 | `--include-edits` | Add `source_digest` and full `edits` to JSON `change` events. Needs `--output json`, else exit `2`. |
 | `--here` | Scope to the current directory tree. |
-| `--affected` | Scope to targets your changes reach. With none, prints `no affected targets` and exits `0`. |
+| `--affected` | Scope to targets your changes reach. With none, prints `no affected targets` and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty. |
 | `--workspace <dir>` | Use this workspace dir. |
 | `-q, --quiet` | Hide summaries. Findings and failures still print. |
 | `-v, --verbose` | Show more logs. |

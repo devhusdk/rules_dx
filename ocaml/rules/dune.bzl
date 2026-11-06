@@ -103,14 +103,23 @@ def _env(ctx, tree):
     )
     tool = lambda action: _abs(cc_common.get_tool_for_action(feature_configuration = features, action_name = action))
     compiler = _find(tree, "/bin/ocamlopt.opt")
-    return {
+    env = {
+        key: _abs(value) if "/" in value and not value.startswith("-") else value
+        for key, value in cc_common.get_environment_variables(
+            feature_configuration = features,
+            action_name = ACTION_NAMES.cpp_link_executable,
+            variables = cc_common.empty_variables(),
+        ).items()
+    }
+    env.update({
         "CONDA_OCAML_AR": tool(ACTION_NAMES.cpp_link_static_library),
         "CONDA_OCAML_AS": tool(ACTION_NAMES.assemble) + " -c",
         "CONDA_OCAML_CC": tool(ACTION_NAMES.c_compile),
         "CONDA_OCAML_MKDLL": tool(ACTION_NAMES.cpp_link_executable) + " -shared",
         "CONDA_OCAML_MKEXE": tool(ACTION_NAMES.cpp_link_executable),
         "PATH": _abs(compiler.dirname) + ":/usr/bin:/bin",
-    }, cc.all_files
+    })
+    return env, cc.all_files
 
 def _shell_env(env):
     return "\n".join(["export {}=\"{}\"".format(key, env[key]) for key in sorted(env)])

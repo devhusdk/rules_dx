@@ -447,7 +447,7 @@ jobs:
           cp evidence.log "$RUNNER_TEMP/evidence/" 2>/dev/null || true
           cp relocated.log "$RUNNER_TEMP/evidence/" 2>/dev/null || true
           [ -e bazel-testlogs ] || exit 0
-          find -L bazel-testlogs/ -name test.log -print | while read -r log; do
+          find -L bazel-testlogs/ -name test.outputs -prune -o -name test.log -print | while read -r log; do
             dir="$(dirname "$log")"
             rel="${dir#bazel-testlogs/}"
             mkdir -p "$out/$rel"

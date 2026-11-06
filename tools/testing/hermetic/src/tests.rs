@@ -1862,7 +1862,10 @@ fn windows_leak_package_uses_powershell_and_keeps_the_markers() {
 fn action_path_is_system_only() {
     if cfg!(windows) {
         let path = action_path(Some(r"D:\Win"), Some(Path::new(r"C:\q\shims")));
-        assert_eq!(path, r"D:\Win\System32;D:\Win;C:\q\shims");
+        assert_eq!(
+            path,
+            r"D:\Win\System32;D:\Win;D:\Win\System32\WindowsPowerShell\v1.0;C:\q\shims"
+        );
     } else {
         assert_eq!(action_path(None, None), ACTION_PATH);
     }

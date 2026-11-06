@@ -186,12 +186,17 @@ pub const SHIM_NAME: &str = if cfg!(windows) {
 };
 
 /// The PATH of every action: system directories only, plus the shim directory on Windows.
+/// Bazel starts `cmd_ps` genrules as a bare `powershell.exe`, so its directory is listed too.
 pub fn action_path(system_root: Option<&str>, shim_dir: Option<&Path>) -> String {
     if !cfg!(windows) {
         return ACTION_PATH.to_owned();
     }
     let root = system_root.unwrap_or(r"C:\Windows");
-    let mut dirs = vec![format!(r"{root}\System32"), root.to_owned()];
+    let mut dirs = vec![
+        format!(r"{root}\System32"),
+        root.to_owned(),
+        format!(r"{root}\System32\WindowsPowerShell\v1.0"),
+    ];
     dirs.extend(shim_dir.map(|dir| dir.to_string_lossy().into_owned()));
     dirs.join(";")
 }

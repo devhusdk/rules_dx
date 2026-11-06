@@ -4,6 +4,11 @@ use std::collections::HashMap;
 
 use crate::{build_workflow_argv_with, startup_argv_with, ArgvPolicy};
 
+#[cfg(windows)]
+const SYSTEM_RC: &str = "/programdata/bazel.bazelrc";
+#[cfg(not(windows))]
+const SYSTEM_RC: &str = "/etc/bazel.bazelrc";
+
 struct Machine {
     env: HashMap<&'static str, String>,
     files: HashMap<PathBuf, String>,
@@ -146,11 +151,6 @@ fn disk_cache_only_follows_build_verbs() {
 
 #[test]
 fn any_rc_disk_cache_setting_skips_the_default() {
-    let system = if cfg!(windows) {
-        "/programdata/bazel.bazelrc" // LCOV_EXCL_LINE - reason: windows branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    } else {
-        "/etc/bazel.bazelrc"
-    };
     let cases = [
         ("/ws/.bazelrc", "build --disk_cache=/d\n", Some("/d")),
         ("/ws/.bazelrc", "build:remote --disk_cache=\n", None),
@@ -165,7 +165,7 @@ fn any_rc_disk_cache_setting_skips_the_default() {
             "common --disk_cache=~/c\n",
             Some("/home/u/c"),
         ),
-        (system, "build --disk_cache=/c\n", Some("/c")),
+        (SYSTEM_RC, "build --disk_cache=/c\n", Some("/c")),
         ("/ws/.bazelrc", "test --disk_cache=/t\n", None),
     ];
     for (path, text, resolved) in cases {
@@ -187,16 +187,16 @@ fn resolved(machine: Machine) -> Option<PathBuf> {
 #[test]
 fn disk_cache_precedence_follows_bazel_read_order() {
     let all = Machine::local()
-        .file("/etc/bazel.bazelrc", "build --disk_cache=/sys\n")
+        .file(SYSTEM_RC, "build --disk_cache=/sys\n")
         .file("/ws/.bazelrc", "build --disk_cache=/ws-cache\n")
         .file("/home/u/.bazelrc", "build --disk_cache=/home\n");
     assert_eq!(resolved(all), Some(PathBuf::from("/home")));
     let ws = Machine::local()
-        .file("/etc/bazel.bazelrc", "build --disk_cache=/sys\n")
+        .file(SYSTEM_RC, "build --disk_cache=/sys\n")
         .file("/ws/.bazelrc", "build --disk_cache=/ws-cache\n");
     assert_eq!(resolved(ws), Some(PathBuf::from("/ws-cache")));
     let build_over_common = Machine::local()
-        .file("/etc/bazel.bazelrc", "build --disk_cache=/sys\n")
+        .file(SYSTEM_RC, "build --disk_cache=/sys\n")
         .file("/home/u/.bazelrc", "common --disk_cache=/home\n");
     assert_eq!(resolved(build_over_common), Some(PathBuf::from("/sys")));
     let last_line = Machine::local().file(
@@ -739,7 +739,7 @@ fn any_rc_gc_bound_drops_the_pair_and_keeps_the_cache() {
             "common --experimental_disk_cache_gc_max_size=1G\n",
         ),
         (
-            "/etc/bazel.bazelrc",
+            SYSTEM_RC,
             "common --experimental_disk_cache_gc_max_age=1d\n",
         ),
     ];

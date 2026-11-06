@@ -72,6 +72,10 @@ pub fn resolve_in_workspace(workspace: &Path, rel: &str) -> std::io::Result<Path
 /// `NotFound`.
 pub fn resolve_target_in_workspace(workspace: &Path, rel: &str) -> std::io::Result<PathBuf> {
     let root = std::fs::canonicalize(workspace)?;
+    #[cfg(windows)]
+    if Path::new(rel).components().next_back() == Some(std::path::Component::ParentDir) {
+        return Err(leaves_workspace());
+    }
     let joined = workspace.join(rel);
     match std::fs::canonicalize(&joined) {
         Ok(target) => {
@@ -106,6 +110,10 @@ pub fn resolve_target_in_workspace(workspace: &Path, rel: &str) -> std::io::Resu
     };
     if !existing.starts_with(&root) {
         return Err(leaves_workspace());
+    }
+    #[cfg(windows)]
+    if !missing.is_empty() && !existing.is_dir() {
+        return Err(std::io::Error::from(std::io::ErrorKind::NotADirectory));
     }
     let mut resolved = existing;
     for name in missing.iter().rev() {

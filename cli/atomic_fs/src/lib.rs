@@ -27,12 +27,12 @@ fn staging_for(path: &Path) -> io::Result<tempfile::NamedTempFile> {
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty());
     if let Some(parent) = parent {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(long_path(parent)?)?;
     }
     tempfile::Builder::new()
         .prefix(&staging_prefix(path))
         .suffix(STAGING_SUFFIX)
-        .tempfile_in(parent.unwrap_or(Path::new(".")))
+        .tempfile_in(long_path(parent.unwrap_or(Path::new(".")))?)
 }
 
 const STAGING_SUFFIX: &str = ".tmp";
@@ -370,7 +370,7 @@ mod tests {
     fn staging_file_is_a_staging_sibling() {
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-staging-sibling-");
         let dir = scratch.path().to_path_buf();
-        let target = dir.join("out.sarif");
+        let target = long_path(&dir.join("out.sarif")).expect("long path");
         let staging = staging_for(&target).expect("staging");
         assert!(is_staging_sibling(&target, staging.path()));
     }

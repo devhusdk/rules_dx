@@ -2,6 +2,11 @@ use super::*;
 
 use std::collections::{HashMap, HashSet};
 
+#[cfg(windows)]
+const ROOT: &str = "C:";
+#[cfg(not(windows))]
+const ROOT: &str = "";
+
 struct FakeFs {
     files: HashSet<PathBuf>,
     broken: HashMap<PathBuf, String>,
@@ -120,8 +125,11 @@ fn real_fs_missing_module_suggests_override() {
     let scratch = dx_test_scratch::scratch("dx-missing-");
     let root = scratch.path().to_path_buf();
     std::fs::create_dir_all(&root).expect("dirs");
-    let err = discover_real(&root, None).expect_err("must fail");
-    assert!(err.to_string().contains("--workspace"));
+    // On Windows the test tmpdir sits inside the execroot, below its MODULE.bazel.
+    match discover_real(&root, None) {
+        Err(err) => assert!(err.to_string().contains("--workspace")),
+        Ok(found) => assert!(!found.starts_with(root.canonicalize().expect("canonical root"))),
+    }
     scratch.close().expect("cleanup");
 }
 
@@ -1087,8 +1095,8 @@ fn expand_tilde_without_home_keeps_the_path() {
 fn output_base_of_value_ignores_unset_and_empty() {
     assert_eq!(output_base_of_value(None), None);
     assert_eq!(
-        output_base_of_value(Some(OsString::from("/x/ob/execroot/_main"))),
-        Some(PathBuf::from("/x/ob"))
+        output_base_of_value(Some(OsString::from(format!("{ROOT}/x/ob/execroot/_main")))),
+        Some(PathBuf::from(format!("{ROOT}/x/ob")))
     );
     assert_eq!(output_base_of_value(Some(OsString::new())), None);
 }
@@ -1383,17 +1391,8 @@ fn first_line_within_ends_early_when_stopped() {
 #[test]
 fn output_base_of_execroot_reads_the_grandparent() {
     assert_eq!(
-        output_base_of_execroot(Path::new("/x/ob/execroot/_main")),
-        Some(PathBuf::from("/x/ob"))
-    );
-}
-
-#[cfg(windows)]
-#[test]
-fn output_base_of_execroot_reads_windows_paths() {
-    assert_eq!(
-        output_base_of_execroot(Path::new("C:/bz/abc/execroot/_main")),
-        Some(PathBuf::from("C:/bz/abc"))
+        output_base_of_execroot(Path::new(&format!("{ROOT}/x/ob/execroot/_main"))),
+        Some(PathBuf::from(format!("{ROOT}/x/ob")))
     );
 }
 

@@ -660,6 +660,7 @@ pub(crate) fn run_streamed_in(
             // LCOV_EXCL_START - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             Err(err) => {
                 backend::force_stream(&mut child, target);
+                #[allow(clippy::drop_non_drop)]
                 drop(job);
                 return Err(err);
             } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md

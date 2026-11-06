@@ -687,7 +687,7 @@ pub(crate) fn unquote(token: &str) -> &str {
 pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
     let relative = match raw.strip_prefix("%workspace%") {
         Some(rest) => rest,
-        None if Path::new(raw).is_absolute() => return PathBuf::from(raw),
+        None if Path::new(raw).has_root() => return PathBuf::from(raw),
         None => raw,
     };
     let mut path = workspace.to_path_buf();

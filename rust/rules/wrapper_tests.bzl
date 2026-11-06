@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_rust//rust:defs.bzl", "rust_common")
+load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
@@ -310,6 +311,26 @@ _default_crate_name_test = analysistest.make(
 def dx_default_crate_name_tests(name, target, expected):
     """Asserts a Rust target defaults its crate name to the rewritten target name."""
     _default_crate_name_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        expected = expected,
+    )
+
+def _lints_forward_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.equals(env, ctx.attr.expected, LintsInfo in target)
+    return analysistest.end(env)
+
+_lints_forward_test = analysistest.make(
+    _lints_forward_impl,
+    attrs = {"expected": attr.bool(mandatory = True)},
+)
+
+def dx_lints_forward_tests(name, target, expected):
+    """Asserts a dx Rust library exposes LintsInfo exactly when it sets lint_config."""
+    _lints_forward_test(
         name = name,
         size = "small",
         target_under_test = target,

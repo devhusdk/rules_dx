@@ -1995,6 +1995,16 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_rust_lints_dx_subject",
+    target = "//tools/docs/rust/fixture:docs_fixture_lints_dx",
+)
+
+real_docs_subject(
+    name = "docs_rust_lints_upstream_subject",
+    target = "//tools/docs/rust/fixture:docs_fixture_lints_upstream",
+)
+
+real_docs_subject(
     name = "docs_rust_test_subject",
     testonly = True,
     target = "//tools/docs/rust/fixture:docs_fixture_test",
@@ -2098,6 +2108,8 @@ real_docs_tests(
         ":docs_python_library_subject",
         ":docs_ruby_library_subject",
         ":docs_rust_library_subject",
+        ":docs_rust_lints_dx_subject",
+        ":docs_rust_lints_upstream_subject",
         ":docs_rust_test_subject",
         ":docs_scala_library_subject",
         ":docs_svelte_library_subject",

@@ -64,16 +64,17 @@ def _rule_like(ctx):
     )
 
 def _rustdoc_json(ctx, crate_info, lints_info, output_dir, features):
+    flags = ctx.actions.args()
+    flags.add("--extern", "{}={}".format(crate_info.name, crate_info.output.path))
+    flags.add_all(_RUSTDOC_FLAGS)
+    flags.add_all(['--cfg=feature="{}"'.format(f) for f in features])
     action = rustdoc_compile_action(
         ctx = _rule_like(ctx),
         toolchain = find_toolchain(ctx),
         crate_info = crate_info,
         lints_info = lints_info,
         output = output_dir,
-        rustdoc_flags = ["--extern", "{}={}".format(crate_info.name, crate_info.output.path)] + _RUSTDOC_FLAGS + [
-            '--cfg=feature="{}"'.format(f)
-            for f in features
-        ],
+        rustdoc_flags = flags,
     )
     ctx.actions.run(
         mnemonic = "DxDocsRustdoc",

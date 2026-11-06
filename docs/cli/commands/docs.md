@@ -38,6 +38,7 @@ workspace-relative files or dirs. No scope means `//...`. A scope with no docs
 targets builds nothing and exits `0`. When the scope has no docs site but has
 Rust libraries, `dx docs` renders their API into `.dx/local/docs/index` and prints
 the path of its `index.html`.
+Rustdoc lints from a crate's `lint_config` apply to its docs.
 
 Output: text prints `Running docs build for <scope> (mdBook render)`. With
 `--serve` it then prints `Serving docs at <url> (<dir>)`, and

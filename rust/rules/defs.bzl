@@ -3,6 +3,7 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
+load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
@@ -145,6 +146,7 @@ _rust_forward = dx_library_forward_rule(
         [_rust_common.test_crate_info],
     ],
     extra_attrs = _LIBSTDCXX_ATTRS,
+    quiet_providers = [LintsInfo],
     upstream_cfg = _cpp_runtime_transition,
 )
 

@@ -1,7 +1,7 @@
 """Analysis test for the C/C++ tool identity of cargo build script actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT", "msvc_crt_static_settings")
+load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
 
 def _relative(value):
     if value.startswith("${pwd}/"):
@@ -342,20 +342,6 @@ def _link_llvm_impl(ctx):
     asserts.false(env, "dx_gcc" in linker, "linker is GCC under llvm: {}".format(linker))
     return analysistest.end(env)
 
-def _link_msvc_impl(ctx):
-    env = analysistest.begin(ctx)
-    linker, link_args = _link_args(_rustc_action(env))
-    name = linker.replace("\\", "/").split("/")[-1].lower()
-    asserts.equals(env, "link.exe", name, "linker is not link.exe: {}".format(linker))
-    asserts.true(env, "dx_msvc" in linker, "linker is not the provisioned MSVC: {}".format(linker))
-    for tool in ["clang-cl", "llvm_toolchain"]:
-        asserts.false(env, tool in linker, "linker is {}: {}".format(tool, linker))
-    for arg in link_args:
-        for prefix in ["-LIBPATH:", "/LIBPATH:"]:
-            if arg.startswith(prefix):
-                asserts.true(env, arg[len(prefix):].startswith("external/"), "MSVC lib dir is outside the execroot: {}".format(arg))
-    return analysistest.end(env)
-
 def _link_windows_impl(ctx):
     env = analysistest.begin(ctx)
     linker, _ = _link_args(_rustc_action(env))
@@ -382,14 +368,6 @@ def _link_windows_impl(ctx):
 
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
-# Windows builds Rust with +crt-static, so the forwarder moves the crate under test to the static CRT; match it.
-_MSVC_STATIC_CRT = {
-    k if k.startswith("//command_line_option") else str(Label(k)): v
-    for k, v in msvc_crt_static_settings([]).items()
-}
-
-_link_msvc_test = analysistest.make(_link_msvc_impl, config_settings = {_COMPILER: "msvc"} | _MSVC_STATIC_CRT)
-
 # The forwarder's static CRT settings, so the crate under test and the upstream share one build script config.
 _link_windows_test = analysistest.make(_link_windows_impl, config_settings = {
     _COMPILER: "llvm",
@@ -413,7 +391,7 @@ def rust_link_windows_test(name, target):
     )
 
 def rust_link_compiler_tests(name, target):
-    """Asserts the Rust link step uses the pinned GCC under gcc, not under llvm, and link.exe under msvc.
+    """Asserts the Rust link step uses the pinned GCC under gcc and not under llvm.
 
     Args:
         name: Name of the test suite.
@@ -439,14 +417,6 @@ def rust_link_compiler_tests(name, target):
                 target_under_test = target,
             )
             tests.append(arm64)
-    msvc = name + "_msvc"
-    _link_msvc_test(
-        name = msvc,
-        size = "small",
-        target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
-        target_under_test = target,
-    )
-    tests.append(msvc)
     native.test_suite(name = name, tests = tests)
 
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))

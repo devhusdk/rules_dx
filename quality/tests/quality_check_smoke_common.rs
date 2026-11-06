@@ -34,21 +34,20 @@ use_repo(python, "python_3_12")
 "#;
 
 pub const BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "ruff_config")
-load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
 
-quality_family(
-    name = "python_family",
-    family_id = "python",
-    disabled = ["audit"],
-    format = ["ruff"],
-    lint = ["ruff"],
-    typecheck = ["ty"],
-)
-
-workspace_policy(
+dx_generated_policy(
     name = "policy",
     configs = [":ruff"],
-    families = [":python_family"],
+    families = {
+        "python": {
+            "disabled": ["audit"],
+            "format": ["ruff"],
+            "lint": ["ruff"],
+            "typecheck": ["ty"],
+        },
+    },
+    profile = "standard",
 )
 
 ruff_config(

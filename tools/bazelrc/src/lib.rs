@@ -352,12 +352,12 @@ pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bo
 pub const WORKSPACE_POLICY_LABEL: &str = "//.dx/config:policy";
 
 /// Like [`render_layer_with`]; the correctness layer also selects the generated workspace policy
-/// when `workspace_policy` is set.
+/// when `generated_policy` is set.
 pub fn render_layer_pinned(
     layer: Layer,
     repo: &str,
     warnings_as_errors: Option<bool>,
-    workspace_policy: bool,
+    generated_policy: bool,
 ) -> String {
     let mut out = format!(
         "{HEADER_MARKER}, do not edit.\n\
@@ -381,7 +381,7 @@ pub fn render_layer_pinned(
             config_profile_flag(repo, on)
         ));
     }
-    if layer == Layer::Correctness && workspace_policy {
+    if layer == Layer::Correctness && generated_policy {
         out.push_str(&format!(
             "\n# The native configs `dx init` generated apply to every target.\ncommon --@{repo}//config:workspace={WORKSPACE_POLICY_LABEL}\n"
         ));
@@ -470,9 +470,9 @@ pub fn layer_is_current_pinned(
     layer: Layer,
     repo: &str,
     warnings_as_errors: Option<bool>,
-    workspace_policy: bool,
+    generated_policy: bool,
 ) -> bool {
-    normalized(text) == render_layer_pinned(layer, repo, warnings_as_errors, workspace_policy)
+    normalized(text) == render_layer_pinned(layer, repo, warnings_as_errors, generated_policy)
 }
 
 /// Puts the import block for `layers` from `dir` at the top of `text`, after any BOM.

@@ -3,6 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":applicability.bzl", "capability_selection", "effective_classes", "selected_adapters")
 load(":policy.bzl", "merge_configs", "merge_policy")
+load("//quality/private:generated_policy.bzl", "generated_families_error")
 
 _FIXTURE_ADAPTERS = {
     "fmt-a": ["rust"],
@@ -59,6 +60,16 @@ def policy_unit_tests(name):
                 "effective_classes is empty without policy authorization",
                 effective_classes(["rust"], ["rust"], ["python"]),
                 [],
+            ),
+            expect_equal(
+                "generated_families_error accepts capability, disabled and profile keys",
+                generated_families_error("p", {"python": {"disabled": ["audit"], "lint": ["ruff"], "profile": "strict"}}),
+                "",
+            ),
+            expect_equal(
+                "generated_families_error rejects an unknown spec key",
+                generated_families_error("p", {"python": {"lints": ["ruff"]}}),
+                "dx_generated_policy (p): family 'python' has unknown key 'lints'; use one of lint, typecheck, format, audit, disabled, profile",
             ),
             expect_equal(
                 "merge_policy keeps the base without sections",

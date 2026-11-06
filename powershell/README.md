@@ -89,15 +89,19 @@ Import-Module Pester -RequiredVersion 5.7.1
 `dx check --apply` rewrites scripts that would change. A script that does not parse is
 reported and never rewritten. Lint is check-only. The default policy selects both for the
 `powershell` family; on platforms without a PSScriptAnalyzer build they skip with a note. To
-change the selection, write a `quality_family`. See the Quality page of the command reference for the
+change the selection, list the family in your `dx_generated_policy`. See the Quality page of the command reference for the
 config rules.
 
 ```python
-quality_family(
-    name = "powershell_family",
-    family_id = "powershell",
-    format = ["psscriptanalyzer"],
-    lint = ["psscriptanalyzer"],
+dx_generated_policy(
+    name = "policy",
+    families = {
+        "powershell": {
+            "format": ["psscriptanalyzer"],
+            "lint": ["psscriptanalyzer"],
+        },
+    },
+    profile = "standard",
 )
 ```
 

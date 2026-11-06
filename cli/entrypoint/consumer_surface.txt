@@ -44,9 +44,9 @@ python/rules:defs.bzl
 qt/rules:defs.bzl
 qt/rules:rust.bzl
 qt/sdk:repos.bzl
+quality/private:generated_policy.bzl
 quality/rules:defs.bzl
 quality:native_config.bzl
-quality:policy.bzl
 quality:real_aspects.bzl
 rego/rules:defs.bzl
 ruby/rules:defs.bzl

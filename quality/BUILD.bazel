@@ -145,18 +145,16 @@ policy_subject(
     policy = ":fixture_disable_policy",
 )
 
-quality_family(
-    name = "strict_python_family",
-    family_id = "python",
-    lint = ["lint-a"],
-    profile = "strict",
-)
-
 dx_generated_policy(
     name = "fixture_generated_policy",
     bases = {"ruff": "//quality/tiers/ruff:strict"},
     configs = [":corpus_vale_config"],
-    families = [":strict_python_family"],
+    families = {
+        "python": {
+            "lint": ["lint-a"],
+            "profile": "strict",
+        },
+    },
     profile = "standard",
 )
 

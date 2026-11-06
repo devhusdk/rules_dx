@@ -1,4 +1,4 @@
-load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
 
 platform(
     name = "qt_linux_arm64",
@@ -20,32 +20,25 @@ platform(
     parents = ["@rules_dx//qt/platforms:windows_x86_64"],
 )
 
-quality_family(
-    name = "cc_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "cc",
-)
-
-quality_family(
-    name = "qml_family",
-    disabled = [
-        "audit",
-        "typecheck",
-    ],
-    family_id = "qml",
-    format = ["qmlformat"],
-    lint = ["qmllint"],
-)
-
-workspace_policy(
+dx_generated_policy(
     name = "policy",
-    families = [
-        ":cc_family",
-        ":qml_family",
-    ],
+    families = {
+        "cc": {
+            "disabled": [
+                "audit",
+                "format",
+                "lint",
+                "typecheck",
+            ],
+        },
+        "qml": {
+            "disabled": [
+                "audit",
+                "typecheck",
+            ],
+            "format": ["qmlformat"],
+            "lint": ["qmllint"],
+        },
+    },
+    profile = "standard",
 )

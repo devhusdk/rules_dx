@@ -138,10 +138,12 @@ Lua sources form the `lua` class, so `dx check` sees them. StyLua formats them
 when a `lua` family selects it.
 
 ```python
-quality_family(
-    name = "lua_family",
-    family_id = "lua",
-    format = ["stylua"],
+dx_generated_policy(
+    name = "policy",
+    families = {
+        "lua": {"format": ["stylua"]},
+    },
+    profile = "standard",
 )
 ```
 

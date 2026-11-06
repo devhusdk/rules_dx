@@ -2,7 +2,7 @@
 
 load("//flutter/rules:defs.bzl", "flutter_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//quality:policy.bzl", "quality_family", "workspace_policy")
+load("//quality/private:generated_policy.bzl", "dx_generated_policy")
 
 flutter_library(
     name = "broken",
@@ -20,15 +20,14 @@ failure_test(
     target = "//flutter/tests/fixtures/flutter-app/failures:bad_abi",
 )
 
-quality_family(
-    name = "dart_family",
-    family_id = "dart",
-    format = ["dart"],
-    lint = ["dart"],
-    typecheck = ["dart"],
-)
-
-workspace_policy(
+dx_generated_policy(
     name = "policy",
-    families = [":dart_family"],
+    families = {
+        "dart": {
+            "format": ["dart"],
+            "lint": ["dart"],
+            "typecheck": ["dart"],
+        },
+    },
+    profile = "standard",
 )

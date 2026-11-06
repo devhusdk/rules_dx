@@ -16,7 +16,7 @@ func TestInitOwnedConfigs(t *testing.T) {
 		t.Fatal(err)
 	}
 	build := `load("@rules_dx//quality:native_config.bzl", "eslint_config", "ruff_config")
-load("@rules_dx//quality:policy.bzl", "workspace_policy")
+load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
 
 ruff_config(
     name = "ruff",
@@ -29,9 +29,13 @@ eslint_config(
     src = "//:eslint.config.mjs",
 )
 
-workspace_policy(
+dx_generated_policy(
     name = "policy",
-    configs = [":ruff", ":eslint"],
+    configs = [
+        ":ruff",
+        ":eslint",
+    ],
+    profile = "standard",
 )
 `
 	if err := os.WriteFile(filepath.Join(dir, "BUILD.bazel"), []byte(build), 0o644); err != nil {
@@ -40,6 +44,9 @@ workspace_policy(
 	got := InitOwnedConfigs(root)
 	if len(got) != 2 || got["ruff"] != "//:ruff.toml" || got["eslint"] != "//:eslint.config.mjs" {
 		t.Errorf("InitOwnedConfigs = %v", got)
+	}
+	if _, ok := got["policy"]; ok {
+		t.Errorf("InitOwnedConfigs read the policy rule: %v", got)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "BUILD.bazel"), []byte("ruff_config(\n"), 0o644); err != nil {
 		t.Fatal(err)

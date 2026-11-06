@@ -1,24 +1,23 @@
 load("@rules_dx//quality:native_config.bzl", "scalafix_config")
-load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
 
 _PUBLIC = ["//visibility:public"]
 
 package(default_visibility = _PUBLIC)
 
-quality_family(
-    name = "scala_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "scala",
-    lint = ["scalafix"],
-)
-
-workspace_policy(
+dx_generated_policy(
     name = "policy",
-    families = [":scala_family"],
+    families = {
+        "scala": {
+            "disabled": [
+                "audit",
+                "format",
+                "typecheck",
+            ],
+            "lint": ["scalafix"],
+        },
+    },
+    profile = "standard",
 )
 
 scalafix_config(

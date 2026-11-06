@@ -2,6 +2,8 @@
 
 load(":native_config.bzl", "DxNativeConfigInfo")
 
+visibility(["//quality/..."])
+
 CAPABILITIES = ["lint", "typecheck", "format", "audit"]
 
 FamilyPolicyInfo = provider(

@@ -3,6 +3,8 @@
 load(":curated_defaults.bzl", "CURATED_DEFAULTS")
 load(":policy.bzl", "CAPABILITIES", "quality_family", "workspace_policy")
 
+visibility(["//quality/..."])
+
 def default_workspace_policy(name):
     """Declares one default family per curated entry and the policy that lists them.
 

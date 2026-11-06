@@ -10,7 +10,7 @@ import (
 )
 
 // PolicyConfigDirective binds a tool to the config target the root
-// workspace_policy lists in configs:
+// dx_generated_policy lists in configs:
 //
 //	# gazelle:dx_policy_config <tool> <label>
 //

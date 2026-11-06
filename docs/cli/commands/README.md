@@ -708,7 +708,7 @@ API docs:
 Quality config:
 
 - `@rules_dx//quality:native_config.bzl`: native linter and formatter configs.
-- `@rules_dx//quality:policy.bzl`: quality families and workspace policy.
+- `@rules_dx//quality/private:generated_policy.bzl`: `dx_generated_policy`, the workspace quality policy.
 
 Every other file stays private.
 A private file is not a dependency.

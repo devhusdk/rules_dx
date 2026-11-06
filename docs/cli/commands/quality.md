@@ -104,38 +104,35 @@ To set it once, add to `.bazelrc`:
 common --@rules_dx//config:workspace=//:policy
 ```
 
-A policy is a `workspace_policy` of `quality_family` sections. Each family names a tool ID or lists the capability in `disabled`. A capability left unset, or a tool with no wired executable, fails analysis.
+A policy is a `dx_generated_policy`. `families` maps a family ID to the tool IDs it selects per capability (`lint`, `typecheck`, `format`, `audit`), the capabilities it turns off in `disabled`, and an optional tier `profile`. A capability left unset, or a tool with no wired executable, fails analysis. Leave `families` out to keep the curated default families.
 
 ```python
-load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
 
-quality_family(
-    name = "toml_family",
-    family_id = "toml",
-    disabled = ["typecheck"],
-    format = ["taplo"],
-    lint = ["taplo"],
-)
-
-workspace_policy(
+dx_generated_policy(
     name = "my_policy",
-    families = [":toml_family"],
+    families = {
+        "toml": {
+            "disabled": ["typecheck"],
+            "format": ["taplo"],
+            "lint": ["taplo"],
+        },
+    },
+    profile = "standard",
 )
 ```
 
-`extends` starts from another policy. A family in `families` replaces the base family with the same `family_id`, or adds one. `disabled` on the policy drops base family IDs. `configs` binds native config targets such as `ruff_config` for every target; a config here replaces the one for the same tool in the base policy, and a tool may be listed once. See [Tool config files](#tool-config-files).
+`profile` (`standard` or `strict`) picks the tier base config each tier-active tool runs on when nothing binds a config for it. `configs` binds native config targets such as `ruff_config` for every target; a config here wins over the tier base, and a tool may be listed once. See [Tool config files](#tool-config-files).
 
 ```python
-workspace_policy(
+dx_generated_policy(
     name = "policy",
-    extends = "@rules_dx//quality:default_workspace_policy",
-    families = [":python_family"],
     configs = [":ruff_config"],
-    disabled = ["rust"],
+    profile = "strict",
 )
 ```
 
-These fail: `disabled` without `extends`, a disabled ID the base lacks, a family both disabled and in `families`, and a family listed twice.
+These fail: an unknown key in a family spec, an unknown capability in `disabled`, a capability both disabled and selected, and a tool listed twice in `configs`.
 
 ### Default policy
 
@@ -354,15 +351,18 @@ Schema languages have no formatter, so `--apply` has nothing to fix for them.
 
 ### FlatBuffers
 
-Select `flatc` in a `flatbuffers` family. The family is opt-in.
+Select `flatc` in a `flatbuffers` family of your policy. The family is opt-in.
 
 ```python
 load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
 
-quality_family(
-    name = "flatbuffers_family",
-    family_id = "flatbuffers",
-    lint = ["flatc"],
+dx_generated_policy(
+    name = "policy",
+    families = {
+        "flatbuffers": {"lint": ["flatc"]},
+    },
+    profile = "standard",
 )
 
 flatbuffers_library(

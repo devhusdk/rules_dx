@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//quality:native_config.bzl", "latexindent_config", "vale_config")
-load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 _PUBLIC = ["//visibility:public"]
@@ -14,52 +14,37 @@ exports_files(
     ],
 )
 
-quality_family(
-    name = "rst_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
-    family_id = "rst",
-    lint = ["vale"],
-)
-
-quality_family(
-    name = "asciidoc_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
-    family_id = "asciidoc",
-    lint = ["vale"],
-)
-
-quality_family(
-    name = "typst_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
-    family_id = "typst",
-    format = ["typstyle"],
-)
-
-quality_family(
-    name = "latex_family",
-    disabled = ["typecheck"],
-    family_id = "latex",
-    format = ["latexindent"],
-    lint = ["chktex"],
-)
-
-workspace_policy(
+dx_generated_policy(
     name = "policy",
-    families = [
-        ":asciidoc_family",
-        ":latex_family",
-        ":rst_family",
-        ":typst_family",
-    ],
+    families = {
+        "asciidoc": {
+            "disabled": [
+                "format",
+                "typecheck",
+            ],
+            "lint": ["vale"],
+        },
+        "latex": {
+            "disabled": ["typecheck"],
+            "format": ["latexindent"],
+            "lint": ["chktex"],
+        },
+        "rst": {
+            "disabled": [
+                "format",
+                "typecheck",
+            ],
+            "lint": ["vale"],
+        },
+        "typst": {
+            "disabled": [
+                "lint",
+                "typecheck",
+            ],
+            "format": ["typstyle"],
+        },
+    },
+    profile = "standard",
 )
 
 vale_config(

@@ -242,6 +242,7 @@ fn step_condition(step: &serde_json::Value) -> &str {
 const LOCATE: &str = "Locate the Bazel repository cache";
 const RESTORE: &str = "Restore the Bazel repository cache";
 const RESOLVE: &str = "Resolve the setup inputs";
+const BAZELRC: &str = "Append to the user bazelrc";
 const CONTENTS_LOCATE: &str = "Locate the Bazel repo contents cache";
 const CONTENTS_RESTORE: &str = "Restore the Bazel repo contents cache";
 const ACTION_FILE: &str = ".github/actions/setup-bazel/action.yml";
@@ -334,7 +335,6 @@ fn the_setup_bazel_action_inputs_default_to_what_any_repository_can_use() {
         "{ACTION_FILE} must read {PIN_ENV} only when it exists"
     );
     assert!(run.contains("mode=contents") && run.contains("mode=none"));
-    assert!(run.contains("$HOME/.bazelrc"));
     assert!(run.contains("BAZEL_SH=$(cygpath -m /usr/bin/bash.exe)"));
     let steps = action["runs"]["steps"].as_array().unwrap();
     let upstream = steps
@@ -345,9 +345,24 @@ fn the_setup_bazel_action_inputs_default_to_what_any_repository_can_use() {
                 .is_some_and(|uses| uses.starts_with(UPSTREAM_ACTION))
         })
         .expect("upstream setup-bazel step");
+    let upstream_index = steps
+        .iter()
+        .position(|step| step == upstream)
+        .expect("upstream index");
     assert!(
         action_index(steps, RESOLVE) < action_index(steps, LOCATE),
-        "{ACTION_FILE} must write ~/.bazelrc and BAZEL_SH before the first bazel call"
+        "{ACTION_FILE} must export BAZEL_SH before the first bazel call"
+    );
+    let bazelrc = action_index(steps, BAZELRC);
+    assert!(
+        upstream_index < bazelrc && bazelrc < action_index(steps, LOCATE),
+        "{ACTION_FILE} must append to ~/.bazelrc after upstream setup-bazel writes it and before the first bazel call"
+    );
+    assert!(
+        action_step(&action, BAZELRC)["run"]
+            .as_str()
+            .unwrap()
+            .contains(">> \"$HOME/.bazelrc\"")
     );
     assert_eq!(upstream["with"]["bazelisk-cache"].as_bool(), Some(false));
 }

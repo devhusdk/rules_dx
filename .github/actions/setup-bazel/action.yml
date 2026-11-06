@@ -48,7 +48,6 @@ runs:
       env:
         BAZELISK_VERSION_INPUT: ${{ inputs.bazelisk-version }}
         REPO_CACHE_INPUT: ${{ inputs.repo-cache }}
-        BAZELRC_INPUT: ${{ inputs.bazelrc }}
       run: |
         version="$BAZELISK_VERSION_INPUT"
         if [ -z "$version" ] && [ -f tools/bazelisk/pin.env ]; then
@@ -64,9 +63,6 @@ runs:
           *) echo "setup-bazel: repo-cache must be none, download or contents, got '$mode'" >&2; exit 1 ;;
         esac
         echo "repo-cache=$mode" >> "$GITHUB_OUTPUT"
-        if [ -n "$BAZELRC_INPUT" ]; then
-          printf '%s\n' "$BAZELRC_INPUT" >> "$HOME/.bazelrc"
-        fi
         if [ "$RUNNER_OS" = Windows ] && [ -z "${BAZEL_SH:-}" ] && [ -x /usr/bin/bash.exe ]; then
           echo "BAZEL_SH=$(cygpath -m /usr/bin/bash.exe)" >> "$GITHUB_ENV"
         fi
@@ -75,6 +71,12 @@ runs:
         bazelisk-version: ${{ steps.pin.outputs.version }}
         bazelisk-cache: false
         cache-save: ${{ inputs.cache-save }}
+    - name: Append to the user bazelrc
+      if: ${{ inputs.bazelrc != '' }}
+      shell: bash
+      env:
+        BAZELRC_INPUT: ${{ inputs.bazelrc }}
+      run: printf '%s\n' "$BAZELRC_INPUT" >> "$HOME/.bazelrc"
     - name: Locate the Bazel repository cache
       id: repo-cache
       if: ${{ steps.pin.outputs.repo-cache == 'download' }}

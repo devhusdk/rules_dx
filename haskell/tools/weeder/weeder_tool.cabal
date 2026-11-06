@@ -1,0 +1,8 @@
+cabal-version: 3.0
+name: weeder-tool
+version: 0.1.0.0
+build-type: Simple
+
+library
+  build-depends: base, weeder ==2.11.0
+  default-language: Haskell2010

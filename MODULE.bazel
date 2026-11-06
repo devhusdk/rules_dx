@@ -1118,10 +1118,14 @@ haskell.packages(
     deps = "//haskell/tests/fixtures/haskell-app/third_party:haskell_deps.json",
 )
 haskell.packages(
+    name = "haskell_weeder_hackage",
+    deps = "//haskell/tools/weeder:haskell_deps.json",
+)
+haskell.packages(
     name = "haskell_exe_hackage",
     deps = "//haskell/tests/fixtures/hackage-exe:haskell_deps.json",
 )
-use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app_hackage", "haskell_exe_hackage", "rules_haskell")
+use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app_hackage", "haskell_exe_hackage", "haskell_weeder_hackage", "rules_haskell")
 
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 

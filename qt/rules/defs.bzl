@@ -1095,10 +1095,12 @@ QT_CONSUMER_MIN_RUNTIME = select(
 
 # Linux cells whose Qt apps import system libraries that the OS supplies.
 _RUNTIME_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "linux"]
+_WINDOWS_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "windows"]
 
 # consumer_archive runtime of the qualified cell the build targets.
 QT_CONSUMER_RUNTIME = select(
     {_cell_setting(cell): [Label("//qt/rules:os_runtime_" + cell)] for cell in _RUNTIME_CELLS} |
+    {_cell_setting(cell): [Label("//cc/toolchains:msvc_vcruntime")] for cell in _WINDOWS_CELLS} |
     {"//conditions:default": []},
 )
 

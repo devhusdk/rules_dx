@@ -5,9 +5,16 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+# Rust std on Windows imports ntdll.
+_NTDLL = select({
+    "@platforms//os:windows": ["ntdll.lib"],
+    "//conditions:default": [],
+})
+
 qt_cc_binary(
     name = "ledger",
     srcs = ["main.cc"],
+    linkopts = _NTDLL,
     modules = ["qml"],
     target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//qt/tests/fixtures/qt-rust/ui"],
@@ -16,6 +23,7 @@ qt_cc_binary(
 qt_cc_test(
     name = "ledger_test",
     srcs = ["ledger_test.cc"],
+    linkopts = _NTDLL,
     moc_hdrs = ["ledger_test.h"],
     modules = [
         "qml",

@@ -98,6 +98,7 @@ impl Launcher<'_> {
             match super::workflow::prepare_trace(self.workspace, self.run_id) {
                 Ok(path) => {
                     options.push(format!("--profile={path}"));
+                    options.push("--experimental_collect_local_sandbox_action_metrics".to_string());
                     Some(path)
                 }
                 Err(message) => {

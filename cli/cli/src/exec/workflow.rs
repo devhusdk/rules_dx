@@ -232,6 +232,8 @@ fn execute_checked(
         match prepare_trace(workspace, &run_id) {
             Ok(path) => {
                 bazel_options.push(format!("--profile={path}"));
+                bazel_options
+                    .push("--experimental_collect_local_sandbox_action_metrics".to_string());
                 Some(path)
             }
             Err(message) => {
@@ -665,6 +667,12 @@ mod tests {
         let run = harness.probe_with(&inv, &[Some(0)]);
         let flag = format!("--profile={}", trace.display());
         assert!(run.argv[0].contains(&flag), "{:?}", run.argv);
+        assert!(
+            run.argv[0]
+                .contains(&"--experimental_collect_local_sandbox_action_metrics".to_string()),
+            "{:?}",
+            run.argv
+        );
         let notice = run
             .out
             .lines()

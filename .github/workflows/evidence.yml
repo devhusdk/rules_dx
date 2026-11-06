@@ -115,12 +115,6 @@ jobs:
             } > "$RUNNER_TEMP/evidence/executor.txt" 2>&1
             touch "$RUNNER_TEMP/executor.done"
           } &
-      - name: Fetch the dx dependencies
-        run: |
-          mkdir -p "$RUNNER_TEMP/evidence"
-          remote=()
-          [ -z "${BB_ARGS:-}" ] || read -ra remote <<< "--config=ci $BB_ARGS"
-          bazel fetch --noshow_progress "${remote[@]}" "--profile=$RUNNER_TEMP/evidence/fetch-profile.gz" --noslim_profile //cli/cli:dx
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:
@@ -237,6 +231,7 @@ jobs:
           DX_RELOCATE: ${{ steps.inputs.outputs.relocate }}
         run: |
           set -o pipefail
+          mkdir -p "$RUNNER_TEMP/evidence"
           read -ra patterns <<< "$DX_SCOPE"
           read -ra flags <<< "$DX_FLAGS"
           DX_HERMETIC_BAZELISK="$(command -v bazel)"

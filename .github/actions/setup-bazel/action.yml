@@ -1,13 +1,17 @@
 name: setup-bazel
-description: Install Bazelisk with bazel-contrib/setup-bazel and locate the Bazel repository cache.
+description: Install Bazelisk with bazel-contrib/setup-bazel and optionally locate the Bazel repository cache.
 inputs:
   cache-save:
     description: Save the setup-bazel caches.
     required: false
     default: "false"
+  locate-repository-cache:
+    description: Run bazel info to set the repository-cache-root output. It starts a Bazel server, so only jobs that read the output turn it on.
+    required: false
+    default: "false"
 outputs:
   repository-cache-root:
-    description: The Bazel repository cache directory.
+    description: The Bazel repository cache directory, set when locate-repository-cache is "true".
     value: ${{ steps.repo-cache.outputs.path }}
 runs:
   using: composite
@@ -94,6 +98,7 @@ runs:
         cache-save: ${{ inputs.cache-save }}
     - name: Locate the Bazel repository cache
       id: repo-cache
+      if: ${{ inputs.locate-repository-cache == 'true' }}
       shell: bash
       run: |
         path="$(bazel info repository_cache)"

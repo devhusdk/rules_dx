@@ -416,6 +416,7 @@ jobs:
         id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          locate-repository-cache: "true"
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -481,6 +482,7 @@ jobs:
         id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          locate-repository-cache: "true"
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
         run: |

@@ -222,7 +222,15 @@ fn the_setup_bazel_action_locates_but_does_not_cache_the_repository_cache() {
     let action = action_document();
     let steps = action["runs"]["steps"].as_array().expect("action steps");
     let locate = &steps[action_index(steps, LOCATE)];
-    assert!(locate.get("if").is_none());
+    assert_eq!(
+        action["inputs"]["locate-repository-cache"]["default"].as_str(),
+        Some("false"),
+        "{ACTION_FILE} must not start a Bazel server unless asked"
+    );
+    assert_eq!(
+        locate["if"].as_str(),
+        Some("${{ inputs.locate-repository-cache == 'true' }}")
+    );
     assert!(
         locate["run"]
             .as_str()
@@ -239,6 +247,33 @@ fn the_setup_bazel_action_locates_but_does_not_cache_the_repository_cache() {
             .is_some_and(|uses| uses.starts_with("actions/cache"))),
         "{ACTION_FILE} must not restore or save a cache itself"
     );
+}
+
+#[test]
+fn jobs_that_read_the_repository_cache_root_ask_setup_bazel_to_locate_it() {
+    let mut checked = 0;
+    for (name, document) in setup_bazel_documents() {
+        let jobs = document["jobs"].as_object().cloned().unwrap_or_default();
+        for (job, body) in jobs {
+            let steps = body["steps"].as_array().cloned().unwrap_or_default();
+            let Some(setup) = steps
+                .iter()
+                .find(|step| step["uses"].as_str() == Some(LOCAL_ACTION))
+            else {
+                continue;
+            };
+            let reads = serde_json::to_string(&body)
+                .unwrap()
+                .contains("outputs.repository-cache-root");
+            let locates = setup["with"]["locate-repository-cache"].as_str() == Some("true");
+            assert_eq!(
+                reads, locates,
+                "{name} job {job}: locate-repository-cache must be \"true\" exactly when the job reads repository-cache-root"
+            );
+            checked += usize::from(reads);
+        }
+    }
+    assert!(checked > 0, "no job reads repository-cache-root");
 }
 
 #[test]

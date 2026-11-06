@@ -187,7 +187,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit the cpanfile and run `carton install`",
             }),
-            UpdateSet::Ruby => unreachable!("handled above"),
+            UpdateSet::Ruby => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit the Gemfile and run `bundle lock`",
+            }),
         }
     }
 }

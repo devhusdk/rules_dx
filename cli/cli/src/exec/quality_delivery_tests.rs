@@ -232,7 +232,11 @@ fn unused_builds_only_the_top_level_target() {
         dx_testing::cli::graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
         dx_testing::cli::graph_rule("//pkg:bin", &["//pkg:lib"], &[]),
     ]);
-    run(&harness, &["unused", "//pkg/..."], &mut Sink::new(Fault::None, 0));
+    run(
+        &harness,
+        &["unused", "//pkg/..."],
+        &mut Sink::new(Fault::None, 0),
+    );
     let runs = harness.build_argv.borrow();
     let build = runs.iter().find(|argv| argv.contains(&"build".to_owned()));
     let build = build.expect("a build ran");

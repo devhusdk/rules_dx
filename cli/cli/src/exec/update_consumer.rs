@@ -2826,7 +2826,11 @@ source = { registry = "https://pypi.org/simple" }
         let (code, _, err) = run_with(&["update", "--offline", "hackage"], &runner, &harness);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
-        let (code, _, err) = run_with(&["update", "--apply", "--frozen", "hackage"], &runner, &harness);
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--frozen", "hackage"],
+            &runner,
+            &harness,
+        );
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("frozen_locked"), "{err}");
         let (code, _, err) = run_with(

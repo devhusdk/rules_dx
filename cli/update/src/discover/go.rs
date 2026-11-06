@@ -100,7 +100,7 @@ fn tags(module: &str, current: &str, latest: &str) -> Option<(String, (String, S
 
 fn is_major_suffix(part: &str) -> bool {
     part.strip_prefix('v').is_some_and(|n| {
-        n.len() > 0 && n.bytes().all(|b| b.is_ascii_digit()) && n != "0" && n != "1"
+        !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) && n != "0" && n != "1"
     })
 }
 

@@ -209,7 +209,7 @@ fn rc_files(
             if let Some(data) = non_empty("ProgramData") {
                 files.push(PathBuf::from(data).join("bazel.bazelrc"));
             }
-            // LCOV_EXCL_STOP
+            // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             files.push(PathBuf::from("/etc/bazel.bazelrc"));
         }

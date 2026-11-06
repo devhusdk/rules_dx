@@ -155,7 +155,7 @@ impl Drop for TerminalJob {
         }
     }
 }
-// LCOV_EXCL_STOP
+// LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
 /// Lets this thread write to the terminal while dx is in the background.
 pub fn allow_background_tty_writes() {
@@ -338,7 +338,7 @@ unsafe fn watch(parent: i32, report: i32) -> ! {
     }
 }
 
-// LCOV_EXCL_STOP
+// LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
 #[cfg(test)]
 #[path = "terminal_tests.rs"]

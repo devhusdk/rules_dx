@@ -221,7 +221,7 @@ pub fn run_command_until(
             Err(err) => {
                 wait_error = Some(err);
                 break;
-            } // LCOV_EXCL_STOP
+            } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     }
     // LCOV_EXCL_START - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -230,7 +230,7 @@ pub fn run_command_until(
         let _ = poll_exit(&mut owned, hard);
         return Err(err);
     }
-    // LCOV_EXCL_STOP
+    // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     match status {
         Some(exit) => {
             backend::end_owned_descendants(&mut owned);
@@ -464,7 +464,7 @@ pub fn console_stop_signal(ctrl_type: u32) -> Option<i32> {
 pub fn forward_stop(signo: i32) {
     forward_from(&FORWARDS, signo, crate::record_interrupt);
 }
-// LCOV_EXCL_STOP
+// LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
 fn forward_from(slots: &[Slot], signo: i32, record: fn(i32)) {
     let mut targets = [0; FORWARD_SLOTS];
@@ -662,7 +662,7 @@ pub(crate) fn run_streamed_in(
                 backend::force_stream(&mut child, target);
                 drop(job);
                 return Err(err);
-            } // LCOV_EXCL_STOP
+            } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         if let Some(job) = job.as_ref() {
             record_reported(job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -746,7 +746,7 @@ fn record_reported(job: &backend::TerminalJob) {
         crate::record_interrupt(signo);
     }
 }
-// LCOV_EXCL_STOP
+// LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
 fn settle_owned_tree(target: i32, cleanup: CleanupBudget) {
     if !wait_tree_gone(target, Instant::now() + cleanup.graceful) {
@@ -873,7 +873,7 @@ mod backend {
                     }
                     Ok(())
                 });
-                // LCOV_EXCL_STOP
+                // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             }
         }
 
@@ -953,7 +953,7 @@ mod backend {
                     }
                     Ok(())
                 });
-                // LCOV_EXCL_STOP
+                // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             }
         }
 
@@ -972,7 +972,7 @@ mod backend {
                 Group::Join(pgid) => {
                     command.process_group(pgid);
                 }
-                // LCOV_EXCL_STOP
+                // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 Group::Own => {
                     command.process_group(0);
                 }

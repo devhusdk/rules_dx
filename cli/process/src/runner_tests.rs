@@ -221,7 +221,7 @@ fn lock_comes_free(path: &std::path::Path) -> bool {
             return false;
         }
         std::thread::sleep(std::time::Duration::from_millis(20));
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -255,7 +255,7 @@ fn lock_holders(path: &std::path::Path) -> String {
         holders.join("; ")
     }
 }
-// LCOV_EXCL_STOP
+// LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
 #[test]
 fn new_stops_on_process_interrupts() {

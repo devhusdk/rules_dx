@@ -429,7 +429,7 @@ fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<P
         if let Some(data) = env_get("ProgramData").filter(|value| !value.is_empty()) {
             roots.push(PathBuf::from(data).join("bazel.bazelrc"));
         }
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     } else {
         roots.push(PathBuf::from("/etc/bazel.bazelrc"));
     }

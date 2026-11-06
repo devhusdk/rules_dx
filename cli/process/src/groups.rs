@@ -343,11 +343,11 @@ fn reap_in(dir: &Path) -> Vec<Reaped> {
                 let now = observe(&recorded);
                 match verdict(&recorded, &now) {
                     Verdict::Keep => {
-                        // LCOV_EXCL_START - reason: a live group whose leader cannot be read cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+                        // LCOV_EXCL_START - reason: live group with unreadable leader cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                         if now.leader == Leader::Unknown {
                             log_decision(dir, "keep-unknown", pid, &recorded, &now);
                         }
-                        // LCOV_EXCL_STOP
+                        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                         continue;
                     }
                     Verdict::Drop => {}

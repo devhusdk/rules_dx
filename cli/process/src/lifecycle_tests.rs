@@ -45,7 +45,7 @@ fn controlled_launch_delivers_only_the_declared_environment() {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("controlled probe must exit zero, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -63,7 +63,7 @@ fn inherited_launch_keeps_the_parent_environment() {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("inherited probe must see TEST_SRCDIR, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -83,7 +83,7 @@ fn inherited_launch_forwards_extra_entries() {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("extra entry must reach the child, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -111,7 +111,7 @@ fn exit_code_and_both_streams_round_trip() {
         }
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("probe must finish with code 5, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -122,7 +122,7 @@ fn signal_exit_is_distinct_from_an_exit_code() {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit, Exit::Code(3)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("probe must exit 3, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     assert_eq!(Exit::Code(0).code(), Some(0));
     assert_eq!(Exit::Signal(15).code(), None);
@@ -136,7 +136,7 @@ fn a_signaled_child_reports_its_signal() {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit, Exit::Signal(15)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("raised signal must surface, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -154,7 +154,7 @@ fn timeout_kills_a_sleeping_child_within_a_bound() {
         "timed out after {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
 }
 
@@ -179,7 +179,7 @@ fn timeout_reaps_a_descendant_holding_the_pipes() {
         "descendant must not hold the run past {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_released(&lock);
 }
@@ -327,12 +327,12 @@ fn timeout_kills_a_group_whose_leader_exits_on_term() {
         }
         assert!(
             Instant::now() < deadline,
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             "descendant {pid} survived the run"
         );
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         std::thread::sleep(Duration::from_millis(50));
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -462,7 +462,7 @@ fn an_owned_run_ends_an_attached_descendant_after_a_clean_exit() {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("the probe must finish, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     assert_released(&lock);
 }
@@ -484,7 +484,7 @@ fn a_tight_budget_drains_large_output_concurrently() {
         "a producer past pipe capacity must not wait for the deadline: {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
 }
 
@@ -506,7 +506,7 @@ fn large_output_drains_without_a_timeout() {
         }
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("megabyte must drain, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -518,7 +518,7 @@ fn output_past_the_caller_limit_reports_the_limit() {
         ChildOutcome::OutputTooLarge { limit } => assert_eq!(limit, 16),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         outcome => panic!("oversize must report the limit, got {outcome:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -744,7 +744,7 @@ fn streamed_stop_kills_an_owned_tree_that_ignores_it() {
         "stop took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_released(&lock);
 }
@@ -771,7 +771,7 @@ fn streamed_drain_is_bounded_when_a_descendant_keeps_stdout() {
         "drain took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_eq!(sink.bytes(), b"first");
 }
@@ -803,7 +803,7 @@ fn streamed_stderr_reaches_its_own_sink() {
             "{:?}",
             // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             &err[..err.len().min(16)]
-            // LCOV_EXCL_STOP
+            // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         );
         assert_eq!(err.len(), b"to-err".len() + 1_048_576);
     }
@@ -837,7 +837,7 @@ fn streamed_stop_with_both_streams_forwarded_kills_the_owned_tree() {
         "stop took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_released(&lock);
 }
@@ -867,7 +867,7 @@ fn streamed_drain_is_bounded_when_a_descendant_keeps_stderr() {
         "drain took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_eq!(err.bytes(), b"first");
     assert!(out.bytes().is_empty());
@@ -903,7 +903,7 @@ fn streamed_stop_during_drain_cleans_up_the_owned_descendant() {
         "stop during drain took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_released(&lock);
 }
@@ -931,7 +931,7 @@ fn streamed_terminal_stop_during_drain_returns_without_waiting() {
         "stop during drain took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
 }
 
@@ -1029,7 +1029,7 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
         assert_eq!(pgid, pid, "{stat}");
     // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
-    // LCOV_EXCL_STOP
+    // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 }
 
 #[test]
@@ -1086,7 +1086,7 @@ fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
         "self-exit took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_released(&lock);
 }
@@ -1116,7 +1116,7 @@ fn streamed_self_exit_stops_a_descendant_holding_stdout() {
         "self-exit took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_released(&lock);
 }
@@ -1170,7 +1170,7 @@ fn streamed_withdraw_terminates_the_owned_tree() {
         "withdraw took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_released(&lock);
 }
@@ -1202,7 +1202,7 @@ fn streamed_withdraw_kills_a_tree_that_ignores_sigterm() {
         "withdraw took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
     assert_released(&lock);
 }
@@ -1241,7 +1241,7 @@ fn streamed_stop_during_withdraw_is_a_cancel() {
         "stop during withdraw took {:?}",
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         started.elapsed()
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
 }
 
@@ -1286,7 +1286,7 @@ fn wait_lease_free(path: &std::path::Path) {
             path.display()
         );
         std::thread::sleep(Duration::from_millis(50));
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -1301,7 +1301,7 @@ fn wait_alive(lock: &std::path::Path) {
             lock.display()
         );
         std::thread::sleep(Duration::from_millis(10));
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -1476,7 +1476,7 @@ fn streamed_held_parent_main() {
     let mut spec = streamed(probe_argv(&flags), &sink, StreamGroup::Owned);
     spec.held = vec![held_lease(&dir.join("lease.lock"))];
     let _ = run_streamed(spec, STREAM_BUDGET, &never);
-    // LCOV_EXCL_STOP
+    // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 }
 
 /// The returned guard keeps the scratch dir alive while the orphaned
@@ -1531,7 +1531,7 @@ fn stream_group_is_owned_without_a_terminal() {
         assert!(matches!(stream_group(), StreamGroup::Owned));
     // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
-    // LCOV_EXCL_STOP
+    // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 }
 
 #[cfg(unix)]
@@ -1555,7 +1555,7 @@ fn a_prepared_command_keeps_its_removed_variable_out_of_the_child() {
         ChildOutcome::Finished { stdout, .. } => assert_eq!(stdout, b"unset"),
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         other => panic!("unexpected outcome {other:?}"),
-        // LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 

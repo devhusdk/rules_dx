@@ -65,6 +65,21 @@ filegroup(
     name = "cc-compiler-mingw64",
     target_compatible_with = ["@platforms//:incompatible"],
 )
+
+filegroup(
+    name = "cabal",
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
+filegroup(
+    name = "ghc_exe",
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
+filegroup(
+    name = "ghc_files",
+    target_compatible_with = ["@platforms//:incompatible"],
+)
 """
 
 GMP_PACKAGE = "ghc-bignum"
@@ -270,6 +285,21 @@ filegroup(
     srcs = glob(["{libdir}/**", "{closure}/**"]),
 )
 
+filegroup(
+    name = "cabal",
+    srcs = ["cabal/cabal{exe_suffix}"],
+)
+
+filegroup(
+    name = "ghc_exe",
+    srcs = ["bin/ghc{exe_suffix}"],
+)
+
+filegroup(
+    name = "ghc_files",
+    srcs = [":bin", ":lib"],
+)
+
 {gmp}
 
 filegroup(
@@ -448,6 +478,11 @@ def _ghc_repo_impl(rctx):
         sha256 = cell.ghc_sha256,
         stripPrefix = cell.ghc_strip_prefix,
     )
+    rctx.download_and_extract(
+        url = cell.cabal_url,
+        sha256 = cell.cabal_sha256,
+        output = "cabal",
+    )
     for path in GHC_DROPPED_PATHS:
         rctx.delete(path)
     if cell.runtime:
@@ -492,6 +527,7 @@ def _ghc_repo_impl(rctx):
         cc = _MINGW_CC_BUILD if mingw_cc else "",
         cc_loads = _MINGW_CC_LOADS if mingw_cc else "",
         closure = CLOSURE_DIR,
+        exe_suffix = cell.exe_suffix,
         gmp = (_GMP_IMPORT if cell.runtime else _GMP_EMPTY).format(closure = CLOSURE_DIR),
         libdir = LIBDIR,
         libraries = result["file_content"],
@@ -535,7 +571,7 @@ def hub_files(cells = CELLS):
             repr(cells[cell].exec_compatible_with),
         ))
         arms.append("        \":{}_platform\": \"@{}//:{{name}}\",".format(cell, cell_repository_name(cell)))
-    for name in ["gmp", "licenses"]:
+    for name in ["cabal", "ghc_exe", "ghc_files", "gmp", "licenses"]:
         content.append(_HUB_ALIAS.format(name = name, arms = "\n".join(arms).replace("{name}", name)))
     for name in COMMON_LIBRARIES:
         content.append("haskell_toolchain_library(name = \"{}\")\n".format(name))

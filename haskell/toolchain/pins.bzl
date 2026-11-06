@@ -2,6 +2,10 @@
 
 GHC_VERSION = "9.10.3"
 
+CABAL_VERSION = "3.18.2.0"
+
+_CABAL_URL = "https://downloads.haskell.org/~cabal/cabal-install-" + CABAL_VERSION + "/cabal-install-" + CABAL_VERSION + "-"
+
 RULES_HASKELL_COMMIT = "826018312ea91c80ff66fde1e1e39f76c42c07b8"
 
 RULES_HASKELL_SHA256 = "86d126db53fa06ee935d94ee109420d3a68733377091f7914f62abe36c1972a1"
@@ -32,6 +36,8 @@ CELLS = {
         ghc_sha256 = "90f4e3082e1f43b984579f16b6349bd406dfdf88bda85733d7ccd54cb6a8eda8",
         ghc_strip_prefix = "ghc-" + GHC_VERSION + "-x86_64-unknown-linux",
         ghc_url = "https://downloads.haskell.org/~ghc/" + GHC_VERSION + "/ghc-" + GHC_VERSION + "-x86_64-deb10-linux.tar.xz",
+        cabal_sha256 = "b4f4c83135da77cfc18ccd6056398ca714a2dad86d5f635621ffdda8f9afe587",
+        cabal_url = _CABAL_URL + "x86_64-linux-unknown.tar.xz",
         runtime = [
             struct(
                 copyright = "usr/share/doc/libgmp10/copyright",
@@ -64,6 +70,8 @@ CELLS = {
         ghc_sha256 = "99b85c1948e58e310f4e29cd2c8724a18c246c07e12637d8cbd591a064138236",
         ghc_strip_prefix = "ghc-" + GHC_VERSION + "-aarch64-unknown-linux",
         ghc_url = "https://downloads.haskell.org/~ghc/" + GHC_VERSION + "/ghc-" + GHC_VERSION + "-aarch64-deb10-linux.tar.xz",
+        cabal_sha256 = "e4d940131ab0b78943a4b5ce64a9ef5acc452ea849df197787eaeecb1c3bf276",
+        cabal_url = _CABAL_URL + "aarch64-linux-unknown.tar.xz",
         runtime = [
             struct(
                 copyright = "usr/share/doc/libgmp10/copyright",
@@ -96,6 +104,8 @@ CELLS = {
         ghc_sha256 = "9f50ddd87be5cb994c719402778d6c7fdd341934fd4fbc0fcc3ecb40d49f860c",
         ghc_strip_prefix = "ghc-" + GHC_VERSION + "-aarch64-apple-darwin",
         ghc_url = "https://downloads.haskell.org/~ghc/" + GHC_VERSION + "/ghc-" + GHC_VERSION + "-aarch64-apple-darwin.tar.xz",
+        cabal_sha256 = "d91f76cf9539d927205858c42d0c1fe3868dea89f54a5dd6151f9c3fdd56f21f",
+        cabal_url = _CABAL_URL + "aarch64-apple-darwin.tar.xz",
         # GMP is linked into the Darwin bindist, so there is no runtime closure.
         runtime = [],
         # Ships the GMP LGPL text, which has no deb copyright file to come from.
@@ -114,6 +124,8 @@ CELLS = {
         ghc_sha256 = "ad17bdbee5f195d50024da1447f458071d9d8a34f90d76907c873abaf95d893f",
         ghc_strip_prefix = "ghc-" + GHC_VERSION + "-x86_64-unknown-mingw32",
         ghc_url = "https://downloads.haskell.org/~ghc/" + GHC_VERSION + "/ghc-" + GHC_VERSION + "-x86_64-unknown-mingw32.tar.xz",
+        cabal_sha256 = "7430982fd2aedef41539155d819e7e24349c664206ecf8c6e53c1c31acdbe630",
+        cabal_url = _CABAL_URL + "x86_64-mingw64.zip",
         runtime = [],
         # GMP is linked statically into the Windows bindist.
         gmp_license = _GMP_LICENSE,

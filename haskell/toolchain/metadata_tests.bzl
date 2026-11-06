@@ -57,6 +57,7 @@ def _cell_checks(name):
     arch_dir = {"linux_amd64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": "", "windows_x86_64": ""}[name]
     return [
         expect_equal(name + " ghc digest", len(cell.ghc_sha256), 64),
+        expect_equal(name + " cabal digest", len(cell.cabal_sha256), 64),
         expect_equal(name + " runtime packages", [package.package for package in cell.runtime], ["libgmp10", "libtinfo6"] if has_runtime else []),
         expect_true(name + " names a locale", len(cell.locale) > 0),
         expect_equal(name + " every package pins a digest", [package.package for package in cell.runtime if len(package.sha256) != 64], []),

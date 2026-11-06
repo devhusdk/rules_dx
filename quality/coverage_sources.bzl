@@ -13,6 +13,7 @@ DxCoverageSourcesInfo = provider(
 
 _OS = ["linux", "macos", "windows"]
 _CPU = ["x86_64", "arm64"]
+_EDGE_ATTRS = ["deps", "main", "upstream", "crate", "coverage_lib"]
 
 def _cell(ctx):
     """Returns the target platform as `<os>_<cpu>`, or unknown."""
@@ -38,23 +39,27 @@ def dx_coverage_source_lines(info):
     """Returns the manifest lines for a DxCoverageSourcesInfo."""
     return ["v1 cell " + info.cell] + _rows(info.files, info.prod)
 
+def _edges(ctx):
+    """Returns the targets behind the rule's dependency and wrapper edges."""
+    edges = []
+    for name in _EDGE_ATTRS:
+        value = getattr(ctx.rule.attr, name, None)
+        if type(value) == "Target":
+            edges.append(value)
+        elif type(value) == "list":
+            edges += [dep for dep in value if type(dep) == "Target"]
+    return edges
+
 def _dx_coverage_sources_aspect_impl(target, ctx):
     """Writes the target's instrumented main-repo sources as one manifest."""
     if AnalysisTestResultInfo in target:
         return []
     test = ctx.rule.kind.endswith("_test") or getattr(ctx.rule.attr, "testonly", False)
     files = target[InstrumentedFilesInfo].instrumented_files if InstrumentedFilesInfo in target else depset()
-    deps = list(getattr(ctx.rule.attr, "deps", []))
-    for name in ["main", "upstream"]:
-        dep = getattr(ctx.rule.attr, name, None)
-        if type(dep) == "Target":
-            deps.append(dep)
-        elif type(dep) == "list":
-            deps.extend(dep)
     dep_prod = [
         dep[DxCoverageSourcesInfo].prod
-        for dep in deps
-        if type(dep) == "Target" and DxCoverageSourcesInfo in dep
+        for dep in _edges(ctx)
+        if DxCoverageSourcesInfo in dep
     ]
     prod = depset(transitive = dep_prod + ([] if test else [files]))
     if not files:
@@ -74,7 +79,7 @@ def _dx_coverage_sources_aspect_impl(target, ctx):
 dx_coverage_sources_aspect = aspect(
     implementation = _dx_coverage_sources_aspect_impl,
     doc = "Writes the instrumented main-repo sources of a top-level target.",
-    attr_aspects = ["deps", "main", "upstream"],
+    attr_aspects = _EDGE_ATTRS,
     attrs = {
         "_cpu_arm64": attr.label(default = "@platforms//cpu:arm64"),
         "_cpu_x86_64": attr.label(default = "@platforms//cpu:x86_64"),

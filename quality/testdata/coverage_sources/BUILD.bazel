@@ -6,6 +6,7 @@ load("//fortran/rules:defs.bzl", "fortran_library", "fortran_test")
 load("//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_test")
 load("//perl/rules:defs.bzl", "perl_test")
 load("//powershell/rules:defs.bzl", "pwsh_test")
+load("//rust/rules:crate.bzl", "dx_rust_crate")
 load("//quality:coverage_sources_tests.bzl", "coverage_fixture")
 load("//zig/rules:defs.bzl", "zig_library", "zig_test")
 
@@ -161,4 +162,13 @@ ocaml_test(
     name = "ocaml_probe_test",
     main = ":ocaml_probe_main",
     tags = ["manual"],
+)
+
+dx_rust_crate(
+    name = "self_contained",
+    package_name = "quality/testdata/coverage_sources",
+    srcs = ["lib.rs"],
+    test_srcs = ["unit.rs"],
+    deps = [],
+    visibility = ["//quality:__pkg__"],
 )

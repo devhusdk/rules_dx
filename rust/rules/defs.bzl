@@ -193,6 +193,9 @@ _rust_forward_test = dx_executable_forward_rule(
             doc = "The crate under test, so format checks reach its files.",
             providers = [[_rust_common.crate_info], [_rust_common.test_crate_info]],
         ),
+        "coverage_lib": attr.label(
+            doc = "The library whose sources the test compiles itself, so coverage counts them as production code.",
+        ),
     },
     upstream_cfg = _cpp_runtime_transition,
     upstream_aspects = [dx_data_coverage_aspect, dx_msvc_crt_aspect],
@@ -280,6 +283,7 @@ def rust_test(
         wasm = None,
         preopens = None,
         runtime = None,
+        coverage_lib = None,
         **kwargs):
     """Minimal wrapper over rust_test."""
     if wasm not in (None, "wasi", "browser"):
@@ -321,6 +325,8 @@ def rust_test(
     forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags"))
     if crate != None:
         forward_kwargs["crate"] = crate
+    if coverage_lib != None:
+        forward_kwargs["coverage_lib"] = coverage_lib
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, **kwargs)
 
 def rust_benchmark(

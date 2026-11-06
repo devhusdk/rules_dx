@@ -95,7 +95,8 @@ def coverage_sources_analysis_tests(name):
     split = ["lib.rs", "split.rs"]
     cases = [
         (_manifest_test, "rust", "split_lib", "", _rows("prod", "source", split)),
-        (_manifest_test, "rust_test", "split_lib_test", "", _rows("test", "source", split)),
+        (_manifest_test, "rust_test", "split_lib_test", "", _rows("prod", "source", split)),
+        (_test_target_test, "self_contained", "self_contained_test", "", _rows("prod", "source", ["lib.rs"]) + _rows("test", "source", ["unit.rs"])),
         (_manifest_test, "zig_test", "calc_test", "", _rows("prod", "source", ["calc.zig"])),
         (_manifest_test, "fortran_test", "fcalc_test", "", _rows("prod", "source", ["calc.f90"])),
         (_manifest_test, "header", "header_lib", "", _rows("prod", "source", ["header.cc", "header.h"])),

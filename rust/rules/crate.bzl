@@ -81,6 +81,7 @@ def dx_rust_crate(
             data = test_data or [],
             deps = test_deps,
             env = test_env or {},
+            coverage_lib = ":" + name,
             testonly = testonly,
             visibility = visibility,
         )

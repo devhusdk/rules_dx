@@ -19,6 +19,111 @@ type IDLSpec struct {
 	Exts        []string
 	StdPrefix   string
 	AbsoluteDep bool
+	Bindings    []IDLBinding
+}
+
+// IDLBinding is a code generation rule wrapping the library of a schema
+// language. It is generated when the root MODULE.bazel depends on Module.
+type IDLBinding struct {
+	Kind   string
+	Infix  string
+	Module string
+	// Attr is the attribute that names the library: "deps" (a list) or
+	// "library" (one label, only for libraries with a single schema).
+	Attr string
+}
+
+// IDLBindings returns the cc, java and rust bindings of a schema language
+// whose rules are named <prefix>_cc_library, <prefix>_java_library and
+// <prefix>_rust_library. An empty rustAttr leaves out the rust binding.
+func IDLBindings(prefix, rustAttr string) []IDLBinding {
+	all := []IDLBinding{
+		{prefix + "_cc_library", "_cc", "rules_cc", "deps"},
+		{prefix + "_java_library", "_java", "rules_java", "deps"},
+		{prefix + "_rust_library", "_rust", "rules_rust", rustAttr},
+	}
+	var out []IDLBinding
+	for _, b := range all {
+		if rustAttr == "" && b.Infix == "_rust" {
+			continue
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
+func idlBindingKinds(spec IDLSpec) map[string]rule.KindInfo {
+	kinds := map[string]rule.KindInfo{spec.Kind: LibraryKindInfo()}
+	for _, b := range spec.Bindings {
+		kinds[b.Kind] = rule.KindInfo{
+			MatchAttrs:     []string{b.Attr},
+			NonEmptyAttrs:  map[string]bool{b.Attr: true},
+			MergeableAttrs: map[string]bool{b.Attr: true, "visibility": true, "testonly": true},
+		}
+	}
+	return kinds
+}
+
+// addIDLBindings appends the binding rules of each generated library and
+// empties the ones whose library is gone.
+func addIDLBindings(spec IDLSpec, args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
+	deps := ModuleDeps(args.Config.RepoRoot)
+	var active []IDLBinding
+	for _, b := range spec.Bindings {
+		if deps[b.Module] {
+			active = append(active, b)
+		}
+	}
+	if len(active) == 0 {
+		return result
+	}
+	names := make(map[string]bool)
+	for _, lib := range result.Gen {
+		names[lib.Name()] = true
+	}
+	for _, lib := range result.Empty {
+		names[lib.Name()] = true
+	}
+	owned := make(map[string]bool)
+	for name := range names {
+		for _, b := range active {
+			owned[b.Kind+"\x00"+name+b.Infix] = true
+		}
+	}
+	generated := make(map[string]bool)
+	for _, lib := range append([]*rule.Rule{}, result.Gen...) {
+		if lib.Kind() != spec.Kind {
+			continue
+		}
+		for _, b := range active {
+			if b.Attr == "library" && len(lib.AttrStrings("srcs")) != 1 {
+				continue
+			}
+			r := rule.NewRule(b.Kind, lib.Name()+b.Infix)
+			if b.Attr == "library" {
+				r.SetAttr("library", ":"+lib.Name())
+			} else {
+				r.SetAttr("deps", []string{":" + lib.Name()})
+			}
+			if lib.AttrBool("testonly") {
+				r.SetAttr("testonly", true)
+			}
+			r.SetAttr("visibility", []string{"//visibility:public"})
+			result.Gen = append(result.Gen, r)
+			result.Imports = append(result.Imports, nil)
+			generated[b.Kind+"\x00"+r.Name()] = true
+		}
+	}
+	if args.File == nil {
+		return result
+	}
+	for _, existing := range args.File.Rules {
+		key := existing.Kind() + "\x00" + existing.Name()
+		if owned[key] && !generated[key] {
+			result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))
+		}
+	}
+	return result
 }
 
 var (
@@ -59,8 +164,10 @@ func NewIDLLanguage(spec IDLSpec, parse func([]byte) []string, hint string) lang
 	return NewSingleLang(SingleLangSpec{
 		LanguageName:   spec.Name,
 		LibraryKind:    spec.Kind,
-		Kinds:          map[string]rule.KindInfo{spec.Kind: LibraryKindInfo()},
+		Kinds:          idlBindingKinds(spec),
+		ExtraKinds:     bindingKindNames(spec),
 		DefsPackage:    spec.Defs,
+		KindDefs:       bindingKindDefs(spec),
 		ImportAttr:     "srcs",
 		Identity:       func(name string) string { return name },
 		PathIdentity:   true,
@@ -76,7 +183,7 @@ func NewIDLLanguage(spec IDLSpec, parse func([]byte) []string, hint string) lang
 		},
 		UnresolvedHint: hint,
 		Generate: func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult {
-			return GenerateSingleDir(args, map[string]rule.KindInfo{spec.Kind: kinds[spec.Kind]}, SingleDirSpec{
+			result := GenerateSingleDir(args, map[string]rule.KindInfo{spec.Kind: kinds[spec.Kind]}, SingleDirSpec{
 				LanguageName: spec.Name,
 				LibraryKind:  spec.Kind,
 				IsSource:     isSource,
@@ -90,6 +197,24 @@ func NewIDLLanguage(spec IDLSpec, parse func([]byte) []string, hint string) lang
 				},
 				Wrap: WrapImportSet,
 			}, rep)
+			return addIDLBindings(spec, args, result)
 		},
 	})
+}
+
+func bindingKindNames(spec IDLSpec) []string {
+	var kinds []string
+	for _, b := range spec.Bindings {
+		kinds = append(kinds, b.Kind)
+	}
+	return kinds
+}
+
+func bindingKindDefs(spec IDLSpec) map[string]string {
+	defs := make(map[string]string)
+	family, _, _ := strings.Cut(spec.Defs, "/")
+	for _, b := range spec.Bindings {
+		defs[b.Kind] = family + "/rules:codegen.bzl"
+	}
+	return defs
 }

@@ -1,0 +1,6 @@
+@namespace("demo")
+protocol Lib {
+  record Point {
+    int x;
+  }
+}

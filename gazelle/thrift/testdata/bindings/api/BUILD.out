@@ -1,0 +1,26 @@
+load("@rules_dx//thrift/rules:codegen.bzl", "thrift_cc_library", "thrift_java_library", "thrift_rust_library")
+load("@rules_dx//thrift/rules:defs.bzl", "thrift_library")
+
+thrift_library(
+    name = "api",
+    srcs = ["point.thrift"],
+    visibility = ["//visibility:public"],
+)
+
+thrift_cc_library(
+    name = "api_cc",
+    visibility = ["//visibility:public"],
+    deps = [":api"],
+)
+
+thrift_java_library(
+    name = "api_java",
+    visibility = ["//visibility:public"],
+    deps = [":api"],
+)
+
+thrift_rust_library(
+    name = "api_rust",
+    visibility = ["//visibility:public"],
+    deps = [":api"],
+)

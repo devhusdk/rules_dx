@@ -30,6 +30,7 @@ func NewLanguage() language.Language {
 		Defs:        "flatbuffers/rules:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "",
+		Bindings:    common.IDLBindings("flatbuffers", "library"),
 		AbsoluteDep: false,
 	}, ParseImports, "add a flatbuffers_library that owns that file or an exact # gazelle:resolve flatbuffers mapping")
 }

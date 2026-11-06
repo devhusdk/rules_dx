@@ -30,6 +30,7 @@ func NewLanguage() language.Language {
 		Defs:        "avro/rules:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "",
+		Bindings:    common.IDLBindings("avro", ""),
 		AbsoluteDep: false,
 	}, ParseImports, "add an avro_library that owns that file or an exact # gazelle:resolve avro mapping")
 }

@@ -1,0 +1,20 @@
+load("@rules_dx//avro/rules:codegen.bzl", "avro_cc_library", "avro_java_library")
+load("@rules_dx//avro/rules:defs.bzl", "avro_library")
+
+avro_library(
+    name = "api",
+    srcs = ["point.avdl"],
+    visibility = ["//visibility:public"],
+)
+
+avro_cc_library(
+    name = "api_cc",
+    visibility = ["//visibility:public"],
+    deps = [":api"],
+)
+
+avro_java_library(
+    name = "api_java",
+    visibility = ["//visibility:public"],
+    deps = [":api"],
+)

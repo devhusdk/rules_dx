@@ -1,0 +1,23 @@
+load("@rules_dx//capnproto/rules:codegen.bzl", "capnp_cc_library", "capnp_java_library")
+load("@rules_dx//capnproto/rules:defs.bzl", "capnp_library")
+
+capnp_library(
+    name = "multi",
+    srcs = [
+        "path.capnp",
+        "point.capnp",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+capnp_cc_library(
+    name = "multi_cc",
+    visibility = ["//visibility:public"],
+    deps = [":multi"],
+)
+
+capnp_java_library(
+    name = "multi_java",
+    visibility = ["//visibility:public"],
+    deps = [":multi"],
+)

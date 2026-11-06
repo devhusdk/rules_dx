@@ -1,0 +1,23 @@
+load("@rules_dx//avro/rules:codegen.bzl", "avro_cc_library", "avro_java_library")
+load("@rules_dx//avro/rules:defs.bzl", "avro_library")
+
+avro_library(
+    name = "multi",
+    srcs = [
+        "path.avdl",
+        "point.avdl",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+avro_cc_library(
+    name = "multi_cc",
+    visibility = ["//visibility:public"],
+    deps = [":multi"],
+)
+
+avro_java_library(
+    name = "multi_java",
+    visibility = ["//visibility:public"],
+    deps = [":multi"],
+)

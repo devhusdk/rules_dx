@@ -1,0 +1,3 @@
+table Point {
+  x: int;
+}

@@ -30,6 +30,7 @@ func NewLanguage() language.Language {
 		Defs:        "thrift/rules:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "",
+		Bindings:    common.IDLBindings("thrift", "deps"),
 		AbsoluteDep: false,
 	}, ParseImports, "add a thrift_library that owns that file or an exact # gazelle:resolve thrift mapping")
 }

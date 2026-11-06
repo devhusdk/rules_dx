@@ -1,6 +1,7 @@
 """Rust real quality aspects."""
 
-load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
+load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
+load("//quality:families/rust_clippy.bzl", "DxClippyInfo", "dx_clippy_aspect")
 load("//quality:family_hooks.bzl", "upstream_files")
 load("//quality:pipeline.bzl", "generated_source_paths", "prune_tool_generated_sources")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
@@ -39,7 +40,7 @@ SHARD_SPECS = {
     "real_rust_lint": {
         "capability": "lint",
         "doc": "Additive Rust lint family aspect (delegated Clippy).",
-        "requires": [rust_clippy_aspect],
+        "requires": [dx_clippy_aspect],
         "shard": "rust",
         "suffix": "-rust",
         "toolchains": rust_toolchain_toolchains(),
@@ -126,9 +127,8 @@ def _clippy_hook(target, ctx, _resolved, _capability, what, shared):
     if not shared.has_toolchain:
         fail(what + ": clippy needs the Rust family aspect")
     diagnostics = []
-    if OutputGroupInfo in target and "clippy_output" in target[OutputGroupInfo]:
-        diagnostics = target[OutputGroupInfo]["clippy_output"].to_list()
-        diagnostics = diagnostics + _crate_deps_files(target, ctx, "clippy")
+    if DxClippyInfo in target and target[DxClippyInfo].diagnostics:
+        diagnostics = target[DxClippyInfo].diagnostics + _crate_deps_files(target, ctx, "clippy")
     return real_context(upstream = diagnostics, late_inputs = diagnostics, delegated = len(diagnostics) > 0)
 
 def _rustc_hook(target, ctx, _resolved, _capability, what, shared):

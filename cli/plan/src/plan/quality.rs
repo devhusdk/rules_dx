@@ -173,14 +173,6 @@ pub struct Selection<'a> {
     pub unsafe_fixes: bool,
 }
 
-/// Makes clippy (which reads only the repeatable flag) report unused crate dependencies in lint builds. `--force-warn` keeps the lint a warning under `--deny=warnings`.
-fn unused_dependencies_flag() -> String {
-    format!(
-        "--{}=--force-warn=unused_crate_dependencies",
-        rules_dx_label("config:extra_rustc_flag")
-    )
-}
-
 /// Plans the quality build over the aspects `selection` keeps.
 pub fn plan_build_with(
     command: Command,
@@ -198,9 +190,6 @@ pub fn plan_build_with(
     let aspects = joined_labels(select_aspects(aspects, selection.shards));
     let groups = format!("{OUTPUT_GROUP},{SKIP_OUTPUT_GROUP}");
     let mut required = shaped_options(&aspects, &groups, bazel_options, bep_path);
-    if command == Command::Lint {
-        required.push(unused_dependencies_flag());
-    }
     if selection.unsafe_fixes {
         required.push("--aspects_parameters=unsafe_fixes=true".to_owned());
     }
@@ -642,9 +631,8 @@ mod tests {
         let startup = strings(&["--output_base=/tmp/ob"]);
         for command in [Command::Lint, Command::Format, Command::Typecheck] {
             let scope = resolved(&["//pkg:lib"]);
-            let mut build =
+            let build =
                 plan_build(command, &scope, &user, "/tmp/bep.json", &startup).expect("build");
-            build.argv.retain(|arg| !arg.contains("extra_rustc_flag"));
             let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup, None)
                 .expect("probe")
                 .expect("quality commands carry a probe");
@@ -742,16 +730,24 @@ mod tests {
     }
 
     #[test]
-    fn only_lint_builds_report_unused_crate_dependencies() {
-        let flag = "--@rules_dx//config:extra_rustc_flag=--force-warn=unused_crate_dependencies";
-        for (command, expected) in [
-            (Command::Lint, true),
-            (Command::Format, false),
-            (Command::Typecheck, false),
-        ] {
-            let plan =
-                plan_build(command, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
-            assert_eq!(plan.argv.iter().any(|arg| arg == flag), expected);
+    fn quality_builds_keep_the_build_configuration() {
+        let user = strings(&["--config=ci"]);
+        for command in [Command::Lint, Command::Format, Command::Typecheck] {
+            let build = plan_build(command, &resolved(&[]), &user, "/tmp/bep.json", &[])
+                .expect("build")
+                .argv;
+            let probe = plan_probe(command, &resolved(&[]), &user, "/tmp/probe.json", &[], None)
+                .expect("probe")
+                .expect("quality commands carry a probe")
+                .argv;
+            for argv in [build, probe] {
+                let settings: Vec<&str> = argv
+                    .iter()
+                    .map(String::as_str)
+                    .filter(|arg| arg.starts_with("--@"))
+                    .collect();
+                assert_eq!(settings, BAZEL_SETTINGS, "{command:?}");
+            }
         }
     }
 
@@ -883,7 +879,6 @@ mod tests {
                 "--keep_going",
                 "--build_event_json_file=/tmp/bep.json",
                 "--build_event_json_file_path_conversion=false",
-                "--@rules_dx//config:extra_rustc_flag=--force-warn=unused_crate_dependencies",
                 "//...",
             ]
         );

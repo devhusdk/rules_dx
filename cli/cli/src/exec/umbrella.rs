@@ -1325,7 +1325,7 @@ mod tests {
 
     fn setting_args(argv: &[String]) -> std::collections::BTreeSet<String> {
         argv.iter()
-            .filter(|arg| arg.starts_with("--@") && !arg.contains("config:extra_rustc_flag"))
+            .filter(|arg| arg.starts_with("--@"))
             .cloned()
             .collect()
     }
@@ -1350,7 +1350,16 @@ mod tests {
                 dx_plan::plan::plan_build(phase, &resolved, &[], "/tmp/bep.json", &[])
             };
             argvs.push((format!("{phase:?}"), plan.expect("phase plan").argv));
+            let probe =
+                dx_plan::plan::plan_probe(phase, &resolved, &[], "/tmp/probe.json", &[], None)
+                    .expect("probe plan");
+            if let Some(probe) = probe {
+                argvs.push((format!("{phase:?} probe"), probe.argv));
+            }
         }
+        let docs =
+            dx_plan::plan::plan_docs(&resolved, &[], "/tmp/bep.json", &[]).expect("docs plan");
+        argvs.push(("docs".to_owned(), docs.argv));
         let test = dx_plan::plan::plan_workflow(
             dx_plan::plan::WorkflowVerb::Test,
             &resolved,

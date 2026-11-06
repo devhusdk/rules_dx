@@ -382,7 +382,6 @@ REAL_RESULT_CASES = [
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
-        "rustc_flags": ["--force-warn=unused_crate_dependencies"],
         "contains": ["unused_crate_dependencies", "\"unused_dep\""],
         "absent": [],
         "linux_arm64": True,

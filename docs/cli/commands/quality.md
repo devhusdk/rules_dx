@@ -48,7 +48,7 @@ Args after `--` go to Bazel. dx adds `--keep_going` and `--remote_download_outpu
 
 These args exit `2`: `--aspects`, `--output_groups`, `--build_event_json_file`, `--nokeep_going`, `--remote_download_minimal`, `--test_arg`, and the startup options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`, `--output_base`, `--output_user_root`, `--host_jvm_args` and `--server_jvm_out`.
 
-All three commands set `--@rules_dx//config:clippy_output_diagnostics=true` and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for either, or for the matching `@rules_rust//rust/settings` flag, exits `2`. Use the repo name your `MODULE.bazel` gives rules_dx.
+All three commands set `--@rules_dx//config:clippy_output_diagnostics=true` and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for either, or for the matching `@rules_rust//rust/settings` flag, exits `2`. Use the repo name your `MODULE.bazel` gives rules_dx. These are the settings `dx build` and `dx test` use, so switching between commands keeps Bazel's analysis cache. `dx lint` reports unused crate dependencies from its own clippy run, without changing the Bazel configuration.
 
 For Rust pipelining, set `--@rules_rust//rust/settings:pipelined_compilation=true` or `=false` in `.bazelrc`.
 

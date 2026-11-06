@@ -13,6 +13,8 @@ common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1
 build:windows --per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 build:windows --@my_dx//config:toolchain_linker_preference=rust
+build:windows --nobuild_runfile_links
+build:windows --enable_runfiles
 # build, not coverage: the fetch_coverage probe runs build --collect_code_coverage.
 build:windows --features=-coverage
 build:windows --features=-gcc_coverage_map_format

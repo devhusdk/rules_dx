@@ -625,17 +625,20 @@ fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
     let gitignore = read_runfiles(".gitignore");
     let bazelignore = read_runfiles(".bazelignore");
     let biome = read_runfiles("biome.json");
-    assert!(
-        ignored_dir(&gitignore, &dir),
-        ".gitignore never ignores {dir}/"
-    );
-    assert!(
-        bazelignore
-            .lines()
-            .map(str::trim)
-            .any(|line| line == dir || line.starts_with(&format!("{dir}/"))),
-        ".bazelignore never ignores {dir}/"
-    );
+    for state in ["local", "bazelrc"] {
+        let state = format!("{dir}/{state}");
+        assert!(
+            ignored_dir(&gitignore, &state),
+            ".gitignore never ignores {state}/"
+        );
+        assert!(
+            bazelignore
+                .lines()
+                .map(str::trim)
+                .any(|line| line == state || line.starts_with(&format!("{state}/"))),
+            ".bazelignore never ignores {state}/"
+        );
+    }
     assert!(
         biome.contains(&format!("\"!!**/{dir}\"")),
         "biome.json files.includes never force-ignores {dir}"

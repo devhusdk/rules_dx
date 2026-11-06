@@ -277,8 +277,7 @@ jobs:
               mkdir -p "$det"
               first_root="$(bazel info "${flags[@]}" execution_root | tr -d '\r')"
               second_root="$(bazel "--output_base=$base" info "${flags[@]}" execution_root | tr -d '\r')"
-              # cquery takes one expression. evidence_inputs.rs joins the scope with
-              # single spaces and only allows // or @rules_dx_ patterns, so a union is safe.
+              # cquery takes one expression; the scope only holds // or @rules_dx_ patterns, so a union is safe.
               bazel cquery --noshow_progress --output=files "${DX_SCOPE// / + }" "${flags[@]}" | tr -d '\r' > "$det/first.txt"
               bazel "--output_base=$base" cquery --noshow_progress --output=files "${DX_SCOPE// / + }" "${flags[@]}" | tr -d '\r' > "$det/relocated.txt"
               sort -u "$det/first.txt" "$det/relocated.txt" > "$det/files.txt"

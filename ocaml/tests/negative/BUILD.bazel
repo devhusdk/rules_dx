@@ -1,6 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_library")
 load("//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_module")
-load("//ocaml/tests/negative:negative_tests.bzl", "ocaml_compile_input_test", "ocaml_hermetic_link_test")
+load("//ocaml/tests/negative:negative_tests.bzl", "ocaml_compile_input_test", "ocaml_hermetic_link_test", "ocaml_link_archive_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 real_source_target(
@@ -58,6 +58,7 @@ cc_library(
 
 ocaml_module(
     name = "binding",
+    testonly = True,
     cc_deps = {":stub": "static"},
     struct = "binding.ml",
     tags = ["manual"],
@@ -66,11 +67,18 @@ ocaml_module(
 
 ocaml_binary(
     name = "app",
+    testonly = True,
     main = ":binding",
     tags = ["manual"],
 )
 
 ocaml_hermetic_link_test(
     name = "native_link_uses_hermetic_c_tools_test",
+    target = ":app_upstream",
+)
+
+ocaml_link_archive_test(
+    name = "native_link_passes_static_stub_test",
+    archive = "libstub_upstream.a",
     target = ":app_upstream",
 )

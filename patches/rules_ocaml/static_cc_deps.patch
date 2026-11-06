@@ -1,0 +1,12 @@
+--- a/build/_lib/ccdeps.bzl
++++ b/build/_lib/ccdeps.bzl
+@@ -771,6 +771,9 @@
+             c=CCRED,t=target,r=CCRESET))
+ 
+     ccInfo = target[CcInfo]
++    for linker_input in ccInfo.linking_context.linker_inputs.to_list():
++        if linker_input.libraries:
++            return ccInfo
+     if debug:
+         print("ccInfo: %s" % ccInfo)
+ 

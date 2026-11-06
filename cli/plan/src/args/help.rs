@@ -291,10 +291,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         Command::Fuzz,
         &["fuzz //pkg:parser", "fuzz --time 5m //pkg/..."],
     ),
-    (
-        Command::Release,
-        &["release", "release --to 2.0.0"],
-    ),
+    (Command::Release, &["release", "release --to 2.0.0"]),
 ];
 
 fn examples_text(command: Command) -> String {

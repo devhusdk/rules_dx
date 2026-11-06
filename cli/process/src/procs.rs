@@ -1,7 +1,6 @@
 //! Native process probes: liveness, the process table and command lines.
 
 /// Whether `pid` names a running process.
-#[cfg(unix)]
 pub fn pid_alive(pid: u32) -> bool {
     let Ok(pid) = libc::pid_t::try_from(pid) else {
         return false;
@@ -20,7 +19,7 @@ pub fn start_time(pid: u32) -> Option<String> {
 }
 
 /// The start time of `pid` as an opaque string, or `None` when it cannot be read.
-#[cfg(all(unix, not(target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 pub fn start_time(pid: u32) -> Option<String> {
     let output = start_time_command(pid).output().ok()?;
     if !output.status.success() {
@@ -32,7 +31,7 @@ pub fn start_time(pid: u32) -> Option<String> {
 }
 
 /// The `ps` call behind `start_time`; the C locale keeps its text the same for every caller.
-#[cfg(all(unix, not(target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 fn start_time_command(pid: u32) -> std::process::Command {
     let mut command = std::process::Command::new("ps");
     command
@@ -54,17 +53,10 @@ pub fn boot_id() -> Option<String> {
 }
 
 /// The id of the current boot, or `None` when the OS does not give one.
-#[cfg(all(unix, not(target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 pub fn boot_id() -> Option<String> {
     None
 }
-
-#[cfg(windows)]
-#[path = "procs_windows.rs"]
-mod win;
-
-#[cfg(windows)]
-pub use win::{ProcessInfo, boot_id, command_lines, pid_alive, process_table, start_time};
 
 #[cfg(test)]
 #[path = "procs_tests.rs"]

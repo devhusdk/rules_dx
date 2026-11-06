@@ -204,13 +204,11 @@ fn raw_pipe(fds: &mut [i32; 2]) -> bool {
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 fn raw_pipe(fds: &mut [i32; 2]) -> bool {
     let piped = unsafe { libc::pipe(fds.as_mut_ptr()) } == 0;
-    if piped {
-        for &fd in fds.iter() {
-            unsafe {
-                libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
-                let flags = libc::fcntl(fd, libc::F_GETFL);
-                libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
-            }
+    for &fd in fds.iter().filter(|_| piped) {
+        unsafe {
+            libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
+            let flags = libc::fcntl(fd, libc::F_GETFL);
+            libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
         }
     }
     piped

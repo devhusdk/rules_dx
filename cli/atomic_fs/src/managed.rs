@@ -332,7 +332,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(unix)]
     fn prefers_a_link_and_keeps_its_identity() {
         let scratch = scratch("dx-fs-materialize-link-");
         let source = scratch.path().join("source.toml");

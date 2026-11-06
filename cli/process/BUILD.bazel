@@ -13,7 +13,6 @@ dx_rust_crate(
         "src/groups.rs",
         "src/lib.rs",
         "src/lifecycle.rs",
-        "src/procs.rs",
         "src/rc.rs",
         "src/rc_sections.rs",
         "src/runner.rs",
@@ -49,6 +48,7 @@ dx_rust_crate(
     ],
     unix_srcs = [
         "src/lifecycle_unix.rs",
+        "src/procs.rs",
         "src/terminal.rs",
     ],
     windows_srcs = [

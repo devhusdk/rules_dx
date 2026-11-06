@@ -1337,6 +1337,25 @@ fn remove_tree_deletes_read_only_trees() {
     }
 }
 
+#[cfg(windows)]
+#[test]
+fn remove_tree_reports_a_tree_held_open() {
+    use std::os::windows::fs::OpenOptionsExt as _;
+    let scratch = dx_test_scratch::scratch("dx-remove-tree-held-");
+    let tree = scratch.path().join("tree");
+    std::fs::create_dir_all(&tree).expect("tree");
+    let held = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .share_mode(0)
+        .open(tree.join("f"))
+        .expect("hold a file open");
+    assert!(!remove_tree(&tree));
+    drop(held);
+    assert!(remove_tree(&tree));
+}
+
 #[cfg(unix)]
 #[test]
 fn remove_tree_never_chmods_a_symlink_target() {

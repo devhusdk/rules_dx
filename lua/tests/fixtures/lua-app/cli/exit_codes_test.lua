@@ -8,12 +8,16 @@ local failures = 0
 local function check(want_code, want_out, want_err, ...)
 	local args = { ... }
 	local errfile = os.tmpname()
-	local command = string.format("%q", bin) .. " " .. table.concat(args, " ") .. " 2>" .. string.format("%q", errfile)
+	local command = "\"" .. bin .. "\" " .. table.concat(args, " ") .. " 2>\"" .. errfile .. "\""
+	if package.config:sub(1, 1) == "\\" then
+		-- cmd /c drops the outer quotes of a command that starts and ends with one.
+		command = '"' .. command .. '"'
+	end
 	local pipe = assert(io.popen(command, "r"))
-	local out = pipe:read("a"):gsub("\n+$", "")
+	local out = pipe:read("a"):gsub("[\r\n]+$", "")
 	local _, _, code = pipe:close()
 	local file = assert(io.open(errfile, "r"))
-	local err = file:read("a"):gsub("\n+$", "")
+	local err = file:read("a"):gsub("[\r\n]+$", "")
 	file:close()
 	os.remove(errfile)
 	if code ~= want_code or out ~= want_out or err ~= want_err then

@@ -14,6 +14,7 @@ dx_rust_crate(
     srcs = [
         "src/backend.rs",
         "src/discover/bcr.rs",
+        "src/discover/cabal.rs",
         "src/discover/cargo.rs",
         "src/discover/composer.rs",
         "src/discover/containers.rs",

@@ -1,6 +1,7 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum UpdateSet {
     Bazel,
+    Cabal,
     Cargo,
     Composer,
     Containers,
@@ -15,8 +16,9 @@ pub enum UpdateSet {
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 12] = [
+    pub const ALL: [UpdateSet; 13] = [
         UpdateSet::Bazel,
+        UpdateSet::Cabal,
         UpdateSet::Cargo,
         UpdateSet::Composer,
         UpdateSet::Containers,
@@ -43,6 +45,7 @@ impl UpdateSet {
     pub fn name(self) -> &'static str {
         match self {
             UpdateSet::Bazel => "bazel",
+            UpdateSet::Cabal => "cabal",
             UpdateSet::Cargo => "cargo",
             UpdateSet::Composer => "composer",
             UpdateSet::Containers => "containers",
@@ -60,6 +63,7 @@ impl UpdateSet {
     pub fn parse(text: &str) -> Option<UpdateSet> {
         match text {
             "bazel" => Some(UpdateSet::Bazel),
+            "cabal" => Some(UpdateSet::Cabal),
             "cargo" => Some(UpdateSet::Cargo),
             "composer" => Some(UpdateSet::Composer),
             "containers" => Some(UpdateSet::Containers),
@@ -108,7 +112,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 12);
+        assert_eq!(seen.len(), 13);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
@@ -136,6 +140,7 @@ mod tests {
             names,
             vec![
                 "bazel",
+                "cabal",
                 "cargo",
                 "composer",
                 "containers",
@@ -183,6 +188,7 @@ mod tests {
         assert!(UpdateSet::Ruby.needs_update_refresh());
         assert!(UpdateSet::Cpan.needs_update_refresh());
         assert!(UpdateSet::Pub.needs_update_refresh());
+        assert!(UpdateSet::Cabal.needs_update_refresh());
     }
 
     #[test]

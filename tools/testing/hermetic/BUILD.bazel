@@ -317,7 +317,7 @@ hermetic_qualification(
         "//javascript/tests/fixtures/node-app/registry/...",
     ],
     smoke = True,
-    compatible_with = MANIFEST_HOSTS,
+    compatible_with = LINUX_MACOS,
     timeout = "long",
 )
 

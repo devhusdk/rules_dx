@@ -113,7 +113,13 @@ func extractESMRegions(src []byte) [][]byte {
 	return out
 }
 
+// unclosedComment reports a line that opens an HTML comment block (up to
+// three spaces, then "<!--") without closing it on the same line. A "<!--"
+// elsewhere in a line is inline text and ends with its paragraph.
 func unclosedComment(line []byte) bool {
-	i := bytes.Index(line, []byte("<!--"))
-	return i >= 0 && !bytes.Contains(line[i+4:], []byte("-->"))
+	for n := 0; n < 3 && len(line) > 0 && line[0] == ' '; n++ {
+		line = line[1:]
+	}
+	rest, ok := bytes.CutPrefix(line, []byte("<!--"))
+	return ok && !bytes.Contains(rest, []byte("-->"))
 }

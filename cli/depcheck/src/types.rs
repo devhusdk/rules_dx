@@ -74,6 +74,7 @@ pub enum Ecosystem {
     Perl,
     Zig,
     Julia,
+    Dart,
 }
 
 impl std::str::FromStr for Ecosystem {
@@ -103,6 +104,7 @@ impl Ecosystem {
             "perl" => Some(Self::Perl),
             "zig" => Some(Self::Zig),
             "julia" => Some(Self::Julia),
+            "dart" => Some(Self::Dart),
             _ => None,
         }
     }
@@ -124,12 +126,16 @@ impl Ecosystem {
             Self::Perl => "perl",
             Self::Zig => "zig",
             Self::Julia => "julia",
+            Self::Dart => "dart",
         }
     }
 
     /// Whether this ecosystem states its requirements in the semver grammar.
     pub fn uses_semver_grammar(self) -> bool {
-        matches!(self, Self::Rust | Self::Js | Self::Ts | Self::Go)
+        matches!(
+            self,
+            Self::Rust | Self::Js | Self::Ts | Self::Go | Self::Dart
+        )
     }
 }
 

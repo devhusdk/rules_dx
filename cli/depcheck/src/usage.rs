@@ -18,7 +18,7 @@ fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
         for child in children.into_iter().rev() {
             let name = child.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if child.is_dir() {
-                if !matches!(name, ".git" | "node_modules" | "target")
+                if !matches!(name, ".git" | "node_modules" | "target" | ".dart_tool")
                     && !name.starts_with("bazel-")
                     && !nested.is_some_and(|file| child.join(file).is_file())
                 {
@@ -73,6 +73,9 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
                 || s.contains("/__tests__/")
                 || s.contains("/tests/")
         }
+        Ecosystem::Dart => {
+            name.ends_with("_test.dart") || s.contains("/test/") || s.contains("/integration_test/")
+        }
         Ecosystem::Ruby => {
             name.ends_with("_spec.rb") || name.ends_with("_test.rb") || s.contains("/tests/")
         }
@@ -88,7 +91,8 @@ fn source_suffixes() -> BTreeSet<&'static str> {
     [
         ".rs", ".py", ".js", ".ts", ".mjs", ".cjs", ".jsx", ".tsx", ".go", ".java", ".kt", ".kts",
         ".scala", ".cs", ".fs", ".fsi", ".fsx", ".cc", ".cpp", ".cxx", ".c", ".h", ".hpp", ".rb",
-        ".pl", ".pm", ".t", ".psgi", ".zig", ".jl",
+        ".pl", ".pm", ".t", ".psgi", ".zig", ".jl", ".dart",
+        "analysis_options.yaml",
     ]
     .into_iter()
     .collect()
@@ -120,6 +124,8 @@ fn skip_names() -> BTreeSet<&'static str> {
         "JuliaProject.toml",
         "Manifest.toml",
         "JuliaManifest.toml",
+        "pubspec.yaml",
+        "pubspec.lock",
     ]
     .into_iter()
     .collect()
@@ -283,6 +289,11 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(
                     r#"(?m)^\s*use\s+(?:parent|base)\s+(?:-norequire\s*,\s*)?(?:qw\s*[(/\[{{]\s*(?:[\w:]+\s+)*|['"](?:[\w:]+['"]\s*,\s*['"])*){module}\b"#
                 ),
+        Ecosystem::Dart => {
+            let dep = regex_escape(dep);
+            vec![
+                format!(r#"(?m)^\s*(?:import|export|part)\s+['"]package:{dep}/"#),
+                format!(r#"(?m)^\s*include:\s*['"]?package:{dep}/"#),
             ]
         }
         Ecosystem::Ruby => vec![

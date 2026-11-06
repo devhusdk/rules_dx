@@ -1,0 +1,36 @@
+packages:
+  flutter:
+    dependency: "direct main"
+    description: flutter
+    source: sdk
+    version: "0.0.0"
+  http:
+    dependency: "direct main"
+    description:
+      name: http
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.1"
+  http_parser:
+    dependency: transitive
+    description:
+      name: http_parser
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.2"
+  intl:
+    dependency: "direct main"
+    description:
+      name: intl
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.19.0"
+  test:
+    dependency: "direct dev"
+    description:
+      name: test
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.25.2"
+sdks:
+  dart: ">=3.0.0 <4.0.0"

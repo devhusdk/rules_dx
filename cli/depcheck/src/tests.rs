@@ -59,6 +59,7 @@ fn dep_keys_per_ecosystem() {
         (Ecosystem::Fsharp, "foo-bar.baz"),
         (Ecosystem::Cc, "foo_bar.baz"),
         (Ecosystem::Ruby, "foo-bar.baz"),
+        (Ecosystem::Dart, "foo-bar.baz"),
     ] {
         assert_eq!(normalize_dep_key(eco, "Foo-Bar.Baz"), want, "{eco:?}");
     }
@@ -697,6 +698,7 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Perl => "cpanfile",
         Ecosystem::Zig => "build.zig.zon",
         Ecosystem::Julia => "Project.toml",
+        Ecosystem::Dart => "pubspec.yaml",
     }
 }
 
@@ -713,6 +715,7 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Perl => "cpanfile.snapshot",
         Ecosystem::Zig => "build.zig.zon.lock",
         Ecosystem::Julia => "Manifest.toml",
+        Ecosystem::Dart => "pubspec.lock",
     }
 }
 
@@ -733,6 +736,7 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Perl => "perl",
         Ecosystem::Zig => "zig",
         Ecosystem::Julia => "julia",
+        Ecosystem::Dart => "dart",
     }
 }
 
@@ -1226,6 +1230,7 @@ fn ecosystem_parse_covers_every_name() {
         ("perl", Ecosystem::Perl),
         ("zig", Ecosystem::Zig),
         ("julia", Ecosystem::Julia),
+        ("dart", Ecosystem::Dart),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -2638,4 +2643,34 @@ fn julia_usage_covers_using_import_and_lists() {
     }
     assert!(!hits["E"].src);
     assert!(hits["T"].test && !hits["T"].src);
+fn dart_fixture_reports_the_unused_and_the_missing_package() {
+    let app = testdata_root().join("dart/app");
+    let manifest = app.join("pubspec.yaml");
+    let lock = app.join("pubspec.lock");
+    let unused = find_unused(Ecosystem::Dart, &manifest, &app, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, vec!["intl"]);
+    assert_eq!(unused[0].line, 9);
+    let missing = find_missing(Ecosystem::Dart, &manifest, &lock, &app, &[]).expect("missing");
+    let got: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(got, vec![("http_parser", "lib/app.dart", 3)]);
+    assert_eq!(consistency_code(&manifest, &lock), 0);
+}
+
+#[test]
+fn dart_ranges_and_any_are_settled() {
+    assert!(satisfies_for(Ecosystem::Dart, "^1.2.0", "1.9.0"));
+    assert!(!satisfies_for(Ecosystem::Dart, "^1.2.0", "2.0.0"));
+    assert!(satisfies_for(Ecosystem::Dart, ">=1.0.0 <2.0.0", "1.5.0"));
+    assert!(!satisfies_for(Ecosystem::Dart, ">=1.0.0 <2.0.0", "2.0.0"));
+    assert!(satisfies_for(Ecosystem::Dart, "*", "3.0.0"));
+}
+
+fn consistency_code(manifest: &std::path::Path, lock: &std::path::Path) -> i32 {
+    let mut out = String::new();
+    let mut err = String::new();
+    cmd_consistency(Ecosystem::Dart, manifest, lock, &mut out, &mut err)
 }

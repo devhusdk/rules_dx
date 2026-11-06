@@ -21,6 +21,7 @@ mod version;
 
 pub use consistency::{cmd_consistency, cmd_locks};
 pub use ecosystem::cc::{parse_cc_lock, parse_cc_lock_sha, parse_cc_manifest};
+pub use ecosystem::dart::{dart_lock_candidates, parse_dart_lock, parse_dart_manifest};
 pub use ecosystem::dotnet::parse_dotnet_manifest;
 pub use ecosystem::go::{parse_go_lock, parse_go_manifest};
 pub use ecosystem::js::{parse_js_manifest, parse_pnpm_lock};

@@ -48,6 +48,7 @@ fn depcheck_ecosystem(ecosystem: Ecosystem) -> Option<dx_depcheck::Ecosystem> {
         Ecosystem::Ruby => Some(dx_depcheck::Ecosystem::Ruby),
         Ecosystem::Maven => Some(dx_depcheck::Ecosystem::Java),
         Ecosystem::Nuget => Some(dx_depcheck::Ecosystem::Csharp),
+        Ecosystem::Pub => Some(dx_depcheck::Ecosystem::Dart),
         _ => None,
     }
 }
@@ -352,6 +353,7 @@ fn lock_file_name(ecosystem: Ecosystem) -> &'static str {
         Ecosystem::Cargo => "Cargo.lock",
         Ecosystem::Npm => "pnpm-lock.yaml",
         Ecosystem::Uv => "uv.lock",
+        Ecosystem::Pub => "pubspec.lock",
         _ => "Gemfile.lock",
     }
 }

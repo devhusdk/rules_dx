@@ -15,11 +15,31 @@ pub fn satisfies_for(eco: Ecosystem, spec: &str, locked: &str) -> bool {
         }
     }
     if eco.uses_semver_grammar() {
-        if let Some(matched) = satisfies_semver(spec, locked) {
+        let spec = if eco == Ecosystem::Dart {
+            dart_range(spec)
+        } else {
+            spec.to_owned()
+        };
+        if let Some(matched) = satisfies_semver(&spec, locked) {
             return matched;
         }
     }
     satisfies_non_semver(spec, locked)
+}
+
+/// Dart separates the bounds of a range with spaces (`>=1.0.0 <2.0.0`), semver with commas.
+fn dart_range(spec: &str) -> String {
+    let mut out = String::new();
+    for word in spec.split_whitespace() {
+        let bound = word.starts_with(['<', '>', '=']);
+        if !out.is_empty() && bound {
+            out.push_str(", ");
+        } else if !out.is_empty() {
+            out.push(' ');
+        }
+        out.push_str(word);
+    }
+    out
 }
 
 /// Settles a semver requirement, or `None` when either side is outside the semver grammar.

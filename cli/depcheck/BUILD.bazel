@@ -10,6 +10,7 @@ rust_library(
     srcs = [
         "src/consistency.rs",
         "src/ecosystem/cc.rs",
+        "src/ecosystem/dart.rs",
         "src/ecosystem/dotnet.rs",
         "src/ecosystem/go.rs",
         "src/ecosystem/js.rs",
@@ -77,6 +78,7 @@ rust_test(
     data = [
         ":cc_testdata",
         ":csharp_testdata",
+        ":dart_testdata",
         ":fsharp_testdata",
         ":go_testdata",
         ":java_testdata",
@@ -259,6 +261,7 @@ rust_test(
         "perl",
         "zig",
         "julia",
+        "dart",
     ]
 ]
 

@@ -50,7 +50,7 @@ impl Lifecycle {
 }
 
 /// Status reported to the NativeActivity entry point after startup.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn app_main() -> i32 {
     LIFECYCLE.store(Lifecycle::Created as i32, Ordering::SeqCst);
     TOUCHES.store(0, Ordering::SeqCst);
@@ -59,7 +59,7 @@ pub extern "C" fn app_main() -> i32 {
 }
 
 /// Records a lifecycle change and returns the new state, or -1 when the change is invalid.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn app_lifecycle(event: i32) -> i32 {
     let Some(next) = Lifecycle::from_code(event) else {
         return -1;
@@ -74,13 +74,13 @@ pub extern "C" fn app_lifecycle(event: i32) -> i32 {
 }
 
 /// Counts one touch event and returns the running total.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn app_touch() -> i32 {
     TOUCHES.fetch_add(1, Ordering::SeqCst) + 1
 }
 
 /// Counts one key event and returns the running total.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn app_key() -> i32 {
     KEYS.fetch_add(1, Ordering::SeqCst) + 1
 }
@@ -90,12 +90,12 @@ pub extern "C" fn app_key() -> i32 {
 /// # Safety
 ///
 /// `data` must point to `len` readable bytes.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn app_asset_check(data: *const u8, len: usize) -> i32 {
     if data.is_null() {
         return 1;
     }
-    let bytes = std::slice::from_raw_parts(data, len);
+    let bytes = unsafe { std::slice::from_raw_parts(data, len) };
     i32::from(bytes.trim_ascii_end() != ASSET_TEXT.as_bytes())
 }
 

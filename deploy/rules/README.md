@@ -748,7 +748,8 @@ oci_deploy(
   `containers` family.
 - `main`: the entry script of a `python` or `node` base. It defaults to the
   binary's package and name with `.py` or `.js`, so `//app:server` runs
-  `app/server.py`.
+  `app/server.py` and `//app/server` runs `app/server/server.py`. A `dotnet`
+  base defaults to `<pkg>/<name>/net10.0/<name>.dll`.
 - `main_class`: the class of a `java` base. It defaults to the `main_class` of
   the `java_binary`, written to an argument file next to the jars.
 - `runtime`: for the `python`, `java`, `node` and `dotnet` bases. Replaces the

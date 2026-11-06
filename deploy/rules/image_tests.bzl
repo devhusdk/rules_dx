@@ -36,7 +36,22 @@ def image_unit_tests(name):
             expect_equal(
                 "image_default_main reads a bare package label",
                 image_default_main("python", "//app/server", ""),
-                "app/server.py",
+                "app/server/server.py",
+            ),
+            expect_equal(
+                "image_default_main reads a bare package dotnet label",
+                image_default_main("dotnet", "//app/server", ""),
+                "app/server/server/net10.0/server.dll",
+            ),
+            expect_equal(
+                "image_default_main reads a bare package node label",
+                image_default_main("node", "//app/server", ""),
+                "app/server/server.js",
+            ),
+            expect_equal(
+                "image_default_main reads a root label",
+                image_default_main("python", "//:server", "app"),
+                "server.py",
             ),
             expect_equal(
                 "image_default_main names the dotnet assembly of a label",

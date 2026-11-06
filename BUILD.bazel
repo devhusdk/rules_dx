@@ -70,11 +70,8 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:exclude flutter/tests/fixtures
 # gazelle:exclude go/tests/fixtures
 # gazelle:exclude javascript/tests/fixtures
-# gazelle:exclude java/tests/fixtures
-# gazelle:exclude kotlin/tests/fixtures
 # gazelle:exclude ruby/tests/fixtures
 # gazelle:exclude rust/tests/fixtures
-# gazelle:exclude scala/tests/fixtures
 # gazelle:exclude quality/tests/fixtures
 # gazelle:exclude tools/docs/python/fixture
 # gazelle:exclude tools/docs/rust/fixture
@@ -121,7 +118,6 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude go/tests/fixtures/golint
 # gazelle:exclude go/tests/fixtures/testonly_binary
-# gazelle:exclude java/tests/fixtures/testonly_binary
 # gazelle:exclude cc/tests/fixtures/hello
 # gazelle:exclude cc/rules/testdata
 # gazelle:exclude cc/tests/fixtures/no_srcs
@@ -173,10 +169,6 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:exclude dart/tests/tags
 # gazelle:exclude qt/tests/fixtures/qt-app
 # gazelle:exclude svelte/tests/fixtures/svelte-app
-# gazelle:exclude java/tests/fixtures/java-app/cli/Main.java
-# gazelle:exclude java/tests/fixtures/java-app/diagnostics
-# gazelle:exclude kotlin/tests/fixtures/kotlin-app/cli/Main.kt
-# gazelle:exclude kotlin/tests/fixtures/kotlin-app/diagnostics
 # gazelle:exclude lua/tests/fixtures/lua-app
 # gazelle:exclude javascript/tests/fixtures/node-app
 # gazelle:exclude ocaml/tests/fixtures/ocaml-app
@@ -190,15 +182,8 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:exclude appimage/tests/fixtures/appimage-app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
-# gazelle:exclude java/tests/fixtures/hello
-# gazelle:exclude java/tests/fixtures/junit
-# gazelle:exclude kotlin/tests/fixtures/hello
-# gazelle:exclude scala/tests/fixtures/hello
 # gazelle:exclude python/tests/fixtures/hello
 # gazelle:exclude go/tests/fixtures/no_srcs
-# gazelle:exclude java/tests/fixtures/no_srcs
-# gazelle:exclude kotlin/tests/fixtures/no_srcs
-# gazelle:exclude scala/tests/fixtures/no_srcs
 # gazelle:exclude python/tests/fixtures/no_srcs
 # gazelle:exclude javascript/tests/fixtures/hello
 # gazelle:exclude javascript/tests/fixtures/skip_tags
@@ -289,9 +274,6 @@ exports_files([
     "php/README.md",
     "powershell/README.md",
     "python/README.md",
-    "java/README.md",
-    "kotlin/README.md",
-    "scala/README.md",
     "julia/README.md",
     "swift/README.md",
     "typescript/README.md",
@@ -346,7 +328,7 @@ rustfmt_config(
 scalafmt_config(
     name = "scalafmt_config",
     src = ".scalafmt.conf",
-    visibility = ["//:__subpackages__"],
+    visibility = ["//visibility:public"],
 )
 
 ruff_config(
@@ -397,9 +379,6 @@ real_source_target(
         "patches/README.md",
         "powershell/README.md",
         "python/README.md",
-        "java/README.md",
-        "kotlin/README.md",
-        "scala/README.md",
         "julia/README.md",
         "swift/README.md",
         "typescript/README.md",

@@ -1,0 +1,126 @@
+load("@rules_java//java:defs.bzl", "java_binary", "java_import")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//kotlin/tests/fixtures/kotlin-app:__subpackages__"],
+)
+
+java_import(
+    name = "kotlinc_jars",
+    testonly = True,
+    jars = [
+        "@com_github_jetbrains_kotlin//:annotations",
+        "@com_github_jetbrains_kotlin//:kotlin-compiler",
+        "@com_github_jetbrains_kotlin//:kotlin-daemon",
+        "@com_github_jetbrains_kotlin//:kotlin-reflect",
+        "@com_github_jetbrains_kotlin//:kotlin-script-runtime",
+        "@com_github_jetbrains_kotlin//:kotlin-stdlib",
+        "@com_github_jetbrains_kotlin//:kotlinx-coroutines-core-jvm",
+    ],
+)
+
+java_binary(
+    name = "kotlinc",
+    testonly = True,
+    main_class = "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler",
+    runtime_deps = [":kotlinc_jars"],
+)
+
+rust_test(
+    name = "diagnostics_test",
+    srcs = ["@rules_dx//tools/testing:kotlin_diagnostics_test.rs"],
+    data = [
+        "Clean.kt",
+        "SyntaxError.kt",
+        "TypeError.kt",
+        "UncheckedCast.kt",
+        "Unformatted.kt",
+        "WildcardImport.kt",
+        ":kotlinc",
+        "//kotlin/tests/fixtures/kotlin-app/grades:GradeException.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:GradeReader.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:Stats.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:Student.kt",
+        "@rules_dx//quality/tools/jvm:ktfmt",
+        "@rules_dx//quality/tools/jvm:ktlint",
+        "@com_github_jetbrains_kotlin//:kotlin-stdlib",
+        "@maven//:com_google_code_gson_gson",
+        "@maven//:com_google_guava_guava",
+    ],
+    env = {
+        "DX_APP_SRCS": " ".join([
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:GradeException.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:GradeReader.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:Stats.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:Student.kt)",
+        ]),
+        "DX_CLEAN": "$(rootpath Clean.kt)",
+        "DX_FORMAT": "$(rootpath Unformatted.kt)",
+        "DX_GSON": "$(rootpath @maven//:com_google_code_gson_gson)",
+        "DX_GUAVA": "$(rootpath @maven//:com_google_guava_guava)",
+        "DX_KOTLINC": "$(rootpath :kotlinc)",
+        "DX_KTFMT": "$(rootpath @rules_dx//quality/tools/jvm:ktfmt)",
+        "DX_KTLINT": "$(rootpath @rules_dx//quality/tools/jvm:ktlint)",
+        "DX_LINT": "$(rootpath WildcardImport.kt)",
+        "DX_STDLIB": "$(rootpath @com_github_jetbrains_kotlin//:kotlin-stdlib)",
+        "DX_SYNTAX": "$(rootpath SyntaxError.kt)",
+        "DX_TYPE": "$(rootpath TypeError.kt)",
+        "DX_WARNING": "$(rootpath UncheckedCast.kt)",
+    },
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["@rules_dx//tools/testing:jvm_format_test.rs"],
+    data = [
+        "//kotlin/tests/fixtures/kotlin-app/cli:Cli.kt",
+        "//kotlin/tests/fixtures/kotlin-app/cli:CliTest.kt",
+        "//kotlin/tests/fixtures/kotlin-app/cli:Main.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:ClasspathTest.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:GradeException.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:GradeReader.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:GradeReaderTest.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:Stats.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:StatsTest.kt",
+        "//kotlin/tests/fixtures/kotlin-app/grades:Student.kt",
+        "@rules_dx//quality/tools/jvm:ktfmt",
+    ],
+    env = {
+        "DX_FORMATTER": "$(rootpath @rules_dx//quality/tools/jvm:ktfmt)",
+        "DX_FORMAT_ARGS": "--kotlinlang-style",
+        "DX_FORMAT_SRCS": " ".join([
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/cli:Cli.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/cli:CliTest.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/cli:Main.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:ClasspathTest.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:GradeException.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:GradeReader.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:GradeReaderTest.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:Stats.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:StatsTest.kt)",
+            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:Student.kt)",
+        ]),
+    },
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["@rules_dx//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//:__pkg__",
+    ],
+)
+
+rustfmt_test(
+    name = "diagnostics_fmt_test",
+    targets = [
+        ":diagnostics_test",
+        ":format_test",
+    ],
+)

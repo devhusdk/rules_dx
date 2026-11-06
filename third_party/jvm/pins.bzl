@@ -42,11 +42,11 @@ MAVEN_REPOSITORIES = [
     "https://repo1.maven.org/maven2",
 ]
 
-MAVEN_FIXTURE_JAVA_JUPITER = "//java/tests/fixtures/junit:hello_jupiter_test"
-MAVEN_FIXTURE_KOTLIN_JUPITER = "//kotlin/tests/fixtures/junit:hello_jupiter_test"
-MAVEN_FIXTURE_JAVA_SEED = "//java/tests/fixtures/hello:hello_test"
-MAVEN_FIXTURE_KOTLIN_SEED = "//kotlin/tests/fixtures/hello:hello_test"
-MAVEN_FIXTURE_SCALA_SEED = "//scala/tests/fixtures/hello:hello_test"
+MAVEN_FIXTURE_JAVA_JUPITER = "@rules_dx_jvm//java/tests/fixtures/junit:hello_jupiter_test"
+MAVEN_FIXTURE_KOTLIN_JUPITER = "@rules_dx_jvm//kotlin/tests/fixtures/junit:hello_jupiter_test"
+MAVEN_FIXTURE_JAVA_SEED = "@rules_dx_jvm//java/tests/fixtures/hello:hello_test"
+MAVEN_FIXTURE_KOTLIN_SEED = "@rules_dx_jvm//kotlin/tests/fixtures/hello:hello_test"
+MAVEN_FIXTURE_SCALA_SEED = "@rules_dx_jvm//scala/tests/fixtures/hello:hello_test"
 
 MAVEN_REJECTED = "non-fail-closed rejected: no lock without fail_if_repin_required, no floating coordinates, no hand-edited lock"
 

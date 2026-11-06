@@ -1,0 +1,114 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//java/tests/fixtures/java-app:__subpackages__"])
+
+java_binary(
+    name = "javac",
+    testonly = True,
+    main_class = "com.sun.tools.javac.Main",
+    runtime_deps = [],
+)
+
+rust_test(
+    name = "diagnostics_test",
+    srcs = ["@rules_dx//tools/testing:java_diagnostics_test.rs"],
+    data = [
+        "Clean.java",
+        "RawType.java",
+        "SyntaxError.java",
+        "TypeError.java",
+        "Unformatted.java",
+        "UnusedImport.java",
+        ":javac",
+        "//java/tests/fixtures/java-app/billing:Invoice.java",
+        "//java/tests/fixtures/java-app/billing:InvoiceException.java",
+        "//java/tests/fixtures/java-app/billing:InvoiceReader.java",
+        "//java/tests/fixtures/java-app/billing:LineItem.java",
+        "//java/tests/fixtures/java-app/billing:Totals.java",
+        "@rules_dx//quality:corpus_checkstyle.xml",
+        "@rules_dx//quality/tools/jvm:checkstyle",
+        "@rules_dx//quality/tools/jvm:google_java_format",
+        "@maven//:com_google_code_gson_gson",
+        "@maven//:com_google_errorprone_error_prone_annotations",
+        "@maven//:com_google_guava_guava",
+    ],
+    env = {
+        "DX_APP_SRCS": " ".join([
+            "$(rootpath //java/tests/fixtures/java-app/billing:Invoice.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:InvoiceException.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:InvoiceReader.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:LineItem.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:Totals.java)",
+        ]),
+        "DX_CHECKSTYLE": "$(rootpath @rules_dx//quality/tools/jvm:checkstyle)",
+        "DX_CHECKSTYLE_CONFIG": "$(rootpath @rules_dx//quality:corpus_checkstyle.xml)",
+        "DX_CLEAN": "$(rootpath Clean.java)",
+        "DX_ANNOTATIONS": "$(rootpath @maven//:com_google_errorprone_error_prone_annotations)",
+        "DX_FORMAT": "$(rootpath Unformatted.java)",
+        "DX_FORMATTER": "$(rootpath @rules_dx//quality/tools/jvm:google_java_format)",
+        "DX_GSON": "$(rootpath @maven//:com_google_code_gson_gson)",
+        "DX_GUAVA": "$(rootpath @maven//:com_google_guava_guava)",
+        "DX_JAVAC": "$(rootpath :javac)",
+        "DX_LINT": "$(rootpath UnusedImport.java)",
+        "DX_SYNTAX": "$(rootpath SyntaxError.java)",
+        "DX_TYPE": "$(rootpath TypeError.java)",
+        "DX_WARNING": "$(rootpath RawType.java)",
+    },
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["@rules_dx//tools/testing:jvm_format_test.rs"],
+    data = [
+        "//java/tests/fixtures/java-app/billing:ClasspathTest.java",
+        "//java/tests/fixtures/java-app/billing:Invoice.java",
+        "//java/tests/fixtures/java-app/billing:InvoiceException.java",
+        "//java/tests/fixtures/java-app/billing:InvoiceReader.java",
+        "//java/tests/fixtures/java-app/billing:InvoiceReaderTest.java",
+        "//java/tests/fixtures/java-app/billing:LineItem.java",
+        "//java/tests/fixtures/java-app/billing:Totals.java",
+        "//java/tests/fixtures/java-app/billing:TotalsTest.java",
+        "//java/tests/fixtures/java-app/cli:Cli.java",
+        "//java/tests/fixtures/java-app/cli:CliTest.java",
+        "//java/tests/fixtures/java-app/cli:Main.java",
+        "@rules_dx//quality/tools/jvm:google_java_format",
+    ],
+    env = {
+        "DX_FORMATTER": "$(rootpath @rules_dx//quality/tools/jvm:google_java_format)",
+        "DX_FORMAT_SRCS": " ".join([
+            "$(rootpath //java/tests/fixtures/java-app/billing:ClasspathTest.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:Invoice.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:InvoiceException.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:InvoiceReader.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:InvoiceReaderTest.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:LineItem.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:Totals.java)",
+            "$(rootpath //java/tests/fixtures/java-app/billing:TotalsTest.java)",
+            "$(rootpath //java/tests/fixtures/java-app/cli:Cli.java)",
+            "$(rootpath //java/tests/fixtures/java-app/cli:CliTest.java)",
+            "$(rootpath //java/tests/fixtures/java-app/cli:Main.java)",
+        ]),
+    },
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["@rules_dx//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//:__pkg__",
+    ],
+)
+
+rustfmt_test(
+    name = "diagnostics_fmt_test",
+    targets = [
+        ":diagnostics_test",
+        ":format_test",
+    ],
+)

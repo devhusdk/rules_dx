@@ -3,8 +3,9 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//quality/tools/jvm:jar_lsp_tool.bzl", "jar_lsp_tool")
 load("//quality/tools/jvm:java_runtime_pin.bzl", "pinned_java_runtime")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
 exports_files([
     "pmd_default.xml",

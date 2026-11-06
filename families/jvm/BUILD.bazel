@@ -1,0 +1,37 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(default_visibility = ["//visibility:public"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["@rules_dx//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
+    markdown_srcs = [
+        "README.md",
+        "java/README.md",
+        "kotlin/README.md",
+        "scala/README.md",
+    ],
+    tags = ["corpus"],
+)
+
+sh_test(
+    name = "rustfmt_coverage_test",
+    srcs = ["starlark_docs_test.sh"],
+    args = ["$(rootpath @rules_dx//tools/ci:rustfmt_coverage_family_test)"],
+    data = [
+        "//java/tests/fixtures/java-app/cli:corpus_starlark",
+        "//java/tests/fixtures/java-app/diagnostics:corpus_starlark",
+        "//kotlin/tests/fixtures/kotlin-app/cli:corpus_starlark",
+        "//kotlin/tests/fixtures/kotlin-app/diagnostics:corpus_starlark",
+        "@rules_dx//tools/ci:rustfmt_coverage_family_test",
+    ],
+    env = {"RUSTFMT_COVERAGE_PACKAGES": "java/tests/fixtures/java-app/cli,java/tests/fixtures/java-app/diagnostics,kotlin/tests/fixtures/kotlin-app/cli,kotlin/tests/fixtures/kotlin-app/diagnostics"},
+)

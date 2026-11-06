@@ -266,7 +266,11 @@
         "rules_android",
         "rules_apple",
         "rules_go",
+        "rules_java",
+        "rules_jvm_external",
+        "rules_kotlin",
         "rules_python",
+        "rules_scala",
         "rules_shell",
         "tar.bzl",
         "windows_support",
@@ -295,6 +299,8 @@
         "gazelle",
         "go",
         "helm",
+        "java",
+        "kotlin",
         "kubernetes",
         "libs",
         "make",
@@ -303,6 +309,7 @@
         "quality",
         "rego",
         "rst",
+        "scala",
         "sql",
         "terraform",
         "third_party",
@@ -320,7 +327,12 @@
         "@apple_support//crosstool:setup.bzl%apple_cc_configure_extension",
         "@gazelle//:extensions.bzl%go_deps",
         "@rules_go//go:extensions.bzl%go_sdk",
+        "@rules_java//java:extensions.bzl%toolchains",
+        "@rules_jvm_external//:extensions.bzl%maven",
+        "@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions",
         "@rules_python//python/extensions:python.bzl%python",
+        "@rules_scala//scala/extensions:config.bzl%scala_config",
+        "@rules_scala//scala/extensions:deps.bzl%scala_deps",
         "@tar.bzl//tar:extensions.bzl%toolchains",
         "@windows_support//windows:extensions.bzl%msvc_runtime",
         "@windows_support//windows:extensions.bzl%windows_sdk"
@@ -353,7 +365,10 @@
         "//gazelle/elixir",
         "//gazelle/erlang",
         "//gazelle/fsharp",
-        "//gazelle/go"
+        "//gazelle/go",
+        "//gazelle/java",
+        "//gazelle/kotlin",
+        "//gazelle/scala"
       ],
       "repo_rules": [
         "//quality/artifacts/hub_test:repos.bzl%hub_fixture_repo",
@@ -655,18 +670,24 @@
         "real_scala_lint_aspect"
       ],
       "bazel_deps": [
+        "bazel_skylib",
+        "platforms",
+        "rules_cc",
+        "rules_dx",
         "rules_java",
         "rules_jvm_external",
         "rules_kotlin",
-        "rules_scala"
+        "rules_scala",
+        "rules_shell"
       ],
       "dirs": [
+        "bcr_test_module",
         "java",
         "kotlin",
-        "scala"
+        "scala",
+        "third_party"
       ],
       "extensions": [
-        "@rules_java//java:extensions.bzl%toolchains",
         "@rules_jvm_external//:extensions.bzl%maven",
         "@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions",
         "@rules_scala//scala/extensions:config.bzl%scala_config",
@@ -678,13 +699,11 @@
         ".kts",
         ".scala"
       ],
-      "gazelle": [
-        "//gazelle/java",
-        "//gazelle/kotlin",
-        "//gazelle/scala"
-      ],
+      "gazelle": [],
       "repo_rules": [],
-      "toolchains": []
+      "toolchains": [],
+      "module": "rules_dx_jvm",
+      "path": "families/jvm"
     },
     "lua": {
       "aspects": [

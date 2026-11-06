@@ -110,7 +110,7 @@ const EXEMPT: [(&str, &str); 4] = [
 ];
 
 /// Packages whose BUILD.bazel declares Rust targets; their :corpus_starlark is in the test data.
-const PACKAGES: [&str; 109] = [
+const PACKAGES: [&str; 105] = [
     ".devcontainer",
     "appimage/packer",
     "appimage/tests",
@@ -145,11 +145,7 @@ const PACKAGES: [&str; 109] = [
     "cc/tests/fixtures/cpp-app/core",
     "cc/tests/fixtures/cpp-app/diagnostics",
     "cuda/tests/fixtures/cuda-app/checks",
-    "java/tests/fixtures/java-app/cli",
-    "java/tests/fixtures/java-app/diagnostics",
     "julia/tests/fixtures/julia-app/diagnostics",
-    "kotlin/tests/fixtures/kotlin-app/cli",
-    "kotlin/tests/fixtures/kotlin-app/diagnostics",
     "lua/tests/fixtures/lua-app/diagnostics",
     "javascript/tests/fixtures/node-app/cli",
     "javascript/tests/fixtures/node-app/diagnostics",
@@ -234,7 +230,7 @@ fn packages() -> (Vec<String>, bool) {
 }
 
 /// Fewer packages than this means the list lost its data.
-const MIN_PACKAGES: usize = 109;
+const MIN_PACKAGES: usize = 105;
 
 /// Fewer Rust targets than this means the sweep lost its data.
 const MIN_TARGETS: usize = 400;

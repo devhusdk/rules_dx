@@ -244,6 +244,12 @@ local_path_override(
     path = "families/beam",
 )
 
+bazel_dep(name = "rules_dx_jvm", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_jvm",
+    path = "families/jvm",
+)
+
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 

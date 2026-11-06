@@ -21,7 +21,7 @@ exports_files(
         "node_diagnostics_test.rs",
         "node_format_test.rs",
     ],
-    visibility = VIS_TOOLS_CLI_TEST,
+    visibility = VIS_TOOLS_PUBLIC,
 )
 
 rust_library(

@@ -292,13 +292,6 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         &["fuzz //pkg:parser", "fuzz --time 5m //pkg/..."],
     ),
     (
-        Command::Mutate,
-        &[
-            "mutate //pkg:lib",
-            "mutate --time 5m --fail-on=survived:20 //pkg/...",
-        ],
-    ),
-    (
         Command::Release,
         &[
             "release",

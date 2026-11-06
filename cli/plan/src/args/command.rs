@@ -25,7 +25,6 @@ pub enum Command {
     Worktree,
     Explain,
     Fuzz,
-    Mutate,
     Release,
 }
 
@@ -97,7 +96,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 27] = [
+pub static COMMANDS: [CommandMeta; 26] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -449,20 +448,6 @@ pub static COMMANDS: [CommandMeta; 27] = [
         labels: LabelsPolicy::Always,
     },
     CommandMeta {
-        command: Command::Mutate,
-        name: "mutate",
-        scope_policy: "default-//...",
-        describe: "run dx-mutate targets for a time budget and report surviving mutants",
-        usage: "Usage: dx mutate [--here] [--time <duration>] [--fail-on=survived:<pct>] [scope ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //.... Only targets tagged dx-mutate run.",
-        is_managed: false,
-        is_adoption: false,
-        default_release: false,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Always,
-    },
-    CommandMeta {
         command: Command::Release,
         name: "release",
         scope_policy: "reject",
@@ -542,7 +527,7 @@ impl Command {
     /// Whether `--fail-on` applies; watch passes it to the command it wraps.
     pub fn supports_fail_on(self) -> bool {
         super::grammar::accepts_long(self, "fail-on")
-            && !matches!(self, Command::Watch | Command::Mutate | Command::Bench)
+            && !matches!(self, Command::Watch | Command::Bench)
     }
 
     pub fn describe(self) -> &'static str {
@@ -626,11 +611,7 @@ mod tests {
             .filter(|c| {
                 !matches!(
                     c,
-                    Command::Deploy
-                        | Command::Completion
-                        | Command::Fuzz
-                        | Command::Mutate
-                        | Command::Release
+                    Command::Deploy | Command::Completion | Command::Fuzz | Command::Release
                 )
             })
             .collect();
@@ -664,8 +645,7 @@ mod tests {
                 Command::Bench,
                 Command::Check,
                 Command::Docs,
-                Command::Fuzz,
-                Command::Mutate
+                Command::Fuzz
             ])
         );
         assert_eq!(
@@ -755,7 +735,6 @@ mod tests {
             Command::Worktree,
             Command::Explain,
             Command::Fuzz,
-            Command::Mutate,
             Command::Release,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
@@ -846,7 +825,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|mutate|release",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|release",
             "pipe_list order must match declaration order"
         );
     }

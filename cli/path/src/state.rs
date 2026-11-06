@@ -24,7 +24,6 @@ pub const EXPLAIN: &str = "explain";
 pub const DOCS: &str = "docs";
 pub const PROFILE: &str = "profile";
 pub const FUZZ: &str = "fuzz";
-pub const MUTATE: &str = "mutate";
 pub const BENCH: &str = "bench";
 pub const ADVISORY: &str = "advisory";
 pub const IDE: &str = "ide";

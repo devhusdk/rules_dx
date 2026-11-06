@@ -31,7 +31,6 @@ mod managed_codegen;
 mod managed_env;
 mod managed_prepare;
 mod managed_staging;
-mod mutate;
 pub(crate) mod notice_codes;
 mod pinned_tool;
 pub mod preset_sync;
@@ -287,7 +286,6 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Worktree => worktree::execute_worktree(invocation, env),
         Command::Explain => explain::execute_explain(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),
-        Command::Mutate => mutate::execute_mutate(invocation, env),
         Command::Release => release::execute_release(invocation, env),
     }
 }

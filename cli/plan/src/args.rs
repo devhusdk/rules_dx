@@ -18,7 +18,7 @@ pub enum ArgsError {
     Usage { text: String },
     /// No command was named.
     #[error(
-        "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|mutate|release"
+        "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|release"
     )]
     MissingCommand,
     /// The command does not take this flag.

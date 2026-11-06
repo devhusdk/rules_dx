@@ -50,7 +50,6 @@ real_source_target(
         "cli/commands/generate.md",
         "cli/commands/explain.md",
         "cli/commands/fuzz.md",
-        "cli/commands/mutate.md",
         "cli/commands/release.md",
         "cli/commands/init.md",
         "cli/commands/upgrade.md",

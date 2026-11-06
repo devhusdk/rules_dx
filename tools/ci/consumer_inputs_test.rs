@@ -56,7 +56,6 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
         .chain(std::iter::once(PREP.to_owned()))
         .chain(std::iter::once(AGGREGATE.to_owned()))
         .chain([
-            "mutate".to_owned(),
             "fuzz".to_owned(),
             "commit-lint".to_owned(),
             "bench".to_owned(),
@@ -67,7 +66,7 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
         job_names(),
         wanted,
         "{WORKFLOW} must name the validate job, the checks job, security-audit, the \
-shared advisory preparation, the aggregate, mutate and fuzz"
+shared advisory preparation, the aggregate and fuzz"
     );
 }
 
@@ -434,22 +433,6 @@ fn buf_breaking_is_off_by_default_and_runs_only_on_pull_requests() {
     }
     let script = text_at(&matrix_step("Run the checks")["run"], "checks run step");
     assert!(script.contains("args+=(--breaking-against)"), "{script}");
-}
-
-#[test]
-fn mutate_is_off_by_default_and_runs_only_on_the_default_branch_schedule() {
-    let doc = document(WORKFLOW);
-    let input = &doc["on"]["workflow_call"]["inputs"]["mutate"];
-    assert_eq!(input["type"], json!("boolean"), "{WORKFLOW} type");
-    assert_eq!(input["default"], json!(false), "{WORKFLOW} default");
-    let condition = scope_text(&job(WORKFLOW, "mutate")["if"]);
-    for needle in ["inputs.mutate", "'schedule'", "default_branch"] {
-        assert!(condition.contains(needle), "mutate if: {condition}");
-    }
-    assert!(
-        !condition.contains("pull_request"),
-        "mutate if: {condition}"
-    );
 }
 
 #[test]

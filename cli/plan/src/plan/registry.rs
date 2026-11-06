@@ -293,7 +293,6 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Worktree
         | Command::Explain
         | Command::Fuzz
-        | Command::Mutate
         | Command::Release
         | Command::Status
         | Command::Watch

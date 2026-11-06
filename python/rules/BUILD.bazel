@@ -41,7 +41,6 @@ python_library(
 )
 
 exports_files([
-    "mutate.bzl",
     "defs.bzl",
     "fuzz_run.sh",
     "runtime_tests.bzl",
@@ -247,7 +246,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "mutate.bzl",
         "runtime_tests.bzl",
         "sdist_cargo_vendor.bzl",
     ],

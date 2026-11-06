@@ -58,8 +58,6 @@ exports_files(
 exports_files([
     "README.md",
     "defs.bzl",
-    "mutate.bzl",
-    "mutate_run.sh",
 ])
 
 exports_files(
@@ -90,7 +88,6 @@ real_source_target(
         "pdb.bzl",
         "probe.bzl",
         "wrapper_tests.bzl",
-        "mutate.bzl",
     ],
     tags = ["corpus"],
 )

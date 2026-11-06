@@ -5,7 +5,6 @@ load(":cgo_tests.bzl", "cgo_toolchain_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
-    "mutate.bzl",
     "bench_run.sh",
     "cgo.bzl",
     "defs.bzl",
@@ -30,7 +29,6 @@ real_source_target(
         "cgo.bzl",
         "cgo_tests.bzl",
         "defs.bzl",
-        "mutate.bzl",
     ],
     tags = ["corpus"],
 )

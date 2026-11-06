@@ -29,6 +29,9 @@ coverage --enable_runfiles
 # Instrument only targets in the main repository.
 coverage --instrumentation_filter=^//
 
+# Instrument test targets so sources a test compiles itself are counted.
+coverage --instrument_test_targets
+
 # Keep external repositories out of the main runfiles directory.
 common --nolegacy_external_runfiles
 
@@ -41,6 +44,9 @@ common --incompatible_strict_action_env
 # On Windows, give tests a runfiles directory instead of only a manifest.
 build:windows --enable_runfiles
 
+# On Windows, rustc links with rust-lld; clang-cl cannot drive a Rust link.
+build:windows --@rules_dx//config:toolchain_linker_preference=rust
+
 # Opt out of aspect_tools_telemetry usage reports.
 common --repo_env=DO_NOT_TRACK=1
 
@@ -49,3 +55,7 @@ build --@rules_dx//config:clippy_output_diagnostics=true
 
 # Rustc diagnostics are part of the build output, as in dx build.
 build --@rules_dx//config:rustc_output_diagnostics=true
+
+# Compiler warnings fail the build under the strict profile.
+common --@rules_dx//config:warnings_as_errors=false
+common --@rules_dx//config:config_profile=standard

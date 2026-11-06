@@ -929,8 +929,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 36);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 36);
+        assert_eq!(total, 37);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 37);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1038,7 +1038,7 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 36);
+        assert_eq!(flags.len(), 37);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

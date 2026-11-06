@@ -229,7 +229,12 @@ rust_test(
 
 rustfmt_test(
     name = "qt_fmt_test",
-    targets = [":qt_test"],
+    targets = [
+        ":consumer_identity_test_linux_arm64",
+        ":consumer_identity_test_linux_x86_64",
+        ":consumer_identity_test_macos_arm64",
+        ":qt_test",
+    ],
 )
 
 rust_clippy_test(

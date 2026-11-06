@@ -309,7 +309,10 @@ rustfmt_test(
         ":deploy_tool",
         ":dx_deploy_tools",
         ":hasher",
+        ":helm_demo_verify",
         ":npm_packer",
+        ":pypi_native_linked_verify",
+        ":pypi_native_verify",
         ":size_checker",
     ],
 )
@@ -1949,11 +1952,14 @@ rustfmt_test(
     targets = [
         ":cloudflare_demo_verify",
         ":github_demo_verify",
+        ":github_sbom_demo_verify",
         ":homebrew_demo_verify",
+        ":linux_package_demo_verify",
         ":oci_demo_layout_verify",
         ":oci_demo_verify",
         ":release_demo_debug_verify",
         ":release_demo_verify",
         ":resources_demo_verify",
+        ":rubygems_verify",
     ],
 )

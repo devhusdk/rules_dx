@@ -28,7 +28,7 @@ on:
         required: false
         default: false
       flags:
-        description: "Extra Bazel flags, only --//label=value and --config=name, such as --//cc/toolchains:compiler=msvc."
+        description: "Extra Bazel flags, only --//label=value and --config flags, such as --//cc/toolchains:compiler=msvc."
         required: false
         default: ""
       qualify:

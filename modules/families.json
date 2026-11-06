@@ -125,8 +125,7 @@
       "module": "rules_dx_beam",
       "path": "families/beam",
       "repo_rules": [
-        "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
-        "@rules_dx//elixir/rules:hex.bzl%hex_package"
+        "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive"
       ],
       "toolchains": [
         "@dx_elixir_toolchains//:all",
@@ -140,7 +139,8 @@
         "real_cc_lint_aspect",
         "real_cc_lint_probe_aspect",
         "real_cc_typecheck_aspect",
-        "real_cc_typecheck_probe_aspect"
+        "real_cc_typecheck_probe_aspect",
+        "real_cc_unused_aspect"
       ],
       "bazel_deps": [
         "gcc_toolchain",
@@ -223,6 +223,7 @@
         "real_go_format_aspect",
         "real_go_lint_aspect",
         "real_go_typecheck_aspect",
+        "real_go_unused_aspect",
         "real_html_template_format_aspect",
         "real_html_template_lint_aspect",
         "real_jsonnet_format_aspect",
@@ -263,6 +264,7 @@
         "bazel_features",
         "bazel_lib",
         "bazel_skylib",
+        "elfutils",
         "gazelle",
         "libxml2",
         "platforms",
@@ -277,7 +279,8 @@
         "rules_shell",
         "tar.bzl",
         "windows_support",
-        "yaml.bzl"
+        "yaml.bzl",
+        "zlib"
       ],
       "dirs": [
         "ansible",
@@ -320,6 +323,7 @@
       ],
       "extensions": [
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
+        "//deploy/rules/pins:repos.bzl%semver_checks",
         "//dotnet:extensions.bzl%dotnet",
         "//dotnet:repos.bzl%dotnet_tools",
         "//elixir/toolchain:repos.bzl%elixir",
@@ -376,6 +380,7 @@
       "repo_rules": [
         "//quality/artifacts/hub_test:repos.bzl%hub_fixture_repo",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+        "@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_jar",
         "@gazelle//internal:go_repository.bzl%go_repository"
       ],
@@ -454,6 +459,7 @@
       "bazel_deps": [
         "bazel_skylib",
         "platforms",
+        "protobuf",
         "rules_cc",
         "rules_dx",
         "rules_shell"
@@ -465,7 +471,8 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//dotnet:repos.bzl%dotnet_tools"
+        "@rules_dx//dotnet:repos.bzl%dotnet_tools",
+        "@rules_dx//third_party/dotnet:extension.bzl%paket"
       ],
       "file_extensions": [
         ".cs",
@@ -523,6 +530,7 @@
       ],
       "bazel_deps": [
         "avro-cpp",
+        "grpc-java",
         "protobuf",
         "rules_proto",
         "rules_rust_prost"
@@ -604,6 +612,7 @@
       ],
       "extensions": [
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
+        "//typescript/playwright:repos.bzl%playwright",
         "@aspect_rules_js//npm:extensions.bzl%npm",
         "@aspect_rules_js//npm:extensions.bzl%pnpm",
         "@aspect_rules_ts//ts:extensions.bzl%typescript"
@@ -810,7 +819,8 @@
         "real_php_lint_aspect",
         "real_php_lint_probe_aspect",
         "real_php_typecheck_aspect",
-        "real_php_typecheck_probe_aspect"
+        "real_php_typecheck_probe_aspect",
+        "real_php_unused_aspect"
       ],
       "bazel_deps": [],
       "dirs": [

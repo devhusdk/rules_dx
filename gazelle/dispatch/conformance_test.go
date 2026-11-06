@@ -42,13 +42,13 @@ var conformanceRows = map[string]conformanceRow{
 	"cc": {
 		files: map[string]string{"demo.cc": "#include <string>\n"},
 		kind:  "cc_library", target: "demo", defs: "cc/rules:defs.bzl",
-		symbols:    []string{"cc_library"},
+		symbols:    []string{"cc_library", "cc_test"},
 		extraLoads: map[string][]string{"@rules_dx//cuda/rules:defs.bzl": {"cuda_library"}},
 	},
 	"csharp": {
 		files: map[string]string{"Demo.cs": "namespace Demo;\n\nclass Demo\n"},
 		kind:  "csharp_library", target: "demo", defs: "@rules_dx_dotnet//csharp/rules:defs.bzl",
-		symbols: []string{"csharp_library"},
+		symbols: []string{"csharp_library", "csharp_test"},
 	},
 	"d": {
 		files: map[string]string{"demo.d": "module demo;\n"},
@@ -87,13 +87,13 @@ var conformanceRows = map[string]conformanceRow{
 	"fsharp": {
 		files: map[string]string{"Demo.fs": "namespace Demo\n\ntype Demo = class end\n"},
 		kind:  "fsharp_library", target: "demo", defs: "@rules_dx_dotnet//fsharp/rules:defs.bzl",
-		symbols: []string{"fsharp_library"},
+		symbols: []string{"fsharp_library", "fsharp_test"},
 	},
 	"go": {
 		files: map[string]string{"demo.go": "package demo\n"},
 		inert: []string{"notes.txt"},
 		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",
-		symbols: []string{"go_library", "go_test"},
+		symbols: []string{"go_library", "go_test", "go_benchmark"},
 	},
 	"haskell": {
 		files: map[string]string{"Demo.hs": "module Demo where\n\nimport Data.List (sort)\n"},
@@ -109,8 +109,9 @@ var conformanceRows = map[string]conformanceRow{
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
 		kind:  "javascript_library", target: "demo", defs: "javascript/rules:defs.bzl",
-		symbols: []string{"javascript_library", "javascript_test", "javascript_binary"},
-		inert:   []string{"notes.txt", "widget.d.ts"},
+		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary"},
+		extraLoads: map[string][]string{"@npm//:defs.bzl": {"npm_link_all_packages"}},
+		inert:      []string{"notes.txt", "widget.d.ts"},
 	},
 	"julia": {
 		files: map[string]string{
@@ -124,7 +125,7 @@ var conformanceRows = map[string]conformanceRow{
 	"kotlin": {
 		files: map[string]string{"Demo.kt": "package demo\n\nclass Demo\n"},
 		kind:  "kotlin_library", target: "demo", defs: "kotlin/rules:defs.bzl",
-		symbols:    []string{"kotlin_library"},
+		symbols:    []string{"kotlin_library", "kotlin_test"},
 		extraLoads: map[string][]string{"@rules_dx_android//rules:defs.bzl": {"kotlin_android_library"}},
 	},
 	"lua": {
@@ -160,7 +161,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.proto": "syntax = \"proto3\";\n"},
 		kind:  "proto_library", target: "demo_proto", defs: "@protobuf//bazel:proto_library.bzl",
 		symbols:    []string{"proto_library"},
-		extraLoads: map[string][]string{"@rules_rust_prost//:defs.bzl": {"rust_prost_library"}, "@rules_dx//typescript/rules:defs.bzl": {"ts_proto_library"}, "@rules_dx_dotnet//csharp/rules:defs.bzl": {"csharp_proto_library"}},
+		extraLoads: map[string][]string{"@rules_rust_prost//:defs.bzl": {"rust_prost_library"}, "@rules_dx//typescript/rules:defs.bzl": {"ts_proto_library"}, "@rules_dx_dotnet//csharp/rules:defs.bzl": {"csharp_proto_library"}, "@grpc-java//:java_grpc_library.bzl": {"java_grpc_library"}, "@grpc//bazel:cc_grpc_library.bzl": {"cc_grpc_library"}, "@protobuf//bazel:cc_proto_library.bzl": {"cc_proto_library"}, "@protobuf//bazel:java_proto_library.bzl": {"java_proto_library"}, "@protobuf//bazel:py_proto_library.bzl": {"py_proto_library"}, "@rules_dx//python/rules:grpc.bzl": {"py_grpc_library"}, "@rules_go//proto:def.bzl": {"go_proto_library"}},
 	},
 	"python": {
 		files: map[string]string{"demo.py": "x = 1\n"},
@@ -174,7 +175,7 @@ var conformanceRows = map[string]conformanceRow{
 	"ruby": {
 		files: map[string]string{"demo.rb": "module Demo\nend\n"},
 		kind:  "ruby_library", target: "demo", defs: "ruby/rules:defs.bzl",
-		symbols: []string{"ruby_library"},
+		symbols: []string{"ruby_library", "ruby_test"},
 	},
 	"rust": {
 		rel:   "crates/demo",
@@ -192,7 +193,7 @@ var conformanceRows = map[string]conformanceRow{
 	"scala": {
 		files: map[string]string{"Demo.scala": "package demo\n\nclass Demo\n"},
 		kind:  "scala_library", target: "demo", defs: "scala/rules:defs.bzl",
-		symbols: []string{"scala_library"},
+		symbols: []string{"scala_library", "scala_test"},
 	},
 	"svelte": {
 		files: map[string]string{"demo.svelte": "<script>\n" + webScript + "</script>\n\n<div>hello</div>\n"},
@@ -224,7 +225,7 @@ var conformanceRows = map[string]conformanceRow{
 	"zig": {
 		files: map[string]string{"demo.zig": "const std = @import(\"std\");\n"},
 		kind:  "zig_library", target: "demo", defs: "zig/rules:defs.bzl",
-		symbols: []string{"zig_library"},
+		symbols: []string{"zig_library", "zig_test"},
 	},
 }
 

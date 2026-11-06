@@ -28,3 +28,18 @@ diff --git a/windows/private/extensions/windows_sdk.bzl b/windows/private/extens
      return sorted(hosts)
  
  def _windows_sdk_extension_impl(module_ctx):
+diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
+--- a/windows/private/extensions/msvc_runtime.bzl
++++ b/windows/private/extensions/msvc_runtime.bzl
+@@ -198,9 +198,9 @@
+ def _keep_only_children(repository_ctx, directory, child_names):
+     if not directory.exists or not directory.is_dir:
+         return
+-    allowed = {name: True for name in child_names}
++    allowed = {name.lower(): True for name in child_names}
+     for entry in directory.readdir():
+-        if allowed.get(_basename(entry), False):
++        if allowed.get(_basename(entry).lower(), False):
+             continue
+         repository_ctx.delete(entry)
+ 

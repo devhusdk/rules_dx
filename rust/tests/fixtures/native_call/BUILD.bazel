@@ -282,6 +282,7 @@ rustfmt_test(
     name = "native_call_fmt_test",
     targets = [
         ":native_call",
+        ":native_call_bin",
         ":native_call_bin_test",
         ":native_call_build_script_",
         ":native_call_test",

@@ -131,9 +131,7 @@ jobs:
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Write the Bazel preset layers
-        # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
-        # none until dx runs. Any dx command that reaches the workspace writes them.
-        # With a pinned release the launcher runs the cached dx without Bazel.
+        # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
           if [ -s .dx/pins ] && [ -f tools/dx ]; then
             if [ "$RUNNER_OS" = Windows ]; then
@@ -224,9 +222,7 @@ jobs:
           cache-save: ${{ github.event_name != 'pull_request' }}
           disk-cache: ${{ inputs.remote_cache == '' && secrets.BUILDBUDDY_API_KEY == '' && format('checks-{0}', matrix.platform) || 'false' }}
       - name: Write the Bazel preset layers
-        # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
-        # none until dx runs. Any dx command that reaches the workspace writes them.
-        # With a pinned release the launcher runs the cached dx without Bazel.
+        # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
           if [ -s .dx/pins ] && [ -f tools/dx ]; then
             if [ "$RUNNER_OS" = Windows ]; then
@@ -543,9 +539,7 @@ jobs:
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Write the Bazel preset layers
-        # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
-        # none until dx runs. Any dx command that reaches the workspace writes them.
-        # With a pinned release the launcher runs the cached dx without Bazel.
+        # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
           if [ -s .dx/pins ] && [ -f tools/dx ]; then
             if [ "$RUNNER_OS" = Windows ]; then
@@ -626,9 +620,7 @@ jobs:
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Write the Bazel preset layers
-        # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
-        # none until dx runs. Any dx command that reaches the workspace writes them.
-        # With a pinned release the launcher runs the cached dx without Bazel.
+        # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
           if [ -s .dx/pins ] && [ -f tools/dx ]; then
             if [ "$RUNNER_OS" = Windows ]; then

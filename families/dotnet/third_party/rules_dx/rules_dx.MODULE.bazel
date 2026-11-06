@@ -22,6 +22,13 @@ single_version_override(
 )
 
 single_version_override(
+    module_name = "rules_dart",
+    patch_strip = 1,
+    patches = ["//third_party/rules_dx:rules_dart.coverage.patch"],
+    version = "0.8.1",
+)
+
+single_version_override(
     module_name = "rules_julia",
     patch_strip = 1,
     patches = [
@@ -37,6 +44,13 @@ single_version_override(
     patch_strip = 1,
     patches = ["//third_party/rules_dx:protobuf.no_crate_universe.patch"],
     version = "36.2",
+)
+
+single_version_override(
+    module_name = "rules_python",
+    patch_strip = 1,
+    patches = ["//third_party/rules_dx:rules_python.single_import_lib.patch"],
+    version = "2.4.6",
 )
 
 archive_override(
@@ -108,11 +122,19 @@ single_version_override(
 )
 
 single_version_override(
+    module_name = "llvm",
+    patch_strip = 1,
+    patches = ["//third_party/rules_dx:llvm.libunwind_copy.patch"],
+    version = "0.8.26",
+)
+
+single_version_override(
     module_name = "windows_support",
     patch_strip = 1,
     patches = [
         "//third_party/rules_dx:windows_support.host_tools.patch",
         "//third_party/rules_dx:windows_support.rules_dx_hosts.patch",
+        "//third_party/rules_dx:windows_support.hostarm64_packages.patch",
     ],
     version = "0.4.1",
 )

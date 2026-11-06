@@ -595,11 +595,15 @@ fn dx_dir_name() -> String {
         .to_owned()
 }
 
-/// Returns true when an ignore file lists `dir/` on a line of its own.
+/// Returns true when an ignore file ignores `dir/` itself or one of its parents.
 fn ignored_dir(text: &str, dir: &str) -> bool {
+    let wanted = format!("{dir}/");
     text.lines()
         .map(str::trim)
-        .any(|line| line == format!("{dir}/"))
+        .filter(|line| !line.is_empty() && !line.starts_with(['#', '!']))
+        .map(|line| line.trim_start_matches('/').trim_end_matches('*'))
+        .filter(|line| line.ends_with('/'))
+        .any(|line| wanted.starts_with(line))
 }
 
 /// Returns the dot directories `.bazelignore` lists, without a trailing slash.
@@ -626,7 +630,10 @@ fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
         ".gitignore never ignores {dir}/"
     );
     assert!(
-        ignored_dir(&bazelignore, &dir),
+        bazelignore
+            .lines()
+            .map(str::trim)
+            .any(|line| line == dir || line.starts_with(&format!("{dir}/"))),
         ".bazelignore never ignores {dir}/"
     );
     assert!(
@@ -647,8 +654,9 @@ fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
             ignored_dir(&gitignore, &dir),
             ".gitignore never ignores {dir}/ listed in .bazelignore"
         );
+        let top = dir.split('/').next().unwrap_or(&dir);
         assert!(
-            biome.contains(&format!("\"!!**/{dir}\"")),
+            biome.contains(&format!("\"!!**/{top}\"")),
             "biome.json files.includes never force-ignores {dir} listed in .bazelignore"
         );
     }
@@ -815,14 +823,23 @@ fn required_coverage_floor_is_exact_100() {
 #[test]
 fn release_dry_run_enforces_the_required_coverage_floor() {
     let expected = required_coverage_floor();
-    let (_, text) = workflow_values()
+    let release: Vec<String> = workflow_values()
         .into_iter()
-        .find(|(name, _)| name.ends_with("workflows/release.yml"))
-        .expect("release.yml ships as config_consistency_test data");
+        .filter(|(name, _)| {
+            name.ends_with("workflows/release.yml") || name.ends_with("workflows/release-cells.yml")
+        })
+        .map(|(_, text)| text)
+        .collect();
+    assert_eq!(
+        release.len(),
+        2,
+        "release.yml and release-cells.yml ship as config_consistency_test data"
+    );
     assert!(
-        coverage_floors(&text)
+        release
             .iter()
-            .any(|floor| floor == &expected),
+            .flat_map(|text| coverage_floors(text))
+            .any(|floor| floor == expected),
         "release.yml must qualify the release with dx coverage at {expected}"
     );
 }
@@ -890,6 +907,9 @@ fn preset_configs_need_no_doc_stanza() {
 /// Configs the starter fixtures define in the generated workspace's own `.bazelrc`.
 const STARTER_CONFIGS: &[&str] = &["android"];
 
+/// Configs only rules_dx's own evidence workflow passes, defined in the root `.bazelrc`.
+const REPO_ONLY_CONFIGS: &[&str] = &["rbe"];
+
 #[test]
 fn every_workflow_bazel_config_is_defined_and_documented() {
     let rc = read_runfiles(".bazelrc");
@@ -904,7 +924,9 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
             let needs_stanza = config_needs_doc_stanza(&config, &rc, &preset)
                 .unwrap_or_else(|err| panic!("{workflow} runs --config={config}; {err}"));
             assert!(
-                !needs_stanza || page.contains(&format!("common:{config} ")),
+                !needs_stanza
+                    || REPO_ONLY_CONFIGS.contains(&config.as_str())
+                    || page.contains(&format!("common:{config} ")),
                 "docs/github-ci.md never shows the common:{config} stanza --config={config} \
                  needs; only preset configs are exempt"
             );

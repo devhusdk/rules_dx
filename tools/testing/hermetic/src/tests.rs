@@ -777,6 +777,53 @@ fn plan_with_masks_fake_tools_sdks_and_home_config_but_keeps_needed_paths() {
     assert_eq!(isolation.tools, vec![real.join("cc"), real.join("gcc-13")]);
 }
 
+fn planned_with_home(fake: &FakeHost) -> (Isolation, PathBuf) {
+    let root = fake.dir.path();
+    let home = root.join("home");
+    std::fs::create_dir_all(home.join(".cargo")).unwrap();
+    std::fs::write(home.join(".netrc"), "machine x\n").unwrap();
+    let isolation = Isolation::plan_with(&fake.host, &root.join("shim"), &[], Some(&home)).unwrap();
+    (isolation, home)
+}
+
+#[test]
+fn windows_denies_drop_grants_their_parents_and_repeats() {
+    let fake = fake_host();
+    let root = fake.dir.path();
+    let (mut isolation, home) = planned_with_home(&fake);
+    let planned_tools = isolation.tools.clone();
+    isolation.grants = vec![root.join("sdk/bin")];
+    isolation.tools.push(root.join("sdk/bin/node"));
+    isolation.home_files.push(home.join(".cargo/config.toml"));
+    isolation.home_files.push(home.join(".netrc"));
+    let denies = isolation.windows_denies();
+    let mut expected = vec![
+        root.join("kept-sdk"),
+        home.join(".cargo"),
+        home.join(".netrc"),
+    ];
+    expected.extend(planned_tools);
+    assert_eq!(denies, expected);
+    for deny in &denies {
+        for grant in &isolation.grants {
+            assert!(
+                !grant.starts_with(deny) && !deny.starts_with(grant),
+                "{deny:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn windows_denies_are_empty_when_the_grants_cover_everything() {
+    let fake = fake_host();
+    let (mut isolation, _) = planned_with_home(&fake);
+    assert!(!isolation.windows_denies().is_empty());
+    isolation.grants = vec![fake.dir.path().to_path_buf()];
+    isolation.grants.extend(isolation.tools.clone());
+    assert!(isolation.windows_denies().is_empty());
+}
+
 #[cfg(unix)]
 #[test]
 fn plan_with_fails_without_ip() {
@@ -1908,6 +1955,16 @@ fn windows_msvc_denies_lists_the_existing_visual_studio_and_sdk_trees() {
         [pf.join("Microsoft Visual Studio")]
     );
     assert!(windows_msvc_denies(None, None).is_empty());
+}
+
+#[test]
+fn manifest_is_msvc_only_for_the_msvc_compiler() {
+    let mut manifest = manifest_for("//q:cpp", &["cpp"]);
+    assert!(!manifest.is_msvc());
+    manifest.compiler = Some(("gcc".to_owned(), "GCC 16".to_owned()));
+    assert!(!manifest.is_msvc());
+    manifest.compiler = Some(("msvc".to_owned(), "19.44".to_owned()));
+    assert!(manifest.is_msvc());
 }
 
 #[test]

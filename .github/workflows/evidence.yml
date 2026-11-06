@@ -258,7 +258,33 @@ jobs:
             startup=("--output_base=$base")
             extra=(--disk_cache= --noremote_accept_cached)
             run_task relocated.log
+            differ=0
+            if [ "$DX_TASK" = build ]; then
+              det="$RUNNER_TEMP/evidence/determinism"
+              mkdir -p "$det"
+              first_root="$(bazel info "${flags[@]}" execution_root | tr -d '\r')"
+              second_root="$(bazel "--output_base=$base" info "${flags[@]}" execution_root | tr -d '\r')"
+              bazel cquery --noshow_progress --output=files "${patterns[@]}" "${flags[@]}" | tr -d '\r' > "$det/first.txt"
+              bazel "--output_base=$base" cquery --noshow_progress --output=files "${patterns[@]}" "${flags[@]}" | tr -d '\r' > "$det/relocated.txt"
+              sort -u "$det/first.txt" "$det/relocated.txt" > "$det/files.txt"
+              while read -r f; do
+                [ -d "$first_root/$f" ] && continue
+                a="$(sha256sum < "$first_root/$f" 2>/dev/null | cut -d' ' -f1)" || a=missing
+                b="$(sha256sum < "$second_root/$f" 2>/dev/null | cut -d' ' -f1)" || b=missing
+                if [ "$a" = "$b" ]; then
+                  echo "match $f $a $b"
+                  continue
+                fi
+                echo "differ $f $a $b"
+                differ=1
+                mkdir -p "$det/first/$(dirname "$f")" "$det/relocated/$(dirname "$f")"
+                cp "$first_root/$f" "$det/first/$f" 2>/dev/null || true
+                cp "$second_root/$f" "$det/relocated/$f" 2>/dev/null || true
+              done < "$det/files.txt" > "$RUNNER_TEMP/evidence/determinism.txt"
+              cat "$RUNNER_TEMP/evidence/determinism.txt"
+            fi
             bazel "--output_base=$base" shutdown
+            exit "$differ"
           fi
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}
@@ -435,6 +461,11 @@ jobs:
             if [ -f relocated.log ]; then
               printf '\nRelocated output base:\n'
               tail -n 20 relocated.log
+            fi
+            if [ -f "$RUNNER_TEMP/evidence/determinism.txt" ]; then
+              printf '\nDeterminism:\n```\n'
+              cat "$RUNNER_TEMP/evidence/determinism.txt"
+              printf '```\n'
             fi
             for log in "$RUNNER_TEMP"/evidence/qualify-*.log; do
               [ -f "$log" ] || continue

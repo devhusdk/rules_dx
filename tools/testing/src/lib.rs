@@ -18,6 +18,7 @@ pub use dx_binfmt::{machine as image_machine, machines as image_machines};
 
 pub use serde_json;
 
+#[derive(Debug)]
 pub struct Run {
     pub status: std::process::ExitStatus,
     pub stdout: String,
@@ -56,13 +57,119 @@ pub fn command_for(bin: &Path, envs: &[(&str, &str)]) -> std::io::Result<std::pr
     Ok(command)
 }
 
+const DEFAULT_CHILD_TIMEOUT_SECS: u64 = 120;
+
+fn child_timeout() -> std::time::Duration {
+    let secs = std::env::var("DX_TESTING_CHILD_TIMEOUT_SECS")
+        .ok()
+        .and_then(|text| text.trim().parse().ok())
+        .unwrap_or(DEFAULT_CHILD_TIMEOUT_SECS);
+    std::time::Duration::from_secs(secs)
+}
+
+/// Runs `bin` like `run`, with a default deadline of 120s (`DX_TESTING_CHILD_TIMEOUT_SECS`).
 pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Run> {
-    let output = command_for(bin, envs)?.args(args).output()?;
-    Ok(Run {
-        status: output.status,
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    run_within(bin, args, envs, child_timeout())
+}
+
+type Captured = std::sync::Arc<std::sync::Mutex<Vec<u8>>>;
+
+fn drain<R: std::io::Read + Send + 'static>(
+    mut pipe: R,
+    into: Captured,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let mut chunk = [0u8; 4096];
+        while let Ok(count) = pipe.read(&mut chunk) {
+            if count == 0 {
+                break;
+            }
+            into.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .extend_from_slice(&chunk[..count]);
+        }
     })
+}
+
+fn captured_text(buffer: &Captured) -> String {
+    let bytes = buffer
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+fn wait_for(handle: std::thread::JoinHandle<()>, limit: std::time::Duration) {
+    let end = std::time::Instant::now() + limit;
+    while !handle.is_finished() && std::time::Instant::now() < end {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    if handle.is_finished() {
+        let _ = handle.join();
+    }
+}
+
+/// Runs `bin` and kills it when it outlives `limit`, returning `TimedOut` with the output so far.
+pub fn run_within(
+    bin: &Path,
+    args: &[&str],
+    envs: &[(&str, &str)],
+    limit: std::time::Duration,
+) -> std::io::Result<Run> {
+    use std::process::Stdio;
+    let mut child = command_for(bin, envs)?
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let out = Captured::default();
+    let err = Captured::default();
+    let readers = [
+        child.stdout.take().map(|pipe| drain(pipe, out.clone())),
+        child.stderr.take().map(|pipe| drain(pipe, err.clone())),
+    ];
+    let deadline = std::time::Instant::now() + limit;
+    let mut status = None;
+    while status.is_none() {
+        status = child.try_wait()?;
+        if status.is_none() {
+            if std::time::Instant::now() >= deadline {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+    let timed_out = status.is_none();
+    if timed_out {
+        let _ = child.kill();
+        status = Some(child.wait()?);
+    }
+    // A descendant may still hold the pipes open after the child is gone.
+    let grace = if timed_out {
+        std::time::Duration::from_secs(2)
+    } else {
+        std::time::Duration::from_secs(30)
+    };
+    for reader in readers.into_iter().flatten() {
+        wait_for(reader, grace);
+    }
+    let run = Run {
+        status: status.ok_or_else(|| std::io::Error::other("child has no exit status"))?,
+        stdout: captured_text(&out),
+        stderr: captured_text(&err),
+    };
+    if timed_out {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            format!(
+                "{} outlived {limit:?} and was killed\nstdout:\n{}\nstderr:\n{}",
+                bin.display(),
+                run.stdout,
+                run.stderr
+            ),
+        ));
+    }
+    Ok(run)
 }
 
 static SCRATCH_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -572,6 +679,34 @@ mod tests {
         let mut handle = std::fs::File::create(&path).expect("create");
         handle.write_all(text.as_bytes()).expect("write");
         path
+    }
+
+    #[test]
+    fn run_within_kills_a_child_past_its_deadline_and_reports_its_output() {
+        let started = std::time::Instant::now();
+        let error = run_within(
+            &process_probe(),
+            &["--stdout-text=partial", "--sleep-ms=60000"],
+            &[],
+            std::time::Duration::from_millis(500),
+        )
+        .expect_err("a sleeping child must time out");
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert!(error.to_string().contains("partial"), "{error}");
+        assert!(started.elapsed() < std::time::Duration::from_secs(30));
+    }
+
+    #[test]
+    fn run_within_leaves_a_fast_child_alone() {
+        let run = run_within(
+            &process_probe(),
+            &["--stdout-text=hi", "--exit-code=3"],
+            &[],
+            std::time::Duration::from_secs(60),
+        )
+        .expect("fast child");
+        assert_eq!(run.status.code(), Some(3));
+        assert_eq!(run.stdout, "hi");
     }
 
     #[test]

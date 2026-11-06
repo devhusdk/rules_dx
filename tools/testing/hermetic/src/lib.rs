@@ -1989,22 +1989,29 @@ pub fn qualification_root_for(tmp: &Path, windows: bool) -> PathBuf {
         return tmp.join("qualification");
     }
     let digest = sha256_hex(text.as_bytes());
-    PathBuf::from(format!("{}\\q\\{}", &text[..2], &digest[..8]))
+    PathBuf::from(format!("{}\\q\\{}", &text[..2], &digest[..6]))
 }
 
 pub fn qualification_root(tmp: &Path) -> PathBuf {
     qualification_root_for(tmp, cfg!(windows))
 }
 
-/// The startup flags of every nested Bazel. On Windows the output base is pinned to a short
-/// `o` instead of Bazel's 32-character hash, for the same path length reason.
+/// The startup flags of every nested Bazel. On Windows the output base is a sibling of
+/// `output_root` named by its first letter (`cold` gets `c`) instead of Bazel's 32-character
+/// hash under it, for the same path length reason.
 fn startup_flags_for(output_root: &Path, windows: bool) -> Vec<String> {
+    let root = output_root.display().to_string();
     let mut flags = vec![
         "--nosystem_rc".to_owned(),
-        format!("--output_user_root={}", output_root.display()),
+        format!("--output_user_root={root}"),
     ];
     if windows {
-        flags.push(format!("--output_base={}\\o", output_root.display()));
+        let name = root.rfind(['\\', '/']).map_or(0, |at| at + 1);
+        let end = root[name..]
+            .chars()
+            .next()
+            .map_or(name, |c| name + c.len_utf8());
+        flags.push(format!("--output_base={}", &root[..end]));
     }
     flags
 }

@@ -898,7 +898,7 @@ fn qualification_root_on_windows_is_short_and_stable() {
     let root = qualification_root_for(tmp, true);
     let text = root.to_string_lossy().into_owned();
     assert!(text.starts_with(r"D:\q\"), "{text}");
-    assert_eq!(text.len(), r"D:\q\".len() + 8);
+    assert_eq!(text.len(), r"D:\q\".len() + 6);
     assert_eq!(qualification_root_for(tmp, true), root);
     assert_ne!(qualification_root_for(Path::new(r"D:\other"), true), root);
     let relative = Path::new("tmp");
@@ -911,8 +911,9 @@ fn qualification_root_on_windows_is_short_and_stable() {
 #[test]
 fn longest_npm_package_dir_fits_the_windows_chdir_limit() {
     let tmp = Path::new(r"D:\_bazel\execroot\_main\_tmp\0123456789abcdef0123456789abcdef");
-    let package = "bazel-out/x64_windows-fastbuild/bin/javascript/tests/fixtures/node-app/node_modules/.aspect_rules_js/@babel+plugin-syntax-logical-assignment-operators@7.10.4/node_modules/@babel/plugin-syntax-logical-assignment-operators";
-    assert_eq!(package.len(), 220);
+    // The longest store entry in the node-app lock, with the widest peer hash rules_js can write.
+    let package = "bazel-out/x64_windows-fastbuild/bin/javascript/tests/fixtures/node-app/node_modules/.aspect_rules_js/@babel+plugin-syntax-logical-assignment-operators@_-2147483648/node_modules/@babel/plugin-syntax-logical-assignment-operators";
+    assert_eq!(package.len(), 226);
     let output_base = startup_flags_for(&qualification_root_for(tmp, true).join("cold"), true)
         .iter()
         .find_map(|flag| flag.strip_prefix("--output_base=").map(str::to_owned))
@@ -923,13 +924,12 @@ fn longest_npm_package_dir_fits_the_windows_chdir_limit() {
 
 #[test]
 fn startup_flags_pin_the_output_base_only_on_windows() {
-    let root = Path::new(r"D:\q\abc\cold");
     assert_eq!(
-        startup_flags_for(root, true),
+        startup_flags_for(Path::new(r"D:\q\abc\cold"), true),
         [
-            "--nosystem_rc".to_owned(),
-            format!("--output_user_root={}", root.display()),
-            format!(r"--output_base={}\o", root.display()),
+            "--nosystem_rc",
+            r"--output_user_root=D:\q\abc\cold",
+            r"--output_base=D:\q\abc\c",
         ]
     );
     assert_eq!(

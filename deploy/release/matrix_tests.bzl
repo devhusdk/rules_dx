@@ -1,7 +1,7 @@
 """Unit tests for the release matrix."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":matrix.bzl", "release_cell_archive", "release_matrix_cell", "release_matrix_error", "release_matrix_json", "release_matrix_names")
+load(":matrix.bzl", "release_cell_archive", "release_cell_symbols", "release_matrix_cell", "release_matrix_error", "release_matrix_json", "release_matrix_names")
 
 def _field(field):
     """Returns one field of every cell in matrix order."""
@@ -41,6 +41,11 @@ def matrix_unit_tests(name):
                 "matrix archive names follow the cell format",
                 [release_cell_archive(release_matrix_cell(n)) for n in release_matrix_names()],
                 ["dx-linux-x86_64.tar.gz", "dx-linux-arm64.tar.gz", "dx-macos-arm64.tar.gz", "dx-windows-x86_64.zip", "dx-windows-arm64.zip"],
+            ),
+            expect_equal(
+                "matrix ships a symbols zip for windows cells only",
+                [release_cell_symbols(release_matrix_cell(n)) for n in release_matrix_names()],
+                [None, None, None, "dx-windows-x86_64-pdb.zip", "dx-windows-arm64-pdb.zip"],
             ),
             expect_equal(
                 "matrix unknown name has no cell",

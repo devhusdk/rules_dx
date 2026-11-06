@@ -44,6 +44,23 @@ fn host_cell_ships_exactly_its_members() {
 }
 
 #[test]
+fn windows_host_cell_ships_its_symbols_zip() {
+    let Ok(rel) = std::env::var("DX_HOST_SYMBOLS") else {
+        return;
+    };
+    let (cell, _) = host_cell();
+    let symbols = dx_testing::resolve_runfiles(&rel);
+    assert_eq!(
+        symbols.file_name().and_then(|name| name.to_str()),
+        Some(format!("{}-pdb.zip", cell.name).as_str())
+    );
+    let listing = dx_deploy_tools::archive_listing(&symbols).expect("symbols listing");
+    let names: Vec<&str> = listing.iter().map(|(name, _, _)| name.as_str()).collect();
+    // dx.exe names the PDB of the upstream rust_binary (/pdbaltpath:%_PDB%).
+    assert_eq!(names, ["dx_upstream.pdb"]);
+}
+
+#[test]
 fn host_cell_notice_lists_shipped_crates_only() {
     let (_, archive) = host_cell();
     let notice = dx_deploy_tools::archive_read_member(&archive, "NOTICE").expect("NOTICE");

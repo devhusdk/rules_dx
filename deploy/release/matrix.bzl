@@ -54,6 +54,12 @@ def release_cell_archive(cell):
     """Returns the archive file name of one release cell."""
     return archive_filenames(cell["name"], cell["format"])[0]
 
+def release_cell_symbols(cell):
+    """Returns the debug symbols archive file name of one release cell, or None when it ships none."""
+    if cell["os"] != "windows":
+        return None
+    return cell["name"] + "-pdb.zip"
+
 def release_matrix_json():
     """Returns the release-matrix/v1 document for every cell."""
     cells = [
@@ -81,8 +87,8 @@ release_matrix_file = rule(
     doc = "Writes the release-matrix/v1 JSON for every release cell.",
 )
 
-def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx"):
-    """Declares one archive per release cell plus the `name` alias to the host cell archive."""
+def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx", pdb = "//cli/cli:dx_pdb"):
+    """Declares one archive per release cell, a symbols zip per Windows cell, and the `name` aliases for the host cell."""
     for cell in cells:
         cell_name = cell["name"]
         constraints = cell["constraints"]
@@ -120,6 +126,30 @@ def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx"):
             runtimes = (":" + cell_name + "_inventory_runtimes") if cell["runtime"] else None,
             target_compatible_with = constraints,
         )
+        symbols = release_cell_symbols(cell)
+        if symbols:
+            # The entry keeps the PDB basename that /pdbaltpath:%_PDB% writes into the exe.
+            native.genrule(
+                name = cell_name + "_pdb_archive",
+                srcs = [pdb],
+                outs = [symbols],
+                cmd = "$(execpath @bazel_tools//tools/zip:zipper) c $@ $$(basename $(location " + pdb + "))=$(location " + pdb + ")",
+                target_compatible_with = constraints,
+                tools = ["@bazel_tools//tools/zip:zipper"],
+            )
+            native.genrule(
+                name = cell_name + "_pdb_checksum",
+                srcs = [":" + cell_name + "_pdb_archive"],
+                outs = [symbols + ".sha256"],
+                cmd = "$(location //deploy/rules:hasher) $(location :" + cell_name + "_pdb_archive) $(OUTS)",
+                target_compatible_with = constraints,
+                tools = ["//deploy/rules:hasher"],
+            )
+            sbom_release(
+                name = cell_name + "_pdb_sbom",
+                artifact = ":" + cell_name + "_pdb_archive",
+                target_compatible_with = constraints,
+            )
         native.config_setting(
             name = cell_name + "_host",
             constraint_values = constraints,
@@ -139,6 +169,20 @@ def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx"):
         name = name + "_sbom",
         actual = select(dict(
             [(":" + cell["name"] + "_host", ":" + cell["name"] + "_sbom_spdx") for cell in cells],
+            **{"//conditions:default": ":" + name + "_unsupported"}
+        )),
+    )
+    native.alias(
+        name = name + "_pdb",
+        actual = select(dict(
+            [(":" + cell["name"] + "_host", ":" + cell["name"] + "_pdb_archive") for cell in cells if release_cell_symbols(cell)],
+            **{"//conditions:default": ":" + name + "_unsupported"}
+        )),
+    )
+    native.alias(
+        name = name + "_pdb_sbom",
+        actual = select(dict(
+            [(":" + cell["name"] + "_host", ":" + cell["name"] + "_pdb_sbom_spdx") for cell in cells if release_cell_symbols(cell)],
             **{"//conditions:default": ":" + name + "_unsupported"}
         )),
     )

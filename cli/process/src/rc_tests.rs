@@ -2,7 +2,7 @@ use super::*;
 
 use std::collections::HashMap;
 
-use crate::{ArgvPolicy, build_workflow_argv_with, startup_argv_with};
+use crate::{build_workflow_argv_with, startup_argv_with, ArgvPolicy};
 
 struct Machine {
     env: HashMap<&'static str, String>,

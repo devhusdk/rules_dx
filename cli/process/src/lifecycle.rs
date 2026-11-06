@@ -5,9 +5,9 @@ use std::io;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 /// How the child sees the environment.
@@ -1444,13 +1444,13 @@ mod backend {
     }
 
     #[cfg(unix)]
-    pub use super::terminal::{TerminalJob, allow_background_tty_writes};
+    pub use super::terminal::{allow_background_tty_writes, TerminalJob};
 
     #[cfg(unix)]
     pub use unix::{
-        OwnedChild, end_owned_descendants, force_stream, send, send_kill, spawn_owned,
-        spawn_streamed, stream_target, terminal_foreground, terminate_forced, terminate_graceful,
-        termination_signal, tree_alive,
+        end_owned_descendants, force_stream, send, send_kill, spawn_owned, spawn_streamed,
+        stream_target, terminal_foreground, terminate_forced, terminate_graceful,
+        termination_signal, tree_alive, OwnedChild,
     };
 
     #[cfg(not(unix))]
@@ -1520,16 +1520,16 @@ mod backend {
     pub use plain_stream::spawn_streamed;
     #[cfg(not(unix))]
     pub use plain_stream::{
-        TerminalJob, allow_background_tty_writes, force_stream, send, send_kill, stream_target,
-        terminal_foreground, tree_alive,
+        allow_background_tty_writes, force_stream, send, send_kill, stream_target,
+        terminal_foreground, tree_alive, TerminalJob,
     };
     #[cfg(not(unix))]
     pub fn end_owned_descendants(_owned: &mut OwnedChild) {}
 
     #[cfg(windows)]
     pub use windows::{
-        OwnedChild, install_console_stop, spawn_owned, spawn_streamed, terminate_forced,
-        terminate_graceful, termination_signal,
+        install_console_stop, spawn_owned, spawn_streamed, terminate_forced, terminate_graceful,
+        termination_signal, OwnedChild,
     };
 
     #[cfg(not(any(unix, windows)))]
@@ -1580,7 +1580,7 @@ mod backend {
 
     #[cfg(not(any(unix, windows)))]
     pub use portable::{
-        OwnedChild, spawn_owned, terminate_forced, terminate_graceful, termination_signal,
+        spawn_owned, terminate_forced, terminate_graceful, termination_signal, OwnedChild,
     };
 }
 

@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:public"])
 # keep
 rust_library(
     name = "wasi_run",
+    testonly = True,
     srcs = ["wasi_run.rs"],
     crate_name = "wasi_run",
     crate_root = "wasi_run.rs",
@@ -23,6 +24,7 @@ rust_test(
 # keep
 rust_binary(
     name = "wasi_test_runner",
+    testonly = True,
     srcs = ["wasi_test_runner.rs"],
     crate_name = "wasi_test_runner",
     crate_root = "wasi_test_runner.rs",

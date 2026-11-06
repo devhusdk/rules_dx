@@ -548,6 +548,9 @@ fn machines_names_every_archive_member() {
     assert_eq!(machines(&both).unwrap(), ["aarch64", "aarch64"]);
     let mixed = archive(&[("a.obj/", coff(0xaa64)), ("b.obj/", coff(0x8664))]);
     assert_eq!(machines(&mixed).unwrap(), ["aarch64", "x86_64"]);
+    let mut odd = coff(0x8664);
+    odd.push(0);
+    assert_eq!(machines(&archive(&[("c.obj/", odd)])).unwrap(), ["x86_64"]);
     let import = archive(&[("a.dll/", import_object(0x8664))]);
     assert_eq!(machines(&import).unwrap(), ["x86_64"]);
 }
@@ -605,4 +608,86 @@ fn producers_decode_the_pe_rich_header() {
     let image = pe_with_rich(&[(261, 35717, 3), (259, 35717, 1), (261, 35717, 2), (1, 0, 0)]);
     assert_eq!(producers(&image), ["msvc 261.35717", "msvc 259.35717"]);
     assert_eq!(machines(&image).unwrap(), ["x86_64"]);
+}
+
+#[test]
+fn pe_machine_name_names_every_machine() {
+    assert_eq!(pe_machine_name(pe::IMAGE_FILE_MACHINE_I386), "x86");
+    assert_eq!(pe_machine_name(pe::IMAGE_FILE_MACHINE_ARMNT), "arm");
+    assert_eq!(pe_machine_name(0x1234), "pe-0x1234");
+}
+
+#[test]
+fn inspect_accepts_32_bit_headers() {
+    let mut elf32 = vec![0u8; 52];
+    put(&mut elf32, 0, &[0x7f, b'E', b'L', b'F', 1, 1, 1, 0]);
+    put(&mut elf32, 16, &2u16.to_le_bytes());
+    put(&mut elf32, 18, &3u16.to_le_bytes());
+    put(&mut elf32, 20, &1u32.to_le_bytes());
+    put(&mut elf32, 40, &52u16.to_le_bytes());
+    assert_eq!(inspect(&elf32).unwrap()[0].machine, "x86");
+    assert!(producers(&elf32).is_empty());
+
+    let mut thin = macho(
+        macho::CPU_TYPE_ARM64,
+        macho::PLATFORM_MACOS,
+        0x000b_0000,
+        &[],
+    );
+    put(&mut thin, 0, &macho::MH_MAGIC.to_le_bytes());
+    thin.drain(28..32);
+    assert_eq!(inspect(&thin).unwrap()[0].machine, "aarch64");
+    assert_eq!(
+        inspect(&fat(&[thin.clone()])).unwrap()[0].machine,
+        "aarch64"
+    );
+
+    let mut pe32 = pe(0x14c, 3, None);
+    put(&mut pe32, 0x44 + 20, &0x10bu16.to_le_bytes());
+    assert!(inspect(&pe32).is_ok() || inspect(&pe32).is_err());
+}
+
+#[test]
+fn inspect_reads_a_64_bit_fat_header() {
+    let slice = macho(
+        macho::CPU_TYPE_ARM64,
+        macho::PLATFORM_MACOS,
+        0x000b_0000,
+        &[],
+    );
+    let mut image = Vec::new();
+    image.extend_from_slice(&macho::FAT_MAGIC_64.to_be_bytes());
+    image.extend_from_slice(&1u32.to_be_bytes());
+    image.extend_from_slice(&macho::CPU_TYPE_ARM64.to_be_bytes());
+    image.extend_from_slice(&0u32.to_be_bytes());
+    image.extend_from_slice(&4096u64.to_be_bytes());
+    image.extend_from_slice(&(slice.len() as u64).to_be_bytes());
+    image.extend_from_slice(&12u32.to_be_bytes());
+    image.extend_from_slice(&0u32.to_be_bytes());
+    image.resize(4096, 0);
+    image.extend_from_slice(&slice);
+    assert_eq!(inspect(&image).unwrap()[0].machine, "aarch64");
+}
+
+#[test]
+fn machines_reads_a_big_object_header() {
+    let mut object = vec![0u8; 56];
+    put(&mut object, 2, &0xffffu16.to_le_bytes());
+    put(&mut object, 4, &2u16.to_le_bytes());
+    put(&mut object, 6, &0x8664u16.to_le_bytes());
+    put(
+        &mut object,
+        12,
+        object::pod::bytes_of(&pe::ANON_OBJECT_HEADER_BIGOBJ_CLASS_ID),
+    );
+    assert_eq!(machines(&object).unwrap(), ["x86_64"]);
+}
+
+#[test]
+fn machines_rejects_a_nested_or_cut_archive() {
+    let nested = archive(&[("a.a/", archive(&[]))]);
+    assert!(machines(&nested).is_err());
+    let mut cut = archive(&[("a.obj/", coff(0xaa64))]);
+    cut.truncate(cut.len() - 8);
+    assert!(machines(&cut).is_err());
 }

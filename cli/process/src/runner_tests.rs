@@ -200,7 +200,7 @@ fn holding_run_does_not_inherit_held() {
     assert!(
         lock_comes_free(&path),
         "plain runs carry no held handle; holders: {}",
-        lock_holders(&path)
+        lock_holders(&path) // LCOV_EXCL_LINE - reason: failure-only message, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     );
 }
 
@@ -209,13 +209,10 @@ fn holding_run_does_not_inherit_held() {
 #[cfg(unix)]
 fn lock_comes_free(path: &std::path::Path) -> bool {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-    loop {
-        if dx_atomic_fs::lease::try_lock_file(path, false)
-            .expect("probe")
-            .is_some()
-        {
-            return true;
-        }
+    while dx_atomic_fs::lease::try_lock_file(path, false)
+        .expect("probe")
+        .is_none()
+    {
         // LCOV_EXCL_START - reason: failure-only retry, never reached when the lock is free at once, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         if std::time::Instant::now() >= deadline {
             return false;
@@ -223,6 +220,7 @@ fn lock_comes_free(path: &std::path::Path) -> bool {
         std::thread::sleep(std::time::Duration::from_millis(20));
         // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
+    true
 }
 
 // LCOV_EXCL_START - reason: failure-only message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -311,7 +309,10 @@ fn holding_forwards_every_runner_call() {
         holding.pinned_tool("DX_RUNNER_UNSET_PIN_VAR"),
         crate::PinnedVar::Unset
     );
-    assert_eq!(holding.tool_version(Path::new("/nonexistent-dx-tool")), None);
+    assert_eq!(
+        holding.tool_version(Path::new("/nonexistent-dx-tool")),
+        None
+    );
     assert!(holding.free_disk_bytes(&cwd()).is_some());
 }
 

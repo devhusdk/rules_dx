@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, RwLock};
 
-use crate::{WORKFLOW_STARTUP_OPTS, is_ci_value};
+use crate::{is_ci_value, WORKFLOW_STARTUP_OPTS};
 
 pub(crate) const MAX_IMPORT_DEPTH: usize = 16;
 
@@ -699,7 +699,7 @@ pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
 mod sections;
 
 pub use sections::{
-    StartupPaths, explicit_rc_files, nested_bazel_selected, remote_execution, startup_output_paths,
+    explicit_rc_files, nested_bazel_selected, remote_execution, startup_output_paths, StartupPaths,
 };
 
 #[cfg(test)]

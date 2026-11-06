@@ -172,6 +172,7 @@ starter_consumer_test(
 # keep
 rust_library(
     name = "starter_scaffold",
+    testonly = True,
     srcs = ["scaffold.rs"],
     crate_name = "starter_scaffold",
     crate_root = "scaffold.rs",

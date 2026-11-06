@@ -26,6 +26,7 @@ exports_files(
 
 rust_library(
     name = "dx_testing",
+    testonly = True,
     srcs = [
         "src/cli.rs",
         "src/fatbin.rs",
@@ -78,6 +79,7 @@ rust_test(
 # keep
 rust_library(
     name = "dx_nested",
+    testonly = True,
     srcs = [
         "src/compose.rs",
         "src/footprint.rs",

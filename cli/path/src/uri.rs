@@ -91,62 +91,65 @@ mod tests {
     }
 
     /// A directory this host spells absolutely, with forward slashes for URIs.
+    #[cfg(windows)]
     fn root() -> (&'static str, &'static str) {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            (r"C:\tmp", "/C:/tmp")
-            // LCOV_EXCL_STOP - reason: end expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            ("/tmp", "/tmp")
-        }
+        (r"C:\tmp", "/C:/tmp")
+    }
+
+    /// A directory this host spells absolutely, with forward slashes for URIs.
+    #[cfg(not(windows))]
+    fn root() -> (&'static str, &'static str) {
+        ("/tmp", "/tmp")
     }
 
     /// Filenames a temp directory holds on this host, with the URI each one spells as.
+    #[cfg(windows)]
     fn escapes() -> &'static [(&'static str, &'static str)] {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            &[
-                ("a b.pb", "a%20b.pb"),
-                ("a%20b.pb", "a%2520b.pb"),
-                ("täst.pb", "t%C3%A4st.pb"),
-            ]
-            // LCOV_EXCL_STOP - reason: end expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            &[
-                ("a b.pb", "a%20b.pb"),
-                ("a%20b.pb", "a%2520b.pb"),
-                ("a#b.pb", "a%23b.pb"),
-                ("a?b.pb", "a%3Fb.pb"),
-                ("täst.pb", "t%C3%A4st.pb"),
-            ]
-        }
+        &[
+            ("a b.pb", "a%20b.pb"),
+            ("a%20b.pb", "a%2520b.pb"),
+            ("täst.pb", "t%C3%A4st.pb"),
+        ]
     }
 
+    /// Filenames a temp directory holds on this host, with the URI each one spells as.
+    #[cfg(not(windows))]
+    fn escapes() -> &'static [(&'static str, &'static str)] {
+        &[
+            ("a b.pb", "a%20b.pb"),
+            ("a%20b.pb", "a%2520b.pb"),
+            ("a#b.pb", "a%23b.pb"),
+            ("a?b.pb", "a%3Fb.pb"),
+            ("täst.pb", "t%C3%A4st.pb"),
+        ]
+    }
+
+    #[cfg(windows)]
     #[test]
     fn uri_escapes_each_character_a_reader_has_to_decode() {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            assert_eq!(uri_of(r"C:\tmp\a b.py"), "file:///C:/tmp/a%20b.py");
-            assert_eq!(uri_of(r"\\?\C:\tmp\a b.py"), "file:///C:/tmp/a%20b.py");
-            assert_eq!(
-                uri_of(r"\\?\UNC\srv\share\a#b.py"),
-                "file://srv/share/a%23b.py"
-            );
-            assert_eq!(uri_of(r"\\srv\share\a b.py"), "file://srv/share/a%20b.py");
-            // LCOV_EXCL_STOP - reason: end expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            for (path, want) in [
-                ("/", "file:///"),
-                ("/tmp/a.py", "file:///tmp/a.py"),
-                ("/tmp/a b.py", "file:///tmp/a%20b.py"),
-                ("/tmp/a%20b.py", "file:///tmp/a%2520b.py"),
-                ("/tmp/a#b.py", "file:///tmp/a%23b.py"),
-                ("/tmp/a?b.py", "file:///tmp/a%3Fb.py"),
-                ("/tmp/täst.py", "file:///tmp/t%C3%A4st.py"),
-                ("/tmp/日本.py", "file:///tmp/%E6%97%A5%E6%9C%AC.py"),
-            ] {
-                assert_eq!(uri_of(path), want, "path: {path:?}");
-            }
+        assert_eq!(uri_of(r"C:\tmp\a b.py"), "file:///C:/tmp/a%20b.py");
+        assert_eq!(uri_of(r"\\?\C:\tmp\a b.py"), "file:///C:/tmp/a%20b.py");
+        assert_eq!(
+            uri_of(r"\\?\UNC\srv\share\a#b.py"),
+            "file://srv/share/a%23b.py"
+        );
+        assert_eq!(uri_of(r"\\srv\share\a b.py"), "file://srv/share/a%20b.py");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn uri_escapes_each_character_a_reader_has_to_decode() {
+        for (path, want) in [
+            ("/", "file:///"),
+            ("/tmp/a.py", "file:///tmp/a.py"),
+            ("/tmp/a b.py", "file:///tmp/a%20b.py"),
+            ("/tmp/a%20b.py", "file:///tmp/a%2520b.py"),
+            ("/tmp/a#b.py", "file:///tmp/a%23b.py"),
+            ("/tmp/a?b.py", "file:///tmp/a%3Fb.py"),
+            ("/tmp/täst.py", "file:///tmp/t%C3%A4st.py"),
+            ("/tmp/日本.py", "file:///tmp/%E6%97%A5%E6%9C%AC.py"),
+        ] {
+            assert_eq!(uri_of(path), want, "path: {path:?}");
         }
     }
 
@@ -209,45 +212,46 @@ mod tests {
         }
     }
 
+    #[cfg(windows)]
     #[test]
     fn uri_to_path_decodes_the_escapes_uri_writes() {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            for (uri, want) in [
-                ("file:///C:/tmp/a.py", r"C:\tmp\a.py"),
-                ("file:///C:/tmp/a%20b.py", r"C:\tmp\a b.py"),
-                ("file:///C:/tmp/a%2520b.py", r"C:\tmp\a%20b.py"),
-                ("file:///C%3A/tmp/a%20b.py", r"C:\tmp\a b.py"),
-                ("file:///C:/tmp/t%C3%A4st.py", r"C:\tmp\täst.py"),
-                ("file://localhost/C:/tmp/a.py", r"C:\tmp\a.py"),
-                ("file://srv/share/a%23b.py", r"\\srv\share\a#b.py"),
-            ] {
-                assert_eq!(
-                    uri_to_path(uri).expect(uri),
-                    PathBuf::from(want),
-                    "uri: {uri:?}"
-                );
-            }
-            // LCOV_EXCL_STOP - reason: end expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            for (uri, want) in [
-                ("file:///", "/"),
-                ("file:/tmp/a.py", "/tmp/a.py"),
-                ("file:///tmp/a.py", "/tmp/a.py"),
-                ("file:///tmp/a%20b.py", "/tmp/a b.py"),
-                ("file:///tmp/a%2520b.py", "/tmp/a%20b.py"),
-                ("file:///tmp/a%23b.py", "/tmp/a#b.py"),
-                ("file:///tmp/a%3Fb.py", "/tmp/a?b.py"),
-                ("file:///tmp/t%C3%A4st.py", "/tmp/täst.py"),
-                ("file://localhost/tmp/a.py", "/tmp/a.py"),
-                ("file:///C:/tmp/a.py", "/C:/tmp/a.py"),
-            ] {
-                assert_eq!(
-                    uri_to_path(uri).expect(uri),
-                    PathBuf::from(want),
-                    "uri: {uri:?}"
-                );
-            }
+        for (uri, want) in [
+            ("file:///C:/tmp/a.py", r"C:\tmp\a.py"),
+            ("file:///C:/tmp/a%20b.py", r"C:\tmp\a b.py"),
+            ("file:///C:/tmp/a%2520b.py", r"C:\tmp\a%20b.py"),
+            ("file:///C%3A/tmp/a%20b.py", r"C:\tmp\a b.py"),
+            ("file:///C:/tmp/t%C3%A4st.py", r"C:\tmp\täst.py"),
+            ("file://localhost/C:/tmp/a.py", r"C:\tmp\a.py"),
+            ("file://srv/share/a%23b.py", r"\\srv\share\a#b.py"),
+        ] {
+            assert_eq!(
+                uri_to_path(uri).expect(uri),
+                PathBuf::from(want),
+                "uri: {uri:?}"
+            );
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn uri_to_path_decodes_the_escapes_uri_writes() {
+        for (uri, want) in [
+            ("file:///", "/"),
+            ("file:/tmp/a.py", "/tmp/a.py"),
+            ("file:///tmp/a.py", "/tmp/a.py"),
+            ("file:///tmp/a%20b.py", "/tmp/a b.py"),
+            ("file:///tmp/a%2520b.py", "/tmp/a%20b.py"),
+            ("file:///tmp/a%23b.py", "/tmp/a#b.py"),
+            ("file:///tmp/a%3Fb.py", "/tmp/a?b.py"),
+            ("file:///tmp/t%C3%A4st.py", "/tmp/täst.py"),
+            ("file://localhost/tmp/a.py", "/tmp/a.py"),
+            ("file:///C:/tmp/a.py", "/C:/tmp/a.py"),
+        ] {
+            assert_eq!(
+                uri_to_path(uri).expect(uri),
+                PathBuf::from(want),
+                "uri: {uri:?}"
+            );
         }
     }
 

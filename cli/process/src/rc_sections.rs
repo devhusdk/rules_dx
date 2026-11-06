@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::{MAX_IMPORT_DEPTH, flag_value, import_path, sets_flag, tokenize, unquote};
+use super::{flag_value, import_path, sets_flag, tokenize, unquote, MAX_IMPORT_DEPTH};
 
 const MAX_CONFIG_DEPTH: usize = 32;
 

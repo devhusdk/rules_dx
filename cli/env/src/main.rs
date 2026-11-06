@@ -211,7 +211,7 @@ mod tests {
 
     fn installed(args: &[&str]) -> Installed {
         match plan_of(args).expect("plan must accept these arguments") {
-            Plan::Help => panic!("expected an install plan"),
+            Plan::Help => panic!("expected an install plan"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             Plan::Install {
                 workspace,
                 staged_bin,

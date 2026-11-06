@@ -115,7 +115,7 @@ fn directories_above_a_grant_are_listable_but_not_readable() {
     let canon = scene.run(Net::Denied, &["canon", &text(&scene.granted)]);
     assert_eq!(canon.exit, 0, "{}", canon.stderr);
     let read = scene.run(Net::Denied, &["read", &text(&above)]);
-    assert_ne!(read.exit, 0, "{}", read.stdout);
+    assert_ne!(read.exit, 0, "{}{}", read.stdout, icacls(&scene.root));
     assert_eq!(icacls(&scene.root), before);
 }
 
@@ -148,10 +148,20 @@ fn the_msvc_denies_hide_visual_studio_and_restore_its_acls() {
         eprintln!("no Visual Studio or Windows SDK on this host; nothing to deny");
         return;
     }
+    let above = scene.root.join("above.txt");
+    std::fs::write(&above, "hidden").expect("above");
+    let read = scene.run(Net::Denied, &["read", &text(&above)]);
+    assert_ne!(
+        read.exit,
+        0,
+        "readable before the deny: {}{}",
+        read.stdout,
+        icacls(&scene.root)
+    );
     let before: Vec<String> = denies.iter().map(|dir| icacls(dir)).collect();
     let isolation = Isolation {
         denies: denies.clone(),
-        ..scene.isolation
+        ..scene.isolation.clone()
     };
     let started = std::time::Instant::now();
     hermetic::deny_check(&isolation).expect("every denied tree is unreadable");
@@ -162,4 +172,12 @@ fn the_msvc_denies_hide_visual_studio_and_restore_its_acls() {
     );
     let after: Vec<String> = denies.iter().map(|dir| icacls(dir)).collect();
     assert_eq!(after, before);
+    let read = scene.run(Net::Denied, &["read", &text(&above)]);
+    assert_ne!(
+        read.exit,
+        0,
+        "readable after the deny: {}{}",
+        read.stdout,
+        icacls(&scene.root)
+    );
 }

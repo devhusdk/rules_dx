@@ -350,6 +350,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "perl",
+    compatible_with = LINUX_MACOS,
     files = {
         "//perl/tests/fixtures/perl-app/cli:BUILD.bazel": "perl/tests/fixtures/perl-app/cli/BUILD.bazel",
         "//perl/tests/fixtures/perl-app/cli:stockctl.pl": "perl/tests/fixtures/perl-app/cli/stockctl.pl",
@@ -375,6 +376,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "prose",
+    compatible_with = LINUX_MACOS,
     files = {
         "//quality/tests/fixtures/prose-docs/drafts:BUILD.bazel": "quality/tests/fixtures/prose-docs/drafts/BUILD.bazel",
         "//quality/tests/fixtures/prose-docs/drafts:messy.typ": "quality/tests/fixtures/prose-docs/drafts/messy.typ",
@@ -415,6 +417,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "julia_fixture",
+    compatible_with = LINUX_MACOS,
     files = {
         "//tools/testing/starters/fixtures:julia/BUILD.bazel.fixture": "BUILD.bazel",
         "//tools/testing/starters/fixtures:julia/Project.toml.fixture": "Project.toml",
@@ -430,6 +433,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "proto_bindings",
+    compatible_with = LINUX_MACOS,
     files = {
         "consumers/proto_bindings/consumer.bazelrc": ".bazelrc",
         "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
@@ -455,6 +459,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "lua",
+    compatible_with = LINUX_MACOS,
     files = {
         "//lua/tests/fixtures/lua-app:BUILD.bazel": "lua/tests/fixtures/lua-app/BUILD.bazel",
         "//lua/tests/fixtures/lua-app:inspect.BUILD.bazel": "lua/tests/fixtures/lua-app/inspect.BUILD.bazel",
@@ -636,6 +641,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "zig",
+    compatible_with = LINUX_MACOS,
     files = {
         "consumers/zig/apps/catalog.BUILD.bazel": "zig/tests/fixtures/zig-app/catalog/BUILD.bazel",
         "consumers/zig/apps/digest.BUILD.bazel": "zig/tests/fixtures/zig-app/digest/BUILD.bazel",
@@ -948,6 +954,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "python",
+    compatible_with = LINUX_MACOS,
     files = {
         "//cli/adopt/templates/config:ruff/standard.toml": ".dx/config/ruff/standard.toml",
         "//cli/adopt/templates/config:ruff/strict.toml": ".dx/config/ruff/strict.toml",
@@ -983,6 +990,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "c_fixture",
+    compatible_with = LINUX_MACOS,
     compiler = "llvm",
     failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: 'string' file not found"},
     files = {
@@ -1024,6 +1032,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "cpp_fixture",
+    compatible_with = LINUX_MACOS,
     compiler = "llvm",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
     files = {

@@ -11,7 +11,7 @@
 pub mod ecosystem;
 
 mod consistency;
-mod exceptions;
+mod dep_key;
 mod missing;
 mod toml_util;
 mod types;
@@ -29,11 +29,8 @@ pub use ecosystem::python::{normalize_py, parse_python_lock, parse_python_manife
 pub use ecosystem::ruby::parse_ruby_manifest;
 pub use ecosystem::rust::{parse_rust_lock, parse_rust_manifest};
 pub use ecosystem::{normalize_lower, normalize_snake, parse_paren_lock};
-pub use exceptions::parse_exceptions;
 pub use missing::{find_missing, find_missing_go, MissingDep};
-pub use types::{
-    DepInfo, DepcheckError, Ecosystem, Exception, LockVersions, Usage, WorkspaceLocks,
-};
+pub use types::{DepInfo, DepcheckError, Ecosystem, LockVersions, Usage, WorkspaceLocks};
 pub use unused::{declared, find_unused, DeclaredDep, UnusedDep};
 pub use usage::{cmd_usage, find_usages, is_test_file};
 pub use version::satisfies_for;

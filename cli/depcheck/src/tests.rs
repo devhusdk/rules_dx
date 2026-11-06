@@ -44,8 +44,8 @@ fn normalizes_match_python() {
 }
 
 #[test]
-fn exception_keys_per_ecosystem() {
-    use crate::exceptions::normalize_exception_key;
+fn dep_keys_per_ecosystem() {
+    use crate::dep_key::normalize_dep_key;
     for (eco, want) in [
         (Ecosystem::Python, "foo_bar_baz"),
         (Ecosystem::Rust, "foo-bar.baz"),
@@ -60,7 +60,7 @@ fn exception_keys_per_ecosystem() {
         (Ecosystem::Cc, "foo_bar.baz"),
         (Ecosystem::Ruby, "foo-bar.baz"),
     ] {
-        assert_eq!(normalize_exception_key(eco, "Foo-Bar.Baz"), want, "{eco:?}");
+        assert_eq!(normalize_dep_key(eco, "Foo-Bar.Baz"), want, "{eco:?}");
     }
 }
 
@@ -445,19 +445,6 @@ fn cc_manifest_and_lock() {
 }
 
 #[test]
-fn exceptions_require_reason_shape() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let exc = dir.path().join("depcheck_exceptions.toml");
-    write_file(
-        &exc,
-        "[[exception]]\ndependency = \"build-plugin\"\nreason = \"codegen\"\n",
-    );
-    let parsed = parse_exceptions(Some(&exc)).expect("parse");
-    assert_eq!(parsed["build_plugin"].reason, "codegen");
-    assert!(parse_exceptions(None).expect("none").is_empty());
-}
-
-#[test]
 fn test_file_detection_per_eco() {
     assert!(is_test_file(Ecosystem::Rust, Path::new("a/tests/foo.rs")));
     assert!(is_test_file(Ecosystem::Python, Path::new("a/test_foo.py")));
@@ -749,19 +736,13 @@ fn consistency(eco: Ecosystem, case: &str) -> i32 {
     cmd_consistency(eco, &man, &lock, &mut out, &mut err)
 }
 
-fn usage(eco: Ecosystem, case: &str, with_exc: bool) -> (i32, String) {
+fn usage(eco: Ecosystem, case: &str) -> (i32, String) {
     let root = testdata_root();
     let base = root.join(eco_dir(eco)).join(case);
     let man = base.join(manifest_name(eco));
-    let exc = base.join("depcheck_exceptions.toml");
-    let exc_opt = if with_exc && exc.exists() {
-        Some(exc)
-    } else {
-        None
-    };
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_usage(eco, &man, &base, exc_opt.as_deref(), &mut out, &mut err);
+    let code = cmd_usage(eco, &man, &base, &mut out, &mut err);
     (code, err)
 }
 
@@ -827,49 +808,28 @@ fn parity_usage_truth_table() {
         Ecosystem::Fsharp,
         Ecosystem::Cc,
     ] {
-        let (ok_code, _) = usage(eco, "ok_used", false);
+        let (ok_code, _) = usage(eco, "ok_used");
         assert_eq!(ok_code, 0, "{:?} ok_used usage", eco);
-        let (stale_code, _) = usage(eco, "stale", false);
+        let (stale_code, _) = usage(eco, "stale");
         assert_eq!(stale_code, 0, "{:?} stale usage", eco);
-        let (unused_code, _) = usage(eco, "unused", false);
+        let (unused_code, _) = usage(eco, "unused");
         assert_eq!(unused_code, 1, "{:?} unused usage", eco);
-        let (trans_code, _) = usage(eco, "transitive_shared", false);
+        let (trans_code, _) = usage(eco, "transitive_shared");
         assert_eq!(trans_code, 0, "{:?} transitive usage", eco);
-        let (exc_code, _) = usage(eco, "exception", true);
-        assert_eq!(exc_code, 0, "{:?} exception usage", eco);
-        let (obs_code, _) = usage(eco, "obsolete", true);
-        assert_eq!(obs_code, 1, "{:?} obsolete usage", eco);
-        let (plat_code, _) = usage(eco, "platform_optional", false);
+        let (plat_code, _) = usage(eco, "platform_optional");
         assert_eq!(plat_code, 0, "{:?} platform usage", eco);
-        let (plat_unused_code, _) = usage(eco, "platform_optional_unused", false);
+        let (plat_unused_code, _) = usage(eco, "platform_optional_unused");
         assert_eq!(plat_unused_code, 1, "{:?} platform unused", eco);
-        let (cat_code, cat_err) = usage(eco, "category", false);
+        let (cat_code, cat_err) = usage(eco, "category");
         assert_eq!(cat_code, 1, "{:?} category usage", eco);
         assert!(
             cat_err.contains("category error"),
             "{:?} category error text: {cat_err}",
             eco
         );
-        let (cat_ok_code, _) = usage(eco, "category_ok", false);
+        let (cat_ok_code, _) = usage(eco, "category_ok");
         assert_eq!(cat_ok_code, 0, "{:?} category_ok usage", eco);
     }
-}
-
-#[test]
-fn parity_usage_missing_reason_and_obsolete() {
-    let root = testdata_root();
-    let base = root.join("rust/exception");
-    let man = base.join("Cargo.toml");
-    let dir = tempfile::tempdir().expect("scratch");
-    let exc = dir.path().join("depcheck_exceptions.toml");
-    write_file(
-        &exc,
-        "[[exception]]\ndependency = \"build-plugin\"\nreason = \"\"\n",
-    );
-    let mut out = String::new();
-    let mut err = String::new();
-    let code = cmd_usage(Ecosystem::Rust, &man, &base, Some(&exc), &mut out, &mut err);
-    assert_eq!(code, 1);
 }
 
 #[test]
@@ -1643,18 +1603,6 @@ fn parser_error_paths_are_typed() {
         err.to_string().contains("cc dep entry without name"),
         "{err}"
     );
-
-    let err = parse_exceptions(Some(&dir.path().join("MISSING.toml"))).expect_err("missing file");
-    assert!(err.to_string().contains("exceptions file missing"), "{err}");
-
-    let exc = dir.path().join("depcheck_exceptions.toml");
-    write_file(&exc, "[[exception]]\nreason = \"because\"\n");
-    let err = parse_exceptions(Some(&exc)).expect_err("missing dependency");
-    assert!(
-        err.to_string()
-            .contains("exception entry without dependency"),
-        "{err}"
-    );
 }
 
 #[test]
@@ -1677,32 +1625,6 @@ fn parsers_skip_unrecognized_lines() {
     let deps = parse_ruby_manifest(&gemfile).expect("parse");
     assert_eq!(deps.len(), 1);
     assert_eq!(deps["rake"].spec, "1.0.0");
-}
-
-#[test]
-fn ruby_usage_normalizes_exceptions() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let gemfile = dir.path().join("Gemfile");
-    write_file(
-        &gemfile,
-        "source \"https://rubygems.org\"\n\ngem \"rspec\", \"3.13.0\"\n",
-    );
-    let exc = dir.path().join("depcheck_exceptions.toml");
-    write_file(
-        &exc,
-        "[[exception]]\ndependency = \"rspec\"\nreason = \"unused in fixtures\"\n",
-    );
-    let mut out = String::new();
-    let mut err = String::new();
-    let code = cmd_usage(
-        Ecosystem::Ruby,
-        &gemfile,
-        dir.path(),
-        Some(&exc),
-        &mut out,
-        &mut err,
-    );
-    assert_eq!(code, 0, "{err}");
 }
 
 #[test]
@@ -1899,7 +1821,7 @@ fn usage_matches_renamed_crate_by_alias() {
     write_file(&dir.path().join("src/lib.rs"), "use json::Value;\n");
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_usage(Ecosystem::Rust, &man, dir.path(), None, &mut out, &mut err);
+    let code = cmd_usage(Ecosystem::Rust, &man, dir.path(), &mut out, &mut err);
     assert_eq!(code, 0, "{err}");
 }
 
@@ -2011,7 +1933,6 @@ fn usage_cmd_error_paths() {
         Ecosystem::Rust,
         &dir.path().join("MISSING.toml"),
         &src,
-        None,
         &mut out,
         &mut err,
     );
@@ -2023,7 +1944,6 @@ fn usage_cmd_error_paths() {
         Ecosystem::Rust,
         &man,
         &dir.path().join("MISSING_DIR"),
-        None,
         &mut out,
         &mut err,
     );
@@ -2033,22 +1953,9 @@ fn usage_cmd_error_paths() {
     err.clear();
     let bad = dir.path().join("bad.toml");
     write_file(&bad, "not = [valid");
-    let code = cmd_usage(Ecosystem::Rust, &bad, &src, None, &mut out, &mut err);
+    let code = cmd_usage(Ecosystem::Rust, &bad, &src, &mut out, &mut err);
     assert_eq!(code, 2);
     assert!(err.contains("unreadable manifest"), "{err}");
-
-    err.clear();
-    let missing_exc = dir.path().join("MISSING_exceptions.toml");
-    let code = cmd_usage(
-        Ecosystem::Rust,
-        &man,
-        &src,
-        Some(&missing_exc),
-        &mut out,
-        &mut err,
-    );
-    assert_eq!(code, 2);
-    assert!(err.contains("exceptions file missing"), "{err}");
 }
 
 #[test]
@@ -2068,7 +1975,6 @@ fn usage_rust_build_only_is_category_error() {
         Ecosystem::Rust,
         &dir.path().join("Cargo.toml"),
         dir.path(),
-        None,
         &mut out,
         &mut err,
     );
@@ -2092,7 +1998,6 @@ fn usage_rust_prod_and_dev_dep_used_only_by_tests() {
             Ecosystem::Rust,
             &dir.path().join("Cargo.toml"),
             dir.path(),
-            None,
             &mut out,
             &mut err,
         );
@@ -2117,7 +2022,6 @@ fn usage_python_prod_and_dev_dep_used_only_by_tests() {
             Ecosystem::Python,
             &dir.path().join("pyproject.toml"),
             dir.path(),
-            None,
             &mut out,
             &mut err,
         );
@@ -2175,7 +2079,6 @@ fn js_usage(dir: &Path) -> (i32, String) {
         Ecosystem::Js,
         &dir.join("package.json"),
         dir,
-        None,
         &mut out,
         &mut err,
     );

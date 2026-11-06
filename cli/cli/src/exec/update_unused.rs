@@ -185,13 +185,6 @@ fn maven_declared(workspace: &Path, repository: &str) -> Option<Vec<dx_depcheck:
             continue;
         };
         let line = text[..artifact.span.start].matches('\n').count() + 1;
-        if text
-            .lines()
-            .nth(line - 1)
-            .is_some_and(|l| l.contains("# dx-keep"))
-        {
-            continue;
-        }
         let coordinate = format!("{group}:{name}");
         out.push(dx_depcheck::DeclaredDep {
             name: coordinate.clone(),
@@ -264,9 +257,9 @@ fn go_repo_name(module: &str) -> String {
     underscored(&format!("{}/{rest}", parts.join(".")).replace('.', "_")).to_lowercase()
 }
 
-/// Manifest entries named in the deps of a target tagged `dx-keep`, for sets without a hub
-/// to query (go, ruby, cc).
-fn tagged_deps(
+/// Manifest entries named in the deps of any target, for sets without a hub to query (go, ruby,
+/// cc).
+fn named_in_deps(
     target: &ResolvedTarget,
     eco: dx_depcheck::Ecosystem,
     manifest: &Path,
@@ -274,7 +267,7 @@ fn tagged_deps(
     query: &dyn QueryRunner,
     startup: &[String],
 ) -> Vec<String> {
-    let expression = "deps(attr(tags, \"dx-keep\", //...), 1)";
+    let expression = "deps(//..., 1)";
     let Ok(labels) = run_label_query_file(expression, expression, workspace, query, startup) else {
         return Vec::new();
     };
@@ -327,7 +320,7 @@ pub(super) fn find(
                     eco,
                     &path,
                     root,
-                    &tagged_deps(target, eco, &path, workspace, query, startup),
+                    &named_in_deps(target, eco, &path, workspace, query, startup),
                 ) {
                     Ok(found) => found,
                     Err(_) => continue,
@@ -733,7 +726,7 @@ mod tests {
     }
 
     #[test]
-    fn graph_keeps_a_build_script_crate_and_dx_keep_silences() {
+    fn graph_keeps_a_build_script_crate() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
         let manifest = "[package]\nname = \"x\"\n\n[dependencies]\ncc = \"1\"\nregex = \"1\"\n";
@@ -742,9 +735,6 @@ mod tests {
         let found = find(root, &resolved, &query, &[]);
         let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
         assert_eq!(names, ["regex"]);
-        let kept = manifest.replace("regex = \"1\"", "regex = \"1\" # dx-keep");
-        let resolved = cargo_set(root, &kept);
-        assert!(find(root, &resolved, &query, &[]).is_empty());
     }
 
     fn unused_names(root: &Path, resolved: &[ResolvedTarget], labels: &'static str) -> Vec<String> {
@@ -891,7 +881,7 @@ mod tests {
     }
 
     #[test]
-    fn a_dx_keep_target_keeps_the_go_modules_it_depends_on() {
+    fn a_target_dep_keeps_the_go_modules_it_names() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
         write(
@@ -907,8 +897,8 @@ mod tests {
                 .collect()
         };
         assert_eq!(names(&NoQuery), ["github.com/a/b", "github.com/c/d"]);
-        let tagged = Labels("@@gazelle++go_deps+com_github_a_b//pkg:pkg\n");
-        assert_eq!(names(&tagged), ["github.com/c/d"]);
+        let named = Labels("@@gazelle++go_deps+com_github_a_b//pkg:pkg\n");
+        assert_eq!(names(&named), ["github.com/c/d"]);
     }
 
     #[test]

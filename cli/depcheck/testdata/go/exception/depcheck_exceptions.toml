@@ -1,3 +1,0 @@
-[[exception]]
-dependency = "example.com/buildplugin"
-reason = "invoked by scripts/run.sh via go run; no Go import exists"

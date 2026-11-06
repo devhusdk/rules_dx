@@ -106,7 +106,6 @@ fn skip_names() -> BTreeSet<&'static str> {
         "cc_lock.json",
         "Gemfile",
         "Gemfile.lock",
-        "depcheck_exceptions.toml",
     ]
     .into_iter()
     .collect()
@@ -377,7 +376,6 @@ pub fn cmd_usage(
     eco: Ecosystem,
     manifest: &Path,
     sources: &Path,
-    exceptions: Option<&Path>,
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
 ) -> i32 {
@@ -407,20 +405,6 @@ pub fn cmd_usage(
     if matches!(eco, Ecosystem::Js | Ecosystem::Ts) {
         deps.retain(|_, v| !v.peer);
     }
-    let exc = match crate::exceptions::parse_exceptions(exceptions) {
-        Ok(exc) => exc,
-        Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
-        }
-    };
-    let mut norm_exc: BTreeMap<String, crate::Exception> = BTreeMap::new();
-    for value in exc.values() {
-        norm_exc.insert(
-            crate::exceptions::normalize_exception_key(eco, &value.raw),
-            value.clone(),
-        );
-    }
     let dep_names: Vec<String> = deps.keys().cloned().collect();
     let usages = match find_usages(eco, sources, &dep_names) {
         Ok(usages) => usages,
@@ -430,39 +414,9 @@ pub fn cmd_usage(
         }
     };
     let mut failures = Vec::new();
-    for (key, value) in &norm_exc {
-        if !deps.contains_key(key) {
-            failures.push(format!(
-                "obsolete exception for removed dependency '{}' (report only, not deleted)",
-                value.raw
-            ));
-        }
-    }
     for (name, info) in &deps {
         let usage = usages.get(name).copied().unwrap_or_default();
         let used_any = usage.src || usage.test || usage.build;
-        let has_exc = norm_exc.contains_key(name);
-        let reason = norm_exc
-            .get(name)
-            .map(|v| v.reason.clone())
-            .unwrap_or_default();
-        if has_exc && reason.is_empty() {
-            failures.push(format!(
-                "exception for '{}' missing reason (each exception needs an explanatory reason)",
-                info.raw
-            ));
-            continue;
-        }
-        if has_exc && used_any {
-            failures.push(format!(
-                "obsolete exception for '{}' (usage recognized; remove the exception)",
-                info.raw
-            ));
-            continue;
-        }
-        if has_exc && !used_any {
-            continue;
-        }
         if used_any {
             if info.category == "prod" && !usage.src && !usage.build && usage.test {
                 failures.push(format!(

@@ -24,20 +24,12 @@ pub enum DepcheckError {
     LockRegex(#[source] regex::Error),
     #[error("unreadable lock: {0}")]
     LockParse(String),
-    #[error("unreadable exceptions: {0}")]
-    ExceptionsIo(#[source] std::io::Error),
-    #[error("unreadable exceptions: {0}")]
-    ExceptionsToml(#[source] toml::de::Error),
     #[error("unreadable sources: {0}")]
     SourcesRegex(#[source] regex::Error),
     #[error("jvm dep entry without group/artifact")]
     JvmEntry,
     #[error("cc dep entry without name")]
     CcEntry,
-    #[error("exception entry without dependency")]
-    ExceptionEntry,
-    #[error("exceptions file missing: {0}")]
-    ExceptionsMissing(String),
     #[error("unreadable manifest: no maven coordinates")]
     NoMavenCoords,
 }
@@ -56,12 +48,6 @@ pub struct DepInfo {
     pub sha256: String,
     /// Lock name when the dependency is renamed, empty otherwise.
     pub package: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Exception {
-    pub raw: String,
-    pub reason: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

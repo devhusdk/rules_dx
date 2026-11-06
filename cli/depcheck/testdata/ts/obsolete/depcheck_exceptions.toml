@@ -1,7 +1,0 @@
-[[exception]]
-dependency = "removed-dep"
-reason = "was a dynamic plugin before removal"
-
-[[exception]]
-dependency = "jest"
-reason = "stale: usage is now recognized"

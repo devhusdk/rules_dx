@@ -1,3 +1,0 @@
-[[exception]]
-dependency = "BuildPlugin"
-reason = "invoked by build script; no using directive exists"

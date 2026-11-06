@@ -1,5 +1,0 @@
-# Narrow dependency-scoped exception with an explanatory reason.
-# build-plugin has no import in normal sources (build.rs codegen only).
-[[exception]]
-dependency = "build-plugin"
-reason = "invoked by build.rs codegen; no Rust import exists"

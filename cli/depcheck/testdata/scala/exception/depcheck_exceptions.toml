@@ -1,3 +1,0 @@
-[[exception]]
-dependency = "example:buildplugin"
-reason = "invoked by build script codegen; no JVM import exists"

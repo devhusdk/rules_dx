@@ -92,15 +92,7 @@ pub fn find_missing_go(
             .to_string_lossy()
             .replace('\\', "/");
         let text = String::from_utf8_lossy(&bytes);
-        let lines: Vec<&str> = text.lines().collect();
         for (line, import) in go_imports(&text)? {
-            let kept = lines
-                .get(line - 1)
-                .and_then(|l| l.split_once("//"))
-                .is_some_and(|(_, comment)| comment.trim_start().starts_with("dx-keep"));
-            if kept {
-                continue;
-            }
             let first = import.split('/').next().unwrap_or("");
             let declared = !first.contains('.')
                 || covers(&file.module, &import)
@@ -173,7 +165,7 @@ pub fn find_missing(
     excepted: &[String],
 ) -> Result<Vec<MissingDep>, DepcheckError> {
     let declared = crate::consistency::load_manifest(eco, manifest)?;
-    let key = |name: &str| crate::exceptions::normalize_exception_key(eco, name);
+    let key = |name: &str| crate::dep_key::normalize_dep_key(eco, name);
     let excepted: BTreeSet<String> = excepted.iter().map(|name| key(name)).collect();
     let mut candidates: Vec<String> = lock_packages(eco, lock)?
         .into_iter()
@@ -218,7 +210,7 @@ mod tests {
         write(
             dir.path(),
             "main.go",
-            "package main\n\nimport (\n\t\"fmt\"\n\t\"example.com/app/util\"\n\tx \"github.com/a/b/sub\"\n\t\"github.com/c/d\"\n)\n\nimport \"github.com/e/f\"\n\nimport _ \"github.com/i/j\" // dx-keep\n",
+            "package main\n\nimport (\n\t\"fmt\"\n\t\"example.com/app/util\"\n\tx \"github.com/a/b/sub\"\n\t\"github.com/c/d\"\n)\n\nimport \"github.com/e/f\"\n",
         );
         write(dir.path(), "nested/go.mod", "module example.com/nested\n");
         write(

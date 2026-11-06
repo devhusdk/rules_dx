@@ -1,4 +1,0 @@
-# build-plugin is invoked by scripts/run.sh (subprocess, no import).
-[[exception]]
-dependency = "build-plugin"
-reason = "invoked by scripts/run.sh via subprocess; no Python import exists"

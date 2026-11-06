@@ -1,3 +1,0 @@
-[[exception]]
-dependency = "build-plugin"
-reason = "invoked by build script codegen; no C++ include exists"

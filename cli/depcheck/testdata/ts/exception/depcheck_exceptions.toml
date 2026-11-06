@@ -1,4 +1,0 @@
-# build-plugin has no import (jest-config codegen only).
-[[exception]]
-dependency = "build-plugin"
-reason = "invoked via jest config; no JS import exists"

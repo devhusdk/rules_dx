@@ -40,8 +40,6 @@ enum Command {
         manifest: PathBuf,
         #[arg(long)]
         sources: PathBuf,
-        #[arg(long)]
-        exceptions: Option<PathBuf>,
     },
     Locks {
         #[arg(long)]
@@ -107,18 +105,10 @@ where
             ecosystem,
             manifest,
             sources,
-            exceptions,
         } => {
             let mut out = String::new();
             let mut err = String::new();
-            let code = dx_depcheck::cmd_usage(
-                ecosystem,
-                &manifest,
-                &sources,
-                exceptions.as_deref(),
-                &mut out,
-                &mut err,
-            );
+            let code = dx_depcheck::cmd_usage(ecosystem, &manifest, &sources, &mut out, &mut err);
             emit(&out, &err);
             code
         }
@@ -248,19 +238,6 @@ mod tests {
             "--ecosystem=rust",
             "--manifest=/nonexistent/Cargo.toml",
             "--lock=/nonexistent/Cargo.lock",
-        ]);
-        assert_eq!(code, 2);
-    }
-
-    #[test]
-    fn usage_dispatch_accepts_the_optional_exceptions_flag() {
-        let code = run_from([
-            "depcheck",
-            "usage",
-            "--ecosystem=python",
-            "--manifest=/nonexistent/pyproject.toml",
-            "--sources=/nonexistent",
-            "--exceptions=/nonexistent/exceptions.toml",
         ]);
         assert_eq!(code, 2);
     }

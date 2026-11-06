@@ -1729,6 +1729,8 @@ fn run_all(
         expect: Expect::Pass,
     })?;
     if !coverage.is_empty() {
+        let mut fetched = coverage.clone();
+        fetched.push(format!("@{}//dx:generate_check", session.manifest.repo_name));
         session.run(Probe {
             name: "fetch_coverage".to_owned(),
             net: Net::Allowed,
@@ -1736,7 +1738,7 @@ fn run_all(
             output_root: &cold,
             repos: &repos,
             command: "build",
-            targets: coverage.clone(),
+            targets: fetched,
             extra: vec![
                 "--nobuild".to_owned(),
                 "--collect_code_coverage".to_owned(),

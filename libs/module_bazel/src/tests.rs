@@ -1215,6 +1215,18 @@ fn opam_packages_follow_the_ocaml_extension() {
 }
 
 #[test]
+fn haskell_packages_follow_the_haskell_extension() {
+    let file = parse("haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.packages(name = \"hackage\", deps = \"//app:haskell_deps.json\")\n");
+    let found: Vec<_> = file
+        .haskell_packages()
+        .expect("packages")
+        .iter()
+        .map(|entry| (entry.name, entry.deps))
+        .collect();
+    assert_eq!(found, [("hackage", "//app:haskell_deps.json")]);
+}
+
+#[test]
 fn paket_extensions_are_main_repository_paket_loaders() {
     let file = parse("paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\nmain = use_extension(\"//deps:paket.main_extension.bzl\", \"main_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:extension.bzl\", \"paket\")\n");
     assert_eq!(

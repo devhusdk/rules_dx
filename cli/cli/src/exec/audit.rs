@@ -518,6 +518,12 @@ fn parse_locked_for_configured(
                 }
                 _ => Ok(Vec::new()),
             },
+            dx_adopt::dependency_sets::Ecosystem::Cabal => match rel.rsplit('/').next() {
+                Some(dx_adopt::dependency_sets::CABAL_FREEZE) => {
+                    dx_audit::locks::parse_cabal_freeze(text)
+                }
+                _ => Ok(Vec::new()),
+            },
             dx_adopt::dependency_sets::Ecosystem::Opam => dx_audit::locks::parse_opam_locked(text),
             dx_adopt::dependency_sets::Ecosystem::SwiftPm => {
                 dx_audit::locks::parse_package_resolved(text)

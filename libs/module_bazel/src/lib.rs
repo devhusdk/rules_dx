@@ -284,6 +284,14 @@ pub struct SwiftPackage<'a> {
     pub line: usize,
 }
 
+/// One `haskell.packages` tag.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HaskellPackages<'a> {
+    pub name: &'a str,
+    pub deps: &'a str,
+    pub line: usize,
+}
+
 /// One `pub.from_lock` tag of rules_dart or `flutter.pub` tag of rules_flutter.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PubLock<'a> {
@@ -967,6 +975,31 @@ impl ModuleFile {
             Ok(OpamPackages {
                 name: required(call, TAG, "name")?,
                 lock: required(call, TAG, "lock")?,
+                line: call.line,
+            })
+        })
+        .collect()
+    }
+
+    /// Every `haskell.packages` tag of this repository's Haskell extension in source order.
+    pub fn haskell_packages(&self) -> Result<Vec<HaskellPackages<'_>>, ModuleError> {
+        const TAG: &str = "haskell.packages";
+        let own = self.tags_of(
+            "//haskell/toolchain:repos.bzl".to_owned(),
+            "haskell",
+            "packages",
+        );
+        self.tags(
+            RUBY_MODULE,
+            "haskell/toolchain:repos.bzl",
+            "haskell",
+            "packages",
+        )
+        .chain(own)
+        .map(|call| {
+            Ok(HaskellPackages {
+                name: required(call, TAG, "name")?,
+                deps: required(call, TAG, "deps")?,
                 line: call.line,
             })
         })

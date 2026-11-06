@@ -6,7 +6,6 @@ const UNOWNED_NAMES: &[(&str, &str)] = &[
     ("rebar.lock", "hex"),
     ("pubspec.lock", "pub"),
     ("composer.lock", "composer"),
-    ("cabal.project.freeze", "hackage"),
     ("stack.yaml.lock", "hackage"),
     ("opam.locked", "opam"),
     ("cpanfile.snapshot", "cpan"),

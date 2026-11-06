@@ -703,6 +703,34 @@ pub fn plan_configured(
             }
             Ok(BackendPlan::Sequence(runs))
         }
+        (Ecosystem::Cabal, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let Some(resolve) =
+                dependency_sets::julia_target_label(workspace, set, "haskell_deps_resolve")
+            else {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: "add a haskell_deps_resolve next to cabal.project; it keeps cabal.project.freeze and haskell_deps.json in step",
+                });
+            };
+            Ok(BackendPlan::Run {
+                argv: bazel(head, "run", &[resolve.as_str()]),
+                env: Vec::new(),
+            })
+        }
+        (Ecosystem::Cabal, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "haskell_deps_resolve resolves the whole cabal project again; select the set without a package",
+        }),
         (Ecosystem::Julia, request) => {
             if offline {
                 return Err(BackendError::OfflineRequired {
@@ -985,6 +1013,29 @@ pub fn check_configured(
         (Ecosystem::Composer, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: "composer validates the whole composer.lock; select the set without a package",
+        }),
+        (Ecosystem::Cabal, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            let Some(test) =
+                dependency_sets::julia_target_label(workspace, set, "haskell_deps_resolve_test")
+            else {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: "add a haskell_deps_resolve_test next to cabal.project; dx checks the set by running it",
+                });
+            };
+            Ok(CheckPlan::Run {
+                argv: bazel(head, "test", &[test.as_str()]),
+                env: Vec::new(),
+            })
+        }
+        (Ecosystem::Cabal, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "haskell_deps_resolve_test checks the whole cabal project; select the set without a package",
         }),
         (Ecosystem::Julia, Selection::Full) => {
             if offline {
@@ -2049,6 +2100,86 @@ mod tests {
             check(dir.path(), &Selection::Full, true),
             Err(BackendError::OfflineRequired { .. })
         ));
+    }
+
+    fn cabal_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "hackage".to_owned(),
+            ecosystem: Ecosystem::Cabal,
+            dir: "hs".to_owned(),
+            manifests: vec!["hs/cabal.project".to_owned()],
+            locks: vec![
+                "hs/cabal.project.freeze".to_owned(),
+                "hs/haskell_deps.json".to_owned(),
+            ],
+            repository: None,
+        }
+    }
+
+    const CABAL_BUILD: &str = "haskell_deps_resolve(name = \"resolve\")\nhaskell_deps_resolve_test(name = \"resolve_test\")\n";
+
+    #[test]
+    fn cabal_update_runs_the_resolve_target() {
+        let dir = dx_test_scratch::scratch("cabal_backend");
+        dx_test_scratch::write(dir.path(), "hs/BUILD.bazel", CABAL_BUILD);
+        let plan = |request: &Selection, offline: bool, frozen: bool| {
+            plan_configured(
+                dir.path(),
+                &cabal_set(),
+                request,
+                offline,
+                frozen,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        let BackendPlan::Run { argv, .. } = plan(&Selection::Full, false, false).expect("plan")
+        else {
+            panic!("expected a run");
+        };
+        assert_eq!(argv.last().map(String::as_str), Some("//hs:resolve"));
+        assert!(matches!(
+            plan(&Selection::Full, true, false),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+        assert!(matches!(
+            plan(&Selection::Full, false, true),
+            Err(BackendError::FrozenLocked { .. })
+        ));
+        assert!(plan(&Selection::Packages(vec!["safe".to_owned()]), false, false).is_err());
+    }
+
+    #[test]
+    fn cabal_check_runs_the_resolve_test() {
+        let dir = dx_test_scratch::scratch("cabal_backend_check");
+        dx_test_scratch::write(dir.path(), "hs/BUILD.bazel", CABAL_BUILD);
+        let CheckPlan::Run { argv, .. } = check_configured(
+            dir.path(),
+            &cabal_set(),
+            &Selection::Full,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect("plan") else {
+            panic!("expected a run");
+        };
+        assert_eq!(argv.last().map(String::as_str), Some("//hs:resolve_test"));
+        let bare = dx_test_scratch::scratch("cabal_backend_bare");
+        let error = check_configured(
+            bare.path(),
+            &cabal_set(),
+            &Selection::Full,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect_err("refused");
+        assert!(error
+            .to_string()
+            .contains("add a haskell_deps_resolve_test"));
     }
 
     fn pub_set() -> ResolvedSet {

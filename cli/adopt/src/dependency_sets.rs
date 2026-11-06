@@ -35,8 +35,10 @@ pub const ECOSYSTEM_OPAM: &str = "opam";
 
 pub const ECOSYSTEM_SWIFTPM: &str = "swiftpm";
 
+pub const ECOSYSTEM_CABAL: &str = "cabal";
+
 pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm";
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -77,6 +79,10 @@ pub const PACKAGE_SWIFT: &str = "Package.swift";
 
 pub const PACKAGE_RESOLVED: &str = "Package.resolved";
 
+pub const CABAL_PROJECT: &str = "cabal.project";
+
+pub const CABAL_FREEZE: &str = "cabal.project.freeze";
+
 pub const PAKET_LOCK: &str = "paket.lock";
 
 pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
@@ -108,6 +114,7 @@ pub enum Ecosystem {
     Composer,
     Opam,
     SwiftPm,
+    Cabal,
 }
 
 impl Ecosystem {
@@ -129,6 +136,7 @@ impl Ecosystem {
             Ecosystem::Hex => ECOSYSTEM_HEX,
             Ecosystem::Composer => ECOSYSTEM_COMPOSER,
             Ecosystem::Opam => ECOSYSTEM_OPAM,
+            Ecosystem::Cabal => ECOSYSTEM_CABAL,
             Ecosystem::SwiftPm => ECOSYSTEM_SWIFTPM,
         }
     }
@@ -151,6 +159,7 @@ impl Ecosystem {
             ECOSYSTEM_HEX => Some(Ecosystem::Hex),
             ECOSYSTEM_COMPOSER => Some(Ecosystem::Composer),
             ECOSYSTEM_OPAM => Some(Ecosystem::Opam),
+            ECOSYSTEM_CABAL => Some(Ecosystem::Cabal),
             ECOSYSTEM_SWIFTPM => Some(Ecosystem::SwiftPm),
             _ => None,
         }
@@ -174,7 +183,8 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Opam
-            | Ecosystem::SwiftPm => "pinned",
+            | Ecosystem::SwiftPm
+            | Ecosystem::Cabal => "pinned",
         }
     }
 
@@ -196,7 +206,8 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Opam
-            | Ecosystem::SwiftPm => "pinned",
+            | Ecosystem::SwiftPm
+            | Ecosystem::Cabal => "pinned",
         }
     }
 
@@ -232,7 +243,8 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Opam
-            | Ecosystem::SwiftPm => "audit",
+            | Ecosystem::SwiftPm
+            | Ecosystem::Cabal => "audit",
         }
     }
 
@@ -252,6 +264,7 @@ impl Ecosystem {
             Ecosystem::Hex => Some("hex"),
             Ecosystem::Composer => Some("packagist"),
             Ecosystem::Opam => Some("opam"),
+            Ecosystem::Cabal => Some("hackage"),
             Ecosystem::SwiftPm => Some("swifturl"),
             Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Conan => None,
         }
@@ -276,6 +289,7 @@ impl Ecosystem {
             Ecosystem::Hex => MIX_EXS,
             Ecosystem::Composer => COMPOSER_JSON,
             Ecosystem::Opam => "<name>.opam",
+            Ecosystem::Cabal => CABAL_PROJECT,
             Ecosystem::SwiftPm => PACKAGE_SWIFT,
         }
     }
@@ -298,7 +312,8 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Opam
-            | Ecosystem::SwiftPm => false,
+            | Ecosystem::SwiftPm
+            | Ecosystem::Cabal => false,
         }
     }
 }
@@ -440,6 +455,12 @@ pub enum DependencySetsError {
     },
     #[error("dependency set {name:?} has a stale {lock}: {detail}; regenerate the digests for composer.lock")]
     StaleComposerLock {
+        name: String,
+        lock: String,
+        detail: String,
+    },
+    #[error("dependency set {name:?} has a stale {lock}: {detail}; run the haskell_deps_resolve target next to cabal.project")]
+    StaleCabalLock {
         name: String,
         lock: String,
         detail: String,
@@ -626,6 +647,16 @@ pub fn discover(
                 Ecosystem::Opam,
                 vec![manifest],
                 vec![lock],
+            )?);
+        }
+        for haskell in module.haskell_packages().map_err(hub)? {
+            let deps = path(haskell.deps)?;
+            let dir = manifest_dir(std::slice::from_ref(&deps));
+            sets.push(hub_set(
+                haskell.name,
+                Ecosystem::Cabal,
+                vec![in_dir(&dir, CABAL_PROJECT)],
+                vec![in_dir(&dir, CABAL_FREEZE), deps],
             )?);
         }
         for label in module.conan_extensions() {
@@ -1001,6 +1032,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Hex
         | Ecosystem::Composer
         | Ecosystem::Opam
+        | Ecosystem::Cabal
         | Ecosystem::SwiftPm
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
@@ -1392,6 +1424,7 @@ pub fn check_backend_settings(
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
         Ecosystem::Opam => check_opam_layout(set),
+        Ecosystem::Cabal => check_cabal_layout(workspace, set),
         Ecosystem::SwiftPm => check_pinned_lock(set, PACKAGE_RESOLVED),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
@@ -1401,6 +1434,54 @@ pub fn check_backend_settings(
         Ecosystem::Nuget => check_nuget_layout(workspace, set),
         Ecosystem::Go => check_go_layout(workspace, set),
     }
+}
+
+/// A cabal set keeps `cabal.project.freeze` and `haskell_deps.json` on the same versions.
+fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    check_pinned_lock(set, CABAL_FREEZE)?;
+    let Some(sidecar) = set.locks.iter().find(|lock| lock.ends_with(".json")) else {
+        return Ok(());
+    };
+    let stale = |detail: String| DependencySetsError::StaleCabalLock {
+        name: set.name.clone(),
+        lock: sidecar.clone(),
+        detail,
+    };
+    let freeze = in_dir(&set.dir, CABAL_FREEZE);
+    let read = |file: &str| {
+        std::fs::read_to_string(workspace.join(file))
+            .map_err(|error| stale(format!("cannot read {file}: {error}")))
+    };
+    let freeze_text = read(&freeze)?;
+    let json: serde_json::Value = serde_json::from_str(&read(sidecar)?)
+        .map_err(|error| stale(format!("cannot parse it: {error}")))?;
+    let pinned: std::collections::BTreeSet<String> = freeze_text
+        .replace("constraints:", ",")
+        .split([',', '\n'])
+        .filter_map(|entry| {
+            let (name, version) = entry.trim().strip_prefix("any.")?.split_once(" ==")?;
+            Some(format!("{name} {}", version.trim()))
+        })
+        .collect();
+    let packages = json
+        .get("packages")
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    for package in packages {
+        let (Some(name), Some(version)) = (
+            package.get("name").and_then(serde_json::Value::as_str),
+            package.get("version").and_then(serde_json::Value::as_str),
+        ) else {
+            continue;
+        };
+        if !pinned.contains(&format!("{name} {version}")) {
+            return Err(stale(format!(
+                "it has {name} {version}, but {freeze} does not"
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// The `.json` lock `cpan.install` reads, beside `cpanfile.snapshot`.
@@ -2308,6 +2389,55 @@ mod tests {
     }
 
     #[test]
+    fn haskell_packages_become_cabal_sets() {
+        let module = "haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.packages(name = \"hackage\", deps = \"//third_party:haskell_deps.json\")\n";
+        let registry = found(module, &[]);
+        let set = registry.find("hackage").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Cabal);
+        assert_eq!(set.manifests, ["third_party/cabal.project"]);
+        assert_eq!(
+            set.locks,
+            [
+                "third_party/cabal.project.freeze",
+                "third_party/haskell_deps.json"
+            ]
+        );
+    }
+
+    #[test]
+    fn cabal_layout_compares_freeze_and_sidecar_versions() {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-cabal-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("hs")).expect("dir");
+        std::fs::write(
+            root.join("hs/cabal.project.freeze"),
+            "constraints: any.base ==4.20.2.0,\n             any.safe ==0.3.21\nindex-state: hackage.haskell.org 2026-09-30T23:43:34Z\n",
+        )
+        .expect("freeze");
+        let sidecar = |safe: &str| {
+            format!("{{\"packages\":[{{\"name\":\"base\",\"version\":\"4.20.2.0\"}},{{\"name\":\"safe\",\"version\":\"{safe}\"}}]}}")
+        };
+        let set = ResolvedSet {
+            name: "hackage".to_owned(),
+            ecosystem: Ecosystem::Cabal,
+            dir: "hs".to_owned(),
+            manifests: vec!["hs/cabal.project".to_owned()],
+            locks: vec![
+                "hs/cabal.project.freeze".to_owned(),
+                "hs/haskell_deps.json".to_owned(),
+            ],
+            repository: None,
+        };
+        std::fs::write(root.join("hs/haskell_deps.json"), sidecar("0.3.21")).expect("sidecar");
+        assert!(check_cabal_layout(root, &set).is_ok());
+        std::fs::write(root.join("hs/haskell_deps.json"), sidecar("0.3.20")).expect("sidecar");
+        let message = check_cabal_layout(root, &set)
+            .expect_err("stale")
+            .to_string();
+        assert!(message.contains("safe 0.3.20"), "{message}");
+    }
+
+    #[test]
     fn cpan_installs_become_cpan_sets() {
         let module = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_cpan\", lock = \"//perl/tools:cpanfile.snapshot.lock.json\")\n";
         let registry = discover(module, &|_: &str| Err("none".to_owned()))
@@ -3079,7 +3209,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal"
         );
     }
 

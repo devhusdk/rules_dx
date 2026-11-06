@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -96,8 +97,8 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		t.Errorf("test srcs = %q", got)
 	}
 	testImports := importNames(t, result.Imports[2])
-	if strings.Join(testImports, ",") != "helper" {
-		t.Errorf("test imports = %+v, want [helper] (stub_only_dep ignored)", testImports)
+	if strings.Join(testImports, ",") != "helper,pytest" {
+		t.Errorf("test imports = %+v, want [helper pytest] (stub_only_dep ignored)", testImports)
 	}
 	libImports := importNames(t, result.Imports[0])
 	if strings.Join(libImports, ",") != "helper,helper.suffix" {
@@ -756,7 +757,7 @@ func TestGeneratePackageLibrary(t *testing.T) {
 	if got := strings.Join(importNames(t, result.Imports[0]), ","); got != want {
 		t.Errorf("library refs = %q, want %q", got, want)
 	}
-	if got := strings.Join(importNames(t, result.Imports[1]), ","); got != "pkg.demo.core" {
+	if got := strings.Join(importNames(t, result.Imports[1]), ","); got != "pkg.demo.core,pytest" {
 		t.Errorf("test refs = %q", got)
 	}
 }
@@ -803,5 +804,34 @@ func TestGenerateNonASCIIModules(t *testing.T) {
 	want := []string{"utils", "данные", "工具_util", "数据_util"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("targets = %v, want %v", got, want)
+	}
+}
+
+func TestGenerateUnittestFileUsesPlainRunner(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/a_test.py": "import unittest\n\n\nclass A(unittest.TestCase):\n    def test_a(self):\n        pass\n",
+		"pkg/demo/b_test.py": "import unittest\nimport pytest\n\n\nclass B(unittest.TestCase):\n    pass\n",
+		"pkg/demo/c_test.py": "import unittest\n\n\ndef test_c():\n    pass\n",
+		"pkg/demo/d_test.py": "def test_d():\n    pass\n",
+	}, []string{"a_test.py", "b_test.py", "c_test.py", "d_test.py"})
+	runners := map[string]string{}
+	imports := map[string][]string{}
+	for i, r := range result.Gen {
+		runners[r.Name()] = r.AttrString("runner")
+		imports[r.Name()] = importNames(t, result.Imports[i])
+	}
+	want := map[string]string{"a_test": "plain", "b_test": "", "c_test": "", "d_test": ""}
+	for name, runner := range want {
+		if got, ok := runners[name]; !ok || got != runner {
+			t.Errorf("%s runner = %q (present %v), want %q", name, got, ok, runner)
+		}
+	}
+	if slices.Contains(imports["a_test"], "pytest") {
+		t.Errorf("a_test imports = %v, want no pytest", imports["a_test"])
+	}
+	for _, name := range []string{"b_test", "c_test", "d_test"} {
+		if !slices.Contains(imports[name], "pytest") {
+			t.Errorf("%s imports = %v, want pytest", name, imports[name])
+		}
 	}
 }

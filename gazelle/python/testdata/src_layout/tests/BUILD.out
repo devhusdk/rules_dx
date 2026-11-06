@@ -16,5 +16,6 @@ python_test(
     deps = [
         ":conftest",
         "//src/click",
+        "@pypi//pytest",
     ],
 )

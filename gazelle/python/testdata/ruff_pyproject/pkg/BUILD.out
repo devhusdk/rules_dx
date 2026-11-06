@@ -8,6 +8,7 @@ python_library(
         "//:ruff_config",
     ],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_test(
@@ -15,5 +16,8 @@ python_test(
     srcs = ["lib_test.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
-    deps = [":lib"],
+    deps = [
+        ":lib",
+        "@pypi//pytest",
+    ],
 )

@@ -31,5 +31,8 @@ python_test(
         "helper_test.pyi",
     ],
     imports = ["."],
-    deps = [":helper"],
+    deps = [
+        ":helper",
+        "@pypi//pytest",
+    ],
 )

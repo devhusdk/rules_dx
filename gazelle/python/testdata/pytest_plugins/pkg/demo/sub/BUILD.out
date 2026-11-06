@@ -23,5 +23,6 @@ python_test(
     deps = [
         ":conftest",
         "//pkg/demo:conftest",
+        "@pypi//pytest",
     ],
 )

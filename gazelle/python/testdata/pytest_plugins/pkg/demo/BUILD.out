@@ -7,7 +7,10 @@ python_test(
     name = "builtin_test",
     srcs = ["builtin_test.py"],
     imports = ["."],
-    deps = [":conftest"],
+    deps = [
+        ":conftest",
+        "@pypi//pytest",
+    ],
 )
 
 python_library(
@@ -44,7 +47,10 @@ python_test(
     name = "local_test",
     srcs = ["local_test.py"],
     imports = ["."],
-    deps = [":conftest"],
+    deps = [
+        ":conftest",
+        "@pypi//pytest",
+    ],
 )
 
 python_test(
@@ -55,6 +61,7 @@ python_test(
         ":conftest",
         ":http_fixtures",
         "//pkg/vendor:mapped",
+        "@pypi//pytest",
     ],
 )
 
@@ -62,5 +69,8 @@ python_test(
     name = "test_prefixed",
     srcs = ["test_prefixed.py"],
     imports = ["."],
-    deps = [":conftest"],
+    deps = [
+        ":conftest",
+        "@pypi//pytest",
+    ],
 )

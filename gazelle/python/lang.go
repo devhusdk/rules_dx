@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -256,6 +257,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		main  string
 		test  bool
 		entry bool
+		plain bool
 		refs  []common.ImportRef
 	}
 	var plans []plan
@@ -299,7 +301,8 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			rep.Fail(common.InPackage(args.Rel), "python: %s: %v", args.Rel, err)
 			continue
 		}
-		plans = append(plans, plan{name: name, srcs: srcs, main: src, test: IsTestFile(src), entry: entry, refs: refs})
+		test := IsTestFile(src)
+		plans = append(plans, plan{name: name, srcs: srcs, main: src, test: test, entry: entry, plain: test && unittestOnly(content), refs: refs})
 	}
 	if rep.Failed() {
 		return language.GenerateResult{}
@@ -326,15 +329,23 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	imports := importsFor(depth)
 	for _, p := range plans {
 		kind := libraryKind
+		p.plain = p.plain && len(conftestDeps) == 0
+		refs := p.refs
 		if p.test {
-			if plain[p.name] {
+			if plain[p.name] && !p.plain {
 				continue
 			}
 			kind = testKind
+			if !p.plain {
+				refs = append(slices.Clone(refs), common.ImportRef{Spec: "pytest", Root: "pytest"})
+			}
 		}
 		r := rule.NewRule(kind, p.name)
 		r.SetAttr("srcs", p.srcs)
 		r.SetAttr("imports", imports)
+		if p.plain {
+			r.SetAttr("runner", "plain")
+		}
 		if p.test && len(conftestDeps) > 0 {
 			r.SetAttr("deps", conftestDeps)
 		}
@@ -342,7 +353,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			r.SetAttr("testonly", true)
 		}
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, common.WrapRefImportSet(mergeRefs(p.refs)))
+		result.Imports = append(result.Imports, common.WrapRefImportSet(mergeRefs(refs)))
 		if p.entry {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("main", p.main)
@@ -364,6 +375,27 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 	}
 	return mergeStale(args.File, result)
+}
+
+var bareTestFunc = regexp.MustCompile(`(?m)^(?:async\s+)?def\s+test`)
+
+// unittestOnly reports whether a test file is plain unittest: it imports
+// unittest and nothing of pytest, and defines no bare test functions.
+func unittestOnly(content []byte) bool {
+	usesUnittest := false
+	for _, imp := range ParseImports(content) {
+		root, _, _ := strings.Cut(imp.Module, ".")
+		if imp.Level > 0 {
+			continue
+		}
+		switch root {
+		case "pytest", "_pytest":
+			return false
+		case "unittest":
+			usesUnittest = true
+		}
+	}
+	return usesUnittest && !bareTestFunc.Match(content)
 }
 
 func conftestLabels(root, rel string, sources []string) []string {

@@ -903,6 +903,30 @@ mod tests {
     }
 
     #[test]
+    fn running_init_twice_changes_nothing_the_second_time() {
+        let scratch = mixed_repo();
+        let root = scratch.path();
+        let extensions = exts(&[".py", ".ts", ".go"]);
+        let first = plan_profile_files(root, &extensions, None);
+        let mut applied = crate::scaffold::Applied::default();
+        crate::scaffold::apply_scaffold(root, &first, &mut applied).expect("first apply");
+        let build = std::fs::read(root.join(".dx/config/BUILD.bazel")).expect("config build");
+        let root_build = std::fs::read(root.join("BUILD.bazel")).expect("root build");
+        let second = plan_profile_files(root, &extensions, None);
+        let mut again = crate::scaffold::Applied::default();
+        crate::scaffold::apply_scaffold(root, &second, &mut again).expect("second apply");
+        assert!(again.refused.is_empty());
+        assert_eq!(
+            std::fs::read(root.join(".dx/config/BUILD.bazel")).expect("config build"),
+            build
+        );
+        assert_eq!(
+            std::fs::read(root.join("BUILD.bazel")).expect("root build"),
+            root_build
+        );
+    }
+
+    #[test]
     fn pyproject_config_gets_no_target() {
         let scratch = dx_test_scratch::scratch("dx-adopt-profiles-");
         std::fs::write(scratch.path().join("pyproject.toml"), "[tool.ruff]\n").expect("pyproject");

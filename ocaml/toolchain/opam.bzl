@@ -101,6 +101,17 @@ def parse_depends(text):
             result[name] = version
     return result
 
+def parse_depend_names(text):
+    """Returns the names in `depends` that a build needs, without test, doc and dev ones."""
+    at = _field(text, "depends:")
+    if at < 0:
+        return []
+    names = []
+    for name, filt in _entries(_scan(text, at, "[", "]")):
+        if not any([term.strip() in SKIPPED_FILTERS for term in filt.split("&")]):
+            names.append(name)
+    return names
+
 def parse_url(text):
     """Returns struct(src, sha256) from the `url` section of an opam file."""
     at = _field(text, "url")
@@ -109,10 +120,13 @@ def parse_url(text):
     body = _scan(text, at, "{", "}")
     src = None
     sha256 = None
+    at_src = body.find("src:")
+    if at_src >= 0:
+        quoted = body[at_src + 4:].split("\"")
+        if len(quoted) > 1:
+            src = quoted[1]
     for line in body.replace("[", "\n").replace("]", "\n").split("\n"):
         line = line.strip()
-        if line.startswith("src:"):
-            src = line[4:].strip().strip("\"")
         for part in line.split("\""):
             if part.startswith("sha256="):
                 sha256 = part[len("sha256="):]

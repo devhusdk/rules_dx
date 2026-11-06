@@ -18,3 +18,8 @@ let () =
   match Ledger.parse "bulb 5000 10\n" with
   | Error (Ledger.Over_limit "bulb") -> ()
   | _ -> fail "an oversized quantity must be over the limit"
+
+let () =
+  match Either.left 1 with
+  | Either.Left 1 -> ()
+  | _ -> fail "a dune package must link into the test"

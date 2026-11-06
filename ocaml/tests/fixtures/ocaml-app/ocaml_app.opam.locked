@@ -3,5 +3,6 @@ name: "ocaml_app"
 version: "0.0.0"
 depends: [
   "astring" {= "0.8.5"}
+  "either" {= "1.0.0"}
   "ocaml" {= "5.5.2"}
 ]

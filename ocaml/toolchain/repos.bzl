@@ -1,9 +1,12 @@
 """Hermetic OCaml acquisition and toolchain registration."""
 
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(":opam.bzl", "is_toolchain_package", "parse_depends", "parse_url")
+load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
 load(
     ":pins.bzl",
+    "DUNE_SHA256",
+    "DUNE_URL",
+    "DUNE_VERSION",
     "OCAML_CELLS",
     "OCAML_VERSION",
     "OPAM_REPOSITORY_SHA256",
@@ -211,6 +214,30 @@ def packages_hub_build(group, packages):
         for package in sorted(packages)
     ])
 
+def dune_package_build(package, library, dune, rule):
+    """Returns the BUILD file that builds one dune package of an opam archive."""
+    return """load("{rule}", "dx_dune_library")
+
+package(default_visibility = ["//visibility:public"])
+
+dx_dune_library(
+    name = "{package}",
+    srcs = glob(["**"], exclude = ["**/BUILD", "**/BUILD.bazel"]),
+    dune = "{dune}",
+    library = "{library}",
+    package = "{package}",
+    workspace = "dune-project",
+)
+""".format(package = package, library = library, dune = dune, rule = rule)
+
+_DUNE_BUILD = """package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "srcs",
+    srcs = glob(["**"], exclude = ["**/BUILD", "**/BUILD.bazel"]),
+)
+"""
+
 def _snapshot_opam(mctx, package, version):
     path = "opam_snapshot/packages/{p}/{p}.{v}/opam".format(p = package, v = version)
     if not mctx.path(path).exists:
@@ -222,16 +249,23 @@ def _declare_packages(mctx, tag, annotations):
     for package, version in parse_depends(mctx.read(tag.lock)).items():
         if is_toolchain_package(package):
             continue
-        url = parse_url(_snapshot_opam(mctx, package, version))
+        opam = _snapshot_opam(mctx, package, version)
+        url = parse_url(opam)
         annotation = annotations.get(package)
-        if annotation == None:
-            fail(("{} {} needs an ocaml.annotation(package = \"{}\", build_file = ...): " +
-                  "building opam packages without one is not supported yet").format(package, version, package))
+        if annotation and annotation.build_file:
+            build_file = mctx.read(annotation.build_file)
+        else:
+            needs = [n for n in parse_depend_names(opam) if not is_toolchain_package(n)]
+            if needs:
+                fail(("{} {} depends on {}: dune packages with opam dependencies are not supported yet; " +
+                      "give {} an ocaml.annotation(build_file = ...)").format(package, version, ", ".join(needs), package))
+            library = annotation.library if annotation and annotation.library else package.replace("-", "_").replace(".", "_")
+            build_file = dune_package_build(package, library, str(Label("//ocaml/toolchain:dune")), str(Label("//ocaml/rules:dune.bzl")))
         pinned_archive(
             name = package_repo_name(tag.name, package),
-            files = {"BUILD.bazel": mctx.read(annotation.build_file)},
+            files = {"BUILD.bazel": build_file},
             sha256 = url.sha256,
-            strip_prefix = annotation.strip_prefix,
+            strip_prefix = annotation.strip_prefix if annotation else "{}-{}".format(package, version),
             urls = [url.src],
         )
         packages[package] = version
@@ -254,6 +288,13 @@ def _ocaml_impl(mctx):
     for cell in sorted(OCAML_CELLS.keys()):
         _dist(name = DIST_PREFIX + cell, cell = cell)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
+    pinned_archive(
+        name = "dx_ocaml_dune",
+        files = {"BUILD.bazel": _DUNE_BUILD},
+        sha256 = DUNE_SHA256,
+        strip_prefix = "dune-" + DUNE_VERSION,
+        urls = [DUNE_URL],
+    )
     tags = [tag for module in mctx.modules for tag in module.tags.packages]
     if tags:
         mctx.download_and_extract(
@@ -272,9 +313,10 @@ ocaml = module_extension(
     doc = "Creates rules_ocaml, the pinned OCaml compilers, the toolchain hub and opam package hubs.",
     tag_classes = {
         "annotation": tag_class(
-            doc = "Names the BUILD file of one opam package that is not built with dune.",
+            doc = "Adjusts how one opam package is built; without a build_file it is built with dune.",
             attrs = {
-                "build_file": attr.label(mandatory = True, allow_single_file = True, doc = "BUILD file placed in the package repository."),
+                "build_file": attr.label(allow_single_file = True, doc = "BUILD file placed in the package repository, for a package not built with dune."),
+                "library": attr.string(doc = "The dune library name when it differs from the package name with - and . as _."),
                 "package": attr.string(mandatory = True, doc = "Opam package name."),
                 "strip_prefix": attr.string(doc = "Archive directory prefix to strip."),
             },

@@ -129,3 +129,9 @@ OPAM_REPOSITORY_COMMIT = "691408b00730fcedbd3e30ccdb42c388a83fd304"
 OPAM_REPOSITORY_SHA256 = "f6c38ba5a0ef7facfedaf046358b722e63ae9d1a1aa7ebc773a17ecb5752473a"
 
 OPAM_REPOSITORY_URL = "https://github.com/ocaml/opam-repository/archive/" + OPAM_REPOSITORY_COMMIT + ".tar.gz"
+
+DUNE_VERSION = "3.24.2"
+
+DUNE_SHA256 = "472798691b0216daf538709f0f4703b3617ef24ad0866c9096068baaba4d762a"
+
+DUNE_URL = "https://github.com/ocaml/dune/releases/download/" + DUNE_VERSION + "/dune-" + DUNE_VERSION + ".tbz"

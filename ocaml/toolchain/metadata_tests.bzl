@@ -2,9 +2,9 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":ocaml.bzl", "COMPILERS", "TOOLS", "native_cc_env", "toolchain_fields")
-load(":opam.bzl", "is_toolchain_package", "parse_depends", "parse_url")
+load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
 load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION", "OPAM_REPOSITORY_COMMIT", "OPAM_REPOSITORY_SHA256", "OPAM_REPOSITORY_URL", "RULES_OCAML_COMMIT", "RULES_OCAML_SHA256", "RULES_OCAML_URL")
-load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
+load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
 
 _LOCK = """opam-version: "2.0"
 name: "app"
@@ -84,7 +84,10 @@ def _checks():
         expect_equal("a file without depends pins nothing", parse_depends("opam-version: \"2.0\"\n"), {}),
         expect_equal("an unpinned entry is skipped", parse_depends("depends: [\"a\" {>= \"1\"}]"), {}),
         expect_equal("a version after a build filter is kept", parse_depends("depends: [\"a\" {build & = \"2\"}]"), {"a": "2"}),
+        expect_equal("build dependencies are named", parse_depend_names("depends: [\"dune\" {>= \"2\"} \"a\" \"t\" {with-test}]"), ["dune", "a"]),
+        expect_contains("dune package build names the library", dune_package_build("a-b", "a_b", "//d", "//r:d.bzl"), "library = \"a_b\""),
         expect_equal("url and sha256 are read", parse_url(_URL_OPAM), struct(src = "https://example.org/a-1.tbz", sha256 = "ab12")),
+        expect_equal("src may sit on the next line", parse_url("url {\n  src:\n    \"https://x/a.tbz\"\n  checksum: \"sha256=cd\"\n}\n").src, "https://x/a.tbz"),
         expect_equal("single checksum string", parse_url("url {\n  src: \"https://x/a.tgz\"\n  checksum: \"sha256=cd\"\n}\n").sha256, "cd"),
         expect_true("compiler packages come from the toolchain", all([is_toolchain_package(n) for n in ["ocaml", "ocaml-base-compiler", "base-unix", "dune"]])),
         expect_true("libraries do not", not any([is_toolchain_package(n) for n in ["astring", "dune-configurator", "ocaml-compiler-libs"]])),

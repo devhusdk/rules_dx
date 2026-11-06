@@ -1067,7 +1067,7 @@ ocaml.annotation(
     build_file = "//ocaml/tests/fixtures/ocaml-app:astring.BUILD.bazel",
     strip_prefix = "astring-0.8.5",
 )
-use_repo(ocaml, "dx_ocaml_toolchains", "ocaml_app", "rules_ocaml")
+use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "rules_ocaml")
 
 register_toolchains("@dx_ocaml_toolchains//:all")
 

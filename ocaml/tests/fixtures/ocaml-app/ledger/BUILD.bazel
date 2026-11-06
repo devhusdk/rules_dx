@@ -34,7 +34,10 @@ ocaml_module(
     name = "ledger_test_main",
     testonly = True,
     struct = "ledger_test.ml",
-    deps = [":ledger"],
+    deps = [
+        ":ledger",
+        "@ocaml_app//:either",
+    ],
 )
 
 ocaml_test(

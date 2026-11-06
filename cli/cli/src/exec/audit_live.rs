@@ -647,6 +647,35 @@ pub(super) fn audit_live_go_advisory_findings_fail_instead_of_empty_clean() {
     assert!(err.contains("1 vulnerability findings"), "{err}");
 }
 
+#[test]
+pub(super) fn audit_live_unmaintained_advisory_fails_only_under_the_strict_base() {
+    let unmaintained =
+        GO_ADVISORY.replace("\"set\":\"go\"", "\"set\":\"go\",\"kind\":\"unmaintained\"");
+    for (profile, expected) in [("standard", 0), ("strict", 1)] {
+        let (code, out, err) = run_with(
+            &["security", "//third_party/go:go"],
+            &AuditRunner::clean(),
+            &|harness| {
+                write_go_mod(harness);
+                write_advisory(harness, "go", &unmaintained);
+                let chosen = if profile == "strict" {
+                    dx_audit::profile_base::Profile::Strict
+                } else {
+                    dx_audit::profile_base::Profile::Standard
+                };
+                let base = dx_audit::profile_base::base_rel("security", chosen);
+                let text = dx_audit::profile_base::base_text("security", chosen);
+                harness.write_source(&base, text.expect("base"));
+                harness.write_source("security.toml", &format!("extends = \"{base}\"\n"));
+            },
+        );
+        assert_eq!(code, expected, "{profile}: {out}{err}");
+        let shown = format!("{out}{err}");
+        assert!(shown.contains("GHSA-go-test-0001"), "{profile}: {shown}");
+        assert!(shown.contains("unmaintained"), "{profile}: {shown}");
+    }
+}
+
 pub(super) const GO_ADVISORY: &str = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
 const GO_PACKAGE: &str = "github.com/google/go-cmp";
 

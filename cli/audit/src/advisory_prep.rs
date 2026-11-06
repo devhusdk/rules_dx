@@ -332,6 +332,7 @@ pub fn cpan_audit_payload(text: &str) -> Result<Vec<u8>, PrepError> {
                         .map(|v| v.trim_start_matches(['>', '=', ' ']).to_owned())
                         .collect(),
                     set: "cpan".to_owned(),
+                    kind: Default::default(),
                 });
             }
         }

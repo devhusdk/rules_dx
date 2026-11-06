@@ -2,6 +2,15 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
+    "AdvisoryKind": {
+      "enum": [
+        "vulnerability",
+        "unsound",
+        "unmaintained",
+        "notice"
+      ],
+      "type": "string"
+    },
     "RiskException": {
       "additionalProperties": false,
       "properties": {
@@ -61,6 +70,23 @@
         "$ref": "#/definitions/RiskException"
       },
       "type": "array"
+    },
+    "extends": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "fail_on": {
+      "default": null,
+      "items": {
+        "$ref": "#/definitions/AdvisoryKind"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
     },
     "schema_version": {
       "default": null,

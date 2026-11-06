@@ -71,7 +71,7 @@ export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/ar
 
 A `.gitleaks.toml` in the workspace root is merged into the scan config and reported as a warning. A secret finding has the Gitleaks rule id, for example `gitleaks/aws-key`. Files git ignores are skipped. Outside git, every file is scanned.
 
-`security.toml` in the workspace root exempts findings. Without it nothing is exempted. `schema_version` is `1`. Keys are in [Config Reference](config.md).
+`security.toml` in the workspace root exempts findings. Without it nothing is exempted. `schema_version` is `1`. Keys are in [Config Reference](config.md). Each advisory has a kind (`vulnerability`, `unsound`, `unmaintained` or `notice`). Only kinds in `fail_on` fail the run; the default is `vulnerability` and `unsound`, so unmaintained and notice advisories are reported as `info` unless `security.toml` extends the strict base. An exception for an advisory that does not fail still counts as a match.
 
 ```toml
 [[exception]]

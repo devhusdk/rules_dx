@@ -723,17 +723,27 @@ fn load_security_policy(
     workspace: &Path,
 ) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
     let rel = "security.toml";
+    let standard =
+        || dx_audit::exception::standard_security_policy().map_err(AuditError::SecurityInvalid);
     let text = match read_workspace_text(workspace, rel) {
         Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(dx_audit::exception::SecurityPolicy::default());
+            return standard();
         }
         Err(other) => return Err(other),
         Ok(text) => text,
     };
     if text.trim().is_empty() {
-        return Ok(dx_audit::exception::SecurityPolicy::default());
+        return standard();
     }
-    dx_audit::exception::load_security_toml(&text).map_err(AuditError::SecurityInvalid)
+    dx_audit::exception::load_security(&text, |rel| {
+        dx_path::workspace::resolve_in_workspace(workspace, rel)
+            .and_then(std::fs::read)
+            .and_then(|bytes| {
+                String::from_utf8(bytes)
+                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+            })
+    })
+    .map_err(AuditError::SecurityInvalid)
 }
 
 fn tier_for_roots(
@@ -1235,8 +1245,13 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 exception
             })
             .collect();
-        let (unexempted, problems) =
+        let (mut unexempted, problems) =
             dx_audit::vuln::apply_exceptions(&findings, &set_exceptions, today);
+        for finding in &mut unexempted {
+            if !policy.fails_on(finding.kind) {
+                finding.level = "info";
+            }
+        }
         if !problems.is_empty() {
             let first = problems
                 .first()
@@ -1269,10 +1284,21 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 ..DiagnosticEvent::new(
                     severity_for_level(finding.level),
                     "vuln",
-                    format!(
-                        "{}@{} vulnerable to {} (severity {}; {fixed})",
-                        finding.package, finding.version, finding.advisory, finding.severity
-                    ),
+                    if finding.kind == dx_audit::vuln::AdvisoryKind::Vulnerability {
+                        format!(
+                            "{}@{} vulnerable to {} (severity {}; {fixed})",
+                            finding.package, finding.version, finding.advisory, finding.severity
+                        )
+                    } else {
+                        format!(
+                            "{}@{} has {} advisory {} (severity {}; {fixed})",
+                            finding.package,
+                            finding.version,
+                            finding.kind.name(),
+                            finding.advisory,
+                            finding.severity
+                        )
+                    },
                 )
             });
         }
@@ -1301,9 +1327,9 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     }
     let failing_unowned = fail_on_uncovered && unowned_count > 0;
     let failing_secrets = !secret_findings.is_empty();
-    let failing_vuln = vuln_findings_all
-        .iter()
-        .any(|finding| meets_audit_threshold(finding.level, fail_on));
+    let failing_vuln = vuln_findings_all.iter().any(|finding| {
+        policy.fails_on(finding.kind) && meets_audit_threshold(finding.level, fail_on)
+    });
     let has_incomplete = incomplete.is_some() || !unassessed_all.is_empty();
     let status = if has_incomplete {
         dx_audit::outcome::FamilyStatus::Incomplete
@@ -1322,7 +1348,9 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             secret_findings.len(),
             vuln_findings_all
                 .iter()
-                .filter(|finding| meets_audit_threshold(finding.level, fail_on))
+                .filter(|finding| {
+                    policy.fails_on(finding.kind) && meets_audit_threshold(finding.level, fail_on)
+                })
                 .count(),
             if failing_unowned { unowned_count } else { 0 }
         )

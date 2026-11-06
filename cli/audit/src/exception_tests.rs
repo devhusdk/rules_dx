@@ -498,3 +498,51 @@ fn empty_fields_show_as_question_mark() {
     entry.advisory.clear();
     assert_eq!(entry.entry_label(), format!("? on {}", entry.package));
 }
+
+fn base(profile: crate::profile_base::Profile) -> String {
+    crate::profile_base::base_text("security", profile)
+        .expect("base")
+        .to_owned()
+}
+
+#[test]
+fn fail_on_defaults_to_the_standard_kinds_and_a_root_list_replaces_the_base() {
+    use crate::profile_base::Profile;
+    let kinds = |policy: SecurityPolicy| policy.fail_on;
+    assert_eq!(
+        kinds(standard_security_policy().expect("standard")),
+        vec![AdvisoryKind::Vulnerability, AdvisoryKind::Unsound]
+    );
+    assert_eq!(
+        kinds(load_security_toml("").expect("empty")),
+        kinds(SecurityPolicy::default())
+    );
+    let read = |_: &str| Ok(base(Profile::Strict));
+    let strict = load_security("extends = \"b.toml\"\n", read).expect("strict");
+    assert!(strict.fails_on(AdvisoryKind::Unmaintained));
+    assert!(strict.fails_on(AdvisoryKind::Notice));
+    let own = "extends = \"b.toml\"\nfail_on = [\"unsound\"]\n";
+    let own = load_security(own, read).expect("own list");
+    assert_eq!(own.fail_on, vec![AdvisoryKind::Unsound]);
+}
+
+#[test]
+fn security_base_rules_and_unknown_kinds_are_rejected() {
+    let yanked = load_security_toml("fail_on = [\"yanked\"]\n");
+    assert!(matches!(yanked, Err(SecurityProblem::InvalidToml { .. })));
+    let with_exception = format!("fail_on = []\n{}", security_toml(&[sample()]));
+    let error = load_security("extends = \"b.toml\"\n", |_| Ok(with_exception.clone()));
+    assert!(error
+        .expect_err("rejected")
+        .to_string()
+        .contains("a base may not have"));
+    let missing = load_security("extends = \"b.toml\"\n", |_| {
+        Err(std::io::Error::from(std::io::ErrorKind::NotFound))
+    });
+    assert!(missing
+        .expect_err("missing")
+        .to_string()
+        .contains("dx init --apply"));
+    let outside = load_security("extends = \"../b.toml\"\n", |_| Ok(String::new()));
+    assert!(outside.is_err());
+}

@@ -31,6 +31,29 @@ impl LockedPackage {
     }
 }
 
+#[derive(
+    Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum AdvisoryKind {
+    #[default]
+    Vulnerability,
+    Unsound,
+    Unmaintained,
+    Notice,
+}
+
+impl AdvisoryKind {
+    pub fn name(self) -> &'static str {
+        match self {
+            AdvisoryKind::Vulnerability => "vulnerability",
+            AdvisoryKind::Unsound => "unsound",
+            AdvisoryKind::Unmaintained => "unmaintained",
+            AdvisoryKind::Notice => "notice",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Advisory {
     pub id: String,
@@ -39,6 +62,8 @@ pub struct Advisory {
     pub severity: String,
     pub fixed: Vec<String>,
     pub set: String,
+    #[serde(default)]
+    pub kind: AdvisoryKind,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,6 +75,7 @@ pub struct VulnFinding {
     pub severity: String,
     pub level: &'static str,
     pub fixed: Vec<String>,
+    pub kind: AdvisoryKind,
 }
 
 pub const REASON_GIT: &str = "unsupported git revision";

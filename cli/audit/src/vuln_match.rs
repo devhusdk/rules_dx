@@ -124,6 +124,7 @@ pub fn match_packages(
                 level: normalize_level(&severity),
                 severity,
                 fixed: advisory.fixed.clone(),
+                kind: advisory.kind,
             });
         }
     }

@@ -1375,6 +1375,7 @@ fn go_mod_nonselected_replacement_reports_the_original_version() {
         severity: "high".to_owned(),
         fixed: vec!["1.3.0".to_owned()],
         set: "go".to_owned(),
+        kind: Default::default(),
     };
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[advisory]);
     assert!(unassessed.is_empty());

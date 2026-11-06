@@ -192,6 +192,7 @@ fn advisory(set: &str, id: &str, package: &str, versions: &str) -> Advisory {
         severity: "medium".to_owned(),
         fixed: vec![],
         set: set.to_owned(),
+        kind: Default::default(),
     }
 }
 
@@ -1602,4 +1603,54 @@ fn each_osv_family_matches_one_advisory_from_its_snapshot() {
         assert_eq!(findings[0].version, hit, "{set}");
         assert_eq!(findings[0].fixed, vec![fixed.to_owned()], "{set}");
     }
+}
+
+#[test]
+fn osv_informational_marks_the_advisory_kind() {
+    let entry = |informational: &str| {
+        let extra = if informational.is_empty() {
+            String::new()
+        } else {
+            format!(", \"informational\": \"{informational}\"")
+        };
+        format!(
+            r#"[{{"id": "RUSTSEC-2024-0388", "modified": "2026-09-18T00:00:00Z",
+            "affected": [{{"package": {{"name": "derivative", "ecosystem": "crates.io"}},
+            "ranges": [{{"type": "SEMVER", "events": [{{"introduced": "0.0.0"}}]}}],
+            "database_specific": {{"severity": "low"{extra}}}}}]}}]"#
+        )
+    };
+    for (word, kind) in [
+        ("unmaintained", AdvisoryKind::Unmaintained),
+        ("unsound", AdvisoryKind::Unsound),
+        ("notice", AdvisoryKind::Notice),
+        ("", AdvisoryKind::Vulnerability),
+    ] {
+        let parsed = parse_snapshot(&entry(word)).expect("parses");
+        assert_eq!(parsed[0].kind, kind, "{word}");
+    }
+}
+
+#[test]
+fn a_projected_snapshot_without_kind_is_a_vulnerability() {
+    let text = r#"[{"id":"GHSA-1","package":"serde","versions":"*","severity":"high","fixed":[],"set":"cargo"}]"#;
+    assert_eq!(
+        parse_snapshot(text).expect("parses")[0].kind,
+        AdvisoryKind::Vulnerability
+    );
+    let with_kind = r#"[{"id":"GHSA-1","package":"serde","versions":"*","severity":"high","fixed":[],"set":"cargo","kind":"unmaintained"}]"#;
+    let parsed = parse_snapshot(with_kind).expect("parses");
+    assert_eq!(parsed[0].kind, AdvisoryKind::Unmaintained);
+}
+
+#[test]
+fn an_exception_for_an_unmaintained_advisory_is_not_obsolete() {
+    let mut unmaintained = advisory("cargo", "RUSTSEC-2024-0388", "derivative", "*");
+    unmaintained.kind = AdvisoryKind::Unmaintained;
+    let pkgs = vec![LockedPackage::new("cargo", "derivative", "2.2.0")];
+    let (findings, _) = match_packages(&pkgs, &[unmaintained]);
+    assert_eq!(findings[0].kind, AdvisoryKind::Unmaintained);
+    let accepted = exception("cargo", "RUSTSEC-2024-0388", "derivative", "*");
+    let (_, problems) = apply_exceptions(&findings, &[accepted], "2026-09-18");
+    assert!(problems.is_empty(), "{problems:?}");
 }

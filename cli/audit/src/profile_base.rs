@@ -23,6 +23,8 @@ pub fn base_text(file: &str, profile: Profile) -> Option<&'static str> {
     match (file, profile) {
         ("licenses", Profile::Standard) => Some(include_str!("../profiles/licenses/standard.toml")),
         ("licenses", Profile::Strict) => Some(include_str!("../profiles/licenses/strict.toml")),
+        ("security", Profile::Standard) => Some(include_str!("../profiles/security/standard.toml")),
+        ("security", Profile::Strict) => Some(include_str!("../profiles/security/strict.toml")),
         _ => None,
     }
 }

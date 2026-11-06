@@ -2,7 +2,7 @@ use chrono::{Datelike, NaiveDate};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::vuln::VersionScope;
+use crate::vuln::{AdvisoryKind, VersionScope};
 
 pub const EXCEPTION_SCHEMA_VERSION: u32 = 1;
 
@@ -61,11 +61,30 @@ pub fn line_of(text: &str, offset: usize) -> usize {
         .count()
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SecurityPolicy {
     pub exceptions: Vec<RiskException>,
     pub uncovered: Vec<UncoveredAcceptance>,
+    pub fail_on: Vec<AdvisoryKind>,
 }
+
+impl Default for SecurityPolicy {
+    fn default() -> Self {
+        Self {
+            exceptions: Vec::new(),
+            uncovered: Vec::new(),
+            fail_on: STANDARD_FAIL_ON.to_vec(),
+        }
+    }
+}
+
+impl SecurityPolicy {
+    pub fn fails_on(&self, kind: AdvisoryKind) -> bool {
+        self.fail_on.contains(&kind)
+    }
+}
+
+const STANDARD_FAIL_ON: [AdvisoryKind; 2] = [AdvisoryKind::Vulnerability, AdvisoryKind::Unsound];
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum SecurityProblem {
@@ -204,7 +223,7 @@ fn is_date_shape(text: &str) -> bool {
         .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
 }
 
-pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem> {
+fn parse_file(text: &str) -> Result<SecurityFile, SecurityProblem> {
     let file: SecurityFile =
         toml::from_str(text).map_err(|error| SecurityProblem::InvalidToml {
             message: match error.span() {
@@ -220,7 +239,68 @@ pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem>
     if version != EXCEPTION_SCHEMA_VERSION {
         return Err(SecurityProblem::UnsupportedSchema { version });
     }
-    Ok(SecurityPolicy {
+    Ok(file)
+}
+
+/// Parses one file. An `extends` line is accepted and not followed.
+pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem> {
+    Ok(build_policy(text, parse_file(text)?, None))
+}
+
+/// The policy of the standard base, used when a workspace has no security.toml.
+pub fn standard_security_policy() -> Result<SecurityPolicy, SecurityProblem> {
+    let text = crate::profile_base::base_text("security", crate::profile_base::Profile::Standard)
+        .ok_or_else(|| SecurityProblem::InvalidToml {
+        message: "the standard base is missing".to_owned(),
+    })?;
+    load_security_toml(text)
+}
+
+/// Parses `root_text` and merges it over the base named by its `extends`.
+/// `read` returns the text of a workspace-relative path. Without `extends` the
+/// standard base's `fail_on` applies.
+pub fn load_security(
+    root_text: &str,
+    read: impl Fn(&str) -> std::io::Result<String>,
+) -> Result<SecurityPolicy, SecurityProblem> {
+    let root = parse_file(root_text)?;
+    let Some(path) = root.extends.clone() else {
+        return Ok(build_policy(root_text, root, None));
+    };
+    let invalid = |message: String| SecurityProblem::InvalidToml { message };
+    let inside = !path.is_empty()
+        && std::path::Path::new(&path)
+            .components()
+            .all(|part| matches!(part, std::path::Component::Normal(_)))
+        && !path.contains('\\');
+    if !inside {
+        return Err(invalid(format!(
+            "extends {path}: must be a relative path inside the workspace"
+        )));
+    }
+    let base_text = read(&path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            invalid(format!("extends {path}: not found; run dx init --apply"))
+        } else {
+            invalid(format!("extends {path}: {error}"))
+        }
+    })?;
+    let base =
+        parse_file(&base_text).map_err(|error| invalid(format!("extends {path}: {error}")))?;
+    if base.extends.is_some() || !base.exception.is_empty() || !base.uncovered.is_empty() {
+        return Err(invalid(format!(
+            "extends {path}: a base may not have extends, [[exception]] or [[uncovered]]"
+        )));
+    }
+    Ok(build_policy(root_text, root, Some(base)))
+}
+
+fn build_policy(text: &str, file: SecurityFile, base: Option<SecurityFile>) -> SecurityPolicy {
+    let fail_on = file
+        .fail_on
+        .or_else(|| base.and_then(|base| base.fail_on))
+        .unwrap_or_else(|| STANDARD_FAIL_ON.to_vec());
+    SecurityPolicy {
         exceptions: file
             .exception
             .into_iter()
@@ -243,7 +323,8 @@ pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem>
                 }
             })
             .collect(),
-    })
+        fail_on,
+    }
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -257,6 +338,10 @@ pub(crate) struct SecurityFile {
     #[serde(default)]
     #[schemars(with = "Vec<UncoveredAcceptance>")]
     uncovered: Vec<toml::Spanned<UncoveredAcceptance>>,
+    #[serde(default)]
+    extends: Option<String>,
+    #[serde(default)]
+    fail_on: Option<Vec<AdvisoryKind>>,
 }
 
 #[cfg(test)]
@@ -298,7 +383,9 @@ impl SecurityFile {
         key_names!(Self {
             schema_version,
             exception,
-            uncovered
+            uncovered,
+            extends,
+            fail_on
         })
     }
 }

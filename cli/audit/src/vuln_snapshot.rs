@@ -1,4 +1,4 @@
-use super::{is_version_family, Advisory};
+use super::{is_version_family, Advisory, AdvisoryKind};
 
 /// The set opam advisories belong to. The osv crate has no opam ecosystem, so those entries are
 /// read under `GHC`, an ecosystem no snapshot family downloads.
@@ -97,6 +97,21 @@ fn osv_severity_text(
         }
     }
     String::new()
+}
+
+fn osv_kind(affected: &osv::schema::Affected) -> AdvisoryKind {
+    let word = match affected.database_specific.as_ref() {
+        Some(serde_json::Value::Object(map)) => match map.get("informational") {
+            Some(serde_json::Value::String(word)) => word.trim().to_ascii_lowercase(),
+            _ => return AdvisoryKind::Vulnerability,
+        },
+        _ => return AdvisoryKind::Vulnerability,
+    };
+    match word.as_str() {
+        "unmaintained" => AdvisoryKind::Unmaintained,
+        "unsound" => AdvisoryKind::Unsound,
+        _ => AdvisoryKind::Notice,
+    }
 }
 
 pub(crate) fn range_events_to_intervals(
@@ -233,6 +248,7 @@ fn project_osv_affected(
         None => return Vec::new(),
     };
     let severity = osv_severity_text(vuln, affected);
+    let kind = osv_kind(affected);
     let mut fixed: Vec<String> = Vec::new();
     if let Some(ranges) = affected.ranges.as_ref() {
         for range in ranges {
@@ -290,6 +306,7 @@ fn project_osv_affected(
             severity: severity.clone(),
             fixed: fixed.clone(),
             set: set.to_owned(),
+            kind,
         })
         .collect()
 }

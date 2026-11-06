@@ -65,6 +65,8 @@ dx_rust_crate(
     compile_data = [
         "profiles/licenses/standard.toml",
         "profiles/licenses/strict.toml",
+        "profiles/security/standard.toml",
+        "profiles/security/strict.toml",
         "schema/licenses.schema.json",
         "schema/security.schema.json",
         "//:licenses.toml",

@@ -179,6 +179,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit mix.exs and run `mix deps.get`",
             }),
+            UpdateSet::Julia => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit Project.toml and run `julia -e 'using Pkg; Pkg.add(\"Name\")'`",
+            }),
             UpdateSet::Cpan => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit the cpanfile and run `carton install`",

@@ -593,9 +593,9 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ),
     ];
     assert_eq!(
-        cases.len() + 6,
+        cases.len() + 7,
         UpdateSet::ALL.len(),
-        "one case per set but cabal, cpan, hex, opam, pub and swiftpm, which only configured sets edit"
+        "one case per set but cabal, cpan, hex, julia, opam, pub and swiftpm, which only configured sets edit"
     );
     for (selector, version) in cases {
         let update = UpdateRequest::parse_grammar(selector, version).expect("parse");
@@ -2129,4 +2129,87 @@ fn opam_versions_start_with_a_digit() {
     for bad in ["v1.0", "latest", ">=1.0", "1 0"] {
         assert!(opam_request("astring", bad).is_err(), "{bad}");
     }
+}
+
+fn julia_edit(package: &str, version: &str) -> Result<String, EditError> {
+    configured(
+        ConfiguredKind::Julia,
+        &["app/Project.toml"],
+        None,
+        &format!("set:{package}"),
+        version,
+    )?
+    .plan_edit(JULIA_PROJECT)
+}
+
+const JULIA_PROJECT: &str = "name = \"app\"
+
+[deps]
+JSON = \"682c06a0\"
+Preferences = \"21216c6a\"
+Tables = \"bd369af6\"
+Dates = \"ade2ca70\"
+
+[compat]
+Preferences = \"=1.5.0\" # pinned
+Tables = \"1.2\"
+Dates = \"1.0, 2\"
+julia = \"1.10\"
+";
+
+#[test]
+fn julia_edit_rewrites_the_compat_entry_keeping_its_operator_and_comment() {
+    let request = configured(
+        ConfiguredKind::Julia,
+        &["app/Project.toml"],
+        None,
+        "set:Tables",
+        "1.4.0",
+    )
+    .expect("julia");
+    assert_eq!(request.set, UpdateSet::Julia);
+    assert_eq!(request.target().refresh_selector(), "set:Tables");
+    assert_eq!(
+        julia_edit("Preferences", "1.6.0").expect("exact"),
+        JULIA_PROJECT.replace("\"=1.5.0\"", "\"=1.6.0\"")
+    );
+    assert_eq!(
+        julia_edit("Tables", "1.4.0").expect("bare"),
+        JULIA_PROJECT.replace("\"1.2\"", "\"1.4.0\"")
+    );
+}
+
+#[test]
+fn julia_edit_adds_a_missing_compat_entry_and_table() {
+    let added = julia_edit("JSON", "0.21.4").expect("add");
+    assert!(added.contains("JSON = \"0.21.4\"\n"), "{added}");
+    let no_compat = "[deps]\nJSON = \"682c06a0\"\n";
+    let request = configured(
+        ConfiguredKind::Julia,
+        &["Project.toml"],
+        None,
+        "set:JSON",
+        "0.21.4",
+    )
+    .expect("julia");
+    assert_eq!(
+        request.plan_edit(no_compat).expect("table"),
+        "[deps]\nJSON = \"682c06a0\"\n\n[compat]\nJSON = \"0.21.4\"\n"
+    );
+}
+
+#[test]
+fn julia_edit_refuses_undeclared_packages_and_range_lists() {
+    assert!(matches!(
+        julia_edit("Missing", "1.0.0"),
+        Err(EditError::NotFound { .. })
+    ));
+    assert!(matches!(
+        julia_edit("julia", "1.11.0"),
+        Err(EditError::NotFound { .. })
+    ));
+    assert!(matches!(
+        julia_edit("Dates", "2.0.0"),
+        Err(EditError::UnsupportedManifest { .. })
+    ));
 }

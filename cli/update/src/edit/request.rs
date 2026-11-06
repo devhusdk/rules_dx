@@ -40,6 +40,8 @@ pub enum ConfiguredKind {
     Pub,
     /// A cabal set; only the package's bound in the `.cabal` file is edited.
     Cabal,
+    /// A julia set; only the package's `[compat]` entry in Project.toml is edited.
+    Julia,
     /// A composer set; only the constraint in composer.json is edited, then composer.lock is refreshed.
     Composer,
     /// A swiftpm set; only the package's `from:` or `exact:` version in Package.swift is edited.
@@ -66,6 +68,7 @@ impl ConfiguredKind {
             ConfiguredKind::SwiftPm => UpdateSet::SwiftPm,
             ConfiguredKind::Opam => UpdateSet::Opam,
             ConfiguredKind::Hex => UpdateSet::Hex,
+            ConfiguredKind::Julia => UpdateSet::Julia,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -276,7 +279,8 @@ fn configured_refresh_selector(
         | ConfiguredKind::Composer
         | ConfiguredKind::SwiftPm
         | ConfiguredKind::Opam
-        | ConfiguredKind::Hex => {
+        | ConfiguredKind::Hex
+        | ConfiguredKind::Julia => {
             format!("{}:{package}", set.name)
         }
     })
@@ -315,6 +319,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::Cabal
         | UpdateSet::SwiftPm
         | UpdateSet::Hex
+        | UpdateSet::Julia
         | UpdateSet::Ruby
         | UpdateSet::Composer => "",
     }
@@ -405,7 +410,8 @@ impl UpdateRequest {
             | ConfiguredKind::Composer
             | ConfiguredKind::SwiftPm
             | ConfiguredKind::Opam
-            | ConfiguredKind::Hex => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Hex
+            | ConfiguredKind::Julia => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -586,6 +592,7 @@ impl UpdateRequest {
             UpdateSet::Pub => plan_pubspec(manifest, content, &self.package, &self.version),
             UpdateSet::Cabal => plan_cabal(manifest, content, &self.package, &self.version),
             UpdateSet::Hex => plan_mix_exs(manifest, content, &self.package, &self.version),
+            UpdateSet::Julia => plan_julia_project(manifest, content, &self.package, &self.version),
             UpdateSet::Composer => {
                 plan_composer_json(manifest, content, &self.package, &self.version)
             }

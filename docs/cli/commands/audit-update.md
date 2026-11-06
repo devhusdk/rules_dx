@@ -419,7 +419,7 @@ JSON emits an `add_declared` notice for an insert, an `update_widened` notice pe
 | `julia_pkg.from_manifest` of `@rules_julia//julia/pkg:extensions.bzl` | `name` | `Project.toml` beside the lockfile | `Manifest.toml` and `Manifest.bazel.json` beside the lockfile |
 | rules_dotnet `paket` extension | `nuget` | `paket.dependencies` | `paket.lock`, `paket.<group>.bzl` |
 
-A `julia` set is pinned: `update` reports it as pinned, `security` reads the versioned packages of `Manifest.toml` (format 2.0, stdlibs skipped) and matches them against the `Julia` advisories, and the layout check needs both locks to name the same versions. A `conan` set is pinned; `security` lists the packages of `conan.lock` but does not match them against advisories. A `pub` set is pinned the same way: `security` reads the hosted packages of `pubspec.lock` and matches them against the `Pub` advisories. A `cpan` set is checked with `carton install --deployment`; `update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN, and `security` reads the distributions of `cpanfile.snapshot` and matches them against the CPANSA advisories (see the `cpan` section). `dx update <set>:<Module> --apply` runs `carton update <Module>` and then `bazel run` of the `cpan_compiler` whose `lockfile` is the lock JSON, with `--incremental`, so both files change together; without such a compiler in the lock's `BUILD.bazel` it refuses. The layout check fails when the distributions of the lock JSON differ from those of `cpanfile.snapshot`. A `uv.project` at the workspace root is named `<hub_name>`. A set's scopes are the directories of its manifests and locks, except `MODULE.bazel`. A path that names a manifest or lock, such as `//:cargo-bazel-lock.json`, selects only its owner. The scope `.` owns the root package: `//:x` and `//:` select sets scoped `.`; `//pkg:x` and `//pkg/...` never do. Overlapping scopes select every owner.
+A `julia` set: `update --outdated` compares the `[deps]` packages of `Project.toml`, as locked in `Manifest.toml`, with the General registry, and `dx update <set>:<Package> <version>` edits the `[compat]` entry (see the julia section). `security` reads the versioned packages of `Manifest.toml` (format 2.0, stdlibs skipped) and matches them against the `Julia` advisories, and the layout check needs both locks to name the same versions. A `conan` set is pinned; `security` lists the packages of `conan.lock` but does not match them against advisories. A `pub` set is pinned the same way: `security` reads the hosted packages of `pubspec.lock` and matches them against the `Pub` advisories. A `cpan` set is checked with `carton install --deployment`; `update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN, and `security` reads the distributions of `cpanfile.snapshot` and matches them against the CPANSA advisories (see the `cpan` section). `dx update <set>:<Module> --apply` runs `carton update <Module>` and then `bazel run` of the `cpan_compiler` whose `lockfile` is the lock JSON, with `--incremental`, so both files change together; without such a compiler in the lock's `BUILD.bazel` it refuses. The layout check fails when the distributions of the lock JSON differ from those of `cpanfile.snapshot`. A `uv.project` at the workspace root is named `<hub_name>`. A set's scopes are the directories of its manifests and locks, except `MODULE.bazel`. A path that names a manifest or lock, such as `//:cargo-bazel-lock.json`, selects only its owner. The scope `.` owns the root package: `//:x` and `//:` select sets scoped `.`; `//pkg:x` and `//pkg/...` never do. Overlapping scopes select every owner.
 
 With no hubs, `dx update` exits `2` with `no dependency sets`, and `dx security` exits non-zero with an example hub. Hub arguments must be literal. A computed argument, two sets with one name, or two sets owning one manifest or lock exit `2` before anything runs.
 
@@ -461,6 +461,20 @@ ruby.bundle_fetch(
 - `gemfile_lock` must sit beside the `Gemfile`, or the set is unsupported.
 - `dx update` and `--apply` report `pinned` and start no process, also under `--offline` and `--frozen`. A `set:package` selector is unsupported; run `bundle lock`.
 - `dx security` matches `Gemfile.lock` against `.dx/advisory/rubygems.json`. `dx license` needs `[[inventory]]` with `set = "ruby"`.
+
+### julia
+
+```starlark
+julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "julia_pkg")
+julia_pkg.from_manifest(
+    name = "julia_app_pkgs",
+    lockfile = "//julia/app:Manifest.bazel.json",
+)
+```
+
+- `dx update --outdated` compares each `[deps]` package of `Project.toml` with the newest version in the General registry (`Versions.toml`), skipping yanked versions and, without `--prereleases`, prereleases. Standard libraries without a locked version are not listed.
+- `dx update <set>:<Package> <version>` sets the package's `[compat]` entry in `Project.toml`, keeping a leading `=` or `~`, and adds the entry when it is absent. A package not in `[deps]`, or an entry that lists several ranges, is refused. `--apply` then runs `Pkg.update` and the set's `julia_pkg_resolve`.
+- `dx security` matches `Manifest.toml` against the `Julia` advisories.
 
 ### composer
 

@@ -9,6 +9,7 @@ pub enum UpdateSet {
     GithubActions,
     Go,
     Hex,
+    Julia,
     Maven,
     Npm,
     NuGet,
@@ -19,7 +20,7 @@ pub enum UpdateSet {
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 16] = [
+    pub const ALL: [UpdateSet; 17] = [
         UpdateSet::Bazel,
         UpdateSet::Cabal,
         UpdateSet::Cargo,
@@ -29,6 +30,7 @@ impl UpdateSet {
         UpdateSet::GithubActions,
         UpdateSet::Go,
         UpdateSet::Hex,
+        UpdateSet::Julia,
         UpdateSet::Maven,
         UpdateSet::Npm,
         UpdateSet::NuGet,
@@ -59,6 +61,7 @@ impl UpdateSet {
             UpdateSet::GithubActions => "github-actions",
             UpdateSet::Go => "go",
             UpdateSet::Hex => "hex",
+            UpdateSet::Julia => "julia",
             UpdateSet::Maven => "maven",
             UpdateSet::Npm => "npm",
             UpdateSet::NuGet => "nuget",
@@ -80,6 +83,7 @@ impl UpdateSet {
             "github-actions" => Some(UpdateSet::GithubActions),
             "go" => Some(UpdateSet::Go),
             "hex" => Some(UpdateSet::Hex),
+            "julia" => Some(UpdateSet::Julia),
             "maven" => Some(UpdateSet::Maven),
             "npm" => Some(UpdateSet::Npm),
             "nuget" => Some(UpdateSet::NuGet),
@@ -124,7 +128,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 16);
+        assert_eq!(seen.len(), 17);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
@@ -160,6 +164,7 @@ mod tests {
                 "github-actions",
                 "go",
                 "hex",
+                "julia",
                 "maven",
                 "npm",
                 "nuget",
@@ -206,6 +211,7 @@ mod tests {
         assert!(UpdateSet::Cabal.needs_update_refresh());
         assert!(UpdateSet::Opam.needs_update_refresh());
         assert!(UpdateSet::Hex.needs_update_refresh());
+        assert!(UpdateSet::Julia.needs_update_refresh());
     }
 
     #[test]

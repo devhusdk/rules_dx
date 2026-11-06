@@ -989,6 +989,80 @@ pub(super) fn plan_mix_exs(
     Ok(edited)
 }
 
+/// Sets the `[compat]` entry of a package declared in the `[deps]` of a Project.toml,
+/// keeping a leading `=` or `~` and adding the entry when it is absent.
+pub(super) fn plan_julia_project(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Semver(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected exact semver".to_owned(),
+        });
+    };
+    let unsupported = |reason: &str| EditError::UnsupportedManifest {
+        manifest: manifest.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let mut doc: toml_edit::DocumentMut = content
+        .parse()
+        .map_err(|e| unsupported(&format!("invalid Project.toml: {e}")))?;
+    let declared = doc
+        .get("deps")
+        .and_then(toml_edit::Item::as_table_like)
+        .is_some_and(|deps| deps.contains_key(package));
+    if !declared {
+        return Err(EditError::NotFound {
+            manifest: manifest.to_owned(),
+            package: package.to_owned(),
+        });
+    }
+    let value = match doc
+        .get("compat")
+        .and_then(toml_edit::Item::as_table_like)
+        .and_then(|compat| compat.get(package))
+    {
+        None => new.to_string(),
+        Some(old) => {
+            let old = old
+                .as_str()
+                .ok_or_else(|| unsupported("the compat entry is not a string"))?
+                .trim();
+            if old.contains(',') {
+                return Err(unsupported("the compat entry lists several ranges"));
+            }
+            match old.chars().next() {
+                Some(prefix @ ('=' | '~')) => format!("{prefix}{new}"),
+                Some('^') | Some('0'..='9') => new.to_string(),
+                _ => return Err(unsupported("the compat entry is not a plain version")),
+            }
+        }
+    };
+    if doc.get("compat").is_none() {
+        doc["compat"] = toml_edit::table();
+    }
+    let compat = doc["compat"]
+        .as_table_like_mut()
+        .ok_or_else(|| unsupported("compat is not a table"))?;
+    match compat.get_mut(package) {
+        Some(item) => {
+            let decor = item.as_value().map(|v| v.decor().clone());
+            let mut replaced = toml_edit::value(value);
+            if let (Some(decor), Some(v)) = (decor, replaced.as_value_mut()) {
+                *v.decor_mut() = decor;
+            }
+            *item = replaced;
+        }
+        None => {
+            compat.insert(package, toml_edit::value(value));
+        }
+    }
+    Ok(doc.to_string())
+}
+
 pub(super) fn plan_maven_module_bazel(
     manifest: &str,
     content: &str,
@@ -1421,6 +1495,18 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("swiftpm package identities use letters, digits, '-', '_' and '.'")
+            }
+        }
+        UpdateSet::Julia => {
+            if !package.is_empty()
+                && package.starts_with(|c: char| c.is_ascii_alphabetic())
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_')
+            {
+                Ok(())
+            } else {
+                Err("julia package names use letters, digits and '_'")
             }
         }
         UpdateSet::Pub => {

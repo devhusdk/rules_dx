@@ -7,7 +7,7 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cabal, cargo, composer, containers, cpan, github, go, hex, maven, npm, nuget, opam,
+    bcr, cabal, cargo, composer, containers, cpan, github, go, hex, julia, maven, npm, nuget, opam,
     pub_dev, pypi, ruby, swiftpm, Candidate, Fetch, Findings, Registry,
 };
 use std::collections::BTreeMap;
@@ -390,6 +390,28 @@ pub(super) fn collect(
                         reason,
                     }),
                 }
+            }
+            Ecosystem::Julia => {
+                registries.insert(name.to_owned(), Registry::JuliaGeneral);
+                let manifests: Vec<String> = target
+                    .set
+                    .locks
+                    .iter()
+                    .filter(|lock| lock.ends_with("Manifest.toml"))
+                    .cloned()
+                    .collect();
+                merge(
+                    &mut found,
+                    julia::outdated(
+                        name,
+                        &read_texts(workspace, &target.set.manifests),
+                        &read_texts(workspace, &manifests),
+                        only,
+                        prereleases,
+                        julia::DEFAULT_BASE,
+                        fetch,
+                    ),
+                );
             }
             Ecosystem::Pub => {
                 registries.insert(name.to_owned(), Registry::PubDev);

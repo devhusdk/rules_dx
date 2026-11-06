@@ -22,6 +22,7 @@ dx_rust_crate(
         "src/discover/github.rs",
         "src/discover/go.rs",
         "src/discover/hex.rs",
+        "src/discover/julia.rs",
         "src/discover/maven.rs",
         "src/discover/mod.rs",
         "src/discover/npm.rs",

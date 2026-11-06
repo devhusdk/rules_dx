@@ -113,6 +113,9 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Pub if foreign => {
             Some(dx_update::edit::ConfiguredKind::Pub)
         }
+        dx_adopt::dependency_sets::Ecosystem::Julia if foreign => {
+            Some(dx_update::edit::ConfiguredKind::Julia)
+        }
         dx_adopt::dependency_sets::Ecosystem::Composer if foreign => {
             Some(dx_update::edit::ConfiguredKind::Composer)
         }
@@ -166,6 +169,7 @@ pub(crate) fn configured_set(
                             dx_update::edit::ConfiguredKind::Cpan => "exactly one cpanfile",
                             dx_update::edit::ConfiguredKind::Pub => "exactly one pubspec.yaml",
                             dx_update::edit::ConfiguredKind::Hex => "exactly one mix.exs",
+                            dx_update::edit::ConfiguredKind::Julia => "exactly one Project.toml",
                             dx_update::edit::ConfiguredKind::Composer =>
                                 "exactly one composer.json",
                             dx_update::edit::ConfiguredKind::Cabal => "exactly one .cabal file",
@@ -796,7 +800,8 @@ fn refresh_plan(
         | dx_update::edit::ConfiguredKind::Composer
         | dx_update::edit::ConfiguredKind::SwiftPm
         | dx_update::edit::ConfiguredKind::Opam
-        | dx_update::edit::ConfiguredKind::Hex => (
+        | dx_update::edit::ConfiguredKind::Hex
+        | dx_update::edit::ConfiguredKind::Julia => (
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),

@@ -18,14 +18,14 @@ def _astro_node_modules(node_modules, packages):
     return [node_modules + "/" + package for package in packages]
 
 def astro_build(name, srcs, config, node_modules, package_json = None, public = None, deps = None, visibility = None, **kwargs):
-    """Builds one static Astro site into a bundled web app tree."""
+    """Builds one static Astro site into a bundled web app tree. The config is a package-relative file path."""
     dist = name + "_dist"
     js_run_binary(
         resource_set = "mem_2g",
         name = dist,
         srcs = list(srcs) + [config] + ([package_json] if package_json else []) + (public or []) + (deps or []) +
                _astro_node_modules(node_modules, ["astro"]),
-        args = ["build", dist + ".out"],
+        args = ["build", dist + ".out", config],
         chdir = native.package_name(),
         mnemonic = "AstroBuild",
         out_dirs = [dist + ".out"],
@@ -43,7 +43,7 @@ def astro_check(name, srcs, tsconfig, config, node_modules, package_json = None,
         name = name + "_report",
         srcs = list(srcs) + [tsconfig, config] + ([package_json] if package_json else []) + (deps or []) +
                _astro_node_modules(node_modules, ["astro", "@astrojs/check", "typescript"]),
-        args = ["check", report, tsconfig],
+        args = ["check", report, tsconfig, config],
         chdir = native.package_name(),
         mnemonic = "AstroCheck",
         outs = [report],

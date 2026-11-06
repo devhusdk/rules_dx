@@ -28,10 +28,12 @@ function resolveFromCwd(specifier) {
 	}
 }
 
-function scratchConfig(root) {
+function scratchConfig(root, config) {
+	if (!config) usage("a config file is required");
 	const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "astro-tool-"));
 	return {
 		root,
+		configFile: config,
 		cacheDir: path.join(scratch, "astro"),
 		logLevel: "warn",
 		telemetry: false,
@@ -39,12 +41,12 @@ function scratchConfig(root) {
 	};
 }
 
-async function build(out) {
+async function build(out, config) {
 	if (!out) usage("build requires an output directory");
 	const root = process.cwd();
 	const astro = await import(resolveFromCwd("astro"));
 	await astro.build({
-		...scratchConfig(root),
+		...scratchConfig(root, config),
 		outDir: path.resolve(root, out),
 	});
 	if (!fs.existsSync(path.resolve(root, out, "index.html"))) {
@@ -52,11 +54,11 @@ async function build(out) {
 	}
 }
 
-async function checkRaw(tsconfig) {
+async function checkRaw(tsconfig, config) {
 	const root = process.cwd();
 	try {
 		const astro = await import(resolveFromCwd("astro"));
-		await astro.sync(scratchConfig(root));
+		await astro.sync(scratchConfig(root, config));
 		const checker = await import(resolveFromCwd("@astrojs/check"));
 		const failed = await checker.check({
 			root,
@@ -77,11 +79,11 @@ async function checkRaw(tsconfig) {
 	}
 }
 
-function checkReport(report, tsconfig) {
+function checkReport(report, tsconfig, config) {
 	if (!report) usage("check requires a report path");
 	const child = spawnSync(
 		process.execPath,
-		[process.argv[1], "check-raw", tsconfig ?? ""],
+		[process.argv[1], "check-raw", tsconfig ?? "", config ?? ""],
 		{ encoding: "utf8", env: process.env, maxBuffer: 64 * 1024 * 1024 },
 	);
 	const output = stripVTControlCharacters(
@@ -113,13 +115,13 @@ function verify(report) {
 const [command, ...rest] = process.argv.slice(2);
 switch (command) {
 	case "build":
-		await build(rest[0]);
+		await build(rest[0], rest[1]);
 		break;
 	case "check":
-		checkReport(rest[0], rest[1]);
+		checkReport(rest[0], rest[1], rest[2]);
 		break;
 	case "check-raw":
-		await checkRaw(rest[0]);
+		await checkRaw(rest[0], rest[1]);
 		break;
 	case "verify":
 		verify(rest[0]);

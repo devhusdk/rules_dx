@@ -190,8 +190,8 @@ def real_request_tool(binary_path = None, config_rel = None, edition = None, fil
         entry["dialect"] = dialect
     return entry
 
-def real_request_doc(producer, capability, stages, sources, siblings, resolves, tools, scratch_parent = None):
-    """Builds the versioned quality-runner request document."""
+def real_request_doc(producer, capability, stages, sources, siblings, resolves, tools, scratch_parent = None, unsafe_fixes = False):
+    """Builds the versioned quality-runner request document; unsafe_fixes is written only when set."""
     doc = {
         "capability": capability,
         "producer": producer,
@@ -204,6 +204,8 @@ def real_request_doc(producer, capability, stages, sources, siblings, resolves, 
     }
     if scratch_parent != None:
         doc["scratch_parent"] = scratch_parent
+    if unsafe_fixes:
+        doc["unsafe_fixes"] = True
     return doc
 
 def prune_tool_generated_sources(resolved, generated_paths, tool):

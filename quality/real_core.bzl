@@ -221,12 +221,15 @@ def _shard_tools(tools, shard, capability):
     """Lists wired tools for one shard and capability, or for every capability when capability is None."""
     return sorted([tool for tool in tools if tools[tool]["shard"] == shard and (capability == None or capability in tools[tool]["capabilities"])])
 
+# `dx <quality> --unsafe` sets this through --aspects_parameters; only those runs key on it.
+_UNSAFE_FIXES_ATTR = {"unsafe_fixes": attr.string(values = ["false", "true"], default = "false")}
+
 def _expand_shard(tools_table, spec):
     """Expands one shard spec into its tools, attrs and toolchain flag."""
     tools = _shard_tools(tools_table, spec["shard"], spec["capability"])
     attr_tools = _shard_tools(tools_table, spec["shard"], None) if spec.get("shared_attrs", False) else tools
     return spec | {
-        "attrs": _real_attrs_for(tools_table, attr_tools) | spec.get("extra_attrs", {}),
+        "attrs": _real_attrs_for(tools_table, attr_tools) | spec.get("extra_attrs", {}) | _UNSAFE_FIXES_ATTR,
         "has_toolchain": len([tool for tool in tools if tools_table[tool]["kind"] == "toolchain"]) > 0,
         "tools": tools,
     }
@@ -546,6 +549,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         request_siblings,
         request_resolves,
         request_tools,
+        unsafe_fixes = ctx.attr.unsafe_fixes == "true",
     )
     request_file = ctx.actions.declare_file(target.label.name + "-real-" + capability + output_suffix + "-request.json")
     ctx.actions.write(output = request_file, content = json.encode(doc))

@@ -13,7 +13,7 @@ use super::results::{collect_results, invert_repo_mapping};
 use super::unused_shared::keep_shared;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
-    command_finished, command_started, meets_threshold, notice_event, ActionCounts, FinishedCounts,
+    command_finished, meets_threshold, notice_event, quality_started, ActionCounts, FinishedCounts,
     NoticeEvent, OutputMode, Severity,
 };
 use dx_plan::args::{Command, Invocation, QualityRequest, BREAKING_AGAINST_OPTION};
@@ -406,6 +406,7 @@ fn run_quality_request(
         Selection {
             shards: None,
             installed_modules: installed.as_deref(),
+            unsafe_fixes: request.unsafe_fixes,
         },
         request.exec_log.as_deref(),
     )
@@ -418,7 +419,10 @@ fn run_quality_request(
     let apply = request.applies();
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        if let Err(exit) = emit_built(out, command_started(request.command.name(), mode)) {
+        if let Err(exit) = emit_built(
+            out,
+            quality_started(request.command.name(), mode, request.unsafe_fixes),
+        ) {
             return exit;
         }
     } else if request.chatty() && !stdout_report {
@@ -450,6 +454,7 @@ fn run_quality_request(
                 Selection {
                     shards: Some(&shards),
                     installed_modules: installed.as_deref(),
+                    unsafe_fixes: request.unsafe_fixes,
                 },
                 request.exec_log.as_deref(),
             ) {

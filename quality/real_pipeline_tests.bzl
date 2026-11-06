@@ -1062,6 +1062,14 @@ def real_pipeline_unit_tests(name):
                 },
             ),
             expect_equal(
+                "real_request_doc writes unsafe_fixes only when set",
+                [
+                    real_request_doc("//pkg:target", "lint", [], [], [], [], {}, unsafe_fixes = unsafe).get("unsafe_fixes")
+                    for unsafe in [False, True]
+                ],
+                [None, True],
+            ),
+            expect_equal(
                 "real_request_doc carries an explicit scratch parent",
                 real_request_doc(
                     "//pkg:target",

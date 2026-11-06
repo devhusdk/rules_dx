@@ -81,6 +81,19 @@ pub fn command_started(command: &str, mode: &str) -> Result<Value, OutputError> 
     Ok(Value::Object(map))
 }
 
+/// A quality `command_started` that records `unsafe_fixes: true` only when `--unsafe` was given.
+pub fn quality_started(
+    command: &str,
+    mode: &str,
+    unsafe_fixes: bool,
+) -> Result<Value, OutputError> {
+    let mut event = command_started(command, mode)?;
+    if unsafe_fixes {
+        event["unsafe_fixes"] = Value::Bool(true);
+    }
+    Ok(event)
+}
+
 /// Rewrites one child command event into its parent's stream under `phase`.
 pub fn nest_phase_event(
     event: Value,
@@ -1259,6 +1272,17 @@ mod tests {
         assert_eq!(event["mode"], Value::String("default".to_owned()));
         assert!(event.get("dry_run").is_none());
         assert!(command_started("lint", "fancy").is_err());
+    }
+
+    #[test]
+    fn quality_started_records_unsafe_fixes_only_when_set() {
+        assert_eq!(
+            quality_started("lint", "default", false).expect("started"),
+            command_started("lint", "default").expect("started")
+        );
+        let event = quality_started("lint", "default", true).expect("started");
+        assert_eq!(event["unsafe_fixes"], Value::Bool(true));
+        assert!(quality_started("lint", "fancy", true).is_err());
     }
 
     #[test]

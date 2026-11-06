@@ -148,6 +148,27 @@ fn include_edits_needs_json_output() {
     }
 }
 
+#[test]
+fn unsafe_needs_apply_or_diff() {
+    for command in ["lint", "typecheck", "format", "check"] {
+        match parse(&strings(&[command, "--unsafe"])) {
+            Err(ArgsError::UnsafeNeedsFixes) => {}
+            other => panic!("dx {command} --unsafe gave {other:?} instead of UnsafeNeedsFixes"),
+        }
+        for fixes in ["--apply", "--diff"] {
+            let invocation =
+                parse(&strings(&[command, fixes, "--unsafe"])).expect("--unsafe with fixes");
+            assert!(invocation.unsafe_fixes, "{command} {fixes}");
+        }
+        let invocation = parse(&strings(&[command, "--apply"])).expect("--apply alone parses");
+        assert!(!invocation.unsafe_fixes, "{command}");
+    }
+    assert!(matches!(
+        parse(&strings(&["watch", "lint", "--unsafe"])),
+        Err(ArgsError::UnsafeNeedsFixes)
+    ));
+}
+
 #[allow(clippy::type_complexity)]
 const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
     (

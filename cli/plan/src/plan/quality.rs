@@ -159,6 +159,8 @@ pub struct Selection<'a> {
     pub shards: Option<&'a BTreeSet<String>>,
     /// The consumer's `bazel_dep` names; `None` keeps every family's aspects.
     pub installed_modules: Option<&'a [String]>,
+    /// `--unsafe`: the aspects also compute the fixes tools mark unsafe.
+    pub unsafe_fixes: bool,
 }
 
 /// Makes clippy (which reads only the repeatable flag) report unused crate dependencies in lint builds. `--force-warn` keeps the lint a warning under `--deny=warnings`.
@@ -188,6 +190,9 @@ pub fn plan_build_with(
     let mut required = shaped_options(&aspects, &groups, bazel_options, bep_path);
     if command == Command::Lint {
         required.push(unused_dependencies_flag());
+    }
+    if selection.unsafe_fixes {
+        required.push("--aspects_parameters=unsafe_fixes=true".to_owned());
     }
     if let Some(path) = exec_log {
         required.extend(exec_log_options(path));
@@ -627,7 +632,7 @@ mod tests {
             let scope = resolved(&["//pkg:lib"]);
             let mut build =
                 plan_build(command, &scope, &user, "/tmp/bep.json", &startup).expect("build");
-            build.argv.retain(|arg| !arg.contains("extra_rustc_flags"));
+            build.argv.retain(|arg| !arg.contains("extra_rustc_flag"));
             let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup, None)
                 .expect("probe")
                 .expect("quality commands carry a probe");
@@ -750,6 +755,7 @@ mod tests {
             Selection {
                 shards: Some(&rust),
                 installed_modules: None,
+                unsafe_fixes: false,
             },
             None,
         )
@@ -757,6 +763,50 @@ mod tests {
         assert!(plan.argv.contains(
             &"--aspects=@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:families/rust.bzl%real_rust_lint_aspect".to_owned()
         ));
+    }
+
+    #[test]
+    fn unsafe_fixes_add_only_the_aspect_parameter() {
+        let user = strings(&["--config=ci"]);
+        for command in [Command::Lint, Command::Format, Command::Typecheck] {
+            let build = |unsafe_fixes| {
+                plan_build_with(
+                    command,
+                    &resolved(&["//pkg:lib"]),
+                    &user,
+                    "/tmp/bep.json",
+                    &[],
+                    Selection {
+                        unsafe_fixes,
+                        ..Selection::default()
+                    },
+                    None,
+                )
+                .expect("plan")
+                .argv
+            };
+            let safe = build(false);
+            assert_eq!(
+                safe,
+                plan_build(
+                    command,
+                    &resolved(&["//pkg:lib"]),
+                    &user,
+                    "/tmp/bep.json",
+                    &[]
+                )
+                .expect("plan")
+                .argv
+            );
+            assert!(!safe.iter().any(|arg| arg.contains("aspects_parameters")));
+            let mut with_unsafe = build(true);
+            let at = with_unsafe
+                .iter()
+                .position(|arg| arg == "--aspects_parameters=unsafe_fixes=true")
+                .expect("unsafe parameter");
+            with_unsafe.remove(at);
+            assert_eq!(with_unsafe, safe, "{command:?}");
+        }
     }
 
     #[test]

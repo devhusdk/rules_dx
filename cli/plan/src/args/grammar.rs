@@ -143,6 +143,7 @@ pub(crate) struct Flags {
     pub(crate) min_coverage: Option<u32>,
     pub(crate) min_changed_line_coverage: Option<u32>,
     pub(crate) apply: bool,
+    pub(crate) unsafe_fixes: bool,
     pub(crate) online: bool,
     pub(crate) breaking_against: Option<String>,
     pub(crate) debug: bool,
@@ -521,6 +522,14 @@ flag_group! {
     ApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
+    }
+}
+
+flag_group! {
+    /// With --apply or --diff, include fixes the tool marks unsafe.
+    UnsafeFlag, {
+        #[arg(long = "unsafe", overrides_with = "unsafe_fixes")]
+        unsafe_fixes: bool,
     }
 }
 
@@ -1168,6 +1177,7 @@ command_args! {
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
+        unsafe_fixes: UnsafeFlag,
         online: OnlineFlag,
         breaking_against: BreakingAgainstFlag,
         fail_on: FailOnFlag,
@@ -1181,6 +1191,7 @@ command_args! {
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
+        unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -1192,6 +1203,7 @@ command_args! {
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
+        unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1257,6 +1269,7 @@ command_args! {
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
+        unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
         explain: ExplainFlag,
         report: ReportFlag,
@@ -1309,6 +1322,7 @@ command_args! {
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
+        unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,

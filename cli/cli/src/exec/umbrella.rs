@@ -6,8 +6,9 @@ use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;
 use super::quality::{execute_quality_phase, guard_build_output, guard_overrides};
 use dx_output::{
-    command_finished, command_started, error_event, nest_phase_event, notice_event, read_event,
-    report_event, with_correlation, write_event, FinishedCounts, NoticeEvent, OutputMode,
+    command_finished, command_started, error_event, nest_phase_event, notice_event,
+    quality_started, read_event, report_event, with_correlation, write_event, FinishedCounts,
+    NoticeEvent, OutputMode,
 };
 use dx_plan::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use dx_plan::plan::spec;
@@ -941,7 +942,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         None
     };
     if request.common.output == OutputMode::Json {
-        if let Err(exit) = emit_built(out, command_started(command, mode)) {
+        if let Err(exit) = emit_built(out, quality_started(command, mode, request.unsafe_fixes)) {
             if let Some(reserved) = &explain_log {
                 let _ = std::fs::remove_file(&reserved.path);
             }
@@ -2278,6 +2279,30 @@ mod tests {
             serde_json::json!(0)
         );
         assert_eq!(harness.seen_env.borrow().len(), 4);
+    }
+
+    #[test]
+    fn check_apply_unsafe_reaches_the_quality_phases() {
+        let mut harness = umbrella_clean("umbrella-unsafe");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["check", "--apply", "--unsafe", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            json_events(&out)[0]["unsafe_fixes"],
+            serde_json::json!(true)
+        );
+        let builds = harness.build_argv.borrow();
+        let unsafe_builds: Vec<&Vec<String>> = builds
+            .iter()
+            .filter(|argv| {
+                argv.iter()
+                    .any(|arg| arg == "--aspects_parameters=unsafe_fixes=true")
+            })
+            .collect();
+        assert_eq!(unsafe_builds.len(), 3, "{builds:?}");
+        assert!(unsafe_builds
+            .iter()
+            .all(|argv| argv.iter().any(|arg| arg.starts_with("--aspects="))));
     }
 
     #[test]

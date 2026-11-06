@@ -146,3 +146,49 @@ fn probe_action_counts_alone_are_reported() {
         "{out}"
     );
 }
+
+#[test]
+fn unsafe_reaches_only_the_build_argv_and_the_started_event() {
+    const PARAMETER: &str = "--aspects_parameters=unsafe_fixes=true";
+    let mut harness = clean_harness("probe-unsafe");
+    harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--unsafe", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    let started: serde_json::Value =
+        serde_json::from_str(out.lines().next().expect("started line")).expect("json");
+    assert_eq!(started["event"], "command_started");
+    assert_eq!(started["unsafe_fixes"], true);
+    assert!(harness.build_argv.borrow()[0]
+        .iter()
+        .any(|arg| arg == PARAMETER));
+    assert!(!harness.probe_argv.borrow()[0]
+        .iter()
+        .any(|arg| arg == PARAMETER));
+
+    let harness = clean_harness("probe-safe");
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(!out
+        .lines()
+        .next()
+        .expect("started line")
+        .contains("unsafe_fixes"));
+    assert!(!harness.build_argv.borrow()[0]
+        .iter()
+        .any(|arg| arg.contains("aspects_parameters")));
+}
+
+#[test]
+fn unsafe_apply_prints_one_text_notice() {
+    let harness = umbrella_findings("unsafe-notice");
+    let (code, out, _) = harness.run(&["lint", "--apply", "--unsafe", "--output=text"]);
+    assert_eq!(code, 0, "{out}");
+    assert_eq!(
+        out.matches("--unsafe: fixes the tools mark unsafe").count(),
+        1,
+        "{out}"
+    );
+    let harness = umbrella_findings("safe-no-notice");
+    let (_, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
+    assert!(!out.contains("--unsafe"), "{out}");
+}

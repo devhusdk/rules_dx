@@ -43,6 +43,8 @@ pub struct RealRequest {
     pub resolves: Vec<(String, String)>,
     pub tools: BTreeMap<String, RequestTool>,
     pub scratch_parent: Option<String>,
+    /// `dx <quality> --unsafe`: adapters may also apply the fixes the tool marks unsafe.
+    pub unsafe_fixes: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -168,6 +170,8 @@ struct RequestDoc {
     tools: BTreeMap<String, ToolDoc>,
     #[serde(default)]
     scratch_parent: Option<String>,
+    #[serde(default)]
+    unsafe_fixes: bool,
 }
 
 fn check_workspace(role: &str, path: &str) -> Result<(), RequestError> {
@@ -426,6 +430,7 @@ pub fn parse_real_request(bytes: &[u8]) -> Result<RealRequest, RequestError> {
         resolves,
         tools,
         scratch_parent: doc.scratch_parent,
+        unsafe_fixes: doc.unsafe_fixes,
     })
 }
 
@@ -478,6 +483,21 @@ mod tests {
         tools: serde_json::Value,
     ) -> Result<RealRequest, RequestError> {
         parse_real_request(&skeleton(stages, sources, tools))
+    }
+
+    #[test]
+    fn unsafe_fixes_default_off_and_parse_when_set() {
+        let (stages, sources, tools) = one_source();
+        let request = parse_skeleton(stages, sources, tools).expect("parses");
+        assert!(!request.unsafe_fixes);
+
+        let (stages, sources, tools) = one_source();
+        let mut doc: serde_json::Value =
+            serde_json::from_slice(&skeleton(stages, sources, tools)).expect("decodes");
+        doc["unsafe_fixes"] = json!(true);
+        let request =
+            parse_real_request(&serde_json::to_vec(&doc).expect("encodes")).expect("parses");
+        assert!(request.unsafe_fixes);
     }
 
     #[test]

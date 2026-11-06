@@ -69,6 +69,8 @@ pub struct QualityRequest {
     pub origin: Option<UmbrellaOrigin>,
     /// The execution log file an umbrella `--explain` run has this phase write.
     pub exec_log: Option<String>,
+    /// `--unsafe`: fixes include the ones the tool marks unsafe.
+    pub unsafe_fixes: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,6 +101,7 @@ pub struct UmbrellaRequest {
     pub fail_on: Threshold,
     /// `dx check --explain`: save one execution log across the phases.
     pub explain: bool,
+    pub unsafe_fixes: bool,
 }
 
 impl CommonOptions {
@@ -157,7 +160,9 @@ impl UmbrellaRequest {
     }
 
     pub fn verify_quality_request(&self, phase: Command) -> Result<QualityRequest, String> {
-        self.quality_request(phase, OperationMode::Check, Vec::new())
+        let mut request = self.quality_request(phase, OperationMode::Check, Vec::new())?;
+        request.unsafe_fixes = false;
+        Ok(request)
     }
 
     pub fn verify_generate_request(&self) -> GenerateRequest {
@@ -205,6 +210,7 @@ impl UmbrellaRequest {
             fail_on: self.fail_on,
             origin: Some(self.origin()),
             exec_log: None,
+            unsafe_fixes: self.unsafe_fixes,
         })
     }
 
@@ -249,6 +255,8 @@ pub struct Invocation {
     /// `dx watch --poll`: poll the tree on every platform.
     pub poll: bool,
     pub include_edits: bool,
+    /// `--unsafe`: fixes include the ones the tool marks unsafe.
+    pub unsafe_fixes: bool,
     pub min_coverage: Option<u32>,
     /// The `--min-changed-line-coverage` percent gate on lines changed since the merge-base.
     pub min_changed_line_coverage: Option<u32>,
@@ -472,6 +480,7 @@ impl Invocation {
             fail_on: self.fail_on,
             origin: None,
             exec_log: None,
+            unsafe_fixes: self.unsafe_fixes,
         })
     }
 
@@ -516,6 +525,7 @@ impl Invocation {
                 test.reports = Vec::new();
                 test.explain = false;
                 test.include_edits = false;
+                test.unsafe_fixes = false;
                 test.targets = tests.clone();
                 test.affected_handoff = None;
                 Some(Box::new(test))
@@ -544,6 +554,7 @@ impl Invocation {
             common: self.common_options(),
             fail_on: self.fail_on,
             explain: self.explain,
+            unsafe_fixes: self.unsafe_fixes,
         })
     }
 }
@@ -697,6 +708,7 @@ mod tests {
             build_slots: None,
             poll: false,
             include_edits: false,
+            unsafe_fixes: false,
             min_coverage: None,
             min_changed_line_coverage: None,
             targets: targets.iter().map(ToString::to_string).collect(),

@@ -227,6 +227,13 @@ pub(crate) fn emit_findings(
                     &format!("Applied {applied_count} file(s)."),
                 )?;
             }
+            if request.unsafe_fixes && request.chatty() {
+                human_line(
+                    human,
+                    required,
+                    "--unsafe: fixes the tools mark unsafe were included; review them.",
+                )?;
+            }
         }
         for (path, reason) in not_applied {
             let _ = writeln!(err, "Not applied: {path} ({reason})");

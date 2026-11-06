@@ -316,6 +316,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         min_coverage,
         min_changed_line_coverage,
         apply,
+        unsafe_fixes,
         online,
         breaking_against,
         debug,
@@ -714,6 +715,9 @@ fn parse_inner<S: AsRef<OsStr>>(
             option: "--include-edits",
         });
     }
+    if unsafe_fixes && !apply && !diff {
+        return Err(ArgsError::UnsafeNeedsFixes);
+    }
     let mut once = Vec::new();
     for agent in agents {
         if !once.contains(&agent) {
@@ -739,6 +743,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         build_slots,
         poll,
         include_edits,
+        unsafe_fixes,
         min_coverage,
         min_changed_line_coverage,
         targets,

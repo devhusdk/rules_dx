@@ -987,6 +987,15 @@ mod tests {
     }
 
     #[test]
+    fn watch_iteration_carries_unsafe_fixes() {
+        let iteration = build_iteration(&invocation(&["watch", "lint", "--apply", "--unsafe"]))
+            .expect("lint iteration");
+        assert!(iteration.apply);
+        assert!(iteration.unsafe_fixes);
+        assert!(iteration.quality_request().expect("quality").unsafe_fixes);
+    }
+
+    #[test]
     fn watch_scope_label_names_affected_bare_and_explicit_scopes() {
         let label = |words: &[&str]| scope_label(&build_iteration(&invocation(words)).unwrap());
         assert_eq!(label(&["watch", "test", "--affected"]), "--affected");

@@ -48,6 +48,9 @@ Options:
       --apply
           Apply the changes instead of only showing them
 
+      --unsafe
+          With --apply or --diff, include fixes the tool marks unsafe
+
       --online
           Check external links too (lychee, needs network)
 

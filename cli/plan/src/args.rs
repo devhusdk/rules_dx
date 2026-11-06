@@ -59,6 +59,9 @@ pub enum ArgsError {
     /// A JSON-only flag arrived without JSON output.
     #[error("option {option:?} requires --output=json")]
     NeedsJson { option: &'static str },
+    /// Unsafe fixes were asked for without applying or showing fixes.
+    #[error("option \"--unsafe\" requires --apply or --diff")]
+    UnsafeNeedsFixes,
     /// The here tree was asked for alongside explicit scopes.
     #[error("option \"--here\" cannot be combined with explicit scopes")]
     ConflictingHere,

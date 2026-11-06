@@ -119,7 +119,7 @@ fn snapshot() -> Vec<ProcessEntry> {
     // SAFETY: plain call; the result is checked.
     let handle = unsafe { CreateToolhelp32Snapshot(0x2, 0) };
     if handle.is_null() || handle as isize == -1 {
-        return Vec::new(); // LCOV_EXCL_LINE - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        return Vec::new(); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     let guard = Owned(handle);
     let mut entries = Vec::new();
@@ -161,7 +161,7 @@ fn nt_query() -> Option<NtQuery> {
         // SAFETY: name is NUL-terminated; ntdll is always loaded.
         let module = unsafe { GetModuleHandleW(name.as_ptr()) };
         if module.is_null() {
-            return None;
+            return None; // LCOV_EXCL_LINE - reason: ntdll is loaded in every process, issue: 8104
         }
         // SAFETY: the name is NUL-terminated.
         let found = unsafe { GetProcAddress(module, c"NtQueryInformationProcess".as_ptr().cast()) };
@@ -225,7 +225,7 @@ fn rss_bytes(process: &Owned) -> u64 {
     // SAFETY: the handle has query access and counters is writable.
     let ok = unsafe { K32GetProcessMemoryInfo(process.0, &mut counters, counters.cb) };
     if ok == 0 {
-        0 // LCOV_EXCL_LINE - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        0 // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     } else {
         counters.working_set_size as u64
     }
@@ -259,3 +259,7 @@ pub struct ProcessInfo {
     pub rss_bytes: u64,
     pub command_line: String,
 }
+
+#[cfg(test)]
+#[path = "procs_tests.rs"]
+mod procs_tests;

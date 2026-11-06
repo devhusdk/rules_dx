@@ -115,7 +115,7 @@ struct ThreadEntry {
 fn resume_threads(pid: u32) -> io::Result<()> {
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
     if snapshot.is_null() || snapshot as isize == -1 {
-        return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     let mut entry: ThreadEntry = unsafe { std::mem::zeroed() };
     entry.size = std::mem::size_of::<ThreadEntry>() as u32;
@@ -126,7 +126,7 @@ fn resume_threads(pid: u32) -> io::Result<()> {
         if entry.owner_process_id == pid {
             let thread = unsafe { OpenThread(THREAD_SUSPEND_RESUME, 0, entry.thread_id) };
             if thread.is_null() {
-                // LCOV_EXCL_START - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+                // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 failure = Some(io::Error::last_os_error());
                 break;
                 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -137,7 +137,7 @@ fn resume_threads(pid: u32) -> io::Result<()> {
                 CloseHandle(thread);
             }
             if previous == u32::MAX {
-                // LCOV_EXCL_START - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+                // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 failure = Some(err);
                 break;
                 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -150,7 +150,7 @@ fn resume_threads(pid: u32) -> io::Result<()> {
         CloseHandle(snapshot);
     }
     match failure {
-        // LCOV_EXCL_START - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         Some(err) => Err(err),
         None if resumed == 0 => Err(io::Error::new(
             io::ErrorKind::NotFound,
@@ -168,8 +168,8 @@ fn console_members() -> Vec<u32> {
         if count <= list.len() {
             list.truncate(count);
             return list;
+            // LCOV_EXCL_START - reason: the list outgrowing its buffer between two calls, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
-        // LCOV_EXCL_START - reason: the list outgrowing its buffer between two calls, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         list.resize(count + 16, 0);
     }
     Vec::new()
@@ -185,7 +185,7 @@ impl Job {
     fn create(descendants: Descendants) -> io::Result<Job> {
         let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
         if handle.is_null() {
-            return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         let mut info: ExtendedLimit = unsafe { std::mem::zeroed() };
         info.basic.limit_flags = match descendants {
@@ -201,7 +201,7 @@ impl Job {
             )
         };
         if applied == 0 {
-            // LCOV_EXCL_START - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             let err = io::Error::last_os_error();
             unsafe {
                 CloseHandle(handle);
@@ -219,7 +219,7 @@ impl Job {
         let process = child.as_raw_handle() as Handle;
         let assigned = unsafe { AssignProcessToJobObject(self.handle, process) };
         if assigned == 0 {
-            Err(io::Error::last_os_error()) // LCOV_EXCL_LINE - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            Err(io::Error::last_os_error()) // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             Ok(())
         }
@@ -256,8 +256,8 @@ impl Job {
                         .map(|&pid| pid as u32)
                         .collect(),
                 );
+                // LCOV_EXCL_START - reason: the list outgrowing its buffer between two calls, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             }
-            // LCOV_EXCL_START - reason: the list outgrowing its buffer between two calls, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             if !queried && err.raw_os_error() != Some(ERROR_MORE_DATA) {
                 return None;
             }
@@ -354,7 +354,7 @@ pub fn spawn_owned(command: &mut Command, descendants: Descendants) -> io::Resul
     };
     let started = job.assign(&child).and_then(|()| resume_threads(child.id()));
     if let Err(err) = started {
-        // LCOV_EXCL_START - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         job.terminate();
         let _ = child.kill();
         let _ = child.wait();
@@ -384,7 +384,7 @@ pub fn spawn_streamed(
     let mut child = command.creation_flags(CREATE_SUSPENDED).spawn()?;
     let started = job.assign(&child).and_then(|()| resume_threads(child.id()));
     if let Err(err) = started {
-        // LCOV_EXCL_START - reason: a Win32 call that fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         job.terminate();
         let _ = child.kill();
         let _ = child.wait();

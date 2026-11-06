@@ -210,6 +210,25 @@ mod tests {
     }
 
     #[test]
+    fn target_in_a_link_loop_reports_the_io_error() {
+        let dir = tempfile::tempdir().unwrap();
+        link(dir.path().join("b"), dir.path().join("a")).unwrap();
+        link(dir.path().join("a"), dir.path().join("b")).unwrap();
+        let error = resolve_target_in_workspace(dir.path(), "a").unwrap_err();
+        assert_ne!(error.kind(), std::io::ErrorKind::NotFound);
+        assert_ne!(error.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn verbatim_target_climbing_through_a_parent_component_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let workspace = std::fs::canonicalize(dir.path()).unwrap();
+        let error = resolve_target_in_workspace(&workspace, r"missing\..\uv.lock").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
     fn target_under_a_dangling_parent_link_is_rejected() {
         let dir = tempfile::tempdir().unwrap();
         link(dir.path().join("nope"), dir.path().join("apps")).unwrap();

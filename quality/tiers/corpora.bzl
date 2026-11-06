@@ -35,6 +35,8 @@ TIER_JSON = [
     "stylelint/strict.json",
     "swift_format/standard.json",
     "swift_format/strict.json",
+    "swift_lint/standard.json",
+    "swift_lint/strict.json",
     "tsconfig/standard.json",
     "tsconfig/strict.json",
 ]
@@ -60,6 +62,8 @@ TIER_TOML = [
     "selene/strict.toml",
     "taplo/standard.toml",
     "taplo/strict.toml",
+    "stylua/standard.toml",
+    "stylua/strict.toml",
     "ty/standard.toml",
     "ty/strict.toml",
     "typos/standard.toml",

@@ -2370,7 +2370,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_lua_selene_standard",
         "generated": {
-            "matrix/selene_profile.lua": "local unused = 1\n\nlocal function classify(value)\n    if value < 0 then\n        return \"negative\"\n    elseif value == 0 then\n        return \"zero\"\n    elseif value < 10 then\n        return \"small\"\n    end\n    return \"large\"\nend\n\nprint(classify(2))\n",
+            "matrix/selene_profile.lua": "local unused = 1\n\nlocal function classify(value)\n    if (value < 0) then\n        return \"negative\"\n    elseif value == 0 then\n        return \"zero\"\n    elseif value < 10 then\n        return \"small\"\n    end\n    return \"large\"\nend\n\nprint(classify(2))\n",
         },
         "capability": "lint",
         "stages": ["selene;lua;matrix/selene_profile.lua"],
@@ -2385,7 +2385,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_lua_selene_strict",
         "generated": {
-            "matrix/selene_profile.lua": "local unused = 1\n\nlocal function classify(value)\n    if value < 0 then\n        return \"negative\"\n    elseif value == 0 then\n        return \"zero\"\n    elseif value < 10 then\n        return \"small\"\n    end\n    return \"large\"\nend\n\nprint(classify(2))\n",
+            "matrix/selene_profile.lua": "local unused = 1\n\nlocal function classify(value)\n    if (value < 0) then\n        return \"negative\"\n    elseif value == 0 then\n        return \"zero\"\n    elseif value < 10 then\n        return \"small\"\n    end\n    return \"large\"\nend\n\nprint(classify(2))\n",
         },
         "capability": "lint",
         "stages": ["selene;lua;matrix/selene_profile.lua"],
@@ -2487,9 +2487,9 @@ FILE_FAMILY_CASES = [
         "tool_names": ["swift_lint"],
         "tool_binaries": ["//swift/tools:swift_format"],
         "toolfile_tools": ["swift_lint"],
-        "toolfile_srcs": ["//quality/tiers/swift_format:standard.json"],
+        "toolfile_srcs": ["//quality/tiers/swift_lint:standard.json"],
         "config_tools": ["swift_lint"],
-        "config_files": ["//quality/tiers/swift_format:standard.json"],
+        "config_files": ["//quality/tiers/swift_lint:standard.json"],
         "expected_file": ":matrix/matrix_swift_lint_profile_standard.expected.txt",
         "linux_arm64": True,
     },
@@ -2503,9 +2503,9 @@ FILE_FAMILY_CASES = [
         "tool_names": ["swift_lint"],
         "tool_binaries": ["//swift/tools:swift_format"],
         "toolfile_tools": ["swift_lint"],
-        "toolfile_srcs": ["//quality/tiers/swift_format:strict.json"],
+        "toolfile_srcs": ["//quality/tiers/swift_lint:strict.json"],
         "config_tools": ["swift_lint"],
-        "config_files": ["//quality/tiers/swift_format:strict.json"],
+        "config_files": ["//quality/tiers/swift_lint:strict.json"],
         "expected_file": ":matrix/matrix_swift_lint_profile_strict.expected.txt",
         "linux_arm64": True,
     },

@@ -286,6 +286,19 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "luals",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("luals/assign-type-mismatch", crate::ToolSeverity::Error),
+                ("luals/cast-type-mismatch", crate::ToolSeverity::Error),
+                ("luals/error", crate::ToolSeverity::Error),
+                ("luals/param-type-mismatch", crate::ToolSeverity::Error),
+                ("luals/return-type-mismatch", crate::ToolSeverity::Error),
+            ],
+        },
+    ),
+    (
         "lychee",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -370,6 +383,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
                 ("S6", crate::ToolSeverity::Error),
                 ("S7", crate::ToolSeverity::Error),
             ],
+        },
+    ),
+    (
+        "selene",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
         },
     ),
     (

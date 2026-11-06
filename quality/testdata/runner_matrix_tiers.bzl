@@ -41,6 +41,10 @@ _TFLINT_DOCUMENTED = {
     "matrix/tflint_tier/variables.tf": "variable \"name\" {\n  type        = string\n  description = \"Name.\"\n}\n",
     "matrix/tflint_tier/main.tf": _TFLINT_HEADER + "resource \"null_resource\" \"sample\" {\n  triggers = {\n    name = var.name\n  }\n}\n",
 }
+_SELENE_CLEAN = {"matrix/selene_tier/add.lua": "local function add(a, b)\n    return a + b\nend\n\nprint(add(1, 2))\n"}
+_DART_CLEAN = {"matrix/dart_tier/main.dart": "void main() {\n  print(1);\n}\n"}
+_SWIFT_CLEAN = {"matrix/swift_lint_tier/add.swift": "func add(a: Int, b: Int) -> Int {\n  return a + b\n}\n"}
+_NO_PLATFORMS = {"linux_arm64": False, "macos_arm64": False, "windows_x86_64": False, "windows_arm64": False}
 _TRIVY_CLEAN = {"matrix/trivy_tier/Dockerfile": "FROM scratch\nUSER 1000\nHEALTHCHECK NONE\n"}
 
 def _lint_case(name, generated, stage, tool, binary, config, **extra):
@@ -99,6 +103,36 @@ def _lint_cases(tier):
             "@dx_tools//:trivy",
             "//quality/tiers/trivy_config:%s.txt" % tier,
             toolfile_rels = [""],
+        ),
+        _lint_case(
+            "matrix_lua_selene_clean_" + tier,
+            _SELENE_CLEAN,
+            "selene;lua;matrix/selene_tier/add.lua",
+            "selene",
+            "//quality/tools/rust:selene",
+            "//quality/tiers/selene:%s.toml" % tier,
+            **_NO_PLATFORMS
+        ),
+        _lint_case(
+            "matrix_dart_lint_clean_" + tier,
+            _DART_CLEAN,
+            "dart;dart;matrix/dart_tier/main.dart",
+            "dart",
+            "//dart/tools:dart",
+            "//quality/tiers/dart:%s.yaml" % tier,
+            toolfile_tools = ["dart", "dart"],
+            toolfile_srcs = ["//quality/tiers/dart:%s.yaml" % tier, ":dart_cfg/package_config.json"],
+            toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
+            windows_arm64 = False,
+        ),
+        _lint_case(
+            "matrix_swift_lint_clean_" + tier,
+            _SWIFT_CLEAN,
+            "swift_lint;swift;matrix/swift_lint_tier/add.swift",
+            "swift_lint",
+            "//swift/tools:swift_format",
+            "//quality/tiers/swift_lint:%s.json" % tier,
+            **_NO_PLATFORMS
         ),
     ]
 

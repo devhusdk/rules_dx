@@ -47,7 +47,7 @@ CONFIG_REQUIRED_TOOLS = {
     "vale": struct(name = "Vale", src = ".vale.ini"),
 }
 
-CONFIG_TOOL_ALIASES = {"helm": "kubeconform", "swift_lint": "swift_format"}
+CONFIG_TOOL_ALIASES = {"helm": "kubeconform"}
 
 _NATIVE_CONFIG_SUFFIXES = {tool.id: tool.config.suffixes for tool in TOOLS if tool.config.suffixes}
 
@@ -337,6 +337,7 @@ trivy_config_config = _make_native_config_rule("trivy_config")
 zizmor_config = _make_native_config_rule("zizmor")
 fortitude_config = _make_native_config_rule("fortitude")
 swift_format_config = _make_native_config_rule("swift_format")
+swift_lint_config = _make_native_config_rule("swift_lint")
 credo_config = _make_native_config_rule("credo")
 detekt_config = _make_native_config_rule("detekt")
 ktlint_config = _make_native_config_rule("ktlint")

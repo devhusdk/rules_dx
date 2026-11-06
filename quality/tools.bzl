@@ -852,6 +852,7 @@ TOOLS = [
             comment = "#",
             init_order = 5,
             family = "dart",
+            tier_active = True,
         ),
         support = [
             row(
@@ -1640,7 +1641,14 @@ TOOLS = [
     tool(
         id = "luals",
         adapters = {"typecheck": ["lua"]},
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
+        severity = severity(default = "warning", categories = {
+            "luals/assign-type-mismatch": "error",
+            "luals/cast-type-mismatch": "error",
+            "luals/error": "error",
+            "luals/param-type-mismatch": "error",
+            "luals/return-type-mismatch": "error",
+        }),
     ),
     tool(
         id = "lychee",
@@ -2080,6 +2088,7 @@ TOOLS = [
             comment = "#",
             init_order = 6,
             family = "powershell",
+            tier_active = True,
         ),
         support = [
             row(
@@ -2133,7 +2142,7 @@ TOOLS = [
     tool(
         id = "qmlformat",
         adapters = {"format": ["qml"]},
-        config = config(suffixes = [".qmlformat.ini"]),
+        config = config(suffixes = [".qmlformat.ini"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2157,7 +2166,7 @@ TOOLS = [
             "lint": ["qml"],
             "typecheck": ["qml"],
         },
-        config = config(suffixes = [".qmllint.ini"]),
+        config = config(suffixes = [".qmllint.ini"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2436,7 +2445,8 @@ TOOLS = [
     tool(
         id = "selene",
         adapters = {"lint": ["lua"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2638,7 +2648,7 @@ TOOLS = [
     tool(
         id = "stylua",
         adapters = {"format": ["lua"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2654,7 +2664,7 @@ TOOLS = [
     tool(
         id = "swift_format",
         adapters = {"format": ["swift"]},
-        config = config(suffixes = [".swift-format", ".json"]),
+        config = config(suffixes = [".swift-format", ".json"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2676,6 +2686,7 @@ TOOLS = [
     tool(
         id = "swift_lint",
         adapters = {"lint": ["swift"]},
+        config = config(suffixes = [".swift-format", ".json"], tier_active = True),
         support = [
             row(
                 capability = "lint",

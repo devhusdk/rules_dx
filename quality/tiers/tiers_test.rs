@@ -23,6 +23,7 @@ const NO_FORMATTER: &[&str] = &[
 
 const EXEMPT: &[&str] = &[
     "quality/tiers/detekt/regen.sh",
+    "quality/tiers/ruff/strict.toml",
     "quality/tiers/selene/strict.toml",
     "quality/tiers/vale/styles/",
 ];

@@ -242,10 +242,15 @@ pub fn archive_members(bytes: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
 
 const COFF_MACHINES: [u16; 3] = [0x8664, 0xAA64, 0x014C];
 
+fn is_bigobj(bytes: &[u8]) -> bool {
+    bytes.len() >= 56 && bytes[..4] == [0, 0, 0xFF, 0xFF] && bytes[4..6] != [0, 0]
+}
+
 fn is_coff_object(bytes: &[u8]) -> bool {
-    bytes.len() >= 20
-        && COFF_MACHINES.contains(&u16::from_le_bytes([bytes[0], bytes[1]]))
-        && bytes[2..4] != [0, 0]
+    is_bigobj(bytes)
+        || (bytes.len() >= 20
+            && COFF_MACHINES.contains(&u16::from_le_bytes([bytes[0], bytes[1]]))
+            && bytes[2..4] != [0, 0])
 }
 
 fn is_pe_image(bytes: &[u8]) -> bool {
@@ -253,13 +258,25 @@ fn is_pe_image(bytes: &[u8]) -> bool {
 }
 
 struct PeLayout {
-    coff: usize,
     optional: usize,
     sections: usize,
     count: usize,
+    symbols: usize,
+    symbol_count: usize,
+    symbol_size: usize,
 }
 
 fn pe_layout(bytes: &[u8]) -> Result<PeLayout, String> {
+    if is_bigobj(bytes) {
+        return Ok(PeLayout {
+            optional: 56,
+            sections: 56,
+            count: to_usize(u64::from(u32_at(bytes, 44)?))?,
+            symbols: to_usize(u64::from(u32_at(bytes, 48)?))?,
+            symbol_count: to_usize(u64::from(u32_at(bytes, 52)?))?,
+            symbol_size: 20,
+        });
+    }
     let (coff, optional_size) = if is_pe_image(bytes) {
         let pe = to_usize(u64::from(u32_at(bytes, 0x3C)?))?;
         if bytes.get(pe..pe + 4) != Some(b"PE\0\0".as_slice()) {
@@ -271,10 +288,12 @@ fn pe_layout(bytes: &[u8]) -> Result<PeLayout, String> {
         (0, usize::from(u16_at(bytes, 16)?))
     };
     Ok(PeLayout {
-        coff,
         optional: coff + 20,
         sections: coff + 20 + optional_size,
         count: usize::from(u16_at(bytes, coff + 2)?),
+        symbols: to_usize(u64::from(u32_at(bytes, coff + 8)?))?,
+        symbol_count: to_usize(u64::from(u32_at(bytes, coff + 12)?))?,
+        symbol_size: 18,
     })
 }
 
@@ -288,11 +307,10 @@ struct CoffSection<'a> {
 
 fn coff_sections(bytes: &[u8]) -> Result<Vec<CoffSection<'_>>, String> {
     let layout = pe_layout(bytes)?;
-    let symbols = to_usize(u64::from(u32_at(bytes, layout.coff + 8)?))?;
-    let symbol_count = to_usize(u64::from(u32_at(bytes, layout.coff + 12)?))?;
-    let strings = symbols
-        .checked_add(symbol_count * 18)
-        .filter(|_| symbols != 0)
+    let strings = layout
+        .symbols
+        .checked_add(layout.symbol_count * layout.symbol_size)
+        .filter(|_| layout.symbols != 0)
         .and_then(|at| bytes.get(at..))
         .unwrap_or(&[]);
     let mut out = Vec::with_capacity(layout.count);
@@ -688,6 +706,38 @@ mod tests {
         assert_eq!(device_code(&rdc).unwrap().len(), 1);
         let short = coff(0x8664, &[(".nv_fatb", fixture_fatbin())]);
         assert_eq!(device_code(&short).unwrap().len(), 3);
+    }
+
+    fn bigobj(sections: &[(&str, Vec<u8>)]) -> Vec<u8> {
+        let regular = coff(0x8664, sections);
+        let count = sections.len();
+        let mut out = vec![0u8; 56];
+        out[2..4].copy_from_slice(&[0xFF, 0xFF]);
+        out[4..6].copy_from_slice(&2u16.to_le_bytes());
+        out[6..8].copy_from_slice(&0x8664u16.to_le_bytes());
+        out[44..48].copy_from_slice(&(count as u32).to_le_bytes());
+        let delta = 56 - 20;
+        let symbols = u32::from_le_bytes(regular[8..12].try_into().unwrap()) as usize + delta;
+        out[48..52].copy_from_slice(&(symbols as u32).to_le_bytes());
+        let mut rest = regular[20..].to_vec();
+        for index in 0..count {
+            let at = index * 40 + 20;
+            let offset = u32::from_le_bytes(rest[at..at + 4].try_into().unwrap()) + delta as u32;
+            rest[at..at + 4].copy_from_slice(&offset.to_le_bytes());
+        }
+        out.extend(rest);
+        out
+    }
+
+    #[test]
+    fn fatbin_device_code_reads_bigobj_members() {
+        let object = bigobj(&[
+            (".text", vec![0xC3]),
+            ("__nv_relfatbin", fixture_fatbin()),
+        ]);
+        assert!(is_coff_object(&object));
+        assert_eq!(device_code(&object).unwrap().len(), 3);
+        assert_eq!(device_code(&ar(&[("a.obj", object)])).unwrap().len(), 3);
     }
 
     #[test]

@@ -42,8 +42,9 @@ bazel test //ocaml/tests/fixtures/ocaml-app/... --@rules_dx//ocaml/toolchain:emi
 
 ## Pinned dependency
 
-`Astring` 0.8.5 comes from the GitHub tag archive with a pinned `sha256` in
-`MODULE.bazel`. Its ISC license applies. `astring.BUILD.bazel` builds the seven
+`Astring` 0.8.5 is listed in `ocaml_app.opam.locked`; `ocaml.packages` in `MODULE.bazel`
+takes its archive and `sha256` from the pinned opam-repository snapshot. Its
+ISC license applies. `astring.BUILD.bazel` builds the seven
 library modules one by one in the order of upstream's `astring.mllib` and
 leaves out the toplevel printers. Warnings are off for that third-party code
 only.

@@ -7,13 +7,14 @@ use std::path::{Path, PathBuf};
 use crate::build_output::IGNORE_LINES;
 use crate::error::AdoptError;
 use crate::preset_fragment::{
-    bazelrc_imports, is_generated, layer_import_state, layer_is_current_with,
-    layer_warnings_as_errors, owned_collisions_in_content, prepend_imports, render_all,
-    render_layer_with, ImportState, Layer, CONSUMER_DIR, REPO_DIR,
+    bazelrc_imports, is_generated, layer_import_state, layer_warnings_as_errors,
+    owned_collisions_in_content, prepend_imports, render_all, ImportState, Layer, CONSUMER_DIR,
+    REPO_DIR,
 };
-use crate::profiles::Profile;
+use crate::profiles::{config_policy_wanted, Profile};
 use crate::scaffold::{scaffold_dest_within_root, with_header, Applied};
 use crate::Ownership;
+use dx_preset::{layer_is_current_pinned, render_layer_pinned};
 
 /// The root `.bazelrc` file.
 pub const BAZELRC: &str = ".bazelrc";
@@ -202,8 +203,13 @@ fn pin(layer: Layer, profile: Profile) -> Option<bool> {
     (layer == Layer::Correctness).then_some(profile == Profile::Strict)
 }
 
-fn render(layer: Layer, repo: &str, profile: Profile) -> String {
-    render_layer_with(layer, repo, pin(layer, profile))
+fn render(root: &Path, layer: Layer, repo: &str, profile: Profile) -> String {
+    render_layer_pinned(
+        layer,
+        repo,
+        pin(layer, profile),
+        layer == Layer::Correctness && config_policy_wanted(root),
+    )
 }
 
 /// Every file the preset owns with the content a fresh workspace gets.
@@ -237,7 +243,7 @@ pub fn preset_files(root: &Path, profile: Option<Profile>) -> Vec<(String, Strin
     files.extend(
         Layer::ALL
             .iter()
-            .map(|layer| (layer_rel(*layer), render(*layer, &repo, profile))),
+            .map(|layer| (layer_rel(*layer), render(root, *layer, &repo, profile))),
     );
     files
 }
@@ -262,7 +268,15 @@ fn layer_file(root: &Path, layer: Layer, repo: &str, profile: Profile) -> LayerF
         return LayerFile::Symlink;
     }
     match std::fs::read_to_string(&path) {
-        Ok(text) if layer_is_current_with(&text, layer, repo, pin(layer, profile)) => {
+        Ok(text)
+            if layer_is_current_pinned(
+                &text,
+                layer,
+                repo,
+                pin(layer, profile),
+                layer == Layer::Correctness && config_policy_wanted(root),
+            ) =>
+        {
             LayerFile::Current
         }
         Ok(text) if is_generated(&text) => LayerFile::Stale,
@@ -408,7 +422,7 @@ pub fn write_preset(
     let repo = dx_module_bazel::rules_dx_repo(root);
     for (layer, _) in state.to_write() {
         let rel = layer_rel(layer);
-        write(root, &rel, &render(layer, &repo, profile))?;
+        write(root, &rel, &render(root, layer, &repo, profile))?;
         applied.wrote.push(rel);
     }
     if state.will_import() {
@@ -457,7 +471,7 @@ fn sync_layers(root: &Path, create_missing: bool) -> Result<Vec<String>, AdoptEr
         };
         if *import == ImportState::Active && wanted {
             let rel = layer_rel(*layer);
-            write(root, &rel, &render(*layer, &repo, profile))?;
+            write(root, &rel, &render(root, *layer, &repo, profile))?;
             wrote.push(rel);
         }
     }
@@ -715,7 +729,8 @@ mod tests {
         let root = scratch.path();
         apply(root);
         let path = root.join(layer_rel(Layer::Correctness));
-        let legacy = render_layer_with(Layer::Correctness, dx_preset::DEFAULT_REPO, None);
+        let legacy =
+            dx_preset::render_layer_with(Layer::Correctness, dx_preset::DEFAULT_REPO, None);
         std::fs::write(&path, legacy).expect("legacy");
         assert!(preset_drift(root).other.contains(&WERROR_NOTE.to_owned()));
         let (wrote, notes) = apply(root);

@@ -61,7 +61,7 @@ pub use preset::{
     preset_paths, read_profile, refresh_preset, resolve_profile, sync_preset, write_preset,
     PresetDrift, PresetState, WERROR_NOTE,
 };
-pub use profiles::{infer_profile, kept_config_notes, plan_profile_files, profile_notes, Profile};
+pub use profiles::{config_policy_wanted, infer_profile, kept_config_notes, plan_profile_files, profile_notes, Profile};
 pub use scaffold::{
     bazelignore_covers_dx, bazelignore_has_bare_dx, owned_file_drift, plan_init_files,
     plan_init_files_at, preflight_destinations, refresh_scaffold, render_consumer_caller,

@@ -216,6 +216,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "csc",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            categories: &[],
+        },
+    ),
+    (
         "detekt",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -252,6 +259,20 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
     ),
     (
         "fortitude",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "fsc",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            categories: &[],
+        },
+    ),
+    (
+        "fsharplint",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
             categories: &[],
@@ -397,6 +418,21 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
             categories: &[],
+        },
+    ),
+    (
+        "roslyn",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("CA2100", crate::ToolSeverity::Error),
+                ("CA2109", crate::ToolSeverity::Error),
+                ("CA2119", crate::ToolSeverity::Error),
+                ("CA2153", crate::ToolSeverity::Error),
+                ("CA23", crate::ToolSeverity::Error),
+                ("CA3", crate::ToolSeverity::Error),
+                ("CA5", crate::ToolSeverity::Error),
+            ],
         },
     ),
     (

@@ -17,11 +17,6 @@ exports_files(glob(
 ))
 
 filegroup(
-    name = "dune_src",
-    srcs = glob(["dune_src/**"]),
-)
-
-filegroup(
     name = "licenses",
     srcs = glob(["*/LICENSE*"]),
 )

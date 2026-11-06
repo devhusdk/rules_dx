@@ -22,7 +22,7 @@ def _checks():
         expect_equal("directories are unique", len(dirs), len(depset(dirs).to_list())),
         expect_true("archive count stays below the abort threshold", len(packages) <= 25),
         expect_equal("patch names map to directories", patch_package("zanuda.1-no-plugins.patch"), "zanuda"),
-        expect_true("dune keeps its bootstrap directory", "dune_src" in dirs),
+        expect_true("dune keeps its library directory", "dune_src" in dirs),
         expect_true("patches name packages", all([patch_package(p.split("/")[-1]) in dirs for p in SOURCE["patches"]])),
     ]
 

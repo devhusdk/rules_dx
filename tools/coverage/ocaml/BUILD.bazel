@@ -22,7 +22,7 @@ real_source_target(
 dx_dune_build(
     name = "bisect_driver_exe",
     srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
-    dune = "//quality/tools/ocaml:dune",
+    dune = "//ocaml/toolchain:dune",
     target = "bisect_ppx/src/driver/driver.exe",
     workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )
@@ -30,7 +30,7 @@ dx_dune_build(
 dx_dune_build(
     name = "bisect_report",
     srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
-    dune = "//quality/tools/ocaml:dune",
+    dune = "//ocaml/toolchain:dune",
     target = "bisect_ppx/src/report/main.exe",
     workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )
@@ -38,7 +38,7 @@ dx_dune_build(
 dx_dune_library(
     name = "bisect_ppx_rewriter",
     srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
-    dune = "//quality/tools/ocaml:dune",
+    dune = "//ocaml/toolchain:dune",
     library = "bisect_ppx",
     package = "bisect_ppx",
     visibility = VIS_PUBLIC,

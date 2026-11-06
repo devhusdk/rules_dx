@@ -1,4 +1,4 @@
-load("@rules_dx//ocaml/rules:dune.bzl", "dx_dune_bootstrap", "dx_dune_build")
+load("@rules_dx//ocaml/rules:dune.bzl", "dx_dune_build")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -16,15 +16,9 @@ exports_files(glob(["patches/*.patch"]) + [
 
 # zanuda 2.1.0, built from source with dune. Licensed LGPL-3.0-only; the
 # licenses of the whole source closure are in :zanuda_licenses.
-dx_dune_bootstrap(
-    name = "dune",
-    srcs = ["@dx_ocaml_tools_duniverse//:dune_src"],
-    visibility = ["//visibility:public"],
-)
-
 dx_dune_build(
     name = "zanuda",
-    dune = ":dune",
+    dune = "//ocaml/toolchain:dune",
     srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
     target = "zanuda/src/main.exe",
     workspace = "@dx_ocaml_tools_duniverse//:dune-project",
@@ -98,7 +92,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "cmt_list.bzl",
-            "repos.bzl",
+        "repos.bzl",
         "tools_tests.bzl",
     ],
     tags = ["corpus"],

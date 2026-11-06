@@ -144,7 +144,7 @@ on a dune workspace and returns the package as rules_ocaml providers, so
 `ocaml_module` and `ocaml_test` take it in `deps`. The package is copied to the
 tree artifact `<name>_ocamlpath/<package>` (a findlib layout); the archive named
 by `library` (`.cma`, or `.cmxa` plus `.a` under the native emitter) is exposed
-as its own file. `dune` is a label, for example `//quality/tools/ocaml:dune`.
+as its own file. `dune` is a label, for example `//ocaml/toolchain:dune`.
 `deps` names other `dx_dune_library` targets; their trees go on `OCAMLPATH`.
 A package with `lib<library>_stubs.a` needs `stubs = True`, which links the
 archive natively (the bytecode cell does not support C stubs). See
@@ -170,7 +170,7 @@ The lint aspect reads the typed trees (`.cmt`/`.cmti`) that `ocaml_module` and
 findings report the same workspace path.
 
 - **Build.** `dx_dune_build` (`ocaml/rules/dune.bzl`) builds zanuda with the
-  shared `//quality/tools/ocaml:dune` bootstrap (`dx_dune_bootstrap`) using the pinned native OCaml,
+  shared `//ocaml/toolchain:dune` bootstrap (`dx_dune_bootstrap`) using the pinned native OCaml,
   the resolved C toolchain, no network and no dune cache. The 22 source
   archives are pinned in `quality/artifacts/zanuda.bzl` and unpacked side by
   side by `@dx_ocaml_tools_duniverse`. The rule is generic over sources and target.

@@ -15,6 +15,7 @@ rust_library(
         "src/ecosystem/js.rs",
         "src/ecosystem/jvm.rs",
         "src/ecosystem/mod.rs",
+        "src/ecosystem/perl.rs",
         "src/ecosystem/python.rs",
         "src/ecosystem/ruby.rs",
         "src/ecosystem/rust.rs",
@@ -79,6 +80,7 @@ rust_test(
         ":java_testdata",
         ":js_testdata",
         ":kotlin_testdata",
+        ":perl_testdata",
         ":python_testdata",
         ":ruby_testdata",
         ":rust_testdata",
@@ -250,6 +252,7 @@ rust_test(
         "fsharp",
         "cc",
         "ruby",
+        "perl",
     ]
 ]
 

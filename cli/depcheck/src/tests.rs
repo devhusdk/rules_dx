@@ -694,6 +694,7 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Csharp | Ecosystem::Fsharp => "paket.dependencies",
         Ecosystem::Cc => "cc_deps.toml",
         Ecosystem::Ruby => "Gemfile",
+        Ecosystem::Perl => "cpanfile",
     }
 }
 
@@ -707,6 +708,7 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Csharp | Ecosystem::Fsharp => "paket.lock",
         Ecosystem::Cc => "cc_lock.json",
         Ecosystem::Ruby => "Gemfile.lock",
+        Ecosystem::Perl => "cpanfile.snapshot",
     }
 }
 
@@ -724,6 +726,7 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Fsharp => "fsharp",
         Ecosystem::Cc => "cc",
         Ecosystem::Ruby => "ruby",
+        Ecosystem::Perl => "perl",
     }
 }
 
@@ -1214,6 +1217,7 @@ fn ecosystem_parse_covers_every_name() {
         ("fsharp", Ecosystem::Fsharp),
         ("cc", Ecosystem::Cc),
         ("ruby", Ecosystem::Ruby),
+        ("perl", Ecosystem::Perl),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -2415,4 +2419,71 @@ fn pnpm_lock_lists_every_version() {
     assert!(parsed.has_package("foo", "2.0.0"));
     assert!(parsed.has_package("@S/n", "1.0.0"));
     assert!(parsed.importer_keys().is_empty());
+}
+
+#[test]
+fn perl_manifest_reads_phases_and_skips_perl() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let cpanfile = dir.path().join("cpanfile");
+    write_file(
+        &cpanfile,
+        "requires 'perl', '5.020';\nrequires 'Moo', '== 2.005';\nrecommends 'JSON::XS';\ntest_requires 'Test::More', 0;\non 'test' => sub {\n    requires 'Test::Deep', '1.1';\n};\nbuild_requires \"Module::Build\";\n",
+    );
+    let deps = parse_perl_manifest(&cpanfile).expect("parse");
+    assert!(!deps.contains_key("perl"));
+    assert_eq!(deps["Moo"].spec, "== 2.005");
+    assert_eq!(deps["Moo"].category, "prod");
+    assert!(deps["JSON::XS"].optional);
+    assert_eq!(deps["JSON::XS"].spec, "*");
+    assert_eq!(deps["Test::More"].category, "dev");
+    assert_eq!(deps["Test::Deep"].category, "dev");
+    assert_eq!(deps["Test::Deep"].spec, ">= 1.1");
+    assert_eq!(deps["Module::Build"].category, "build");
+}
+
+#[test]
+fn perl_lock_maps_provided_modules() {
+    let root = testdata_root().join("perl/mixed/cpanfile.snapshot");
+    let lock = parse_perl_lock(&root).expect("parse");
+    assert_eq!(lock["Moo::Object"], "2.005005");
+    assert_eq!(lock["Try::Tiny"], "0.32");
+    assert!(!lock.contains_key("ExtUtils::MakeMaker"));
+}
+
+#[test]
+fn perl_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("perl/mixed");
+    let manifest = base.join("cpanfile");
+    let lock = base.join("cpanfile.snapshot");
+    assert_eq!(consistency(Ecosystem::Perl, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Perl, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["Text::CSV"]);
+    let missing = find_missing(Ecosystem::Perl, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(found, [("Try::Tiny", "lib/Hello.pm", 3)]);
+}
+
+#[test]
+fn perl_usage_covers_use_require_and_parent() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("a.pm"), "use Foo::Bar qw(x);\n");
+    write_file(&dir.path().join("b.pl"), "require Baz;\n");
+    write_file(&dir.path().join("c.pm"), "use parent -norequire, 'Qux';\n");
+    write_file(&dir.path().join("t/d.t"), "use Test::More;\n");
+    write_file(&dir.path().join("e.pm"), "use Foo::BarBaz;\n# use Nope;\n");
+    let names: Vec<String> = ["Foo::Bar", "Baz", "Qux", "Test::More", "Nope"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::Perl, dir.path(), &names).expect("usages");
+    assert!(hits["Foo::Bar"].src);
+    assert!(hits["Baz"].src);
+    assert!(hits["Qux"].src);
+    assert!(hits["Test::More"].test && !hits["Test::More"].src);
+    assert!(!hits["Nope"].src);
+    assert!(is_test_file(Ecosystem::Perl, Path::new("t/x.t")));
 }

@@ -71,6 +71,7 @@ pub enum Ecosystem {
     Fsharp,
     Cc,
     Ruby,
+    Perl,
 }
 
 impl std::str::FromStr for Ecosystem {
@@ -97,6 +98,7 @@ impl Ecosystem {
             "fsharp" => Some(Self::Fsharp),
             "cc" => Some(Self::Cc),
             "ruby" => Some(Self::Ruby),
+            "perl" => Some(Self::Perl),
             _ => None,
         }
     }
@@ -115,6 +117,7 @@ impl Ecosystem {
             Self::Fsharp => "fsharp",
             Self::Cc => "cc",
             Self::Ruby => "ruby",
+            Self::Perl => "perl",
         }
     }
 

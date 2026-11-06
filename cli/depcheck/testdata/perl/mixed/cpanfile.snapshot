@@ -1,0 +1,27 @@
+# carton snapshot format: version 1.0
+DISTRIBUTIONS
+  Moo-2.005005
+    pathname: H/HA/HAARG/Moo-2.005005.tar.gz
+    provides:
+      Moo 2.005005
+      Moo::Object 2.005005
+    requirements:
+      Class::Method::Modifiers 1.1
+  Text-CSV-2.06
+    pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz
+    provides:
+      Text::CSV 2.06
+    requirements:
+      ExtUtils::MakeMaker 0
+  Try-Tiny-0.32
+    pathname: E/ET/ETHER/Try-Tiny-0.32.tar.gz
+    provides:
+      Try::Tiny 0.32
+    requirements:
+      ExtUtils::MakeMaker 0
+  Test-Simple-1.302210
+    pathname: E/EX/EXODIST/Test-Simple-1.302210.tar.gz
+    provides:
+      Test::More 1.302210
+    requirements:
+      ExtUtils::MakeMaker 0

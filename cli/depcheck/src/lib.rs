@@ -25,6 +25,7 @@ pub use ecosystem::dotnet::parse_dotnet_manifest;
 pub use ecosystem::go::{parse_go_lock, parse_go_manifest};
 pub use ecosystem::js::{parse_js_manifest, parse_pnpm_lock};
 pub use ecosystem::jvm::{parse_jvm_lock, parse_jvm_manifest, parse_maven_artifacts_list};
+pub use ecosystem::perl::{parse_perl_lock, parse_perl_manifest};
 pub use ecosystem::python::{normalize_py, parse_python_lock, parse_python_manifest, satisfies_py};
 pub use ecosystem::ruby::parse_ruby_manifest;
 pub use ecosystem::rust::{parse_rust_lock, parse_rust_manifest};

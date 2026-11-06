@@ -76,6 +76,7 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         Ecosystem::Ruby => {
             name.ends_with("_spec.rb") || name.ends_with("_test.rb") || s.contains("/tests/")
         }
+        Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
     }
 }
 
@@ -83,6 +84,7 @@ fn source_suffixes() -> BTreeSet<&'static str> {
     [
         ".rs", ".py", ".js", ".ts", ".mjs", ".cjs", ".jsx", ".tsx", ".go", ".java", ".kt", ".kts",
         ".scala", ".cs", ".fs", ".fsi", ".fsx", ".cc", ".cpp", ".cxx", ".c", ".h", ".hpp", ".rb",
+        ".pl", ".pm", ".t", ".psgi",
     ]
     .into_iter()
     .collect()
@@ -106,6 +108,8 @@ fn skip_names() -> BTreeSet<&'static str> {
         "cc_lock.json",
         "Gemfile",
         "Gemfile.lock",
+        "cpanfile",
+        "cpanfile.snapshot",
     ]
     .into_iter()
     .collect()
@@ -247,6 +251,15 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(r"require\(\s*{spec}\s*\)"),
                 format!(r"import\(\s*{spec}\s*\)"),
                 format!(r"(?m)^\s*import\s+{spec}"),
+            ]
+        }
+        Ecosystem::Perl => {
+            let module = regex_escape(dep);
+            vec![
+                format!(r"(?m)^\s*(?:use|require|no)\s+{module}\b"),
+                format!(
+                    r#"(?m)^\s*use\s+(?:parent|base)\s+(?:-norequire\s*,\s*)?(?:qw\s*[(/\[{{]\s*(?:[\w:]+\s+)*|['"](?:[\w:]+['"]\s*,\s*['"])*){module}\b"#
+                ),
             ]
         }
         Ecosystem::Ruby => vec![

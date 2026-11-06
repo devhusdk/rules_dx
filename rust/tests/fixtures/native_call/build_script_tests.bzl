@@ -27,6 +27,20 @@ def _tool_inputs_test_impl(ctx):
 
 build_script_tool_inputs_test = analysistest.make(_tool_inputs_test_impl)
 
+def _host_env_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    _assert_no_host_flags(env, action)
+    for name in ["CC", "CXX", "AR"]:
+        asserts.equals(env, action.env.get("TARGET_" + name), action.env.get("HOST_" + name), "HOST_{} is not TARGET_{}".format(name, name))
+    cxxflags = (action.env.get("CXXFLAGS", "") + " " + action.env.get("HOST_CXXFLAGS", "")).split(" ")
+    libcxx = [part for part in cxxflags if "libcxx_headers_include_search_directory" in part]
+    asserts.true(env, len(libcxx) <= 1, "libc++ headers are on the include path twice, which breaks #include_next (#8681): {}".format(libcxx))
+    return analysistest.end(env)
+
+# Not cross-compiling, so cc-rs adds HOST_*FLAGS on top of CFLAGS/CXXFLAGS.
+build_script_host_env_test = analysistest.make(_host_env_impl)
+
 _COMPILER = str(Label("//cc/toolchains:compiler"))
 _LINKER_PREFERENCE = str(Label("@rules_rust//rust/settings:toolchain_linker_preference"))
 
@@ -69,8 +83,12 @@ def _llvm_impl(ctx):
     return analysistest.end(env)
 
 _UNDEF_ISO_STDIO = "/U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
-_C_FLAGS = ["CFLAGS", "TARGET_CFLAGS", "HOST_CFLAGS"]
-_CXX_FLAGS = ["CXXFLAGS", "TARGET_CXXFLAGS", "HOST_CXXFLAGS"]
+_C_FLAGS = ["CFLAGS", "TARGET_CFLAGS"]
+_CXX_FLAGS = ["CXXFLAGS", "TARGET_CXXFLAGS"]
+
+def _assert_no_host_flags(env, action):
+    for name in ["HOST_CFLAGS", "HOST_CXXFLAGS"]:
+        asserts.equals(env, "", action.env.get(name), "{} is not empty when HOST == TARGET".format(name))
 
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
@@ -87,6 +105,7 @@ def _msvc_impl(ctx):
     for name in _C_FLAGS + _CXX_FLAGS:
         value = action.env.get(name, "")
         asserts.false(env, _UNDEF_ISO_STDIO in value.split(" "), "{} drops ISO wide stdio outside coverage: {}".format(name, value))
+    _assert_no_host_flags(env, action)
     return analysistest.end(env)
 
 def _msvc_coverage_impl(ctx):
@@ -98,6 +117,7 @@ def _msvc_coverage_impl(ctx):
     for name in _CXX_FLAGS:
         value = action.env.get(name, "")
         asserts.false(env, _UNDEF_ISO_STDIO in value.split(" "), "{} drops ISO wide stdio for C++: {}".format(name, value))
+    _assert_no_host_flags(env, action)
     return analysistest.end(env)
 
 _msvc_coverage_test = analysistest.make(

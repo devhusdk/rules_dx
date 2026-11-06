@@ -203,17 +203,17 @@ fn raw_pipe(fds: &mut [i32; 2]) -> bool {
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 fn raw_pipe(fds: &mut [i32; 2]) -> bool {
-    let made = unsafe { libc::pipe(fds.as_mut_ptr()) } == 0;
-    if made {
-        for &fd in fds.iter() {
-            unsafe {
-                libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
-                let flags = libc::fcntl(fd, libc::F_GETFL);
-                libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
-            }
+    if unsafe { libc::pipe(fds.as_mut_ptr()) } != 0 {
+        return false; // LCOV_EXCL_LINE - reason: pipe fails only without descriptors, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+    }
+    for &fd in fds.iter() {
+        unsafe {
+            libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
+            let flags = libc::fcntl(fd, libc::F_GETFL);
+            libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
         }
     }
-    made
+    true
 }
 
 /// A close-on-exec, non-blocking pipe: (read end, write end).

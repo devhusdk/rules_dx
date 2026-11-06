@@ -383,7 +383,12 @@ def _link_windows_impl(ctx):
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
 # Windows builds Rust with +crt-static, so the forwarder moves the crate under test to the static CRT; match it.
-_link_msvc_test = analysistest.make(_link_msvc_impl, config_settings = {_COMPILER: "msvc"} | msvc_crt_static_settings([]))
+_MSVC_STATIC_CRT = {
+    k if k.startswith("//command_line_option") else str(Label(k)): v
+    for k, v in msvc_crt_static_settings([]).items()
+}
+
+_link_msvc_test = analysistest.make(_link_msvc_impl, config_settings = {_COMPILER: "msvc"} | _MSVC_STATIC_CRT)
 
 # The forwarder's static CRT settings, so the crate under test and the upstream share one build script config.
 _link_windows_test = analysistest.make(_link_windows_impl, config_settings = {

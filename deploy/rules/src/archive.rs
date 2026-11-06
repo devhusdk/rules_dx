@@ -2,7 +2,7 @@
 
 use crate::run::{DeployRun, check_size_budget, deploy_profile, tree_bytes};
 use crate::stage::*;
-use std::io::{self, Read, Write};
+use std::io::{self, BufRead, Read, Write};
 use std::path::Path;
 
 pub(crate) const RECORDSIZE: usize = 20 * 512;
@@ -482,9 +482,8 @@ pub fn archive_image(
                         ),
                     )
                 };
-                let decoder = ruzstd::decoding::StreamingDecoder::new(bytes.as_slice())
-                    .map_err(|error| invalid(&error))?;
-                dx_digest::sha256_reader_hex(decoder).map_err(|error| invalid(&error))?
+                dx_digest::sha256_reader_hex(zstd_multi_frame_reader(bytes.as_slice()))
+                    .map_err(|error| invalid(&error))?
             }
             OciCompression::None => digest.clone(),
         };
@@ -633,6 +632,74 @@ pub(crate) fn oci_compression(head: &[u8]) -> OciCompression {
         OciCompression::Zstd
     } else {
         OciCompression::None
+    }
+}
+
+/// Decodes every zstd frame in `source` in order, skipping skippable frames.
+pub(crate) fn zstd_multi_frame_reader<R: BufRead>(source: R) -> impl Read {
+    ZstdFrames {
+        source,
+        decoder: ruzstd::decoding::FrameDecoder::new(),
+        active: false,
+        frames: 0,
+    }
+}
+
+struct ZstdFrames<R> {
+    source: R,
+    decoder: ruzstd::decoding::FrameDecoder,
+    active: bool,
+    frames: usize,
+}
+
+fn zstd_invalid(error: impl std::fmt::Display) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, error.to_string())
+}
+
+impl<R: BufRead> Read for ZstdFrames<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        use ruzstd::decoding::BlockDecodingStrategy;
+        use ruzstd::decoding::errors::{FrameDecoderError, ReadFrameHeaderError};
+        loop {
+            if self.active {
+                if self.decoder.can_collect() > 0 {
+                    return self.decoder.read(buf);
+                }
+                if self.decoder.is_finished() {
+                    self.active = false;
+                    continue;
+                }
+                self.decoder
+                    .decode_blocks(&mut self.source, BlockDecodingStrategy::UptoBlocks(1))
+                    .map_err(zstd_invalid)?;
+                continue;
+            }
+            if self.source.fill_buf()?.is_empty() {
+                if self.frames == 0 {
+                    return Err(zstd_invalid("no zstd frames"));
+                }
+                return Ok(0);
+            }
+            match self.decoder.reset(&mut self.source) {
+                Ok(()) => {
+                    self.active = true;
+                    self.frames += 1;
+                }
+                Err(FrameDecoderError::ReadFrameHeaderError(ReadFrameHeaderError::SkipFrame {
+                    length,
+                    ..
+                })) => {
+                    let skipped = io::copy(
+                        &mut (&mut self.source).take(u64::from(length)),
+                        &mut io::sink(),
+                    )?;
+                    if skipped < u64::from(length) {
+                        return Err(zstd_invalid("truncated skippable frame"));
+                    }
+                }
+                Err(error) => return Err(zstd_invalid(error)),
+            }
+        }
     }
 }
 

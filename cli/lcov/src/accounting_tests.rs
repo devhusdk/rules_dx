@@ -330,6 +330,21 @@ fn prod_wins_over_test_across_manifests() {
 }
 
 #[test]
+fn library_dep_of_a_test_counts_when_the_manifest_marks_it_prod() {
+    let manifests = [manifest(
+        "v1 cell linux_x86_64\ntest source greet_test.rs\nprod source greet.rs\n",
+    )];
+    let result = account(
+        &manifests,
+        &[lcov("greet.rs", &[(1, 1), (2, 0)])],
+        &blank_sources(),
+    );
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.support_files, 1);
+    assert_eq!((result.covered_lines, result.eligible_lines), (1, 2));
+}
+
+#[test]
 fn testonly_sources_are_support_even_when_absent() {
     let manifests = [manifest(
         "v1 cell linux_x86_64\ntest source helper.rs\ntest source helper_test.rs\n",

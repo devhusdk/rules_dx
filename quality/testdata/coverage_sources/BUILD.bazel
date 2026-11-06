@@ -65,6 +65,23 @@ genrule(
 )
 
 coverage_fixture(
+    name = "dep_lib",
+    srcs = ["dep.cc"],
+    tags = ["manual"],
+)
+
+coverage_fixture(
+    name = "dep_test",
+    testonly = True,
+    srcs = ["dep_test.cc"],
+    tags = ["manual"],
+    deps = [
+        ":dep_lib",
+        ":helper_lib",
+    ],
+)
+
+coverage_fixture(
     name = "generated_lib",
     srcs = [":gen"],
     tags = ["manual"],

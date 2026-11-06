@@ -7,7 +7,7 @@ DxCoverageSourcesInfo = provider(
     fields = {
         "cell": "The target platform as `<os>_<cpu>`, or unknown.",
         "files": "Depset of instrumented files.",
-        "test": "True when every file is a test source.",
+        "prod": "Depset of files that production dependencies own.",
     },
 )
 
@@ -28,42 +28,46 @@ def _row(kind, file):
         return None
     return "%s %s %s" % (kind, "source" if file.is_source else "generated", file.short_path)
 
-def _prod_row(file):
-    """Returns the production row for one file."""
-    return _row("prod", file)
-
-def _test_row(file):
-    """Returns the test row for one file."""
-    return _row("test", file)
+def _rows(files, prod):
+    """Returns the manifest rows for files, prod when a production dependency owns them."""
+    owned = {file: True for file in prod.to_list()}
+    rows = [_row("prod" if file in owned else "test", file) for file in files.to_list()]
+    return [row for row in rows if row]
 
 def dx_coverage_source_lines(info):
     """Returns the manifest lines for a DxCoverageSourcesInfo."""
-    rows = [_row("test" if info.test else "prod", file) for file in info.files.to_list()]
-    return ["v1 cell " + info.cell] + [row for row in rows if row]
+    return ["v1 cell " + info.cell] + _rows(info.files, info.prod)
 
 def _dx_coverage_sources_aspect_impl(target, ctx):
     """Writes the target's instrumented main-repo sources as one manifest."""
-    if InstrumentedFilesInfo not in target or AnalysisTestResultInfo in target:
-        return []
-    files = target[InstrumentedFilesInfo].instrumented_files
-    if not files:
+    if AnalysisTestResultInfo in target:
         return []
     test = ctx.rule.kind.endswith("_test") or getattr(ctx.rule.attr, "testonly", False)
+    files = target[InstrumentedFilesInfo].instrumented_files if InstrumentedFilesInfo in target else depset()
+    dep_prod = [
+        dep[DxCoverageSourcesInfo].prod
+        for dep in getattr(ctx.rule.attr, "deps", [])
+        if type(dep) == "Target" and DxCoverageSourcesInfo in dep
+    ]
+    prod = depset(transitive = dep_prod + ([] if test else [files]))
+    if not files:
+        return [DxCoverageSourcesInfo(cell = "unknown", files = files, prod = prod)] if dep_prod else []
     cell = _cell(ctx)
     args = ctx.actions.args()
     args.set_param_file_format("multiline")
     args.add("v1 cell " + cell)
-    args.add_all(files, map_each = _test_row if test else _prod_row)
+    args.add_all(_rows(files, prod))
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_coverage_sources.txt")
     ctx.actions.write(manifest, args)
     return [
-        DxCoverageSourcesInfo(cell = cell, files = files, test = test),
+        DxCoverageSourcesInfo(cell = cell, files = files, prod = prod),
         OutputGroupInfo(**{DX_COVERAGE_SOURCES_OUTPUT_GROUP: depset([manifest])}),
     ]
 
 dx_coverage_sources_aspect = aspect(
     implementation = _dx_coverage_sources_aspect_impl,
     doc = "Writes the instrumented main-repo sources of a top-level target.",
+    attr_aspects = ["deps"],
     attrs = {
         "_cpu_arm64": attr.label(default = "@platforms//cpu:arm64"),
         "_cpu_x86_64": attr.label(default = "@platforms//cpu:x86_64"),

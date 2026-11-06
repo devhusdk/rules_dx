@@ -8,12 +8,15 @@ _FIXTURES = "//quality/testdata/coverage_sources:"
 
 def _coverage_fixture_impl(ctx):
     """Reports its srcs as instrumented files."""
-    return [coverage_common.instrumented_files_info(ctx, source_attributes = ["srcs"])]
+    return [coverage_common.instrumented_files_info(ctx, source_attributes = ["srcs"], dependency_attributes = ["deps"])]
 
 coverage_fixture = rule(
     implementation = _coverage_fixture_impl,
     doc = "Toolchain-free target that reports its srcs as instrumented files.",
-    attrs = {"srcs": attr.label_list(allow_files = True, doc = "Instrumented files.")},
+    attrs = {
+        "srcs": attr.label_list(allow_files = True, doc = "Instrumented files."),
+        "deps": attr.label_list(doc = "Targets whose instrumented files are also reported."),
+    },
 )
 
 def _manifest_impl(ctx):
@@ -93,10 +96,11 @@ def coverage_sources_analysis_tests(name):
     cases = [
         (_manifest_test, "rust", "split_lib", "", _rows("prod", "source", split)),
         (_manifest_test, "rust_test", "split_lib_test", "", _rows("test", "source", split)),
-        (_manifest_test, "zig_test", "calc_test", "", _rows("test", "source", ["calc.zig"])),
-        (_manifest_test, "fortran_test", "fcalc_test", "", _rows("test", "source", ["calc.f90"])),
+        (_manifest_test, "zig_test", "calc_test", "", _rows("prod", "source", ["calc.zig"])),
+        (_manifest_test, "fortran_test", "fcalc_test", "", _rows("prod", "source", ["calc.f90"])),
         (_manifest_test, "header", "header_lib", "", _rows("prod", "source", ["header.cc", "header.h"])),
         (_manifest_test, "testonly", "helper_lib", "", _rows("test", "source", ["helper.cc"])),
+        (_manifest_test, "dep_test", "dep_test", "", _rows("test", "source", ["dep_test.cc", "helper.cc"]) + _rows("prod", "source", ["dep.cc"])),
         (_test_target_test, "perl_test", "perl_probe_test", "", _rows("test", "source", ["perl_probe.t"])),
         (_test_target_test, "d_test", "d_probe_test", "", _rows("test", "source", ["d_probe.d"])),
         (_test_target_test, "haskell_test", "haskell_probe_test", "", _rows("test", "source", ["haskell_probe.hs"])),

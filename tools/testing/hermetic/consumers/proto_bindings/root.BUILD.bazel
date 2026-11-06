@@ -1,1 +1,1 @@
-# gazelle:prefix example.com/proto_bindings
+exports_files(["go.mod", "go.sum"])

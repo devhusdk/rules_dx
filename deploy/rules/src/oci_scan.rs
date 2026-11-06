@@ -136,7 +136,8 @@ pub fn parse_report(json: &str) -> Result<Vec<ImageFinding>, String> {
         .collect())
 }
 
-/// Drops findings covered by an unexpired `[[exception]]` naming the same advisory and package.
+/// Drops findings covered by an unexpired `[[exception]]` in set `oci` naming the same
+/// advisory and package, with `versions` either `*` or the installed version.
 pub fn apply_exceptions(
     findings: Vec<ImageFinding>,
     security_toml: Option<&str>,
@@ -156,7 +157,15 @@ pub fn apply_exceptions(
         .into_iter()
         .filter(|found| {
             !live.iter().any(|exception| {
-                exception.advisory == found.id && exception.package == found.package
+                exception.set == "oci"
+                    && exception.advisory == found.id
+                    && exception.package == found.package
+                    && (exception.versions.trim() == "*"
+                        || dx_audit::vuln::version_affected(
+                            "oci",
+                            &exception.versions,
+                            &found.installed,
+                        ))
             })
         })
         .collect())
@@ -319,6 +328,24 @@ mod tests {
         let left = apply_exceptions(found, Some(&toml), no_files, "2026-01-01").expect("policy");
         assert_eq!(left.len(), 1);
         assert_eq!(left[0].id, "CVE-2024-0002");
+    }
+
+    #[test]
+    fn an_exception_matches_set_and_version() {
+        let found = parse_report(REPORT).expect("report");
+        let pinned = |set: &str, versions: &str| {
+            exception("CVE-2024-0001", "openssl", "2999-01-01")
+                .replace("set = \"oci\"", &format!("set = \"{set}\""))
+                .replace("versions = \"*\"", &format!("versions = \"{versions}\""))
+        };
+        let run = |toml: String| {
+            apply_exceptions(found.clone(), Some(&toml), no_files, "2026-01-01")
+                .expect("policy")
+                .len()
+        };
+        assert_eq!(run(pinned("oci", "1.0")), 1);
+        assert_eq!(run(pinned("oci", "2.0")), 2);
+        assert_eq!(run(pinned("cargo", "*")), 2);
     }
 
     #[test]

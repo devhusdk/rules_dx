@@ -304,6 +304,15 @@ pub const WINDOWS_DENIED_MARKER: &str = "os error 10013";
 
 pub const MISS_MARKER: &str = "Unknown host";
 
+/// The sandbox denies the registry connection on macOS before DNS can fail.
+pub fn miss_marker(os: &str) -> &'static str {
+    if os == "macos" {
+        MACOS_DENIED_MARKER
+    } else {
+        MISS_MARKER
+    }
+}
+
 pub const HOME_RC: &str = "build --action_env=DX_HOME_CONFIG=present\n";
 
 pub const LEAKS_PACKAGE: &str = "dx_hermetic_leaks";
@@ -1334,7 +1343,7 @@ fn probe_expectation(name: &str, os: &str) -> (&'static str, &'static str) {
         "ambient_tool" => ("fail", ambient),
         "network" => ("fail", network),
         "home_config" => ("fail", home),
-        "cache_miss" => ("fail", MISS_MARKER),
+        "cache_miss" => ("fail", miss_marker(os)),
         _ => ("pass", ""),
     }
 }
@@ -2247,7 +2256,7 @@ fn run_all(
         command: "build",
         targets: patterns,
         extra: Vec::new(),
-        expect: Expect::Fail(MISS_MARKER.to_owned()),
+        expect: Expect::Fail(miss_marker(std::env::consts::OS).to_owned()),
     })?;
     Ok(())
 }

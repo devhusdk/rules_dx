@@ -23,6 +23,7 @@ ROOT="$PWD"
 SCRATCH="$(mktemp -d)"
 trap 'chmod -R u+w "$SCRATCH" 2>/dev/null || true; rm -rf "$SCRATCH"' EXIT
 {env}
+if [ "$(uname -s)" = Darwin ]; then export SDKROOT="$(/usr/bin/xcrun --show-sdk-path)"; fi
 # ocamlopt hands the assembler GNU's --debug-prefix-map; clang spells it differently, so drop it.
 mkdir -p "$SCRATCH/bin"
 export REAL_AS="$CONDA_OCAML_AS"

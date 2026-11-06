@@ -897,3 +897,30 @@ fn main_repo_missing_dep_runs_no_repo_mapping() {
     assert_eq!(code, 0, "{out}");
     assert!(mapping_call(&harness).is_empty());
 }
+
+#[test]
+fn sarif_reports_a_placed_missing_dep_that_gets_no_edit() {
+    let mut harness = Harness::new("sarif-placed-no-edit");
+    harness.write_source(
+        "p/BUILD.bazel",
+        "rust_library(\n    name = \"lib\",\n    deps = [\n        \":used\",\n    ],\n)\n",
+    );
+    let mut diagnostic = Harness::diagnostic("deps", false);
+    diagnostic.path = String::new();
+    diagnostic.start_byte = None;
+    diagnostic.end_byte = None;
+    diagnostic.build_dep = Some(proto::BuildDep {
+        package: "p".to_owned(),
+        target: "lib".to_owned(),
+        dependency: "used".to_owned(),
+        missing: true,
+        label: "@@//p:used".to_owned(),
+    });
+    let result = harness.result_full(vec![diagnostic.clone()], vec![diagnostic], vec![], vec![]);
+    harness.results.insert("//test:corpus".to_owned(), result);
+    let (code, out, err) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(!err.contains("report_failed"), "{err}");
+    let sarif = std::fs::read_to_string(harness.workspace.join("out.sarif")).expect("sarif");
+    assert!(sarif.contains("p/BUILD.bazel"), "{sarif}");
+}

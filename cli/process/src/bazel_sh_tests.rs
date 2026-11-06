@@ -16,7 +16,7 @@ fn run_with_server(
     };
     let exists = |path: &Path| files.iter().any(|file| Path::new(file) == path);
     let read = |path: &Path| {
-        (path == Path::new("/ob/server/cmdline"))
+        (path == Path::new(OUTPUT_BASE).join("server").join("cmdline"))
             .then_some(cmdline)
             .flatten()
             .map(<[u8]>::to_vec)
@@ -34,7 +34,12 @@ fn path(dirs: &[&str]) -> String {
 const SYS: &str = "/win";
 const WIN_DIRS: [&str; 2] = ["/win/System32", "/git/cmd"];
 const DETECTED: &str = r"C:\Program Files\Git\usr\bin\bash.exe";
-const EXECROOT: &str = "/ob/execroot/_main";
+const OUTPUT_BASE: &str = if cfg!(windows) { "C:/ob" } else { "/ob" };
+const EXECROOT: &str = if cfg!(windows) {
+    "C:/ob/execroot/_main"
+} else {
+    "/ob/execroot/_main"
+};
 
 fn server(root: &str) -> Vec<u8> {
     format!(

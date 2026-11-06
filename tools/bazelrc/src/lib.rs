@@ -139,10 +139,16 @@ const JVM_FLAGS: [Flag; 3] = [
     ),
 ];
 
-const CI_CORRECTNESS_FLAGS: [Flag; 1] = [(
-    "common:ci --lockfile_mode=error",
-    "Under --config=ci, fail when MODULE.bazel.lock is out of date.",
-)];
+const CI_CORRECTNESS_FLAGS: [Flag; 2] = [
+    (
+        "common:ci --lockfile_mode=error",
+        "Under --config=ci, fail when MODULE.bazel.lock is out of date.",
+    ),
+    (
+        "common:ci --nobuild_runfile_links",
+        "Under --config=ci, build runfiles trees only for actions that run.",
+    ),
+];
 
 const TELEMETRY_FLAGS: [Flag; 1] = [(
     "common --repo_env=DO_NOT_TRACK=1",
@@ -211,7 +217,11 @@ const RESOURCE_FLAGS: [Flag; 12] = [
     ),
 ];
 
-const CI_REMOTE_FLAGS: [Flag; 7] = [
+const CI_PERFORMANCE_FLAGS: [Flag; 8] = [
+    (
+        "common:ci --jobs=64",
+        "Under --config=ci, run 64 actions at once, since remote cache hits hold job slots.",
+    ),
     (
         "common:ci --remote_cache_compression",
         "Under --config=ci, compress remote cache transfers.",
@@ -300,7 +310,7 @@ impl Layer {
                 &DIAGNOSTICS_FLAGS,
                 &CI_CORRECTNESS_FLAGS,
             ],
-            Layer::Performance => &[&BUILD_PROFILES, &CI_REMOTE_FLAGS],
+            Layer::Performance => &[&BUILD_PROFILES, &CI_PERFORMANCE_FLAGS],
             Layer::Resources => &[&RESOURCE_FLAGS, &CI_RESOURCE_FLAGS],
         }
     }
@@ -602,7 +612,7 @@ pub fn collision_lines(rendered: &str) -> BTreeSet<String> {
         &TELEMETRY_FLAGS[..],
         &JVM_FLAGS,
         &CI_CORRECTNESS_FLAGS,
-        &CI_REMOTE_FLAGS,
+        &CI_PERFORMANCE_FLAGS,
         &CI_RESOURCE_FLAGS,
     ];
     for (line, _) in exempt.iter().flat_map(|group| group.iter()) {
@@ -937,6 +947,7 @@ mod tests {
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",
                 "common:ci --lockfile_mode=error",
+                "common:ci --nobuild_runfile_links",
             ]
         );
         assert_eq!(
@@ -949,6 +960,7 @@ mod tests {
                 "build:dx_build_release --host_compilation_mode=opt",
                 "build:dx_dev_remote --compilation_mode=fastbuild",
                 "build:dx_toolchain --compilation_mode=fastbuild",
+                "common:ci --jobs=64",
                 "common:ci --remote_cache_compression",
                 "common:ci --experimental_remote_cache_compression_threshold=100",
                 "common:ci --remote_timeout=10m",
@@ -1043,8 +1055,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 48);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 48);
+        assert_eq!(total, 50);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 50);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1154,7 +1166,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 48);
+        assert_eq!(flags.len(), 50);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }
@@ -1196,7 +1208,7 @@ mod tests {
     fn ci_flags_name_no_cache_and_apply_only_under_a_ci_config() {
         let ci = [
             &CI_CORRECTNESS_FLAGS[..],
-            &CI_REMOTE_FLAGS,
+            &CI_PERFORMANCE_FLAGS,
             &CI_RESOURCE_FLAGS,
         ];
         for (line, _) in ci.iter().flat_map(|group| group.iter()) {

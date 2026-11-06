@@ -56,6 +56,9 @@ build --@rules_dx//config:rustc_output_diagnostics=true
 # Under --config=ci, fail when MODULE.bazel.lock is out of date.
 common:ci --lockfile_mode=error
 
+# Under --config=ci, build runfiles trees only for actions that run.
+common:ci --nobuild_runfile_links
+
 # Compiler warnings fail the build under the strict profile.
 common --@rules_dx//config:warnings_as_errors=false
 common --@rules_dx//config:config_profile=standard

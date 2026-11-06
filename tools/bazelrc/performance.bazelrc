@@ -23,6 +23,9 @@ build:dx_dev_remote --compilation_mode=fastbuild
 # The dx_toolchain config builds toolchains unoptimized.
 build:dx_toolchain --compilation_mode=fastbuild
 
+# Under --config=ci, run 64 actions at once, since remote cache hits hold job slots.
+common:ci --jobs=64
+
 # Under --config=ci, compress remote cache transfers.
 common:ci --remote_cache_compression
 

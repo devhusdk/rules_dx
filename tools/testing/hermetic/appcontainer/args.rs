@@ -45,6 +45,53 @@ pub fn parse(args: &[String]) -> Result<Config, String> {
     Err("missing -- before the command".to_owned())
 }
 
+/// Directories above the grants, from the drive root down, that are not granted themselves.
+/// The container gets list and traverse rights on these so it can resolve the granted paths.
+pub fn ancestors(grants: &[String]) -> Result<Vec<String>, String> {
+    let mut granted = Vec::new();
+    for grant in grants {
+        let path = grant.replace('/', "\\");
+        let parts: Vec<&str> = path.split('\\').filter(|part| !part.is_empty()).collect();
+        let drive = parts.first().map_or(&[][..], |part| part.as_bytes());
+        if path.starts_with('\\')
+            || drive.len() != 2
+            || !drive[0].is_ascii_alphabetic()
+            || drive[1] != b':'
+        {
+            return Err(format!("grant {grant:?} is not a drive letter path"));
+        }
+        granted.push(
+            parts
+                .iter()
+                .map(|part| part.to_owned())
+                .collect::<Vec<_>>()
+                .join("\\"),
+        );
+    }
+    let covered = |dir: &str| {
+        let dir = dir.trim_end_matches('\\').to_lowercase();
+        granted.iter().any(|grant| {
+            let grant = grant.to_lowercase();
+            dir == grant || dir.starts_with(&format!("{grant}\\"))
+        })
+    };
+    let mut out: Vec<String> = Vec::new();
+    for path in &granted {
+        let parts: Vec<&str> = path.split('\\').collect();
+        for depth in 1..parts.len() {
+            let dir = if depth == 1 {
+                format!("{}\\", parts[0])
+            } else {
+                parts[..depth].join("\\")
+            };
+            if !covered(&dir) && !out.iter().any(|have| have.eq_ignore_ascii_case(&dir)) {
+                out.push(dir);
+            }
+        }
+    }
+    Ok(out)
+}
+
 /// Joins arguments into one Windows command line, quoted for CommandLineToArgvW.
 pub fn command_line(command: &[String]) -> String {
     command
@@ -210,5 +257,31 @@ mod tests {
         let (block, _) = environment(&pairs(&[("b", "1"), ("A", "2"), ("c", "3")]), &[]);
         assert_eq!(decode(&block), ["A=2", "b=1", "c=3"]);
         assert_eq!(block[block.len() - 2..], [0, 0]);
+    }
+
+    #[test]
+    fn ancestors_run_from_the_drive_root_down() {
+        let dirs = ancestors(&strings(&["D:\\a\\b c\\d"])).unwrap();
+        assert_eq!(dirs, ["D:\\", "D:\\a", "D:\\a\\b c"]);
+    }
+
+    #[test]
+    fn ancestors_of_two_grants_are_merged() {
+        let dirs = ancestors(&strings(&["D:\\a\\b", "d:\\A\\c\\", "E:/x/"])).unwrap();
+        assert_eq!(dirs, ["D:\\", "D:\\a", "E:\\"]);
+    }
+
+    #[test]
+    fn ancestors_skip_granted_directories() {
+        let dirs = ancestors(&strings(&["D:\\a", "D:\\a\\b\\c", "d:\\A\\B"])).unwrap();
+        assert_eq!(dirs, ["D:\\"]);
+        assert!(ancestors(&strings(&["D:\\"])).unwrap().is_empty());
+    }
+
+    #[test]
+    fn ancestors_reject_unc_paths() {
+        assert!(ancestors(&strings(&["\\\\server\\share\\x"])).is_err());
+        assert!(ancestors(&strings(&["relative\\x"])).is_err());
+        assert!(ancestors(&strings(&["D:x"])).is_err());
     }
 }

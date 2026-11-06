@@ -1,7 +1,7 @@
 """Minimal Rust wrappers."""
 
-load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
@@ -30,9 +30,15 @@ _CL_EXE = Label("//cc/toolchains:msvc_selected")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _MSVC_OPT = Label("//rust/rules:msvc_opt")
 
+_MSVC_LINK = Label("//rust/tools/msvc_paths:msvc_link")
+
 # rustc always passes /DEBUG and msvc_pdb_output.patch declares the PDB as an output;
-# /Brepro makes the PDB GUID a content hash (#8409, #8410).
-MSVC_OPT_LINK_FLAGS = ["-Clink-arg=/Brepro"] + REPRODUCIBLE_PDB_LINK_FLAGS
+# /Brepro makes the PDB GUID a content hash and msvc_link makes its paths relative (#8409, #8410).
+MSVC_OPT_LINK_FLAGS = [
+    "-Clinker=$(execpath {})".format(_MSVC_LINK),
+    "-Clinker-flavor=lld-link",
+    "-Clink-arg=/Brepro",
+] + REPRODUCIBLE_PDB_LINK_FLAGS
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
 _CRT_STATIC_FLAG = "-Ctarget-feature=+crt-static"
@@ -106,6 +112,10 @@ def _libstdcxx_upstream(kwargs, link):
             "//conditions:default": [],
         }) + select({
             _MSVC_OPT: MSVC_OPT_LINK_FLAGS,
+            "//conditions:default": [],
+        })
+        out["compile_data"] = (out.get("compile_data") or []) + select({
+            _MSVC_OPT: [_MSVC_LINK],
             "//conditions:default": [],
         })
         out["link_deps"] = (out.get("link_deps") or []) + select({

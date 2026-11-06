@@ -26,6 +26,8 @@ def dx_wrapper_registry_tests(name):
             expect_equal("crate root multi-file", dx_rust_crate_root(["src/a.rs", "src/lib.rs"]), "src/lib.rs"),
             expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]),
             expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, [
+                "-Clinker=$(execpath {})".format(Label("//rust/tools/msvc_paths:msvc_link")),
+                "-Clinker-flavor=lld-link",
                 "-Clink-arg=/Brepro",
                 "-Clink-arg=/pdbsourcepath:X:\\dx",
                 "-Clink-arg=/pdbaltpath:%_PDB%",

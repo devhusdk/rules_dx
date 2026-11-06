@@ -1,5 +1,5 @@
 {
-  "checksum": "a93488526f59803570cc9ab1e9ee424280501d594a205e17da3fc7d64f5ca1c7",
+  "checksum": "9f754bee1fc544d02c597e0315dd3ed602f7fe5d81f69eb928837e41c0555572",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2108,7 +2108,12 @@
             "CFLAGS_aarch64_apple_darwin": "-fno-profile-instr-generate -fno-coverage-mapping"
           },
           "selects": {
+            "aarch64-pc-windows-msvc": {
+              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+            },
             "x86_64-pc-windows-msvc": {
+              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
               "CARGO_FEATURE_PREFER_INTRINSICS": "1"
             }
           }
@@ -2124,7 +2129,18 @@
             "id": "rayon-core 1.13.0",
             "target": "rayon_core"
           }
-        ]
+        ],
+        "tools": {
+          "common": [],
+          "selects": {
+            "aarch64-pc-windows-msvc": [
+              "@@//rust/tools/msvc_paths:msvc_lib"
+            ],
+            "x86_64-pc-windows-msvc": [
+              "@@//rust/tools/msvc_paths:msvc_lib"
+            ]
+          }
+        }
       },
       "common_attrs": {
         "crate_features": [
@@ -13968,6 +13984,19 @@
     },
     "libz-sys 1.1.31": {
       "build_script_attrs": {
+        "build_script_env": {
+          "common": {},
+          "selects": {
+            "aarch64-pc-windows-msvc": {
+              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+            },
+            "x86_64-pc-windows-msvc": {
+              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+            }
+          }
+        },
         "deps": [
           {
             "id": "cc 1.11.0",
@@ -13982,7 +14011,18 @@
             "target": "vcpkg"
           }
         ],
-        "links": "z"
+        "links": "z",
+        "tools": {
+          "common": [],
+          "selects": {
+            "aarch64-pc-windows-msvc": [
+              "@@//rust/tools/msvc_paths:msvc_lib"
+            ],
+            "x86_64-pc-windows-msvc": [
+              "@@//rust/tools/msvc_paths:msvc_lib"
+            ]
+          }
+        }
       },
       "common_attrs": {
         "edition": "2018",
@@ -19739,13 +19779,37 @@
     },
     "ring 0.17.14": {
       "build_script_attrs": {
+        "build_script_env": {
+          "common": {},
+          "selects": {
+            "aarch64-pc-windows-msvc": {
+              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+            },
+            "x86_64-pc-windows-msvc": {
+              "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+              "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)"
+            }
+          }
+        },
         "deps": [
           {
             "id": "cc 1.11.0",
             "target": "cc"
           }
         ],
-        "links": "ring_core_0_17_14_"
+        "links": "ring_core_0_17_14_",
+        "tools": {
+          "common": [],
+          "selects": {
+            "aarch64-pc-windows-msvc": [
+              "@@//rust/tools/msvc_paths:msvc_lib"
+            ],
+            "x86_64-pc-windows-msvc": [
+              "@@//rust/tools/msvc_paths:msvc_lib"
+            ]
+          }
+        }
       },
       "common_attrs": {
         "crate_features": [

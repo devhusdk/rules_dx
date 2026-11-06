@@ -693,10 +693,15 @@ pub fn test_facts(file: &File, name: &str, loader: &dyn Loader) -> Result<TestFa
             call.kind
         )));
     };
-    let written = match call.args.get("target_compatible_with") {
+    let argument = if call.kind == "hermetic_qualification" {
+        "compatible_with"
+    } else {
+        "target_compatible_with"
+    };
+    let written = match call.args.get(argument) {
         Some(tokens) => match eval.sum(tokens)? {
             Value::List(parts) => Some(parts),
-            Value::Str(_) => return Err(eval.err("target_compatible_with is a string")),
+            Value::Str(_) => return Err(eval.err(&format!("{argument} is a string"))),
         },
         None => None,
     };
@@ -975,13 +980,13 @@ mod tests {
     #[test]
     fn hermetic_rows_are_tagged_by_smoke() {
         let found = facts(
-            "hermetic_qualification(name = \"t\", target_compatible_with = [])\n",
+            "hermetic_qualification(name = \"t\", compatible_with = [])\n",
             "t",
         )
         .expect("facts");
         assert_eq!(found.tags, ["hermetic-golden"]);
         let found = facts(
-            "hermetic_qualification(name = \"t\", smoke = True, target_compatible_with = [])\n",
+            "hermetic_qualification(name = \"t\", smoke = True, compatible_with = [])\n",
             "t",
         )
         .expect("facts");
@@ -1002,15 +1007,25 @@ mod tests {
     }
 
     #[test]
+    fn hermetic_qualification_reads_compatible_with() {
+        let found = facts(
+            "LINUX_MACOS = select({\n    \"@platforms//os:linux\": [],\n    \"@platforms//os:macos\": [],\n    \"//conditions:default\": [\"@platforms//:incompatible\"],\n})\n\nhermetic_qualification(name = \"t\", compatible_with = LINUX_MACOS)\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(on(&found), ["linux_x86_64", "linux_arm64", "macos_arm64"]);
+    }
+
+    #[test]
     fn hermetic_tags_follow_smoke() {
         let golden = facts(
-            "hermetic_qualification(name = \"t\", target_compatible_with = [])\n",
+            "hermetic_qualification(name = \"t\", compatible_with = [])\n",
             "t",
         )
         .expect("facts");
         assert_eq!(golden.tags, ["hermetic-golden"]);
         let smoke = facts(
-            "hermetic_qualification(name = \"t\", smoke = True, target_compatible_with = [])\n",
+            "hermetic_qualification(name = \"t\", smoke = True, compatible_with = [])\n",
             "t",
         )
         .expect("facts");

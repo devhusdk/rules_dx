@@ -43,7 +43,9 @@ pub fn should_watch_path(relative: &Path) -> bool {
         || (names
             .first()
             .is_some_and(|name| name == dx_path::state::DX_DIR)
-            && names.get(1).is_none_or(|name| name != "config"));
+            && names
+                .get(1)
+                .is_some_and(|name| name == "local" || name == "bazelrc"));
     let probe = names
         .last()
         .is_some_and(|name| name.to_lowercase().starts_with(".dx-case-probe-"));

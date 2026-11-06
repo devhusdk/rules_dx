@@ -33,7 +33,7 @@ Local only. `CI=true` is refused.
 
 ## Behavior
 
-- dx ignores changes under `.dx/`, `.git/`, and `bazel-*` in the workspace, and the wrapped command's `--report` files. Edits to `BUILD` and `MODULE.bazel` files rerun the command.
+- dx ignores changes under `.dx/local/`, `.dx/bazelrc/`, `.git/`, and `bazel-*` in the workspace, and the wrapped command's `--report` files. Edits to `BUILD` and `MODULE.bazel` files rerun the command.
 - Changes made during a run queue one more iteration, except under `run`. Iterations never overlap. A failing command does not stop the watch.
 - `watch run` restarts the app on each change. The old app and its children get `SIGTERM`, then are killed after 10 seconds. The app gets no stdin. An app that exits on its own is relaunched on the next change.
 - Each iteration takes a build slot. Watch holds none while it waits.

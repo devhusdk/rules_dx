@@ -85,13 +85,19 @@ pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, String> {
     Ok(changes)
 }
 
-/// True when `path` (relative to a root) is dx's own `.dx` state directory.
+/// True when `path` (relative to a root) is dx's machine-local state: `.dx/local`, or the
+/// generated `.dx/bazelrc` layers.
 ///
 /// Only the top level of the root counts; a nested `.dx` is an ordinary file.
 pub fn is_dx_state(path: &str) -> bool {
-    (path == dx_path::state::DX_DIR || path.starts_with(".dx/"))
-        && path != DX_CONFIG_DIR
-        && !path.starts_with(".dx/config/")
+    [dx_path::state::LOCAL_DIR, ".dx/bazelrc"]
+        .iter()
+        .any(|dir| {
+            path == *dir
+                || path
+                    .strip_prefix(dir)
+                    .is_some_and(|rest| rest.starts_with('/'))
+        })
 }
 
 /// The one `.dx` subdirectory that is checked-in source, not state.
@@ -163,8 +169,10 @@ pub fn nearest_package_pattern(workspace: &Path, rel: &str) -> String {
 mod tests {
     #[test]
     fn dx_state_matches_only_the_top_level_dx_directory() {
-        assert!(super::is_dx_state(".dx"));
-        assert!(super::is_dx_state(".dx/pins"));
+        assert!(!super::is_dx_state(".dx"));
+        assert!(!super::is_dx_state(".dx/pins"));
+        assert!(super::is_dx_state(".dx/local"));
+        assert!(super::is_dx_state(".dx/bazelrc/performance.bazelrc"));
         assert!(!super::is_dx_state(".dx/config"));
         assert!(!super::is_dx_state(".dx/config/ruff/strict.toml"));
         assert!(super::is_dx_state(

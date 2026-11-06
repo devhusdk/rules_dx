@@ -3139,7 +3139,7 @@ mod tests {
         let query = FakeQuery::new(vec![
             FakeQuery::raw(Vec::new()),
             FakeQuery::raw(Vec::new()),
-            FakeQuery::raw(b".dx/config/ruff/strict.toml\0.dx/pins\0".to_vec()),
+            FakeQuery::raw(b".dx/config/ruff/strict.toml\0.dx/local/current\0".to_vec()),
         ]);
         let changes =
             collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect("collect");

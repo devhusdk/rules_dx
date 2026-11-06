@@ -36,8 +36,14 @@ fn archive_holds_sass_for_each_sm_and_ptx_for_each_compute() {
         .split_whitespace()
         .filter(|p| p.ends_with(".a") || p.ends_with(".lib"))
     {
-        let entries = fatbin::device_code(&runfile(path)).unwrap();
-        assert_eq!(sorted(entries), sorted(expected()), "{path}");
+        let bytes = runfile(path);
+        let members: Vec<_> = fatbin::archive_members(&bytes)
+            .unwrap()
+            .iter()
+            .map(|(name, data)| (name.clone(), data.len(), data.get(..8).map(<[u8]>::to_vec)))
+            .collect();
+        let entries = fatbin::device_code(&bytes).unwrap();
+        assert_eq!(sorted(entries), sorted(expected()), "{path}: {members:?}");
         checked += 1;
     }
     assert!(checked > 0, "no static archive in {archives}");
@@ -51,18 +57,9 @@ fn binary_holds_device_code_and_links_the_static_runtime() {
         sorted(expected())
     );
     let needed = fatbin::needed_libraries(&binary).unwrap();
-    if cfg!(windows) {
-        assert!(
-            needed
-                .iter()
-                .any(|lib| lib.to_ascii_lowercase().starts_with("cudart64_")),
-            "windows has no static runtime, expected a cudart64_*.dll import: {needed:?}"
-        );
-        return;
-    }
     assert!(!needed.is_empty(), "the binary links libc dynamically");
     assert!(
-        needed.iter().all(|lib| !lib.starts_with("libcudart")),
+        needed.iter().all(|lib| !lib.to_ascii_lowercase().contains("cudart")),
         "static runtime must not need libcudart: {needed:?}"
     );
 }

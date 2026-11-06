@@ -136,7 +136,6 @@ _WINDOWS_CHILD_TOOLS = [
 
 _QT_FONTS = select({
     "@platforms//os:macos": [],
-    "@platforms//os:windows": [],
     "//conditions:default": ["@dx_qt//:fonts"],
 })
 
@@ -204,6 +203,7 @@ rust_test(
         "@platforms//os:macos": _QT_TEST_ENV,
         "@platforms//os:windows": dict(
             _QT_TEST_ENV,
+            DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
             DX_QT_VCRUNTIME = "$(rootpaths //cc/toolchains:msvc_vcruntime)",
         ),
         "//conditions:default": dict(

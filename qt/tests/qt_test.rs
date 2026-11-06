@@ -397,6 +397,8 @@ fn run_gui(platform: &str) -> std::io::Result<dx_testing::Run> {
         .any(|path| file_name(path) == "fonts.conf")
         .then(|| directory_of("DX_QT_FONTS", "fonts.conf"));
     let platforms = directory_of("DX_QT_PLATFORMS", OFFSCREEN);
+    #[cfg(windows)]
+    let font_dir = directory_of("DX_QT_FONTS", "DejaVuSans.ttf");
     let qmldir = std::env::var("DX_QT_QMLDIR_PATH").expect("DX_QT_QMLDIR_PATH");
     let imports = Path::new(&qmldir)
         .parent()
@@ -414,6 +416,8 @@ fn run_gui(platform: &str) -> std::io::Result<dx_testing::Run> {
     if let Some(fonts) = fonts.as_deref() {
         envs.push(("FONTCONFIG_PATH", fonts));
     }
+    #[cfg(windows)]
+    envs.push(("QT_QPA_FONTDIR", font_dir.as_str()));
     envs.extend(&HOST_ROUTES[2..]);
     let mut command = dx_testing::command_for(&runnable("DX_QT_GUI"), &envs)?;
     #[cfg(windows)]
@@ -583,7 +587,11 @@ fn expected_licenses() -> BTreeSet<String> {
 
 #[cfg(windows)]
 fn expected_licenses() -> BTreeSet<String> {
-    BTreeSet::from(["msvc-redistributable".to_owned(), "qt".to_owned()])
+    BTreeSet::from([
+        "dejavu-sans-fonts".to_owned(),
+        "msvc-redistributable".to_owned(),
+        "qt".to_owned(),
+    ])
 }
 
 #[cfg(target_os = "linux")]

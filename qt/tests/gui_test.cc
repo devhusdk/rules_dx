@@ -87,7 +87,7 @@ QString Soname(const QString &path) {
   return path.section(QLatin1Char('/'), -1);
 }
 
-QString PinnedFont() { return QFontInfo(QFont()).family(); }
+QString PinnedFont() { return QStringLiteral("DejaVu Sans"); }
 #elif defined(__APPLE__)
 QStringList LoadedImages() {
   QStringList paths;
@@ -149,7 +149,7 @@ void GuiTest::runsOnTheOffscreenPlatform() {
 
 void GuiTest::seesOnlyThePinnedFonts() {
 #if defined(_WIN32)
-  QSKIP("the Windows cell pins no fonts");
+  QCOMPARE(QFontDatabase::families(), QStringList{PinnedFont()});
 #elif defined(__APPLE__)
   QVERIFY(!PinnedFont().isEmpty());
   QVERIFY2(QFontDatabase::families().contains(PinnedFont()),

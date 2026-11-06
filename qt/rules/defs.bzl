@@ -500,6 +500,8 @@ def _run_environment(ctx, gui):
         environment["QT_ASSUME_STDERR_HAS_CONSOLE"] = "1"
         if len([f for f in ctx.files.fonts if f.basename == "fonts.conf"]) > 0:
             environment["FONTCONFIG_PATH"] = _directory(ctx.files.fonts, "fonts.conf")
+        elif len([f for f in ctx.files.fonts if f.extension == "ttf"]) > 0:
+            environment["QT_QPA_FONTDIR"] = _directory(ctx.files.fonts, "DejaVuSans.ttf")
         environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platforms, "qoffscreen")
         if ctx.attr._headless:
             environment["QT_QPA_PLATFORM"] = "offscreen"

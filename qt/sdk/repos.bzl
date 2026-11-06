@@ -119,6 +119,11 @@ _FONTS_CONF = """<?xml version="1.0"?>
 </fontconfig>
 """
 
+_WINDOWS_FONT = struct(
+    sha256 = "fa9ca4d13871dd122f61258a80d01751d603b4d3ee14095d65453b4e846e17d7",
+    url = "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.tar.bz2",
+)
+
 _LAUNCH = """int dx_qt_launch(int argc, char **argv, const char *repository, const char *tool);
 
 int main(int argc, char **argv) {
@@ -708,6 +713,8 @@ def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS, tool 
         lines.extend(_closure(cell, "closure", "core", cells))
         lines.extend(_closure(cell, "gui_closure", "gui", cells))
         lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in entry.runtime.font.fonts])))
+    elif layout.os == "windows":
+        lines.extend(_filegroup("fonts", '["fonts/DejaVuSans.ttf"]'))
     else:
         lines.extend(_filegroup("fonts", "[]"))
     lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in layout.platform_plugins])))
@@ -849,6 +856,17 @@ def _cell_table(ctx):
         fail("qt_sdk: " + "; ".join(errors))
     return effective_cells({ctx.attr.cell: entry})
 
+def _place_font(ctx):
+    ctx.download_and_extract(
+        url = _WINDOWS_FONT.url,
+        output = _EXTRACT + "/dejavu",
+        sha256 = _WINDOWS_FONT.sha256,
+        canonical_id = canonical_id_for(_WINDOWS_FONT.url),
+    )
+    root = _EXTRACT + "/dejavu/dejavu-fonts-ttf-2.37"
+    _move_real(ctx, root + "/ttf/DejaVuSans.ttf", "fonts/DejaVuSans.ttf")
+    _move_real(ctx, root + "/LICENSE", "licenses/dejavu-sans-fonts/LICENSE")
+
 def _qt_cell_repo_impl(ctx):
     cells = _cell_table(ctx)
     errors = pin_errors(cells)
@@ -878,6 +896,7 @@ def _qt_cell_repo_impl(ctx):
     if entry.runtime != None:
         _acquire_runtime(ctx, extractor, cells)
     if layout.os == "windows":
+        _place_font(ctx)
         _place_vcruntime(ctx)
         ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(Label("//cc/toolchains:notices/MSVC_REDISTRIBUTABLE.txt")))
     if layout.link == "framework":

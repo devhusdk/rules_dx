@@ -1327,6 +1327,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             advisory: finding.advisory.clone(),
             package: finding.package.clone(),
             set: label.clone(),
+            lock_set: exception_set.clone(),
             version: finding.version.clone(),
         }));
         let set_exceptions: Vec<dx_audit::exception::RiskException> = live_exceptions

@@ -8,6 +8,8 @@ pub(super) struct VulnCandidate {
     pub(super) advisory: String,
     pub(super) package: String,
     pub(super) set: String,
+    /// The lock set whose matcher reads the written version scope.
+    pub(super) lock_set: String,
     pub(super) version: String,
 }
 
@@ -79,7 +81,10 @@ pub(super) fn accept_security(
                     ("advisory", candidate.advisory.clone()),
                     ("package", candidate.package.clone()),
                     ("set", candidate.set.clone()),
-                    ("versions", format!("={}", candidate.version)),
+                    (
+                        "versions",
+                        dx_audit::vuln::exact_scope(&candidate.lock_set, &candidate.version),
+                    ),
                 ],
                 rest: accept.rest(),
             });
@@ -118,7 +123,10 @@ pub(super) fn accept_license(
                     ("package", candidate.package.clone()),
                     ("set", candidate.set.clone()),
                     ("license", candidate.license.clone()),
-                    ("versions", format!("={}", candidate.version)),
+                    (
+                        "versions",
+                        dx_audit::vuln::exact_scope(&candidate.set, &candidate.version),
+                    ),
                 ],
                 rest: accept.rest(),
             });

@@ -34,6 +34,18 @@ pub fn version_assess(set: &str, scope: &str, version: &str) -> VersionScope {
     }
 }
 
+/// The scope that matches exactly `version` in the given lock set, as written by `--accept`.
+pub fn exact_scope(set: &str, version: &str) -> String {
+    let version = version.trim();
+    match set {
+        "nuget" | "maven" => version.to_owned(),
+        "cargo" | "go" => format!("={}", version.split('+').next().unwrap_or(version)),
+        "npm" | "ruby" | "uv" | "cpan" => format!("={version}"),
+        family if is_version_family(family) => format!("={version}"),
+        _ => version.to_owned(),
+    }
+}
+
 pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
     version_assess(set, scope, version) == VersionScope::Affected
 }

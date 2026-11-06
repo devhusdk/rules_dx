@@ -64,7 +64,12 @@ _LIBRARY = """mkdir "$SCRATCH/ws"
 cp -rL "$ROOT/{root}/." "$SCRATCH/ws"
 chmod -R u+w "$SCRATCH/ws"
 cd "$SCRATCH/ws"
-"$ROOT/{dune}" build --display=quiet -j {jobs} -p {package} @install
+if [ -f dune ] && grep -q '^(vendored_dirs' dune; then
+  sed -i '/^(vendored_dirs/d' dune
+  "$ROOT/{dune}" build --display=quiet -j {jobs} @{package}/install
+else
+  "$ROOT/{dune}" build --display=quiet -j {jobs} -p {package} @install
+fi
 LIB="_build/install/default/lib/{package}"
 for archive in {archives}; do
   if [ ! -f "$LIB/$archive" ]; then

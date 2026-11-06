@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/merger"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -522,8 +523,8 @@ func TestBinaryKindInfo(t *testing.T) {
 	if len(info.MatchAttrs) != 1 || info.MatchAttrs[0] != "entry_point" {
 		t.Errorf("binary MatchAttrs = %v, want [entry_point]", info.MatchAttrs)
 	}
-	if info.NonEmptyAttrs["srcs"] {
-		t.Errorf("binary NonEmptyAttrs must not require srcs: %v", info.NonEmptyAttrs)
+	if len(info.NonEmptyAttrs) != 1 || !info.NonEmptyAttrs["data"] {
+		t.Errorf("binary NonEmptyAttrs = %v, want data so stale binaries are removed", info.NonEmptyAttrs)
 	}
 	if !info.MergeableAttrs["data"] {
 		t.Errorf("binary MergeableAttrs = %v, want data", info.MergeableAttrs)
@@ -548,14 +549,74 @@ func TestResolvePreservesBinaryData(t *testing.T) {
 	}
 }
 
+func regenerate(t *testing.T, files map[string]string, build string) *rule.File {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		writeFixture(t, root, "pkg/demo/"+name, content)
+		regular = append(regular, name)
+	}
+	file, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte(build))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := newLang()
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: regular,
+		File:         file,
+	})
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v", l.Errors())
+	}
+	if len(result.Gen) != len(result.Imports) {
+		t.Fatalf("generated %d rules and %d import sets", len(result.Gen), len(result.Imports))
+	}
+	merger.MergeFile(file, result.Empty, result.Gen, merger.PreResolve, javascriptKinds, nil)
+	return file
+}
+
+func binaries(file *rule.File) map[string]*rule.Rule {
+	found := map[string]*rule.Rule{}
+	for _, r := range file.Rules {
+		if r.Kind() == binaryKind {
+			found[r.Name()] = r
+		}
+	}
+	return found
+}
+
 func TestMergeStaleCleansBinary(t *testing.T) {
-	f := rule.EmptyFile("BUILD.bazel", "pkg")
-	f.Rules = append(f.Rules, rule.NewRule(binaryKind, "old_bin"))
-	keptLib := rule.NewRule(libraryKind, "main")
-	keptBin := rule.NewRule(binaryKind, "main_bin")
-	result := mergeStale(f, language.GenerateResult{Gen: []*rule.Rule{keptLib, keptBin}})
-	if len(result.Empty) != 1 || result.Empty[0].Name() != "old_bin" {
-		t.Fatalf("stale = %v, want [old_bin]", result.Empty)
+	sources := map[string]string{"greet.js": "export const x = 1;\n", "main.js": "import { x } from \"./greet\";\n"}
+	readme := binaries(regenerate(t, sources, `javascript_binary(
+    name = "hello",
+    data = [":greet"],
+    entry_point = "main.js",
+)
+`))
+	if readme["hello"] == nil || len(readme) != 1 {
+		t.Fatalf("binaries = %v, want only hello", readme)
+	}
+	if got := strings.Join(readme["hello"].AttrStrings("data"), ","); got != ":greet" {
+		t.Errorf("hello data = %q, want :greet", got)
+	}
+
+	kept := binaries(regenerate(t, sources, `javascript_binary(name = "main_bin", data = [":main"], entry_point = "main.js")
+`))
+	if kept["main_bin"] == nil || len(kept) != 1 {
+		t.Fatalf("binaries = %v, want only main_bin", kept)
+	}
+	if got := strings.Join(kept["main_bin"].AttrStrings("data"), ","); got != ":main" {
+		t.Errorf("main_bin data = %q, want :main", got)
+	}
+
+	stale := binaries(regenerate(t, map[string]string{"greet.js": "export const x = 1;\n"}, `javascript_binary(name = "main_bin", data = [":main"], entry_point = "main.js")
+`))
+	if len(stale) != 0 {
+		t.Errorf("binaries = %v, want stale main_bin removed", stale)
 	}
 }
 

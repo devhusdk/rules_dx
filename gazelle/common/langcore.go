@@ -172,6 +172,24 @@ func MergeStaleOwned(file *rule.File, result language.GenerateResult, kinds map[
 	return result
 }
 
+// GeneratedBinary reports whether r has the shape generation gives a binary:
+// it is named X_bin and its attr lists :X.
+func GeneratedBinary(r *rule.Rule, attr string) bool {
+	target, ok := strings.CutSuffix(r.Name(), BinaryName(""))
+	return ok && target != "" && slices.Contains(r.AttrStrings(attr), ":"+target)
+}
+
+// CoveredBinary reports whether a rule of kind other than want already serves
+// the entry, as judged by covers, so generation leaves want out.
+func CoveredBinary(file *rule.File, kind, want string, covers func(*rule.Rule) bool) bool {
+	if file == nil {
+		return false
+	}
+	return slices.ContainsFunc(file.Rules, func(r *rule.Rule) bool {
+		return r.Kind() == kind && r.Name() != want && covers(r)
+	})
+}
+
 func FormatMatches(matches []resolve.FindResult) string {
 	labels := make([]string, 0, len(matches))
 	for _, match := range matches {

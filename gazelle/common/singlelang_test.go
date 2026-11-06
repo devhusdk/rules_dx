@@ -1095,6 +1095,61 @@ func TestResolveSingleLetsAMappingBeatStdLib(t *testing.T) {
 	}
 }
 
+func TestGeneratedBinary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		deps []string
+		want bool
+	}{
+		{"main_bin", []string{":main"}, true},
+		{"main_bin", []string{":greet", ":main"}, true},
+		{"main_bin", nil, false},
+		{"main_bin", []string{":other"}, false},
+		{"hello", []string{":main"}, false},
+		{"_bin", []string{":"}, false},
+	} {
+		r := rule.NewRule("bin", tc.name)
+		if tc.deps != nil {
+			r.SetAttr("deps", tc.deps)
+		}
+		if got := GeneratedBinary(r, "deps"); got != tc.want {
+			t.Errorf("GeneratedBinary(%s %v) = %v, want %v", tc.name, tc.deps, got, tc.want)
+		}
+	}
+}
+
+func TestCoveredBinary(t *testing.T) {
+	file, err := rule.LoadData("pkg/BUILD.bazel", "pkg", []byte(`bin(name = "main_bin", main = "main.py")
+
+bin(name = "hello", main = "main.py")
+
+lib(name = "tool", main = "tool.py")
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	covers := func(main string) func(*rule.Rule) bool {
+		return func(r *rule.Rule) bool { return r.AttrString("main") == main }
+	}
+	if !CoveredBinary(file, "bin", "main_bin", covers("main.py")) {
+		t.Error("hello serves main.py, want covered")
+	}
+	if CoveredBinary(file, "bin", "hello", covers("tool.py")) {
+		t.Error("only a lib serves tool.py, want uncovered")
+	}
+	if CoveredBinary(file, "bin", "x_bin", covers("x.py")) {
+		t.Error("nothing serves x.py, want uncovered")
+	}
+	only := rule.EmptyFile("BUILD.bazel", "pkg")
+	only.Rules = append(only.Rules, file.Rules[0])
+	if CoveredBinary(only, "bin", "main_bin", covers("main.py")) {
+		t.Error("the generated binary itself must not count")
+	}
+	if CoveredBinary(nil, "bin", "main_bin", covers("main.py")) {
+		t.Error("nil file covers nothing")
+	}
+}
+
 func TestMergeStaleOwned(t *testing.T) {
 	file, err := rule.LoadData("pkg/BUILD.bazel", "pkg", []byte(`dot_library(name = "kept")
 

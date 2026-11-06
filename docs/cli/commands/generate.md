@@ -153,4 +153,5 @@ Gazelle sets these attributes only when the rule lacks them. Set one yourself to
 - Julia: a `Project.toml` with `src/<name>.jl` gets a `julia_library`, and `test/runtests.jl` adds a `julia_test`.
 - JavaScript and TypeScript: `*.test.*`, `*.spec.*`, and `*_test.*` sources become `js_test` or `typescript_test`. `.d.ts` files are never tests.
 - Scala: sources ending in `Test`, `Spec`, or `Suite` become `scala_test`.
+- Python, JavaScript, and TypeScript: an entry file such as `main.py` or `main.js` gets a binary named `<target>_bin` that depends on `:<target>`. Generate edits or removes only binaries with that shape. A handwritten binary that already runs the entry file stops generate from adding `<target>_bin`.
 - `rust_android_apk` with a custom `manifest`: dx checks the manifest `package` and `minSdkVersion` against the rule. A mismatch exits `1`.

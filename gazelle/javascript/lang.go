@@ -68,7 +68,8 @@ func testKindInfo() rule.KindInfo {
 
 func binaryKindInfo() rule.KindInfo {
 	return rule.KindInfo{
-		MatchAttrs: []string{"entry_point"},
+		MatchAttrs:    []string{"entry_point"},
+		NonEmptyAttrs: map[string]bool{"data": true},
 		MergeableAttrs: map[string]bool{
 			"data":         true,
 			"node_modules": true,
@@ -249,7 +250,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		libraries = append(libraries, ":"+p.name)
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
-		if p.entry {
+		if p.entry && !common.CoveredBinary(args.File, binaryKind, common.BinaryName(p.name), servesEntry(p.src)) {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("entry_point", p.src)
 			bin.SetAttr("data", []string{":" + p.name})
@@ -290,6 +291,11 @@ func hasTypeScript(files []string) bool {
 	return false
 }
 
+// servesEntry reports whether a binary runs entry.
+func servesEntry(entry string) func(*rule.Rule) bool {
+	return func(r *rule.Rule) bool { return r.AttrString("entry_point") == entry }
+}
+
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStaleOwned(file, result, javascriptKinds, func(r *rule.Rule) bool {
 		switch r.Kind() {
@@ -301,6 +307,8 @@ func mergeStale(file *rule.File, result language.GenerateResult) language.Genera
 			return r.Name() == packageName
 		case testKind:
 			return r.AttrString("runner") == ""
+		case binaryKind:
+			return common.GeneratedBinary(r, "data")
 		}
 		return true
 	})

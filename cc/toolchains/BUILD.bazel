@@ -350,8 +350,7 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_spaced_test",
     compiler = "msvc",
-    tags = ["manual"],  # Bazel escapes the space in the compile params file with a backslash, cl.exe D9027, and windows_quoting_for_param_files does not change it; see #5954
-    tags = ["manual"],  # the compile params file leaves the source path unquoted, cl.exe D9027; see #5954
+    tags = ["manual"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",

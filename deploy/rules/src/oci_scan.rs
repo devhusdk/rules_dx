@@ -211,6 +211,44 @@ fn civil_date(days: i64) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
+/// What is wrong with the trivy database that `advisory_prep --trivy` left in `cache`.
+pub enum DatabaseProblem {
+    Missing(String),
+    Stale { retrieved_at: String },
+}
+
+impl DatabaseProblem {
+    pub fn message(&self, cache: &Path) -> String {
+        match self {
+            Self::Missing(detail) => format!(
+                "trivy database missing in {}: {detail}; run advisory_prep --trivy",
+                cache.display()
+            ),
+            Self::Stale { retrieved_at } => format!(
+                "trivy database in {} was retrieved on {retrieved_at}; run advisory_prep --trivy",
+                cache.display()
+            ),
+        }
+    }
+}
+
+/// Checks `db/metadata.json` in the cache and the `trivy.meta.json` sidecar next to it.
+pub fn database_problem(cache: &Path, today: &str) -> Option<DatabaseProblem> {
+    if !cache.join("db").join("metadata.json").is_file() {
+        return Some(DatabaseProblem::Missing("db/metadata.json".to_owned()));
+    }
+    let sidecar = cache.parent().map(|out| out.join("trivy.meta.json"));
+    let text = sidecar.and_then(|path| std::fs::read_to_string(path).ok());
+    let retrieved_at = text
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|value| value["retrieved_at"].as_str().map(str::to_owned));
+    match retrieved_at {
+        None => Some(DatabaseProblem::Missing("trivy.meta.json".to_owned())),
+        Some(date) if date != today => Some(DatabaseProblem::Stale { retrieved_at: date }),
+        Some(_) => None,
+    }
+}
+
 /// Runs trivy through `run`, which returns the JSON report for the arguments.
 pub fn scan_layout(
     layout: &Path,
@@ -220,6 +258,13 @@ pub fn scan_layout(
 ) -> Result<Vec<ImageFinding>, String> {
     let severities = severity_list(floor)?;
     let cache = std::env::var_os("DX_TRIVY_CACHE").map(PathBuf::from);
+    if let Some(cache) = &cache {
+        match database_problem(cache, &today()) {
+            Some(problem @ DatabaseProblem::Missing(_)) => return Err(problem.message(cache)),
+            Some(problem) => eprintln!("oci_deploy: image scan: {}", problem.message(cache)),
+            None => {}
+        }
+    }
     let report = run(&trivy_args(layout, &severities, cache.as_deref()))?;
     let findings = parse_report(&report)?;
     let toml = workspace.and_then(|root| std::fs::read_to_string(root.join("security.toml")).ok());
@@ -413,6 +458,51 @@ mod tests {
             exception("CVE-2022-3602", "libssl1.1", "2999-01-01")
         );
         assert!(scan_recorded(Some(&toml)).is_empty());
+    }
+
+    #[test]
+    fn cache_in(dir: &Path, sidecar: Option<&str>, metadata: bool) -> PathBuf {
+        let cache = dir.join("trivy");
+        std::fs::create_dir_all(cache.join("db")).expect("cache dir");
+        if metadata {
+            std::fs::write(cache.join("db").join("metadata.json"), "{}").expect("metadata");
+        }
+        if let Some(text) = sidecar {
+            std::fs::write(dir.join("trivy.meta.json"), text).expect("sidecar");
+        }
+        cache
+    }
+
+    #[test]
+    fn a_missing_database_is_reported() {
+        let dir = std::env::temp_dir().join(format!("dx-oci-scan-missing-{}", std::process::id()));
+        let cache = cache_in(&dir, None, false);
+        assert!(matches!(
+            database_problem(&cache, "2026-11-06"),
+            Some(DatabaseProblem::Missing(_))
+        ));
+        let cache = cache_in(&dir, None, true);
+        assert!(matches!(
+            database_problem(&cache, "2026-11-06"),
+            Some(DatabaseProblem::Missing(_))
+        ));
+        std::fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+    #[test]
+    fn an_old_database_is_stale_and_today_is_fine() {
+        let dir = std::env::temp_dir().join(format!("dx-oci-scan-stale-{}", std::process::id()));
+        let cache = cache_in(
+            &dir,
+            Some(r#"{"retrieved_at":"2026-11-05","db_updated_at":"x"}"#),
+            true,
+        );
+        assert!(matches!(
+            database_problem(&cache, "2026-11-06"),
+            Some(DatabaseProblem::Stale { .. })
+        ));
+        assert!(database_problem(&cache, "2026-11-05").is_none());
+        std::fs::remove_dir_all(&dir).expect("cleanup");
     }
 
     #[test]

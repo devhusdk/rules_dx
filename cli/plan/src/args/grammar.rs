@@ -607,7 +607,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Git range whose commit subjects `dx release --check` lints.
+    /// Git range whose commit subjects `dx release --commits` lints.
     CommitsFlag, {
         #[arg(long, overrides_with = "commits", value_parser = non_empty, value_name = "RANGE")]
         commits: Option<String>,
@@ -1032,14 +1032,6 @@ composite_group! {
     }
 }
 
-flag_group! {
-    /// Report only; this is the default.
-    CheckFlag, {
-        #[arg(long, overrides_with = "check")]
-        check: bool,
-    }
-}
-
 /// Scopes and the Bazel passthrough.
 #[derive(Args)]
 pub(crate) struct BazelTail {
@@ -1393,7 +1385,6 @@ command_args! {
     Mutate => 25, NoPassthroughTail, { own: MutateArgs, here: HereFlag, };
     /// The flags `dx release` accepts.
     Release => 26, NoScopeTail, {
-        check: CheckFlag,
         apply: ApplyFlag,
         push: PushFlag,
         no_api_compat: NoApiCompatFlag,
@@ -1656,6 +1647,15 @@ mod tests {
         .map_or(clap::error::ErrorKind::UnknownArgument, |error| {
             error.kind()
         })
+    }
+
+    #[test]
+    fn release_rejects_the_removed_check_flag() {
+        let words = ["dx", "release", "--check"].map(OsString::from);
+        let error = Cli::try_parse_from(words).err().expect("rejected");
+        assert_eq!(error.kind(), clap::error::ErrorKind::UnknownArgument);
+        let words = ["dx", "release", "--commits", "a..b"].map(OsString::from);
+        assert!(Cli::try_parse_from(words).is_ok());
     }
 
     #[test]

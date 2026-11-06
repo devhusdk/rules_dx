@@ -1141,9 +1141,6 @@
         "path": {
           "type": "string"
         },
-        "file": {
-          "type": "string"
-        },
         "hint": {
           "type": "string"
         },
@@ -1166,7 +1163,6 @@
         "before",
         "after",
         "path",
-        "file",
         "hint",
         "severity"
       ],

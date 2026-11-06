@@ -75,7 +75,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/audit:dx_audit",
-        "//cli/binfmt:dx_binfmt",
+        "//libs/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/sbom:dx_sbom",
@@ -131,7 +131,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/audit:dx_audit",
-        "//cli/binfmt:dx_binfmt",
+        "//libs/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/sbom:dx_sbom",

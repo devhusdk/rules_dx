@@ -1027,7 +1027,7 @@ rust_binary(
     testonly = True,
     srcs = ["producers_main.rs"],
     deps = [
-        "//cli/binfmt:dx_binfmt",
+        "//libs/binfmt:dx_binfmt",
         "@crates//:serde_json",
     ],
 )

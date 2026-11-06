@@ -13,7 +13,7 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:resolve rust dx_atomic_fs //cli/atomic_fs:dx_atomic_fs
 # gazelle:resolve rust dx_process //cli/process:dx_process
 # gazelle:resolve rust dx_audit //cli/audit:dx_audit
-# gazelle:resolve rust dx_binfmt //cli/binfmt:dx_binfmt
+# gazelle:resolve rust dx_binfmt //libs/binfmt:dx_binfmt
 # gazelle:resolve rust dx_bep //cli/bep:dx_bep
 # gazelle:resolve rust dx_clean //cli/clean:dx_clean
 # gazelle:resolve rust dx_codegen //cli/codegen:dx_codegen
@@ -43,7 +43,7 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:resolve rust dx_sbom_schema //cli/sbom/schema:dx_sbom_schema
 # gazelle:resolve rust dx_versions //modules:dx_versions
 # gazelle:resolve rust dx_setup //cli/setup:dx_setup
-# gazelle:resolve rust dx_shard_writer //cli/shard_writer:dx_shard_writer
+# gazelle:resolve rust dx_shard_writer //libs/shard_writer:dx_shard_writer
 # gazelle:resolve rust dx_test_scratch //cli/test_scratch:dx_test_scratch
 # gazelle:resolve rust dx_update //cli/update:dx_update
 # gazelle:resolve rust dx_worktree //cli/worktree:dx_worktree

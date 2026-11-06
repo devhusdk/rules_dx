@@ -79,7 +79,7 @@ on:
         default: ""
         type: string
       commit_lint:
-        description: "On pull requests, fail when a commit between the base and the head is not a conventional commit (dx release --check --commits). Skipped subjects come from release.toml."
+        description: "On pull requests, fail when a commit between the base and the head is not a conventional commit (dx release --commits). Skipped subjects come from release.toml."
         required: false
         default: false
         type: boolean
@@ -867,7 +867,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
-          bazel run "$@" @rules_dx//:dx -- release --check --commits "$base..$HEAD_SHA"
+          bazel run "$@" @rules_dx//:dx -- release --commits "$base..$HEAD_SHA"
   dx-ci:
     name: dx-ci (aggregate)
     needs: [validate, checks, security-audit, advisory-snapshots]

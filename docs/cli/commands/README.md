@@ -59,7 +59,7 @@ Other flags belong to one command family. `dx <command> --help` lists them.
 | --- | --- |
 | Read commands | `-o`, `--output text\|json`. Commands that can print a patch also take `diff`. |
 | Check commands | `--fail-on info\|warning\|error` (default `warning`), `--report <format>=<dest>` (repeatable). |
-| Coverage | `--min-coverage <percent>`. |
+| Coverage | `--min-coverage <percent>`, `--min-changed-line-coverage <percent>`. |
 | Network commands | `--offline` (no network), `--frozen` (no manifest or lock changes). |
 | Scoped commands | `--here` (current directory tree), `--affected` (targets your changes reach). |
 | Mutating commands | `--apply`. |

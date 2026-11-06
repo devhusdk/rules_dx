@@ -8,7 +8,7 @@ exports_files(["src/lib.rs"])
 
 dx_rust_crate(
     name = "dx_shard_writer",
-    package_name = "cli/dx_shard_writer",
+    package_name = "libs/dx_shard_writer",
     dev_deps = ["tempfile"],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",

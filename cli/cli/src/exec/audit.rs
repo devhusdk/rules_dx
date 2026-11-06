@@ -212,7 +212,7 @@ pub(crate) enum AuditError {
     #[error("advisory_refresh_failed: could not obtain current advisory data for {set}: {detail}")]
     AdvisoryParse { set: String, detail: String },
     #[error(
-        "advisory_pin_missing: no `advisory {family}` line in .dx/pins for {set}; run `advisory_prep --pin` and add the printed line"
+        "advisory_pin_missing: no `advisory {family}` line in .dx/pins for {set}; run `bazel run //cli/advisory_prep -- --pin` and add the printed line"
     )]
     AdvisoryPinMissing { set: String, family: String },
     #[error(

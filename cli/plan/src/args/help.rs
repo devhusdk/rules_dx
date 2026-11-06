@@ -307,7 +307,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         &[
             "release",
             "release --to 2.0.0",
-            "release --check --commits origin/main..HEAD",
+            "release --commits origin/main..HEAD",
         ],
     ),
 ];

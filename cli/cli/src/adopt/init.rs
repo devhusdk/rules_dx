@@ -826,7 +826,7 @@ mod tests {
         assert_eq!(f["subject"], "rules_rust");
         assert_eq!(f["before"], "0.60.0");
         assert_eq!(f["after"], "0.75.0");
-        assert_eq!(f["file"], "MODULE.bazel");
+        assert_eq!(f["path"], "MODULE.bazel");
         assert_eq!(f["line"], 2);
         assert_eq!(f["severity"], "advisory");
         assert!(f["hint"].as_str().is_some_and(|h| !h.is_empty()));

@@ -44,7 +44,7 @@ rust_binary(
         normal = True,
     ) + [
         ":codegen_shard",
-        "//cli/shard_writer:dx_shard_writer",
+        "//libs/shard_writer:dx_shard_writer",
     ],
 )
 
@@ -98,7 +98,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":codegen_shard",
-        "//cli/shard_writer:dx_shard_writer",
+        "//libs/shard_writer:dx_shard_writer",
         "//generation:codegen_proto_rs",
     ],
 )

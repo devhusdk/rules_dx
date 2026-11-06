@@ -195,7 +195,7 @@ rust_library(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
-        "//cli/binfmt:dx_binfmt",
+        "//libs/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//cli/sbom:dx_sbom",

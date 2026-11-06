@@ -1,4 +1,4 @@
-//! `dx release --check`: the next version from conventional commits and the manifests that carry it.
+//! `dx release`: the next version from conventional commits and the manifests that carry it.
 
 use std::collections::HashMap;
 use std::fs;

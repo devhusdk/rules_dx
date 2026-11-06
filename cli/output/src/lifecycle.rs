@@ -275,7 +275,6 @@ pub fn init_plan_event(finding: &PlanFindingEvent) -> Result<Value, OutputError>
         ("before", &finding.before),
         ("after", &finding.after),
         ("path", &finding.file),
-        ("file", &finding.file),
         ("hint", &finding.hint),
         ("severity", &finding.severity),
     ] {
@@ -1722,7 +1721,7 @@ mod tests {
         assert_eq!(event["line"], 3);
         assert_eq!(event["severity"], "advisory");
         assert_eq!(event["path"], "MODULE.bazel");
-        assert_eq!(event["file"], "MODULE.bazel");
+        assert!(event.get("file").is_none());
         finding.line = 0;
         assert!(init_plan_event(&finding)
             .expect("event")

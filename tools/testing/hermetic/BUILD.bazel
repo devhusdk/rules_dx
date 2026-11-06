@@ -56,7 +56,7 @@ rust_library(
         package_name = "tools/dx_testing",
         normal = True,
     ) + [
-        "//cli/binfmt:dx_binfmt",
+        "//libs/binfmt:dx_binfmt",
         "//cli/lcov:dx_lcov",
         "//cli/process:dx_process",
         "//tools/testing:dx_nested",

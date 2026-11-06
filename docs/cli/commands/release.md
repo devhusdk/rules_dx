@@ -1,32 +1,30 @@
 # `dx release`
 
-Works out the next version from conventional commits since the last tag and lists every manifest that carries a version. With `--apply` it also writes the version into every manifest, commits and tags. If a `CHANGELOG.md` exists, `--apply` also prepends a `## [x.y.z] - date` section with the grouped notes and commits it, and `--check` prints the section it would add. Without it, no files change.
+Works out the next version from conventional commits since the last tag and lists every manifest that carries a version. With `--apply` it also writes the version into every manifest, commits and tags. If a `CHANGELOG.md` exists, `--apply` also prepends a `## [x.y.z] - date` section with the grouped notes and commits it, and the default report prints the section it would add. Without `--apply`, no files change.
 
 ```sh
 dx release
-dx release --check
-dx release --check --commits origin/main..HEAD
+dx release --commits origin/main..HEAD
 dx release --apply
 dx release --to 2.0.0 --apply
 ```
 
 ```text
-dx release [--check [--commits <range>] | --apply [--push]] [--to <x.y.z>] [--no-api-compat]
+dx release [--commits <range> | --apply [--push]] [--to <x.y.z>] [--no-api-compat]
 ```
 
 | Flag | What it does |
 | --- | --- |
-| `--check` | Report only. This is the default. |
-| `--commits <range>` | With `--check`, lint the commit subjects in a git range such as `origin/main..HEAD`. Lists each one that is not a conventional commit and exits 1 when there is any. Merge commits are not read. Cannot be combined with `--apply` or `--to`. |
-| `--apply` | Set the version in every manifest, run `bazel mod deps --lockfile_mode=update` when a `MODULE.bazel` changed, commit them as `release: <tag>` and create the tag. The tag is annotated and its message lists the commits since the last tag. Refuses a dirty working tree, a detached HEAD, an existing tag, or no version to release. Cannot be combined with `--check`. |
+| `--commits <range>` | Lint the commit subjects in a git range such as `origin/main..HEAD`. Lists each one that is not a conventional commit and exits 1 when there is any. Merge commits are not read. Cannot be combined with `--apply` or `--to`. |
+| `--apply` | Set the version in every manifest, run `bazel mod deps --lockfile_mode=update` when a `MODULE.bazel` changed, commit them as `release: <tag>` and create the tag. The tag is annotated and its message lists the commits since the last tag. Refuses a dirty working tree, a detached HEAD, an existing tag, or no version to release. |
 | `--push` | With `--apply`, push the branch and the tag to `origin`. Without it, the output says `next: git push --follow-tags`. |
 | `--to <x.y.z>` | Use this version instead of the derived one, for teams that do not use conventional commits. |
-| `--no-api-compat` | Skip the api-compat step of `--check`. |
+| `--no-api-compat` | Skip the api-compat step. |
 | `--workspace`, `-q`, `-v`, `--color` | Global flags. |
 
 The base is the newest tag that starts with `v`. With no tag, the base is the version most manifests carry. Commits since the tag decide the bump: `feat:` is minor, `fix:` and `perf:` are patch, and `!` after the type or a `BREAKING CHANGE:` footer is major. Other commits do not bump.
 
-With `--check`, every `crates_deploy` target with `api_compat` other than `off` is run in warn mode against the last tag. When any reports breaking changes, the bump becomes major and the output names the target. This needs Bazel and cargo-semver-checks; `--to` and `--apply` skip it.
+By default, every `crates_deploy` target with `api_compat` other than `off` is run in warn mode against the last tag. When any reports breaking changes, the bump becomes major and the output names the target. This needs Bazel and cargo-semver-checks; `--to` and `--apply` skip it.
 
 The manifests are `Cargo.toml`, `package.json`, `pyproject.toml`, `pubspec.yaml`, `build.gradle(.kts)`, `*.csproj`, `mix.exs`, `MODULE.bazel`, `*.gemspec` and `Chart.yaml`. A manifest that does not carry the base version is listed as out of sync.
 

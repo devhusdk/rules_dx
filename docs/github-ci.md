@@ -141,7 +141,7 @@ The repository cache is keyed on `MODULE.bazel` and `MODULE.bazel.lock`. Without
 | `affected_on_pr` | Default `true`. Use `--affected` on pull requests. |
 | `buf_breaking_on_pr` | Default `false`. On pull requests, run `lint` with `--breaking-against` so `buf breaking` compares the proto files with the pull request base. |
 | `link_check_online` | Default `false`. Run `lint` with `--online` so lychee checks external links. Ignored on pull requests; call the workflow from a `schedule` trigger to use it. |
-| `commit_lint` | Default `false`. On pull requests, run `dx release --check --commits` over the commits since the merge base and fail the `commit-lint` job on any subject that is not a conventional commit. |
+| `commit_lint` | Default `false`. On pull requests, run `dx release --commits` over the commits since the merge base and fail the `commit-lint` job on any subject that is not a conventional commit. |
 | `mutate` | Default `false`. Run [`dx mutate`](cli/commands/mutate.md) with a 10 minute budget per target on `dx-mutate` targets. Runs only on scheduled or dispatched runs of the default branch; call the workflow from a weekly `schedule` trigger to use it. |
 | `unused` | Default `false`. On scheduled runs, run `dx unused --output=json` and open or update one issue titled `dx unused report` with the findings. Only this job gets `issues: write`. Call the workflow from a weekly `schedule` trigger to use it. |
 | `fuzz` | Default `false`. Run [`dx fuzz`](cli/commands/fuzz.md) on `dx-fuzz` targets on Linux x86_64. The corpus under `.dx/local/fuzz` is cached between runs. A crash fails the job and uploads the `dx-fuzz-crashes` artifact for 30 days; the log shows the reproduce line. |

@@ -956,6 +956,18 @@ fn relocatable_rejects_only_a_pe_with_stripped_relocations() {
 }
 
 #[test]
+fn read_head_reads_at_most_a_page() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("bazel.exe");
+    std::fs::write(&file, vec![0u8; 5000]).unwrap();
+    assert_eq!(read_head(&file).unwrap().len(), 4096);
+    let missing = dir.path().join("missing.exe");
+    assert!(read_head(&missing)
+        .unwrap_err()
+        .starts_with(&format!("cannot read {}: ", missing.display())));
+}
+
+#[test]
 fn git_reports_clean_dirty_and_failing_trees() {
     let dir = tempfile::tempdir().unwrap();
     git(dir.path(), &["init", "-q"]).unwrap();

@@ -1710,10 +1710,6 @@ fn read_head(path: &Path) -> Result<Vec<u8>, String> {
 /// Whether Windows can load the image at another base: a PE with relocations stripped
 /// (COFF Characteristics bit 0x1) cannot, and an AppContainer always relocates.
 pub fn relocatable(head: &[u8]) -> bool {
-    let word = |at: usize| {
-        head.get(at..at + 2)
-            .map(|b| u16::from_le_bytes([b[0], b[1]]))
-    };
     if !head.starts_with(b"MZ") {
         return true;
     }
@@ -1726,7 +1722,8 @@ pub fn relocatable(head: &[u8]) -> bool {
     if head.get(pe..pe + 4) != Some(b"PE\0\0".as_slice()) {
         return true;
     }
-    word(pe + 22).is_none_or(|characteristics| characteristics & 0x1 == 0)
+    head.get(pe + 22..pe + 24)
+        .is_none_or(|characteristics| characteristics[0] & 0x1 == 0)
 }
 
 /// The Bazel binary `bazelisk --print_env` resolved, from its `BAZEL_REAL=` line.

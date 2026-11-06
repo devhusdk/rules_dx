@@ -567,6 +567,31 @@ mod tests {
         assert_eq!(mode & 0o111, 0o111);
         assert!(!refresh(root, &runner).expect("second").ran);
         assert_eq!(runner.calls.get(), 1);
+        assert_eq!(missing_outputs(root), Vec::<String>::new());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn go_writes_a_cmd_driver_wrapper_that_runs() {
+        let scratch = dx_test_scratch::scratch("dx-ide-go-");
+        let root = scratch.path().join("a%b");
+        std::fs::create_dir_all(root.join("store")).expect("store");
+        std::fs::write(root.join("main.go"), "").expect("go");
+        let driver = root.join("store").join("gopackagesdriver.exe");
+        std::fs::write(&driver, "").expect("driver");
+        let mut runner = fake(&root);
+        runner.lib = driver;
+        let first = refresh(&root, &runner).expect("first");
+        assert_eq!(first.failed, []);
+        let dir = root.join(".dx/local/ide/go");
+        let wrapper = dir.join("gopackagesdriver.cmd");
+        let text = std::fs::read_to_string(&wrapper).expect("wrapper");
+        assert!(text.contains("BUILD_WORKSPACE_DIRECTORY="), "{text}");
+        assert!(text.contains("a%%b"), "{text}");
+        assert!(!dir.join("gopackagesdriver").exists());
+        assert_eq!(missing_outputs(&root), Vec::<String>::new());
+        assert!(!refresh(&root, &runner).expect("second").ran);
         scratch.close().expect("cleanup");
     }
 

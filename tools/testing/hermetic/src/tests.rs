@@ -1478,3 +1478,21 @@ fn macos_evidence_is_checked_against_macos_markers() {
     let linux = good_evidence();
     assert!(verify_evidence(&linux, "abc123", &manifest).is_ok());
 }
+
+#[test]
+fn copy_test_logs_keeps_layout_and_returns_heads() {
+    let dir = tempfile::tempdir().unwrap();
+    let logs = dir.path().join("bazel-testlogs");
+    let case = logs.join("javascript/cli/exit_codes_test");
+    std::fs::create_dir_all(&case).unwrap();
+    let body: String = (1..=50).map(|n| format!("line {n}\n")).collect();
+    std::fs::write(case.join("test.log"), body).unwrap();
+    std::fs::write(case.join("test.xml"), "<testsuites/>").unwrap();
+    let dest = dir.path().join("out/testlogs");
+    let text = copy_test_logs(&logs, &dest);
+    assert!(dest.join("javascript/cli/exit_codes_test/test.log").is_file());
+    assert!(!dest.join("javascript/cli/exit_codes_test/test.xml").exists());
+    assert!(text.contains("javascript/cli/exit_codes_test/test.log"));
+    assert!(text.contains("line 40") && !text.contains("line 41"));
+    assert_eq!(copy_test_logs(&dir.path().join("missing"), &dest), "");
+}

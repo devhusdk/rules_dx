@@ -944,8 +944,12 @@ impl Session {
             let log_tail = lines[lines.len().saturating_sub(40)..].join("\n");
             let module =
                 std::fs::read_to_string(self.workspace.join("MODULE.bazel")).unwrap_or_default();
+            let testlogs = copy_test_logs(
+                &self.workspace.join("bazel-testlogs"),
+                &logs.join(name).join("testlogs"),
+            );
             format!(
-                "probe {name} {err}; see {}\nlog tail:\n{}\nconsumer MODULE.bazel:\n{module}",
+                "probe {name} {err}; see {}\nlog tail:\n{}\nconsumer MODULE.bazel:\n{module}{testlogs}",
                 log_path.display(),
                 log_tail
             )
@@ -953,6 +957,50 @@ impl Session {
         Ok(outcome)
     }
     // LCOV_EXCL_STOP - reason: end isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
+}
+
+/// Copies every consumer `test.log` under `testlogs` to `dest`, keeping the
+/// relative layout, and returns the first 40 lines of each for the error text.
+pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
+    let mut found = Vec::new();
+    collect_test_logs(testlogs, &mut found);
+    found.sort();
+    let mut text = String::new();
+    for path in found {
+        let Ok(rel) = path.strip_prefix(testlogs) else {
+            continue;
+        };
+        let Ok(content) = std::fs::read(&path) else {
+            continue;
+        };
+        let target = dest.join(rel);
+        if let Some(parent) = target.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(&target, &content);
+        let content = String::from_utf8_lossy(&content);
+        let head: Vec<&str> = content.lines().take(40).collect();
+        text.push_str(&format!(
+            "\nconsumer test log {}:\n{}",
+            rel.display(),
+            head.join("\n")
+        ));
+    }
+    text
+}
+
+fn collect_test_logs(dir: &Path, found: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_test_logs(&path, found);
+        } else if path.file_name().is_some_and(|name| name == "test.log") {
+            found.push(path);
+        }
+    }
 }
 
 /// Builds the cquery expression for the non-manual targets the patterns name.

@@ -205,6 +205,8 @@ jobs:
           bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets || true
           # shellcheck disable=SC2086
           bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets "$@" $targets || true
+          DX_EVIDENCE_COMMAND="bazel test --skip_incompatible_explicit_targets $* $targets"
+          export DX_EVIDENCE_COMMAND
           tools/ci/compiler_evidence.sh "$out" linux_x86_64 "$facts"
           {
             echo "#### Compiler evidence"
@@ -537,6 +539,8 @@ jobs:
           bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets || true
           # shellcheck disable=SC2086
           bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets "$@" $targets || true
+          DX_EVIDENCE_COMMAND="bazel test --skip_incompatible_explicit_targets $* $targets"
+          export DX_EVIDENCE_COMMAND
           tools/ci/compiler_evidence.sh "$out" "$PLATFORM" "$facts"
           {
             echo "#### Compiler evidence"

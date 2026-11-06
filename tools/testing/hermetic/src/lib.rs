@@ -246,6 +246,28 @@ pub fn windows_tool_dirs(
         .collect()
 }
 
+/// The preinstalled Visual Studio and Windows SDK trees an MSVC qualification must not read.
+pub fn windows_msvc_denies(
+    program_files: Option<&Path>,
+    program_files_x86: Option<&Path>,
+) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    for (root, name) in [
+        (program_files_x86, "Microsoft Visual Studio"),
+        (program_files, "Microsoft Visual Studio"),
+        (program_files_x86, "Windows Kits"),
+        (program_files, "Windows Kits"),
+        (program_files_x86, "Microsoft SDKs"),
+    ] {
+        if let Some(dir) = root.map(|root| root.join(name)).filter(|dir| dir.is_dir())
+            && !dirs.contains(&dir)
+        {
+            dirs.push(dir);
+        }
+    }
+    dirs
+}
+
 /// Resolves symlinks and drops the `\\?\` prefix Windows adds, so paths compare equal.
 fn canonical(path: &Path) -> Option<PathBuf> {
     std::fs::canonicalize(path).ok().map(strip_verbatim)
@@ -307,6 +329,15 @@ pub const WINDOWS_PASSTHROUGH: &[&str] = &[
     "BAZEL_VC_FULL_VERSION",
     "BAZEL_LLVM",
 ];
+
+/// The passthrough variables for a run: the Visual Studio ones go when that tree is denied.
+pub fn windows_passthrough(vs_denied: bool) -> Vec<&'static str> {
+    WINDOWS_PASSTHROUGH
+        .iter()
+        .copied()
+        .filter(|key| !(vs_denied && key.starts_with("BAZEL_VC")))
+        .collect()
+}
 
 /// How a probe starts on Windows, where the environment and directory are set on the process instead of by `env` and `sh`.
 pub struct WindowsRun {
@@ -1047,9 +1078,9 @@ impl Session {
             ("TEMP".to_owned(), temp.to_string_lossy().into_owned()),
             ("TMP".to_owned(), temp.to_string_lossy().into_owned()),
         ];
-        for key in WINDOWS_PASSTHROUGH {
+        for key in windows_passthrough(!self.isolation.denies.is_empty()) {
             if let Ok(value) = std::env::var(key) {
-                env.push(((*key).to_owned(), value));
+                env.push((key.to_owned(), value));
             }
         }
         if let Some(bash) = &self.bash {
@@ -2112,6 +2143,37 @@ pub fn preflight(isolation: &Isolation) -> Result<(), String> {
     Ok(())
 }
 
+/// The host's Visual Studio and Windows SDK trees, from the Program Files variables.
+fn windows_host_msvc_denies() -> Vec<PathBuf> {
+    let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_owned());
+    let program_files = windows_dir("ProgramFiles", || {
+        Some(PathBuf::from(format!(r"{drive}\Program Files")))
+    });
+    let program_files_x86 = windows_dir("ProgramFiles(x86)", || {
+        Some(PathBuf::from(format!(r"{drive}\Program Files (x86)")))
+    });
+    windows_msvc_denies(program_files.as_deref(), program_files_x86.as_deref())
+}
+
+/// Confirms the denied host trees are unreadable inside the isolation.
+pub fn deny_check(isolation: &Isolation) -> Result<(), String> {
+    for deny in &isolation.denies {
+        let probe = vec![
+            "cmd.exe".to_owned(),
+            "/c".to_owned(),
+            format!("dir /b \"{}\"", deny.display()),
+        ];
+        let outcome = capture(isolation.command(Net::Denied, &probe))?;
+        if outcome.exit == 0 {
+            return Err(format!(
+                "{} is still readable inside the isolation",
+                deny.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Runs every probe of one qualification and returns its evidence.
 pub fn qualify(manifest: Manifest, root: &Path, out: &Path) -> Value {
     let label = manifest.label.clone();
@@ -2176,7 +2238,15 @@ fn run_all(
     };
     let keep = vec![root.to_path_buf(), out.to_path_buf(), source.clone()];
     let host = HostPaths::detect();
-    let isolation = Isolation::plan_with(&host, &shim, &keep, real_home.as_deref())?;
+    let mut isolation = Isolation::plan_with(&host, &shim, &keep, real_home.as_deref())?;
+    if cfg!(windows)
+        && manifest
+            .compiler
+            .as_ref()
+            .is_some_and(|(name, _)| name == "msvc")
+    {
+        isolation.denies = windows_host_msvc_denies();
+    }
     let ambient = ambient_tools(&host.tool_dirs, AMBIENT_TOOLS)
         .into_iter()
         .find(|(_, path)| {
@@ -2220,8 +2290,10 @@ fn run_all(
         "masked_home": isolation.home_dirs.iter().chain(&isolation.home_files).collect::<Vec<_>>(),
         "ambient_probe_tool": ambient,
         "bash": bash,
+        "denied_dirs": isolation.denies,
     });
     preflight(&isolation)?;
+    deny_check(&isolation)?;
     let workspace = root.join(&manifest.workspace_dir);
     evidence["consumer"] = json!({
         "module": manifest.module,

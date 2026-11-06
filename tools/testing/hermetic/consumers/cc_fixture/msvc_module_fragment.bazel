@@ -1,0 +1,2 @@
+msvc = use_extension("@rules_dx//cc/toolchains/msvc:repos.bzl", "msvc")
+msvc.license(accept = ["visual-studio-build-tools"])

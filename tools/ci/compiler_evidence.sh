@@ -8,12 +8,23 @@
 # A row is failed if any test failed, passed if its probe (when it has one) and at least one test passed, else skipped.
 # A passed or skipped row the facts list in compiler_blockers for PLATFORM is blocked instead, keeping the
 # original outcome in tested_outcome and the reason in blocker.
+# Each line also carries the test command (DX_EVIDENCE_COMMAND) and the sha256 of MODULE.bazel.lock
+# (or DX_LOCKFILE), which pins every downloaded compiler archive.
 set -euo pipefail
 
 out="$1"; platform="$2"; facts="$3"
 bin="${DX_BIN:-bazel-bin}"
 testlogs="${DX_TESTLOGS:-bazel-testlogs}"
 bazel_version="${DX_BAZEL_VERSION:-$(bazel --version | tr -d '\r')}"
+lockfile="${DX_LOCKFILE:-MODULE.bazel.lock}"
+lockfile_sha256=""
+if [ -f "$lockfile" ]; then
+  if command -v sha256sum >/dev/null; then
+    lockfile_sha256="$(sha256sum "$lockfile" | cut -d' ' -f1)"
+  else
+    lockfile_sha256="$(shasum -a 256 "$lockfile" | cut -d' ' -f1)"
+  fi
+fi
 
 outcome_of() {
   local path="${1#//}"
@@ -108,6 +119,8 @@ while IFS= read -r row; do
     --arg compiler "$(probe_field compiler)" \
     --arg target "$(probe_field target)" \
     --arg bazel "$bazel_version" \
+    --arg command "${DX_EVIDENCE_COMMAND:-}" \
+    --arg lockfile_sha256 "$lockfile_sha256" \
     --arg job "${GITHUB_SERVER_URL:-}/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-}" \
     --arg probe "$probe" \
     --arg probe_outcome "$probe_outcome" \
@@ -118,5 +131,5 @@ while IFS= read -r row; do
     --arg tested_outcome "$tested_outcome" \
     --arg blocker "$blocker" \
     --argjson observed "$observed" \
-    '{platform: $platform, row: $row, compiler_flag: $flag, version: $version, sha: $sha, compiler: $compiler, target: $target, bazel: $bazel, job: $job, probe: $probe, probe_outcome: $probe_outcome, tests: $tests, ran: $ran, total: $total, observed_producers: $observed, outcome: $outcome, tested_outcome: $tested_outcome, blocker: $blocker}' >> "$out"
+    '{platform: $platform, row: $row, compiler_flag: $flag, version: $version, sha: $sha, compiler: $compiler, target: $target, bazel: $bazel, command: $command, lockfile_sha256: $lockfile_sha256, job: $job, probe: $probe, probe_outcome: $probe_outcome, tests: $tests, ran: $ran, total: $total, observed_producers: $observed, outcome: $outcome, tested_outcome: $tested_outcome, blocker: $blocker}' >> "$out"
 done < <(jq -c '.rows[] | select(.section == "compilers")' "$facts" | tr -d '\r')

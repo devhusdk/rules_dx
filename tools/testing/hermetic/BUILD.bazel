@@ -1039,6 +1039,28 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "c_fixture_msvc",
+    compiler = "msvc",
+    failures = {"//probe:cxx_in_c": "fatal error C1083: Cannot open include file: 'string'"},
+    files = {
+        "consumers/cc_fixture/msvc.bazelrc": ".bazelrc",
+        "//tools/testing/starters/fixtures:c/BUILD.bazel.fixture": "BUILD.bazel",
+        "//tools/testing/starters/fixtures:c/hello.c.fixture": "hello.c",
+        "//tools/testing/starters/fixtures:c/hello.h.fixture": "hello.h",
+        "//tools/testing/starters/fixtures:c/hello_test.c.fixture": "hello_test.c",
+        "//tools/testing/starters/fixtures:c/main.c.fixture": "main.c",
+        "consumers/cc_fixture/c_only.c": "probe/c_only.c",
+        "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
+    },
+    compatible_with = WINDOWS,
+    languages = ["c"],
+    module_fragment = "consumers/cc_fixture/msvc_module_fragment.bazel",
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+)
+
+hermetic_qualification(
     name = "cpp_fixture",
     compiler = "llvm",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
@@ -1076,6 +1098,28 @@ hermetic_qualification(
     },
     languages = ["cpp"],
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+)
+
+hermetic_qualification(
+    name = "cpp_fixture_msvc",
+    compiler = "msvc",
+    failures = {"//probe:c_in_cxx": "c_in_cxx.cc(2): error C"},
+    files = {
+        "consumers/cc_fixture/msvc.bazelrc": ".bazelrc",
+        "//tools/testing/starters/fixtures:cpp/BUILD.bazel.fixture": "BUILD.bazel",
+        "//tools/testing/starters/fixtures:cpp/hello.cc.fixture": "hello.cc",
+        "//tools/testing/starters/fixtures:cpp/hello.h.fixture": "hello.h",
+        "//tools/testing/starters/fixtures:cpp/hello_test.cc.fixture": "hello_test.cc",
+        "//tools/testing/starters/fixtures:cpp/main.cc.fixture": "main.cc",
+        "consumers/cc_fixture/c_in_cxx.cc": "probe/c_in_cxx.cc",
+        "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
+    },
+    compatible_with = WINDOWS,
+    languages = ["cpp"],
+    module_fragment = "consumers/cc_fixture/msvc_module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
 )

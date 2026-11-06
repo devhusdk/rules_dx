@@ -282,3 +282,18 @@ fn compiler_table_keeps_a_lone_mismatch() {
     );
     assert!(table.contains("| msvc | mismatch |"), "{table}");
 }
+
+#[test]
+fn compiler_table_keeps_the_command_and_lockfile_digest() {
+    let (_, merged) = table_of(
+        &[
+            r#"{"platform":"windows_x86_64","row":"msvc","outcome":"passed","command":"bazel test //p:a","lockfile_sha256":"abc"}"#,
+        ],
+        &[],
+    );
+    assert!(
+        merged.contains(r#""command":"bazel test //p:a""#),
+        "{merged}"
+    );
+    assert!(merged.contains(r#""lockfile_sha256":"abc""#), "{merged}");
+}

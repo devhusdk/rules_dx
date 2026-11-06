@@ -56,6 +56,7 @@ fn run_on(root: &Path, command: &mut Command, platform: &str) -> Vec<Value> {
         .env("DX_BIN", root.join("bin"))
         .env("DX_TESTLOGS", root.join("logs"))
         .env("DX_BAZEL_VERSION", "bazel 9")
+        .env("DX_LOCKFILE", root.join("MODULE.bazel.lock"))
         .status()
         .expect("run bash");
     assert!(status.success());
@@ -135,6 +136,30 @@ fn version_is_copied_through() {
     assert_eq!(a["version"], "1.2.3");
     assert_eq!(a["compiler_flag"], "a");
     assert_eq!(a["bazel"], "bazel 9");
+}
+
+#[test]
+fn command_and_lockfile_digest_are_recorded() {
+    let dir = scratch("compiler_evidence");
+    write(dir.path(), "MODULE.bazel.lock", "lock\n");
+    let lines = run_with(
+        dir.path(),
+        Command::new("bash").env("DX_EVIDENCE_COMMAND", "bazel test //p:a1"),
+    );
+    let a = row(&lines, "cc_a");
+    assert_eq!(a["command"], "bazel test //p:a1");
+    assert_eq!(
+        a["lockfile_sha256"],
+        "d8c9f2728aa278ebcd33ccedf3ad309a866870ad5fb93a03526b4b7655c9e911"
+    );
+}
+
+#[test]
+fn missing_lockfile_leaves_the_digest_empty() {
+    let dir = scratch("compiler_evidence");
+    let lines = run(dir.path());
+    assert_eq!(row(&lines, "cc_a")["lockfile_sha256"], "");
+    assert_eq!(row(&lines, "cc_a")["command"], "");
 }
 
 fn observe(root: &Path, signatures: &[&str]) -> Vec<Value> {

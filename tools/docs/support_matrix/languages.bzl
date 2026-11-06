@@ -234,6 +234,7 @@ ROWS = [
             "//cc/toolchains:msvc_static_crt_test",
         ],
         "compiler": "msvc",
+        "consumer_tests": ["//tools/testing/hermetic:c_fixture_msvc", "//tools/testing/hermetic:cpp_fixture_msvc"],
         "families": [],
         "name": "cc_msvc",
         "section": "compilers",

@@ -1,0 +1,13 @@
+language cpp
+compiler msvc
+pattern //...
+file .bazelrc
+file BUILD.bazel
+file hello.cc
+file hello.h
+file hello_test.cc
+file main.cc
+file probe/BUILD.bazel
+file probe/c_in_cxx.cc
+file probe/cxx_only.cc
+failure //probe:c_in_cxx

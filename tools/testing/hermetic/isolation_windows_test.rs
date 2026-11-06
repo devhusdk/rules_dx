@@ -1,4 +1,4 @@
-//! Probes the Windows user backend: network denial, loopback and file grants.
+//! Probes the Windows user backend: network denial, loopback, file grants and the MSVC denies.
 #![cfg(windows)]
 
 use std::path::{Path, PathBuf};
@@ -117,4 +117,31 @@ fn a_granted_directory_can_be_canonicalized() {
 fn network_allowed_reaches_the_outside() {
     let outcome = scene("allowed").run(Net::Allowed, &["connect", OUTSIDE]);
     assert_eq!(outcome.exit, 0, "{}", outcome.stderr);
+}
+
+#[test]
+fn the_msvc_denies_hide_visual_studio_and_restore_its_acls() {
+    let scene = scene("msvc");
+    let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
+    let program_files_x86 = std::env::var_os("ProgramFiles(x86)").map(PathBuf::from);
+    let denies =
+        hermetic::windows_msvc_denies(program_files.as_deref(), program_files_x86.as_deref());
+    if denies.is_empty() {
+        eprintln!("no Visual Studio or Windows SDK on this host; nothing to deny");
+        return;
+    }
+    let before: Vec<String> = denies.iter().map(|dir| icacls(dir)).collect();
+    let isolation = Isolation {
+        denies: denies.clone(),
+        ..scene.isolation
+    };
+    let started = std::time::Instant::now();
+    hermetic::deny_check(&isolation).expect("every denied tree is unreadable");
+    eprintln!(
+        "denied {} trees in {:?}: {denies:?}",
+        denies.len(),
+        started.elapsed()
+    );
+    let after: Vec<String> = denies.iter().map(|dir| icacls(dir)).collect();
+    assert_eq!(after, before);
 }

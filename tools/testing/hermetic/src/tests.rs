@@ -1870,6 +1870,45 @@ fn action_path_is_system_only() {
 }
 
 #[test]
+fn windows_msvc_denies_lists_the_existing_visual_studio_and_sdk_trees() {
+    let dir = tempfile::tempdir().unwrap();
+    let pf = dir.path().join("pf");
+    let pf86 = dir.path().join("pf86");
+    for path in [
+        pf86.join("Microsoft Visual Studio"),
+        pf86.join("Windows Kits"),
+        pf86.join("Microsoft SDKs"),
+        pf.join("Microsoft Visual Studio"),
+        pf.join("Other"),
+    ] {
+        std::fs::create_dir_all(&path).unwrap();
+    }
+    assert_eq!(
+        windows_msvc_denies(Some(&pf), Some(&pf86)),
+        [
+            pf86.join("Microsoft Visual Studio"),
+            pf.join("Microsoft Visual Studio"),
+            pf86.join("Windows Kits"),
+            pf86.join("Microsoft SDKs"),
+        ]
+    );
+    assert_eq!(
+        windows_msvc_denies(Some(&pf), Some(&pf)),
+        [pf.join("Microsoft Visual Studio")]
+    );
+    assert!(windows_msvc_denies(None, None).is_empty());
+}
+
+#[test]
+fn windows_passthrough_drops_bazel_vc_when_visual_studio_is_denied() {
+    let open = windows_passthrough(false);
+    assert!(open.contains(&"BAZEL_VC") && open.contains(&"BAZEL_VC_FULL_VERSION"));
+    let denied = windows_passthrough(true);
+    assert!(!denied.iter().any(|key| key.starts_with("BAZEL_VC")));
+    assert!(denied.contains(&"BAZEL_LLVM") && denied.contains(&"SystemRoot"));
+}
+
+#[test]
 fn windows_bash_prefers_bazel_sh_then_the_first_existing_candidate() {
     let dir = tempfile::tempdir().unwrap();
     let file = |name: &str| {

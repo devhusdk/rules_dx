@@ -358,10 +358,10 @@ fn editor_settings_value(extensions: &BTreeSet<String>) -> serde_json::Value {
         "search.exclude": excludes,
     });
     let mut add = |own: &[&str], entries: serde_json::Value| {
-        if has(own) {
-            if let (Some(target), Some(entries)) = (settings.as_object_mut(), entries.as_object()) {
-                target.extend(entries.clone());
-            }
+        if has(own)
+            && let (Some(target), Some(entries)) = (settings.as_object_mut(), entries.as_object())
+        {
+            target.extend(entries.clone());
         }
     };
     add(
@@ -422,8 +422,8 @@ fn editor_settings_value(extensions: &BTreeSet<String>) -> serde_json::Value {
 
 /// The `.vscode/settings.json` text for the languages in `extensions`, pretty-printed.
 pub fn render_editor_settings(extensions: &BTreeSet<String>) -> String {
-    let mut text = serde_json::to_string_pretty(&editor_settings_value(extensions))
-        .expect("settings serialize");
+    let mut text =
+        serde_json::to_string_pretty(&editor_settings_value(extensions)).unwrap_or_default();
     text.push('\n');
     text
 }

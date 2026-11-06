@@ -9,10 +9,10 @@ use crate::ecosystem::python;
 
 /// Settles `spec` against `locked` in the grammar `eco` declares requirements in.
 pub fn satisfies_for(eco: Ecosystem, spec: &str, locked: &str) -> bool {
-    if eco == Ecosystem::Python {
-        if let Some(matched) = python::satisfies_py(spec, locked) {
-            return matched;
-        }
+    if eco == Ecosystem::Python
+        && let Some(matched) = python::satisfies_py(spec, locked)
+    {
+        return matched;
     }
     if eco.uses_semver_grammar() {
         let spec = if eco == Ecosystem::Dart {

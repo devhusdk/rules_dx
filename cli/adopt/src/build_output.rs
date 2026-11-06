@@ -151,33 +151,33 @@ fn classify_kinds(root: &Path, paths: &[(String, bool)]) -> Vec<(BuildOutputFind
         if is_allowed(&allow, path) {
             continue;
         }
-        if *added {
-            if let Some(dir) = output_dir(root, path) {
-                if seen_dirs.insert(dir.clone()) {
-                    findings.push((
-                        BuildOutputFinding {
-                            path: path.clone(),
-                            reason: format!("build output under {dir}/"),
-                        },
-                        false,
-                    ));
-                }
-                continue;
-            }
-        }
-        if let Ok(meta) = std::fs::symlink_metadata(root.join(path)) {
-            if meta.is_file() && meta.len() > MAX_FILE_BYTES && !is_lock_file(path) {
+        if *added && let Some(dir) = output_dir(root, path) {
+            if seen_dirs.insert(dir.clone()) {
                 findings.push((
                     BuildOutputFinding {
                         path: path.clone(),
-                        reason: format!(
-                            "{} bytes is over the {MAX_FILE_BYTES} byte limit; add it to [large_files] allow in dx.toml to keep it",
-                            meta.len()
-                        ),
+                        reason: format!("build output under {dir}/"),
                     },
-                    true,
+                    false,
                 ));
             }
+            continue;
+        }
+        if let Ok(meta) = std::fs::symlink_metadata(root.join(path))
+            && meta.is_file()
+            && meta.len() > MAX_FILE_BYTES
+            && !is_lock_file(path)
+        {
+            findings.push((
+                BuildOutputFinding {
+                    path: path.clone(),
+                    reason: format!(
+                        "{} bytes is over the {MAX_FILE_BYTES} byte limit; add it to [large_files] allow in dx.toml to keep it",
+                        meta.len()
+                    ),
+                },
+                true,
+            ));
         }
     }
     findings

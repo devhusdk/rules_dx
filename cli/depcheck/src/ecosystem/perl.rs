@@ -88,10 +88,11 @@ pub fn parse_perl_lock(path: &Path) -> Result<BTreeMap<String, String>, Depcheck
         let item = line.trim();
         if indent <= 4 {
             provides = indent == 4 && item == "provides:";
-        } else if provides && indent == 6 {
-            if let Some((module, version)) = item.split_once(' ') {
-                modules.insert(module.to_owned(), version.trim().to_owned());
-            }
+        } else if provides
+            && indent == 6
+            && let Some((module, version)) = item.split_once(' ')
+        {
+            modules.insert(module.to_owned(), version.trim().to_owned());
         }
     }
     Ok(modules)

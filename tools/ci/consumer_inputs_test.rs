@@ -58,6 +58,7 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
         .chain([
             "fuzz".to_owned(),
             "bench".to_owned(),
+            "advisory-bump".to_owned(),
         ])
         .collect();
     wanted.sort();
@@ -352,15 +353,13 @@ fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
     assert_eq!(step["env"]["CHECKS"], json!(CHECKS_LIST));
     let script = text_at(&step["run"], "aggregate steps.0.run");
     for needle in [
-        "os.environ[\"DISABLED\"]",
-        "if \"security-audit\" in disabled:",
-        "disabled.add(\"advisory-snapshots\")",
-        "result == \"skipped\" and name not in disabled",
+        "required=(checks security-audit advisory-snapshots)",
+        "*,security-audit,*) add_disabled advisory-snapshots",
+        "skipped) is_disabled \"$name\" || lost+=(\"$name\")",
         "skipped without disabled_checks",
-        "results.get(\"validate\") != \"success\"",
-        "os.environ[\"CHECKS\"]",
-        "if listed == \"[]\" and \"coverage\" in disabled:",
-        "disabled.add(\"checks\")",
+        "\"$(result VALIDATE)\" != success",
+        "[ \"$CHECKS\" = \"[]\" ] && is_disabled coverage",
+        "add_disabled checks",
     ] {
         assert!(
             script.contains(needle),
@@ -481,7 +480,7 @@ fn bench_is_off_by_default_and_uploads_the_baseline_for_ninety_days() {
         "dx-bench-linux_x86_64",
         "\"retention-days\":90",
         "bench --compare",
-        "--fail-on=regression:",
+        "--max-regression=",
         "GITHUB_STEP_SUMMARY",
     ] {
         assert!(steps.contains(needle), "bench steps miss {needle}: {steps}");
@@ -561,7 +560,7 @@ fn the_checks_job_pins_the_base_and_runs_dx_on_the_scope() {
     );
     let dx = steps
         .iter()
-        .position(|s| scope_text(&s["run"]).contains("@rules_dx//:dx"))
+        .position(|s| s["name"] == json!("Run the checks"))
         .unwrap_or_else(|| panic!("no dx step"));
     assert!(pin < dx, "pins after dx");
     let run = scope_text(&steps[dx]["run"]);

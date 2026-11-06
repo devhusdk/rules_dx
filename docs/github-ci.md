@@ -64,7 +64,7 @@ Per platform, `checks (<platform>)` runs these in order. A failing check does no
 | `build` | `dx build` | `failures.json` |
 | `coverage` | `dx coverage` | `failures.json`, `results.json` |
 
-`security-audit` runs `dx security //...` in its own job per platform.
+`security-audit` runs `dx security //...` in its own job per platform. `validate (inputs)` checks the inputs first. `advisory snapshots (one run, every platform)` prepares the advisory snapshots once for all platforms. With `advisory_pr`, `advisory pin bump` opens the advisory pin pull request. `fuzz` and `bench` run when their inputs are set. `dx-ci (aggregate)` reports the result of the required jobs.
 
 On pull requests, `lint`, `typecheck`, `format`, `test`, `build` and `coverage` run with `--affected`. Other events use `//...`. `coverage` uses `//...` when `min_coverage` or `min_changed_line_coverage` is set. Set `affected_on_pr: false` to use `//...` on pull requests.
 
@@ -153,7 +153,7 @@ Bazel downloads and Bazelisk are fetched fresh in each job.
 | `link_check_online` | Default `false`. Run `lint` with `--online` so lychee checks external links. Ignored on pull requests; call the workflow from a `schedule` trigger to use it. |
 | `fuzz` | Default `false`. Run [`dx fuzz`](cli/commands/fuzz.md) on `dx-fuzz` targets on Linux x86_64. The corpus under `.dx/local/fuzz` is cached between runs. A crash fails the job and uploads the `dx-fuzz-crashes` artifact for 30 days; the log shows the reproduce line. |
 | `fuzz_time` | Default `300s`. Time budget per fuzz target: `90s`, `5m` or `1h`. |
-| `bench` | Default `false`. Run [`dx bench`](cli/commands/bench.md) on Linux x86_64. Pushes to the default branch upload `.dx/local/bench/last.json` as the `dx-bench-linux_x86_64` artifact for 90 days. Pull requests run `dx bench --compare <base branch> --fail-on=regression:<bench_regression_pct>` and add the table to the job summary. |
+| `bench` | Default `false`. Run [`dx bench`](cli/commands/bench.md) on Linux x86_64. Pushes to the default branch upload `.dx/local/bench/last.json` as the `dx-bench-linux_x86_64` artifact for 90 days. Pull requests run `dx bench --compare <base branch> --max-regression=<bench_regression_pct>` and add the table to the job summary. |
 | `bench_regression_pct` | Default `20`. Percent a benchmark may be slower than the base branch before a pull request fails. |
 | `remote_cache` | REAPI cache URL. |
 | `advisory_pr` | Default `false`. Run `dx update advisory --pr`, which opens or refreshes the `dx-update/advisory` pull request that moves the advisory pins in `.dx/pins` to the newest snapshot release. Call the workflow from a `schedule` trigger with `contents: write` and `pull-requests: write` permissions. |

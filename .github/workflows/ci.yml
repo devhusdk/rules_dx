@@ -868,6 +868,7 @@ jobs:
         devcontainer-check,
         families,
         gate,
+        gcc-cross-build,
         gcc-cross-run-arm64,
         hermetic,
         hermetic-arm64,
@@ -889,6 +890,7 @@ jobs:
           NEEDS_DEVCONTAINER_CHECK: ${{ needs.devcontainer-check.result }}
           NEEDS_FAMILIES: ${{ needs.families.result }}
           NEEDS_GATE: ${{ needs.gate.result }}
+          NEEDS_GCC_CROSS_BUILD: ${{ needs.gcc-cross-build.result }}
           NEEDS_GCC_CROSS_RUN_ARM64: ${{ needs.gcc-cross-run-arm64.result }}
           NEEDS_HERMETIC: ${{ needs.hermetic.result }}
           NEEDS_HERMETIC_ARM64: ${{ needs.hermetic-arm64.result }}
@@ -901,7 +903,7 @@ jobs:
         run: |
           set -eu
           export LC_ALL=C
-          required=(coverage-cells dogfood docs devcontainer-check families gate gcc-cross-run-arm64 hermetic hermetic-arm64 hermetic-macos msix-install network preflight starter-consumer workflow-check)
+          required=(coverage-cells dogfood docs devcontainer-check families gate gcc-cross-build gcc-cross-run-arm64 hermetic hermetic-arm64 hermetic-macos msix-install network preflight starter-consumer workflow-check)
           failing=()
           for name in "${required[@]}"; do
             var="NEEDS_${name^^}"

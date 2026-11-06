@@ -33,7 +33,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
       - name: Prepare the snapshots live
         id: prepare
         run: |

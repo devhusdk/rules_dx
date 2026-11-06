@@ -2,6 +2,7 @@ load("//haskell/toolchain:pins.bzl", "qualified_cells")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":profile_tests.bzl", "profile_ghcopts_tests")
 load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "haskell_kwargs", "upstream_kwargs", "with_gmp")
 
 package(default_visibility = ["//visibility:public"])
@@ -125,11 +126,14 @@ dx_wrapper_contract_tests(
     file_classes = ["haskell"],
 )
 
+profile_ghcopts_tests(name = "ghcopts_profile_test")
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "profile_tests.bzl",
     ],
     tags = ["corpus"],
 )

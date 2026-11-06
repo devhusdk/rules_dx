@@ -527,6 +527,21 @@ mod tests {
     }
 
     #[test]
+    fn approving_every_leaf_clears_a_compound_expression() {
+        let table = contract_table();
+        let lookup = lookup(&table);
+        let expr = parse_license("MIT AND GPL-3.0-only");
+        assert_eq!(
+            evaluate(&expr, Tier::Distributed, &lookup, &none_approved()),
+            TierOutcome::Deny
+        );
+        assert_eq!(
+            evaluate(&expr, Tier::Distributed, &lookup, &|_: &str| true),
+            TierOutcome::Allow
+        );
+    }
+
+    #[test]
     fn parsed_expressions_evaluate_through_the_lattice() {
         let table = contract_table();
         let lookup = lookup(&table);

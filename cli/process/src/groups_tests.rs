@@ -168,6 +168,7 @@ fn probe_spec(args: &[&str], group: crate::lifecycle::StreamGroup) -> crate::lif
     }
 }
 
+#[cfg(unix)]
 const QUICK: crate::lifecycle::CleanupBudget = crate::lifecycle::CleanupBudget {
     graceful: Duration::from_millis(500),
     forced: Duration::from_millis(500),

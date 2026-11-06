@@ -256,12 +256,6 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
-    /// `dx security --fail-on=uncovered`: lock files without a dependency set fail the run.
-    pub fail_on_uncovered: bool,
-    /// `dx coverage --fail-on=no-collector`: tests without a coverage collector fail the run.
-    pub fail_on_no_collector: bool,
-    /// `dx update --outdated --fail-on=unused`: unused or missing dependencies fail the run.
-    pub fail_on_unused: bool,
     /// How many build slots this process sizes its gate with; `None` when neither flag nor env set it.
     pub build_slots: Option<dx_adopt::defaults::BuildSlots>,
     /// `dx watch --poll`: poll the tree on every platform.
@@ -351,7 +345,7 @@ pub struct Invocation {
     pub time: Option<String>,
     /// `dx fuzz --jobs`: jobs each fuzz runner may use.
     pub jobs: Option<u16>,
-    /// `dx bench --fail-on=regression:<pct>`: the slowdown percent that fails the run.
+    /// `dx bench --max-regression=<pct>`: the slowdown percent that fails the run.
     pub bench_regression: Option<u32>,
     /// `dx bench --compare`: a `dx-bench/v1` file path or a git ref.
     pub bench_compare: Option<String>,
@@ -717,9 +711,6 @@ mod tests {
             output: OutputMode::Text { quiet: false },
             reports: Vec::new(),
             fail_on: Threshold::Warning,
-            fail_on_uncovered: false,
-            fail_on_no_collector: false,
-            fail_on_unused: false,
             build_slots: None,
             poll: false,
             include_edits: false,

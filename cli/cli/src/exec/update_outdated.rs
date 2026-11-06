@@ -165,7 +165,9 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         query_runner,
         &invocation.bazel_startup_options,
     );
-    let findings_fail = invocation.fail_on_unused && !(unused.is_empty() && missing.is_empty());
+    let findings_fail =
+        dx_output::meets_threshold(dx_output::Severity::Warning, invocation.fail_on)
+            && !(unused.is_empty() && missing.is_empty());
     let exit = i32::from(!found.errors.is_empty() || findings_fail);
     if let Err(code) = if json {
         emit_json(

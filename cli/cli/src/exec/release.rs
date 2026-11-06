@@ -122,7 +122,7 @@ fn bazel_output(workspace: &Path, args: &[&str], next: Option<&str>) -> Result<S
 
 /// Runs the api-compat step of every deploy target that has it on, against the last tag.
 fn api_breaking(workspace: &Path, candidate: &str) -> Result<Vec<String>, String> {
-    let expr = "attr(api_compat, \"^(warn|fail)$\", kind(\"_crates_config rule\", //...))";
+    let expr = "attr(api_compat, 1, kind(\"_crates_config rule\", //...))";
     let labels = bazel_output(workspace, &["query", "--output=label", expr], None)?;
     breaking_targets(&labels, &mut |target| {
         bazel_output(workspace, &["run", target], Some(candidate))

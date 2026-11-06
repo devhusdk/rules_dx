@@ -1496,7 +1496,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         out,
         err,
         &no_collector,
-        invocation.fail_on_no_collector,
+        dx_output::meets_threshold(dx_output::Severity::Warning, invocation.fail_on),
     ) {
         Ok(ok) => ok,
         Err(exit) => return kept_child(err, bazel_code, exit),
@@ -5717,7 +5717,7 @@ mod tests {
             ]),
             ..harness
         };
-        let (code, _, err) = harness.run(&["coverage", "--output=text", "--fail-on=no-collector"]);
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--fail-on=warning"]);
         assert_eq!(code, 1, "{err}");
         assert!(
             err.contains("dx: no_coverage_collector: no coverage collector for //z:t"),
@@ -5743,7 +5743,7 @@ mod tests {
         let (code, _, err) = harness.run(&[
             "coverage",
             "--output=text",
-            "--fail-on=no-collector",
+            "--fail-on=warning",
             "--report=lcov=out.lcov",
         ]);
         assert_eq!(code, 1, "{err}");
@@ -5767,7 +5767,7 @@ mod tests {
             ]),
             ..harness
         };
-        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--fail-on=error"]);
         assert_eq!(code, 0, "{err}");
         assert_eq!(
             err.matches("dx: skipped 2 zig tests: no coverage collector (#7298)")
@@ -5800,7 +5800,7 @@ mod tests {
             ]),
             ..harness
         };
-        let (code, out, _) = harness.run(&["coverage", "--output=json", "--fail-on=no-collector"]);
+        let (code, out, _) = harness.run(&["coverage", "--output=json", "--fail-on=warning"]);
         assert_eq!(code, 1, "{out}");
         let events = json_events(&out);
         assert!(
@@ -5836,7 +5836,7 @@ mod tests {
         let (code, _, err) = harness.run(&[
             "coverage",
             "--output=text",
-            "--fail-on=no-collector",
+            "--fail-on=warning",
             "--report=lcov=out.lcov",
         ]);
         assert_eq!(code, 0, "{err}");
@@ -5865,7 +5865,7 @@ mod tests {
         let (code, _, err) = harness.run(&[
             "coverage",
             "--output=text",
-            "--fail-on=no-collector",
+            "--fail-on=warning",
             "--report=lcov=out.lcov",
         ]);
         assert_eq!(code, 0, "{err}");
@@ -5894,7 +5894,7 @@ mod tests {
         let (code, _, err) = harness.run(&[
             "coverage",
             "--output=text",
-            "--fail-on=no-collector",
+            "--fail-on=warning",
             "--report=lcov=out.lcov",
         ]);
         assert_eq!(code, 0, "{err}");

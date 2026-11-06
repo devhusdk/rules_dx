@@ -1046,7 +1046,6 @@ struct SecurityInputs<'a> {
     nonce: u64,
     sets: &'a [AuditTarget<'a>],
     fail_on: Threshold,
-    fail_on_uncovered: bool,
     unowned: &'a [audit_uncovered::UnownedLock],
     today: &'a str,
     offline: bool,
@@ -1172,7 +1171,6 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         nonce,
         sets,
         fail_on,
-        fail_on_uncovered,
         unowned,
         today,
         offline,
@@ -1430,7 +1428,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             ..DiagnosticEvent::new(Severity::Warning, "vuln", lock.message())
         });
     }
-    let failing_unowned = fail_on_uncovered && unowned_count > 0;
+    let failing_unowned =
+        dx_output::meets_threshold(Severity::Warning, fail_on) && unowned_count > 0;
     let failing_secrets = !secret_findings.is_empty();
     let failing_vuln = vuln_findings_all.iter().any(|finding| {
         policy.fails_on(finding.kind) && meets_audit_threshold(finding.level, fail_on)
@@ -1645,7 +1644,6 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     nonce,
                     sets: &sets,
                     fail_on: invocation.fail_on,
-                    fail_on_uncovered: invocation.fail_on_uncovered,
                     unowned: &unowned,
                     today: &today,
                     offline: invocation.offline,

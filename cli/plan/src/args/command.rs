@@ -228,7 +228,7 @@ pub static COMMANDS: [CommandMeta; 26] = [
         name: "bench",
         scope_policy: "default-//...",
         describe: "run dx-bench tagged tests and print their numbers",
-        usage: "Usage: dx bench [--compare <path|ref>] [--fail-on=regression:<pct>] [--here] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx bench [--compare <path|ref>] [--max-regression=<pct>] [--here] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; only tests tagged dx-bench run. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes.",
         is_managed: false,
         is_adoption: false,

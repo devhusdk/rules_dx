@@ -99,13 +99,6 @@ fn fuzz_duration(raw: &str) -> Result<String, String> {
     }
 }
 
-fn regression_percent(raw: &str) -> Result<u32, String> {
-    match raw.strip_prefix("regression:").map(str::parse::<u32>) {
-        Some(Ok(value)) => Ok(value),
-        _ => Err(format!("want regression:<pct>, got {raw:?}")),
-    }
-}
-
 /// The usage line clap renders for one command.
 fn usage_of(index: usize) -> String {
     let usage = COMMANDS[index].usage;
@@ -185,7 +178,7 @@ pub(crate) struct Flags {
     pub(crate) time: Option<String>,
     pub(crate) check: bool,
     pub(crate) jobs: Option<u16>,
-    pub(crate) fail_regression: Option<u32>,
+    pub(crate) max_regression: Option<u32>,
     pub(crate) compare: Option<String>,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
@@ -366,14 +359,9 @@ flag_group! {
 
 flag_group! {
     /// Fail when a result is slower than the baseline by more than this percent.
-    FailRegressionFlag, {
-        #[arg(
-            long = "fail-on",
-            value_name = "regression:PCT",
-            overrides_with = "fail_regression",
-            value_parser = regression_percent
-        )]
-        fail_regression: Option<u32>,
+    MaxRegressionFlag, {
+        #[arg(long = "max-regression", value_name = "PCT", overrides_with = "max_regression")]
+        max_regression: Option<u32>,
     }
 }
 
@@ -417,45 +405,6 @@ flag_group! {
             allow_negative_numbers = true,
             overrides_with = "fail_on",
             value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error"])
-        )]
-        fail_on: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Fail on this severity, or on lock files without a dependency set.
-    SecurityFailOnFlag, {
-        #[arg(
-            long,
-            allow_negative_numbers = true,
-            overrides_with = "fail_on",
-            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "uncovered"])
-        )]
-        fail_on: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Fail on this severity, or on tests that have no coverage collector.
-    CoverageFailOnFlag, {
-        #[arg(
-            long,
-            allow_negative_numbers = true,
-            overrides_with = "fail_on",
-            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "no-collector"])
-        )]
-        fail_on: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Fail on unused or missing dependencies.
-    UpdateFailOnFlag, {
-        #[arg(
-            long,
-            allow_negative_numbers = true,
-            overrides_with = "fail_on",
-            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "unused"])
         )]
         fail_on: Option<String>,
     }
@@ -1132,7 +1081,7 @@ command_args! {
         output: OutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
-        fail_on: SecurityFailOnFlag,
+        fail_on: FailOnFlag,
         accept: AcceptArgs,
         report: ReportFlag,
         here: HereFlag,
@@ -1216,7 +1165,7 @@ command_args! {
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
         output: OutputFlag,
-        fail_on: CoverageFailOnFlag,
+        fail_on: FailOnFlag,
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
         explain: ExplainFlag,
@@ -1228,7 +1177,7 @@ command_args! {
     /// The flags `dx bench` accepts.
     Bench => 9, BazelTail, {
         output: OutputFlag,
-        fail_regression: FailRegressionFlag,
+        max_regression: MaxRegressionFlag,
         compare: CompareFlag,
         here: HereFlag,
     };
@@ -1259,7 +1208,7 @@ command_args! {
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: OutputFlag,
-        fail_on: UpdateFailOnFlag,
+        fail_on: FailOnFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         apply: ApplyFlag,

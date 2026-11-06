@@ -357,7 +357,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
             out,
             err,
             CODE_BENCH_COMPARE,
-            "--fail-on=regression needs --compare",
+            "--max-regression needs --compare",
         );
     }
     let baseline = match &invocation.bench_compare {
@@ -798,20 +798,20 @@ mod tests {
 
     #[test]
     fn a_thirty_percent_slowdown_fails_at_twenty_and_passes_at_fifty() {
-        let (code, out, err) = compare_run("bench-cmp-20", 13.0, 10.0, "--fail-on=regression:20");
+        let (code, out, err) = compare_run("bench-cmp-20", 13.0, 10.0, "--max-regression=20");
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("parse is 30.0% slower"), "{err}");
         let document: serde_json::Value = serde_json::from_str(out.trim()).expect("json");
         let result = &document["targets"][0]["results"][0];
         assert_eq!(result["baseline"], 10.0);
         assert!((result["delta_pct"].as_f64().expect("delta") - 30.0).abs() < 1e-9);
-        let (code, _, err) = compare_run("bench-cmp-50", 13.0, 10.0, "--fail-on=regression:50");
+        let (code, _, err) = compare_run("bench-cmp-50", 13.0, 10.0, "--max-regression=50");
         assert_eq!(code, 0, "{err}");
     }
 
     #[test]
     fn a_change_inside_two_stddevs_is_not_a_regression() {
-        let (code, _, err) = compare_run("bench-cmp-noise", 10.1, 10.0, "--fail-on=regression:0");
+        let (code, _, err) = compare_run("bench-cmp-noise", 10.1, 10.0, "--max-regression=0");
         assert_eq!(code, 0, "{err}");
     }
 
@@ -831,7 +831,7 @@ mod tests {
     #[test]
     fn regression_gate_needs_a_baseline() {
         let harness = bench_harness("bench-cmp-none", None);
-        let (code, _, err) = harness.run(&["bench", "--fail-on=regression:20"]);
+        let (code, _, err) = harness.run(&["bench", "--max-regression=20"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("needs --compare"), "{err}");
     }

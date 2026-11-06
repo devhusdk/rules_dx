@@ -669,7 +669,7 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           if [ "$EVENT" = pull_request ]; then
             status=0
-            bazel run "$@" @rules_dx//:dx -- bench --compare "$BASE_REF" "--fail-on=regression:${REGRESSION_PCT:-20}" //... | tee "$RUNNER_TEMP/bench.txt" || status=$?
+            bazel run "$@" @rules_dx//:dx -- bench --compare "$BASE_REF" "--max-regression=${REGRESSION_PCT:-20}" //... | tee "$RUNNER_TEMP/bench.txt" || status=$?
             {
               echo "## dx bench"
               echo '```'

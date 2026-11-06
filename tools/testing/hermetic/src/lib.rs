@@ -232,11 +232,15 @@ pub fn windows_tool_dirs(
 
 /// Resolves symlinks and drops the `\\?\` prefix Windows adds, so paths compare equal.
 fn canonical(path: &Path) -> Option<PathBuf> {
-    let real = std::fs::canonicalize(path).ok()?;
-    let text = real.to_string_lossy();
+    std::fs::canonicalize(path).ok().map(strip_verbatim)
+}
+
+/// Drops a `\\?\` prefix from a drive path and leaves UNC and POSIX paths alone.
+fn strip_verbatim(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy();
     match text.strip_prefix(r"\\?\") {
-        Some(rest) if !rest.starts_with("UNC\\") => Some(PathBuf::from(rest)),
-        _ => Some(real),
+        Some(rest) if !rest.starts_with("UNC\\") => PathBuf::from(rest),
+        _ => path,
     }
 }
 
@@ -1996,6 +2000,7 @@ fn run_all(
     slot: &mut Option<Session>,
 ) -> Result<(), String> {
     let source = std::fs::canonicalize(&manifest.module_file)
+        .map(strip_verbatim)
         .map_err(|err| format!("cannot resolve the rules_dx source tree: {err}"))?
         .parent()
         .map(Path::to_path_buf)

@@ -1682,6 +1682,17 @@ fn canonical_paths_have_no_verbatim_prefix() {
 }
 
 #[test]
+fn strip_verbatim_drops_only_the_drive_prefix() {
+    let strip = |text: &str| strip_verbatim(PathBuf::from(text));
+    assert_eq!(strip(r"\\?\D:\a"), PathBuf::from(r"D:\a"));
+    assert_eq!(
+        strip(r"\\?\UNC\srv\share"),
+        PathBuf::from(r"\\?\UNC\srv\share")
+    );
+    assert_eq!(strip("/tmp/x"), PathBuf::from("/tmp/x"));
+}
+
+#[test]
 fn windows_leak_package_uses_powershell_and_keeps_the_markers() {
     let build = leaks_build_windows("python");
     assert!(build.contains("cmd_ps = \"python --version | Out-File"));

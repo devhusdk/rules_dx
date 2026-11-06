@@ -11,13 +11,14 @@ pub enum UpdateSet {
     Maven,
     Npm,
     NuGet,
+    Opam,
     Pub,
     Ruby,
     SwiftPm,
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 14] = [
+    pub const ALL: [UpdateSet; 15] = [
         UpdateSet::Bazel,
         UpdateSet::Cabal,
         UpdateSet::Cargo,
@@ -29,6 +30,7 @@ impl UpdateSet {
         UpdateSet::Maven,
         UpdateSet::Npm,
         UpdateSet::NuGet,
+        UpdateSet::Opam,
         UpdateSet::Pub,
         UpdateSet::Ruby,
         UpdateSet::SwiftPm,
@@ -57,6 +59,7 @@ impl UpdateSet {
             UpdateSet::Maven => "maven",
             UpdateSet::Npm => "npm",
             UpdateSet::NuGet => "nuget",
+            UpdateSet::Opam => "opam",
             UpdateSet::Pub => "pub",
             UpdateSet::Ruby => "ruby",
             UpdateSet::SwiftPm => "swiftpm",
@@ -76,6 +79,7 @@ impl UpdateSet {
             "maven" => Some(UpdateSet::Maven),
             "npm" => Some(UpdateSet::Npm),
             "nuget" => Some(UpdateSet::NuGet),
+            "opam" => Some(UpdateSet::Opam),
             "pub" => Some(UpdateSet::Pub),
             "ruby" => Some(UpdateSet::Ruby),
             "swiftpm" => Some(UpdateSet::SwiftPm),
@@ -116,7 +120,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 14);
+        assert_eq!(seen.len(), 15);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
@@ -154,6 +158,7 @@ mod tests {
                 "maven",
                 "npm",
                 "nuget",
+                "opam",
                 "pub",
                 "ruby",
                 "swiftpm"
@@ -194,6 +199,7 @@ mod tests {
         assert!(UpdateSet::Cpan.needs_update_refresh());
         assert!(UpdateSet::Pub.needs_update_refresh());
         assert!(UpdateSet::Cabal.needs_update_refresh());
+        assert!(UpdateSet::Opam.needs_update_refresh());
     }
 
     #[test]

@@ -37,6 +37,7 @@ dx_rust_crate(
         "src/edit/own_version.rs",
         "src/edit/request.rs",
         "src/edit/request_cargo.rs",
+        "src/edit/request_opam.rs",
         "src/edit/request_plans.rs",
         "src/edit/request_pyproject.rs",
         "src/edit/sets.rs",

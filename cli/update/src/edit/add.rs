@@ -171,6 +171,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit the .cabal file and run the haskell_deps_resolve target",
             }),
+            UpdateSet::Opam => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit the .opam file and run `opam lock`",
+            }),
             UpdateSet::Cpan => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit the cpanfile and run `carton install`",

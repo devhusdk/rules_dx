@@ -122,6 +122,9 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::SwiftPm if foreign => {
             Some(dx_update::edit::ConfiguredKind::SwiftPm)
         }
+        dx_adopt::dependency_sets::Ecosystem::Opam if foreign => {
+            Some(dx_update::edit::ConfiguredKind::Opam)
+        }
         _ => None,
     };
     match (set.ecosystem, kind) {
@@ -163,6 +166,7 @@ pub(crate) fn configured_set(
                                 "exactly one composer.json",
                             dx_update::edit::ConfiguredKind::Cabal => "exactly one .cabal file",
                             dx_update::edit::ConfiguredKind::SwiftPm => "exactly one Package.swift",
+                            dx_update::edit::ConfiguredKind::Opam => "exactly one .opam file",
                         },
                         set.name
                     ),
@@ -786,7 +790,8 @@ fn refresh_plan(
         | dx_update::edit::ConfiguredKind::Cpan
         | dx_update::edit::ConfiguredKind::Pub
         | dx_update::edit::ConfiguredKind::Composer
-        | dx_update::edit::ConfiguredKind::SwiftPm => (
+        | dx_update::edit::ConfiguredKind::SwiftPm
+        | dx_update::edit::ConfiguredKind::Opam => (
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),

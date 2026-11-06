@@ -9,6 +9,8 @@ pub enum WidenVersion {
     Gem(String),
     /// A CPAN version such as `2.06`, `1.002_003` or `v1.0.35`.
     Cpan(String),
+    /// An opam version such as `1.2.0`, `0.9.0~rc1` or `2.0+dev`.
+    Opam(String),
     /// An image digest such as `sha256:` followed by 64 hex digits.
     Digest(String),
 }
@@ -21,6 +23,7 @@ impl WidenVersion {
             WidenVersion::GitCommit(sha) => sha.clone(),
             WidenVersion::Gem(version) => version.clone(),
             WidenVersion::Cpan(version) => version.clone(),
+            WidenVersion::Opam(version) => version.clone(),
             WidenVersion::Digest(digest) => digest.clone(),
         }
     }
@@ -69,6 +72,7 @@ pub fn parse(set: UpdateSet, text: &str) -> Result<WidenVersion, VersionError> {
         UpdateSet::GithubActions => parse_git(set.name(), trimmed),
         UpdateSet::Ruby | UpdateSet::Composer | UpdateSet::Cabal => parse_gem(set.name(), trimmed),
         UpdateSet::Cpan => parse_cpan(set.name(), trimmed),
+        UpdateSet::Opam => parse_opam(set.name(), trimmed),
         UpdateSet::Containers => parse_digest(set.name(), trimmed),
     }
 }
@@ -115,6 +119,21 @@ fn parse_gem(set: &'static str, text: &str) -> Result<WidenVersion, VersionError
         .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()));
     if valid {
         Ok(WidenVersion::Gem(candidate.to_owned()))
+    } else {
+        Err(VersionError::InvalidSemver {
+            set,
+            version: text.to_owned(),
+        })
+    }
+}
+
+fn parse_opam(set: &'static str, text: &str) -> Result<WidenVersion, VersionError> {
+    let valid = text.starts_with(|c: char| c.is_ascii_digit())
+        && text
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '+' | '-' | '~' | '_'));
+    if valid {
+        Ok(WidenVersion::Opam(text.to_owned()))
     } else {
         Err(VersionError::InvalidSemver {
             set,

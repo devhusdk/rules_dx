@@ -475,6 +475,12 @@ composer.lock(
 - `composer.json` must sit beside `composer.lock`.
 - `dx update <set>:<vendor/name> <version>` edits the constraint in `composer.json`, runs `composer update` and refreshes `composer.digests.json`.
 - `dx security` matches `composer.lock` against `.dx/advisory/packagist.json`.
+### opam
+
+An opam set is discovered from a `<name>.opam` file with a `<name>.opam.locked` file beside it.
+
+- `dx update <set>:<package> <version>` edits the one literal version constraint of the package in `depends:` of the `.opam` file. It keeps the operator and the filters (`{>= "1.1.0" & with-test}`), and refuses a package that `depends:` does not list, one without a constraint, and one with two constraints. The version starts with a digit and may hold `.`, `+`, `-`, `~` and `_`, such as `1.3.0` or `0.9.0~rc1`.
+- `--apply` then runs `opam upgrade <package>` and `opam lock` from the pinned opam and the opam-repository snapshot. It fails with `offline_required` under `--offline` and `frozen_locked` under `--frozen`.
 
 ### cargo
 

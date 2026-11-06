@@ -56,7 +56,7 @@ hub name, add `# gazelle:dx_external python <path> <repo>` to a `BUILD` file.
 | Check | Default tool |
 | --- | --- |
 | Format | `ruff` |
-| Lint | `ruff`, `pydoclint`, `vulture` |
+| Lint | `ruff`, `pydoclint` |
 | Typecheck | `ty` |
 
 Configure `ruff` in `ruff.toml` and bind it with `ruff_config`.

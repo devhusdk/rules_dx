@@ -100,16 +100,6 @@ dx format --apply -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erl
 dx lint -- --@rules_dx//config:tool_elvis=@rules_dx//erlang/tools:elvis
 ```
 
-`dx lint` also runs OTP `xref` over the compiled beams of each `erlang_app` and
-`elixir_app`. Select `xref` in the `lint` list of an `erlang` or `elixir` family.
-It reports exported functions no analysed module calls as `xref/unused_export`
-at info severity. Behaviour callbacks, `module_info` and generated `__` functions
-are not reported. The tool flag overrides the pinned driver:
-
-```sh
-dx lint -- --@rules_dx//config:tool_xref=@rules_dx//erlang/tools:xref
-```
-
 `dx typecheck` checks the compiled beams of each `erlang_app` with the OTP 29.1.2
 dialyzer. Select `dialyzer` in an `erlang` family. The tool flag overrides the pinned binary:
 

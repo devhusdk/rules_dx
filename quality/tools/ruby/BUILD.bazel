@@ -13,11 +13,6 @@ unconfigured_tool(
     tool = "standardrb",
 )
 
-unconfigured_tool(
-    name = "debride_unconfigured",
-    tool = "debride",
-)
-
 label_flag(
     name = "rubocop",
     build_setting_default = ":rubocop_unconfigured",
@@ -26,11 +21,6 @@ label_flag(
 label_flag(
     name = "standardrb",
     build_setting_default = ":standardrb_unconfigured",
-)
-
-label_flag(
-    name = "debride",
-    build_setting_default = ":debride_unconfigured",
 )
 
 real_source_target(

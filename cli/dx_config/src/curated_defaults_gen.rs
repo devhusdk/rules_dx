@@ -364,7 +364,6 @@ pub const TOOLS: &[&str] = &[
     "ocaml",
     "opa",
     "ormolu",
-    "periphery",
     "perlcritic",
     "perltidy",
     "phpcs",

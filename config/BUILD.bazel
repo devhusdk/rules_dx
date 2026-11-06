@@ -78,11 +78,6 @@ label_flag(
 )
 
 label_flag(
-    name = "tool_periphery",
-    build_setting_default = "@dx_tools//:periphery",
-)
-
-label_flag(
     name = "tool_hlint",
     build_setting_default = "@dx_tools//:hlint",
 )
@@ -178,11 +173,6 @@ label_flag(
 )
 
 label_flag(
-    name = "tool_deadcode",
-    build_setting_default = "@org_golang_x_tools//cmd/deadcode",
-)
-
-label_flag(
     name = "tool_modfmt",
     build_setting_default = "//go/tools/modfmt:dx_modfmt",
 )
@@ -262,11 +252,6 @@ label_flag(
 label_flag(
     name = "tool_erlfmt",
     build_setting_default = "//erlang/tools:erlfmt",
-)
-
-label_flag(
-    name = "tool_xref",
-    build_setting_default = "//erlang/tools:xref",
 )
 
 label_flag(

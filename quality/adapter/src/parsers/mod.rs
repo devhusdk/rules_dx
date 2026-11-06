@@ -21,9 +21,7 @@ pub mod csharpier;
 pub mod cue;
 pub mod dart_analyze;
 pub mod dart_format;
-pub mod deadcode;
 pub mod deadnix;
-pub mod debride;
 pub mod detekt;
 pub mod dialyzer;
 pub mod djlint;
@@ -55,7 +53,6 @@ pub mod julialint;
 pub mod jvm_diagnostics;
 pub mod jvm_unused_deps;
 pub mod keep_sorted;
-pub mod knip;
 pub mod ktfmt;
 pub mod ktlint;
 pub mod kubeconform;
@@ -74,7 +71,6 @@ pub mod nvcc_syntax;
 pub mod ocaml_compile;
 pub mod opa;
 pub mod ormolu;
-pub mod periphery;
 pub mod perlcritic;
 pub mod perltidy;
 pub mod phpcs;
@@ -124,10 +120,8 @@ pub mod ty;
 pub mod typos;
 pub mod typstyle;
 pub mod vale;
-pub mod vulture;
 pub mod weeder;
 pub mod xmllint;
-pub mod xref;
 pub mod yamlfmt;
 pub mod yamllint;
 pub mod zanuda;
@@ -159,9 +153,7 @@ pub use csharpier::parse_csharpier;
 pub use cue::{parse_cue, parse_cue_vet};
 pub use dart_analyze::{DartAnalyzeView, parse_dart_analyze};
 pub use dart_format::parse_dart_format;
-pub use deadcode::parse_deadcode;
 pub use deadnix::parse_deadnix;
-pub use debride::parse_debride;
 pub use detekt::parse_detekt;
 pub use dialyzer::parse_dialyzer;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
@@ -191,7 +183,6 @@ pub use julia_format::parse_julia_format;
 pub use julialint::parse_julialint;
 pub use jvm_diagnostics::parse_jvm_diagnostics;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
-pub use knip::parse_knip;
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
 pub use kubeconform::{KubeconformTarget, parse_kubeconform};
@@ -210,7 +201,6 @@ pub use nvcc_syntax::parse_nvcc_syntax;
 pub use ocaml_compile::parse_ocaml_compile;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
-pub use periphery::parse_periphery;
 pub use perlcritic::parse_perlcritic;
 pub use perltidy::parse_perltidy;
 pub use phpcs::parse_phpcs;
@@ -258,10 +248,8 @@ pub use ty::parse_ty;
 pub use typos::parse_typos;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
-pub use vulture::{UnusedRoots, parse_vulture, parse_vulture_unused};
 pub use weeder::parse_weeder;
 pub use xmllint::parse_xmllint;
-pub use xref::parse_xref;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
 pub use zanuda::parse_zanuda;
@@ -2016,14 +2004,6 @@ mod tests {
         super::ktfmt::parse_ktfmt(input, code, files)
     }
 
-    fn fuzz_knip(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::knip::parse_knip(input, input, code, files)
-    }
-
     fn fuzz_ktlint(
         input: &[u8],
         code: Option<i32>,
@@ -2415,14 +2395,6 @@ mod tests {
         )
     }
 
-    fn fuzz_periphery(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::periphery::parse_periphery(input, input, code, files)
-    }
-
     fn fuzz_swift_lint(
         input: &[u8],
         code: Option<i32>,
@@ -2488,14 +2460,6 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::deadnix::parse_deadnix(input, input, code, files)
-    }
-
-    fn fuzz_debride(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::debride::parse_debride(input, input, code, files)
     }
 
     fn fuzz_ansible_lint(
@@ -2942,30 +2906,6 @@ mod tests {
         super::vale::parse_vale(input, code, files)
     }
 
-    fn fuzz_deadcode(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::deadcode::parse_deadcode(input, code, files, &super::UnusedRoots::default())
-    }
-
-    fn fuzz_vulture(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::vulture::parse_vulture(input, code, files)
-    }
-
-    fn fuzz_xref(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::xref::parse_xref(input, code, files)
-    }
-
     fn fuzz_xmllint(
         input: &[u8],
         code: Option<i32>,
@@ -3013,7 +2953,6 @@ mod tests {
         ("cue", fuzz_cue),
         ("cue_vet", fuzz_cue_vet),
         ("deadnix", fuzz_deadnix),
-        ("debride", fuzz_debride),
         ("detekt", fuzz_detekt),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
@@ -3059,7 +2998,6 @@ mod tests {
         ("chktex", fuzz_chktex),
         ("latexindent", fuzz_latexindent),
         ("mbake", fuzz_mbake),
-        ("knip", fuzz_knip),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("luals", fuzz_luals),
@@ -3078,7 +3016,6 @@ mod tests {
         ("opa_fmt", fuzz_opa_fmt),
         ("opa_check", fuzz_opa_check),
         ("perlcritic", fuzz_perlcritic),
-        ("periphery", fuzz_periphery),
         ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
         ("pkl_eval", fuzz_pkl_eval),
@@ -3131,10 +3068,7 @@ mod tests {
         ("typos", fuzz_typos),
         ("typstyle", fuzz_typstyle),
         ("vale", fuzz_vale),
-        ("deadcode", fuzz_deadcode),
-        ("vulture", fuzz_vulture),
         ("xmllint", fuzz_xmllint),
-        ("xref", fuzz_xref),
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
         ("zanuda", fuzz_zanuda),
@@ -3164,7 +3098,6 @@ mod tests {
         ("credo", include_str!("credo.rs")),
         ("cue", include_str!("cue.rs")),
         ("deadnix", include_str!("deadnix.rs")),
-        ("debride", include_str!("debride.rs")),
         ("detekt", include_str!("detekt.rs")),
         ("djlint", include_str!("djlint.rs")),
         ("dialyzer", include_str!("dialyzer.rs")),
@@ -3205,7 +3138,6 @@ mod tests {
         ("kubeconform", include_str!("kubeconform.rs")),
         ("chktex", include_str!("chktex.rs")),
         ("latexindent", include_str!("latexindent.rs")),
-        ("knip", include_str!("knip.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
         ("luals", include_str!("luals.rs")),
@@ -3223,7 +3155,6 @@ mod tests {
         ("ocaml_compile", include_str!("ocaml_compile.rs")),
         ("opa", include_str!("opa.rs")),
         ("perlcritic", include_str!("perlcritic.rs")),
-        ("periphery", include_str!("periphery.rs")),
         ("perltidy", include_str!("perltidy.rs")),
         ("phpcs", include_str!("phpcs.rs")),
         ("phpstan", include_str!("phpstan.rs")),
@@ -3270,10 +3201,7 @@ mod tests {
         ("tinymist", include_str!("tinymist.rs")),
         ("typstyle", include_str!("typstyle.rs")),
         ("vale", include_str!("vale.rs")),
-        ("deadcode", include_str!("deadcode.rs")),
-        ("vulture", include_str!("vulture.rs")),
         ("xmllint", include_str!("xmllint.rs")),
-        ("xref", include_str!("xref.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),
         ("zanuda", include_str!("zanuda.rs")),

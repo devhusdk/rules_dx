@@ -111,4 +111,3 @@ try-import %workspace%/user.bazelrc
 
 build --//quality/tools/ruby:rubocop=@bundle//bin:rubocop
 build --//quality/tools/ruby:standardrb=@bundle//bin:standardrb
-build --//quality/tools/ruby:debride=@bundle//bin:debride

@@ -78,7 +78,6 @@ _JVM_CHECK_TOOLS = ["javac", "kotlinc", "scalac"]
 _HOOK_ORDER = [
     "spotbugs",
     "dialyzer",
-    "xref",
     "sorbet",
     "scalafix",
     "fsharplint",

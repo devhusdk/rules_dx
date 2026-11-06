@@ -1,6 +1,5 @@
 load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "ERLANG_DIALYZER_COMPATIBLE_WITH")
 load("//erlang/rules:dialyzer.bzl", "dialyzer_plt", "dialyzer_tool", "otp_tool_binary")
-load("//erlang/rules:xref.bzl", "xref_tool")
 load("//erlang/toolchain:pins.bzl", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -53,13 +52,6 @@ dialyzer_tool(
         ":otp_ext_plt",
     ],
     target_compatible_with = ERLANG_DIALYZER_COMPATIBLE_WITH,
-)
-
-xref_tool(
-    name = "xref",
-    binary = ":escript_bin",
-    script = "dx_xref.escript",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 real_source_target(

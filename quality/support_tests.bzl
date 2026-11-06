@@ -210,7 +210,6 @@ def _toolchain_platforms():
         "julia_format": sorted(JULIA_PLATFORMS.keys()),
         "julialint": sorted(JULIA_PLATFORMS.keys()),
         "mix_format": _canonical(ELIXIR_CELLS),
-        "xref": _canonical(ERLANG_CELLS.keys()),
         "qmlformat": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
         "qmllint": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
     }
@@ -219,7 +218,7 @@ def _toolchain_platforms():
 _CONFIG_INFRA_DOC_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "cue", "deadnix", "djlint", "flatc", "gersemi", "gplint", "hadolint", "helm", "jsonnet_lint", "jsonnetfmt", "keep_sorted", "kubeconform", "latexindent", "nixfmt", "opa", "pkl", "redocly", "regal", "shellcheck", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint"]
 
 # Records that must name every platform as either supported or unsupported with a reason.
-_COMPLETE_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "clang_format", "cppcheck", "credo", "cue", "dart", "deadnix", "debride", "djlint", "elvis", "erlfmt", "flatc", "gersemi", "gofumpt", "gplint", "hadolint", "helm", "hlint", "jsonnet_lint", "jsonnetfmt", "julia_format", "julialint", "keep_sorted", "kubeconform", "latexindent", "mix_format", "modfmt", "nixfmt", "opa", "ormolu", "pkl", "pkl_lsp", "psscriptanalyzer", "qmlformat", "qmllint", "redocly", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint", "zig_fmt"]
+_COMPLETE_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "clang_format", "cppcheck", "credo", "cue", "dart", "deadnix", "djlint", "elvis", "erlfmt", "flatc", "gersemi", "gofumpt", "gplint", "hadolint", "helm", "hlint", "jsonnet_lint", "jsonnetfmt", "julia_format", "julialint", "keep_sorted", "kubeconform", "latexindent", "mix_format", "modfmt", "nixfmt", "opa", "ormolu", "pkl", "pkl_lsp", "psscriptanalyzer", "qmlformat", "qmllint", "redocly", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""

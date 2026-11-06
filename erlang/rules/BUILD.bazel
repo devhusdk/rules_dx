@@ -12,7 +12,6 @@ exports_files([
     "plt_build.escript",
     "providers.bzl",
     "wrapper_tests.bzl",
-    "xref.bzl",
 ])
 
 erlang_wrapper_contract_tests(name = "wrapper_contract_tests")
@@ -38,8 +37,7 @@ real_source_target(
         "dialyzer.bzl",
         "providers.bzl",
         "wrapper_tests.bzl",
-        "xref.bzl",
-    ],
+        ],
     tags = ["corpus"],
 )
 

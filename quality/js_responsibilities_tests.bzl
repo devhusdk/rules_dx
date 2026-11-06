@@ -66,7 +66,7 @@ def js_responsibilities_unit_tests(name):
                 [["biome"], ["biome"]],
             ),
             expect_equal(
-                "biome and eslint share javascript lint; knip no longer lints",
+                "biome and eslint share javascript lint",
                 [
                     _claimants("lint", "javascript"),
                     _claimants("lint", "jsx"),

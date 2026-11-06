@@ -345,27 +345,6 @@ fn pydoclint_check_is_quiet() {
 }
 
 #[test]
-fn periphery_check_scans_the_generic_project_without_building() {
-    let invocation = periphery_check(Path::new(BIN), Path::new("/scratch/periphery.json"));
-    assert_eq!(
-        argv_strings(&invocation),
-        vec![
-            BIN,
-            "scan",
-            "--skip-build",
-            "--format",
-            "json",
-            "--disable-update-check",
-            "--quiet",
-            "--retain-public",
-            "--generic-project-config",
-            "/scratch/periphery.json"
-        ]
-    );
-    assert_eq!(invocation.cwd_rel, "");
-}
-
-#[test]
 fn weeder_check_names_its_config_and_hie_directory() {
     let invocation = weeder_check(
         Path::new(BIN),
@@ -380,23 +359,6 @@ fn weeder_check_names_its_config_and_hie_directory() {
             "/scratch/weeder.toml",
             "--hie-directory",
             "/scratch/hie"
-        ]
-    );
-    assert_eq!(invocation.cwd_rel, "");
-}
-
-#[test]
-fn vulture_check_reports_unused_code_at_its_floor() {
-    let files = [Path::new("/scratch/a.py"), Path::new("/scratch/b.py")];
-    let invocation = vulture_check(Path::new(BIN), &files);
-    assert_eq!(
-        argv_strings(&invocation),
-        vec![
-            BIN,
-            "--min-confidence",
-            "60",
-            "/scratch/a.py",
-            "/scratch/b.py"
         ]
     );
     assert_eq!(invocation.cwd_rel, "");
@@ -1800,24 +1762,6 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "src/sample.erl"
         ]
     );
-    assert_eq!(
-        argv_strings(&xref_check(
-            Path::new(BIN),
-            Path::new("/scratch/x.escript"),
-            &[Path::new("/scratch/pa")],
-            &[Path::new("/scratch/dep.beam")],
-            &[Path::new("/scratch/a.beam")]
-        )),
-        vec![
-            BIN,
-            "/scratch/x.escript",
-            "--pa",
-            "/scratch/pa",
-            "--dep",
-            "/scratch/dep.beam",
-            "/scratch/a.beam"
-        ]
-    );
     let ex = Path::new("/scratch/sample.ex");
     assert_eq!(
         argv_strings(&mix_format_check(Path::new(BIN), &[ex])),
@@ -2450,27 +2394,6 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/.github/workflows/ci.yml"
         ]
     );
-    let knip = knip_check(Path::new(BIN), "web", None);
-    assert_eq!(
-        argv_strings(&knip),
-        vec![BIN, "--reporter", "json", "--no-progress"]
-    );
-    assert_eq!(knip.cwd_rel, "web");
-    assert_eq!(
-        argv_strings(&knip_check(
-            Path::new(BIN),
-            "web",
-            Some(Path::new("/scratch/dx-unused/knip.json"))
-        )),
-        vec![
-            BIN,
-            "--reporter",
-            "json",
-            "--no-progress",
-            "--config",
-            "/scratch/dx-unused/knip.json"
-        ]
-    );
     let dockerfile = Path::new("/scratch/Dockerfile");
     assert_eq!(
         argv_strings(&hadolint_check(
@@ -2799,7 +2722,6 @@ fn file_independent_tools_batch() {
         "staticcheck",
         "biome",
         "eslint",
-        "vulture",
     ] {
         assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
     }

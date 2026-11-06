@@ -55,17 +55,6 @@ py_binary(
 )
 
 py_binary(
-    name = "vulture",
-    srcs = [
-        "tool_bootstrap.py",
-        "vulture_main.py",
-    ],
-    dep_group = "dx-python-tools",
-    main = "vulture_main.py",
-    deps = ["@pypi//vulture"],
-)
-
-py_binary(
     name = "mbake",
     srcs = [
         "mbake_main.py",

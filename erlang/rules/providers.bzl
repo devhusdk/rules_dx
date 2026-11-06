@@ -22,11 +22,6 @@ DialyzerToolInfo = provider(
     fields = {"plts": "List of .plt files; later PLTs build on earlier ones."},
 )
 
-XrefToolInfo = provider(
-    doc = "The escript launcher and the xref driver script `dx check` runs it with.",
-    fields = {"script": "The dx_xref.escript file."},
-)
-
 ErlangNifInfo = provider(
     doc = "The native libraries an erlang_app loads from its priv directory.",
     fields = {

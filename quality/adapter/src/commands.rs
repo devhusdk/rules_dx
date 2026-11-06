@@ -76,18 +76,6 @@ const TY_BASE: &[&str] = &[
     "--no-respect-ignore-files",
 ];
 const PYDOCLINT_ARGS: &[&str] = &["--quiet"];
-/// Vulture scores unused functions and variables at 60%, so the floor must stay at 60.
-const VULTURE_ARGS: &[&str] = &["--min-confidence", "60"];
-const PERIPHERY_ARGS: &[&str] = &[
-    "scan",
-    "--skip-build",
-    "--format",
-    "json",
-    "--disable-update-check",
-    "--quiet",
-    "--retain-public",
-    "--generic-project-config",
-];
 const BIOME_LINT_SUBCOMMAND: &[&str] = &["lint"];
 const BIOME_FORMAT_SUBCOMMAND: &[&str] = &["format"];
 const BIOME_BASE_TAIL: &[&str] = &["--reporter=json", "--colors=off", "--config-path"];
@@ -339,7 +327,6 @@ const ZIZMOR_PREFIX: &[&str] = &[
     "--no-config",
     "--",
 ];
-const KNIP_PREFIX: &[&str] = &["--reporter", "json", "--no-progress"];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const ELVIS_TAIL: &[&str] = &["--output-format", "parsable", "rock"];
 const TRIVY_CONFIG_PREFIX: &[&str] = &[
@@ -355,7 +342,6 @@ const TRIVY_CONFIG_PREFIX: &[&str] = &[
 const END_OF_FLAGS: &[&str] = &["--"];
 const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
-const DEBRIDE_ARGS: &[&str] = &["--rails", "--json"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const TYPOS_CHECK_ARGS: &[&str] = &["--format", "json", "--"];
@@ -653,33 +639,6 @@ pub fn ty_check(
 
 pub fn pydoclint_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PYDOCLINT_ARGS, files, "")
-}
-
-pub fn vulture_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, VULTURE_ARGS, files, "")
-}
-
-/// `dx_deadcode` runs the given deadcode binary with the package list and file map from
-/// `dx-deadcode/config.json`.
-pub fn deadcode_check(binary: &Path, deadcode: &Path) -> Invocation {
-    Invocation {
-        argv: vec![
-            binary.as_os_str().to_owned(),
-            deadcode.as_os_str().to_owned(),
-        ],
-        cwd_rel: String::new(),
-    }
-}
-
-/// Periphery scans the whole index store named by the generic project config, so the command takes no file arguments.
-pub fn periphery_check(binary: &Path, project_config: &Path) -> Invocation {
-    let mut argv = vec![binary.as_os_str().to_owned()];
-    argv.extend(PERIPHERY_ARGS.iter().map(OsString::from));
-    argv.push(project_config.as_os_str().to_owned());
-    Invocation {
-        argv,
-        cwd_rel: String::new(),
-    }
 }
 
 /// Weeder reads every `.hie` file under the directory and reports unused declarations. Naming the
@@ -1164,31 +1123,6 @@ pub fn dialyzer_check(
     argv.extend(DIALYZER_ARGS.iter().map(OsString::from));
     argv.push(OsString::from("--"));
     argv.extend(beams.iter().map(|b| b.as_os_str().to_owned()));
-    Invocation {
-        argv,
-        cwd_rel: String::new(),
-    }
-}
-
-/// The xref driver script run by the escript launcher: `--pa` code directories, `--dep` beams
-/// analysed for their calls only, then the owned beams whose unused exports are reported.
-pub fn xref_check(
-    binary: &Path,
-    script: &Path,
-    code_dirs: &[&Path],
-    deps: &[&Path],
-    owned: &[&Path],
-) -> Invocation {
-    let mut argv = vec![binary.as_os_str().to_owned(), script.as_os_str().to_owned()];
-    for dir in code_dirs {
-        argv.push(OsString::from("--pa"));
-        argv.push(dir.as_os_str().to_owned());
-    }
-    for dep in deps {
-        argv.push(OsString::from("--dep"));
-        argv.push(dep.as_os_str().to_owned());
-    }
-    argv.extend(owned.iter().map(|b| b.as_os_str().to_owned()));
     Invocation {
         argv,
         cwd_rel: String::new(),
@@ -2660,20 +2594,6 @@ pub fn zizmor_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIZMOR_PREFIX, files, "")
 }
 
-/// Knip analyses the package it starts in, so the run happens in the package root. A config
-/// adds the Bazel-graph roots as entry files.
-pub fn knip_check(binary: &Path, root_rel: &str, config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        KNIP_PREFIX,
-        "--config",
-        config,
-        EMPTY_ARGS,
-        &[],
-        root_rel,
-    )
-}
-
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.
 pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
@@ -2735,10 +2655,6 @@ pub fn deadnix_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn deadnix_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DEADNIX_FIX_ARGS, files, "")
-}
-
-pub fn debride_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, DEBRIDE_ARGS, files, "")
 }
 
 /// The suffix of a kubeconform config file.

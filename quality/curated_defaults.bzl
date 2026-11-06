@@ -1,7 +1,6 @@
 """Curated quality defaults."""
 
 
-# periphery stays opt-in: macOS arm64 only, needs an index-store build.
 # Julia lints with julialint only. Its extra fetch over typos is the dx_julia_lint package set
 # (21 packages, about 4.2 MB); the 1.12.5 runtime (about 288 MB on linux_x86_64) is already
 # fetched to precompile any julia_library (#8048). JET and JuliaFormatter stay opt-in.

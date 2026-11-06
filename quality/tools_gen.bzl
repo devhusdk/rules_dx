@@ -152,7 +152,11 @@ def severity_rust():
             continue
         out += "            categories: &[\n"
         for key in keys:
-            out += "                (%s, %s),\n" % (_str(key), _level(severity.categories[key]))
+            pair = "%s, %s" % (_str(key), _level(severity.categories[key]))
+            if len(pair) > 60:
+                out += "                (\n                    %s,\n                ),\n" % pair.replace(", crate::", ",\n                    crate::")
+            else:
+                out += "                (%s),\n" % pair
         out += "            ],\n        },\n    ),\n"
     return out + "];\n"
 

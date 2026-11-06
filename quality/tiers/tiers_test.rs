@@ -83,3 +83,14 @@ fn every_tier_file_is_in_a_corpus_or_has_no_formatter() {
         "add these to quality/tiers/corpora.bzl: {missing:?}"
     );
 }
+
+#[test]
+fn clippy_tiers_end_with_deny_warnings() {
+    for path in tier_files()
+        .iter()
+        .filter(|path| path.starts_with("quality/tiers/clippy/") && is_tier(path))
+    {
+        let text = std::fs::read_to_string(dx_testing::resolve_runfiles(path)).expect("read tier");
+        assert_eq!(text.lines().last(), Some("-Dwarnings"), "{path}");
+    }
+}

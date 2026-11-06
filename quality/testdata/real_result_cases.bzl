@@ -9,6 +9,21 @@ _OCAML_POLICY = "//quality/testdata/ocaml_owned:policy"
 
 _DIALYZER = "//erlang/tools:dialyzer"
 
+_CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
+
+_CLIPPY_STRICT = [
+    "-Wclippy::all",
+    "-Wclippy::pedantic",
+    "-Wclippy::dbg_macro",
+    "-Wclippy::todo",
+    "-Wclippy::unimplemented",
+    "-Wclippy::allow_attributes_without_reason",
+    "-Wclippy::allow_attributes",
+    "-Wrust_2018_idioms",
+    "-Wunused_qualifications",
+    "-Dwarnings",
+]
+
 _GO_POLICY = "//quality/testdata/go_owned:policy"
 
 _GO_TYPECHECK_POLICY = "//quality/testdata/go_owned:typecheck_policy"
@@ -411,6 +426,36 @@ REAL_RESULT_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "real_result_clippy_pedantic_standard",
+        "target": "//quality/testdata/rust_owned:pedantic",
+        "policy": _RUST_POLICY,
+        "tool": "clippy",
+        "capability": "lint",
+        "class": "rust",
+        "clippy_flags": _CLIPPY_STANDARD,
+        "contains": ["quality/testdata/rust_owned/pedantic.rs"],
+        "absent": ["doc_markdown", "Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "real_result_clippy_pedantic_strict",
+        "target": "//quality/testdata/rust_owned:pedantic",
+        "policy": _RUST_POLICY,
+        "tool": "clippy",
+        "capability": "lint",
+        "class": "rust",
+        "clippy_flags": _CLIPPY_STRICT,
+        "contains": ["quality/testdata/rust_owned/pedantic.rs", "doc_markdown"],
+        "absent": [],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
         "name": "real_result_clippy_unused_dep",
         "target": "//quality/testdata/rust_owned:unused_dep",
         "policy": _RUST_POLICY,
@@ -552,6 +597,7 @@ def real_result_cases():
             compiler = case.get("compiler", ""),
             typecheck_subject = case.get("typecheck_subject", False),
             rustc_flags = case.get("rustc_flags", []),
+            clippy_flags = case.get("clippy_flags", []),
             config_profile = case.get("config_profile", ""),
             target_compatible_with = case.get("target_compatible_with"),
             linux_arm64 = case.get("linux_arm64", False),

@@ -44,6 +44,142 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "clippy",
+        crate::severity::ToolSeverityMap {
+            default: None,
+            categories: &[
+                ("clippy::", crate::ToolSeverity::Warning),
+                (
+                    "clippy::absurd_extreme_comparisons",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::almost_swapped", crate::ToolSeverity::Error),
+                ("clippy::approx_constant", crate::ToolSeverity::Error),
+                ("clippy::async_yields_async", crate::ToolSeverity::Error),
+                ("clippy::bad_bit_mask", crate::ToolSeverity::Error),
+                (
+                    "clippy::cast_slice_different_sizes",
+                    crate::ToolSeverity::Error,
+                ),
+                (
+                    "clippy::char_indices_as_byte_indices",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::deprecated_semver", crate::ToolSeverity::Error),
+                (
+                    "clippy::derive_ord_xor_partial_ord",
+                    crate::ToolSeverity::Error,
+                ),
+                (
+                    "clippy::derived_hash_with_manual_eq",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::eager_transmute", crate::ToolSeverity::Error),
+                (
+                    "clippy::enum_clike_unportable_variant",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::eq_op", crate::ToolSeverity::Error),
+                ("clippy::erasing_op", crate::ToolSeverity::Error),
+                ("clippy::if_let_mutex", crate::ToolSeverity::Error),
+                ("clippy::ifs_same_cond", crate::ToolSeverity::Error),
+                (
+                    "clippy::impl_hash_borrow_with_str_and_bytes",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::impossible_comparisons", crate::ToolSeverity::Error),
+                ("clippy::ineffective_bit_mask", crate::ToolSeverity::Error),
+                ("clippy::infinite_iter", crate::ToolSeverity::Error),
+                (
+                    "clippy::inherent_to_string_shadow_display",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::inline_fn_without_body", crate::ToolSeverity::Error),
+                ("clippy::invalid_regex", crate::ToolSeverity::Error),
+                (
+                    "clippy::inverted_saturating_sub",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::invisible_characters", crate::ToolSeverity::Error),
+                ("clippy::iter_next_loop", crate::ToolSeverity::Error),
+                ("clippy::iter_skip_zero", crate::ToolSeverity::Error),
+                ("clippy::iterator_step_by_zero", crate::ToolSeverity::Error),
+                ("clippy::let_underscore_lock", crate::ToolSeverity::Error),
+                ("clippy::lint_groups_priority", crate::ToolSeverity::Error),
+                (
+                    "clippy::match_str_case_mismatch",
+                    crate::ToolSeverity::Error,
+                ),
+                (
+                    "clippy::mem_replace_with_uninit",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::min_max", crate::ToolSeverity::Error),
+                (
+                    "clippy::mistyped_literal_suffixes",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::modulo_one", crate::ToolSeverity::Error),
+                ("clippy::mut_from_ref", crate::ToolSeverity::Error),
+                ("clippy::never_loop", crate::ToolSeverity::Error),
+                (
+                    "clippy::non_octal_unix_permissions",
+                    crate::ToolSeverity::Error,
+                ),
+                (
+                    "clippy::nonsensical_open_options",
+                    crate::ToolSeverity::Error,
+                ),
+                (
+                    "clippy::not_unsafe_ptr_arg_deref",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::option_env_unwrap", crate::ToolSeverity::Error),
+                ("clippy::out_of_bounds_indexing", crate::ToolSeverity::Error),
+                (
+                    "clippy::panicking_overflow_checks",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::panicking_unwrap", crate::ToolSeverity::Error),
+                ("clippy::possible_missing_comma", crate::ToolSeverity::Error),
+                ("clippy::read_line_without_trim", crate::ToolSeverity::Error),
+                ("clippy::recursive_format_impl", crate::ToolSeverity::Error),
+                ("clippy::redundant_comparisons", crate::ToolSeverity::Error),
+                ("clippy::reversed_empty_ranges", crate::ToolSeverity::Error),
+                ("clippy::self_assignment", crate::ToolSeverity::Error),
+                ("clippy::serde_api_misuse", crate::ToolSeverity::Error),
+                (
+                    "clippy::size_of_in_element_count",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::suspicious_splitn", crate::ToolSeverity::Error),
+                ("clippy::transmute_null_to_fn", crate::ToolSeverity::Error),
+                ("clippy::transmuting_null", crate::ToolSeverity::Error),
+                ("clippy::uninit_assumed_init", crate::ToolSeverity::Error),
+                ("clippy::uninit_vec", crate::ToolSeverity::Error),
+                ("clippy::unit_cmp", crate::ToolSeverity::Error),
+                ("clippy::unit_hash", crate::ToolSeverity::Error),
+                (
+                    "clippy::unit_return_expecting_ord",
+                    crate::ToolSeverity::Error,
+                ),
+                (
+                    "clippy::unsound_collection_transmute",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::unused_io_amount", crate::ToolSeverity::Error),
+                ("clippy::useless_attribute", crate::ToolSeverity::Error),
+                ("clippy::vec_resize_to_zero", crate::ToolSeverity::Error),
+                (
+                    "clippy::while_immutable_condition",
+                    crate::ToolSeverity::Error,
+                ),
+                ("clippy::wrong_transmute", crate::ToolSeverity::Error),
+                ("clippy::zst_offset", crate::ToolSeverity::Error),
+            ],
+        },
+    ),
+    (
         "cmakelint",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -73,6 +209,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
     ),
     (
         "errcheck",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "fortitude",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
             categories: &[],

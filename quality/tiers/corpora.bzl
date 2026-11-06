@@ -36,6 +36,8 @@ TIER_JSON = [
 ]
 
 TIER_TOML = [
+    "ffmt/standard.toml",
+    "ffmt/strict.toml",
     "fortitude/standard.toml",
     "fortitude/strict.toml",
     "pydoclint/standard.toml",
@@ -44,6 +46,8 @@ TIER_TOML = [
     "mbake/strict.toml",
     "ruff/standard.toml",
     "ruff/strict.toml",
+    "rustfmt/standard.toml",
+    "rustfmt/strict.toml",
     "selene/standard.toml",
     "selene/strict.toml",
     "taplo/standard.toml",

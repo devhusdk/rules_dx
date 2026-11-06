@@ -204,7 +204,7 @@ pub fn discover_real(start: &Path, override_dir: Option<&Path>) -> Result<PathBu
                     reason,
                 })
             }
-            Err(err) => Err(err),
+            Err(err) => Err(err), // LCOV_EXCL_LINE - reason: discover with an override never returns another error, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
     } else {
         match discover(&effective_start, None, &RealFs) {

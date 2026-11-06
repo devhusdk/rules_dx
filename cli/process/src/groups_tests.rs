@@ -425,3 +425,72 @@ fn a_stop_is_written_to_the_reap_log() {
 fn record_writes_no_line_when_the_start_is_unknown() {
     assert!(lease_line(i32::MAX).is_none());
 }
+
+#[test]
+fn the_reap_message_names_the_group_and_the_dead_run() {
+    let message = reaped_message(&Reaped { pid: 12, pgid: 34 });
+    assert_eq!(
+        message,
+        "stopped leftover process group 34 from dx run 12, which is gone"
+    );
+}
+
+#[test]
+fn the_lease_root_names_the_groups_directory() {
+    assert!(reap_orphans().is_empty());
+    let scratch = dx_test_scratch::scratch("dx-groups-root-");
+    set_lease_root(scratch.path());
+    let dir = lease_dir().expect("set");
+    assert!(dir.ends_with(GROUPS_DIR_NAME));
+    assert!(reap_orphans().is_empty());
+}
+
+#[test]
+fn the_reap_log_rotates_once_it_passes_its_cap() {
+    let scratch = dx_test_scratch::scratch("dx-groups-rotate-");
+    let dir = scratch.path();
+    std::fs::write(dir.join(LOG_NAME), vec![b'x'; LOG_CAP as usize + 1]).expect("big log");
+    log_decision(dir, "stop", 1, &recorded("77"), &observed());
+    assert!(dir.join(format!("{LOG_NAME}.1")).is_file());
+    let fresh = std::fs::read_to_string(dir.join(LOG_NAME)).expect("fresh log");
+    assert_eq!(fresh.lines().count(), 1);
+}
+
+#[test]
+fn a_group_that_ignores_the_first_signal_is_killed() {
+    let scratch = dx_test_scratch::scratch("dx-groups-kill-");
+    let dir = scratch.path().join("groups");
+    std::fs::create_dir_all(&dir).expect("dir");
+    let armed = scratch.path().join("armed");
+    let script = format!(
+        "trap '' TERM; : > '{}'; while :; do sleep 1; done",
+        armed.display()
+    );
+    let mut child = Command::new("/bin/sh")
+        .args(["-c", &script])
+        .process_group(0)
+        .spawn()
+        .expect("shell starts");
+    dx_testing::wait_armed(&armed);
+    let pgid = child.id() as i32;
+    std::fs::write(
+        dir.join("424260-0.lock"),
+        format!("{}\n", lease_line(pgid).expect("line")),
+    )
+    .expect("lease");
+    let reaped = reap_in(&dir);
+    let status = child.wait().expect("reaped");
+    assert_eq!(reaped.len(), 1);
+    assert_eq!(
+        std::os::unix::process::ExitStatusExt::signal(&status),
+        Some(9)
+    );
+}
+
+#[test]
+fn recording_a_group_with_an_unknown_start_leaves_the_lease_empty() {
+    let scratch = dx_test_scratch::scratch("dx-groups-empty-");
+    let mut lease = GroupLease::acquire_in(scratch.path()).expect("lease");
+    lease.record(i32::MAX);
+    assert_eq!(std::fs::metadata(&lease.path).expect("lease file").len(), 0);
+}

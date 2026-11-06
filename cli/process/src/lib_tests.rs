@@ -1351,3 +1351,112 @@ fn output_base_of_execroot_rejects_other_shapes() {
         assert_eq!(output_base_of_execroot(Path::new(value)), None, "{value}");
     }
 }
+
+struct Plain;
+
+impl Runner for Plain {
+    fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        Ok(ChildStatus::exited(3))
+    }
+}
+
+#[test]
+fn runner_defaults_forward_to_run() {
+    let argv = ["tool".to_owned()];
+    let cwd = Path::new("/");
+    assert_eq!(
+        Plain.run_hermetic(&argv, cwd, &[]).expect("runs").code,
+        Some(3)
+    );
+    let ran = Plain.run_app(&argv, cwd, &[], None, &[]).expect("runs");
+    assert_eq!(ran.expect("not withdrawn").code, Some(3));
+}
+
+#[test]
+fn runner_defaults_honor_withdrawal() {
+    let argv = ["tool".to_owned()];
+    let cwd = Path::new("/");
+    let withdrawn = Plain
+        .run_withdrawable(&argv, cwd, &[], &|| true)
+        .expect("ok");
+    assert!(withdrawn.is_none());
+    let withdraw: &dyn Fn() -> bool = &|| true;
+    let app = Plain
+        .run_app(&argv, cwd, &[], Some(withdraw), &[])
+        .expect("ok");
+    assert!(app.is_none());
+}
+
+#[test]
+fn runner_defaults_know_no_tools() {
+    assert_eq!(Plain.pinned_tool("DX_ANY"), PinnedVar::Unset);
+    assert_eq!(Plain.tool_version(Path::new("/bin/true")), None);
+}
+
+#[test]
+fn the_default_marker_hint_is_none() {
+    struct Bare;
+    impl Fs for Bare {
+        fn is_file(&self, _: &Path) -> bool {
+            false
+        }
+    }
+    assert_eq!(Bare.broken_marker_hint(Path::new("/")), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn real_marker_hint_reports_only_a_broken_marker() {
+    let scratch = dx_test_scratch::scratch("dx-marker-hint-");
+    let root = scratch.path();
+    assert_eq!(RealFs.broken_marker_hint(root), None);
+    let plain = scratch.path().join("plain");
+    std::fs::create_dir_all(&plain).expect("plain");
+    std::fs::write(plain.join("MODULE.bazel"), "").expect("marker");
+    assert_eq!(RealFs.broken_marker_hint(&plain), None);
+    let target = root.join("target-dir");
+    std::fs::create_dir_all(&target).expect("target");
+    std::os::unix::fs::symlink(&target, root.join("MODULE.bazel")).expect("link");
+    assert_eq!(
+        RealFs.broken_marker_hint(root).as_deref(),
+        Some("symlink target is not a regular file")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn expand_tilde_keeps_a_path_that_is_not_utf8() {
+    use std::os::unix::ffi::OsStrExt as _;
+    let path = Path::new(std::ffi::OsStr::from_bytes(b"~/\xff"));
+    assert_eq!(expand_tilde(path), path);
+}
+
+#[test]
+fn an_override_with_a_legacy_marker_is_unsupported() {
+    let scratch = dx_test_scratch::scratch("dx-override-legacy-");
+    let root = scratch.path();
+    std::fs::write(root.join("WORKSPACE"), "").expect("marker");
+    let err = discover_real(root, Some(root)).expect_err("legacy");
+    assert!(
+        matches!(err, DiscoverError::UnsupportedLegacy { .. }),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn workspace_start_and_run_output_base_read_the_environment() {
+    let cwd = std::env::temp_dir();
+    assert!(workspace_start(&cwd).is_absolute());
+    let _ = run_output_base();
+}
+
+#[test]
+fn pinned_env_reads_an_unset_variable() {
+    assert_eq!(pinned_env("DX_PROCESS_TEST_NEVER_SET"), PinnedVar::Unset);
+}
+
+#[test]
+fn make_writable_ignores_a_missing_path() {
+    let scratch = dx_test_scratch::scratch("dx-writable-missing-");
+    make_writable(&scratch.path().join("absent"));
+}

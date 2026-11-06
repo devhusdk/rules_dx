@@ -37,3 +37,6 @@ build --experimental_shrink_worker_pool
 
 # Cap the memory of all persistent workers together at 4 GB.
 build --experimental_total_worker_memory_limit_mb=4096
+
+# Under --config=ci, schedule local actions on every CPU.
+common:ci --local_resources=cpu=HOST_CPUS

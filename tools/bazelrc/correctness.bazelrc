@@ -62,6 +62,9 @@ build --@rules_dx//config:clippy_output_diagnostics=true
 # Rustc diagnostics are part of the build output, as in dx build.
 build --@rules_dx//config:rustc_output_diagnostics=true
 
+# Under --config=ci, fail when MODULE.bazel.lock is out of date.
+common:ci --lockfile_mode=error
+
 # Compiler warnings fail the build under the strict profile.
 common --@rules_dx//config:warnings_as_errors=true
 common --@rules_dx//config:config_profile=strict

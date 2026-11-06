@@ -964,4 +964,70 @@ mod tests {
             "a crate missing at the tag skips the tool"
         );
     }
+
+    #[test]
+    fn api_check_with_the_pinned_semver_checks_binary() {
+        let pinned = std::env::var("CARGO_SEMVER_CHECKS").unwrap_or_default();
+        let cargo_ok = with_env(&[], || {
+            std::process::Command::new("cargo")
+                .arg("--version")
+                .output()
+                .is_ok_and(|probe| probe.status.success())
+        });
+        if pinned.is_empty() || !cargo_ok {
+            println!("skipped: pinned cargo-semver-checks or cargo is not available");
+            return;
+        }
+        let tool = resolve_runfile(&pinned).expect("pinned tool");
+        let scratch = scratch_dir();
+        let repo = scratch.path().join("repo");
+        let manifest = "[package]\nname = \"pkg\"\nversion = \"1.2.0\"\nedition = \"2021\"\n";
+        write_crate_file(&repo, "pkg/Cargo.toml", manifest);
+        write_crate_file(&repo, "pkg/src/lib.rs", "pub fn hello() {}\n");
+        for args in [
+            vec!["init", "-q"],
+            vec!["add", "."],
+            vec![
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.com",
+                "commit",
+                "-q",
+                "-m",
+                "x",
+            ],
+            vec!["tag", "v1.2.0"],
+        ] {
+            let status = std::process::Command::new("git")
+                .args(&args)
+                .current_dir(&repo)
+                .status()
+                .expect("git");
+            assert!(status.success(), "git {args:?}");
+        }
+        let current = scratch.path().join("in/pkg");
+        let files = vec![
+            write_crate_file(&current, "Cargo.toml", manifest),
+            write_crate_file(&current, "src/lib.rs", "\n"),
+        ];
+        let mapped = crates_package_paths(&files).expect("paths");
+        let repo_dir = repo.display().to_string();
+        let run = |version: &str| {
+            with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
+                crates_api_check(
+                    Some(&tool),
+                    &mapped,
+                    version,
+                    "pkg",
+                    ApiCompatMode::Fail,
+                    "git",
+                    "pkg",
+                )
+            })
+        };
+        let refused = run("1.2.1").expect_err("patch bump refused");
+        assert!(refused.contains("1.2.0 -> 1.2.1"), "{refused}");
+        assert!(run("2.0.0").is_ok());
+    }
 }

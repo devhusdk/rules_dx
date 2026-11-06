@@ -134,9 +134,32 @@ def _cc_werror(kwargs):
     rest, flag = dx_warnings_as_errors(kwargs, ["treat_warnings_as_errors"])
     return dx_append_flags(rest, "features", flag)
 
+_PARAM_FILE_ATTRS = ["textual_hdrs", "includes", "copts", "conlyopts", "cxxopts", "defines", "local_defines"]
+
+def _needs_quoting(value):
+    return type(value) == "string" and any([c in value for c in [" ", "\t", "\"", "'"]])
+
+def cc_param_file_features(kwargs, srcs, hdrs):
+    """Returns ["-compiler_param_file"] when the target's own sources or flags hold a space, quote or tab, else [].
+
+    Bazel 9 writes compile params files in GCC quoting, which cl.exe splits at each escaped space (D9027).
+    Without the params file the Windows launcher quotes each argument. Flags inherited from deps are not
+    checked. Remove this with Bazel 10 (#8317).
+    """
+    values = [srcs, hdrs] + [kwargs.get(attr) for attr in _PARAM_FILE_ATTRS]
+    for value in values:
+        if type(value) in ("list", "tuple") and any([_needs_quoting(v) for v in value]):
+            return ["-compiler_param_file"]
+    return []
+
+def _cc_kwargs(kwargs, srcs, hdrs = None):
+    kwargs = _cc_werror(kwargs)
+    features = cc_param_file_features(kwargs, srcs, hdrs)
+    return dx_append_flags(kwargs, "features", features) if features else kwargs
+
 def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_library."""
-    kwargs = _cc_werror(kwargs)
+    kwargs = _cc_kwargs(kwargs, srcs, hdrs)
     effective_srcs = srcs if srcs != None else []
     effective_hdrs = hdrs if hdrs != None else []
     dx_wrap(name, _cc_library, _cc_library_forward, effective_srcs, visibility = visibility, hdrs = effective_hdrs, extra_forward_kwargs = {"hdrs": effective_hdrs}, **kwargs)
@@ -147,7 +170,7 @@ def objc_library(name, visibility = None, **kwargs):
 
 def cc_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_binary that links Linux binaries with a build-id."""
-    kwargs = _cc_werror(kwargs)
+    kwargs = _cc_kwargs(kwargs, srcs)
     linkopts = kwargs.pop("linkopts", None) or []
     build_id = select({
         "@platforms//os:linux": ["-Wl,--build-id=sha1"],
@@ -157,7 +180,7 @@ def cc_binary(name, srcs = None, visibility = None, **kwargs):
 
 def cc_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_test. On macOS it links statically unless linkstatic is set, since Mach-O nodeps dylibs fail to link (#8114). Under a GCC toolchain it sets ASAN_OPTIONS=verify_asan_link_order=0, which the caller's env overrides."""
-    kwargs = _cc_werror(kwargs)
+    kwargs = _cc_kwargs(kwargs, srcs)
     caller_env = kwargs.pop("env", None) or {}
     gcc_env = select({
         Label("@rules_cc//cc/compiler:gcc"): {"ASAN_OPTIONS": "verify_asan_link_order=0"},

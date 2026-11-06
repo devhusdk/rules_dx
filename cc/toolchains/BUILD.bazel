@@ -350,7 +350,6 @@ cc_toolchain_test(
 cc_toolchain_test(
     name = "msvc_spaced_test",
     compiler = "msvc",
-    tags = ["manual"],
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",

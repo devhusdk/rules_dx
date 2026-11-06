@@ -6,7 +6,7 @@ load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":defs.bzl", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_unsupported")
+load(":defs.bzl", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_unsupported", "cc_param_file_features")
 
 def cc_wrapper_contract_tests(name):
     """Instantiates C, C++ and Objective-C wrapper contract tests."""
@@ -33,6 +33,10 @@ def cc_wrapper_contract_tests(name):
             expect_equal("gcc without llvm maps passes", cc_coverage_mismatch("gcc", False), ""),
             expect_equal("clang with llvm maps passes", cc_coverage_mismatch("clang", True), ""),
             expect_equal("icx with llvm maps passes", cc_coverage_mismatch("icx", True), ""),
+            expect_equal("space in srcs drops the params file", cc_param_file_features({}, ["dir with space/a.cc"], None), ["-compiler_param_file"]),
+            expect_equal("quote in local_defines drops the params file", cc_param_file_features({"local_defines": ['NAME="x"']}, ["a.cc"], None), ["-compiler_param_file"]),
+            expect_equal("plain target keeps the params file", cc_param_file_features({"copts": ["-O2"]}, ["a.cc"], ["a.h"]), []),
+            expect_equal("select is not inspected", cc_param_file_features({"copts": select({"//conditions:default": ["-DA B"]})}, ["a.cc"], None), []),
             expect_equal("msvc coverage reported", "msvc-cl" in cc_coverage_unsupported("msvc-cl"), True),
         ],
     )

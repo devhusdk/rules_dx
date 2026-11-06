@@ -137,6 +137,17 @@ a `.ocamlformat` file is ignored. `.mll` and `.mly` files are not formatted.
 `ocaml` family selects `typecheck = ["ocaml"]`. The replay writes only to a
 scratch directory. Modules that use a ppx rewriter are not checked.
 
+### Dune libraries
+
+`dx_dune_library` (`ocaml/rules/dune.bzl`) runs `dune build -p <package> @install`
+on a dune workspace and returns the package as rules_ocaml providers, so
+`ocaml_module` and `ocaml_test` take it in `deps`. The package is copied to the
+tree artifact `<name>_ocamlpath/<package>` (a findlib layout); the archive named
+by `library` (`.cma`, or `.cmxa` plus `.a` under the native emitter) is exposed
+as its own file. `dune` is a label, for example `//quality/tools/ocaml:dune`.
+See `ocaml/tests/fixtures/dune-lib`. Dependencies between dune packages and C
+stubs are not supported yet.
+
 ### Internal tool: zanuda
 
 `//quality/tools/ocaml:zanuda` is the zanuda 2.1.0 linter, built from source
@@ -146,8 +157,8 @@ The lint aspect reads the typed trees (`.cmt`/`.cmti`) that `ocaml_module` and
 `-no-bin-annot` fails closed. A source-alias patch makes typed and untyped
 findings report the same workspace path.
 
-- **Build.** `dx_dune_build` (`quality/tools/ocaml/dune_build.bzl`) bootstraps
-  dune and builds zanuda in two Bazel actions with the pinned native OCaml,
+- **Build.** `dx_dune_build` (`ocaml/rules/dune.bzl`) builds zanuda with the
+  shared `//quality/tools/ocaml:dune` bootstrap (`dx_dune_bootstrap`) using the pinned native OCaml,
   the resolved C toolchain, no network and no dune cache. The 22 source
   archives are pinned in `quality/artifacts/zanuda.bzl` and unpacked side by
   side by `@dx_ocaml_duniverse`. The rule is generic over sources and target.

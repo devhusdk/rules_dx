@@ -7,6 +7,7 @@ load(":providers.bzl", "STANDARD_WARNING_OPTS", "STRICT_WARNING_OPTS", "WERROR_O
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "dune.bzl",
     "providers.bzl",
     "defs.bzl",
 ])
@@ -323,6 +324,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "dune.bzl",
         "providers.bzl",
         "wrapper_tests.bzl",
     ],

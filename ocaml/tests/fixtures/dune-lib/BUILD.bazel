@@ -1,0 +1,42 @@
+load("//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_test")
+load("//ocaml/rules:dune.bzl", "dx_dune_library")
+load("//ocaml/tests/native:defs.bzl", "sys_cell_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+dx_dune_library(
+    name = "greet",
+    srcs = glob(["src/*"]) + [
+        "dune-project",
+        "greet.opam",
+    ],
+    dune = "//quality/tools/ocaml:dune",
+    library = "greet",
+    package = "greet",
+    workspace = "dune-project",
+)
+
+ocaml_module(
+    name = "greet_dune_test_main",
+    testonly = True,
+    struct = "greet_dune_test.ml",
+    deps = [":greet"],
+)
+
+ocaml_test(
+    name = "greet_dune_test",
+    main = ":greet_dune_test_main",
+)
+
+sys_cell_test(
+    name = "greet_dune_native_test",
+    size = "small",
+    target = ":greet_dune_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

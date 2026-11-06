@@ -117,6 +117,23 @@ pub fn generate_traversal_dirs(resolved: &ResolvedScope) -> Vec<String> {
     dirs
 }
 
+/// Workspace-relative directories under `[scope] exclude`, as Gazelle `-exclude` values.
+///
+/// Only `//dir/...` patterns count: a single-package or external pattern must
+/// not hide a whole directory tree from the generator.
+pub fn generate_exclude_dirs(resolved: &ResolvedScope) -> Vec<String> {
+    let mut dirs: Vec<String> = resolved
+        .excluded
+        .iter()
+        .filter_map(|pattern| pattern.strip_prefix("//")?.strip_suffix("/..."))
+        .filter(|dir| !dir.is_empty() && !dir.contains(':'))
+        .map(str::to_owned)
+        .collect();
+    dirs.sort();
+    dirs.dedup();
+    dirs
+}
+
 pub fn plan_generate(
     resolved: &ResolvedScope,
     bazel_options: &[String],
@@ -153,11 +170,17 @@ pub fn plan_generate_logged(
     let dirs = generate_traversal_dirs(resolved);
     let root_only = dirs.len() == 1 && dirs.first().is_some_and(String::is_empty);
     let patch = patch.filter(|_| check);
-    if patch.is_some() || (!dirs.is_empty() && !root_only) {
+    let excludes = if root_only {
+        generate_exclude_dirs(resolved)
+    } else {
+        Vec::new()
+    };
+    if patch.is_some() || !excludes.is_empty() || (!dirs.is_empty() && !root_only) {
         argv.push("--".to_owned());
         if let Some(patch) = patch {
             argv.push(format!("-patch={patch}"));
         }
+        argv.extend(excludes.iter().map(|dir| format!("-exclude={dir}")));
         if !root_only {
             argv.extend(dirs);
         }
@@ -208,6 +231,23 @@ mod tests {
         assert_eq!(plan.summary, "Running generate for //...");
         let bare = plan_generate(&resolved(&[]), &[], false, &[], None).expect("plan");
         assert_eq!(bare.argv.last(), Some(&generate_target(false)), "{bare:?}");
+    }
+
+    #[test]
+    fn generate_plan_over_the_whole_repo_passes_scope_excludes() {
+        let mut scope = resolved(&[]);
+        scope.excluded = strings(&["//third_party/...", "//a/b/...", "//x:y", "@ext//..."]);
+        let plan = plan_generate(&scope, &[], false, &[], None).expect("plan");
+        assert_eq!(
+            plan.argv[plan.argv.len() - 3..],
+            strings(&["--", "-exclude=a/b", "-exclude=third_party"])
+        );
+        let scoped = ResolvedScope {
+            excluded: strings(&["//third_party/..."]),
+            ..resolved(&["//a:one"])
+        };
+        let plan = plan_generate(&scoped, &[], false, &[], None).expect("plan");
+        assert_eq!(plan.argv[plan.argv.len() - 2..], strings(&["--", "a"]));
     }
 
     #[test]

@@ -336,6 +336,30 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
+        id: "trivy_config",
+        run: |backend, call| {
+            let tool_id = call.tool_id;
+            let tool = call.tool;
+            let scratch = &call.staged.scratch;
+            let (_, names) = super::single_run::paths(call);
+            let cache = scratch.root().join("dx-trivy-cache");
+            let mut findings = Vec::new();
+            for name in &names {
+                let invocation =
+                    commands::trivy_config_check(&tool.binary, Path::new(name), &cache);
+                let out = backend.run(tool_id, tool, &invocation, scratch)?;
+                let report = parsers::parse_trivy_config(
+                    &out.stdout,
+                    &out.stderr,
+                    out.code,
+                    &[name.as_str()],
+                );
+                findings.extend(parsed(tool_id, report)?);
+            }
+            Ok(findings)
+        },
+    },
+    ToolDef {
         id: "deadnix",
         run: |backend, call| {
             let tool_id = call.tool_id;

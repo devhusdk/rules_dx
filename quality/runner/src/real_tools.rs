@@ -3518,6 +3518,61 @@ fn statix_errors_that_exit_zero_fail_the_action() {
         .expect_err("config error is never clean");
 }
 
+fn trivy_config_tool(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    assert_eq!(argv[argv.len() - 2], OsString::from("--"));
+    assert_eq!(argv[1], OsString::from("config"));
+    let body = std::fs::read_to_string(&file).expect("read staged Dockerfile");
+    let misconfigurations = if body.contains("USER ") {
+        Vec::new()
+    } else {
+        vec![serde_json::json!({
+            "ID": "DS-0002",
+            "Title": "Image user should not be 'root'",
+            "Severity": "HIGH",
+            "CauseMetadata": {"StartLine": 1, "EndLine": 1},
+        })]
+    };
+    let report = serde_json::json!({
+        "SchemaVersion": 2,
+        "Results": [{"Target": file, "Misconfigurations": misconfigurations}],
+    });
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: report.to_string().into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn trivy_config_reports_a_dockerfile_without_a_user() {
+    let backend = backend_for("trivy_config", plain_tool(), trivy_config_tool);
+    let findings = backend
+        .diagnose(
+            "trivy_config",
+            "lint",
+            &single("Dockerfile", "FROM scratch\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "trivy_config");
+    assert_eq!(findings[0].rule_id, "DS-0002");
+    assert_eq!(findings[0].path, "Dockerfile");
+    assert!(backend
+        .diagnose(
+            "trivy_config",
+            "lint",
+            &single("Dockerfile", "FROM scratch\nUSER 1000\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+}
+
 const DEADNIX_DIRTY: &str = "let\n  a = 1;\nin\n2\n";
 
 fn deadnix_tool(

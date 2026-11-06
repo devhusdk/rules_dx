@@ -113,7 +113,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) | no |
 | Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | no: no dx coverage wiring in the Apple rules | n/a |
 | CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a | n/a |
-| Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| Dockerfile | `hadolint`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | Make | `checkmake`, `typos` | `mbake` | n/a | n/a | n/a | n/a |
 | Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker), `typos` | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | n/a | no: no dx coverage wiring in the Qt rules | n/a |
 | Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `prettier` | n/a | n/a | n/a | n/a |
@@ -121,7 +121,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
 | Bicep | `bicep`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
 | Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64), `typos` | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | n/a | n/a |
-| CloudFormation | `cfn_lint`, `typos` | no | n/a | n/a | n/a | n/a |
+| CloudFormation | `cfn_lint`, `trivy_config`, `typos` | no | n/a | n/a | n/a | n/a |
 | CSS | `stylelint`, `typos` | `prettier` | no | n/a | n/a | n/a |
 | CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |
 | FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a | n/a |
@@ -132,7 +132,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |
 | Jsonnet | `jsonnet_lint`, `typos` | `jsonnetfmt` | n/a | n/a | n/a | n/a |
 | Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a | n/a |
-| Kubernetes | `kubeconform`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| Kubernetes | `kubeconform`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
 | Markdown | `lychee`, `markdown_check`, `typos`, `vale` | no | no | n/a | n/a | n/a |
 | Nix | `deadnix`, `statix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a | `deadnix` |
@@ -143,7 +143,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Shell | `shellcheck`, `typos` | `shfmt` | no | n/a | n/a | `shellcheck SC2034` |
 | SQL | `sqlfluff`, `typos` | `prettier`, `sqlfluff` | n/a | n/a | n/a | n/a |
 | Starlark | `buildifier`, `typos` | `buildifier` | no | n/a | n/a | `buildifier unused-variable` |
-| Terraform | `tflint`, `typos` | `terraform` | `terraform` | n/a | n/a | n/a |
+| Terraform | `tflint`, `trivy_config`, `typos` | `terraform` | `terraform` | n/a | n/a | n/a |
 | Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64), `typos` | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | n/a | n/a |
 | TOML | `taplo`, `typos` | `taplo` | no | n/a | n/a | n/a |
 | Typst | `tinymist`, `typos` | `typstyle` | n/a | n/a | n/a | n/a |

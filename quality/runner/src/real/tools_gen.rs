@@ -125,6 +125,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "thrift",
     "tinymist",
     "topiary",
+    "trivy_config",
     "tsc",
     "ty",
     "typos",

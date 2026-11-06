@@ -9,6 +9,12 @@ TOOLS = {
         "resources": "light",
         "shard": "dockerfile",
     },
+    "trivy_config": {
+        "attr": attr.label(default = "//config:tool_trivy", allow_single_file = True, cfg = "exec"),
+        "kind": "file",
+        "resources": "light",
+        "shard": "dockerfile",
+    },
 }
 
 SHARD_SPECS = {

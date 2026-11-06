@@ -519,6 +519,36 @@ fn workflow_argv_forwards_test_binary_args_on_test_commands() {
 }
 
 #[test]
+fn negative_patterns_follow_a_separator_and_leave_the_options_alone() {
+    let options = ["--test_arg=--exact".to_owned(), "--jobs=4".to_owned()];
+    let plain = build_workflow_argv(
+        "test",
+        &options,
+        &["--keep_going".to_owned()],
+        &[],
+        &["//...".to_owned()],
+        &[],
+    )
+    .expect("argv");
+    let excluded = build_workflow_argv(
+        "test",
+        &options,
+        &["--keep_going".to_owned()],
+        &[],
+        &["//...".to_owned(), "-//third_party/...".to_owned()],
+        &[],
+    )
+    .expect("argv");
+    let head = plain.len() - 1;
+    assert_eq!(
+        excluded[..head],
+        plain[..head],
+        "options and action keys stay"
+    );
+    assert_eq!(excluded[head..], ["--", "//...", "-//third_party/..."]);
+}
+
+#[test]
 fn workflow_argv_keeps_test_filter_unchanged_on_test_commands() {
     let argv = build_workflow_argv(
         "test",

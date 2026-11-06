@@ -288,9 +288,20 @@ impl AuditTarget<'_> {
     }
 }
 
+/// The package label of the directory holding a set's first manifest.
+fn set_package(set: &dx_adopt::dependency_sets::DependencySet) -> String {
+    match dx_adopt::dependency_sets::manifest_dir(&set.manifests).as_str() {
+        "." => "//:all".to_owned(),
+        dir => format!("//{dir}:all"),
+    }
+}
+
+/// The sets `scopes` name or own. A set found through a scope, not by its name,
+/// is skipped when a `dx.toml` exclude covers its package.
 fn resolve_configured_audit_sets(
     registry: &dx_adopt::dependency_sets::Registry,
     scopes: &[String],
+    excludes: &[String],
 ) -> Result<Vec<dx_adopt::dependency_sets::ResolvedSet>, AuditError> {
     let mut union: BTreeSet<String> = BTreeSet::new();
     for scope in scopes {
@@ -306,7 +317,12 @@ fn resolve_configured_audit_sets(
             });
         }
         for name in owners {
-            union.insert(name.to_owned());
+            let excluded = registry
+                .find(name)
+                .is_some_and(|set| dx_plan::resolve::exclude::covered(excludes, &set_package(set)));
+            if !excluded {
+                union.insert(name.to_owned());
+            }
         }
     }
     let mut ordered = Vec::new();
@@ -833,9 +849,22 @@ fn gitleaks_path(
     })
 }
 
-/// Writes a gitleaks config that skips the paths git ignores, because
-/// `gitleaks dir` reads every file under the workspace. Returns `None` when git
-/// lists nothing (or is unavailable) or the user config is invalid, so the scan
+/// The directories of recursive `dx.toml` excludes, spelled like `git ls-files`
+/// directory entries. `//...` itself is left out so the scan never skips the repo.
+fn excluded_dirs(excludes: &[String]) -> Vec<String> {
+    excludes
+        .iter()
+        .filter_map(|pattern| {
+            let pattern = pattern.strip_suffix(":all").unwrap_or(pattern);
+            pattern.strip_prefix("//")?.strip_suffix("/...")
+        })
+        .map(|dir| format!("{dir}/"))
+        .collect()
+}
+
+/// Writes a gitleaks config that skips the paths git ignores and the `dx.toml`
+/// excludes, because `gitleaks dir` reads every file under the workspace. Returns
+/// `None` when nothing is skipped or the user config is invalid, so the scan
 /// keeps its plain config and gitleaks reports the invalid file itself.
 fn scoped_secrets_config(
     workspace: &Path,
@@ -847,10 +876,12 @@ fn scoped_secrets_config(
     use dx_audit::secrets::{ignored_path_patterns, parse_ignored, scoped_config, IGNORED_QUERY};
     let mut argv = vec!["git".to_owned()];
     argv.extend(IGNORED_QUERY.iter().map(ToString::to_string));
-    let ignored = match query_runner.run_query(&argv, workspace) {
+    let mut ignored = match query_runner.run_query(&argv, workspace) {
         Ok(result) if result.code == Some(0) => parse_ignored(&result.stdout),
-        _ => return Ok(None),
+        _ => Vec::new(),
     };
+    let excludes = dx_plan::resolve::exclude::load(workspace).map_err(|error| error.to_string())?;
+    ignored.extend(excluded_dirs(&excludes));
     let patterns = ignored_path_patterns(&ignored);
     if patterns.is_empty() {
         return Ok(None);
@@ -1519,7 +1550,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Some(registry) = registry else {
         return pre_exec(invocation.output, out, err, NO_DEPENDENCY_SETS);
     };
-    let configured_sets = match resolve_configured_audit_sets(&registry, &effective) {
+    let excludes = match dx_plan::resolve::exclude::load(workspace) {
+        Ok(excludes) => excludes,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
+    let configured_sets = match resolve_configured_audit_sets(&registry, &effective, &excludes) {
         Ok(sets) => sets,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };

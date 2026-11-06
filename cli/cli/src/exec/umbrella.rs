@@ -1334,6 +1334,8 @@ mod tests {
         let resolved = dx_plan::resolve::ResolvedScope {
             scope: dx_process::Scope::Repository,
             targets: Vec::new(),
+            excluded: Vec::new(),
+            kept: Vec::new(),
         };
         let shared: std::collections::BTreeSet<String> = dx_plan::plan::BAZEL_SETTINGS
             .iter()

@@ -157,6 +157,7 @@ impl Failure {
             ResolveError::NoRunnable { .. } => ("no_runnable", operational_code()),
             ResolveError::AmbiguousRunnable { .. } => ("ambiguous_runnable", operational_code()),
             ResolveError::NotDeployable { .. } => (CODE_NOT_DEPLOYABLE, pre_exec_code()),
+            ResolveError::Config { .. } => ("invalid_config", pre_exec_code()),
             _ => (CODE_INVALID_SCOPE, pre_exec_code()),
         };
         let mut failure = Failure::new(code, &error.to_string(), exit);

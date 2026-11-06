@@ -21,7 +21,7 @@ use dx_plan::plan::{
     bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP,
 };
 use dx_plan::reports::{plan_reports, Destination};
-use dx_plan::resolve::{resolve, RuleGraph};
+use dx_plan::resolve::{exclude, resolve, RuleGraph};
 use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::Path;
@@ -388,7 +388,13 @@ fn run_quality_request(
     if request.command == Command::Unused {
         // Without the graph every resolved target is analyzed, which is slower but still correct.
         let graph = RuleGraph::load(workspace, query_runner, &request.bazel_startup_options);
-        let top = graph.map(|graph| graph.top_level(&resolved.targets));
+        let top = graph.map(|graph| {
+            let mut top = graph.top_level(&resolved.targets);
+            top.retain(|target| {
+                resolved.kept.contains(target) || !exclude::covered(&resolved.excluded, target)
+            });
+            top
+        });
         if let Some(top) = top.ok().filter(|top| !top.is_empty()) {
             resolved.targets = top;
         }
@@ -425,6 +431,9 @@ fn run_quality_request(
         if let Err(exit) = check_stdout_write(writeln!(out, "{}", build.summary)) {
             return exit;
         }
+    }
+    if let Err(exit) = warn_scope_excluded(request.common.output, out, err, &resolved.kept) {
+        return exit;
     }
     // The probe runs after the start event, so a run whose stdout already failed starts no Bazel.
     let mut probe_counts = None;

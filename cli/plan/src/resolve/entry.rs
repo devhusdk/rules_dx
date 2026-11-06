@@ -3,29 +3,75 @@ use std::path::Path;
 use dx_process::Scope;
 
 use super::{
-    classify_scopes, owners_in_graph, tests_for_owners, PackageCache, QueryRunner, ResolveError,
-    ResolvedScope, RuleGraph, SelectionContext,
+    classify_scopes, exclude, owners_in_graph, tests_for_owners, PackageCache, QueryRunner,
+    ResolveError, ResolvedScope, RuleGraph, SelectionContext,
 };
 
+/// Expands `scopes` into Bazel targets, leaving out the `dx.toml` excludes.
 pub fn resolve(
     scopes: &[String],
     workspace: &Path,
     runner: &dyn QueryRunner,
     startup_options: &[String],
 ) -> Result<ResolvedScope, ResolveError> {
+    let excludes = exclude::load(workspace)?;
+    let resolved = expand(scopes, workspace, runner, startup_options)?;
+    exclude::apply(resolved, &excludes, scopes)
+}
+
+/// Like [`resolve`], but files map to the tests that depend on their owners.
+pub fn resolve_for_test_with_selection(
+    scopes: &[String],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+    selection: &SelectionContext,
+) -> Result<ResolvedScope, ResolveError> {
+    let excludes = exclude::load(workspace)?;
+    let resolved = expand_for_test(scopes, workspace, runner, startup_options, selection)?;
+    exclude::apply(resolved, &excludes, scopes)
+}
+
+fn whole_repo() -> ResolvedScope {
+    ResolvedScope {
+        scope: Scope::Repository,
+        targets: vec!["//...".to_owned()],
+        excluded: Vec::new(),
+        kept: Vec::new(),
+    }
+}
+
+fn owners(targets: Vec<String>) -> ResolvedScope {
+    ResolvedScope {
+        scope: Scope::ResolvedOwners(targets.clone()),
+        targets,
+        excluded: Vec::new(),
+        kept: Vec::new(),
+    }
+}
+
+fn labels(labels: Vec<String>) -> ResolvedScope {
+    ResolvedScope {
+        scope: Scope::Labels(labels.clone()),
+        targets: labels,
+        excluded: Vec::new(),
+        kept: Vec::new(),
+    }
+}
+
+fn expand(
+    scopes: &[String],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+) -> Result<ResolvedScope, ResolveError> {
     if scopes.is_empty() {
-        return Ok(ResolvedScope {
-            scope: Scope::Repository,
-            targets: vec!["//...".to_owned()],
-        });
+        return Ok(whole_repo());
     }
     let mut cache = PackageCache::default();
     let classified = classify_scopes(scopes, workspace, &mut cache)?;
     if classified.files.is_empty() && classified.patterns.is_empty() {
-        return Ok(ResolvedScope {
-            scope: Scope::Labels(classified.labels.clone()),
-            targets: classified.labels,
-        });
+        return Ok(labels(classified.labels));
     }
     let mut targets = classified.labels;
     if !classified.files.is_empty() {
@@ -35,13 +81,10 @@ pub fn resolve(
     targets.extend(classified.patterns);
     targets.sort();
     targets.dedup();
-    Ok(ResolvedScope {
-        scope: Scope::ResolvedOwners(targets.clone()),
-        targets,
-    })
+    Ok(owners(targets))
 }
 
-pub fn resolve_for_test_with_selection(
+fn expand_for_test(
     scopes: &[String],
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -49,28 +92,19 @@ pub fn resolve_for_test_with_selection(
     selection: &SelectionContext,
 ) -> Result<ResolvedScope, ResolveError> {
     if scopes.is_empty() {
-        return Ok(ResolvedScope {
-            scope: Scope::Repository,
-            targets: vec!["//...".to_owned()],
-        });
+        return Ok(whole_repo());
     }
     let mut cache = PackageCache::default();
     let classified = classify_scopes(scopes, workspace, &mut cache)?;
     if classified.files.is_empty() {
         if classified.patterns.is_empty() {
-            return Ok(ResolvedScope {
-                scope: Scope::Labels(classified.labels.clone()),
-                targets: classified.labels,
-            });
+            return Ok(labels(classified.labels));
         }
         let mut targets = classified.labels;
         targets.extend(classified.patterns);
         targets.sort();
         targets.dedup();
-        return Ok(ResolvedScope {
-            scope: Scope::ResolvedOwners(targets.clone()),
-            targets,
-        });
+        return Ok(owners(targets));
     }
     let graph = RuleGraph::load(workspace, runner, startup_options)?;
     let file_owners = owners_in_graph(&classified.files, &graph)?;
@@ -80,10 +114,7 @@ pub fn resolve_for_test_with_selection(
     targets.extend(tests);
     targets.sort();
     targets.dedup();
-    Ok(ResolvedScope {
-        scope: Scope::ResolvedOwners(targets.clone()),
-        targets,
-    })
+    Ok(owners(targets))
 }
 
 #[cfg(test)]

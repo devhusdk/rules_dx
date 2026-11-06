@@ -275,6 +275,10 @@ fn execute_checked(
             return exit;
         }
     }
+    if let Err(exit) = warn_scope_excluded(invocation.output, out, err, &resolved.kept) {
+        discard_log();
+        return exit;
+    }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
         Err(exit) => {

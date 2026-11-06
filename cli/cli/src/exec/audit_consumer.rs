@@ -424,7 +424,7 @@ source = { registry = "https://pypi.org/simple" }
             let update = dx_adopt::dependency_sets::resolve(&registry, &[selector.to_owned()])
                 .expect("update resolves");
             let audit =
-                super::super::resolve_configured_audit_sets(&registry, &[selector.to_owned()])
+                super::super::resolve_configured_audit_sets(&registry, &[selector.to_owned()], &[])
                     .expect("audit resolves");
             let mut update_names: Vec<&str> = update
                 .iter()
@@ -435,6 +435,36 @@ source = { registry = "https://pypi.org/simple" }
             audit_names.sort();
             assert_eq!(update_names, audit_names, "{selector}");
         }
+    }
+
+    #[test]
+    fn excluded_sets_and_secret_paths_are_skipped_unless_named() {
+        let registry = dx_adopt::dependency_sets::discover(UV_MODULE, &|rel| Err(rel.to_owned()))
+            .expect("registry")
+            .expect("present");
+        let excludes = vec!["//services/...".to_owned()];
+        let names = |selector: &str| -> Vec<String> {
+            super::super::resolve_configured_audit_sets(
+                &registry,
+                &[selector.to_owned()],
+                &excludes,
+            )
+            .expect("audit resolves")
+            .into_iter()
+            .map(|set| set.name)
+            .collect()
+        };
+        assert_eq!(names("//..."), ["pypi-frontend"]);
+        assert_eq!(names("pypi-worker"), ["pypi-worker"]);
+        assert_eq!(
+            super::super::excluded_dirs(&[
+                "//...".to_owned(),
+                "//third_party/...".to_owned(),
+                "//vendor/...:all".to_owned(),
+                "//pkg:all".to_owned(),
+            ]),
+            ["third_party/", "vendor/"]
+        );
     }
 
     const NPM_MODULE: &str = "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"frontend\", pnpm_lock = \"//apps/web:pnpm-lock.yaml\")\n";
@@ -642,7 +672,10 @@ source = { registry = "https://pypi.org/simple" }
             let (code, out, err) = run_with(&argv, &runner, &harness);
             assert_ne!(code, 0, "{extra:?} {out}{err}");
             assert!(out.contains("failed to assess gems"), "{out}{err}");
-            assert!(out.contains(".dx/local/advisory/rubygems.json"), "{out}{err}");
+            assert!(
+                out.contains(".dx/local/advisory/rubygems.json"),
+                "{out}{err}"
+            );
             assert!(!out.contains("no advisory coverage"), "{out}");
             assert!(!out.contains("audit_security_clean"), "{out}");
             if extra.is_some() {

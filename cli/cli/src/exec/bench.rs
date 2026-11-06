@@ -5,8 +5,7 @@ use dx_output::OutputMode;
 use dx_plan::args::Invocation;
 use dx_plan::plan::{bep_path, plan_workflow, WorkflowVerb};
 use dx_plan::resolve::{
-    resolve_for_test_with_selection, run_label_query_file, set_expression, ResolvedScope,
-    SelectionContext,
+    exclude, resolve_for_test_with_selection, run_label_query_file, ResolvedScope, SelectionContext,
 };
 use dx_process::Scope;
 use serde::{Deserialize, Serialize};
@@ -193,10 +192,10 @@ fn download_baseline(reference: &str, gh: &Path, scratch: &Path) -> Result<Vec<u
 }
 
 /// The query that keeps the `dx-bench` tagged tests of a scope.
-fn bench_expression(targets: &[String]) -> String {
+fn bench_expression(resolved: &ResolvedScope) -> String {
     format!(
         "attr(tags, \"[\\[ ]dx-bench[,\\]]\", tests({}))",
-        set_expression(targets)
+        exclude::query_set(resolved)
     )
 }
 
@@ -404,7 +403,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
     let tests = match run_label_query_file(
-        &bench_expression(&resolved.targets),
+        &bench_expression(&resolved),
         "dx-bench tests",
         workspace,
         query_runner,
@@ -435,6 +434,8 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
     let scope = ResolvedScope {
         scope: Scope::Labels(tests.clone()),
         targets: tests,
+        excluded: Vec::new(),
+        kept: Vec::new(),
     };
     let plan = match plan_workflow(
         WorkflowVerb::Bench,
@@ -551,10 +552,21 @@ mod tests {
 
     #[test]
     fn expression_matches_the_exact_tag_inside_tests() {
-        let got = bench_expression(&["//app:b".to_owned()]);
+        let mut resolved = ResolvedScope {
+            scope: Scope::Labels(vec!["//app:b".to_owned()]),
+            targets: vec!["//app:b".to_owned()],
+            excluded: Vec::new(),
+            kept: Vec::new(),
+        };
         assert_eq!(
-            got,
+            bench_expression(&resolved),
             "attr(tags, \"[\\[ ]dx-bench[,\\]]\", tests(set(\"//app:b\")))"
+        );
+        resolved.targets = vec!["//...".to_owned()];
+        resolved.excluded = vec!["//third_party/...".to_owned()];
+        assert_eq!(
+            bench_expression(&resolved),
+            "attr(tags, \"[\\[ ]dx-bench[,\\]]\", tests((set(\"//...\") except set(\"//third_party/...\"))))"
         );
     }
 

@@ -8,7 +8,7 @@ use super::common::*;
 use dx_plan::args::grammar::fuzz_seconds;
 use dx_plan::args::{Invocation, Profile};
 use dx_plan::plan::plan_run;
-use dx_plan::resolve::{quote_set, resolve, run_label_query_file};
+use dx_plan::resolve::{exclude, resolve, run_label_query_file};
 
 const DEFAULT_SECONDS: u64 = 60;
 const RESULT_FILE: &str = "mutants.json";
@@ -83,10 +83,7 @@ pub(crate) fn execute_mutate(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(scope) => scope,
         Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
-    let expression = format!(
-        "attr(tags, \"dx-mutate\", set({}))",
-        quote_set(&scope.targets)
-    );
+    let expression = format!("attr(tags, \"dx-mutate\", {})", exclude::query_set(&scope));
     let labels = match run_label_query_file(
         &expression,
         "dx-mutate targets",

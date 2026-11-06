@@ -2,6 +2,7 @@ pub mod changed;
 pub mod classify;
 pub mod codegen_expand;
 pub mod entry;
+pub mod exclude;
 #[cfg(test)]
 pub(crate) mod fake_query;
 pub mod graph_memo;

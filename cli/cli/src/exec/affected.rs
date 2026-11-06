@@ -4,7 +4,7 @@ use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
 use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::{
-    collect_range, collect_working_tree, local_override_changes, merge_base,
+    collect_range, collect_working_tree, exclude, local_override_changes, merge_base,
     missing_base_shallow_error, quote_set, resolve_affected, run_label_query_file, shallow_clone,
     AffectedSelection, QueryRunner, ResolveError, RuleGraph, WidenedScope,
 };
@@ -301,10 +301,13 @@ pub(crate) fn plan(
         .graph
         .take()
         .map_or_else(|| RuleGraph::load(workspace, runner, startup_options), Ok)?;
-    let rules = graph.affected(&selection.targets);
+    let excludes = exclude::load(workspace)?;
+    let mut rules = graph.affected(&selection.targets);
+    rules.retain(|rule| !exclude::covered(&excludes, rule));
     let tests = if tests_only(command) || command == Command::Check {
-        let (tests, external) =
+        let (mut tests, external) =
             split_external(tests_of(&rules, workspace, runner, startup_options)?);
+        tests.retain(|test| !exclude::covered(&excludes, test));
         plan.skipped_external = external;
         tests
     } else {
@@ -946,6 +949,32 @@ mod tests {
         assert!(!summary.contains("//..."), "{summary}");
         let (plan, _) = run(root, Command::Test, &[&graph, "//a:t\n"]);
         assert_eq!(plan.targets, ["//a:t"]);
+    }
+
+    #[test]
+    fn a_change_only_under_an_excluded_package_selects_nothing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        git(root, &["init", "--quiet", "--initial-branch=main"]);
+        write(root, "MODULE.bazel", "module(name = \"x\")\n");
+        write(
+            root,
+            "dx.toml",
+            "schema_version = 1\n[scope]\nexclude = [\"//a/...\"]\n",
+        );
+        write(root, "a/BUILD.bazel", "");
+        write(root, "a/a.txt", "a\n");
+        git(root, &["add", "."]);
+        git(root, &["commit", "--quiet", "-m", "base"]);
+        git(root, &["checkout", "--quiet", "-b", "topic"]);
+        write(root, "a/a.txt", "changed\n");
+        let graph = graph();
+        for command in [Command::Build, Command::Test, Command::Check, Command::Lint] {
+            let (plan, runner) = run(root, command, &[&graph]);
+            assert!(plan.targets.is_empty(), "{command:?}: {:?}", plan.targets);
+            assert!(plan.tests.is_empty(), "{command:?}");
+            assert_eq!(runner.expressions.borrow().len(), 1, "no tests query");
+        }
     }
 
     #[test]

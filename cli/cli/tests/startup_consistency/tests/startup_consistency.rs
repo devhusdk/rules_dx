@@ -31,6 +31,8 @@ fn resolved() -> ResolvedScope {
     ResolvedScope {
         scope: Scope::Labels(vec!["//a:x".to_owned()]),
         targets: vec!["//a:x".to_owned()],
+        excluded: Vec::new(),
+        kept: Vec::new(),
     }
 }
 

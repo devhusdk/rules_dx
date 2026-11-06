@@ -616,6 +616,9 @@ pub fn build_workflow_argv_with(
     argv.extend(verb_options);
     argv.extend(canonical);
     argv.extend(required_options.iter().cloned());
+    if labels.iter().any(|label| label.starts_with('-')) {
+        argv.push("--".to_owned());
+    }
     argv.extend(labels.iter().cloned());
     Ok(argv)
 }

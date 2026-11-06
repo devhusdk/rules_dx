@@ -181,6 +181,8 @@ mod tests {
                 Scope::Labels(strings(targets))
             },
             targets: strings(targets),
+            excluded: Vec::new(),
+            kept: Vec::new(),
         }
     }
 
@@ -395,6 +397,8 @@ mod tests {
         let resolved_owners = ResolvedScope {
             scope: Scope::ResolvedOwners(strings(&["//a:one"])),
             targets: strings(&["//a:one"]),
+            excluded: Vec::new(),
+            kept: Vec::new(),
         };
         assert_eq!(
             generate_scope_elements(&resolved_owners),
@@ -403,5 +407,16 @@ mod tests {
                 dirs: vec!["a".to_owned()],
             }]
         );
+    }
+
+    #[test]
+    fn excluded_dirs_are_not_traversed() {
+        let resolved = crate::resolve::exclude::apply(
+            resolved(&["//app/...", "//third_party/x/..."]),
+            &strings(&["//third_party/..."]),
+            &strings(&["app", "third_party/x"]),
+        )
+        .expect("apply");
+        assert_eq!(generate_traversal_dirs(&resolved), strings(&["app"]));
     }
 }

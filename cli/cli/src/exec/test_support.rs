@@ -1368,3 +1368,74 @@ pub(crate) fn closed_pipe() -> io::PipeWriter {
     drop(reader);
     writer
 }
+
+#[cfg(test)]
+mod scope_exclude_tests {
+    use super::*;
+
+    const DX_TOML: &str = "schema_version = 1\n[scope]\nexclude = [\"//third_party/...\"]\n";
+
+    fn excluding_harness(name: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("dx.toml", DX_TOML);
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![]),
+        );
+        harness
+    }
+
+    fn labels_of(argv: &[String]) -> Vec<String> {
+        let start = argv.iter().position(|arg| arg == "--").expect("separator") + 1;
+        argv[start..].to_vec()
+    }
+
+    #[test]
+    fn every_family_leaves_excluded_packages_out_of_bazel() {
+        for command in ["build", "test", "coverage", "lint", "format"] {
+            let harness = excluding_harness(&format!("exclude-{command}"));
+            let (_, _, err) = harness.run(&[command, "--output=text"]);
+            let builds = harness.build_argv.borrow();
+            let argv = builds.last().unwrap_or_else(|| panic!("{command}: {err}"));
+            assert_eq!(
+                labels_of(argv),
+                ["//...", "-//third_party/..."],
+                "{command}: {argv:?}"
+            );
+            assert!(
+                !argv
+                    .iter()
+                    .any(|arg| arg.starts_with("--") && arg.contains("third_party")),
+                "{command}: no Bazel flag names the exclude: {argv:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_named_label_under_an_exclude_runs_with_a_notice() {
+        let harness = excluding_harness("exclude-named");
+        let (_, _, err) = harness.run(&["build", "//third_party/x:y", "--output=text"]);
+        let builds = harness.build_argv.borrow();
+        let argv = builds.last().expect("build ran");
+        assert_eq!(argv.last().map(String::as_str), Some("//third_party/x:y"));
+        assert!(!argv.contains(&"--".to_owned()), "{argv:?}");
+        assert!(
+            err.contains("dx: scope_excluded: //third_party/x:y"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn a_bad_exclude_fails_before_bazel_runs() {
+        let harness = Harness::new("exclude-bad");
+        harness.write_source(
+            "dx.toml",
+            "schema_version = 1\n[scope]\nexclude = [\"oops\"]\n",
+        );
+        let (code, _, err) = harness.run(&["build", "--output=text"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("invalid dx.toml"), "{err}");
+        assert!(harness.build_argv.borrow().is_empty());
+    }
+}

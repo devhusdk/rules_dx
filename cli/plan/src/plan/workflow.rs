@@ -2,7 +2,7 @@ use dx_process::{describe_scope, ForwardError, ProtectedFlag};
 
 use super::{
     bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
-    exec_log_options, profile_options, workflow_scope_labels, BuildPlan, SKIP_INCOMPATIBLE_FLAG,
+    exec_log_options, profile_options, workflow_bazel_labels, BuildPlan, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::resolve::ResolvedScope;
 
@@ -126,7 +126,7 @@ pub fn plan_workflow(
         .collect();
     options.extend(crate::args::filter_profile_configs(bazel_options, profile)?);
     let bazel_options = profile_options(profile, &options);
-    let (scope, labels) = workflow_scope_labels(resolved);
+    let (scope, labels) = workflow_bazel_labels(resolved);
     let argv = bazel_argv(
         verb.bazel_command(),
         &bazel_options,
@@ -154,6 +154,8 @@ mod tests {
                 Scope::Labels(strings(targets))
             },
             targets: strings(targets),
+            excluded: Vec::new(),
+            kept: Vec::new(),
         }
     }
 

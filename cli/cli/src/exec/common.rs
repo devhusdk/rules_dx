@@ -205,6 +205,7 @@ pub(crate) const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
 /// reclaim uses the looser `dx_worktree::disk::is_low` rule instead, so the two are
 /// distinct signals.
 pub(crate) const CODE_DISK_LOW: &str = "disk_low";
+pub(crate) const CODE_SCOPE_EXCLUDED: &str = "scope_excluded";
 pub(crate) const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
 pub(crate) const CODE_INVALID_BEP: &str = "invalid_bep";
 pub(crate) const CODE_DIFF_FAILED: &str = "diff_failed";
@@ -826,6 +827,29 @@ pub(crate) fn run_bazel_withdrawable(
             bazel_exit(invocation.output, out, err, runner, workspace, argv, status).map(Some)
         }
     }
+}
+
+/// Notes on stderr, and with a JSON notice, each named target a `dx.toml` exclude covers.
+/// Named targets still run: the command line beats the config.
+pub(crate) fn warn_scope_excluded(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    kept: &[String],
+) -> Result<(), i32> {
+    for label in kept {
+        let message = format!(
+            "{label} is excluded by dx.toml [scope] exclude; running it because it was named"
+        );
+        let _ = writeln!(err, "dx: {CODE_SCOPE_EXCLUDED}: {message}");
+        if output == OutputMode::Json {
+            emit_built(
+                out,
+                notice_event(&NoticeEvent::warning(CODE_SCOPE_EXCLUDED, message)),
+            )?;
+        }
+    }
+    Ok(())
 }
 
 /// Warns on stderr, and with a JSON notice, when a disk Bazel writes to is nearly full.

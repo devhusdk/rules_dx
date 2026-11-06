@@ -40,6 +40,10 @@ impl QueryRunner for NeverQuery {
 pub struct ResolvedScope {
     pub scope: Scope,
     pub targets: Vec<String>,
+    /// `dx.toml` exclude patterns that fall inside `targets`; Bazel gets them as `-pattern`.
+    pub excluded: Vec<String>,
+    /// Targets named on the command line that an exclude pattern covers; they still run.
+    pub kept: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -112,6 +116,13 @@ pub enum ResolveError {
         "not_deployable {label}: target provides no DxDeployInfo and is not executable; pass a dx_deployment target or an executable"
     )]
     NotDeployable { label: String },
+    #[error("invalid dx.toml: {message}")]
+    Config { message: String },
+    #[error(
+        "every target in {scopes} is excluded by dx.toml [scope] exclude: name a label explicitly to run it anyway",
+        scopes = scopes.join(" ")
+    )]
+    AllExcluded { scopes: Vec<String> },
     #[error("query {label} failed: {failure}")]
     QueryFailed {
         label: String,

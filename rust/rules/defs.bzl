@@ -665,7 +665,7 @@ _rust_wasi_run_test = rule(
         "data": attr.label_list(doc = "Files the test needs at run time.", allow_files = True),
         "guest_env": attr.string_dict(doc = "Environment variables the guest sees."),
         "preopens": attr.string_keyed_label_dict(doc = "Guest directory to the file staged there.", allow_files = True),
-        "runtime": attr.label(doc = "The WASI runtime.", default = _WASMTIME, allow_single_file = True),
+        "runtime": attr.label(doc = "The WASI runtime. On Windows it must be a native `.exe`, `.cmd` or `.bat`.", default = _WASMTIME, allow_single_file = True),
         "srcs": attr.label_list(doc = "The test crate sources.", allow_files = True),
         "upstream": attr.label(doc = "The test crate built for wasm32-wasip1.", mandatory = True, cfg = _wasi_test_transition),
         "_managed": attr.label(default = _WASMTIME, allow_single_file = True),

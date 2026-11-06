@@ -13,6 +13,7 @@ exports_files([
     "build.rs",
     "data/input.txt",
     "data/secret.txt",
+    "injecting_runtime.cmd",
     "injecting_runtime.sh",
     "macros/lib.rs",
     "src/lib.rs",
@@ -141,7 +142,10 @@ rust_test(
     srcs = ["src/custom_runtime_test.rs"],
     crate_root = "src/custom_runtime_test.rs",
     edition = "2021",
-    runtime = "injecting_runtime.sh",
+    runtime = select({
+        "@platforms//os:windows": "injecting_runtime.cmd",
+        "//conditions:default": "injecting_runtime.sh",
+    }),
     wasm = "wasi",
     deps = [":consumer_wasi_lib"],
 )

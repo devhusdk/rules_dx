@@ -9,6 +9,7 @@ file examples/shared-rust/cli/main.rs
 file examples/shared-rust/consumer_report.rs
 file examples/shared-rust/consumer_report_test.rs
 file examples/shared-rust/core/lib.rs
+file examples/shared-rust/custom_runtime.cmd
 file examples/shared-rust/custom_runtime.sh
 file examples/shared-rust/model/lib.rs
 file examples/shared-rust/runtime_test.rs

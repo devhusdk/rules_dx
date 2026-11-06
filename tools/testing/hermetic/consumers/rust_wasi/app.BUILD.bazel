@@ -113,7 +113,10 @@ rust_test(
     name = "runtime_test",
     srcs = ["runtime_test.rs"],
     env = {"DX_WASI_NOTE": "declared"},
-    runtime = "custom_runtime.sh",
+    runtime = select({
+        "@platforms//os:windows": "custom_runtime.cmd",
+        "//conditions:default": "custom_runtime.sh",
+    }),
     tags = ["block-network"],
     wasm = "wasi",
 )

@@ -2,6 +2,8 @@ load("//cc/rules:defs.bzl", "cc_binary")
 load("//deploy/rules:image.bzl", "oci_image_from_binary")
 load("//deploy/rules:oci.bzl", "oci_deploy")
 load("//go/rules:defs.bzl", "go_binary")
+load("//java/rules:defs.bzl", "java_binary")
+load("//python/rules:defs.bzl", "python_binary")
 load("//rust/rules:defs.bzl", "rust_binary")
 load("//zig/rules:defs.bzl", "zig_binary")
 
@@ -65,4 +67,32 @@ zig_binary(
 oci_image_from_binary(
     name = "image_zig",
     binary = ":hello_zig",
+)
+
+python_binary(
+    name = "hello_py",
+    srcs = ["hello.py"],
+    main = "hello.py",
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_py",
+    base = "python",
+    binary = ":hello_py",
+    main = "deploy/rules/image_demo/hello.py",
+)
+
+java_binary(
+    name = "hello_java",
+    srcs = ["Hello.java"],
+    main_class = "Hello",
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_java",
+    base = "java",
+    binary = ":hello_java",
+    main_class = "Hello",
 )

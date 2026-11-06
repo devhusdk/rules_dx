@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 34] = [
+const EXPECTED_NAMES: [&str; 35] = [
     "dx_crates",
     "dx_dart_deps",
     "dx_dart_padded_archive",
@@ -39,6 +39,7 @@ const EXPECTED_NAMES: [&str; 34] = [
     "maven",
     "npm_node_app",
     "nuget",
+    "ocaml_app",
     "rules_android_maven",
     "swiftpm",
 ];

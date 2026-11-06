@@ -14901,7 +14901,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "CV89Q+OHmoh3BvyUosk52eqzPcKMosmaI/XarqgnVBw=",
+        "bzlTransitiveDigest": "KRnR9BxhIlzV982T/j9/Zc7ZfS4EDZ8r0EcN110XcKg=",
         "usagesDigest": "/bGmDj4Nr856OGWTjcSOPnxG0gSTFtYse380wG1a98A=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",

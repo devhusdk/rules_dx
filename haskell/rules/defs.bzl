@@ -18,7 +18,14 @@ HASKELL_CELLS = qualified_cells()
 
 HASKELL_COMPATIBLE_WITH = cells_compatible_with(CELLS, "//haskell/toolchain", HASKELL_CELLS, unsupported = True)
 
-DEFAULT_GHCOPTS = ["-Wall"]
+STANDARD_GHCOPTS = ["-Wall"]
+
+STRICT_GHCOPTS = ["-Wall", "-Wcompat", "-Wredundant-constraints", "-Wpartial-fields", "-Widentities"]
+
+DEFAULT_GHCOPTS = select({
+    Label("//config:config_profile_strict"): STRICT_GHCOPTS,
+    "//conditions:default": STANDARD_GHCOPTS,
+})
 
 WERROR_GHCOPTS = ["-Werror"]
 
@@ -72,7 +79,7 @@ def upstream_kwargs(kwargs):
     """Returns the rules_haskell kwargs with ghcopts plus the warnings-as-errors flag."""
     upstream, werror = dx_warnings_as_errors(kwargs, WERROR_GHCOPTS)
     ghcopts = upstream.get("ghcopts")
-    upstream["ghcopts"] = (list(DEFAULT_GHCOPTS) if ghcopts == None else ghcopts) + werror
+    upstream["ghcopts"] = (DEFAULT_GHCOPTS if ghcopts == None else ghcopts) + werror
     return upstream
 
 def with_gmp(deps, gmp = GMP):

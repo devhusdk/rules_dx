@@ -28,17 +28,26 @@ def cmt_entries(srcs, cmts, cmtis):
         cmti = cmti,
     )]
 
-UNUSED_WARNING_OPTS = ["-w", "+26+27+32..39"]
+STANDARD_WARNING_OPTS = ["-w", "+a-4-40-42-44-70"]
 
-def unused_warning_opts(opts):
-    """Returns opts with the unused-code warnings added unless the target sets its own -w.
+STRICT_WARNING_OPTS = ["-w", "+a-4-70", "-alert", "-deprecated"]
+
+WERROR_OPTS = ["-warn-error", "+a-3"]
+
+PROFILE_WARNING_OPTS = select({
+    Label("//config:config_profile_strict"): STRICT_WARNING_OPTS,
+    "//conditions:default": STANDARD_WARNING_OPTS,
+})
+
+def profile_warning_opts(opts):
+    """Returns opts with the warning set of the config profile added unless the target sets its own -w.
 
     Args:
       opts: The target's opts, a list or a select.
     """
     if type(opts) == "list" and "-w" in opts:
         return opts
-    return opts + UNUSED_WARNING_OPTS
+    return opts + PROFILE_WARNING_OPTS
 
 def bin_annot_opts(opts):
     """Returns opts with -bin-annot added unless the target sets -no-bin-annot or already has -bin-annot.

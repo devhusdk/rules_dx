@@ -28,3 +28,8 @@ ocaml_module(
     name = "dirty",
     struct = "dirty.ml",
 )
+
+ocaml_module(
+    name = "shadow",
+    struct = "shadow.ml",
+)

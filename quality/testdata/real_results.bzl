@@ -7,11 +7,13 @@ load("//quality/testdata:real_unused_subject.bzl", "real_unused_subject")
 load("//quality/testdata:runner_matrix_tests.bzl", "compatible")
 
 _COMPILER = str(Label("//cc/toolchains:compiler"))
+_PROFILE = str(Label("//config:config_profile"))
 
 def _policy_transition_impl(settings, attr):
     """Selects the workspace policy and, when set, the C++ compiler."""
     return {
         _COMPILER: attr.compiler or settings[_COMPILER],
+        _PROFILE: attr.config_profile or settings[_PROFILE],
         "//config:errcheck_flags": attr.errcheck_flags,
         "//config:govet_analyzers": attr.govet_analyzers,
         "//config:tool_dialyzer": str(attr.tool_dialyzer),
@@ -25,9 +27,10 @@ def _policy_transition_impl(settings, attr):
 
 _policy_transition = transition(
     implementation = _policy_transition_impl,
-    inputs = [_COMPILER],
+    inputs = [_COMPILER, _PROFILE],
     outputs = [
         _COMPILER,
+        _PROFILE,
         "//config:errcheck_flags",
         "//config:govet_analyzers",
         "//config:tool_dialyzer",
@@ -48,6 +51,7 @@ _results = rule(
     implementation = _results_impl,
     attrs = {
         "compiler": attr.string(),
+        "config_profile": attr.string(),
         "errcheck_flags": attr.string_list(),
         "govet_analyzers": attr.string_list(),
         "policy": attr.string(mandatory = True),
@@ -58,13 +62,14 @@ _results = rule(
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, govet_analyzers = [], errcheck_flags = [], compiler = "", typecheck_subject = False, unused_subject = False, rustc_flags = [], target_compatible_with = None, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, govet_analyzers = [], errcheck_flags = [], compiler = "", typecheck_subject = False, unused_subject = False, rustc_flags = [], config_profile = "", target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     subject_rule = real_unused_subject if unused_subject else (real_typecheck_subject if typecheck_subject else real_aspect_subject)
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
     _results(
         name = name + "_results",
         compiler = compiler,
+        config_profile = config_profile,
         errcheck_flags = errcheck_flags,
         govet_analyzers = govet_analyzers,
         rustc_flags = rustc_flags,

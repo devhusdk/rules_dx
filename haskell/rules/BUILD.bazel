@@ -2,7 +2,7 @@ load("//haskell/toolchain:pins.bzl", "qualified_cells")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "haskell_kwargs", "upstream_kwargs", "with_gmp")
+load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "haskell_kwargs", "upstream_kwargs", "with_gmp")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -14,9 +14,25 @@ dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     extra_checks = [
         expect_equal(
-            "the default ghcopts are -Wall",
-            DEFAULT_GHCOPTS,
+            "the standard ghcopts are -Wall",
+            STANDARD_GHCOPTS,
             ["-Wall"],
+        ),
+        expect_equal(
+            "the strict ghcopts add the extra warnings",
+            STRICT_GHCOPTS,
+            [
+                "-Wall",
+                "-Wcompat",
+                "-Wredundant-constraints",
+                "-Wpartial-fields",
+                "-Widentities",
+            ],
+        ),
+        expect_equal(
+            "the default ghcopts follow the profile",
+            type(DEFAULT_GHCOPTS),
+            "select",
         ),
         expect_equal(
             "warnings follow the repo flag by default",
@@ -25,7 +41,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "-Werror can be forced on",
-            upstream_kwargs({"treat_warnings_as_errors": True})["ghcopts"],
+            upstream_kwargs({"ghcopts": ["-Wall"], "treat_warnings_as_errors": True})["ghcopts"],
             [
                 "-Wall",
                 "-Werror",
@@ -33,7 +49,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "-Werror can be forced off",
-            upstream_kwargs({"treat_warnings_as_errors": False})["ghcopts"],
+            upstream_kwargs({"ghcopts": ["-Wall"], "treat_warnings_as_errors": False})["ghcopts"],
             ["-Wall"],
         ),
         expect_equal(

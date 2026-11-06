@@ -34,3 +34,10 @@ haskell_library(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = ["@dx_haskell_toolchains//:base"],
 )
+
+haskell_library(
+    name = "redundant",
+    srcs = ["Redundant.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = ["@dx_haskell_toolchains//:base"],
+)

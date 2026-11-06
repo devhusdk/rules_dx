@@ -272,6 +272,12 @@ fn warnings_flag(repo: &str, on: bool) -> String {
     format!("common --@{repo}//config:warnings_as_errors={on}")
 }
 
+/// The flag that sets `config_profile`, the compiler warning set, from the same profile.
+fn config_profile_flag(repo: &str, strict: bool) -> String {
+    let name = if strict { "strict" } else { "standard" };
+    format!("common --@{repo}//config:config_profile={name}")
+}
+
 /// The comment above the `warnings_as_errors` line.
 const WARNINGS_COMMENT: &str = "Compiler warnings fail the build under the strict profile.";
 
@@ -294,8 +300,9 @@ pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bo
     }
     if let (Layer::Correctness, Some(on)) = (layer, warnings_as_errors) {
         out.push_str(&format!(
-            "\n# {WARNINGS_COMMENT}\n{}\n",
-            warnings_flag(repo, on)
+            "\n# {WARNINGS_COMMENT}\n{}\n{}\n",
+            warnings_flag(repo, on),
+            config_profile_flag(repo, on)
         ));
     }
     out
@@ -703,6 +710,10 @@ mod tests {
                 "common --@my_dx//config:warnings_as_errors={on}\n"
             )));
             assert_eq!(layer_warnings_as_errors(&text), Some(on));
+            let profile = if on { "strict" } else { "standard" };
+            assert!(text.contains(&format!(
+                "common --@my_dx//config:config_profile={profile}\n"
+            )));
             assert!(layer_is_current_with(
                 &text,
                 Layer::Correctness,

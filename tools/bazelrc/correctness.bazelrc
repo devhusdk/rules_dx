@@ -58,3 +58,4 @@ build --@rules_dx//config:rustc_output_diagnostics=true
 
 # Compiler warnings fail the build under the strict profile.
 common --@rules_dx//config:warnings_as_errors=true
+common --@rules_dx//config:config_profile=strict

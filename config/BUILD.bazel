@@ -16,6 +16,15 @@ bool_flag(
     build_setting_default = True,
 )
 
+string_flag(
+    name = "config_profile",
+    build_setting_default = "standard",
+    values = [
+        "standard",
+        "strict",
+    ],
+)
+
 bool_flag(
     name = "lint_online",
     build_setting_default = False,
@@ -51,6 +60,11 @@ string_flag(
         "medium",
         "low",
     ],
+)
+
+config_setting(
+    name = "config_profile_strict",
+    flag_values = {":config_profile": "strict"},
 )
 
 config_setting(

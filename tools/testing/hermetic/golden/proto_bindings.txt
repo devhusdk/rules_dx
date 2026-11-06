@@ -12,8 +12,8 @@ file go.sum
 file go/greeting.go
 file go/greeting_test.go
 file java/Greeter.java
-file py/greeting.py
-file py/greeting_test.py
+file pylib/greeting.py
+file pylib/greeting_test.py
 bazel_dep platforms
 bazel_dep rules_cc
 bazel_dep rules_go

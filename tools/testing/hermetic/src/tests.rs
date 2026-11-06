@@ -282,6 +282,7 @@ fn isolation_script_masks_before_dropping_to_the_real_user() {
         gid: 118,
         launcher: PathBuf::new(),
         grants: Vec::new(),
+        denies: Vec::new(),
     };
     assert_eq!(
         isolation.script(Net::Denied),
@@ -1542,6 +1543,7 @@ fn windows_command_runs_the_launcher_with_grants_and_network_flag() {
     let isolation = Isolation {
         launcher: PathBuf::from("appcontainer_run.exe"),
         grants: vec![PathBuf::from("C:\\q\\work"), PathBuf::from("C:\\tools")],
+        denies: vec![PathBuf::from("C:\\q\\secret")],
         ..Isolation::default()
     };
     let inner = ["cmd.exe".to_owned(), "/c".to_owned()];
@@ -1559,17 +1561,21 @@ fn windows_command_runs_the_launcher_with_grants_and_network_flag() {
     assert_eq!(
         denied[2..],
         [
+            "--backend",
+            "user",
             "--grant",
             "C:\\q\\work",
             "--grant",
             "C:\\tools",
+            "--deny",
+            "C:\\q\\secret",
             "--",
             "cmd.exe",
             "/c"
         ]
     );
     let allowed = args(Net::Allowed);
-    assert_eq!(allowed[2], "--net");
+    assert_eq!(allowed[4], "--net");
     assert_ne!(allowed[1], denied[1]);
 }
 

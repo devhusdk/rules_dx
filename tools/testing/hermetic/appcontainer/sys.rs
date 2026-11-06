@@ -37,19 +37,20 @@ const ALREADY_EXISTS: i32 = 0x800700B7_u32 as i32;
 const SE_GROUP_ENABLED: u32 = 4;
 const PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES: usize = 0x0002_0009;
 const EXTENDED_STARTUPINFO_PRESENT: u32 = 0x0008_0000;
-const CREATE_SUSPENDED: u32 = 0x4;
-const CREATE_UNICODE_ENVIRONMENT: u32 = 0x400;
-const STARTF_USESTDHANDLES: u32 = 0x100;
+pub(crate) const CREATE_SUSPENDED: u32 = 0x4;
+pub(crate) const CREATE_UNICODE_ENVIRONMENT: u32 = 0x400;
+pub(crate) const STARTF_USESTDHANDLES: u32 = 0x100;
 const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: u32 = 0x2000;
 const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS: i32 = 9;
-const INFINITE: u32 = 0xFFFF_FFFF;
+pub(crate) const INFINITE: u32 = 0xFFFF_FFFF;
 const FILE_ALL_ACCESS: u32 = 0x001F_01FF;
 // FILE_GENERIC_READ | FILE_TRAVERSE: list a directory and pass through it.
 const FILE_LIST_TRAVERSE: u32 = 0x0012_00A9;
 const NO_INHERITANCE: u32 = 0;
 const SECURITY_DESCRIPTOR_REVISION: u32 = 1;
-const GRANT_ACCESS: i32 = 1;
-const REVOKE_ACCESS: i32 = 4;
+pub(crate) const GRANT_ACCESS: i32 = 1;
+pub(crate) const DENY_ACCESS: i32 = 3;
+pub(crate) const REVOKE_ACCESS: i32 = 4;
 const SUB_CONTAINERS_AND_OBJECTS_INHERIT: u32 = 3;
 const TRUSTEE_IS_SID: i32 = 0;
 const TRUSTEE_IS_UNKNOWN: i32 = 0;
@@ -64,14 +65,14 @@ const MOUNT_MANAGER: &str = r"\\.\MountPointManager";
 // S-1-15-3-1 internetClient, S-1-15-3-3 privateNetworkClientServer.
 const NET_CAPABILITIES: [&str; 2] = ["S-1-15-3-1", "S-1-15-3-3"];
 
-fn wide(text: &str) -> Vec<u16> {
+pub(crate) fn wide(text: &str) -> Vec<u16> {
     std::ffi::OsStr::new(text)
         .encode_wide()
         .chain(Some(0))
         .collect()
 }
 
-fn check(code: u32, what: &str) -> Result<(), String> {
+pub(crate) fn check(code: u32, what: &str) -> Result<(), String> {
     if code == ERROR_SUCCESS {
         Ok(())
     } else {
@@ -80,7 +81,7 @@ fn check(code: u32, what: &str) -> Result<(), String> {
 }
 
 /// The user's default environment, used to fill in what the parent lacks.
-fn user_defaults() -> Result<Vec<(String, String)>, String> {
+pub(crate) fn user_defaults() -> Result<Vec<(String, String)>, String> {
     let mut token: HANDLE = null_mut();
     if unsafe {
         OpenProcessToken(
@@ -150,7 +151,7 @@ fn profile_sid(name: &str) -> Result<*mut c_void, String> {
 }
 
 /// Adds (or removes) an inheritable full-access entry for the container on one path.
-fn set_access(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
+pub(crate) fn set_access(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
     let wpath = wide(path);
     let mut old: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
@@ -354,7 +355,7 @@ fn set_mount_manager(sid: *mut c_void, mode: i32) -> Result<(), String> {
     result
 }
 
-fn kill_on_close_job() -> Result<HANDLE, String> {
+pub(crate) fn kill_on_close_job() -> Result<HANDLE, String> {
     let job = unsafe { CreateJobObjectW(null(), null()) };
     if job.is_null() {
         return Err("cannot create the job object".to_owned());

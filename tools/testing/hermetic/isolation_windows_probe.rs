@@ -1,4 +1,4 @@
-//! Runs inside the AppContainer: `connect ADDR`, `loopback`, `serve`, `parent`, `read PATH` or `canon PATH`.
+//! Runs inside the isolated account: `connect ADDR`, `loopback`, `serve`, `parent`, `read PATH` or `canon PATH`.
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::process::{Command, Stdio};

@@ -709,10 +709,12 @@ pub struct Isolation {
     pub ip: PathBuf,
     pub uid: u32,
     pub gid: u32,
-    /// The Windows AppContainer launcher, from `DX_HERMETIC_APPCONTAINER`.
+    /// The Windows launcher, from `DX_HERMETIC_APPCONTAINER`.
     pub launcher: PathBuf,
-    /// The paths the AppContainer may use: everything the run itself needs.
+    /// The paths the Windows run may use: everything the run itself needs.
     pub grants: Vec<PathBuf>,
+    /// Paths the Windows user backend must not read, even where the account could.
+    pub denies: Vec<PathBuf>,
 }
 
 impl Isolation {
@@ -782,6 +784,7 @@ impl Isolation {
                 .map(PathBuf::from)
                 .unwrap_or_default(),
             grants: keep.to_vec(),
+            denies: Vec::new(),
         })
     }
 
@@ -850,7 +853,7 @@ fn profile_path(path: &Path) -> String {
 }
 
 impl Isolation {
-    /// Wraps one command in a per-run Windows AppContainer made by the launcher.
+    /// Wraps one command in a per-run throwaway Windows account made by the launcher.
     pub fn windows_command(&self, net: Net, inner: &[String]) -> Command {
         static RUNS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let run = RUNS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -858,6 +861,8 @@ impl Isolation {
         command.args([
             "--name",
             &format!("dx-hermetic-{}-{run}", std::process::id()),
+            "--backend",
+            "user",
         ]);
         if net == Net::Allowed {
             command.arg("--net");
@@ -865,6 +870,11 @@ impl Isolation {
         for grant in &self.grants {
             let text = grant.to_string_lossy();
             command.arg("--grant");
+            command.arg(text.strip_prefix(r"\\?\").unwrap_or(&text));
+        }
+        for deny in &self.denies {
+            let text = deny.to_string_lossy();
+            command.arg("--deny");
             command.arg(text.strip_prefix(r"\\?\").unwrap_or(&text));
         }
         command.arg("--");

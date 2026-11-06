@@ -126,6 +126,7 @@ rust_binary(
         "appcontainer/args.rs",
         "appcontainer/main.rs",
         "appcontainer/sys.rs",
+        "appcontainer/user.rs",
     ],
     aliases = aliases(
         package_name = "tools/dx_testing",

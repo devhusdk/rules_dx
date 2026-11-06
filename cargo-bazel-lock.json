@@ -1,5 +1,5 @@
 {
-  "checksum": "240abc4581b8574143bf4e7e69e21038f2ba2008dbf18603f79c0170fae91e6c",
+  "checksum": "f88e5deb5376407c3c7074d4a57cd0a1d1c809cf26d8e0bc0c3a42a0421c28db",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -27106,7 +27106,12 @@
         "crate_features": [
           "Win32",
           "Win32_Foundation",
+          "Win32_NetworkManagement",
+          "Win32_NetworkManagement_NetManagement",
+          "Win32_NetworkManagement_WindowsFilteringPlatform",
           "Win32_Security",
+          "Win32_Security_Authentication",
+          "Win32_Security_Authentication_Identity",
           "Win32_Security_Authorization",
           "Win32_Security_Cryptography",
           "Win32_Security_Isolation",
@@ -27117,12 +27122,14 @@
           "Win32_System_Environment",
           "Win32_System_IO",
           "Win32_System_JobObjects",
+          "Win32_System_Rpc",
           "Win32_System_SystemInformation",
           "Win32_System_Threading",
           "Win32_System_WindowsProgramming",
           "Win32_UI",
           "Win32_UI_Input",
           "Win32_UI_Input_KeyboardAndMouse",
+          "Win32_UI_Shell",
           "default"
         ],
         "deps": [

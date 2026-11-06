@@ -1,23 +1,42 @@
-//! Command line of the AppContainer launcher: `--name N [--net] [--grant P]... -- cmd args`.
+//! Command line of the Windows launcher:
+//! `--name N [--backend appcontainer|user] [--net] [--grant P]... [--deny P]... -- cmd args`.
 #![cfg_attr(test, allow(dead_code))]
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backend {
+    AppContainer,
+    User,
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Config {
     pub name: String,
+    pub backend: Backend,
     pub net: bool,
     pub grants: Vec<String>,
+    pub denies: Vec<String>,
     pub command: Vec<String>,
 }
 
 pub fn parse(args: &[String]) -> Result<Config, String> {
     let mut name = None;
     let mut net = false;
+    let mut backend = Backend::AppContainer;
     let mut grants = Vec::new();
+    let mut denies = Vec::new();
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--name" => name = Some(iter.next().ok_or("--name needs a value")?.clone()),
             "--grant" => grants.push(iter.next().ok_or("--grant needs a path")?.clone()),
+            "--deny" => denies.push(iter.next().ok_or("--deny needs a path")?.clone()),
+            "--backend" => {
+                backend = match iter.next().ok_or("--backend needs a value")?.as_str() {
+                    "appcontainer" => Backend::AppContainer,
+                    "user" => Backend::User,
+                    other => return Err(format!("unknown backend {other}")),
+                }
+            }
             "--net" => net = true,
             "--" => {
                 let command: Vec<String> = iter.cloned().collect();
@@ -34,8 +53,10 @@ pub fn parse(args: &[String]) -> Result<Config, String> {
                 }
                 return Ok(Config {
                     name,
+                    backend,
                     net,
                     grants,
+                    denies,
                     command,
                 });
             }
@@ -90,6 +111,34 @@ pub fn ancestors(grants: &[String]) -> Result<Vec<String>, String> {
         }
     }
     Ok(out)
+}
+
+/// A local account name of at most 20 characters, stable for one container name.
+pub fn user_name(name: &str) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in name.bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("dxh-{hash:016x}")
+}
+
+/// A password built from random bytes that has upper case, lower case, digits and symbols.
+pub fn password(bytes: &[u8]) -> String {
+    const CLASSES: [&str; 4] = [
+        "ABCDEFGHJKLMNPQRSTUVWXYZ",
+        "abcdefghijkmnpqrstuvwxyz",
+        "23456789",
+        "!#$%&*+-=?@^_",
+    ];
+    bytes
+        .iter()
+        .enumerate()
+        .map(|(at, byte)| {
+            let class = CLASSES[at % CLASSES.len()].as_bytes();
+            class[usize::from(*byte) % class.len()] as char
+        })
+        .collect()
 }
 
 /// Joins arguments into one Windows command line, quoted for CommandLineToArgvW.
@@ -191,6 +240,45 @@ mod tests {
         assert!(config.net);
         assert_eq!(config.grants, ["C:\\a b", "C:\\c"]);
         assert_eq!(config.command, ["cmd.exe", "/c", "--net"]);
+    }
+
+    #[test]
+    fn backend_and_deny_are_parsed() {
+        let config = parse(&strings(&[
+            "--name",
+            "n",
+            "--backend",
+            "user",
+            "--deny",
+            "C:\\x",
+            "--",
+            "y",
+        ]))
+        .unwrap();
+        assert_eq!(config.backend, Backend::User);
+        assert_eq!(config.denies, ["C:\\x"]);
+        let default = parse(&strings(&["--name", "n", "--", "y"])).unwrap();
+        assert_eq!(default.backend, Backend::AppContainer);
+        assert!(parse(&strings(&["--name", "n", "--backend", "x", "--", "y"])).is_err());
+    }
+
+    #[test]
+    fn user_names_fit_the_account_limit_and_differ() {
+        let one = user_name("dx-hermetic-1-0");
+        assert_eq!(one.len(), 20);
+        assert!(one.starts_with("dxh-"));
+        assert_ne!(one, user_name("dx-hermetic-1-1"));
+        assert_eq!(one, user_name("dx-hermetic-1-0"));
+    }
+
+    #[test]
+    fn passwords_have_every_character_class() {
+        let word = password(&[7; 24]);
+        assert_eq!(word.len(), 24);
+        assert!(word.chars().any(|c| c.is_ascii_uppercase()));
+        assert!(word.chars().any(|c| c.is_ascii_lowercase()));
+        assert!(word.chars().any(|c| c.is_ascii_digit()));
+        assert!(word.chars().any(|c| !c.is_ascii_alphanumeric()));
     }
 
     #[test]

@@ -1,13 +1,20 @@
-//! Runs a command in a per-run AppContainer: no network unless `--net`, files only where granted.
+//! Runs a command isolated on Windows: no network unless `--net`, files only where granted.
+//! The AppContainer backend is the default; the user backend runs it as a throwaway local account.
 mod args;
 
 #[cfg(windows)]
 mod sys;
+#[cfg(windows)]
+mod user;
 
 #[cfg(windows)]
 fn main() {
     let argv: Vec<String> = std::env::args().skip(1).collect();
-    match args::parse(&argv).and_then(|config| sys::run(&config)) {
+    let outcome = args::parse(&argv).and_then(|config| match config.backend {
+        args::Backend::AppContainer => sys::run(&config),
+        args::Backend::User => user::run(&config),
+    });
+    match outcome {
         Ok(code) => std::process::exit(code),
         Err(err) => {
             eprintln!("appcontainer_run: {err}");

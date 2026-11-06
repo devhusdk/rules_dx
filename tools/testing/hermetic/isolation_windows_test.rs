@@ -1,4 +1,4 @@
-//! Probes the Windows AppContainer backend: network denial, loopback and file grants.
+//! Probes the Windows user backend: network denial, loopback and file grants.
 #![cfg(windows)]
 
 use std::path::{Path, PathBuf};
@@ -31,6 +31,7 @@ fn scene(name: &str) -> Scene {
     let isolation = Isolation {
         launcher,
         grants: vec![granted.clone()],
+        denies: vec![ungranted.clone()],
         ..Isolation::default()
     };
     Scene {
@@ -103,6 +104,13 @@ fn directories_above_a_grant_are_listable_but_not_readable() {
     let read = scene.run(Net::Denied, &["read", &text(&above)]);
     assert_ne!(read.exit, 0, "{}", read.stdout);
     assert_eq!(icacls(&scene.root), before);
+}
+
+#[test]
+fn a_granted_directory_can_be_canonicalized() {
+    let scene = scene("canon");
+    let outcome = scene.run(Net::Denied, &["canon", &text(&scene.granted)]);
+    assert_eq!(outcome.exit, 0, "{}", outcome.stderr);
 }
 
 #[test]

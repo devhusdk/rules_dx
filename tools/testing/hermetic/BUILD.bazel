@@ -372,7 +372,6 @@ hermetic_qualification(
         "consumers/proto_bindings/go/greeting.go": "go/greeting.go",
         "consumers/proto_bindings/go/greeting_test.go": "go/greeting_test.go",
         "consumers/proto_bindings/pylib/greeting.py": "pylib/greeting.py",
-        "consumers/proto_bindings/pylib/greeting_test.py": "pylib/greeting_test.py",
         "consumers/proto_bindings/java/Greeter.java": "java/Greeter.java",
         "consumers/proto_bindings/cc/greeter.cc": "cc/greeter.cc",
         "consumers/proto_bindings/cc/greeter.h": "cc/greeter.h",

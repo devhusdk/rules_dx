@@ -5,6 +5,7 @@ cc_library(
     srcs = ["cli.c"],
     hdrs = ["cli.h"],
     copts = ["-std=c11"],
+    linkstatic = True,
     data = ["//cc/tests/fixtures/c-app/store:stock_json"],
     local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/c-app/store:stock_json)\\"'],
     deps = ["//cc/tests/fixtures/c-app/store"],

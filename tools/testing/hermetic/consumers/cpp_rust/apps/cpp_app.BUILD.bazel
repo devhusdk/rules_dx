@@ -5,6 +5,7 @@ cc_library(
     srcs = ["report.cc"],
     hdrs = ["report.h"],
     copts = ["-std=c++17"],
+    linkstatic = True,
     deps = [
         "//cc/tests/fixtures/cpp-app/core",
         "@cpp_app_fmt//:fmt",

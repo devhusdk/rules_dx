@@ -26,9 +26,9 @@ dx_wrapper_contract_tests(
             {"ppx": "//x:y"},
         ),
         expect_equal(
-            "coverage_ppx keeps the module's ppx and adds only the file name and runtime",
+            "coverage_ppx keeps the module's ppx and adds only the file name, runtime and unused-open waiver",
             sorted(coverage_kwargs({"ppx": "//x:y"}, "a.ml", "p", True).keys()),
-            ["deps", "ppx", "ppx_args"],
+            ["deps", "opts", "ppx", "ppx_args"],
         ),
         expect_equal(
             "coverage_ppx keeps the module's own ppx",

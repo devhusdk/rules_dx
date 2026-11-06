@@ -347,7 +347,7 @@ def coverage_kwargs(kwargs, struct, package, coverage_ppx = False):
     loc_args = select({COVERAGE_ACTIVE: ["-loc-filename", package + "/" + struct], "//conditions:default": []})
     out["ppx_args"] = (out.get("ppx_args") or []) + loc_args
     out["deps"] = (out.get("deps") or []) + select({COVERAGE_ACTIVE: [BISECT_RUNTIME], "//conditions:default": []})
-    out["opts"] = out["opts"] + select({COVERAGE_ACTIVE: ["-w", "-33"], "//conditions:default": []})
+    out["opts"] = (out.get("opts") or []) + select({COVERAGE_ACTIVE: ["-w", "-33"], "//conditions:default": []})
     return out
 
 def ocaml_module(name, struct, sig = None, visibility = None, instrument_coverage = True, coverage_ppx = False, **kwargs):

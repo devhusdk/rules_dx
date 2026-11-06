@@ -25,6 +25,31 @@ runs:
         if [ "$RUNNER_OS" = Windows ] && [ -z "${BAZEL_SH:-}" ] && [ -x /usr/bin/bash.exe ]; then
           echo "BAZEL_SH=$(cygpath -m /usr/bin/bash.exe)" >> "$GITHUB_ENV"
         fi
+    - name: Configure the remote cache credential helper
+      shell: bash
+      run: |
+        args="${DX_REMOTE_CACHE_ARG:-}"
+        if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+          dir="$RUNNER_TEMP/dx-credential-helper"
+          mkdir -p "$dir"
+          if [ "$RUNNER_OS" = Windows ]; then
+            helper="$dir/helper.bat"
+            printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+            chmod 700 "$helper"
+            helper="$(cygpath -m "$helper")"
+          else
+            helper="$dir/helper.sh"
+            cat > "$helper" <<'EOF'
+        #!/bin/sh
+        printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+        EOF
+            chmod 700 "$helper"
+          fi
+          args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+        fi
+        if [ -n "$args" ]; then
+          echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+        fi
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}

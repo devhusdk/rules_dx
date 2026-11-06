@@ -85,9 +85,9 @@ permissions:
   contents: read
 
 env:
-  # All stay empty unless the caller sets remote_cache or passes BUILDBUDDY_API_KEY.
   BAZEL_CONFIG: ${{ (inputs.remote_cache != '' || secrets.BUILDBUDDY_API_KEY != '') && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
-  BB_ARGS: ${{ inputs.remote_cache != '' && format('--remote_cache={0}', inputs.remote_cache) || '' }} ${{ secrets.REMOTE_CACHE_HEADER == '' && secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  DX_REMOTE_CACHE_ARG: ${{ inputs.remote_cache != '' && format('--remote_cache={0}', inputs.remote_cache) || '' }}
+  BUILDBUDDY_API_KEY: ${{ secrets.REMOTE_CACHE_HEADER == '' && secrets.BUILDBUDDY_API_KEY || '' }}
   REMOTE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
   # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
@@ -122,6 +122,31 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -196,6 +221,31 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           cache-save: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
           disk-cache: ${{ inputs.remote_cache == '' && secrets.BUILDBUDDY_API_KEY == '' && format('checks-{0}', matrix.platform) || 'false' }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -257,6 +307,18 @@ jobs:
             fi
           done <<< "$DX_CHECK_LINES"
           exit "$failed"
+      - name: Check the upload holds no secret
+        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"lint"') }}
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/lint
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Upload the lint reports
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"lint"') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -264,7 +326,19 @@ jobs:
           name: dx-reports-lint-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/dx-reports/lint
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
+      - name: Check the upload holds no secret
+        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"typecheck"') }}
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/typecheck
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Upload the typecheck reports
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"typecheck"') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -272,7 +346,19 @@ jobs:
           name: dx-reports-typecheck-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/dx-reports/typecheck
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
+      - name: Check the upload holds no secret
+        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"test"') }}
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/test
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Upload the test reports
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"test"') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -280,7 +366,19 @@ jobs:
           name: dx-reports-test-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/dx-reports/test
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
+      - name: Check the upload holds no secret
+        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"build"') }}
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/build
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Upload the build reports
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"build"') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -288,7 +386,7 @@ jobs:
           name: dx-reports-build-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/dx-reports/build
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
       - name: Prove dx run works noninteractively in CI
         if: ${{ !cancelled() && contains(needs.validate.outputs.checks, '"id":"build"') }}
         run: |
@@ -328,6 +426,18 @@ jobs:
           rc=$?
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"
+      - name: Check the upload holds no secret
+        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/coverage
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Upload the coverage reports
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -335,7 +445,7 @@ jobs:
           name: dx-reports-coverage-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
           path: ${{ runner.temp }}/dx-reports/coverage
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
       - name: Check changed-line coverage
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && needs.validate.outputs.min_changed_line_coverage != '' && github.event_name == 'pull_request' }}
         env:
@@ -469,6 +579,31 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -507,6 +642,18 @@ jobs:
             --date "$retrieved_at" \
             "${trivy_args[@]}" \
             --status-file "$GITHUB_OUTPUT"
+      - name: Check the upload holds no secret
+        if: ${{ steps.prepare.outputs.status != 'empty' || steps.prepare.outputs.trivy == 'true' }}
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: .dx/local/advisory
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Publish the advisory snapshots
         if: ${{ steps.prepare.outputs.status != 'empty' || steps.prepare.outputs.trivy == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -532,6 +679,31 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -573,6 +745,31 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -625,6 +822,31 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -657,6 +879,18 @@ jobs:
         with:
           path: .dx/local/fuzz
           key: ${{ steps.corpus.outputs.cache-primary-key }}
+      - name: Check the upload holds no secret
+        if: ${{ failure() }}
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: .dx/local/fuzz
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Upload the crashes
         if: ${{ failure() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -681,6 +915,31 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
         run: |
@@ -715,6 +974,18 @@ jobs:
             exit "$status"
           fi
           bazel run "$@" @rules_dx//:dx -- bench //...
+      - name: Check the upload holds no secret
+        if: ${{ github.event_name == 'push' && !cancelled() }}
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: .dx/local/bench/last.json
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Upload the results
         if: ${{ github.event_name == 'push' && !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

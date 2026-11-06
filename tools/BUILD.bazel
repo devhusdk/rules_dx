@@ -12,6 +12,8 @@ exports_files(
     visibility = VIS_TOOLS_CLI_TEST,
 )
 
+exports_files(["buildbuddy-credential-helper.sh"])
+
 sh_test(
     name = "dx_launcher_test",
     size = "small",

@@ -900,7 +900,7 @@ fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool,
 
 #[test]
 fn preset_configs_need_no_doc_stanza() {
-    let rc = "common:ci --announce_rc\nbuild:dx_build_release --host_compilation_mode=opt\n";
+    let rc = "common:ci --remote_timeout=10m\nbuild:dx_build_release --host_compilation_mode=opt\n";
     let preset = "build:dx_build_release --compilation_mode=opt\n";
     assert_eq!(
         config_needs_doc_stanza("dx_build_release", rc, preset),

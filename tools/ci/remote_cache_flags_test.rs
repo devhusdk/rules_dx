@@ -16,18 +16,14 @@ fn nothing_configured_prints_nothing() {
 }
 
 #[test]
-fn buildbuddy_shorthand_keeps_the_old_flags() {
+fn buildbuddy_shorthand_never_puts_the_key_on_the_command_line() {
     assert_eq!(
         flags(&cache("", "", "KEY", "pull_request")).unwrap(),
-        [
-            "--config=ci",
-            "--config=ci-pr",
-            "--remote_header=x-buildbuddy-api-key=KEY"
-        ]
+        ["--config=ci", "--config=ci-pr"]
     );
     assert_eq!(
         flags(&cache("", "", "KEY", "push")).unwrap(),
-        ["--config=ci", "--remote_header=x-buildbuddy-api-key=KEY"]
+        ["--config=ci"]
     );
 }
 

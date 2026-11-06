@@ -331,6 +331,28 @@ rust_test(
 
 # keep
 rust_test(
+    name = "secret_flags_test",
+    srcs = ["secret_flags_test.rs"],
+    data = [
+        "//:.bazelrc",
+        "//.github:actions",
+        "//.github:workflows",
+        "//tools:buildbuddy-credential-helper.sh",
+        "//tools/bazelrc:preset",
+    ],
+    env = {
+        "DX_ACTIONS": "$(rootpaths //.github:actions)",
+        "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
+    },
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "workflow_permissions_test",
     srcs = ["workflow_permissions_test.rs"],
     data = [
@@ -993,6 +1015,7 @@ rustfmt_test(
         ":starlark_docs_test",
         ":tool_resolve_test",
         ":workflow_expressions_test",
+        ":secret_flags_test",
         ":workflow_permissions_test",
         ":workflow_pins_test",
     ],

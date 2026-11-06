@@ -85,7 +85,7 @@ fn each_reporting_check_uploads_once_after_dx_and_before_the_cache_steps() {
             Some(format!("${{{{ runner.temp }}}}/dx-reports/{id}").as_str())
         );
         assert_eq!(step["with"]["if-no-files-found"].as_str(), Some("warn"));
-        assert_eq!(step["with"]["retention-days"].as_u64(), Some(14));
+        assert_eq!(step["with"]["retention-days"].as_u64(), Some(3));
         assert!(
             step["with"]["overwrite"].is_null(),
             "{id} must not overwrite"

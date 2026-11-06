@@ -20,6 +20,17 @@ Read [AGENTS.md](AGENTS.md) before changing code.
 - Do not edit generated files. Use the generator.
 - Library crates return typed errors. Only binaries map exit codes.
 
+## Remote cache
+
+Export your BuildBuddy API key and add `--config=bb`:
+
+```sh
+export BUILDBUDDY_API_KEY=<key>
+tools/dx test --affected -- --config=bb
+```
+
+`--config=bb` reads the key from the environment through `tools/buildbuddy-credential-helper.sh` on Linux and macOS. Never put the key in `user.bazelrc` or any other rc file, and never pass `--announce_rc`.
+
 ## Issues and labels
 
 Use the bug template. Paste `dx status`.

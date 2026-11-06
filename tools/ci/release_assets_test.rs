@@ -339,7 +339,7 @@ fn the_evidence_release_cell_runs_uncached_and_only_on_request() {
         .find("- name: Build and qualify the release cell")
         .expect("release cell step");
     let cache = text
-        .find("- name: Use the BuildBuddy remote cache\n        env:\n          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}\n          DX_PLATFORM")
+        .find("- name: Use the BuildBuddy remote cache\n        env:\n          DX_PLATFORM")
         .expect("evidence BuildBuddy step");
     assert!(
         step < cache,

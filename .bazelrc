@@ -68,6 +68,7 @@ coverage:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSIO
 common:bb --remote_cache=grpcs://remote.buildbuddy.io
 common:bb --remote_cache_compression
 common:bb --remote_timeout=10m
+common:bb --credential_helper=remote.buildbuddy.io=%workspace%/tools/buildbuddy-credential-helper.sh
 common:ci --remote_cache=grpcs://remote.buildbuddy.io
 common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true

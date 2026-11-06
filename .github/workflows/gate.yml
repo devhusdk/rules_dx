@@ -9,9 +9,8 @@ permissions:
   contents: read
 
 env:
-  # Both stay empty unless the repository sets BUILDBUDDY_API_KEY.
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
-  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
 concurrency:
   group: gate-${{ github.event.pull_request.number || github.sha }}

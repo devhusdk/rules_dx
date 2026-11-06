@@ -8,7 +8,7 @@ permissions:
 
 env:
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && '--config=ci' || '' }}
-  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
 concurrency:
   group: pr-check-${{ github.ref }}

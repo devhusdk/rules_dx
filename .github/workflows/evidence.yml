@@ -58,6 +58,7 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
   DX_ANDROID_API: "34"
   DX_ANDROID_ABI: "x86_64"
+  BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
 jobs:
   evidence:
@@ -112,19 +113,14 @@ jobs:
             touch "$RUNNER_TEMP/executor.done"
           } &
       - name: Fetch the dx dependencies
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
           mkdir -p "$RUNNER_TEMP/evidence"
           remote=()
-          if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            remote=(--config=ci "--remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY")
-          fi
+          [ -z "${BB_ARGS:-}" ] || read -ra remote <<< "--config=ci $BB_ARGS"
           bazel fetch --noshow_progress "${remote[@]}" "--profile=$RUNNER_TEMP/evidence/fetch-profile.gz" --noslim_profile //cli/cli:dx
       - name: Validate workflow inputs
         id: inputs
         env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
           DX_SCOPE: ${{ inputs.scope }}
           DX_TASK: ${{ inputs.task }}
           DX_PLATFORMS: ${{ inputs.platforms }}
@@ -134,9 +130,7 @@ jobs:
           DX_RELOCATE: ${{ inputs.relocate }}
         run: |
           remote=()
-          if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            remote=(--config=ci "--remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY")
-          fi
+          [ -z "${BB_ARGS:-}" ] || read -ra remote <<< "--config=ci $BB_ARGS"
           bazel run --noshow_progress "${remote[@]}" //tools/ci:evidence_inputs_bin
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
@@ -156,13 +150,12 @@ jobs:
           exit "$status"
       - name: Use the BuildBuddy remote cache
         env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
           DX_PLATFORM: ${{ matrix.platform }}
         run: |
-          [ -n "$BUILDBUDDY_API_KEY" ] || exit 0
+          [ -n "${BB_ARGS:-}" ] || exit 0
           {
             echo "common --config=ci"
-            echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
+            echo "common $BB_ARGS"
           } >> user.bazelrc
           [ "$DX_PLATFORM" != linux_x86_64 ] || echo "common --config=rbe" >> user.bazelrc
       - name: Enable KVM
@@ -466,12 +459,17 @@ jobs:
               cp -RL "$dir/test.outputs" "$out/$rel/" 2>/dev/null || true
             fi
           done
+      - name: Check the upload holds no secret
+        if: ${{ always() && steps.inputs.outcome == 'success' }}
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ always() && steps.inputs.outcome == 'success' }}
         with:
           name: evidence-${{ matrix.platform }}
           path: ${{ runner.temp }}/evidence
-          retention-days: 7
+          retention-days: 3
       - name: Write job summary
         if: ${{ always() && steps.inputs.outcome == 'success' }}
         env:

@@ -11,9 +11,8 @@ permissions:
   contents: read
 
 env:
-  # Both stay empty unless the repository sets BUILDBUDDY_API_KEY.
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
-  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
   # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
 
@@ -214,18 +213,28 @@ jobs:
             echo "| --- | --- | --- | --- | --- | --- | --- |"
             jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.observed_producers | join("; ")) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the upload holds no secret
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/compiler-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: compiler-evidence-linux_x86_64
           path: ${{ runner.temp }}/compiler-evidence
-          retention-days: 7
+          retention-days: 3
+      - name: Check the upload holds no secret
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/hermetic-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: hermetic-evidence-linux_x86_64
           path: ${{ runner.temp }}/hermetic-evidence
-          retention-days: 7
+          retention-days: 3
       - name: Write job summary
         if: always()
         env:
@@ -276,12 +285,17 @@ jobs:
             mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
             cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
           done < "$RUNNER_TEMP/hermetic-targets"
+      - name: Check the upload holds no secret
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/hermetic-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: hermetic-evidence-linux_arm64
           path: ${{ runner.temp }}/hermetic-evidence
-          retention-days: 7
+          retention-days: 3
   hermetic-macos:
     name: hermetic-macos (macOS-compatible consumer qualifications on macos_arm64)
     timeout-minutes: 90
@@ -321,12 +335,17 @@ jobs:
             mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
             cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
           done < "$RUNNER_TEMP/hermetic-targets"
+      - name: Check the upload holds no secret
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/hermetic-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: hermetic-evidence-macos_arm64
           path: ${{ runner.temp }}/hermetic-evidence
-          retention-days: 7
+          retention-days: 3
   gcc-cross-build:
     name: gcc-cross-build (linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45
@@ -351,11 +370,15 @@ jobs:
           done
           find "$RUNNER_TEMP/gcc-arm64" -type f
           test "$(find "$RUNNER_TEMP/gcc-arm64" -type f | wc -l)" -eq 3
+      - name: Check the upload holds no secret
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/gcc-arm64
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gcc-arm64-fixtures
           path: ${{ runner.temp }}/gcc-arm64
-          retention-days: 7
+          retention-days: 3
           if-no-files-found: error
   gcc-cross-run-arm64:
     name: gcc-cross-run-arm64 (run x86_64-cross-built fixtures on native linux_arm64)
@@ -543,12 +566,17 @@ jobs:
             echo "| --- | --- | --- | --- | --- | --- | --- |"
             jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.observed_producers | join("; ")) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the upload holds no secret
+        if: always() && matrix.shard == 0
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/compiler-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && matrix.shard == 0
         with:
           name: compiler-evidence-starter-${{ matrix.platform }}
           path: ${{ runner.temp }}/compiler-evidence
-          retention-days: 7
+          retention-days: 3
       - name: Write job summary
         if: always()
         env:
@@ -677,13 +705,18 @@ jobs:
             grep -m1 'not writeable' "$out/rebuild.log" || echo "no 'not writeable' line in the rebuild"
             echo "read-only exec .rmeta files: $(wc -l < "$out/rmeta-readonly.txt")"
           } >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Check the upload holds no secret
+        if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/rmeta-diag
       - name: Upload the rmeta diagnostics
         if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rmeta-diagnostics-${{ matrix.platform }}
           path: ${{ runner.temp }}/rmeta-diag
-          retention-days: 7
+          retention-days: 3
           if-no-files-found: ignore
       - name: Run the launch smoke
         env:
@@ -891,6 +924,11 @@ jobs:
             echo "### Compiler evidence (row x platform)"
             tools/ci/compiler_table.sh "$RUNNER_TEMP/compiler-evidence" "$RUNNER_TEMP/compiler-evidence-all.jsonl" linux_x86_64 linux_arm64 macos_arm64 windows_x86_64 windows_arm64
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the upload holds no secret
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/compiler-evidence-all.jsonl
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         continue-on-error: true
@@ -898,7 +936,7 @@ jobs:
           name: compiler-evidence-all
           path: ${{ runner.temp }}/compiler-evidence-all.jsonl
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
   scheduled-report:
     name: scheduled-report
     if: ${{ always() && github.event_name == 'schedule' }}

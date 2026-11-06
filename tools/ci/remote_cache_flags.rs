@@ -26,11 +26,6 @@ pub fn flags(cache: &Cache) -> Result<Vec<String>, String> {
             _ => return Err("REMOTE_CACHE_HEADER must look like name=value".to_string()),
         }
         out.push(format!("--remote_header={}", cache.header));
-    } else if !cache.buildbuddy_key.is_empty() {
-        out.push(format!(
-            "--remote_header=x-buildbuddy-api-key={}",
-            cache.buildbuddy_key
-        ));
     }
     Ok(out)
 }

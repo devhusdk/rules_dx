@@ -51,9 +51,8 @@ permissions:
   contents: read
 
 env:
-  # Both stay empty unless the caller passes BUILDBUDDY_API_KEY.
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
-  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
   BAZELISK_VERSION: "1.29.0"
   DX_DOCS_SITE: ${{ inputs.site }}
   DX_DOCS_SITE_CHECK: ${{ inputs.site_check }}
@@ -93,6 +92,31 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Lint the docs scope
         env:
           DX_DOCS_SCOPE: ${{ inputs.docs_scope }}
@@ -149,6 +173,31 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Configure the remote cache credential helper
+        shell: bash
+        run: |
+          args="${DX_REMOTE_CACHE_ARG:-}"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            dir="$RUNNER_TEMP/dx-credential-helper"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/helper.bat"
+              printf '@echo {"headers":{"x-buildbuddy-api-key":["%%BUILDBUDDY_API_KEY%%"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/helper.sh"
+              cat > "$helper" <<'EOF'
+          #!/bin/sh
+          printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+          EOF
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          fi
+          if [ -n "$args" ]; then
+            echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          fi
       - name: Build rendered site
         run: |
           # shellcheck disable=SC2086
@@ -184,6 +233,17 @@ jobs:
             fi
           done <<< "$DX_DOCS_FORBID"
           bazel run "$@" @rules_dx//tools/docs/site/check:site_check -- --rendered "$PAGES_STAGE" "${check[@]}"
+      - name: Check the upload holds no secret
+        shell: bash
+        env:
+          DX_UPLOAD_PATH: ${{ env.PAGES_STAGE }}
+        run: |
+          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
+            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
+            exit 1
+          fi
       - name: Upload rendered site as Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:

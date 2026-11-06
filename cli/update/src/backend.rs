@@ -639,9 +639,8 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam | Ecosystem::SwiftPm, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam
-| Ecosystem::SwiftPm, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, request) => {
@@ -764,6 +763,25 @@ pub fn plan_configured(
                     env: julia_env(),
                 },
             ]))
+        }
+        (Ecosystem::SwiftPm, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::SwiftPm, Selection::Packages(packages)) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let mut command = vec!["package".to_owned(), "update".to_owned()];
+            command.extend(packages.iter().map(|name| swift_identity(name)));
+            Ok(BackendPlan::Run {
+                argv: swift_argv(workspace, set, head, true, &command)?,
+                env: Vec::new(),
+            })
         }
         (Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Cpan, Selection::Packages(modules)) => {
@@ -981,9 +999,8 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam | Ecosystem::SwiftPm, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam
-| Ecosystem::SwiftPm, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, Selection::Full) => {
@@ -1059,6 +1076,27 @@ pub fn check_configured(
         (Ecosystem::Julia, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: "julia_pkg_resolve_test checks the whole Manifest.toml; select the set without a package",
+        }),
+        (Ecosystem::SwiftPm, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            Ok(CheckPlan::Run {
+                argv: swift_argv(
+                    workspace,
+                    set,
+                    head,
+                    false,
+                    &strings(&["package", "resolve"]),
+                )?,
+                env: Vec::new(),
+            })
+        }
+        (Ecosystem::SwiftPm, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "swift package resolve checks the whole Package.resolved; select the set without a package",
         }),
         (Ecosystem::Cpan, Selection::Full) => {
             if offline {
@@ -1345,6 +1383,33 @@ fn composer_env() -> Vec<(String, String)> {
             root.join("cache").to_string_lossy().into_owned(),
         ),
     ]
+}
+
+/// Runs the script in a temp copy of the set directory, then compares or copies back `Package.resolved`.
+const SWIFT_SCRIPT: &str = r#"dir=$1; apply=$2; shift 2; tmp=$(mktemp -d) || exit 1; cp -R "$dir"/. "$tmp"; (cd "$tmp" && "$@"); code=$?; if [ $code -eq 0 ] && ! cmp -s "$tmp/Package.resolved" "$dir/Package.resolved"; then if [ "$apply" = apply ]; then cp "$tmp/Package.resolved" "$dir/Package.resolved"; code=$?; else echo "Package.resolved is out of date; run dx update" >&2; code=1; fi; fi; rm -rf "$tmp"; exit $code"#;
+
+/// The SwiftPM identity of a package named by host and path: the lowercase last segment.
+fn swift_identity(name: &str) -> String {
+    name.rsplit('/').next().unwrap_or(name).to_ascii_lowercase()
+}
+
+/// The managed Swift run on a temp copy of the set directory.
+fn swift_argv(
+    workspace: &Path,
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    apply: bool,
+    command: &[String],
+) -> Result<Vec<String>, BackendError> {
+    let dir = set_dir(workspace, set)?;
+    let mode = if apply { "apply" } else { "check" };
+    let under = format!(
+        "--run_under=sh -c '{SWIFT_SCRIPT}' sh '{}' {mode}",
+        dir.replace('\'', "'\\''")
+    );
+    let mut argv = bazel(head, "run", &[&under, "@rules_dx//swift/tools:swift", "--"]);
+    argv.extend(command.iter().cloned());
+    Ok(argv)
 }
 
 /// Keeps carton's `local/` install tree out of the workspace.
@@ -2180,6 +2245,92 @@ mod tests {
         assert!(error
             .to_string()
             .contains("add a haskell_deps_resolve_test"));
+    }
+
+    fn swift_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "swift".to_owned(),
+            ecosystem: Ecosystem::SwiftPm,
+            dir: "app".to_owned(),
+            manifests: vec!["app/Package.swift".to_owned()],
+            locks: vec!["app/Package.resolved".to_owned()],
+            repository: None,
+        }
+    }
+
+    fn swift_update(
+        packages: &[&str],
+        offline: bool,
+        frozen: bool,
+    ) -> Result<BackendPlan, BackendError> {
+        plan_configured(
+            ws(),
+            &swift_set(),
+            &Selection::Packages(strings(packages)),
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    }
+
+    #[test]
+    fn swift_check_resolves_in_a_copy_and_compares() {
+        let plan = check_configured(
+            ws(),
+            &swift_set(),
+            &Selection::Full,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect("plan");
+        let CheckPlan::Run { argv, .. } = plan else {
+            panic!("expected a run");
+        };
+        assert!(argv.iter().any(|arg| arg.starts_with("--run_under=sh -c")
+            && arg.ends_with(&format!("sh '{}' check", dir_arg("app")))));
+        assert_eq!(
+            argv[argv.len() - 4..],
+            ["@rules_dx//swift/tools:swift", "--", "package", "resolve"]
+        );
+        for (request, offline) in [
+            (Selection::Full, true),
+            (Selection::Packages(strings(&["a"])), false),
+        ] {
+            assert!(check_configured(
+                ws(),
+                &swift_set(),
+                &request,
+                offline,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            )
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn swift_update_names_identities_and_refuses_frozen_and_offline() {
+        let Ok(BackendPlan::Run { argv, .. }) =
+            swift_update(&["github.com/vapor/Vapor"], false, false)
+        else {
+            panic!("expected a run");
+        };
+        assert!(argv
+            .iter()
+            .any(|arg| arg.ends_with(&format!("sh '{}' apply", dir_arg("app")))));
+        assert_eq!(argv[argv.len() - 3..], ["package", "update", "vapor"]);
+        assert!(matches!(
+            swift_update(&["a"], true, false),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+        assert!(matches!(
+            swift_update(&["a"], false, true),
+            Err(BackendError::FrozenLocked { .. })
+        ));
     }
 
     fn pub_set() -> ResolvedSet {

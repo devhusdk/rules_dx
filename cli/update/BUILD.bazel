@@ -28,6 +28,7 @@ dx_rust_crate(
         "src/discover/pub_dev.rs",
         "src/discover/pypi.rs",
         "src/discover/ruby.rs",
+        "src/discover/swiftpm.rs",
         "src/edit/add.rs",
         "src/edit/add_plans.rs",
         "src/edit/gha.rs",

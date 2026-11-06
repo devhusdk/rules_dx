@@ -880,7 +880,35 @@ fn hermetic_test_builds_generate_check_only_with_coverage_targets() {
     assert_eq!(session.hermetic_test_targets(), ["//..."]);
     session.manifest.coverage = vec!["//lib:t".to_owned()];
     let label = format!("@{}//dx:generate_check", session.manifest.repo_name);
-    assert_eq!(session.hermetic_test_targets(), ["//...".to_owned(), label]);
+    assert_eq!(
+        session.hermetic_test_targets(),
+        ["//...".to_owned(), label.clone()]
+    );
+    let probe = Probe {
+        targets: session.hermetic_test_targets(),
+        ..fixture_probe()
+    };
+    let argv = session.bazel_tail(&probe);
+    for setting in dx_process::head_settings("r") {
+        assert!(argv.contains(&setting), "{setting} missing from {argv:?}");
+    }
+    assert_eq!(argv.last(), Some(&label));
+}
+
+#[test]
+fn probes_carry_the_dx_settings_only_on_build_like_verbs() {
+    let session = fixture_session();
+    let settings = dx_process::head_settings("r");
+    for (command, carried) in [("cquery", true), ("build", true), ("query", false), ("fetch", false)] {
+        let probe = Probe {
+            command,
+            ..fixture_probe()
+        };
+        let argv = session.bazel_tail(&probe);
+        for setting in &settings {
+            assert_eq!(argv.contains(setting), carried, "{command}: {argv:?}");
+        }
+    }
 }
 
 #[test]
@@ -966,6 +994,8 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
             "--curses=no",
             "--incompatible_strict_action_env",
             "--sandbox_default_allow_network=false",
+            "--@r//config:clippy_output_diagnostics=true",
+            "--@r//config:rustc_output_diagnostics=true",
             "--test_output=errors",
             "--",
             "//...",

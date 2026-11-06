@@ -1068,7 +1068,8 @@ impl Session {
         targets
     }
 
-    /// The bazelisk command line of one probe, without the process wrapper.
+    /// The bazelisk command line of one probe, without the process wrapper. Build-like
+    /// verbs carry the settings dx adds, so probe builds match what `dx` builds.
     fn bazel_tail(&self, probe: &Probe) -> Vec<String> {
         let mut argv = vec![self.bazel.to_string_lossy().into_owned()];
         argv.extend(startup_flags(probe.output_root));
@@ -1078,6 +1079,9 @@ impl Session {
             format!("--repository_cache={}", probe.repos.display()),
         ]);
         argv.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        if dx_process::takes_shared_settings(probe.command) {
+            argv.extend(dx_process::head_settings(&self.manifest.repo_name));
+        }
         argv.extend(self.platform_flag());
         argv.extend(self.shell_flag());
         argv.extend(probe.extra.iter().cloned());
@@ -1118,10 +1122,14 @@ impl Session {
             write(&dir.join("bazel.cmd"), &script)?;
             return Ok(dir);
         }
+        let flags: Vec<String> = startup_flags(output_root)
+            .iter()
+            .map(|flag| shell_quote(flag))
+            .collect();
         let script = format!(
-            "#!/bin/sh\nexec {} --nosystem_rc --output_user_root={} \"$@\"\n",
+            "#!/bin/sh\nexec {} {} \"$@\"\n",
             shell_quote(&self.bazel.to_string_lossy()),
-            shell_quote(&output_root.to_string_lossy())
+            flags.join(" ")
         );
         let bazel = dir.join("bazel");
         write(&bazel, &script)?;

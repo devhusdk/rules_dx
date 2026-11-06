@@ -29,11 +29,9 @@ pub use run_temp::{
 };
 pub use workflow::{plan_workflow, workflow_protected, WorkflowVerb};
 
-pub const CLIPPY_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:clippy_output_diagnostics=true";
-
-pub const RUSTC_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:rustc_output_diagnostics=true";
-
-pub const BAZEL_SETTINGS: [&str; 2] = [CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG];
+pub use dx_process::{
+    head_settings, BAZEL_SETTINGS, CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG,
+};
 
 const UPSTREAM_SETTINGS: [&str; 2] = [
     "--@rules_rust//rust/settings:clippy_output_diagnostics=true",
@@ -107,14 +105,6 @@ fn settings_in(repo: &str, bazel_command: &str, layered: bool) -> Vec<String> {
     } else {
         Vec::new()
     }
-}
-
-/// The shared settings spelled with `repo`, for a `BazelHead`.
-pub fn head_settings(repo: &str) -> Vec<String> {
-    BAZEL_SETTINGS
-        .iter()
-        .map(|setting| setting.replacen("@rules_dx//", &format!("@{repo}//"), 1))
-        .collect()
 }
 
 /// Returns the settings every build-like Bazel command shares.

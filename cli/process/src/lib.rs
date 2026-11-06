@@ -371,6 +371,21 @@ pub fn takes_shared_settings(verb: &str) -> bool {
     SHARED_SETTINGS_VERBS.contains(&verb)
 }
 
+pub const CLIPPY_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:clippy_output_diagnostics=true";
+
+pub const RUSTC_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:rustc_output_diagnostics=true";
+
+/// The settings dx adds to every build-like verb, spelled for `@rules_dx`.
+pub const BAZEL_SETTINGS: [&str; 2] = [CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG];
+
+/// The shared settings spelled with `repo`, for a `BazelHead`.
+pub fn head_settings(repo: &str) -> Vec<String> {
+    BAZEL_SETTINGS
+        .iter()
+        .map(|setting| setting.replacen("@rules_dx//", &format!("@{repo}//"), 1))
+        .collect()
+}
+
 fn launcher_head(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
     let opts = policy.startup_opts();
     let mut argv = Vec::with_capacity(1 + opts.len() + startup_options.len());

@@ -1507,7 +1507,7 @@ static HOME: Mutex<Option<(PathBuf, bool)>> = Mutex::new(None);
 
 /// Shared settings of `@rules_dx//config` that dx passes to Bazel, as `(name, default)`.
 ///
-/// Source of truth: `BAZEL_SETTINGS` in `cli/plan/src/plan.rs`; `validate` is kept because
+/// Source of truth: `BAZEL_SETTINGS` in `cli/process/src/lib.rs`; `validate` is kept because
 /// users may pass `--@rules_dx//config:validate=false` through. A new shared setting is one
 /// entry here.
 pub const RULES_DX_FLAGS: &[(&str, bool)] = &[

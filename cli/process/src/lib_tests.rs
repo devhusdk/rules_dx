@@ -1490,3 +1490,15 @@ fn make_writable_ignores_a_missing_path() {
     let scratch = dx_test_scratch::scratch("dx-writable-missing-");
     make_writable(&scratch.path().join("absent"));
 }
+
+#[test]
+fn head_settings_respell_the_rules_dx_repo() {
+    assert_eq!(head_settings("rules_dx"), BAZEL_SETTINGS);
+    assert_eq!(
+        head_settings("my_dx"),
+        [
+            "--@my_dx//config:clippy_output_diagnostics=true",
+            "--@my_dx//config:rustc_output_diagnostics=true",
+        ]
+    );
+}

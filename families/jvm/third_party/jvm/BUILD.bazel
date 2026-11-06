@@ -1,0 +1,3 @@
+# gazelle:dx_corpus false
+
+exports_files(["dx_jvm_maven_install.json"])

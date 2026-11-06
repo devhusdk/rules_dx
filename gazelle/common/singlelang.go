@@ -331,6 +331,9 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 			l.fail(InPackage(from.Pkg), "%s: %s: import %q has both an exact resolve mapping and ignore", l.spec.LanguageName, from, name)
 		},
 		FailUnresolved: func(from label.Label, name string, hint string) {
+			if hint == "" && l.spec.External != "" {
+				hint = ExternalElsewhere(c, l.spec.External, name)
+			}
 			if hint != "" {
 				hint += "; "
 			}

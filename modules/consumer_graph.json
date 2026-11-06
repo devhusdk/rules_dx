@@ -83,7 +83,6 @@
   "gazelle": "0.54.0",
   "gcc_toolchain": "0.13.0",
   "googletest": "1.17.0",
-  "grpc-java": "1.84.0",
   "hermetic_launcher": "0.0.17",
   "jq.bzl": "0.4.0",
   "jsoncpp": "1.9.6.bcr.2",

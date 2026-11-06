@@ -22,6 +22,7 @@ pub(crate) const CODE_UPDATE_OUTDATED: &str = "update_outdated";
 pub(crate) const CODE_UPDATE_OUTDATED_UNSUPPORTED: &str = "update_outdated_unsupported";
 pub(crate) const CODE_UPDATE_OUTDATED_LOOKUP: &str = "update_outdated_lookup_failed";
 pub(crate) const CODE_UPDATE_OUTDATED_UNKNOWN: &str = "update_outdated_unknown";
+pub(crate) const CODE_UPDATE_OUTDATED_OVERRIDDEN: &str = "update_outdated_overridden";
 
 const ACTIONS_SELECTOR: &str = "github-actions";
 const BAZELVERSION_SELECTOR: &str = "bazel:.bazelversion";
@@ -439,6 +440,12 @@ pub(super) fn collect(
             }
             Ecosystem::Maven => {
                 registries.insert(name.to_owned(), Registry::Maven);
+                let resolved: BTreeMap<String, String> = read_texts(workspace, &target.set.locks)
+                    .iter()
+                    .filter_map(|text| dx_audit::locks::parse_maven_install(text).ok())
+                    .flatten()
+                    .map(|package| (package.name, package.version))
+                    .collect();
                 for manifest in &target.set.manifests {
                     let parsed = std::fs::read_to_string(workspace.join(manifest))
                         .map_err(|e| e.to_string())
@@ -451,6 +458,7 @@ pub(super) fn collect(
                             maven::outdated(
                                 name,
                                 &module,
+                                &resolved,
                                 only,
                                 prereleases,
                                 maven::DEFAULT_BASE,
@@ -579,6 +587,7 @@ fn merge(into: &mut Findings, from: Findings) {
     into.unknown.extend(from.unknown);
     into.candidates.extend(from.candidates);
     into.errors.extend(from.errors);
+    into.overridden.extend(from.overridden);
 }
 
 fn command_for(candidate: &Candidate, _ecosystem: Ecosystem) -> Option<String> {
@@ -640,6 +649,15 @@ fn emit_json(
             }),
         )?;
     }
+    for over in &found.overridden {
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                scope: Some(vec![format!("{}:{}", over.set, over.package)]),
+                ..NoticeEvent::warning(CODE_UPDATE_OUTDATED_OVERRIDDEN, overridden_message(over))
+            }),
+        )?;
+    }
     for error in &found.errors {
         emit_built(
             out,
@@ -663,6 +681,13 @@ fn emit_json(
                 ..FinishedCounts::default()
             },
         )),
+    )
+}
+
+fn overridden_message(over: &dx_update::discover::Overridden) -> String {
+    format!(
+        "{} asks for {}, but the lock resolved {}",
+        over.package, over.requested, over.resolved
     )
 }
 
@@ -714,7 +739,20 @@ fn emit_text(
             unknown.set, unknown.package, unknown.reason
         ))?;
     }
-    if found.candidates.is_empty() && found.errors.is_empty() && found.unknown.is_empty() {
+    for over in &found.overridden {
+        check_stdout_write(writeln!(
+            out,
+            "{}:{}: overridden ({})",
+            over.set,
+            over.package,
+            overridden_message(over)
+        ))?;
+    }
+    if found.candidates.is_empty()
+        && found.errors.is_empty()
+        && found.unknown.is_empty()
+        && found.overridden.is_empty()
+    {
         check_stdout_write(writeln!(out, "nothing is outdated"))?;
     }
     update_unused::emit_text(out, unused)?;
@@ -898,8 +936,7 @@ mod tests {
                 repo: None,
                 tags: None,
             }],
-            errors: Vec::new(),
-            unknown: Vec::new(),
+            ..Findings::default()
         };
         let mut out = Vec::new();
         emit_text(
@@ -1003,5 +1040,29 @@ mod tests {
             String::from_utf8_lossy(&out),
             "github-actions:o/r: unknown (no GitHub release)\n"
         );
+    }
+
+    #[test]
+    fn an_overridden_version_warns_in_text_and_json() {
+        let found = Findings {
+            overridden: vec![dx_update::discover::Overridden {
+                set: "maven".into(),
+                package: "com.google.guava:guava".into(),
+                requested: "33.4.0-jre".into(),
+                resolved: "33.6.0-android".into(),
+            }],
+            ..Findings::default()
+        };
+        let mut out = Vec::new();
+        emit_text(&mut out, &found, &[], &BTreeMap::new(), (&[], &[])).expect("text");
+        assert_eq!(
+            String::from_utf8_lossy(&out),
+            "maven:com.google.guava:guava: overridden (com.google.guava:guava asks for 33.4.0-jre, but the lock resolved 33.6.0-android)\n"
+        );
+        let mut out = Vec::new();
+        emit_json(&mut out, &found, &[], &BTreeMap::new(), (&[], &[]), 0).expect("json");
+        let json = String::from_utf8_lossy(&out);
+        assert!(json.contains(CODE_UPDATE_OUTDATED_OVERRIDDEN), "{json}");
+        assert!(json.contains("\"maven:com.google.guava:guava\""), "{json}");
     }
 }

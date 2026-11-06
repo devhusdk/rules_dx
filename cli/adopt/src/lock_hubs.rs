@@ -513,6 +513,136 @@ impl Planner<'_> {
     }
 }
 
+/// What a root `maven.install` lock needs before Bazel and Gazelle can read it: the
+/// lock's package `BUILD.bazel`, the lock file itself, and the root `dx_external` line.
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct MavenLocks {
+    /// Files to create or change, in the order to write them.
+    pub edits: Vec<ModuleEdit>,
+    /// `(lock path, repository)` for each lock that is missing or empty, to fill with
+    /// `bazel run @<repository>//:pin`.
+    pub seeds: Vec<(String, String)>,
+    pub notes: Vec<String>,
+}
+
+const ROOT_BUILD: &str = "BUILD.bazel";
+
+/// Plans the files the root `maven.install` locks need. Only installs with a literal
+/// `//package:file` lock and a plain `use_repo(maven, "<name>")` are wired. Writes nothing.
+pub fn plan_maven_locks(root: &Path) -> Result<MavenLocks, AdoptError> {
+    let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
+        return Ok(MavenLocks::default());
+    };
+    let file = ModuleFile::parse(&text).map_err(refuse)?;
+    let mut plan = MavenLocks::default();
+    let Ok(installs) = file.maven_installs() else {
+        plan.notes
+            .push("a maven.install has computed arguments; its lock is not wired".into());
+        return Ok(plan);
+    };
+    let proxies = file.maven_proxies();
+    let old_build = std::fs::read_to_string(root.join(ROOT_BUILD)).unwrap_or_default();
+    let mut new_build = old_build.clone();
+    let mut packages: Vec<(String, Vec<String>)> = Vec::new();
+    for install in installs {
+        let Some(label) = install.lock_file else {
+            continue;
+        };
+        let Ok(path) = dx_module_bazel::label_path(label) else {
+            continue;
+        };
+        match maven_repo_import(&file, &proxies, install.name) {
+            Some(MavenImport::Plain) => {}
+            Some(MavenImport::Alias(alias)) => {
+                plan.notes.push(format!(
+                    "use_repo imports {} as {alias}; add the BUILD file, lock and dx_external line for {path} by hand",
+                    install.name
+                ));
+                continue;
+            }
+            None => continue,
+        }
+        let empty = std::fs::metadata(root.join(&path)).map_or(true, |meta| meta.len() == 0);
+        if empty {
+            plan.seeds.push((path.clone(), install.name.to_owned()));
+        }
+        let Some((dir, name)) = path.rsplit_once('/') else {
+            continue;
+        };
+        if !root.join(dir).join("BUILD.bazel").exists() && !root.join(dir).join("BUILD").exists() {
+            match packages.iter_mut().find(|(known, _)| known == dir) {
+                Some((_, names)) => names.push(name.to_owned()),
+                None => packages.push((dir.to_owned(), vec![name.to_owned()])),
+            }
+        }
+        if !declares_external(&old_build, &path) {
+            if !new_build.is_empty() && !new_build.ends_with('\n') {
+                new_build.push('\n');
+            }
+            new_build.push_str(&format!(
+                "# gazelle:dx_external maven {path} {}\n",
+                install.name
+            ));
+        }
+    }
+    for (dir, names) in packages {
+        let names: Vec<String> = names.iter().map(|name| format!("{name:?}")).collect();
+        plan.edits.push(ModuleEdit {
+            path: format!("{dir}/BUILD.bazel"),
+            old: String::new(),
+            new: format!("exports_files([{}])\n", names.join(", ")),
+        });
+    }
+    if new_build != old_build {
+        plan.edits.push(ModuleEdit {
+            path: ROOT_BUILD.to_owned(),
+            old: old_build,
+            new: new_build,
+        });
+    }
+    Ok(plan)
+}
+
+enum MavenImport {
+    Plain,
+    Alias(String),
+}
+
+fn maven_repo_import(file: &ModuleFile, proxies: &[&str], repo: &str) -> Option<MavenImport> {
+    for call in file.calls_named("use_repo") {
+        if !matches!(call.positional.first(), Some(Value::Ident(v)) if proxies.contains(&v.as_str()))
+        {
+            continue;
+        }
+        if call.positional[1..]
+            .iter()
+            .any(|value| matches!(value, Value::Str(s) if s.value == repo))
+        {
+            return Some(MavenImport::Plain);
+        }
+        for (alias, value) in &call.named {
+            if matches!(value, Value::Str(s) if s.value == repo) {
+                return Some(MavenImport::Alias(alias.clone()));
+            }
+        }
+    }
+    None
+}
+
+/// Whether `build` already has a maven `dx_external` line for `lock`.
+fn declares_external(build: &str, lock: &str) -> bool {
+    build.lines().any(|line| {
+        let Some(rest) = line.trim().strip_prefix("# gazelle:dx_external") else {
+            return false;
+        };
+        let mut fields = rest.split_whitespace();
+        fields.next() == Some("maven")
+            && fields
+                .next()
+                .is_some_and(|path| path.trim_start_matches("//") == lock)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -845,5 +975,103 @@ mod tests {
             "{:?}",
             hubs.notes
         );
+    }
+
+    const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:maven_install.json\",\n)\nuse_repo(maven, \"maven\")\n";
+    const MAVEN_DIRECTIVE: &str =
+        "# gazelle:dx_external maven third_party/maven_install.json maven\n";
+
+    fn maven_workspace(files: &[(&str, &str)]) -> dx_test_scratch::TempDir {
+        let dir = scratch("maven_locks");
+        for (rel, text) in files {
+            write(dir.path(), rel, text);
+        }
+        dir
+    }
+
+    #[test]
+    fn maven_lock_gets_its_package_lock_and_directive() {
+        let dir = maven_workspace(&[("MODULE.bazel", MAVEN_MODULE)]);
+        let plan = plan_maven_locks(dir.path()).expect("plan");
+        assert_eq!(plan.notes, Vec::<String>::new());
+        assert_eq!(
+            plan.seeds,
+            [(
+                "third_party/maven_install.json".to_owned(),
+                "maven".to_owned()
+            )]
+        );
+        assert_eq!(
+            plan.edits,
+            [
+                ModuleEdit {
+                    path: "third_party/BUILD.bazel".to_owned(),
+                    old: String::new(),
+                    new: "exports_files([\"maven_install.json\"])\n".to_owned(),
+                },
+                ModuleEdit {
+                    path: "BUILD.bazel".to_owned(),
+                    old: String::new(),
+                    new: MAVEN_DIRECTIVE.to_owned(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn maven_lock_plans_nothing_the_second_time() {
+        let dir = maven_workspace(&[("MODULE.bazel", MAVEN_MODULE)]);
+        let plan = plan_maven_locks(dir.path()).expect("plan");
+        for edit in &plan.edits {
+            crate::write_edit_or_create(dir.path(), edit).expect("write");
+        }
+        write(
+            dir.path(),
+            "third_party/maven_install.json",
+            "{\"artifacts\": {}}",
+        );
+        assert_eq!(
+            plan_maven_locks(dir.path()).expect("plan"),
+            MavenLocks::default()
+        );
+    }
+
+    #[test]
+    fn maven_lock_keeps_the_root_build_and_skips_a_root_lock() {
+        let dir = maven_workspace(&[
+            ("MODULE.bazel", MAVEN_MODULE),
+            ("third_party/BUILD", ""),
+            ("third_party/maven_install.json", "{}"),
+            (
+                "BUILD.bazel",
+                "package(default_visibility = [\"//visibility:public\"])",
+            ),
+        ]);
+        let plan = plan_maven_locks(dir.path()).expect("plan");
+        assert_eq!(plan.edits.len(), 1);
+        assert_eq!(
+            plan.edits[0].new,
+            format!("package(default_visibility = [\"//visibility:public\"])\n{MAVEN_DIRECTIVE}")
+        );
+
+        let module = MAVEN_MODULE.replace("//third_party:", "//:");
+        let dir = maven_workspace(&[("MODULE.bazel", &module), ("maven_install.json", "{}")]);
+        assert_eq!(
+            plan_maven_locks(dir.path()).expect("plan"),
+            MavenLocks::default()
+        );
+    }
+
+    #[test]
+    fn maven_lock_behind_a_renamed_repo_gets_a_note() {
+        let module = MAVEN_MODULE.replace(
+            "use_repo(maven, \"maven\")",
+            "use_repo(maven, deps = \"maven\")",
+        );
+        let dir = maven_workspace(&[("MODULE.bazel", &module)]);
+        let plan = plan_maven_locks(dir.path()).expect("plan");
+        assert!(plan.edits.is_empty() && plan.seeds.is_empty(), "{plan:?}");
+        assert_eq!(plan.notes.len(), 1);
+        assert!(plan.notes[0].contains("as deps"), "{:?}", plan.notes);
     }
 }

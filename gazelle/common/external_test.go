@@ -230,6 +230,35 @@ func TestExternalMaven(t *testing.T) {
 	}
 }
 
+func TestExternalElsewhereNamesTheDirective(t *testing.T) {
+	cfg, root := externalConfig(t)
+	dotFile(t, root, "third_party/maven_install.json", testMavenLock)
+	if errs := ConfigureExternal(cfg, "", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	lock := cfg.Clone()
+	if errs := ConfigureExternal(lock, "third_party", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	app := cfg.Clone()
+	if errs := ConfigureExternal(app, "app", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	if got, _ := ExternalLabels(app, "maven", "com.google.common.base.Joiner"); got != nil {
+		t.Fatalf("labels = %v, want none outside third_party", got)
+	}
+	want := `third_party/maven_install.json provides it; add "# gazelle:dx_external maven third_party/maven_install.json maven" to BUILD.bazel`
+	if got := ExternalElsewhere(app, "maven", "com.google.common.base.Joiner"); got != want {
+		t.Errorf("hint = %q, want %q", got, want)
+	}
+	if got := ExternalElsewhere(app, "maven", "com.example.Nothing"); got != "" {
+		t.Errorf("hint for an unknown import = %q, want none", got)
+	}
+	if got := ExternalElsewhere(lock, "maven", "com.google.common.base.Joiner"); got != "" {
+		t.Errorf("hint where the lock is in effect = %q, want none", got)
+	}
+}
+
 func newExternalDotLang() *SingleLang {
 	spec := dotSpec()
 	spec.Candidates = JVMCandidates

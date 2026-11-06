@@ -42,7 +42,6 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("protobuf", "36.2"),
     ("rules_rust_prost", "0.75.0"),
     ("rules_java", "9.9.0"),
-    ("grpc-java", "1.84.0"),
     ("rules_android", "0.8.0"),
     ("rules_kotlin", "2.4.21"),
     ("rules_scala", "7.4.1"),

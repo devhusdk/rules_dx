@@ -51,8 +51,10 @@ pub use launcher::{
     render_launcher_cmd, render_launcher_sh, stale_launchers, write_launcher_files,
 };
 pub use load_graph::{BzlImpact, bzl_impact, module_inputs, repo_impact};
-pub use lock_hubs::{LockHubs, plan_lock_hubs, plan_pnpm_tool, unlocked_manifests};
-pub use module_pin::{ModuleEdit, plan_rules_dx_version, write_module_edit};
+pub use lock_hubs::{
+    LockHubs, MavenLocks, plan_lock_hubs, plan_maven_locks, plan_pnpm_tool, unlocked_manifests,
+};
+pub use module_pin::{ModuleEdit, plan_rules_dx_version, write_edit_or_create, write_module_edit};
 pub use overrides::{
     OVERRIDES_INCLUDE, OverridesState, apply_overrides, check_overrides, check_overrides_in,
     is_rules_dx_root, module_deps, preflight_overrides, refresh_overrides, render_overrides,

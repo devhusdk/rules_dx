@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -94,6 +95,31 @@ type externalSource struct {
 type externalIndex struct {
 	rel     string
 	sources map[string][]externalSource
+	known   *externalKnown
+}
+
+// externalKnown lists every discovered source, whether in effect or not. The
+// root index creates it and every directory shares it.
+type externalKnown struct {
+	mu    sync.Mutex
+	byEco map[string][]externalSource
+}
+
+func (k *externalKnown) add(eco string, src externalSource) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	for _, have := range k.byEco[eco] {
+		if have.Path == src.Path {
+			return
+		}
+	}
+	k.byEco[eco] = append(k.byEco[eco], src)
+}
+
+func (k *externalKnown) list(eco string) []externalSource {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return append([]externalSource(nil), k.byEco[eco]...)
 }
 
 func inheritedExternal(c *config.Config) *externalIndex {
@@ -114,8 +140,10 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 		return nil
 	}
 	var sources map[string][]externalSource
+	known := &externalKnown{byEco: map[string][]externalSource{}}
 	if parent != nil {
 		sources = parent.sources
+		known = parent.known
 	}
 	cloned := false
 	set := func(eco string, list []externalSource) {
@@ -157,7 +185,9 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 		if parser.Place != nil {
 			manifest = parser.Place(manifest, rel)
 		}
-		set(eco, []externalSource{{Repo: parser.DefaultRepo, Path: relPath, Manifest: manifest}})
+		src := externalSource{Repo: parser.DefaultRepo, Path: relPath, Manifest: manifest}
+		known.add(eco, src)
+		set(eco, []externalSource{src})
 	}
 	var errs []string
 	if f != nil {
@@ -208,7 +238,7 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 			set(eco, append(append([]externalSource(nil), list...), externalSource{Repo: repo, Path: relPath, Manifest: manifest}))
 		}
 	}
-	c.Exts[ExternalDirective] = &externalIndex{rel: rel, sources: sources}
+	c.Exts[ExternalDirective] = &externalIndex{rel: rel, sources: sources, known: known}
 	return errs
 }
 
@@ -244,6 +274,30 @@ func ExternalLabels(c *config.Config, ecosystem, name string) ([]label.Label, st
 		return out, ""
 	}
 	return nil, hint
+}
+
+// ExternalElsewhere names the dx_external directive that would resolve name:
+// a discovered source of the ecosystem that provides it but is not in effect
+// for the configured directory. It is empty when there is none.
+func ExternalElsewhere(c *config.Config, ecosystem, name string) string {
+	idx := inheritedExternal(c)
+	if idx == nil {
+		return ""
+	}
+	for _, src := range idx.known.list(ecosystem) {
+		if slices.ContainsFunc(idx.sources[ecosystem], func(have externalSource) bool { return have.Path == src.Path }) {
+			continue
+		}
+		if labels, _ := src.Manifest.Lookup(src.Repo, name); len(labels) == 0 {
+			continue
+		}
+		directive := ExternalDirective + " " + ecosystem + " " + src.Path
+		if src.Repo != "" {
+			directive += " " + src.Repo
+		}
+		return fmt.Sprintf("%s provides it; add \"# gazelle:%s\" to BUILD.bazel", src.Path, directive)
+	}
+	return ""
 }
 
 // ExternalSources returns the repo-relative paths feeding ecosystem for the

@@ -102,6 +102,64 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) {
     if seeded_cargo {
         fill_cargo_lock(request, env);
     }
+    wire_maven_locks(request, env);
+}
+
+/// Creates what each root Maven lock needs: its package's `BUILD.bazel`, the root
+/// `dx_external` line, and a pinned lock when it is missing or empty.
+fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>) {
+    let plan = match dx_adopt::plan_maven_locks(env.workspace) {
+        Ok(plan) => plan,
+        Err(error) => {
+            let _ = writeln!(env.err, "dx: Maven locks not wired: {error}");
+            return;
+        }
+    };
+    for note in &plan.notes {
+        let _ = writeln!(env.err, "dx: {note}");
+    }
+    let apply = request.applies();
+    for edit in &plan.edits {
+        if !apply {
+            let _ = writeln!(
+                env.err,
+                "dx: {} would gain what its Maven lock needs; run dx generate --apply",
+                edit.path
+            );
+        } else if let Err(error) = dx_adopt::write_edit_or_create(env.workspace, edit) {
+            let _ = writeln!(env.err, "dx: Maven locks not wired: {error}");
+        } else {
+            let _ = writeln!(env.err, "dx: wrote {}", edit.path);
+        }
+    }
+    for (lock, repository) in &plan.seeds {
+        if !apply {
+            let _ = writeln!(env.err, "dx: would pin {lock}; run dx generate --apply");
+            continue;
+        }
+        let empty = dx_adopt::ModuleEdit {
+            path: lock.clone(),
+            old: String::new(),
+            new: String::new(),
+        };
+        if let Err(error) = dx_adopt::write_edit_or_create(env.workspace, &empty) {
+            let _ = writeln!(env.err, "dx: {lock} not created: {error}");
+            continue;
+        }
+        let argv = dx_update::backend::maven_pin_argv(&request.bazel_head(), repository);
+        let vars = dx_update::backend::maven_env(true);
+        let pairs: Vec<(&str, &str)> = vars
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
+            .collect();
+        report_seed(
+            env.workspace,
+            env.err,
+            lock,
+            "the Maven pin",
+            env.runner.run(&argv, env.workspace, &pairs),
+        );
+    }
 }
 
 fn lock_for(manifest: &str) -> &'static str {
@@ -635,6 +693,43 @@ mod tests {
             "{err}"
         );
         assert!(!err.contains("dx init"), "{err}");
+    }
+
+    #[test]
+    fn generate_apply_wires_and_pins_a_maven_lock() {
+        let mut harness = Harness::new("generate-maven-lock");
+        harness.write_source(
+            "MODULE.bazel",
+            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:maven_install.json\",\n)\nuse_repo(maven, \"maven\")\n",
+        );
+        harness.write_source("BUILD.bazel", "");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let read = |rel: &str| std::fs::read_to_string(harness.workspace.join(rel)).expect(rel);
+        assert_eq!(
+            read("third_party/BUILD.bazel"),
+            "exports_files([\"maven_install.json\"])\n"
+        );
+        assert_eq!(
+            read("BUILD.bazel"),
+            "# gazelle:dx_external maven third_party/maven_install.json maven\n"
+        );
+        assert_eq!(read("third_party/maven_install.json"), "");
+        let builds = harness.build_argv.borrow();
+        let pin = builds
+            .iter()
+            .position(|argv| argv.iter().any(|arg| arg == "@maven//:pin"))
+            .expect("maven pin");
+        assert!(builds[pin].iter().any(|arg| arg == "run"), "{builds:?}");
+        assert!(
+            harness.seen_env.borrow()[pin]
+                .contains(&("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned()))
+        );
+        assert!(
+            err.contains("dx: third_party/maven_install.json is still empty after the Maven pin"),
+            "{err}"
+        );
     }
 
     #[test]

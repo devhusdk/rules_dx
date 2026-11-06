@@ -117,6 +117,22 @@ pub fn write_module_edit(root: &Path, edit: &ModuleEdit) -> Result<(), AdoptErro
     })
 }
 
+/// Writes a planned edit; a file planned from nothing is created with its directories.
+pub fn write_edit_or_create(root: &Path, edit: &ModuleEdit) -> Result<(), AdoptError> {
+    let full = root.join(&edit.path);
+    if !edit.old.is_empty() || full.exists() {
+        return write_module_edit(root, edit);
+    }
+    let write_error = |e: std::io::Error| AdoptError::WriteFile {
+        path: edit.path.clone(),
+        detail: e.to_string(),
+    };
+    if let Some(parent) = full.parent() {
+        std::fs::create_dir_all(parent).map_err(write_error)?;
+    }
+    dx_atomic_fs::write_atomic(&full, edit.new.as_bytes()).map_err(write_error)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,17 +1,21 @@
 //! Lists Maven artifacts whose newest release on Maven Central is newer than the declared version.
 
-use super::{Candidate, Fetch, Findings, LookupError, wanted};
+use super::{Candidate, Fetch, Findings, LookupError, Overridden, wanted};
 use dx_module_bazel::ModuleFile;
 use mvn_version::ComparableVersion;
+use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://repo1.maven.org/maven2";
 
 const PRERELEASE: [&str; 6] = ["snapshot", "alpha", "beta", "rc", "cr", "preview"];
 
 /// Checks each literal coordinate of the `maven.install` named `set` against the repository at `base`.
+/// `resolved` maps `group:artifact` to the version the lock holds; that version is the current one,
+/// and a coordinate that asked for another is reported as overridden.
 pub fn outdated(
     set: &str,
     module: &ModuleFile,
+    resolved: &BTreeMap<String, String>,
     only: &[String],
     prereleases: bool,
     base: &str,
@@ -38,7 +42,16 @@ pub fn outdated(
         if !wanted(only, &package) {
             continue;
         }
-        let current = parts[parts.len() - 1];
+        let requested = parts[parts.len() - 1];
+        let current = resolved.get(&package).map_or(requested, String::as_str);
+        if current != requested {
+            found.overridden.push(Overridden {
+                set: set.to_owned(),
+                package: package.clone(),
+                requested: requested.to_owned(),
+                resolved: current.to_owned(),
+            });
+        }
         let url = format!(
             "{base}/{}/{}/maven-metadata.xml",
             parts[0].replace('.', "/"),
@@ -135,14 +148,30 @@ mod tests {
 
     fn run(only: &[String]) -> Findings {
         let module = ModuleFile::parse(MODULE).expect("parse");
-        outdated("maven", &module, only, false, DEFAULT_BASE, &repo)
+        outdated(
+            "maven",
+            &module,
+            &BTreeMap::new(),
+            only,
+            false,
+            DEFAULT_BASE,
+            &repo,
+        )
     }
 
     #[test]
     fn prereleases_on_lists_the_newest_prerelease() {
         let module = ModuleFile::parse(MODULE).expect("parse");
         let only = ["junit:junit".to_owned()];
-        let found = outdated("maven", &module, &only, true, DEFAULT_BASE, &repo);
+        let found = outdated(
+            "maven",
+            &module,
+            &BTreeMap::new(),
+            &only,
+            true,
+            DEFAULT_BASE,
+            &repo,
+        );
         assert_eq!(found.candidates[0].latest, "5.0.0-rc1");
         assert!(found.candidates[0].prerelease);
     }
@@ -206,6 +235,7 @@ mod tests {
         outdated(
             "maven",
             &module,
+            &BTreeMap::new(),
             &["org.apache.commons:commons-lang3".to_owned()],
             false,
             "https://m",
@@ -237,5 +267,35 @@ mod tests {
         for good in ["1.0", "2.0.0", "33.0.0-jre", "1.0.Final"] {
             assert!(is_release(good), "{good}");
         }
+    }
+
+    #[test]
+    fn the_resolved_version_is_current_and_an_override_is_flagged() {
+        let module = ModuleFile::parse(MODULE).expect("parse");
+        let resolved = BTreeMap::from([
+            ("junit:junit".to_owned(), "4.13.2".to_owned()),
+            ("g:a".to_owned(), "1.0".to_owned()),
+        ]);
+        let found = outdated(
+            "maven",
+            &module,
+            &resolved,
+            &["junit:junit".to_owned(), "g:a".to_owned()],
+            false,
+            DEFAULT_BASE,
+            &repo,
+        );
+        assert!(!found.candidates.iter().any(|c| c.package == "junit:junit"));
+        assert_eq!(
+            found.overridden,
+            [Overridden {
+                set: "maven".into(),
+                package: "junit:junit".into(),
+                requested: "4.12".into(),
+                resolved: "4.13.2".into(),
+            }]
+        );
+        let long = found.candidates.iter().find(|c| c.package == "g:a");
+        assert_eq!(long.map(|c| c.current.as_str()), Some("1.0"));
     }
 }

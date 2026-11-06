@@ -59,12 +59,22 @@ pub struct LookupError {
     pub reason: String,
 }
 
+/// A declared version that dependency resolution replaced in the lock.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Overridden {
+    pub set: String,
+    pub package: String,
+    pub requested: String,
+    pub resolved: String,
+}
+
 /// Everything one set produced.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Findings {
     pub candidates: Vec<Candidate>,
     pub errors: Vec<LookupError>,
     pub unknown: Vec<LookupError>,
+    pub overridden: Vec<Overridden>,
 }
 
 /// Reads `owner/name` from a GitHub repository URL or `github:owner/name` shorthand.

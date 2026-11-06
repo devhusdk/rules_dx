@@ -565,16 +565,20 @@ use_repo(crate, "crates")
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = ["com.google.guava:guava:33.4.0-jre"],
+    known_contributing_modules = ["protobuf"],
     lock_file = "//third_party:maven_install.json",
 )
 use_repo(maven, "maven")
 ```
 
-- Needs rules_jvm_external 7.1 or later and a `use_repo` entry without a rename. Several sets share `MODULE.bazel` as manifest. Create the lock file (empty is enough) before the first `--apply`.
+- Needs rules_jvm_external 7.1 or later and a `use_repo` entry without a rename. Several sets share `MODULE.bazel` as manifest.
+- `@maven` holds what you list plus the few artifacts protobuf adds to it; rules_dx keeps its own in other repositories. `known_contributing_modules` silences the warning about protobuf's.
+- `dx generate --apply` creates what the lock needs: `third_party/BUILD.bazel` when it is missing, the lock pinned with `bazel run @maven//:pin` when it is missing or empty, and `# gazelle:dx_external maven third_party/maven_install.json maven` in the root `BUILD.bazel`. A lock at the root needs no directive. With a renamed `use_repo` it only prints what to add.
 - `--apply` runs `bazel run @<repository>//:pin` with `RULES_JVM_EXTERNAL_REPIN=1`. A check runs `bazel fetch --repo=@<repository>`; a stale lock fails with `updater exited <code>`.
 - A check is unsupported when `fail_if_repin_required` is `False` or computed, the lock is empty or lacks `__INPUT_ARTIFACTS_HASH` and `__RESOLVED_ARTIFACTS_HASH`, or the host sets `REPIN` or `RULES_JVM_EXTERNAL_REPIN`.
 - Host `COURSIER_MIRRORS`, `COURSIER_REPOSITORIES`, `COURSIER_CREDENTIALS`, `COURSIER_CONFIG_DIR` and `SCALA_CLI_CONFIG` are refused.
 - A set takes no `set:package` for update or check. Use `dx update <set>:<group>:<artifact> <version>` to widen.
+- `--outdated` compares the version in the lock, not the one in `MODULE.bazel`. When resolution picked another version than an artifact asks for, it prints `<set>:<group>:<artifact>: overridden (...)` and an `update_outdated_overridden` warning naming both; the exit code is unchanged.
 - `dx security` matches the lock's `artifacts` against `.dx/local/advisory/maven.json`. `dx license` needs `[[inventory]]` with `set = "maven"`.
 
 ### nuget

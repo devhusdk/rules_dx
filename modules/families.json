@@ -530,7 +530,6 @@
       ],
       "bazel_deps": [
         "avro-cpp",
-        "grpc-java",
         "protobuf",
         "rules_proto",
         "rules_rust_prost"

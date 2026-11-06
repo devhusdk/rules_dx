@@ -78,7 +78,7 @@ When `.dx/config/BUILD.bazel` from `dx init` already has a `ruff_config` for the
 
 `dx_ignore_import` languages: `astro`, `cc`, `csharp`, `dart`, `elixir`, `erlang`, `fsharp`, `go`, `haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `ocaml`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`, `scala`, `svelte`, `swift`, `typescript`, `vue`, `zig`.
 
-`dx_external` ecosystems: `go` (`go.mod`, no repo), `maven` (`maven_install.json`, repo `maven`), `python` (`uv.lock`, repo `pypi`), `pub` (`pubspec.lock`, repo `pub_deps`), `npm` (root `package.json`). Repeat the line to use several files. `off` drops an inherited file. Without the directive, a `go.mod`, `maven_install.json`, `uv.lock`, `pubspec.lock`, or root `package.json` applies to its directory and below.
+`dx_external` ecosystems: `go` (`go.mod`, no repo), `maven` (`maven_install.json`, repo `maven`), `python` (`uv.lock`, repo `pypi`), `pub` (`pubspec.lock`, repo `pub_deps`), `npm` (root `package.json`). Repeat the line to use several files. `off` drops an inherited file. Without the directive, a `go.mod`, `maven_install.json`, `uv.lock`, `pubspec.lock`, or root `package.json` applies to its directory and below. When an import is unresolved but such a file in another directory provides it, the error names the `dx_external` line to add.
 
 ```starlark
 # gazelle:dx_external maven third_party/jvm/maven_install.json maven

@@ -375,6 +375,16 @@ pub fn maven_env(apply: bool) -> Vec<(String, String)> {
     }
 }
 
+/// `bazel run @<repository>//:pin`, rules_jvm_external's pin script. It needs no rules_dx
+/// diagnostics settings, and a consumer without rules_dx cannot resolve them.
+pub fn maven_pin_argv(head: &dx_process::BazelHead, repository: &str) -> Vec<String> {
+    let pin_head = dx_process::BazelHead {
+        settings: Vec::new(),
+        ..head.clone()
+    };
+    bazel(&pin_head, "run", &[&format!("@{repository}//:pin")])
+}
+
 const MAVEN_REPIN_ENV: [&str; 2] = ["REPIN", "RULES_JVM_EXTERNAL_REPIN"];
 
 /// Coursier settings that would redirect where the pin resolves from; dx cannot neutralise them.
@@ -1005,15 +1015,8 @@ pub fn plan_configured(
                     set: set.name.clone(),
                 });
             }
-            let target = format!("@{}//:pin", maven_repository(set)?);
-            // The pin script needs no rules_dx diagnostics settings, and a consumer
-            // without rules_dx cannot resolve them.
-            let pin_head = dx_process::BazelHead {
-                settings: Vec::new(),
-                ..head.clone()
-            };
             Ok(BackendPlan::Run {
-                argv: bazel(&pin_head, "run", &[&target]),
+                argv: maven_pin_argv(head, maven_repository(set)?),
                 env: maven_env(true),
             })
         }

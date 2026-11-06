@@ -1386,7 +1386,8 @@ impl ModuleFile {
         Ok(out)
     }
 
-    fn maven_proxies(&self) -> Vec<&str> {
+    /// The bindings of the `use_extension` calls for rules_jvm_external's `maven`.
+    pub fn maven_proxies(&self) -> Vec<&str> {
         let repo = self.repo_name(MAVEN_MODULE).unwrap_or(MAVEN_MODULE);
         let label = format!("@{repo}//:extensions.bzl");
         self.calls_named("use_extension")

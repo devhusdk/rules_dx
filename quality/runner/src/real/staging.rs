@@ -652,6 +652,10 @@ impl RealBackend {
     pub(super) fn cwd_rel(tool_id: &str, config_rel: Option<&str>) -> String {
         match tool_id {
             "buildifier" | "vale" | "staticcheck" => config_rel.map(parent_rel).unwrap_or_default(),
+            "ruff" => config_rel
+                .filter(|rel| !rel.starts_with("_external/"))
+                .map(parent_rel)
+                .unwrap_or_default(),
             _ => String::new(),
         }
     }

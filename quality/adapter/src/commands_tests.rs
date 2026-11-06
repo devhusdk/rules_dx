@@ -236,7 +236,7 @@ fn lychee_check_is_offline_and_rooted_in_the_scratch() {
 #[test]
 fn ruff_check_is_hermetic_and_config_explicit() {
     let file = Path::new("/scratch/a.py");
-    let bare = ruff_check(Path::new(BIN), &[file], None);
+    let bare = ruff_check(Path::new(BIN), &[file], None, "");
     assert_eq!(
         argv_strings(&bare),
         vec![
@@ -253,7 +253,13 @@ fn ruff_check_is_hermetic_and_config_explicit() {
         ]
     );
     assert_eq!(bare.cwd_rel, "");
-    let hinted = ruff_check(Path::new(BIN), &[file], Some(Path::new("/scratch/r.toml")));
+    let hinted = ruff_check(
+        Path::new(BIN),
+        &[file],
+        Some(Path::new("/scratch/r.toml")),
+        "services/api",
+    );
+    assert_eq!(hinted.cwd_rel, "services/api");
     assert_eq!(
         argv_strings(&hinted),
         vec![
@@ -274,10 +280,12 @@ fn ruff_check_is_hermetic_and_config_explicit() {
 #[test]
 fn ruff_fix_and_format_shapes() {
     let file = Path::new("/scratch/a.py");
-    let fix = ruff_fix(Path::new(BIN), &[file], None);
+    let fix = ruff_fix(Path::new(BIN), &[file], None, "a");
+    assert_eq!(fix.cwd_rel, "a");
     assert!(argv_strings(&fix).contains(&"--fix".to_owned()));
     assert!(!argv_strings(&fix).contains(&"--output-format".to_owned()));
-    let check = ruff_format_check(Path::new(BIN), &[file], None);
+    let check = ruff_format_check(Path::new(BIN), &[file], None, "b");
+    assert_eq!(check.cwd_rel, "b");
     assert_eq!(
         argv_strings(&check),
         vec![
@@ -294,7 +302,13 @@ fn ruff_fix_and_format_shapes() {
             "/scratch/a.py"
         ]
     );
-    let fix_fmt = ruff_format_fix(Path::new(BIN), &[file], Some(Path::new("/s/r.toml")));
+    let fix_fmt = ruff_format_fix(
+        Path::new(BIN),
+        &[file],
+        Some(Path::new("/s/r.toml")),
+        "c",
+    );
+    assert_eq!(fix_fmt.cwd_rel, "c");
     assert!(argv_strings(&fix_fmt).contains(&"format".to_owned()));
     assert!(!argv_strings(&fix_fmt).contains(&"--check".to_owned()));
     assert!(argv_strings(&fix_fmt).contains(&"/s/r.toml".to_owned()));

@@ -16,6 +16,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             {
                 let config_ref = call.config;
                 let format = capability == "format";
+                let cwd_rel = RealBackend::cwd_rel(tool_id, tool.config_rel.as_deref());
                 let notebooks = RealBackend::read_notebooks(tool_id, pairs)?;
                 let notebook_refs: Vec<(&str, &str)> = notebooks
                     .iter()
@@ -28,9 +29,9 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     pairs,
                     |files| {
                         Ok(if format {
-                            commands::ruff_format_check(&tool.binary, files, config_ref)
+                            commands::ruff_format_check(&tool.binary, files, config_ref, &cwd_rel)
                         } else {
-                            commands::ruff_check(&tool.binary, files, config_ref)
+                            commands::ruff_check(&tool.binary, files, config_ref, &cwd_rel)
                         })
                     },
                     |out, names| {

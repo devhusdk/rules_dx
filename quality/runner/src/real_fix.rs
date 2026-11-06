@@ -1030,11 +1030,14 @@ impl super::RealBackend {
                         config.as_deref(),
                         false,
                     )),
-                    "ruff" => Ok(if format {
-                        commands::ruff_format_fix(&tool.binary, refs, config.as_deref())
-                    } else {
-                        commands::ruff_fix(&tool.binary, refs, config.as_deref())
-                    }),
+                    "ruff" => {
+                        let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
+                        Ok(if format {
+                            commands::ruff_format_fix(&tool.binary, refs, config.as_deref(), &cwd_rel)
+                        } else {
+                            commands::ruff_fix(&tool.binary, refs, config.as_deref(), &cwd_rel)
+                        })
+                    }
                     "scalafmt" => Ok(commands::scalafmt_fix(
                         &tool.binary,
                         refs,

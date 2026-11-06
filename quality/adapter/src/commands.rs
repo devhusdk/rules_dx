@@ -587,27 +587,27 @@ fn ruff_base(
     argv
 }
 
-pub fn ruff_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn ruff_check(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
     let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_CHECK_TAIL.iter().map(OsString::from));
-    assemble(binary, head, files, "")
+    assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn ruff_fix(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
     let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FIX_TAIL.iter().map(OsString::from));
-    assemble(binary, head, files, "")
+    assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn ruff_format_check(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
     let mut head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FORMAT_CHECK_TAIL.iter().map(OsString::from));
-    assemble(binary, head, files, "")
+    assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn ruff_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
     let head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
-    assemble(binary, head, files, "")
+    assemble(binary, head, files, cwd_rel)
 }
 
 pub fn ty_check(

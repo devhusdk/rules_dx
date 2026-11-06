@@ -2730,4 +2730,112 @@ source = { registry = "https://pypi.org/simple" }
         assert!(runner.launches.borrow().is_empty());
         assert_eq!(cpan_bytes(&harness), before);
     }
+
+    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.packages(name = \"hackage\", deps = \"//hs:haskell_deps.json\")\n";
+    const CABAL_FILES: [&str; 4] = [
+        "hs/cabal.project",
+        "hs/cabal.project.freeze",
+        "hs/haskell_deps.json",
+        "hs/app.cabal",
+    ];
+
+    fn cabal_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, CABAL_MODULE, true);
+        harness.write_source("hs/cabal.project", "packages: .\n");
+        harness.write_source(
+            "hs/cabal.project.freeze",
+            "constraints: any.base ==4.20.2.0,\n             any.safe ==0.3.21\nindex-state: hackage.haskell.org 2026-09-30T23:43:34Z\n",
+        );
+        harness.write_source(
+            "hs/haskell_deps.json",
+            "{\"packages\":[{\"name\":\"base\",\"version\":\"4.20.2.0\"},{\"name\":\"safe\",\"version\":\"0.3.21\"}]}\n",
+        );
+        harness.write_source(
+            "hs/app.cabal",
+            "cabal-version: 3.0\nname: app\nversion: 0.1.0.0\nbuild-type: Simple\n\nlibrary\n  build-depends: base, safe ==0.3.21\n",
+        );
+        harness.write_source(
+            "hs/BUILD.bazel",
+            "haskell_deps_resolve(name = \"resolve\")\nhaskell_deps_resolve_test(name = \"resolve_test\")\n",
+        );
+        harness
+    }
+
+    fn cabal_bytes(harness: &Harness) -> Vec<Vec<u8>> {
+        CABAL_FILES
+            .iter()
+            .map(|rel| read_bytes(harness, rel))
+            .collect()
+    }
+
+    #[test]
+    fn consumer_cabal_check_runs_the_resolve_test() {
+        let harness = cabal_harness("cabal-check");
+        let before = cabal_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "hackage"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1, "{launches:?}");
+        assert_eq!(
+            launches[0].argv.last().map(String::as_str),
+            Some("//hs:resolve_test")
+        );
+        assert_eq!(cabal_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_cabal_apply_runs_the_resolve_target() {
+        let harness = cabal_harness("cabal-apply");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--apply", "hackage"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1, "{launches:?}");
+        assert_eq!(
+            launches[0].argv.last().map(String::as_str),
+            Some("//hs:resolve")
+        );
+    }
+
+    #[test]
+    fn consumer_cabal_apply_package_rewrites_the_bound_then_resolves() {
+        let harness = cabal_harness("cabal-bound");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "hackage:safe", "0.3.22"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        let cabal = String::from_utf8(read_bytes(&harness, "hs/app.cabal")).expect("utf8");
+        assert!(cabal.contains("safe ==0.3.22"), "{cabal}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1, "{launches:?}");
+        assert_eq!(
+            launches[0].argv.last().map(String::as_str),
+            Some("//hs:resolve")
+        );
+    }
+
+    #[test]
+    fn consumer_cabal_refusals_launch_nothing() {
+        let harness = cabal_harness("cabal-refuse");
+        let before = cabal_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        let (code, _, err) = run_with(&["update", "--offline", "hackage"], &runner, &harness);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("offline_required"), "{err}");
+        let (code, _, err) = run_with(&["update", "--apply", "--frozen", "hackage"], &runner, &harness);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("frozen_locked"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "hackage:missing", "1.0"],
+            &runner,
+            &harness,
+        );
+        assert_ne!(code, 0, "{err}");
+        assert!(runner.launches.borrow().is_empty());
+        assert_eq!(cabal_bytes(&harness), before);
+    }
 }

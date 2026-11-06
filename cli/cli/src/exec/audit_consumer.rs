@@ -953,4 +953,36 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 0, "{out}{err}");
         assert!(!out.contains("vuln/CPANSA"), "{out}");
     }
+
+    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.packages(name = \"hackage\", deps = \"//hs:haskell_deps.json\")\n";
+
+    const HACKAGE_ADVISORY: &str = r#"[{
+        "id": "HSEC-2026-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "Hackage", "name": "safe"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0.3.22"}]}]
+        }]
+    }]"#;
+
+    #[test]
+    fn consumer_cabal_set_reads_its_freeze_and_the_hackage_snapshot() {
+        let harness = consumer_harness("cabal-vuln", CABAL_MODULE, false);
+        harness.write_source("hs/cabal.project", "packages: .\n");
+        harness.write_source(
+            "hs/cabal.project.freeze",
+            "constraints: any.base ==4.20.2.0,\n             any.safe ==0.3.21\nindex-state: hackage.haskell.org 2026-09-30T23:43:34Z\n",
+        );
+        harness.write_source(
+            "hs/haskell_deps.json",
+            "{\"packages\":[{\"name\":\"base\",\"version\":\"4.20.2.0\"},{\"name\":\"safe\",\"version\":\"0.3.21\"}]}\n",
+        );
+        write_advisory(&harness, "hackage", HACKAGE_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "hackage"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/HSEC-2026-0001"), "{out}");
+        assert!(out.contains("hs/cabal.project.freeze"), "{out}");
+    }
 }

@@ -559,6 +559,19 @@ go_deps.from_file(go_mod = "//third_party/go:go.mod")
 - A set takes no `set:package` for update. Edit the `require` in `go.mod` and run `dx update <set>`, or run `dx update <set>:<module> <version>`.
 - `dx security` matches `go.mod` requirements against `.dx/advisory/go.json`.
 
+### cabal
+
+```starlark
+haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
+haskell.packages(name = "hackage", deps = "//third_party:haskell_deps.json")
+```
+
+- The manifest is `cabal.project` in the package of the `deps` label. Locks are `cabal.project.freeze` and the `haskell_deps.json` sidecar beside it. A check compares the versions in both.
+- A check runs the `haskell_deps_resolve_test` next to `cabal.project`; `--apply` runs its `haskell_deps_resolve`, which keeps both lock files in step. Without those targets the set is unsupported. `--offline` fails with `offline_required`; `--apply --frozen` fails with `frozen_locked`.
+- A set takes no `set:package` without a version. `dx update <set>:<package> <version> --apply` rewrites the bound in `build-depends` first, then resolves again.
+- `dx update --outdated` compares the freeze pins with `hackage.haskell.org/package/<name>/preferred`.
+- `dx security` matches the `any.<name> ==<version>` pins of `cabal.project.freeze` against `.dx/advisory/hackage.json`. Flags and `installed` boot packages are skipped.
+
 ### uv
 
 - Dx runs the pinned uv `0.13.7` and the pinned interpreter. `DX_UV_BIN` and `DX_UV_PYTHON` hold absolute paths to override; otherwise dx resolves `@dx_tools//:uv` and `@rules_dx//cli/update:python_interpreter` through Bazel. A relative path is rejected, `PATH` is never searched, and a uv that does not report `0.13.7` is rejected. With no usable tool the set fails with `backend_unavailable` and the run exits `1`.

@@ -40,6 +40,18 @@ def _tool_files_to_run(target, flag, tool, what):
     wrappers, defs, tool_label = _TARGET_TOOL_OWNERS[tool]
     fail(what + ": " + tool + " has no executable; use " + wrappers + " from " + defs + ", or set --@rules_dx//config:tool_" + tool + "=" + tool_label)
 
+def _marked_unavailable(spec, tool, target, ctx):
+    """Returns whether the tool is an unavailable stub that no explicit flag overrides."""
+    attr = getattr(ctx.attr, "_" + tool)
+    if spec["kind"] == "executable":
+        return DxUnavailableToolInfo in attr
+    if spec["kind"] != "setting" or not spec.get("target_tool", False):
+        return False
+    ftr = attr[DefaultInfo].files_to_run
+    if ftr != None and ftr.executable != None:
+        return False
+    return QualityToolsInfo in target and tool in getattr(target[QualityToolsInfo], "unavailable", [])
+
 def _unique(items):
     """Returns items without repeats, in first-seen order."""
     return list({item: True for item in items}.keys())
@@ -389,7 +401,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     stage_tools = [stage["tool"] for stage in resolved]
     delegated = {tool: True for tool, found in contexts.items() if found.delegated}
     pinned_counts = {tool: len(getattr(ctx.files, "_" + tool)) for tool in stage_tools if cfg.tools[tool]["kind"] == "file" and "fallback" in cfg.tools[tool]}
-    marked = {tool: True for tool in stage_tools if cfg.tools[tool]["kind"] == "executable" and DxUnavailableToolInfo in getattr(ctx.attr, "_" + tool)}
+    marked = {tool: True for tool in stage_tools if _marked_unavailable(cfg.tools[tool], tool, target, ctx)}
     unavailable = real_unavailable_tools(cfg.tools, stage_tools, delegated, pinned_counts, marked)
     skip_groups = {}
     if len(unavailable) > 0:

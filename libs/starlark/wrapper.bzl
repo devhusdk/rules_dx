@@ -4,6 +4,7 @@ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolcha
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources")
+load("//quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 
 DX_EXEC_PROVIDES = [DefaultInfo, QualitySourcesInfo]
 
@@ -345,9 +346,13 @@ def _dx_tools_providers(ctx, quality_tools):
     if not quality_tools:
         return []
     tools = {}
+    unavailable = []
     for tool_id in quality_tools:
-        tools[tool_id] = getattr(ctx.attr, "_dx_tool_" + tool_id)[DefaultInfo].files_to_run
-    return [QualityToolsInfo(tools = tools)]
+        tool = getattr(ctx.attr, "_dx_tool_" + tool_id)
+        tools[tool_id] = tool[DefaultInfo].files_to_run
+        if DxUnavailableToolInfo in tool:
+            unavailable.append(tool_id)
+    return [QualityToolsInfo(tools = tools, unavailable = unavailable)]
 
 def _dx_quality_files(ctx, extra_quality_attrs):
     files = list(ctx.files.srcs)

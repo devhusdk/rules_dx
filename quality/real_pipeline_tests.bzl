@@ -729,6 +729,11 @@ def real_pipeline_unit_tests(name):
                 [["zanuda"], []],
             ),
             expect_equal(
+                "a marked target_tool setting is unavailable",
+                real_unavailable_tools({"swift_format": _FILE_TOOL | {"kind": "setting", "target_tool": True}}, ["swift_format"], {}, {}, {"swift_format": True}),
+                ["swift_format"],
+            ),
+            expect_equal(
                 "skip notes name the tool and the reason when known",
                 real_skip_notes(["hlint", "zanuda"], {"zanuda": "windows_arm64: no build"}),
                 [
@@ -1255,6 +1260,7 @@ def _marked_tool_test(platform):
 
 _zanuda_marked_test = _marked_tool_test("//qt/platforms:macos_arm64")
 _psscriptanalyzer_marked_test = _marked_tool_test("//qt/platforms:windows_x86_64")
+_swift_format_marked_test = _marked_tool_test("//qt/platforms:macos_arm64")
 
 _zanuda_policy_test = analysistest.make(
     _unsupported_platform_impl,
@@ -1282,9 +1288,14 @@ def unsupported_platform_analysis_tests(name):
         size = "small",
         target_under_test = "//quality/tools/powershell:psscriptanalyzer_tool",
     )
+    _swift_format_marked_test(
+        name = name + "_swift_format_tool",
+        size = "small",
+        target_under_test = "//swift/tools:swift_format",
+    )
     _zanuda_policy_test(
         name = name + "_zanuda_macos",
         size = "small",
         target_under_test = "//quality/testdata/ocaml_owned:clean",
     )
-    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_psscriptanalyzer_tool", name + "_zanuda_macos"])
+    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_psscriptanalyzer_tool", name + "_swift_format_tool", name + "_zanuda_macos"])

@@ -75,7 +75,6 @@ common:ci --remote_local_fallback
 common:ci --remote_retries=5
 common:ci --experimental_remote_cache_eviction_retries=5
 common:ci --experimental_remote_cache_compression_threshold=100
-common:ci --announce_rc
 common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true
 common:ci-pr --noremote_upload_local_results

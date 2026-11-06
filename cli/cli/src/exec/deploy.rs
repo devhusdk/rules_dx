@@ -127,7 +127,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         workspace,
         runner,
         &run_plan.argv,
-        &[(DX_BUILD_MODE_ENV, profile_name), (DEPLOY_LIVE_ENV, live)],
+        &[(DX_BUILD_MODE_ENV, profile.name()), (DEPLOY_LIVE_ENV, live)],
     ) {
         Ok(AppExit {
             code,

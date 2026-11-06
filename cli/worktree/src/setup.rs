@@ -515,9 +515,11 @@ mod tests {
         assert!(missing_ask(&settings).is_empty());
         assert_eq!(allow_rules().len(), 6);
         assert!(!allow_rules().iter().any(|rule| rule.contains("deploy")));
-        assert!(ask_rules()
-            .iter()
-            .all(|rule| rule.contains("tools/dx deploy")));
+        assert!(
+            ask_rules()
+                .iter()
+                .all(|rule| rule.contains("tools/dx deploy"))
+        );
         for file in [&CODEX, &GEMINI] {
             let text = std::fs::read_to_string(dir.path().join(file.path)).expect("file");
             assert!(!text.contains("permissions"), "{}", file.path);

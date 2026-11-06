@@ -39,7 +39,7 @@ fn manifest_for<'a>(manifests: &'a [String], file: &str) -> Option<&'a String> {
         .iter()
         .filter(|manifest| {
             let dir = manifest.rsplit_once('/').map_or("", |(dir, _)| dir);
-            dir.is_empty() || file.starts_with(&format!("{dir}/"))
+            dir.is_empty() || file == dir || file.starts_with(&format!("{dir}/"))
         })
         .max_by_key(|manifest| manifest.len())
         .or_else(|| manifests.first())
@@ -179,6 +179,14 @@ mod tests {
         } else {
             Err(format!("unexpected {url}"))
         }
+    }
+
+    #[test]
+    fn a_package_directory_matches_the_manifest_beside_its_build_file() {
+        let manifests = vec!["a/Cargo.toml".to_owned(), "b/Cargo.toml".to_owned()];
+        assert_eq!(manifest_for(&manifests, "b").unwrap(), "b/Cargo.toml");
+        assert_eq!(manifest_for(&manifests, "b/src/lib.rs").unwrap(), "b/Cargo.toml");
+        assert_eq!(manifest_for(&manifests, "ab").unwrap(), "a/Cargo.toml");
     }
 
     #[test]

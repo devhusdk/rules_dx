@@ -1572,8 +1572,10 @@ crate.annotation(
 )
 crate.annotation_select(
     build_script_env = {
+        "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
         "CARGO_FEATURE_PREFER_INTRINSICS": "1",
     },
+    build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
     crate = "blake3",
     repositories = ["dx_crates"],
     triples = ["x86_64-pc-windows-msvc"],
@@ -1590,6 +1592,44 @@ crate.annotation(
         "//patches/ring:msvc_fiat_include_path.patch",
     ],
     repositories = ["dx_crates"],
+    version = "0.17.14",
+)
+# cc-rs archives objects under absolute paths; msvc_lib makes them relative.
+crate.annotation_select(
+    build_script_env = {
+        "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+    },
+    build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
+    crate = "blake3",
+    repositories = ["dx_crates"],
+    triples = ["aarch64-pc-windows-msvc"],
+)
+crate.annotation_select(
+    build_script_env = {
+        "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+    },
+    build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
+    crate = "libz-sys",
+    repositories = ["dx_crates"],
+    triples = [
+        "aarch64-pc-windows-msvc",
+        "x86_64-pc-windows-msvc",
+    ],
+)
+crate.annotation_select(
+    build_script_env = {
+        "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+    },
+    build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
+    crate = "ring",
+    repositories = ["dx_crates"],
+    triples = [
+        "aarch64-pc-windows-msvc",
+        "x86_64-pc-windows-msvc",
+    ],
     version = "0.17.14",
 )
 # gomod-parser 0.5.3 reads `v1.2.3// indirect` as one version (#4008,

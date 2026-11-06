@@ -118,7 +118,7 @@ The correctness preset sets `coverage --instrument_test_targets`, so sources a t
 
 A test tagged `dx-no-coverage-collector` fails with `no_coverage_collector`. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
 
-Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources (the preset instruments test targets).
+Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources (the preset instruments test targets). On Windows, C and C++ sources count as unsupported files, because no C++ coverage collector runs there.
 
 Exclude code with `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`. Each marker needs `reason: <text>` (up to 120 characters) on the marker line or the line before, and `issue: <text>` containing a digit. Use `//` in Rust, Go, JS/TS, JVM languages, .NET, D, PHP, Zig, and C/C++. Use `#` in Python, Ruby, Perl, PowerShell, Julia, and Elixir. Use `%` in Erlang. Use `--` in Haskell. Use `(* *)` in OCaml. A marker that covers no instrumented line, or that excludes every instrumented line of a file, fails `--min-coverage`.
 

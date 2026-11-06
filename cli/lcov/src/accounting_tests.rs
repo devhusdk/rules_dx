@@ -371,6 +371,35 @@ fn unsupported_files_are_listed_and_counted() {
     assert_eq!(result.files["rules.bzl"], Disposition::Unsupported);
 }
 
+fn cc_manifest(cell: &str) -> SourceManifest {
+    manifest(&format!(
+        "v1 cell {cell}\nprod source lua/runtime/launcher.cc\nprod source a.h\nprod source a.rs\n"
+    ))
+}
+
+#[test]
+fn windows_cells_mark_c_and_cpp_unsupported() {
+    for cell in ["windows_x86_64", "windows_arm64"] {
+        let manifests = [cc_manifest(cell)];
+        let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &blank_sources());
+        assert!(result.errors.is_empty(), "{cell}: {:?}", result.errors);
+        assert!(result.absent.is_empty(), "{cell}: {:?}", result.absent);
+        assert_eq!(result.files["lua/runtime/launcher.cc"], Disposition::Unsupported);
+        assert_eq!(result.files["a.h"], Disposition::Unsupported);
+        assert_eq!(result.unsupported_files, 2);
+        assert!(result.meets(100), "{cell}");
+    }
+}
+
+#[test]
+fn non_windows_cells_still_require_cc() {
+    for cell in ["linux_x86_64", "macos_arm64"] {
+        let manifests = [cc_manifest(cell)];
+        let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &blank_sources());
+        assert_eq!(result.absent, vec!["lua/runtime/launcher.cc"], "{cell}");
+    }
+}
+
 #[test]
 fn whole_file_exclusion_accounts_an_absent_source() {
     let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];

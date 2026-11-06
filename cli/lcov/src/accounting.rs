@@ -275,6 +275,19 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, String> {
 const DECLARATION_SUFFIXES: &[&str] = &[".d.ts", ".d.mts", ".d.cts"];
 /// C and C++ headers, which collectors omit from LCOV when they hold only declarations.
 const HEADER_SUFFIXES: &[&str] = &[".h", ".hh", ".hpp", ".hxx"];
+/// Cell prefixes and the source suffixes no collector covers there.
+/// No C or C++ coverage collector runs on Windows.
+const UNCOLLECTED: &[(&str, &[&str])] = &[(
+    "windows_",
+    &[".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx"],
+)];
+
+/// False when no collector on `cell` covers the language of `path`.
+fn collected_in(cell: &str, path: &str) -> bool {
+    !UNCOLLECTED.iter().any(|(prefix, suffixes)| {
+        cell.starts_with(prefix) && suffixes.iter().any(|suffix| path.ends_with(suffix))
+    })
+}
 
 /// True for files that hold declarations only and so have nothing to execute.
 fn is_declaration_stub(path: &str) -> bool {
@@ -399,7 +412,7 @@ pub fn account(
     for (key, (path, test)) in &owned {
         let disposition = if *test || is_declaration_stub(path) {
             Disposition::Support
-        } else if !is_covered_language(path) {
+        } else if !is_covered_language(path) || !collected_in(&result.cell, path) {
             Disposition::Unsupported
         } else if let Some(hits) = reported.get(key) {
             if hits.lines.is_empty() {

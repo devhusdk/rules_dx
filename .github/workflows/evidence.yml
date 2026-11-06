@@ -60,47 +60,8 @@ env:
   DX_ANDROID_ABI: "x86_64"
 
 jobs:
-  validate:
-    name: validate evidence inputs
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    outputs:
-      platforms: ${{ steps.inputs.outputs.platforms }}
-      runners: ${{ steps.inputs.outputs.runners }}
-      scope: ${{ steps.inputs.outputs.scope }}
-      task: ${{ steps.inputs.outputs.task }}
-      test_timeout: ${{ steps.inputs.outputs.test_timeout }}
-      flags: ${{ steps.inputs.outputs.flags }}
-      relocate: ${{ steps.inputs.outputs.relocate }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-      - name: Use the BuildBuddy remote cache
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          [ -n "$BUILDBUDDY_API_KEY" ] || exit 0
-          {
-            echo "common --config=ci"
-            echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
-          } >> user.bazelrc
-      - name: Validate workflow inputs
-        id: inputs
-        env:
-          DX_SCOPE: ${{ inputs.scope }}
-          DX_TASK: ${{ inputs.task }}
-          DX_PLATFORMS: ${{ inputs.platforms }}
-          DX_DISPLAYS: ${{ inputs.displays }}
-          DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
-          DX_FLAGS: ${{ inputs.flags }}
-          DX_RELOCATE: ${{ inputs.relocate }}
-        run: bazel run --noshow_progress //tools/ci:evidence_inputs_bin
-
   evidence:
     name: evidence (${{ matrix.platform }})
-    needs: [validate]
     timeout-minutes: ${{ inputs.release_cell && 90 || 60 }}
     defaults:
       run:
@@ -108,11 +69,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
+        platform: ${{ fromJSON(inputs.platforms) }}
+    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-15","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] || 'ubuntu-latest' }}
     permissions:
       contents: read
     steps:
+      - name: Prepare the Windows runner
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-MpPreference -DisableRealtimeMonitoring $true
+          Add-MpPreference -ExclusionPath $env:GITHUB_WORKSPACE, $env:RUNNER_TEMP, 'D:\_bazel', 'D:\bz', 'C:\bz', "$env:LOCALAPPDATA\bazelisk"
+          New-Item -ItemType Directory -Force -Path D:\bz | Out-Null
+          New-Item -ItemType Junction -Path C:\bz -Target D:\bz | Out-Null
       - name: Free disk space
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
@@ -122,6 +91,25 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+        with:
+          repo-contents-cache: ${{ runner.os == 'Windows' }}
+      - name: Validate workflow inputs
+        id: inputs
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+          DX_SCOPE: ${{ inputs.scope }}
+          DX_TASK: ${{ inputs.task }}
+          DX_PLATFORMS: ${{ inputs.platforms }}
+          DX_DISPLAYS: ${{ inputs.displays }}
+          DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
+          DX_FLAGS: ${{ inputs.flags }}
+          DX_RELOCATE: ${{ inputs.relocate }}
+        run: |
+          remote=()
+          if [ -n "$BUILDBUDDY_API_KEY" ]; then
+            remote=(--config=ci "--remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY")
+          fi
+          bazel run --noshow_progress "${remote[@]}" //tools/ci:evidence_inputs_bin
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:
@@ -249,11 +237,11 @@ jobs:
           fi
       - name: Run evidence task
         env:
-          DX_SCOPE: ${{ needs.validate.outputs.scope }}
-          DX_TASK: ${{ needs.validate.outputs.task }}
-          DX_TEST_TIMEOUT: ${{ needs.validate.outputs.test_timeout }}
-          DX_FLAGS: ${{ needs.validate.outputs.flags }}
-          DX_RELOCATE: ${{ needs.validate.outputs.relocate }}
+          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
+          DX_TASK: ${{ steps.inputs.outputs.task }}
+          DX_TEST_TIMEOUT: ${{ steps.inputs.outputs.test_timeout }}
+          DX_FLAGS: ${{ steps.inputs.outputs.flags }}
+          DX_RELOCATE: ${{ steps.inputs.outputs.relocate }}
         run: |
           set -o pipefail
           read -ra patterns <<< "$DX_SCOPE"
@@ -309,6 +297,31 @@ jobs:
             bazel "--output_base=$base" shutdown
             exit "$differ"
           fi
+      - name: TEMP measure the repo caches
+        if: ${{ always() && runner.os == 'Windows' && steps.inputs.outcome == 'success' }}
+        env:
+          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
+        run: |
+          read -ra patterns <<< "$DX_SCOPE"
+          rc="$(bazel info repository_cache | tr -d '\r')"
+          echo "repo cache $rc"
+          du -sh "$rc/content_addressable" "$rc/contents" || true
+          find "$rc/contents" -mindepth 2 -maxdepth 2 -name '*.recorded_inputs' | wc -l
+          start=$(date +%s)
+          bytes="$(tar -cf - -C "$rc" --exclude=contents/gc_lock --exclude=contents/_trash contents | zstd -T0 | wc -c)"
+          echo "contents tar.zst bytes=$bytes seconds=$(( $(date +%s) - start ))"
+          bytes="$(tar -cf - -C "$rc" content_addressable | zstd -T0 | wc -c)"
+          echo "content_addressable tar.zst bytes=$bytes"
+          bazel shutdown
+          touch "$RUNNER_TEMP/stamp2"
+          sleep 2
+          start=$(date +%s)
+          bazel --output_base=D:/_b2 test --noshow_progress --test_output=errors "${patterns[@]}" 2>&1 | grep -E "Analyzed|Elapsed|processes" || true
+          echo "warm contents fresh output base seconds=$(( $(date +%s) - start ))"
+          find "$rc/content_addressable" -name file -newer "$RUNNER_TEMP/stamp2" > "$RUNNER_TEMP/touched.txt"
+          echo "content_addressable entries touched by warm run: $(wc -l < "$RUNNER_TEMP/touched.txt")"
+          tr '\n' '\0' < "$RUNNER_TEMP/touched.txt" | du -ch --files0-from=- | tail -1
+          bazel --output_base=D:/_b2 shutdown
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}
         run: |
@@ -440,7 +453,7 @@ jobs:
           set -o pipefail
           bazel test --noshow_progress --test_output=all --test_env=PATH --test_env=HOME --test_env=ANDROID_HOME //flutter/tests/fixtures/flutter-app/android:interaction_test 2>&1 | tail -n 80
       - name: Collect test logs
-        if: always()
+        if: ${{ always() && steps.inputs.outcome == 'success' }}
         run: |
           out="$RUNNER_TEMP/evidence/testlogs"
           mkdir -p "$out"
@@ -459,17 +472,17 @@ jobs:
             fi
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: ${{ always() && steps.inputs.outcome == 'success' }}
         with:
           name: evidence-${{ matrix.platform }}
           path: ${{ runner.temp }}/evidence
           retention-days: 7
       - name: Write job summary
-        if: always()
+        if: ${{ always() && steps.inputs.outcome == 'success' }}
         env:
           DX_PLATFORM: ${{ matrix.platform }}
-          DX_TASK: ${{ needs.validate.outputs.task }}
-          DX_SCOPE: ${{ needs.validate.outputs.scope }}
+          DX_TASK: ${{ steps.inputs.outputs.task }}
+          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
           DX_DISPLAYS: ${{ inputs.displays }}
         run: |
           {

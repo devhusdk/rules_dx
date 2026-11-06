@@ -51,3 +51,9 @@ check pitest '{"killed": 1, "survived": 1, "timed_out": 0, "survivors": [{"file"
 status=0
 GREMLINS=missing-tool "$run" gremlins pkg --out "$work/o2" 2>/dev/null || status=$?
 [ "$status" = 1 ] || { echo "missing tool exit $status, want 1" >&2; exit 1; }
+
+# Without an override or an installed tool, the pinned versions run.
+rm -f "$work/bin/mutmut"
+fake uv 'printf "%s\n" "$*" >"$(dirname "$0")/uv.args"; printf "    app.x_add__mutmut_1: survived\n"'
+PATH="$work/bin:/usr/bin:/bin" "$run" mutmut pkg --out .dx/uv
+grep -q 'mutmut==3.8.1' "$work/bin/uv.args" || { echo "uv args: $(cat "$work/bin/uv.args")" >&2; exit 1; }

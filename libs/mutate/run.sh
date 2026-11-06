@@ -37,20 +37,42 @@ trap 'rm -rf "$work"' EXIT
 rows="$work/rows"
 
 case "$kind" in
-    mutmut) tool="${MUTMUT:-mutmut}" ;;
+    mutmut) tool="${MUTMUT:-}" ;;
     gremlins) tool="${GREMLINS:-gremlins}"; fallback=gremlins ;;
-    stryker) tool="${STRYKER:-npx --no-install stryker}" ;;
-    pitest) tool="${PITEST:-mvn -q org.pitest:pitest-maven:mutationCoverage -DtimestampedReports=false}" ;;
+    stryker) tool="${STRYKER:-}" ;;
+    pitest) tool="${PITEST:-mvn -q org.pitest:pitest-maven:1.30.2:mutationCoverage -DtimestampedReports=false}" ;;
     *) echo "unknown mutation tool kind: $kind" >&2; exit 2 ;;
 esac
 # The pinned binary is used only when the tool is not overridden or on PATH.
 if [ -n "$bundled" ] && [ "${fallback:-}" = "$tool" ] && ! command -v "$tool" >/dev/null 2>&1; then
     tool="$bundled"
 fi
-first="${tool%% *}"
-command -v "$first" >/dev/null 2>&1 || { echo "$first not found; install it or set $(echo "$kind" | tr a-z A-Z)" >&2; exit 1; }
 
 cd "$workspace/$package"
+
+# Without an override, use the tool on PATH or in node_modules, else a pinned version.
+if [ -z "$tool" ]; then
+    case "$kind" in
+        mutmut)
+            if command -v mutmut >/dev/null 2>&1; then
+                tool=mutmut
+            else
+                tool="uv run --with mutmut==3.8.1 mutmut"
+            fi
+            ;;
+        stryker)
+            if [ -x node_modules/.bin/stryker ]; then
+                tool=node_modules/.bin/stryker
+            elif command -v stryker >/dev/null 2>&1; then
+                tool=stryker
+            else
+                tool="npx --yes --package @stryker-mutator/core@10.1.1 stryker"
+            fi
+            ;;
+    esac
+fi
+first="${tool%% *}"
+command -v "$first" >/dev/null 2>&1 || [ -x "$first" ] || { echo "$first not found; install it or set $(echo "$kind" | tr a-z A-Z)" >&2; exit 1; }
 
 # Runs the tool within the time budget; a timeout or survivors are not errors.
 run_tool() {

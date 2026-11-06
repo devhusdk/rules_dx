@@ -84,4 +84,11 @@ Each wrapper declares the target the same way and the runner runs the tool in th
 | `java_mutate` | `@rules_dx//java/rules:mutate.bzl` | `pitest-maven` | `PITEST` |
 | `kotlin_mutate` | `@rules_dx//kotlin/rules:mutate.bzl` | `pitest-maven` | `PITEST` |
 
-The override variable replaces the whole tool command. `go_mutate` falls back to a pinned gremlins v0.6.0 on Linux x86_64 and macOS arm64 when the tool is not on `PATH`. The other tools are not fetched. mutmut does not report lines, so its survivors show line 0. Survivors that stryker and pitest report as uncovered count as survived.
+The override variable replaces the whole tool command. Without it the runner uses the tool on `PATH` (stryker: `node_modules/.bin` first), then a pinned version:
+
+- `go_mutate`: gremlins v0.6.0 on Linux x86_64 and macOS arm64.
+- `python_mutate`: `uv run --with mutmut==3.8.1 mutmut`, which needs `uv` and runs in the project's environment.
+- `ts_mutate`: `npx --yes --package @stryker-mutator/core@10.1.1 stryker`.
+- `java_mutate`, `kotlin_mutate`: `mvn org.pitest:pitest-maven:1.30.2:mutationCoverage`.
+
+The mutmut and stryker readers were checked against real runs of those versions; pitest was checked against its documented `mutations.xml` only. mutmut does not report lines, so its survivors show line 0. Survivors that stryker and pitest report as uncovered count as survived.

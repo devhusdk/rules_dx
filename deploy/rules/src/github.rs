@@ -454,7 +454,7 @@ pub fn github_main_checked(
         eprintln!("github_deploy: invalid api_compat '{}'", go_api.mode);
         return 1;
     };
-    if mode != ApiCompatMode::Off && !go_api.modules.is_empty() {
+    if mode != ApiCompatMode::Off {
         let apidiff = if go_api.apidiff_rloc.is_empty() {
             which_on_path("apidiff")
         } else {

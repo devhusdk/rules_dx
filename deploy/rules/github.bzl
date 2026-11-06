@@ -61,8 +61,6 @@ def _github_config_impl(ctx):
     apidiff_rloc = ""
     apidiff_runfiles = ctx.runfiles()
     if ctx.attr.api_compat != "off":
-        if not ctx.attr.go_modules:
-            fail("github_deploy " + str(ctx.label) + ": api_compat needs go_modules")
         if ctx.attr.apidiff:
             apidiff_rloc = rlocation_path(ctx, ctx.executable.apidiff)
             apidiff_runfiles = ctx.runfiles(files = [ctx.executable.apidiff]).merge(ctx.attr.apidiff[DefaultInfo].default_runfiles)
@@ -114,7 +112,7 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", t
     `notes` is "commits" (the grouped commit list since the previous tag), "none"
     or a label of a markdown file.
     `api_compat` ("off", "warn" or "fail") runs apidiff on each of `go_modules`
-    (workspace-relative directories) against the previous v<version> tag; "fail"
+    (workspace-relative directories; empty means the go.mod at the root) against the previous v<version> tag; "fail"
     refuses breaking changes unless the bump is major.
     """
     tag_error = github_tag_error(tag)

@@ -91,9 +91,18 @@ pub(crate) fn go_api_check(
     tag: &str,
     mode: ApiCompatMode,
 ) -> Result<(), String> {
-    if mode == ApiCompatMode::Off || modules.is_empty() {
+    if mode == ApiCompatMode::Off {
         return Ok(());
     }
+    let detected = [String::new()];
+    let modules = if modules.is_empty() {
+        if !workspace.join("go.mod").is_file() {
+            return Ok(());
+        }
+        &detected[..]
+    } else {
+        modules
+    };
     let Some(program) = apidiff else {
         println!("api compat: apidiff or go not found; skipped");
         return Ok(());
@@ -223,6 +232,7 @@ mod tests {
         assert!(logged.starts_with("-m -w "), "{logged}");
         assert!(logged.contains("example.com/lib"), "{logged}");
         assert!(run("v2.0.0", ApiCompatMode::Fail).is_ok());
+        assert!(go_api_check(Some(&fake), &repo, &[], "v1.3.0", ApiCompatMode::Fail).is_ok());
         assert!(run("v1.3.0", ApiCompatMode::Warn).is_ok());
         std::fs::remove_file(&args_log).expect("clear log");
         assert!(run("v1.3.0", ApiCompatMode::Off).is_ok());

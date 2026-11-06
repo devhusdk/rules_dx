@@ -120,6 +120,12 @@ jobs:
       - name: TEMP move the output user root to D
         if: ${{ runner.os == 'Windows' && contains(inputs.tune, 'root=Dflag') }}
         run: sed -i 's|output_user_root=C:/bz|output_user_root=D:/bz|' .bazelrc && grep -n output_user_root .bazelrc
+      - name: TEMP drop the NDK and OCaml toolchain registrations
+        if: ${{ contains(inputs.tune, 'lazy') }}
+        run: |
+          perl -0pi -e 's/register_toolchains\("\@dx_ocaml_toolchains\/\/:all"\)//; s/register_toolchains\(\n    "\@android_ndk_toolchain\/\/:ndk_cc_toolchain_device",\n    "\@android_ndk_toolchain\/\/:ndk_cc_toolchain_emulator",\n    dev_dependency = True,\n\)//' MODULE.bazel
+          git diff --stat MODULE.bazel
+          grep -c "android_ndk_toolchain//\|dx_ocaml_toolchains//" MODULE.bazel || true
       - uses: ./.github/actions/setup-bazel
         id: setup
         with:

@@ -426,11 +426,10 @@ fn publish(
     }
     let sha = git(&["rev-parse", "HEAD"])?.trim().to_owned();
     let mut open = open_update_prs(tools, root, &base)?;
-    let stale: Vec<(u64, String)> = open
-        .iter()
-        .filter(|(_, head)| scope.covers(head) && !plans.iter().any(|p| p.branch == *head))
-        .cloned()
-        .collect();
+    let (stale, kept): (Vec<_>, Vec<_>) = open
+        .drain(..)
+        .partition(|(_, head)| scope.covers(head) && !plans.iter().any(|p| p.branch == *head));
+    open = kept;
     let mut outcomes = Vec::new();
     for group in plans {
         let existing = open
@@ -455,7 +454,7 @@ fn publish(
         if existing.is_none()
             && result
                 .as_ref()
-                .is_ok_and(|text| !text.starts_with("skipped:"))
+                .is_ok_and(|text| text.starts_with("opened"))
         {
             open.push((0, group.branch.clone()));
         }
@@ -1019,6 +1018,30 @@ mod tests {
 
     #[test]
     fn the_cap_skips_new_groups_only() {
+        let fx = fixture("[{\"number\":3,\"headRefName\":\"dx-update/cargo\"}]");
+        let mut step = editing(fx.work.clone(), None);
+        let rules = Rules {
+            automerge: None,
+            max_prs: 1,
+        };
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &two_plans(),
+            &two_scope(),
+            &[],
+            &rules,
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(got[1].result, Ok("skipped: --max-prs=1 reached".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(!argv.contains("pr create"));
+    }
+
+    #[test]
+    fn the_cap_ignores_stale_pull_requests() {
         let fx = fixture("[{\"number\":3,\"headRefName\":\"dx-update/npm\"}]");
         let mut step = editing(fx.work.clone(), None);
         let rules = Rules {
@@ -1036,9 +1059,48 @@ mod tests {
             &mut step,
         )
         .expect("publish");
-        assert_eq!(got[0].result, Ok("skipped: --max-prs=1 reached".into()));
-        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
-        assert!(!argv.contains("pr create"));
+        assert_eq!(got[0].result, Ok("opened https://example.com/pr/9".into()));
+        assert_eq!(got[1].result, Ok("closed #3".into()));
+    }
+
+    #[test]
+    fn the_cap_ignores_groups_with_nothing_to_change() {
+        let fx = fixture("[]");
+        let work = fx.work.clone();
+        let mut step = move |words: &[String]| {
+            let applying = words.contains(&"--apply".to_owned()) && words.len() >= 3;
+            if applying && words[1].starts_with("github-actions") {
+                std::fs::write(work.join("Cargo.lock"), "a\nb\n").map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        };
+        let rules = Rules {
+            automerge: None,
+            max_prs: 1,
+        };
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &two_plans(),
+            &two_scope(),
+            &[],
+            &rules,
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        let result = |branch: &str| {
+            got.iter()
+                .find(|o| o.branch == branch)
+                .expect("outcome")
+                .result
+                .clone()
+        };
+        assert_eq!(result("dx-update/cargo"), Ok("nothing to change".into()));
+        assert_eq!(
+            result("dx-update/github-actions"),
+            Ok("opened https://example.com/pr/9".into())
+        );
     }
 
     #[test]

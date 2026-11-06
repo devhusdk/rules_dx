@@ -1,0 +1,59 @@
+diff --git a/build.rs b/build.rs
+--- a/build.rs
++++ b/build.rs
+@@ -568,6 +568,9 @@ fn configure_cc(c: &mut cc::Build, target: &Target, c_root_dir: &Path, include_d
+         compiler
+     };
+ 
++    // Fiat headers are included from the crate root, so MSVC does not open a
++    // path with `..` parts that can exceed MAX_PATH.
++    let _ = c.include(c_root_dir);
+     let _ = c.include(c_root_dir.join("include"));
+     let _ = c.include(include_dir);
+     for f in cpp_flags(&compiler) {
+diff --git a/crypto/curve25519/curve25519.c b/crypto/curve25519/curve25519.c
+--- a/crypto/curve25519/curve25519.c
++++ b/crypto/curve25519/curve25519.c
+@@ -47,11 +47,11 @@
+ #if defined(__GNUC__)
+ #pragma GCC diagnostic ignored "-Wpedantic"
+ #endif
+-#include "../../third_party/fiat/curve25519_64.h"
++#include "third_party/fiat/curve25519_64.h"
+ #elif defined(OPENSSL_64_BIT)
+-#include "../../third_party/fiat/curve25519_64_msvc.h"
++#include "third_party/fiat/curve25519_64_msvc.h"
+ #else
+-#include "../../third_party/fiat/curve25519_32.h"
++#include "third_party/fiat/curve25519_32.h"
+ #endif
+ 
+ 
+diff --git a/crypto/curve25519/curve25519_64_adx.c b/crypto/curve25519/curve25519_64_adx.c
+--- a/crypto/curve25519/curve25519_64_adx.c
++++ b/crypto/curve25519/curve25519_64_adx.c
+@@ -19,5 +19,5 @@
+ #pragma GCC diagnostic ignored "-Wpedantic"
+ #pragma GCC diagnostic ignored "-Wsign-conversion"
+ 
+-#include "../../third_party/fiat/curve25519_64_adx.h"
++#include "third_party/fiat/curve25519_64_adx.h"
+ #endif
+diff --git a/crypto/fipsmodule/ec/p256.c b/crypto/fipsmodule/ec/p256.c
+--- a/crypto/fipsmodule/ec/p256.c
++++ b/crypto/fipsmodule/ec/p256.c
+@@ -50,11 +50,11 @@
+ #if defined(__GNUC__)
+ #pragma GCC diagnostic ignored "-Wpedantic"
+ #endif
+-#include "../../../third_party/fiat/p256_64.h"
++#include "third_party/fiat/p256_64.h"
+ #elif defined(OPENSSL_64_BIT)
+-#include "../../../third_party/fiat/p256_64_msvc.h"
++#include "third_party/fiat/p256_64_msvc.h"
+ #else
+-#include "../../../third_party/fiat/p256_32.h"
++#include "third_party/fiat/p256_32.h"
+ #endif
+ 
+ 

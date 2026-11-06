@@ -1,5 +1,5 @@
 {
-  "checksum": "b08ad3a9b86aeb14bde9e0f940d347ad910690c4dd7a9853dc6f7ed362f4e908",
+  "checksum": "240abc4581b8574143bf4e7e69e21038f2ba2008dbf18603f79c0170fae91e6c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -19756,7 +19756,8 @@
             "-p1"
           ],
           "patches": [
-            "@@//patches/ring:clang_cl_aarch64_windows.patch"
+            "@@//patches/ring:clang_cl_aarch64_windows.patch",
+            "@@//patches/ring:msvc_fiat_include_path.patch"
           ],
           "sha256": "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7",
           "url": "https://static.crates.io/crates/ring/0.17.14/download"

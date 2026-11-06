@@ -1546,11 +1546,16 @@ crate.annotation_select(
     triples = ["x86_64-pc-windows-msvc"],
 )
 # ring's build.rs only accepts plain clang on windows_arm64; the hermetic
-# toolchain uses clang-cl (#6337, briansmith/ring#2673).
+# toolchain uses clang-cl (#6337, briansmith/ring#2673). cl.exe opens the
+# fiat includes without collapsing `..`, which overflows MAX_PATH under the
+# build script runfiles (#8290).
 crate.annotation(
     crate = "ring",
     patch_args = ["-p1"],
-    patches = ["//patches/ring:clang_cl_aarch64_windows.patch"],
+    patches = [
+        "//patches/ring:clang_cl_aarch64_windows.patch",
+        "//patches/ring:msvc_fiat_include_path.patch",
+    ],
     repositories = ["dx_crates"],
     version = "0.17.14",
 )

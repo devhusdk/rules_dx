@@ -1,6 +1,9 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
-exports_files(["clang_cl_aarch64_windows.patch"])
+exports_files([
+    "clang_cl_aarch64_windows.patch",
+    "msvc_fiat_include_path.patch",
+])
 
 real_source_target(
     name = "corpus_starlark",

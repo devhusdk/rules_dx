@@ -66,8 +66,11 @@ No action. `rules_dx` applies these patches in its own repository rules.
 ## ring (crate annotation)
 
 `MODULE.bazel` patches ring 0.17.14's `build.rs` so it accepts clang-cl on
-`aarch64-pc-windows-msvc` instead of looking for plain `clang` (#6337). It is
-applied to rules_dx's own `dx_crates` and is not exported to consumers.
+`aarch64-pc-windows-msvc` instead of looking for plain `clang` (#6337). A
+second patch includes the fiat headers from the crate root, because cl.exe
+opens `../../third_party/fiat/...` without collapsing the `..` parts and the
+path passes 260 characters under the build script runfiles (#8290). Both are
+applied to rules_dx's own `dx_crates` and are not exported to consumers.
 
 ## gomod-parser (crate annotation)
 

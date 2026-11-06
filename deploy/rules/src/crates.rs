@@ -440,12 +440,22 @@ pub fn crates_main(
         crate_rlocs,
         crate_name,
         version,
-        "off",
-        "registry",
-        "",
-        "",
+        &CratesApiCheck {
+            api_compat: "off",
+            api_baseline: "registry",
+            semver_checks_rloc: "",
+            crate_dir: "",
+        },
         argv,
     )
+}
+
+/// API compatibility settings for `crates_main_checked`.
+pub struct CratesApiCheck<'a> {
+    pub api_compat: &'a str,
+    pub api_baseline: &'a str,
+    pub semver_checks_rloc: &'a str,
+    pub crate_dir: &'a str,
 }
 
 /// Runs the crates deploy tool.
@@ -453,12 +463,15 @@ pub fn crates_main_checked(
     crate_rlocs: &[String],
     crate_name: &str,
     version: &str,
-    api_compat: &str,
-    api_baseline: &str,
-    semver_checks_rloc: &str,
-    crate_dir: &str,
+    api: &CratesApiCheck,
     argv: &[String],
 ) -> i32 {
+    let CratesApiCheck {
+        api_compat,
+        api_baseline,
+        semver_checks_rloc,
+        crate_dir,
+    } = *api;
     let Some(run) = DeployRun::start(
         "crates_deploy",
         "the vendor tree is exactly the files pinned at analysis time",

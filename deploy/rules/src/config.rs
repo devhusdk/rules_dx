@@ -409,10 +409,12 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &crates.crate_rlocs,
             &crates.crate_name,
             &crates.version,
-            &crates.api_compat,
-            &crates.api_baseline,
-            &crates.semver_checks_rloc,
-            &crates.crate_dir,
+            &crate::CratesApiCheck {
+                api_compat: &crates.api_compat,
+                api_baseline: &crates.api_baseline,
+                semver_checks_rloc: &crates.semver_checks_rloc,
+                crate_dir: &crates.crate_dir,
+            },
             argv,
         ),
         DeployConfig::Pub(pub_config) => crate::pub_main(

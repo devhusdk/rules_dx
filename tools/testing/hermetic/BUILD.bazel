@@ -978,6 +978,7 @@ hermetic_qualification(
         "consumers/python/ruff.toml": "ruff.toml",
         "consumers/python/service.BUILD.bazel": "ledger/service/BUILD.bazel",
     },
+    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["python"],
     module_fragment = "consumers/python/module_fragment.bazel",
     patterns = ["//ledger/..."],

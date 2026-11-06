@@ -3,7 +3,7 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_cc//cc:defs.bzl", _raw_cc_library = "cc_library")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//cc/rules:defs.bzl", "cc_library")
+load("//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -298,10 +298,27 @@ rust_static_library(
     deps = [":native_md"],
 )
 
+rust_static_library(
+    name = "native_crt_static_archive",
+    srcs = ["src/md_lib.rs"],
+    crate_name = "native_crt_static_archive",
+    edition = "2021",
+    rustc_flags = ["-Ctarget-feature=+crt-static"],
+    tags = ["manual"],
+)
+
+cc_binary(
+    name = "native_md_consumer",
+    srcs = ["md_main.c"],
+    tags = ["manual"],
+    deps = [":native_crt_static_archive"],
+)
+
 rust_msvc_crt_library_tests(
     name = "native_md_library_crt_tests",
     shared = ":native_md_shared",
     static = ":native_md_static",
+    cc_consumer = ":native_md_consumer",
 )
 
 _raw_cc_library(

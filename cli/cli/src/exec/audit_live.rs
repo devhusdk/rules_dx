@@ -337,6 +337,26 @@ pub(super) fn audit_live_missing_yanked_snapshot_only_warns() {
     );
 }
 
+#[test]
+pub(super) fn audit_live_missing_yanked_snapshot_is_incomplete_under_the_strict_base() {
+    let (code, out, err) = run_with(
+        &["security", "//rust/tests/fixtures/hello:hello"],
+        &AuditRunner::clean(),
+        &|harness| {
+            write_cargo_lock(harness);
+            write_advisory(harness, "cargo", "[]");
+            let strict = dx_audit::profile_base::Profile::Strict;
+            let base = dx_audit::profile_base::base_rel("security", strict);
+            let text = dx_audit::profile_base::base_text("security", strict);
+            harness.write_source(&base, text.expect("base"));
+            harness.write_source("security.toml", &format!("extends = \"{base}\"\n"));
+        },
+    );
+    let shown = format!("{out}{err}");
+    assert_ne!(code, 0, "{shown}");
+    assert!(shown.contains("no yanked-version snapshot"), "{shown}");
+}
+
 pub(super) fn write_all_empty_advisories(harness: &Harness) {
     for set in ["cargo", "npm", "maven", "nuget", "go"] {
         write_advisory(harness, set, "[]");

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::advisory::{self, AdvisorySnapshot};
 use super::backend::{is_empty_set, vuln_locks};
@@ -274,10 +274,19 @@ pub fn fetch_plan(
     destination: &Path,
     limits: FetchLimits,
 ) -> Result<FetchPlan, PrepError> {
-    if !advisory::is_accepted_url(url) {
-        return Err(PrepError::BadUrl {
-            url: url.to_owned(),
-        });
+    fetch_many_plan(&[(url.to_owned(), destination.to_path_buf())], limits, 1)
+}
+
+/// The bounded download that fetches several files in one parallel curl run.
+pub fn fetch_many_plan(
+    downloads: &[(String, PathBuf)],
+    limits: FetchLimits,
+    parallel_max: u32,
+) -> Result<FetchPlan, PrepError> {
+    for (url, _) in downloads {
+        if !advisory::is_accepted_url(url) {
+            return Err(PrepError::BadUrl { url: url.clone() });
+        }
     }
     if limits.connect_timeout_seconds == 0
         || limits.retry_delay_seconds == 0
@@ -305,9 +314,16 @@ pub fn fetch_plan(
     argv.push(limits.retries.to_string());
     argv.push("--retry-delay".to_owned());
     argv.push(limits.retry_delay_seconds.to_string());
-    argv.push("--output".to_owned());
-    argv.push(destination.display().to_string());
-    argv.push(url.to_owned());
+    if downloads.len() > 1 {
+        argv.push("--parallel".to_owned());
+        argv.push("--parallel-max".to_owned());
+        argv.push(parallel_max.to_string());
+    }
+    for (url, destination) in downloads {
+        argv.push("--output".to_owned());
+        argv.push(destination.display().to_string());
+        argv.push(url.clone());
+    }
     Ok(FetchPlan {
         program: CURL_PROGRAM.to_owned(),
         argv,

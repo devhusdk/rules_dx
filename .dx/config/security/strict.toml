@@ -1,2 +1,2 @@
 # dx: generated, do not edit
-fail_on = ["vulnerability", "unsound", "unmaintained", "notice"]
+fail_on = ["vulnerability", "unsound", "unmaintained", "notice", "yanked"]

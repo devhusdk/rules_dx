@@ -181,6 +181,25 @@ fn a_prepared_snapshot_is_judged_fresh_the_same_way_the_audit_judges_it() {
 }
 
 #[test]
+fn many_files_are_fetched_by_one_bounded_parallel_curl() {
+    let downloads: Vec<(String, std::path::PathBuf)> = (0..40)
+        .map(|index| {
+            (
+                format!("https://index.crates.io/se/rd/crate{index}"),
+                std::path::PathBuf::from(format!("/tmp/dx/{index}.json")),
+            )
+        })
+        .collect();
+    let plan = fetch_many_plan(&downloads, DEFAULT_LIMITS, 16).expect("plans");
+    assert_eq!(plan.program, "curl");
+    let position = plan.argv.iter().position(|arg| arg == "--parallel-max");
+    assert_eq!(position.map(|at| plan.argv[at + 1].as_str()), Some("16"));
+    assert!(plan.argv.contains(&"--parallel".to_owned()));
+    assert!(plan.argv.contains(&"--max-time".to_owned()));
+    assert_eq!(plan.argv.iter().filter(|arg| *arg == "--output").count(), 40);
+}
+
+#[test]
 fn one_fetch_is_bounded_and_pinned_to_https() {
     let plan = fetch_plan(CRATES_URL, Path::new("/tmp/dx/all.zip"), DEFAULT_LIMITS).expect("plans");
     assert_eq!(plan.program, "curl");

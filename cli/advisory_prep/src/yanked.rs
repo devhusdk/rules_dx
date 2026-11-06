@@ -4,7 +4,7 @@ use std::path::Path;
 use dx_audit::advisory_prep::{yanked_snapshot, PrepError, PreparedSnapshot};
 use dx_update::discover::cargo::{index_path, yanked_versions, DEFAULT_BASE};
 
-use crate::{fetch, PrepareOptions};
+use crate::{fetch_many, PrepareOptions};
 
 pub const CARGO_YANKED: &str = "cargo-yanked";
 
@@ -25,12 +25,20 @@ pub fn prepare_cargo_yanked(options: &PrepareOptions) -> Result<PreparedSnapshot
             path: std::env::temp_dir().display().to_string(),
             detail: error.to_string(),
         })?;
+    let downloads: Vec<(String, std::path::PathBuf)> = locked
+        .keys()
+        .enumerate()
+        .map(|(index, name)| {
+            (
+                format!("{base}/{}", index_path(name)),
+                scratch.path().join(format!("{index}.json")),
+            )
+        })
+        .collect();
+    fetch_many(&downloads, options.limits)?;
     let mut yanked = Vec::new();
-    for (index, (name, versions)) in locked.iter().enumerate() {
-        let url = format!("{base}/{}", index_path(name));
-        let file = scratch.path().join(format!("{index}.json"));
-        fetch(&url, &file, options.limits)?;
-        let body = std::fs::read_to_string(&file).map_err(|error| PrepError::ArchiveRead {
+    for ((name, versions), (url, file)) in locked.iter().zip(&downloads) {
+        let body = std::fs::read_to_string(file).map_err(|error| PrepError::ArchiveRead {
             family: CARGO_YANKED.to_owned(),
             path: url.clone(),
             detail: error.to_string(),

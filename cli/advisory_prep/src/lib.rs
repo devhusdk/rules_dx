@@ -21,7 +21,7 @@ use std::process::Command as Process;
 
 use dx_atomic_fs::write_atomic;
 use dx_audit::advisory_prep::{
-    convert_entries, cpan_snapshot, fetch_plan, identity_bytes, needed_families,
+    convert_entries, cpan_snapshot, fetch_many_plan, identity_bytes, needed_families,
     split_cpansa_output, FetchLimits, PrepError, DEFAULT_LIMITS,
 };
 
@@ -287,7 +287,18 @@ fn read_archive(options: &PrepareOptions, family: &str, url: &str) -> Result<Vec
 
 /// Runs the bounded download that fetches one snapshot archive.
 pub fn fetch(url: &str, destination: &Path, limits: FetchLimits) -> Result<(), PrepError> {
-    let plan = fetch_plan(url, destination, limits)?;
+    fetch_many(&[(url.to_owned(), destination.to_path_buf())], limits)
+}
+
+/// Most transfers one parallel curl run keeps open at once.
+pub const PARALLEL_MAX: u32 = 16;
+
+/// Runs one bounded parallel curl that fetches every file.
+pub fn fetch_many(downloads: &[(String, PathBuf)], limits: FetchLimits) -> Result<(), PrepError> {
+    if downloads.is_empty() {
+        return Ok(());
+    }
+    let plan = fetch_many_plan(downloads, limits, PARALLEL_MAX)?;
     let done = Process::new(&plan.program)
         .args(&plan.argv)
         .status()
@@ -298,7 +309,13 @@ pub fn fetch(url: &str, destination: &Path, limits: FetchLimits) -> Result<(), P
     if !done.success() {
         return Err(PrepError::Fetch {
             program: plan.program,
-            detail: format!("{url} exited with {}", exit_text(done)),
+            detail: format!("{} files exited with {}", downloads.len(), exit_text(done)),
+        });
+    }
+    if let Some((url, _)) = downloads.iter().find(|(_, file)| !file.is_file()) {
+        return Err(PrepError::Fetch {
+            program: plan.program,
+            detail: format!("{url} was not written"),
         });
     }
     Ok(())

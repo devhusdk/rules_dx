@@ -1277,7 +1277,14 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             exception_set,
             yanked_missing,
         } = assessable;
-        if yanked_missing {
+        if yanked_missing && policy.fails_on(dx_audit::vuln::AdvisoryKind::Yanked) {
+            if incomplete.is_none() {
+                incomplete = Some(format!(
+                    "failed to assess {label}: no yanked-version snapshot; run {}",
+                    dx_audit::advisory::REFRESH_COMMAND
+                ));
+            }
+        } else if yanked_missing {
             diagnostics.push(DiagnosticEvent {
                 rule: Some(format!(
                     "{}/yanked_unprepared",

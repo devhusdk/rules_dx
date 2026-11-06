@@ -299,6 +299,7 @@ rust_test(
         "PATH",
         "RUSTUP_HOME",
     ],
+    tags = ["no-sandbox"],
     deps = all_crate_deps(
         package_name = "deploy/dx_deploy_tools",
         normal = True,

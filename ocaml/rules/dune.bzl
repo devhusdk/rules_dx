@@ -55,7 +55,7 @@ ARW
     export CONDA_OCAML_AR="$SCRATCH/bin/ar"
     ;;
 esac
-# The conda zstd dylib is loaded through an rpath the executables lack, so link the static archive when the tree has one.
+# The conda zstd dylib is loaded through an rpath the executables lack, so link libzstd.a from the zstd-static pin instead.
 # ld prefers a dylib found in any -L directory, so search the directories in order and put ours first.
 if [ "$(uname -s)" = Darwin ] && [ -f "${{PATH%%:*}}/../lib/libzstd.a" ]; then
   mkdir -p "$SCRATCH/static"

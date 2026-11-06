@@ -34,6 +34,7 @@ url {
 def _checks():
     linux = OCAML_CELLS["linux_amd64"]
     ocaml = [p for p in linux.packages if p.name == "ocaml"][0]
+    macos = {p.name: p for p in OCAML_CELLS["macos_arm64"].packages}
     return [
         expect_equal("ocaml version", OCAML_VERSION, "5.5.2"),
         expect_equal("pinned cells", sorted(OCAML_CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64"]),
@@ -41,6 +42,9 @@ def _checks():
         expect_equal("known emitters", sorted(EMITTERS.keys()), ["sys", "vm"]),
         expect_equal("linux packages", sorted([p.name for p in linux.packages]), ["ocaml", "zstd"]),
         expect_contains("ocaml package names the version", ocaml.url, "ocaml_linux-64-5.5.2-"),
+        expect_equal("macos packages", sorted(macos.keys()), ["ocaml", "zstd", "zstd-static"]),
+        expect_contains("macos zstd version", macos["zstd"].url, "/zstd-1.5.7-"),
+        expect_contains("macos zstd-static matches the zstd version", macos["zstd-static"].url, "/zstd-static-1.5.7-"),
         expect_true("package digests are sha256", all([len(p.sha256) == 64 for p in linux.packages])),
         expect_equal("ocaml license", ocaml.license, "LGPL-2.1-only WITH OCaml-LGPL-linking-exception"),
         expect_equal("rules_ocaml commit", len(RULES_OCAML_COMMIT), 40),

@@ -120,6 +120,16 @@ OCAML_CELLS = {
                 license_file = "info/zstd/licenses/LICENSE",
                 binary_placeholders = [],
             ),
+            # Ships only lib/libzstd.a so dune-built executables link zstd statically.
+            # Its build hash must follow the zstd pin above.
+            struct(
+                name = "zstd-static",
+                url = CONDA_FORGE + "osx-arm64/zstd-static-1.5.7-hfbe9180_7.conda",
+                sha256 = "e817ff246bdf44ec470071a69abba0a961ee001413aa74276798135925163870",
+                license = "BSD-3-Clause",
+                license_file = "info/zstd-static/licenses/LICENSE",
+                binary_placeholders = [],
+            ),
         ],
     ),
 }

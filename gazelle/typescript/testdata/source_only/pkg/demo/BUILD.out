@@ -9,13 +9,18 @@ filegroup(
 typescript_test(
     name = "demo_test",
     srcs = ["demo.spec.ts"],
+    declaration = True,
     node_modules = "//:node_modules",
+    package_json = "//:package_json",
+    tsconfig = "//:tsconfig",
     deps = [":demo"],
 )
 
 typescript_project(
     name = "demo",
     srcs = ["demo.ts"],
+    declaration = True,
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
     deps = [
         ":helper",
@@ -26,24 +31,33 @@ typescript_project(
 typescript_project(
     name = "helper",
     srcs = ["helper.tsx"],
+    declaration = True,
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
 )
 
 typescript_test(
     name = "helper_test",
     srcs = ["helper_test.mts"],
+    declaration = True,
     node_modules = "//:node_modules",
+    package_json = "//:package_json",
+    tsconfig = "//:tsconfig",
     deps = [":helper"],
 )
 
 typescript_project(
     name = "orphan",
+    declaration = True,
     declaration_srcs = ["orphan.d.mts"],
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
 )
 
 typescript_project(
     name = "widget",
+    declaration = True,
     declaration_srcs = ["widget.d.ts"],
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
 )

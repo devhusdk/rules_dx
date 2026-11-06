@@ -115,6 +115,13 @@ def dx_tsconfig_relpath(from_path, to_path):
         path = "./" + path
     return path
 
+def dx_tsconfig_content(extends_path, files, declaration):
+    """Returns the scoped tsconfig object; declaration mirrors the ts_project attribute."""
+    content = {"extends": extends_path, "files": files, "include": []}
+    if declaration:
+        content["compilerOptions"] = {"declaration": True}
+    return content
+
 def _dx_write_tsconfig_impl(ctx):
     extends_path = dx_tsconfig_relpath(ctx.outputs.out.short_path, ctx.file.extends.short_path)
     local_package_prefix = "%s/" % ctx.label.package if ctx.label.package else ""
@@ -134,13 +141,16 @@ def _dx_write_tsconfig_impl(ctx):
             src_files.append(root_prefix + short_path)
     ctx.actions.write(
         output = ctx.outputs.out,
-        content = json.encode({"extends": extends_path, "files": src_files, "include": []}),
+        content = json.encode(dx_tsconfig_content(extends_path, src_files, ctx.attr.declaration)),
     )
     return [DefaultInfo(files = depset([ctx.outputs.out]))]
 
 _dx_tsconfig = rule(
     implementation = _dx_write_tsconfig_impl,
     attrs = {
+        "declaration": attr.bool(
+            doc = "Writes compilerOptions.declaration so it matches the ts_project attribute.",
+        ),
         "extends": attr.label(
             doc = "Inherited tsconfig file named in extends.",
             allow_single_file = True,
@@ -158,7 +168,7 @@ _dx_tsconfig = rule(
     doc = "Writes a scoped tsconfig naming an inherited file and these sources with an empty include.",
 )
 
-def _dx_write_tsconfig(name, files, out, extends, **kwargs):
+def _dx_write_tsconfig(name, files, out, extends, declaration = False, **kwargs):
     """Instantiates the scoped tsconfig writer in the package directory."""
     if out.find("/") >= 0:
         fail("tsconfig should be generated in the package directory, to make relative pathing simple")
@@ -166,6 +176,7 @@ def _dx_write_tsconfig(name, files, out, extends, **kwargs):
         name = name,
         files = files,
         extends = extends,
+        declaration = declaration,
         out = out,
         **kwargs
     )
@@ -217,6 +228,7 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
         files = srcs,
         extends = tsconfig,
         out = generated + ".json",
+        declaration = kwargs.get("declaration", None) == True,
         visibility = ["//visibility:private"],
         **typescript_inner_kwargs(None, kwargs)
     )

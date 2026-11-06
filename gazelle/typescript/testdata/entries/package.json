@@ -1,5 +1,9 @@
 {
   "name": "entries",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "jest-cli": "29.7.0",
+    "jest-junit": "16.0.0"
+  }
 }

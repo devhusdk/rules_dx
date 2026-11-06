@@ -19,6 +19,10 @@ const (
 	projectKind     = "typescript_project"
 	testKind        = "typescript_test"
 	binaryKind      = "javascript_binary"
+	configKind      = "ts_config"
+	packageKind     = "npm_package"
+	configName      = "tsconfig"
+	packageName     = "pkg"
 	rootNodeModules = "//:node_modules"
 	rootPackageJSON = "//:package_json"
 )
@@ -27,6 +31,13 @@ var typescriptKinds = map[string]rule.KindInfo{
 	projectKind: projectKindInfo(),
 	testKind:    testKindInfo(),
 	binaryKind:  binaryKindInfo(),
+	configKind: {
+		MatchAttrs:     []string{"src"},
+		MergeableAttrs: map[string]bool{"deps": true},
+	},
+	packageKind: {
+		MergeableAttrs: map[string]bool{"srcs": true},
+	},
 }
 
 func projectKindInfo() rule.KindInfo {
@@ -76,11 +87,15 @@ func newLang() *typescriptLang {
 	return &typescriptLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName: languageName,
 		LibraryKind:  projectKind,
-		ExtraKinds:   []string{testKind, binaryKind},
+		ExtraKinds:   []string{testKind, binaryKind, configKind, packageKind},
 		Kinds:        typescriptKinds,
 		DefsPackage:  "typescript/rules:defs.bzl",
-		KindDefs:     map[string]string{binaryKind: "javascript/rules:defs.bzl"},
-		ImportAttr:   "srcs",
+		KindDefs: map[string]string{
+			binaryKind:  "javascript/rules:defs.bzl",
+			configKind:  "@aspect_rules_ts//ts:defs.bzl",
+			packageKind: "@aspect_rules_js//npm:defs.bzl",
+		},
+		ImportAttr: "srcs",
 		IsImportSource: func(src string) bool {
 			return isSupported(src) || (common.IsAssetSource(src) && !IsDeclaration(src))
 		},
@@ -91,13 +106,14 @@ func newLang() *typescriptLang {
 			}
 			return src
 		},
-		PathIdentity:   true,
-		IsStdLib:       common.IsNodeBuiltin,
-		Find:           common.JSFind(languageName),
-		ConfigureExt:   common.ConfigureTSPathsExt,
-		UnresolvedHint: "add a local one-source library or declaration file, or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
-		External:       "npm",
-		Generate:       generateRules,
+		PathIdentity:        true,
+		IsStdLib:            common.IsNodeBuiltin,
+		Find:                common.JSFind(languageName),
+		ConfigureExt:        common.ConfigureTSPathsExt,
+		MissingExternalHint: common.NpmMissingHint,
+		UnresolvedHint:      "add a local one-source library or declaration file, or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
+		External:            "npm",
+		Generate:            generateRules,
 	})}
 }
 
@@ -197,6 +213,15 @@ func isSupported(name string) bool {
 	return false
 }
 
+type plan struct {
+	name  string
+	src   string
+	test  bool
+	entry bool
+	decl  bool
+	refs  []common.ImportRef
+}
+
 func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	var sources []string
 	for _, name := range args.RegularFiles {
@@ -205,8 +230,28 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 	}
 	sort.Strings(sources)
+	var result language.GenerateResult
+	repoRoot := ""
+	if args.Config != nil {
+		repoRoot = args.Config.RepoRoot
+	}
+	if args.Dir != "" && fileExists(filepath.Join(args.Dir, "tsconfig.json")) {
+		parents, err := common.TSConfigParents(repoRoot, args.Rel)
+		if err != nil {
+			rep.Fail(common.InPackage(args.Rel), "typescript: %s: read tsconfig.json: %v", args.Rel, err)
+			return language.GenerateResult{}
+		}
+		cfg := rule.NewRule(configKind, configName)
+		cfg.SetAttr("src", "tsconfig.json")
+		if len(parents) > 0 {
+			cfg.SetAttr("deps", parents)
+		}
+		cfg.SetAttr("visibility", []string{"//visibility:public"})
+		result.Gen = append(result.Gen, cfg)
+		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
+	}
 	if len(sources) == 0 {
-		return mergeStale(args.File, language.GenerateResult{})
+		return mergeStale(args.File, result)
 	}
 	modules := make(map[string]bool, len(sources))
 	for _, src := range sources {
@@ -221,14 +266,6 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	sort.Strings(decls)
 
-	type plan struct {
-		name    string
-		src     string
-		test    bool
-		entry   bool
-		decl    bool
-		refs    []common.ImportRef
-	}
 	var plans []plan
 	all := append(append([]string(nil), sources...), decls...)
 	for _, src := range all {
@@ -269,18 +306,32 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 
 	plain := common.CustomRunnerTests(args.File, args.OtherGen, testKind, "jest")
-	hasRootPackageJSON := rootPackageJSONExists(args.Config.RepoRoot)
-	var result language.GenerateResult
+	hasRootPackageJSON := rootPackageJSONExists(repoRoot)
+	tsconfig := common.NearestTSConfig(repoRoot, args.Rel)
+	if tsconfig == "" && !allHaveTSConfig(args.File, plans) {
+		rep.Fail(common.InPackage(args.Rel), "typescript: %s: no tsconfig.json here or above; add tsconfig.json at the repo root", args.Rel)
+		return language.GenerateResult{}
+	}
+	esm := common.IsESMPackage(repoRoot, args.Rel)
+	var libraries []string
 	for _, p := range plans {
 		if p.test {
 			if plain[p.name] {
 				continue
 			}
+			if msg := common.JestPreflight(repoRoot); msg != "" {
+				rep.Fail(common.InPackage(args.Rel), "typescript: %s: %s generates a jest test; %s", args.Rel, p.src, msg)
+				return language.GenerateResult{}
+			}
 			r := rule.NewRule(testKind, p.name)
 			r.SetAttr("srcs", []string{p.src})
+			setTSConfig(r, tsconfig)
 			r.SetAttr("node_modules", rootNodeModules)
 			if hasRootPackageJSON {
 				r.SetAttr("package_json", rootPackageJSON)
+			}
+			if esm {
+				r.SetAttr("node_options", []string{"--experimental-vm-modules"})
 			}
 			result.Gen = append(result.Gen, r)
 			result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
@@ -293,6 +344,8 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			r.SetAttr("srcs", []string{p.src})
 			carryDeclarationSrcs(args.File, r)
 		}
+		setTSConfig(r, tsconfig)
+		libraries = append(libraries, ":"+p.name)
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
 		if p.entry {
@@ -303,6 +356,13 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
 		}
 	}
+	if common.IsPnpmWorkspaceMember(repoRoot, args.Rel) {
+		pkg := rule.NewRule(packageKind, packageName)
+		pkg.SetAttr("srcs", append([]string{"package.json"}, libraries...))
+		pkg.SetAttr("visibility", []string{"//visibility:public"})
+		result.Gen = append(result.Gen, pkg)
+		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
+	}
 	if common.FixtureTestonly(args.Config, args.Rel) {
 		for _, r := range result.Gen {
 			r.SetAttr("testonly", true)
@@ -311,15 +371,55 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	return mergeStale(args.File, result)
 }
 
+// setTSConfig points a generated rule at its tsconfig and turns declaration
+// output on so tests and dependents can import it.
+func setTSConfig(r *rule.Rule, tsconfig string) {
+	if tsconfig != "" {
+		r.SetAttr("tsconfig", tsconfig)
+	}
+	r.SetAttr("declaration", true)
+}
+
+// allHaveTSConfig reports whether every planned rule already exists with a
+// hand-set tsconfig.
+func allHaveTSConfig(file *rule.File, plans []plan) bool {
+	set := map[string]bool{}
+	if file != nil {
+		for _, r := range file.Rules {
+			if r.Attr("tsconfig") != nil {
+				set[r.Name()] = true
+			}
+		}
+	}
+	for _, p := range plans {
+		if !set[p.name] {
+			return false
+		}
+	}
+	return true
+}
+
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStaleOwned(file, result, typescriptKinds, func(r *rule.Rule) bool {
-		return r.Kind() != testKind || r.AttrString("runner") == ""
+		switch r.Kind() {
+		case configKind:
+			return r.Name() == configName
+		case packageKind:
+			return r.Name() == packageName
+		case testKind:
+			return r.AttrString("runner") == ""
+		}
+		return true
 	})
 }
 
 // rootPackageJSONExists reports whether the repo root has a package.json file.
 func rootPackageJSONExists(repoRoot string) bool {
-	info, err := os.Stat(filepath.Join(repoRoot, "package.json"))
+	return fileExists(filepath.Join(repoRoot, "package.json"))
+}
+
+func fileExists(name string) bool {
+	info, err := os.Stat(name)
 	return err == nil && !info.IsDir()
 }
 

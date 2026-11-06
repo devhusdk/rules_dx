@@ -668,10 +668,13 @@ type ResolveSpec struct {
 	SkipDep func(dep label.Label) bool
 	// External looks a non-relative import up in the third-party sources
 	// after the index and ignores. It returns the labels found, or a hint.
-	External       func(name string) ([]label.Label, string)
-	FailConflict   func(from label.Label, name string)
-	FailUnresolved func(from label.Label, name string, hint string)
-	FailAmbiguous  func(from label.Label, name string, matches string)
+	External func(name string) ([]label.Label, string)
+	// MissingExternalHint names where a bare import nothing resolves should
+	// be declared. It is used when External gives no hint.
+	MissingExternalHint func(pkg, name string) string
+	FailConflict        func(from label.Label, name string)
+	FailUnresolved      func(from label.Label, name string, hint string)
+	FailAmbiguous       func(from label.Label, name string, matches string)
 }
 
 func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw any, from label.Label, spec ResolveSpec) {
@@ -751,6 +754,9 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 					spec.FailAmbiguous(from, name, formatLabels(ext))
 					continue
 				}
+			}
+			if hint == "" && !ref.Relative && spec.MissingExternalHint != nil {
+				hint = spec.MissingExternalHint(from.Pkg, name)
 			}
 			spec.FailUnresolved(from, name, hint)
 		default:

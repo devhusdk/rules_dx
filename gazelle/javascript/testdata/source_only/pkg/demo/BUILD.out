@@ -18,6 +18,7 @@ javascript_test(
     srcs = ["demo.test.js"],
     data = [":demo"],
     node_modules = "//:node_modules",
+    package_json = "//:package_json",
 )
 
 javascript_library(
@@ -31,4 +32,5 @@ javascript_test(
     srcs = ["helper_test.mjs"],
     data = [":helper"],
     node_modules = "//:node_modules",
+    package_json = "//:package_json",
 )

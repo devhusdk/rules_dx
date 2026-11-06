@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_empty_project_rejection", "typescript_forward_kwargs", "typescript_inner_kwargs", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_content", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_empty_project_rejection", "typescript_forward_kwargs", "typescript_inner_kwargs", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -312,6 +312,33 @@ dx_wrapper_contract_tests(
                 False,
                 False,
             ],
+        ),
+        expect_equal(
+            "declaration writes the compiler option the validator checks",
+            dx_tsconfig_content(
+                "./tsconfig.json",
+                ["./a.ts"],
+                True,
+            ),
+            {
+                "extends": "./tsconfig.json",
+                "files": ["./a.ts"],
+                "include": [],
+                "compilerOptions": {"declaration": True},
+            },
+        ),
+        expect_equal(
+            "no declaration leaves compiler options to the inherited file",
+            dx_tsconfig_content(
+                "./tsconfig.json",
+                ["./a.ts"],
+                False,
+            ),
+            {
+                "extends": "./tsconfig.json",
+                "files": ["./a.ts"],
+                "include": [],
+            },
         ),
         expect_equal(
             "absent typecheck defaults to isolated",

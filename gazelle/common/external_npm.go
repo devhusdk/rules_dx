@@ -46,8 +46,9 @@ func parseNpmManifest(content []byte, _ string) (externalManifest, error) {
 	return m, nil
 }
 
-// npmPackageName cuts a module specifier down to its package name.
-func npmPackageName(spec string) string {
+// NpmPackageName cuts a module specifier down to its package name, keeping
+// the @scope/name pair.
+func NpmPackageName(spec string) string {
 	parts := strings.Split(spec, "/")
 	if strings.HasPrefix(spec, "@") && len(parts) >= 2 {
 		return parts[0] + "/" + parts[1]
@@ -57,7 +58,7 @@ func npmPackageName(spec string) string {
 
 // Lookup resolves a declared package to its //<lockdir>:node_modules/<pkg> target.
 func (m *npmManifest) Lookup(_, name string) ([]label.Label, string) {
-	pkg := npmPackageName(name)
+	pkg := NpmPackageName(name)
 	if !m.packages[pkg] {
 		return nil, ""
 	}

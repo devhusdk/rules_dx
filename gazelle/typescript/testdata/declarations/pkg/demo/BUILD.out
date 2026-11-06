@@ -2,20 +2,26 @@ load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
 
 typescript_project(
     name = "widget",
+    declaration = True,
     declaration_srcs = ["widget.d.ts"],
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
 )
 
 typescript_project(
     name = "consumer",
     srcs = ["consumer.ts"],
+    declaration = True,
     declaration_srcs = ["shared.d.ts"],
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
 )
 
 typescript_project(
     name = "user",
     srcs = ["user.ts"],
+    declaration = True,
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
     deps = [":consumer"],
 )

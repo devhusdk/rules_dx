@@ -15,6 +15,8 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+const jestManifest = "{\"devDependencies\": {\"jest-cli\": \"29.7.0\", \"jest-junit\": \"16.0.0\"}}\n"
+
 func writeFixture(t *testing.T, root, name, content string) {
 	t.Helper()
 	file := filepath.Join(root, filepath.FromSlash(name))
@@ -44,6 +46,7 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 func TestGenerateSourceOnlyPackage(t *testing.T) {
 	regular := []string{"demo.js", "helper.jsx", "helper_test.mjs", "notes.txt", "widget.d.ts"}
 	result := generateFixture(t, map[string]string{
+		"package.json":             jestManifest,
 		"pkg/demo/demo.js":         "import helper from \"./helper.jsx\";\nimport fs from \"fs\";\n",
 		"pkg/demo/helper.jsx":      "export const suffix = (t) => t;\n",
 		"pkg/demo/helper_test.mjs": "import helper from \"./helper.jsx\";\n",
@@ -77,8 +80,8 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 	if got := test.AttrString("node_modules"); got != rootNodeModules {
 		t.Errorf("test node_modules = %q, want %q", got, rootNodeModules)
 	}
-	if got := test.Attr("package_json"); got != nil {
-		t.Errorf("test package_json = %v, want unset without a root package.json", got)
+	if got := test.AttrString("package_json"); got != rootPackageJSON {
+		t.Errorf("test package_json = %q, want %q", got, rootPackageJSON)
 	}
 	testImports := common.RefRoots(importRefs(result.Imports[2]))
 	if strings.Join(testImports, ",") != "pkg/demo/helper" {
@@ -444,6 +447,7 @@ func TestResolveAmbiguous(t *testing.T) {
 
 func TestGenerateEntryThinBinary(t *testing.T) {
 	result := generateFixture(t, map[string]string{
+		"package.json":            jestManifest,
 		"pkg/demo/main.js":        "import helper from \"./helper.js\";\nconsole.log(helper);\n",
 		"pkg/demo/helper.js":      "export const helper = 1;\n",
 		"pkg/demo/helper_test.js": "import helper from \"./helper.js\";\n",
@@ -776,7 +780,7 @@ func TestResolveIndexDottedAndAssets(t *testing.T) {
 
 func TestGenerateTestPackageJSONFollowsRootManifest(t *testing.T) {
 	result := generateFixture(t, map[string]string{
-		"package.json":            "{\"type\": \"module\"}\n",
+		"package.json":            "{\"type\": \"module\", \"devDependencies\": {\"jest-cli\": \"1\", \"jest-junit\": \"1\"}}\n",
 		"pkg/demo/helper.js":      "export const helper = 1;\n",
 		"pkg/demo/helper_test.js": "import { helper } from \"./helper\";\n",
 	}, []string{"helper.js", "helper_test.js"})
@@ -975,10 +979,73 @@ func TestGenerateLinksNpmPackagesInWorkspaceMembers(t *testing.T) {
 		writeFixture(t, root, d+"/package.json", "{}\n")
 	}
 	lang := NewLanguage()
-	for rel, want := range map[string]int{"apps/web": 1, "apps/skip": 0, "libs/x": 0} {
+	for rel, want := range map[string]int{"apps/web": 2, "apps/skip": 0, "libs/x": 0} {
 		result := lang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, rel), Rel: rel})
 		if len(result.Gen) != want {
 			t.Errorf("%s generated %v, want %d rules", rel, result.Gen, want)
 		}
+	}
+}
+
+func TestGenerateJestNeedsRootDevDependencies(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "package.json", "{}\n")
+	writeFixture(t, root, "pkg/demo/helper_test.js", "export {};\n")
+	l := newLang()
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg", "demo"), Rel: "pkg/demo", RegularFiles: []string{"helper_test.js"}})
+	if len(result.Gen) != 0 {
+		t.Errorf("generated %v despite the missing jest packages", result.Gen)
+	}
+	if errs := l.Errors(); len(errs) != 1 || !strings.Contains(errs[0], `add "jest-cli" and "jest-junit" to devDependencies in package.json`) {
+		t.Errorf("errors = %q, want the jest devDependencies remedy", errs)
+	}
+}
+
+func TestGenerateRootPackageJSONLibrary(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "package.json", "{}\n")
+	result := newLang().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, Rel: ""})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != jsLibraryKind || result.Gen[0].Name() != packageJSONName {
+		t.Fatalf("generated %v, want js_library(package_json)", result.Gen)
+	}
+	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "package.json" {
+		t.Errorf("srcs = %q", got)
+	}
+	nested := newLang().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "x"), Rel: "x"})
+	if len(nested.Gen) != 0 {
+		t.Errorf("nested package generated %v", nested.Gen)
+	}
+}
+
+func TestGenerateWorkspacePackage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+	writeFixture(t, root, "pnpm-workspace.yaml", "packages:\n  - 'libs/*'\n")
+	writeFixture(t, root, "libs/a/package.json", "{}\n")
+	writeFixture(t, root, "libs/a/index.js", "export const a = 1;\n")
+	writeFixture(t, root, "libs/b/package.json", "{}\n")
+	writeFixture(t, root, "libs/b/index.ts", "export const b = 1;\n")
+	pkgOf := func(rel string, regular ...string) *rule.Rule {
+		result := newLang().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, rel), Rel: rel, RegularFiles: regular})
+		for _, r := range result.Gen {
+			if r.Kind() == packageKind {
+				return r
+			}
+		}
+		return nil
+	}
+	a := pkgOf("libs/a", "package.json", "index.js")
+	if a == nil || a.Name() != packageName || strings.Join(a.AttrStrings("srcs"), ",") != "package.json,:index" {
+		t.Errorf("libs/a package = %v", a)
+	}
+	if b := pkgOf("libs/b", "package.json", "index.ts"); b != nil {
+		t.Errorf("libs/b has TypeScript sources, so TypeScript owns its package; got %v", b)
+	}
+}
+
+func TestMissingPackageHintNamesOwningManifest(t *testing.T) {
+	spec := newLang().ResolveSpecFor(&config.Config{RepoRoot: "/nonexistent"}, rule.NewRule(libraryKind, "x"), label.New("", "pkg", "x"))
+	if spec.MissingExternalHint == nil {
+		t.Fatal("javascript must name the package.json to add an undeclared import to")
 	}
 }

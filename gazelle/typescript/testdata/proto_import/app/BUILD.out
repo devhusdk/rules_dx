@@ -3,6 +3,8 @@ load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
 typescript_project(
     name = "schema",
     srcs = ["schema.ts"],
+    declaration = True,
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
     deps = ["//api:api_proto_ts"],
 )

@@ -51,6 +51,7 @@ go_library(
         "policyconfig.go",
         "nodestdlib.go",
         "npmhub.go",
+        "npmproject.go",
         "pnpmworkspace.go",
         "registry.go",
         "remedy.go",

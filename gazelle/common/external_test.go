@@ -454,3 +454,25 @@ func TestPubLockBadEntriesSorted(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveSingleMissingExternalHint(t *testing.T) {
+	root := t.TempDir()
+	l := newExternalDotLang()
+	cfg := resolveConfig(t, root, "")
+	index := resolverIndex(l)
+	var hints []string
+	spec := ResolveSpec{
+		LanguageName:        dotLanguage,
+		WantKind:            dotKind,
+		Attr:                "deps",
+		Unwrap:              UnwrapImportSet,
+		MarkUsed:            func(string) bool { return false },
+		External:            func(string) ([]label.Label, string) { return nil, "" },
+		MissingExternalHint: func(pkg, name string) string { return "declare " + name + " for " + pkg },
+		FailUnresolved:      func(_ label.Label, _ string, hint string) { hints = append(hints, hint) },
+	}
+	ResolveSingle(cfg, index, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"chalk"}), label.New("", "app", "app"), spec)
+	if strings.Join(hints, "|") != "declare chalk for app" {
+		t.Errorf("hints = %q", hints)
+	}
+}

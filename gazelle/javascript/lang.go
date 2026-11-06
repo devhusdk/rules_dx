@@ -19,6 +19,10 @@ const (
 	testKind        = "javascript_test"
 	binaryKind      = "javascript_binary"
 	linkKind        = "npm_link_all_packages"
+	jsLibraryKind   = "js_library"
+	packageKind     = "npm_package"
+	packageJSONName = "package_json"
+	packageName     = "pkg"
 	linkDefs        = "@npm//:defs.bzl"
 	rootNodeModules = "//:node_modules"
 	rootPackageJSON = "//:package_json"
@@ -29,6 +33,12 @@ var javascriptKinds = map[string]rule.KindInfo{
 	testKind:    testKindInfo(),
 	binaryKind:  binaryKindInfo(),
 	linkKind:    {},
+	jsLibraryKind: {
+		MergeableAttrs: map[string]bool{"srcs": true},
+	},
+	packageKind: {
+		MergeableAttrs: map[string]bool{"srcs": true},
+	},
 }
 
 func libraryKindInfo() rule.KindInfo {
@@ -73,11 +83,15 @@ func newLang() *common.SingleLang {
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName: languageName,
 		LibraryKind:  libraryKind,
-		ExtraKinds:   []string{testKind, binaryKind, linkKind},
-		KindDefs:     map[string]string{linkKind: linkDefs},
-		Kinds:        javascriptKinds,
-		DefsPackage:  "javascript/rules:defs.bzl",
-		ImportAttr:   "srcs",
+		ExtraKinds:   []string{testKind, binaryKind, linkKind, jsLibraryKind, packageKind},
+		KindDefs: map[string]string{
+			linkKind:      linkDefs,
+			jsLibraryKind: "@aspect_rules_js//js:defs.bzl",
+			packageKind:   "@aspect_rules_js//npm:defs.bzl",
+		},
+		Kinds:       javascriptKinds,
+		DefsPackage: "javascript/rules:defs.bzl",
+		ImportAttr:  "srcs",
 		IsImportSource: func(src string) bool {
 			return isSupported(src) || common.IsAssetSource(src)
 		},
@@ -87,13 +101,14 @@ func newLang() *common.SingleLang {
 			}
 			return src
 		},
-		PathIdentity:   true,
-		IsStdLib:       common.IsNodeBuiltin,
-		Find:           common.JSFind(languageName),
-		ConfigureExt:   configureExt,
-		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
-		External:       "npm",
-		Generate:       generateRules,
+		PathIdentity:        true,
+		IsStdLib:            common.IsNodeBuiltin,
+		Find:                common.JSFind(languageName),
+		ConfigureExt:        configureExt,
+		MissingExternalHint: common.NpmMissingHint,
+		UnresolvedHint:      "add a local one-source library or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
+		External:            "npm",
+		Generate:            generateRules,
 	})
 }
 
@@ -141,21 +156,34 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	sort.Strings(sources)
 	var result language.GenerateResult
-	if fileExists(filepath.Join(args.Dir, "pnpm-lock.yaml")) || (args.Config != nil && common.IsPnpmWorkspaceMember(args.Config.RepoRoot, args.Rel)) {
+	member := args.Config != nil && common.IsPnpmWorkspaceMember(args.Config.RepoRoot, args.Rel)
+	if fileExists(filepath.Join(args.Dir, "pnpm-lock.yaml")) || member {
 		link := rule.NewRule(linkKind, "node_modules")
 		result.Gen = append(result.Gen, link)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
 	}
+	if args.Rel == "" && fileExists(filepath.Join(args.Dir, "package.json")) {
+		pj := rule.NewRule(jsLibraryKind, packageJSONName)
+		pj.SetAttr("srcs", []string{"package.json"})
+		pj.SetAttr("visibility", []string{"//visibility:public"})
+		result.Gen = append(result.Gen, pj)
+		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
+	}
+	// TypeScript writes the package target when the package has TS sources.
+	member = member && !hasTypeScript(args.RegularFiles)
 	if len(sources) == 0 {
+		if member {
+			result = addPackage(result, nil)
+		}
 		return mergeStale(args.File, result)
 	}
 
 	type plan struct {
-		name    string
-		src     string
-		test    bool
-		entry   bool
-		refs    []common.ImportRef
+		name  string
+		src   string
+		test  bool
+		entry bool
+		refs  []common.ImportRef
 	}
 	var plans []plan
 	for _, src := range sources {
@@ -196,10 +224,15 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 
 	plain := common.CustomRunnerTests(args.File, args.OtherGen, testKind, "jest")
 	hasRootPackageJSON := rootPackageJSONExists(args.Config.RepoRoot)
+	var libraries []string
 	for _, p := range plans {
 		if p.test {
 			if plain[p.name] {
 				continue
+			}
+			if msg := common.JestPreflight(args.Config.RepoRoot); msg != "" {
+				rep.Fail(common.InPackage(args.Rel), "javascript: %s: %s generates a jest test; %s", args.Rel, p.src, msg)
+				return language.GenerateResult{}
 			}
 			r := rule.NewRule(testKind, p.name)
 			r.SetAttr("srcs", []string{p.src})
@@ -213,6 +246,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 		r := rule.NewRule(libraryKind, p.name)
 		r.SetAttr("srcs", []string{p.src})
+		libraries = append(libraries, ":"+p.name)
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
 		if p.entry {
@@ -223,6 +257,9 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
 		}
 	}
+	if member {
+		result = addPackage(result, libraries)
+	}
 	if common.FixtureTestonly(args.Config, args.Rel) {
 		for _, r := range result.Gen {
 			r.SetAttr("testonly", true)
@@ -231,9 +268,41 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	return mergeStale(args.File, result)
 }
 
+// addPackage adds the npm_package a pnpm workspace link resolves to.
+func addPackage(result language.GenerateResult, libraries []string) language.GenerateResult {
+	pkg := rule.NewRule(packageKind, packageName)
+	pkg.SetAttr("srcs", append([]string{"package.json"}, libraries...))
+	pkg.SetAttr("visibility", []string{"//visibility:public"})
+	result.Gen = append(result.Gen, pkg)
+	result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
+	return result
+}
+
+func hasTypeScript(files []string) bool {
+	for _, f := range files {
+		if strings.HasSuffix(f, ".d.ts") || strings.HasSuffix(f, ".d.mts") || strings.HasSuffix(f, ".d.cts") {
+			continue
+		}
+		if common.HasExt(f, []string{".ts", ".tsx", ".mts", ".cts"}) {
+			return true
+		}
+	}
+	return false
+}
+
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStaleOwned(file, result, javascriptKinds, func(r *rule.Rule) bool {
-		return r.Kind() != linkKind && (r.Kind() != testKind || r.AttrString("runner") == "")
+		switch r.Kind() {
+		case linkKind:
+			return false
+		case jsLibraryKind:
+			return r.Name() == packageJSONName
+		case packageKind:
+			return r.Name() == packageName
+		case testKind:
+			return r.AttrString("runner") == ""
+		}
+		return true
 	})
 }
 

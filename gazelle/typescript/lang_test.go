@@ -15,6 +15,8 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+const jestManifest = "{\"devDependencies\": {\"jest-cli\": \"29.7.0\", \"jest-junit\": \"16.0.0\"}}\n"
+
 func writeFixture(t *testing.T, root, name, content string) {
 	t.Helper()
 	file := filepath.Join(root, filepath.FromSlash(name))
@@ -29,6 +31,7 @@ func writeFixture(t *testing.T, root, name, content string) {
 func generateFixture(t *testing.T, files map[string]string, regular []string) language.GenerateResult {
 	t.Helper()
 	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
 	for name, content := range files {
 		writeFixture(t, root, name, content)
 	}
@@ -44,6 +47,7 @@ func generateFixture(t *testing.T, files map[string]string, regular []string) la
 func TestGenerateSourceOnlyPackage(t *testing.T) {
 	regular := []string{"demo.ts", "helper.tsx", "helper_test.mts", "notes.txt", "widget.d.ts", "orphan.d.mts"}
 	result := generateFixture(t, map[string]string{
+		"package.json":             jestManifest,
 		"pkg/demo/demo.ts":         "import helper from \"./helper.tsx\";\nimport fs from \"fs\";\n",
 		"pkg/demo/helper.tsx":      "export const suffix = (t: string) => t;\n",
 		"pkg/demo/helper_test.mts": "import helper from \"./helper.tsx\";\n",
@@ -151,6 +155,7 @@ func TestGenerateFailures(t *testing.T) {
 	}
 	for _, tc := range cases {
 		root := t.TempDir()
+		writeFixture(t, root, "tsconfig.json", "{}\n")
 		for name, content := range tc.files {
 			writeFixture(t, root, name, content)
 		}
@@ -172,6 +177,7 @@ func TestGenerateFailures(t *testing.T) {
 
 func TestGenerateEntryThinBinary(t *testing.T) {
 	result := generateFixture(t, map[string]string{
+		"package.json":            jestManifest,
 		"pkg/demo/main.ts":        "import helper from \"./helper\";\nconsole.log(helper(\"x\"));\n",
 		"pkg/demo/helper.ts":      "export function helper(name: string): string { return name; }\n",
 		"pkg/demo/helper_test.ts": "import helper from \"./helper\";\n",
@@ -198,8 +204,8 @@ func TestGenerateEntryThinBinary(t *testing.T) {
 	if got := result.Gen[testIdx].AttrString("node_modules"); got != rootNodeModules {
 		t.Errorf("test node_modules = %q, want %q", got, rootNodeModules)
 	}
-	if got := result.Gen[testIdx].Attr("package_json"); got != nil {
-		t.Errorf("test package_json = %v, want unset without a root package.json", got)
+	if got := result.Gen[testIdx].AttrString("package_json"); got != rootPackageJSON {
+		t.Errorf("test package_json = %q, want %q", got, rootPackageJSON)
 	}
 	lib := result.Gen[libIdx]
 	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "main.ts" {
@@ -245,6 +251,7 @@ func TestGenerateEntryCompiledExtensions(t *testing.T) {
 
 func TestGenerateEntryCollision(t *testing.T) {
 	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
 	for name, content := range map[string]string{
 		"pkg/demo/main.ts":     "export const x = 1;\n",
 		"pkg/demo/main_bin.ts": "export const y = 2;\n",
@@ -547,10 +554,10 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 func TestApparentLoadsDefault(t *testing.T) {
 	l := newLang()
 	got := l.ApparentLoads(func(string) string { return "" })
-	if len(got) != 2 || got[0].Name != "@rules_dx//typescript/rules:defs.bzl" {
-		t.Errorf("default apparent loads = %+v", got)
+	if len(got) != 4 || got[0].Name != "@rules_dx//typescript/rules:defs.bzl" {
+		t.Fatalf("default apparent loads = %+v", got)
 	}
-	if got[1].Name != "@rules_dx//javascript/rules:defs.bzl" || strings.Join(got[1].Symbols, ",") != "javascript_binary" {
+	if got[3].Name != "@rules_dx//javascript/rules:defs.bzl" || strings.Join(got[3].Symbols, ",") != "javascript_binary" {
 		t.Errorf("default apparent binary loads = %+v", got)
 	}
 }
@@ -587,6 +594,7 @@ func TestCheckClaimsOtherAndMismatch(t *testing.T) {
 
 func TestGeneratePlainTestKeepsHandwrittenRunner(t *testing.T) {
 	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
 	writeFixture(t, root, "pkg/demo/plain_test.ts", "import { test } from \"node:test\";\ntest(\"ok\", () => {});\n")
 	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	file.Rules = append(file.Rules, nodeRunnerTest("plain_test"))
@@ -723,6 +731,7 @@ func declNames(result language.GenerateResult) string {
 func generateWithFile(t *testing.T, files map[string]string, regular []string, f *rule.File) (language.GenerateResult, *typescriptLang) {
 	t.Helper()
 	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
 	for name, content := range files {
 		writeFixture(t, root, name, content)
 	}
@@ -837,7 +846,7 @@ func TestImportsIndexesDeclarations(t *testing.T) {
 
 func TestGenerateTestPackageJSONFollowsRootManifest(t *testing.T) {
 	result := generateFixture(t, map[string]string{
-		"package.json":            "{\"type\": \"module\"}\n",
+		"package.json":            "{\"type\": \"module\", \"devDependencies\": {\"jest-cli\": \"1\", \"jest-junit\": \"1\"}}\n",
 		"pkg/demo/helper.ts":      "export const helper = 1;\n",
 		"pkg/demo/helper_test.ts": "import { helper } from \"./helper\";\n",
 	}, []string{"helper.ts", "helper_test.ts"})
@@ -877,6 +886,7 @@ func TestMergeKeepsHandSetPackageJSON(t *testing.T) {
 
 func TestResolveTSConfigPaths(t *testing.T) {
 	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
 	for name, content := range map[string]string{
 		"CONFIG":     `{"extends": "./CONFIGBASE", "compilerOptions": {"baseUrl": "."}}`,
 		"CONFIGBASE": `{"compilerOptions": {"paths": {"@/*": ["./*"], "~utils": ["./lib/util.ts"], "fs": ["./lib/util.ts"]}}}`,
@@ -983,6 +993,7 @@ func nodeRunnerTest(name string) *rule.Rule {
 
 func TestGenerateKeepsNodeRunnerTestWithoutSource(t *testing.T) {
 	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
 	writeFixture(t, root, "pkg/demo/other_test.ts", "export {};\n")
 	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	file.Rules = append(file.Rules, nodeRunnerTest("gone_test"))
@@ -1012,5 +1023,148 @@ func TestTestSuffixCollision(t *testing.T) {
 	}
 	if err := common.CheckClaims(nil, nil, claimants, nil); err == nil {
 		t.Error("a.test.ts and a.spec.ts both claim a_test, want collision error")
+	}
+}
+
+func generateAt(t *testing.T, root, rel string, regular ...string) (language.GenerateResult, *typescriptLang) {
+	t.Helper()
+	l := newLang()
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, filepath.FromSlash(rel)),
+		Rel:          rel,
+		RegularFiles: regular,
+	})
+	return result, l
+}
+
+func ruleOf(result language.GenerateResult, kind, name string) *rule.Rule {
+	for _, r := range result.Gen {
+		if r.Kind() == kind && r.Name() == name {
+			return r
+		}
+	}
+	return nil
+}
+
+func TestGenerateTSConfigTargetExtendsParent(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
+	writeFixture(t, root, "libs/greet/tsconfig.json", "{\n  // JSONC\n  \"extends\": \"../../tsconfig.json\",\n}\n")
+	writeFixture(t, root, "libs/greet/index.ts", "export const x = 1;\n")
+	result, l := generateAt(t, root, "libs/greet", "index.ts", "tsconfig.json")
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %q", l.Errors())
+	}
+	cfg := ruleOf(result, configKind, configName)
+	if cfg == nil || cfg.AttrString("src") != "tsconfig.json" || strings.Join(cfg.AttrStrings("deps"), ",") != "//:tsconfig" {
+		t.Fatalf("ts_config = %v", cfg)
+	}
+	lib := ruleOf(result, projectKind, "index")
+	if lib == nil || lib.AttrString("tsconfig") != ":tsconfig" {
+		t.Fatalf("project = %v, want tsconfig :tsconfig", lib)
+	}
+	root2, _ := generateAt(t, root, "")
+	if cfg := ruleOf(root2, configKind, configName); cfg == nil || cfg.Attr("deps") != nil {
+		t.Errorf("root ts_config = %v, want one without deps", cfg)
+	}
+}
+
+func TestGenerateNearestAncestorTSConfigAndDeclaration(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
+	writeFixture(t, root, "package.json", jestManifest)
+	writeFixture(t, root, "a/b/lib.ts", "export const x = 1;\n")
+	writeFixture(t, root, "a/b/lib_test.ts", "import { x } from \"./lib\";\n")
+	result, _ := generateAt(t, root, "a/b", "lib.ts", "lib_test.ts")
+	for _, r := range result.Gen {
+		if r.AttrString("tsconfig") != "//:tsconfig" {
+			t.Errorf("%s tsconfig = %q, want //:tsconfig", r.Name(), r.AttrString("tsconfig"))
+		}
+		if !r.AttrBool("declaration") {
+			t.Errorf("%s declaration = %v, want True", r.Name(), r.Attr("declaration"))
+		}
+	}
+	if test := ruleOf(result, testKind, "lib_test"); test == nil || test.Attr("node_options") != nil {
+		t.Errorf("test %v sets node_options outside an ESM package", test)
+	}
+}
+
+func TestGenerateWithoutTSConfigFails(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "a/lib.ts", "export const x = 1;\n")
+	result, l := generateAt(t, root, "a", "lib.ts")
+	if len(result.Gen) != 0 {
+		t.Errorf("generated %v without a tsconfig", result.Gen)
+	}
+	if errs := l.Errors(); len(errs) != 1 || !strings.Contains(errs[0], "add tsconfig.json at the repo root") {
+		t.Errorf("errors = %q", errs)
+	}
+	hand := rule.EmptyFile("BUILD.bazel", "a")
+	kept := rule.NewRule(projectKind, "lib")
+	kept.SetAttr("tsconfig", "tsconfig.json")
+	kept.Insert(hand)
+	l = newLang()
+	l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "a"), Rel: "a", RegularFiles: []string{"lib.ts"}, File: hand})
+	if len(l.Errors()) != 0 {
+		t.Errorf("hand-set tsconfig still failed: %q", l.Errors())
+	}
+}
+
+func TestMergeKeepsHandSetTSConfig(t *testing.T) {
+	info := projectKindInfo()
+	gen := rule.NewRule(projectKind, "lib")
+	gen.SetAttr("tsconfig", "//:tsconfig")
+	hand := rule.NewRule(projectKind, "lib")
+	hand.SetAttr("tsconfig", "tsconfig.app.json")
+	rule.MergeRules(gen, hand, info.MergeableAttrs, "BUILD.bazel")
+	if got := hand.AttrString("tsconfig"); got != "tsconfig.app.json" {
+		t.Errorf("merged tsconfig = %q, want the hand-set one", got)
+	}
+}
+
+func TestGenerateESMJestOptionAndPreflight(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
+	writeFixture(t, root, "package.json", jestManifest)
+	writeFixture(t, root, "libs/greet/package.json", "{\"type\": \"module\"}\n")
+	writeFixture(t, root, "libs/greet/greet.test.ts", "export {};\n")
+	result, _ := generateAt(t, root, "libs/greet", "greet.test.ts")
+	test := ruleOf(result, testKind, "greet_test")
+	if test == nil || strings.Join(test.AttrStrings("node_options"), ",") != "--experimental-vm-modules" {
+		t.Fatalf("test = %v, want ESM node_options", test)
+	}
+	writeFixture(t, root, "package.json", "{}\n")
+	result, l := generateAt(t, root, "libs/greet", "greet.test.ts")
+	if len(result.Gen) != 0 || len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], `add "jest-cli" and "jest-junit" to devDependencies in package.json`) {
+		t.Errorf("gen %v errors %q, want the jest remedy", result.Gen, l.Errors())
+	}
+}
+
+func TestGenerateWorkspacePackageListsLibraries(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tsconfig.json", "{}\n")
+	writeFixture(t, root, "package.json", jestManifest)
+	writeFixture(t, root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+	writeFixture(t, root, "pnpm-workspace.yaml", "packages:\n  - 'libs/*'\n")
+	writeFixture(t, root, "libs/greet/package.json", "{}\n")
+	writeFixture(t, root, "libs/greet/index.ts", "export const x = 1;\n")
+	writeFixture(t, root, "libs/greet/util.ts", "export const y = 1;\n")
+	writeFixture(t, root, "libs/greet/index.test.ts", "export {};\n")
+	result, _ := generateAt(t, root, "libs/greet", "index.test.ts", "index.ts", "util.ts")
+	pkg := ruleOf(result, packageKind, packageName)
+	if pkg == nil || strings.Join(pkg.AttrStrings("srcs"), ",") != "package.json,:index,:util" {
+		t.Fatalf("npm_package = %v", pkg)
+	}
+	again, _ := generateAt(t, root, "libs/greet", "index.test.ts", "index.ts", "util.ts")
+	if got := strings.Join(ruleOf(again, packageKind, packageName).AttrStrings("srcs"), ","); got != "package.json,:index,:util" {
+		t.Errorf("second run srcs = %q", got)
+	}
+}
+
+func TestMissingPackageHintNamesOwningManifest(t *testing.T) {
+	spec := newLang().ResolveSpecFor(&config.Config{RepoRoot: t.TempDir()}, rule.NewRule(projectKind, "x"), label.New("", "pkg", "x"))
+	if spec.MissingExternalHint == nil {
+		t.Fatal("typescript must name the package.json to add an undeclared import to")
 	}
 }

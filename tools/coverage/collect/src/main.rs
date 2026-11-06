@@ -137,7 +137,7 @@ fn export(ctx: &Context, cov: &Path, objects: &[PathBuf], profile: &Path) -> Str
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);
         if stderr.contains("no coverage data found") {
-            debug_log!("No coverage data found");
+            eprintln!("dx coverage collector: llvm-cov found no coverage data in {objects:?}");
             return String::new();
         }
         fail(&format!("llvm-cov export failed:\n{stderr}"));
@@ -234,7 +234,10 @@ fn main() {
         .collect();
     profraw.sort();
     if profraw.is_empty() {
-        debug_log!("No .profraw files in COVERAGE_DIR; writing empty report");
+        eprintln!(
+            "dx coverage collector: no .profraw files in {}; writing an empty report",
+            ctx.coverage_dir.display()
+        );
         fs::write(&output, "").unwrap_or_else(|e| fail(&format!("cannot write report: {e}")));
         return;
     }
@@ -259,7 +262,7 @@ fn main() {
         ))
     });
     let report = if objects.is_empty() {
-        debug_log!("No objects to export");
+        eprintln!("dx coverage collector: no instrumented objects to export; writing an empty report");
         String::new()
     } else {
         export(&ctx, &cov, &objects, &merged)

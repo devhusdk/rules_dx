@@ -19,7 +19,7 @@ load(
 
 HUB_NAME = "dx_qt"
 
-VCRUNTIME_FILES = ["vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll"]
+VCRUNTIME_FILES = ["vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll"]
 
 SHARED_TARGETS = ["licenses", "needs", "runtime", "sbom"]
 

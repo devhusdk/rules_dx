@@ -185,6 +185,7 @@ TOOLS = [
     tool(
         id = "actionlint",
         adapters = {"lint": ["github_workflow"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -200,7 +201,8 @@ TOOLS = [
     tool(
         id = "ansible_lint",
         adapters = {"lint": ["ansible"]},
-        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"]),
+        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"], tier_active = True),
+        severity = severity(default = "warning", categories = {"internal-error": "error", "load-failure": "error", "syntax-check": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -253,7 +255,7 @@ TOOLS = [
             "format": ["bicep"],
             "lint": ["bicep"],
         },
-        config = config(suffixes = ["bicepconfig.json"]),
+        config = config(suffixes = ["bicepconfig.json"], tier_active = True, stage_native = True),
         support = [
             row(
                 capability = "format",
@@ -441,7 +443,7 @@ TOOLS = [
     tool(
         id = "cfn_lint",
         adapters = {"lint": ["cloudformation"]},
-        config = config(suffixes = [".cfnlintrc", ".yaml", ".yml"]),
+        config = config(suffixes = [".cfnlintrc", ".yaml", ".yml"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -1266,7 +1268,8 @@ TOOLS = [
     tool(
         id = "hadolint",
         adapters = {"lint": ["dockerfile"]},
-        config = config(suffixes = [".yaml", ".yml"]),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True),
+        severity = severity(default = "warning", categories = {"DL1": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -1481,7 +1484,8 @@ TOOLS = [
     tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
-        config = config(suffixes = [".kubeconform.json"]),
+        config = config(suffixes = [".kubeconform.json"], tier_active = True, stage_native = True),
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "lint",
@@ -2076,7 +2080,8 @@ TOOLS = [
     tool(
         id = "regal",
         adapters = {"lint": ["rego"]},
-        config = config(suffixes = [".yaml", ".yml"]),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True, stage_native = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2584,7 +2589,8 @@ TOOLS = [
     tool(
         id = "tflint",
         adapters = {"lint": ["terraform"]},
-        config = config(suffixes = [".hcl"]),
+        config = config(suffixes = [".hcl"], tier_active = True),
+        severity = severity(default = "warning", categories = {"tflint-diagnostic": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -2672,6 +2678,7 @@ TOOLS = [
     tool(
         id = "trivy_config",
         adapters = {"lint": ["bicep", "cloudformation", "helm", "kubernetes", "terraform"]},
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2958,6 +2965,7 @@ TOOLS = [
     tool(
         id = "zizmor",
         adapters = {"lint": ["github_workflow"]},
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",

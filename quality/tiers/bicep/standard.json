@@ -1,0 +1,17 @@
+{
+  "analyzers": {
+    "core": {
+      "rules": {
+        "no-unused-params": { "level": "warning" },
+        "no-unused-vars": { "level": "warning" },
+        "no-unused-existing-resources": { "level": "warning" },
+        "no-hardcoded-env-urls": { "level": "warning" },
+        "outputs-should-not-contain-secrets": { "level": "warning" },
+        "protect-commandline-secrets": { "level": "warning" },
+        "secure-parameter-default": { "level": "warning" },
+        "secure-secrets-in-params": { "level": "warning" },
+        "use-stable-vm-image": { "level": "warning" }
+      }
+    }
+  }
+}

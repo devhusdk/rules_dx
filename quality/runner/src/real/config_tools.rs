@@ -283,17 +283,19 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let tool = call.tool;
             let scratch = &call.staged.scratch;
             let cache = scratch.root().join("dx-trivy-cache");
+            let severities = tier_lines(tool_id, call.config, TRIVY_DEFAULT_SEVERITIES)?;
+            let severities: Vec<&str> = severities.iter().map(String::as_str).collect();
             if let Some(chart_root) = helm_chart_root(tool) {
-                return scan_chart(backend, call, &cache, &chart_root);
+                return scan_chart(backend, call, &cache, &severities, &chart_root);
             }
             if let Some((_, bicep)) = tool.path_tools.iter().find(|(name, _)| name == "bicep") {
-                return scan_bicep(backend, call, &cache, bicep);
+                return scan_bicep(backend, call, &cache, &severities, bicep);
             }
             let (_, names) = super::single_run::paths(call);
             let mut findings = Vec::new();
             for name in &names {
                 let invocation =
-                    commands::trivy_config_check(&tool.binary, Path::new(name), &cache);
+                    commands::trivy_config_check(&tool.binary, Path::new(name), &cache, &severities);
                 let out = backend.run(tool_id, tool, &invocation, scratch)?;
                 // A single-file scan names the target by its file name alone.
                 let base = Path::new(name)
@@ -444,7 +446,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let scratch = &call.staged.scratch;
             let (refs, names) = super::single_run::paths(call);
             let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-            let invocation = commands::zizmor_check(&tool.binary, &refs);
+            let persona = tier_lines(tool_id, call.config, ZIZMOR_DEFAULT_PERSONA)?.remove(0);
+            let invocation = commands::zizmor_check(&tool.binary, &refs, &persona);
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
             parsed(
                 tool_id,
@@ -552,6 +555,7 @@ fn scan_chart(
     backend: &RealBackend,
     call: &super::check::CheckCall,
     cache: &Path,
+    severities: &[&str],
     chart_root: &str,
 ) -> Result<Vec<parsers::FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
@@ -573,7 +577,7 @@ fn scan_chart(
         })
         .collect();
     let relative: Vec<&str> = staged.iter().map(|(rel, _)| rel.as_str()).collect();
-    let invocation = commands::trivy_config_check(&call.tool.binary, &chart_abs, cache);
+    let invocation = commands::trivy_config_check(&call.tool.binary, &chart_abs, cache, severities);
     let out = backend.run(tool_id, call.tool, &invocation, scratch)?;
     let report = parsers::parse_trivy_config(&out.stdout, &out.stderr, out.code, &relative);
     let mut findings = parsed(tool_id, report)?;
@@ -587,6 +591,28 @@ fn scan_chart(
     Ok(findings)
 }
 
+const TRIVY_DEFAULT_SEVERITIES: &str = include_str!("../../../tiers/trivy_config/standard.txt");
+const ZIZMOR_DEFAULT_PERSONA: &str = include_str!("../../../tiers/zizmor/standard.txt");
+
+/// The non-empty lines of the bound tier file, or of the standard tier when none is bound.
+fn tier_lines(
+    tool_id: &str,
+    config: Option<&Path>,
+    standard: &str,
+) -> Result<Vec<String>, RunnerError> {
+    let text = match config {
+        Some(path) => std::fs::read_to_string(path)
+            .map_err(|err| execution(tool_id, format!("read {}: {err}", path.display())))?,
+        None => standard.to_owned(),
+    };
+    Ok(text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect())
+}
+
 const ARM_DIR_REL: &str = "dx-bicep-arm";
 
 /// Trivy does not read Bicep, so each file is built to ARM JSON and the staged templates are
@@ -595,6 +621,7 @@ fn scan_bicep(
     backend: &RealBackend,
     call: &super::check::CheckCall,
     cache: &Path,
+    severities: &[&str],
     bicep: &Path,
 ) -> Result<Vec<parsers::FileFinding>, RunnerError> {
     let tool_id = call.tool_id;
@@ -624,7 +651,7 @@ fn scan_bicep(
         return Ok(Vec::new());
     }
     let names: Vec<&str> = built.iter().map(|(name, _)| name.as_str()).collect();
-    let invocation = commands::trivy_config_check(&call.tool.binary, &arm_dir, cache);
+    let invocation = commands::trivy_config_check(&call.tool.binary, &arm_dir, cache, severities);
     let out = backend.run(tool_id, call.tool, &invocation, scratch)?;
     let report = parsers::parse_trivy_config(&out.stdout, &out.stderr, out.code, &names);
     let mut findings = parsed(tool_id, report)?;

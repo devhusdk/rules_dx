@@ -11,6 +11,8 @@ TIER_JAVASCRIPT = [
 ]
 
 TIER_JSON = [
+    "bicep/standard.json",
+    "bicep/strict.json",
     "biome/standard.json",
     "biome/strict.json",
     "fsharplint/standard.json",
@@ -43,10 +45,14 @@ TIER_TOML = [
 TIER_YAML = [
     "ansible_lint/standard.yaml",
     "ansible_lint/strict.yaml",
+    "cfn_lint/standard.yaml",
+    "cfn_lint/strict.yaml",
     "dart/standard.yaml",
     "dart/strict.yaml",
     "detekt/standard.yml",
     "detekt/strict.yml",
+    "hadolint/standard.yaml",
+    "hadolint/strict.yaml",
     "hlint/standard.yaml",
     "hlint/strict.yaml",
     "redocly/standard.yaml",

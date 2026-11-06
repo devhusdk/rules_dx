@@ -99,8 +99,7 @@ const MBAKE_DEFAULTS_REL: &str = "dx-mbake-default/.bake.toml";
 /// (no `.PHONY` insertion, grouping, or variable alignment).
 const MBAKE_DEFAULTS_BYTES: &[u8] = b"[formatter]\nensure_final_newline = true\n";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
-/// hadolint rejects an empty config, so the default spells its empty ignore list.
-const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
+const HADOLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hadolint/standard.yaml");
 const HLINT_DEFAULTS_REL: &str = "dx-hlint-default/hlint.yaml";
 /// An empty hint list keeps the built-in hints and stops hlint from searching for `.hlint.yaml`.
 const HLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hlint/standard.yaml");

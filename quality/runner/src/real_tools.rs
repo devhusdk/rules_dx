@@ -2180,7 +2180,7 @@ fn hadolint_defaults(
         "unbound hadolint uses the scratch default, got {config:?}"
     );
     let staged = std::fs::read(&config).expect("default hadolint config is staged");
-    assert_eq!(staged, b"ignored: []\n");
+    assert_eq!(staged, include_bytes!("../../tiers/hadolint/standard.yaml"));
     hadolint_report(argv, env)
 }
 

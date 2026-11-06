@@ -319,14 +319,7 @@ const REGAL_LINT_PREFIX: &[&str] = &[
     "warning",
 ];
 const ACTIONLINT_PREFIX: &[&str] = &["-no-color", "-format", "{{json .}}", "--"];
-const ZIZMOR_PREFIX: &[&str] = &[
-    "--format",
-    "json",
-    "--offline",
-    "--no-progress",
-    "--no-config",
-    "--",
-];
+const ZIZMOR_PREFIX: &[&str] = &["--format", "json", "--offline", "--no-progress", "--no-config"];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const ELVIS_TAIL: &[&str] = &["--output-format", "parsable", "rock"];
 const TRIVY_CONFIG_PREFIX: &[&str] = &[
@@ -2595,8 +2588,13 @@ pub fn actionlint_check(binary: &Path, files: &[&Path]) -> Invocation {
 }
 
 /// `--offline` keeps the audits that would call the GitHub API out of the run.
-pub fn zizmor_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, ZIZMOR_PREFIX, files, "")
+pub fn zizmor_check(binary: &Path, files: &[&Path], persona: &str) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(ZIZMOR_PREFIX.iter().map(OsString::from));
+    head.push(OsString::from("--persona"));
+    head.push(OsString::from(persona));
+    head.push(OsString::from("--"));
+    assemble(binary, head, files, "")
 }
 
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.
@@ -2613,17 +2611,21 @@ pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
 }
 
 /// Reads the checks bundle from `--cache-dir <cache>` and never touches the network.
-/// trivy config scans one target per call.
-pub fn trivy_config_check(binary: &Path, file: &Path, cache_dir: &Path) -> Invocation {
-    required_flag(
-        binary,
-        TRIVY_CONFIG_PREFIX,
-        "--cache-dir",
-        cache_dir,
-        END_OF_FLAGS,
-        &[file],
-        "",
-    )
+/// trivy config scans one target per call, reporting only the given severities.
+pub fn trivy_config_check(
+    binary: &Path,
+    file: &Path,
+    cache_dir: &Path,
+    severities: &[&str],
+) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(TRIVY_CONFIG_PREFIX.iter().map(OsString::from));
+    head.push(OsString::from("--severity"));
+    head.push(OsString::from(severities.join(",")));
+    head.push(OsString::from("--cache-dir"));
+    head.push(cache_dir.as_os_str().to_owned());
+    head.extend(END_OF_FLAGS.iter().map(OsString::from));
+    assemble(binary, head, &[file], "")
 }
 
 /// Always `--config <config>`: checkmake otherwise falls back to `$HOME/checkmake.ini`.

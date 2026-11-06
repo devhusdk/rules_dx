@@ -2385,7 +2385,7 @@ fn file_family_lint_checks_are_check_only() {
         ]
     );
     assert_eq!(
-        argv_strings(&zizmor_check(Path::new(BIN), &[workflow])),
+        argv_strings(&zizmor_check(Path::new(BIN), &[workflow], "regular")),
         vec![
             BIN,
             "--format",
@@ -2393,6 +2393,8 @@ fn file_family_lint_checks_are_check_only() {
             "--offline",
             "--no-progress",
             "--no-config",
+            "--persona",
+            "regular",
             "--",
             "/scratch/.github/workflows/ci.yml"
         ]
@@ -3523,6 +3525,7 @@ fn trivy_config_runs_offline_against_the_cache_dir() {
         Path::new(BIN),
         Path::new("/scratch/Dockerfile"),
         Path::new("/cache/trivy"),
+        &["HIGH", "CRITICAL"],
     );
     assert_eq!(
         argv_strings(&invocation),
@@ -3536,6 +3539,8 @@ fn trivy_config_runs_offline_against_the_cache_dir() {
             "--quiet",
             "--skip-check-update",
             "--disable-telemetry",
+            "--severity",
+            "HIGH,CRITICAL",
             "--cache-dir",
             "/cache/trivy",
             "--",

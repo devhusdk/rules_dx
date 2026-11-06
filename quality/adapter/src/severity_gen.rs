@@ -2,6 +2,17 @@
 
 pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
     (
+        "ansible_lint",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("internal-error", crate::ToolSeverity::Error),
+                ("load-failure", crate::ToolSeverity::Error),
+                ("syntax-check", crate::ToolSeverity::Error),
+            ],
+        },
+    ),
+    (
         "chktex",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -54,9 +65,25 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "hadolint",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("DL1", crate::ToolSeverity::Error),
+            ],
+        },
+    ),
+    (
         "jsonnet_lint",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "kubeconform",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
             categories: &[],
         },
     ),
@@ -89,6 +116,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "regal",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
         "staticcheck",
         crate::severity::ToolSeverityMap {
             default: None,
@@ -96,6 +130,15 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
                 ("QF", crate::ToolSeverity::Info),
                 ("S", crate::ToolSeverity::Warning),
                 ("U1000", crate::ToolSeverity::Warning),
+            ],
+        },
+    ),
+    (
+        "tflint",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[
+                ("tflint-diagnostic", crate::ToolSeverity::Error),
             ],
         },
     ),

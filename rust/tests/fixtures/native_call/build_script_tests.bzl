@@ -67,6 +67,10 @@ def _llvm_impl(ctx):
         asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
     return analysistest.end(env)
 
+_UNDEF_ISO_STDIO = "/U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
+_C_FLAGS = ["CFLAGS", "TARGET_CFLAGS", "HOST_CFLAGS"]
+_CXX_FLAGS = ["CXXFLAGS", "TARGET_CXXFLAGS", "HOST_CXXFLAGS"]
+
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
     action = _run_action(env)
@@ -79,7 +83,26 @@ def _msvc_impl(ctx):
     asserts.true(env, include != "", "INCLUDE is not set")
     for part in include.split(";"):
         asserts.true(env, part.startswith("external/") or part.startswith("${pwd}/external/") or "dx_msvc" in part, "INCLUDE entry outside the provisioned SDK: {}".format(part))
+    for name in _C_FLAGS + _CXX_FLAGS:
+        value = action.env.get(name, "")
+        asserts.false(env, _UNDEF_ISO_STDIO in value.split(" "), "{} drops ISO wide stdio outside coverage: {}".format(name, value))
     return analysistest.end(env)
+
+def _msvc_coverage_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    for name in _C_FLAGS:
+        value = action.env.get(name, "")
+        asserts.true(env, _UNDEF_ISO_STDIO in value.split(" "), "{} keeps ISO wide stdio under coverage: {}".format(name, value))
+    for name in _CXX_FLAGS:
+        value = action.env.get(name, "")
+        asserts.false(env, _UNDEF_ISO_STDIO in value.split(" "), "{} drops ISO wide stdio for C++: {}".format(name, value))
+    return analysistest.end(env)
+
+_msvc_coverage_test = analysistest.make(
+    _msvc_coverage_impl,
+    config_settings = {"//command_line_option:collect_code_coverage": True},
+)
 
 _GCC_ATTRS = {"gcc": attr.string(default = "dx_gcc_linux_x86_64")}
 
@@ -407,3 +430,17 @@ def rust_msvc_crt_library_tests(name, shared, static, cc_consumer):
         )
         tests.append(test)
     native.test_suite(name = name, tests = tests)
+
+def build_script_msvc_coverage_test(name, target):
+    """Asserts Windows coverage builds build-script C, not C++, without ISO wide stdio (#8448).
+
+    Args:
+        name: Name of the test.
+        target: A cargo_build_script that uses the cc toolchain.
+    """
+    _msvc_coverage_test(
+        name = name,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows"],
+        target_under_test = target,
+    )

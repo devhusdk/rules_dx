@@ -13,7 +13,7 @@
  # These get replaced with the non-hermetic values magically, and result in
  # absolute paths, so they shouldn't have PWD prefixed.
  # https://github.com/bazelbuild/apple_support/blob/20913e2a9ad4a00a1849a464b856d04b5cd3bdcb/lib/apple_support.bzl#L174-L198
-@@ -569,6 +575,43 @@
+@@ -569,6 +575,51 @@
          # that doing so is more likely to hurt than help. If you need to change
          # ARFLAGS, make changes to cc-rs.
  
@@ -50,6 +50,14 @@
 +        env["HOST_CXXFLAGS"] = " ".join(_pwd_flags(exec_cxx_args))
 +        env["TARGET_CFLAGS"] = env["CFLAGS"]
 +        env["TARGET_CXXFLAGS"] = env["CXXFLAGS"]
++        if ctx.configuration.coverage_enabled:
++            # rustc's profiler runtime is not ISO wide stdio; C that is links against it fails (#8448, hermeticbuild/hermetic-llvm#871).
++            undef_iso_stdio = " /U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
++            if toolchain.target_triple.str.endswith("-windows-msvc"):
++                env["CFLAGS"] += undef_iso_stdio
++                env["TARGET_CFLAGS"] += undef_iso_stdio
++            if toolchain.exec_triple.str.endswith("-windows-msvc"):
++                env["HOST_CFLAGS"] += undef_iso_stdio
 +        for name in ["CC", "CXX", "AR"]:
 +            if env.get(name) and "libtool" not in env[name]:
 +                env["TARGET_" + name] = _pwd_tool(env[name])

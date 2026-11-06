@@ -8,7 +8,7 @@ load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
-load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_msvc_crt_library_tests", "rust_msvc_crt_tests")
+load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_coverage_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_msvc_crt_library_tests", "rust_msvc_crt_tests")
 
 package(
     default_testonly = True,
@@ -117,6 +117,11 @@ build_script_compiler_tests(
 
 build_script_msvc_test(
     name = "native_cc_build_script_msvc_test",
+    target = ":native_cc_build_script",
+)
+
+build_script_msvc_coverage_test(
+    name = "native_cc_build_script_msvc_coverage_test",
     target = ":native_cc_build_script",
 )
 

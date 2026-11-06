@@ -8,6 +8,7 @@ load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity
 load("//quality:native_config.bzl", "DxNativeConfigInfo", "bound_config_targets")
 load("//quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
 load("//quality:policy.bzl", "QualityPolicyInfo")
+load("//quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
 ClangSyntaxInfo = provider(
     doc = "Syntax-only replays of the compile actions of one C/C++/Objective-C target.",
@@ -23,7 +24,7 @@ ClangSyntaxInfo = provider(
     },
 )
 
-_SOURCE_EXTENSIONS = ["h", "hh", "hpp", "hxx", "h++", "inc", "inl", "tcc", "c", "cc", "cpp", "cxx", "c++", "m", "mm", "cu", "cuh"]
+_SOURCE_EXTENSIONS = sorted([e for exts in UPSTREAM_CC_CLASS_EXTENSIONS.values() for e in exts])
 _MNEMONICS = ["CppCompile", "ObjcCompile", "CudaCompile"]
 _CUDA_VALUE_FLAGS = ["-I", "-isystem", "-iquote", "-D", "-U", "-include"]
 _CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]

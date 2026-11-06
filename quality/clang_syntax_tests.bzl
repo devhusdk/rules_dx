@@ -176,6 +176,11 @@ def clang_syntax_unit_tests(name):
                 "pkg/a.h",
             ),
             expect_equal(
+                "inl and ipp headers are named as the source",
+                [clang_syntax_source([_CLANG, "-xc++-header", "-fsyntax-only", "pkg/a." + e]) for e in ["inl", "ipp"]],
+                ["pkg/a.inl", "pkg/a.ipp"],
+            ),
+            expect_equal(
                 "a header-parsing action is replayed without a -c",
                 _rewrite([_CLANG, "-iquote", ".", "-xc++-header", "-fsyntax-only", "pkg/a.h"], "pkg/a.h").error,
                 "",

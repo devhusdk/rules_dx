@@ -2531,38 +2531,6 @@ fn zig_fixture_reports_unused_and_missing() {
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["clap"]);
     let missing = find_missing(Ecosystem::Zig, &manifest, &lock, &base, &[]).expect("missing");
-fn php_manifest_reads_require_and_skips_platform() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let manifest = dir.path().join("composer.json");
-    write_file(
-        &manifest,
-        r#"{"require":{"php":">=8.1","ext-json":"*","Monolog/Monolog":"^3.0"},"require-dev":{"phpunit/phpunit":"^10"}}"#,
-    );
-    let deps = parse_php_manifest(&manifest).expect("parse");
-    assert_eq!(deps.len(), 2);
-    assert_eq!(deps["monolog/monolog"].spec, "^3.0");
-    assert_eq!(deps["monolog/monolog"].category, "prod");
-    assert_eq!(deps["phpunit/phpunit"].category, "dev");
-}
-
-#[test]
-fn php_lock_reads_both_package_lists() {
-    let lock = testdata_root().join("php/mixed/composer.lock");
-    let parsed = parse_php_lock(&lock).expect("parse");
-    assert_eq!(parsed["monolog/monolog"], "3.5.0");
-    assert_eq!(parsed["phpunit/phpunit"], "10.5.9");
-}
-
-#[test]
-fn php_fixture_reports_unused_and_missing() {
-    let base = testdata_root().join("php/mixed");
-    let manifest = base.join("composer.json");
-    let lock = base.join("composer.lock");
-    assert_eq!(consistency(Ecosystem::Php, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Php, &manifest, &base, &[]).expect("unused");
-    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
-    assert_eq!(names, ["guzzlehttp/guzzle"]);
-    let missing = find_missing(Ecosystem::Php, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -2712,6 +2680,45 @@ fn consistency_code(manifest: &std::path::Path, lock: &std::path::Path) -> i32 {
     let mut out = String::new();
     let mut err = String::new();
     cmd_consistency(Ecosystem::Dart, manifest, lock, &mut out, &mut err)
+}
+
+#[test]
+fn php_manifest_reads_require_and_skips_platform() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let manifest = dir.path().join("composer.json");
+    write_file(
+        &manifest,
+        r#"{"require":{"php":">=8.1","ext-json":"*","Monolog/Monolog":"^3.0"},"require-dev":{"phpunit/phpunit":"^10"}}"#,
+    );
+    let deps = parse_php_manifest(&manifest).expect("parse");
+    assert_eq!(deps.len(), 2);
+    assert_eq!(deps["monolog/monolog"].spec, "^3.0");
+    assert_eq!(deps["monolog/monolog"].category, "prod");
+    assert_eq!(deps["phpunit/phpunit"].category, "dev");
+}
+
+#[test]
+fn php_lock_reads_both_package_lists() {
+    let lock = testdata_root().join("php/mixed/composer.lock");
+    let parsed = parse_php_lock(&lock).expect("parse");
+    assert_eq!(parsed["monolog/monolog"], "3.5.0");
+    assert_eq!(parsed["phpunit/phpunit"], "10.5.9");
+}
+
+#[test]
+fn php_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("php/mixed");
+    let manifest = base.join("composer.json");
+    let lock = base.join("composer.lock");
+    assert_eq!(consistency(Ecosystem::Php, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Php, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["guzzlehttp/guzzle"]);
+    let missing = find_missing(Ecosystem::Php, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
     assert_eq!(found, [("psr/log", "src/Hello.php", 5)]);
 }
 

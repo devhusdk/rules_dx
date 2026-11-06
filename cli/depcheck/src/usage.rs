@@ -82,6 +82,7 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         Ecosystem::Julia => name == "runtests.jl" || s.contains("/test/") || s.contains("/tests/"),
         Ecosystem::Zig => {
             name.ends_with("_test.zig") || s.contains("/test/") || s.contains("/tests/")
+        }
         Ecosystem::Php => {
             name.ends_with("Test.php") || s.contains("/tests/") || s.contains("/Tests/")
         }
@@ -91,11 +92,39 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
 
 fn source_suffixes() -> BTreeSet<&'static str> {
     [
-        ".rs", ".py", ".js", ".ts", ".mjs", ".cjs", ".jsx", ".tsx", ".go", ".java", ".kt", ".kts",
-        ".scala", ".cs", ".fs", ".fsi", ".fsx", ".cc", ".cpp", ".cxx", ".c", ".h", ".hpp", ".rb",
-        ".pl", ".pm", ".t", ".psgi", ".zig", ".jl", ".dart",
+        ".rs",
+        ".py",
+        ".js",
+        ".ts",
+        ".mjs",
+        ".cjs",
+        ".jsx",
+        ".tsx",
+        ".go",
+        ".java",
+        ".kt",
+        ".kts",
+        ".scala",
+        ".cs",
+        ".fs",
+        ".fsi",
+        ".fsx",
+        ".cc",
+        ".cpp",
+        ".cxx",
+        ".c",
+        ".h",
+        ".hpp",
+        ".rb",
+        ".pl",
+        ".pm",
+        ".t",
+        ".psgi",
+        ".zig",
+        ".jl",
+        ".dart",
+        ".php",
         "analysis_options.yaml",
-        ".pl", ".pm", ".t", ".psgi", ".php",
     ]
     .into_iter()
     .collect()

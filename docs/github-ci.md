@@ -128,7 +128,7 @@ Common failures:
 
    Without a remote cache, no config is passed.
 
-A remote cache is recommended: it is the only cache that keeps build and test results across runs, branches and pull requests.
+A remote cache is recommended.
 
 The workflow keeps these GitHub Actions caches:
 

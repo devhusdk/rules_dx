@@ -21,6 +21,22 @@ fn is_count_trailer(line: &str) -> bool {
     numbered(words.next()) && kind(words.next())
 }
 
+// clang-tidy prints the main file as an absolute path under the action's execroot.
+fn checked_file<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
+    if let Some(file) = files.iter().copied().find(|f| *f == path) {
+        return Some(file);
+    }
+    let absolute = path.starts_with('/') || path.get(1..3).is_some_and(|s| s == ":\\" || s == ":/");
+    if !absolute {
+        return None;
+    }
+    let path = path.replace('\\', "/");
+    files
+        .iter()
+        .copied()
+        .find(|f| !f.starts_with('/') && path.ends_with(&format!("/{}", f.replace('\\', "/"))))
+}
+
 pub fn parse_clang_tidy(
     stderr: &[u8],
     code: Option<i32>,
@@ -40,7 +56,7 @@ pub fn parse_clang_tidy(
                 continue;
             };
             let path = path.strip_prefix("./").unwrap_or(path);
-            let Some(file) = files.iter().copied().find(|f| *f == path) else {
+            let Some(file) = checked_file(files, path) else {
                 return Err(ParseError::UnknownFile {
                     tool: TOOL,
                     path: path.to_owned(),
@@ -145,6 +161,23 @@ mod tests {
         let findings = parse_clang_tidy(text.as_bytes(), Some(1), &["a.c"]).expect("parsed");
         assert_eq!(findings[0].finding.rule_id, "misc-unused-parameters");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
+    }
+
+    #[test]
+    fn clang_tidy_maps_execroot_paths_to_checked_files() {
+        let file = "quality/a.c";
+        for path in [
+            "/sandbox/1/execroot/_main/quality/a.c",
+            "C:\\b\\execroot\\_main\\quality\\a.c",
+        ] {
+            let text = format!(
+                "{path}:3:1: warning: do not use 'else' after 'return' [readability-else-after-return]\n"
+            );
+            let findings = parse_clang_tidy(text.as_bytes(), Some(1), &[file]).expect("parsed");
+            assert_eq!(findings[0].file, file);
+        }
+        let other = "/x/notquality/a.c:3:1: warning: w [readability-else-after-return]\n";
+        assert!(parse_clang_tidy(other.as_bytes(), Some(1), &[file]).is_err());
     }
 
     #[test]

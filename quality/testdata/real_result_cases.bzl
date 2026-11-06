@@ -39,9 +39,9 @@ def _gcc_case(tool, capability, name, target, contains, absent, policy = _CC_POL
         "absent": absent,
     }
 
-def _msvc_case(name, target, contains, absent):
-    case = _gcc_case("clang_syntax", "typecheck", name, target, contains, absent)
-    case["name"] = "real_result_clang_syntax_cc_msvc_" + name
+def _msvc_case(name, target, contains, absent, tool = "clang_syntax", capability = "typecheck", policy = _CC_POLICY):
+    case = _gcc_case(tool, capability, name, target, contains, absent, policy)
+    case["name"] = "real_result_" + tool + "_cc_msvc_" + name
     case["compiler"] = "msvc"
     case["target_compatible_with"] = ["@platforms//os:windows", "@platforms//cpu:x86_64"]
     return case
@@ -115,6 +115,8 @@ REAL_RESULT_CASES = [
     _gcc_case("clang_syntax", "typecheck", "dirty", "dirty", ["'undeclared_name' undeclared"], []),
     _msvc_case("clean", "clean", ["clean.c"], ["undeclared_name", "C2065"]),
     _msvc_case("dirty", "dirty", ["C2065", "undeclared_name"], []),
+    _msvc_case("clean", "clean", ["clean.c"], ["readability-else-after-return", "file not found", "clang-diagnostic-error"], "clang_tidy", "lint", _CC_TIDY_POLICY),
+    _msvc_case("dirty", "tidy_dirty", ["readability-else-after-return"], ["file not found", "clang-diagnostic-error", "TIDY_DEFINE"], "clang_tidy", "lint", _CC_TIDY_POLICY),
     _gcc_case("clang_tidy", "lint", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),
     _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),

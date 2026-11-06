@@ -170,13 +170,36 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 	}
 }
 
-func TestGeneratePackageMainFails(t *testing.T) {
+func TestGeneratePackageMainBinary(t *testing.T) {
+	regular := []string{"main.go", "main_test.go"}
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/main.go":      "package main\n\nfunc main() {}\n",
+		"pkg/demo/main_test.go": "package main\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+	}, regular)
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want 2", len(result.Gen))
+	}
+	if k, n := result.Gen[0].Kind(), result.Gen[0].Name(); k != "go_binary" || n != "demo" {
+		t.Errorf("first rule = %s %s, want go_binary demo", k, n)
+	}
+	if got := result.Gen[0].AttrString("importpath"); got != "" {
+		t.Errorf("binary importpath = %q, want none", got)
+	}
+	if got := strings.Join(result.Gen[1].AttrStrings("srcs"), ","); got != "main.go,main_test.go" {
+		t.Errorf("test srcs = %q, want main.go,main_test.go", got)
+	}
+	if len(result.Gen[1].AttrStrings("embed")) != 0 {
+		t.Errorf("test embeds a binary, want no embed")
+	}
+}
+
+func TestGeneratePackageMainMixedFails(t *testing.T) {
 	regular := []string{"demo.go", "main.go"}
 	got := refuseFixture(t, map[string]string{
 		"pkg/demo/demo.go": "package demo\n",
 		"pkg/demo/main.go": "package main\n\nfunc main() {}\n",
 	}, regular)
-	wantRefusal(t, got, "go: pkg/demo: main.go declares package main;")
+	wantRefusal(t, got, "go: pkg/demo: package main is mixed with another package in one directory;")
 }
 
 func TestGenerateMixedPackagesFail(t *testing.T) {

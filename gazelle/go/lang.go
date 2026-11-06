@@ -41,6 +41,12 @@ var goKinds = map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
+	BinaryKind: rule.KindInfo{
+		MatchAttrs:     []string{"srcs"},
+		NonEmptyAttrs:  map[string]bool{"srcs": true},
+		MergeableAttrs: map[string]bool{"srcs": true, "deps": true},
+		ResolveAttrs:   map[string]bool{"deps": true},
+	},
 	TestKind:      testKindInfo,
 	BenchmarkKind: testKindInfo,
 }
@@ -55,7 +61,7 @@ func newLang() *goLang {
 	return &goLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
-		ExtraKinds:     []string{TestKind, BenchmarkKind},
+		ExtraKinds:     []string{BinaryKind, TestKind, BenchmarkKind},
 		Kinds:          goKinds,
 		DefsPackage:    "go/rules:defs.bzl",
 		IsStdLib:       IsStdLib,
@@ -149,10 +155,6 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			rep.Fail(common.InPackage(args.Rel), "go: %s: parse package %s: %v", args.Rel, src, err)
 			continue
 		}
-		if pkg == "main" {
-			rep.Fail(common.InPackage(args.Rel), "go: %s: %s declares package main; thin go_binary entries stay handwritten, so split package-main sources into their own directory before adopting generation", args.Rel, src)
-			continue
-		}
 		packages[pkg] = true
 		libPkg = pkg
 		roots, err := ParseImports(content)
@@ -173,6 +175,10 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 	}
 	if rep.Failed() {
+		return language.GenerateResult{}
+	}
+	if packages["main"] && len(packages) > 1 {
+		rep.Fail(common.InPackage(args.Rel), "go: %s: package main is mixed with another package in one directory; split the package-main sources into their own directory before adopting generation", args.Rel)
 		return language.GenerateResult{}
 	}
 	if len(packages) > 1 {
@@ -224,7 +230,20 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	sort.Strings(testImports)
 
-	claimants := []Claimant{{Name: name, Source: args.Rel, Kind: LibraryKind}}
+	isMain := libPkg == "main"
+	kind := LibraryKind
+	testSrcs := testSources
+	if isMain {
+		kind = BinaryKind
+		testSrcs = append(append([]string{}, sources...), testSources...)
+		testImports = mergeSorted(imports, testImports)
+	}
+	handwrittenBinary := isMain && hasKind(args.File, BinaryKind)
+
+	claimants := []Claimant{{Name: name, Source: args.Rel, Kind: kind}}
+	if handwrittenBinary {
+		claimants = nil
+	}
 	if len(testSources) > 0 {
 		claimants = append(claimants, Claimant{Name: testName, Source: args.Rel, Kind: TestKind})
 	}
@@ -237,24 +256,30 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 
 	result := language.GenerateResult{}
-	r := rule.NewRule(LibraryKind, name)
-	r.SetAttr("srcs", sources)
-	if importpath, ok := goImportPath(args.Config.RepoRoot, args.Dir); ok {
-		r.SetAttr("importpath", importpath)
+	if !handwrittenBinary {
+		r := rule.NewRule(kind, name)
+		r.SetAttr("srcs", sources)
+		if importpath, ok := goImportPath(args.Config.RepoRoot, args.Dir); ok && !isMain {
+			r.SetAttr("importpath", importpath)
+		}
+		result.Gen = append(result.Gen, r)
+		result.Imports = append(result.Imports, common.WrapImportSet(imports))
 	}
-	result.Gen = append(result.Gen, r)
-	result.Imports = append(result.Imports, common.WrapImportSet(imports))
 	if len(testSources) > 0 {
 		t := rule.NewRule(TestKind, testName)
-		t.SetAttr("srcs", testSources)
-		t.SetAttr("embed", []string{":" + name})
+		t.SetAttr("srcs", testSrcs)
+		if !isMain {
+			t.SetAttr("embed", []string{":" + name})
+		}
 		result.Gen = append(result.Gen, t)
 		result.Imports = append(result.Imports, common.WrapImportSet(testImports))
 	}
 	if len(benchSources) > 0 {
 		b := rule.NewRule(BenchmarkKind, benchName)
-		b.SetAttr("srcs", testSources)
-		b.SetAttr("embed", []string{":" + name})
+		b.SetAttr("srcs", testSrcs)
+		if !isMain {
+			b.SetAttr("embed", []string{":" + name})
+		}
 		result.Gen = append(result.Gen, b)
 		result.Imports = append(result.Imports, common.WrapImportSet(testImports))
 	}
@@ -271,7 +296,25 @@ func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) erro
 }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
-	return common.MergeStale(file, result, goKinds)
+	return common.MergeStaleOwned(file, result, goKinds, func(r *rule.Rule) bool { return r.Kind() != BinaryKind })
+}
+
+func hasKind(file *rule.File, kind string) bool {
+	if file == nil {
+		return false
+	}
+	for _, r := range file.Rules {
+		if r.Kind() == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func mergeSorted(a, b []string) []string {
+	out := append(append([]string{}, a...), b...)
+	sort.Strings(out)
+	return out
 }
 
 func goImportPath(repoRoot, dir string) (string, bool) {

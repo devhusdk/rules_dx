@@ -13,6 +13,8 @@ var SupportedExts = []string{".go"}
 
 const LibraryKind = "go_library"
 
+const BinaryKind = "go_binary"
+
 const TestKind = "go_test"
 
 const BenchmarkKind = "go_benchmark"

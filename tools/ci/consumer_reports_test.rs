@@ -7,7 +7,7 @@ const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 const DOCS: &str = "docs/github-ci.md";
 
-const UPLOAD_PIN: &str = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a";
+const UPLOAD_PIN: &str = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9";
 
 const SUFFIX: &str = "${{ needs.validate.outputs.artifact_suffix }}";
 

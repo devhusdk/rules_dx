@@ -357,7 +357,7 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
-    ) + [":dx_release_tools"],
+    ) + [":dx_release_tools", "//cli/digest:dx_digest"],
 )
 
 rust_test(
@@ -450,7 +450,7 @@ rust_test(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
-    ) + [":dx_release_tools"],
+    ) + [":dx_release_tools", "//cli/digest:dx_digest"],
 )
 
 exports_files(["Cargo.toml"])

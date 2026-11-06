@@ -12,8 +12,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const USAGE: &str = "usage: bazel run //deploy/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version and the starter workflow pin in every file that carries them, including each families/*/MODULE.bazel.\n--workflow-ref defaults to origin/main and must have the affected_on_pr input.";
+const USAGE: &str = "usage: bazel run //deploy/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version and the starter workflow pin in every file that carries them, including each families/*/MODULE.bazel, and refreshes tools/ci/starter_pin.sha256 from the workflows in the checkout.\n--workflow-ref defaults to origin/main and must have the affected_on_pr input.";
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
+const DIGEST_RECORD: &str = "tools/ci/starter_pin.sha256";
 
 struct Edit {
     marker: &'static str,
@@ -60,17 +61,6 @@ fn targets() -> Vec<(&'static str, Vec<Edit>)> {
         (
             "cli/adopt/src/scaffold.rs",
             vec![pin("CONSUMER_WORKFLOW_PIN: &str = \"")],
-        ),
-        (
-            "docs/github-ci.md",
-            vec![
-                version("bazel_dep(name = \"rules_dx\", version = \""),
-                Edit {
-                    marker: "    version = \"",
-                    after: Some(MODULE_NAME),
-                    pin: false,
-                },
-            ],
         ),
         (
             "examples/consumer-ci/caller.yml",
@@ -169,6 +159,18 @@ fn rewrite(text: &str, edit: &Edit, value: &str) -> Result<String, String> {
     Ok(out)
 }
 
+fn redigest(root: &Path, record: &str) -> Result<String, String> {
+    let mut out = String::with_capacity(record.len());
+    for line in record.lines() {
+        let (_, path) = line
+            .split_once("  ")
+            .ok_or_else(|| format!("malformed line `{line}`"))?;
+        let bytes = fs::read(root.join(path)).map_err(|e| format!("{path}: {e}"))?;
+        out.push_str(&format!("{}  {path}\n", dx_digest::sha256_hex(&bytes)));
+    }
+    Ok(out)
+}
+
 fn bump(root: &Path, version: &str, commit: &str) -> Result<usize, String> {
     if !valid_version(version) {
         return Err(format!("`{version}` is not a version like 1.2.3"));
@@ -193,6 +195,12 @@ fn bump(root: &Path, version: &str, commit: &str) -> Result<usize, String> {
         if text != old {
             changed.push((path, text));
         }
+    }
+    let record = root.join(DIGEST_RECORD);
+    let old = fs::read_to_string(&record).map_err(|e| format!("{DIGEST_RECORD}: {e}"))?;
+    let text = redigest(root, &old).map_err(|e| format!("{DIGEST_RECORD}: {e}"))?;
+    if text != old {
+        changed.push((record, text));
     }
     for (path, text) in &changed {
         fs::write(path, text).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -302,8 +310,12 @@ mod tests {
                 "pub const CONSUMER_WORKFLOW_PIN: &str = \"e97ab7b550d08e047c35edc5f50c7d242227842f\";\n",
             ),
             (
-                "docs/github-ci.md",
-                "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nmodule(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\n",
+                ".github/workflows/reusable-docs.yml",
+                "name: docs\n",
+            ),
+            (
+                "tools/ci/starter_pin.sha256",
+                "0000000000000000000000000000000000000000000000000000000000000000  .github/workflows/reusable-docs.yml\n",
             ),
             (
                 "examples/consumer-ci/caller.yml",
@@ -344,8 +356,13 @@ mod tests {
         assert!(version.contains("DX_VERSION: &str = \"1.2.3\";"));
         assert!(version.contains("MODULE_VERSION: &str = \"1.2.3\";"));
         assert!(read(dir.path(), "cli/adopt/src/scaffold.rs").contains(&format!("\"{NEW}\";")));
-        let docs = read(dir.path(), "docs/github-ci.md");
-        assert_eq!(docs.matches("1.2.3").count(), 3);
+        assert_eq!(
+            read(dir.path(), "tools/ci/starter_pin.sha256"),
+            format!(
+                "{}  .github/workflows/reusable-docs.yml\n",
+                dx_digest::sha256_hex(b"name: docs\n")
+            )
+        );
         let consumer = read(dir.path(), "examples/consumer-ci/caller.yml");
         assert!(consumer.contains(&format!("reusable-consumer.yml@{NEW}\n")));
         assert!(!consumer.contains("rules_dx_version"));

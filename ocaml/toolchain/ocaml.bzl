@@ -113,7 +113,7 @@ def dx_ocaml_dist(name, emitters, licenses, version_file):
     native.filegroup(name = "stdlib", srcs = native.glob([STDLIB + "/**"]))
     native.filegroup(name = "stdlib_cmis", srcs = native.glob([STDLIB + "/*.cmi"]))
     native.filegroup(name = "stublibs", srcs = native.glob([STUBLIBS + "/*.so"]))
-    native.filegroup(name = "runtime_libs", srcs = native.glob(["lib/*.so*"]))
+    native.filegroup(name = "runtime_libs", srcs = native.glob(["lib/*.so*", "lib/*.dylib"], allow_empty = True))
     native.filegroup(
         name = "ocamlrun",
         srcs = [TOOLS["vmruntime"]],

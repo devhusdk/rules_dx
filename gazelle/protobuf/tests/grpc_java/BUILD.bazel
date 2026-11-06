@@ -1,0 +1,38 @@
+load("@grpc-java//:java_grpc_library.bzl", "java_grpc_library")
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_dx//java/rules:defs.bzl", "java_test")
+
+proto_library(
+    name = "greeter_proto",
+    testonly = True,
+    srcs = ["greeter.proto"],
+    strip_import_prefix = "/",
+)
+
+java_proto_library(
+    name = "greeter_java_proto",
+    testonly = True,
+    deps = [":greeter_proto"],
+)
+
+java_grpc_library(
+    name = "greeter_java_grpc",
+    testonly = True,
+    srcs = [":greeter_proto"],
+    deps = [":greeter_java_proto"],
+)
+
+java_test(
+    name = "greeter_test",
+    srcs = ["GreeterTest.java"],
+    test_class = "example.grpcjava.GreeterTest",
+    deps = [
+        ":greeter_java_grpc",
+        ":greeter_java_proto",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@grpc-java//stub",
+        "@maven//:junit_junit",
+    ],
+)

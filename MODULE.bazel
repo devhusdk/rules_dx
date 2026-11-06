@@ -368,7 +368,7 @@ single_version_override(
 )
 
 # floor: equals tested
-bazel_dep(name = "grpc-java", version = "1.84.0", repo_name = "grpc-java")
+bazel_dep(name = "grpc-java", version = "1.84.0", repo_name = "grpc-java", dev_dependency = True)
 single_version_override(
     module_name = "grpc-java",
     version = "1.84.0",
@@ -606,7 +606,20 @@ maven_tools.install(
         "https://repo1.maven.org/maven2",
     ],
 )
-use_repo(maven_tools, "dx_dokka", "dx_scalafix")
+maven_tools.install(
+    name = "dx_jvm_maven",
+    artifacts = [
+        "org.openjdk.jmh:jmh-core:1.37",
+        "org.openjdk.jmh:jmh-generator-annprocess:1.37",
+    ],
+    fail_if_repin_required = True,
+    lock_file = "//third_party/jvm:dx_jvm_maven_install.json",
+    repositories = [
+        "https://maven-central.storage-download.googleapis.com/maven2",
+        "https://repo1.maven.org/maven2",
+    ],
+)
+use_repo(maven_tools, "dx_dokka", "dx_jvm_maven", "dx_scalafix")
 
 osx = use_extension("@llvm//extensions:osx.bzl", "osx")
 osx.frameworks(names = [

@@ -3,8 +3,8 @@
 load("@rules_java//java:defs.bzl", _java_library = "java_library", _java_plugin = "java_plugin", _java_test = "java_test")
 load("//java/rules:defs.bzl", "java_library")
 
-_JMH = "@maven//:org_openjdk_jmh_jmh_core"
-_JMH_PROCESSOR = "@maven//:org_openjdk_jmh_jmh_generator_annprocess"
+_JMH = Label("@dx_jvm_maven//:org_openjdk_jmh_jmh_core")
+_JMH_PROCESSOR = Label("@dx_jvm_maven//:org_openjdk_jmh_jmh_generator_annprocess")
 _MAIN = "dx.bench.JmhRunner"
 
 def jmh_benchmark(name, library, srcs, deps, jmh, jmh_processor, tags, kwargs, library_kwargs = {}):

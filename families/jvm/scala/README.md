@@ -31,7 +31,7 @@ Other attributes pass through to `rules_scala`.
 List the artifacts in a rules_jvm_external `maven_install.json` and run
 `dx generate --apply`. The `scala` language of `dx generate` writes the targets and `deps`.
 A dependency is the label `@maven//:<group>_<artifact>`, with dots and dashes
-turned into underscores, for example `@maven//:com_google_guava_guava`. See
+turned into underscores, for example `@maven//:com_google_guava_guava`. rules_dx keeps its own artifacts out of your `@maven`. See
 [generate](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/generate.md).
 
 ## Format, lint and typecheck

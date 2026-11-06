@@ -30,7 +30,7 @@ java_test(
 List the artifacts in a rules_jvm_external `maven_install.json` and run
 `dx generate --apply`. The `java` language of `dx generate` writes the targets and `deps`.
 A dependency is the label `@maven//:<group>_<artifact>`, with dots and dashes
-turned into underscores, for example `@maven//:com_google_guava_guava`. See
+turned into underscores, for example `@maven//:com_google_guava_guava`. rules_dx keeps its own artifacts out of your `@maven`. See
 [generate](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/generate.md).
 
 ## Format, lint and typecheck
@@ -48,7 +48,7 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 
 ## Benchmarks
 
-`java_benchmark` runs JMH benchmarks for `dx bench`. List `org.openjdk.jmh:jmh-core` and `jmh-generator-annprocess` in `maven_install.json`.
+`java_benchmark` runs JMH benchmarks for `dx bench`. rules_dx ships JMH 1.37 in its own `@dx_jvm_maven` repository, so your `maven_install.json` needs no JMH entries.
 
 ```python
 load("@rules_dx//java/rules:bench.bzl", "java_benchmark")
@@ -59,4 +59,4 @@ java_benchmark(
 )
 ```
 
-The test is tagged `dx-bench` and `manual` and writes `dx-bench.json` with one row per `@Benchmark` method. It runs one warmup and three measurement iterations of 200 ms in the test JVM, without forking. Set `jmh` and `jmh_processor` to other labels if your artifacts are not in `@maven`. `kotlin_benchmark` in `@rules_dx//kotlin/rules:bench.bzl` takes Kotlin sources the same way.
+The test is tagged `dx-bench` and `manual` and writes `dx-bench.json` with one row per `@Benchmark` method. It runs one warmup and three measurement iterations of 200 ms in the test JVM, without forking. Set `jmh` and `jmh_processor` to other labels to use another JMH version, for example one in your own `@maven`. `kotlin_benchmark` in `@rules_dx//kotlin/rules:bench.bzl` takes Kotlin sources the same way.

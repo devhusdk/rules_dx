@@ -592,6 +592,7 @@ use_repo(maven, "maven")
 - `--apply` runs `bazel run @<repository>//:pin` with `RULES_JVM_EXTERNAL_REPIN=1`. A check runs `bazel fetch --repo=@<repository>`; a stale lock fails with `updater exited <code>`.
 - A check is unsupported when `fail_if_repin_required` is `False` or computed, the lock is empty or lacks `__INPUT_ARTIFACTS_HASH` and `__RESOLVED_ARTIFACTS_HASH`, or the host sets `REPIN` or `RULES_JVM_EXTERNAL_REPIN`.
 - Host `COURSIER_MIRRORS`, `COURSIER_REPOSITORIES`, `COURSIER_CREDENTIALS`, `COURSIER_CONFIG_DIR` and `SCALA_CLI_CONFIG` are refused.
+- rules_dx declares its own Maven artifacts only in named `dx_*` hubs (JMH in `dx_jvm_maven`), never in `maven`, so your `maven` lock holds only what you list plus what protobuf requires.
 - A set takes no `set:package` for update or check. Use `dx update <set>:<group>:<artifact> <version>` to widen.
 - `dx security` matches the lock's `artifacts` against `.dx/local/advisory/maven.json`. `dx license` needs `[[inventory]]` with `set = "maven"`.
 

@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 38] = [
+const EXPECTED_NAMES: [&str; 39] = [
     "d_app_dub",
     "dub_fixture",
     "dx_crates",
@@ -19,6 +19,7 @@ const EXPECTED_NAMES: [&str; 38] = [
     "dx_julia_format",
     "dx_julia_jet",
     "dx_julia_lint",
+    "dx_jvm_maven",
     "dx_npm",
     "dx_npm_tools",
     "dx_perl_cpan",
@@ -69,6 +70,15 @@ fn set(name: &str) -> DependencySet {
 fn root_module_declares_exactly_the_expected_sets() {
     let names: Vec<String> = sets().into_iter().map(|set| set.name).collect();
     assert_eq!(names, EXPECTED_NAMES);
+}
+
+#[test]
+fn grpc_java_stays_a_dev_dependency() {
+    let line = MODULE_BAZEL
+        .lines()
+        .find(|line| line.starts_with("bazel_dep(name = \"grpc-java\""))
+        .expect("grpc-java bazel_dep");
+    assert!(line.contains("dev_dependency = True"), "{line}");
 }
 
 #[test]

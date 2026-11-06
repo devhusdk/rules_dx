@@ -4,7 +4,7 @@ load("@rules_kotlin//kotlin:core.bzl", "kt_javac_options")
 load("//java/rules:bench.bzl", "jmh_benchmark")
 load("//kotlin/rules:defs.bzl", "kotlin_library")
 
-def kotlin_benchmark(name, srcs, deps = [], jmh = "@maven//:org_openjdk_jmh_jmh_core", jmh_processor = "@maven//:org_openjdk_jmh_jmh_generator_annprocess", tags = [], **kwargs):
+def kotlin_benchmark(name, srcs, deps = [], jmh = Label("@dx_jvm_maven//:org_openjdk_jmh_jmh_core"), jmh_processor = Label("@dx_jvm_maven//:org_openjdk_jmh_jmh_generator_annprocess"), tags = [], **kwargs):
     """Runs the JMH benchmarks in Kotlin srcs and writes dx-bench.json for dx bench.
 
     Args:

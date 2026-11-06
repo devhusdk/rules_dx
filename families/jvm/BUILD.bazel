@@ -35,3 +35,10 @@ sh_test(
     ],
     env = {"RUSTFMT_COVERAGE_PACKAGES": "java/tests/fixtures/java-app/cli,java/tests/fixtures/java-app/diagnostics,kotlin/tests/fixtures/kotlin-app/cli,kotlin/tests/fixtures/kotlin-app/diagnostics"},
 )
+
+sh_test(
+    name = "dev_only_maven_test",
+    srcs = ["dev_only_maven_test.sh"],
+    args = ["$(rootpath MODULE.bazel)"],
+    data = ["MODULE.bazel"],
+)

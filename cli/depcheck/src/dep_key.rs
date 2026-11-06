@@ -14,5 +14,6 @@ pub(crate) fn normalize_dep_key(eco: Ecosystem, raw: &str) -> String {
         Ecosystem::Dart => normalize_lower(raw),
         Ecosystem::Php => normalize_lower(raw),
         Ecosystem::Ruby | Ecosystem::Elixir | Ecosystem::Erlang => normalize_lower(raw),
+        Ecosystem::Fortran | Ecosystem::D => normalize_lower(raw),
     }
 }

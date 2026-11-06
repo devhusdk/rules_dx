@@ -1,7 +1,9 @@
 pub mod beam;
 pub mod cc;
 pub mod dart;
+pub mod dlang;
 pub mod dotnet;
+pub mod fortran;
 pub mod go;
 pub mod js;
 pub mod julia;

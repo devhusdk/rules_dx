@@ -704,6 +704,8 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Php => "composer.json",
         Ecosystem::Elixir => "mix.exs",
         Ecosystem::Erlang => "rebar.config",
+        Ecosystem::Fortran => "fpm.toml",
+        Ecosystem::D => "dub.json",
     }
 }
 
@@ -724,6 +726,8 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Php => "composer.lock",
         Ecosystem::Elixir => "mix.lock",
         Ecosystem::Erlang => "rebar.lock",
+        Ecosystem::Fortran => "fpm.lock",
+        Ecosystem::D => "dub.selections.json",
     }
 }
 
@@ -748,6 +752,8 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Php => "php",
         Ecosystem::Elixir => "elixir",
         Ecosystem::Erlang => "erlang",
+        Ecosystem::Fortran => "fortran",
+        Ecosystem::D => "d",
     }
 }
 
@@ -1245,6 +1251,8 @@ fn ecosystem_parse_covers_every_name() {
         ("php", Ecosystem::Php),
         ("elixir", Ecosystem::Elixir),
         ("erlang", Ecosystem::Erlang),
+        ("fortran", Ecosystem::Fortran),
+        ("d", Ecosystem::D),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -2840,4 +2848,115 @@ fn beam_test_files_are_recognised() {
         Path::new("a/foo_SUITE.erl")
     ));
     assert!(!is_test_file(Ecosystem::Erlang, Path::new("a/src/foo.erl")));
+}
+
+fn assert_unused_and_missing(eco: Ecosystem, unused: &[&str], missing: &[(&str, &str, usize)]) {
+    let base = testdata_root().join(eco_dir(eco)).join("mixed");
+    let manifest = base.join(manifest_name(eco));
+    let lock = base.join(lock_name(eco));
+    assert_eq!(consistency(eco, "mixed"), 0);
+    let found = find_unused(eco, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = found.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, unused);
+    let found = find_missing(eco, &manifest, &lock, &base, &[]).expect("missing");
+    let got: Vec<(&str, &str, usize)> = found
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(got, missing);
+}
+
+#[test]
+fn fortran_fixture_reports_unused_and_missing() {
+    assert_unused_and_missing(
+        Ecosystem::Fortran,
+        &["json-fortran"],
+        &[("fftpack", "src/hello.f90", 3)],
+    );
+}
+
+#[test]
+fn d_fixture_reports_unused_and_missing() {
+    assert_unused_and_missing(
+        Ecosystem::D,
+        &["mir-algorithm"],
+        &[("silly", "source/app.d", 5)],
+    );
+}
+
+#[test]
+fn fortran_manifest_reads_tables_and_versions() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let manifest = dir.path().join("fpm.toml");
+    write_file(
+        &manifest,
+        "[dependencies]\nstdlib = \"0.5.0\"\nfpm-x = { git = \"https://x\", tag = \"v1\" }\n[dev-dependencies]\ntest-drive = { version = \"0.4.0\" }\n",
+    );
+    let deps = parse_fortran_manifest(&manifest).expect("parse");
+    assert_eq!(deps["stdlib"].spec, "0.5.0");
+    assert_eq!(deps["fpm-x"].spec, "*");
+    assert_eq!(deps["test-drive"].category, "dev");
+    assert_eq!(deps["test-drive"].spec, "0.4.0");
+}
+
+#[test]
+fn d_manifest_reads_json_and_sdl() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let json = dir.path().join("dub.json");
+    write_file(
+        &json,
+        r#"{"dependencies": {"vibe-d:http": "~>0.9.4", "a": {"version": ">=1.0.0 <2.0.0", "optional": true}, "b": {"path": "../b"}}}"#,
+    );
+    let deps = parse_d_manifest(&json).expect("json");
+    assert_eq!(deps["vibe-d"].spec, "~>0.9.4");
+    assert_eq!(deps["a"].spec, ">=1.0.0,<2.0.0");
+    assert!(deps["a"].optional);
+    assert_eq!(deps["b"].spec, "*");
+    let sdl = dir.path().join("dub.sdl");
+    write_file(
+        &sdl,
+        "name \"x\"\ndependency \"vibe-d\" version=\"~>0.9.4\"\ndependency \"c\" path=\"../c\" optional=true\n",
+    );
+    let deps = parse_d_manifest(&sdl).expect("sdl");
+    assert_eq!(deps["vibe-d"].spec, "~>0.9.4");
+    assert!(deps["c"].optional);
+    assert_eq!(deps["c"].spec, "*");
+    let lock = dir.path().join("dub.selections.json");
+    write_file(
+        &lock,
+        r#"{"fileVersion": 1, "versions": {"vibe-d": "0.9.4", "b": {"path": "../b"}}}"#,
+    );
+    let pkgs = parse_d_lock(&lock).expect("lock");
+    assert_eq!(pkgs["vibe-d"], "0.9.4");
+    assert_eq!(pkgs["b"], "*");
+}
+
+#[test]
+fn d_and_fortran_usage_patterns() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(
+        &dir.path().join("a.d"),
+        "import std.stdio, vibe.core;\nimport x = mir.ndslice;\n// import nope.a;\n",
+    );
+    write_file(&dir.path().join("test/t.d"), "import silly;\n");
+    let names: Vec<String> = ["vibe-d", "mir-algorithm", "silly", "nope"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::D, dir.path(), &names).expect("usages");
+    assert!(hits["vibe-d"].src);
+    assert!(!hits["mir-algorithm"].src);
+    assert!(hits["silly"].test && !hits["silly"].src);
+    assert!(!hits["nope"].src);
+    write_file(
+        &dir.path().join("m.f90"),
+        "USE Stdlib_Ascii\nuse, intrinsic :: iso_c_binding\nuse stdlibx\n",
+    );
+    let names: Vec<String> = ["stdlib", "iso-c-binding"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::Fortran, dir.path(), &names).expect("usages");
+    assert!(hits["stdlib"].src);
+    assert!(hits["iso-c-binding"].src);
 }

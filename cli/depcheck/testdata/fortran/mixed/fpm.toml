@@ -1,0 +1,8 @@
+name = "hello"
+
+[dependencies]
+stdlib = "0.5.0"
+json-fortran = "8.3.0"
+
+[dev-dependencies]
+test-drive = "0.4.0"

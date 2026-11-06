@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::ecosystem::{
-    beam, cc, dart, dotnet, go, js, julia, jvm, parse_paren_lock, perl, php, python, ruby, rust,
-    zig,
+    beam, cc, dart, dlang, dotnet, fortran, go, js, julia, jvm, parse_paren_lock, perl, php,
+    python, ruby, rust, zig,
 };
 use crate::version::satisfies_for;
 use crate::{DepInfo, DepcheckError, Ecosystem, LockVersions, WorkspaceLocks};
@@ -28,6 +28,8 @@ pub(crate) fn load_manifest(
         Ecosystem::Php => php::parse_php_manifest(manifest),
         Ecosystem::Elixir => beam::parse_elixir_manifest(manifest),
         Ecosystem::Erlang => beam::parse_erlang_manifest(manifest),
+        Ecosystem::Fortran => fortran::parse_fortran_manifest(manifest),
+        Ecosystem::D => dlang::parse_d_manifest(manifest),
     }
 }
 
@@ -56,6 +58,8 @@ fn load_lock(eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError>
         Ecosystem::Php => single(php::parse_php_lock(lock)),
         Ecosystem::Elixir => single(beam::parse_mix_lock(lock)),
         Ecosystem::Erlang => single(beam::parse_rebar_lock(lock)),
+        Ecosystem::Fortran => single(fortran::parse_fortran_lock(lock)),
+        Ecosystem::D => single(dlang::parse_d_lock(lock)),
     }
 }
 

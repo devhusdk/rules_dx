@@ -161,6 +161,8 @@ fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckErr
         Ecosystem::Erlang => Ok(crate::ecosystem::beam::parse_rebar_lock(lock)?
             .into_keys()
             .collect()),
+        Ecosystem::Fortran => Ok(crate::parse_fortran_lock(lock)?.into_keys().collect()),
+        Ecosystem::D => Ok(crate::parse_d_lock(lock)?.into_keys().collect()),
         _ => Ok(Vec::new()),
     }
 }
@@ -198,6 +200,8 @@ pub fn find_missing(
         Ecosystem::Php => "composer.json",
         Ecosystem::Elixir => "mix.exs",
         Ecosystem::Erlang => "rebar.config",
+        Ecosystem::Fortran => "fpm.toml",
+        Ecosystem::D => "dub.json",
         _ => "package.json",
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;

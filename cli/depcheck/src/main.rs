@@ -170,9 +170,9 @@ fn main() {
 mod tests {
     use super::*;
 
-    const ECOSYSTEMS: [&str; 19] = [
+    const ECOSYSTEMS: [&str; 21] = [
         "rust", "python", "js", "ts", "go", "java", "kotlin", "scala", "csharp", "fsharp", "cc",
-        "ruby", "perl", "zig", "julia", "dart", "php", "elixir", "erlang",
+        "ruby", "perl", "zig", "julia", "dart", "php", "elixir", "erlang", "fortran", "d",
     ];
 
     fn lock_args(name: &str) -> Vec<String> {

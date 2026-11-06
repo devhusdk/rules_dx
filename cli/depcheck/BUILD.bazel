@@ -12,7 +12,9 @@ rust_library(
         "src/ecosystem/beam.rs",
         "src/ecosystem/cc.rs",
         "src/ecosystem/dart.rs",
+        "src/ecosystem/dlang.rs",
         "src/ecosystem/dotnet.rs",
+        "src/ecosystem/fortran.rs",
         "src/ecosystem/go.rs",
         "src/ecosystem/js.rs",
         "src/ecosystem/julia.rs",
@@ -89,6 +91,8 @@ rust_test(
         ":js_testdata",
         ":julia_testdata",
         ":kotlin_testdata",
+        ":d_testdata",
+        ":fortran_testdata",
         ":perl_testdata",
         ":php_testdata",
         ":python_testdata",
@@ -270,6 +274,8 @@ rust_test(
         "php",
         "elixir",
         "erlang",
+        "fortran",
+        "d",
     ]
 ]
 

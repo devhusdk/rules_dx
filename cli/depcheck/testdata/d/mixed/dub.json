@@ -1,0 +1,7 @@
+{
+  "name": "hello",
+  "dependencies": {
+    "vibe-d": "~>0.9.4",
+    "mir-algorithm": "~>3.0"
+  }
+}

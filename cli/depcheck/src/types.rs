@@ -78,6 +78,8 @@ pub enum Ecosystem {
     Php,
     Elixir,
     Erlang,
+    Fortran,
+    D,
 }
 
 impl std::str::FromStr for Ecosystem {
@@ -111,6 +113,8 @@ impl Ecosystem {
             "php" => Some(Self::Php),
             "elixir" => Some(Self::Elixir),
             "erlang" => Some(Self::Erlang),
+            "fortran" => Some(Self::Fortran),
+            "d" => Some(Self::D),
             _ => None,
         }
     }
@@ -136,6 +140,8 @@ impl Ecosystem {
             Self::Php => "php",
             Self::Elixir => "elixir",
             Self::Erlang => "erlang",
+            Self::Fortran => "fortran",
+            Self::D => "d",
         }
     }
 

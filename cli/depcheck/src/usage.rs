@@ -86,6 +86,9 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         Ecosystem::Php => {
             name.ends_with("Test.php") || s.contains("/tests/") || s.contains("/Tests/")
         }
+        Ecosystem::Fortran | Ecosystem::D => {
+            s.contains("/test/") || s.contains("/tests/") || name.contains("_test.")
+        }
         Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
         Ecosystem::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
         Ecosystem::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
@@ -131,6 +134,14 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         ".exs",
         ".erl",
         ".hrl",
+        ".f90",
+        ".f95",
+        ".f03",
+        ".f08",
+        ".F90",
+        ".f",
+        ".d",
+        ".di",
     ]
     .into_iter()
     .collect()
@@ -169,6 +180,11 @@ fn skip_names() -> BTreeSet<&'static str> {
         "mix.exs",
         "mix.lock",
         "rebar.lock",
+        "fpm.toml",
+        "fpm.lock",
+        "dub.json",
+        "dub.sdl",
+        "dub.selections.json",
     ]
     .into_iter()
     .collect()
@@ -296,6 +312,19 @@ fn elixir_modules(dep: &str) -> Vec<String> {
     modules
 }
 
+/// Extra spellings a source can use for a package: a dub package `vibe-d` is imported as `vibe`.
+fn module_forms(eco: Ecosystem, dep: &str) -> Vec<String> {
+    if eco != Ecosystem::D {
+        return Vec::new();
+    }
+    let root = dep.replace('-', "_");
+    let mut forms = vec![root.clone()];
+    if let Some(bare) = root.strip_suffix("_d").filter(|bare| !bare.is_empty()) {
+        forms.push(bare.to_owned());
+    }
+    forms
+}
+
 fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError> {
     let mut weak = Vec::new();
     let mut shadow = None;
@@ -400,6 +429,22 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
             format!(r"(?m)^\s*-behaviou?r\(\s*{}\s*\)", regex_escape(dep)),
             format!(r"(?:^|[^\w:]){}:[a-z_]\w*\(", regex_escape(dep)),
         ],
+        Ecosystem::Fortran => {
+            let module = regex_escape(&dep.replace('-', "_"));
+            vec![format!(
+                r"(?mi)^\s*use\s*(?:,\s*(?:non_)?intrinsic\s*)?(?:::\s*)?{module}(?:_\w+)?\b"
+            )]
+        }
+        Ecosystem::D => {
+            let roots: Vec<String> = module_forms(eco, dep)
+                .iter()
+                .map(|root| regex_escape(root))
+                .collect();
+            vec![format!(
+                r"(?m)^\s*(?:(?:public|private|static)\s+)*import\s+(?:[^;]*?[,=]\s*)?(?:{})(?:\.|\s*[;,:])",
+                roots.join("|")
+            )]
+        }
         Ecosystem::Ruby => vec![
             format!(r#"(?m)^\s*require\s+['"]{}['"]"#, regex_escape(dep)),
             format!(
@@ -446,6 +491,7 @@ pub(crate) fn find_first_imports(
     for name in names {
         let mut forms = vec![name.clone(), name.replace('-', "_"), name.replace('_', "-")];
         forms.extend(elixir_modules(name));
+        forms.extend(module_forms(eco, name));
         let hits: Vec<&(String, String)> = texts
             .iter()
             .filter(|(_, text)| {

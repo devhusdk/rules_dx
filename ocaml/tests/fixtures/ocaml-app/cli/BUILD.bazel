@@ -49,6 +49,7 @@ sh_test(
         "over_limit.txt",
         ":stockctl",
     ],
+    tags = ["no-coverage"],
 )
 
 # Negative case: Astring is used without being declared.

@@ -14,16 +14,6 @@ pub use tools_gen::REAL_TOOLS;
 
 const RUSTFMT_DEFAULTS_REL: &str = "dx-rustfmt-default.toml";
 
-const KTLINT_DEFAULTS_REL: &str = "dx-ktlint-default/.editorconfig";
-const KTLINT_DEFAULTS_BYTES: &[u8] = b"root = true
-
-[*.{kt,kts}]
-ktlint_code_style = intellij_idea
-ij_kotlin_imports_layout = *
-ktlint_standard_function-signature = disabled
-ktlint_standard_trailing-comma-on-call-site = disabled
-ktlint_standard_trailing-comma-on-declaration-site = disabled
-";
 const DETEKT_DEFAULTS_REL: &str = "dx-detekt-default/detekt.yml";
 /// Only the unused and unreachable rules, reported as info.
 const DETEKT_DEFAULTS_BYTES: &[u8] = b"style:
@@ -99,8 +89,31 @@ const MBAKE_DEFAULTS_REL: &str = "dx-mbake-default/.bake.toml";
 /// (no `.PHONY` insertion, grouping, or variable alignment).
 const MBAKE_DEFAULTS_BYTES: &[u8] = b"[formatter]\nensure_final_newline = true\n";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
-/// hadolint rejects an empty config, so the default spells its empty ignore list.
-const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
+const HADOLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hadolint/standard.yaml");
+const DEADNIX_STANDARD: &str = include_str!("../../tiers/deadnix/standard.txt");
+const ZANUDA_STANDARD: &str = include_str!("../../tiers/zanuda/standard.txt");
+const ZANUDA_STRICT: &str = include_str!("../../tiers/zanuda/strict.txt");
+const JULIALINT_STANDARD: &str = include_str!("../../tiers/julialint/standard.toml");
+
+/// The non-empty lines of the bound tier file, or of the standard tier when none is bound.
+fn tier_lines(
+    tool_id: &str,
+    config: Option<&Path>,
+    standard: &str,
+) -> Result<Vec<String>, RunnerError> {
+    let text = match config {
+        Some(path) => std::fs::read_to_string(path)
+            .map_err(|err| execution(tool_id, format!("read {}: {err}", path.display())))?,
+        None => standard.to_owned(),
+    };
+    Ok(text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect())
+}
+
 const HLINT_DEFAULTS_REL: &str = "dx-hlint-default/hlint.yaml";
 /// An empty hint list keeps the built-in hints and stops hlint from searching for `.hlint.yaml`.
 const HLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hlint/standard.yaml");
@@ -116,16 +129,7 @@ const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const CUE_STATE_REL: &str = ".dx-cue-state";
 const REDOCLY_DEFAULTS_REL: &str = "dx-redocly-default/redocly.yaml";
 /// The curated Redocly policy: spec structure plus the correctness rules, all as errors.
-const REDOCLY_DEFAULTS_BYTES: &[u8] = b"extends:
-  - spec
-rules:
-  no-unresolved-refs: error
-  operation-operationId-unique: error
-  path-parameters-defined: error
-  no-identical-paths: error
-  operation-parameters-unique: error
-telemetry: off
-";
+const REDOCLY_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/redocly/standard.yaml");
 /// The curated gplint rules cover meaning only. Layout belongs to prettier, and rules that
 /// compare files (`no-dupe-feature-names`, `no-dupe-scenario-names` in `anywhere` mode) would
 /// make a result depend on which files share a batch, so none of those are listed.
@@ -149,22 +153,7 @@ const SCALAFIX_DEFAULTS_REL: &str = "dx-scalafix-default/.scalafix.conf";
 const SCALAFIX_DEFAULTS_BYTES: &[u8] = b"rules = [RemoveUnused]\n";
 
 const GPLINT_DEFAULTS_REL: &str = "dx-gplint-default/gplint.json";
-const GPLINT_DEFAULTS_BYTES: &[u8] = br#"{
-  "no-background-only-scenario": "error",
-  "no-dupe-scenario-names": ["error", "in-feature"],
-  "no-duplicate-tags": "error",
-  "no-empty-background": "error",
-  "no-empty-file": "error",
-  "no-examples-in-scenarios": "error",
-  "no-files-without-scenarios": "error",
-  "no-homogenous-tags": "error",
-  "no-scenario-outlines-without-examples": "error",
-  "no-superfluous-tags": "error",
-  "no-unnamed-features": "error",
-  "no-unnamed-scenarios": "error",
-  "no-unused-variables": "error"
-}
-"#;
+const GPLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/gplint/standard.json");
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
 const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
   "rules": {

@@ -706,6 +706,61 @@ fn stale_stage_undeletable_reports_install() {
     let _ = fs::remove_dir_all(&root);
 }
 
+#[cfg(windows)]
+fn hold_open(path: &Path) -> fs::File {
+    use std::os::windows::fs::OpenOptionsExt;
+    fs::write(path, b"held").expect("held file");
+    fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .open(path)
+        .expect("hold the file open")
+}
+
+#[cfg(windows)]
+#[test]
+fn stale_prev_undeletable_reports_install() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-held-");
+    let root = scratch.path().to_path_buf();
+    let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
+    let opts = options(&root, staged_bin, metadata);
+    assert!(matches!(
+        refresh(&opts, &probe_symlink),
+        Ok(RefreshOutcome::InstalledFresh)
+    ));
+    let dx = dx_path::state::local_dir(&root.join("ws"));
+    let prev = dx.join(PREV_DIR_NAME);
+    fs::create_dir_all(&prev).expect("stale prev");
+    let held = hold_open(&prev.join("held.txt"));
+    let error = refresh(&opts, &|_: &Path| Ok(())).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason } if reason.contains("cannot clear stale")
+    ));
+    drop(held);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[cfg(windows)]
+#[test]
+fn stale_stage_undeletable_reports_install() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-stage-held-");
+    let root = scratch.path().to_path_buf();
+    let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
+    let opts = options(&root, staged_bin, metadata);
+    let dx = dx_path::state::local_dir(&root.join("ws"));
+    let stage = dx.join(STAGE_DIR_NAME);
+    fs::create_dir_all(&stage).expect("stale stage");
+    let held = hold_open(&stage.join("held.txt"));
+    let error = refresh(&opts, &|_: &Path| Ok(())).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason } if reason.contains("cannot clear stale staging")
+    ));
+    drop(held);
+    let _ = fs::remove_dir_all(&root);
+}
+
 #[test]
 fn duplicate_host_name_reports_install() {
     let scratch = dx_test_scratch::scratch("dx-env-test-dup-host-");
@@ -887,14 +942,11 @@ fn probe_failure_reports_before_mutation() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[cfg(unix)]
 #[test]
-fn blocked_installed_tree_reports_unmanaged() {
+fn unreadable_installed_tree_reports_unmanaged() {
     let scratch = dx_test_scratch::scratch("dx-env-test-blocked-bin-");
     let root = scratch.path().to_path_buf();
-    let blocker = root.join("blocker");
-    fs::write(&blocker, "file blocks dir").expect("blocker file");
-    let bin = blocker.join(BIN_DIR_NAME);
+    let bin = root.join("bad\0name");
     let error = read_current_identity(&bin).unwrap_err();
     assert!(matches!(
         error,

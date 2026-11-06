@@ -2791,12 +2791,7 @@ mod tests {
         ] {
             assert!(needs_slot(command));
         }
-        for command in [
-            Command::Status,
-            Command::Worktree,
-            Command::Completion,
-            Command::Explain,
-        ] {
+        for command in [Command::Status, Command::Worktree, Command::Completion] {
             assert!(!needs_slot(command));
         }
     }

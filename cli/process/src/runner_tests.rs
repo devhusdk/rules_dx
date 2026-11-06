@@ -120,6 +120,17 @@ fn stream_spec_follows_flags() {
 }
 
 #[test]
+fn bazel_stderr_is_teed_only_off_a_terminal() {
+    use std::io::IsTerminal as _;
+    let teed = matches!(
+        bazel_stderr(&["bazel".to_owned()]),
+        StreamOutput::Forward(_)
+    );
+    assert_eq!(teed, !std::io::stderr().is_terminal());
+    assert!(matches!(bazel_stderr(&[]), StreamOutput::Inherit));
+}
+
+#[test]
 fn stream_cleanup_budget_is_fixed() {
     assert_eq!(STREAM_CLEANUP.graceful, Duration::from_secs(10));
     assert_eq!(STREAM_CLEANUP.forced, Duration::from_secs(2));

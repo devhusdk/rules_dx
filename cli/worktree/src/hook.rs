@@ -692,24 +692,33 @@ fn collect_segments(script: &str, depth: usize, out: &mut Vec<Vec<String>>) {
         if depth >= MAX_SHELL_DEPTH || !SHELLS.contains(&base(first)) {
             continue;
         }
-        let mut rest = tail[1..].iter();
-        while let Some(word) = rest.next() {
-            if matches!(*word, "-o" | "+o") {
-                rest.next();
-            } else if word.starts_with("--") {
-                if *word == "--" {
-                    break;
-                }
-            } else if word.starts_with('-') && word[1..].contains('c') {
-                if let Some(inner) = rest.next() {
-                    collect_segments(inner, depth + 1, out);
-                }
-                break;
-            } else if !word.starts_with(['-', '+']) {
-                break;
-            }
+        if let Some(inner) = shell_script(&tail[1..]) {
+            collect_segments(inner, depth + 1, out);
         }
     }
+}
+
+fn shell_script<'a>(args: &[&'a str]) -> Option<&'a str> {
+    let mut command = false;
+    let mut rest = args.iter();
+    while let Some(&word) = rest.next() {
+        if word == "--" || word == "-" {
+            return rest.next().copied().filter(|_| command);
+        }
+        if matches!(word, "--rcfile" | "--init-file") {
+            rest.next();
+        } else if word.starts_with("--") {
+            continue;
+        } else if word.starts_with(['-', '+']) {
+            command |= word.contains('c');
+            for _ in word.matches(['o', 'O']) {
+                rest.next();
+            }
+        } else {
+            return Some(word).filter(|_| command);
+        }
+    }
+    None
 }
 
 fn runs_dx(command: &str) -> bool {

@@ -1,0 +1,8 @@
+dont_disable_all_warnings
+exc_error_swallowing
+list_length_comparisons
+mutability_check
+no_toplevel_eval
+physical_equality
+use_match_instead_of_equality
+wrong_ignoring

@@ -13,15 +13,31 @@ def _es_files(proto_info):
         paths.append(path)
     return paths
 
+def _out_dir(ctx, info):
+    """Returns the protoc output directory that matches the sibling-declared files."""
+    root = info.proto_source_root
+    bin_dir = ctx.bin_dir.path
+    if root.startswith(bin_dir):
+        root = root[len(bin_dir):].removeprefix("/")
+    if root in ("", "."):
+        return bin_dir
+    return bin_dir + "/" + root
+
+def _check_package(ctx, info):
+    for src in info.direct_sources:
+        if src.owner.repo_name != ctx.label.repo_name or src.owner.package != ctx.label.package:
+            fail("%s must be in the package of its proto_library %s" % (ctx.label, ctx.attr.proto.label))
+
 def _ts_proto_srcs_impl(ctx):
     proto_info = ctx.attr.proto[ProtoInfo]
+    _check_package(ctx, proto_info)
     protos = _es_files(proto_info)
-    outs = [ctx.actions.declare_file(path.rsplit("/", 1)[-1][:-len(".proto")] + "_pb.ts") for path in protos]
+    outs = [ctx.actions.declare_file(src.basename[:-len(".proto")] + "_pb.ts", sibling = src) for src in proto_info.direct_sources]
     plugin = ctx.executable._plugin
     descriptors = proto_info.transitive_descriptor_sets
     args = ctx.actions.args()
     args.add("--plugin=protoc-gen-es=" + plugin.path)
-    args.add("--es_out=target=ts:" + ctx.bin_dir.path)
+    args.add("--es_out=target=ts:" + _out_dir(ctx, proto_info))
     args.add_joined("--descriptor_set_in", descriptors, join_with = ":", format_each = "%s", omit_if_empty = True, map_each = _path)
     args.add_all(protos)
     ctx.actions.run(

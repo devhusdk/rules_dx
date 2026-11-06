@@ -185,6 +185,7 @@ TOOLS = [
     tool(
         id = "actionlint",
         adapters = {"lint": ["github_workflow"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -200,7 +201,8 @@ TOOLS = [
     tool(
         id = "ansible_lint",
         adapters = {"lint": ["ansible"]},
-        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"]),
+        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"], tier_active = True, tier_source = "ansible-lint moderate and production profiles"),
+        severity = severity(default = "warning", categories = {"internal-error": "error", "load-failure": "error", "syntax-check": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -253,7 +255,7 @@ TOOLS = [
             "format": ["bicep"],
             "lint": ["bicep"],
         },
-        config = config(suffixes = ["bicepconfig.json"]),
+        config = config(suffixes = ["bicepconfig.json"], files = ["bicepconfig.json"], tier_active = True, stage_native = True),
         support = [
             row(
                 capability = "format",
@@ -281,7 +283,16 @@ TOOLS = [
             "format": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
             "lint": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
         },
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
+        severity = severity(categories = {
+            "lint/a11y": "warning",
+            "lint/complexity": "warning",
+            "lint/correctness": "error",
+            "lint/performance": "warning",
+            "lint/security": "error",
+            "lint/style": "warning",
+            "lint/suspicious": "warning",
+        }),
         support = [
             row(
                 capability = "format",
@@ -345,7 +356,13 @@ TOOLS = [
             "format": ["protobuf"],
             "lint": ["protobuf"],
         },
-        config = config(suffixes = [".yaml"]),
+        config = config(
+            suffixes = [".yaml"],
+            files = ["buf.yaml"],
+            ext = "yaml",
+            tier_active = True,
+        ),
+        severity = severity(default = "warning", categories = {"COMPILE": "error"}),
         support = [
             row(
                 capability = "format",
@@ -375,7 +392,12 @@ TOOLS = [
             "format": ["starlark"],
             "lint": ["starlark"],
         },
-        config = config(suffixes = [".json"]),
+        config = config(
+            suffixes = [".json"],
+            files = [".buildifier.json"],
+            ext = "json",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",
@@ -441,7 +463,7 @@ TOOLS = [
     tool(
         id = "cfn_lint",
         adapters = {"lint": ["cloudformation"]},
-        config = config(suffixes = [".cfnlintrc", ".yaml", ".yml"]),
+        config = config(suffixes = [".cfnlintrc", ".yaml", ".yml"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -458,7 +480,12 @@ TOOLS = [
     tool(
         id = "checkmake",
         adapters = {"lint": ["make"]},
-        config = config(suffixes = [".ini"]),
+        config = config(
+            suffixes = [".ini"],
+            files = ["checkmake.ini"],
+            ext = "ini",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",
@@ -474,7 +501,8 @@ TOOLS = [
     tool(
         id = "checkstyle",
         adapters = {"lint": ["java"]},
-        config = config(suffixes = [".xml"]),
+        config = config(suffixes = [".xml"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -491,6 +519,8 @@ TOOLS = [
     tool(
         id = "chktex",
         adapters = {"lint": ["latex"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -604,6 +634,77 @@ TOOLS = [
     tool(
         id = "clippy",
         adapters = {"lint": ["rust"]},
+        config = config(kind = "flags", tier_active = True),
+        severity = severity(categories = {
+            "clippy::": "warning",
+            "clippy::absurd_extreme_comparisons": "error",
+            "clippy::almost_swapped": "error",
+            "clippy::approx_constant": "error",
+            "clippy::async_yields_async": "error",
+            "clippy::bad_bit_mask": "error",
+            "clippy::cast_slice_different_sizes": "error",
+            "clippy::char_indices_as_byte_indices": "error",
+            "clippy::deprecated_semver": "error",
+            "clippy::derived_hash_with_manual_eq": "error",
+            "clippy::derive_ord_xor_partial_ord": "error",
+            "clippy::eager_transmute": "error",
+            "clippy::enum_clike_unportable_variant": "error",
+            "clippy::eq_op": "error",
+            "clippy::erasing_op": "error",
+            "clippy::ifs_same_cond": "error",
+            "clippy::if_let_mutex": "error",
+            "clippy::impl_hash_borrow_with_str_and_bytes": "error",
+            "clippy::impossible_comparisons": "error",
+            "clippy::ineffective_bit_mask": "error",
+            "clippy::infinite_iter": "error",
+            "clippy::inherent_to_string_shadow_display": "error",
+            "clippy::inline_fn_without_body": "error",
+            "clippy::invalid_regex": "error",
+            "clippy::inverted_saturating_sub": "error",
+            "clippy::invisible_characters": "error",
+            "clippy::iterator_step_by_zero": "error",
+            "clippy::iter_next_loop": "error",
+            "clippy::iter_skip_zero": "error",
+            "clippy::let_underscore_lock": "error",
+            "clippy::lint_groups_priority": "error",
+            "clippy::match_str_case_mismatch": "error",
+            "clippy::mem_replace_with_uninit": "error",
+            "clippy::min_max": "error",
+            "clippy::mistyped_literal_suffixes": "error",
+            "clippy::modulo_one": "error",
+            "clippy::mut_from_ref": "error",
+            "clippy::never_loop": "error",
+            "clippy::nonsensical_open_options": "error",
+            "clippy::non_octal_unix_permissions": "error",
+            "clippy::not_unsafe_ptr_arg_deref": "error",
+            "clippy::option_env_unwrap": "error",
+            "clippy::out_of_bounds_indexing": "error",
+            "clippy::panicking_overflow_checks": "error",
+            "clippy::panicking_unwrap": "error",
+            "clippy::possible_missing_comma": "error",
+            "clippy::read_line_without_trim": "error",
+            "clippy::recursive_format_impl": "error",
+            "clippy::redundant_comparisons": "error",
+            "clippy::reversed_empty_ranges": "error",
+            "clippy::self_assignment": "error",
+            "clippy::serde_api_misuse": "error",
+            "clippy::size_of_in_element_count": "error",
+            "clippy::suspicious_splitn": "error",
+            "clippy::transmute_null_to_fn": "error",
+            "clippy::transmuting_null": "error",
+            "clippy::uninit_assumed_init": "error",
+            "clippy::uninit_vec": "error",
+            "clippy::unit_cmp": "error",
+            "clippy::unit_hash": "error",
+            "clippy::unit_return_expecting_ord": "error",
+            "clippy::unsound_collection_transmute": "error",
+            "clippy::unused_io_amount": "error",
+            "clippy::useless_attribute": "error",
+            "clippy::vec_resize_to_zero": "error",
+            "clippy::while_immutable_condition": "error",
+            "clippy::wrong_transmute": "error",
+            "clippy::zst_offset": "error",
+        }),
         support = [
             row(
                 capability = "lint",
@@ -620,7 +721,13 @@ TOOLS = [
     tool(
         id = "cmakelint",
         adapters = {"lint": ["cmake"]},
-        config = config(suffixes = [".cmakelintrc"]),
+        config = config(
+            suffixes = [".cmakelintrc"],
+            files = [".cmakelintrc"],
+            ext = "cmakelintrc",
+            tier_active = True,
+        ),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -656,7 +763,8 @@ TOOLS = [
     tool(
         id = "credo",
         adapters = {"lint": ["elixir"]},
-        config = config(suffixes = [".exs"]),
+        config = config(suffixes = [".exs"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -745,6 +853,7 @@ TOOLS = [
             comment = "#",
             init_order = 5,
             family = "dart",
+            tier_active = True,
         ),
         support = [
             row(
@@ -791,6 +900,7 @@ TOOLS = [
     tool(
         id = "deadnix",
         adapters = {"lint": ["nix"]},
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -807,7 +917,8 @@ TOOLS = [
     tool(
         id = "detekt",
         adapters = {"lint": ["kotlin"]},
-        config = config(suffixes = [".yml", ".yaml"]),
+        config = config(suffixes = [".yml", ".yaml"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -824,6 +935,7 @@ TOOLS = [
     tool(
         id = "dialyzer",
         adapters = {"typecheck": ["erlang", "elixir"]},
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "typecheck",
@@ -857,7 +969,7 @@ TOOLS = [
             "format": ["html_template"],
             "lint": ["html_template"],
         },
-        config = config(suffixes = ["djlint.toml", ".djlintrc"]),
+        config = config(suffixes = ["djlint.toml", ".djlintrc"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -884,7 +996,8 @@ TOOLS = [
     tool(
         id = "elvis",
         adapters = {"lint": ["erlang"]},
-        config = config(suffixes = ["elvis.config", ".config"]),
+        config = config(suffixes = ["elvis.config", ".config"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -905,6 +1018,7 @@ TOOLS = [
     tool(
         id = "erlfmt",
         adapters = {"format": ["erlang"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -957,7 +1071,9 @@ TOOLS = [
             comment = "//",
             init_order = 2,
             family = "js",
+            tier_active = True,
         ),
+        severity = severity(default = "warning", categories = {"security/": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -1040,7 +1156,7 @@ TOOLS = [
     tool(
         id = "ffmt",
         adapters = {"format": ["fortran"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], files = ["ffmt.toml"], tier_active = True, stage_native = True),
         support = [
             row(
                 capability = "format",
@@ -1090,7 +1206,8 @@ TOOLS = [
     tool(
         id = "fortitude",
         adapters = {"lint": ["fortran"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1140,7 +1257,12 @@ TOOLS = [
     tool(
         id = "gersemi",
         adapters = {"format": ["cmake"]},
-        config = config(suffixes = [".gersemirc", ".yaml", ".yml"]),
+        config = config(
+            suffixes = [".gersemirc", ".yaml", ".yml"],
+            files = [".gersemirc"],
+            ext = "yaml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",
@@ -1229,7 +1351,8 @@ TOOLS = [
     tool(
         id = "gplint",
         adapters = {"lint": ["gherkin"]},
-        config = config(suffixes = [".gplintrc", ".json"]),
+        config = config(suffixes = [".gplintrc", ".json"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1246,7 +1369,7 @@ TOOLS = [
     tool(
         id = "graphql_eslint",
         adapters = {"lint": ["graphql"]},
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -1263,7 +1386,8 @@ TOOLS = [
     tool(
         id = "hadolint",
         adapters = {"lint": ["dockerfile"]},
-        config = config(suffixes = [".yaml", ".yml"]),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True),
+        severity = severity(default = "warning", categories = {"DL1": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -1302,6 +1426,7 @@ TOOLS = [
             comment = "#",
             init_order = 7,
             family = "haskell",
+            tier_active = True,
         ),
         support = [
             row(
@@ -1321,6 +1446,7 @@ TOOLS = [
     ),
     tool(
         id = "javac",
+        severity = severity(default = "error"),
         adapters = {"typecheck": ["java"]},
         support = [
             row(
@@ -1342,6 +1468,8 @@ TOOLS = [
     tool(
         id = "jsonnet_lint",
         adapters = {"lint": ["jsonnet"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1357,6 +1485,7 @@ TOOLS = [
     tool(
         id = "jsonnetfmt",
         adapters = {"format": ["jsonnet"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1391,6 +1520,7 @@ TOOLS = [
     tool(
         id = "julialint",
         adapters = {"lint": ["julia"]},
+        config = config(suffixes = [".toml"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -1425,6 +1555,7 @@ TOOLS = [
     ),
     tool(
         id = "kotlinc",
+        severity = severity(default = "error"),
         adapters = {"typecheck": ["kotlin"]},
         support = [
             row(
@@ -1442,6 +1573,7 @@ TOOLS = [
     tool(
         id = "ktfmt",
         adapters = {"format": ["kotlin"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1456,26 +1588,10 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "ktlint",
-        adapters = {"lint": ["kotlin"]},
-        config = config(suffixes = [".editorconfig"]),
-        support = [
-            row(
-                capability = "lint",
-                classes = ["kotlin"],
-                context = "owned",
-                family = "kotlin",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "batched",
-            ),
-        ],
-    ),
-    tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
-        config = config(suffixes = [".kubeconform.json"]),
+        config = config(suffixes = [".kubeconform.json"], files = ["kubernetes.kubeconform.json"], tier_active = True, stage_native = True),
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "lint",
@@ -1492,7 +1608,7 @@ TOOLS = [
     tool(
         id = "latexindent",
         adapters = {"format": ["latex"]},
-        config = config(suffixes = [".yaml", ".yml"]),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1513,11 +1629,20 @@ TOOLS = [
     tool(
         id = "luals",
         adapters = {"typecheck": ["lua"]},
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
+        severity = severity(default = "warning", categories = {
+            "luals/assign-type-mismatch": "error",
+            "luals/cast-type-mismatch": "error",
+            "luals/error": "error",
+            "luals/param-type-mismatch": "error",
+            "luals/return-type-mismatch": "error",
+        }),
     ),
     tool(
         id = "lychee",
         adapters = {"lint": ["asciidoc", "html", "markdown", "mdx", "rst"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1569,11 +1694,18 @@ TOOLS = [
     tool(
         id = "markdown_check",
         adapters = {"lint": ["markdown"]},
+        config = config(suffixes = [".txt"], tier_active = True),
+        severity = severity(default = "warning"),
     ),
     tool(
         id = "mbake",
         adapters = {"format": ["make"]},
-        config = config(suffixes = [".bake.toml", ".toml"]),
+        config = config(
+            suffixes = [".bake.toml", ".toml"],
+            files = [".bake.toml"],
+            ext = "toml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",
@@ -1590,6 +1722,7 @@ TOOLS = [
     tool(
         id = "mix_format",
         adapters = {"format": ["elixir"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1682,6 +1815,7 @@ TOOLS = [
             "format": ["rego"],
             "typecheck": ["rego"],
         },
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1706,6 +1840,7 @@ TOOLS = [
     tool(
         id = "ormolu",
         adapters = {"format": ["haskell"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1725,7 +1860,8 @@ TOOLS = [
     tool(
         id = "perlcritic",
         adapters = {"lint": ["perl"]},
-        config = config(suffixes = [".perlcriticrc", "perlcriticrc"]),
+        config = config(suffixes = [".perlcriticrc", "perlcriticrc"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1745,6 +1881,7 @@ TOOLS = [
     tool(
         id = "perltidy",
         adapters = {"format": ["perl"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1764,7 +1901,8 @@ TOOLS = [
     tool(
         id = "phpcs",
         adapters = {"lint": ["php"]},
-        config = config(suffixes = [".xml", ".xml.dist"]),
+        config = config(suffixes = [".xml", ".xml.dist"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1786,7 +1924,8 @@ TOOLS = [
         adapters = {
             "typecheck": ["php"],
         },
-        config = config(suffixes = [".neon", ".neon.dist"]),
+        config = config(suffixes = [".neon", ".neon.dist"], tier_active = True, tier_source = "phpstan level 6 and phpstan-strict-rules"),
+        severity = severity(default = "error", categories = {"phpstan/public.": "info"}),
         support = [
             row(
                 capability = "typecheck",
@@ -1833,6 +1972,8 @@ TOOLS = [
     tool(
         id = "pkl_lsp",
         adapters = {"lint": ["pkl"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1849,7 +1990,14 @@ TOOLS = [
     tool(
         id = "pmd",
         adapters = {"lint": ["java"]},
-        config = config(suffixes = [".xml"]),
+        config = config(suffixes = [".xml"], tier_active = True),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "HardCodedCryptoKey": "error",
+                "InsecureCryptoIv": "error",
+            },
+        ),
         support = [
             row(
                 capability = "lint",
@@ -1868,7 +2016,7 @@ TOOLS = [
         adapters = {
             "format": ["api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "json5", "less", "php", "scss", "svelte", "vue", "xml"],
         },
-        config = config(suffixes = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"]),
+        config = config(suffixes = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1935,6 +2083,7 @@ TOOLS = [
             comment = "#",
             init_order = 6,
             family = "powershell",
+            tier_active = True,
         ),
         support = [
             row(
@@ -1970,6 +2119,8 @@ TOOLS = [
     tool(
         id = "pydoclint",
         adapters = {"lint": ["python", "python_stub"]},
+        config = config(suffixes = [".toml"], ext = "toml", comment = "#", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1986,7 +2137,7 @@ TOOLS = [
     tool(
         id = "qmlformat",
         adapters = {"format": ["qml"]},
-        config = config(suffixes = [".qmlformat.ini"]),
+        config = config(suffixes = [".qmlformat.ini"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2010,7 +2161,7 @@ TOOLS = [
             "lint": ["qml"],
             "typecheck": ["qml"],
         },
-        config = config(suffixes = [".qmllint.ini"]),
+        config = config(suffixes = [".qmllint.ini"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2045,7 +2196,8 @@ TOOLS = [
     tool(
         id = "redocly",
         adapters = {"lint": ["api_spec"]},
-        config = config(suffixes = [".yaml", ".yml"]),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True, tier_source = "redocly spec and all rulesets"),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2062,7 +2214,8 @@ TOOLS = [
     tool(
         id = "regal",
         adapters = {"lint": ["rego"]},
-        config = config(suffixes = [".yaml", ".yml"]),
+        config = config(suffixes = [".yaml", ".yml"], files = [".regal/config.yaml"], tier_active = True, stage_native = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2078,7 +2231,7 @@ TOOLS = [
     tool(
         id = "remark",
         adapters = {"format": ["mdx"]},
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2111,9 +2264,24 @@ TOOLS = [
     ),
     tool(
         id = "rubocop",
-        adapters = {"lint": ["ruby"]},
-        config = config(suffixes = [".yml", ".yaml"]),
+        adapters = {"format": ["ruby"], "lint": ["ruby"]},
+        config = config(suffixes = [".yml", ".yaml"], tier_active = True),
+        severity = severity(default = "warning", categories = {"Security/": "error"}),
         support = [
+            row(
+                capability = "format",
+                classes = ["ruby"],
+                context = "owned",
+                family = "ruby",
+                fix = "supported",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                state = "supported",
+                transport = "batched",
+                unsupported = {
+                    "windows_arm64": "Ruby portable builds ship no Windows interpreter",
+                    "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
+                },
+            ),
             row(
                 capability = "lint",
                 classes = ["ruby"],
@@ -2146,6 +2314,21 @@ TOOLS = [
             pyproject_table = "ruff",
             init_order = 1,
             family = "python",
+            tier_active = True,
+        ),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "E9": "error",
+                "F82": "error",
+                "S1": "error",
+                "S2": "error",
+                "S3": "error",
+                "S4": "error",
+                "S5": "error",
+                "S6": "error",
+                "S7": "error",
+            },
         ),
         support = [
             row(
@@ -2205,7 +2388,7 @@ TOOLS = [
     tool(
         id = "rustfmt",
         adapters = {"format": ["rust"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2221,6 +2404,7 @@ TOOLS = [
     ),
     tool(
         id = "scalac",
+        severity = severity(default = "error"),
         adapters = {"typecheck": ["scala"]},
         support = [
             row(
@@ -2238,7 +2422,7 @@ TOOLS = [
     tool(
         id = "scalafix",
         adapters = {"lint": ["scala"]},
-        config = config(suffixes = [".conf"]),
+        config = config(suffixes = [".conf"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2255,7 +2439,7 @@ TOOLS = [
     tool(
         id = "scalafmt",
         adapters = {"format": ["scala"]},
-        config = config(suffixes = [".conf"]),
+        config = config(suffixes = [".conf"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2271,7 +2455,8 @@ TOOLS = [
     tool(
         id = "selene",
         adapters = {"lint": ["lua"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2288,7 +2473,7 @@ TOOLS = [
     tool(
         id = "shellcheck",
         adapters = {"lint": ["shell"]},
-        config = config(suffixes = [".shellcheckrc", "shellcheckrc"]),
+        config = config(suffixes = [".shellcheckrc", "shellcheckrc"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2305,6 +2490,7 @@ TOOLS = [
     tool(
         id = "shfmt",
         adapters = {"format": ["shell"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2341,6 +2527,21 @@ TOOLS = [
     tool(
         id = "spotbugs",
         adapters = {"lint": ["java"]},
+        config = config(suffixes = [".xml"], tier_active = True),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "ASE_": "error",
+                "DMI_CONSTANT_DB_PASSWORD": "error",
+                "DMI_EMPTY_DB_PASSWORD": "error",
+                "HRS_": "error",
+                "PT_": "error",
+                "UNS_": "error",
+                "USBC_": "error",
+                "USO_": "error",
+                "XSS_": "error",
+            },
+        ),
         support = [
             row(
                 capability = "lint",
@@ -2360,7 +2561,23 @@ TOOLS = [
             "format": ["sql"],
             "lint": ["sql"],
         },
-        config = config(suffixes = [".sqlfluff", ".cfg", ".ini"]),
+        config = config(
+            suffixes = [".sqlfluff", ".cfg", ".ini"],
+            files = [".sqlfluff"],
+            ext = "cfg",
+            tier_active = True,
+        ),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "AM": "error",
+                "LXR": "error",
+                "PRS": "error",
+                "RF": "error",
+                "ST": "error",
+                "TMP": "error",
+            },
+        ),
         support = [
             row(
                 capability = "format",
@@ -2385,30 +2602,9 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "standardrb",
-        adapters = {"format": ["ruby"]},
-        config = config(suffixes = [".yml", ".yaml"]),
-        support = [
-            row(
-                capability = "format",
-                classes = ["ruby"],
-                context = "owned",
-                family = "ruby",
-                fix = "supported",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                state = "supported",
-                transport = "batched",
-                unsupported = {
-                    "windows_arm64": "Ruby portable builds ship no Windows interpreter",
-                    "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
-                },
-            ),
-        ],
-    ),
-    tool(
         id = "staticcheck",
         adapters = {"lint": ["go"]},
-        config = config(suffixes = [".conf"], tier_active = True, stage_native = True),
+        config = config(suffixes = [".conf"], files = ["staticcheck.conf"], tier_active = True, stage_native = True),
         severity = severity(categories = {
             "QF": "info",
             "S": "warning",
@@ -2437,7 +2633,9 @@ TOOLS = [
             extends_syntax = "{ \"extends\": [\"./{base}\"] }\n",
             init_order = 4,
             extensions = [".css"],
+            tier_active = True,
         ),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2454,7 +2652,7 @@ TOOLS = [
     tool(
         id = "stylua",
         adapters = {"format": ["lua"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2470,7 +2668,7 @@ TOOLS = [
     tool(
         id = "swift_format",
         adapters = {"format": ["swift"]},
-        config = config(suffixes = [".swift-format", ".json"]),
+        config = config(suffixes = [".swift-format", ".json"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2492,6 +2690,7 @@ TOOLS = [
     tool(
         id = "swift_lint",
         adapters = {"lint": ["swift"]},
+        config = config(suffixes = [".swift-format", ".json"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2516,7 +2715,12 @@ TOOLS = [
             "format": ["toml"],
             "lint": ["toml"],
         },
-        config = config(suffixes = [".toml"]),
+        config = config(
+            suffixes = [".toml"],
+            files = [".taplo.toml"],
+            ext = "toml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",
@@ -2570,7 +2774,8 @@ TOOLS = [
     tool(
         id = "tflint",
         adapters = {"lint": ["terraform"]},
-        config = config(suffixes = [".hcl"]),
+        config = config(suffixes = [".hcl"], tier_active = True),
+        severity = severity(default = "warning", categories = {"tflint-diagnostic": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -2625,6 +2830,8 @@ TOOLS = [
     tool(
         id = "tinymist",
         adapters = {"lint": ["typst"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2640,6 +2847,7 @@ TOOLS = [
     tool(
         id = "topiary",
         adapters = {"format": ["ocaml"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2656,6 +2864,7 @@ TOOLS = [
     tool(
         id = "trivy_config",
         adapters = {"lint": ["bicep", "cloudformation", "helm", "kubernetes", "terraform"]},
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2721,12 +2930,15 @@ TOOLS = [
             tier_dir = "tsconfig",
             init_order = 3,
             family = "js",
+            tier_active = True,
         ),
+        severity = severity(default = "error"),
     ),
     tool(
         id = "ty",
         adapters = {"typecheck": ["jupyter", "python", "python_stub"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], tier_active = True),
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "typecheck",
@@ -2751,6 +2963,11 @@ TOOLS = [
     tool(
         id = "typos",
         adapters = {"lint": sorted([c for classes in _TYPOS_FAMILY_CLASSES.values() for c in classes])},
+        config = config(
+            files = ["typos.toml"],
+            ext = "toml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",
@@ -2768,6 +2985,7 @@ TOOLS = [
     tool(
         id = "typstyle",
         adapters = {"format": ["typst"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2783,7 +3001,7 @@ TOOLS = [
     tool(
         id = "vale",
         adapters = {"lint": ["asciidoc", "markdown", "rst"]},
-        config = config(suffixes = [".ini"]),
+        config = config(suffixes = [".ini"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2842,6 +3060,7 @@ TOOLS = [
     tool(
         id = "xmllint",
         adapters = {"lint": ["xml"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2858,7 +3077,12 @@ TOOLS = [
     tool(
         id = "yamlfmt",
         adapters = {"format": ["ansible", "github_workflow", "kubernetes", "yaml"]},
-        config = config(suffixes = [".yaml", ".yml", ".yamlfmt"]),
+        config = config(
+            suffixes = [".yaml", ".yml", ".yamlfmt"],
+            files = [".yamlfmt"],
+            ext = "yaml",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",
@@ -2901,7 +3125,20 @@ TOOLS = [
     tool(
         id = "yamllint",
         adapters = {"lint": ["yaml"]},
-        config = config(suffixes = [".yaml", ".yml", ".yamllint"]),
+        config = config(
+            suffixes = [".yaml", ".yml", ".yamllint"],
+            files = [".yamllint"],
+            ext = "yaml",
+            tier_active = True,
+        ),
+        severity = severity(
+            default = "warning",
+            categories = {
+                "anchors": "error",
+                "key-duplicates": "error",
+                "syntax": "error",
+            },
+        ),
         support = [
             row(
                 capability = "lint",
@@ -2918,6 +3155,7 @@ TOOLS = [
     tool(
         id = "zanuda",
         adapters = {"lint": ["ocaml"]},
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2940,6 +3178,7 @@ TOOLS = [
     tool(
         id = "zizmor",
         adapters = {"lint": ["github_workflow"]},
+        config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2963,6 +3202,7 @@ TOOLS = [
     tool(
         id = "zig_fmt",
         adapters = {"format": ["zig"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",

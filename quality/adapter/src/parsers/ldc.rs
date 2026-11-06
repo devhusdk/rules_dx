@@ -5,8 +5,8 @@ use crate::ToolSeverity;
 
 const DIALECT: Dialect = Dialect {
     tool: "ldc",
-    // `-verror-style=gnu` columns count characters of the line.
-    encoding: ColumnEncoding::Scalars,
+    // `-verror-style=gnu` columns count UTF-8 bytes of the line.
+    encoding: ColumnEncoding::Utf8,
     severity: |word| match word {
         "error" => Some(Disposition::Report(ToolSeverity::Error)),
         "warning" | "deprecation" => Some(Disposition::Report(ToolSeverity::Warning)),
@@ -45,6 +45,14 @@ mod tests {
         );
         assert_eq!(found[0].finding.start.column, 9);
         assert_eq!(found[0].finding.message, "undefined identifier `y`");
+    }
+
+    #[test]
+    fn ldc_columns_are_utf8_bytes() {
+        let text = "d/a.d:1:41: Error: undefined identifier `bad`\n";
+        let found = parse_ldc(text.as_bytes(), Some(1), &[FILE]).expect("parsed");
+        assert_eq!(found[0].finding.start.column, 41);
+        assert_eq!(found[0].finding.encoding, ColumnEncoding::Utf8);
     }
 
     #[test]

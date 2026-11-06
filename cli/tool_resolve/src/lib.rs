@@ -25,10 +25,14 @@ pub enum ResolveError {
     CqueryFailed { label: String, detail: String },
     #[error("{RESOLVE_CODE}: cquery for {label} produced no artifact path")]
     NoArtifact { label: String },
-    #[error("{RESOLVE_CODE}: bazel info output_base failed: {detail}")]
-    OutputBaseFailed { detail: String },
+    #[error("{RESOLVE_CODE}: bazel info {key} failed: {detail}")]
+    InfoFailed { key: String, detail: String },
     #[error("{RESOLVE_CODE}: resolved {path} for {label}, but no file is there")]
     MissingArtifact { label: String, path: String },
+    #[error(
+        "{RESOLVE_CODE}: resolved {path} for {label}, but no file is there; build {label} first"
+    )]
+    MissingOutput { label: String, path: String },
     #[error("{RESOLVE_CODE}: could not append {var} to {path}: {detail}")]
     EnvWrite {
         var: String,
@@ -41,6 +45,7 @@ pub enum ResolveError {
 pub trait Bazel {
     fn cquery_files(&self, label: &str, args: &[String]) -> Result<String, ResolveError>;
     fn output_base(&self) -> Result<String, ResolveError>;
+    fn execution_root(&self) -> Result<String, ResolveError>;
 }
 
 /// The real Bazel child processes.
@@ -75,25 +80,33 @@ impl Bazel for CommandBazel {
     }
 
     fn output_base(&self) -> Result<String, ResolveError> {
+        self.info("output_base")
+    }
+
+    fn execution_root(&self) -> Result<String, ResolveError> {
+        self.info("execution_root")
+    }
+}
+
+impl CommandBazel {
+    fn info(&self, key: &str) -> Result<String, ResolveError> {
+        let failed = |detail: String| ResolveError::InfoFailed {
+            key: key.to_owned(),
+            detail,
+        };
         let output = Command::new(&self.bin)
-            .args(["info", "output_base"])
+            .args(["info", key])
             .current_dir(&self.dir)
             .output()
-            .map_err(|error| ResolveError::OutputBaseFailed {
-                detail: format!("could not run {}: {error}", self.bin.display()),
-            })?;
+            .map_err(|error| failed(format!("could not run {}: {error}", self.bin.display())))?;
         if !output.status.success() {
-            return Err(ResolveError::OutputBaseFailed {
-                detail: exit_detail(output.status.code(), &output.stderr),
-            });
+            return Err(failed(exit_detail(output.status.code(), &output.stderr)));
         }
-        let base = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-        if base.is_empty() {
-            return Err(ResolveError::OutputBaseFailed {
-                detail: "bazel info output_base printed nothing".to_owned(),
-            });
+        let value = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        if value.is_empty() {
+            return Err(failed(format!("bazel info {key} printed nothing")));
         }
-        Ok(base)
+        Ok(value)
     }
 }
 
@@ -178,10 +191,10 @@ pub fn select_artifact(cquery_stdout: &str, label: &str) -> Result<String, Resol
         })
 }
 
-/// Joins one output base with one cquery artifact path.
-pub fn join_under(output_base: &str, rel: &str) -> PathBuf {
+/// Joins one root directory with one cquery artifact path.
+pub fn join_under(root: &str, rel: &str) -> PathBuf {
     rel.split('/')
-        .fold(PathBuf::from(output_base), |path, part| path.join(part))
+        .fold(PathBuf::from(root), |path, part| path.join(part))
 }
 
 /// Renders one `NAME=value` environment file line.
@@ -216,12 +229,20 @@ pub fn resolve(
     validate_label(label)?;
     let stdout = bazel.cquery_files(label, cquery_args)?;
     let rel = select_artifact(&stdout, label)?;
-    let base = bazel.output_base()?;
-    let path = join_under(&base, &rel);
+    let external = rel.starts_with("external/");
+    let root = if external {
+        bazel.output_base()?
+    } else {
+        bazel.execution_root()?
+    };
+    let path = join_under(&root, &rel);
     if !path.is_file() {
-        return Err(ResolveError::MissingArtifact {
-            label: label.to_owned(),
-            path: path.display().to_string(),
+        let label = label.to_owned();
+        let path = path.display().to_string();
+        return Err(if external {
+            ResolveError::MissingArtifact { label, path }
+        } else {
+            ResolveError::MissingOutput { label, path }
         });
     }
     Ok(path)

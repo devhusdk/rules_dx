@@ -4,10 +4,8 @@ stages 1
 stage credo classes=elixir sources=matrix/credo_profile_standard/dirty.ex
 completed_rounds 1
 convergence STABLE
-initial 2
-initial WARNING credo credo/Readability.ModuleDoc matrix/credo_profile_standard/dirty.ex 10 10 fixable=false "Modules should have a @moduledoc tag."
+initial 1
 initial WARNING credo credo/Warning.IoInspect matrix/credo_profile_standard/dirty.ex 45 45 fixable=false "There should be no calls to `IO.inspect/1`."
-terminal 2
-terminal WARNING credo credo/Readability.ModuleDoc matrix/credo_profile_standard/dirty.ex 10 10 fixable=false "Modules should have a @moduledoc tag."
+terminal 1
 terminal WARNING credo credo/Warning.IoInspect matrix/credo_profile_standard/dirty.ex 45 45 fixable=false "There should be no calls to `IO.inspect/1`."
 replacements 0

@@ -264,7 +264,7 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "kotlin curated defaults drop ktlint",
+                "kotlin curated defaults",
                 CURATED_DEFAULTS["kotlin"],
                 {
                     "audit": [],

@@ -3,8 +3,24 @@
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("//python/rules:defs.bzl", "python_binary", "python_library")
 
+def _out_dir(ctx, info):
+    """Returns the protoc output directory that matches the sibling-declared files."""
+    root = info.proto_source_root
+    bin_dir = ctx.bin_dir.path
+    if root.startswith(bin_dir):
+        root = root[len(bin_dir):].removeprefix("/")
+    if root in ("", "."):
+        return bin_dir
+    return bin_dir + "/" + root
+
+def _check_package(ctx, info):
+    for src in info.direct_sources:
+        if src.owner.repo_name != ctx.label.repo_name or src.owner.package != ctx.label.package:
+            fail("%s must be in the package of its proto_library %s" % (ctx.label, ctx.attr.proto.label))
+
 def _srcs_impl(ctx):
     info = ctx.attr.proto[ProtoInfo]
+    _check_package(ctx, info)
     root = info.proto_source_root
     outs = []
     names = []
@@ -13,7 +29,7 @@ def _srcs_impl(ctx):
         if root != "." and path.startswith(root + "/"):
             path = path[len(root) + 1:]
         names.append(path)
-        outs.append(ctx.actions.declare_file(src.basename[:-len(".proto")] + "_pb2_grpc.py"))
+        outs.append(ctx.actions.declare_file(src.basename[:-len(".proto")] + "_pb2_grpc.py", sibling = src))
 
     windows = ctx.target_platform_has_constraint(ctx.attr._windows[platform_common.ConstraintValueInfo])
     args = ctx.actions.args()
@@ -22,7 +38,7 @@ def _srcs_impl(ctx):
         join_with = ";" if windows else ":",
         format_joined = "--descriptor_set_in=%s",
     )
-    args.add("--grpc_python_out=" + ctx.bin_dir.path)
+    args.add("--grpc_python_out=" + _out_dir(ctx, info))
     args.add_all(names)
     ctx.actions.run(
         executable = ctx.executable.tool,
@@ -48,7 +64,7 @@ def py_grpc_library(name, proto, py_proto, grpc_tools = "@pypi//grpcio_tools", g
 
     Args:
       name: target name of the py_library.
-      proto: the proto_library with the service.
+      proto: the proto_library with the service. It must sit in the same package.
       py_proto: the py_proto_library for the same proto_library.
       grpc_tools: label of the grpcio-tools package that provides protoc.
       grpc: label of the grpcio package the stubs import.

@@ -97,7 +97,6 @@ pub const MATRIX_CHECKS: [MatrixCheck; 7] = [
     },
 ];
 
-pub const CACHE_SAVERS: [&str; 1] = ["checks"];
 const COVERAGE_TIMEOUT: u32 = 120;
 const MAX_TIMEOUT: u32 = 360;
 
@@ -578,11 +577,6 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
     if coverage_on {
         timeout += COVERAGE_TIMEOUT;
     }
-    let cache_saver = if !enabled.is_empty() || coverage_on {
-        CACHE_SAVERS[0]
-    } else {
-        ""
-    };
     let check_lines = enabled
         .iter()
         .map(|check| check_line(check))
@@ -613,7 +607,6 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
         "checks_timeout".to_string(),
         timeout.min(MAX_TIMEOUT).to_string(),
     );
-    outputs.insert("cache_saver".to_string(), cache_saver.to_string());
     outputs.insert("min_coverage".to_string(), coverage.clone());
     outputs.insert("min_changed_line_coverage".to_string(), changed.clone());
     outputs.insert("artifact_suffix".to_string(), suffix.clone());

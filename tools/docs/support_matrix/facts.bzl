@@ -5,7 +5,7 @@ load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPILER_BLOCKERS", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -56,6 +56,7 @@ def _identity(row):
         "compiler": row["compiler"],
         "coverage": identity.coverage,
         "driver": identity.driver,
+        "platform_probes": COMPILER_PLATFORM_PROBES.get(row["compiler"], {}),
         "probe": COMPILER_PROBES.get(row["compiler"], ""),
         "version": CC_COMPILER_VERSIONS.get(row["compiler"], ""),
     }
@@ -155,6 +156,15 @@ def support_matrix_facts_dict():
     for name in PLATFORM_NOT_APPLICABLE:
         if name not in row_names:
             fail("support matrix: PLATFORM_NOT_APPLICABLE names unknown row " + name)
+    for compiler, by_platform in COMPILER_PLATFORM_PROBES.items():
+        if compiler not in CC_COMPILERS:
+            fail("support matrix: COMPILER_PLATFORM_PROBES names unknown compiler " + compiler)
+        for platform in by_platform:
+            if platform not in platform_ids:
+                fail("support matrix: COMPILER_PLATFORM_PROBES names unknown platform " + platform + " for " + compiler)
+            for name in compiler_rows.get(compiler, []):
+                if platform in PLATFORM_NOT_APPLICABLE.get(name, {}):
+                    fail("support matrix: COMPILER_PLATFORM_PROBES gives " + name + " a probe on " + platform + ", which does not apply")
     for problem in compiler_blocker_problems(COMPILER_BLOCKERS, ROWS, PLATFORMS, PLATFORM_NOT_APPLICABLE):
         fail("support matrix: COMPILER_BLOCKERS: " + problem)
     for name in UNSUPPORTED_CONSTRAINTS:

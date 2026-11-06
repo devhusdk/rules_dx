@@ -11,6 +11,7 @@ check() {
   shift 2
   err=$("$bin" "$@" 2>&1 >/dev/null)
   code=$?
+  err=$(printf '%s' "$err" | tr -d '\r')
   if [ "$code" != "$want_code" ] || [ "$err" != "$want_err" ]; then
     echo "FAIL: $* -> $code '$err' (want $want_code '$want_err')"
     failures=$((failures + 1))
@@ -32,7 +33,7 @@ check 4 "registry: no version of core satisfies 9.x" satisfy core 9.x
 check 2 "registry: not a range is not a valid range" satisfy core "not a range"
 check 3 "registry: cannot read registry file" --file "$tmp/absent.json" list
 
-list=$("$bin" list)
+list=$("$bin" list | tr -d '\r')
 if [ "$list" != "core 1.1.3
 net 2.1.1
 edge none" ]; then
@@ -40,7 +41,7 @@ edge none" ]; then
   failures=$((failures + 1))
 fi
 
-where=$("$bin" where one "two words" | tr '\\' /)
+where=$("$bin" where one "two words" | tr -d '\r' | tr '\\' /)
 has() {
   if ! printf '%s\n' "$where" | grep -F -q -e "$2"; then
     echo "FAIL: where $1 -> '$where'"

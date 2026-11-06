@@ -344,6 +344,12 @@ alias(
     actual = "@rules_rust//rust/settings:clippy_output_diagnostics",
 )
 
+# Generated .dx/bazelrc only: the clippy tier renders its lint levels through this flag.
+alias(
+    name = "clippy_flag",
+    actual = "@rules_rust//rust/settings:clippy_flag",
+)
+
 alias(
     name = "extra_rustc_flag",
     actual = "@rules_rust//rust/settings:extra_rustc_flag",

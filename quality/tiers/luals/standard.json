@@ -1,5 +1,8 @@
 {
-  "diagnostics.severity": {
-    "unused-local": "Warning"
-  }
+  "diagnostics.disable": [
+    "unused-function",
+    "unused-label",
+    "unused-local",
+    "unused-vararg"
+  ]
 }

@@ -39,7 +39,7 @@ def _crates_config_impl(ctx):
     semver_rloc = rlocation_path(ctx, semver_files[0]) if semver_files else ""
 
     crate_dir = ""
-    if ctx.attr.api_baseline == "git" and ctx.attr.api_compat != "off":
+    if ctx.attr.api_baseline == "git" and ctx.attr.api_compat:
         manifests = [f for f in crate_files if f.basename == "Cargo.toml"]
         if len(manifests) == 0:
             fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a Cargo.toml in crate " +
@@ -60,7 +60,7 @@ def _crates_config_impl(ctx):
             "crate_dir": crate_dir,
             "crate_name": ctx.attr.crate_name,
             "api_baseline": ctx.attr.api_baseline,
-            "api_compat": ctx.attr.api_compat,
+            "api_compat": "fail" if ctx.attr.api_compat else "off",
             "crate_rlocs": rlocs,
             "semver_checks_rloc": semver_rloc,
             "version": ctx.attr.version,
@@ -77,10 +77,9 @@ _crates_config = rule(
             values = ["registry", "git"],
             default = "registry",
         ),
-        "api_compat": attr.string(
-            doc = "Public API check against the last release: off, warn or fail.",
-            values = ["off", "warn", "fail"],
-            default = "fail",
+        "api_compat": attr.bool(
+            doc = "Fail a breaking public API change against the last release unless the bump is major.",
+            default = True,
         ),
         "crate": attr.label(
             doc = "Crate target whose files are published by the deployment.",
@@ -102,11 +101,12 @@ _crates_config = rule(
     },
 )
 
-def crates_deploy(name, crate, version = "0.0.0", profile = "release", api_compat = "fail", api_baseline = "registry", tags = [], sbom = None):
+def crates_deploy(name, crate, version = "0.0.0", profile = "release", api_compat = True, api_baseline = "registry", tags = [], sbom = None):
     """Publishes staged crate sources as a local-first crates.io deployment.
 
-    api_compat runs cargo-semver-checks against the last release (off, warn,
-    fail); a breaking change fails unless the version bump is major.
+    api_compat runs cargo-semver-checks against the last release; a breaking
+    change fails unless the version bump is major. It is on by default because
+    crates.io cannot yank a published API back.
     api_baseline picks that release from the registry or from the previous
     v<version> git tag; the git baseline needs a checked-in, standalone
     Cargo.toml.

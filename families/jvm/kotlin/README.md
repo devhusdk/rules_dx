@@ -36,7 +36,7 @@ turned into underscores, for example `@maven//:com_google_guava_guava`. See
 
 ## Format, lint and typecheck
 
-By default `dx format` runs `ktfmt`, `dx lint` runs `ktlint` and `dx typecheck`
+By default `dx format` runs `ktfmt`, `dx lint` runs `detekt` and `dx typecheck`
 runs `kotlinc`. None of them needs a config file.
 
 ## Platforms

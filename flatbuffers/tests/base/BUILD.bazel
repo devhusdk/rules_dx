@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//flatbuffers/rules:defs.bzl", "flatbuffers_library")
 load("//quality:fixtures.bzl", "real_source_target")
 

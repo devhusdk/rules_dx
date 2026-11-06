@@ -90,6 +90,9 @@ func importerIDs(tree *treesitter.Tree, group []*treesitter.Node, add func(strin
 			tail = c
 		}
 	}
+	if len(path) > 0 && path[0] == "_root_" {
+		path = path[1:]
+	}
 	pkg := strings.Join(path, ".")
 	if tail == nil {
 		add(normalizeImport(pkg, false))

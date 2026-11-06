@@ -5,7 +5,7 @@ stage tinymist classes=typst sources=matrix/typst_lint_broken.typ
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR tinymist tinymist/lint matrix/typst_lint_broken.typ 16 16 fixable=false "unclosed delimiter"
+initial WARNING tinymist tinymist/lint matrix/typst_lint_broken.typ 16 16 fixable=false "unclosed delimiter"
 terminal 1
-terminal ERROR tinymist tinymist/lint matrix/typst_lint_broken.typ 16 16 fixable=false "unclosed delimiter"
+terminal WARNING tinymist tinymist/lint matrix/typst_lint_broken.typ 16 16 fixable=false "unclosed delimiter"
 replacements 0

@@ -2,7 +2,7 @@ package scala
 
 import "github.com/devhusdk/rules_dx/gazelle/common"
 
-// Packages in scala-library 2.13.18.
+// Packages in scala-library 2.13.18 and scala3-library_3 3.3.x.
 var platformPackages = common.PackageSet(
 	"scala",
 	"scala.annotation",
@@ -39,6 +39,24 @@ var platformPackages = common.PackageSet(
 	"scala.language",
 	"scala.language.experimental",
 	"scala.util.chaining",
+	"scala.annotation.internal",
+	"scala.compiletime",
+	"scala.compiletime.testing",
+	"scala.compiletime.ops",
+	"scala.compiletime.ops.any",
+	"scala.compiletime.ops.boolean",
+	"scala.compiletime.ops.double",
+	"scala.compiletime.ops.float",
+	"scala.compiletime.ops.int",
+	"scala.compiletime.ops.long",
+	"scala.compiletime.ops.string",
+	"scala.deriving",
+	"scala.quoted",
+	"scala.quoted.runtime",
+	"scala.runtime.coverage",
+	"scala.runtime.function",
+	"scala.runtime.stdLibPatches",
+	"scala.util.boundary",
 )
 
 var externalPackages = []string{

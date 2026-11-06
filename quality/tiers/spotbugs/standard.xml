@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<FindBugsFilter>
+  <Match>
+    <Rank value="15"/>
+  </Match>
+  <Match>
+    <Rank value="16"/>
+  </Match>
+  <Match>
+    <Rank value="17"/>
+  </Match>
+  <Match>
+    <Rank value="18"/>
+  </Match>
+  <Match>
+    <Rank value="19"/>
+  </Match>
+  <Match>
+    <Rank value="20"/>
+  </Match>
+  <Match>
+    <Confidence value="3"/>
+  </Match>
+</FindBugsFilter>

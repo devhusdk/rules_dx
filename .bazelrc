@@ -69,7 +69,6 @@ common:bb --remote_cache=grpcs://remote.buildbuddy.io
 common:bb --remote_cache_compression
 common:bb --remote_timeout=10m
 common:ci --remote_cache=grpcs://remote.buildbuddy.io
-common:ci --announce_rc
 common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true
 
@@ -103,4 +102,3 @@ common --//config:workspace=//:dx_workspace_policy
 try-import %workspace%/user.bazelrc
 
 build --//quality/tools/ruby:rubocop=@bundle//bin:rubocop
-build --//quality/tools/ruby:standardrb=@bundle//bin:standardrb

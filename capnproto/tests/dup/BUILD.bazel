@@ -1,3 +1,6 @@
+# gazelle:ignore
+# gazelle:exclude a
+# gazelle:exclude b
 load("//capnproto/rules:codegen.bzl", "capnp_rust_library")
 load("//capnproto/rules:defs.bzl", "capnp_library")
 load("//quality:fixtures.bzl", "real_source_target")

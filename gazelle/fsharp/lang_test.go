@@ -213,6 +213,16 @@ func TestGenerateDottedModulePerFile(t *testing.T) {
 	}
 }
 
+func TestGenerateModuleRecNextToNamespace(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Types.fs": "namespace Acme\n\ntype Order = { qty: int }\n",
+		"pkg/demo/Demo.fs":  "module rec Acme.Demo\n\nlet run (o: Acme.Order) = o.qty\n",
+	})
+	if got != "Types.fs,Demo.fs" {
+		t.Errorf("library srcs = %q, want Types.fs,Demo.fs", got)
+	}
+}
+
 func TestGenerateUnqualifiedTypeRef(t *testing.T) {
 	got := generatedSrcs(t, map[string]string{
 		"pkg/demo/A.fs": "namespace Demo\n\ntype A = { b: Item }\n",
@@ -648,5 +658,15 @@ func TestResolveNuGetNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(LibraryKind, "app"), common.WrapImportSet(parsed), from)
 	if errs := takeErrors(l); len(errs) != 1 || !strings.Contains(errs[0], "unresolved import") {
 		t.Fatalf("errors = %v, want unresolved import", errs)
+	}
+}
+
+func TestGenerateOpenTypeOrder(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Demo.fs": "namespace Acme.Core\n\nopen type Acme.Core.Math\n\ntype Demo = class end\n",
+		"pkg/demo/Math.fs": "namespace Acme.Core\n\ntype Math =\n    static member Add(a: int, b: int) = a + b\n",
+	})
+	if got != "Math.fs,Demo.fs" {
+		t.Errorf("library srcs = %q, want Math.fs,Demo.fs", got)
 	}
 }

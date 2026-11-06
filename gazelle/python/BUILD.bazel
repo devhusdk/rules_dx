@@ -61,6 +61,7 @@ go_test(
         "@gazelle//language",
         "@gazelle//resolve",
         "@gazelle//v2/label",
+        "@gazelle//v2/merger",
         "@gazelle//v2/rule",
     ],
 )

@@ -421,18 +421,20 @@ fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+/// The system rc file: under `ProgramData` on Windows, else `/etc`.
+fn system_rc(env_get: &dyn Fn(&str) -> Option<String>, windows: bool) -> Option<PathBuf> {
+    if windows {
+        env_get("ProgramData")
+            .filter(|value| !value.is_empty())
+            .map(|data| PathBuf::from(data).join("bazel.bazelrc"))
+    } else {
+        Some(PathBuf::from("/etc/bazel.bazelrc"))
+    }
+}
+
 /// The rc files in the order Bazel reads them: system, workspace, then home. Later files win.
 fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<PathBuf> {
-    let mut roots = Vec::new();
-    if cfg!(windows) {
-        // LCOV_EXCL_START - reason: windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        if let Some(data) = env_get("ProgramData").filter(|value| !value.is_empty()) {
-            roots.push(PathBuf::from(data).join("bazel.bazelrc"));
-        }
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    } else {
-        roots.push(PathBuf::from("/etc/bazel.bazelrc"));
-    }
+    let mut roots: Vec<PathBuf> = system_rc(env_get, cfg!(windows)).into_iter().collect();
     roots.push(workspace.join(".bazelrc"));
     if let Some(home) = home_dir(env_get) {
         roots.push(home.join(".bazelrc"));
@@ -497,9 +499,11 @@ pub fn repository_caches(
             bases.push(home.join("Library").join("Caches").join("bazel"));
         }
         bases.push(PathBuf::from("/private/var/tmp"));
-        if cfg!(windows) {
-            bases.extend(non_empty("USERPROFILE").map(PathBuf::from)); // LCOV_EXCL_LINE - reason: windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        }
+        bases.extend(
+            non_empty("USERPROFILE")
+                .filter(|_| cfg!(windows))
+                .map(PathBuf::from),
+        );
         for base in bases {
             candidates.push(
                 base.join(format!("_bazel_{user}"))

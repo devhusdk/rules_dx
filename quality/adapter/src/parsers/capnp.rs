@@ -19,7 +19,16 @@ fn number(text: &str) -> Option<u64> {
     text.parse().ok()
 }
 
-/// Reads `path:line:col[-col]: error|warning: message`.
+/// Splits `path:line:col[-col]` into its parts.
+fn with_column(head: &str) -> Option<(&str, u64, u64)> {
+    let (rest, span) = head.rsplit_once(':')?;
+    let (path, row) = rest.rsplit_once(':')?;
+    let column = span.split_once('-').map_or(span, |(start, _)| start);
+    Some((path, number(row)?, number(column)?))
+}
+
+/// Reads `path:line[:col[-col]]: error|warning: message`. Errors that span
+/// several lines carry no column and count as column 1.
 fn locate(line: &str) -> Option<Located<'_>> {
     for (kind, severity) in [
         (": error: ", ToolSeverity::Error),
@@ -28,13 +37,17 @@ fn locate(line: &str) -> Option<Located<'_>> {
         let Some((head, message)) = line.split_once(kind) else {
             continue;
         };
-        let (rest, span) = head.rsplit_once(':')?;
-        let (path, row) = rest.rsplit_once(':')?;
-        let column = span.split_once('-').map_or(span, |(start, _)| start);
+        let (path, line, column) = match with_column(head) {
+            Some(found) => found,
+            None => {
+                let (path, row) = head.rsplit_once(':')?;
+                (path, number(row)?, 1)
+            }
+        };
         return Some(Located {
             path,
-            line: number(row)?,
-            column: number(column)?,
+            line,
+            column,
             severity,
             message,
         });
@@ -281,5 +294,28 @@ stack: 1 2 3\n";
             1
         );
         assert!(parse_capnp(b"\xff\xfe\n", Some(0), &[FILE]).is_err());
+        assert!(parse_capnp(b"pkg/a.capnp: error: m\n", Some(1), &[FILE]).is_err());
+        assert!(parse_capnp(b"pkg/a.capnp:x: error: m\n", Some(1), &[FILE]).is_err());
+    }
+
+    #[test]
+    fn multi_line_error_has_column_one() {
+        let err = b"pkg/a.capnp:3: error: Union must have at least two members.\n";
+        let found = parse_capnp(err, Some(1), &[FILE]).expect("findings");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(
+            found[0].finding.message,
+            "Union must have at least two members."
+        );
+        assert_eq!(found[0].finding.start, TextPosition { line: 3, column: 1 });
+    }
+
+    #[test]
+    fn multi_line_error_in_import_blocks_checked_file() {
+        let found = parse_capnp(b"dep/b.capnp:3: error: x\n", Some(1), &[FILE]).expect("finding");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, FILE);
+        assert!(found[0].finding.message.contains("dep/b.capnp:3:1: x"));
     }
 }

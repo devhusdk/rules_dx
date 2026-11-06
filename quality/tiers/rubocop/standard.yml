@@ -1,3 +1,11 @@
-# Needs the standard gem in the Gemfile that provides rubocop.
-inherit_gem:
-  standard: config/base.yml
+# Needs the rubocop gem. Rubocop is the Ruby formatter, so Layout is on.
+AllCops:
+  DisabledByDefault: true
+  NewCops: disable
+  SuggestExtensions: false
+Lint:
+  Enabled: true
+Security:
+  Enabled: true
+Layout:
+  Enabled: true

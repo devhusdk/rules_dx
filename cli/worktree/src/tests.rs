@@ -3017,6 +3017,7 @@ mod hooks {
             "tools/dx deploy --apply //x:y",
             "tools/dx deploy //x:y --apply",
             "cd /r && tools/dx.cmd deploy --debug //x:y --apply",
+            "bash -euo pipefail -c 'tools/dx deploy --apply //x:y'",
         ] {
             let hook::Guard::Ask(output) = deploy_guard("PreToolUse", command, false) else {
                 panic!("{command} asks");
@@ -3080,6 +3081,7 @@ mod hooks {
             "setsid tools/dx test",
             "ionice -c 3 tools/dx test",
             "bash -lc 'cd x && tools/dx check'",
+            "bash -euo pipefail -c 'tools/dx test'",
             "sh -c \"timeout 5 tools/dx test\"",
             "bazel run //:dx -- test",
         ] {
@@ -3102,6 +3104,8 @@ mod hooks {
             "cat tools/dx",
             "timeout 5 sleep 1",
             "bash -c 'echo dx'",
+            "bash -euo pipefail script.sh",
+            "bash -o pipefail -c 'echo hi'",
             "echo dx worktree",
             "bash -c 'echo \"unterminated",
         ] {
@@ -3288,6 +3292,13 @@ mod hooks {
             "timeout 30 git worktree add x",
             "bash -c 'git worktree remove x'",
             "nice -n 5 git worktree prune",
+            "bash -euo pipefail -c 'git worktree add x'",
+            "bash -eo pipefail -c 'git worktree remove x'",
+            "bash -O extglob -c 'git worktree prune'",
+            "bash +O extglob -c 'git worktree prune'",
+            "bash -c -e 'git worktree add x'",
+            "bash -co pipefail 'git worktree add x'",
+            "bash --norc -euo pipefail -c 'git worktree add x'",
         ] {
             assert!(
                 matches!(guard_for_agent(command), hook::Guard::Block(_)),
@@ -5084,6 +5095,25 @@ fn git_run_until_reports_a_stop_and_otherwise_matches_run() {
     assert_eq!(stopped.signal, Some(15));
     let read = crate::git::run_until(&fixture.main, &args, long, &|| None).expect("read");
     assert_eq!(read, crate::git::run(&fixture.main, &args).expect("run"));
+}
+
+#[test]
+fn git_run_with_input_handles_stdin_larger_than_a_pipe_buffer() {
+    let fixture = Fixture::new();
+    let mut input = Vec::new();
+    for index in 0..6000 {
+        input.extend_from_slice(format!("deps/{index:0>60}\0").as_bytes());
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let main = fixture.main.clone();
+    std::thread::spawn(move || {
+        let args = ["check-ignore", "-z", "--stdin"];
+        let _ = sender.send(crate::git::run_with_input(&main, &args, &input));
+    });
+    let result = receiver
+        .recv_timeout(std::time::Duration::from_secs(60))
+        .expect("git did not hang");
+    assert!(result.is_ok());
 }
 
 #[cfg(unix)]

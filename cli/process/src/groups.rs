@@ -8,7 +8,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 const STALE_EMPTY: Duration = Duration::from_secs(60);
-const REAP_GRACE: Duration = Duration::from_secs(2);
 const GROUPS_DIR_NAME: &str = "process-groups";
 
 static LEASE_DIR: OnceLock<PathBuf> = OnceLock::new();
@@ -55,9 +54,13 @@ impl GroupLease {
     }
 
     pub(crate) fn record(&mut self, pgid: i32) {
+        self.write_line(lease_line(pgid));
+    }
+
+    fn write_line(&mut self, line: Option<String>) {
         let _ = self.file.set_len(0);
         let _ = self.file.seek(SeekFrom::Start(0));
-        let Some(line) = lease_line(pgid) else {
+        let Some(line) = line else {
             return;
         };
         let _ = writeln!(self.file, "{line}");
@@ -74,12 +77,11 @@ impl Drop for GroupLease {
 /// The lease text for a group, or `None` when its start time is unknown: such a line could
 /// never prove the group is still the recorded one, so nothing is written.
 pub(crate) fn lease_line(pgid: i32) -> Option<String> {
-    let start = sys::start_time(pgid)?;
-    Some(format!(
-        "{pgid} {} {start} {}",
-        sys::namespace(),
-        sys::boot_id()
-    ))
+    sys::start_time(pgid).map(|start| lease_text(pgid, &start))
+}
+
+fn lease_text(pgid: i32, start: &str) -> String {
+    format!("{pgid} {} {start} {}", sys::namespace(), sys::boot_id())
 }
 
 /// What is known about the process whose pid equals a recorded group number.
@@ -192,8 +194,6 @@ mod sys {
     pub fn group_alive(_pgid: i32) -> bool {
         false
     }
-
-    pub fn signal_group(_pgid: i32, _signo: i32) {}
 
     pub fn namespace() -> String {
         "-".to_owned()
@@ -341,6 +341,10 @@ fn log_decision(dir: &Path, what: &str, pid: u32, recorded: &Recorded, now: &Obs
 }
 
 fn reap_in(dir: &Path) -> Vec<Reaped> {
+    reap_with(dir, observe, stop_group)
+}
+
+fn reap_with(dir: &Path, observe: fn(&Recorded) -> Observed, stop: fn(&Recorded)) -> Vec<Reaped> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };
@@ -360,17 +364,15 @@ fn reap_in(dir: &Path) -> Vec<Reaped> {
                 let now = observe(&recorded);
                 match verdict(&recorded, &now) {
                     Verdict::Keep => {
-                        // LCOV_EXCL_START - reason: live group with unreadable leader cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                         if now.leader == Leader::Unknown {
                             log_decision(dir, "keep-unknown", pid, &recorded, &now);
                         }
-                        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                         continue;
                     }
                     Verdict::Drop => {}
                     Verdict::Stop => {
                         log_decision(dir, "stop", pid, &recorded, &now);
-                        stop_group(&recorded);
+                        stop(&recorded);
                         reaped.push(Reaped {
                             pid,
                             pgid: recorded.pgid,
@@ -403,10 +405,12 @@ fn lease_pid(path: &Path) -> Option<u32> {
 }
 
 /// True while the recorded group's leader is still provably the recorded one or gone.
+#[cfg(unix)]
 fn still_recorded(recorded: &Recorded) -> bool {
     leader_matches(&sys::leader(recorded.pgid), &recorded.start)
 }
 
+#[cfg_attr(not(unix), allow(dead_code))]
 fn leader_matches(leader: &Leader, start: &str) -> bool {
     match leader {
         Leader::Present(now) => now == start,
@@ -415,9 +419,11 @@ fn leader_matches(leader: &Leader, start: &str) -> bool {
     }
 }
 
+#[cfg(unix)]
 fn stop_group(recorded: &Recorded) {
     const SIGTERM: i32 = 15;
     const SIGKILL: i32 = 9;
+    const REAP_GRACE: Duration = Duration::from_secs(2);
     let pgid = recorded.pgid;
     sys::signal_group(pgid, SIGTERM);
     let deadline = std::time::Instant::now() + REAP_GRACE;
@@ -428,6 +434,10 @@ fn stop_group(recorded: &Recorded) {
         sys::signal_group(pgid, SIGKILL);
     }
 }
+
+/// Windows never signals a group: a job object ends the tree with the run.
+#[cfg(not(unix))]
+fn stop_group(_recorded: &Recorded) {}
 
 /// Notice code for a leftover process group dx stopped at startup.
 pub const CODE_ORPHAN_PROCESS_GROUP_STOPPED: &str = "orphan_process_group_stopped";

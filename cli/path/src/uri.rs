@@ -172,6 +172,15 @@ mod tests {
         assert_eq!(without_verbatim(path), path);
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn without_verbatim_keeps_a_path_that_is_not_text() {
+        use std::os::windows::ffi::OsStringExt;
+        let text = std::ffi::OsString::from_wide(&[0xD800]);
+        let path = Path::new(&text);
+        assert_eq!(without_verbatim(path), path);
+    }
+
     #[test]
     fn uri_keeps_every_component_it_was_given() {
         let (native, spelled) = root();
@@ -298,6 +307,17 @@ mod tests {
             uri_to_path("file://otherhost/out/a.pb").expect_err("remote host"),
             UriError::NotLocalPath {
                 uri: "file://otherhost/out/a.pb".to_owned()
+            }
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn uri_to_path_rejects_a_path_without_a_drive_on_windows() {
+        assert_eq!(
+            uri_to_path("file:///tmp/a.py").expect_err("no drive"),
+            UriError::NotLocalPath {
+                uri: "file:///tmp/a.py".to_owned()
             }
         );
     }

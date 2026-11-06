@@ -60,7 +60,7 @@ def _github_config_impl(ctx):
 
     apidiff_rloc = ""
     apidiff_runfiles = ctx.runfiles()
-    if ctx.attr.api_compat != "off":
+    if ctx.attr.api_compat:
         if ctx.attr.apidiff:
             apidiff_rloc = rlocation_path(ctx, ctx.executable.apidiff)
             apidiff_runfiles = ctx.runfiles(files = [ctx.executable.apidiff]).merge(ctx.attr.apidiff[DefaultInfo].default_runfiles)
@@ -69,7 +69,7 @@ def _github_config_impl(ctx):
         ctx,
         "github",
         {
-            "api_compat": ctx.attr.api_compat,
+            "api_compat": "fail" if ctx.attr.api_compat else "off",
             "apidiff_rloc": apidiff_rloc,
             "go_modules": ctx.attr.go_modules,
             "asset_rlocs": asset_rlocs,
@@ -85,13 +85,12 @@ github_config = rule(
     doc = "Writes the deploy config for one draft release.",
     implementation = _github_config_impl,
     attrs = {
-        "api_compat": attr.string(
-            doc = "Go API check against the previous tag: off, warn or fail.",
-            values = ["off", "warn", "fail"],
-            default = "off",
+        "api_compat": attr.bool(
+            doc = "Fail a breaking Go API change against the previous tag unless the bump is major.",
+            default = False,
         ),
         "apidiff": attr.label(
-            doc = "The apidiff binary; set when api_compat is not off.",
+            doc = "The apidiff binary; set when api_compat is on.",
             executable = True,
             cfg = "exec",
         ),
@@ -104,16 +103,16 @@ github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", tags = [], sbom = None, notes = "commits", api_compat = "off", go_modules = []):
+def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", tags = [], sbom = None, notes = "commits", api_compat = False, go_modules = []):
     """Publishes pinned files as a draft-only GitHub Release.
 
     `sbom` is a dx_sbom target uploaded as one more release asset.
     `tag = "current"` uses the tag that points at HEAD.
     `notes` is "commits" (the grouped commit list since the previous tag), "none"
     or a label of a markdown file.
-    `api_compat` ("off", "warn" or "fail") runs apidiff on each of `go_modules`
-    (workspace-relative directories; empty means the go.mod at the root) against the previous v<version> tag; "fail"
-    refuses breaking changes unless the bump is major.
+    `api_compat` runs apidiff on each of `go_modules`
+    (workspace-relative directories; empty means the go.mod at the root) against the previous v<version> tag and
+    refuses breaking changes unless the bump is major. It is off by default because it needs apidiff.
     """
     tag_error = github_tag_error(tag)
     if tag_error != "":
@@ -128,7 +127,7 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", t
     github_config(
         name = config_target,
         api_compat = api_compat,
-        apidiff = "//deploy/rules/pins:apidiff" if api_compat != "off" else None,
+        apidiff = "//deploy/rules/pins:apidiff" if api_compat else None,
         artifacts = artifacts + ([sbom] if sbom else []),
         go_modules = go_modules,
         deploy_name = name,

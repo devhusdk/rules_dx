@@ -1,10 +1,11 @@
 {
+  "diagnostics.disable": [
+    "unused-function",
+    "unused-label",
+    "unused-local",
+    "unused-vararg"
+  ],
   "diagnostics.groupFileStatus": {
     "strong": "Any"
-  },
-  "diagnostics.severity": {
-    "unused-local": "Error",
-    "unused-function": "Error",
-    "unused-vararg": "Error"
   }
 }

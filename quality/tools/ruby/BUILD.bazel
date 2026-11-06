@@ -8,19 +8,9 @@ unconfigured_tool(
     tool = "rubocop",
 )
 
-unconfigured_tool(
-    name = "standardrb_unconfigured",
-    tool = "standardrb",
-)
-
 label_flag(
     name = "rubocop",
     build_setting_default = ":rubocop_unconfigured",
-)
-
-label_flag(
-    name = "standardrb",
-    build_setting_default = ":standardrb_unconfigured",
 )
 
 real_source_target(

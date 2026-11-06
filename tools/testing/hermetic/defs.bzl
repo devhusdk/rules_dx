@@ -88,6 +88,7 @@ hermetic_manifest = rule(
 )
 
 # Read by the support matrix (tools/docs/support_matrix) for the hermetic_qualification kind.
+# Windows stays opt-in per target (compatible_with) until each consumer has Windows evidence.
 HERMETIC_COMPATIBLE_WITH = select({
     "@platforms//os:linux": [],
     "@platforms//os:macos": [],

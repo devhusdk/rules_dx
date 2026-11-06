@@ -3,6 +3,7 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
+load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
@@ -26,7 +27,6 @@ _LIBSTDCXX_READY = Label("//rust/rules:libstdcxx_ready")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNWIND = Label("//rust/rules:unwind")
 _MSVC = Label("//rust/rules:msvc")
-_CL_EXE = Label("//cc/toolchains:msvc_selected")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _MSVC_OPT = Label("//rust/rules:msvc_opt")
 
@@ -39,6 +39,7 @@ MSVC_OPT_LINK_FLAGS = [
     "-Clinker-flavor=lld-link",
     "-Clink-arg=/Brepro",
 ] + REPRODUCIBLE_PDB_LINK_FLAGS
+RUST_FUZZ_LIBFUZZER_SYS = Label("@crates//:libfuzzer-sys")
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
 _CRT_STATIC_FLAG = "-Ctarget-feature=+crt-static"
@@ -85,7 +86,7 @@ _rust_binary_transition = transition(
 
 _LIBSTDCXX_ATTRS = {
     "libstdcxx": attr.bool(doc = "Whether the target platform uses libstdc++."),
-    "msvc": attr.bool(doc = "Whether cl.exe is the selected C++ compiler."),
+    "msvc": attr.bool(doc = "Whether the target uses the MSVC ABI (cl.exe or clang-cl)."),
     "crt_static": attr.bool(doc = "Whether the target's own rustc_flags set +crt-static."),
 }
 
@@ -94,7 +95,7 @@ def _libstdcxx_forward(rustc_flags = None):
     crt_static = type(rustc_flags) == "list" and any(["+crt-static" in flag for flag in rustc_flags])
     return {
         "libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False}),
-        "msvc": select({_CL_EXE: True, "//conditions:default": False}),
+        "msvc": select({_MSVC: True, "//conditions:default": False}),
         "crt_static": crt_static,
     }
 
@@ -145,6 +146,7 @@ _rust_forward = dx_library_forward_rule(
         [_rust_common.test_crate_info],
     ],
     extra_attrs = _LIBSTDCXX_ATTRS,
+    quiet_providers = [LintsInfo],
     upstream_cfg = _cpp_runtime_transition,
 )
 
@@ -709,15 +711,16 @@ _rust_fuzz_binary = rule(
     doc = "Builds `binary` with the pinned LLVM's libFuzzer runtime.",
 )
 
-def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, **kwargs):
+def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys = None, **kwargs):
     """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`.
 
     Needs a toolchain that accepts `-Z` flags; the build sets RUSTC_BOOTSTRAP=1 for it.
+    `libfuzzer_sys` overrides the default libfuzzer-sys from rules_dx's hub.
     """
     rust_binary(
         name = name + "_binary",
         srcs = srcs,
-        deps = (deps or []) + ["@crates//:libfuzzer-sys"],
+        deps = (deps or []) + [libfuzzer_sys or RUST_FUZZ_LIBFUZZER_SYS],
         rustc_flags = _FUZZ_RUSTC_FLAGS + (rustc_flags or []),
         rustc_env = dict(rustc_env or {}, RUSTC_BOOTSTRAP = "1"),
         visibility = ["//visibility:private"],

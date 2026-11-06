@@ -131,8 +131,6 @@ const PHPSTAN_ARGS: &[&str] = &[
     "--no-interaction",
     "--error-format=json",
 ];
-const KTLINT_CHECK_ARGS: &[&str] = &["--relative", "--log-level=none", "--reporter=sarif"];
-const KTLINT_FIX_ARGS: &[&str] = &["--relative", "--format"];
 const BUF_LINT_ARGS: &[&str] = &["lint", "--error-format=json"];
 const BUF_BREAKING_ARGS: &[&str] = &["breaking", "--error-format=json"];
 const BUF_AGAINST_FLAG: &str = "--against";
@@ -281,8 +279,6 @@ const YAMLFMT_CHECK_ARGS: &[&str] = &["-lint", "-q"];
 const YAMLFMT_FIX_ARGS: &[&str] = &[];
 const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
 const SHFMT_FIX_ARGS: &[&str] = &["-w"];
-const STANDARDRB_CHECK_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
-const STANDARDRB_FIX_ARGS: &[&str] = &["--fix", "--cache", "false"];
 const DJLINT_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const DJLINT_FORMAT_FIX_ARGS: &[&str] = &["--reformat", "--quiet"];
 const DJLINT_CHECK_PREFIX: &[&str] = &[
@@ -296,6 +292,15 @@ const DJLINT_PREFER_CONFIG: &[&str] = &["--prefer-configuration"];
 const GPLINT_PREFIX: &[&str] = &["-f", "json", "-i", "dx-gplint-no-ignore"];
 const STYLELINT_PREFIX: &[&str] = &["--formatter", "json"];
 const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
+const RUBOCOP_FORMAT_CHECK_ARGS: &[&str] = &[
+    "--format",
+    "json",
+    "--cache",
+    "false",
+    "--fix-layout",
+    "--display-only-correctable",
+];
+const RUBOCOP_FORMAT_FIX_ARGS: &[&str] = &["--fix-layout", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
@@ -319,14 +324,7 @@ const REGAL_LINT_PREFIX: &[&str] = &[
     "warning",
 ];
 const ACTIONLINT_PREFIX: &[&str] = &["-no-color", "-format", "{{json .}}", "--"];
-const ZIZMOR_PREFIX: &[&str] = &[
-    "--format",
-    "json",
-    "--offline",
-    "--no-progress",
-    "--no-config",
-    "--",
-];
+const ZIZMOR_PREFIX: &[&str] = &["--format", "json", "--offline", "--no-progress", "--no-config"];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const ELVIS_TAIL: &[&str] = &["--output-format", "parsable", "rock"];
 const TRIVY_CONFIG_PREFIX: &[&str] = &[
@@ -345,7 +343,7 @@ const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const TYPOS_CHECK_ARGS: &[&str] = &["--format", "json", "--"];
-const TYPOS_FIX_ARGS: &[&str] = &["--write-changes", "--format", "silent", "--"];
+const TYPOS_FIX_ARGS: &[&str] = &["--write-changes", "--no-check-filenames", "--format", "silent", "--"];
 const NOTEBOOK_OUTPUTS_CHECK_ARGS: &[&str] = &["outputs"];
 const NOTEBOOK_OUTPUTS_FIX_ARGS: &[&str] = &["outputs", "--fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
@@ -594,27 +592,27 @@ fn ruff_base(
     argv
 }
 
-pub fn ruff_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn ruff_check(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
     let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_CHECK_TAIL.iter().map(OsString::from));
-    assemble(binary, head, files, "")
+    assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn ruff_fix(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
     let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FIX_TAIL.iter().map(OsString::from));
-    assemble(binary, head, files, "")
+    assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn ruff_format_check(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
     let mut head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FORMAT_CHECK_TAIL.iter().map(OsString::from));
-    assemble(binary, head, files, "")
+    assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn ruff_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
     let head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
-    assemble(binary, head, files, "")
+    assemble(binary, head, files, cwd_rel)
 }
 
 pub fn ty_check(
@@ -773,9 +771,14 @@ pub fn markdown_check(
     binary: &Path,
     sources: &[(&str, &Path)],
     siblings: &[(&str, &Path)],
+    kinds: &[&str],
 ) -> Invocation {
-    let mut argv = Vec::with_capacity(1 + 2 * (sources.len() + siblings.len()));
+    let mut argv = Vec::with_capacity(1 + 2 * (sources.len() + siblings.len() + kinds.len()));
     argv.push(binary.as_os_str().to_owned());
+    for kind in kinds {
+        argv.push(OsString::from("--kind"));
+        argv.push(OsString::from(kind));
+    }
     for (workspace, absolute) in sources {
         argv.push(OsString::from("--source"));
         let mut mapping = OsString::from(workspace);
@@ -1316,30 +1319,6 @@ pub fn detekt_check(binary: &Path, files: &[&Path], config: &Path, report: &Path
     }
 }
 
-pub fn ktlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        KTLINT_CHECK_ARGS,
-        "--editorconfig",
-        config,
-        &[],
-        files,
-        "",
-    )
-}
-
-pub fn ktlint_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        KTLINT_FIX_ARGS,
-        "--editorconfig",
-        config,
-        &[],
-        files,
-        "",
-    )
-}
-
 fn buf(
     binary: &Path,
     args: &[&str],
@@ -1792,11 +1771,12 @@ pub fn jet_check(binary: &Path, config: &Path, scratch: &Path, report: &Path) ->
     }
 }
 
-/// `lint.jl --scratch DIR --report OUT FILE...`; the report is the only write.
+/// `lint.jl --scratch DIR --report OUT --config JuliaLint.toml FILE...`; the report is the only write.
 pub fn julialint_check(
     binary: &Path,
     scratch: &Path,
     report: &Path,
+    config: &Path,
     files: &[&Path],
 ) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
@@ -1804,6 +1784,8 @@ pub fn julialint_check(
     argv.push(scratch.as_os_str().to_owned());
     argv.push(OsString::from("--report"));
     argv.push(report.as_os_str().to_owned());
+    argv.push(OsString::from("--config"));
+    argv.push(config.as_os_str().to_owned());
     argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
     Invocation {
         argv,
@@ -1961,11 +1943,16 @@ pub fn selene_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> In
 
 /// Check-only: zanuda reads the typed trees (`.cmt`/`.cmti`) named by `list`, one
 /// `impl|intf<TAB>source<TAB>cmt` line each, and writes its findings to `out` as rdjsonl.
-pub fn zanuda_check(binary: &Path, list: &Path, out: &Path) -> Invocation {
+pub fn zanuda_check(binary: &Path, list: &Path, out: &Path, disabled: &[&str]) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     argv.push(OsString::from("-cmt-list"));
     argv.push(list.as_os_str().to_owned());
     argv.extend(ZANUDA_CHECK_ARGS.iter().map(OsString::from));
+    argv.extend(
+        disabled
+            .iter()
+            .map(|lint| OsString::from(format!("-no-{lint}"))),
+    );
     argv.push(OsString::from("-ordjsonl"));
     argv.push(out.as_os_str().to_owned());
     Invocation {
@@ -2158,30 +2145,6 @@ pub fn shfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, SHFMT_FIX_ARGS, files, "")
 }
 
-pub fn standardrb_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        STANDARDRB_CHECK_ARGS,
-        "--config",
-        config,
-        SCALAFMT_EMPTY,
-        files,
-        "",
-    )
-}
-
-pub fn standardrb_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    optional_flag(
-        binary,
-        STANDARDRB_FIX_ARGS,
-        "--config",
-        config,
-        SCALAFMT_EMPTY,
-        files,
-        "",
-    )
-}
-
 pub fn djlint_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     djlint(binary, DJLINT_FORMAT_CHECK_ARGS, files, config)
 }
@@ -2265,6 +2228,30 @@ pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> I
     optional_flag(
         binary,
         RUBOCOP_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+pub fn rubocop_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        RUBOCOP_FORMAT_CHECK_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+pub fn rubocop_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        RUBOCOP_FORMAT_FIX_ARGS,
         "--config",
         config,
         SCALAFMT_EMPTY,
@@ -2590,8 +2577,13 @@ pub fn actionlint_check(binary: &Path, files: &[&Path]) -> Invocation {
 }
 
 /// `--offline` keeps the audits that would call the GitHub API out of the run.
-pub fn zizmor_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, ZIZMOR_PREFIX, files, "")
+pub fn zizmor_check(binary: &Path, files: &[&Path], persona: &str) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(ZIZMOR_PREFIX.iter().map(OsString::from));
+    head.push(OsString::from("--persona"));
+    head.push(OsString::from(persona));
+    head.push(OsString::from("--"));
+    assemble(binary, head, files, "")
 }
 
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.
@@ -2608,17 +2600,21 @@ pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
 }
 
 /// Reads the checks bundle from `--cache-dir <cache>` and never touches the network.
-/// trivy config scans one target per call.
-pub fn trivy_config_check(binary: &Path, file: &Path, cache_dir: &Path) -> Invocation {
-    required_flag(
-        binary,
-        TRIVY_CONFIG_PREFIX,
-        "--cache-dir",
-        cache_dir,
-        END_OF_FLAGS,
-        &[file],
-        "",
-    )
+/// trivy config scans one target per call, reporting only the given severities.
+pub fn trivy_config_check(
+    binary: &Path,
+    file: &Path,
+    cache_dir: &Path,
+    severities: &[&str],
+) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(TRIVY_CONFIG_PREFIX.iter().map(OsString::from));
+    head.push(OsString::from("--severity"));
+    head.push(OsString::from(severities.join(",")));
+    head.push(OsString::from("--cache-dir"));
+    head.push(cache_dir.as_os_str().to_owned());
+    head.extend(END_OF_FLAGS.iter().map(OsString::from));
+    assemble(binary, head, &[file], "")
 }
 
 /// Always `--config <config>`: checkmake otherwise falls back to `$HOME/checkmake.ini`.
@@ -2649,8 +2645,23 @@ pub fn cmakelint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocat
     }
 }
 
-pub fn deadnix_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, DEADNIX_CHECK_ARGS, files, "")
+/// `lambda_arg` and `lambda_pattern_names` report unused lambda arguments and pattern names.
+pub fn deadnix_check(
+    binary: &Path,
+    files: &[&Path],
+    lambda_arg: bool,
+    lambda_pattern_names: bool,
+) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(DEADNIX_CHECK_ARGS[..3].iter().map(OsString::from));
+    if !lambda_arg {
+        head.push(OsString::from("--no-lambda-arg"));
+    }
+    if !lambda_pattern_names {
+        head.push(OsString::from("--no-lambda-pattern-names"));
+    }
+    head.push(OsString::from("--"));
+    assemble(binary, head, files, "")
 }
 
 pub fn deadnix_fix(binary: &Path, files: &[&Path]) -> Invocation {

@@ -19,7 +19,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | C and C++ | none | `conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set |
 | C# | none | `nuget` |
 | CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_arm64`: not tested yet | none: the CUDA toolkit is a pinned download |
-| D | `windows_x86_64`, `windows_arm64`: not tested yet | `dub` (pinned, no advisories) |
+| D | none | `dub` (pinned, no advisories) |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` |
 | Elixir | none | `hex` |
 | Erlang | none | `hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it |
@@ -70,7 +70,7 @@ Select one with `--@rules_dx//cc/toolchains:compiler=<value>`. Blocked on names 
 | --- | --- | --- | --- | --- |
 | GCC 16.2.0 (`gcc`) | gnu | gcov | `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux | none |
 | LLVM 23.1.2 (`llvm`, default) | gnu | llvm | none | none |
-| Microsoft cl.exe (`msvc`) | msvc | no | `linux_x86_64`, `linux_arm64`, `macos_arm64`: Microsoft cl.exe runs only on Windows | `windows_arm64`: native cl.exe ARM64 execution not yet confirmed on a Windows arm64 runner |
+| Microsoft cl.exe (`msvc`) | msvc | no | `linux_x86_64`, `linux_arm64`, `macos_arm64`: Microsoft cl.exe runs only on Windows | none |
 
 ## Quality
 
@@ -95,7 +95,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Java | `checkstyle`, `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` | no |
 | JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | no | `jest` | `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | `CoverageTools` | none |
-| Kotlin | `detekt`, `ktlint`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
+| Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
 | Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` | `selene unused_variable` |
 | MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring | no |
 | OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | no | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
@@ -104,7 +104,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | PowerShell | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows), `typos` | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | n/a | `pwsh` | `pester` | `psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments` |
 | Protobuf | `buf`, `typos` | `buf` | no | no | n/a | no |
 | Python | `pydoclint`, `ruff`, `typos` | `ruff` | `ty` | `griffe` | `coverage.py` | `ruff F401, F841` |
-| Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `rubocop Lint/UselessAssignment` |
+| Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `rubocop Lint/UselessAssignment` |
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` | `scalac -Wunused` |
 | Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring | no |

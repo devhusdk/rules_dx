@@ -78,7 +78,8 @@ fn current_version(text: &str) -> String {
         .unwrap_or_else(|| "?".to_owned())
 }
 
-/// Writes the edit, then refreshes the lockfile; puts both files back if the refresh fails.
+/// Writes the edit, then resolves the module graph (refreshing the lockfile when there is one);
+/// puts the files back if that fails.
 fn write_module(
     invocation: &Invocation,
     workspace: &Path,
@@ -88,11 +89,9 @@ fn write_module(
     let lock = workspace.join(LOCKFILE);
     let lock_before = std::fs::read(&lock).ok();
     dx_adopt::write_module_edit(workspace, edit).map_err(|error| error.to_string())?;
-    let Some(lock_bytes) = lock_before else {
-        return Ok(());
-    };
+    let mode = if lock_before.is_some() { "update" } else { "off" };
     let mut argv = invocation.bazel_head().argv("mod");
-    argv.extend(["deps".to_owned(), "--lockfile_mode=update".to_owned()]);
+    argv.extend(["deps".to_owned(), format!("--lockfile_mode={mode}")]);
     let detail = match runner.run(&argv, workspace, &[]) {
         Ok(status) if status.code == Some(0) => return Ok(()),
         Ok(status) => match status.code {
@@ -102,7 +101,9 @@ fn write_module(
         Err(error) => error.to_string(),
     };
     let _ = std::fs::write(workspace.join(&edit.path), &edit.old);
-    let _ = std::fs::write(&lock, lock_bytes);
+    if let Some(lock_bytes) = lock_before {
+        let _ = std::fs::write(&lock, lock_bytes);
+    }
     Err(format!(
         "refreshing {LOCKFILE} failed ({detail}); {} restored",
         edit.path
@@ -900,7 +901,7 @@ mod tests {
     }
 
     #[test]
-    fn no_lockfile_or_a_current_dep_skips_the_refresh() {
+    fn no_lockfile_checks_resolution_without_writing_one() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-no-lock-", OLD);
         std::fs::write(root.join("MODULE.bazel"), dep(OLD)).expect("module");
         std::fs::remove_file(root.join("MODULE.bazel.lock")).expect("lock");
@@ -908,7 +909,26 @@ mod tests {
         let (code, out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(module_text(&root), dep(module()));
-        assert!(runner.calls.borrow().is_empty());
+        let calls = runner.calls.borrow();
+        assert_eq!(calls.len(), 1, "{calls:?}");
+        assert!(calls[0].ends_with(&["deps".to_owned(), "--lockfile_mode=off".to_owned()]));
+    }
+
+    #[test]
+    fn no_lockfile_and_a_failed_resolution_restores_the_module() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-no-lock-fails-", "1.2.3");
+        std::fs::remove_file(root.join("MODULE.bazel.lock")).expect("lock");
+        let before = snapshot(&root);
+        let runner = Recorder::scripted(&[1]);
+        let inv = invocation(&["upgrade", "--apply", "--to=9.9.9"]);
+        let (code, _out, err) = run_with(&inv, &root, &runner);
+        assert_eq!(code, 1, "{err}");
+        assert_eq!(snapshot(&root), before);
+        assert_eq!(runner.calls.borrow().len(), 1);
+    }
+
+    #[test]
+    fn a_current_dep_skips_the_refresh() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-dep-current-", OLD);
         std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
         let runner = Recorder::default();

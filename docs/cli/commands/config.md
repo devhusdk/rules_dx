@@ -109,7 +109,7 @@ from the tier. The strict tier denies what standard only reviews.
 |---|---|---|---|
 | `package` | string | none | Package the finding names. |
 | `set` | string | none | Dependency set that owns the package. |
-| `license` | string | none | License id being accepted. |
+| `license` | string | none | Exact license string of the finding. |
 | `versions` | string | none | Affected version range. |
 | `reason` | string | none | Why the license is accepted. |
 | `expires` | string | none | Date the exception ends. |

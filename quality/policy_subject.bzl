@@ -12,6 +12,8 @@ def _policy_subject_impl(ctx):
             fields["family." + family_id + "." + capability] = ",".join(
                 getattr(section, capability),
             )
+            if section.profile:
+                fields["profile." + family_id] = section.profile
             fields["disabled." + family_id + "." + capability] = str(
                 capability in section.disabled,
             )

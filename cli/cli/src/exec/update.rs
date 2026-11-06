@@ -34,17 +34,21 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
                 env.workspace,
                 env.query_runner,
                 &registry,
+                env.out,
                 env.err,
             )
         {
             return code;
         }
+        let fetch = update_outdated::registry_fetch();
         if invocation.add_missing
             && let Err(code) = add_missing(
                 invocation,
                 env.workspace,
                 env.query_runner,
                 &registry,
+                fetch.as_ref(),
+                env.out,
                 env.err,
             )
         {
@@ -74,19 +78,12 @@ fn prune_unused(
     workspace: &std::path::Path,
     query_runner: &dyn dx_plan::resolve::QueryRunner,
     registry: &dx_adopt::dependency_sets::Registry,
+    out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
 ) -> Result<(), i32> {
-    let mut fail = |message: &str| {
-        Err(pre_exec(
-            invocation.output,
-            &mut std::io::sink(),
-            err,
-            message,
-        ))
-    };
     let resolved = match dx_adopt::dependency_sets::resolve(registry, &invocation.targets) {
         Ok(resolved) => resolved,
-        Err(error) => return fail(&error.to_string()),
+        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
     };
     let unused = update_unused::find(
         workspace,
@@ -105,7 +102,13 @@ fn prune_unused(
             }
             Ok(())
         }
-        Err(message) => fail(&message),
+        Err(message) => Err(operational(
+            invocation,
+            out,
+            err,
+            CODE_UPDATE_FAILED,
+            &message,
+        )),
     }
 }
 
@@ -114,25 +117,18 @@ fn add_missing(
     workspace: &std::path::Path,
     query_runner: &dyn dx_plan::resolve::QueryRunner,
     registry: &dx_adopt::dependency_sets::Registry,
+    fetch: &dyn dx_update::discover::Fetch,
+    out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
 ) -> Result<(), i32> {
-    let mut fail = |message: &str| {
-        Err(pre_exec(
-            invocation.output,
-            &mut std::io::sink(),
-            err,
-            message,
-        ))
-    };
     let resolved = match dx_adopt::dependency_sets::resolve(registry, &invocation.targets) {
         Ok(resolved) => resolved,
-        Err(error) => return fail(&error.to_string()),
+        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
     };
-    let fetch = update_outdated::registry_fetch();
     match update_add_missing::add_missing(
         workspace,
         &resolved,
-        fetch.as_ref(),
+        fetch,
         query_runner,
         &invocation.bazel_startup_options,
     ) {
@@ -146,7 +142,13 @@ fn add_missing(
             }
             Ok(())
         }
-        Err(message) => fail(&message),
+        Err(message) => Err(operational(
+            invocation,
+            out,
+            err,
+            CODE_UPDATE_FAILED,
+            &message,
+        )),
     }
 }
 
@@ -609,3 +611,115 @@ pub(super) fn configured_uv_closure(
 #[cfg(test)]
 #[path = "update_live.rs"]
 mod update_live;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dx_adopt::dependency_sets::{DependencySet, Ecosystem, Registry};
+    use dx_plan::args::parse;
+    use std::path::Path;
+
+    struct NoQuery;
+
+    impl dx_plan::resolve::QueryRunner for NoQuery {
+        fn run_query(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+        ) -> std::io::Result<dx_plan::resolve::QueryResult> {
+            Err(std::io::Error::other("no bazel"))
+        }
+    }
+
+    fn workspace(manifest: &str, source: &str) -> (tempfile::TempDir, Registry) {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("web")).unwrap();
+        std::fs::write(dir.path().join("web/package.json"), manifest).unwrap();
+        std::fs::write(dir.path().join("web/index.js"), source).unwrap();
+        std::fs::write(
+            dir.path().join("web/pnpm-lock.yaml"),
+            "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.3.0:\n    resolution: {integrity: sha512-x}\n\n  react@18.0.0:\n    resolution: {integrity: sha512-y}\n",
+        )
+        .unwrap();
+        let registry = Registry {
+            sets: vec![DependencySet {
+                name: "npm".to_owned(),
+                ecosystem: Ecosystem::Npm,
+                manifests: vec!["web/package.json".to_owned()],
+                locks: vec!["web/pnpm-lock.yaml".to_owned()],
+                scopes: Vec::new(),
+                repository: None,
+            }],
+        };
+        (dir, registry)
+    }
+
+    fn json_invocation(flag: &str) -> Invocation {
+        parse(&[
+            "update".to_owned(),
+            "--apply".to_owned(),
+            flag.to_owned(),
+            "--output=json".to_owned(),
+        ])
+        .expect("parse")
+    }
+
+    fn assert_runtime_failure(code: i32, out: &[u8], err: &[u8]) {
+        let out = String::from_utf8_lossy(out);
+        assert_eq!(code, dx_process::operational_code(), "{out}");
+        assert!(out.contains("\"code\":\"update_failed\""), "{out}");
+        assert!(out.contains("command_finished"), "{out}");
+        assert!(!String::from_utf8_lossy(err).contains("usage"));
+    }
+
+    #[test]
+    fn a_failed_add_missing_is_a_runtime_error_on_stdout() {
+        let (dir, registry) = workspace(
+            "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n",
+            "import pad from 'left-pad';\nimport React from 'react';\n",
+        );
+        let fetch = |url: &str| -> Result<String, String> { Err(format!("404 {url}")) };
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = add_missing(
+            &json_invocation("--add-missing"),
+            dir.path(),
+            &NoQuery,
+            &registry,
+            &fetch,
+            &mut out,
+            &mut err,
+        )
+        .expect_err("fails");
+        assert_runtime_failure(code, &out, &err);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_prune_is_a_runtime_error_on_stdout() {
+        use std::os::unix::fs::PermissionsExt;
+        let (dir, registry) = workspace(
+            "{\n  \"dependencies\": {\n    \"left-pad\": \"1.3.0\",\n    \"react\": \"18.0.0\"\n  }\n}\n",
+            "import React from 'react';\n",
+        );
+        let manifest = dir.path().join("web/package.json");
+        std::fs::set_permissions(&manifest, std::fs::Permissions::from_mode(0o444)).unwrap();
+        if std::fs::OpenOptions::new()
+            .write(true)
+            .open(&manifest)
+            .is_ok()
+        {
+            return;
+        }
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = prune_unused(
+            &json_invocation("--prune"),
+            dir.path(),
+            &NoQuery,
+            &registry,
+            &mut out,
+            &mut err,
+        )
+        .expect_err("fails");
+        assert_runtime_failure(code, &out, &err);
+    }
+}

@@ -107,7 +107,7 @@ pub(super) fn succeeds(cwd: &Path, args: &[&str]) -> bool {
         .unwrap_or(false)
 }
 
-/// Runs git with data on stdin and returns stdout.
+/// Runs git with data on stdin and returns stdout. Feeds stdin concurrently so large input cannot deadlock.
 pub(super) fn run_with_input(
     cwd: &Path,
     args: &[&str],
@@ -121,12 +121,16 @@ pub(super) fn run_with_input(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| WorktreeError::git(args, &format!("cannot start git: {error}")))?;
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(input);
-    }
-    let output = child
-        .wait_with_output()
-        .map_err(|error| WorktreeError::git(args, &error.to_string()))?;
+    let stdin = child.stdin.take();
+    let output = std::thread::scope(|scope| {
+        scope.spawn(move || {
+            if let Some(mut stdin) = stdin {
+                let _ = stdin.write_all(input);
+            }
+        });
+        child.wait_with_output()
+    })
+    .map_err(|error| WorktreeError::git(args, &error.to_string()))?;
     if output.status.success() || output.status.code() == Some(1) {
         return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
     }

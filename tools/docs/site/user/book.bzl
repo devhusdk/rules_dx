@@ -81,7 +81,6 @@ USER_BOOK = [
     ),
     mdbook_page("Init", "docs/cli/commands/init.md", "//docs:cli/commands/init.md"),
     mdbook_page("Upgrade", "docs/cli/commands/upgrade.md", "//docs:cli/commands/upgrade.md"),
-    mdbook_page("Explain", "docs/cli/commands/explain.md", "//docs:cli/commands/explain.md"),
     mdbook_page("Bench", "docs/cli/commands/bench.md", "//docs:cli/commands/bench.md"),
     mdbook_page("Fuzz", "docs/cli/commands/fuzz.md", "//docs:cli/commands/fuzz.md"),
     mdbook_page("Release", "docs/cli/commands/release.md", "//docs:cli/commands/release.md"),

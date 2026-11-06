@@ -1,0 +1,18 @@
+{
+  "keywords-in-logical-order": "error",
+  "no-background-only-scenario": "error",
+  "no-dupe-scenario-names": ["error", "in-feature"],
+  "no-duplicate-tags": "error",
+  "no-empty-background": "error",
+  "no-empty-file": "error",
+  "no-examples-in-scenarios": "error",
+  "no-files-without-scenarios": "error",
+  "no-homogenous-tags": "error",
+  "no-partially-commented-tag-lines": "error",
+  "no-scenario-outlines-without-examples": "error",
+  "no-superfluous-tags": "error",
+  "no-unnamed-features": "error",
+  "no-unnamed-scenarios": "error",
+  "no-unused-variables": "error",
+  "use-and": "error"
+}

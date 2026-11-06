@@ -7,7 +7,7 @@ use dx_plan::finalize::{FinalizeError, FinalizeInput, GazelleStatus, finalize};
 use dx_plan::generate::{ProjectedManifest, project, refused_lines, render_diff, text_lines};
 use dx_plan::plan::{
     GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_scope_json,
-    intended_path, patch_path, plan_generate_logged,
+    intended_path, patch_path, plan_generate,
 };
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::resolve;
@@ -367,13 +367,12 @@ fn run_generate_request(
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     let _ = std::fs::remove_file(&patch);
-    let plan = match plan_generate_logged(
+    let plan = match plan_generate(
         &resolved,
         &request.bazel_options,
         !apply,
         &request.bazel_startup_options,
         patch_arg.as_deref(),
-        request.exec_log.as_deref(),
     ) {
         Ok(plan) => plan,
         Err(error) => {

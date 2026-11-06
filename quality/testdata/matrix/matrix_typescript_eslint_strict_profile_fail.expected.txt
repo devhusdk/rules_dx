@@ -5,9 +5,9 @@ stage eslint classes=typescript sources=quality/testdata/eslint_profile/a.ts
 completed_rounds 1
 convergence STABLE
 initial 2
-initial ERROR eslint @typescript-eslint/no-unused-vars quality/testdata/eslint_profile/a.ts 61 67 fixable=false "'unused' is assigned a value but never used."
-initial ERROR eslint @typescript-eslint/no-non-null-assertion quality/testdata/eslint_profile/a.ts 82 88 fixable=false "Forbidden non-null assertion."
+initial WARNING eslint @typescript-eslint/no-unused-vars quality/testdata/eslint_profile/a.ts 61 67 fixable=false "'unused' is assigned a value but never used."
+initial WARNING eslint @typescript-eslint/no-non-null-assertion quality/testdata/eslint_profile/a.ts 82 88 fixable=false "Forbidden non-null assertion."
 terminal 2
-terminal ERROR eslint @typescript-eslint/no-unused-vars quality/testdata/eslint_profile/a.ts 61 67 fixable=false "'unused' is assigned a value but never used."
-terminal ERROR eslint @typescript-eslint/no-non-null-assertion quality/testdata/eslint_profile/a.ts 82 88 fixable=false "Forbidden non-null assertion."
+terminal WARNING eslint @typescript-eslint/no-unused-vars quality/testdata/eslint_profile/a.ts 61 67 fixable=false "'unused' is assigned a value but never used."
+terminal WARNING eslint @typescript-eslint/no-non-null-assertion quality/testdata/eslint_profile/a.ts 82 88 fixable=false "Forbidden non-null assertion."
 replacements 0

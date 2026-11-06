@@ -228,12 +228,19 @@ pub fn local_path_for_bep_file(workspace: &Path, path_prefix: &[String], name: &
     path
 }
 
-fn test_output_filename(name: &str) -> &str {
-    if name == "test.lcov" {
-        "coverage.dat"
-    } else {
-        name
+fn test_output_segments(name: &str) -> Vec<String> {
+    match name {
+        "test.lcov" => return vec!["coverage.dat".to_owned()],
+        "test.stderr" => return vec!["test.err".to_owned()],
+        _ => {}
     }
+    if let Some(file) = name.strip_prefix("test.outputs__") {
+        return vec!["test.outputs".to_owned(), file.to_owned()];
+    }
+    if let Some(file) = name.strip_prefix("test.outputs_manifest__") {
+        return vec!["test.outputs_manifest".to_owned(), file.to_owned()];
+    }
+    vec![name.to_owned()]
 }
 
 /// Output roots for one workspace, from `bazel info` when it answered.
@@ -390,6 +397,7 @@ pub(crate) fn prefix_names_repo(prefix: &[String], label: &str) -> bool {
 }
 
 /// Resolves one named test output under `root` for its label and identity.
+/// BEP names map to their on-disk paths, such as `test.outputs__x` to `test.outputs/x`.
 ///
 /// `root_names_repo` is set when `root` already ends in the label's repository directory, in
 /// which case the `external/<repo>` segments are skipped.
@@ -430,13 +438,20 @@ pub(crate) fn testlog_path_under(
     if !dirs.is_empty() {
         path.push(dirs.join("_"));
     }
-    let file_name = test_output_filename(name);
+    let mut segments = test_output_segments(name);
+    if let Some(bad) = segments.iter().find(|segment| !is_path_segment(segment)) {
+        return Err(missing_test_output(
+            label,
+            name,
+            identity,
+            &format!("test output path segment `{bad}` is not a plain name"),
+        ));
+    }
     if identity.attempt < identity.attempt_total {
         path.push("test_attempts");
-        path.push(file_name.replacen("test", &format!("attempt_{}", identity.attempt), 1));
-    } else {
-        path.push(file_name);
+        segments[0] = segments[0].replacen("test", &format!("attempt_{}", identity.attempt), 1);
     }
+    path.extend(segments);
     Ok(path)
 }
 
@@ -464,12 +479,17 @@ pub fn suffix_matches(artifact: &str, exec_path: &str) -> bool {
         .is_some_and(|head| head.ends_with('/'))
 }
 
+/// Paths of the non-shard artifacts, each once, in first-seen order.
 pub fn non_shard_artifact_paths(outputs: &[TargetOutput], suffix: &str) -> Vec<String> {
     let mut paths = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
     for output in outputs {
         for artifact in &output.artifacts {
             if !is_shard_artifact(&artifact.exec_path, suffix) {
-                paths.push(artifact.exec_path.display().to_string());
+                let path = artifact.exec_path.display().to_string();
+                if seen.insert(path.clone()) {
+                    paths.push(path);
+                }
             }
         }
     }
@@ -523,6 +543,31 @@ mod tests {
     }
 
     #[test]
+    fn non_shard_artifact_paths_report_each_path_once() {
+        let artifact = |name: &str| CollectedArtifact {
+            exec_path: PathBuf::from(name),
+            bytes: Vec::new(),
+        };
+        let output = |aspect: Option<&str>, names: &[&str]| TargetOutput {
+            label: "//a:t".to_owned(),
+            aspect: aspect.map(str::to_owned),
+            configuration: None,
+            success: true,
+            declared: true,
+            incomplete: false,
+            artifacts: names.iter().map(|name| artifact(name)).collect(),
+        };
+        let outputs = [
+            output(None, &["out/lib.rs", "out/b.pb"]),
+            output(Some("env:plan.bzl%dx_env_plan_aspect"), &["out/lib.rs"]),
+        ];
+        assert_eq!(
+            non_shard_artifact_paths(&outputs, ".shard.pb"),
+            ["out/lib.rs", "out/b.pb"]
+        );
+    }
+
+    #[test]
     fn build_tool_version_comes_from_the_started_event() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("bep.json");
@@ -544,26 +589,21 @@ mod tests {
         assert!(stream_build_tool_version(Path::new("/nonexistent/dx/bep.json")).is_err());
     }
 
+    /// The first value on Windows, the second elsewhere, on one line so both count as run.
+    fn on_windows<T>(windows: T, other: T) -> T {
+        if cfg!(windows) { windows } else { other }
+    }
+
     /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            format!("file:///C:/out/{rel}")
-            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            format!("file:///out/{rel}")
-        }
+        let root = if cfg!(windows) { "C:/out" } else { "out" };
+        format!("file:///{root}/{rel}")
     }
 
     /// A hand-written file URI naming the fixture root with a localhost authority.
     fn localhost_uri(rel: &str) -> String {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            format!("file://localhost/C:/out/{rel}")
-            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            format!("file://localhost/out/{rel}")
-        }
+        let root = if cfg!(windows) { "C:/out" } else { "out" };
+        format!("file://localhost/{root}/{rel}")
     }
 
     /// The host path one fixture root plus its path parts name.
@@ -633,15 +673,10 @@ mod tests {
             file_uri_to_path("file:///C:/").expect("drive root"),
             PathBuf::from(if cfg!(windows) { r"C:\" } else { "/C:/" })
         );
+        let drive_path = on_windows(r"C:\out\a.pb", "/C:/out/a.pb");
         assert_eq!(
             file_uri_to_path("file:///C:/out/a.pb").expect("drive"),
-            PathBuf::from(if cfg!(windows) {
-                // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-                r"C:\out\a.pb"
-                // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            } else {
-                "/C:/out/a.pb"
-            })
+            PathBuf::from(drive_path)
         );
         for uri in [
             "bytestream://x",
@@ -657,25 +692,21 @@ mod tests {
                 "{uri} must fail as UnsupportedUri"
             );
         }
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            assert_eq!(
-                file_uri_to_path("file://otherhost/out/a.pb").expect("unc host"),
-                PathBuf::from(r"\\otherhost\out\a.pb")
-            );
-            assert_eq!(
-                file_uri_to_path("file://srv/share/a%23b.pb").expect("unc share"),
-                PathBuf::from(r"\\srv\share\a#b.pb")
-            );
-            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            for uri in ["file://relative/path", "file://otherhost/out/a.pb"] {
-                assert!(
-                    matches!(file_uri_to_path(uri), Err(BepError::UnsupportedUri { .. })),
-                    "{uri} must fail as UnsupportedUri"
-                );
-            }
-        }
+        let unc_host = on_windows(Some(r"\\otherhost\out\a.pb"), None);
+        let unc_share = on_windows(Some(r"\\srv\share\a#b.pb"), None);
+        assert_eq!(
+            file_uri_to_path("file://otherhost/out/a.pb").ok(),
+            unc_host.map(PathBuf::from)
+        );
+        assert_eq!(
+            file_uri_to_path("file://srv/share/a%23b.pb").ok(),
+            unc_share.map(PathBuf::from)
+        );
+        let unc_relative = on_windows(Some(r"\\relative\path"), None);
+        assert_eq!(
+            file_uri_to_path("file://relative/path").ok(),
+            unc_relative.map(PathBuf::from)
+        );
     }
 
     #[test]
@@ -780,6 +811,54 @@ mod tests {
                 ]
             )
         );
+        let zip = "test.outputs__outputs.zip";
+        assert_eq!(
+            testlog_path(&locations, None, "//a:t", zip, IDENTITY).expect("zip"),
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "a", "t", "test.outputs", "outputs.zip"]
+            )
+        );
+        assert_eq!(
+            testlog_path(&locations, None, "//a:t", zip, retried).expect("attempt zip"),
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "a",
+                    "t",
+                    "test_attempts",
+                    "attempt_1.outputs",
+                    "outputs.zip"
+                ]
+            )
+        );
+        assert_eq!(
+            testlog_path(
+                &locations,
+                None,
+                "//a:t",
+                "test.outputs_manifest__MANIFEST",
+                IDENTITY
+            )
+            .expect("manifest"),
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "a",
+                    "t",
+                    "test.outputs_manifest",
+                    "MANIFEST"
+                ]
+            )
+        );
+        assert_eq!(
+            testlog_path(&locations, None, "//a:t", "test.stderr", IDENTITY).expect("stderr"),
+            want_path("/ws", &["bazel-testlogs", "a", "t", "test.err"])
+        );
+        assert!(testlog_path(&locations, None, "//a:t", "../x", IDENTITY).is_err());
+        assert!(testlog_path(&locations, None, "//a:t", "test.outputs__../x", IDENTITY).is_err());
     }
 
     #[test]

@@ -1,0 +1,10 @@
+producer //quality/testdata:matrix_markdown_lint_clean_strict
+capability LINT
+stages 2
+stage markdown_check classes=markdown sources=matrix/clean_strict.md
+stage vale classes=markdown sources=matrix/clean_strict.md
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

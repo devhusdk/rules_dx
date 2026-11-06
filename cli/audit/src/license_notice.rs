@@ -123,6 +123,7 @@ mod tests {
     fn compound_expressions_with_requiring_member_need_words() {
         for license in [
             "MIT OR Apache-2.0",
+            "MIT/Apache-2.0",
             "MIT AND GPL-3.0-only",
             "Apache-2.0 WITH LLVM-exception",
         ] {

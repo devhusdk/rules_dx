@@ -218,7 +218,7 @@ def _toolchain_platforms():
 _CONFIG_INFRA_DOC_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "cue", "deadnix", "djlint", "flatc", "gersemi", "gplint", "hadolint", "helm", "jsonnet_lint", "jsonnetfmt", "keep_sorted", "kubeconform", "latexindent", "nixfmt", "opa", "pkl", "redocly", "regal", "shellcheck", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint"]
 
 # Records that must name every platform as either supported or unsupported with a reason.
-_COMPLETE_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "clang_format", "cppcheck", "credo", "cue", "dart", "deadnix", "djlint", "elvis", "erlfmt", "flatc", "gersemi", "gofumpt", "gplint", "hadolint", "helm", "hlint", "jsonnet_lint", "jsonnetfmt", "julia_format", "julialint", "keep_sorted", "kubeconform", "latexindent", "mix_format", "modfmt", "nixfmt", "opa", "ormolu", "pkl", "pkl_lsp", "psscriptanalyzer", "qmlformat", "qmllint", "redocly", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint", "zig_fmt"]
+_COMPLETE_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "clang_format", "cppcheck", "credo", "cue", "dart", "deadnix", "djlint", "elvis", "erlfmt", "flatc", "gersemi", "gofumpt", "gplint", "hadolint", "helm", "hlint", "jsonnet_lint", "jsonnetfmt", "julia_format", "julialint", "keep_sorted", "kubeconform", "latexindent", "mix_format", "modfmt", "nixfmt", "opa", "ormolu", "pkl", "pkl_lsp", "psscriptanalyzer", "qmlformat", "qmllint", "redocly", "regal", "rubocop", "rustfmt", "shellcheck", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""
@@ -370,7 +370,7 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "ruby claims are proven",
-                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["rubocop", "standardrb"]], RUNNER_MATRIX_CASES),
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["rubocop"]], RUNNER_MATRIX_CASES),
                 [],
             ),
             expect_equal(

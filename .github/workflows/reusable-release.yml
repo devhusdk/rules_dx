@@ -46,8 +46,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
-        with:
-          bazelisk-cache: true
       - name: Validate platforms
         id: platforms
         env:
@@ -87,8 +85,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
-        with:
-          bazelisk-cache: true
       - name: Dry run
         shell: bash
         env:
@@ -121,8 +117,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
-        with:
-          bazelisk-cache: true
       - name: Publish
         shell: bash
         env:

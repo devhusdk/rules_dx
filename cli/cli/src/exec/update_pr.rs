@@ -19,16 +19,16 @@ pub(crate) const CODE_UPDATE_PR_FAILED: &str = "update_pr_failed";
 pub(crate) const CODE_UPDATE_PR_SKIPPED: &str = "update_pr_skipped";
 pub(crate) const CODE_UPDATE_PR_LOOKUP: &str = "update_pr_lookup_failed";
 
-const BOT_NAME: &str = "github-actions[bot]";
-const BOT_EMAIL: &str = "41898282+github-actions[bot]@users.noreply.github.com";
+pub(super) const BOT_NAME: &str = "github-actions[bot]";
+pub(super) const BOT_EMAIL: &str = "41898282+github-actions[bot]@users.noreply.github.com";
 
 pub(crate) struct Tools {
-    git: PathBuf,
-    gh: PathBuf,
+    pub(super) git: PathBuf,
+    pub(super) gh: PathBuf,
 }
 
 impl Tools {
-    fn system() -> Tools {
+    pub(super) fn system() -> Tools {
         Tools {
             git: PathBuf::from("git"),
             gh: PathBuf::from("gh"),
@@ -292,7 +292,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     exit
 }
 
-fn tail(text: &str) -> String {
+pub(super) fn tail(text: &str) -> String {
     let text = text.trim();
     let start = text.len().saturating_sub(300);
     let start = (start..=text.len())
@@ -347,7 +347,7 @@ fn emit(out: &mut dyn Write, outcomes: &[Outcome], json: bool, exit: i32) -> Res
     Ok(())
 }
 
-fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String> {
+pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String> {
     let output = Command::new(program)
         .args(args)
         .current_dir(root)
@@ -364,12 +364,15 @@ fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String>
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-const WORKFLOW_SKIP: &str = "skipped: token cannot push workflow files";
+pub(super) const WORKFLOW_SKIP: &str = "skipped: token cannot push workflow files";
 
-const ACTIONS_PR_REFUSAL: &str = "not permitted to create or approve pull requests";
+pub(super) const ACTIONS_PR_REFUSAL: &str = "not permitted to create or approve pull requests";
 const AUTO_MERGE_HINT: &str = "turn on Allow auto-merge or pass --automerge=none";
 
-fn enable_auto_merge(gh: &dyn Fn(&[&str]) -> Result<String, String>, pr: &str) -> String {
+pub(super) fn enable_auto_merge(
+    gh: &dyn Fn(&[&str]) -> Result<String, String>,
+    pr: &str,
+) -> String {
     match gh(&["pr", "merge", pr, "--auto", "--squash"]) {
         Ok(_) => String::new(),
         Err(error) => format!("; auto-merge not enabled: {error} ({AUTO_MERGE_HINT})"),
@@ -381,7 +384,7 @@ fn refused_workflow(stderr: &str) -> bool {
     text.contains("refusing to allow") && text.contains("workflow")
 }
 
-fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, String> {
+pub(super) fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, String> {
     let args = ["push", "--force-with-lease", "origin", branch];
     let output = Command::new(&tools.git)
         .args(args)
@@ -426,11 +429,10 @@ fn publish(
     }
     let sha = git(&["rev-parse", "HEAD"])?.trim().to_owned();
     let mut open = open_update_prs(tools, root, &base)?;
-    let stale: Vec<(u64, String)> = open
-        .iter()
-        .filter(|(_, head)| scope.covers(head) && !plans.iter().any(|p| p.branch == *head))
-        .cloned()
-        .collect();
+    let (stale, kept): (Vec<_>, Vec<_>) = open
+        .drain(..)
+        .partition(|(_, head)| scope.covers(head) && !plans.iter().any(|p| p.branch == *head));
+    open = kept;
     let mut outcomes = Vec::new();
     for group in plans {
         let existing = open
@@ -452,11 +454,7 @@ fn publish(
             locks,
         };
         let result = publish_one(root, tools, group, labels, &ctx, step);
-        if existing.is_none()
-            && result
-                .as_ref()
-                .is_ok_and(|text| !text.starts_with("skipped:"))
-        {
+        if existing.is_none() && result.as_ref().is_ok_and(|text| text.starts_with("opened")) {
             open.push((0, group.branch.clone()));
         }
         if result.is_err() {
@@ -501,7 +499,11 @@ struct Target<'a> {
 }
 
 /// Lists open pull requests on `dx-update/` branches as number and branch.
-fn open_update_prs(tools: &Tools, root: &Path, base: &str) -> Result<Vec<(u64, String)>, String> {
+pub(super) fn open_update_prs(
+    tools: &Tools,
+    root: &Path,
+    base: &str,
+) -> Result<Vec<(u64, String)>, String> {
     let listed = program(
         &tools.gh,
         root,
@@ -593,11 +595,16 @@ fn publish_one(
     git(&commit)?;
     let numstat = git(&["diff", "--numstat", sha, "HEAD"])?;
     let text = body(group, &lock_numstat(&numstat, locks));
-    let _ = git(&[
+    let tracking = format!("refs/remotes/origin/{branch}");
+    let fetched = git(&[
         "fetch",
         "origin",
-        &format!("+refs/heads/{branch}:refs/remotes/origin/{branch}"),
+        &format!("+refs/heads/{branch}:{tracking}"),
     ]);
+    if fetched.is_err() {
+        // The remote branch is gone; a stale tracking ref would fail the lease.
+        let _ = git(&["update-ref", "-d", &tracking]);
+    }
     if let Some(number) = existing {
         let remote = format!("origin/{branch}");
         let same_tree = git(&["rev-parse", &format!("{remote}^{{tree}}")])
@@ -1014,6 +1021,30 @@ mod tests {
 
     #[test]
     fn the_cap_skips_new_groups_only() {
+        let fx = fixture("[{\"number\":3,\"headRefName\":\"dx-update/cargo\"}]");
+        let mut step = editing(fx.work.clone(), None);
+        let rules = Rules {
+            automerge: None,
+            max_prs: 1,
+        };
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &two_plans(),
+            &two_scope(),
+            &[],
+            &rules,
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(got[1].result, Ok("skipped: --max-prs=1 reached".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(!argv.contains("pr create"));
+    }
+
+    #[test]
+    fn the_cap_ignores_stale_pull_requests() {
         let fx = fixture("[{\"number\":3,\"headRefName\":\"dx-update/npm\"}]");
         let mut step = editing(fx.work.clone(), None);
         let rules = Rules {
@@ -1031,9 +1062,48 @@ mod tests {
             &mut step,
         )
         .expect("publish");
-        assert_eq!(got[0].result, Ok("skipped: --max-prs=1 reached".into()));
-        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
-        assert!(!argv.contains("pr create"));
+        assert_eq!(got[0].result, Ok("opened https://example.com/pr/9".into()));
+        assert_eq!(got[1].result, Ok("closed #3".into()));
+    }
+
+    #[test]
+    fn the_cap_ignores_groups_with_nothing_to_change() {
+        let fx = fixture("[]");
+        let work = fx.work.clone();
+        let mut step = move |words: &[String]| {
+            let applying = words.contains(&"--apply".to_owned()) && words.len() >= 3;
+            if applying && words[1].starts_with("github-actions") {
+                std::fs::write(work.join("Cargo.lock"), "a\nb\n").map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        };
+        let rules = Rules {
+            automerge: None,
+            max_prs: 1,
+        };
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &two_plans(),
+            &two_scope(),
+            &[],
+            &rules,
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        let result = |branch: &str| {
+            got.iter()
+                .find(|o| o.branch == branch)
+                .expect("outcome")
+                .result
+                .clone()
+        };
+        assert_eq!(result("dx-update/cargo"), Ok("nothing to change".into()));
+        assert_eq!(
+            result("dx-update/github-actions"),
+            Ok("opened https://example.com/pr/9".into())
+        );
     }
 
     #[test]
@@ -1182,6 +1252,31 @@ mod tests {
         assert_eq!(parent.trim(), main.trim());
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert_eq!(argv.matches("pr edit").count(), 2);
+    }
+
+    #[test]
+    fn a_deleted_remote_branch_does_not_fail_the_lease() {
+        let fx = fixture("[]");
+        let mut step = editing(fx.work.clone(), None);
+        let publish_once = |step: &mut dyn FnMut(&[String]) -> Result<(), String>| {
+            publish(
+                &fx.work,
+                &fx.tools,
+                &plans(),
+                &scope(),
+                &[],
+                &rules(),
+                &[],
+                step,
+            )
+            .expect("publish")
+        };
+        publish_once(&mut step);
+        sh(&fx.origin, &["branch", "-D", "dx-update/cargo"]);
+        let second = publish_once(&mut step);
+        assert!(second[0].result.is_ok(), "{:?}", second[0].result);
+        let pushed = sh(&fx.origin, &["rev-parse", "--verify", "dx-update/cargo"]);
+        assert!(!pushed.trim().is_empty());
     }
 
     #[test]

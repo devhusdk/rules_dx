@@ -3,8 +3,13 @@
 load("//helm/rules:providers.bzl", "HelmChartInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
-def _dns_label_error(what, value):
-    ok = len(value) > 0 and len(value) <= 63 and value[0] != "-" and value[-1] != "-"
+# Helm's maxReleaseNameLen, pkg/chart/v2/util/validate_name.go.
+_HELM_RELEASE_NAME_MAX = 53
+
+def _dns_label_error(what, value, max_len, limit_note = ""):
+    if len(value) > max_len:
+        return what + " '" + value + "' must be at most " + str(max_len) + " characters" + limit_note
+    ok = len(value) > 0 and value[0] != "-" and value[-1] != "-"
     for c in value.elems():
         if c not in "abcdefghijklmnopqrstuvwxyz0123456789-":
             ok = False
@@ -18,8 +23,10 @@ def _join(package, rel):
 def _helm_chart_impl(ctx):
     who = "helm_chart " + str(ctx.label) + ": "
     package = ctx.label.package
-    for what, value in [("release_name", ctx.attr.release_name), ("namespace", ctx.attr.namespace)]:
-        error = _dns_label_error(what, value)
+    for error in [
+        _dns_label_error("release_name", ctx.attr.release_name, _HELM_RELEASE_NAME_MAX, " (Helm limit)"),
+        _dns_label_error("namespace", ctx.attr.namespace, 63),
+    ]:
         if error != "":
             fail(who + error)
     seen = {}
@@ -59,7 +66,7 @@ helm_chart = rule(
             doc = "Vendored subchart archives under charts/; never fetched.",
         ),
         "namespace": attr.string(default = "default", doc = "Namespace passed to helm template."),
-        "release_name": attr.string(default = "release", doc = "Release name passed to helm template."),
+        "release_name": attr.string(default = "release", doc = "Release name passed to helm template; at most 53 characters."),
         "srcs": attr.label_list(allow_files = True, doc = "Chart files, including Chart.yaml and templates."),
         "values": attr.label_list(
             allow_files = [".yaml", ".yml"],

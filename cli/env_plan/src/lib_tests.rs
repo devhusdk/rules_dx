@@ -268,6 +268,31 @@ fn collect_records_binds_exec_suffix_to_one_artifact() {
 }
 
 #[test]
+fn collect_records_counts_one_file_reported_by_target_and_aspect_once() {
+    let files = || {
+        vec![
+            (
+                "/out/rust.dxenv.pb",
+                shard_bytes(
+                    "//env:env_rust_fixture",
+                    "rust",
+                    vec![("crate", "x", "env/env_shard/src/lib.rs")],
+                ),
+            ),
+            (
+                "/bazel-out/k8-fastbuild/bin/env/env_shard/src/lib.rs",
+                vec![1],
+            ),
+        ]
+    };
+    let mut from_aspect = output("//env:env_rust_fixture", files());
+    from_aspect.aspect = Some(ENV_ASPECT.to_owned());
+    let outputs = vec![output("//env:env_rust_fixture", files()), from_aspect];
+    let plan = collect_plan(&outputs).expect("collect");
+    assert_eq!(plan.records.len(), 1);
+}
+
+#[test]
 fn collect_records_rejects_missing_ambiguous_and_unreported() {
     let missing = vec![output(
         "//env:rust",

@@ -175,17 +175,20 @@ fn an_unreadable_slot_file_keeps_the_permission_error() {
     assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
 }
 
-#[cfg(unix)]
 #[test]
 fn a_read_only_slot_file_locks_exclusive_and_reports_contention() {
-    use std::os::unix::fs::PermissionsExt;
     let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-exclusive-");
     let path = slot_path(scratch.path(), 0);
     std::fs::write(&path, "").expect("file");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+    let mut permissions = std::fs::metadata(&path).expect("metadata").permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(&path, permissions.clone()).expect("read-only");
     let first = lock_slot(&path, false).expect("lock").expect("held");
     assert!(matches!(lock_slot(&path, false), Ok(None)));
     assert!(matches!(lock_slot(&path, true), Ok(None)));
     drop(first);
     assert!(matches!(lock_slot(&path, true), Ok(Some(_))));
+    #[allow(clippy::permissions_set_readonly_false)]
+    permissions.set_readonly(false);
+    std::fs::set_permissions(&path, permissions).expect("writable again");
 }

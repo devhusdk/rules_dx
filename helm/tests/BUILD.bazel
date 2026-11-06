@@ -54,6 +54,38 @@ failure_test(
 )
 
 helm_chart(
+    name = "long_release",
+    srcs = ["Chart.yaml"],
+    release_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "long_release_fails",
+    expected_failure_substring = "must be at most 53 characters (Helm limit)",
+    target = ":long_release",
+)
+
+helm_chart(
+    name = "max_release",
+    srcs = ["Chart.yaml"],
+    release_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+)
+
+helm_chart(
+    name = "long_namespace",
+    srcs = ["Chart.yaml"],
+    namespace = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "long_namespace_fails",
+    expected_failure_substring = "must be at most 63 characters",
+    target = ":long_namespace",
+)
+
+helm_chart(
     name = "bad_namespace",
     srcs = ["Chart.yaml"],
     namespace = "-lead",

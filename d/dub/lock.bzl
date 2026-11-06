@@ -103,7 +103,7 @@ def spoke_build(name, manifest, existing_dirs, dep_spokes, defs_bzl):
     if not source_paths and not source_files:
         fail("%s has no sourcePaths or sourceFiles in dub.json and no source or src directory" % name)
     import_paths = manifest.get("importPaths") or source_paths
-    string_paths = manifest.get("stringImportPaths") or []
+    string_paths = manifest.get("stringImportPaths") or (["views"] if "views" in existing_dirs else [])
     srcs = []
     for path in source_paths:
         srcs += ["%s/**/*.d" % path.rstrip("/"), "%s/**/*.di" % path.rstrip("/")]

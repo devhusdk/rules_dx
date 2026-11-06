@@ -1591,7 +1591,6 @@ dependencies = [
  "flate2",
  "libc",
  "predicates",
- "ruzstd 0.9.1",
  "serde",
  "serde-sarif",
  "serde_json",

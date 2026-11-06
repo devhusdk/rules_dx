@@ -114,7 +114,7 @@ fn non_utf8_fix_fails_the_action() {
     assert!(matches!(err, RunnerError::ToolOutput { .. }));
 }
 
-fn standardrb_crash(
+fn rubocop_crash(
     _argv: &[OsString],
     _cwd: &Path,
     env: &[(OsString, OsString)],
@@ -129,10 +129,10 @@ fn standardrb_crash(
 }
 
 #[test]
-fn standardrb_fix_fails_on_a_cop_crash_despite_exit_one() {
-    let backend = backend_for("standardrb", plain_tool(), standardrb_crash);
+fn rubocop_fix_fails_on_a_cop_crash_despite_exit_one() {
+    let backend = backend_for("rubocop", plain_tool(), rubocop_crash);
     let err = backend
-        .apply_fix("standardrb", "a.rb", "x = 1\n", "lint")
+        .apply_fix("rubocop", "a.rb", "x = 1\n", "format")
         .expect_err("crash fails the fix");
     assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
     assert!(err.to_string().contains("cop crashed"), "{err}");
@@ -453,6 +453,69 @@ fn ruff_hinted_config_reaches_the_tool() {
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id, "F401");
+}
+
+fn ruff_in_config_dir(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(cwd.ends_with("services/api"), "{cwd:?}");
+    roundtrip_ruff_hinted(argv, cwd, env)
+}
+
+fn ruff_at_scratch_root(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(!cwd.ends_with("services/api"), "{cwd:?}");
+    roundtrip_ruff(argv, cwd, env)
+}
+
+#[test]
+fn ruff_nested_config_runs_in_its_directory() {
+    let tool = RealTool {
+        config_rel: Some("services/api/ruff.toml".to_owned()),
+        tool_files: vec![("services/api/ruff.toml".to_owned(), b"".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("ruff", tool, ruff_in_config_dir);
+    let path = "services/api/tests/test_app.py";
+    let lint = backend
+        .diagnose("ruff", "lint", &single(path, "import os\n"))
+        .expect("diagnosed");
+    assert_eq!(lint.len(), 1);
+    let format = backend
+        .diagnose("ruff", "format", &single(path, "x = 1  \n"))
+        .expect("diagnosed");
+    assert_eq!(format.len(), 1);
+    let fixed = backend
+        .apply_fix("ruff", path, "import os\nx = 1\n", "lint")
+        .expect("fixed");
+    assert_eq!(fixed, "x = 1\n");
+    let fixed = backend
+        .apply_fix("ruff", path, "x = 1  \n", "format")
+        .expect("fixed");
+    assert_eq!(fixed, "x = 1\n");
+}
+
+#[test]
+fn ruff_unhinted_runs_at_scratch_root() {
+    let backend = backend_for("ruff", plain_tool(), ruff_at_scratch_root);
+    backend
+        .diagnose("ruff", "lint", &single("services/api/a.py", "x = 1\n"))
+        .expect("diagnosed");
+}
+
+#[test]
+fn ruff_cwd_is_the_config_directory_unless_external() {
+    assert_eq!(
+        RealBackend::cwd_rel("ruff", Some("services/api/ruff.toml")),
+        "services/api"
+    );
+    assert_eq!(RealBackend::cwd_rel("ruff", Some("_external/r/ruff.toml")), "");
+    assert_eq!(RealBackend::cwd_rel("ruff", None), "");
 }
 
 fn ty_search_path_argv(
@@ -2180,7 +2243,7 @@ fn hadolint_defaults(
         "unbound hadolint uses the scratch default, got {config:?}"
     );
     let staged = std::fs::read(&config).expect("default hadolint config is staged");
-    assert_eq!(staged, b"ignored: []\n");
+    assert_eq!(staged, include_bytes!("../../tiers/hadolint/standard.yaml"));
     hadolint_report(argv, env)
 }
 

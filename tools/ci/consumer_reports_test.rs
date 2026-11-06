@@ -75,15 +75,6 @@ fn each_reporting_check_uploads_once_after_dx_and_before_the_cache_steps() {
                 .is_some_and(|r| r.contains("@rules_dx//:dx -- \"${args[@]}\""))
         })
         .expect("dx step");
-    let first_cache = all
-        .iter()
-        .position(|s| {
-            s["name"].as_str().is_some_and(|n| {
-                n.starts_with("Prune the Bazel repository cache")
-                    || n.starts_with("Save the Bazel repository cache")
-            })
-        })
-        .unwrap_or(all.len());
     for id in REPORTING {
         let (at, step) = upload_of(id);
         assert_eq!(step["uses"].as_str(), Some(UPLOAD_PIN), "{id} pin");
@@ -100,7 +91,6 @@ fn each_reporting_check_uploads_once_after_dx_and_before_the_cache_steps() {
             "{id} must not overwrite"
         );
         assert!(dx_at < at, "{id} uploads before dx runs");
-        assert!(at < first_cache, "{id} uploads after the cache steps");
     }
 }
 

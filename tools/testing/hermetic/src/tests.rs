@@ -1920,6 +1920,30 @@ fn windows_passthrough_drops_bazel_vc_when_visual_studio_is_denied() {
 }
 
 #[test]
+fn only_the_windows_ambient_probe_takes_the_isolated_path() {
+    for name in [
+        "network",
+        "home_config",
+        "home_config_control",
+        "cache_miss",
+    ] {
+        assert!(leak_flags(name).is_empty(), "{name}");
+    }
+    if !cfg!(windows) {
+        assert!(leak_flags("ambient_tool").is_empty());
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_ambient_probe_passes_path_and_pathext() {
+    assert_eq!(
+        leak_flags("ambient_tool"),
+        vec!["--action_env=PATH", "--action_env=PATHEXT"]
+    );
+}
+
+#[test]
 fn windows_bash_prefers_bazel_sh_then_the_first_existing_candidate() {
     let dir = tempfile::tempdir().unwrap();
     let file = |name: &str| {

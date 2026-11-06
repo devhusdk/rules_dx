@@ -101,7 +101,7 @@ done
 while IFS= read -r line || [ -n "$line" ]; do
   i=0
   while [ "$i" -lt "${#from[@]}" ]; do
-    line=${line//"${from[$i]}"/${to[$i]}}
+    line=${line//"${from[$i]}"/"${to[$i]}"}
     i=$((i + 1))
   done
   printf '%s\n' "$line" >> "$log"

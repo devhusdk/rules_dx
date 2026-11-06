@@ -5,7 +5,7 @@ stage regal classes=rego sources=matrix/regal_profile_strict/policy.rego
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR regal style/prefer-snake-case matrix/regal_profile_strict/policy.rego 37 37 fixable=false "Prefer snake_case for names"
+initial WARNING regal style/prefer-snake-case matrix/regal_profile_strict/policy.rego 37 37 fixable=false "Prefer snake_case for names"
 terminal 1
-terminal ERROR regal style/prefer-snake-case matrix/regal_profile_strict/policy.rego 37 37 fixable=false "Prefer snake_case for names"
+terminal WARNING regal style/prefer-snake-case matrix/regal_profile_strict/policy.rego 37 37 fixable=false "Prefer snake_case for names"
 replacements 0

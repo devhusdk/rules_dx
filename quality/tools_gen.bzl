@@ -69,7 +69,7 @@ def _field(name, value):
             return line
         return "        %s: &[\n%s        ],\n" % (name, "".join(["            %s,\n" % _str(item) for item in value]))
     line = "        %s: %s,\n" % (name, value)
-    if len(line) <= 101:
+    if len(line) <= 101 or value.startswith('"'):
         return line
     return "        %s:\n            %s,\n" % (name, value)
 
@@ -142,9 +142,21 @@ def severity_rust():
         if severity.default == None and not severity.categories:
             continue
         default = "None" if severity.default == None else "Some(%s)" % _level(severity.default)
-        out += "    (\n        %s,\n        crate::severity::ToolSeverityMap {\n            default: %s,\n            categories: &[\n" % (_str(tool.id), default)
-        for key in sorted(severity.categories.keys()):
-            out += "                (%s, %s),\n" % (_str(key), _level(severity.categories[key]))
+        out += "    (\n        %s,\n        crate::severity::ToolSeverityMap {\n            default: %s,\n" % (_str(tool.id), default)
+        if not severity.categories:
+            out += "            categories: &[],\n        },\n    ),\n"
+            continue
+        keys = sorted(severity.categories.keys())
+        if len(keys) == 1:
+            out += "            categories: &[(%s, %s)],\n        },\n    ),\n" % (_str(keys[0]), _level(severity.categories[keys[0]]))
+            continue
+        out += "            categories: &[\n"
+        for key in keys:
+            pair = "%s, %s" % (_str(key), _level(severity.categories[key]))
+            if len(pair) > 60:
+                out += "                (\n                    %s,\n                ),\n" % pair.replace(", crate::", ",\n                    crate::")
+            else:
+                out += "                (%s),\n" % pair
         out += "            ],\n        },\n    ),\n"
     return out + "];\n"
 

@@ -55,7 +55,7 @@ fn problems(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, ParseError
             message.trim().to_owned(),
             ToolSeverity::Error,
             TextPosition { line: row, column },
-            ColumnEncoding::Scalars,
+            ColumnEncoding::Utf8,
         ));
     }
     if findings.is_empty() {
@@ -103,6 +103,14 @@ mod tests {
         assert_eq!(findings[1].file, "/s/jsonnet/lib.libsonnet");
         assert_eq!(findings[1].finding.start.line, 3);
         assert_eq!(findings[1].finding.start.column, 19);
+    }
+
+    #[test]
+    fn jsonnet_lint_columns_are_utf8_bytes() {
+        let stderr = b"/s/jsonnet/a.jsonnet:1:21-33 Unknown variable: undefinedVar\n\nlocal s = \"abc\"; undefinedVar\n\n\nProblems found!\n";
+        let findings = parse_jsonnet_lint(b"", stderr, Some(2), &FILES).expect("parsed");
+        assert_eq!(findings[0].finding.start.column, 21);
+        assert_eq!(findings[0].finding.encoding, ColumnEncoding::Utf8);
     }
 
     #[test]

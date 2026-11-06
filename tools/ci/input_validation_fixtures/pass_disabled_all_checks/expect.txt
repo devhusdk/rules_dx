@@ -2,7 +2,6 @@ input {"DX_DISABLED_CHECKS": "lint,typecheck,format,generate,license-audit,test,
 exit 0
 says DX_DISABLED_CHECKS lint,typecheck,format,generate,license-audit,test,build,coverage
 out artifact_suffix ""
-out cache_saver ""
 out check_lines ""
 out checks []
 out checks_timeout "0"

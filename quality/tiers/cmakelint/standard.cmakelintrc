@@ -1,0 +1,2 @@
+# gersemi owns layout, so the whitespace and line length checks are off.
+filter=-linelength,-whitespace/eol,-whitespace/extra,-whitespace/indent,-whitespace/mismatch,-whitespace/newline,-whitespace/tabs,-convention/filename

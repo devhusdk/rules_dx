@@ -8,7 +8,7 @@ on:
   workflow_dispatch: {}
 jobs:
   dx:
-    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@04bb90c9221b324fe86a16bee0a4e5dadb3adaf7
+    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@22a32ee1f155440af00146922b996fae7d43a067
     with:
       disabled_checks: ""
       platforms: '["linux_x86_64"]'

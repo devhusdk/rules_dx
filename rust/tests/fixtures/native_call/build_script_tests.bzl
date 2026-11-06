@@ -1,6 +1,7 @@
 """Analysis test for the C/C++ tool identity of cargo build script actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
 
 def _relative(value):
     if value.startswith("${pwd}/"):
@@ -25,6 +26,20 @@ def _tool_inputs_test_impl(ctx):
     return analysistest.end(env)
 
 build_script_tool_inputs_test = analysistest.make(_tool_inputs_test_impl)
+
+def _host_env_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    _assert_no_host_flags(env, action)
+    for name in ["CC", "CXX", "AR"]:
+        asserts.equals(env, action.env.get("TARGET_" + name), action.env.get("HOST_" + name), "HOST_{} is not TARGET_{}".format(name, name))
+    cxxflags = (action.env.get("CXXFLAGS", "") + " " + action.env.get("HOST_CXXFLAGS", "")).split(" ")
+    libcxx = [part for part in cxxflags if "libcxx_headers_include_search_directory" in part]
+    asserts.true(env, len(libcxx) <= 1, "libc++ headers are on the include path twice, which breaks #include_next (#8681): {}".format(libcxx))
+    return analysistest.end(env)
+
+# Not cross-compiling, so cc-rs adds HOST_*FLAGS on top of CFLAGS/CXXFLAGS.
+build_script_host_env_test = analysistest.make(_host_env_impl)
 
 _COMPILER = str(Label("//cc/toolchains:compiler"))
 _LINKER_PREFERENCE = str(Label("@rules_rust//rust/settings:toolchain_linker_preference"))
@@ -68,8 +83,15 @@ def _llvm_impl(ctx):
     return analysistest.end(env)
 
 _UNDEF_ISO_STDIO = "/U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
-_C_FLAGS = ["CFLAGS", "TARGET_CFLAGS", "HOST_CFLAGS"]
-_CXX_FLAGS = ["CXXFLAGS", "TARGET_CXXFLAGS", "HOST_CXXFLAGS"]
+_C_FLAGS = ["CFLAGS", "TARGET_CFLAGS"]
+_CXX_FLAGS = ["CXXFLAGS", "TARGET_CXXFLAGS"]
+
+def _assert_no_host_flags(env, action):
+    for name in ["HOST_CFLAGS", "HOST_CXXFLAGS"]:
+        asserts.equals(env, "", action.env.get(name), "{} is not empty when HOST == TARGET".format(name))
+
+def _provisioned(path):
+    return path.startswith("external/") or path.startswith("${pwd}/external/") or "dx_msvc" in path
 
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
@@ -82,10 +104,16 @@ def _msvc_impl(ctx):
     include = action.env.get("INCLUDE", "")
     asserts.true(env, include != "", "INCLUDE is not set")
     for part in include.split(";"):
-        asserts.true(env, part.startswith("external/") or part.startswith("${pwd}/external/") or "dx_msvc" in part, "INCLUDE entry outside the provisioned SDK: {}".format(part))
+        asserts.true(env, _provisioned(part), "INCLUDE entry outside the provisioned SDK: {}".format(part))
+    for name in ["LIB", "LIBPATH", "PATH"]:
+        for part in action.env.get(name, "").split(";"):
+            asserts.true(env, part == "" or _provisioned(part), "{} entry outside the provisioned SDK: {}".format(name, part))
+    for name in ["VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir"]:
+        asserts.false(env, name in action.env, "{} leaks a preinstalled Visual Studio: {}".format(name, action.env.get(name)))
     for name in _C_FLAGS + _CXX_FLAGS:
         value = action.env.get(name, "")
         asserts.false(env, _UNDEF_ISO_STDIO in value.split(" "), "{} drops ISO wide stdio outside coverage: {}".format(name, value))
+    _assert_no_host_flags(env, action)
     return analysistest.end(env)
 
 def _msvc_coverage_impl(ctx):
@@ -97,6 +125,7 @@ def _msvc_coverage_impl(ctx):
     for name in _CXX_FLAGS:
         value = action.env.get(name, "")
         asserts.false(env, _UNDEF_ISO_STDIO in value.split(" "), "{} drops ISO wide stdio for C++: {}".format(name, value))
+    _assert_no_host_flags(env, action)
     return analysistest.end(env)
 
 _msvc_coverage_test = analysistest.make(
@@ -154,7 +183,7 @@ def build_script_libstdcxx_test(name, target):
     )
 
 def build_script_compiler_tests(name, target):
-    """Asserts the build script runs with the pinned GCC under gcc and with other tools under llvm.
+    """Asserts the build script runs with the pinned GCC under gcc and with LLVM under llvm, also on Windows x64.
 
     Args:
         name: Name of the test suite.
@@ -180,11 +209,19 @@ def build_script_compiler_tests(name, target):
                 target_under_test = target,
             )
             tests.append(arm64)
+    llvm_windows = name + "_llvm_windows"
+    _llvm_test(
+        name = llvm_windows,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        target_under_test = target,
+    )
+    tests.append(llvm_windows)
     native.test_suite(name = name, tests = tests)
 
 cross_build_script_tool_inputs_test = analysistest.make(
     _tool_inputs_test_impl,
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))},
+    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64")), _COMPILER: "llvm"},
 )
 
 def _cross_gcc_impl(ctx):
@@ -321,6 +358,10 @@ def _link_windows_impl(ctx):
         for d in dirs:
             asserts.true(env, d.startswith("external/"), "Windows SDK lib dir is outside the execroot: {}".format(d))
             asserts.true(env, [p for p in inputs if p.startswith(d + "/")] != [], "Windows SDK lib dir is not an action input: {}".format(d))
+    default_libs = [arg[len("-DEFAULTLIB:"):].lower() for arg in link_args if arg.startswith("-DEFAULTLIB:")]
+    asserts.true(env, "libc++.lib" in default_libs, "libc++.lib is not a default lib of the Rust link (#8681): {}".format(link_args))
+    for crt in ["libcmt.lib", "msvcrt.lib"]:
+        asserts.false(env, crt in default_libs, "the cc toolchain CRT reached the Rust link, rustc picks it: {}".format(link_args))
     for part in action.argv:
         asserts.false(env, "/clang:" in part, "clang-cl arg passed to rust-lld: {}".format(part))
     return analysistest.end(env)
@@ -328,7 +369,13 @@ def _link_windows_impl(ctx):
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
 
-_link_windows_test = analysistest.make(_link_windows_impl, config_settings = {_COMPILER: "llvm", _LINKER_PREFERENCE: "rust"})
+# The forwarder's static CRT settings, so the crate under test and the upstream share one build script config.
+_link_windows_test = analysistest.make(_link_windows_impl, config_settings = {
+    _COMPILER: "llvm",
+    _LINKER_PREFERENCE: "rust",
+    "//command_line_option:features": MSVC_STATIC_CRT,
+    str(Label(MSVC_CRT_FROM_RUST)): True,
+})
 
 def rust_link_windows_test(name, target):
     """Asserts the Rust link step uses rust-lld and not clang-cl on Windows x64.
@@ -378,6 +425,10 @@ _CRT_CONFIG = {
     _COMPILER: "msvc",
     _EXTRA_RUSTC_FLAG: ["-Ctarget-feature=+crt-static"],
 }
+_CRT_CONFIG_LLVM = {
+    _COMPILER: "llvm",
+    _EXTRA_RUSTC_FLAG: ["-Ctarget-feature=+crt-static"],
+}
 
 def _crt_ok_impl(ctx):
     env = analysistest.begin(ctx)
@@ -392,9 +443,11 @@ def _crt_bad_impl(ctx):
 _crt_ok_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG)
 _crt_target_flag_test = analysistest.make(_crt_ok_impl, config_settings = {_COMPILER: "msvc"})
 _crt_bad_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG, expect_failure = True)
+_crt_ok_llvm_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG_LLVM)
+_crt_bad_llvm_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG_LLVM, expect_failure = True)
 
 def rust_msvc_crt_tests(name, ok, bad, target_flag):
-    """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones on MSVC.
+    """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones under cl.exe and clang-cl.
 
     Args:
         name: Name of the test suite.
@@ -405,14 +458,23 @@ def rust_msvc_crt_tests(name, ok, bad, target_flag):
     ok_name = name + "_ok"
     bad_name = name + "_bad"
     target_flag_name = name + "_target_flag"
-    for test, rule, target in [(ok_name, _crt_ok_test, ok), (bad_name, _crt_bad_test, bad), (target_flag_name, _crt_target_flag_test, target_flag)]:
+    ok_llvm_name = name + "_ok_llvm"
+    bad_llvm_name = name + "_bad_llvm"
+    cases = [
+        (ok_name, _crt_ok_test, ok),
+        (bad_name, _crt_bad_test, bad),
+        (target_flag_name, _crt_target_flag_test, target_flag),
+        (ok_llvm_name, _crt_ok_llvm_test, ok),
+        (bad_llvm_name, _crt_bad_llvm_test, bad),
+    ]
+    for test, rule, target in cases:
         rule(
             name = test,
             size = "small",
             target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
             target_under_test = target,
         )
-    native.test_suite(name = name, tests = [ok_name, bad_name, target_flag_name])
+    native.test_suite(name = name, tests = [ok_name, bad_name, target_flag_name, ok_llvm_name, bad_llvm_name])
 
 def rust_msvc_crt_library_tests(name, shared, static, cc_consumer):
     """Asserts +crt-static Rust shared and static libraries reject /MD C deps on MSVC.
@@ -443,6 +505,32 @@ def build_script_msvc_coverage_test(name, target):
         target: A cargo_build_script that uses the cc toolchain.
     """
     _msvc_coverage_test(
+        name = name,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows"],
+        target_under_test = target,
+    )
+
+def _absolute_tool_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    for name in ["CC", "CXX", "AR", "HOST_CC", "HOST_CXX", "HOST_AR", "TARGET_CC", "TARGET_CXX", "TARGET_AR"]:
+        asserts.equals(env, "C:/fake/bin/cl.exe", action.env.get(name), "{} is not the drive-letter tool path".format(name))
+    return analysistest.end(env)
+
+_absolute_tool_test = analysistest.make(
+    _absolute_tool_impl,
+    config_settings = {"//command_line_option:extra_toolchains": [str(Label("//cc/toolchains/external:fake_windows_cc_toolchain"))]},
+)
+
+def build_script_absolute_tool_test(name, target):
+    """Asserts a Windows drive-letter cc tool path reaches the build script without a ${pwd}/ prefix.
+
+    Args:
+        name: Name of the test.
+        target: A cargo_build_script that uses the cc toolchain.
+    """
+    _absolute_tool_test(
         name = name,
         size = "small",
         target_compatible_with = ["@platforms//os:windows"],

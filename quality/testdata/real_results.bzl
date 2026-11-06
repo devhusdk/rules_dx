@@ -13,6 +13,7 @@ def _policy_transition_impl(settings, attr):
     return {
         _COMPILER: attr.compiler or settings[_COMPILER],
         _PROFILE: attr.config_profile or settings[_PROFILE],
+        "@rules_rust//rust/settings:clippy_flag": attr.clippy_flags,
         "//config:errcheck_flags": attr.errcheck_flags,
         "//config:govet_analyzers": attr.govet_analyzers,
         "//config:tool_dialyzer": str(attr.tool_dialyzer),
@@ -30,6 +31,7 @@ _policy_transition = transition(
     outputs = [
         _COMPILER,
         _PROFILE,
+        "@rules_rust//rust/settings:clippy_flag",
         "//config:errcheck_flags",
         "//config:govet_analyzers",
         "//config:tool_dialyzer",
@@ -49,6 +51,7 @@ def _results_impl(ctx):
 _results = rule(
     implementation = _results_impl,
     attrs = {
+        "clippy_flags": attr.string_list(),
         "compiler": attr.string(),
         "config_profile": attr.string(),
         "errcheck_flags": attr.string_list(),
@@ -61,12 +64,13 @@ _results = rule(
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, govet_analyzers = [], errcheck_flags = [], compiler = "", typecheck_subject = False, rustc_flags = [], config_profile = "", target_compatible_with = None, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, govet_analyzers = [], errcheck_flags = [], compiler = "", typecheck_subject = False, rustc_flags = [], clippy_flags = [], config_profile = "", target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
     _results(
         name = name + "_results",
+        clippy_flags = clippy_flags,
         compiler = compiler,
         config_profile = config_profile,
         errcheck_flags = errcheck_flags,

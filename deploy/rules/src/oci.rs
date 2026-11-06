@@ -437,19 +437,14 @@ fn oci_read_layer(
                     ))
                 })?
         }
-        OciCompression::Zstd => {
-            let decoder =
-                ruzstd::decoding::StreamingDecoder::new(head.chain(&mut tee)).map_err(|error| {
-                    oci_invalid(format!(
-                        "image archive layer '{name}' is not valid zstd: {error}"
-                    ))
-                })?;
-            dx_digest::sha256_reader_hex(decoder).map_err(|error| {
-                oci_invalid(format!(
-                    "image archive layer '{name}' is not valid zstd: {error}"
-                ))
-            })?
-        }
+        OciCompression::Zstd => dx_digest::sha256_reader_hex(zstd_multi_frame_reader(
+            io::BufReader::new(head.chain(&mut tee)),
+        ))
+        .map_err(|error| {
+            oci_invalid(format!(
+                "image archive layer '{name}' is not valid zstd: {error}"
+            ))
+        })?,
         OciCompression::None => dx_digest::sha256_reader_hex(head.chain(&mut tee))?,
     };
     io::copy(&mut tee, &mut io::sink())?;
@@ -2427,6 +2422,95 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    fn zstd_frame(data: &[u8]) -> Vec<u8> {
+        ruzstd::encoding::compress_to_vec(data, ruzstd::encoding::CompressionLevel::Fastest)
+    }
+
+    fn skippable_frame(length: u32, body: &[u8]) -> Vec<u8> {
+        let mut frame = vec![0x50, 0x2A, 0x4D, 0x18];
+        frame.extend_from_slice(&length.to_le_bytes());
+        frame.extend_from_slice(body);
+        frame
+    }
+
+    #[test]
+    fn oci_read_layer_hashes_every_zstd_frame() {
+        let (a, b) = (b"first frame data".to_vec(), b"second frame data".to_vec());
+        let joined = [a.clone(), b.clone()].concat();
+        let want = format!("sha256:{}", dx_digest::sha256_hex(&joined));
+        let plain = [zstd_frame(&a), zstd_frame(&b)].concat();
+        let skipped = [zstd_frame(&a), skippable_frame(4, b"junk"), zstd_frame(&b)].concat();
+        for (name, blob) in [("plain", plain), ("skippable", skipped)] {
+            let layer = oci_read_layer(blob.as_slice(), name, None).expect(name);
+            assert_eq!(layer.diff_id, want, "{name}");
+        }
+    }
+
+    #[test]
+    fn oci_read_layer_rejects_bad_zstd_tails() {
+        let good = zstd_frame(b"frame");
+        let mut garbage = good.clone();
+        garbage.extend_from_slice(b"trailing garbage");
+        let mut short = good;
+        short.extend_from_slice(&skippable_frame(8, b"abc"));
+        for (name, blob) in [("garbage", garbage), ("short", short)] {
+            let error = oci_read_layer(blob.as_slice(), name, None)
+                .err()
+                .expect(name);
+            assert!(error.to_string().contains("is not valid zstd"), "{error}");
+        }
+    }
+
+    #[test]
+    fn oci_paths_accept_multi_frame_zstd_layer() {
+        let scratch = scratch_dir();
+        let tar = oci_test_layer(false);
+        let (head, tail) = tar.split_at(tar.len() / 2);
+        let zstd = [zstd_frame(head), zstd_frame(tail)].concat();
+        let config = oci_config("amd64", &[&tar]);
+        let image = scratch.path().join("multi_frame.tar");
+        oci_tar(
+            &image,
+            &[
+                (
+                    "manifest.json",
+                    b"[{\"Config\":\"c.json\",\"Layers\":[\"l/layer.tar\"]}]",
+                ),
+                ("c.json", &config),
+                ("l/layer.tar", &zstd),
+            ],
+            &[],
+        );
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        oci_build_layout(
+            &image,
+            &outdir,
+            "registry.invalid",
+            "demo/app",
+            "1.0.0",
+            "linux/amd64",
+        )
+        .expect("multi-frame layer");
+    }
+
+    #[test]
+    fn archive_image_hashes_every_zstd_frame() {
+        let scratch = scratch_dir();
+        let tar = oci_test_layer(false);
+        let (head, tail) = tar.split_at(tar.len() / 2);
+        let layer = scratch.path().join("multi.tar.zst");
+        std::fs::write(&layer, [zstd_frame(head), zstd_frame(tail)].concat()).expect("layer");
+        let out = scratch.path().join("out.tar");
+        archive_image(&[layer.as_path()], "linux/amd64", &[], &out).expect("archive");
+        let archive = oci_read_archive(&out, None, None).expect("read");
+        let config: serde_json::Value = serde_json::from_slice(&archive.config).expect("config");
+        assert_eq!(
+            config["rootfs"]["diff_ids"][0],
+            format!("sha256:{}", dx_digest::sha256_hex(&tar)).as_str()
+        );
     }
 
     #[test]

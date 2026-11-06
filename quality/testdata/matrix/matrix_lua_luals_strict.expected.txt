@@ -4,10 +4,8 @@ stages 1
 stage luals classes=lua sources=matrix/luals_profile.lua
 completed_rounds 1
 convergence STABLE
-initial 2
-initial ERROR luals luals/unused-local matrix/luals_profile.lua 36 36 fixable=false "Unused local `unused`."
+initial 1
 initial WARNING luals luals/no-unknown matrix/luals_profile.lua 57 57 fixable=false "Cannot infer type."
-terminal 2
-terminal ERROR luals luals/unused-local matrix/luals_profile.lua 36 36 fixable=false "Unused local `unused`."
+terminal 1
 terminal WARNING luals luals/no-unknown matrix/luals_profile.lua 57 57 fixable=false "Cannot infer type."
 replacements 0

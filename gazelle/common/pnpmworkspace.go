@@ -39,9 +39,21 @@ func workspacePatterns(dir string) []string {
 			trimmed := strings.TrimSpace(line)
 			switch {
 			case strings.HasPrefix(line, "packages:"):
-				inPackages = true
+				rest := strings.TrimSpace(cutComment(strings.TrimPrefix(line, "packages:")))
+				inPackages = false
+				if strings.HasPrefix(rest, "[") {
+					for _, part := range strings.Split(strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]"), ",") {
+						if item := cleanWorkspaceItem(part); item != "" {
+							patterns = append(patterns, item)
+						}
+					}
+				} else {
+					inPackages = true
+				}
 			case inPackages && strings.HasPrefix(trimmed, "- "):
-				patterns = append(patterns, strings.Trim(strings.TrimSpace(trimmed[2:]), `'"`))
+				if item := cleanWorkspaceItem(trimmed[2:]); item != "" {
+					patterns = append(patterns, item)
+				}
 			case inPackages && trimmed != "" && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(line, " "):
 				inPackages = false
 			}
@@ -64,6 +76,17 @@ func workspacePatterns(dir string) []string {
 		}
 	}
 	return patterns
+}
+
+func cutComment(s string) string {
+	if i := strings.Index(s, " #"); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+func cleanWorkspaceItem(s string) string {
+	return strings.Trim(strings.TrimSpace(cutComment(s)), `'"`)
 }
 
 func matchesWorkspace(patterns []string, rel string) bool {

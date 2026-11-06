@@ -1068,7 +1068,7 @@ mod tests {
     }
 
     #[test]
-    fn spawn_stays_bounded_when_a_parent_exit_leaves_a_descendant_holding_the_pipes() {
+    fn spawn_ends_a_descendant_that_outlives_a_clean_exit() {
         let probe = dx_testing::process_probe();
         let cwd = std::env::temp_dir();
         let ambient: Vec<(OsString, OsString)> = Vec::new();
@@ -1084,7 +1084,7 @@ mod tests {
             OsString::from(format!("--descendant-marker={}", marker.display())),
         ];
         let started = std::time::Instant::now();
-        let err = spawn_within(
+        let out = spawn_within(
             &argv,
             &cwd,
             &env,
@@ -1095,8 +1095,8 @@ mod tests {
                 drain: Duration::from_secs(1),
             },
         )
-        .expect_err("a tree that escapes its owner is never success");
-        assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+        .expect("a clean exit finishes once its descendants are ended");
+        assert_eq!(out.code, Some(0));
         let elapsed = started.elapsed();
         assert!(
             elapsed < Duration::from_secs(10),

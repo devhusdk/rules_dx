@@ -383,6 +383,28 @@ mod tests {
         scratch.close().expect("cleanup");
     }
 
+    #[test]
+    #[cfg(windows)]
+    fn stale_stage_held_open_reports_without_clearing() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        let scratch = dx_test_scratch::scratch("dx-commit-stage-held-");
+        let stage = scratch.path().join("current.next");
+        std::fs::write(&stage, "stale").expect("staged file");
+        let held = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&stage)
+            .expect("hold the stage open");
+        let error = clear_stale_stage(&stage).expect_err("a held stage fails");
+        assert!(matches!(error, CommitError::Install { .. }));
+        drop(held);
+        assert_eq!(
+            std::fs::read(&stage).expect("refused stage survives"),
+            b"stale"
+        );
+        scratch.close().expect("cleanup");
+    }
+
     fn swap_in(dir: &Path, target: &str) -> PointerSwap {
         PointerSwap {
             current: dir.join("current"),

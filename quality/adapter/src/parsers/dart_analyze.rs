@@ -69,7 +69,8 @@ fn is_lint(kind: &str) -> Result<bool, ParseError> {
 /// is the staged `analysis_options.yaml`, which is listed so that a broken `include:` or an
 /// unknown lint surfaces; a diagnostic on it is a configuration failure, not a finding. The exit
 /// code must agree with the worst severity: 0 for info or nothing, 2 for warnings, 3 for errors.
-/// The lint and typecheck views share one run and partition it by diagnostic type.
+/// The lint and typecheck views share one run and partition it by diagnostic type. A lint the
+/// analyzer reports at info level is a warning here; hints stay info.
 pub fn parse_dart_analyze(
     stdout: &[u8],
     stderr: &[u8],
@@ -101,6 +102,11 @@ pub fn parse_dart_analyze(
         };
         worst = worst.max(rank);
         let lint = is_lint(&diagnostic.kind)?;
+        let severity = if diagnostic.kind == "LINT" && severity == ToolSeverity::Info {
+            ToolSeverity::Warning
+        } else {
+            severity
+        };
         let message = match diagnostic.correction_message.as_deref() {
             Some(correction) if !correction.is_empty() => {
                 format!("{} {correction}", diagnostic.problem_message)
@@ -201,6 +207,17 @@ mod tests {
         assert_eq!(types[0].finding.message, "bad. Fix it.");
         assert_eq!(types[0].finding.start, TextPosition { line: 2, column: 5 });
         assert_eq!(types[0].finding.encoding, ColumnEncoding::Utf16);
+    }
+
+    #[test]
+    fn lint_infos_are_warnings_and_hints_stay_info() {
+        let all = [
+            diag(FILES[0], "LINT", "INFO"),
+            diag(FILES[0], "HINT", "INFO"),
+        ];
+        let found = run(&all, 0, DartAnalyzeView::Lint).unwrap();
+        assert_eq!(found[0].finding.severity, ToolSeverity::Warning);
+        assert_eq!(found[1].finding.severity, ToolSeverity::Info);
     }
 
     #[test]

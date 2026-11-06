@@ -149,3 +149,34 @@ func TestBuildSnapshotRecordErrors(t *testing.T) {
 		t.Fatalf("file removed or changed: %q, %v", got, err)
 	}
 }
+
+func TestBuildSnapshotKeepsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	build := filepath.Join(dir, "BUILD")
+	if err := os.Mkdir(build, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	inner := filepath.Join(build, "file.txt")
+	if err := os.WriteFile(inner, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var s BuildSnapshot
+	if err := s.Record(build); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Restore(); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if _, err := os.Stat(inner); err != nil {
+		t.Fatalf("directory contents lost: %v", err)
+	}
+	if err := os.Remove(inner); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Restore(); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if info, err := os.Stat(build); err != nil || !info.IsDir() {
+		t.Fatalf("empty directory removed: %v", err)
+	}
+}

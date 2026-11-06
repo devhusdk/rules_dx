@@ -6,8 +6,8 @@ use documentation_ir::encode_shard;
 use documentation_ir::proto::{DocIr, Symbol};
 
 use super::{
-    Inputs, anchor_name, check, first_field, has_empty_link_target, inline_targets, parse_args,
-    resolve_route, split_reference, tidy,
+    Inputs, anchor_name, check, first_field, has_empty_link_target, inline_targets, link_targets,
+    parse_args, resolve_route, split_reference, tidy,
 };
 
 fn args(list: &[&str]) -> Vec<String> {
@@ -278,4 +278,12 @@ fn a_search_record_url_must_resolve_to_a_rendered_page() {
         records_site("records-bad", bad),
         "search record url 'api/rust/demo/Gone.html' has no rendered page"
     );
+}
+
+#[test]
+fn links_inside_a_code_fence_are_not_checked() {
+    let text = "[a](a.md)\n```powershell\n[Environment]::Set('x')\n[b](b.md)\n```\n[c](c.md)\n";
+    let found = link_targets(&["guide.md".to_string()], &[text.to_string()], "");
+    let targets: Vec<&str> = found.iter().map(|(_, target)| target.as_str()).collect();
+    assert_eq!(targets, ["a.md", "c.md"]);
 }

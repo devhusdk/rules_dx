@@ -30,7 +30,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | `-o, --output text\|json` | Result shape. Default `text`. |
 | `--include-edits` | Add `source_digest` and full `edits` to JSON `change` events. Needs `--output json`, else exit `2`. |
 | `--here` | Scope to the current directory tree. |
-| `--affected` | Scope to targets your changes reach. With none, prints `no affected targets` and exits `0`. |
+| `--affected` | Scope to targets your changes reach. With none, prints `no affected targets` and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty. |
 | `--workspace <dir>` | Use this workspace dir. |
 | `-q, --quiet` | Hide summaries. Findings and failures still print. |
 | `-v, --verbose` | Show more logs. |
@@ -230,7 +230,6 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `pmd`, `spotbugs` | Lint Java | |
 | `javac` | Typecheck Java | |
 | `ktfmt` | Format Kotlin | |
-| `ktlint` | Lint Kotlin | |
 | `kotlinc` | Typecheck Kotlin | |
 | `scalafmt` | Format Scala | |
 | `scalafix` | Lint Scala | |
@@ -249,8 +248,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `ruff` | Format and lint Python and Jupyter; audit | |
 | `pydoclint` | Lint Python | |
 | `ty` | Typecheck Python and Jupyter | |
-| `rubocop` | Lint Ruby | `windows_x86_64`, `windows_arm64` |
-| `standardrb` | Format Ruby | `windows_x86_64`, `windows_arm64` |
+| `rubocop` | Format and lint Ruby | `windows_x86_64`, `windows_arm64` |
 | `sorbet` | Typecheck Ruby | `windows_x86_64`, `windows_arm64` |
 | `phpcs` | Lint PHP | `windows_arm64` |
 | `phpstan` | Typecheck PHP | `windows_arm64` |
@@ -328,7 +326,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `gplint` | Lint Gherkin | |
 | `notebook_outputs` | Lint Jupyter notebooks for stored outputs | |
 | `keep_sorted` | Lint `keep-sorted` blocks in text | |
-| `typos` | Spell check source, docs and text, and fix with `--apply`. Add words to a `_typos.toml` at the repo root | |
+| `typos` | Spell check source, docs and text, and fix with `--apply`. File name typos are reported but `--apply` does not rename files. Add words to a `_typos.toml` at the repo root | |
 
 ### Schema languages
 
@@ -398,40 +396,94 @@ Set `root` and `baseline_root` when a library owns more than one schema.
 
 ## Tool config files
 
-Declare a config with the `*_config` rule from `@rules_dx//quality:native_config.bzl`. The normal way to bind it is to list it once in your `workspace_policy` `configs`; every target the tool runs on then uses it. To give one target a different config, add that config to the target's `aspect_hints`; a hint wins over the policy. A tool marked required fails analysis until one is bound either way. Tag a target `no-lint` or `no-format` to skip it.
+Each tool reads its own native config file at the repo root. The table lists the file, whether dx can extend a tier base from it, and where the tier comes from. Tag a target `no-lint` or `no-format` to skip it.
 
-| Tool | Required | Config it reads | Files it ignores | How to bind (policy `configs` or `aspect_hints`) |
-| --- | --- | --- | --- | --- |
-| `biome` | lint only | `biome.json` | | `biome_config` |
-| `buildifier` | yes | `.buildifier.json` | | `buildifier_config` |
-| `checkstyle` | yes | `checkstyle.xml`; bases `standard.xml` (Google checks, warnings) and `strict.xml` (errors plus `MagicNumber`) in `quality/tiers/checkstyle/` | | `checkstyle_config` |
-| `eslint` | yes | `eslint.config.mjs` | | `eslint_config` |
-| `graphql-eslint` | yes | `graphql_lint.json` | | `graphql_eslint_config` |
-| `kubeconform` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas` from `@rules_dx//kubernetes/rules:defs.bzl` |
-| `helm` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas`, shared with `kubeconform` |
-| `detekt` | no | `.yml` or `.yaml`; replaces detekt's defaults, so rules not in the file do not run | | `detekt_config` |
-| `ktlint` | no | `.editorconfig`, default `intellij_idea` style with three rules off | | `ktlint_config` |
-| `roslyn` | no | `.globalconfig`, replaces the dx default; bases `standard.globalconfig` (the SDK Recommended tier written out) and `strict.globalconfig` (every CA rule at warning, Security and Reliability rules at error) in `quality/tiers/roslyn/` | | `roslyn_config` |
-| `ruff` | yes | `ruff.toml` | | `ruff_config` |
-| `scalafix` | no | `.scalafix.conf`, default `rules = [RemoveUnused]`; `RemoveUnused` needs the `@rules_dx//scala/toolchain:semanticdb` toolchain, which sets `-Wunused` and `-Wconf:cat=unused:info`; bases `standard.conf` (`RemoveUnused`, `DisableSyntax` and two more rules) and `strict.conf` (adds `ExplicitResultTypes`, `OrganizeImports` and stricter `DisableSyntax`) in `quality/tiers/scalafix/` | | `scalafix_config` |
-| `scalafmt` | no | `.scalafmt.conf`, default `version = 3.11.4` and `runner.dialect = scala213` (`quality/tools/jvm/scalafmt_default.conf`) | | `scalafmt_config` |
-| `sqlfluff` | yes | `.sqlfluff` | | `sqlfluff_config` |
-| `vale` | yes | `.vale.ini` | | `vale_config` |
-| `pmd` | no | `.xml` ruleset, default unused-code rules at info (`quality/tools/jvm/pmd_default.xml`); bases `standard.xml` (quickstart plus unused code) and `strict.xml` (adds the bestpractices, errorprone, multithreading and performance categories) in `quality/tiers/pmd/` | | `pmd_config` |
-| `spotbugs` | no | No file. Set `--//config:spotbugs_effort` (`min`, `less`, `default`, `more`, `max`) and `--//config:spotbugs_threshold` (`high`, `medium`, `low`); strict means `max` and `low` | | `--//config:...` flags |
-| `perlcritic` | no | `.perlcriticrc`, replaces the default severity 5 plus unused-variable selection (`--profile`); bases `standard.perlcriticrc` (severity 3) and `strict.perlcriticrc` (severity 1, no `RequireTidyCode`) in `quality/tiers/perlcritic/`; `Variables::ProhibitUnusedVariables` stays at 5 | | `perlcritic_config` |
-| `selene` | no | `.toml`; bases `standard.toml` and `strict.toml` (every lint `deny`, complexity limit 3) in `quality/tiers/selene/` | | `selene_config` |
-| `luals` | no | `.json`, flat `.luarc.json` keys; bases `standard.json` and `strict.json` (errors for unused code, the `strong` group on) in `quality/tiers/luals/` | | `luals_config` |
-| `clang-format` | no | `.clang-format` | | `clang_format_config` |
-| `djlint` | no | `djlint.toml` or `.djlintrc` | Workspace configs | `djlint_config` |
-| `latexindent` | no | YAML settings file | `localSettings.yaml` | `latexindent_config` |
-| `shellcheck` | no | `.shellcheckrc` | Host and parent-directory `.shellcheckrc`, `~/.shellcheckrc`, XDG config | `shellcheck_config` |
-| `stylua` | no | `stylua.toml` | `stylua.toml`, `.stylua.toml` and `.editorconfig` next to the sources | `stylua_config` |
-| `remark` | no | `.json` | `.remarkrc` files and remark plugins | `remark_config` |
-| `prettier` (SQL, XML, Gherkin) | no | `.prettierrc` | `.prettierrc`, `.editorconfig` and other user configs | `prettier_config` |
-| `prettier` (Vue, Svelte, Astro) | no | none | `.prettierrc`, `.editorconfig` and other user configs | none |
-| `perltidy` | no | none | `.perltidyrc`, `$PERLTIDY` | none |
-| `perlcritic` | no | none | `.perlcriticrc`, `$PERLCRITIC` | none |
-| OCaml formatting | no | none | `.ocamlformat` | none |
+A bound ruff config runs with its own directory as the project root, the same as ruff's own discovery, so `src`, `exclude` and `per-file-ignores` resolve against that directory.
+
+### Change a rule
+
+Edit the tool's own root file. Where the Base column says `extends`, the file extends the dx tier base, so your edit is the only thing you keep. Where it says `override copy`, the root file is a copy of the base, and you edit the copy.
+
+<!-- tool-config-table:begin (generated from quality/tools.bzl; run `bazel run //docs:update_tool_configs`) -->
+
+| Tool | Level | Native file(s) | Base | Tier source | Shared with |
+| --- | --- | --- | --- | --- | --- |
+| `ansible_lint` | catalog | `*.ansible-lint`, `*.yml`, `*.yaml` | none | ansible-lint moderate and production profiles |  |
+| `bicep` | curated | `bicepconfig.json` | none | dx |  |
+| `biome` | curated | `*.json` | none | dx |  |
+| `buf` | catalog | `buf.yaml` | override copy | dx |  |
+| `buildifier` | curated | `.buildifier.json` | override copy | dx |  |
+| `cfn_lint` | curated | `*.cfnlintrc`, `*.yaml`, `*.yml` | none | dx |  |
+| `checkmake` | catalog | `checkmake.ini` | override copy | dx |  |
+| `checkstyle` | catalog | `*.xml` | none | dx |  |
+| `clang_format` | curated | `*.clang-format` | none | dx |  |
+| `clang_tidy` | curated | `*.clang-tidy` | none | dx |  |
+| `clippy` | curated |  | none | dx |  |
+| `cmakelint` | catalog | `.cmakelintrc` | override copy | dx |  |
+| `cppcheck` | catalog | `*.txt` | none | dx |  |
+| `credo` | catalog | `*.exs` | none | dx |  |
+| `csharpier` | catalog | `*.yaml` | none |  |  |
+| `dart` | curated | `analysis_options.yaml` | extends | dx |  |
+| `deadnix` | curated | `*.txt` | none | dx |  |
+| `detekt` | curated | `*.yml`, `*.yaml` | none | dx |  |
+| `djlint` | catalog | `djlint.toml`, `*.djlintrc` | none | dx |  |
+| `elvis` | catalog | `elvis.config`, `*.config` | none | dx |  |
+| `errcheck` | curated | `*.txt` | none | dx |  |
+| `eslint` | catalog | `eslint.config.mjs`, `eslint.config.js`, `eslint.config.cjs`, `eslint.config.ts`, `.eslintrc*` | extends | dx |  |
+| `ffmt` | curated | `ffmt.toml` | none | dx |  |
+| `fortitude` | curated | `*.toml` | none | dx |  |
+| `fsharplint` | catalog | `*.json` | none |  |  |
+| `gersemi` | catalog | `.gersemirc` | override copy | dx |  |
+| `govet` | curated | `*.json` | none | dx |  |
+| `gplint` | catalog | `*.gplintrc`, `*.json` | none | dx |  |
+| `graphql_eslint` | catalog | `*.json` | none | dx |  |
+| `hadolint` | curated | `*.yaml`, `*.yml` | none | dx |  |
+| `hlint` | catalog | `.hlint.yaml` | override copy | dx |  |
+| `julialint` | curated | `*.toml` | none | dx |  |
+| `kubeconform` | curated | `kubernetes.kubeconform.json` | none | dx |  |
+| `latexindent` | catalog | `*.yaml`, `*.yml` | none | dx |  |
+| `luals` | catalog | `*.json` | none | dx |  |
+| `markdown_check` | curated | `*.txt` | none | dx |  |
+| `mbake` | catalog | `.bake.toml` | override copy | dx |  |
+| `perlcritic` | catalog | `*.perlcriticrc`, `perlcriticrc` | none | dx |  |
+| `phpcs` | catalog | `*.xml`, `*.xml.dist` | none | dx |  |
+| `phpstan` | catalog | `*.neon`, `*.neon.dist` | none | phpstan level 6 and phpstan-strict-rules |  |
+| `pmd` | curated | `*.xml` | none | dx |  |
+| `prettier` | curated | `*.prettierrc`, `*.json`, `*.json5`, `*.yaml`, `*.yml`, `*.toml`, `*.mjs`, `*.cjs`, `*.js` | none | dx |  |
+| `psscriptanalyzer` | catalog | `PSScriptAnalyzerSettings.psd1` | override copy | dx |  |
+| `pydoclint` | catalog | `*.toml` | override copy | dx |  |
+| `qmlformat` | catalog | `*.qmlformat.ini` | none | dx |  |
+| `qmllint` | catalog | `*.qmllint.ini` | none | dx |  |
+| `redocly` | catalog | `*.yaml`, `*.yml` | none | redocly spec and all rulesets |  |
+| `regal` | catalog | `.regal/config.yaml` | none | dx |  |
+| `remark` | curated | `*.json` | none | dx |  |
+| `roslyn` | catalog | `*.globalconfig` | none |  |  |
+| `rubocop` | catalog | `*.yml`, `*.yaml` | none | dx |  |
+| `ruff` | curated | `ruff.toml`, `.ruff.toml` | extends | dx |  |
+| `rustfmt` | curated | `*.toml` | none | dx |  |
+| `scalafix` | catalog | `*.conf` | none | dx |  |
+| `scalafmt` | curated | `*.conf` | none | dx |  |
+| `selene` | catalog | `*.toml` | none | dx |  |
+| `shellcheck` | curated | `*.shellcheckrc`, `shellcheckrc` | none | dx |  |
+| `spotbugs` | curated | `*.xml` | none | dx |  |
+| `sqlfluff` | catalog | `.sqlfluff` | override copy | dx |  |
+| `staticcheck` | curated | `staticcheck.conf` | none | dx |  |
+| `stylelint` | catalog | `.stylelintrc.json`, `.stylelintrc*`, `stylelint.config.*` | extends | dx |  |
+| `stylua` | catalog | `*.toml` | none | dx |  |
+| `swift_format` | catalog | `*.swift-format`, `*.json` | none | dx |  |
+| `swift_lint` | catalog | `*.swift-format`, `*.json` | none | dx |  |
+| `taplo` | curated | `.taplo.toml` | override copy | dx |  |
+| `tflint` | catalog | `*.hcl` | none | dx |  |
+| `trivy_config` | catalog | `*.txt` | none | dx |  |
+| `tsc` | curated | `tsconfig.json` | extends | dx |  |
+| `ty` | curated | `*.toml` | none | dx |  |
+| `typos` | curated | `typos.toml` | override copy | dx |  |
+| `vale` | catalog | `*.ini` | none | dx |  |
+| `yamlfmt` | curated | `.yamlfmt` | override copy | dx |  |
+| `yamllint` | curated | `.yamllint` | override copy | dx |  |
+| `zanuda` | catalog | `*.txt` | none | dx |  |
+| `zizmor` | curated | `*.txt` | none | dx |  |
+
+<!-- tool-config-table:end -->
 
 Formatters run on their tool defaults. dx ships no style for them, and `dx init` writes no formatter file.

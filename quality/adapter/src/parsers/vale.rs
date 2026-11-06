@@ -19,8 +19,7 @@ struct ValeAlert {
 
 fn vale_severity(level: &str) -> Result<ToolSeverity, ParseError> {
     match level {
-        "error" => Ok(ToolSeverity::Error),
-        "warning" => Ok(ToolSeverity::Warning),
+        "error" | "warning" => Ok(ToolSeverity::Warning),
         "suggestion" => Ok(ToolSeverity::Info),
         _ => Err(ParseError::Shape {
             tool: "vale",
@@ -171,7 +170,7 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "Test.Cotton");
         assert_eq!(findings[0].finding.message, "Avoid cotton.");
-        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
         assert_eq!(
             (findings[0].finding.start, findings[0].finding.end),
             (

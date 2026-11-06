@@ -41,13 +41,13 @@ mod tests {
     };
 
     #[test]
-    fn empty_table_keeps_the_parser_severity() {
+    fn unmapped_tool_keeps_the_parser_severity() {
         assert_eq!(
             resolve(&[], "ruff", "E501", ToolSeverity::Info),
             ToolSeverity::Info
         );
         assert_eq!(
-            resolve(TOOL_SEVERITIES, "ruff", "E501", ToolSeverity::Info),
+            resolve(TOOL_SEVERITIES, "no-such-tool", "X1", ToolSeverity::Info),
             ToolSeverity::Info
         );
     }

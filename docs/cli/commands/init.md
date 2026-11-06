@@ -71,7 +71,7 @@ other entries stay.
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/bazelrc/`,
-`/.dx/local/docs/`, `/.dx/local/results.json`, `/.dx/local/explain/`, `/.dx/local/timings/`, `/.dx/local/fuzz/`, `/.dx/local/advisory/`, `/.dx/local/bench/`, `/.dx/local/` and
+`/.dx/local/docs/`, `/.dx/local/results.json`, `/.dx/local/timings/`, `/.dx/local/fuzz/`, `/.dx/local/advisory/`, `/.dx/local/bench/`, `/.dx/local/` and
 `/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
 warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/local`, `.dx/bazelrc`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx/local; add the dx lines so Bazel skips dx state`
@@ -149,8 +149,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.dx/config/BUILD.bazel` | whole | Generated. Written when a tool with a config rule is configured: one `<tool>_config` target for its root file and both bases, and `workspace_policy(name = "policy")` that lists them. The correctness layer selects it with `--@rules_dx//config:workspace=//.dx/config:policy`. A flag in your root `.bazelrc` after the imports wins; then set `extends = "//.dx/config:policy"` in your own policy. |
 | `BUILD.bazel` | once | Written when the root has neither `BUILD` nor `BUILD.bazel`: `exports_files` for the root config files. Never rewritten. |
 | `.devcontainer/devcontainer.json` | pin | Written when missing. Only the `image` and the bazel feature version are updated, and only while they still name the image and feature dx wrote. Another image or feature is kept. |
-| `.editorconfig` | keys | Written when missing. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. On every `dx init`/`dx upgrade`, if the repo has Kotlin sources, dx sets the ktlint keys under `[*.{kt,kts}]`. It never changes other keys or sections, and it overwrites a ktlint key that you changed. |
-| `.gitattributes` | once | Written when missing. Never rewritten. It sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
+| `.editorconfig`, `.gitattributes` | once | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
 | `.vscode/settings.json` | keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
 | `.github/workflows/ci.yml` | pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
 | `.github/workflows/dx-update.yml` | once | Written when missing. Never rewritten. |

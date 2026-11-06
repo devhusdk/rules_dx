@@ -1,0 +1,10 @@
+-Wclippy::all
+-Wclippy::pedantic
+-Wclippy::dbg_macro
+-Wclippy::todo
+-Wclippy::unimplemented
+-Wclippy::allow_attributes_without_reason
+-Wclippy::allow_attributes
+-Wrust_2018_idioms
+-Wunused_qualifications
+-Dwarnings

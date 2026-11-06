@@ -1,4 +1,5 @@
-use evidence_inputs::validate;
+use dx_testing::read_runfiles;
+use evidence_inputs::{PLATFORMS, validate};
 
 fn run(scope: &str, platforms: &str, timeout: &str) -> Result<Vec<(String, String)>, String> {
     validate(|name| {
@@ -33,18 +34,7 @@ fn accepts_whitespace_separated_patterns() {
     for (scope, expected) in cases {
         let outputs = run(scope, OK, "600").unwrap_or_else(|e| panic!("{scope:?}: {e}"));
         let keys: Vec<&str> = outputs.iter().map(|(key, _)| key.as_str()).collect();
-        assert_eq!(
-            keys,
-            [
-                "scope",
-                "task",
-                "platforms",
-                "runners",
-                "test_timeout",
-                "flags",
-                "relocate"
-            ]
-        );
+        assert_eq!(keys, ["scope", "task", "test_timeout", "flags", "relocate"]);
         assert_eq!(outputs[0].1, expected);
     }
 }
@@ -212,4 +202,25 @@ fn rejects_bad_relocate() {
         coverage.contains("relocate supports test and build"),
         "{coverage}"
     );
+}
+
+#[test]
+fn the_workflow_runner_map_matches_platforms() {
+    let text = read_runfiles(".github/workflows/evidence.yml");
+    let map = text
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("runs-on: ${{ fromJSON('"))
+        .and_then(|rest| rest.split_once("')"))
+        .map(|(map, _)| map)
+        .expect("evidence.yml runs-on runner map");
+    let map: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(map).expect("runner map is JSON");
+    let mut map: Vec<(&str, &str)> = map
+        .iter()
+        .map(|(name, runner)| (name.as_str(), runner.as_str().expect("runner label")))
+        .collect();
+    let mut expected = PLATFORMS.to_vec();
+    map.sort_unstable();
+    expected.sort_unstable();
+    assert_eq!(map, expected);
 }

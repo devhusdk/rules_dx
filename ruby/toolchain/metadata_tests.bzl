@@ -24,3 +24,16 @@ def ruby_metadata_tests(name):
         mode = "load",
         checks = _checks(),
     )
+
+def ruby_crlf_tests(name):
+    """Declares the test that the patched rules_ruby batch template keeps CRLF endings."""
+    starlark_test(
+        name = name,
+        mode = "execution",
+        file_blocks = {
+            "@rules_ruby//ruby/private/binary:binary.cmd.tpl": [
+                'if "%COVERAGE%" == "1" (\r\n  call :rlocation {coverage_helper} _coverage_helper_path\r\n',
+                "\r\n{bundler_command} {ruby_binary_name} {binary} {args} %*\r\n",
+            ],
+        },
+    )

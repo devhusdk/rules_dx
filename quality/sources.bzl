@@ -116,7 +116,7 @@ UPSTREAM_PROTOBUF_EXTENSIONS = ["proto"]
 
 UPSTREAM_CC_CLASS_EXTENSIONS = {
     "c": ["c", "h"],
-    "cpp": ["cc", "cpp", "cxx", "hh", "hpp", "hxx"],
+    "cpp": ["cc", "cpp", "cxx", "hh", "hpp", "hxx", "ipp", "inl", "tcc", "inc", "h++", "c++", "C", "H"],
     "cuda": ["cu", "cuh"],
     "objc": ["m"],
     "objcpp": ["mm"],

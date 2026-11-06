@@ -139,8 +139,7 @@ fn pnpm_packages_from_value(
         if version.starts_with("link:") || version.starts_with("file:") {
             continue;
         }
-        let is_git = is_npm_git_reference(&key)
-            || is_npm_git_reference(&version)
+        let is_git = is_npm_git_reference(&version)
             || detail.get("resolution").is_some_and(pnpm_resolution_is_git);
         out.push(LockedPackage {
             is_git,
@@ -315,7 +314,7 @@ fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> 
         .iter()
         .any(|(_, range)| is_npm_git_reference(range))
         || is_npm_git_reference(version)
-        || is_npm_git_reference(resolved);
+        || is_npm_git_reference(yarn_resolution_spec(resolved));
     let alias = entry
         .descriptors
         .iter()
@@ -329,6 +328,18 @@ fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> 
         package.location = Some(name.to_owned());
     }
     Some(package)
+}
+
+fn yarn_resolution_spec(resolved: &str) -> &str {
+    if resolved.starts_with("git@") {
+        return resolved;
+    }
+    match resolved.char_indices().skip(1).find(|(_, c)| *c == '@') {
+        Some((at, _)) if super::locks_npm::valid_package_name(&resolved[..at]) => {
+            &resolved[at + 1..]
+        }
+        _ => resolved,
+    }
 }
 
 fn yarn_alias_target(range: &str) -> Option<String> {

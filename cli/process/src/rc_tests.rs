@@ -1138,3 +1138,17 @@ fn verb_mask_ignores_unknown_verbs() {
     assert!(!mask.contains("not-a-verb"));
     assert_eq!(VerbMask::NONE.with("not-a-verb"), VerbMask::NONE);
 }
+
+#[test]
+fn the_system_rc_is_under_program_data_on_windows_and_etc_elsewhere() {
+    let env = |name: &str| (name == "ProgramData").then(|| "C:/ProgramData".to_owned());
+    assert_eq!(
+        system_rc(&env, true),
+        Some(PathBuf::from("C:/ProgramData").join("bazel.bazelrc"))
+    );
+    assert_eq!(system_rc(&|_| None, true), None);
+    assert_eq!(
+        system_rc(&env, false),
+        Some(PathBuf::from("/etc/bazel.bazelrc"))
+    );
+}

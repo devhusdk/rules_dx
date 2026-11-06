@@ -1,0 +1,44 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//quality:native_config.bzl", "ruff_config")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+exports_files(
+    glob(["*.py"]),
+    visibility = ["//visibility:public"],
+)
+
+quality_family(
+    name = "ruff_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "python",
+    lint = ["ruff"],
+)
+
+workspace_policy(
+    name = "ruff_policy",
+    families = [":ruff_family"],
+)
+
+[
+    ruff_config(
+        name = "ruff_" + tier,
+        src = "//quality/tiers/ruff:%s.toml" % tier,
+    )
+    for tier in ["standard", "strict"]
+]
+
+[
+    real_source_target(
+        name = "%s_%s" % (tier, name),
+        aspect_hints = [":ruff_" + tier],
+        python_srcs = [name + ".py"],
+    )
+    for tier in ["standard", "strict"]
+    for name in ["clean", "strict_only"]
+]

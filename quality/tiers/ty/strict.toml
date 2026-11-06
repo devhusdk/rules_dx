@@ -1,3 +1,4 @@
+# Raises the possibly-* rules and the other listed rules to error.
 [rules]
 ambiguous-protocol-member = "error"
 deprecated = "error"

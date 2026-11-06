@@ -60,6 +60,12 @@ func TestParsePackage(t *testing.T) {
 		{"nested module", "namespace Demo\n\nmodule Utils =\n    let x = 1\n", "Demo"},
 		{"nested module first", "module Utils =\n    let x = 1\n", GlobalPackage},
 		{"module rec", "module rec Acme.Demo\n", "Acme"},
+		{"module rec let body", "module rec Acme.Demo\n\nlet x = 1\n", "Acme"},
+		{"module internal rec let body", "module internal rec Acme.Demo\n\nlet x = 1\n", "Acme"},
+		{"module rec type body", "module rec Acme.Demo\n\ntype A = { B: B }\nand B = { A: int }\n", "Acme"},
+		{"module internal rec type body", "module internal rec Acme.Demo\n\ntype A = { B: B }\nand B = { A: int }\n", "Acme"},
+		{"attribute module rec", "[<AutoOpen>]\nmodule rec Acme.Demo\n\nlet x = 1\n", "Acme"},
+		{"single segment module rec", "module rec Demo\n\nlet x = 1\n", GlobalPackage},
 		{"module internal", "module internal Acme.Demo\n", "Acme"},
 		{"namespace rec", "namespace rec Acme\n", "Acme"},
 		{"attribute line", "[<AutoOpen>]\nmodule Acme.Demo\n", "Acme"},
@@ -199,5 +205,41 @@ func TestDefinesMainAfterTypeVariables(t *testing.T) {
 	source := "module Program\n\nlet f (x: 'a) = x\nlet x' = 1\n\n[<EntryPoint>]\nlet main argv = 0\n"
 	if !DefinesMain([]byte(source)) {
 		t.Errorf("DefinesMain = false for %q", source)
+	}
+}
+
+func TestTopModuleNameRec(t *testing.T) {
+	for _, tc := range []struct{ name, src, want string }{
+		{"let body", "module rec Acme.Demo\n\nlet x = 1\n", "Acme.Demo"},
+		{"internal let body", "module internal rec Acme.Demo\n\nlet x = 1\n", "Acme.Demo"},
+		{"type body", "module rec Acme.Demo\n\ntype A = { B: B }\nand B = { A: int }\n", "Acme.Demo"},
+		{"internal type body", "module internal rec Acme.Demo\n\ntype A = { B: B }\nand B = { A: int }\n", "Acme.Demo"},
+		{"attribute first", "[<AutoOpen>]\nmodule rec Acme.Demo\n\nlet x = 1\n", "Acme.Demo"},
+		{"single segment", "module rec Demo\n\nlet x = 1\n", "Demo"},
+	} {
+		if got := TopModuleName([]byte(tc.src)); got != tc.want {
+			t.Errorf("%s: TopModuleName = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestParseImportsOpenType(t *testing.T) {
+	got := ParseImports([]byte("namespace Demo\n\nopen type Acme.Core.Math\nopen type System.Math\nopen System.Text\n"))
+	want := []string{"Math", "System.Text"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+	got = ParseOpenPaths([]byte("namespace Demo\n\nopen type System.Collections.Generic.List<int>\nopen type System.Math\n"))
+	want = []string{"System.Collections.Generic.List", "System.Math"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("generic ParseOpenPaths = %v, want %v", got, want)
+	}
+}
+
+func TestParseOpenPathsOpenType(t *testing.T) {
+	got := ParseOpenPaths([]byte("namespace Demo\n\nopen type Acme.Core.Math\n"))
+	want := []string{"Acme.Core.Math"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseOpenPaths = %v, want %v", got, want)
 	}
 }

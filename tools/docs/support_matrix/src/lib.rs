@@ -26,6 +26,9 @@ pub struct PlatformFact {
     pub id: String,
     pub os: String,
     pub cpu: String,
+    /// Constraint values the CI host platform adds beyond os and cpu.
+    #[serde(default)]
+    pub constraints: Vec<String>,
 }
 
 /// One row of the language list.
@@ -42,13 +45,25 @@ pub struct Row {
     #[serde(default)]
     pub dead_code: Option<Vec<String>>,
     #[serde(default)]
-    pub identity: BTreeMap<String, String>,
+    pub identity: Identity,
     /// The coverage collector; absent when coverage does not apply to the row.
     #[serde(default)]
     pub coverage: Option<Coverage>,
     pub ci_tests: Vec<String>,
     pub consumer_tests: Vec<String>,
     pub workflows: Vec<String>,
+}
+
+/// The compiler identity of a compiler row; empty for other rows.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct Identity {
+    #[serde(default)]
+    pub driver: String,
+    #[serde(default)]
+    pub coverage: String,
+    /// The identity test per platform where it differs from the row's probe.
+    #[serde(default)]
+    pub platform_probes: BTreeMap<String, String>,
 }
 
 /// The coverage collectors of a row with a note on them, or the reason it has none.
@@ -297,6 +312,7 @@ pub fn row_platforms(
                 id: platform.id.clone(),
                 os: platform.os.clone(),
                 cpu: platform.cpu.clone(),
+                constraints: platform.constraints.clone(),
             })
             .collect(),
         dogfood,

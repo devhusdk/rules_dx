@@ -135,6 +135,7 @@ func TestParseImports(t *testing.T) {
 		{"fenceIndentedCloser", "```js\nimport fake from \"./fake.mdx\";\n    ```\nimport helper from \"./helper.mdx\";\n", nil},
 		{"fenceSpacedCloser", "```js\nimport fake from \"./fake.mdx\";\n ```\nimport helper from \"./helper.mdx\";\n", []string{"helper"}},
 		{"fenceShortCloser", "````\nimport fake from \"./fake.mdx\";\n```\nimport helper from \"./helper.mdx\";\n", nil},
+		{"inlineCodeComment", "import Tip from './Tip.mdx'\n\n# Demo\n\nWrite `<!--` to open an HTML comment.\n", []string{"Tip"}},
 		{"fenceTrailingText", "```js\nimport fake from \"./fake.mdx\";\n``` extra\nimport helper from \"./helper.mdx\";\n", nil},
 	}
 	raw := map[string]bool{
@@ -152,6 +153,7 @@ func TestParseImports(t *testing.T) {
 		"bareHeadingBoundary":                  true,
 		"fenceIndentedCloser":                  true, "fenceSpacedCloser": true,
 		"fenceShortCloser": true, "fenceTrailingText": true,
+		"inlineCodeComment": true,
 	}
 	for _, tc := range cases {
 		var content []byte
@@ -191,6 +193,10 @@ func TestExtractESMRegions(t *testing.T) {
 		{"badExportOpener", "exportx from \"./a.mdx\";\n", nil},
 		{"multilineBraces", "import {\n a\n} from \"./a.mdx\";\n", []string{"import {\n a\n} from \"./a.mdx\";\n"}},
 		{"headingInsideOpenBrace", "import {\n# Title\n", []string{"import {\n# Title\n"}},
+		{"inlineCodeCommentParagraph", "import a from \"./a.mdx\";\n\n# Demo\n\nWrite `<!--` to open.\n", []string{"import a from \"./a.mdx\";\n"}},
+		{"inlineCodeCommentHeading", "import a from \"./a.mdx\";\n\n## The `<!--` token\n", []string{"import a from \"./a.mdx\";\n"}},
+		{"midLineOpenerNotInert", "import a from \"./a.mdx\";\n\ntext <!-- oops\n", []string{"import a from \"./a.mdx\";\n"}},
+		{"indentedCommentWholeDocInert", "import a from \"./a.mdx\";\n   <!-- oops\nimport b from \"./b.mdx\";\n", nil},
 		{"commentWholeDocInert", "import a from \"./a.mdx\";\n<!-- oops\nimport b from \"./b.mdx\";\n", nil},
 		{"tildeFence", "~~~\nimport a from \"./a.mdx\";\n~~~\nimport b from \"./b.mdx\";\n", []string{"import b from \"./b.mdx\";\n"}},
 		{"longerCloser", "```\nimport a from \"./a.mdx\";\n`````\nimport b from \"./b.mdx\";\n", []string{"import b from \"./b.mdx\";\n"}},

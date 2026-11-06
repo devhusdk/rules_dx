@@ -573,12 +573,7 @@ fn audit_update_parse_and_reject_unsupported_options() {
     assert_eq!(update.command.name(), "update");
     let selected = parse(&strings(&["update", "crates"])).expect("parse update selector");
     assert_eq!(selected.targets, vec!["crates".to_owned()]);
-    assert!(
-        parse(&strings(&["update", "--outdated", "--fail-on=unused"]))
-            .expect("update fail-on")
-            .fail_on_unused
-    );
-    assert!(parse(&strings(&["lint", "--fail-on=unused"])).is_err());
+    assert!(parse(&strings(&["update", "--outdated", "--fail-on=unused"])).is_err());
     let got = parse(&strings(&["update", "--output=json"])).expect("update json");
     assert_eq!(got.command, Command::Update);
     assert_eq!(got.output, OutputMode::Json);
@@ -780,17 +775,36 @@ fn startup_options_reject_missing_and_unqualified_tokens() {
 }
 
 #[test]
-fn fail_on_uncovered_is_a_security_option() {
-    let got = parse(&strings(&["security", "--fail-on=uncovered"])).expect("security parses");
-    assert!(got.fail_on_uncovered);
-    assert_eq!(got.fail_on, Threshold::Warning);
-    assert!(
-        !parse(&strings(&["security"]))
-            .expect("plain")
-            .fail_on_uncovered
+fn fail_on_takes_levels_only() {
+    for value in [
+        "uncovered",
+        "no-collector",
+        "unused",
+        "survived:10",
+        "regression:20",
+    ] {
+        for command in ["security", "coverage", "update", "lint", "bench"] {
+            let word = format!("--fail-on={value}");
+            assert!(
+                parse(&strings(&[command, &word])).is_err(),
+                "{command} {word}"
+            );
+        }
+    }
+    assert!(parse(&strings(&["security", "--fail-on=warning"])).is_ok());
+}
+
+#[test]
+fn max_regression_is_a_bench_option() {
+    let got = parse(&strings(&["bench", "--max-regression=20"])).expect("bench parses");
+    assert_eq!(got.bench_regression, Some(20));
+    assert_eq!(
+        parse(&strings(&["bench"])).expect("plain").bench_regression,
+        None
     );
-    assert!(parse(&strings(&["license", "--fail-on=uncovered"])).is_err());
-    assert!(parse(&strings(&["lint", "--fail-on=uncovered"])).is_err());
+    assert!(parse(&strings(&["bench", "--max-regression=x"])).is_err());
+    assert!(parse(&strings(&["bench", "--max-regression=-1"])).is_err());
+    assert!(parse(&strings(&["lint", "--max-regression=20"])).is_err());
 }
 
 #[test]
@@ -824,19 +838,6 @@ fn accept_needs_a_reason_and_an_expiry() {
         assert!(parse(&strings(&[command, "--expires", "2999-01-01"])).is_err());
     }
     assert!(parse(&strings(&["lint", "--accept", "x"])).is_err());
-}
-
-#[test]
-fn fail_on_no_collector_is_a_coverage_option() {
-    let got = parse(&strings(&["coverage", "--fail-on=no-collector"])).expect("coverage parses");
-    assert!(got.fail_on_no_collector);
-    assert!(
-        !parse(&strings(&["coverage"]))
-            .expect("plain")
-            .fail_on_no_collector
-    );
-    assert!(parse(&strings(&["test", "--fail-on=no-collector"])).is_err());
-    assert!(parse(&strings(&["lint", "--fail-on=no-collector"])).is_err());
 }
 
 #[test]

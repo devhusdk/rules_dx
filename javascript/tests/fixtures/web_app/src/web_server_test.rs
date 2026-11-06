@@ -345,6 +345,23 @@ fn missing_wasm_fails() {
 }
 
 #[test]
+fn foreign_manifest_is_not_checked() {
+    for (name, text) in [
+        ("pwa", "{\"name\": \"app\", \"start_url\": \"/\"}"),
+        ("list", "[]"),
+    ] {
+        let app = dx_testing::mkscratch(&format!("web-{name}")).expect("scratch dir");
+        std::fs::write(app.join("index.html"), "<html></html>").expect("write index");
+        std::fs::write(app.join("manifest.json"), text).expect("write manifest");
+        let root = app.to_string_lossy().into_owned();
+        let server = Server::start(SERVE, &[&format!("--root={root}")]);
+        let response = request(server.port, "GET", "/");
+        assert_eq!(response.status, 200, "{name} manifest must not block serving");
+        server.stop();
+    }
+}
+
+#[test]
 fn shutdown_frees_the_port() {
     let server = Server::start(SERVE, &[]);
     let port = server.port;

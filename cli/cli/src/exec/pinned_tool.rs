@@ -46,12 +46,25 @@ impl dx_tool_resolve::Bazel for QueryBazel<'_> {
         Ok(String::from_utf8_lossy(&result.stdout).into_owned())
     }
 
-    #[allow(clippy::disallowed_methods)] // info takes no build settings
     fn output_base(&self) -> Result<String, dx_tool_resolve::ResolveError> {
+        self.info("output_base")
+    }
+
+    fn execution_root(&self) -> Result<String, dx_tool_resolve::ResolveError> {
+        self.info("execution_root")
+    }
+}
+
+impl QueryBazel<'_> {
+    #[allow(clippy::disallowed_methods)] // info takes no build settings
+    fn info(&self, key: &str) -> Result<String, dx_tool_resolve::ResolveError> {
         let mut argv = dx_process::startup_argv(self.startup);
         argv.push("info".to_owned());
-        argv.push("output_base".to_owned());
-        let failed = |detail: String| dx_tool_resolve::ResolveError::OutputBaseFailed { detail };
+        argv.push(key.to_owned());
+        let failed = |detail: String| dx_tool_resolve::ResolveError::InfoFailed {
+            key: key.to_owned(),
+            detail,
+        };
         let result = self
             .query_runner
             .run_info(&argv, self.workspace)
@@ -62,11 +75,11 @@ impl dx_tool_resolve::Bazel for QueryBazel<'_> {
                 &result.stderr,
             )));
         }
-        let base = String::from_utf8_lossy(&result.stdout).trim().to_owned();
-        if base.is_empty() {
-            return Err(failed("bazel info output_base printed nothing".to_owned()));
+        let value = String::from_utf8_lossy(&result.stdout).trim().to_owned();
+        if value.is_empty() {
+            return Err(failed(format!("bazel info {key} printed nothing")));
         }
-        Ok(base)
+        Ok(value)
     }
 }
 
@@ -139,14 +152,17 @@ mod tests {
         calls: RefCell<Vec<(String, Vec<String>)>>,
         fail: bool,
         base: String,
+        generated: bool,
     }
 
     /// An output base holding the file the fake cquery names.
     fn base() -> (tempfile::TempDir, String) {
         let dir = super::super::test_support::temp_dir("pinned-tool");
-        let file = dir.path().join("external/tool/bin");
-        std::fs::create_dir_all(file.parent().expect("parent")).expect("dir");
-        std::fs::write(&file, b"").expect("file");
+        for rel in ["external/tool/bin", "bazel-out/k8-fastbuild/bin/tool"] {
+            let file = dir.path().join(rel);
+            std::fs::create_dir_all(file.parent().expect("parent")).expect("dir");
+            std::fs::write(&file, b"").expect("file");
+        }
         let text = dir.path().to_string_lossy().into_owned();
         (dir, text)
     }
@@ -166,10 +182,19 @@ mod tests {
                     detail: "exit 1: boom".to_owned(),
                 });
             }
-            Ok("external/tool/bin\n".to_owned())
+            let path = if self.generated {
+                "bazel-out/k8-fastbuild/bin/tool"
+            } else {
+                "external/tool/bin"
+            };
+            Ok(format!("{path}\n"))
         }
 
         fn output_base(&self) -> Result<String, dx_tool_resolve::ResolveError> {
+            Ok(self.base.clone())
+        }
+
+        fn execution_root(&self) -> Result<String, dx_tool_resolve::ResolveError> {
             Ok(self.base.clone())
         }
     }
@@ -223,6 +248,27 @@ mod tests {
         assert_eq!(
             *bazel.calls.borrow(),
             vec![("@dx_tools//:tool".to_owned(), Vec::<String>::new())]
+        );
+    }
+
+    #[test]
+    fn a_generated_output_resolves_under_the_execution_root() {
+        let (_dir, base) = base();
+        let bazel = FakeBazel {
+            base: base.clone(),
+            generated: true,
+            ..FakeBazel::default()
+        };
+        let path = resolve_pinned(
+            &EnvRunner(dx_process::PinnedVar::Unset),
+            &bazel,
+            &TOOL,
+            false,
+        )
+        .expect("resolved");
+        assert!(
+            path.ends_with("bazel-out/k8-fastbuild/bin/tool"),
+            "{path:?}"
         );
     }
 

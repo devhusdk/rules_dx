@@ -2,12 +2,13 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_rust//rust:defs.bzl", "rust_common")
+load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
 load(":crate.bzl", "dx_rust_crate_root")
-load(":defs.bzl", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS")
+load(":defs.bzl", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS", "RUST_FUZZ_LIBFUZZER_SYS")
 
 def dx_wrapper_registry_tests(name):
     """Instantiates Rust wrapper registry tests."""
@@ -32,6 +33,8 @@ def dx_wrapper_registry_tests(name):
                 "-Clink-arg=/pdbsourcepath:X:\\dx",
                 "-Clink-arg=/pdbaltpath:%_PDB%",
             ]),
+            expect_equal("fuzz libfuzzer-sys hub", RUST_FUZZ_LIBFUZZER_SYS.repo_name.endswith("dx_crates"), True),
+            expect_equal("fuzz libfuzzer-sys name", RUST_FUZZ_LIBFUZZER_SYS.name, "libfuzzer-sys"),
             expect_equal("crate root missing", dx_rust_crate_root(["lib.rs"]), None),
         ],
     )
@@ -308,6 +311,26 @@ _default_crate_name_test = analysistest.make(
 def dx_default_crate_name_tests(name, target, expected):
     """Asserts a Rust target defaults its crate name to the rewritten target name."""
     _default_crate_name_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        expected = expected,
+    )
+
+def _lints_forward_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.equals(env, ctx.attr.expected, LintsInfo in target)
+    return analysistest.end(env)
+
+_lints_forward_test = analysistest.make(
+    _lints_forward_impl,
+    attrs = {"expected": attr.bool(mandatory = True)},
+)
+
+def dx_lints_forward_tests(name, target, expected):
+    """Asserts a dx Rust library exposes LintsInfo exactly when it sets lint_config."""
+    _lints_forward_test(
         name = name,
         size = "small",
         target_under_test = target,

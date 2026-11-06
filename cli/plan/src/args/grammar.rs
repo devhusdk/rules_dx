@@ -99,13 +99,6 @@ fn fuzz_duration(raw: &str) -> Result<String, String> {
     }
 }
 
-fn regression_percent(raw: &str) -> Result<u32, String> {
-    match raw.strip_prefix("regression:").map(str::parse::<u32>) {
-        Some(Ok(value)) => Ok(value),
-        _ => Err(format!("want regression:<pct>, got {raw:?}")),
-    }
-}
-
 /// The usage line clap renders for one command.
 fn usage_of(index: usize) -> String {
     let usage = COMMANDS[index].usage;
@@ -178,14 +171,11 @@ pub(crate) struct Flags {
     pub(crate) bases: bool,
     pub(crate) capabilities: bool,
     pub(crate) files: bool,
-    pub(crate) explain: bool,
     pub(crate) build_profile: bool,
-    pub(crate) old_log: Option<String>,
-    pub(crate) new_log: Option<String>,
     pub(crate) time: Option<String>,
     pub(crate) check: bool,
     pub(crate) jobs: Option<u16>,
-    pub(crate) fail_regression: Option<u32>,
+    pub(crate) max_regression: Option<u32>,
     pub(crate) compare: Option<String>,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
@@ -366,14 +356,9 @@ flag_group! {
 
 flag_group! {
     /// Fail when a result is slower than the baseline by more than this percent.
-    FailRegressionFlag, {
-        #[arg(
-            long = "fail-on",
-            value_name = "regression:PCT",
-            overrides_with = "fail_regression",
-            value_parser = regression_percent
-        )]
-        fail_regression: Option<u32>,
+    MaxRegressionFlag, {
+        #[arg(long = "max-regression", value_name = "PCT", overrides_with = "max_regression")]
+        max_regression: Option<u32>,
     }
 }
 
@@ -417,45 +402,6 @@ flag_group! {
             allow_negative_numbers = true,
             overrides_with = "fail_on",
             value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error"])
-        )]
-        fail_on: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Fail on this severity, or on lock files without a dependency set.
-    SecurityFailOnFlag, {
-        #[arg(
-            long,
-            allow_negative_numbers = true,
-            overrides_with = "fail_on",
-            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "uncovered"])
-        )]
-        fail_on: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Fail on this severity, or on tests that have no coverage collector.
-    CoverageFailOnFlag, {
-        #[arg(
-            long,
-            allow_negative_numbers = true,
-            overrides_with = "fail_on",
-            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "no-collector"])
-        )]
-        fail_on: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Fail on unused or missing dependencies.
-    UpdateFailOnFlag, {
-        #[arg(
-            long,
-            allow_negative_numbers = true,
-            overrides_with = "fail_on",
-            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "unused"])
         )]
         fail_on: Option<String>,
     }
@@ -913,42 +859,10 @@ composite_group! {
 }
 
 flag_group! {
-    /// Save the execution log for dx explain.
-    ExplainFlag, {
-        #[arg(long, overrides_with = "explain")]
-        explain: bool,
-    }
-}
-
-flag_group! {
     /// Print where build time went.
     BuildProfileFlag, {
         #[arg(long = "timings", overrides_with = "build_profile")]
         build_profile: bool,
-    }
-}
-
-flag_group! {
-    /// Older execution log (default: the second newest saved log).
-    OldLogFlag, {
-        #[arg(long = "old", value_name = "LOG", overrides_with = "old_log", value_parser = non_empty)]
-        old_log: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Newer execution log (default: the newest saved log).
-    NewLogFlag, {
-        #[arg(long = "new", value_name = "LOG", overrides_with = "new_log", value_parser = non_empty)]
-        new_log: Option<String>,
-    }
-}
-
-composite_group! {
-    /// The two execution logs dx explain compares.
-    LogPairArgs, {
-        old_log: OldLogFlag,
-        new_log: NewLogFlag,
     }
 }
 
@@ -1132,7 +1046,7 @@ command_args! {
         output: OutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
-        fail_on: SecurityFailOnFlag,
+        fail_on: FailOnFlag,
         accept: AcceptArgs,
         report: ReportFlag,
         here: HereFlag,
@@ -1197,7 +1111,6 @@ command_args! {
     Build => 6, BazelTail, {
         output: OutputFlag,
         own: ProfileArgs,
-        explain: ExplainFlag,
         build_profile: BuildProfileFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -1207,7 +1120,6 @@ command_args! {
     Test => 7, BazelTail, {
         output: OutputFlag,
         own: ProfileArgs,
-        explain: ExplainFlag,
         build_profile: BuildProfileFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -1216,10 +1128,9 @@ command_args! {
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
         output: OutputFlag,
-        fail_on: CoverageFailOnFlag,
+        fail_on: FailOnFlag,
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
-        explain: ExplainFlag,
         build_profile: BuildProfileFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -1228,7 +1139,7 @@ command_args! {
     /// The flags `dx bench` accepts.
     Bench => 9, BazelTail, {
         output: OutputFlag,
-        fail_regression: FailRegressionFlag,
+        max_regression: MaxRegressionFlag,
         compare: CompareFlag,
         here: HereFlag,
     };
@@ -1249,7 +1160,6 @@ command_args! {
         apply: ApplyFlag,
         unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
-        explain: ExplainFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1259,7 +1169,7 @@ command_args! {
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: OutputFlag,
-        fail_on: UpdateFailOnFlag,
+        fail_on: FailOnFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         apply: ApplyFlag,
@@ -1326,12 +1236,10 @@ command_args! {
         disk: DiskFlag,
         bases: BasesFlag,
     };
-    /// The flags `dx explain` accepts.
-    Explain => 23, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
     /// The flags `dx fuzz` accepts.
-    Fuzz => 24, NoPassthroughTail, { own: FuzzArgs, here: HereFlag, };
+    Fuzz => 23, NoPassthroughTail, { own: FuzzArgs, here: HereFlag, };
     /// The flags `dx release` accepts.
-    Release => 25, NoScopeTail, {
+    Release => 24, NoScopeTail, {
         apply: ApplyFlag,
         push: PushFlag,
         no_api_compat: NoApiCompatFlag,

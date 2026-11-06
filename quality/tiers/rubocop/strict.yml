@@ -1,5 +1,11 @@
-# Needs the rubocop and rubocop-performance gems in the Gemfile that provides rubocop.
+# Needs rubocop and rubocop-performance in the Gemfile that has rubocop.
 plugins:
   - rubocop-performance
 AllCops:
-  NewCops: enable
+  EnabledByDefault: true
+  NewCops: disable
+  SuggestExtensions: false
+Lint/RedundantCopDisableDirective:
+  Enabled: true
+Style/Copyright:
+  Enabled: false

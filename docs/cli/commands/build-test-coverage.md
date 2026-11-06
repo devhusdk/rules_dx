@@ -14,19 +14,19 @@ dx deploy --apply //app:deploy
 ## `dx build`
 
 ```text
-dx build [--here] [--affected] [--debug|--release] [--explain] [--timings] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx build [--here] [--affected] [--debug|--release] [--timings] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## `dx test`
 
 ```text
-dx test [--here] [--affected] [--debug|--release] [--explain] [--timings] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--affected] [--debug|--release] [--timings] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--explain] [--timings] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--timings] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## Flags
@@ -37,7 +37,6 @@ dx coverage [--here] [--affected] [--explain] [--timings] [--min-coverage <perce
 | `--affected` | Use the targets your git changes reach. |
 | `--debug` | Compile with the `dx_build_debug` build mode (`build`, `test`, `run`, `deploy`). |
 | `--release` | Compile with the `dx_build_release` build mode. No flag uses `dx_build_dev`. |
-| `--explain` | Save the execution log for [`dx explain`](explain.md). |
 | `--timings` | (`build`, `test`, `coverage`, `run`; `run` reports on its build step.) Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions (with Bazel mnemonics when the trace has them), cache hit rate (disk, remote, local), bytes downloaded, Bazel peak heap and CPU time per action mnemonic (from the build event stream, absent for `run`), the ten slowest actions and repository fetch time. The trace is `.dx/local/timings/<run id>.json.gz` (the last five are kept) and the report `.dx/local/timings/report.json`; with `--output=json` the report is the message of a `timings_report` notice. |
 | `--min-coverage <percent>` | `coverage`: fail below this whole percent (0-100). |
 | `--min-changed-line-coverage <percent>` | `coverage`: fail below this whole percent (0-100) on lines changed since the merge-base. |
@@ -116,7 +115,7 @@ A whole-repository run (`//...`) also fails on a tracked source no Bazel target 
 
 The correctness preset sets `coverage --instrument_test_targets`, so sources a test compiles itself are counted. Test-only sources count as support, not as eligible lines.
 
-A test tagged `dx-no-coverage-collector` fails with `no_coverage_collector`. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
+A test tagged `dx-no-coverage-collector` is a warning finding: `dx coverage` fails with `no_coverage_collector` at the default `--fail-on=warning`, and with `--fail-on=error` skips it with one summary line per language. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
 
 Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources (the preset instruments test targets). On Windows, C and C++ sources count as unsupported files, because no C++ coverage collector runs there.
 

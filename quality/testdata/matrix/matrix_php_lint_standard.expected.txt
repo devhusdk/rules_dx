@@ -4,6 +4,8 @@ stages 1
 stage phpcs classes=php sources=matrix/phpcs_profile_standard.php
 completed_rounds 1
 convergence STABLE
-initial 0
-terminal 0
+initial 1
+initial WARNING phpcs phpcs/Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed matrix/phpcs_profile_standard.php 83 83 fixable=false "The method parameter $b is never used"
+terminal 1
+terminal WARNING phpcs phpcs/Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed matrix/phpcs_profile_standard.php 83 83 fixable=false "The method parameter $b is never used"
 replacements 0

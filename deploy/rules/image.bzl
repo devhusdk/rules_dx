@@ -65,7 +65,7 @@ def image_default_main(base, binary, package):
     pkg = package
     if binary.startswith("//"):
         label = binary[2:]
-        pkg = label.split(":")[0] if ":" in label else label.rpartition("/")[0]
+        pkg = label.split(":")[0] if ":" in label else label
     elif not binary.startswith(":"):
         return None
     name = image_binary_name(binary)

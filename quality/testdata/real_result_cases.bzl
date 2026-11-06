@@ -9,6 +9,21 @@ _OCAML_POLICY = "//quality/testdata/ocaml_owned:policy"
 
 _DIALYZER = "//erlang/tools:dialyzer"
 
+_CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
+
+_CLIPPY_STRICT = [
+    "-Wclippy::all",
+    "-Wclippy::pedantic",
+    "-Wclippy::dbg_macro",
+    "-Wclippy::todo",
+    "-Wclippy::unimplemented",
+    "-Wclippy::allow_attributes_without_reason",
+    "-Wclippy::allow_attributes",
+    "-Wrust_2018_idioms",
+    "-Wunused_qualifications",
+    "-Dwarnings",
+]
+
 _GO_POLICY = "//quality/testdata/go_owned:policy"
 
 _GO_TYPECHECK_POLICY = "//quality/testdata/go_owned:typecheck_policy"
@@ -18,6 +33,8 @@ _GO_STATICCHECK_POLICY = "//quality/testdata/go_owned:staticcheck_policy"
 _GO_LINT_ALL_POLICY = "//quality/testdata/go_owned:lint_all_policy"
 
 _GO_GOVET_POLICY = "//quality/testdata/go_owned:govet_policy"
+
+_TIER_POLICY = "//quality/testdata/tier_clean:policy"
 
 _NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
 
@@ -39,9 +56,9 @@ def _gcc_case(tool, capability, name, target, contains, absent, policy = _CC_POL
         "absent": absent,
     }
 
-def _msvc_case(name, target, contains, absent):
-    case = _gcc_case("clang_syntax", "typecheck", name, target, contains, absent)
-    case["name"] = "real_result_clang_syntax_cc_msvc_" + name
+def _msvc_case(name, target, contains, absent, tool = "clang_syntax", capability = "typecheck", policy = _CC_POLICY):
+    case = _gcc_case(tool, capability, name, target, contains, absent, policy)
+    case["name"] = "real_result_" + tool + "_cc_msvc_" + name
     case["compiler"] = "msvc"
     case["target_compatible_with"] = ["@platforms//os:windows", "@platforms//cpu:x86_64"]
     return case
@@ -60,6 +77,18 @@ def _cc_case(tool, capability, name, target, contains, absent, policy = _CC_POLI
         "macos_arm64": True,
         "windows_x86_64": True,
         "windows_arm64": True,
+    }
+
+def _ruff_tier_case(tier, name, contains, absent):
+    return {
+        "name": "real_result_ruff_%s_%s" % (tier, name),
+        "target": "//quality/testdata/python_tiers:%s_%s" % (tier, name),
+        "policy": "//quality/testdata/python_tiers:ruff_policy",
+        "tool": "ruff",
+        "capability": "lint",
+        "class": "python",
+        "contains": contains,
+        "absent": absent,
     }
 
 def _objc_case(name, contains, absent):
@@ -115,6 +144,8 @@ REAL_RESULT_CASES = [
     _gcc_case("clang_syntax", "typecheck", "dirty", "dirty", ["'undeclared_name' undeclared"], []),
     _msvc_case("clean", "clean", ["clean.c"], ["undeclared_name", "C2065"]),
     _msvc_case("dirty", "dirty", ["C2065", "undeclared_name"], []),
+    _msvc_case("clean", "clean", ["clean.c"], ["readability-else-after-return", "file not found", "clang-diagnostic-error"], "clang_tidy", "lint", _CC_TIDY_POLICY),
+    _msvc_case("dirty", "tidy_dirty", ["readability-else-after-return"], ["file not found", "clang-diagnostic-error", "TIDY_DEFINE"], "clang_tidy", "lint", _CC_TIDY_POLICY),
     _gcc_case("clang_tidy", "lint", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),
     _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
@@ -135,8 +166,8 @@ REAL_RESULT_CASES = [
         "tool": "zanuda",
         "capability": "lint",
         "class": "ocaml",
-        "contains": ["quality/testdata/zanuda_owned/dirty.ml", "if_bool", "list_length_comparisons"],
-        "absent": [],
+        "contains": ["quality/testdata/zanuda_owned/dirty.ml", "list_length_comparisons"],
+        "absent": ["if_bool"],
     },
     {
         "name": "real_result_ocaml_clean",
@@ -221,6 +252,49 @@ REAL_RESULT_CASES = [
         "config_profile": "strict",
         "contains": ["quality/testdata/ocaml_owned/shadow.ml", "shadows"],
         "absent": [],
+    },
+    _ruff_tier_case("standard", "clean", ["python_tiers/clean.py"], ["D413", "D417", "F401", "Failed to"]),
+    _ruff_tier_case("strict", "clean", ["python_tiers/clean.py"], ["D413", "D417", "F401", "Failed to"]),
+    _ruff_tier_case("standard", "strict_only", ["python_tiers/strict_only.py"], ["D417"]),
+    _ruff_tier_case("strict", "strict_only", ["python_tiers/strict_only.py", "D417"], []),
+    {
+        "name": "real_result_yamllint_tier_standard_clean",
+        "target": "//quality/testdata/tier_clean:yaml",
+        "policy": _TIER_POLICY,
+        "tool": "yamllint",
+        "capability": "lint",
+        "class": "yaml",
+        "contains": ["clean.yaml"],
+        "absent": ["Fatal error", "key-duplicates"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "real_result_buildifier_tier_standard_clean",
+        "target": "//quality/testdata/tier_clean:starlark",
+        "policy": _TIER_POLICY,
+        "tool": "buildifier",
+        "capability": "lint",
+        "class": "starlark",
+        "contains": ["clean.bzl"],
+        "absent": ["Fatal error", "module-docstring"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "real_result_sqlfluff_tier_standard_clean",
+        "target": "//quality/testdata/tier_clean:sql",
+        "policy": _TIER_POLICY,
+        "tool": "sqlfluff",
+        "capability": "lint",
+        "class": "sql",
+        "contains": ["clean.sql"],
+        "absent": ["Fatal error", "AM04"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     _go_case("errcheck", "lint", "clean", "//go/tests/fixtures/errcheck:clean", ["errcheck"], ["unchecked error"]),
     _go_case("errcheck", "lint", "dirty", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], []),
@@ -352,6 +426,36 @@ REAL_RESULT_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "real_result_clippy_pedantic_standard",
+        "target": "//quality/testdata/rust_owned:pedantic",
+        "policy": _RUST_POLICY,
+        "tool": "clippy",
+        "capability": "lint",
+        "class": "rust",
+        "clippy_flags": _CLIPPY_STANDARD,
+        "contains": ["quality/testdata/rust_owned/pedantic.rs"],
+        "absent": ["doc_markdown", "Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "real_result_clippy_pedantic_strict",
+        "target": "//quality/testdata/rust_owned:pedantic",
+        "policy": _RUST_POLICY,
+        "tool": "clippy",
+        "capability": "lint",
+        "class": "rust",
+        "clippy_flags": _CLIPPY_STRICT,
+        "contains": ["quality/testdata/rust_owned/pedantic.rs", "doc_markdown"],
+        "absent": [],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
         "name": "real_result_clippy_unused_dep",
         "target": "//quality/testdata/rust_owned:unused_dep",
         "policy": _RUST_POLICY,
@@ -392,6 +496,66 @@ REAL_RESULT_CASES = [
         "macos_arm64": True,
         "windows_x86_64": True,
         "windows_arm64": True,
+    },
+    {
+        "name": "real_result_pmd_clean_standard",
+        "target": "//quality/testdata/jvmclean:java_clean",
+        "policy": "//quality/testdata/jvmclean:pmd_standard_policy",
+        "tool": "pmd",
+        "capability": "lint",
+        "class": "java",
+        "contains": ["quality/testdata/jvmclean/Clean.java"],
+        "absent": ["Fatal error"],
+    },
+    {
+        "name": "real_result_pmd_clean_strict",
+        "target": "//quality/testdata/jvmclean:java_clean",
+        "policy": "//quality/testdata/jvmclean:pmd_strict_policy",
+        "tool": "pmd",
+        "capability": "lint",
+        "class": "java",
+        "contains": ["quality/testdata/jvmclean/Clean.java"],
+        "absent": ["Fatal error"],
+    },
+    {
+        "name": "real_result_checkstyle_clean_standard",
+        "target": "//quality/testdata/jvmclean:java_clean",
+        "policy": "//quality/testdata/jvmclean:checkstyle_standard_policy",
+        "tool": "checkstyle",
+        "capability": "lint",
+        "class": "java",
+        "contains": ["quality/testdata/jvmclean/Clean.java"],
+        "absent": ["Fatal error"],
+    },
+    {
+        "name": "real_result_checkstyle_clean_strict",
+        "target": "//quality/testdata/jvmclean:java_clean",
+        "policy": "//quality/testdata/jvmclean:checkstyle_strict_policy",
+        "tool": "checkstyle",
+        "capability": "lint",
+        "class": "java",
+        "contains": ["quality/testdata/jvmclean/Clean.java"],
+        "absent": ["Fatal error"],
+    },
+    {
+        "name": "real_result_detekt_clean_standard",
+        "target": "//quality/testdata/jvmclean:kotlin_clean",
+        "policy": "//quality/testdata/jvmclean:detekt_standard_policy",
+        "tool": "detekt",
+        "capability": "lint",
+        "class": "kotlin",
+        "contains": ["quality/testdata/jvmclean/Clean.kt"],
+        "absent": ["Fatal error"],
+    },
+    {
+        "name": "real_result_detekt_clean_strict",
+        "target": "//quality/testdata/jvmclean:kotlin_clean",
+        "policy": "//quality/testdata/jvmclean:detekt_strict_policy",
+        "tool": "detekt",
+        "capability": "lint",
+        "class": "kotlin",
+        "contains": ["quality/testdata/jvmclean/Clean.kt"],
+        "absent": ["Fatal error"],
     },
     {
         "name": "real_result_javac_unused_dep",
@@ -493,6 +657,7 @@ def real_result_cases():
             compiler = case.get("compiler", ""),
             typecheck_subject = case.get("typecheck_subject", False),
             rustc_flags = case.get("rustc_flags", []),
+            clippy_flags = case.get("clippy_flags", []),
             config_profile = case.get("config_profile", ""),
             target_compatible_with = case.get("target_compatible_with"),
             linux_arm64 = case.get("linux_arm64", False),

@@ -190,10 +190,16 @@ impl CacheUse {
         self.executed
             .saturating_add(self.disk)
             .saturating_add(self.remote)
+            .saturating_add(self.local)
     }
 
     fn hit_percent(&self) -> u64 {
-        percent(self.disk.saturating_add(self.remote), self.total())
+        percent(
+            self.disk
+                .saturating_add(self.remote)
+                .saturating_add(self.local),
+            self.total(),
+        )
     }
 }
 
@@ -406,7 +412,7 @@ mod tests {
         assert!(text.contains("[CppCompile] action 'A'"), "{text}");
         assert!(
             text.contains(
-                "cache hits 75% (12% disk, 62% remote, 25% local action cache) of 8 actions"
+                "cache hits 80% (10% disk, 50% remote, 20% local action cache) of 10 actions"
             ),
             "{text}"
         );
@@ -415,9 +421,23 @@ mod tests {
     }
 
     #[test]
+    fn local_hits_outnumbering_executed_actions_stay_under_100_percent() {
+        let cache = CacheUse {
+            executed: 10,
+            disk: 0,
+            remote: 0,
+            local: 500,
+        };
+        assert_eq!(cache.total(), 510);
+        assert_eq!(cache.hit_percent(), 98);
+        assert_eq!(percent(cache.local, cache.total()), 98);
+    }
+
+    #[test]
     fn report_json_carries_the_same_numbers() {
         let value = build(TRACE, cache(), None).expect("report").json();
-        assert_eq!(value["cache"]["hit_percent"], 75);
+        assert_eq!(value["cache"]["hit_percent"], 80);
+        assert_eq!(value["cache"]["actions"], 10);
         assert_eq!(value["bytes_downloaded"], Value::Null);
         assert_eq!(value["slowest_actions"][0]["micros"], 2_500_000);
         assert_eq!(value["critical_path"][0]["mnemonic"], "CppCompile");

@@ -230,22 +230,6 @@ fn samples() -> Vec<Value> {
             replacement: "x".to_owned(),
         }],
     };
-    let miss = |kind: &str, change: &str, subject: Option<&str>| CacheMissChange {
-        kind: kind.to_owned(),
-        change: change.to_owned(),
-        subject: subject.map(str::to_owned),
-    };
-    let cache_miss = CacheMissEvent {
-        mnemonic: "Rustc".to_owned(),
-        target: "//a:b".to_owned(),
-        primary_output: "out".to_owned(),
-        changes: vec![
-            miss("input", "modified", Some("p")),
-            miss("env", "added", Some("N")),
-            miss("not_cacheable", "", None),
-        ],
-        changes_omitted: 1,
-    };
     let gate = ChangedLineCoverageEvent {
         base: "main".to_owned(),
         merge_base: "abc".to_owned(),
@@ -277,7 +261,6 @@ fn samples() -> Vec<Value> {
     vec![
         build_failure_event(&failure(false)).expect("failure"),
         build_failure_event(&failure(true)).expect("failure"),
-        cache_miss_event(&cache_miss).expect("miss"),
         capability_event(&capability).expect("capability"),
         change_event(&change, ChangeEffect::Applied, None, true).expect("change"),
         change_event(&change, ChangeEffect::Refused, Some("why"), false).expect("change"),

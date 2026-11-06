@@ -388,29 +388,4 @@ pub(super) const TOOLS: &[ToolDef] = &[
             }
         },
     },
-    ToolDef {
-        id: "ktlint",
-        run: |backend, call| {
-            let names: Vec<String> = call
-                .staged
-                .pairs
-                .iter()
-                .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
-                .collect();
-            let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-            let tool_id = call.tool_id;
-            let tool = call.tool;
-            let scratch = &call.staged.scratch;
-            let pairs = &call.staged.pairs;
-            let refs: Vec<&Path> = pairs
-                .iter()
-                .map(|(_, absolute)| absolute.as_path())
-                .collect();
-            {
-                let invocation = commands::ktlint_check(&tool.binary, &refs, call.config);
-                let out = backend.run(tool_id, tool, &invocation, scratch)?;
-                parsed(tool_id, parsers::parse_ktlint(&out.stdout, out.code, &strs))
-            }
-        },
-    },
 ];

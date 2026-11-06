@@ -17,6 +17,10 @@ hub_repo = repository_rule(
     },
 )
 
+def crlf_text(text):
+    """Returns text with every line ending as CRLF."""
+    return text.replace("\r\n", "\n").replace("\n", "\r\n")
+
 def _pinned_archive_impl(rctx):
     if rctx.attr.download_as:
         rctx.download(url = rctx.attr.urls, output = rctx.attr.download_as, sha256 = rctx.attr.sha256)
@@ -38,12 +42,17 @@ def _pinned_archive_impl(rctx):
     _write_files(rctx)
     for patch in rctx.attr.patches:
         rctx.patch(patch, strip = 1)
+    for path in rctx.attr.crlf:
+        if not rctx.path(path).exists:
+            fail("{} archive does not ship {} to convert to CRLF".format(rctx.name, path))
+        rctx.file(path, crlf_text(rctx.read(path)), executable = False)
     return rctx.repo_metadata(reproducible = True)
 
 pinned_archive = repository_rule(
     implementation = _pinned_archive_impl,
     doc = "Fetches one pinned archive, prunes it, writes rendered files and applies patches.",
     attrs = {
+        "crlf": attr.string_list(doc = "Paths rewritten with CRLF line endings after patching."),
         "download_as": attr.string(doc = "File name to download to without extracting."),
         "dropped": attr.string_list(doc = "Paths deleted after extraction."),
         "files": attr.string_dict(doc = "Repository path to file content."),

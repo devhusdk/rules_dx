@@ -414,13 +414,8 @@ mod tests {
     }
 
     fn action_line(label: &str, config: &str, mnemonic: &str, output: &str) -> String {
-        let stderr = if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            "file:///C:/out/stderr-1"
-            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            "file:///out/stderr-1"
-        };
+        let root = if cfg!(windows) { "C:/out" } else { "out" };
+        let stderr = format!("file:///{root}/stderr-1");
         format!(
             r#"{{"id":{{"actionCompleted":{{"primaryOutput":"{output}","label":"{label}","configuration":{{"id":"{config}"}}}}}},"action":{{"success":false,"type":"{mnemonic}","exitCode":1,"stderr":{{"name":"stderr","uri":"{stderr}"}},"label":"{label}","configuration":{{"id":"{config}"}}}}}}"#
         )

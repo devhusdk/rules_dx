@@ -1,0 +1,5 @@
+[default]
+locale = "en"
+
+[files]
+extend-exclude = ["*.lock", "*.min.js", "*.svg"]

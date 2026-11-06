@@ -9,7 +9,7 @@
 | `.dx/local/ide/typescript/lib` | TypeScript library |
 | `.dx/local/ide/cc/clangd` | clangd binary |
 | `.dx/local/ide/cc/compile_commands.json` | C and C++ compilation database |
-| `.dx/local/ide/go/gopackagesdriver` | Go packages driver |
+| `.dx/local/ide/go/gopackagesdriver` (`gopackagesdriver.cmd` on Windows) | Go packages driver |
 
 ## IntelliJ IDEA, GoLand, PyCharm
 
@@ -23,7 +23,7 @@ Use Bazel for CLion. Or open `.dx/local/ide/cc/compile_commands.json` as a compi
 
 - clangd: run it with `--compile-commands-dir=.dx/local/ide/cc`.
 - pyright: set the interpreter to `.dx/local/ide/python/python`.
-- Go: set `GOPACKAGESDRIVER` to the absolute path of `.dx/local/ide/go/gopackagesdriver`.
+- Go: set `GOPACKAGESDRIVER` to the absolute path of `.dx/local/ide/go/gopackagesdriver` (`gopackagesdriver.cmd` on Windows).
 
 ## Indexing
 

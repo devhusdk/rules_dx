@@ -6,7 +6,11 @@ pub fn is_npm_git_reference(text: &str) -> bool {
         return false;
     }
     let lower = trimmed.to_ascii_lowercase();
-    if lower.contains("git+") || lower.contains("git://") || lower.contains("git@") {
+    if lower.contains("git+")
+        || lower.contains("git://")
+        || lower.starts_with("git@")
+        || lower.contains("://git@")
+    {
         return true;
     }
     for prefix in [
@@ -16,7 +20,6 @@ pub fn is_npm_git_reference(text: &str) -> bool {
         "gist:",
         "git://",
         "git+",
-        "git@",
     ] {
         if lower.starts_with(prefix) {
             return true;

@@ -130,15 +130,15 @@ def support_matrix_facts_tests(name):
                 "compiler identity",
                 {row["name"]: row["identity"] for row in facts["rows"] if row["section"] == "compilers"},
                 {
-                    "cc_gcc": {"compiler": "gcc", "coverage": "gcov", "driver": "gnu", "probe": "//cc/toolchains:identity_gcc", "version": GCC_VERSION},
-                    "cc_llvm": {"compiler": "llvm", "coverage": "llvm", "driver": "gnu", "probe": "//cc/toolchains:identity", "version": LLVM_CLANG_VERSION},
-                    "cc_msvc": {"compiler": "msvc", "coverage": "", "driver": "msvc", "probe": "//cc/toolchains:identity_msvc", "version": MSVC_CL_BUILD},
+                    "cc_gcc": {"compiler": "gcc", "coverage": "gcov", "driver": "gnu", "platform_probes": {"linux_arm64": "//cc/toolchains:identity_gcc_arm64_native"}, "probe": "//cc/toolchains:identity_gcc", "version": GCC_VERSION},
+                    "cc_llvm": {"compiler": "llvm", "coverage": "llvm", "driver": "gnu", "platform_probes": {}, "probe": "//cc/toolchains:identity", "version": LLVM_CLANG_VERSION},
+                    "cc_msvc": {"compiler": "msvc", "coverage": "", "driver": "msvc", "platform_probes": {"windows_arm64": "//cc/toolchains:identity_msvc_arm64_native"}, "probe": "//cc/toolchains:identity_msvc", "version": MSVC_CL_BUILD},
                 },
             ),
             expect_equal(
                 "compiler blockers",
                 facts["compiler_blockers"],
-                {"cc_msvc": {"windows_arm64": "native cl.exe ARM64 execution not yet confirmed on a Windows arm64 runner"}},
+                {},
             ),
             expect_equal(
                 "invalid compiler blockers are reported",

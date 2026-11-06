@@ -5,6 +5,7 @@
 # With DX_PRODUCERS set to producers_bin, it also records the compiler signatures found in the row's test executables
 # and marks a passing row mismatch when none of them carries the expected compiler and version,
 # or when it is the msvc row and its executables carry no Rich header at all.
+# The probe is the row's identity test for PLATFORM from identity.platform_probes, else identity.probe.
 # A row is failed if any test failed, passed if its probe (when it has one) and at least one test passed, else skipped.
 # A passed or skipped row the facts list in compiler_blockers for PLATFORM is blocked instead, keeping the
 # original outcome in tested_outcome and the reason in blocker.
@@ -42,7 +43,7 @@ while IFS= read -r row; do
   name="$(jq -r .name <<<"$row" | tr -d '\r')"
   flag="$(jq -r .identity.compiler <<<"$row" | tr -d '\r')"
   version="$(jq -r .identity.version <<<"$row" | tr -d '\r')"
-  probe="$(jq -r .identity.probe <<<"$row" | tr -d '\r')"
+  probe="$(jq -r --arg platform "$platform" '.identity.platform_probes[$platform] // .identity.probe' <<<"$row" | tr -d '\r')"
 
   tests='{}'
   ran=0; total=0; failed=0

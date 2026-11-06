@@ -178,17 +178,11 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
         return Err("relocate supports test and build".to_string());
     }
     let relocate = if relocate == "true" { "true" } else { "false" };
-    let runners: serde_json::Map<String, Value> = PLATFORMS
-        .iter()
-        .map(|(name, runner)| (name.to_string(), json!(runner)))
-        .collect();
     let platforms_json = json!(platforms).to_string();
     Ok(Validated {
         outputs: vec![
             ("scope".into(), scope.clone()),
             ("task".into(), task.clone()),
-            ("platforms".into(), platforms_json.clone()),
-            ("runners".into(), Value::Object(runners).to_string()),
             ("test_timeout".into(), timeout),
             ("flags".into(), flags),
             ("relocate".into(), relocate.into()),

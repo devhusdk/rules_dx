@@ -358,13 +358,10 @@ fn parse_inner<S: AsRef<OsStr>>(
         bases,
         capabilities,
         files,
-        explain,
         build_profile,
-        old_log,
-        new_log,
         time,
         jobs,
-        fail_regression,
+        max_regression,
         compare,
         check,
         bazel_startup_options: startup_tokens,
@@ -458,39 +455,14 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(scope_error(scope));
         }
     }
-    let fail_on_uncovered = fail_on_name == "uncovered" && command == Command::Security;
-    if fail_on_name == "uncovered" && !fail_on_uncovered && fail_on_from_flag {
-        return Err(ArgsError::BadFailOn {
-            value: fail_on_name,
-        });
-    }
-    let fail_on_no_collector = fail_on_name == "no-collector" && command == Command::Coverage;
-    if fail_on_name == "no-collector" && !fail_on_no_collector && fail_on_from_flag {
-        return Err(ArgsError::BadFailOn {
-            value: fail_on_name,
-        });
-    }
-    let fail_on_unused = fail_on_name == "unused" && command == Command::Update;
-    if fail_on_name == "unused" && !fail_on_unused && fail_on_from_flag {
-        return Err(ArgsError::BadFailOn {
-            value: fail_on_name,
-        });
-    }
     if fail_on_name == "none" {
         return Err(ArgsError::BadFailOn {
             value: fail_on_name,
         });
     }
-    let mut fail_on = if matches!(
-        fail_on_name.as_str(),
-        "uncovered" | "no-collector" | "unused"
-    ) {
-        Threshold::Warning
-    } else {
-        Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
-            value: fail_on_name.clone(),
-        })?
-    };
+    let mut fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
+        value: fail_on_name.clone(),
+    })?;
     if fail_on_name != "warning" && command != Command::Watch && !command.supports_fail_on() {
         if fail_on_from_flag {
             return Err(unsupported(command, "--fail-on"));
@@ -655,7 +627,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             scope: scope.clone(),
         });
     }
-    if matches!(command, Command::Explain | Command::Release)
+    if matches!(command, Command::Release)
         && let Some(scope) = targets.first()
     {
         return Err(extra_positional(command, scope));
@@ -747,9 +719,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         reports,
         fail_on,
-        fail_on_uncovered,
-        fail_on_no_collector,
-        fail_on_unused,
         build_slots,
         poll,
         include_edits,
@@ -797,14 +766,10 @@ fn parse_inner<S: AsRef<OsStr>>(
         bases,
         capabilities,
         files,
-        explain,
         build_profile,
-        exec_log: None,
-        old_log,
-        new_log,
         time,
         jobs,
-        bench_regression: fail_regression,
+        bench_regression: max_regression,
         bench_compare: compare,
         path_only,
         shell,

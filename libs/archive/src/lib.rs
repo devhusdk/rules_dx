@@ -273,6 +273,25 @@ pub fn extract(
     Ok(run.members)
 }
 
+/// Reads one named member of a zip without extracting the rest; `None` when it is absent.
+pub fn read_zip_member(archive: &Path, name: &str, max_bytes: u64) -> io::Result<Option<Vec<u8>>> {
+    let file = File::open(archive)?;
+    let mut zip = zip::ZipArchive::new(file).map_err(|e| invalid(format!("zip: {e}")))?;
+    let entry = match zip.by_name(name) {
+        Ok(entry) => entry,
+        Err(zip::result::ZipError::FileNotFound) => return Ok(None),
+        Err(e) => return Err(invalid(format!("zip: {e}"))),
+    };
+    let mut bytes = Vec::new();
+    entry.take(max_bytes + 1).read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(invalid(format!(
+            "archive member {name:?} exceeds {max_bytes} bytes"
+        )));
+    }
+    Ok(Some(bytes))
+}
+
 fn read_head(file: &mut File, head: &mut [u8]) -> io::Result<usize> {
     let mut filled = 0;
     while filled < head.len() {

@@ -22,7 +22,7 @@ dx release [--apply [--push]] [--to <x.y.z>] [--no-api-compat]
 
 The base is the newest tag that starts with `v`. With no tag, the base is the version most manifests carry. Commits since the tag decide the bump: `feat:` is minor, `fix:` and `perf:` are patch, and `!` after the type or a `BREAKING CHANGE:` footer is major. Other commits do not bump.
 
-By default, every `crates_deploy` target with `api_compat` other than `off` is run in warn mode against the last tag. When any reports breaking changes, the bump becomes major and the output names the target. This needs Bazel and cargo-semver-checks; `--to` and `--apply` skip it.
+By default, every `crates_deploy` target with `api_compat = True` is run in warn mode against the last tag. When any reports breaking changes, the bump becomes major and the output names the target. This needs Bazel and cargo-semver-checks; `--to` and `--apply` skip it.
 
 The manifests are `Cargo.toml`, `package.json`, `pyproject.toml`, `pubspec.yaml`, `build.gradle(.kts)`, `*.csproj`, `mix.exs`, `MODULE.bazel`, `*.gemspec` and `Chart.yaml`. A manifest that does not carry the base version is listed as out of sync.
 

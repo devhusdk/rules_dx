@@ -31,6 +31,11 @@ chmod +x "$fake"
 "$exec_sh" "$tmp/c2.log" "$tmp/c2.exit" --alias 'dir with space/x' 'y' -- "$fake" 'in dir with space/x:1' 1
 [ "$(cat "$tmp/c2.log")" = 'in y:1' ] || fail "aliases handle spaces"
 
+# An ampersand in the replacement stays literal.
+"$exec_sh" "$tmp/c3.log" "$tmp/c3.exit" --alias 'bazel-out/k8/bin/_ocaml/foo.ml' 'R&D/foo.ml' \
+  -- "$fake" 'File "bazel-out/k8/bin/_ocaml/foo.ml", line 1: Error' 1
+[ "$(cat "$tmp/c3.log")" = 'File "R&D/foo.ml", line 1: Error' ] || fail "ampersand in alias: $(cat "$tmp/c3.log")"
+
 # Append keeps the multiline format and leaves the original untouched.
 printf -- '-a\n-b\n' >"$tmp/flags"
 "$exec_sh" "$tmp/d.log" "$tmp/d.exit" --append 3 "$tmp/flags.out" --line '-c' --line '-d e' \

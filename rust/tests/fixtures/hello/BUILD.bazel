@@ -1,10 +1,11 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
+load("@rules_rust//rust:defs.bzl", "rust_lint_config")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_benchmark", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
 load("//rust/rules:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
-load("//rust/rules:wrapper_tests.bzl", "dx_default_crate_name_tests", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
+load("//rust/rules:wrapper_tests.bzl", "dx_default_crate_name_tests", "dx_lints_forward_tests", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -27,6 +28,41 @@ rust_library(
         normal = True,
         package_name = "rust/tests/fixtures/hello",
     ),
+)
+
+rust_lint_config(
+    name = "hello_lints",
+    rustdoc = {"broken_intra_doc_links": "warn"},
+)
+
+rust_library(
+    name = "hello_lints_lib",
+    testonly = True,
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/hello",
+        normal = True,
+    ),
+    crate_name = "hello_lints",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    lint_config = ":hello_lints",
+    deps = all_crate_deps(
+        normal = True,
+        package_name = "rust/tests/fixtures/hello",
+    ),
+)
+
+dx_lints_forward_tests(
+    name = "lints_forward_test",
+    expected = True,
+    target = ":hello_lints_lib",
+)
+
+dx_lints_forward_tests(
+    name = "lints_forward_absent_test",
+    expected = False,
+    target = ":hello_lib",
 )
 
 rust_binary(

@@ -19,7 +19,7 @@ fi
 sources=$(runfile "$DX_KCOV_SOURCES")
 pattern=$(sed 's/[][\.*^$+?(){}|]/\\&/g' "$sources" | paste -sd'|')
 out=${TEST_TMPDIR:-$(mktemp -d)}/dx_kcov
-"$(runfile "$DX_KCOV")" --replace-src-path="^.*/(?=($pattern)\$):$PWD/" "$out" "$upstream" "$@"
+"$(runfile "$DX_KCOV")" --replace-src-path="^.*?/(?=($pattern)\$):$PWD/" "$out" "$upstream" "$@"
 status=$?
 
 report=$out/$(basename "$upstream")/cobertura.xml

@@ -35,8 +35,8 @@ fn a_non_string_value_names_what_was_read() {
 fn scripts_join_the_run_lines_of_one_job() {
     let all = scripts(CONSUMER, "validate");
     assert!(
-        all.contains("bazel info repository_cache"),
-        "{CONSUMER} job validate scripts must include its repository cache lookup: {all}"
+        all.contains("completion bash") && all.contains("input_validation_bin"),
+        "{CONSUMER} job validate scripts must include the preset and validate steps: {all}"
     );
 }
 

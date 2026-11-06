@@ -5,7 +5,7 @@ stage tinymist classes=typst sources=matrix/typst_lint_multi/bad.typ,matrix/typs
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR tinymist tinymist/lint matrix/typst_lint_multi/bad.typ 9 9 fixable=false "unknown variable: missing"
+initial WARNING tinymist tinymist/lint matrix/typst_lint_multi/bad.typ 9 9 fixable=false "unknown variable: missing"
 terminal 1
-terminal ERROR tinymist tinymist/lint matrix/typst_lint_multi/bad.typ 9 9 fixable=false "unknown variable: missing"
+terminal WARNING tinymist tinymist/lint matrix/typst_lint_multi/bad.typ 9 9 fixable=false "unknown variable: missing"
 replacements 0

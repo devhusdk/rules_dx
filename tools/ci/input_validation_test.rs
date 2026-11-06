@@ -21,9 +21,8 @@ const INPUTS: [&str; 7] = [
     "DX_FUZZ_TIME",
     "DX_BENCH_REGRESSION_PCT",
 ];
-const PLAIN_OUTPUTS: [&str; 8] = [
+const PLAIN_OUTPUTS: [&str; 7] = [
     "artifact_suffix",
-    "cache_saver",
     "check_lines",
     "checks_timeout",
     "disabled",

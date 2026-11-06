@@ -230,6 +230,32 @@ fn place_build_dep(dep: &proto::BuildDep, workspace: &Path) -> Option<(String, (
     None
 }
 
+/// Digests every BUILD file a finding was placed in that no edit touched, so its range can
+/// be resolved against a snapshot.
+fn record_placed_build_files<'a>(
+    workspace: &Path,
+    events: impl Iterator<Item = &'a DiagnosticEvent>,
+    originals: &mut BTreeMap<String, Option<[u8; 32]>>,
+    terminal_digests: &mut BTreeMap<String, [u8; 32]>,
+) {
+    for event in events {
+        let Some(path) = event.path.as_deref().filter(|_| event.range.is_some()) else {
+            continue;
+        };
+        if !matches!(path.rsplit('/').next(), Some("BUILD" | "BUILD.bazel")) {
+            continue;
+        }
+        let Ok(bytes) = std::fs::read(workspace.join(path)) else {
+            continue;
+        };
+        let digest = dx_digest::blake3(&bytes);
+        if !originals.contains_key(path) && !terminal_digests.contains_key(path) {
+            originals.insert(path.to_owned(), Some(digest));
+            terminal_digests.insert(path.to_owned(), digest);
+        }
+    }
+}
+
 /// Whether the finding is about a BUILD target tagged `dx-keep`.
 fn kept_by_tag(diagnostic: &proto::Diagnostic, workspace: &Path) -> bool {
     let Some(dep) = &diagnostic.build_dep else {
@@ -591,12 +617,19 @@ pub(crate) fn collect_results_in(
             event.fixable = true;
         }
     }
+    let mut terminal_digests = reconciled.digests;
+    record_placed_build_files(
+        workspace,
+        initial.iter().chain(&reconciled.terminal),
+        &mut originals,
+        &mut terminal_digests,
+    );
     Ok(Collected {
         tools: tools.into_iter().collect(),
         initial,
         terminal: reconciled.terminal,
         changes: reconciled.changes,
-        terminal_digests: reconciled.digests,
+        terminal_digests,
         original_digests: originals
             .into_iter()
             .filter_map(|(path, digest)| Some((path, digest?)))

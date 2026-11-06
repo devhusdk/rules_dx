@@ -82,7 +82,7 @@ var stdlibPackages = map[string]struct{}{
 	"runtime/metrics": {}, "runtime/pprof": {}, "runtime/race": {}, "runtime/race/internal/amd64v1": {},
 	"runtime/trace": {}, "slices": {}, "sort": {}, "strconv": {},
 	"strings": {}, "structs": {}, "sync": {}, "sync/atomic": {},
-	"syscall": {}, "testing": {}, "testing/cryptotest": {}, "testing/fstest": {},
+	"syscall": {}, "syscall/js": {}, "testing": {}, "testing/cryptotest": {}, "testing/fstest": {},
 	"testing/internal/testdeps": {}, "testing/iotest": {}, "testing/quick": {}, "testing/slogtest": {},
 	"testing/synctest": {}, "text/scanner": {}, "text/tabwriter": {}, "text/template": {},
 	"text/template/parse": {}, "time": {}, "time/tzdata": {}, "unicode": {},

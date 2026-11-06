@@ -5,7 +5,7 @@ stage tflint classes=terraform sources=matrix/tflint_profile_strict/main.tf,matr
 completed_rounds 1
 convergence STABLE
 initial 1
-initial INFO tflint terraform_documented_variables matrix/tflint_profile_strict/variables.tf 0 15 fixable=false "`name` variable has no description"
+initial WARNING tflint terraform_documented_variables matrix/tflint_profile_strict/variables.tf 0 15 fixable=false "`name` variable has no description"
 terminal 1
-terminal INFO tflint terraform_documented_variables matrix/tflint_profile_strict/variables.tf 0 15 fixable=false "`name` variable has no description"
+terminal WARNING tflint terraform_documented_variables matrix/tflint_profile_strict/variables.tf 0 15 fixable=false "`name` variable has no description"
 replacements 0

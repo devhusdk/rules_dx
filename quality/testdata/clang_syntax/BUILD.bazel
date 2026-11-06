@@ -83,6 +83,7 @@ cc_library(
     name = "tidy_dirty",
     srcs = ["tidy_dirty.c"],
     aspect_hints = [":tidy_config"],
+    local_defines = ["TIDY_DEFINE=1"],
     tags = ["manual"],
     deps = [":dep"],
 )

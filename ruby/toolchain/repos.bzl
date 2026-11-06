@@ -64,6 +64,7 @@ def _ruby_tools_impl(mctx):
     _sorbet(name = "dx_sorbet")
     pinned_archive(
         name = "rules_ruby",
+        crlf = ["ruby/private/binary/binary.cmd.tpl"],
         dropped = ["MODULE.bazel"],
         patches = [
             Label("//patches/rules_ruby:reproducible.patch"),

@@ -1,10 +1,11 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::*;
 
 struct FakeBazel {
     cquery_stdout: String,
     output_base: String,
+    execution_root: String,
 }
 
 impl Bazel for FakeBazel {
@@ -14,6 +15,10 @@ impl Bazel for FakeBazel {
 
     fn output_base(&self) -> Result<String, ResolveError> {
         Ok(self.output_base.clone())
+    }
+
+    fn execution_root(&self) -> Result<String, ResolveError> {
+        Ok(self.execution_root.clone())
     }
 }
 
@@ -32,12 +37,17 @@ impl Bazel for FailingBazel {
     fn output_base(&self) -> Result<String, ResolveError> {
         Ok("/base".to_owned())
     }
+
+    fn execution_root(&self) -> Result<String, ResolveError> {
+        Ok("/exec".to_owned())
+    }
 }
 
 fn fake_with(output_base: &str, cquery_stdout: &str) -> FakeBazel {
     FakeBazel {
         cquery_stdout: cquery_stdout.to_owned(),
         output_base: output_base.to_owned(),
+        execution_root: "/exec".to_owned(),
     }
 }
 
@@ -145,19 +155,58 @@ fn env_lines_reject_bad_variable_names() {
 #[test]
 fn resolve_joins_the_base_with_the_selected_artifact() {
     let dir = tempfile::tempdir().expect("scratch");
-    let tool = dir.path().join("tool");
+    let tool = dir.path().join("external/a/tool");
+    std::fs::create_dir_all(tool.parent().expect("parent")).expect("dir");
     std::fs::write(&tool, b"fake").expect("fixture");
-    let rel = tool
-        .strip_prefix(dir.path())
-        .expect("prefix")
-        .to_string_lossy()
-        .into_owned();
-    let bazel = fake_with(
-        &dir.path().to_string_lossy(),
-        &format!("external/a/tool\n{rel}\n"),
-    );
+    let bazel = fake_with(&dir.path().to_string_lossy(), "external/a/tool\n");
     let resolved = resolve(&bazel, "@dx_tools//:gitleaks", &[]).expect("the artifact must resolve");
     assert_eq!(resolved, tool);
+}
+
+#[test]
+fn resolve_joins_a_built_output_with_the_execution_root() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let tool = dir.path().join("bazel-out/k8-fastbuild/bin/tool");
+    std::fs::create_dir_all(tool.parent().expect("parent")).expect("dir");
+    std::fs::write(&tool, b"fake").expect("fixture");
+    let mut bazel = fake_with("/base", "bazel-out/k8-fastbuild/bin/tool\n");
+    bazel.execution_root = dir.path().to_string_lossy().into_owned();
+    let resolved = resolve(&bazel, "//:tool", &[]).expect("the output must resolve");
+    assert_eq!(resolved, tool);
+}
+
+#[test]
+fn resolve_never_asks_for_the_execution_root_for_external_paths() {
+    struct ExternalOnly(PathBuf);
+    impl Bazel for ExternalOnly {
+        fn cquery_files(&self, _label: &str, _args: &[String]) -> Result<String, ResolveError> {
+            Ok("external/a/tool\n".to_owned())
+        }
+        fn output_base(&self) -> Result<String, ResolveError> {
+            Ok(self.0.to_string_lossy().into_owned())
+        }
+        fn execution_root(&self) -> Result<String, ResolveError> {
+            panic!("external paths live under output_base")
+        }
+    }
+    let dir = tempfile::tempdir().expect("scratch");
+    let tool = dir.path().join("external/a/tool");
+    std::fs::create_dir_all(tool.parent().expect("parent")).expect("dir");
+    std::fs::write(&tool, b"fake").expect("fixture");
+    let resolved = resolve(&ExternalOnly(dir.path().to_owned()), "@a//:tool", &[]).expect("path");
+    assert_eq!(resolved, tool);
+}
+
+#[test]
+fn resolve_tells_the_user_to_build_a_missing_output() {
+    let bazel = fake_with("/base", "bazel-out/k8-fastbuild/bin/tool\n");
+    let error = resolve(&bazel, "//:tool", &[]).unwrap_err();
+    assert!(
+        matches!(error, ResolveError::MissingOutput { .. }),
+        "{error}"
+    );
+    let text = error.to_string();
+    assert!(text.contains("build //:tool first"), "{text}");
 }
 
 #[test]
@@ -194,6 +243,9 @@ fn resolve_rejects_bad_labels_before_touching_bazel() {
         fn output_base(&self) -> Result<String, ResolveError> {
             panic!("output_base must not run for a bad label")
         }
+        fn execution_root(&self) -> Result<String, ResolveError> {
+            panic!("execution_root must not run for a bad label")
+        }
     }
     assert!(resolve(&PanicBazel, "not a label", &[]).is_err());
 }
@@ -217,8 +269,13 @@ fn every_failure_diagnostic_carries_the_resolve_code() {
         ResolveError::NoArtifact {
             label: "l".to_owned(),
         },
-        ResolveError::OutputBaseFailed {
+        ResolveError::InfoFailed {
+            key: "output_base".to_owned(),
             detail: "d".to_owned(),
+        },
+        ResolveError::MissingOutput {
+            label: "l".to_owned(),
+            path: "/p".to_owned(),
         },
         ResolveError::MissingArtifact {
             label: "l".to_owned(),

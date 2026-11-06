@@ -55,7 +55,8 @@ func ruffKindInfo() rule.KindInfo {
 
 func binaryKindInfo() rule.KindInfo {
 	return rule.KindInfo{
-		MatchAttrs: []string{"main"},
+		MatchAttrs:    []string{"main"},
+		NonEmptyAttrs: map[string]bool{"deps": true},
 		MergeableAttrs: map[string]bool{
 			"imports":      true,
 			"deps":         true,
@@ -354,7 +355,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(mergeRefs(refs)))
-		if p.entry {
+		if p.entry && !common.CoveredBinary(args.File, binaryKind, common.BinaryName(p.name), servesMain(p.main)) {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("main", p.main)
 			bin.SetAttr("imports", imports)
@@ -437,9 +438,26 @@ func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) erro
 	return common.CheckClaims(file, other, filled, nil)
 }
 
+// servesMain reports whether a binary runs main: its main attr names it, or it
+// has no main attr and lists it in srcs.
+func servesMain(main string) func(*rule.Rule) bool {
+	return func(r *rule.Rule) bool {
+		if m := r.AttrString("main"); m != "" {
+			return m == main
+		}
+		return slices.Contains(r.AttrStrings("srcs"), main)
+	}
+}
+
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStaleOwned(file, result, pythonKinds, func(r *rule.Rule) bool {
-		return r.Kind() != testKind || r.AttrString("runner") == ""
+		switch r.Kind() {
+		case testKind:
+			return r.AttrString("runner") == ""
+		case binaryKind:
+			return common.GeneratedBinary(r, "deps")
+		}
+		return true
 	})
 }
 

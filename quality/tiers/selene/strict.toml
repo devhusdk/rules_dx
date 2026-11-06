@@ -1,16 +1,17 @@
 std = "lua53+lua54"
 
-[config]
-high_cyclomatic_complexity = { maximum_complexity = 3 }
-
 [lints]
+almost_swapped = "deny"
 bad_string_escape = "deny"
+compare_nan = "deny"
 constant_table_comparison = "deny"
+deprecated = "deny"
 divide_by_zero = "deny"
 duplicate_keys = "deny"
 empty_if = "deny"
+empty_loop = "deny"
 global_usage = "deny"
-high_cyclomatic_complexity = "deny"
+if_same_then_else = "deny"
 ifs_same_cond = "deny"
 incorrect_standard_library_use = "deny"
 manual_table_clone = "deny"

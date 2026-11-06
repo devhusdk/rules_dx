@@ -5,7 +5,7 @@ stage gplint classes=gherkin sources=matrix/gplint_multi_a.feature,matrix/gplint
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR gplint no-dupe-scenario-names matrix/gplint_multi_b.feature 59 59 fixable=false "Scenario name is already used in: matrix/gplint_multi_b.feature:3"
+initial WARNING gplint no-dupe-scenario-names matrix/gplint_multi_b.feature 59 59 fixable=false "Scenario name is already used in: matrix/gplint_multi_b.feature:3"
 terminal 1
-terminal ERROR gplint no-dupe-scenario-names matrix/gplint_multi_b.feature 59 59 fixable=false "Scenario name is already used in: matrix/gplint_multi_b.feature:3"
+terminal WARNING gplint no-dupe-scenario-names matrix/gplint_multi_b.feature 59 59 fixable=false "Scenario name is already used in: matrix/gplint_multi_b.feature:3"
 replacements 0

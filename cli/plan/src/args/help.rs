@@ -166,7 +166,6 @@ pub fn runs_bazel(command: Command) -> bool {
             | Command::Completion
             | Command::Init
             | Command::Worktree
-            | Command::Explain
             | Command::Release
     )
 }
@@ -236,10 +235,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
             "build --release //app -- --local_resources=cpu=4",
         ],
     ),
-    (
-        Command::Test,
-        &["test --affected", "test //pkg/... --explain"],
-    ),
+    (Command::Test, &["test --affected", "test //pkg/..."]),
     (
         Command::Coverage,
         &[
@@ -282,10 +278,6 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     (
         Command::Worktree,
         &["worktree add my-branch", "worktree list --disk"],
-    ),
-    (
-        Command::Explain,
-        &["explain", "explain --old=old.log --new=new.log"],
     ),
     (
         Command::Fuzz,

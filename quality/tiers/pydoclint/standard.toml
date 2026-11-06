@@ -1,0 +1,5 @@
+# Numpy-style docstrings. Short docstrings are not checked.
+[tool.pydoclint]
+style = "numpy"
+skip-checking-short-docstrings = true
+check-arg-order = true

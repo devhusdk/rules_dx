@@ -483,3 +483,27 @@ fn cli_findings_serialize_as_stable_json_lines() {
         "{\"path\":\"p.md\",\"line\":3,\"kind\":\"heading-hierarchy\",\"message\":\"a\\\"b\\\\c\\né✓\"}"
     );
 }
+
+#[test]
+fn cli_kind_limits_the_reported_findings() {
+    let files = cli_files(&[("/exec/a.md", "# A\n\n```\ncode\n```\n")]);
+    let source = "a.md=/exec/a.md";
+    let (code, out, _) = run_harness(&files, &["--source", source]);
+    assert_eq!((code, out.len()), (0, 1), "{out:?}");
+    let (code, out, _) = run_harness(&files, &["--source", source, "--kind", "heading-hierarchy"]);
+    assert_eq!(code, 0);
+    assert!(out.is_empty(), "{out:?}");
+    let (code, out, _) = run_harness(
+        &files,
+        &["--source", source, "--kind", "missing-code-fence-language"],
+    );
+    assert_eq!((code, out.len()), (0, 1), "{out:?}");
+}
+
+#[test]
+fn cli_unknown_kind_is_a_usage_error() {
+    let files = cli_files(&[]);
+    let (code, _, err) = run_harness(&files, &["--kind", "nope"]);
+    assert_eq!(code, 2);
+    assert_eq!(err[0], "unknown kind \"nope\"");
+}

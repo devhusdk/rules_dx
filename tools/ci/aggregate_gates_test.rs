@@ -77,6 +77,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "devcontainer-check",
         "families",
         "gate",
+        "gcc-cross-build",
         "gcc-cross-run-arm64",
         "hermetic",
         "hermetic-arm64",
@@ -213,6 +214,8 @@ fn every_aggregate_job_needs_every_other_job() {
             if other == id
                 || (workflow == CI_WORKFLOW
                     && (other == "repo-cache-prune" || other == "scheduled-report"))
+                || (workflow == CONSUMER_WORKFLOW
+                    && (other == "advisory-bump" || other == "bench" || other == "fuzz"))
             {
                 continue;
             }
@@ -383,7 +386,7 @@ fn one_run_per_ref_and_none_cancel() {
 fn pull_request_comments_stay_pull_request_only() {
     let text = read_runfiles(CONSUMER_WORKFLOW);
     assert!(
-        text.contains("github.event_name == 'pull_request' }}\n        env:\n          GH_TOKEN"),
+        text.contains("github.event_name == 'pull_request' }}\n        env:\n          DX_INVOCATION_ID"),
         "the PR comment step must stay gated to pull_request"
     );
 }

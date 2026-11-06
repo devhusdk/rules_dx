@@ -5,7 +5,7 @@ stage redocly classes=api_spec sources=quality/testdata/api_spec/asyncapi_bad.ya
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR redocly struct quality/testdata/api_spec/asyncapi_bad.yaml 93 93 fixable=false "Property `bogus` is not expected here."
+initial WARNING redocly struct quality/testdata/api_spec/asyncapi_bad.yaml 93 93 fixable=false "Property `bogus` is not expected here."
 terminal 1
-terminal ERROR redocly struct quality/testdata/api_spec/asyncapi_bad.yaml 93 93 fixable=false "Property `bogus` is not expected here."
+terminal WARNING redocly struct quality/testdata/api_spec/asyncapi_bad.yaml 93 93 fixable=false "Property `bogus` is not expected here."
 replacements 0

@@ -824,25 +824,78 @@ func evalVersionClause(version, clause string) bool {
 			break
 		}
 	}
+	want, n, ok := parsePartial(rest)
+	if !ok || n == 0 {
+		return true
+	}
 	current := parseSemver(version)
-	want := parseSemver(rest)
-	cmp := compareSemver(current, want)
+	if current[0] < 0 {
+		return false
+	}
+	wildcard := bound == "" && n < 3 && strings.ContainsAny(rest, "*xX")
+	hi := bumpAt(want, n)
+	atLeast := compareSemver(current, want) >= 0
 	switch bound {
 	case ">=":
-		return cmp >= 0
-	case "<=":
-		return cmp <= 0
-	case ">":
-		return cmp > 0
+		return atLeast
 	case "<":
-		return cmp < 0
+		return compareSemver(current, want) < 0
+	case "<=":
+		if n < 3 {
+			return compareSemver(current, hi) < 0
+		}
+		return compareSemver(current, want) <= 0
+	case ">":
+		if n < 3 {
+			return compareSemver(current, hi) >= 0
+		}
+		return compareSemver(current, want) > 0
 	case "=":
-		return cmp == 0
+		return atLeast && compareSemver(current, hi) < 0
 	case "~":
-		return cmp >= 0 && compareSemver(current, tildeUpper(want, rest)) < 0
+		return atLeast && compareSemver(current, bumpAt(want, min(n, 2))) < 0
 	default:
-		return cmp >= 0 && compareSemver(current, caretUpper(want, rest)) < 0
+		if wildcard {
+			return atLeast && compareSemver(current, hi) < 0
+		}
+		return atLeast && compareSemver(current, caretUpper(want, n)) < 0
 	}
+}
+
+// parsePartial reads up to three numeric parts and stops at the first
+// wildcard. n is the number of numeric parts before it.
+func parsePartial(s string) (v [3]int, n int, ok bool) {
+	if idx := strings.IndexAny(s, "-+"); idx >= 0 {
+		s = s[:idx]
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return v, 0, false
+	}
+	for i, part := range strings.Split(s, ".") {
+		part = strings.TrimSpace(part)
+		if part == "*" || part == "x" || part == "X" {
+			return v, n, true
+		}
+		if i >= 3 {
+			break
+		}
+		number, err := strconv.Atoi(part)
+		if err != nil || number < 0 {
+			return v, 0, false
+		}
+		v[i] = number
+		n++
+	}
+	return v, n, true
+}
+
+func bumpAt(v [3]int, n int) [3]int {
+	v[n-1]++
+	for i := n; i < 3; i++ {
+		v[i] = 0
+	}
+	return v
 }
 
 func parseSemver(version string) [3]int {
@@ -876,23 +929,13 @@ func compareSemver(a, b [3]int) int {
 	return 0
 }
 
-func caretUpper(want [3]int, rest string) [3]int {
-	parts := strings.Split(rest, ".")
+func caretUpper(want [3]int, n int) [3]int {
 	switch {
-	case want[0] > 0:
-		return [3]int{want[0] + 1, 0, 0}
-	case len(parts) == 1:
-		return [3]int{1, 0, 0}
-	case want[1] > 0:
-		return [3]int{0, want[1] + 1, 0}
+	case want[0] > 0 || n == 1:
+		return bumpAt(want, 1)
+	case want[1] > 0 || n == 2:
+		return bumpAt(want, 2)
 	default:
-		return [3]int{0, 0, want[2] + 1}
+		return bumpAt(want, 3)
 	}
-}
-
-func tildeUpper(want [3]int, rest string) [3]int {
-	if len(strings.Split(rest, ".")) <= 1 {
-		return [3]int{want[0] + 1, 0, 0}
-	}
-	return [3]int{want[0], want[1] + 1, 0}
 }

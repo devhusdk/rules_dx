@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel", "staged_config_rel")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
@@ -510,13 +510,16 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         config_rel = None
         if tool in configs_by_tool:
             hint = configs_by_tool[tool]
-            config_rel = native_config_scratch_rel(hint.config.short_path)
-            if config_rel == None:
+            source_rel = native_config_scratch_rel(hint.config.short_path)
+            if source_rel == None:
                 fail("native_config (%s): config %s for %s escapes the scratch" % (tool, hint.config.short_path, what))
+            config_rel = staged_config_rel(tool, source_rel)
             for f in sorted(hint.closure.to_list(), key = lambda f: f.short_path):
                 closure_rel = native_config_scratch_rel(f.short_path)
                 if closure_rel == None:
                     fail("native_config (%s): file %s for %s escapes the scratch" % (tool, f.short_path, what))
+                if f == hint.config:
+                    closure_rel = config_rel
                 tool_files.append((closure_rel, f))
                 inputs.append(f)
         if found != None:

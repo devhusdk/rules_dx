@@ -293,7 +293,7 @@ def typescript_project(name, srcs = None, declaration_srcs = None, visibility = 
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 def ts_proto_library(name, proto, deps = None, visibility = None, **kwargs):
-    """Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @bufbuild/protobuf."""
+    """Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @bufbuild/protobuf; proto must sit in the proto_library's package."""
     ts_proto_srcs(
         name = name + "_srcs",
         proto = proto,

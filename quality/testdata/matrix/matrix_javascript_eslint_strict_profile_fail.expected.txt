@@ -5,7 +5,7 @@ stage eslint classes=javascript sources=quality/testdata/eslint_profile/a.js
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR eslint no-unused-vars quality/testdata/eslint_profile/a.js 36 42 fixable=false "'unused' is assigned a value but never used."
+initial WARNING eslint no-unused-vars quality/testdata/eslint_profile/a.js 36 42 fixable=false "'unused' is assigned a value but never used."
 terminal 1
-terminal ERROR eslint no-unused-vars quality/testdata/eslint_profile/a.js 36 42 fixable=false "'unused' is assigned a value but never used."
+terminal WARNING eslint no-unused-vars quality/testdata/eslint_profile/a.js 36 42 fixable=false "'unused' is assigned a value but never used."
 replacements 0

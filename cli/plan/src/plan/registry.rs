@@ -291,7 +291,6 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Init
         | Command::Upgrade
         | Command::Worktree
-        | Command::Explain
         | Command::Fuzz
         | Command::Release
         | Command::Status

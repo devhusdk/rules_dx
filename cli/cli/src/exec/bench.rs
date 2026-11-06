@@ -211,6 +211,8 @@ fn parse_bench_file(bytes: &[u8]) -> Result<Vec<Measurement>, String> {
     Ok(file.results)
 }
 
+const MAX_BENCH_BYTES: u64 = 16 << 20;
+
 /// Reads `dx-bench.json` out of the undeclared outputs zip one test result reports.
 fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, String> {
     let zip = result
@@ -218,17 +220,9 @@ fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, String> {
         .iter()
         .find(|file| file.name.ends_with("outputs.zip"))
         .ok_or_else(|| format!("{BENCH_FILE} was not written"))?;
-    let scratch = tempfile::tempdir().map_err(|error| error.to_string())?;
-    let dest = scratch.path().join("outputs");
-    dx_archive::extract(
-        &zip.exec_path,
-        dx_archive::Format::Zip,
-        &dest,
-        dx_archive::Limits::default(),
-    )
-    .map_err(|error| format!("cannot read the test outputs: {error}"))?;
-    let bytes = std::fs::read(dest.join(BENCH_FILE))
-        .map_err(|_| format!("{BENCH_FILE} was not written"))?;
+    let bytes = dx_archive::read_zip_member(&zip.exec_path, BENCH_FILE, MAX_BENCH_BYTES)
+        .map_err(|error| format!("cannot read the test outputs: {error}"))?
+        .ok_or_else(|| format!("{BENCH_FILE} was not written"))?;
     parse_bench_file(&bytes)
 }
 
@@ -363,7 +357,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
             out,
             err,
             CODE_BENCH_COMPARE,
-            "--fail-on=regression needs --compare",
+            "--max-regression needs --compare",
         );
     }
     let baseline = match &invocation.bench_compare {
@@ -442,7 +436,6 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         &scope,
         &invocation.quiet_bazel_options(),
         Some(&bep_text),
-        None,
         Some(invocation.profile()),
         &invocation.bazel_startup_options,
     ) {
@@ -464,8 +457,15 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
     let events = std::fs::File::open(&bep)
         .map_err(|error| format!("failed to read build events: {error}"))
         .and_then(|file| {
-            collect_test_events(BufReader::new(file), || None)
-                .map_err(|error| format!("invalid build events: {error}"))
+            collect_test_events(BufReader::new(file), || {
+                Some(super::test_reports::output_locations(
+                    invocation,
+                    workspace,
+                    WorkflowVerb::Bench,
+                    query_runner,
+                ))
+            })
+            .map_err(|error| format!("invalid build events: {error}"))
         });
     let _ = std::fs::remove_file(&bep);
     let events = match events {
@@ -608,40 +608,47 @@ mod tests {
         !crc
     }
 
-    /// A zip holding one stored file, like the outputs.zip Bazel writes.
-    fn zip_with(name: &str, content: &[u8]) -> Vec<u8> {
-        let crc = crc32(content);
-        let size = content.len() as u32;
+    /// A zip of stored entries, like the outputs.zip Bazel writes; names ending in '/' are directories.
+    fn zip_of(entries: &[(&str, &[u8])]) -> Vec<u8> {
         let mut zip = Vec::new();
-        let mut local = Vec::new();
-        local.extend(0x0403_4b50u32.to_le_bytes());
-        local.extend([20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        local.extend(crc.to_le_bytes());
-        local.extend(size.to_le_bytes());
-        local.extend(size.to_le_bytes());
-        local.extend((name.len() as u16).to_le_bytes());
-        local.extend([0, 0]);
-        local.extend(name.as_bytes());
-        local.extend(content);
-        zip.extend(&local);
         let mut central = Vec::new();
-        central.extend(0x0201_4b50u32.to_le_bytes());
-        central.extend([20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        central.extend(crc.to_le_bytes());
-        central.extend(size.to_le_bytes());
-        central.extend(size.to_le_bytes());
-        central.extend((name.len() as u16).to_le_bytes());
-        central.extend([0; 12]);
-        central.extend(0u32.to_le_bytes());
-        central.extend(name.as_bytes());
+        for (name, content) in entries {
+            let crc = crc32(content);
+            let size = content.len() as u32;
+            let offset = zip.len() as u32;
+            zip.extend(0x0403_4b50u32.to_le_bytes());
+            zip.extend([20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            zip.extend(crc.to_le_bytes());
+            zip.extend(size.to_le_bytes());
+            zip.extend(size.to_le_bytes());
+            zip.extend((name.len() as u16).to_le_bytes());
+            zip.extend([0, 0]);
+            zip.extend(name.as_bytes());
+            zip.extend(*content);
+            central.extend(0x0201_4b50u32.to_le_bytes());
+            central.extend([20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            central.extend(crc.to_le_bytes());
+            central.extend(size.to_le_bytes());
+            central.extend(size.to_le_bytes());
+            central.extend((name.len() as u16).to_le_bytes());
+            central.extend([0; 12]);
+            central.extend(offset.to_le_bytes());
+            central.extend(name.as_bytes());
+        }
         let offset = zip.len() as u32;
         zip.extend(&central);
         zip.extend(0x0605_4b50u32.to_le_bytes());
-        zip.extend([0, 0, 0, 0, 1, 0, 1, 0]);
+        zip.extend([0, 0, 0, 0]);
+        zip.extend((entries.len() as u16).to_le_bytes());
+        zip.extend((entries.len() as u16).to_le_bytes());
         zip.extend((central.len() as u32).to_le_bytes());
         zip.extend(offset.to_le_bytes());
         zip.extend([0, 0]);
         zip
+    }
+
+    fn zip_with(name: &str, content: &[u8]) -> Vec<u8> {
+        zip_of(&[(name, content)])
     }
 
     const HAND_MADE: &str = r#"{"schema":"dx-bench/v1","results":[{"name":"parse","unit":"ms","mean":1.5,"stddev":0.25,"iterations":50}]}"#;
@@ -712,6 +719,42 @@ mod tests {
     }
 
     #[test]
+    fn bench_reads_bytestream_test_outputs_through_info_roots() {
+        let harness = Harness::new("bench-bytestream");
+        harness.query.script_stdout("//app:parse_bench\n");
+        let testlogs = harness.temp.join("testlogs");
+        harness
+            .query
+            .script_info(&format!("bazel-testlogs: {}\n", testlogs.display()));
+        let dir = testlogs.join("app").join("parse_bench");
+        std::fs::create_dir_all(&dir).expect("testlogs dir");
+        std::fs::write(
+            dir.join("test.outputs__outputs.zip"),
+            zip_with(BENCH_FILE, HAND_MADE.as_bytes()),
+        )
+        .expect("outputs.zip");
+        let line = serde_json::json!({
+            "id": {"testResult": {"label": "//app:parse_bench", "run": 1, "shard": 1, "attempt": 1}},
+            "testResult": {
+                "status": "PASSED",
+                "testActionOutput": [{
+                    "name": "test.outputs__outputs.zip",
+                    "uri": "bytestream://remote.buildbuddy.io/blobs/abc/10",
+                }],
+            },
+        })
+        .to_string();
+        let harness = Harness {
+            raw_bep: Some(vec![line]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["bench"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("parse  1.5"), "{out}");
+        assert!(harness.workspace.join(".dx/local/bench/last.json").exists());
+    }
+
+    #[test]
     fn bench_json_output_is_the_merged_document() {
         let harness = bench_harness(
             "bench-json",
@@ -754,20 +797,20 @@ mod tests {
 
     #[test]
     fn a_thirty_percent_slowdown_fails_at_twenty_and_passes_at_fifty() {
-        let (code, out, err) = compare_run("bench-cmp-20", 13.0, 10.0, "--fail-on=regression:20");
+        let (code, out, err) = compare_run("bench-cmp-20", 13.0, 10.0, "--max-regression=20");
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("parse is 30.0% slower"), "{err}");
         let document: serde_json::Value = serde_json::from_str(out.trim()).expect("json");
         let result = &document["targets"][0]["results"][0];
         assert_eq!(result["baseline"], 10.0);
         assert!((result["delta_pct"].as_f64().expect("delta") - 30.0).abs() < 1e-9);
-        let (code, _, err) = compare_run("bench-cmp-50", 13.0, 10.0, "--fail-on=regression:50");
+        let (code, _, err) = compare_run("bench-cmp-50", 13.0, 10.0, "--max-regression=50");
         assert_eq!(code, 0, "{err}");
     }
 
     #[test]
     fn a_change_inside_two_stddevs_is_not_a_regression() {
-        let (code, _, err) = compare_run("bench-cmp-noise", 10.1, 10.0, "--fail-on=regression:0");
+        let (code, _, err) = compare_run("bench-cmp-noise", 10.1, 10.0, "--max-regression=0");
         assert_eq!(code, 0, "{err}");
     }
 
@@ -787,7 +830,7 @@ mod tests {
     #[test]
     fn regression_gate_needs_a_baseline() {
         let harness = bench_harness("bench-cmp-none", None);
-        let (code, _, err) = harness.run(&["bench", "--fail-on=regression:20"]);
+        let (code, _, err) = harness.run(&["bench", "--max-regression=20"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("needs --compare"), "{err}");
     }

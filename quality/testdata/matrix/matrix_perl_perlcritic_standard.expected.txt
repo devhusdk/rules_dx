@@ -5,7 +5,7 @@ stage perlcritic classes=perl sources=matrix/perlcritic_profile.pl
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_profile.pl 77 77 fixable=false "\"$unused\" is declared but not used"
+initial WARNING perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_profile.pl 77 77 fixable=false "\"$unused\" is declared but not used"
 terminal 1
-terminal ERROR perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_profile.pl 77 77 fixable=false "\"$unused\" is declared but not used"
+terminal WARNING perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_profile.pl 77 77 fixable=false "\"$unused\" is declared but not used"
 replacements 0

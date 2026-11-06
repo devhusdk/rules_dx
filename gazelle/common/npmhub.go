@@ -1,9 +1,7 @@
 package common
 
 import (
-	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -16,7 +14,7 @@ var npmHubs sync.Map
 
 // NpmHub returns the repository name of the npm hub that links the
 // pnpm-lock.yaml at lockRel, read from the npm_translate_lock call in the root
-// MODULE.bazel. It returns "npm" when nothing matches.
+// MODULE.bazel and the files it includes. It returns "npm" when nothing matches.
 func NpmHub(repoRoot, lockRel string) string {
 	hubs, ok := npmHubs.Load(repoRoot)
 	if !ok {
@@ -30,22 +28,10 @@ func NpmHub(repoRoot, lockRel string) string {
 
 func readNpmHubs(repoRoot string) map[string]string {
 	hubs := map[string]string{}
-	data, err := os.ReadFile(filepath.Join(repoRoot, "MODULE.bazel"))
-	if err != nil {
-		return hubs
-	}
-	file, err := build.ParseModule("MODULE.bazel", data)
-	if err != nil {
-		return hubs
-	}
 	aliases := map[string]string{}
 	type lock struct{ name, lock string }
 	var locks []lock
-	for _, stmt := range file.Stmt {
-		call, ok := stmt.(*build.CallExpr)
-		if !ok {
-			continue
-		}
+	for _, call := range moduleCalls(repoRoot) {
 		switch fn := call.X.(type) {
 		case *build.Ident:
 			if fn.Name == "use_repo" {

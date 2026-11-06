@@ -47,6 +47,7 @@ go_test(
     ],
     embed = [":typescript"],
     pure = "on",
+    deps = ["@gazelle//v2/merger"],
 )
 
 real_source_target(

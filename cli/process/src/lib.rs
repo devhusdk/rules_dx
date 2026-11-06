@@ -17,6 +17,10 @@ use std::sync::atomic::{AtomicI32, Ordering};
 pub mod bazel_sh;
 pub mod groups;
 pub mod lifecycle;
+#[cfg(unix)]
+pub mod procs;
+#[cfg(windows)]
+#[path = "procs_windows.rs"]
 pub mod procs;
 pub mod rc;
 mod runner;

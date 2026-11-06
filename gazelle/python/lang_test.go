@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/merger"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -510,8 +511,8 @@ func TestBinaryKindInfo(t *testing.T) {
 	if len(info.MatchAttrs) != 1 || info.MatchAttrs[0] != "main" {
 		t.Errorf("binary MatchAttrs = %v, want [main]", info.MatchAttrs)
 	}
-	if info.NonEmptyAttrs["srcs"] {
-		t.Errorf("binary NonEmptyAttrs must not require srcs: %v", info.NonEmptyAttrs)
+	if len(info.NonEmptyAttrs) != 1 || !info.NonEmptyAttrs["deps"] {
+		t.Errorf("binary NonEmptyAttrs = %v, want deps so stale binaries are removed", info.NonEmptyAttrs)
 	}
 	if !info.MergeableAttrs["deps"] || !info.MergeableAttrs["imports"] {
 		t.Errorf("binary MergeableAttrs = %v, want deps+imports", info.MergeableAttrs)
@@ -536,14 +537,89 @@ func TestResolvePreservesBinaryDeps(t *testing.T) {
 	}
 }
 
+func regenerate(t *testing.T, files map[string]string, build string) *rule.File {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		writeFixture(t, root, "pkg/demo/"+name, content)
+		regular = append(regular, name)
+	}
+	file, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte(build))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := newLang()
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: regular,
+		File:         file,
+	})
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v", l.Errors())
+	}
+	if len(result.Gen) != len(result.Imports) {
+		t.Fatalf("generated %d rules and %d import sets", len(result.Gen), len(result.Imports))
+	}
+	merger.MergeFile(file, result.Empty, result.Gen, merger.PreResolve, pythonKinds, nil)
+	return file
+}
+
+func binaries(file *rule.File) map[string]*rule.Rule {
+	found := map[string]*rule.Rule{}
+	for _, r := range file.Rules {
+		if r.Kind() == binaryKind {
+			found[r.Name()] = r
+		}
+	}
+	return found
+}
+
 func TestMergeStaleCleansBinary(t *testing.T) {
-	f := rule.EmptyFile("BUILD.bazel", "pkg")
-	f.Rules = append(f.Rules, rule.NewRule(binaryKind, "old_bin"))
-	keptLib := rule.NewRule(libraryKind, "main")
-	keptBin := rule.NewRule(binaryKind, "main_bin")
-	result := mergeStale(f, language.GenerateResult{Gen: []*rule.Rule{keptLib, keptBin}})
-	if len(result.Empty) != 1 || result.Empty[0].Name() != "old_bin" {
-		t.Fatalf("stale = %v, want [old_bin]", result.Empty)
+	sources := map[string]string{"greet.py": "x = 1\n", "main.py": "import greet\n"}
+	readme := regenerate(t, sources, `python_binary(
+    name = "hello",
+    srcs = ["main.py"],
+    imports = ["."],
+    aspect_hints = [":hint"],
+    deps = [":greet"],
+)
+`)
+	bins := binaries(readme)
+	hello := bins["hello"]
+	if hello == nil || len(bins) != 1 {
+		t.Fatalf("binaries = %v, want only hello", bins)
+	}
+	for attr, want := range map[string]string{"deps": ":greet", "imports": ".", "aspect_hints": ":hint"} {
+		if got := strings.Join(hello.AttrStrings(attr), ","); got != want {
+			t.Errorf("hello %s = %q, want %q", attr, got, want)
+		}
+	}
+
+	named := binaries(regenerate(t, sources, `python_binary(name = "hello", main = "main.py", deps = [":greet"])
+`))
+	if named["hello"] == nil || len(named) != 1 {
+		t.Fatalf("binaries = %v, want only hello", named)
+	}
+	if got := strings.Join(named["hello"].AttrStrings("deps"), ","); got != ":greet" {
+		t.Errorf("hello deps = %q, want :greet", got)
+	}
+
+	kept := binaries(regenerate(t, sources, `python_binary(name = "main_bin", main = "main.py", deps = [":main"])
+`))
+	if kept["main_bin"] == nil || len(kept) != 1 {
+		t.Fatalf("binaries = %v, want only main_bin", kept)
+	}
+	if got := strings.Join(kept["main_bin"].AttrStrings("deps"), ","); got != ":main" {
+		t.Errorf("main_bin deps = %q, want :main", got)
+	}
+
+	stale := binaries(regenerate(t, map[string]string{"greet.py": "x = 1\n"}, `python_binary(name = "main_bin", main = "main.py", deps = [":main"])
+`))
+	if len(stale) != 0 {
+		t.Errorf("binaries = %v, want stale main_bin removed", stale)
 	}
 }
 

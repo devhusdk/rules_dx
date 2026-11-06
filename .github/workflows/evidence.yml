@@ -60,47 +60,8 @@ env:
   DX_ANDROID_ABI: "x86_64"
 
 jobs:
-  validate:
-    name: validate evidence inputs
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    outputs:
-      platforms: ${{ steps.inputs.outputs.platforms }}
-      runners: ${{ steps.inputs.outputs.runners }}
-      scope: ${{ steps.inputs.outputs.scope }}
-      task: ${{ steps.inputs.outputs.task }}
-      test_timeout: ${{ steps.inputs.outputs.test_timeout }}
-      flags: ${{ steps.inputs.outputs.flags }}
-      relocate: ${{ steps.inputs.outputs.relocate }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-      - name: Use the BuildBuddy remote cache
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          [ -n "$BUILDBUDDY_API_KEY" ] || exit 0
-          {
-            echo "common --config=ci"
-            echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
-          } >> user.bazelrc
-      - name: Validate workflow inputs
-        id: inputs
-        env:
-          DX_SCOPE: ${{ inputs.scope }}
-          DX_TASK: ${{ inputs.task }}
-          DX_PLATFORMS: ${{ inputs.platforms }}
-          DX_DISPLAYS: ${{ inputs.displays }}
-          DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
-          DX_FLAGS: ${{ inputs.flags }}
-          DX_RELOCATE: ${{ inputs.relocate }}
-        run: bazel run --noshow_progress //tools/ci:evidence_inputs_bin
-
   evidence:
     name: evidence (${{ matrix.platform }})
-    needs: [validate]
     timeout-minutes: ${{ inputs.release_cell && 90 || 60 }}
     defaults:
       run:
@@ -108,11 +69,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
+        platform: ${{ fromJSON(inputs.platforms) }}
+    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-15","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] || 'ubuntu-latest' }}
     permissions:
       contents: read
     steps:
+      - name: Prepare the Windows runner
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path 'D:\') {
+            New-Item -ItemType Directory -Force -Path D:\bz | Out-Null
+            New-Item -ItemType Junction -Path C:\bz -Target D:\bz | Out-Null
+          }
       - name: Free disk space
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
@@ -122,6 +91,53 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+      - name: Start recording the Apple executor
+        if: ${{ matrix.platform == 'macos_arm64' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          {
+            {
+              sw_vers
+              uname -m
+              xcode-select -p
+              xcodebuild -version
+              xcodebuild -showsdks
+              ls -d /Applications/Xcode*.app
+              xcrun simctl list runtimes
+              xcrun swift -version
+              xcrun --sdk macosx --show-sdk-version
+              xcrun --sdk iphonesimulator --show-sdk-version
+              xcrun --sdk iphoneos --show-sdk-version
+            } > "$RUNNER_TEMP/evidence/executor.txt" 2>&1
+            touch "$RUNNER_TEMP/executor.done"
+          } &
+      - name: Fetch the dx dependencies
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          remote=()
+          if [ -n "$BUILDBUDDY_API_KEY" ]; then
+            remote=(--config=ci "--remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY")
+          fi
+          bazel fetch --noshow_progress "${remote[@]}" "--profile=$RUNNER_TEMP/evidence/fetch-profile.gz" --noslim_profile //cli/cli:dx
+      - name: Validate workflow inputs
+        id: inputs
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+          DX_SCOPE: ${{ inputs.scope }}
+          DX_TASK: ${{ inputs.task }}
+          DX_PLATFORMS: ${{ inputs.platforms }}
+          DX_DISPLAYS: ${{ inputs.displays }}
+          DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
+          DX_FLAGS: ${{ inputs.flags }}
+          DX_RELOCATE: ${{ inputs.relocate }}
+        run: |
+          remote=()
+          if [ -n "$BUILDBUDDY_API_KEY" ]; then
+            remote=(--config=ci "--remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY")
+          fi
+          bazel run --noshow_progress "${remote[@]}" //tools/ci:evidence_inputs_bin
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:
@@ -149,23 +165,6 @@ jobs:
             echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
           } >> user.bazelrc
           [ "$DX_PLATFORM" != linux_x86_64 ] || echo "common --config=rbe" >> user.bazelrc
-      - name: Record the Apple executor
-        if: ${{ matrix.platform == 'macos_arm64' }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/evidence"
-          {
-            sw_vers
-            uname -m
-            xcode-select -p
-            xcodebuild -version
-            xcodebuild -showsdks
-            ls -d /Applications/Xcode*.app
-            xcrun simctl list runtimes
-            xcrun swift -version
-            xcrun --sdk macosx --show-sdk-version
-            xcrun --sdk iphonesimulator --show-sdk-version
-            xcrun --sdk iphoneos --show-sdk-version
-          } 2>&1 | tee "$RUNNER_TEMP/evidence/executor.txt"
       - name: Enable KVM
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
@@ -249,11 +248,11 @@ jobs:
           fi
       - name: Run evidence task
         env:
-          DX_SCOPE: ${{ needs.validate.outputs.scope }}
-          DX_TASK: ${{ needs.validate.outputs.task }}
-          DX_TEST_TIMEOUT: ${{ needs.validate.outputs.test_timeout }}
-          DX_FLAGS: ${{ needs.validate.outputs.flags }}
-          DX_RELOCATE: ${{ needs.validate.outputs.relocate }}
+          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
+          DX_TASK: ${{ steps.inputs.outputs.task }}
+          DX_TEST_TIMEOUT: ${{ steps.inputs.outputs.test_timeout }}
+          DX_FLAGS: ${{ steps.inputs.outputs.flags }}
+          DX_RELOCATE: ${{ steps.inputs.outputs.relocate }}
         run: |
           set -o pipefail
           read -ra patterns <<< "$DX_SCOPE"
@@ -262,14 +261,15 @@ jobs:
           export DX_HERMETIC_BAZELISK
           startup=()
           extra=()
+          profile=("--profile=$RUNNER_TEMP/evidence/profile.gz" --noslim_profile)
           run_task() {
             log="$1"
             if [ "$DX_TASK" = "build" ]; then
-              bazel "${startup[@]}" build --noshow_progress "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" build --noshow_progress "${profile[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             elif [ "$DX_TASK" = "coverage" ]; then
-              bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
+              bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
-              bazel "${startup[@]}" test --keep_going --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             fi
           }
           run_task evidence.log
@@ -278,6 +278,7 @@ jobs:
             rm -rf "$base"
             startup=("--output_base=$base")
             extra=(--disk_cache= --noremote_accept_cached)
+            profile=()
             run_task relocated.log
             differ=0
             if [ "$DX_TASK" = build ]; then
@@ -285,8 +286,7 @@ jobs:
               mkdir -p "$det"
               first_root="$(bazel info "${flags[@]}" execution_root | tr -d '\r')"
               second_root="$(bazel "--output_base=$base" info "${flags[@]}" execution_root | tr -d '\r')"
-              # cquery takes one expression. evidence_inputs.rs joins the scope with
-              # single spaces and only allows // or @rules_dx_ patterns, so a union is safe.
+              # cquery takes one expression; the scope only holds // or @rules_dx_ patterns, so a union is safe.
               bazel cquery --noshow_progress --output=files "${DX_SCOPE// / + }" "${flags[@]}" | tr -d '\r' > "$det/first.txt"
               bazel "--output_base=$base" cquery --noshow_progress --output=files "${DX_SCOPE// / + }" "${flags[@]}" | tr -d '\r' > "$det/relocated.txt"
               sort -u "$det/first.txt" "$det/relocated.txt" > "$det/files.txt"
@@ -309,6 +309,14 @@ jobs:
             bazel "--output_base=$base" shutdown
             exit "$differ"
           fi
+      - name: Record the Apple executor
+        if: ${{ always() && matrix.platform == 'macos_arm64' }}
+        run: |
+          for _ in $(seq 150); do
+            [ -f "$RUNNER_TEMP/executor.done" ] && break
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/evidence/executor.txt"
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}
         run: |
@@ -440,7 +448,7 @@ jobs:
           set -o pipefail
           bazel test --noshow_progress --test_output=all --test_env=PATH --test_env=HOME --test_env=ANDROID_HOME //flutter/tests/fixtures/flutter-app/android:interaction_test 2>&1 | tail -n 80
       - name: Collect test logs
-        if: always()
+        if: ${{ always() && steps.inputs.outcome == 'success' }}
         run: |
           out="$RUNNER_TEMP/evidence/testlogs"
           mkdir -p "$out"
@@ -451,25 +459,25 @@ jobs:
             dir="$(dirname "$log")"
             rel="${dir#bazel-testlogs/}"
             mkdir -p "$out/$rel"
-            cp "$dir/test.log" "$out/$rel/"
+            cp "$dir/test.log" "$out/$rel/" 2>/dev/null || true
             cp "$dir/test.xml" "$out/$rel/" 2>/dev/null || true
             cp "$dir/coverage.dat" "$out/$rel/" 2>/dev/null || true
             if [ -d "$dir/test.outputs" ]; then
-              cp -RL "$dir/test.outputs" "$out/$rel/"
+              cp -RL "$dir/test.outputs" "$out/$rel/" 2>/dev/null || true
             fi
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: ${{ always() && steps.inputs.outcome == 'success' }}
         with:
           name: evidence-${{ matrix.platform }}
           path: ${{ runner.temp }}/evidence
           retention-days: 7
       - name: Write job summary
-        if: always()
+        if: ${{ always() && steps.inputs.outcome == 'success' }}
         env:
           DX_PLATFORM: ${{ matrix.platform }}
-          DX_TASK: ${{ needs.validate.outputs.task }}
-          DX_SCOPE: ${{ needs.validate.outputs.scope }}
+          DX_TASK: ${{ steps.inputs.outputs.task }}
+          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
           DX_DISPLAYS: ${{ inputs.displays }}
         run: |
           {

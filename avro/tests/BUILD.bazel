@@ -1,3 +1,4 @@
+# gazelle:ignore
 # gazelle:dx_ignore_import cc avro/tests/point.hh
 # gazelle:dx_ignore_import cc avro/tests/shape.hh
 load("//avro/rules:codegen.bzl", "avro_cc_library", "avro_codegen_shard", "avro_java_library")

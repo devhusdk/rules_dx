@@ -1,7 +1,7 @@
 # foreign_cmake fixture
 
-Builds a pinned zlib through rules_foreign_cc `cmake` for Linux x86_64 and,
-cross-compiled, for Linux arm64.
+Builds a pinned zlib through rules_foreign_cc `cmake` for Linux x86_64,
+cross-compiled for Linux arm64 and, with cl.exe, for Windows x64.
 
 The cmake, ninja and C toolchains come from Bazel toolchains. The one ambient
 tool is `bash`: rules_foreign_cc runs its generated build script with the host
@@ -24,8 +24,9 @@ toolchain found" failure, so `tools.explicit()` has no system fallback.
 arm64 `libz.a` with `--whole-archive` and keeps the linker output and exit code
 in a log. `foreign_cmake_cross_test` checks that lld rejects the archive.
 
-Not covered yet (part of #6222): a missing cmake toolchain for a real `cmake`
-target.
+`zlib_log_gcc` rebuilds the same log with `compiler = "gcc"`.
+`foreign_cmake_log_test` reads it through `zlib_log_gcc_copy` to check that
+switching compilers reconfigures CMake instead of reusing a stale cache.
 
 On windows_x86_64 with `--//cc/toolchains:compiler=msvc`, `zlib_msvc_static` and
 `zlib_msvc_shared` build the same zlib with cl.exe through the Ninja generator

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 api="tools/docs/site/user/api.bzl"
-query='attr(visibility, "//visibility:public", kind("^(rust_library|_rust_forward) rule$", //...)) except filter("(^|/)(fixtures?|tests?|examples?)(/|:)", //...)'
+query='attr(visibility, "//visibility:public", kind("^(rust_library|_rust_forward) rule$", //...)) except filter("(^|/)(fixtures?|tests?|examples?)(/|:)", //...) except attr(testonly, 1, //...)'
 
 listed="$(sed -n '/^PUBLIC_RUST_CRATES = \[/,/^\]/p' "$api" | grep -o '"//[^"]*"' | tr -d '"' | sort -u)"
 if [ -z "$listed" ]; then

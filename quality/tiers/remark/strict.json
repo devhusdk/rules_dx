@@ -1,0 +1,9 @@
+{
+  "bullet": "-",
+  "emphasis": "_",
+  "fence": "`",
+  "fences": true,
+  "listItemIndent": "one",
+  "rule": "-",
+  "strong": "*"
+}

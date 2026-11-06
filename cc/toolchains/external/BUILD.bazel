@@ -41,6 +41,13 @@ fake_cc_toolchain_config(
     target = "x86_64-pc-windows-msvc",
 )
 
+fake_cc_toolchain_config(
+    name = "fake_windows_cc_config",
+    compiler = "msvc-cl",
+    target = "x86_64-pc-windows-msvc",
+    tool = "C:/fake/bin/cl.exe",
+)
+
 [
     (
         cc_toolchain(
@@ -57,6 +64,8 @@ fake_cc_toolchain_config(
         ),
         toolchain(
             name = name + "_toolchain",
+            exec_compatible_with = ["@platforms//os:windows"] if name == "fake_windows_cc" else [],
+            target_compatible_with = ["@platforms//os:windows"] if name == "fake_windows_cc" else [],
             toolchain = ":" + name + "_cc_toolchain",
             toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
         ),
@@ -64,6 +73,7 @@ fake_cc_toolchain_config(
     for name in [
         "clang_cl",
         "clang_msvc",
+        "fake_windows_cc",
         "gcc",
         "icx",
         "msvc_cl",

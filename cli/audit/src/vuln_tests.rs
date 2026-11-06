@@ -1660,3 +1660,31 @@ fn an_exception_for_an_unmaintained_advisory_is_not_obsolete() {
     let (_, problems) = apply_exceptions(&findings, &[accepted], "2026-09-18");
     assert!(problems.is_empty(), "{problems:?}");
 }
+
+#[test]
+fn exact_scope_round_trips_for_every_set() {
+    for (set, version) in [
+        ("cargo", "1.2.3"),
+        ("cargo", "1.2.3+build.5"),
+        ("go", "v3.2.0"),
+        ("go", "v3.2.0+incompatible"),
+        ("npm", "4.17.1"),
+        ("nuget", "13.0.1"),
+        ("maven", "1.0"),
+        ("ruby", "7.0.1"),
+        ("uv", "2.1.0"),
+        ("hex", "1.2.3"),
+        ("packagist", "1.2.3"),
+        ("hackage", "1.2.3"),
+        ("cpan", "1.23"),
+        ("conan", "1.2.3"),
+        ("other", "abc-1"),
+    ] {
+        let scope = exact_scope(set, version);
+        assert_eq!(
+            version_assess(set, &scope, version),
+            VersionScope::Affected,
+            "{set} {version} scope {scope}"
+        );
+    }
+}

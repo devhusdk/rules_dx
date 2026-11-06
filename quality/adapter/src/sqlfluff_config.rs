@@ -21,6 +21,7 @@ fn parse(text: &str) -> Result<Leaves, String> {
     let mut leaves = Leaves::new();
     let mut section: Option<Vec<String>> = None;
     let mut current: Option<Vec<String>> = None;
+    let mut in_key = false;
     let mut indent_level = 0usize;
     for (index, raw) in text.lines().enumerate() {
         let number = index + 1;
@@ -29,20 +30,19 @@ fn parse(text: &str) -> Result<Leaves, String> {
             continue;
         }
         let indent = raw.len() - raw.trim_start().len();
-        if let Some(path) = &current {
-            if indent > indent_level {
-                if let Some(value) = leaves.get_mut(path) {
-                    value.push('\n');
-                    value.push_str(line);
-                }
-                continue;
+        if in_key && indent > indent_level {
+            if let Some(value) = current.as_ref().and_then(|path| leaves.get_mut(path)) {
+                value.push('\n');
+                value.push_str(line);
             }
+            continue;
         }
         indent_level = indent;
         if let Some(rest) = line.strip_prefix('[') {
             let Some(name) = rest.strip_suffix(']') else {
                 return Err(format!("line {number}: unterminated section"));
             };
+            in_key = false;
             current = None;
             section = if name == "sqlfluff" {
                 Some(vec!["core".to_owned()])
@@ -57,6 +57,7 @@ fn parse(text: &str) -> Result<Leaves, String> {
         };
         let key = line[..split].trim();
         let value = line[split + 1..].trim();
+        in_key = true;
         let Some(base) = &section else {
             current = None;
             continue;
@@ -279,12 +280,11 @@ mod tests {
         .unwrap();
         let deep = groups.iter().find(|g| g.files == ["a/b/f.sql"]).unwrap();
         assert_eq!(deep.layers, ["a/.sqlfluff", "a/b/.sqlfluff"]);
-        assert!(
-            deep.merged
-                .as_deref()
-                .unwrap()
-                .contains("templater = placeholder")
-        );
+        assert!(deep
+            .merged
+            .as_deref()
+            .unwrap()
+            .contains("templater = placeholder"));
         let near = groups.iter().find(|g| g.files == ["a/bc/g.sql"]).unwrap();
         assert_eq!(near.layers, ["a/.sqlfluff"]);
     }
@@ -293,5 +293,21 @@ mod tests {
     fn bad_ini_is_an_error() {
         assert!(parse("[sqlfluff]\nnot a pair\n").is_err());
         assert!(parse("[sqlfluff]\na = 1\na = 2\n").is_err());
+        assert!(parse("[testenv]\n    pytest\n").is_err());
+    }
+
+    const FOREIGN_MULTILINE: &str = "[sqlfluff]\ndialect = ansi\n[testenv]\ndeps =\n    pytest\n    ruff\ncommands = pytest\n[sqlfluff:rules]\nmax_line_length = 80\n";
+
+    #[test]
+    fn foreign_multiline_values_are_skipped() {
+        let leaves = parse(FOREIGN_MULTILINE).unwrap();
+        assert_eq!(leaves.len(), 2);
+        assert_eq!(
+            leaves[&vec!["core".to_owned(), "dialect".to_owned()]],
+            "ansi"
+        );
+        let merged = merge(&[FOREIGN_MULTILINE, "[sqlfluff]\ntemplater = raw\n"]).unwrap();
+        assert!(merged.contains("dialect = ansi"));
+        assert!(!merged.contains("pytest"));
     }
 }

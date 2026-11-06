@@ -12,6 +12,7 @@ FamilyPolicyInfo = provider(
         "family_id": "Str: policy-family ID owning this selection.",
         "format": "List[str]: selected formatter IDs, in policy order.",
         "lint": "List[str]: selected lint tool IDs, in policy order.",
+        "profile": "Str: tier profile (standard or strict) the family's tools run on, empty for the workspace default.",
         "typecheck": "List[str]: selected typecheck tool IDs, in policy order.",
     },
 )
@@ -64,6 +65,7 @@ def _quality_family_impl(ctx):
         format = selections["format"],
         audit = selections["audit"],
         disabled = ctx.attr.disabled,
+        profile = ctx.attr.profile,
     )]
 
 quality_family = rule(
@@ -86,6 +88,9 @@ quality_family = rule(
         "lint": attr.string_list(
             doc = "Lint tool ids selected for this quality family.",
             default = [],
+        ),
+        "profile": attr.string(
+            doc = "Tier profile the family's tools run on; empty uses the workspace profile.",
         ),
         "typecheck": attr.string_list(
             doc = "Typecheck tool ids selected for this quality family.",
@@ -157,7 +162,12 @@ def _workspace_policy_impl(ctx):
     if error:
         fail(error)
     entries = [(config[DxNativeConfigInfo].tool_id, config) for config in ctx.attr.configs]
-    configs, config_error = merge_configs(base_configs, entries)
+    base_entries = [(config[DxNativeConfigInfo].tool_id, config) for config in ctx.attr.bases]
+    below, base_error = merge_configs({}, base_entries)
+    if base_error:
+        fail(base_error)
+    below.update(base_configs)
+    configs, config_error = merge_configs(below, entries)
     if config_error:
         fail(config_error)
     return [QualityPolicyInfo(families = families, configs = configs)]
@@ -166,6 +176,11 @@ workspace_policy = rule(
     implementation = _workspace_policy_impl,
     doc = "Workspace quality policy built from family sections, optionally extending another policy.",
     attrs = {
+        "bases": attr.label_list(
+            doc = "Tier base config targets for tools with no bound file. Any config in `configs` or `extends` wins over a base.",
+            providers = [DxNativeConfigInfo],
+            default = [],
+        ),
         "configs": attr.label_list(
             doc = "Native config targets (ruff_config, eslint_config, ...) bound for every target. A config in a target's aspect_hints wins; a config here wins over the one in `extends`.",
             providers = [DxNativeConfigInfo],

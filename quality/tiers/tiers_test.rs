@@ -5,6 +5,7 @@ const NO_FORMATTER: &[&str] = &[
     "cfg",
     "clang-format",
     "clang-tidy",
+    "cmakelintrc",
     "conf",
     "config",
     "editorconfig",
@@ -15,12 +16,14 @@ const NO_FORMATTER: &[&str] = &[
     "neon",
     "perlcriticrc",
     "psd1",
+    "shellcheckrc",
     "txt",
     "xml",
 ];
 
 const EXEMPT: &[&str] = &[
     "quality/tiers/detekt/regen.sh",
+    "quality/tiers/ruff/strict.toml",
     "quality/tiers/selene/strict.toml",
     "quality/tiers/vale/styles/",
 ];
@@ -80,4 +83,15 @@ fn every_tier_file_is_in_a_corpus_or_has_no_formatter() {
         missing.is_empty(),
         "add these to quality/tiers/corpora.bzl: {missing:?}"
     );
+}
+
+#[test]
+fn clippy_tiers_end_with_deny_warnings() {
+    for path in tier_files()
+        .iter()
+        .filter(|path| path.starts_with("quality/tiers/clippy/") && is_tier(path))
+    {
+        let text = std::fs::read_to_string(dx_testing::resolve_runfiles(path)).expect("read tier");
+        assert_eq!(text.lines().last(), Some("-Dwarnings"), "{path}");
+    }
 }

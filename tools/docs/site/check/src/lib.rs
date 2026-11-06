@@ -337,7 +337,15 @@ fn link_targets(paths: &[String], prose: &[String], root: &str) -> BTreeSet<(Str
     let mut found = BTreeSet::new();
     for (path, text) in paths.iter().zip(prose) {
         let source = route_under(root, path);
+        let mut fenced = false;
         for line in text.lines() {
+            if line.trim_start().starts_with("```") {
+                fenced = !fenced;
+                continue;
+            }
+            if fenced {
+                continue;
+            }
             for inner in inline_targets(line) {
                 let tidied = tidy(&inner);
                 found.insert((source.clone(), first_field(tidied.as_str())));

@@ -106,7 +106,7 @@ pub fn parse_zizmor(
                 start,
                 end: None,
                 suggestions: Vec::new(),
-                encoding: ColumnEncoding::Scalars,
+                encoding: ColumnEncoding::Utf8,
                 related: Vec::new(),
             },
         });
@@ -145,6 +145,14 @@ mod tests {
         assert_eq!(findings[0].finding.start.column, 15);
         assert_eq!(findings[1].finding.rule_id, "template-injection");
         assert_eq!(findings[1].finding.severity, ToolSeverity::Error);
+    }
+
+    #[test]
+    fn zizmor_columns_are_utf8_bytes() {
+        let dirty = DIRTY.replace("\"column\":8", "\"column\":29");
+        let found = parse_zizmor(dirty.as_bytes(), b"", Some(13), &[FILE]).expect("parsed");
+        assert_eq!(found[1].finding.start.column, 30);
+        assert_eq!(found[1].finding.encoding, ColumnEncoding::Utf8);
     }
 
     #[test]

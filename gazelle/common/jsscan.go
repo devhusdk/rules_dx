@@ -142,18 +142,27 @@ var JSModuleExts = []string{".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts"
 // relativeRef returns the workspace-relative identity of a relative spec with
 // any extension in exts stripped and returned as moduleExt, and any other
 // extension (such as .json or .prod) left in the root and returned as ext.
+// A spec naming the workspace root itself, such as ".", resolves to index.
 func relativeRef(dir, spec string, exts []string) (root, ext, moduleExt string) {
 	spec = strings.TrimSpace(spec)
 	trimmed := strings.TrimSuffix(spec, "/")
-	switch path.Base(trimmed) {
-	case "", ".", "..", "/":
+	if trimmed == "" {
 		return "", "", ""
 	}
 	var joined string
 	if strings.HasPrefix(spec, "/") {
 		joined = strings.TrimPrefix(path.Clean(trimmed), "/")
+		if joined == "" {
+			return "", "", ""
+		}
 	} else {
 		joined = path.Join(dir, trimmed)
+		if joined == "." {
+			return "index", "", ""
+		}
+		if strings.Trim(joined, "./") == "" {
+			return joined, "", ""
+		}
 	}
 	base := path.Base(joined)
 	e := path.Ext(base)

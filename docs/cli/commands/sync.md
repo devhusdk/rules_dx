@@ -25,7 +25,7 @@ Scopes: none selects the whole repository. One exact `//` or `@` label selects t
 
 Run `dx sync` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a codegen rule reads. Selected outputs link under `.dx/local/setups/current/generated`. A second run with nothing changed reports the setup is already selected and writes nothing. Managed state lives under `.dx/local/`. `dx clean` reports unselected state.
 
-`dx sync` refreshes `.dx/local/ide/`: the TypeScript `lib` link, `cc/compile_commands.json` and the `cc/clangd` link for C and C++ trees, `go/gopackagesdriver` for Go trees, and for Rust trees `rust_analyzer/flycheck.exe`, `rust_analyzer/discover_bazel_rust_project.exe` and a `user_config.json` that makes flycheck run clippy. Set `go.toolsEnvVars.GOPACKAGESDRIVER` to the Go wrapper. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
+`dx sync` refreshes `.dx/local/ide/`: the TypeScript `lib` link, `cc/compile_commands.json` and the `cc/clangd` link for C and C++ trees, `go/gopackagesdriver` (`gopackagesdriver.cmd` on Windows) for Go trees, and for Rust trees `rust_analyzer/flycheck.exe`, `rust_analyzer/discover_bazel_rust_project.exe` and a `user_config.json` that makes flycheck run clippy. Set `go.toolsEnvVars.GOPACKAGESDRIVER` to the Go wrapper. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
 
 ## Bazel args
 

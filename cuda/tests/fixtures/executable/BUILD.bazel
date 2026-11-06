@@ -50,3 +50,27 @@ cuda_test(
     rdc = True,
     deps = ["//cuda/tests/fixtures/rdc:axpy"],
 )
+
+cuda_binary(
+    name = "defines_binary",
+    srcs = [
+        "defines.cu",
+        "defines_main.cc",
+    ],
+    cuda_copts = ["-DDX_EXEC_NVCC"],
+    defines = ["DX_EXEC_PUBLIC"],
+    local_defines = ["DX_EXEC_N=1024"],
+    platforms = _ARCHS,
+)
+
+cuda_test(
+    name = "defines_test",
+    srcs = [
+        "defines.cu",
+        "defines_main.cc",
+    ],
+    cuda_copts = ["-DDX_EXEC_NVCC"],
+    defines = ["DX_EXEC_PUBLIC"],
+    local_defines = ["DX_EXEC_N=1024"],
+    platforms = _ARCHS,
+)

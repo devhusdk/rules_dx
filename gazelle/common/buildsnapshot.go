@@ -21,6 +21,7 @@ type snapshotEntry struct {
 	exists bool
 	mode   os.FileMode
 	link   bool
+	dir    bool
 	target string
 }
 
@@ -32,7 +33,7 @@ func (s *BuildSnapshot) Reset() {
 }
 
 // Record stores the current state of path once; later calls for the same path
-// keep the first state. It fails if the file cannot be inspected or read.
+// keep the first state. A directory is left alone. It fails if the file cannot be inspected or read.
 func (s *BuildSnapshot) Record(path string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -46,6 +47,10 @@ func (s *BuildSnapshot) Record(path string) error {
 	if errors.Is(err, os.ErrNotExist) || (err == nil && info.IsDir()) {
 		if target, lerr := os.Readlink(path); lerr == nil {
 			s.files[path] = snapshotEntry{link: true, target: target}
+			return nil
+		}
+		if err == nil {
+			s.files[path] = snapshotEntry{dir: true}
 			return nil
 		}
 		s.files[path] = snapshotEntry{}
@@ -91,6 +96,9 @@ func (s *BuildSnapshot) Restore() error {
 			if err := restoreLink(p, e.target); err != nil {
 				errs = append(errs, fmt.Errorf("restore %s: %w", p, err))
 			}
+			continue
+		}
+		if e.dir {
 			continue
 		}
 		if !e.exists {

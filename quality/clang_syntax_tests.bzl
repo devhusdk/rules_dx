@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
-load(":clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
+load(":clang_syntax.bzl", "clang_action_env", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
 
 _CLANG = "external/llvm/bin/clang"
 
@@ -126,6 +126,16 @@ def clang_syntax_unit_tests(name):
                 ["tidy", "--config-file=q/.clang-tidy", "--extra-arg-before=--driver-mode=cl", "--extra-arg-before=--target=x86_64-pc-windows-msvc", "a.c", "--", "/std:c++17", "-m64"],
             ),
             expect_equal(
+                "MSVC clang actions turn off MSYS path conversion",
+                clang_action_env({"A": "1"}, "msvc"),
+                {"A": "1", "MSYS_NO_PATHCONV": "1", "MSYS2_ARG_CONV_EXCL": "*", "MSYS2_ENV_CONV_EXCL": "*"},
+            ),
+            expect_equal(
+                "other clang actions keep their env",
+                clang_action_env({"A": "1"}, "gcc"),
+                {"A": "1"},
+            ),
+            expect_equal(
                 "clang-tidy names precompiled headers for MSVC",
                 clang_tidy_argv("tidy", ["cl.exe", "/Yuh.h", "/c", "a.c"], "a.c", _CL).error,
                 "clang-tidy does not support precompiled headers (flag /Yuh.h)",
@@ -174,6 +184,11 @@ def clang_syntax_unit_tests(name):
                 "a header-parsing action names its header as the source",
                 clang_syntax_source([_CLANG, "-DX", "-iquote", ".", "-xc++-header", "-fsyntax-only", "pkg/a.h"]),
                 "pkg/a.h",
+            ),
+            expect_equal(
+                "inl and ipp headers are named as the source",
+                [clang_syntax_source([_CLANG, "-xc++-header", "-fsyntax-only", "pkg/a." + e]) for e in ["inl", "ipp"]],
+                ["pkg/a.inl", "pkg/a.ipp"],
             ),
             expect_equal(
                 "a header-parsing action is replayed without a -c",

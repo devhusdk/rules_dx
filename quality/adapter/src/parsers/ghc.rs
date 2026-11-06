@@ -80,7 +80,7 @@ pub fn parse_ghc(
             message,
             severity,
             TextPosition { line, column },
-            ColumnEncoding::Scalars,
+            ColumnEncoding::ScalarsTabs { width: 8 },
         ));
     }
     require_findings(TOOL, &found, code)?;
@@ -119,6 +119,18 @@ mod tests {
         assert_eq!(found[0].finding.severity, ToolSeverity::Error);
         assert_eq!(found[0].finding.start.line, 3);
         assert_eq!(found[0].finding.start.column, 7);
+    }
+
+    #[test]
+    fn ghc_counts_a_tab_as_eight_columns() {
+        let text = line(FILE, "Error", "83865", "Couldn't match type");
+        let found = parse_ghc(text.as_bytes(), Some(1), &[FILE]).expect("parsed");
+        let encoding = found[0].finding.encoding;
+        assert_eq!(encoding, ColumnEncoding::ScalarsTabs { width: 8 });
+        assert_eq!(
+            crate::line_col_to_byte("\tx = undefinedVar", 1, 9, encoding),
+            Some(1)
+        );
     }
 
     #[test]

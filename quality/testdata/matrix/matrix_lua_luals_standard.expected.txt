@@ -4,8 +4,6 @@ stages 1
 stage luals classes=lua sources=matrix/luals_profile.lua
 completed_rounds 1
 convergence STABLE
-initial 1
-initial WARNING luals luals/unused-local matrix/luals_profile.lua 36 36 fixable=false "Unused local `unused`."
-terminal 1
-terminal WARNING luals luals/unused-local matrix/luals_profile.lua 36 36 fixable=false "Unused local `unused`."
+initial 0
+terminal 0
 replacements 0

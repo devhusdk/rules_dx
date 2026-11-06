@@ -14,7 +14,7 @@ def _impl(ctx):
         compiler = ctx.attr.compiler,
         abi_version = "fake",
         abi_libc_version = "fake",
-        tool_paths = [tool_path(name = name, path = "/bin/false") for name in ["gcc", "ld", "ar", "cpp", "gcov", "nm", "objdump", "strip"]],
+        tool_paths = [tool_path(name = name, path = ctx.attr.tool) for name in ["gcc", "ld", "ar", "cpp", "gcov", "nm", "objdump", "strip"]],
     )
 
 fake_cc_toolchain_config = rule(
@@ -23,5 +23,6 @@ fake_cc_toolchain_config = rule(
     attrs = {
         "compiler": attr.string(doc = "Compiler string to report.", mandatory = True),
         "target": attr.string(doc = "Target system name to report.", mandatory = True),
+        "tool": attr.string(doc = "Path reported for every tool.", default = "/bin/false"),
     },
 )

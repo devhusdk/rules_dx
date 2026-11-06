@@ -5,7 +5,7 @@ stage pkl_lsp classes=pkl sources=matrix/pkl_lint_dirty.pkl
 completed_rounds 1
 convergence STABLE
 initial 1
-initial INFO pkl_lsp - matrix/pkl_lint_dirty.pkl 6 6 fixable=false "Unused property"
+initial WARNING pkl_lsp - matrix/pkl_lint_dirty.pkl 6 6 fixable=false "Unused property"
 terminal 1
-terminal INFO pkl_lsp - matrix/pkl_lint_dirty.pkl 6 6 fixable=false "Unused property"
+terminal WARNING pkl_lsp - matrix/pkl_lint_dirty.pkl 6 6 fixable=false "Unused property"
 replacements 0

@@ -6,7 +6,6 @@ package(default_visibility = VIS_CLI)
 
 exports_files([
     "src/block.rs",
-    "src/editorconfig.rs",
     "src/jsonc.rs",
     "src/lib.rs",
     "src/yaml_scalar.rs",
@@ -17,7 +16,6 @@ dx_rust_crate(
     package_name = "cli/dx_merge",
     srcs = [
         "src/block.rs",
-        "src/editorconfig.rs",
         "src/jsonc.rs",
         "src/lib.rs",
         "src/yaml_scalar.rs",

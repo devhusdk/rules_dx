@@ -493,8 +493,8 @@ github_deploy(
 - `tag`: defaults to `v0.0.0-dryrun`.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 - `tags`: Bazel tags for the generated targets. Defaults to `[]`.
-- `api_compat`: `off` (default), `warn` or `fail`. With `go_modules` (workspace-relative module directories; empty means the `go.mod` at the root), the dry run
-  checks each module with `apidiff` against the highest earlier `v*` tag and, on `fail`, refuses breaking changes
+- `api_compat`: `False` (default; it needs `apidiff`) or `True`. With `go_modules` (workspace-relative module directories; empty means the `go.mod` at the root), the dry run
+  checks each module with `apidiff` against the highest earlier `v*` tag and refuses breaking changes
   unless the bump is major. It needs `go` on `PATH`; a missing `go`, `apidiff` or earlier tag skips the check.
 
 Default run stages `<name>-release/` with the assets (none for a notes-only draft) and a `would-run.txt`
@@ -748,7 +748,8 @@ oci_deploy(
   `containers` family.
 - `main`: the entry script of a `python` or `node` base. It defaults to the
   binary's package and name with `.py` or `.js`, so `//app:server` runs
-  `app/server.py`.
+  `app/server.py` and `//app/server` runs `app/server/server.py`. A `dotnet`
+  base defaults to `<pkg>/<name>/net10.0/<name>.dll`.
 - `main_class`: the class of a `java` base. It defaults to the `main_class` of
   the `java_binary`, written to an argument file next to the jars.
 - `runtime`: for the `python`, `java`, `node` and `dotnet` bases. Replaces the
@@ -811,7 +812,8 @@ uncompressed.
 
 - Auth: `OCI_REGISTRY_USER` and `OCI_REGISTRY_TOKEN`, sent as a Basic login or
   exchanged for a bearer token, as the registry asks.
-- `registry` may carry a path prefix, such as `ghcr.io/example`.
+- `registry` may carry a path prefix, such as `ghcr.io/example`. The host is
+  case-insensitive; the path after it must be lowercase with no empty segments.
 - `docker.io` pushes to `registry-1.docker.io`; a single-segment repository
   gets `library/`.
 - Plain-HTTP registries are not supported.
@@ -1029,7 +1031,8 @@ helm_chart_deploy(
 
 - `chart`: a `helm_chart` target. Its files are copied to a staging directory.
 - `version`: must equal `version` in `Chart.yaml`, or the run fails.
-- `registry`: host plus optional path. `repository` adds a path below it.
+- `registry`: host plus optional path (lowercase, no empty segments, as for
+  `oci_deploy`). `repository` adds a path below it.
 - `helm`: defaults to the pinned helm from `//config:tool_helm`.
 
 A dry run runs `helm lint`, then `helm package`, and prints the `.tgz` path.

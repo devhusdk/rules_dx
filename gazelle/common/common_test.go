@@ -275,8 +275,10 @@ func TestRefSetIdentity(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"", ""},
 		{"   ", ""},
-		{"./", ""},
-		{".", ""},
+		{"./", "index"},
+		{".", "index"},
+		{"..", ".."},
+		{"../", ".."},
 		{"/", ""},
 		{"./dir/", "dir"},
 		{"./helper", "helper"},
@@ -307,8 +309,9 @@ func TestRefSetKeepsDirectories(t *testing.T) {
 	set.Add("../a/util")
 	set.Add("../b/util.ts")
 	set.Add("./util")
+	set.Add("..")
 	set.Add("react")
-	want := []string{"app/b/util", "app/web/util", "app/a/util", "react"}
+	want := []string{"app/b/util", "app/web/util", "app/a/util", "app", "react"}
 	sort.Strings(want)
 	if got := RefRoots(set.Refs()); !reflect.DeepEqual(got, want) {
 		t.Errorf("Roots = %q, want %q", got, want)
@@ -517,6 +520,13 @@ func TestParseImportRefsRelative(t *testing.T) {
 		{"mts", "import x from \"./x.mts\";\n", []ImportRef{{Spec: "./x.mts", Root: "pkg/x", ModuleExt: ".mts", Relative: true}}},
 		{"importEqualsRelative", "import x = require(\"./z.js\");\n", []ImportRef{{Spec: "./z.js", Root: "pkg/z", ModuleExt: ".js", Relative: true}}},
 		{"commentInList", "import {\n a, // from utils\n} from './x';\n", []ImportRef{{Spec: "./x", Root: "pkg/x", Relative: true}}},
+		{"dot", "import x from \".\";\n", []ImportRef{{Spec: ".", Root: "pkg", Relative: true}}},
+		{"dotSlash", "import x from \"./\";\n", []ImportRef{{Spec: "./", Root: "pkg", Relative: true}}},
+		{"parent", "import x from \"..\";\n", []ImportRef{{Spec: "..", Root: "index", Relative: true}}},
+		{"parentSlash", "import x from \"../\";\n", []ImportRef{{Spec: "../", Root: "index", Relative: true}}},
+		{"grandparent", "import x from \"../..\";\n", []ImportRef{{Spec: "../..", Root: "..", Relative: true}}},
+		{"dotParent", "import x from \"./x/..\";\n", []ImportRef{{Spec: "./x/..", Root: "pkg", Relative: true}}},
+		{"requireDot", "const x = require('.');\n", []ImportRef{{Spec: ".", Root: "pkg", Relative: true}}},
 		{"sameTarget", "import a from \"./x/../util.js\";\nimport b from \"./util\";\n", []ImportRef{{Spec: "./x/../util.js", Root: "pkg/util", ModuleExt: ".js", Relative: true}}},
 	}
 	for _, tc := range cases {
@@ -542,7 +552,7 @@ func TestRefSetRoots(t *testing.T) {
 		t.Errorf("empty Roots = %q, want nil", got)
 	}
 	set.Add("")
-	set.Add("./")
+	set.Add("/")
 	if got := RefRoots(set.Refs()); got != nil {
 		t.Errorf("unnormalizable Roots = %q, want nil", got)
 	}

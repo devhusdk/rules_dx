@@ -695,6 +695,7 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Cc => "cc_deps.toml",
         Ecosystem::Ruby => "Gemfile",
         Ecosystem::Perl => "cpanfile",
+        Ecosystem::Zig => "build.zig.zon",
     }
 }
 
@@ -709,6 +710,7 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Cc => "cc_lock.json",
         Ecosystem::Ruby => "Gemfile.lock",
         Ecosystem::Perl => "cpanfile.snapshot",
+        Ecosystem::Zig => "build.zig.zon.lock",
     }
 }
 
@@ -727,6 +729,7 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Cc => "cc",
         Ecosystem::Ruby => "ruby",
         Ecosystem::Perl => "perl",
+        Ecosystem::Zig => "zig",
     }
 }
 
@@ -1218,6 +1221,7 @@ fn ecosystem_parse_covers_every_name() {
         ("cc", Ecosystem::Cc),
         ("ruby", Ecosystem::Ruby),
         ("perl", Ecosystem::Perl),
+        ("zig", Ecosystem::Zig),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -2486,4 +2490,78 @@ fn perl_usage_covers_use_require_and_parent() {
     assert!(hits["Test::More"].test && !hits["Test::More"].src);
     assert!(!hits["Nope"].src);
     assert!(is_test_file(Ecosystem::Perl, Path::new("t/x.t")));
+}
+
+#[test]
+fn zig_manifest_reads_hashes_lazy_and_skips_paths() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let zon = dir.path().join("build.zig.zon");
+    write_file(
+        &zon,
+        ".{\n    .dependencies = .{\n        .a = .{ .url = \"u\", .hash = \"h1\" },\n        .@\"b-c\" = .{ .url = \"u\", .hash = \"h2\", .lazy = true },\n        .p = .{ .path = \"p\" },\n        // .d = .{ .hash = \"h3\" },\n    },\n}\n",
+    );
+    let deps = parse_zig_manifest(&zon).expect("parse");
+    let names: Vec<&str> = deps.keys().map(String::as_str).collect();
+    assert_eq!(names, ["a", "b-c"]);
+    assert_eq!(deps["a"].sha256, "h1");
+    assert!(!deps["a"].optional);
+    assert!(deps["b-c"].optional);
+}
+
+#[test]
+fn zig_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("zig/mixed");
+    let manifest = base.join("build.zig.zon");
+    let lock = base.join("build.zig.zon.lock");
+    assert_eq!(consistency(Ecosystem::Zig, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Zig, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["clap"]);
+    let missing = find_missing(Ecosystem::Zig, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(found, [("known", "src/main.zig", 2)]);
+}
+
+#[test]
+fn zig_consistency_flags_stale_hash() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let zon = dir.path().join("build.zig.zon");
+    let lock = dir.path().join("build.zig.zon.lock");
+    write_file(
+        &zon,
+        ".{ .dependencies = .{ .a = .{ .url = \"u\", .hash = \"new\" } } }\n",
+    );
+    write_file(&lock, "a old\n");
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Zig, &zon, &lock, &mut out, &mut err);
+    assert_eq!(code, 1);
+    assert!(err.contains("stale hash for 'a'"), "{err}");
+}
+
+#[test]
+fn zig_usage_covers_dependency_calls_and_imports() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(
+        &dir.path().join("build.zig"),
+        "const d = b.lazyDependency(\"lz\", .{});\n",
+    );
+    write_file(&dir.path().join("a.zig"), "const x = @import(\"imp\");\n");
+    write_file(
+        &dir.path().join("b_test.zig"),
+        "const y = @import(\"tst\");\n",
+    );
+    write_file(&dir.path().join("c.zig"), "const z = @import(\"impx\");\n");
+    let names: Vec<String> = ["lz", "imp", "tst", "other"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::Zig, dir.path(), &names).expect("usages");
+    assert!(hits["lz"].src);
+    assert!(hits["imp"].src);
+    assert!(hits["tst"].test && !hits["tst"].src);
+    assert!(!hits["other"].src);
 }

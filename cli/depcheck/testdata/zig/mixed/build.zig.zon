@@ -1,0 +1,17 @@
+.{
+    .name = .hello,
+    .version = "0.1.0",
+    .dependencies = .{
+        // .commented = .{ .url = "x", .hash = "0" },
+        .zlib = .{
+            .url = "https://example.com/zlib.tar.gz",
+            .hash = "1220aaaa",
+        },
+        .clap = .{
+            .url = "https://example.com/clap.tar.gz",
+            .hash = "1220bbbb",
+        },
+        .local = .{ .path = "../local" },
+    },
+    .paths = .{""},
+}

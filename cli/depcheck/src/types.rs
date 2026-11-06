@@ -72,6 +72,7 @@ pub enum Ecosystem {
     Cc,
     Ruby,
     Perl,
+    Zig,
 }
 
 impl std::str::FromStr for Ecosystem {
@@ -99,6 +100,7 @@ impl Ecosystem {
             "cc" => Some(Self::Cc),
             "ruby" => Some(Self::Ruby),
             "perl" => Some(Self::Perl),
+            "zig" => Some(Self::Zig),
             _ => None,
         }
     }
@@ -118,6 +120,7 @@ impl Ecosystem {
             Self::Cc => "cc",
             Self::Ruby => "ruby",
             Self::Perl => "perl",
+            Self::Zig => "zig",
         }
     }
 

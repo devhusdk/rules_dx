@@ -19,6 +19,7 @@ rust_library(
         "src/ecosystem/python.rs",
         "src/ecosystem/ruby.rs",
         "src/ecosystem/rust.rs",
+        "src/ecosystem/zig.rs",
         "src/dep_key.rs",
         "src/lib.rs",
         "src/missing.rs",
@@ -86,6 +87,7 @@ rust_test(
         ":rust_testdata",
         ":scala_testdata",
         ":ts_testdata",
+        ":zig_testdata",
     ],
     deps = all_crate_deps(
         package_name = "cli/dx_depcheck",
@@ -253,6 +255,7 @@ rust_test(
         "cc",
         "ruby",
         "perl",
+        "zig",
     ]
 ]
 

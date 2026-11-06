@@ -7,6 +7,7 @@ pub mod perl;
 pub mod python;
 pub mod ruby;
 pub mod rust;
+pub mod zig;
 
 use std::collections::BTreeMap;
 use std::path::Path;

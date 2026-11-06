@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::ecosystem::{cc, dotnet, go, js, jvm, parse_paren_lock, perl, python, ruby, rust};
+use crate::ecosystem::{cc, dotnet, go, js, jvm, parse_paren_lock, perl, python, ruby, rust, zig};
 use crate::version::satisfies_for;
 use crate::{DepInfo, DepcheckError, Ecosystem, LockVersions, WorkspaceLocks};
 
@@ -19,6 +19,7 @@ pub(crate) fn load_manifest(
         Ecosystem::Cc => cc::parse_cc_manifest(manifest),
         Ecosystem::Ruby => ruby::parse_ruby_manifest(manifest),
         Ecosystem::Perl => perl::parse_perl_manifest(manifest),
+        Ecosystem::Zig => zig::parse_zig_manifest(manifest),
     }
 }
 
@@ -41,6 +42,7 @@ fn load_lock(eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError>
         Ecosystem::Cc => single(cc::parse_cc_lock(lock)),
         Ecosystem::Ruby => single(parse_paren_lock(lock)),
         Ecosystem::Perl => single(perl::parse_perl_lock(lock)),
+        Ecosystem::Zig => single(zig::parse_zig_lock(lock)),
     }
 }
 
@@ -115,6 +117,17 @@ fn check_maps(
                 info.spec,
                 locked.join(", ")
             ));
+        } else if eco == Ecosystem::Zig {
+            let want = info.sha256.trim();
+            if want.is_empty() {
+                failures.push(format!("missing hash for '{}'", info.raw));
+            } else if !locked.iter().any(|v| v.trim() == want) {
+                failures.push(format!(
+                    "stale hash for '{}': manifest has {want}, lock has {}",
+                    info.raw,
+                    locked.join(", ")
+                ));
+            }
         } else if eco == Ecosystem::Cc {
             let want_sha = info.sha256.trim().to_owned();
             let got_sha = cc_lock_sha

@@ -206,3 +206,22 @@ def cc_build_id_test(name, target):
         target_under_test = target,
         target_compatible_with = ["@platforms//os:linux"],
     )
+
+def _static_link_impl(ctx):
+    env = analysistest.begin(ctx)
+    links = [a for a in analysistest.target_actions(env) if a.mnemonic == "CppLink"]
+    asserts.equals(env, 1, len(links))
+    dylibs = [f.path for f in links[0].inputs.to_list() if f.path.endswith(".dylib")]
+    asserts.equals(env, [], dylibs)
+    return analysistest.end(env)
+
+_static_link_test = analysistest.make(_static_link_impl)
+
+def cc_macos_static_link_test(name, target):
+    """Asserts a cc_test link on macOS takes no dynamic library inputs."""
+    _static_link_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        target_compatible_with = ["@platforms//os:macos"],
+    )

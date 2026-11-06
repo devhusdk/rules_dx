@@ -156,13 +156,18 @@ def cc_binary(name, srcs = None, visibility = None, **kwargs):
     dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, linkopts = build_id + linkopts, **kwargs)
 
 def cc_test(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over cc_test. Under a GCC toolchain it sets ASAN_OPTIONS=verify_asan_link_order=0, which the caller's env overrides."""
+    """Minimal wrapper over cc_test. On macOS it links statically unless linkstatic is set, since Mach-O nodeps dylibs fail to link (#8114). Under a GCC toolchain it sets ASAN_OPTIONS=verify_asan_link_order=0, which the caller's env overrides."""
     kwargs = _cc_werror(kwargs)
     caller_env = kwargs.pop("env", None) or {}
     gcc_env = select({
         Label("@rules_cc//cc/compiler:gcc"): {"ASAN_OPTIONS": "verify_asan_link_order=0"},
         "//conditions:default": {},
     })
+    if "linkstatic" not in kwargs:
+        kwargs["linkstatic"] = select({
+            "@platforms//os:macos": True,
+            "//conditions:default": False,
+        })
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
 def _cc_fuzz_transition_impl(_settings, _attr):

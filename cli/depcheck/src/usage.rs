@@ -450,6 +450,8 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
             vec![format!(
                 r#"\brequire\s*\(?\s*['"](?:{})(?:\.[^'"]*)?['"]"#,
                 names.join("|")
+            )]
+        }
         Ecosystem::Ocaml => {
             let name = regex_escape(dep);
             vec![format!(

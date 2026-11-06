@@ -2660,32 +2660,6 @@ fn julia_fixture_reports_unused_and_missing() {
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["CSV"]);
     let missing = find_missing(Ecosystem::Julia, &manifest, &lock, &base, &[]).expect("missing");
-fn ocaml_manifest_reads_filters_and_skips_tools() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let opam = dir.path().join("x.opam");
-    write_file(
-        &opam,
-        "depends: [\n  \"ocaml\" {>= \"4.14\"}\n  \"dune\"\n  \"lwt\" {>= \"5.6\" & < \"6.0\"}\n  \"alcotest\" {with-test}\n  # \"gone\"\n  \"cppo\" {build}\n]\ndepopts: [\"yojson\"]\n",
-    );
-    let deps = parse_ocaml_manifest(&opam).expect("parse");
-    let names: Vec<&str> = deps.keys().map(String::as_str).collect();
-    assert_eq!(names, ["alcotest", "cppo", "lwt", "yojson"]);
-    assert_eq!(deps["lwt"].spec, ">= 5.6, < 6.0");
-    assert_eq!(deps["alcotest"].category, "dev");
-    assert_eq!(deps["cppo"].category, "build");
-    assert!(deps["yojson"].optional);
-}
-
-#[test]
-fn ocaml_fixture_reports_unused_and_missing() {
-    let base = testdata_root().join("ocaml/mixed");
-    let manifest = base.join("project.opam");
-    let lock = base.join("opam.locked");
-    assert_eq!(consistency(Ecosystem::Ocaml, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Ocaml, &manifest, &base, &[]).expect("unused");
-    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
-    assert_eq!(names, ["cmdliner"]);
-    let missing = find_missing(Ecosystem::Ocaml, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -3318,6 +3292,39 @@ fn lua_usage_covers_require_forms() {
     assert!(hits["lua-cjson"].src);
     assert!(hits["busted"].test && !hits["busted"].src);
     assert!(!hits["other"].src);
+}
+
+#[test]
+fn ocaml_manifest_reads_filters_and_skips_tools() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let opam = dir.path().join("x.opam");
+    write_file(
+        &opam,
+        "depends: [\n  \"ocaml\" {>= \"4.14\"}\n  \"dune\"\n  \"lwt\" {>= \"5.6\" & < \"6.0\"}\n  \"alcotest\" {with-test}\n  # \"gone\"\n  \"cppo\" {build}\n]\ndepopts: [\"yojson\"]\n",
+    );
+    let deps = parse_ocaml_manifest(&opam).expect("parse");
+    let names: Vec<&str> = deps.keys().map(String::as_str).collect();
+    assert_eq!(names, ["alcotest", "cppo", "lwt", "yojson"]);
+    assert_eq!(deps["lwt"].spec, ">= 5.6, < 6.0");
+    assert_eq!(deps["alcotest"].category, "dev");
+    assert_eq!(deps["cppo"].category, "build");
+    assert!(deps["yojson"].optional);
+}
+
+#[test]
+fn ocaml_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("ocaml/mixed");
+    let manifest = base.join("project.opam");
+    let lock = base.join("opam.locked");
+    assert_eq!(consistency(Ecosystem::Ocaml, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Ocaml, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["cmdliner"]);
+    let missing = find_missing(Ecosystem::Ocaml, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
     assert_eq!(found, [("yojson", "bin/dune", 3)]);
 }
 

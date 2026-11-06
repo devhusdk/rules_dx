@@ -17,8 +17,8 @@ pub mod powershell;
 pub mod python;
 pub mod ruby;
 pub mod rust;
-pub mod zig;
 pub mod swift;
+pub mod zig;
 
 use std::collections::BTreeMap;
 use std::path::Path;

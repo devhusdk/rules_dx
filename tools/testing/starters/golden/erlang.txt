@@ -5,3 +5,4 @@ src/hello.erl
 src/hello_cli.erl
 test/hello_tests.erl
 bazel_dep rules_dx
+bazel_dep rules_dx_beam

@@ -86,7 +86,8 @@ jobs:
         run: |
           if ($env:DX_TUNE -match 'defender=disable') { Set-MpPreference -DisableRealtimeMonitoring $true }
           $root = $null
-          if (Test-Path 'D:\') {
+          if ($env:DX_TUNE -match 'root=C|root=Dflag') {
+          } elseif (Test-Path 'D:\') {
             $root = 'D:\bz'
           } elseif ($env:DX_TUNE -match 'devdrive') {
             $vhd = 'C:\devdrive.vhdx'
@@ -102,8 +103,11 @@ jobs:
             New-Item -ItemType Junction -Path C:\bz -Target $root | Out-Null
             $paths += $root
           }
-          Add-MpPreference -ExclusionPath $paths
-          Add-MpPreference -ExclusionProcess 'java.exe', 'bazel.exe', 'bazelisk.exe'
+          if ($env:DX_TUNE -match 'root=Dflag') { $paths += 'D:\bz' }
+          if ($env:DX_TUNE -notmatch 'defender=none') {
+            Add-MpPreference -ExclusionPath $paths
+            Add-MpPreference -ExclusionProcess 'java.exe', 'bazel.exe', 'bazelisk.exe'
+          }
           Get-MpPreference | Format-List DisableRealtimeMonitoring, ExclusionPath, ExclusionProcess
       - name: Free disk space
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
@@ -113,6 +117,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: TEMP move the output user root to D
+        if: ${{ runner.os == 'Windows' && contains(inputs.tune, 'root=Dflag') }}
+        run: sed -i 's|output_user_root=C:/bz|output_user_root=D:/bz|' .bazelrc && grep -n output_user_root .bazelrc
       - uses: ./.github/actions/setup-bazel
         id: setup
         with:
@@ -122,6 +129,7 @@ jobs:
             startup --host_jvm_args=-XX:MinHeapFreeRatio=40
             startup --host_jvm_args=-XX:MaxHeapFreeRatio=70
             ${{ contains(inputs.tune, 'remote_contents') && runner.os == 'Windows' && 'startup --experimental_remote_repo_contents_cache' || '' }}
+            ${{ contains(inputs.tune, 'client_debug') && 'startup --client_debug' || '' }}
       - name: Start recording the Apple executor
         if: ${{ matrix.platform == 'macos_arm64' }}
         run: |
@@ -143,6 +151,7 @@ jobs:
             touch "$RUNNER_TEMP/executor.done"
           } &
       - name: Fetch the dx dependencies
+        if: ${{ !contains(inputs.tune, 'fetch=skip') }}
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
@@ -163,12 +172,18 @@ jobs:
           DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
           DX_FLAGS: ${{ inputs.flags }}
           DX_RELOCATE: ${{ inputs.relocate }}
+          DX_TUNE: ${{ inputs.tune }}
         run: |
           remote=()
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
             remote=(--config=ci "--remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY")
           fi
-          bazel run --noshow_progress "${remote[@]}" //tools/ci:evidence_inputs_bin
+          mkdir -p "$RUNNER_TEMP/evidence"
+          if [[ "$DX_TUNE" == *validate=bash* ]]; then
+            tools/ci/evidence_inputs.sh
+          else
+            bazel run --noshow_progress "${remote[@]}" //tools/ci:evidence_inputs_bin
+          fi
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:

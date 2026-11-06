@@ -53,9 +53,9 @@ TIER_YAML = [
     "yamllint/strict.yaml",
 ]
 
-# typos rewrites selene's parenthese_conditions lint name, so this file stays out of corpus_toml.
-# The taplo fixpoint case in quality/testdata still covers it.
-TYPOS_UNSAFE = ["selene/strict.toml"]
+# typos rewrites selene's parenthese_conditions lint name and flags ruff's CPY rule prefix, so
+# these files stay out of corpus_toml. The taplo fixpoint case in quality/testdata still covers them.
+TYPOS_UNSAFE = ["ruff/strict.toml", "selene/strict.toml"]
 
 def tier_labels(paths):
     """Maps tool/file paths to //quality/tiers/<tool>:<file> labels."""

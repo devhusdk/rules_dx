@@ -34,10 +34,7 @@ fn accepts_whitespace_separated_patterns() {
     for (scope, expected) in cases {
         let outputs = run(scope, OK, "600").unwrap_or_else(|e| panic!("{scope:?}: {e}"));
         let keys: Vec<&str> = outputs.iter().map(|(key, _)| key.as_str()).collect();
-        assert_eq!(
-            keys,
-            ["scope", "task", "test_timeout", "flags", "relocate"]
-        );
+        assert_eq!(keys, ["scope", "task", "test_timeout", "flags", "relocate"]);
         assert_eq!(outputs[0].1, expected);
     }
 }

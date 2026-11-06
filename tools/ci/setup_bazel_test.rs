@@ -213,12 +213,9 @@ fn restore_job_platforms(
     body: &serde_json::Value,
     validate: &[&'static str],
 ) -> Option<Vec<&'static str>> {
-    if body["runs-on"]
-        .as_str()
-        .is_some_and(|runs_on| {
-            runs_on.contains(VALIDATE_RUNNERS) || runs_on.contains("[matrix.platform]")
-        })
-    {
+    if body["runs-on"].as_str().is_some_and(|runs_on| {
+        runs_on.contains(VALIDATE_RUNNERS) || runs_on.contains("[matrix.platform]")
+    }) {
         return Some(validate.to_vec());
     }
     job_platforms(body)
@@ -418,9 +415,12 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                     stamps[0]
                 );
                 for (index, step_name) in [(locate, LOCATE), (restore, RESTORE)] {
+                    let mut expected = action_step(&action, step_name);
+                    if step_name == RESTORE {
+                        expected.as_object_mut().expect("restore step").remove("if");
+                    }
                     assert_eq!(
-                        steps[index],
-                        action_step(&action, step_name),
+                        steps[index], expected,
                         "{name} job {job} step {index} differs from the setup-bazel action"
                     );
                 }

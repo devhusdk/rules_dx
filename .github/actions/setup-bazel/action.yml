@@ -5,6 +5,10 @@ inputs:
     description: Save the Bazelisk cache.
     required: false
     default: "false"
+  restore-repository-cache:
+    description: Restore the shared Bazel repository cache.
+    required: false
+    default: "true"
 outputs:
   repository-cache-root:
     description: The Bazel repository cache directory.
@@ -41,6 +45,7 @@ runs:
         echo "path=$path" >> "$GITHUB_OUTPUT"
     - name: Restore the Bazel repository cache
       id: repo-cache-restore
+      if: ${{ inputs.restore-repository-cache == 'true' }}
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.repo-cache.outputs.path }}/content_addressable

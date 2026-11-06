@@ -73,6 +73,8 @@ jobs:
     runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-15","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] || 'ubuntu-latest' }}
     permissions:
       contents: read
+    env:
+      RUNNER_TRACKING_ID: ""
     steps:
       - name: Prepare the Windows runner
         if: runner.os == 'Windows'
@@ -91,6 +93,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+        with:
+          restore-repository-cache: false
       - name: Validate workflow inputs
         id: inputs
         env:

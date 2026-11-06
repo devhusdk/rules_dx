@@ -228,12 +228,19 @@ pub fn local_path_for_bep_file(workspace: &Path, path_prefix: &[String], name: &
     path
 }
 
-fn test_output_filename(name: &str) -> &str {
-    if name == "test.lcov" {
-        "coverage.dat"
-    } else {
-        name
+fn test_output_segments(name: &str) -> Vec<String> {
+    match name {
+        "test.lcov" => return vec!["coverage.dat".to_owned()],
+        "test.stderr" => return vec!["test.err".to_owned()],
+        _ => {}
     }
+    if let Some(file) = name.strip_prefix("test.outputs__") {
+        return vec!["test.outputs".to_owned(), file.to_owned()];
+    }
+    if let Some(file) = name.strip_prefix("test.outputs_manifest__") {
+        return vec!["test.outputs_manifest".to_owned(), file.to_owned()];
+    }
+    vec![name.to_owned()]
 }
 
 /// Output roots for one workspace, from `bazel info` when it answered.
@@ -390,6 +397,7 @@ pub(crate) fn prefix_names_repo(prefix: &[String], label: &str) -> bool {
 }
 
 /// Resolves one named test output under `root` for its label and identity.
+/// BEP names map to their on-disk paths, such as `test.outputs__x` to `test.outputs/x`.
 ///
 /// `root_names_repo` is set when `root` already ends in the label's repository directory, in
 /// which case the `external/<repo>` segments are skipped.
@@ -430,13 +438,20 @@ pub(crate) fn testlog_path_under(
     if !dirs.is_empty() {
         path.push(dirs.join("_"));
     }
-    let file_name = test_output_filename(name);
+    let mut segments = test_output_segments(name);
+    if let Some(bad) = segments.iter().find(|segment| !is_path_segment(segment)) {
+        return Err(missing_test_output(
+            label,
+            name,
+            identity,
+            &format!("test output path segment `{bad}` is not a plain name"),
+        ));
+    }
     if identity.attempt < identity.attempt_total {
         path.push("test_attempts");
-        path.push(file_name.replacen("test", &format!("attempt_{}", identity.attempt), 1));
-    } else {
-        path.push(file_name);
+        segments[0] = segments[0].replacen("test", &format!("attempt_{}", identity.attempt), 1);
     }
+    path.extend(segments);
     Ok(path)
 }
 
@@ -796,6 +811,54 @@ mod tests {
                 ]
             )
         );
+        let zip = "test.outputs__outputs.zip";
+        assert_eq!(
+            testlog_path(&locations, None, "//a:t", zip, IDENTITY).expect("zip"),
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "a", "t", "test.outputs", "outputs.zip"]
+            )
+        );
+        assert_eq!(
+            testlog_path(&locations, None, "//a:t", zip, retried).expect("attempt zip"),
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "a",
+                    "t",
+                    "test_attempts",
+                    "attempt_1.outputs",
+                    "outputs.zip"
+                ]
+            )
+        );
+        assert_eq!(
+            testlog_path(
+                &locations,
+                None,
+                "//a:t",
+                "test.outputs_manifest__MANIFEST",
+                IDENTITY
+            )
+            .expect("manifest"),
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "a",
+                    "t",
+                    "test.outputs_manifest",
+                    "MANIFEST"
+                ]
+            )
+        );
+        assert_eq!(
+            testlog_path(&locations, None, "//a:t", "test.stderr", IDENTITY).expect("stderr"),
+            want_path("/ws", &["bazel-testlogs", "a", "t", "test.err"])
+        );
+        assert!(testlog_path(&locations, None, "//a:t", "../x", IDENTITY).is_err());
+        assert!(testlog_path(&locations, None, "//a:t", "test.outputs__../x", IDENTITY).is_err());
     }
 
     #[test]

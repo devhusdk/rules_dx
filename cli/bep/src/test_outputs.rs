@@ -993,12 +993,29 @@ mod tests {
                     "test.lcov",
                     "bytestream://remote.buildbuddy.io/blobs/def/20",
                 ),
+                (
+                    "test.outputs__outputs.zip",
+                    "bytestream://remote.buildbuddy.io/blobs/ghi/30",
+                ),
             ],
         )]
         .join("\n");
         let locations = OutputLocations::new(ws);
         let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("workspace root");
-        assert_eq!(got.len(), 2);
+        assert_eq!(got.len(), 3);
+        assert_eq!(
+            got[2].exec_path,
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "cli/bep",
+                    "dx_bep_test",
+                    "test.outputs",
+                    "outputs.zip"
+                ]
+            )
+        );
         assert_eq!(
             got[1].exec_path,
             want_path(
@@ -1012,6 +1029,44 @@ mod tests {
             want_path(
                 "/ws",
                 &["bazel-testlogs", "cli/bep", "dx_bep_test", "test.xml"]
+            )
+        );
+    }
+
+    #[test]
+    fn bytestream_retried_attempt_outputs_zip_resolves_under_test_attempts() {
+        use std::path::Path;
+        let zip = [(
+            "test.outputs__outputs.zip",
+            "bytestream://remote.buildbuddy.io/blobs/abc/10",
+        )];
+        let stream = [
+            test_result_with_identity("//a:t", 1, 1, 1, &zip),
+            test_result_with_identity("//a:t", 1, 1, 2, &zip),
+        ]
+        .join("\n");
+        let locations = OutputLocations::new(Path::new("/ws"));
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("collect");
+        assert_eq!(got.len(), 2);
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "a",
+                    "t",
+                    "test_attempts",
+                    "attempt_1.outputs",
+                    "outputs.zip"
+                ]
+            )
+        );
+        assert_eq!(
+            got[1].exec_path,
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "a", "t", "test.outputs", "outputs.zip"]
             )
         );
     }

@@ -464,12 +464,17 @@ pub fn suffix_matches(artifact: &str, exec_path: &str) -> bool {
         .is_some_and(|head| head.ends_with('/'))
 }
 
+/// Paths of the non-shard artifacts, each once, in first-seen order.
 pub fn non_shard_artifact_paths(outputs: &[TargetOutput], suffix: &str) -> Vec<String> {
     let mut paths = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
     for output in outputs {
         for artifact in &output.artifacts {
             if !is_shard_artifact(&artifact.exec_path, suffix) {
-                paths.push(artifact.exec_path.display().to_string());
+                let path = artifact.exec_path.display().to_string();
+                if seen.insert(path.clone()) {
+                    paths.push(path);
+                }
             }
         }
     }
@@ -519,6 +524,31 @@ mod tests {
         assert_eq!(
             non_shard_artifact_paths(&[output], ".shard.pb"),
             ["out/b.pb"]
+        );
+    }
+
+    #[test]
+    fn non_shard_artifact_paths_report_each_path_once() {
+        let artifact = |name: &str| CollectedArtifact {
+            exec_path: PathBuf::from(name),
+            bytes: Vec::new(),
+        };
+        let output = |aspect: Option<&str>, names: &[&str]| TargetOutput {
+            label: "//a:t".to_owned(),
+            aspect: aspect.map(str::to_owned),
+            configuration: None,
+            success: true,
+            declared: true,
+            incomplete: false,
+            artifacts: names.iter().map(|name| artifact(name)).collect(),
+        };
+        let outputs = [
+            output(None, &["out/lib.rs", "out/b.pb"]),
+            output(Some("env:plan.bzl%dx_env_plan_aspect"), &["out/lib.rs"]),
+        ];
+        assert_eq!(
+            non_shard_artifact_paths(&outputs, ".shard.pb"),
+            ["out/lib.rs", "out/b.pb"]
         );
     }
 

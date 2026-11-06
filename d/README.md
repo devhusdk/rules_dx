@@ -123,4 +123,6 @@ arm64 compiler: that cell runs the x64 LDC under emulation with the arm64 runtim
 LDC addon package, and compiles with `-mtriple=aarch64-windows-msvc`.
 
 The hello D tests (`greet_test`, `hello_output_test`) pass on Windows x86_64 (evidence run
-42057198949) and Windows arm64 (evidence run 42083243205).
+42057198949) and Windows arm64 (evidence run 42083243205). The hello and d-app tests
+(`app_output_test`, `base_test`, `cli_test`) pass on both Windows hosts in evidence run
+42302173656.

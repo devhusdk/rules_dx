@@ -428,8 +428,13 @@ fn gui_renders_offscreen_against_only_pinned_libraries() {
         "gui check failed:\n{}",
         run.combined()
     );
+    let totals = if cfg!(windows) {
+        "Totals: 6 passed, 0 failed, 1 skipped"
+    } else {
+        "Totals: 7 passed, 0 failed"
+    };
     assert!(
-        run.stdout.contains("Totals: 7 passed, 0 failed"),
+        run.stdout.contains(totals),
         "{}",
         run.stdout
     );

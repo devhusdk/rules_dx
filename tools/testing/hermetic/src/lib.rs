@@ -223,8 +223,10 @@ pub fn windows_tool_dirs(
     if let Some(local) = local_app_data {
         versioned_under(local.join("Programs").join("Python"), "Python", "");
     }
-    dirs.retain(|dir| dir.is_dir());
-    dirs
+    dirs.into_iter()
+        .filter_map(|dir| std::fs::canonicalize(dir).ok())
+        .filter(|dir| dir.is_dir())
+        .collect()
 }
 
 /// The directories the Windows host keeps compilers and interpreters in.

@@ -1568,17 +1568,16 @@ fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
         std::fs::create_dir_all(&dir).unwrap();
     }
     let dirs = windows_tool_dirs(Some(&pf), Some(&local));
+    let canon = |path: PathBuf| std::fs::canonicalize(path).unwrap();
+    let want = [
+        canon(pf.join("Python312")),
+        canon(pf.join("Java").join("jdk-21").join("bin")),
+        canon(pf.join("nodejs")),
+        canon(pf.join("LLVM").join("bin")),
+        canon(local.join("Programs").join("Python").join("Python311")),
+    ];
     let _ = std::fs::remove_dir_all(&root);
-    assert_eq!(
-        dirs,
-        [
-            pf.join("Python312"),
-            pf.join("Java").join("jdk-21").join("bin"),
-            pf.join("nodejs"),
-            pf.join("LLVM").join("bin"),
-            local.join("Programs").join("Python").join("Python311"),
-        ]
-    );
+    assert_eq!(dirs, want);
     assert!(windows_tool_dirs(None, None).is_empty());
 }
 

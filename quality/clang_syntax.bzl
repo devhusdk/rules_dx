@@ -37,6 +37,13 @@ _GCC_ONLY = ["-fno-canonical-system-headers", "-fcanonical-system-headers", "-fn
 _MSYS_NO_CONVERSION = {"MSYS_NO_PATHCONV": "1", "MSYS2_ARG_CONV_EXCL": "*", "MSYS2_ENV_CONV_EXCL": "*"}
 _MSVC_DROP_PREFIXES = ["Fo", "Fd", "Fe", "Fa", "Fp", "Fi", "showIncludes", "sourceDependencies"]
 
+def clang_action_env(env, driver):
+    """Returns a copy of env, with MSYS path conversion off for the msvc driver."""
+    out = dict(env)
+    if driver == "msvc":
+        out.update(_MSYS_NO_CONVERSION)
+    return out
+
 def _msvc_dropped(arg):
     return len(arg) > 1 and arg[0] in "/-" and arg[1:].startswith(tuple(_MSVC_DROP_PREFIXES))
 
@@ -360,9 +367,7 @@ def _clang_syntax_impl(target, ctx):
         capture = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"'
         if identity.driver == "msvc":
             capture = 'log="$1"; status="$2"; shift 2; "$@" > "$log" 2>&1; echo "$?" > "$status"'
-        syntax_env = dict(action.env)
-        if identity.driver == "msvc":
-            syntax_env.update(_MSYS_NO_CONVERSION)
+        syntax_env = clang_action_env(action.env, identity.driver)
         # run_shell: The shell redirects output or runs the bash runner script.
         ctx.actions.run_shell(
             mnemonic = "ClangSyntax",
@@ -386,7 +391,7 @@ def _clang_syntax_impl(target, ctx):
                 arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
                 inputs = depset([tidy, runner], transitive = [all_inputs, tidy_closure]),
                 outputs = [tidy_log],
-                env = action.env,
+                env = syntax_env,
                 execution_requirements = requirements,
                 resource_set = dx_heavy_resources,
             )

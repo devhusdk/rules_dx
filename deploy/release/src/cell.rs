@@ -228,6 +228,13 @@ pub struct Consumer {
     pub checkout: PathBuf,
 }
 
+/// The debug symbols archive of a Windows cell and its independent rebuild.
+#[derive(Debug, Clone)]
+pub struct Symbols {
+    pub archive: PathBuf,
+    pub rebuild: PathBuf,
+}
+
 /// Everything `qualify` needs to measure one cell on its native runner.
 #[derive(Debug, Clone)]
 pub struct QualifyInputs {
@@ -244,6 +251,7 @@ pub struct QualifyInputs {
     pub runner_os: String,
     pub runner_arch: String,
     pub consumer: Option<Consumer>,
+    pub symbols: Option<Symbols>,
 }
 
 struct Verdicts(Vec<Check>);
@@ -667,6 +675,19 @@ fn differing_members(inputs: &QualifyInputs) -> String {
     }
 }
 
+/// Checks that the symbols archive equals its rebuild.
+fn symbols_match(symbols: &Symbols) -> Result<(), String> {
+    let (first, _) = sha256_file(&symbols.archive)?;
+    let (second, _) = sha256_file(&symbols.rebuild)?;
+    if first == second {
+        Ok(())
+    } else {
+        Err(format!(
+            "symbols rebuild is {second}, symbols archive is {first}"
+        ))
+    }
+}
+
 /// Measures one cell archive on its native runner and returns a record with a verdict per check.
 pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
     let cell = &inputs.cell;
@@ -719,17 +740,22 @@ pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
     );
     verdicts.note(
         "determinism",
-        sha256_file(&inputs.rebuild).and_then(|(rebuilt, _)| {
-            if rebuilt == archive.sha256 {
-                Ok(())
-            } else {
-                Err(format!(
-                    "rebuild is {rebuilt}, archive is {}; {}",
-                    archive.sha256,
-                    differing_members(inputs)
-                ))
-            }
-        }),
+        sha256_file(&inputs.rebuild)
+            .and_then(|(rebuilt, _)| {
+                if rebuilt == archive.sha256 {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "rebuild is {rebuilt}, archive is {}; {}",
+                        archive.sha256,
+                        differing_members(inputs)
+                    ))
+                }
+            })
+            .and_then(|()| match &inputs.symbols {
+                Some(symbols) => symbols_match(symbols),
+                None => Ok(()),
+            }),
     );
     let listing = dx_deploy_tools::archive_extract(&inputs.archive, &inputs.work.join(INSTALL_DIR))
         .map_err(|error| format!("cannot extract: {error}"));
@@ -1015,7 +1041,7 @@ fn read_matrix(path: &str) -> Result<Vec<Cell>, String> {
     parse_matrix(&text)
 }
 
-pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <name> --archive <path> --rebuild <path> --work <dir> --sha <commit> --version <version> --workflow-ref <ref> --workflow-sha <commit> --run-id <id> --job <name> --out <record.json> [--consumer <template dir> --checkout <rules_dx dir>]";
+pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <name> --archive <path> --rebuild <path> --work <dir> --sha <commit> --version <version> --workflow-ref <ref> --workflow-sha <commit> --run-id <id> --job <name> --out <record.json> [--consumer <template dir> --checkout <rules_dx dir>] [--symbols <zip> --symbols-rebuild <zip>]";
 
 pub const VERIFY_USAGE: &str = "verify --matrix <release_matrix.json> --records <dir> --archives <dir> --sha <commit> --version <version> --workflow-ref <ref>";
 
@@ -1041,8 +1067,17 @@ pub fn parse_qualify_args(
             "job",
             "out",
         ],
-        &["consumer", "checkout"],
+        &["consumer", "checkout", "symbols", "symbols-rebuild"],
     )?;
+    let symbols = match (flags.get("symbols"), flags.get("symbols-rebuild")) {
+        (Some(archive), Some(rebuild)) => Some(Symbols {
+            archive: PathBuf::from(*archive),
+            rebuild: PathBuf::from(*rebuild),
+        }),
+        (Some(_), None) => return Err("--symbols needs --symbols-rebuild".to_owned()),
+        (None, Some(_)) => return Err("--symbols-rebuild needs --symbols".to_owned()),
+        (None, None) => None,
+    };
     let consumer = match (flags.get("consumer"), flags.get("checkout")) {
         (Some(template), Some(checkout)) => Some(Consumer {
             template: PathBuf::from(*template),
@@ -1071,6 +1106,7 @@ pub fn parse_qualify_args(
         runner_os: runner_os.to_owned(),
         runner_arch: runner_arch.to_owned(),
         consumer,
+        symbols,
     };
     Ok((inputs, PathBuf::from(flag(&flags, "out"))))
 }

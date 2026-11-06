@@ -48,11 +48,11 @@ impl LauncherPins {
             };
             let archive = RELEASE_ASSETS
                 .iter()
-                .any(|known| asset == archive_name(known));
+                .any(|known| asset == archive_name(known) || asset == symbols_name(known));
             let sbom = asset.strip_suffix(".spdx.json").is_some_and(|base| {
                 RELEASE_ASSETS
                     .iter()
-                    .any(|known| base == archive_name(known))
+                    .any(|known| base == archive_name(known) || base == symbols_name(known))
             });
             if archive || sbom {
                 if !seen_archives.insert(asset.to_owned()) {
@@ -226,6 +226,15 @@ fn archive_name(raw: &str) -> String {
         ".tar.gz"
     };
     format!("{raw}{suffix}")
+}
+
+/// The debug symbols asset for a raw release asset: `<raw>-pdb.zip` on Windows, empty elsewhere.
+fn symbols_name(raw: &str) -> String {
+    if raw.contains("windows") {
+        format!("{raw}-pdb.zip")
+    } else {
+        String::new()
+    }
 }
 
 fn valid_pin(pin: &str) -> bool {
@@ -902,6 +911,20 @@ mod tests {
         }
         let unknown = format!("{MANIFEST}{a}  dx-foo.tar.gz\n");
         assert!(LauncherPins::from_sha256sums(&unknown).is_err());
+    }
+
+    #[test]
+    fn from_sha256sums_skips_symbols_lines() {
+        let a = "a".repeat(64);
+        let symbols = format!(
+            "{a}  dx-windows-x86_64-pdb.zip\n{a}  dx-windows-arm64-pdb.zip.spdx.json\n"
+        );
+        assert_eq!(
+            LauncherPins::from_sha256sums(&format!("{MANIFEST}{symbols}")).expect("combined"),
+            LauncherPins::from_sha256sums(MANIFEST).expect("manifest")
+        );
+        let linux = format!("{MANIFEST}{a}  dx-linux-x86_64-pdb.zip\n");
+        assert!(LauncherPins::from_sha256sums(&linux).is_err());
     }
 
     #[test]

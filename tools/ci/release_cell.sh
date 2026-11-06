@@ -14,6 +14,11 @@ out="$1"
 rm -rf "$out"
 mkdir -p "$out"
 bazel build --config=dx_release //cli/cli:dx //deploy/release:release_cell //deploy/release:release_matrix //deploy/release:dx_host_cell //deploy/release:dx_host_cell_sbom
+symbols=""
+case "$CELL" in dx-windows-*) symbols="$CELL-pdb.zip" ;; esac
+if [ -n "$symbols" ]; then
+  bazel build --config=dx_release //deploy/release:dx_host_cell_pdb //deploy/release:dx_host_cell_pdb_sbom
+fi
 root="$(bazel info --config=dx_release execution_root)"
 dx="$root/$(bazel cquery --config=dx_release --output=files //cli/cli:dx)"
 tool="$root/$(bazel cquery --config=dx_release --output=files //deploy/release:release_cell)"
@@ -31,13 +36,25 @@ else
   digest="$(cd "$out" && shasum -a 256 -- "$archive_name" | cut -d' ' -f1)"
 fi
 printf '%s  %s\n' "$digest" "$archive_name" > "$out/$archive_name.sha256"
+if [ -n "$symbols" ]; then
+  built_pdb="$root/$(bazel cquery --config=dx_release --output=files //deploy/release:dx_host_cell_pdb)"
+  cp "$built_pdb" "$out/$symbols"
+  cp "$root/$(bazel cquery --config=dx_release --output=files //deploy/release:dx_host_cell_pdb_sbom)" "$out/$symbols.spdx.json"
+  printf '%s  %s\n' "$(sha256sum -- "$out/$symbols" | cut -d' ' -f1)" "$symbols" > "$out/$symbols.sha256"
+fi
 # The determinism input is a second, independent build: its own output base, no caches.
 rebuild_base="$RUNNER_TEMP/rebuild-base"
 rm -rf "$rebuild_base"
-bazel --output_base="$rebuild_base" build --config=dx_release --disk_cache= --remote_cache= //deploy/release:dx_host_cell
+bazel --output_base="$rebuild_base" build --config=dx_release --disk_cache= --remote_cache= //deploy/release:dx_host_cell ${symbols:+//deploy/release:dx_host_cell_pdb}
 rebuild_root="$(bazel --output_base="$rebuild_base" info --config=dx_release execution_root)"
 rebuilt="$rebuild_root/$(bazel --output_base="$rebuild_base" cquery --config=dx_release --output=files //deploy/release:dx_host_cell)"
 cp "$rebuilt" "$RUNNER_TEMP/rebuilt-$archive_name"
+symbols_args=()
+if [ -n "$symbols" ]; then
+  rebuilt_pdb="$rebuild_root/$(bazel --output_base="$rebuild_base" cquery --config=dx_release --output=files //deploy/release:dx_host_cell_pdb)"
+  cp "$rebuilt_pdb" "$RUNNER_TEMP/rebuilt-$symbols"
+  symbols_args=(--symbols "$out/$symbols" --symbols-rebuild "$RUNNER_TEMP/rebuilt-$symbols")
+fi
 bazel --output_base="$rebuild_base" shutdown
 status=0
 "$tool" qualify \
@@ -54,5 +71,6 @@ status=0
   --job "$JOB" \
   --consumer "$GITHUB_WORKSPACE/deploy/release/consumer" \
   --checkout "$GITHUB_WORKSPACE" \
-  --out "$out/$CELL.json" || status=$?
+  --out "$out/$CELL.json" \
+  ${symbols_args[@]+"${symbols_args[@]}"} || status=$?
 exit "$status"

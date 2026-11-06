@@ -338,6 +338,7 @@ fn stage(cell: Cell, members: Members) -> Fixture {
             template: dir.path().join("template"),
             checkout: dir.path().join("checkout"),
         }),
+        symbols: None,
     };
     Fixture { _dir: dir, inputs }
 }
@@ -555,6 +556,26 @@ fn qualify_rejects_an_extra_member_bad_modes_and_identity() {
     let record = qualify(&fixture.inputs, &FakeRunner::new());
     assert_failed(&record, "identity", "IDENTITY name is Some(\"dx-other\")");
     assert_failed(&record, "identity", "IDENTITY arch is Some(\"aarch64\")");
+}
+
+#[test]
+fn qualify_compares_the_symbols_rebuild() {
+    let fixture = synthetic("zip", |_| {});
+    let dir = fixture.inputs.work.parent().expect("dir").to_path_buf();
+    let archive = dir.join("out").join("dx-pdb.zip");
+    let rebuild = dir.join("rebuild").join("dx-pdb.zip");
+    std::fs::write(&archive, b"pdb").expect("archive");
+    std::fs::write(&rebuild, b"pdb").expect("rebuild");
+    let mut inputs = fixture.inputs.clone();
+    inputs.symbols = Some(Symbols {
+        archive,
+        rebuild: rebuild.clone(),
+    });
+    let record = qualify(&inputs, &FakeRunner::new());
+    assert_eq!(verdict_of(&record, "determinism").0, Verdict::Ok);
+    std::fs::write(&rebuild, b"other pdb").expect("rebuild");
+    let record = qualify(&inputs, &FakeRunner::new());
+    assert_failed(&record, "determinism", "symbols rebuild is");
 }
 
 #[test]

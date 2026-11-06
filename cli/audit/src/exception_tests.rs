@@ -521,6 +521,7 @@ fn fail_on_defaults_to_the_standard_kinds_and_a_root_list_replaces_the_base() {
     let strict = load_security("extends = \"b.toml\"\n", read).expect("strict");
     assert!(strict.fails_on(AdvisoryKind::Unmaintained));
     assert!(strict.fails_on(AdvisoryKind::Notice));
+    assert!(strict.fails_on(AdvisoryKind::Yanked));
     let own = "extends = \"b.toml\"\nfail_on = [\"unsound\"]\n";
     let own = load_security(own, read).expect("own list");
     assert_eq!(own.fail_on, vec![AdvisoryKind::Unsound]);
@@ -528,7 +529,7 @@ fn fail_on_defaults_to_the_standard_kinds_and_a_root_list_replaces_the_base() {
 
 #[test]
 fn security_base_rules_and_unknown_kinds_are_rejected() {
-    let yanked = load_security_toml("fail_on = [\"yanked\"]\n");
+    let yanked = load_security_toml("fail_on = [\"withdrawn\"]\n");
     assert!(matches!(yanked, Err(SecurityProblem::InvalidToml { .. })));
     let with_exception = format!("fail_on = []\n{}", security_toml(&[sample()]));
     let error = load_security("extends = \"b.toml\"\n", |_| Ok(with_exception.clone()));

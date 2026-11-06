@@ -41,6 +41,7 @@ pub enum AdvisoryKind {
     Unsound,
     Unmaintained,
     Notice,
+    Yanked,
 }
 
 impl AdvisoryKind {
@@ -50,6 +51,7 @@ impl AdvisoryKind {
             AdvisoryKind::Unsound => "unsound",
             AdvisoryKind::Unmaintained => "unmaintained",
             AdvisoryKind::Notice => "notice",
+            AdvisoryKind::Yanked => "yanked",
         }
     }
 }

@@ -50,6 +50,14 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
     }
 }
 
+/// Maps a dependency set name to the family whose yanked-version snapshot covers it.
+pub fn yanked_family(set: &str) -> Option<&'static str> {
+    match set {
+        "cargo" => Some("cargo-yanked"),
+        _ => None,
+    }
+}
+
 pub const PYPI_FAMILY: &str = "pypi";
 
 pub fn advisory_source(family: &str) -> Option<&'static str> {

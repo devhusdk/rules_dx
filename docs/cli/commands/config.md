@@ -20,7 +20,7 @@ Used by `dx security`. See [Audit, Update](audit-update.md).
 | `exception` | array of tables | none | Accepted advisories. |
 | `uncovered` | array of tables | none | Accepted sets with no advisory source. |
 | `extends` | string | none | Workspace-relative path of a base, such as `.dx/config/security/standard.toml`. A `fail_on` set here replaces the base's. `exception` and `uncovered` entries are added to the base's. A base may not have `extends`, `exception` or `uncovered`. A missing base fails; run `dx init --apply`. |
-| `fail_on` | array of strings | `["vulnerability", "unsound"]` | Advisory kinds that fail the run: `vulnerability`, `unsound`, `unmaintained`, `notice`. Other kinds are reported as `info`. The strict base adds `unmaintained` and `notice`. |
+| `fail_on` | array of strings | `["vulnerability", "unsound"]` | Advisory kinds that fail the run: `vulnerability`, `unsound`, `unmaintained`, `notice`, `yanked`. Other kinds are reported as `info`. The strict base adds `unmaintained`, `notice` and `yanked`. |
 
 ### security.toml `[[exception]]`
 

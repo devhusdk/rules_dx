@@ -137,7 +137,7 @@ fn requirement(entry: &Item) -> Option<String> {
     table.get("version")?.as_str().map(str::to_owned)
 }
 
-fn index_path(name: &str) -> String {
+pub fn index_path(name: &str) -> String {
     let lower = name.to_ascii_lowercase();
     match lower.len() {
         1 => format!("1/{lower}"),
@@ -152,14 +152,45 @@ struct Release {
     published: Option<String>,
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<Release, String> {
-    let mut best: Option<Release> = None;
+/// One index line: the version, whether it is yanked and its publish time.
+pub struct IndexEntry {
+    pub version: String,
+    pub yanked: bool,
+    pub published: Option<String>,
+}
+
+pub fn index_entries(body: &str) -> Result<Vec<IndexEntry>, String> {
+    let mut out = Vec::new();
     for line in body.lines().filter(|line| !line.trim().is_empty()) {
         let entry: serde_json::Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
-        if entry["yanked"].as_bool().unwrap_or(false) {
+        let Some(version) = entry["vers"].as_str() else {
+            continue;
+        };
+        out.push(IndexEntry {
+            version: version.to_owned(),
+            yanked: entry["yanked"].as_bool().unwrap_or(false),
+            published: entry["pubtime"].as_str().map(str::to_owned),
+        });
+    }
+    Ok(out)
+}
+
+/// The yanked versions one crate's index file lists.
+pub fn yanked_versions(body: &str) -> Result<Vec<String>, String> {
+    Ok(index_entries(body)?
+        .into_iter()
+        .filter(|entry| entry.yanked)
+        .map(|entry| entry.version)
+        .collect())
+}
+
+fn newest(body: &str, prereleases: bool) -> Result<Release, String> {
+    let mut best: Option<Release> = None;
+    for entry in index_entries(body)? {
+        if entry.yanked {
             continue;
         }
-        let Some(version) = entry["vers"].as_str().and_then(|v| Version::parse(v).ok()) else {
+        let Ok(version) = Version::parse(&entry.version) else {
             continue;
         };
         if !prereleases && !version.pre.is_empty() {
@@ -168,7 +199,7 @@ fn newest(body: &str, prereleases: bool) -> Result<Release, String> {
         if best.as_ref().is_none_or(|b| version > b.version) {
             best = Some(Release {
                 version,
-                published: entry["pubtime"].as_str().map(str::to_owned),
+                published: entry.published,
             });
         }
     }
@@ -178,6 +209,13 @@ fn newest(body: &str, prereleases: bool) -> Result<Release, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn yanked_versions_lists_only_the_yanked_lines() {
+        let body = "{\"vers\":\"1.0.0\",\"yanked\":true}\n{\"vers\":\"1.1.0\",\"yanked\":false}\n\n{\"vers\":\"2.0.0\",\"yanked\":true}\n";
+        assert_eq!(yanked_versions(body).unwrap(), vec!["1.0.0", "2.0.0"]);
+        assert!(yanked_versions("not json").is_err());
+    }
 
     const MANIFEST: &str = r#"
 [dependencies]

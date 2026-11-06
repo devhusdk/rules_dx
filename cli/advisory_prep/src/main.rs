@@ -33,7 +33,7 @@ set locks (default the workspace root); --out DIR writes the snapshots (default 
 under it); --date YYYY-MM-DD stamps \
 every sidecar (default today, UTC); --max-time, --connect-timeout, --retries and --retry-delay \
 bound one download (defaults 600, 30, 3 and 5 seconds); --archive FAMILY=PATH converts a local \
-archive instead of fetching it; --cpansa-output FILE reads the cpansa_dump output instead of running the binary; --cpansa-dump BINARY overrides the bundled //perl/tools:cpansa_dump (the cpan family has no OSV archive: that binary prints the pinned CPANSA::DB database); --trivy BINARY runs the pinned trivy to download its vulnerability and checks databases into --out/trivy and writes trivy.meta.json (a second run on the same day downloads nothing); --status-file FILE appends status, ecosystems and families \
+archive instead of fetching it; --cpansa-output FILE reads the cpansa_dump output instead of running the binary; --cpansa-dump BINARY overrides the bundled //perl/tools:cpansa_dump (the cpan family has no OSV archive: that binary prints the pinned CPANSA::DB database); --trivy BINARY runs the pinned trivy to download its vulnerability and checks databases into --out/trivy and writes trivy.meta.json (a second run on the same day downloads nothing); --cargo-index URL overrides the crates.io sparse index that supplies the yanked flags of the locked cargo crates (written as cargo-yanked); --status-file FILE appends status, ecosystems and families \
 as key=value lines (status is empty when no dependency set needs an ecosystem).\n\nExit codes: 0 success, 2 usage error, 1 preparation \
 failure."
 )]
@@ -71,6 +71,9 @@ struct Cli {
     /// The pinned trivy binary; downloads its vulnerability and checks databases under --out.
     #[arg(long, value_name = "BINARY")]
     trivy: Option<PathBuf>,
+    /// Base URL of the cargo sparse index the yanked flags are read from (default https://index.crates.io).
+    #[arg(long)]
+    cargo_index: Option<String>,
     /// File the status, ecosystem count and families are appended to.
     #[arg(long)]
     status_file: Option<PathBuf>,
@@ -188,6 +191,7 @@ fn options_from(cli: Cli, root: Option<&Path>) -> Result<PrepareOptions, PrepErr
             .map(|path| anchor(root, path))
             .or_else(bundled_cpansa_dump),
         trivy: cli.trivy.map(|path| anchor(root, path)),
+        cargo_index: cli.cargo_index,
     })
 }
 

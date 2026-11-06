@@ -14,6 +14,7 @@ exports_files([
     "src/main_tests.rs",
     "src/trivy.rs",
     "src/trivy_tests.rs",
+    "src/yanked.rs",
 ])
 
 rust_binary(
@@ -50,6 +51,7 @@ rust_test(
         "src/lib_tests.rs",
         "src/trivy.rs",
         "src/trivy_tests.rs",
+        "src/yanked.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_advisory_prep",
@@ -68,6 +70,7 @@ rust_test(
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
+        "//cli/update:dx_update",
     ],
 )
 
@@ -132,6 +135,7 @@ rust_library(
         "src/archive.rs",
         "src/lib.rs",
         "src/trivy.rs",
+        "src/yanked.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_advisory_prep",
@@ -147,5 +151,6 @@ rust_library(
         "//cli/adopt:dx_adopt",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
+        "//cli/update:dx_update",
     ],
 )

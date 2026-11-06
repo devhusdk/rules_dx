@@ -374,3 +374,40 @@ fn cpansa_output_splits_into_version_and_snapshot() {
     assert!(split_cpansa_output("{}").is_err());
     assert!(cpan_snapshot(database, version, "yesterday").is_err());
 }
+
+#[test]
+fn yanked_snapshot_lists_sorted_synthetic_advisories_the_audit_can_read() {
+    let yanked = vec![
+        ("zeta".to_owned(), "2.0.0".to_owned()),
+        ("alpha".to_owned(), "1.0.0".to_owned()),
+    ];
+    let prepared = yanked_snapshot(
+        "cargo-yanked",
+        "https://index.crates.io",
+        "2026-01-02",
+        "cargo",
+        &yanked,
+    )
+    .expect("builds");
+    assert_eq!(prepared.snapshot.path, ".dx/advisory/cargo-yanked.json");
+    assert_eq!(prepared.advisories, 2);
+    let text = String::from_utf8(prepared.payload).expect("utf8");
+    let parsed = parse_snapshot(&text).expect("parses");
+    assert_eq!(parsed[0].package, "alpha");
+    assert_eq!(parsed[0].kind, crate::vuln::AdvisoryKind::Yanked);
+    assert_eq!(parsed[0].versions, "=1.0.0");
+}
+
+#[test]
+fn an_empty_yanked_snapshot_is_an_empty_list() {
+    let prepared = yanked_snapshot(
+        "cargo-yanked",
+        "https://index.crates.io",
+        "2026-01-02",
+        "cargo",
+        &[],
+    )
+    .expect("builds");
+    assert_eq!(prepared.payload, b"[]");
+    assert!(parse_snapshot("[]").expect("parses").is_empty());
+}

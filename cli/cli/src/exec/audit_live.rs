@@ -275,10 +275,73 @@ pub(super) fn write_advisory(harness: &Harness, set: &str, json: &str) {
     harness.write_source(&dx_audit::advisory::identity_rel(set), &meta.to_string());
 }
 
+pub(super) fn write_yanked(harness: &Harness, key: &str, json: &str) {
+    let rel = dx_audit::advisory::snapshot_rel(key);
+    harness.write_source(&rel, json);
+    let meta = serde_json::json!({
+        "set": key,
+        "url": "https://index.crates.io",
+        "sha256": dx_digest::sha256_hex(json.as_bytes()),
+        "retrieved_at": TEST_AUDIT_TODAY,
+        "path": rel,
+    });
+    harness.write_source(&dx_audit::advisory::identity_rel(key), &meta.to_string());
+}
+
+const SERDE_YANKED: &str = r#"[{"id":"YANKED-1.0.100","package":"serde","versions":"=1.0.100","severity":"unknown","fixed":[],"set":"cargo","kind":"yanked"}]"#;
+
+#[test]
+pub(super) fn audit_live_yanked_cargo_version_fails_only_under_the_strict_base() {
+    for (profile, expected) in [("standard", 0), ("strict", 1)] {
+        let (code, out, err) = run_with(
+            &["security", "//rust/tests/fixtures/hello:hello"],
+            &AuditRunner::clean(),
+            &|harness| {
+                write_cargo_lock(harness);
+                write_advisory(harness, "cargo", "[]");
+                write_yanked(harness, "cargo-yanked", SERDE_YANKED);
+                let chosen = if profile == "strict" {
+                    dx_audit::profile_base::Profile::Strict
+                } else {
+                    dx_audit::profile_base::Profile::Standard
+                };
+                let base = dx_audit::profile_base::base_rel("security", chosen);
+                let text = dx_audit::profile_base::base_text("security", chosen);
+                harness.write_source(&base, text.expect("base"));
+                harness.write_source("security.toml", &format!("extends = \"{base}\"\n"));
+            },
+        );
+        assert_eq!(code, expected, "{profile}: {out}{err}");
+        let shown = format!("{out}{err}");
+        assert!(
+            shown.contains("serde@1.0.100 is yanked from crates.io"),
+            "{profile}: {shown}"
+        );
+    }
+}
+
+#[test]
+pub(super) fn audit_live_missing_yanked_snapshot_only_warns() {
+    let (code, out, err) = run_with(
+        &["security", "//rust/tests/fixtures/hello:hello"],
+        &AuditRunner::clean(),
+        &|harness| {
+            write_cargo_lock(harness);
+            write_advisory(harness, "cargo", "[]");
+        },
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        format!("{out}{err}").contains("yanked_unprepared"),
+        "{out}{err}"
+    );
+}
+
 pub(super) fn write_all_empty_advisories(harness: &Harness) {
     for set in ["cargo", "npm", "maven", "nuget", "go"] {
         write_advisory(harness, set, "[]");
     }
+    write_yanked(harness, "cargo-yanked", "[]");
 }
 
 #[test]

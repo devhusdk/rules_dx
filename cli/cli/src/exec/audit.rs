@@ -350,6 +350,17 @@ fn load_advisories(
             set: set_name.clone(),
         });
     }
+    load_snapshot(workspace, &family, label, today)
+}
+
+fn load_snapshot(
+    workspace: &Path,
+    family: &str,
+    label: &str,
+    today: &str,
+) -> Result<Vec<dx_audit::vuln::Advisory>, AuditError> {
+    let set_name = label.to_owned();
+    let family = family.to_owned();
     let rel = dx_audit::advisory::snapshot_rel(&family);
     let bytes =
         match dx_path::workspace::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
@@ -1059,6 +1070,7 @@ struct Assessable {
     lock_paths: LockPaths,
     advisories: Vec<dx_audit::vuln::Advisory>,
     exception_set: String,
+    yanked_missing: bool,
 }
 
 fn collect_target(
@@ -1114,6 +1126,28 @@ fn collect_target(
             format!("failed to assess {label}: {wrapped}"),
         )
     })?;
+    let mut advisories = advisories;
+    let mut yanked_missing = false;
+    if let Some(yanked_key) = dx_audit::advisory::yanked_family(&key) {
+        match load_snapshot(workspace, yanked_key, &label, today) {
+            Ok(mut yanked) => advisories.append(&mut yanked),
+            Err(AuditError::AdvisoryMissing { .. }) => yanked_missing = true,
+            Err(error) => {
+                let wrapped = if offline {
+                    AuditError::OfflineRequired {
+                        set: label.clone(),
+                        detail: error.to_string(),
+                    }
+                } else {
+                    error
+                };
+                return Err((
+                    wrapped.code(),
+                    format!("failed to assess {label}: {wrapped}"),
+                ));
+            }
+        }
+    }
     let exception_set = match target {
         AuditTarget::Configured(set) => set.ecosystem.name().to_owned(),
     };
@@ -1123,6 +1157,7 @@ fn collect_target(
         lock_paths,
         advisories,
         exception_set,
+        yanked_missing,
     }))
 }
 
@@ -1240,7 +1275,24 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             lock_paths,
             advisories,
             exception_set,
+            yanked_missing,
         } = assessable;
+        if yanked_missing {
+            diagnostics.push(DiagnosticEvent {
+                rule: Some(format!(
+                    "{}/yanked_unprepared",
+                    dx_audit::vuln::VULN_RULE_PREFIX
+                )),
+                ..DiagnosticEvent::new(
+                    Severity::Warning,
+                    "vuln",
+                    format!(
+                        "yanked_unprepared: no yanked-version snapshot for {label}; run {} to check yanked versions",
+                        dx_audit::advisory::REFRESH_COMMAND
+                    ),
+                )
+            });
+        }
         let (findings, unassessed) = dx_audit::vuln::match_packages(&packages, &advisories);
         let set_exceptions: Vec<dx_audit::exception::RiskException> = live_exceptions
             .iter()
@@ -1290,7 +1342,12 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 ..DiagnosticEvent::new(
                     severity_for_level(finding.level),
                     "vuln",
-                    if finding.kind == dx_audit::vuln::AdvisoryKind::Vulnerability {
+                    if finding.kind == dx_audit::vuln::AdvisoryKind::Yanked {
+                        format!(
+                            "{}@{} is yanked from crates.io",
+                            finding.package, finding.version
+                        )
+                    } else if finding.kind == dx_audit::vuln::AdvisoryKind::Vulnerability {
                         format!(
                             "{}@{} vulnerable to {} (severity {}; {fixed})",
                             finding.package, finding.version, finding.advisory, finding.severity

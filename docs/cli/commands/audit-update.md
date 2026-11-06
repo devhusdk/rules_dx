@@ -63,6 +63,8 @@ bazel run @rules_dx//cli/advisory_prep --
 
 A missing or stale snapshot fails with `advisory_refresh_failed`.
 
+Cargo sets also get a `cargo-yanked` snapshot, built from the crates.io sparse index (`--cargo-index` overrides it), that lists the locked yanked versions. A yanked version is a `yanked` finding: it fails under the strict base and is `info` under standard. A missing `cargo-yanked` snapshot only warns with `yanked_unprepared`. Other families have no yanked data yet and report nothing.
+
 Secrets are scanned with the pinned `@rules_dx//quality/artifacts:gitleaks`. If `DX_GITLEAKS_BIN` holds an absolute path, dx runs it. Otherwise dx resolves the label through Bazel. A relative path is rejected and `PATH` is never searched. If no artifact is found, the run exits `1` with `secrets auditor unavailable`. Export the path with:
 
 ```sh

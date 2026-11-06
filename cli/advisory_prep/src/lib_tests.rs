@@ -143,6 +143,7 @@ fn options(workspace: &TempDir) -> PrepareOptions {
         cpansa_output: None,
         cpansa_dump: None,
         trivy: None,
+        cargo_index: None,
     }
 }
 
@@ -368,8 +369,9 @@ fn the_preparation_writes_one_snapshot_and_sidecar_per_needed_ecosystem() {
         ]),
     );
     let prepared = prepare(&options).expect("prepares");
-    assert_eq!(prepared.len(), 1);
+    assert_eq!(prepared.len(), 2);
     assert_eq!(prepared[0].family, "cargo");
+    assert_eq!(prepared[1].family, "cargo-yanked");
     assert_eq!(prepared[0].advisories, 2);
     assert_eq!(prepared[0].path, ".dx/advisory/cargo.json");
     let out = workspace.path().join(DEFAULT_OUT);
@@ -389,8 +391,8 @@ fn the_preparation_writes_one_snapshot_and_sidecar_per_needed_ecosystem() {
     );
     assert_eq!(
         std::fs::read_dir(&out).expect("lists").count(),
-        2,
-        "one snapshot and one sidecar, no archive"
+        4,
+        "a snapshot and a sidecar for the advisories and for the yanked versions, no archive"
     );
 }
 
@@ -760,4 +762,88 @@ fn a_cpan_set_is_prepared_from_the_cpansa_output() {
     .expect("parses");
     assert!(identity_matches_bytes(&identity, &payload));
     assert!(identity.url.ends_with("?version=1.002"), "{}", identity.url);
+}
+
+const LOCK: &str = r#"version = 4
+
+[[package]]
+name = "hello"
+version = "0.1.0"
+dependencies = ["bad", "good"]
+
+[[package]]
+name = "bad"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0000000000000000000000000000000000000000000000000000000000000000"
+
+[[package]]
+name = "good"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0000000000000000000000000000000000000000000000000000000000000000"
+"#;
+
+fn yanked_options(workspace: &TempDir, index: &TempDir) -> PrepareOptions {
+    let lock = workspace
+        .path()
+        .join("rust/tests/fixtures/hello/Cargo.lock");
+    std::fs::write(lock, LOCK).expect("writes the lock");
+    let bad = index.path().join("3/b/bad");
+    std::fs::create_dir_all(bad.parent().expect("parent")).expect("creates");
+    std::fs::write(
+        &bad,
+        "{\"vers\":\"0.9.0\",\"yanked\":false}\n{\"vers\":\"1.0.0\",\"yanked\":true}\n",
+    )
+    .expect("writes");
+    let good = index.path().join("go/od/good");
+    std::fs::create_dir_all(good.parent().expect("parent")).expect("creates");
+    std::fs::write(&good, "{\"vers\":\"2.0.0\",\"yanked\":false}\n").expect("writes");
+    let mut options = options(workspace);
+    options.cargo_index = Some(format!("file://{}", index.path().display()));
+    options
+}
+
+#[test]
+fn locked_yanked_cargo_versions_are_published_as_their_own_snapshot() {
+    let workspace = workspace();
+    let index = tempfile::tempdir().expect("index dir");
+    let options = yanked_options(&workspace, &index);
+    let prepared = yanked::prepare_cargo_yanked(&options).expect("prepares");
+    assert_eq!(prepared.advisories, 1);
+    let text = String::from_utf8(prepared.payload).expect("utf8");
+    let parsed = parse_snapshot(&text).expect("parses");
+    assert_eq!(parsed[0].package, "bad");
+    assert_eq!(parsed[0].versions, "=1.0.0");
+}
+
+#[test]
+fn the_yanked_snapshot_does_not_change_the_ecosystem_count() {
+    let prepared = vec![
+        Prepared {
+            family: "cargo".to_owned(),
+            path: String::new(),
+            identity: String::new(),
+            advisories: 1,
+        },
+        Prepared {
+            family: "cargo-yanked".to_owned(),
+            path: String::new(),
+            identity: String::new(),
+            advisories: 0,
+        },
+    ];
+    let summary = Summary::of(&prepared);
+    assert_eq!(summary.ecosystems, 1);
+    assert_eq!(summary.families, vec!["cargo".to_owned()]);
+}
+
+#[test]
+fn an_unreachable_index_fails_the_preparation() {
+    let workspace = workspace();
+    let index = tempfile::tempdir().expect("index dir");
+    let mut options = yanked_options(&workspace, &index);
+    options.cargo_index = Some(format!("file://{}/missing", index.path().display()));
+    options.limits.retries = 0;
+    assert!(yanked::prepare_cargo_yanked(&options).is_err());
 }

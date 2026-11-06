@@ -194,6 +194,54 @@ pub fn convert_entries(
     })
 }
 
+/// Builds a yanked-version snapshot: one synthetic advisory per locked (name, version) that is yanked.
+pub fn yanked_snapshot(
+    key: &str,
+    url: &str,
+    retrieved_at: &str,
+    set: &str,
+    yanked: &[(String, String)],
+) -> Result<PreparedSnapshot, PrepError> {
+    if !advisory::is_audit_date(retrieved_at) {
+        return Err(PrepError::BadDate {
+            retrieved_at: retrieved_at.to_owned(),
+        });
+    }
+    let mut sorted: Vec<&(String, String)> = yanked.iter().collect();
+    sorted.sort();
+    sorted.dedup();
+    let advisories: Vec<crate::vuln::Advisory> = sorted
+        .into_iter()
+        .map(|(name, version)| crate::vuln::Advisory {
+            id: format!("YANKED-{version}"),
+            package: name.clone(),
+            versions: format!("={version}"),
+            severity: "unknown".to_owned(),
+            fixed: Vec::new(),
+            set: set.to_owned(),
+            kind: crate::vuln::AdvisoryKind::Yanked,
+        })
+        .collect();
+    let payload = serde_json::to_vec(&advisories).map_err(|error| PrepError::BadEntry {
+        family: key.to_owned(),
+        name: "<yanked>".to_owned(),
+        detail: error.to_string(),
+    })?;
+    let snapshot = AdvisorySnapshot {
+        set: key.to_owned(),
+        url: url.to_owned(),
+        sha256: dx_digest::sha256_hex(&payload),
+        retrieved_at: retrieved_at.to_owned(),
+        path: advisory::snapshot_rel(key),
+    };
+    validate_prepared(&snapshot, &payload)?;
+    Ok(PreparedSnapshot {
+        snapshot,
+        payload,
+        advisories: advisories.len(),
+    })
+}
+
 /// Checks one prepared snapshot the way the audit backend checks it later.
 pub fn validate_prepared(snapshot: &AdvisorySnapshot, payload: &[u8]) -> Result<(), PrepError> {
     advisory::validate_snapshot(snapshot).map_err(|error| PrepError::BadIdentity {

@@ -12,6 +12,8 @@
 pub mod archive;
 #[path = "trivy.rs"]
 pub mod trivy;
+#[path = "yanked.rs"]
+pub mod yanked;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -39,6 +41,8 @@ pub struct PrepareOptions {
     pub cpansa_dump: Option<PathBuf>,
     /// The pinned trivy binary; set, it downloads the trivy databases under `out`.
     pub trivy: Option<PathBuf>,
+    /// Base URL of the cargo sparse index the yanked flags are read from.
+    pub cargo_index: Option<String>,
 }
 
 impl Default for PrepareOptions {
@@ -52,6 +56,7 @@ impl Default for PrepareOptions {
             cpansa_output: None,
             cpansa_dump: None,
             trivy: None,
+            cargo_index: None,
         }
     }
 }
@@ -76,6 +81,10 @@ pub struct Summary {
 impl Summary {
     /// Builds the summary of the snapshots one run published.
     pub fn of(prepared: &[Prepared]) -> Self {
+        let prepared: Vec<&Prepared> = prepared
+            .iter()
+            .filter(|entry| !entry.family.ends_with("-yanked"))
+            .collect();
         Summary {
             status: if prepared.is_empty() {
                 "empty"
@@ -106,8 +115,10 @@ pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, Pre
     families.dedup();
     let mut out = Vec::new();
     for family in families {
-        let url = dx_audit::advisory::advisory_source(family).ok_or_else(|| PrepError::UnsupportedSet {
-            set: family.to_owned(),
+        let url = dx_audit::advisory::advisory_source(family).ok_or_else(|| {
+            PrepError::UnsupportedSet {
+                set: family.to_owned(),
+            }
         })?;
         out.push((family, url.to_owned()));
     }
@@ -136,6 +147,10 @@ pub fn prepare(options: &PrepareOptions) -> Result<Vec<Prepared>, PrepError> {
     let mut out = Vec::new();
     for (family, url) in plan(options)? {
         out.push(prepare_family(options, family, &url)?);
+        if family == "cargo" {
+            let prepared = yanked::prepare_cargo_yanked(options)?;
+            out.push(publish(options, yanked::CARGO_YANKED, prepared)?);
+        }
     }
     if let Some(binary) = &options.trivy {
         trivy::prepare_trivy(binary, &options.out, &options.retrieved_at)?;
@@ -158,6 +173,14 @@ fn prepare_family(
         })?;
         convert_entries(family, url, &options.retrieved_at, &entries)?
     };
+    publish(options, family, prepared)
+}
+
+fn publish(
+    options: &PrepareOptions,
+    family: &str,
+    prepared: dx_audit::advisory_prep::PreparedSnapshot,
+) -> Result<Prepared, PrepError> {
     let identity = identity_bytes(&prepared.snapshot)?;
     let meta_path = options.out.join(format!("{family}.meta.json"));
     match std::fs::remove_file(&meta_path) {

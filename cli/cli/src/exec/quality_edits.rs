@@ -369,7 +369,7 @@ fn diff_stale_source_fails_render() {
 }
 
 #[test]
-fn diff_stale_source_fails_render_in_apply_mode() {
+fn diff_stale_source_is_not_applied_in_apply_mode() {
     let mut harness = Harness::new("diff-stale-default");
     harness.write_source("src/a.py", "x = 1\n");
     harness.results.insert(
@@ -383,7 +383,11 @@ fn diff_stale_source_fails_render_in_apply_mode() {
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
         b"z = 2\n"
     );
-    assert!(err.contains("cannot render patch without verified source for src/a.py"));
+    assert!(
+        err.contains("Not applied: src/a.py (stale_source)"),
+        "{err}"
+    );
+    assert!(!err.contains("diff_failed"), "{err}");
     assert!(!out.contains("--- a/src/a.py"));
     assert!(!out.contains("Applied"));
     assert_eq!(
@@ -606,6 +610,24 @@ fn diff_apply_write_failure_prints_the_patch_and_fails() {
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
         b"x = 1\n"
+    );
+}
+
+#[test]
+fn diff_apply_with_a_stale_file_prints_the_patch_for_the_rest() {
+    let harness = two_file_replacements("diff-stale-partial");
+    harness.write_source("src/a.py", "z = 2\n");
+    let (code, out, err) = harness.run(&["format", "--apply", "--diff"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(out.contains("--- a/src/b.py"), "{out}");
+    assert!(!out.contains("src/a.py"), "{out}");
+    assert!(
+        err.contains("Not applied: src/a.py (stale_source)"),
+        "{err}"
+    );
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/b.py")).expect("source"),
+        b"b = 1\n"
     );
 }
 

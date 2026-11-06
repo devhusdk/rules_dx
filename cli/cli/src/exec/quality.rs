@@ -633,7 +633,15 @@ fn run_quality_request(
 
     let mut patch = String::new();
     if request.common.output == OutputMode::Diff {
-        match render_diff_patch(&sources, &collected.changes) {
+        let verified: Vec<FileChange> = collected
+            .changes
+            .iter()
+            .filter(|change| {
+                !apply || matches!(sources.get(&change.path), Some(SourceRead::Bytes(_)))
+            })
+            .cloned()
+            .collect();
+        match render_diff_patch(&sources, &verified) {
             Ok(rendered) => patch = rendered,
             Err(error) => {
                 return operational_output(

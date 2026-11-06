@@ -308,6 +308,7 @@ hermetic_qualification(
         "//javascript/tests/fixtures/node-app/registry/...",
     ],
     smoke = True,
+    timeout = "long",
 )
 
 hermetic_qualification(

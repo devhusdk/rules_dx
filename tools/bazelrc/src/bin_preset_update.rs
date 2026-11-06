@@ -205,7 +205,7 @@ mod tests {
         write_all_layers(&root);
         std::fs::write(
             root.join(".bazelrc"),
-            format!("{ROOT_BAZELRC}common --enable_bzlmod\n"),
+            format!("{ROOT_BAZELRC}build --verbose_failures\n"),
         )
         .expect("collision");
         let (code, out, err) = captured(&["preset_update", "--verify-only"], || Ok(root));
@@ -237,7 +237,7 @@ mod tests {
         with_source(&root);
         std::fs::write(
             root.join(".bazelrc"),
-            format!("{ROOT_BAZELRC}common --enable_bzlmod\n"),
+            format!("{ROOT_BAZELRC}build --verbose_failures\n"),
         )
         .expect("collision");
         let (code, out, err) = captured(&["preset_update"], || Ok(root.clone()));

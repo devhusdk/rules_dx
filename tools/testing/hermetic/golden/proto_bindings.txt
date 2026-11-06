@@ -3,7 +3,6 @@ language python
 language java
 language cc
 pattern //...
-file .bazelrc
 file BUILD.bazel
 file api/v1/greeting.proto
 file cc/greeter.cc

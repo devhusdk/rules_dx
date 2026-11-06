@@ -1,7 +1,6 @@
 language dart
 language flutter
 pattern //...
-file .bazelrc
 file flutter/tests/fixtures/flutter-app/.dart_tool/package_config.json
 file flutter/tests/fixtures/flutter-app/.dart_tool/package_graph.json
 file flutter/tests/fixtures/flutter-app/BUILD.bazel

@@ -433,7 +433,6 @@ hermetic_qualification(
 hermetic_qualification(
     name = "proto_bindings",
     files = {
-        "consumers/proto_bindings/consumer.bazelrc": ".bazelrc",
         "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
         "consumers/proto_bindings/go.mod": "go.mod",
         "consumers/proto_bindings/go.sum": "go.sum",
@@ -701,7 +700,6 @@ hermetic_qualification(
         "//flutter/tests/fixtures/flutter-app/android:BUILD.bazel": "flutter/tests/fixtures/flutter-app/android/BUILD.bazel",
         "//flutter/tests/fixtures/flutter-app/android:inspect_apk.sh": "flutter/tests/fixtures/flutter-app/android/inspect_apk.sh",
         "//flutter/tests/fixtures/flutter-app/android:interaction.sh": "flutter/tests/fixtures/flutter-app/android/interaction.sh",
-        "consumers/flutter/consumer.bazelrc": ".bazelrc",
         "//flutter/tests/fixtures/flutter-app:.dart_tool/package_config.json": "flutter/tests/fixtures/flutter-app/.dart_tool/package_config.json",
         "//flutter/tests/fixtures/flutter-app:.dart_tool/package_graph.json": "flutter/tests/fixtures/flutter-app/.dart_tool/package_graph.json",
         "//flutter/tests/fixtures/flutter-app:BUILD.bazel": "flutter/tests/fixtures/flutter-app/BUILD.bazel",
@@ -910,7 +908,6 @@ hermetic_qualification(
         "@rules_dx_android//tests/fixtures/adopt-android/native:summary.h": "android/tests/fixtures/adopt-android/native/summary.h",
         "@rules_dx_android//tests/fixtures/adopt-android/native:summary_test.cc": "android/tests/fixtures/adopt-android/native/summary_test.cc",
         "@rules_dx_android//tests/fixtures/adopt-android:BUILD.bazel": "android/tests/fixtures/adopt-android/BUILD.bazel",
-        "consumers/adopt_android/consumer.bazelrc": ".bazelrc",
     },
     languages = [
         "cpp",

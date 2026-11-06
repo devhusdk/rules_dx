@@ -44,6 +44,15 @@ common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host
 # On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.
 common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host
 
+# Run Java targets on the downloaded JDK 21, not a host JDK.
+build --java_runtime_version=remotejdk_21
+
+# Run Java build tools on the downloaded JDK 21.
+build --tool_java_runtime_version=remotejdk_21
+
+# Compile Java build tools at language level 17.
+build --tool_java_language_version=17
+
 # Opt out of aspect_tools_telemetry usage reports.
 common --repo_env=DO_NOT_TRACK=1
 

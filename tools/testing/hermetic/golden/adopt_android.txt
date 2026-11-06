@@ -7,7 +7,6 @@ pattern //android/tests/fixtures/adopt-android/app:log
 pattern //android/tests/fixtures/adopt-android/app:report
 pattern //android/tests/fixtures/adopt-android/app:report_test
 pattern //android/tests/fixtures/adopt-android/app:start
-file .bazelrc
 file android/tests/fixtures/adopt-android/BUILD.bazel
 file android/tests/fixtures/adopt-android/app/BUILD.bazel
 file android/tests/fixtures/adopt-android/app/inspect_apk.sh

@@ -111,11 +111,13 @@ def versions_contract_tests(name):
             "//:MODULE.bazel": [manifests_block] + source_archive_pins + [
                 "    sha256 = \"" + _CUDA_REDIST_SHA256 + "\",\n    urls = [\"" + _CUDA_REDIST_URL + "\"],",
             ],
+            "//tools/bazelrc:correctness.bazelrc": [
+                "build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n",
+                "build --tool_java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n",
+            ],
         },
         file_checks = {
-            "//:.bazelrc": "build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n" +
-                           "build --tool_java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n" +
-                           "common --check_direct_dependencies=error",
+            "//:.bazelrc": "common --check_direct_dependencies=error",
             "//:cuda/README.md": cuda_stanza,
             "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",

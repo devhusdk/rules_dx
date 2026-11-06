@@ -124,6 +124,21 @@ const WINDOWS_FLAGS: [Flag; 4] = [
     ),
 ];
 
+const JVM_FLAGS: [Flag; 3] = [
+    (
+        "build --java_runtime_version=remotejdk_21",
+        "Run Java targets on the downloaded JDK 21, not a host JDK.",
+    ),
+    (
+        "build --tool_java_runtime_version=remotejdk_21",
+        "Run Java build tools on the downloaded JDK 21.",
+    ),
+    (
+        "build --tool_java_language_version=17",
+        "Compile Java build tools at language level 17.",
+    ),
+];
+
 const TELEMETRY_FLAGS: [Flag; 1] = [(
     "common --repo_env=DO_NOT_TRACK=1",
     "Opt out of aspect_tools_telemetry usage reports.",
@@ -239,6 +254,7 @@ impl Layer {
                 &COVERAGE_FLAGS,
                 &RUNFILES_FLAGS,
                 &WINDOWS_FLAGS,
+                &JVM_FLAGS,
                 &TELEMETRY_FLAGS,
                 &DIAGNOSTICS_FLAGS,
             ],
@@ -535,11 +551,12 @@ pub fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
 }
 
 /// Preset lines a root `.bazelrc` may repeat: the rendered flag lines minus the telemetry opt-out,
-/// which the quickstart asks users to set before `dx init` runs.
+/// which the quickstart asks users to set before `dx init` runs, and the JDK lines, which older
+/// READMEs told JVM users to copy into their root.
 pub fn collision_lines(rendered: &str) -> BTreeSet<String> {
     let mut lines = rendered_flag_lines(rendered);
-    for (line, _) in TELEMETRY_FLAGS {
-        lines.remove(line);
+    for (line, _) in TELEMETRY_FLAGS.iter().chain(JVM_FLAGS.iter()) {
+        lines.remove(*line);
     }
     lines
 }
@@ -861,6 +878,9 @@ mod tests {
                 "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
                 "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host",
+                "build --java_runtime_version=remotejdk_21",
+                "build --tool_java_runtime_version=remotejdk_21",
+                "build --tool_java_language_version=17",
                 "common --repo_env=DO_NOT_TRACK=1",
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",
@@ -960,8 +980,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 36);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 36);
+        assert_eq!(total, 39);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 39);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1067,7 +1087,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 36);
+        assert_eq!(flags.len(), 39);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }
@@ -1088,6 +1108,13 @@ mod tests {
     fn telemetry_opt_out_is_not_a_collision() {
         let rendered = render_all(DEFAULT_REPO);
         let root = "common --repo_env=DO_NOT_TRACK=1\n";
+        assert!(owned_collisions_in_content(root, &rendered).is_empty());
+    }
+
+    #[test]
+    fn jdk_lines_are_not_a_collision() {
+        let rendered = render_all(DEFAULT_REPO);
+        let root = "build --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\nbuild --tool_java_language_version=17\n";
         assert!(owned_collisions_in_content(root, &rendered).is_empty());
     }
 

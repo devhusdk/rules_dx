@@ -1,3 +1,1 @@
-build --java_runtime_version=remotejdk_21
-build --tool_java_runtime_version=remotejdk_21
 build --repo_env=BAZEL_JVM_FETCH_SOURCES=false

@@ -148,6 +148,16 @@ as its own file. `dune` is a label, for example `//quality/tools/ocaml:dune`.
 See `ocaml/tests/fixtures/dune-lib`. Dependencies between dune packages and C
 stubs are not supported yet.
 
+### Coverage with your own ppx
+
+Under `bazel coverage` on Linux x86_64, `ocaml_module` runs the bisect_ppx
+instrumenter on hand-written `.ml` files. A module that sets its own `ppx` is
+left alone, because rules_ocaml takes one ppx executable per module. To cover
+such a module, link `//tools/coverage/ocaml:bisect_ppx_rewriter` (the
+bisect_ppx rewriter as a library) into your ppxlib driver and set
+`coverage_ppx = True`. Under coverage the macro then adds only
+`-loc-filename <package>/<file>` and the `BISECT_RUNTIME` dependency.
+
 ### Internal tool: zanuda
 
 `//quality/tools/ocaml:zanuda` is the zanuda 2.1.0 linter, built from source

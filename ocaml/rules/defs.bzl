@@ -355,18 +355,26 @@ def _library_shape(name, upstream_rule, forward_rule, srcs, visibility, kwargs, 
     upstream_rule(name = name + "_upstream", visibility = ["//visibility:private"], **upstream)
     forward_rule(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **dict(dx_wrap_forward_kwargs(kwargs), **forward_extra))
 
-def coverage_kwargs(kwargs, struct, package):
-    """Returns kwargs that run the bisect_ppx instrumenter over struct when `bazel coverage` runs on Linux x86_64."""
-    if type(struct) != "string" or not struct.endswith(".ml") or kwargs.get("ppx") != None:
+def coverage_kwargs(kwargs, struct, package, coverage_ppx = False):
+    """Returns kwargs that run the bisect_ppx instrumenter over struct when `bazel coverage` runs on Linux x86_64.
+
+    A module with its own ppx is left alone unless coverage_ppx says that ppx already links bisect_ppx; then only the file name and the runtime are added.
+    """
+    if type(struct) != "string" or not struct.endswith(".ml"):
+        return kwargs
+    own_ppx = kwargs.get("ppx") != None
+    if own_ppx and not coverage_ppx:
         return kwargs
     out = dict(kwargs)
-    out["ppx"] = select({COVERAGE_ACTIVE: BISECT_DRIVER, "//conditions:default": None})
-    out["ppx_args"] = select({COVERAGE_ACTIVE: ["-loc-filename", package + "/" + struct], "//conditions:default": []})
+    if not own_ppx:
+        out["ppx"] = select({COVERAGE_ACTIVE: BISECT_DRIVER, "//conditions:default": None})
+    loc_args = select({COVERAGE_ACTIVE: ["-loc-filename", package + "/" + struct], "//conditions:default": []})
+    out["ppx_args"] = (out.get("ppx_args") or []) + loc_args
     out["deps"] = (out.get("deps") or []) + select({COVERAGE_ACTIVE: [BISECT_RUNTIME], "//conditions:default": []})
     return out
 
-def ocaml_module(name, struct, sig = None, visibility = None, instrument_coverage = True, **kwargs):
-    """Thin wrapper over the rules_ocaml ocaml_module rule; modules are instrumented for bisect_ppx coverage unless instrument_coverage is False."""
+def ocaml_module(name, struct, sig = None, visibility = None, instrument_coverage = True, coverage_ppx = False, **kwargs):
+    """Thin wrapper over the rules_ocaml ocaml_module rule; modules are instrumented for bisect_ppx coverage unless instrument_coverage is False, and coverage_ppx marks a module whose own ppx already links bisect_ppx."""
     if sig != None:
         kwargs["sig"] = sig
     if kwargs.get("module_name") == None:
@@ -376,7 +384,7 @@ def ocaml_module(name, struct, sig = None, visibility = None, instrument_coverag
     kwargs, werror = dx_warnings_as_errors(kwargs, WERROR_OPTS)
     kwargs["opts"] = profile_warning_opts(bin_annot_opts(kwargs.get("opts"))) + werror
     if instrument_coverage:
-        kwargs = coverage_kwargs(kwargs, struct, native.package_name())
+        kwargs = coverage_kwargs(kwargs, struct, native.package_name(), coverage_ppx)
     _library_shape(name, _ocaml_module, _module_forward, owned_sources(struct, sig), visibility, dict(kwargs, struct = struct), {"instrument_coverage": instrument_coverage})
 
 def ocaml_signature(name, src, visibility = None, **kwargs):

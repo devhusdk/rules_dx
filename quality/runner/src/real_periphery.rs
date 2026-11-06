@@ -63,10 +63,7 @@ fn periphery_scans_the_staged_store_and_reports_own_files() {
     assert_eq!(findings[0].path, "pkg/a.swift");
     let argv = ARGV.with(|log| log.borrow().clone());
     assert!(argv.contains(&"--retain-public".to_owned()));
-    assert!(argv
-        .last()
-        .expect("config")
-        .ends_with("periphery.json"));
+    assert!(argv.last().expect("config").ends_with("periphery.json"));
     assert!(HOME.with(|slot| slot.borrow().ends_with("dx-periphery/home")));
 }
 

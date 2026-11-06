@@ -11,6 +11,7 @@ tools_gen(name = "update_tools")
 rust_library(
     name = "quality_runner_lib",
     srcs = [
+        "src/entry.rs",
         "src/lib.rs",
         "src/real.rs",
         "src/real/bicep.rs",
@@ -20,14 +21,14 @@ rust_library(
         "src/real/config_tools.rs",
         "src/real/delegated.rs",
         "src/real/helm.rs",
+        "src/real/jvm.rs",
         "src/real/kubeconform.rs",
-        "src/real/periphery.rs",
         "src/real/native.rs",
+        "src/real/periphery.rs",
         "src/real/pipeline.rs",
+        "src/real/python.rs",
         "src/real/redocly.rs",
         "src/real/rustfmt.rs",
-        "src/real/jvm.rs",
-        "src/real/python.rs",
         "src/real/schema.rs",
         "src/real/scripting.rs",
         "src/real/single_run.rs",
@@ -53,12 +54,14 @@ rust_library(
     crate_name = "quality_runner",
     crate_root = "src/lib.rs",
     edition = "2021",
+    visibility = VIS_QUALITY + ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "quality/quality_runner",
         normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/output:dx_output",
         "//cli/path:dx_path",
         "//quality/adapter:quality_adapter",
         "//quality/notebook:quality_notebook_lib",
@@ -77,15 +80,11 @@ rust_binary(
     crate_name = "quality_runner",
     crate_root = "src/main.rs",
     edition = "2021",
+    visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "quality/quality_runner",
         normal = True,
-    ) + [
-        ":quality_runner_lib",
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/output:dx_output",
-        "//quality/result:quality_result",
-    ],
+    ) + [":quality_runner_lib"],
 )
 
 # keep
@@ -151,6 +150,7 @@ genrule(
 rust_test(
     name = "quality_runner_test",
     srcs = [
+        "src/entry.rs",
         "src/lib.rs",
         "src/lib_determinism.rs",
         "src/lib_gates.rs",
@@ -164,14 +164,14 @@ rust_test(
         "src/real/config_tools.rs",
         "src/real/delegated.rs",
         "src/real/helm.rs",
+        "src/real/jvm.rs",
         "src/real/kubeconform.rs",
-        "src/real/periphery.rs",
         "src/real/native.rs",
+        "src/real/periphery.rs",
         "src/real/pipeline.rs",
+        "src/real/python.rs",
         "src/real/redocly.rs",
         "src/real/rustfmt.rs",
-        "src/real/jvm.rs",
-        "src/real/python.rs",
         "src/real/schema.rs",
         "src/real/scripting.rs",
         "src/real/single_run.rs",
@@ -211,27 +211,13 @@ rust_test(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/output:dx_output",
         "//cli/path:dx_path",
         "//quality/adapter:quality_adapter",
         "//quality/notebook:quality_notebook_lib",
         "//quality/result:quality_result",
         "@crates//:serde",
         "@crates//:serde_json",
-    ],
-)
-
-# keep
-rust_test(
-    name = "quality_runner_bin_test",
-    crate = ":quality_runner",
-    deps = all_crate_deps(
-        package_name = "quality/quality_runner",
-        normal = True,
-    ) + [
-        ":quality_runner_lib",
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/output:dx_output",
-        "//quality/result:quality_result",
     ],
 )
 

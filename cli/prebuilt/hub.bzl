@@ -14,6 +14,13 @@ KNOWN_CPU = ["aarch64", "arm", "i386", "ppc64le", "riscv64", "s390x", "x86_32", 
 
 SOURCE_LABEL = "@rules_dx//cli/cli:dx"
 
+# dx runs these tools when started under their names, so a prebuilt dx stands in for each.
+SOURCE_TOOLS = {
+    "quality_markdown": "@rules_dx//quality/markdown:quality_markdown",
+    "quality_notebook": "@rules_dx//quality/notebook:quality_notebook",
+    "quality_runner": "@rules_dx//quality/runner:quality_runner",
+}
+
 _HEX = "0123456789abcdef"
 
 def valid_sha256(text):
@@ -102,15 +109,18 @@ def plan_assets(version, pins, url_template, overrides):
     return planned
 
 def alias_build(actual):
-    """Returns the hub BUILD text that points dx at one label."""
-    return "\n".join([
-        "alias(",
-        '    name = "dx",',
-        '    actual = "{}",'.format(actual),
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-    ])
+    """Returns the hub BUILD text that points dx at one label and the tools at their sources."""
+    lines = []
+    for name, label in [("dx", actual)] + sorted(SOURCE_TOOLS.items()):
+        lines += [
+            "alias(",
+            '    name = "{}",'.format(name),
+            '    actual = "{}",'.format(label),
+            '    visibility = ["//visibility:public"],',
+            ")",
+            "",
+        ]
+    return "\n".join(lines)
 
 def unsupported_message(assets):
     """Returns the failure text for a platform with no dx asset."""
@@ -136,6 +146,8 @@ def consumer_build(assets):
     release with no pins (every version until #1388) keeps working. With no
     pinned asset at all, every platform builds from source, exactly as
     before; unsupported platforms fail only once some asset is pinned.
+    The quality tools follow dx: they run the same prebuilt file under
+    their own names, and build from source where dx does.
 
     Args:
       assets: The structs plan_assets returns.
@@ -156,6 +168,14 @@ def consumer_build(assets):
         "    actual = " + _select([(":" + a.key, ":dx_" + a.key if a.repo else SOURCE_LABEL) for a in assets], ":unsupported") + ",",
         ")",
     ]
+    for tool, label in sorted(SOURCE_TOOLS.items()):
+        lines += [
+            "",
+            "alias(",
+            '    name = "{}",'.format(tool),
+            "    actual = " + _select([(":" + a.key, ":{}_{}".format(tool, a.key) if a.repo else label) for a in assets], ":unsupported") + ",",
+            ")",
+        ]
     for a in assets:
         lines += [
             "",
@@ -176,6 +196,15 @@ def consumer_build(assets):
                 '    out = "{}/{}",'.format(a.key, a.exe),
                 ")",
             ]
+            for tool in sorted(SOURCE_TOOLS.keys()):
+                lines += [
+                    "",
+                    "native_binary(",
+                    '    name = "{}_{}",'.format(tool, a.key),
+                    '    src = "@{}//file:{}",'.format(a.repo, a.exe),
+                    '    out = "{}/{}{}",'.format(a.key, tool, ".exe" if a.os == "windows" else ""),
+                    ")",
+                ]
     lines += [
         "",
         "dx_unavailable(",

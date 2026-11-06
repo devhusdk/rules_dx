@@ -1,7 +1,7 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "ASSET_PLATFORMS", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_root", "repo_name", "valid_sha256")
+load(":hub.bzl", "ASSET_PLATFORMS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_root", "repo_name", "valid_sha256")
 load(":pins.bzl", "DX_VERSION", "SHA256", "URL_TEMPLATE")
 
 _HASH = "0123456789abcdef" * 4
@@ -71,6 +71,13 @@ def _checks():
         expect_contains("an unpinned asset builds dx from source", pinned_build, '":linux_aarch64": "@rules_dx//cli/cli:dx",'),
         expect_false("an unpinned asset downloads nothing", "dx_prebuilt_linux_arm64" in pinned_build),
         expect_false("a fully pinned hub never names the source dx", SOURCE_LABEL in all_pinned_build),
+        expect_equal("a fully pinned hub never names a source tool", [t for t in SOURCE_TOOLS.values() if t in all_pinned_build], []),
+        expect_contains("a pinned platform runs dx as the runner", pinned_build, '":linux_x86_64": ":quality_runner_linux_x86_64",'),
+        expect_contains("the runner is the downloaded dx", pinned_build, 'name = "quality_runner_linux_x86_64",\n    src = "@dx_prebuilt_linux_x86_64//file:dx",\n    out = "linux_x86_64/quality_runner",'),
+        expect_contains("a windows tool keeps .exe", pinned_build, 'out = "windows_x86_64/quality_notebook.exe",'),
+        expect_contains("an unpinned platform builds the tool from source", pinned_build, '":linux_aarch64": "@rules_dx//quality/markdown:quality_markdown",'),
+        expect_contains("the root hub aliases the source runner", alias_build(SOURCE_LABEL), 'name = "quality_runner",\n    actual = "@rules_dx//quality/runner:quality_runner",'),
+        expect_contains("an unpinned hub aliases the source notebook tool", unpinned_build, 'actual = "@rules_dx//quality/notebook:quality_notebook",'),
         expect_false("the consumer hub loads nothing from rules_rust", "rules_rust" in all_pinned_build),
         expect_contains("the root hub aliases the source dx", alias_build(SOURCE_LABEL), 'actual = "@rules_dx//cli/cli:dx",'),
         expect_contains("a non-root module cannot set tags", middle.error, "only the root module may set asset or from_source tags; middle sets them"),

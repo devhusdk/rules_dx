@@ -9,6 +9,7 @@ rust_library(
     name = "quality_markdown_lib",
     srcs = [
         "src/check.rs",
+        "src/entry.rs",
         "src/frontmatter.rs",
         "src/lib.rs",
         "src/links.rs",
@@ -20,6 +21,7 @@ rust_library(
     crate_name = "quality_markdown",
     crate_root = "src/lib.rs",
     edition = "2021",
+    visibility = VIS_QUALITY_ENV + ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "quality/quality_markdown",
         normal = True,
@@ -40,6 +42,7 @@ rust_binary(
     crate_name = "quality_markdown",
     crate_root = "src/main.rs",
     edition = "2021",
+    visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "quality/quality_markdown",
         normal = True,
@@ -76,6 +79,7 @@ rust_test(
     name = "quality_markdown_test",
     srcs = [
         "src/check.rs",
+        "src/entry.rs",
         "src/frontmatter.rs",
         "src/lib.rs",
         "src/lib_tests.rs",

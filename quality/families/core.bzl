@@ -30,13 +30,13 @@ TOOLS = {
         "shard": "core",
     },
     "markdown_check": {
-        "attr": attr.label(default = "//quality/markdown:quality_markdown", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "@dx_prebuilt//:quality_markdown", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "notebook_outputs": {
-        "attr": attr.label(default = "//quality/notebook:quality_notebook", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "@dx_prebuilt//:quality_notebook", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "core",

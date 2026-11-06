@@ -7,6 +7,7 @@
 use std::fmt;
 
 mod cli;
+pub mod entry;
 mod outputs;
 
 pub use cli::run_cli;

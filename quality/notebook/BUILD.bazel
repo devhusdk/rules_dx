@@ -7,6 +7,7 @@ package(default_visibility = VIS_QUALITY_ENV)
 
 _LIB_SRCS = [
     "src/cli.rs",
+    "src/entry.rs",
     "src/lib.rs",
     "src/outputs.rs",
 ]
@@ -15,6 +16,7 @@ rust_library(
     name = "quality_notebook_lib",
     srcs = [
         "src/cli.rs",
+        "src/entry.rs",
         "src/lib.rs",
         "src/outputs.rs",
     ],
@@ -25,6 +27,7 @@ rust_library(
     crate_name = "quality_notebook",
     crate_root = "src/lib.rs",
     edition = "2021",
+    visibility = VIS_QUALITY_ENV + ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "quality/quality_notebook",
         normal = True,
@@ -41,6 +44,7 @@ rust_binary(
     crate_name = "quality_notebook",
     crate_root = "src/main.rs",
     edition = "2021",
+    visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "quality/quality_notebook",
         normal = True,

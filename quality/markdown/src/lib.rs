@@ -9,6 +9,7 @@
 )]
 
 mod check;
+pub mod entry;
 mod frontmatter;
 mod links;
 

@@ -164,7 +164,7 @@ _REAL_BASE_ATTRS = {
     "_online": attr.label(default = "//config:lint_online"),
     "_breaking_against": attr.label(default = "//config:buf_breaking_against"),
     "_runner": attr.label(
-        default = "//quality/runner:quality_runner",
+        default = "@dx_prebuilt//:quality_runner",
         executable = True,
         cfg = "exec",
         allow_files = True,

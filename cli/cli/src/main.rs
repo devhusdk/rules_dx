@@ -164,6 +164,9 @@ fn usage_error(
 }
 
 fn main() {
+    if let Some(code) = run_as_tool() {
+        std::process::exit(code);
+    }
     // Must run before any thread starts: set_var is not thread safe.
     for (key, value) in
         dx_process::bazel_env_defaults(&|name| std::env::var_os(name), cfg!(target_os = "linux"))
@@ -175,6 +178,20 @@ fn main() {
     let code = run();
     std::process::exit(code);
 }
+
+// LCOV_EXCL_START - reason: thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
+fn run_as_tool() -> Option<i32> {
+    use dx_cli::multicall::{tool_for, Tool};
+    let mut args = std::env::args_os();
+    let tool = tool_for(&args.next()?)?;
+    let args: Vec<String> = args.map(|arg| arg.to_string_lossy().into_owned()).collect();
+    Some(match tool {
+        Tool::Runner => quality_runner::entry::run_cli(args),
+        Tool::Markdown => quality_markdown::entry::run_process(args),
+        Tool::Notebook => quality_notebook::entry::run_process(args),
+    })
+}
+// LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
 
 fn run() -> i32 {
     // LCOV_EXCL_START - reason: thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

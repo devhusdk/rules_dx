@@ -18,6 +18,7 @@ use quality_result::{
     MAX_COMPLETED_ROUNDS,
 };
 
+pub mod entry;
 pub mod real;
 pub mod request;
 

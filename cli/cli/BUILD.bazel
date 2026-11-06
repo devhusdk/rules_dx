@@ -101,6 +101,7 @@ rust_library(
         "src/execlog.rs",
         "src/execlog/diff.rs",
         "src/lib.rs",
+        "src/multicall.rs",
         "src/startup.rs",
     ],
     aliases = aliases(
@@ -174,6 +175,9 @@ rust_binary(
         "//cli/output:dx_output",
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",
+        "//quality/markdown:quality_markdown_lib",
+        "//quality/notebook:quality_notebook_lib",
+        "//quality/runner:quality_runner_lib",
     ],
 )
 
@@ -327,6 +331,7 @@ rust_test(
         "src/execlog/diff_tests.rs",
         "src/execlog/tests.rs",
         "src/lib.rs",
+        "src/multicall.rs",
         "src/startup.rs",
         "src/test_support.rs",
     ],

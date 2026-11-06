@@ -10,18 +10,8 @@
 
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 fn main() {
-    dx_output::init_diagnostics(false);
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    let code = quality_markdown::run_cli(
-        &args,
-        &|path| {
-            std::fs::read(path).map_err(|err| quality_markdown::MarkdownError::Io {
-                message: err.to_string(),
-            })
-        },
-        &mut |line| println!("{line}"),
-        &mut |line| tracing::error!("{line}"),
-    );
-    std::process::exit(code);
+    std::process::exit(quality_markdown::entry::run_process(
+        std::env::args().skip(1).collect(),
+    ));
 }
+// LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

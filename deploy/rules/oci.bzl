@@ -129,6 +129,8 @@ def _oci_config_impl(ctx):
         "platform": ctx.attr.platform,
         "registry": ctx.attr.registry,
         "repository": ctx.attr.repository,
+        "scan": ctx.attr.scan,
+        "scan_severity": ctx.attr.scan_severity,
         "size_budget_bytes": ctx.attr.size_budget_bytes,
         "tag": ctx.attr.tag,
     }
@@ -149,6 +151,14 @@ _oci_config = rule(
         "size_budget_bytes": attr.int(
             doc = "Largest allowed image size in bytes, 0 for no budget.",
             default = 0,
+        ),
+        "scan": attr.string(
+            doc = "Image vulnerability scan with trivy: off, warn or fail.",
+            default = "fail",
+        ),
+        "scan_severity": attr.string(
+            doc = "Lowest severity the scan reports: LOW, MEDIUM, HIGH or CRITICAL.",
+            default = "HIGH",
         ),
         "registry": attr.string(
             doc = "Container registry host the image is pushed to.",
@@ -173,12 +183,16 @@ _oci_config = rule(
     },
 )
 
-def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release", size_budget = "", sbom = None):
-    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`."""
+def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release", size_budget = "", sbom = None, scan = "fail", scan_severity = "HIGH"):
+    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push."""
     effective_repo = repository if repository != "" else name
     budget_error = size_budget_error(size_budget)
     if budget_error != "":
         fail(budget_error + " (in " + native.package_name() + ":" + name + ")")
+    if scan not in ["off", "warn", "fail"]:
+        fail("oci_deploy: invalid scan '" + str(scan) + "': want off, warn or fail (in " + native.package_name() + ":" + name + ")")
+    if scan_severity not in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]:
+        fail("oci_deploy: invalid scan_severity '" + str(scan_severity) + "': want LOW, MEDIUM, HIGH or CRITICAL (in " + native.package_name() + ":" + name + ")")
     platform_error = oci_platform_error(platform)
     if platform_error != "":
         fail(platform_error + " (in " + native.package_name() + ":" + name + ")")
@@ -198,6 +212,8 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
         image_tar = image_tar,
         registry = registry,
         repository = effective_repo,
+        scan = scan,
+        scan_severity = scan_severity,
         size_budget_bytes = size_budget_bytes(size_budget),
         tag = tag,
         platform = platform,

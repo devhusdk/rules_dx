@@ -1,6 +1,7 @@
 //! OCI image publisher: layout staging, docker-save reading and the registry push.
 
 use crate::archive::*;
+use crate::oci_scan::{run_trivy, scan_and_report, OciChecks, ScanMode};
 use crate::registry;
 use crate::run::{
     check_size_budget, deploy_profile, env_or_empty, placeholder_refusal, tree_bytes, DeployRun,
@@ -1064,15 +1065,16 @@ pub(crate) const OCI_GATE: OwnerGate = OwnerGate {
 };
 
 /// Runs the OCI deploy tool.
-pub fn oci_main(
+pub fn oci_main<C: Into<OciChecks>>(
     image_rloc: &str,
     registry: &str,
     repository: &str,
     tag: &str,
     platform: &str,
-    size_budget: u64,
+    checks: C,
     argv: &[String],
 ) -> i32 {
+    let checks = checks.into();
     let Some(run) = DeployRun::start(
         "oci_deploy",
         "the layout is exactly the file pinned at analysis time",
@@ -1091,7 +1093,7 @@ pub fn oci_main(
             return 1;
         }
     };
-    if let Err(error) = check_size_budget("oci_deploy", "image", bytes, size_budget) {
+    if let Err(error) = check_size_budget("oci_deploy", "image", bytes, checks.size_budget) {
         eprintln!("{error}");
         return 1;
     }
@@ -1107,6 +1109,20 @@ pub fn oci_main(
                 return 1;
             }
         };
+        if checks.scan != ScanMode::Off {
+            let staged = match oci_build_layout(&image, outdir, registry, repository, tag, platform)
+            {
+                Ok(layout) => layout,
+                Err(error) => {
+                    eprintln!("oci_deploy: {error}");
+                    return 1;
+                }
+            };
+            if scan_and_report(&staged, &checks, run_trivy) != 0 {
+                eprintln!("oci_deploy: refusing to push an image with scan findings");
+                return 1;
+            }
+        }
         return oci_live_push(
             &image,
             outdir,
@@ -1128,7 +1144,7 @@ pub fn oci_main(
             println!("oci_deploy: staged {registry}/{repository}:{tag} (profile: {profile})");
             println!("  layout: {}", layout.display());
             println!("  index: {}", layout.join("index.json").display());
-            0
+            scan_and_report(&layout, &checks, run_trivy)
         }
         Err(error) => {
             eprintln!("oci_deploy: {error}");

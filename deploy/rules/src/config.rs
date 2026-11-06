@@ -221,8 +221,20 @@ pub struct OciConfig {
     pub platform: String,
     #[serde(default)]
     pub size_budget_bytes: u64,
+    #[serde(default = "default_scan")]
+    pub scan: String,
+    #[serde(default = "default_scan_severity")]
+    pub scan_severity: String,
     #[serde(default)]
     pub sbom_rloc: String,
+}
+
+fn default_scan() -> String {
+    "fail".to_owned()
+}
+
+fn default_scan_severity() -> String {
+    "HIGH".to_owned()
 }
 
 /// Describes the SBOM kept with an OCI deployment, with its package count.
@@ -475,13 +487,21 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             argv,
         ),
         DeployConfig::Oci(oci) => {
+            let Some(scan) = crate::ScanMode::parse(&oci.scan) else {
+                eprintln!("oci_deploy: scan '{}': want off, warn or fail", oci.scan);
+                return 2;
+            };
             let code = crate::oci_main(
                 &oci.image_rloc,
                 &oci.registry,
                 &oci.repository,
                 &oci.tag,
                 &oci.platform,
-                oci.size_budget_bytes,
+                crate::OciChecks {
+                    size_budget: oci.size_budget_bytes,
+                    scan,
+                    scan_severity: oci.scan_severity.clone(),
+                },
                 argv,
             );
             if code == 0 && !oci.sbom_rloc.is_empty() {
@@ -598,6 +618,8 @@ mod tests {
                 tag: "t".to_owned(),
                 platform: "linux/amd64".to_owned(),
                 size_budget_bytes: 0,
+                scan: "fail".to_owned(),
+                scan_severity: "HIGH".to_owned(),
                 sbom_rloc: "_main/s.spdx.json".to_owned(),
             }))
         );
@@ -733,6 +755,8 @@ mod tests {
                 tag: "t".to_owned(),
                 platform: "linux/amd64".to_owned(),
                 size_budget_bytes: 0,
+                scan: "fail".to_owned(),
+                scan_severity: "HIGH".to_owned(),
                 sbom_rloc: String::new(),
             }))
         );
@@ -1012,6 +1036,8 @@ mod tests {
                 tag: "latest".to_owned(),
                 platform: "linux/amd64".to_owned(),
                 size_budget_bytes: 0,
+                scan: "fail".to_owned(),
+                scan_severity: "HIGH".to_owned(),
                 sbom_rloc: String::new(),
             }),
             DeployConfig::Octopus(OctopusConfig {

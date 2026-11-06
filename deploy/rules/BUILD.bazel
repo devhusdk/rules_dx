@@ -168,6 +168,7 @@ rust_library(
         "src/npm.rs",
         "src/nuget.rs",
         "src/oci.rs",
+        "src/oci_scan.rs",
         "src/octopus.rs",
         "src/promotion.rs",
         "src/pub_dev.rs",
@@ -191,6 +192,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/audit:dx_audit",
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",

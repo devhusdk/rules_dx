@@ -45,7 +45,6 @@ python_test(
 python_benchmark(
     name = "parse_bench",
     srcs = ["parse_bench.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [

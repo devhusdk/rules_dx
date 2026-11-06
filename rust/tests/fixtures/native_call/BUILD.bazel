@@ -229,6 +229,11 @@ rust_link_windows_test(
     target = ":native_call_test_upstream",
 )
 
+rust_link_windows_test(
+    name = "native_cc_test_link_windows_test",
+    target = ":native_cc_test_upstream",
+)
+
 cc_toolchain_test(
     name = "gcc_native_call_test",
     compiler = "gcc",

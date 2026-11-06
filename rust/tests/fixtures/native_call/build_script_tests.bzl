@@ -342,6 +342,10 @@ def _link_windows_impl(ctx):
         for d in dirs:
             asserts.true(env, d.startswith("external/"), "Windows SDK lib dir is outside the execroot: {}".format(d))
             asserts.true(env, [p for p in inputs if p.startswith(d + "/")] != [], "Windows SDK lib dir is not an action input: {}".format(d))
+    default_libs = [arg[len("-DEFAULTLIB:"):].lower() for arg in link_args if arg.startswith("-DEFAULTLIB:")]
+    asserts.true(env, "libc++.lib" in default_libs, "libc++.lib is not a default lib of the Rust link (#8681): {}".format(link_args))
+    for crt in ["libcmt.lib", "msvcrt.lib"]:
+        asserts.false(env, crt in default_libs, "the cc toolchain CRT reached the Rust link, rustc picks it: {}".format(link_args))
     for part in action.argv:
         asserts.false(env, "/clang:" in part, "clang-cl arg passed to rust-lld: {}".format(part))
     return analysistest.end(env)

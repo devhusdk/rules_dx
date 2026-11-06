@@ -111,7 +111,7 @@ pub fn parse_buf_lint(
                 },
                 end,
                 suggestions: Vec::new(),
-                encoding: ColumnEncoding::Scalars,
+                encoding: ColumnEncoding::ScalarsTabs { width: 8 },
                 related: Vec::new(),
             },
         });
@@ -179,6 +179,18 @@ mod tests {
     use super::*;
 
     const LINT: &str = "{\"path\": \"proto/hello.proto\", \"start_line\": 4, \"start_column\": 3, \"end_line\": 4, \"end_column\": 12, \"type\": \"PACKAGE_DIRECTORY_MATCH\", \"message\": \"Files with package foo must be in a directory foo.\"}\n";
+
+    #[test]
+    fn buf_lint_counts_a_tab_as_eight_columns() {
+        let findings = parse_buf_lint(LINT.as_bytes(), Some(100), &["proto/hello.proto"], &[])
+            .expect("parsed");
+        let encoding = findings[0].finding.encoding;
+        assert_eq!(encoding, ColumnEncoding::ScalarsTabs { width: 8 });
+        assert_eq!(
+            crate::line_col_to_byte("\tx = undefinedVar", 1, 9, encoding),
+            Some(1)
+        );
+    }
 
     #[test]
     fn buf_lint_reports_jsonl_records() {

@@ -75,7 +75,7 @@ fn failure(
             },
             ToolSeverity::Error,
             TextPosition { line: row, column },
-            ColumnEncoding::Scalars,
+            ColumnEncoding::ScalarsTabs { width: 8 },
         ));
     }
     if findings.is_empty() {
@@ -143,6 +143,17 @@ mod tests {
         assert_eq!(findings[0].finding.start.line, 2);
         assert_eq!(findings[0].finding.start.column, 8);
         assert!(findings[0].finding.message.contains("parse error"));
+    }
+
+    #[test]
+    fn ormolu_counts_a_tab_as_eight_columns() {
+        let findings = parse_ormolu(b"", BROKEN.as_bytes(), Some(3), &FILES).expect("ok");
+        let encoding = findings[0].finding.encoding;
+        assert_eq!(encoding, ColumnEncoding::ScalarsTabs { width: 8 });
+        assert_eq!(
+            crate::line_col_to_byte("\tx = undefinedVar", 1, 9, encoding),
+            Some(1)
+        );
     }
 
     #[test]

@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "bench_fixture"
+version = "0.0.0"
+edition = "2021"
+
+[dev-dependencies]
+criterion = { version = "0.8", default-features = false }
+
+[[bench]]
+name = "parse_bench"
+path = "parse_bench.rs"
+harness = false

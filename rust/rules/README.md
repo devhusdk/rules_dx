@@ -45,6 +45,7 @@ outputs, and writes the `test NAME ... bench: N ns/iter (+/- M)` lines to
 `dx-bench.json`. `dx bench` runs it. The test is built without the libtest harness
 (`use_libtest_harness = False`), so criterion's own `main` runs; pass
 `use_libtest_harness = True` for nightly `#[bench]` functions.
+`//rust/tests/fixtures/bench` is a criterion example.
 
 ## Native
 

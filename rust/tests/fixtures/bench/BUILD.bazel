@@ -1,0 +1,29 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//rust/rules:defs.bzl", "rust_benchmark")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_benchmark(
+    name = "parse_bench",
+    srcs = ["parse_bench.rs"],
+    crate_root = "parse_bench.rs",
+    edition = "2021",
+    deps = ["@crates//:criterion"],
+)
+
+sh_test(
+    name = "parse_bench_run_test",
+    srcs = ["run_test.sh"],
+    args = [
+        "$(rootpath :parse_bench_bin)",
+        "$(rootpath //rust/rules/bench_report)",
+    ],
+    data = [
+        ":parse_bench_bin",
+        "//rust/rules/bench_report",
+    ],
+    timeout = "short",
+)

@@ -1657,6 +1657,7 @@ crate.from_cargo(
         "//qt/rust:Cargo.toml",
         "//rust/tests/fixtures/native_call:Cargo.toml",
         "//rust/tests/fixtures/fuzz:Cargo.toml",
+        "//rust/tests/fixtures/bench:Cargo.toml",
     ],
     supported_platform_triples = [
         "aarch64-apple-darwin",

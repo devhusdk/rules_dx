@@ -6,6 +6,8 @@
 # and marks a passing row mismatch when none of them carries the expected compiler and version,
 # or when it is the msvc row and its executables carry no Rich header at all.
 # A row is failed if any test failed, passed if its probe (when it has one) and at least one test passed, else skipped.
+# A passed or skipped row the facts list in compiler_blockers for PLATFORM is blocked instead, keeping the
+# original outcome in tested_outcome and the reason in blocker.
 set -euo pipefail
 
 out="$1"; platform="$2"; facts="$3"
@@ -91,6 +93,11 @@ while IFS= read -r row; do
   if [ "$flag" = msvc ] && [ "$outcome" = passed ] && [ "$found" -gt 0 ] && [ "$observed" = '[]' ]; then
     outcome=mismatch
   fi
+  blocker="$(jq -r --arg row "$name" --arg platform "$platform" '.compiler_blockers[$row][$platform] // ""' "$facts" | tr -d '\r')"
+  tested_outcome="$outcome"
+  if [ -n "$blocker" ] && { [ "$outcome" = passed ] || [ "$outcome" = skipped ]; }; then
+    outcome=blocked
+  fi
 
   jq -cn \
     --arg platform "$platform" \
@@ -108,6 +115,8 @@ while IFS= read -r row; do
     --argjson ran "$ran" \
     --argjson total "$total" \
     --arg outcome "$outcome" \
+    --arg tested_outcome "$tested_outcome" \
+    --arg blocker "$blocker" \
     --argjson observed "$observed" \
-    '{platform: $platform, row: $row, compiler_flag: $flag, version: $version, sha: $sha, compiler: $compiler, target: $target, bazel: $bazel, job: $job, probe: $probe, probe_outcome: $probe_outcome, tests: $tests, ran: $ran, total: $total, observed_producers: $observed, outcome: $outcome}' >> "$out"
+    '{platform: $platform, row: $row, compiler_flag: $flag, version: $version, sha: $sha, compiler: $compiler, target: $target, bazel: $bazel, job: $job, probe: $probe, probe_outcome: $probe_outcome, tests: $tests, ran: $ran, total: $total, observed_producers: $observed, outcome: $outcome, tested_outcome: $tested_outcome, blocker: $blocker}' >> "$out"
 done < <(jq -c '.rows[] | select(.section == "compilers")' "$facts" | tr -d '\r')

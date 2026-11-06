@@ -1,10 +1,10 @@
 """Schema tests for the support matrix facts."""
 
-load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
+load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_BUILD")
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//quality:adapters.bzl", "NOT_APPLICABLE")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
-load(":facts.bzl", "support_matrix_facts_dict", "tool_not_applicable")
+load(":facts.bzl", "compiler_blocker_problems", "support_matrix_facts_dict", "tool_not_applicable")
 load("//tools/docs/components:defs.bzl", "astro_doc_shard", "mdx_doc_shard", "svelte_doc_shard", "vue_doc_shard")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
@@ -126,8 +126,31 @@ def support_matrix_facts_tests(name):
                 {
                     "cc_gcc": {"compiler": "gcc", "coverage": "gcov", "driver": "gnu", "probe": "//cc/toolchains:identity_gcc", "version": GCC_VERSION},
                     "cc_llvm": {"compiler": "llvm", "coverage": "llvm", "driver": "gnu", "probe": "//cc/toolchains:identity", "version": LLVM_CLANG_VERSION},
-                    "cc_msvc": {"compiler": "msvc", "coverage": "", "driver": "msvc", "probe": "//cc/toolchains:identity_msvc", "version": ""},
+                    "cc_msvc": {"compiler": "msvc", "coverage": "", "driver": "msvc", "probe": "//cc/toolchains:identity_msvc", "version": MSVC_CL_BUILD},
                 },
+            ),
+            expect_equal(
+                "compiler blockers",
+                facts["compiler_blockers"],
+                {"cc_msvc": {"windows_arm64": "native cl.exe ARM64 execution not yet confirmed on a Windows arm64 runner"}},
+            ),
+            expect_equal(
+                "invalid compiler blockers are reported",
+                compiler_blocker_problems(
+                    {
+                        "c": {"p": "x", "q": "y", "r": ""},
+                        "l": {"p": "x"},
+                    },
+                    [{"name": "c", "section": "compilers"}, {"name": "l", "section": "languages"}],
+                    [{"id": "p"}, {"id": "r"}],
+                    {"c": {"p": "never"}},
+                ),
+                [
+                    "c on p is both blocked and not applicable",
+                    "c needs a known platform and a reason, got q",
+                    "c needs a known platform and a reason, got r",
+                    "l is not a compiler row",
+                ],
             ),
             expect_equal("pending compilers", sorted(facts["pending_compilers"].keys()), []),
             expect_equal(

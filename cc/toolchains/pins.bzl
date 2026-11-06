@@ -8,7 +8,7 @@ GCC_VERSION = "16.2.0"
 # The cl.exe build in the MSVC 14.50.35717 toolset, as the Rich header of its output records it.
 MSVC_CL_BUILD = "35728"
 
-CC_COMPILER_VERSIONS = {"gcc": GCC_VERSION, "llvm": LLVM_CLANG_VERSION}
+CC_COMPILER_VERSIONS = {"gcc": GCC_VERSION, "llvm": LLVM_CLANG_VERSION, "msvc": MSVC_CL_BUILD}
 
 # The glibc of the pinned sysroot.
 GCC_GLIBC = "glibc_2.28"

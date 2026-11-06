@@ -258,6 +258,23 @@ fn compiler_table_reports_mismatch_over_passed() {
 }
 
 #[test]
+fn compiler_table_ranks_blocked_below_mismatch_and_above_passed() {
+    let (table, _) = table_of(
+        &[
+            r#"{"platform":"windows_arm64","row":"gcc","outcome":"blocked","tested_outcome":"skipped"}"#,
+            r#"{"platform":"windows_arm64","row":"gcc","outcome":"passed"}"#,
+            r#"{"platform":"windows_arm64","row":"llvm","outcome":"blocked","tested_outcome":"skipped"}"#,
+            r#"{"platform":"windows_arm64","row":"llvm","outcome":"mismatch"}"#,
+            r#"{"platform":"windows_arm64","row":"msvc","outcome":"blocked","tested_outcome":"passed"}"#,
+        ],
+        &[],
+    );
+    assert!(table.contains("| gcc | blocked |"), "{table}");
+    assert!(table.contains("| llvm | mismatch |"), "{table}");
+    assert!(table.contains("| msvc | blocked, passed |"), "{table}");
+}
+
+#[test]
 fn compiler_table_keeps_a_lone_mismatch() {
     let (table, _) = table_of(
         &[r#"{"platform":"windows_x86_64","row":"msvc","outcome":"mismatch"}"#],

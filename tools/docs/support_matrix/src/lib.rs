@@ -84,6 +84,9 @@ pub struct Facts {
     /// Row name, then platform, then the reason the row cannot support that platform.
     #[serde(default)]
     pub platform_not_applicable: BTreeMap<String, BTreeMap<String, String>>,
+    /// Compiler row name, then platform, then what the row's evidence on that platform still waits on.
+    #[serde(default)]
+    pub compiler_blockers: BTreeMap<String, BTreeMap<String, String>>,
     /// Family, capability, tool, then platform, then the reason the tool cannot run there.
     #[serde(default)]
     pub tool_not_applicable: ToolNotApplicable,

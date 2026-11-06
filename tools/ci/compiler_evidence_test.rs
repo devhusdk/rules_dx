@@ -14,9 +14,11 @@ fn facts() -> Value {
         {"name": "cc_b", "section": "compilers", "ci_tests": ["//p:b1"], "consumer_tests": [],
          "identity": {"compiler": "b", "version": "", "probe": ""}},
         {"name": "cc_m", "section": "compilers", "ci_tests": ["//p:m1"], "consumer_tests": [],
-         "identity": {"compiler": "msvc", "version": "", "probe": ""}},
+         "identity": {"compiler": "msvc", "version": "35728", "probe": ""}},
         {"name": "other", "section": "languages", "ci_tests": ["//p:o"], "consumer_tests": [], "identity": {}},
-    ]})
+    ],
+    "compiler_blockers": {"cc_a": {"windows_arm64": "waiting on a runner"},
+                          "cc_m": {"windows_arm64": "waiting on a runner"}}})
 }
 
 fn log(root: &Path, label: &str, xml: &str) {
@@ -41,11 +43,15 @@ fn run(root: &Path) -> Vec<Value> {
 }
 
 fn run_with(root: &Path, command: &mut Command) -> Vec<Value> {
+    run_on(root, command, "linux_x86_64")
+}
+
+fn run_on(root: &Path, command: &mut Command, platform: &str) -> Vec<Value> {
     write(root, "facts.json", &facts().to_string());
     let status = command
         .arg(runfiles_root().join(SCRIPT))
         .arg(root.join("out.jsonl"))
-        .arg("linux_x86_64")
+        .arg(platform)
         .arg(root.join("facts.json"))
         .env("DX_BIN", root.join("bin"))
         .env("DX_TESTLOGS", root.join("logs"))
@@ -184,8 +190,55 @@ fn no_observed_producer_keeps_the_outcome() {
 fn msvc_rich_producer_passes() {
     let dir = scratch("compiler_evidence");
     write(dir.path(), "bin/p/m1.exe", "binary");
-    let lines = observe_with(dir.path(), &["msvc 259.33145"]);
+    let lines = observe_with(dir.path(), &["msvc 261.35728"]);
     assert_eq!(row(&lines, "cc_m")["outcome"], "passed");
+}
+
+#[test]
+fn msvc_rich_producer_of_another_build_is_a_mismatch() {
+    let dir = scratch("compiler_evidence");
+    write(dir.path(), "bin/p/m1.exe", "binary");
+    let lines = observe_with(dir.path(), &["msvc 261.33145"]);
+    assert_eq!(row(&lines, "cc_m")["outcome"], "mismatch");
+}
+
+#[test]
+fn blocked_platform_keeps_the_tested_outcome() {
+    let dir = scratch("compiler_evidence");
+    for label in ["//p:probe_a", "//p:a1", "//p:b1"] {
+        passed(dir.path(), label);
+    }
+    let lines = run_on(dir.path(), &mut Command::new("bash"), "windows_arm64");
+    let a = row(&lines, "cc_a");
+    assert_eq!(a["outcome"], "blocked");
+    assert_eq!(a["tested_outcome"], "passed");
+    assert_eq!(a["blocker"], "waiting on a runner");
+    let m = row(&lines, "cc_m");
+    assert_eq!(m["outcome"], "blocked");
+    assert_eq!(m["tested_outcome"], "skipped");
+    let b = row(&lines, "cc_b");
+    assert_eq!(b["outcome"], "passed");
+    assert_eq!(b["blocker"], "");
+}
+
+#[test]
+fn blocked_platform_still_reports_failures() {
+    let dir = scratch("compiler_evidence");
+    failed(dir.path(), "//p:a1");
+    let lines = run_on(dir.path(), &mut Command::new("bash"), "windows_arm64");
+    let a = row(&lines, "cc_a");
+    assert_eq!(a["outcome"], "failed");
+    assert_eq!(a["blocker"], "waiting on a runner");
+}
+
+#[test]
+fn blocker_on_another_platform_does_not_apply() {
+    let dir = scratch("compiler_evidence");
+    passed(dir.path(), "//p:probe_a");
+    passed(dir.path(), "//p:a1");
+    let a = &run(dir.path())[0];
+    assert_eq!(a["outcome"], "passed");
+    assert_eq!(a["blocker"], "");
 }
 
 #[test]

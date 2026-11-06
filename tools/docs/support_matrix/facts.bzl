@@ -5,7 +5,7 @@ load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "COMPILER_BLOCKERS", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -71,6 +71,21 @@ def tool_not_applicable(records):
             if reasons.setdefault(platform, reason) != reason:
                 fail("support matrix: " + key + " gives two reasons for " + platform)
     return merged
+
+def compiler_blocker_problems(blockers, rows, platforms, not_applicable):
+    """Returns why each blocker is invalid: it must name a compiler row, a known platform, a reason and a supported cell."""
+    compiler_rows = {row["name"]: True for row in rows if row["section"] == "compilers"}
+    platform_ids = {platform["id"]: True for platform in platforms}
+    problems = []
+    for name, by_platform in blockers.items():
+        if name not in compiler_rows:
+            problems.append(name + " is not a compiler row")
+        for platform, reason in by_platform.items():
+            if platform not in platform_ids or not reason:
+                problems.append(name + " needs a known platform and a reason, got " + platform)
+            elif platform in not_applicable.get(name, {}):
+                problems.append(name + " on " + platform + " is both blocked and not applicable")
+    return problems
 
 def support_matrix_facts_dict():
     """Returns the validated facts as a dict."""
@@ -140,6 +155,8 @@ def support_matrix_facts_dict():
     for name in PLATFORM_NOT_APPLICABLE:
         if name not in row_names:
             fail("support matrix: PLATFORM_NOT_APPLICABLE names unknown row " + name)
+    for problem in compiler_blocker_problems(COMPILER_BLOCKERS, ROWS, PLATFORMS, PLATFORM_NOT_APPLICABLE):
+        fail("support matrix: COMPILER_BLOCKERS: " + problem)
     for name in UNSUPPORTED_CONSTRAINTS:
         if name not in PLATFORM_NOT_APPLICABLE:
             fail("support matrix: UNSUPPORTED_CONSTRAINTS names " + name + " which has no PLATFORM_NOT_APPLICABLE reason")
@@ -155,6 +172,7 @@ def support_matrix_facts_dict():
     for class_id in PARITY_DEFERRED:
         deferred[REAL_CLASS_TO_FAMILY.get(class_id, class_id)] = True
     return {
+        "compiler_blockers": COMPILER_BLOCKERS,
         "computed_constraints": COMPUTED_CONSTRAINTS,
         "deferred_families": sorted(deferred.keys()),
         "not_applicable": NOT_APPLICABLE,

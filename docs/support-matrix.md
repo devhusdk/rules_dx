@@ -64,13 +64,13 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 
 ## Compilers
 
-Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.
+Select one with `--@rules_dx//cc/toolchains:compiler=<value>`. Blocked on names a platform the compiler targets whose evidence is still waiting, with the reason.
 
-| Compiler | Driver | Coverage | Not supported on |
-| --- | --- | --- | --- |
-| GCC 16.2.0 (`gcc`) | gnu | gcov | `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux |
-| LLVM 23.1.2 (`llvm`, default) | gnu | llvm | none |
-| Microsoft cl.exe (`msvc`) | msvc | no | `linux_x86_64`, `linux_arm64`, `macos_arm64`: Microsoft cl.exe runs only on Windows |
+| Compiler | Driver | Coverage | Not supported on | Blocked on |
+| --- | --- | --- | --- | --- |
+| GCC 16.2.0 (`gcc`) | gnu | gcov | `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux | none |
+| LLVM 23.1.2 (`llvm`, default) | gnu | llvm | none | none |
+| Microsoft cl.exe (`msvc`) | msvc | no | `linux_x86_64`, `linux_arm64`, `macos_arm64`: Microsoft cl.exe runs only on Windows | `windows_arm64`: native cl.exe ARM64 execution not yet confirmed on a Windows arm64 runner |
 
 ## Quality
 

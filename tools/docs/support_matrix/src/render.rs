@@ -82,17 +82,35 @@ fn compiler_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> 
                 field("driver"),
                 field("coverage"),
                 unsupported_cell(facts, platforms, row),
+                blocked_cell(facts, row),
             ]
         })
         .collect();
     let mut out = table(
-        &["Compiler", "Driver", "Coverage", "Not supported on"],
+        &[
+            "Compiler",
+            "Driver",
+            "Coverage",
+            "Not supported on",
+            "Blocked on",
+        ],
         &rows,
     );
     for (compiler, reason) in &facts.pending_compilers {
         out.push_str(&format!("\nPending `{compiler}`: {reason}\n"));
     }
     out
+}
+
+fn blocked_cell(facts: &Facts, row: &Row) -> String {
+    let Some(blockers) = facts.compiler_blockers.get(&row.name) else {
+        return "none".to_owned();
+    };
+    let cells: Vec<String> = blockers
+        .iter()
+        .map(|(platform, reason)| format!("`{platform}`: {reason}"))
+        .collect();
+    cells.join("; ")
 }
 
 /// Returns the quality tools of `capability` across `families`, sorted and unique.
@@ -281,7 +299,10 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     out.push_str("\n## Targets\n\n");
     out.push_str(&build_table(facts, platforms, "targets", "Target"));
     out.push_str("\n## Compilers\n\n");
-    out.push_str("Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.\n\n");
+    out.push_str(
+        "Select one with `--@rules_dx//cc/toolchains:compiler=<value>`. \
+         Blocked on names a platform the compiler targets whose evidence is still waiting, with the reason.\n\n",
+    );
     out.push_str(&compiler_table(facts, platforms));
     out.push_str("\n## Quality\n\n");
     out.push_str(
@@ -405,15 +426,24 @@ mod tests {
 
     #[test]
     fn lists_compilers_outside_quality() {
-        let facts = parse_facts(FACTS).expect("facts");
+        let mut facts = parse_facts(FACTS).expect("facts");
+        assert_eq!(blocked_cell(&facts, &facts.rows[1]), "none");
+        facts.compiler_blockers.insert(
+            "cc_llvm".to_owned(),
+            BTreeMap::from([("macos_arm64".to_owned(), "needs a runner".to_owned())]),
+        );
         let page = render(&facts, &BTreeMap::new());
         let (head, quality) = page.split_once("## Quality").expect("quality");
         assert!(head.contains("## Compilers\n"), "{page}");
         assert!(
-            head.contains("| Compiler | Driver | Coverage | Not supported on |"),
+            head.contains("| Compiler | Driver | Coverage | Not supported on | Blocked on |"),
             "{page}"
         );
         assert!(head.contains("| LLVM | gnu | no |"), "{page}");
+        assert!(
+            head.contains(" | `macos_arm64`: needs a runner |\n"),
+            "{page}"
+        );
         assert!(head.contains("Pending `msvc`: waiting on #5954"), "{page}");
         assert!(!quality.contains("LLVM"), "{page}");
     }

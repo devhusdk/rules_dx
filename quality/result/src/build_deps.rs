@@ -24,6 +24,30 @@ pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usiz
     None
 }
 
+/// Whether the rule named `target` has `"dx-keep"` in its `tags`, which exempts it from dep checks.
+pub fn has_keep_tag(text: &str, target: &str) -> bool {
+    let Some(rule) = text.find(&format!("name = \"{target}\"")) else {
+        return false;
+    };
+    let rule_end = text[rule..].find("\n)").map_or(text.len(), |at| rule + at);
+    let mut from = rule;
+    while let Some(at) = text[from..rule_end].find("tags = [") {
+        let key = from + at;
+        from = key + "tags = [".len();
+        let before = text[..key].chars().next_back();
+        if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let list_end = text[from..rule_end]
+            .find(']')
+            .map_or(rule_end, |at| from + at);
+        return literals(&text[from..list_end], from)
+            .into_iter()
+            .any(|(start, end)| &text[start..end] == "\"dx-keep\"");
+    }
+    false
+}
+
 /// The quoted strings of a list body, as byte ranges including the quotes.
 fn literals(body: &str, offset: usize) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
@@ -204,6 +228,14 @@ mod tests {
         let mut fixed = text.to_owned();
         fixed.replace_range(from..to, "");
         Some(fixed)
+    }
+
+    #[test]
+    fn reads_the_dx_keep_tag_of_one_rule() {
+        let text = "lib(\n    name = \"a\",\n    tags = [\"x\", \"dx-keep\"],\n)\nlib(\n    name = \"b\",\n    tags = [\"x\"],\n)\n";
+        assert!(has_keep_tag(text, "a"));
+        assert!(!has_keep_tag(text, "b"));
+        assert!(!has_keep_tag(text, "c"));
     }
 
     #[test]

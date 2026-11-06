@@ -158,12 +158,18 @@ fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Stage
         configuration: None,
     };
     for diagnostic in &result.initial_diagnostics {
+        if kept_by_tag(diagnostic, workspace) {
+            continue;
+        }
         let mut mapped = map_diagnostic(diagnostic, Snapshot::Initial, workspace)?;
         mapped.origins.push(origin.clone());
         stage_build_dep(&mut staged, diagnostic, &mapped);
         staged.initial.push(mapped);
     }
     for diagnostic in &result.terminal_diagnostics {
+        if kept_by_tag(diagnostic, workspace) {
+            continue;
+        }
         let mut mapped = map_diagnostic(diagnostic, Snapshot::Terminal, workspace)?;
         mapped.origins.push(origin.clone());
         stage_build_dep(&mut staged, diagnostic, &mapped);
@@ -230,6 +236,22 @@ fn place_build_dep(dep: &proto::BuildDep, workspace: &Path) -> Option<(String, (
         return Some((relative, (start as u64, end as u64)));
     }
     None
+}
+
+/// Whether the finding is about a BUILD target tagged `dx-keep`.
+fn kept_by_tag(diagnostic: &proto::Diagnostic, workspace: &Path) -> bool {
+    let Some(dep) = &diagnostic.build_dep else {
+        return false;
+    };
+    ["BUILD.bazel", "BUILD"].iter().any(|name| {
+        let relative = if dep.package.is_empty() {
+            (*name).to_owned()
+        } else {
+            format!("{}/{name}", dep.package)
+        };
+        std::fs::read_to_string(workspace.join(relative))
+            .is_ok_and(|text| build_deps::has_keep_tag(&text, &dep.target))
+    })
 }
 
 fn map_diagnostic(

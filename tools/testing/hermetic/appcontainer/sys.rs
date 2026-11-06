@@ -4,8 +4,8 @@ use std::ptr::{null, null_mut};
 
 use windows_sys::Win32::Foundation::{CloseHandle, LocalFree, ERROR_SUCCESS, HANDLE};
 use windows_sys::Win32::Security::Authorization::{
-    ConvertStringSidToSidW, GetNamedSecurityInfoW, SetEntriesInAclW, SetNamedSecurityInfoW,
-    EXPLICIT_ACCESS_W, TRUSTEE_W,
+    ConvertStringSidToSidW, GetNamedSecurityInfoW, GetSecurityInfo, SetEntriesInAclW,
+    SetNamedSecurityInfoW, SetSecurityInfo, EXPLICIT_ACCESS_W, SE_KERNEL_OBJECT, TRUSTEE_W,
 };
 use windows_sys::Win32::Security::Isolation::{
     CreateAppContainerProfile, DeleteAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
@@ -56,6 +56,10 @@ const TRUSTEE_IS_UNKNOWN: i32 = 0;
 const NO_MULTIPLE_TRUSTEE: i32 = 0;
 const SE_FILE_OBJECT: i32 = 1;
 const DACL_SECURITY_INFORMATION: u32 = 4;
+const READ_CONTROL: u32 = 0x0002_0000;
+const WRITE_DAC: u32 = 0x0004_0000;
+// GetFinalPathNameByHandleW asks the mount manager for drive letters.
+const MOUNT_MANAGER: &str = r"\\.\MountPointManager";
 
 // S-1-15-3-1 internetClient, S-1-15-3-3 privateNetworkClientServer.
 const NET_CAPABILITIES: [&str; 2] = ["S-1-15-3-1", "S-1-15-3-3"];
@@ -244,18 +248,7 @@ fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
         },
         &format!("reading the ACL of {path}"),
     )?;
-    let entry = EXPLICIT_ACCESS_W {
-        grfAccessPermissions: FILE_LIST_TRAVERSE,
-        grfAccessMode: mode,
-        grfInheritance: NO_INHERITANCE,
-        Trustee: TRUSTEE_W {
-            pMultipleTrustee: null_mut(),
-            MultipleTrusteeOperation: NO_MULTIPLE_TRUSTEE,
-            TrusteeForm: TRUSTEE_IS_SID,
-            TrusteeType: TRUSTEE_IS_UNKNOWN,
-            ptstrName: sid as *mut u16,
-        },
-    };
+    let entry = trustee_entry(sid, FILE_LIST_TRAVERSE, mode);
     let mut merged: *mut ACL = null_mut();
     let result = check(
         unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
@@ -282,6 +275,77 @@ fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
                 std::io::Error::last_os_error()
             ))
         }
+    });
+    unsafe {
+        LocalFree(merged as _);
+        LocalFree(descriptor as _);
+    }
+    result
+}
+
+fn trustee_entry(sid: *mut c_void, access: u32, mode: i32) -> EXPLICIT_ACCESS_W {
+    EXPLICIT_ACCESS_W {
+        grfAccessPermissions: access,
+        grfAccessMode: mode,
+        grfInheritance: NO_INHERITANCE,
+        Trustee: TRUSTEE_W {
+            pMultipleTrustee: null_mut(),
+            MultipleTrusteeOperation: NO_MULTIPLE_TRUSTEE,
+            TrusteeForm: TRUSTEE_IS_SID,
+            TrusteeType: TRUSTEE_IS_UNKNOWN,
+            ptstrName: sid as *mut u16,
+        },
+    }
+}
+
+/// Adds (or removes) a read entry for the container on the mount manager device, so the
+/// container can turn volume paths into drive letter paths. It lasts until reboot at most.
+fn set_mount_manager(sid: *mut c_void, mode: i32) -> Result<(), String> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use std::os::windows::io::AsRawHandle;
+    let device = std::fs::OpenOptions::new()
+        .access_mode(READ_CONTROL | WRITE_DAC)
+        .open(MOUNT_MANAGER)
+        .map_err(|err| format!("opening {MOUNT_MANAGER}: {err}"))?;
+    let handle = device.as_raw_handle() as HANDLE;
+    let mut old: *mut ACL = null_mut();
+    let mut descriptor: *mut c_void = null_mut();
+    check(
+        unsafe {
+            GetSecurityInfo(
+                handle,
+                SE_KERNEL_OBJECT,
+                DACL_SECURITY_INFORMATION,
+                null_mut(),
+                null_mut(),
+                &mut old,
+                null_mut(),
+                &mut descriptor,
+            )
+        },
+        &format!("reading the ACL of {MOUNT_MANAGER}"),
+    )?;
+    let entry = trustee_entry(sid, FILE_LIST_TRAVERSE, mode);
+    let mut merged: *mut ACL = null_mut();
+    let result = check(
+        unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
+        &format!("building the ACL of {MOUNT_MANAGER}"),
+    )
+    .and_then(|()| {
+        check(
+            unsafe {
+                SetSecurityInfo(
+                    handle,
+                    SE_KERNEL_OBJECT,
+                    DACL_SECURITY_INFORMATION,
+                    null_mut(),
+                    null_mut(),
+                    merged,
+                    null(),
+                )
+            },
+            &format!("setting the ACL of {MOUNT_MANAGER}"),
+        )
     });
     unsafe {
         LocalFree(merged as _);
@@ -426,13 +490,16 @@ pub fn run(config: &Config) -> Result<i32, String> {
     let sid = profile_sid(&config.name)?;
     let mut listed = Vec::new();
     let mut granted = Vec::new();
-    let mut outcome = Ok(1);
-    for dir in &above {
-        if let Err(err) = with_acl_lock(|| set_traverse(dir, sid, GRANT_ACCESS)) {
-            outcome = Err(err);
-            break;
+    let mut outcome = with_acl_lock(|| set_mount_manager(sid, GRANT_ACCESS)).map(|()| 1);
+    let mounted = outcome.is_ok();
+    if outcome.is_ok() {
+        for dir in &above {
+            if let Err(err) = with_acl_lock(|| set_traverse(dir, sid, GRANT_ACCESS)) {
+                outcome = Err(err);
+                break;
+            }
+            listed.push(dir);
         }
-        listed.push(dir);
     }
     if outcome.is_ok() {
         for path in &config.grants {
@@ -455,6 +522,11 @@ pub fn run(config: &Config) -> Result<i32, String> {
     }
     for dir in listed.into_iter().rev() {
         if let Err(err) = with_acl_lock(|| set_traverse(dir, sid, REVOKE_ACCESS)) {
+            eprintln!("appcontainer_run: {err}");
+        }
+    }
+    if mounted {
+        if let Err(err) = with_acl_lock(|| set_mount_manager(sid, REVOKE_ACCESS)) {
             eprintln!("appcontainer_run: {err}");
         }
     }

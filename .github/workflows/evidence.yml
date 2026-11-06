@@ -267,7 +267,7 @@ jobs:
             if [ "$DX_TASK" = "build" ]; then
               bazel "${startup[@]}" build --noshow_progress "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             elif [ "$DX_TASK" = "coverage" ]; then
-              bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
               bazel "${startup[@]}" test --keep_going --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             fi

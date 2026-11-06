@@ -13,6 +13,7 @@ def _checks():
         expect_equal("linux host", host_cell("linux", "amd64"), "linux_x86_64"),
         expect_equal("mac arm host", host_cell("mac os x", "aarch64"), "darwin_aarch64"),
         expect_equal("windows host", host_cell("windows server 2022", "amd64"), "windows_x86_64"),
+        expect_equal("windows arm host runs the x64 build", host_cell("windows 11", "aarch64"), "windows_x86_64"),
         expect_contains("the repo exports the binary", luals_build("bin/lua-language-server"), 'exports_files(["bin/lua-language-server"])'),
     ]
 

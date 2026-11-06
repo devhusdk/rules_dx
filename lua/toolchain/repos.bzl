@@ -27,6 +27,9 @@ def host_cell(os_name, arch):
     else:
         os_key = "linux"
     arch_key = "aarch64" if arch in ["aarch64", "arm64"] else "x86_64"
+    if os_key == "windows":
+        # LuaLS ships no Windows arm64 build; Windows on Arm runs the x64 one.
+        arch_key = "x86_64"
     return os_key + "_" + arch_key
 
 def _luals_impl(rctx):

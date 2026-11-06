@@ -172,6 +172,12 @@ const UNFORMATTED: &str = "import QtQml\nQtObject {   property int a:1\n}\n";
 
 const FORMATTED: &str = "import QtQml\n\nQtObject {\n    property int a: 1\n}\n";
 
+#[cfg(not(windows))]
+const UNQUALIFIED_EXIT: i32 = 255;
+
+#[cfg(windows)]
+const UNQUALIFIED_EXIT: i32 = -1;
+
 const UNQUALIFIED: &str = "import QtQml\n\nQtObject {\n    property int a: b\n}\n";
 
 fn tool(variable: &str) -> PathBuf {
@@ -380,7 +386,7 @@ fn directory_of(variable: &str, name: &str) -> String {
     dir.to_owned()
 }
 
-fn run_gui(platform: &str) -> dx_testing::Run {
+fn run_gui(platform: &str) -> std::io::Result<dx_testing::Run> {
     let fonts = std::env::var("DX_QT_FONTS")
         .unwrap_or_default()
         .split_whitespace()
@@ -411,12 +417,12 @@ fn run_gui(platform: &str) -> dx_testing::Run {
         ("QT_ASSUME_STDERR_HAS_CONSOLE", "1"),
         ("QT_FORCE_STDERR_LOGGING", "1"),
     ]);
-    dx_testing::run(&runnable("DX_QT_GUI"), &[], &envs).expect("run gui check")
+    dx_testing::run(&runnable("DX_QT_GUI"), &[], &envs)
 }
 
 #[test]
 fn gui_renders_offscreen_against_only_pinned_libraries() {
-    let run = run_gui("offscreen");
+    let run = run_gui("offscreen").expect("run gui check");
     assert!(
         run.status.success(),
         "gui check failed:\n{}",
@@ -436,7 +442,20 @@ fn gui_renders_offscreen_against_only_pinned_libraries() {
 
 #[test]
 fn gui_refuses_a_platform_plugin_it_does_not_pin() {
-    let run = run_gui("xcb");
+    let run = match run_gui("xcb") {
+        Ok(run) => run,
+        // Windows leaves the aborted process waiting after it reports the error.
+        Err(error) if cfg!(windows) && error.kind() == std::io::ErrorKind::TimedOut => {
+            assert!(
+                error
+                    .to_string()
+                    .contains("Could not find the Qt platform plugin \"xcb\""),
+                "{error}"
+            );
+            return;
+        }
+        Err(error) => panic!("run gui check: {error}"),
+    };
     assert!(!run.status.success(), "{}", run.combined());
     assert!(
         run.stderr
@@ -465,7 +484,10 @@ fn tools_report_the_pinned_version() {
     ] {
         let run = dx_testing::run(&tool(variable), &["--version"], &[]).expect("run tool");
         assert!(run.status.success(), "{name} failed:\n{}", run.combined());
-        assert_eq!(run.stdout, format!("{name} {VERSION}\n"));
+        assert_eq!(
+            run.stdout.replace("\r\n", "\n"),
+            format!("{name} {VERSION}\n")
+        );
     }
 }
 
@@ -505,7 +527,7 @@ fn qmlformat_rewrites_to_the_qt_layout() {
         "qmlformat failed:\n{}",
         run.combined()
     );
-    assert_eq!(run.stdout, FORMATTED);
+    assert_eq!(run.stdout.replace("\r\n", "\n"), FORMATTED);
 }
 
 #[test]
@@ -523,7 +545,12 @@ fn qmllint_reports_clean_files_as_json() {
 fn qmllint_fails_unqualified_access_with_a_located_warning() {
     let file = scratch_file("dirty.qml", UNQUALIFIED);
     let run = lint(&file, &[]);
-    assert_eq!(run.status.code(), Some(255), "{}", run.combined());
+    assert_eq!(
+        run.status.code(),
+        Some(UNQUALIFIED_EXIT),
+        "{}",
+        run.combined()
+    );
     let report: Value = dx_testing::serde_json::from_str(&run.stdout).expect("JSON report");
     let warning = &report["files"][0]["warnings"][0];
     assert_eq!(report["files"][0]["success"], false);

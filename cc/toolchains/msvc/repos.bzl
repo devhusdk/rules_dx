@@ -7,7 +7,7 @@ load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
 HUB_NAME = "dx_msvc"
 LICENSE = "visual-studio-build-tools"
 LICENSE_URL = "https://visualstudio.microsoft.com/license-terms/"
-VCRUNTIME_DLLS = ["vcruntime140", "vcruntime140_1", "msvcp140"]
+VCRUNTIME_DLLS = ["vcruntime140", "vcruntime140_1", "msvcp140", "msvcp140_1"]
 VCVARS_STUBS = ["VC/Auxiliary/Build/vcvarsall.bat", "VC/Auxiliary/Build/vcvars64.bat"]
 
 NO_REDIST = "dx_msvc: msvc_runtime has no VC/Redist/MSVC folder; the Visual C++ runtime cannot ship"

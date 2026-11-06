@@ -61,7 +61,7 @@ def _checks():
         expect_contains("missing tools make only their cell unavailable", accepted_hub, 'cc_toolchain_unavailable(\n    name = "cc_toolchain_x64_arm64",\n    error = ' + json.encode(missing_error(["a/cl.exe"]))),
         expect_equal("one toolchain per remaining cell", accepted_hub.count("msvc_cc_toolchain(\n"), 2),
         expect_equal("unaccepted hub makes every cell and the runtime unavailable", hub_build(False, "", "").count("error = " + json.encode(UNACCEPTED)), 4),
-        expect_contains("accepted hub globs the x64 runtime", accepted_hub, 'name = "vcruntime_x64",\n    srcs = glob(["redist/x64/*/vcruntime140.dll","redist/x64/*/vcruntime140_1.dll","redist/x64/*/msvcp140.dll"])'),
+        expect_contains("accepted hub globs the x64 runtime", accepted_hub, 'name = "vcruntime_x64",\n    srcs = glob(["redist/x64/*/vcruntime140.dll","redist/x64/*/vcruntime140_1.dll","redist/x64/*/msvcp140.dll","redist/x64/*/msvcp140_1.dll"])'),
         expect_contains("unaccepted hub ships no runtime", hub_build(False, "", ""), 'name = "vcruntime_arm64",\n    srcs = glob([])'),
         expect_true("unaccepted hub builds no toolchain", "msvc_cc_toolchain(" not in hub_build(False, "", "")),
         expect_contains("accepted hub names the runtime version", redist_hub, 'version = "14.50.35710"'),

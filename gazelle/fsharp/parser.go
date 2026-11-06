@@ -54,13 +54,13 @@ func topDeclTree(content []byte) (topDecl, bool) {
 					continue
 				}
 				return topDecl{namespace: k == "namespace", name: tree.Dotted(c)}, true
-			case "dot_expression":
+			case "dot_expression", "long_identifier_or_op":
 				return topDecl{namespace: k == "namespace", name: tree.Dotted(c)}, true
 			}
 		}
-		return topDecl{}, false
+		break
 	}
-	return topDecl{}, false
+	return parseTopDecl(maskedLines(content))
 }
 
 const GlobalPackage = "global"

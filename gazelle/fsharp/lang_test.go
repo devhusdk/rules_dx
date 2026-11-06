@@ -213,6 +213,16 @@ func TestGenerateDottedModulePerFile(t *testing.T) {
 	}
 }
 
+func TestGenerateModuleRecNextToNamespace(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Types.fs": "namespace Acme\n\ntype Order = { qty: int }\n",
+		"pkg/demo/Demo.fs":  "module rec Acme.Demo\n\nlet run (o: Acme.Order) = o.qty\n",
+	})
+	if got != "Types.fs,Demo.fs" {
+		t.Errorf("library srcs = %q, want Types.fs,Demo.fs", got)
+	}
+}
+
 func TestGenerateUnqualifiedTypeRef(t *testing.T) {
 	got := generatedSrcs(t, map[string]string{
 		"pkg/demo/A.fs": "namespace Demo\n\ntype A = { b: Item }\n",

@@ -30,7 +30,8 @@ _CL_EXE = Label("//cc/toolchains:msvc_selected")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _MSVC_OPT = Label("//rust/rules:msvc_opt")
 
-# rustc always passes /DEBUG; /Brepro makes the PDB GUID a content hash (#8409, #8410).
+# rustc always passes /DEBUG and msvc_pdb_output.patch declares the PDB as an output;
+# /Brepro makes the PDB GUID a content hash (#8409, #8410).
 MSVC_OPT_LINK_FLAGS = ["-Clink-arg=/Brepro"] + REPRODUCIBLE_PDB_LINK_FLAGS
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))

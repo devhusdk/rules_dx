@@ -4,6 +4,7 @@ exports_files([
     "clippy_metadata_inputs.patch",
     "crate_universe_root_lookup.patch",
     "exec_cc_toolchain_env.patch",
+    "msvc_pdb_output.patch",
     "pipelined_rmeta_path.patch",
 ])
 

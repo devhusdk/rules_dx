@@ -14,6 +14,7 @@ single_version_override(
         "//patches/rules_rust:pipelined_rmeta_path.patch",
         "//patches/rules_rust:crate_universe_root_lookup.patch",
         "//patches/rules_rust:exec_cc_toolchain_env.patch",
+        "//patches/rules_rust:msvc_pdb_output.patch",
     ],
     version = "0.75.0",
 )

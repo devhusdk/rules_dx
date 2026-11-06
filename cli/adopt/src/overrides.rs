@@ -75,6 +75,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "exec_cc_toolchain_env.patch",
                 content: include_str!("../../../patches/rules_rust/exec_cc_toolchain_env.patch"),
             },
+            OverridePatch {
+                file: "msvc_pdb_output.patch",
+                content: include_str!("../../../patches/rules_rust/msvc_pdb_output.patch"),
+            },
         ],
     },
     Override {
@@ -946,7 +950,7 @@ mod tests {
             "\nsingle_version_override(\n    module_name = \"aspect_rules_ts\",\n    patch_strip = 1,\n    patches = [\"//third_party/rules_dx:aspect_rules_ts.typecheck_root_dir.patch\"],\n    version = \"3.10.1\",\n)\n"
         ));
         assert!(rendered.contains(
-            "    patches = [\n        \"//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch\",\n        \"//third_party/rules_dx:rules_rust.pipelined_rmeta_path.patch\",\n        \"//third_party/rules_dx:rules_rust.crate_universe_root_lookup.patch\",\n        \"//third_party/rules_dx:rules_rust.exec_cc_toolchain_env.patch\",\n    ],\n"
+            "    patches = [\n        \"//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch\",\n        \"//third_party/rules_dx:rules_rust.pipelined_rmeta_path.patch\",\n        \"//third_party/rules_dx:rules_rust.crate_universe_root_lookup.patch\",\n        \"//third_party/rules_dx:rules_rust.exec_cc_toolchain_env.patch\",\n        \"//third_party/rules_dx:rules_rust.msvc_pdb_output.patch\",\n    ],\n"
         ));
         assert!(rendered.contains(
             r#"

@@ -44,3 +44,8 @@ alias(
     name = "japicmp",
     actual = "@japicmp_jar//file",
 )
+
+alias(
+    name = "apidiff",
+    actual = "@org_golang_x_exp//cmd/apidiff",
+)

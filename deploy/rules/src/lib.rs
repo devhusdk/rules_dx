@@ -14,6 +14,7 @@ mod cloudflare;
 mod config;
 mod crates;
 mod github;
+mod go_api;
 mod hackage;
 mod helm;
 mod hex;

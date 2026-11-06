@@ -492,6 +492,9 @@ github_deploy(
 - `tag`: defaults to `v0.0.0-dryrun`.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 - `tags`: Bazel tags for the generated targets. Defaults to `[]`.
+- `api_compat`: `off` (default), `warn` or `fail`. With `go_modules` (workspace-relative module directories), the dry run
+  checks each module with `apidiff` against the highest earlier `v*` tag and, on `fail`, refuses breaking changes
+  unless the bump is major. It needs `go` on `PATH`; a missing `go`, `apidiff` or earlier tag skips the check.
 
 Default run stages `<name>-release/` with the assets (none for a notes-only draft) and a `would-run.txt`
 holding their sha256 and the `gh release create` command. Nothing is

@@ -58,23 +58,46 @@ def _github_config_impl(ctx):
     if collision_error != "":
         fail("github_deploy " + str(ctx.label) + ": " + collision_error)
 
+    apidiff_rloc = ""
+    apidiff_runfiles = ctx.runfiles()
+    if ctx.attr.api_compat != "off":
+        if not ctx.attr.go_modules:
+            fail("github_deploy " + str(ctx.label) + ": api_compat needs go_modules")
+        if ctx.attr.apidiff:
+            apidiff_rloc = rlocation_path(ctx, ctx.executable.apidiff)
+            apidiff_runfiles = ctx.runfiles(files = [ctx.executable.apidiff]).merge(ctx.attr.apidiff[DefaultInfo].default_runfiles)
+
     return deploy_config(
         ctx,
         "github",
         {
+            "api_compat": ctx.attr.api_compat,
+            "apidiff_rloc": apidiff_rloc,
+            "go_modules": ctx.attr.go_modules,
             "asset_rlocs": asset_rlocs,
             "deploy_name": ctx.attr.deploy_name,
             "tag": ctx.attr.tag,
             "notes": "file" if ctx.file.notes_file else ctx.attr.notes,
             "notes_rloc": rlocation_path(ctx, ctx.file.notes_file) if ctx.file.notes_file else "",
         },
-        ctx.runfiles(files = asset_files + ([ctx.file.notes_file] if ctx.file.notes_file else [])).merge(runfiles),
+        ctx.runfiles(files = asset_files + ([ctx.file.notes_file] if ctx.file.notes_file else [])).merge(runfiles).merge(apidiff_runfiles),
     )
 
 github_config = rule(
     doc = "Writes the deploy config for one draft release.",
     implementation = _github_config_impl,
     attrs = {
+        "api_compat": attr.string(
+            doc = "Go API check against the previous tag: off, warn or fail.",
+            values = ["off", "warn", "fail"],
+            default = "off",
+        ),
+        "apidiff": attr.label(
+            doc = "The apidiff binary; set when api_compat is not off.",
+            executable = True,
+            cfg = "exec",
+        ),
+        "go_modules": attr.string_list(doc = "Workspace-relative directories of the Go modules to check."),
         "artifacts": attr.label_list(mandatory = True, doc = "Files to attach as release assets."),
         "deploy_name": attr.string(mandatory = True, doc = "Deploy target name."),
         "tag": attr.string(mandatory = True, doc = "Release tag."),
@@ -83,13 +106,16 @@ github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", tags = [], sbom = None, notes = "commits"):
+def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", tags = [], sbom = None, notes = "commits", api_compat = "off", go_modules = []):
     """Publishes pinned files as a draft-only GitHub Release.
 
     `sbom` is a dx_sbom target uploaded as one more release asset.
     `tag = "current"` uses the tag that points at HEAD.
     `notes` is "commits" (the grouped commit list since the previous tag), "none"
     or a label of a markdown file.
+    `api_compat` ("off", "warn" or "fail") runs apidiff on each of `go_modules`
+    (workspace-relative directories) against the previous v<version> tag; "fail"
+    refuses breaking changes unless the bump is major.
     """
     tag_error = github_tag_error(tag)
     if tag_error != "":
@@ -103,7 +129,10 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", t
     config_target = name + "_config"
     github_config(
         name = config_target,
+        api_compat = api_compat,
+        apidiff = "//deploy/rules/pins:apidiff" if api_compat != "off" else None,
         artifacts = artifacts + ([sbom] if sbom else []),
+        go_modules = go_modules,
         deploy_name = name,
         notes = notes_mode,
         notes_file = notes_file,

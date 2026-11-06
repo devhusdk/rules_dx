@@ -53,6 +53,7 @@ require (
 
 require (
 	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f
+	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157 // indirect
 	golang.org/x/tools v0.51.0

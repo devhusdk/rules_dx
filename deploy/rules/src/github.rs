@@ -1,5 +1,6 @@
 //! GitHub release publisher: asset staging and the gh release upload.
 
+use crate::api_compat::ApiCompatMode;
 use crate::archive::*;
 use crate::run::{
     env_or_empty, placeholder_refusal, scrubbed_command, DeployRun, OwnerGate,
@@ -296,6 +297,30 @@ pub fn github_main_with_notes(
     notes: &Notes,
     argv: &[String],
 ) -> i32 {
+    let go_api = GoApi {
+        mode: "off",
+        apidiff_rloc: "",
+        modules: &[],
+    };
+    github_main_checked(asset_rlocs, deploy_name, tag, notes, &go_api, argv)
+}
+
+/// The Go API compatibility settings of one github_deploy.
+pub struct GoApi<'a> {
+    pub mode: &'a str,
+    pub apidiff_rloc: &'a str,
+    pub modules: &'a [String],
+}
+
+/// Runs the GitHub deploy tool with a release body and a Go API compatibility check.
+pub fn github_main_checked(
+    asset_rlocs: &[String],
+    deploy_name: &str,
+    tag: &str,
+    notes: &Notes,
+    go_api: &GoApi,
+    argv: &[String],
+) -> i32 {
     let Some(run) = DeployRun::start(
         "github_deploy",
         "the release is exactly the artifacts pinned at analysis time",
@@ -418,6 +443,34 @@ pub fn github_main_with_notes(
                 eprintln!("github_deploy: {error}");
                 return 1;
             }
+        }
+    }
+    let mode = if go_api.mode.is_empty() {
+        Some(ApiCompatMode::Off)
+    } else {
+        ApiCompatMode::parse(go_api.mode)
+    };
+    let Some(mode) = mode else {
+        eprintln!("github_deploy: invalid api_compat '{}'", go_api.mode);
+        return 1;
+    };
+    if mode != ApiCompatMode::Off && !go_api.modules.is_empty() {
+        let apidiff = if go_api.apidiff_rloc.is_empty() {
+            which_on_path("apidiff")
+        } else {
+            run.resolve(go_api.apidiff_rloc)
+        };
+        if which_on_path("go").is_none() {
+            println!("api compat: go not found on PATH; skipped");
+        }
+        let root = workspace
+            .clone()
+            .map_or_else(|| std::path::PathBuf::from("."), std::path::PathBuf::from);
+        if let Err(message) =
+            crate::go_api::go_api_check(apidiff.as_deref(), &root, go_api.modules, tag_text, mode)
+        {
+            eprintln!("{message}");
+            return 1;
         }
     }
     let attached = notes_text.as_ref().ok().and_then(|text| text.as_deref());

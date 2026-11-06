@@ -7,7 +7,7 @@ load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
 load(":crate.bzl", "dx_rust_crate_root")
-load(":defs.bzl", "MSVC_LINK_FLAGS")
+load(":defs.bzl", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS")
 
 def dx_wrapper_registry_tests(name):
     """Instantiates Rust wrapper registry tests."""
@@ -25,6 +25,7 @@ def dx_wrapper_registry_tests(name):
             expect_equal("crate root default", dx_rust_crate_root(None), "src/lib.rs"),
             expect_equal("crate root multi-file", dx_rust_crate_root(["src/a.rs", "src/lib.rs"]), "src/lib.rs"),
             expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]),
+            expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, ["-Clink-arg=/Brepro", "-Clink-arg=/DEBUG:NONE"]),
             expect_equal("crate root missing", dx_rust_crate_root(["lib.rs"]), None),
         ],
     )

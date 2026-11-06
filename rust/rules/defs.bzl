@@ -11,6 +11,7 @@ load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
 load(":msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
+load(":pdb.bzl", "REPRODUCIBLE_PDB_LINK_FLAGS")
 
 _DX_FORWARD_PROVIDES = [
     _rust_common.crate_info,
@@ -27,6 +28,12 @@ _UNWIND = Label("//rust/rules:unwind")
 _MSVC = Label("//rust/rules:msvc")
 _CL_EXE = Label("//cc/toolchains:msvc_selected")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
+_MSVC_OPT = Label("//rust/rules:msvc_opt")
+_MSVC_OPT_PDB = Label("//rust/rules:msvc_opt_pdb")
+
+# rustc always passes /DEBUG and the PDB GUID hashes the execroot, so opt links drop the PDB (#8409).
+MSVC_OPT_LINK_FLAGS = ["-Clink-arg=/Brepro", "-Clink-arg=/DEBUG:NONE"]
+MSVC_OPT_PDB_LINK_FLAGS = ["-Clink-arg=/Brepro"] + REPRODUCIBLE_PDB_LINK_FLAGS
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
 _CRT_STATIC_FLAG = "-Ctarget-feature=+crt-static"
@@ -97,6 +104,10 @@ def _libstdcxx_upstream(kwargs, link):
     if link:
         out["rustc_flags"] = (out.get("rustc_flags") or []) + select({
             _MSVC: MSVC_LINK_FLAGS,
+            "//conditions:default": [],
+        }) + select({
+            _MSVC_OPT_PDB: MSVC_OPT_PDB_LINK_FLAGS,
+            _MSVC_OPT: MSVC_OPT_LINK_FLAGS,
             "//conditions:default": [],
         })
         out["link_deps"] = (out.get("link_deps") or []) + select({

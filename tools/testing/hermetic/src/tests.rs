@@ -1920,6 +1920,19 @@ fn windows_passthrough_drops_bazel_vc_when_visual_studio_is_denied() {
 }
 
 #[test]
+fn only_the_windows_ambient_probe_takes_the_isolated_path() {
+    assert!(leak_flags("network").is_empty());
+    assert_eq!(
+        leak_flags("ambient_tool"),
+        if cfg!(windows) {
+            vec!["--action_env=PATH".to_owned()]
+        } else {
+            Vec::new()
+        }
+    );
+}
+
+#[test]
 fn windows_bash_prefers_bazel_sh_then_the_first_existing_candidate() {
     let dir = tempfile::tempdir().unwrap();
     let file = |name: &str| {

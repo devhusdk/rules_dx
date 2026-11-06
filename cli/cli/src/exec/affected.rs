@@ -1,5 +1,6 @@
 use super::common::{Env, emit_built, emit_event, refusal, resolve_failed};
 use super::execute;
+use super::umbrella::lint_commits;
 use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started};
 use dx_plan::args::{Command, Invocation};
@@ -403,8 +404,16 @@ impl Write for InjectAffected<'_> {
     }
 }
 
-fn finished_empty(invocation: &Invocation, plan: &AffectedPlan, out: &mut dyn Write) -> i32 {
-    if invocation.output == OutputMode::Json {
+fn finished_empty(
+    invocation: &Invocation,
+    plan: &AffectedPlan,
+    workspace: &Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let lint = invocation.command == Command::Check && !invocation.apply;
+    let json = invocation.output == OutputMode::Json;
+    if json {
         let started = command_started(invocation.command.name(), invocation.started_mode()).map(
             |mut started| {
                 if let Value::Object(map) = &mut started {
@@ -416,15 +425,29 @@ fn finished_empty(invocation: &Invocation, plan: &AffectedPlan, out: &mut dyn Wr
         if let Err(exit) = emit_built(out, started) {
             return exit;
         }
-        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-            return exit;
-        }
-        return 0;
-    }
-    if writeln!(out, "no affected targets").is_err() {
+    } else if writeln!(out, "no affected targets").is_err() {
         return 1;
     }
-    0
+    let mut code = 0;
+    if lint {
+        match lint_commits(
+            &plan.base,
+            invocation.command,
+            invocation.output,
+            workspace,
+            out,
+            err,
+        ) {
+            Ok(true) => code = 1,
+            Ok(false) => {}
+            Err(exit) => return exit,
+        }
+    }
+    if json && let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
+    {
+        return exit;
+    }
+    code
 }
 
 pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -468,7 +491,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     };
     if plan.empty() {
-        return finished_empty(invocation, &plan, out);
+        return finished_empty(invocation, &plan, workspace, out, err);
     }
     if text {
         let _ = writeln!(err, "{}", plan.summary());
@@ -751,7 +774,17 @@ mod tests {
             let invocation =
                 dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parses");
             let mut out = Vec::new();
-            assert_eq!(finished_empty(&invocation, &plan, &mut out), 0, "{words:?}");
+            assert_eq!(
+                finished_empty(
+                    &invocation,
+                    &plan,
+                    Path::new("/nonexistent"),
+                    &mut out,
+                    &mut Vec::new()
+                ),
+                0,
+                "{words:?}"
+            );
             let text = String::from_utf8(out).expect("utf8");
             let first: Value =
                 serde_json::from_str(text.lines().next().expect("line")).expect("json");
@@ -763,6 +796,77 @@ mod tests {
                 assert!(first["affected"].get("tests").is_none(), "{words:?}");
             }
         }
+    }
+
+    const COMMITS_ON: &str = "schema_version = 1\n[check]\ncommits = \"conventional\"\n";
+
+    fn commits_repo(subject: &str) -> tempfile::TempDir {
+        let dir = repo();
+        let root = dir.path();
+        git(root, &["checkout", "--quiet", "main"]);
+        write(root, "dx.toml", COMMITS_ON);
+        git(root, &["add", "."]);
+        git(root, &["commit", "--quiet", "-m", "chore: config"]);
+        git(root, &["checkout", "--quiet", "-B", "topic"]);
+        git(root, &["commit", "--quiet", "--allow-empty", "-m", subject]);
+        dir
+    }
+
+    fn empty_exit(root: &Path, words: &[&str]) -> (i32, String, String) {
+        let (plan, _) = run(root, Command::Check, &[]);
+        assert!(plan.empty());
+        let invocation = dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parses");
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = finished_empty(&invocation, &plan, root, &mut out, &mut err);
+        (
+            code,
+            String::from_utf8(out).expect("utf8"),
+            String::from_utf8(err).expect("utf8"),
+        )
+    }
+
+    #[test]
+    fn finished_empty_check_lints_commit_subjects() {
+        let dir = commits_repo("update stuff");
+        let (code, out, err) = empty_exit(dir.path(), &["check", "--affected"]);
+        assert_eq!(code, 1);
+        assert!(out.contains("no affected targets"), "{out}");
+        assert!(
+            err.contains("update stuff: not a conventional commit"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn finished_empty_check_lints_commit_subjects_in_json() {
+        let dir = commits_repo("update stuff");
+        let (code, out, _) = empty_exit(dir.path(), &["check", "--affected", "--output=json"]);
+        assert_eq!(code, 1);
+        let notice = out.find("commit_not_conventional").expect("notice");
+        let finished = out.find("command_finished").expect("finished");
+        assert!(notice < finished, "{out}");
+        assert!(out.contains("\"exit_code\":1"), "{out}");
+    }
+
+    #[test]
+    fn finished_empty_skips_the_lint_for_apply_and_other_commands() {
+        let dir = commits_repo("update stuff");
+        for words in [
+            &["check", "--apply", "--affected"][..],
+            &["lint", "--affected"][..],
+        ] {
+            let (code, _, err) = empty_exit(dir.path(), words);
+            assert_eq!(code, 0, "{words:?}");
+            assert!(err.is_empty(), "{words:?}: {err}");
+        }
+    }
+
+    #[test]
+    fn finished_empty_check_passes_conventional_subjects() {
+        let dir = commits_repo("fix: update stuff");
+        let (code, _, err) = empty_exit(dir.path(), &["check", "--affected"]);
+        assert_eq!(code, 0);
+        assert!(err.is_empty(), "{err}");
     }
 
     #[test]

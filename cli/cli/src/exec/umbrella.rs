@@ -1291,6 +1291,25 @@ fn lint_commit_subjects(
     let Some(base) = request.commits_base.as_deref() else {
         return Ok(false);
     };
+    lint_commits(
+        base,
+        request.command,
+        request.common.output,
+        workspace,
+        out,
+        err,
+    )
+}
+
+/// Lints the commit subjects in `base..HEAD` when `dx.toml` sets `[check] commits`.
+pub(super) fn lint_commits(
+    base: &str,
+    command: Command,
+    output: OutputMode,
+    workspace: &Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<bool, i32> {
     let enabled = matches!(
         dx_config::load(workspace),
         Ok(Some(config)) if config.check.commits == Some(dx_config::CommitsPolicy::Conventional)
@@ -1308,11 +1327,11 @@ fn lint_commit_subjects(
         return Ok(false);
     };
     let bad = dx_update::release::lint(&log);
-    let command = request.command.name();
+    let command = command.name();
     for (hash, subject) in &bad {
         let sha = &hash[..hash.len().min(12)];
         let message = format!("{sha} {subject}: not a conventional commit");
-        if request.common.output == OutputMode::Json {
+        if output == OutputMode::Json {
             let notice = NoticeEvent {
                 related_command: Some(command.to_owned()),
                 ..NoticeEvent::warning(CODE_COMMIT_NOT_CONVENTIONAL, message)

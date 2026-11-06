@@ -41,7 +41,7 @@ def image_unit_tests(name):
             expect_equal(
                 "image_default_main names the dotnet assembly of a label",
                 image_default_main("dotnet", "//app:server", "other"),
-                "app/server.dll",
+                "app/server/net10.0/server.dll",
             ),
             expect_equal(
                 "image_default_main leaves java alone",
@@ -94,9 +94,9 @@ def image_unit_tests(name):
                 "",
             ),
             expect_equal(
-                "image_options_error wants main_class for java",
+                "image_options_error leaves java main_class to the binary",
                 image_options_error(":server", "java", ["linux/amd64"]),
-                "oci_image_from_binary: base 'java' needs main_class",
+                "",
             ),
             expect_equal(
                 "image_options_error rejects main on a static base",
@@ -138,13 +138,18 @@ def image_unit_tests(name):
             ),
             expect_equal(
                 "image_entrypoint runs dotnet on the assembly in the runfiles",
-                image_entrypoint("dotnet", "server", main = "app/server.dll"),
-                (["dotnet", "/app/server.runfiles/_main/app/server.dll"], {}),
+                image_entrypoint("dotnet", "server", main = "app/server/net10.0/server.dll"),
+                (["dotnet", "/app/server.dll.runfiles/_main/app/server/net10.0/server.dll"], {}),
             ),
             expect_equal(
                 "image_entrypoint runs java from the jar directory",
                 image_entrypoint("java", "server", main_class = "app.Server"),
                 (["/usr/bin/java", "-cp", "/app/lib/*", "app.Server"], {}),
+            ),
+            expect_equal(
+                "image_entrypoint reads the java main class from an argument file",
+                image_entrypoint("java", "server"),
+                (["/usr/bin/java", "-cp", "/app/lib/*", "@/app/lib/main.args"], {}),
             ),
         ],
     )

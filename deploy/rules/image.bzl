@@ -37,7 +37,10 @@ def image_default_main(base, binary, package):
     elif not binary.startswith(":"):
         return None
     name = image_binary_name(binary)
-    return (pkg + "/" if pkg else "") + name + ext
+    path = (pkg + "/" if pkg else "") + name
+    if base == "dotnet":
+        return path + "/net10.0/" + name + ext
+    return path + ext
 
 def image_options_error(binary, base, platforms, main = None, main_class = None):
     """Validates the oci_image_from_binary arguments."""
@@ -56,8 +59,6 @@ def image_options_error(binary, base, platforms, main = None, main_class = None)
         return "oci_image_from_binary: want each platform once, got " + ", ".join(platforms)
     if base in ("python", "node", "dotnet") and not main:
         return "oci_image_from_binary: base '" + base + "' needs main, the workspace path of the entry script"
-    if base == "java" and not main_class:
-        return "oci_image_from_binary: base 'java' needs main_class"
     if base not in ("python", "java", "node", "dotnet") and (main or main_class):
         return "oci_image_from_binary: main and main_class only apply to the python, java, node and dotnet bases"
     return ""
@@ -70,9 +71,9 @@ def image_entrypoint(base, app, main = None, main_class = None):
     if base == "node":
         return ["/nodejs/bin/node", "/app/" + app + ".runfiles/_main/" + main], {}
     if base == "dotnet":
-        return ["dotnet", "/app/" + app + ".runfiles/_main/" + main], {}
+        return ["dotnet", "/app/" + app + ".dll.runfiles/_main/" + main], {}
     if base == "java":
-        return ["/usr/bin/java", "-cp", "/app/lib/*", main_class], {}
+        return ["/usr/bin/java", "-cp", "/app/lib/*", main_class or "@/app/lib/main.args"], {}
     return ["/app/" + app], {}
 
 def _platform_transition_impl(_settings, attr):
@@ -107,10 +108,39 @@ _for_platform = rule(
     },
 )
 
+MainClassInfo = provider(
+    doc = "The main class of a Java binary.",
+    fields = {"main_class": "Main class name, or empty."},
+)
+
+def _main_class_aspect_impl(target, ctx):
+    main_class = getattr(ctx.rule.attr, "main_class", "")
+    if main_class:
+        return [MainClassInfo(main_class = main_class)]
+    upstream = getattr(ctx.rule.attr, "upstream", None)
+    if upstream != None:
+        upstream = upstream[0] if type(upstream) == "list" else upstream
+        if MainClassInfo in upstream:
+            return [upstream[MainClassInfo]]
+    return [MainClassInfo(main_class = "")]
+
+_main_class_aspect = aspect(
+    implementation = _main_class_aspect_impl,
+    attr_aspects = ["upstream"],
+)
+
 def _jars_for_platform_impl(ctx):
-    runfiles = ctx.attr.binary[0][DefaultInfo].default_runfiles.files.to_list()
-    jars = [f for f in runfiles if f.extension == "jar" and f.basename != "jrt-fs.jar"]
-    return [DefaultInfo(files = depset(jars))]
+    binary = ctx.attr.binary[0]
+    runfiles = binary[DefaultInfo].default_runfiles.files.to_list()
+    files = [f for f in runfiles if f.extension == "jar" and f.basename != "jrt-fs.jar"]
+    if ctx.attr.read_main_class:
+        main_class = binary[MainClassInfo].main_class
+        if not main_class:
+            fail(ctx.label.name + ": " + str(binary.label) + " has no main_class; set main_class on oci_image_from_binary")
+        argfile = ctx.actions.declare_file(ctx.label.name + "/main.args")
+        ctx.actions.write(argfile, main_class + "\n")
+        files.append(argfile)
+    return [DefaultInfo(files = depset(files))]
 
 _jars_for_platform = rule(
     implementation = _jars_for_platform_impl,
@@ -118,8 +148,12 @@ _jars_for_platform = rule(
     attrs = {
         "binary": attr.label(
             doc = "Java binary built for the platform.",
+            aspects = [_main_class_aspect],
             cfg = _platform_transition,
             mandatory = True,
+        ),
+        "read_main_class": attr.bool(
+            doc = "Whether to write the binary's main class to main.args next to the jars.",
         ),
         "platform": attr.label(
             doc = "Bazel platform the binary is built for.",
@@ -140,8 +174,8 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     and the dotnet base on the Microsoft runtime image.
     The python, node and dotnet bases need main, the workspace path of the entry script
     or assembly, and run it from the binary's runfiles. python, node and dotnet default main to
-    the binary's package and name with .py, .js or .dll. The java base needs main_class and puts the
-    binary's runtime jars under /app/lib.
+    the binary's package and name with .py or .js, and a dotnet binary to its net10.0 assembly. The java base puts the binary's runtime jars under /app/lib and
+    runs main_class, which defaults to the main class of the java_binary.
     """
     if not main and type(binary) == "string":
         main = image_default_main(base, binary, native.package_name())
@@ -160,6 +194,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
                 name = name + "_jars" + suffix,
                 binary = binary,
                 platform = _PLATFORM_LABELS[platform],
+                read_main_class = not main_class,
                 tags = ["manual"],
             )
             pkg_files(

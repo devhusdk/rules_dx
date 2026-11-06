@@ -748,6 +748,8 @@ oci_deploy(
 - `main`: the entry script of a `python` or `node` base. It defaults to the
   binary's package and name with `.py` or `.js`, so `//app:server` runs
   `app/server.py`.
+- `main_class`: the class of a `java` base. It defaults to the `main_class` of
+  the `java_binary`, written to an argument file next to the jars.
 - `platforms`: defaults to `["linux/amd64"]`. One platform gives an
   `oci_image` and an `<name>_load` target that `dx run` loads into a local
   runtime. Several platforms give an `oci_image_index` that builds the binary

@@ -37,17 +37,12 @@ std::string g_source_repo;
 }
 
 bool EndsWithExe(const std::string &path) {
-#ifdef _WIN32
   if (path.size() < 4)
     return false;
   std::string tail = path.substr(path.size() - 4);
   for (char &c : tail)
     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
   return tail == ".exe";
-#else
-  (void)path;
-  return false;
-#endif
 }
 
 std::string EntryPath(const std::string &argv0) {
@@ -235,8 +230,12 @@ int main(int argc, char **argv) {
     Die("main chunk " + entry.main + " is not in the runfiles");
 
   lua_State *L = luaL_newstate();
+  // LCOV_EXCL_START - reason: allocation failure only, issue: 1375, policy:
+  // docs/cli/commands/build-test-coverage.md
   if (L == nullptr)
     Die("cannot create a Lua state");
+  // LCOV_EXCL_STOP - reason: end allocation failure, issue: 1375, policy:
+  // docs/cli/commands/build-test-coverage.md
   lua_pushboolean(L, 1);
   lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
   luaL_openlibs(L);

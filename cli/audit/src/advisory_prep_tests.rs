@@ -430,3 +430,28 @@ fn an_empty_yanked_snapshot_is_an_empty_list() {
     assert_eq!(prepared.payload, b"[]");
     assert!(parse_snapshot("[]").expect("parses").is_empty());
 }
+
+#[test]
+fn a_yanked_uv_snapshot_matches_only_the_yanked_locked_version() {
+    let yanked = vec![("old-pkg".to_owned(), "1.0".to_owned())];
+    let prepared = yanked_snapshot(
+        "pypi-yanked",
+        "https://pypi.org/pypi",
+        "2026-09-22",
+        "uv",
+        &yanked,
+    )
+    .expect("builds");
+    let advisories =
+        parse_snapshot(&String::from_utf8(prepared.payload).expect("utf-8")).expect("reads");
+    let (findings, _) = crate::vuln::match_packages(
+        &[
+            crate::vuln::LockedPackage::new("uv", "Old_Pkg", "1.0"),
+            crate::vuln::LockedPackage::new("uv", "Old_Pkg", "1.1"),
+        ],
+        &advisories,
+    );
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].version, "1.0");
+    assert_eq!(findings[0].kind, crate::vuln::AdvisoryKind::Yanked);
+}

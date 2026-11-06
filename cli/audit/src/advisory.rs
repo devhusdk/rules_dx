@@ -54,6 +54,7 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
 pub fn yanked_family(set: &str) -> Option<&'static str> {
     match set {
         "cargo" => Some("cargo-yanked"),
+        PYPI_FAMILY => Some("pypi-yanked"),
         _ => None,
     }
 }
@@ -345,6 +346,8 @@ mod tests {
             Some("https://metacpan.org/release/CPANSA-DB")
         );
         assert_eq!(advisory_family("uv"), None);
+        assert_eq!(yanked_family("pypi"), Some("pypi-yanked"));
+        assert_eq!(yanked_family("npm"), None);
         assert_eq!(advisory_family("unknown-set"), None);
     }
 

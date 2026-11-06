@@ -137,13 +137,37 @@ fn repo(body: &str) -> Option<String> {
         .find_map(super::github_repo)
 }
 
+/// The release versions whose every file is yanked (PEP 592).
+pub fn yanked_releases(body: &str) -> Result<Vec<String>, String> {
+    let doc: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+    let releases = doc["releases"]
+        .as_object()
+        .ok_or_else(|| "no releases".to_owned())?;
+    Ok(releases
+        .iter()
+        .filter(|(_, files)| {
+            let files = files.as_array().map(Vec::as_slice).unwrap_or_default();
+            !files.is_empty() && files.iter().all(is_yanked)
+        })
+        .map(|(version, _)| version.clone())
+        .collect())
+}
+
+fn is_yanked(file: &serde_json::Value) -> bool {
+    file["yanked"].as_bool().unwrap_or(false)
+}
+
 fn newest(body: &str, prereleases: bool) -> Result<(Version, Option<String>), String> {
     let doc: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
     let releases = doc["releases"]
         .as_object()
         .ok_or_else(|| "no releases".to_owned())?;
+    let yanked = yanked_releases(body)?;
     let mut best: Option<(Version, Option<String>)> = None;
     for (key, files) in releases {
+        if yanked.contains(key) {
+            continue;
+        }
         let Ok(version) = Version::from_str(key) else {
             continue;
         };
@@ -154,7 +178,7 @@ fn newest(body: &str, prereleases: bool) -> Result<(Version, Option<String>), St
             .as_array()
             .into_iter()
             .flatten()
-            .filter(|file| !file["yanked"].as_bool().unwrap_or(false))
+            .filter(|file| !is_yanked(file))
             .collect();
         if live.is_empty() {
             continue;
@@ -174,6 +198,14 @@ fn newest(body: &str, prereleases: bool) -> Result<(Version, Option<String>), St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_release_is_yanked_when_every_file_is() {
+        let body = r#"{"releases":{"1.0":[{"yanked":true},{"yanked":true}],"1.1":[{"yanked":true},{"yanked":false}],"1.2":[],"1.3":[{"yanked":false}]}}"#;
+        assert_eq!(yanked_releases(body).unwrap(), vec!["1.0"]);
+        assert!(yanked_releases("not json").is_err());
+        assert!(yanked_releases("{}").is_err());
+    }
 
     const MANIFEST: &str = r#"
 [project]

@@ -1351,8 +1351,14 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                     "vuln",
                     if finding.kind == dx_audit::vuln::AdvisoryKind::Yanked {
                         format!(
-                            "{}@{} is yanked from crates.io",
-                            finding.package, finding.version
+                            "{}@{} is yanked from {}",
+                            finding.package,
+                            finding.version,
+                            if finding.set == "uv" {
+                                "PyPI"
+                            } else {
+                                "crates.io"
+                            }
                         )
                     } else if finding.kind == dx_audit::vuln::AdvisoryKind::Vulnerability {
                         format!(

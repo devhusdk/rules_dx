@@ -43,6 +43,8 @@ pub struct PrepareOptions {
     pub trivy: Option<PathBuf>,
     /// Base URL of the cargo sparse index the yanked flags are read from.
     pub cargo_index: Option<String>,
+    /// Base URL of the PyPI JSON API the yanked flags are read from.
+    pub pypi_index: Option<String>,
 }
 
 impl Default for PrepareOptions {
@@ -57,6 +59,7 @@ impl Default for PrepareOptions {
             cpansa_dump: None,
             trivy: None,
             cargo_index: None,
+            pypi_index: None,
         }
     }
 }
@@ -150,6 +153,10 @@ pub fn prepare(options: &PrepareOptions) -> Result<Vec<Prepared>, PrepError> {
         if family == "cargo" {
             let prepared = yanked::prepare_cargo_yanked(options)?;
             out.push(publish(options, yanked::CARGO_YANKED, prepared)?);
+        }
+        if family == dx_audit::advisory::PYPI_FAMILY {
+            let prepared = yanked::prepare_pypi_yanked(options)?;
+            out.push(publish(options, yanked::PYPI_YANKED, prepared)?);
         }
     }
     if let Some(binary) = &options.trivy {

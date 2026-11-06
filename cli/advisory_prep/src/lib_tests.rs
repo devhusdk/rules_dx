@@ -144,6 +144,7 @@ fn options(workspace: &TempDir) -> PrepareOptions {
         cpansa_dump: None,
         trivy: None,
         cargo_index: None,
+        pypi_index: None,
     }
 }
 
@@ -846,4 +847,55 @@ fn an_unreachable_index_fails_the_preparation() {
     options.cargo_index = Some(format!("file://{}/missing", index.path().display()));
     options.limits.retries = 0;
     assert!(yanked::prepare_cargo_yanked(&options).is_err());
+}
+
+const UV_LOCK: &str = r#"version = 1
+
+[[package]]
+name = "Old_Pkg"
+version = "1.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "fine"
+version = "2.0"
+source = { registry = "https://pypi.org/simple" }
+"#;
+
+#[test]
+fn locked_yanked_pypi_versions_are_published_as_their_own_snapshot() {
+    let workspace = workspace();
+    for (rel, text) in [
+        (
+            "MODULE.bazel",
+            "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", lock = \"//api:uv.lock\", pyproject = \"//api:pyproject.toml\")\n",
+        ),
+        ("api/pyproject.toml", "[project]\nname = \"api\"\n"),
+        ("api/uv.lock", UV_LOCK),
+    ] {
+        let path = workspace.path().join(rel);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");
+        std::fs::write(&path, text).expect("writes");
+    }
+    let index = tempfile::tempdir().expect("index dir");
+    for (name, body) in [
+        (
+            "old-pkg",
+            r#"{"releases":{"1.0":[{"yanked":true}],"1.1":[{"yanked":false}]}}"#,
+        ),
+        ("fine", r#"{"releases":{"2.0":[{"yanked":false}]}}"#),
+    ] {
+        let path = index.path().join(name).join("json");
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");
+        std::fs::write(path, body).expect("writes");
+    }
+    let mut options = options(&workspace);
+    options.pypi_index = Some(format!("file://{}", index.path().display()));
+    let prepared = yanked::prepare_pypi_yanked(&options).expect("prepares");
+    assert_eq!(prepared.advisories, 1);
+    let text = String::from_utf8(prepared.payload).expect("utf8");
+    let parsed = parse_snapshot(&text).expect("parses");
+    assert_eq!(parsed[0].package, "old-pkg");
+    assert_eq!(parsed[0].versions, "=1.0");
+    assert_eq!(parsed[0].set, "uv");
 }

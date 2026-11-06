@@ -368,6 +368,7 @@ def _link_windows_impl(ctx):
 
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
+
 # The forwarder's static CRT settings, so the crate under test and the upstream share one build script config.
 _link_windows_test = analysistest.make(_link_windows_impl, config_settings = {
     _COMPILER: "llvm",

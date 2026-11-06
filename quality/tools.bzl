@@ -8,11 +8,75 @@ def row(**fields):
     """Returns one support record; the tool id is added by tool()."""
     return fields
 
-def tool(id, adapters, support = [], config_suffix = None):
+def config(
+        suffixes = [],
+        files = [],
+        ext = "",
+        extends_syntax = "",
+        shared = False,
+        tier_dir = "",
+        comment = "",
+        pyproject_table = "",
+        extras = [],
+        kind = "file",
+        tier_active = False,
+        stage_native = False,
+        tier_source = "dx",
+        family = "",
+        extensions = [],
+        init_order = 0):
+    """Returns a tool's config metadata.
+
+    Args:
+      suffixes: accepted suffixes of the native config file; the first is canonical.
+      files: root files that mean the repo configures the tool, the first being the one dx writes;
+        a trailing `*` matches a prefix.
+      ext: extension of the tier files under quality/tiers/<tier_dir>/.
+      extends_syntax: root file that extends a tier base, with `{base}` for its path; empty when
+        the root file is a copy of the base.
+      shared: whether several tools read the same config file.
+      tier_dir: directory under quality/tiers when it differs from the tool id.
+      comment: line comment prefix of the config format; empty when it has none.
+      pyproject_table: table in pyproject.toml that also means the tool is configured.
+      extras: extra files that belong with the config.
+      kind: `file` for a native config, `flags` for a tier the generator renders as internal
+        flags (clippy), or `none`.
+      tier_active: whether the tier base is bound for the tool.
+      stage_native: whether the engine stages the bound file under files[0].
+      tier_source: upstream tier name or `dx`.
+      family: family whose files mean the tool applies.
+      extensions: extensions that mean the tool applies, for tools no family owns.
+      init_order: position of the tool among the tier tools in the files `dx init` plans; 0 for none.
+
+    Returns:
+      The config struct.
+    """
+    return struct(
+        comment = comment,
+        ext = ext,
+        extends_syntax = extends_syntax,
+        extensions = extensions,
+        extras = extras,
+        family = family,
+        files = files,
+        init_order = init_order,
+        kind = kind,
+        pyproject_table = pyproject_table,
+        shared = shared,
+        stage_native = stage_native,
+        suffixes = suffixes,
+        tier_active = tier_active,
+        tier_dir = tier_dir,
+        tier_source = tier_source,
+    )
+
+_NO_CONFIG = config(kind = "none")
+
+def tool(id, adapters, support = [], config = _NO_CONFIG):
     """Returns one tool: its adapter classes per capability and its support records."""
     return struct(
         adapters = adapters,
-        config_suffix = config_suffix,
+        config = config,
         id = id,
         support = [dict(record, tool = id) for record in support],
     )
@@ -110,7 +174,7 @@ TOOLS = [
     tool(
         id = "ansible_lint",
         adapters = {"lint": ["ansible"]},
-        config_suffix = [".ansible-lint", ".yml", ".yaml"],
+        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"]),
         support = [
             row(
                 capability = "lint",
@@ -163,7 +227,7 @@ TOOLS = [
             "format": ["bicep"],
             "lint": ["bicep"],
         },
-        config_suffix = ["bicepconfig.json"],
+        config = config(suffixes = ["bicepconfig.json"]),
         support = [
             row(
                 capability = "format",
@@ -191,7 +255,7 @@ TOOLS = [
             "format": ["javascript", "json", "jsx", "typescript", "tsx"],
             "lint": ["javascript", "json", "jsx", "typescript", "tsx"],
         },
-        config_suffix = [".json"],
+        config = config(suffixes = [".json"]),
         support = [
             row(
                 capability = "format",
@@ -237,7 +301,7 @@ TOOLS = [
             "format": ["protobuf"],
             "lint": ["protobuf"],
         },
-        config_suffix = [".yaml"],
+        config = config(suffixes = [".yaml"]),
         support = [
             row(
                 capability = "format",
@@ -267,7 +331,7 @@ TOOLS = [
             "format": ["starlark"],
             "lint": ["starlark"],
         },
-        config_suffix = [".json"],
+        config = config(suffixes = [".json"]),
         support = [
             row(
                 capability = "lint",
@@ -333,7 +397,7 @@ TOOLS = [
     tool(
         id = "cfn_lint",
         adapters = {"lint": ["cloudformation"]},
-        config_suffix = [".cfnlintrc", ".yaml", ".yml"],
+        config = config(suffixes = [".cfnlintrc", ".yaml", ".yml"]),
         support = [
             row(
                 capability = "lint",
@@ -350,7 +414,7 @@ TOOLS = [
     tool(
         id = "checkmake",
         adapters = {"lint": ["make"]},
-        config_suffix = [".ini"],
+        config = config(suffixes = [".ini"]),
         support = [
             row(
                 capability = "lint",
@@ -366,7 +430,7 @@ TOOLS = [
     tool(
         id = "checkstyle",
         adapters = {"lint": ["java"]},
-        config_suffix = [".xml"],
+        config = config(suffixes = [".xml"]),
         support = [
             row(
                 capability = "lint",
@@ -399,7 +463,7 @@ TOOLS = [
     tool(
         id = "clang_format",
         adapters = {"format": ["c", "cpp", "cuda", "objc", "objcpp"]},
-        config_suffix = [".clang-format"],
+        config = config(suffixes = [".clang-format"]),
         support = [
             row(
                 capability = "format",
@@ -468,7 +532,7 @@ TOOLS = [
     tool(
         id = "clang_tidy",
         adapters = {"lint": ["c", "cpp", "cuda", "objc", "objcpp"]},
-        config_suffix = [".clang-tidy"],
+        config = config(suffixes = [".clang-tidy"]),
         support = [
             row(
                 capability = "lint",
@@ -501,7 +565,7 @@ TOOLS = [
     tool(
         id = "cmakelint",
         adapters = {"lint": ["cmake"]},
-        config_suffix = [".cmakelintrc"],
+        config = config(suffixes = [".cmakelintrc"]),
         support = [
             row(
                 capability = "lint",
@@ -521,7 +585,7 @@ TOOLS = [
             "lint": ["c", "cpp"],
             "unused": ["c", "cpp"],
         },
-        config_suffix = [".txt"],
+        config = config(suffixes = [".txt"]),
         support = [
             row(
                 capability = "lint",
@@ -548,7 +612,7 @@ TOOLS = [
     tool(
         id = "credo",
         adapters = {"lint": ["elixir"]},
-        config_suffix = [".exs"],
+        config = config(suffixes = [".exs"]),
         support = [
             row(
                 capability = "lint",
@@ -581,7 +645,7 @@ TOOLS = [
     tool(
         id = "csharpier",
         adapters = {"format": ["csharp"]},
-        config_suffix = [".yaml"],
+        config = config(suffixes = [".yaml"]),
         support = [
             row(
                 capability = "format",
@@ -629,7 +693,15 @@ TOOLS = [
             "lint": ["dart"],
             "typecheck": ["dart"],
         },
-        config_suffix = [".yaml"],
+        config = config(
+            suffixes = [".yaml"],
+            files = ["analysis_options.yaml"],
+            ext = "yaml",
+            extends_syntax = "include: {base}\n",
+            comment = "#",
+            init_order = 5,
+            family = "dart",
+        ),
         support = [
             row(
                 capability = "lint",
@@ -727,7 +799,7 @@ TOOLS = [
     tool(
         id = "detekt",
         adapters = {"lint": ["kotlin"]},
-        config_suffix = [".yml", ".yaml"],
+        config = config(suffixes = [".yml", ".yaml"]),
         support = [
             row(
                 capability = "lint",
@@ -793,7 +865,7 @@ TOOLS = [
             "format": ["html_template"],
             "lint": ["html_template"],
         },
-        config_suffix = ["djlint.toml", ".djlintrc"],
+        config = config(suffixes = ["djlint.toml", ".djlintrc"]),
         support = [
             row(
                 capability = "format",
@@ -820,7 +892,14 @@ TOOLS = [
     tool(
         id = "dscanner",
         adapters = {"lint": ["d"]},
-        config_suffix = [".ini"],
+        config = config(
+            suffixes = [".ini"],
+            files = ["dscanner.ini"],
+            ext = "ini",
+            comment = ";",
+            init_order = 8,
+            family = "d",
+        ),
         support = [
             row(
                 capability = "lint",
@@ -837,7 +916,7 @@ TOOLS = [
     tool(
         id = "elvis",
         adapters = {"lint": ["erlang"]},
-        config_suffix = ["elvis.config", ".config"],
+        config = config(suffixes = ["elvis.config", ".config"]),
         support = [
             row(
                 capability = "lint",
@@ -894,7 +973,21 @@ TOOLS = [
     tool(
         id = "eslint",
         adapters = {"lint": ["astro", "javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"]},
-        config_suffix = [".js", ".mjs", ".cjs"],
+        config = config(
+            suffixes = [".js", ".mjs", ".cjs"],
+            files = [
+                "eslint.config.mjs",
+                "eslint.config.js",
+                "eslint.config.cjs",
+                "eslint.config.ts",
+                ".eslintrc*",
+            ],
+            ext = "mjs",
+            extends_syntax = "export { default } from \"./{base}\";\n",
+            comment = "//",
+            init_order = 2,
+            family = "js",
+        ),
         support = [
             row(
                 capability = "lint",
@@ -977,7 +1070,7 @@ TOOLS = [
     tool(
         id = "ffmt",
         adapters = {"format": ["fortran"]},
-        config_suffix = [".toml"],
+        config = config(suffixes = [".toml"]),
         support = [
             row(
                 capability = "format",
@@ -1043,7 +1136,7 @@ TOOLS = [
     tool(
         id = "fortitude",
         adapters = {"lint": ["fortran"]},
-        config_suffix = [".toml"],
+        config = config(suffixes = [".toml"]),
         support = [
             row(
                 capability = "lint",
@@ -1076,7 +1169,7 @@ TOOLS = [
     tool(
         id = "fsharplint",
         adapters = {"lint": ["fsharp"]},
-        config_suffix = [".json"],
+        config = config(suffixes = [".json"]),
         support = [
             row(
                 capability = "lint",
@@ -1093,7 +1186,7 @@ TOOLS = [
     tool(
         id = "gersemi",
         adapters = {"format": ["cmake"]},
-        config_suffix = [".gersemirc", ".yaml", ".yml"],
+        config = config(suffixes = [".gersemirc", ".yaml", ".yml"]),
         support = [
             row(
                 capability = "format",
@@ -1178,7 +1271,7 @@ TOOLS = [
     tool(
         id = "gplint",
         adapters = {"lint": ["gherkin"]},
-        config_suffix = [".gplintrc", ".json"],
+        config = config(suffixes = [".gplintrc", ".json"]),
         support = [
             row(
                 capability = "lint",
@@ -1195,7 +1288,7 @@ TOOLS = [
     tool(
         id = "graphql_eslint",
         adapters = {"lint": ["graphql"]},
-        config_suffix = [".json"],
+        config = config(suffixes = [".json"]),
         support = [
             row(
                 capability = "lint",
@@ -1212,7 +1305,7 @@ TOOLS = [
     tool(
         id = "hadolint",
         adapters = {"lint": ["dockerfile"]},
-        config_suffix = [".yaml", ".yml"],
+        config = config(suffixes = [".yaml", ".yml"]),
         support = [
             row(
                 capability = "lint",
@@ -1244,7 +1337,14 @@ TOOLS = [
     tool(
         id = "hlint",
         adapters = {"lint": ["haskell"]},
-        config_suffix = [".yaml"],
+        config = config(
+            suffixes = [".yaml"],
+            files = [".hlint.yaml"],
+            ext = "yaml",
+            comment = "#",
+            init_order = 7,
+            family = "haskell",
+        ),
         support = [
             row(
                 capability = "lint",
@@ -1400,7 +1500,7 @@ TOOLS = [
     tool(
         id = "ktlint",
         adapters = {"lint": ["kotlin"]},
-        config_suffix = [".editorconfig"],
+        config = config(suffixes = [".editorconfig"]),
         support = [
             row(
                 capability = "lint",
@@ -1443,7 +1543,7 @@ TOOLS = [
     tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
-        config_suffix = [".kubeconform.json"],
+        config = config(suffixes = [".kubeconform.json"]),
         support = [
             row(
                 capability = "lint",
@@ -1460,7 +1560,7 @@ TOOLS = [
     tool(
         id = "latexindent",
         adapters = {"format": ["latex"]},
-        config_suffix = [".yaml", ".yml"],
+        config = config(suffixes = [".yaml", ".yml"]),
         support = [
             row(
                 capability = "format",
@@ -1481,7 +1581,7 @@ TOOLS = [
     tool(
         id = "luals",
         adapters = {"typecheck": ["lua"]},
-        config_suffix = [".json"],
+        config = config(suffixes = [".json"]),
     ),
     tool(
         id = "lychee",
@@ -1541,7 +1641,7 @@ TOOLS = [
     tool(
         id = "mbake",
         adapters = {"format": ["make"]},
-        config_suffix = [".bake.toml", ".toml"],
+        config = config(suffixes = [".bake.toml", ".toml"]),
         support = [
             row(
                 capability = "format",
@@ -1715,7 +1815,7 @@ TOOLS = [
     tool(
         id = "perlcritic",
         adapters = {"lint": ["perl"]},
-        config_suffix = [".perlcriticrc", "perlcriticrc"],
+        config = config(suffixes = [".perlcriticrc", "perlcriticrc"]),
         support = [
             row(
                 capability = "lint",
@@ -1754,7 +1854,7 @@ TOOLS = [
     tool(
         id = "phpcs",
         adapters = {"lint": ["php"]},
-        config_suffix = [".xml", ".xml.dist"],
+        config = config(suffixes = [".xml", ".xml.dist"]),
         support = [
             row(
                 capability = "lint",
@@ -1777,7 +1877,7 @@ TOOLS = [
             "typecheck": ["php"],
             "unused": ["php"],
         },
-        config_suffix = [".neon", ".neon.dist"],
+        config = config(suffixes = [".neon", ".neon.dist"]),
         support = [
             row(
                 capability = "typecheck",
@@ -1853,7 +1953,7 @@ TOOLS = [
     tool(
         id = "pmd",
         adapters = {"lint": ["java"]},
-        config_suffix = [".xml"],
+        config = config(suffixes = [".xml"]),
         support = [
             row(
                 capability = "lint",
@@ -1872,7 +1972,7 @@ TOOLS = [
         adapters = {
             "format": ["ansible", "api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "kubernetes", "less", "php", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"],
         },
-        config_suffix = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"],
+        config = config(suffixes = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"]),
         support = [
             row(
                 capability = "format",
@@ -1972,7 +2072,14 @@ TOOLS = [
             "format": ["powershell"],
             "lint": ["powershell"],
         },
-        config_suffix = [".psd1"],
+        config = config(
+            suffixes = [".psd1"],
+            files = ["PSScriptAnalyzerSettings.psd1"],
+            ext = "psd1",
+            comment = "#",
+            init_order = 6,
+            family = "powershell",
+        ),
         support = [
             row(
                 capability = "format",
@@ -2039,7 +2146,7 @@ TOOLS = [
     tool(
         id = "qmlformat",
         adapters = {"format": ["qml"]},
-        config_suffix = [".qmlformat.ini"],
+        config = config(suffixes = [".qmlformat.ini"]),
         support = [
             row(
                 capability = "format",
@@ -2063,7 +2170,7 @@ TOOLS = [
             "lint": ["qml"],
             "typecheck": ["qml"],
         },
-        config_suffix = [".qmllint.ini"],
+        config = config(suffixes = [".qmllint.ini"]),
         support = [
             row(
                 capability = "lint",
@@ -2098,7 +2205,7 @@ TOOLS = [
     tool(
         id = "redocly",
         adapters = {"lint": ["api_spec"]},
-        config_suffix = [".yaml", ".yml"],
+        config = config(suffixes = [".yaml", ".yml"]),
         support = [
             row(
                 capability = "lint",
@@ -2115,7 +2222,7 @@ TOOLS = [
     tool(
         id = "regal",
         adapters = {"lint": ["rego"]},
-        config_suffix = [".yaml", ".yml"],
+        config = config(suffixes = [".yaml", ".yml"]),
         support = [
             row(
                 capability = "lint",
@@ -2131,7 +2238,7 @@ TOOLS = [
     tool(
         id = "remark",
         adapters = {"format": ["mdx"]},
-        config_suffix = [".json"],
+        config = config(suffixes = [".json"]),
         support = [
             row(
                 capability = "format",
@@ -2148,7 +2255,7 @@ TOOLS = [
     tool(
         id = "roslyn",
         adapters = {"lint": ["csharp"]},
-        config_suffix = [".globalconfig"],
+        config = config(suffixes = [".globalconfig"]),
         support = [
             row(
                 capability = "lint",
@@ -2165,7 +2272,7 @@ TOOLS = [
     tool(
         id = "rubocop",
         adapters = {"lint": ["ruby"]},
-        config_suffix = [".yml", ".yaml"],
+        config = config(suffixes = [".yml", ".yaml"]),
         support = [
             row(
                 capability = "lint",
@@ -2190,7 +2297,16 @@ TOOLS = [
             "format": ["python", "python_stub", "jupyter"],
             "lint": ["python", "python_stub", "jupyter"],
         },
-        config_suffix = [".toml"],
+        config = config(
+            suffixes = [".toml"],
+            files = ["ruff.toml", ".ruff.toml"],
+            ext = "toml",
+            extends_syntax = "# Repo settings go here; the extend line picks the profile.\nextend = \"{base}\"\n",
+            comment = "#",
+            pyproject_table = "ruff",
+            init_order = 1,
+            family = "python",
+        ),
         support = [
             row(
                 capability = "format",
@@ -2249,7 +2365,7 @@ TOOLS = [
     tool(
         id = "rustfmt",
         adapters = {"format": ["rust"]},
-        config_suffix = [".toml"],
+        config = config(suffixes = [".toml"]),
         support = [
             row(
                 capability = "format",
@@ -2282,7 +2398,7 @@ TOOLS = [
     tool(
         id = "scalafix",
         adapters = {"lint": ["scala"]},
-        config_suffix = [".conf"],
+        config = config(suffixes = [".conf"]),
         support = [
             row(
                 capability = "lint",
@@ -2299,7 +2415,7 @@ TOOLS = [
     tool(
         id = "scalafmt",
         adapters = {"format": ["scala"]},
-        config_suffix = [".conf"],
+        config = config(suffixes = [".conf"]),
         support = [
             row(
                 capability = "format",
@@ -2315,7 +2431,7 @@ TOOLS = [
     tool(
         id = "selene",
         adapters = {"lint": ["lua"]},
-        config_suffix = [".toml"],
+        config = config(suffixes = [".toml"]),
         support = [
             row(
                 capability = "lint",
@@ -2332,7 +2448,7 @@ TOOLS = [
     tool(
         id = "shellcheck",
         adapters = {"lint": ["shell"]},
-        config_suffix = [".shellcheckrc", "shellcheckrc"],
+        config = config(suffixes = [".shellcheckrc", "shellcheckrc"]),
         support = [
             row(
                 capability = "lint",
@@ -2404,7 +2520,7 @@ TOOLS = [
             "format": ["sql"],
             "lint": ["sql"],
         },
-        config_suffix = [".sqlfluff", ".cfg", ".ini"],
+        config = config(suffixes = [".sqlfluff", ".cfg", ".ini"]),
         support = [
             row(
                 capability = "format",
@@ -2431,7 +2547,7 @@ TOOLS = [
     tool(
         id = "standardrb",
         adapters = {"format": ["ruby"]},
-        config_suffix = [".yml", ".yaml"],
+        config = config(suffixes = [".yml", ".yaml"]),
         support = [
             row(
                 capability = "format",
@@ -2452,7 +2568,7 @@ TOOLS = [
     tool(
         id = "staticcheck",
         adapters = {"lint": ["go"]},
-        config_suffix = [".conf"],
+        config = config(suffixes = [".conf"]),
         support = [
             row(
                 capability = "lint",
@@ -2469,7 +2585,7 @@ TOOLS = [
     tool(
         id = "statix",
         adapters = {"lint": ["nix"]},
-        config_suffix = [".toml"],
+        config = config(suffixes = [".toml"]),
         support = [
             row(
                 capability = "lint",
@@ -2486,7 +2602,14 @@ TOOLS = [
     tool(
         id = "stylelint",
         adapters = {"lint": ["css", "less", "scss"]},
-        config_suffix = [".json"],
+        config = config(
+            suffixes = [".json"],
+            files = [".stylelintrc.json", ".stylelintrc*", "stylelint.config.*"],
+            ext = "json",
+            extends_syntax = "{ \"extends\": [\"./{base}\"] }\n",
+            init_order = 4,
+            extensions = [".css"],
+        ),
         support = [
             row(
                 capability = "lint",
@@ -2503,7 +2626,7 @@ TOOLS = [
     tool(
         id = "stylua",
         adapters = {"format": ["lua"]},
-        config_suffix = [".toml"],
+        config = config(suffixes = [".toml"]),
         support = [
             row(
                 capability = "format",
@@ -2519,7 +2642,7 @@ TOOLS = [
     tool(
         id = "swift_format",
         adapters = {"format": ["swift"]},
-        config_suffix = [".swift-format", ".json"],
+        config = config(suffixes = [".swift-format", ".json"]),
         support = [
             row(
                 capability = "format",
@@ -2565,7 +2688,7 @@ TOOLS = [
             "format": ["toml"],
             "lint": ["toml"],
         },
-        config_suffix = [".toml"],
+        config = config(suffixes = [".toml"]),
         support = [
             row(
                 capability = "lint",
@@ -2619,7 +2742,7 @@ TOOLS = [
     tool(
         id = "tflint",
         adapters = {"lint": ["terraform"]},
-        config_suffix = [".hcl"],
+        config = config(suffixes = [".hcl"]),
         support = [
             row(
                 capability = "lint",
@@ -2773,11 +2896,19 @@ TOOLS = [
         adapters = {
             "typecheck": ["astro", "javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"],
         },
+        config = config(
+            files = ["tsconfig.json"],
+            ext = "json",
+            extends_syntax = "{ \"extends\": \"./{base}\" }\n",
+            tier_dir = "tsconfig",
+            init_order = 3,
+            family = "js",
+        ),
     ),
     tool(
         id = "ty",
         adapters = {"typecheck": ["jupyter", "python", "python_stub"]},
-        config_suffix = [".toml"],
+        config = config(suffixes = [".toml"]),
         support = [
             row(
                 capability = "typecheck",
@@ -2834,7 +2965,7 @@ TOOLS = [
     tool(
         id = "vale",
         adapters = {"lint": ["asciidoc", "markdown", "rst"]},
-        config_suffix = [".ini"],
+        config = config(suffixes = [".ini"]),
         support = [
             row(
                 capability = "lint",
@@ -2959,7 +3090,7 @@ TOOLS = [
     tool(
         id = "yamlfmt",
         adapters = {"format": ["github_workflow", "yaml"]},
-        config_suffix = [".yaml", ".yml", ".yamlfmt"],
+        config = config(suffixes = [".yaml", ".yml", ".yamlfmt"]),
         support = [
             row(
                 capability = "format",
@@ -2984,7 +3115,7 @@ TOOLS = [
     tool(
         id = "yamllint",
         adapters = {"lint": ["yaml"]},
-        config_suffix = [".yaml", ".yml", ".yamllint"],
+        config = config(suffixes = [".yaml", ".yml", ".yamllint"]),
         support = [
             row(
                 capability = "lint",

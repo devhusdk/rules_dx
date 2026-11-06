@@ -6,8 +6,10 @@
 
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use crate::scaffold::{FileKind, ScaffoldFile};
+use crate::tools_gen::{ToolConfig, TOOL_CONFIGS};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Profile {
@@ -88,137 +90,42 @@ const FRAMEWORKS: &[Framework] = &[
 
 const NO_FRAMEWORKS: &str = include_str!("../../../quality/tiers/eslint/frameworks.mjs");
 
-const TABLE: &[Entry] = &[
-    Entry {
-        tool: "ruff",
-        family: "python",
-        extensions: &[],
-        ext: "toml",
-        root: "ruff.toml",
-        root_template:
-            "# Repo settings go here; the extend line picks the profile.\nextend = \"{base}\"\n",
-        comment: Some("#"),
-        mode: Mode::Inherit,
-        config_rule: true,
-        configured: &["ruff.toml", ".ruff.toml"],
-        pyproject_table: Some("ruff"),
-        standard: include_str!("../../../quality/tiers/ruff/standard.toml"),
-        strict: include_str!("../../../quality/tiers/ruff/strict.toml"),
-    },
-    Entry {
-        tool: "eslint",
-        family: "js",
-        extensions: &[],
-        ext: "mjs",
-        root: "eslint.config.mjs",
-        root_template: "export { default } from \"./{base}\";\n",
-        comment: Some("//"),
-        mode: Mode::Inherit,
-        config_rule: true,
-        configured: &[
-            "eslint.config.js",
-            "eslint.config.cjs",
-            "eslint.config.mjs",
-            "eslint.config.ts",
-            ".eslintrc*",
-        ],
-        pyproject_table: None,
-        standard: include_str!("../../../quality/tiers/eslint/standard.mjs"),
-        strict: include_str!("../../../quality/tiers/eslint/strict.mjs"),
-    },
-    Entry {
-        tool: "tsconfig",
-        family: "js",
-        extensions: &[],
-        ext: "json",
-        root: "tsconfig.json",
-        root_template: "{ \"extends\": \"./{base}\" }\n",
-        comment: None,
-        mode: Mode::Inherit,
-        config_rule: false,
-        configured: &["tsconfig.json"],
-        pyproject_table: None,
-        standard: include_str!("../../../quality/tiers/tsconfig/standard.json"),
-        strict: include_str!("../../../quality/tiers/tsconfig/strict.json"),
-    },
-    Entry {
-        tool: "stylelint",
-        family: "",
-        extensions: &[".css"],
-        ext: "json",
-        root: ".stylelintrc.json",
-        root_template: "{ \"extends\": [\"./{base}\"] }\n",
-        comment: None,
-        mode: Mode::Inherit,
-        config_rule: true,
-        configured: &[".stylelintrc*", "stylelint.config.*"],
-        pyproject_table: None,
-        standard: include_str!("../../../quality/tiers/stylelint/standard.json"),
-        strict: include_str!("../../../quality/tiers/stylelint/strict.json"),
-    },
-    Entry {
-        tool: "dart",
-        family: "dart",
-        extensions: &[],
-        ext: "yaml",
-        root: "analysis_options.yaml",
-        root_template: "include: {base}\n",
-        comment: Some("#"),
-        mode: Mode::Inherit,
-        config_rule: true,
-        configured: &["analysis_options.yaml"],
-        pyproject_table: None,
-        standard: include_str!("../../../quality/tiers/dart/standard.yaml"),
-        strict: include_str!("../../../quality/tiers/dart/strict.yaml"),
-    },
-    Entry {
-        tool: "psscriptanalyzer",
-        family: "powershell",
-        extensions: &[],
-        ext: "psd1",
-        root: "PSScriptAnalyzerSettings.psd1",
-        root_template: "",
-        comment: Some("#"),
-        mode: Mode::Copy,
-        config_rule: true,
-        configured: &["PSScriptAnalyzerSettings.psd1"],
-        pyproject_table: None,
-        standard: include_str!("../../../quality/tiers/psscriptanalyzer/standard.psd1"),
-        strict: include_str!("../../../quality/tiers/psscriptanalyzer/strict.psd1"),
-    },
-    Entry {
-        tool: "hlint",
-        family: "haskell",
-        extensions: &[],
-        ext: "yaml",
-        root: ".hlint.yaml",
-        root_template: "",
-        comment: Some("#"),
-        mode: Mode::Copy,
-        config_rule: true,
-        configured: &[".hlint.yaml"],
-        pyproject_table: None,
-        standard: include_str!("../../../quality/tiers/hlint/standard.yaml"),
-        strict: include_str!("../../../quality/tiers/hlint/strict.yaml"),
-    },
-    Entry {
-        tool: "dscanner",
-        family: "d",
-        extensions: &[],
-        ext: "ini",
-        root: "dscanner.ini",
-        root_template: "",
-        comment: Some(";"),
-        mode: Mode::Copy,
-        config_rule: true,
-        configured: &["dscanner.ini"],
-        pyproject_table: None,
-        standard: include_str!("../../../quality/tiers/dscanner/standard.ini"),
-        strict: include_str!("../../../quality/tiers/dscanner/strict.ini"),
-    },
-];
+static TABLE: LazyLock<Vec<Entry>> = LazyLock::new(|| {
+    TOOL_CONFIGS
+        .iter()
+        .filter(|config| !config.ext.is_empty())
+        .map(Entry::from_config)
+        .collect()
+});
 
 impl Entry {
+    fn from_config(config: &'static ToolConfig) -> Self {
+        let present = |text: &'static str| (!text.is_empty()).then_some(text);
+        Self {
+            tool: if config.tier_dir.is_empty() {
+                config.id
+            } else {
+                config.tier_dir
+            },
+            family: config.family,
+            extensions: config.extensions,
+            ext: config.ext,
+            root: config.files[0],
+            root_template: config.extends_syntax,
+            comment: present(config.comment),
+            mode: if config.extends_syntax.is_empty() {
+                Mode::Copy
+            } else {
+                Mode::Inherit
+            },
+            config_rule: !config.suffixes.is_empty(),
+            configured: config.files,
+            pyproject_table: present(config.pyproject_table),
+            standard: config.standard,
+            strict: config.strict,
+        }
+    }
+
     fn base_path(&self, profile: Profile) -> String {
         format!(".dx/config/{}/{}.{}", self.tool, profile.name(), self.ext)
     }
@@ -829,7 +736,7 @@ mod tests {
 
     #[test]
     fn every_row_has_both_templates_that_parse() {
-        for entry in TABLE {
+        for entry in TABLE.iter() {
             for profile in [Profile::Standard, Profile::Strict] {
                 let text = entry.template(profile);
                 assert!(!text.is_empty(), "{} {}", entry.tool, profile.name());

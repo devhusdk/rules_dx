@@ -49,7 +49,7 @@ CONFIG_REQUIRED_TOOLS = {
 
 CONFIG_TOOL_ALIASES = {"helm": "kubeconform", "swift_lint": "swift_format"}
 
-_NATIVE_CONFIG_SUFFIXES = {tool.id: tool.config_suffix for tool in TOOLS if tool.config_suffix}
+_NATIVE_CONFIG_SUFFIXES = {tool.id: tool.config.suffixes for tool in TOOLS if tool.config.suffixes}
 
 def native_config_extensions(tool_id):
     """Returns the accepted config suffixes for a real tool ID."""

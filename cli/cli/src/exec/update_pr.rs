@@ -19,16 +19,16 @@ pub(crate) const CODE_UPDATE_PR_FAILED: &str = "update_pr_failed";
 pub(crate) const CODE_UPDATE_PR_SKIPPED: &str = "update_pr_skipped";
 pub(crate) const CODE_UPDATE_PR_LOOKUP: &str = "update_pr_lookup_failed";
 
-const BOT_NAME: &str = "github-actions[bot]";
-const BOT_EMAIL: &str = "41898282+github-actions[bot]@users.noreply.github.com";
+pub(super) const BOT_NAME: &str = "github-actions[bot]";
+pub(super) const BOT_EMAIL: &str = "41898282+github-actions[bot]@users.noreply.github.com";
 
 pub(crate) struct Tools {
-    git: PathBuf,
-    gh: PathBuf,
+    pub(super) git: PathBuf,
+    pub(super) gh: PathBuf,
 }
 
 impl Tools {
-    fn system() -> Tools {
+    pub(super) fn system() -> Tools {
         Tools {
             git: PathBuf::from("git"),
             gh: PathBuf::from("gh"),
@@ -292,7 +292,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     exit
 }
 
-fn tail(text: &str) -> String {
+pub(super) fn tail(text: &str) -> String {
     let text = text.trim();
     let start = text.len().saturating_sub(300);
     let start = (start..=text.len())
@@ -347,7 +347,7 @@ fn emit(out: &mut dyn Write, outcomes: &[Outcome], json: bool, exit: i32) -> Res
     Ok(())
 }
 
-fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String> {
+pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String> {
     let output = Command::new(program)
         .args(args)
         .current_dir(root)
@@ -364,12 +364,15 @@ fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String>
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-const WORKFLOW_SKIP: &str = "skipped: token cannot push workflow files";
+pub(super) const WORKFLOW_SKIP: &str = "skipped: token cannot push workflow files";
 
-const ACTIONS_PR_REFUSAL: &str = "not permitted to create or approve pull requests";
+pub(super) const ACTIONS_PR_REFUSAL: &str = "not permitted to create or approve pull requests";
 const AUTO_MERGE_HINT: &str = "turn on Allow auto-merge or pass --automerge=none";
 
-fn enable_auto_merge(gh: &dyn Fn(&[&str]) -> Result<String, String>, pr: &str) -> String {
+pub(super) fn enable_auto_merge(
+    gh: &dyn Fn(&[&str]) -> Result<String, String>,
+    pr: &str,
+) -> String {
     match gh(&["pr", "merge", pr, "--auto", "--squash"]) {
         Ok(_) => String::new(),
         Err(error) => format!("; auto-merge not enabled: {error} ({AUTO_MERGE_HINT})"),
@@ -381,7 +384,7 @@ fn refused_workflow(stderr: &str) -> bool {
     text.contains("refusing to allow") && text.contains("workflow")
 }
 
-fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, String> {
+pub(super) fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, String> {
     let args = ["push", "--force-with-lease", "origin", branch];
     let output = Command::new(&tools.git)
         .args(args)
@@ -501,7 +504,11 @@ struct Target<'a> {
 }
 
 /// Lists open pull requests on `dx-update/` branches as number and branch.
-fn open_update_prs(tools: &Tools, root: &Path, base: &str) -> Result<Vec<(u64, String)>, String> {
+pub(super) fn open_update_prs(
+    tools: &Tools,
+    root: &Path,
+    base: &str,
+) -> Result<Vec<(u64, String)>, String> {
     let listed = program(
         &tools.gh,
         root,

@@ -63,6 +63,11 @@ on:
         required: false
         default: ""
         type: string
+      advisory_pr:
+        description: "Open or refresh the dx-update/advisory pull request that moves the advisory pins in .dx/pins to the newest published snapshot release. Call this workflow from a schedule with it set; the caller needs contents and pull-requests write permission."
+        required: false
+        default: false
+        type: boolean
       invocation_id:
         description: "Names this call's advisory artifact. Empty keeps advisory-snapshots for a single call. Two calls in one parent run need distinct IDs of 1 to 40 letters, digits, underscores or hyphens."
         required: false
@@ -510,6 +515,31 @@ jobs:
           path: .dx/local/advisory
           if-no-files-found: error
           retention-days: 1
+  advisory-bump:
+    name: advisory pin bump
+    needs: [validate]
+    if: ${{ inputs.advisory_pr }}
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+      - name: Open the advisory bump pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          gh auth setup-git
+          bazel run "$@" @rules_dx//:dx -- update advisory --pr
   security-audit:
     needs: [validate, advisory-snapshots]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',security-audit,') }}

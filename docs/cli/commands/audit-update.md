@@ -425,6 +425,24 @@ JSON emits an `add_declared` notice for an insert, an `update_widened` notice pe
 | `1` | A pending widen without `--apply`, or an operational failure. |
 | `2` | Usage or scope error, or an unknown set. |
 
+### Advisory Pins
+
+```sh
+tools/dx update advisory
+tools/dx update advisory --apply
+tools/dx update advisory --pr
+```
+
+The `advisory` selector moves the `advisory` lines of `.dx/pins` to the newest release of `devhusdk/rules_dx-advisory`. The release body lists the pin lines that `advisory_prep --pin` printed. It reads the GitHub API for that release and downloads no snapshot.
+
+Without flags it writes nothing and prints, per pinned family, the pin date, its age and whether the newest release is newer, then the branch `dx-update/advisory`, the pin diff and the advisories that `dx security` reports with the new pins and not with the old ones. `--apply` rewrites only the `advisory` lines whose family the release has a pin for; every other line stays as it is. `--pr` does that on the branch `dx-update/advisory` and opens or refreshes its pull request, with the pin diff and the new advisories in the body. It closes the pull request when the pins are current. It needs the same `git` and `gh` as the other pull requests, and it never turns on auto-merge.
+
+A scheduled workflow, `.github/workflows/advisory-publish.yml`, builds the snapshots every day with `advisory_prep --pin` against the live sources, creates the release `YYYY-MM-DD` with the archives as assets and the pin lines as the body, and then runs `dx update advisory --pr`. It publishes nothing when the sha256 of every snapshot equals the one in the newest release. The owner creates `devhusdk/rules_dx-advisory` and the `ADVISORY_RELEASE_TOKEN` secret, a token with release write access to it.
+
+Consumers call the reusable workflow from a schedule with `advisory_pr: true`; its `advisory-bump` job runs `dx update advisory --pr`.
+
+Review a bump pull request by reading the diff of `.dx/pins` and the list of new advisories in the body. Each new advisory is a finding that the old snapshots lack: fix it, or accept it with `dx security --accept`, before merging. A pull request with no new advisories only refreshes the data.
+
 ## Dependency Sets
 
 `update`, `security` and `license` read sets from the hubs in the root `MODULE.bazel` and the files it `include()`s.

@@ -58,6 +58,7 @@ pub(crate) mod test_support;
 mod umbrella;
 mod update;
 mod update_add_missing;
+mod update_advisory;
 mod update_outdated;
 mod update_pr;
 mod update_prune;
@@ -272,6 +273,9 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Sync if invocation.shell.is_some() => managed::execute_env_shell(env),
         Command::Sync => managed::execute_managed(invocation, env),
         Command::Security | Command::License => audit::execute_audit(invocation, env),
+        Command::Update if update_advisory::selected(invocation) => {
+            update_advisory::execute_update_advisory(invocation, env)
+        }
         Command::Update if invocation.pr => update_pr::execute_update_pr(invocation, env),
         Command::Update if invocation.outdated => {
             update_outdated::execute_update_outdated(invocation, env)

@@ -118,6 +118,7 @@ pub(crate) fn configured_set(
         }
         dx_adopt::dependency_sets::Ecosystem::Cabal if foreign => {
             Some(dx_update::edit::ConfiguredKind::Cabal)
+        }
         dx_adopt::dependency_sets::Ecosystem::SwiftPm if foreign => {
             Some(dx_update::edit::ConfiguredKind::SwiftPm)
         }

@@ -392,7 +392,6 @@ impl UpdateRequest {
             | ConfiguredKind::Cpan
             | ConfiguredKind::Pub
             | ConfiguredKind::Cabal
-            | ConfiguredKind::Composer => parse_foreign_selector(set_name, kind, selector)?,
             | ConfiguredKind::Composer
             | ConfiguredKind::SwiftPm => parse_foreign_selector(set_name, kind, selector)?,
         };

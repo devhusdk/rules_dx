@@ -855,6 +855,7 @@ fn fixture_session() -> Session {
         bazelisk_home: PathBuf::from("/q/bazelisk"),
         isolation: Isolation::default(),
         probes: Vec::new(),
+        bash: Some(PathBuf::from("/msys/bash.exe")),
     }
 }
 
@@ -1713,4 +1714,34 @@ fn action_path_is_system_only() {
         assert_eq!(action_path(None, None), ACTION_PATH);
     }
     assert_eq!(SHIM_NAME.ends_with(".cmd"), cfg!(windows));
+}
+
+#[test]
+fn windows_bash_prefers_bazel_sh_then_the_first_existing_candidate() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = |name: &str| {
+        let path = dir.path().join(name);
+        std::fs::write(&path, "").unwrap();
+        path
+    };
+    let own = file("own-bash.exe");
+    let msys = file("msys-bash.exe");
+    let git = file("git-bash.exe");
+    let missing = dir.path().join("missing-bash.exe");
+    let root = dir.path().join("Windows");
+    std::fs::create_dir(&root).unwrap();
+    let stub = root.join("bash.exe");
+    std::fs::write(&stub, "").unwrap();
+    let system_root = root.to_string_lossy().to_uppercase();
+    let candidates = [missing.clone(), msys.clone(), git];
+    assert_eq!(
+        windows_bash(Some(&own), &system_root, &candidates),
+        Some(own)
+    );
+    assert_eq!(
+        windows_bash(Some(&stub), &system_root, &candidates),
+        Some(msys.clone())
+    );
+    assert_eq!(windows_bash(None, &system_root, &candidates), Some(msys));
+    assert_eq!(windows_bash(Some(&missing), &system_root, &[stub]), None);
 }

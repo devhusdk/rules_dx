@@ -196,6 +196,22 @@ pub fn action_path(system_root: Option<&str>, shim_dir: Option<&Path>) -> String
     dirs.join(";")
 }
 
+/// The bash a Windows Bazel runs genrules with: `BAZEL_SH`, then the first candidate that
+/// exists. Anything under the system root is skipped, since System32's bash.exe is the WSL stub.
+pub fn windows_bash(
+    bazel_sh: Option<&Path>,
+    system_root: &str,
+    candidates: &[PathBuf],
+) -> Option<PathBuf> {
+    let root = PathBuf::from(system_root.to_lowercase());
+    bazel_sh
+        .into_iter()
+        .chain(candidates.iter().map(PathBuf::as_path))
+        .filter(|path| !PathBuf::from(path.to_string_lossy().to_lowercase()).starts_with(&root))
+        .find(|path| path.is_file())
+        .map(Path::to_path_buf)
+}
+
 /// The Windows tool directories under Program Files and the local profile: Python, Node, JDK and LLVM.
 pub fn windows_tool_dirs(
     program_files: Option<&Path>,
@@ -278,7 +294,7 @@ pub fn markers(os: &str) -> (&'static str, &'static str, &'static str) {
     }
 }
 
-/// Host variables a Windows action still needs: the system root and the Visual Studio and MSYS locations Bazel reads.
+/// Host variables a Windows action still needs: the system root and the Visual Studio locations Bazel reads.
 pub const WINDOWS_PASSTHROUGH: &[&str] = &[
     "SystemRoot",
     "windir",
@@ -287,7 +303,6 @@ pub const WINDOWS_PASSTHROUGH: &[&str] = &[
     "ProgramFiles",
     "ProgramFiles(x86)",
     "ProgramData",
-    "BAZEL_SH",
     "BAZEL_VC",
     "BAZEL_VC_FULL_VERSION",
     "BAZEL_LLVM",
@@ -976,6 +991,8 @@ pub struct Session {
     pub bazelisk_home: PathBuf,
     pub isolation: Isolation,
     pub probes: Vec<Value>,
+    /// The MSYS bash the Windows Bazel runs genrules with.
+    pub bash: Option<PathBuf>,
 }
 
 impl Session {
@@ -983,6 +1000,13 @@ impl Session {
         Some(self.manifest.platform.as_str())
             .filter(|platform| !platform.is_empty())
             .map(|platform| format!("--platforms={platform}"))
+    }
+
+    fn shell_flag(&self) -> Option<String> {
+        self.bash
+            .as_ref()
+            .filter(|_| cfg!(windows))
+            .map(|bash| format!("--shell_executable={}", bash.display()))
     }
 
     fn action_path(&self) -> String {
@@ -1018,6 +1042,9 @@ impl Session {
                 env.push(((*key).to_owned(), value));
             }
         }
+        if let Some(bash) = &self.bash {
+            env.push(("BAZEL_SH".to_owned(), bash.to_string_lossy().into_owned()));
+        }
         env
     }
 
@@ -1043,6 +1070,7 @@ impl Session {
         ];
         argv.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
         argv.extend(self.platform_flag());
+        argv.extend(self.shell_flag());
         argv.extend(probe.extra.iter().cloned());
         argv.push("--".to_owned());
         argv.extend(probe.targets.iter().cloned());
@@ -1124,6 +1152,7 @@ impl Session {
         }
         args.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
         args.extend(self.platform_flag());
+        args.extend(self.shell_flag());
         if cfg!(windows) {
             let path = format!("{};{}", bin.display(), self.action_path());
             let mut argv = vec![self.manifest.dx.to_string_lossy().into_owned()];
@@ -2047,6 +2076,23 @@ fn run_all(
         write(&shim_dir.join(format!("{ambient}.cmd")), SHIM)?;
     }
     let path = action_path(std::env::var("SystemRoot").ok().as_deref(), Some(&shim_dir));
+    let bash = if cfg!(windows) {
+        let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_owned());
+        let program_files =
+            std::env::var("ProgramFiles").unwrap_or_else(|_| format!(r"{drive}\Program Files"));
+        let candidates = [
+            PathBuf::from(format!(r"{drive}\msys64\usr\bin\bash.exe")),
+            PathBuf::from(format!(r"{program_files}\Git\usr\bin\bash.exe")),
+        ];
+        let bazel_sh = std::env::var_os("BAZEL_SH").map(PathBuf::from);
+        let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_owned());
+        Some(
+            windows_bash(bazel_sh.as_deref(), &system_root, &candidates)
+                .ok_or("no MSYS bash: set BAZEL_SH")?,
+        )
+    } else {
+        None
+    };
     evidence["isolation"] = json!({
         "network": if cfg!(target_os = "macos") {
             "sandbox-exec profile, loopback only"
@@ -2060,6 +2106,7 @@ fn run_all(
         "masked_sdk_dirs": isolation.sdk_dirs,
         "masked_home": isolation.home_dirs.iter().chain(&isolation.home_files).collect::<Vec<_>>(),
         "ambient_probe_tool": ambient,
+        "bash": bash,
     });
     preflight(&isolation)?;
     let workspace = root.join(&manifest.workspace_dir);
@@ -2083,6 +2130,7 @@ fn run_all(
         bazelisk_home: root.join("bazelisk"),
         isolation,
         probes: Vec::new(),
+        bash,
     });
     let clean_home = root.join("home");
     let planted_home = root.join("home-planted");

@@ -141,7 +141,7 @@ Builds the runnable targets, then runs them in order. Args after `--` go to the 
 dx deploy [--apply] [--debug|--release] <label> [-- args...]
 ```
 
-Builds one deployable target. `--apply` runs the deployment and sets `DX_PROFILE`. Without a flag the profile comes from the target's `profile` attribute. Args after `--` reach the app on `--apply` only. Output: text only.
+Builds one deployable target. `--apply` runs the deployment and sets `DX_PROFILE`. Without a flag the profile comes from the target's `profile` attribute. Args after `--` reach the app on `--apply` only. Output: text only. The agent guard hook asks first (Claude, Copilot) or refuses (Codex, Gemini, Cursor) when a command runs `dx deploy` with `--apply`; run the dry run, and let a human or CI publish.
 
 ### Registries released by tag
 

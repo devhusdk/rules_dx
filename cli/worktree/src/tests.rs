@@ -3001,6 +3001,60 @@ mod hooks {
         }))
     }
 
+    fn deploy_guard(event: &str, command: &str, codex: bool) -> hook::Guard {
+        let input = serde_json::json!({
+            "hook_event_name": event,
+            "tool_input": {"command": command},
+        });
+        hook::guard_with(&input, &who("s1", 1), &|_| None, &|name| {
+            (codex && name == "CODEX_THREAD_ID").then(|| "t1".to_owned())
+        })
+    }
+
+    #[test]
+    fn deploy_apply_asks_in_claude_and_copilot() {
+        for command in [
+            "tools/dx deploy --apply //x:y",
+            "tools/dx deploy //x:y --apply",
+            "cd /r && tools/dx.cmd deploy --debug //x:y --apply",
+        ] {
+            let hook::Guard::Ask(output) = deploy_guard("PreToolUse", command, false) else {
+                panic!("{command} asks");
+            };
+            assert_eq!(output["hookSpecificOutput"]["permissionDecision"], "ask");
+        }
+    }
+
+    #[test]
+    fn deploy_apply_is_denied_in_codex_and_gemini() {
+        let codex = deploy_guard("PreToolUse", "tools/dx deploy //x:y --apply", true);
+        let gemini = deploy_guard("BeforeTool", "tools/dx deploy --apply //x:y", false);
+        for guard in [codex, gemini] {
+            let hook::Guard::Block(line) = guard else {
+                panic!("denied");
+            };
+            assert!(line.contains("tools/dx deploy"));
+            assert!(line.contains("human or CI"));
+        }
+    }
+
+    #[test]
+    fn deploy_without_apply_is_allowed() {
+        for command in [
+            "tools/dx deploy //x:y",
+            "tools/dx test //x:y --apply",
+            "tools/dx deploy //x:y -- --apply",
+        ] {
+            assert!(
+                !matches!(
+                    deploy_guard("PreToolUse", command, false),
+                    hook::Guard::Ask(_) | hook::Guard::Block(_)
+                ),
+                "{command}"
+            );
+        }
+    }
+
     #[test]
     fn guard_names_the_subagent_for_every_dx_command() {
         let hook::Guard::Rewrite(output) = guard_for_agent("cd /r && tools/dx worktree add x")

@@ -831,10 +831,12 @@ fn guard_hook(stdin: &str, who: &Who, out: &mut dyn Write, err: &mut dyn Write) 
             let _ = writeln!(err, "{line}");
             dx_process::pre_exec_code()
         }
-        hook::Guard::Rewrite(output) => match write_line(out, &output.to_string()) {
-            Ok(()) => 0,
-            Err(exit) => exit,
-        },
+        hook::Guard::Rewrite(output) | hook::Guard::Ask(output) => {
+            match write_line(out, &output.to_string()) {
+                Ok(()) => 0,
+                Err(exit) => exit,
+            }
+        }
         hook::Guard::Allow => 0,
     }
 }

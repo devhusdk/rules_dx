@@ -725,6 +725,37 @@ fn runs_dx(command: &str) -> bool {
     })
 }
 
+/// True when the command runs `dx deploy` with `--apply` among its words before any `--`.
+fn deploys_with_apply(command: &str) -> bool {
+    segments(command).iter().any(|segment| {
+        let Some((first, rest)) = segment.split_first() else {
+            return false;
+        };
+        if !matches!(base(first), "dx" | "dx.cmd" | "dx.exe") {
+            return false;
+        }
+        let words: Vec<&str> = rest
+            .iter()
+            .map(String::as_str)
+            .take_while(|word| *word != "--")
+            .collect();
+        words.contains(&"--apply") && words.iter().find(|w| !w.starts_with('-')) == Some(&"deploy")
+    })
+}
+
+const DEPLOY_APPLY_ASK: &str = "dx deploy --apply publishes for real. Confirm with the user first.";
+
+fn deploy_apply_deny(command: &str) -> String {
+    let dry_run = command
+        .split_whitespace()
+        .filter(|word| *word != "--apply")
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!(
+        "dx: `dx deploy --apply` publishes for real and needs a human or CI. Dry run with `{dry_run}` instead."
+    )
+}
+
 fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
 }
@@ -735,6 +766,8 @@ pub enum Guard {
     Allow,
     Block(String),
     Rewrite(Value),
+    /// Ask the user before the command runs; carries the hook output.
+    Ask(Value),
 }
 
 /// Looks up the lease of the slot a directory is in.
@@ -775,13 +808,17 @@ pub fn guard_with(
         return Guard::Allow;
     };
     let dialect = Dialect::of(input);
+    let deploy = deploys_with_apply(command);
+    if deploy && (dialect != Dialect::Claude || codex_thread(env_get).is_some()) {
+        return Guard::Block(deploy_apply_deny(command));
+    }
     let mut exports = Vec::new();
     if let Some(session) = dialect.session(input)
         && runs_dx(command)
     {
         exports.push(format!("export {SESSION_ENV}={}", shell_quote(&session)));
     }
-    let codex_thread = env_get("CODEX_THREAD_ID").filter(|id| !id.is_empty());
+    let codex_thread = codex_thread(env_get);
     let subagent_thread = field(input, "session_id").filter(|id| {
         dialect == Dialect::Claude && codex_thread.as_deref().is_some_and(|t| t != id)
     });
@@ -790,7 +827,7 @@ pub fn guard_with(
     {
         exports.push(format!("export {HOLDER_ENV}={}", shell_quote(&agent)));
     }
-    if exports.is_empty() {
+    if exports.is_empty() && !deploy {
         return Guard::Allow;
     }
     let mut updated = tool.clone();
@@ -798,7 +835,24 @@ pub fn guard_with(
         "command".to_owned(),
         Value::String(format!("{}\n{command}", exports.join("\n"))),
     );
+    if deploy {
+        let mut output = serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "ask",
+                "permissionDecisionReason": DEPLOY_APPLY_ASK,
+            }
+        });
+        if !exports.is_empty() {
+            output["hookSpecificOutput"]["updatedInput"] = Value::Object(updated);
+        }
+        return Guard::Ask(output);
+    }
     Guard::Rewrite(dialect.rewrite(Value::Object(updated)))
+}
+
+fn codex_thread(env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
+    env_get("CODEX_THREAD_ID").filter(|id| !id.is_empty())
 }
 
 /// The refusal for a `git checkout|switch|reset|rebase` that runs in a slot someone else holds.

@@ -2,3 +2,5 @@
 
 Verifies that grouped, renamed, underscore wildcard, and given imports
 each resolve to the library that defines them.
+
+A leading `_root_` is dropped before resolving.

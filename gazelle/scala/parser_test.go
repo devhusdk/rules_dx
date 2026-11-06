@@ -244,3 +244,23 @@ func TestDefinesMainScalaNotEntry(t *testing.T) {
 		}
 	}
 }
+
+func TestParseImportsRootPrefix(t *testing.T) {
+	cases := []struct {
+		src  string
+		want []string
+	}{
+		{"import _root_.a.B", []string{"a.B"}},
+		{"import _root_.a.{B, C}", []string{"a.B", "a.C"}},
+		{"import _root_.a._", []string{"a.*"}},
+		{"import _root_.a.{B => X}", []string{"a.B"}},
+		{"import _root_.scala.collection.mutable", []string{"scala.collection.mutable"}},
+		{"import a._root_.B", []string{"a._root_.B"}},
+	}
+	for _, c := range cases {
+		got := ParseImports([]byte("package demo\n\n" + c.src + "\n"))
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s: ParseImports = %v, want %v", c.src, got, c.want)
+		}
+	}
+}

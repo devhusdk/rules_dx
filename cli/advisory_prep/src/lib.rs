@@ -110,6 +110,8 @@ impl Summary {
     }
 }
 
+use dx_audit::advisory::TRIVY_FAMILY;
+
 /// Release download base of the shared snapshot repo; one release per date tag.
 pub const PIN_URL_BASE: &str = "https://github.com/devhusdk/rules_dx-advisory/releases/download";
 
@@ -123,10 +125,7 @@ pub fn write_pins(
 ) -> Result<Vec<String>, PrepError> {
     let date = &options.retrieved_at;
     let mut lines = Vec::new();
-    for entry in prepared
-        .iter()
-        .filter(|entry| !entry.family.ends_with("-yanked"))
-    {
+    for entry in prepared {
         let payload =
             std::fs::read(options.out.join(format!("{}.json", entry.family))).map_err(|error| {
                 PrepError::Write {
@@ -153,6 +152,20 @@ pub fn write_pins(
                 "{}/{date}/{}.json",
                 url_base.trim_end_matches('/'),
                 entry.family
+            ),
+        };
+        lines.push(pin.line());
+    }
+    if options.trivy.is_some() {
+        let asset = dir.join(date).join(format!("{}.tar.gz", TRIVY_FAMILY));
+        let payload = trivy::pack_cache(&options.out.join(trivy::CACHE_DIR), &asset)?;
+        let pin = dx_audit::advisory::AdvisoryPin {
+            family: TRIVY_FAMILY.to_owned(),
+            date: date.clone(),
+            sha256: dx_digest::sha256_hex(&payload),
+            url: format!(
+                "{}/{date}/{TRIVY_FAMILY}.tar.gz",
+                url_base.trim_end_matches('/')
             ),
         };
         lines.push(pin.line());

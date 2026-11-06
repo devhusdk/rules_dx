@@ -1131,27 +1131,6 @@ fn audit_errors_stay_typed_with_stable_display() {
         .to_string(),
         "advisory_refresh_failed: could not obtain current advisory data for cargo: unsupported set"
     );
-    let missing = AuditError::AdvisoryMissing {
-        set: "cargo".to_owned(),
-        rel: ".dx/local/advisory/cargo.json".to_owned(),
-    }
-    .to_string();
-    assert_eq!(
-        missing,
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/local/advisory/cargo.json (refresh via bazel run @rules_dx//cli/advisory_prep --)"
-    );
-    assert!(missing.contains(dx_audit::advisory::REFRESH_COMMAND));
-    assert!(!missing.contains("https://"), "{missing}");
-    let snapshot_read = AuditError::AdvisoryRead {
-        set: "cargo".to_owned(),
-        rel: ".dx/local/advisory/cargo.json".to_owned(),
-        error: std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"),
-    };
-    assert_eq!(
-        snapshot_read.to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: could not read .dx/local/advisory/cargo.json: denied"
-    );
-    assert!(snapshot_read.source().is_some());
     assert_eq!(
         AuditError::AdvisoryUtf8 {
             set: "cargo".to_owned(),
@@ -1159,69 +1138,6 @@ fn audit_errors_stay_typed_with_stable_display() {
         }
         .to_string(),
         "advisory_refresh_failed: could not obtain current advisory data for cargo: .dx/local/advisory/cargo.json is not valid UTF-8"
-    );
-    assert_eq!(
-        AuditError::AdvisoryEmpty {
-            set: "cargo".to_owned(),
-            rel: ".dx/local/advisory/cargo.json".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: empty .dx/local/advisory/cargo.json"
-    );
-    assert_eq!(
-        AuditError::AdvisoryMissingMeta {
-            set: "cargo".to_owned(),
-            meta_rel: ".dx/local/advisory/cargo.meta.json".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/local/advisory/cargo.meta.json"
-    );
-    let meta_wrapped = AuditError::AdvisoryMeta {
-        set: "cargo".to_owned(),
-        source: Box::new(AuditError::NotUtf8 {
-            rel: ".dx/local/advisory/cargo.meta.json".to_owned(),
-        }),
-    };
-    assert_eq!(
-        meta_wrapped.to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: could not read .dx/local/advisory/cargo.meta.json: not valid UTF-8"
-    );
-    assert!(meta_wrapped.source().is_some());
-    assert_eq!(
-        AuditError::AdvisoryIdentity {
-            set: "cargo".to_owned(),
-            detail: "invalid advisory identity: boom".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: invalid advisory identity: boom"
-    );
-    assert_eq!(
-        AuditError::AdvisorySetMismatch {
-            set: "cargo".to_owned(),
-            actual: "npm".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: identity set \"npm\" does not match"
-    );
-    let stale = AuditError::AdvisoryStale {
-        set: "cargo".to_owned(),
-        retrieved_at: "2000-01-01".to_owned(),
-        today: "2026-09-22".to_owned(),
-    }
-    .to_string();
-    assert_eq!(
-        stale,
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: stale snapshot 2000-01-01 (want 2026-09-22; refresh via bazel run @rules_dx//cli/advisory_prep --)"
-    );
-    assert!(stale.contains(dx_audit::advisory::REFRESH_COMMAND));
-    assert!(!stale.contains("https://"), "{stale}");
-    assert_eq!(
-        AuditError::AdvisoryShaMismatch {
-            set: "cargo".to_owned(),
-            rel: ".dx/local/advisory/cargo.json".to_owned(),
-        }
-        .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: identity sha256 does not match .dx/local/advisory/cargo.json"
     );
     assert_eq!(
         AuditError::AdvisoryParse {

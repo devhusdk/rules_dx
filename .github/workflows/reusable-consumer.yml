@@ -578,6 +578,11 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           retrieved_at="$(date -u +%F)"
           echo "retrieved_at=$retrieved_at" >> "$GITHUB_OUTPUT"
+          if grep -q '^advisory ' .dx/pins 2>/dev/null; then
+            # Pinned snapshots are fetched by sha into the cache; nothing to prepare live.
+            echo "status=empty" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           trivy_args=()
           if [ -n "$(git ls-files '*.tf' '*.bicep' 'Dockerfile' '*/Dockerfile' '*/Chart.yaml' | head -n 1)" ] ||
             git grep -q 'oci_deploy' -- '*BUILD' '*BUILD.bazel' '*.bzl'; then

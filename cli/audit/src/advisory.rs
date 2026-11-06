@@ -61,6 +61,9 @@ pub fn yanked_family(set: &str) -> Option<&'static str> {
 
 pub const PYPI_FAMILY: &str = "pypi";
 
+/// The pin family of the trivy database and checks, one `.tar.gz` of the cache directory.
+pub const TRIVY_FAMILY: &str = "trivy";
+
 pub fn advisory_source(family: &str) -> Option<&'static str> {
     match family {
         "cargo" => Some("https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip"),
@@ -114,6 +117,11 @@ impl AdvisoryPin {
     /// Where the verified snapshot is cached, relative to the workspace.
     pub fn cache_rel(&self) -> String {
         format!(".dx/local/advisory/{}/{}.json", self.sha256, self.family)
+    }
+
+    /// Where the unpacked trivy cache lives, relative to the workspace.
+    pub fn trivy_cache_rel(&self) -> String {
+        format!(".dx/local/advisory/{}/trivy", self.sha256)
     }
 
     /// Whole days from the pin date to `today`, when both are audit dates.

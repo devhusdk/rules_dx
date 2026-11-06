@@ -413,12 +413,14 @@ fn pinning_copies_each_snapshot_and_prints_its_pin_line() {
     let lines = write_pins(&options, &prepared, &dir, "file:///assets/").expect("pins");
     let asset = dir.join("2026-09-22/cargo.json");
     let sha = dx_digest::sha256_hex(&std::fs::read(&asset).expect("asset"));
+    assert_eq!(lines.len(), 2);
     assert_eq!(
-        lines,
-        vec![format!(
-            "advisory cargo 2026-09-22 {sha} file:///assets/2026-09-22/cargo.json"
-        )]
+        lines[0],
+        format!("advisory cargo 2026-09-22 {sha} file:///assets/2026-09-22/cargo.json")
     );
+    assert!(lines[1].starts_with("advisory cargo-yanked 2026-09-22 "));
+    assert!(lines[1].ends_with(" file:///assets/2026-09-22/cargo-yanked.json"));
+    assert!(dx_audit::advisory::find_pin(&lines[1], "cargo-yanked").is_some());
     assert_eq!(sha, prepared[0].identity);
     assert!(dx_audit::advisory::find_pin(&lines[0], "cargo").is_some());
 }

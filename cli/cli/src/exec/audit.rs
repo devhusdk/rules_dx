@@ -151,64 +151,9 @@ pub(crate) enum AuditError {
     )]
     AdvisoryUnsupported { set: String },
     #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: missing {rel} (refresh via {refresh})",
-        refresh = dx_audit::advisory::REFRESH_COMMAND
-    )]
-    AdvisoryMissing { set: String, rel: String },
-    #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: could not read {rel}: {error}"
-    )]
-    AdvisoryRead {
-        set: String,
-        rel: String,
-        #[source]
-        error: std::io::Error,
-    },
-    #[error(
         "advisory_refresh_failed: could not obtain current advisory data for {set}: {rel} is not valid UTF-8"
     )]
     AdvisoryUtf8 { set: String, rel: String },
-    #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: empty {rel}"
-    )]
-    AdvisoryEmpty { set: String, rel: String },
-    #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: missing {meta_rel}"
-    )]
-    AdvisoryMissingMeta { set: String, meta_rel: String },
-    #[error("advisory_refresh_failed: could not obtain current advisory data for {set}: {source}")]
-    AdvisoryMeta {
-        set: String,
-        #[source]
-        source: Box<AuditError>,
-    },
-    #[error("advisory_refresh_failed: could not obtain current advisory data for {set}: {detail}")]
-    AdvisoryIdentity { set: String, detail: String },
-    #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: invalid advisory identity: {error}"
-    )]
-    AdvisorySnapshotInvalid {
-        set: String,
-        #[source]
-        error: dx_audit::advisory::SnapshotProblem,
-    },
-    #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: identity set {actual:?} does not match"
-    )]
-    AdvisorySetMismatch { set: String, actual: String },
-    #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: stale snapshot {retrieved_at} (want {today}; refresh via {refresh})",
-        refresh = dx_audit::advisory::REFRESH_COMMAND
-    )]
-    AdvisoryStale {
-        set: String,
-        retrieved_at: String,
-        today: String,
-    },
-    #[error(
-        "advisory_refresh_failed: could not obtain current advisory data for {set}: identity sha256 does not match {rel}"
-    )]
-    AdvisoryShaMismatch { set: String, rel: String },
     #[error("advisory_refresh_failed: could not obtain current advisory data for {set}: {detail}")]
     AdvisoryParse { set: String, detail: String },
     #[error(
@@ -254,17 +199,7 @@ impl AuditError {
     pub(crate) fn code(&self) -> &'static str {
         match self {
             AuditError::AdvisoryUnsupported { .. }
-            | AuditError::AdvisoryMissing { .. }
-            | AuditError::AdvisoryRead { .. }
             | AuditError::AdvisoryUtf8 { .. }
-            | AuditError::AdvisoryEmpty { .. }
-            | AuditError::AdvisoryMissingMeta { .. }
-            | AuditError::AdvisoryMeta { .. }
-            | AuditError::AdvisoryIdentity { .. }
-            | AuditError::AdvisorySnapshotInvalid { .. }
-            | AuditError::AdvisorySetMismatch { .. }
-            | AuditError::AdvisoryStale { .. }
-            | AuditError::AdvisoryShaMismatch { .. }
             | AuditError::AdvisoryParse { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
             AuditError::AdvisoryPinMissing { .. } => dx_audit::advisory::CODE_ADVISORY_PIN_MISSING,
             AuditError::AdvisoryPinMismatch { .. } => {
@@ -499,100 +434,6 @@ fn fetch_pinned(url: &str) -> Result<Vec<u8>, String> {
         return Err(format!("{url}: {} {done}", plan.program));
     }
     std::fs::read(&file).map_err(|error| format!("{url}: {error}"))
-}
-
-fn load_snapshot(
-    workspace: &Path,
-    family: &str,
-    label: &str,
-    today: &str,
-) -> Result<Vec<dx_audit::vuln::Advisory>, AuditError> {
-    let set_name = label.to_owned();
-    let family = family.to_owned();
-    let rel = dx_audit::advisory::snapshot_rel(&family);
-    let bytes =
-        match dx_path::workspace::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Err(AuditError::AdvisoryMissing {
-                    set: set_name.clone(),
-                    rel: rel.clone(),
-                });
-            }
-            Err(error) => {
-                return Err(AuditError::AdvisoryRead {
-                    set: set_name.clone(),
-                    rel: rel.clone(),
-                    error,
-                });
-            }
-            Ok(bytes) => bytes,
-        };
-    let text = match String::from_utf8(bytes.clone()) {
-        Err(_) => {
-            return Err(AuditError::AdvisoryUtf8 {
-                set: set_name.clone(),
-                rel: rel.clone(),
-            });
-        }
-        Ok(text) => text,
-    };
-    if text.trim().is_empty() {
-        return Err(AuditError::AdvisoryEmpty {
-            set: set_name.clone(),
-            rel: rel.clone(),
-        });
-    }
-    let meta_rel = dx_audit::advisory::identity_rel(&family);
-    let meta_text = match read_workspace_text(workspace, &meta_rel) {
-        Err(AuditError::Read { rel, error }) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Err(AuditError::AdvisoryMissingMeta {
-                set: set_name.clone(),
-                meta_rel: rel,
-            });
-        }
-        Err(other) => {
-            return Err(AuditError::AdvisoryMeta {
-                set: set_name.clone(),
-                source: Box::new(other),
-            });
-        }
-        Ok(text) => text,
-    };
-    let snapshot = dx_audit::advisory::parse_identity(&meta_text).map_err(|detail| {
-        AuditError::AdvisoryIdentity {
-            set: set_name.clone(),
-            detail,
-        }
-    })?;
-    dx_audit::advisory::validate_snapshot(&snapshot).map_err(|error| {
-        AuditError::AdvisorySnapshotInvalid {
-            set: set_name.clone(),
-            error,
-        }
-    })?;
-    if snapshot.set != family {
-        return Err(AuditError::AdvisorySetMismatch {
-            set: set_name.clone(),
-            actual: snapshot.set.clone(),
-        });
-    }
-    if dx_audit::advisory::freshness(&snapshot, today) != dx_audit::advisory::Freshness::Fresh {
-        return Err(AuditError::AdvisoryStale {
-            set: set_name.clone(),
-            retrieved_at: snapshot.retrieved_at.clone(),
-            today: today.to_owned(),
-        });
-    }
-    if !dx_audit::advisory::identity_matches_bytes(&snapshot, &bytes) {
-        return Err(AuditError::AdvisoryShaMismatch {
-            set: set_name.clone(),
-            rel: rel.clone(),
-        });
-    }
-    dx_audit::vuln::parse_snapshot(&text).map_err(|detail| AuditError::AdvisoryParse {
-        set: set_name.clone(),
-        detail,
-    })
 }
 
 const NO_DEPENDENCY_SETS: &str = "no dependency sets: this workspace declares no hubs in MODULE.bazel. Add one, for example:\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:Cargo.lock\",\n    manifests = [\"//:Cargo.toml\"],\n)";
@@ -1230,7 +1071,6 @@ fn collect_target(
     workspace: &Path,
     target: &AuditTarget<'_>,
     accepted_uncovered: &[&str],
-    today: &str,
     offline: bool,
 ) -> Result<Option<Assessable>, (&'static str, String)> {
     if !target.lock_covered() {
@@ -1282,9 +1122,9 @@ fn collect_target(
     let mut advisories = advisories;
     let mut yanked_missing = false;
     if let Some(yanked_key) = dx_audit::advisory::yanked_family(&key) {
-        match load_snapshot(workspace, yanked_key, &label, today) {
-            Ok(mut yanked) => advisories.append(&mut yanked),
-            Err(AuditError::AdvisoryMissing { .. }) => yanked_missing = true,
+        match load_pinned(workspace, yanked_key, &label, offline) {
+            Ok((mut yanked, _)) => advisories.append(&mut yanked),
+            Err(AuditError::AdvisoryPinMissing { .. }) => yanked_missing = true,
             Err(error) => {
                 let wrapped = if offline {
                     AuditError::OfflineRequired {
@@ -1415,7 +1255,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             continue;
         }
         let assessable =
-            match collect_target(workspace, target, &accepted_uncovered, today, offline) {
+            match collect_target(workspace, target, &accepted_uncovered, offline) {
                 Err((code, message)) => {
                     if incomplete.is_none() {
                         incomplete = Some(message);

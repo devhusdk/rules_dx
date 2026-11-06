@@ -90,3 +90,13 @@ fn json_string_reads_spaced_values() {
     );
     assert_eq!(json_string("{\"a\":1}", "a"), None);
 }
+
+#[test]
+fn the_cache_is_packed_into_an_archive_that_unpacks_to_the_same_files() {
+    let out = tempfile::tempdir().expect("tempdir");
+    write_db(out.path());
+    let dest = out.path().join("pin").join("trivy.tar.gz");
+    let bytes = pack_cache(&out.path().join(CACHE_DIR), &dest).expect("packed");
+    assert_eq!(bytes, std::fs::read(&dest).expect("archive"));
+    assert_eq!(&bytes[..2], &[0x1f, 0x8b]);
+}

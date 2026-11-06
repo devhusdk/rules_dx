@@ -285,16 +285,8 @@ pub(super) fn write_pin(harness: &Harness, family: &str, url: &str, date: &str, 
 }
 
 pub(super) fn write_yanked(harness: &Harness, key: &str, json: &str) {
-    let rel = dx_audit::advisory::snapshot_rel(key);
-    harness.write_source(&rel, json);
-    let meta = serde_json::json!({
-        "set": key,
-        "url": "https://index.crates.io",
-        "sha256": dx_digest::sha256_hex(json.as_bytes()),
-        "retrieved_at": TEST_AUDIT_TODAY,
-        "path": rel,
-    });
-    harness.write_source(&dx_audit::advisory::identity_rel(key), &meta.to_string());
+    let url = format!("https://example.invalid/{key}.json");
+    write_pin(harness, key, &url, TEST_AUDIT_TODAY, json);
 }
 
 const SERDE_YANKED: &str = r#"[{"id":"YANKED-1.0.100","package":"serde","versions":"=1.0.100","severity":"unknown","fixed":[],"set":"cargo","kind":"yanked"}]"#;

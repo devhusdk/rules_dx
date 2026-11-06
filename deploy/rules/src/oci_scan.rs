@@ -210,42 +210,81 @@ fn civil_date(days: i64) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
-/// What is wrong with the trivy database that `advisory_prep --trivy` left in `cache`.
-pub enum DatabaseProblem {
-    Missing(String),
-    Stale { retrieved_at: String },
-}
-
-impl DatabaseProblem {
-    pub fn message(&self, cache: &Path) -> String {
-        match self {
-            Self::Missing(detail) => format!(
-                "trivy database missing in {}: {detail}; run advisory_prep --trivy",
-                cache.display()
-            ),
-            Self::Stale { retrieved_at } => format!(
-                "trivy database in {} was retrieved on {retrieved_at}; run advisory_prep --trivy",
-                cache.display()
-            ),
+/// The trivy cache to scan with: `DX_TRIVY_CACHE`, else the one `.dx/pins` pins.
+fn trivy_cache(workspace: Option<&Path>, today: &str) -> Result<Option<PathBuf>, String> {
+    if let Some(cache) = std::env::var_os("DX_TRIVY_CACHE") {
+        return Ok(Some(PathBuf::from(cache)));
+    }
+    let Some(root) = workspace else {
+        return Ok(None);
+    };
+    let pins = std::fs::read_to_string(root.join(".dx/pins")).unwrap_or_default();
+    let Some(pin) = dx_audit::advisory::find_pin(&pins, dx_audit::advisory::TRIVY_FAMILY) else {
+        return Ok(None);
+    };
+    if let Some(age) = pin.age_days(today) {
+        if age > dx_audit::advisory::PIN_MAX_AGE_DAYS {
+            eprintln!(
+                "oci_deploy: image scan: advisory_pin_old: the trivy pin is from {} ({age} days old, over {}); refresh the advisory lines in .dx/pins",
+                pin.date,
+                dx_audit::advisory::PIN_MAX_AGE_DAYS
+            );
         }
     }
+    let cache = root.join(pin.trivy_cache_rel());
+    if cache.join("db").join("metadata.json").is_file() {
+        return Ok(Some(cache));
+    }
+    fetch_trivy_pin(&pin, &cache)?;
+    Ok(Some(cache))
 }
 
-/// Checks `db/metadata.json` in the cache and the `trivy.meta.json` sidecar next to it.
-pub fn database_problem(cache: &Path, today: &str) -> Option<DatabaseProblem> {
-    if !cache.join("db").join("metadata.json").is_file() {
-        return Some(DatabaseProblem::Missing("db/metadata.json".to_owned()));
+/// Downloads the pinned archive, checks its sha256 and unpacks it into `cache`.
+fn fetch_trivy_pin(pin: &dx_audit::advisory::AdvisoryPin, cache: &Path) -> Result<(), String> {
+    let parent = cache.parent().ok_or("trivy cache has no parent")?;
+    std::fs::create_dir_all(parent).map_err(|error| format!("{}: {error}", parent.display()))?;
+    let id = std::process::id();
+    let archive = parent.join(format!("trivy.part{id}.tar.gz"));
+    let bytes = match dx_audit::advisory::file_url_path(&pin.url) {
+        Some(path) => {
+            std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?
+        }
+        None => {
+            let plan = dx_audit::advisory_prep::fetch_many_plan(
+                &[(pin.url.clone(), archive.clone())],
+                dx_audit::advisory_prep::DEFAULT_LIMITS,
+                1,
+            )
+            .map_err(|error| error.to_string())?;
+            let done = Command::new(&plan.program)
+                .args(&plan.argv)
+                .status()
+                .map_err(|error| format!("{}: {error}", plan.program))?;
+            if !done.success() {
+                return Err(format!("{}: {} {done}", pin.url, plan.program));
+            }
+            let bytes = std::fs::read(&archive).map_err(|error| format!("{}: {error}", pin.url));
+            let _ = std::fs::remove_file(&archive);
+            bytes?
+        }
+    };
+    let actual = dx_digest::sha256_hex(&bytes);
+    if actual != pin.sha256 {
+        return Err(format!(
+            "advisory_pin_mismatch: the trivy archive has sha256 {actual}, .dx/pins says {}",
+            pin.sha256
+        ));
     }
-    let sidecar = cache.parent().map(|out| out.join("trivy.meta.json"));
-    let text = sidecar.and_then(|path| std::fs::read_to_string(path).ok());
-    let retrieved_at = text
-        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-        .and_then(|value| value["retrieved_at"].as_str().map(str::to_owned));
-    match retrieved_at {
-        None => Some(DatabaseProblem::Missing("trivy.meta.json".to_owned())),
-        Some(date) if date != today => Some(DatabaseProblem::Stale { retrieved_at: date }),
-        Some(_) => None,
+    let partial = parent.join(format!("trivy.part{id}"));
+    let _ = std::fs::remove_dir_all(&partial);
+    let unpacked = tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()))
+        .unpack(&partial)
+        .map_err(|error| format!("unpacking the trivy archive: {error}"));
+    if let Err(error) = unpacked {
+        let _ = std::fs::remove_dir_all(&partial);
+        return Err(error);
     }
+    std::fs::rename(&partial, cache).map_err(|error| format!("{}: {error}", cache.display()))
 }
 
 /// Runs trivy through `run`, which returns the JSON report for the arguments.
@@ -256,12 +295,13 @@ pub fn scan_layout(
     run: impl Fn(&[OsString]) -> Result<String, String>,
 ) -> Result<Vec<ImageFinding>, String> {
     let severities = severity_list(floor)?;
-    let cache = std::env::var_os("DX_TRIVY_CACHE").map(PathBuf::from);
+    let cache = trivy_cache(workspace, &today())?;
     if let Some(cache) = &cache {
-        match database_problem(cache, &today()) {
-            Some(problem @ DatabaseProblem::Missing(_)) => return Err(problem.message(cache)),
-            Some(problem) => eprintln!("oci_deploy: image scan: {}", problem.message(cache)),
-            None => {}
+        if !cache.join("db").join("metadata.json").is_file() {
+            return Err(format!(
+                "trivy database missing in {}: db/metadata.json; pin it with advisory_prep --trivy --pin",
+                cache.display()
+            ));
         }
     }
     let report = run(&trivy_args(layout, &severities, cache.as_deref()))?;
@@ -446,47 +486,69 @@ mod tests {
         assert!(scan_recorded(Some(&toml)).is_empty());
     }
 
-    fn cache_in(dir: &Path, sidecar: Option<&str>, metadata: bool) -> PathBuf {
-        let cache = dir.join("trivy");
-        std::fs::create_dir_all(cache.join("db")).expect("cache dir");
-        if metadata {
-            std::fs::write(cache.join("db").join("metadata.json"), "{}").expect("metadata");
-        }
-        if let Some(text) = sidecar {
-            std::fs::write(dir.join("trivy.meta.json"), text).expect("sidecar");
-        }
-        cache
+    fn pinned_workspace(name: &str, tamper: bool) -> (PathBuf, PathBuf) {
+        let dir = std::env::temp_dir().join(format!("dx-oci-scan-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let src = dir.join("src");
+        std::fs::create_dir_all(src.join("db")).expect("cache dir");
+        std::fs::write(src.join("db").join("metadata.json"), "{}").expect("metadata");
+        let archive = dir.join("trivy.tar.gz");
+        let file = std::fs::File::create(&archive).expect("archive");
+        let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
+            file,
+            flate2::Compression::default(),
+        ));
+        builder.append_dir_all(".", &src).expect("pack");
+        builder.into_inner().expect("tar").finish().expect("gz");
+        let bytes = std::fs::read(&archive).expect("read");
+        let sha = if tamper {
+            "0".repeat(64)
+        } else {
+            dx_digest::sha256_hex(&bytes)
+        };
+        let url = dx_audit::advisory::file_url(&archive).expect("url");
+        let workspace = dir.join("ws");
+        std::fs::create_dir_all(workspace.join(".dx")).expect("ws");
+        std::fs::write(
+            workspace.join(".dx/pins"),
+            format!("advisory trivy 2026-11-06 {sha} {url}\n"),
+        )
+        .expect("pins");
+        (dir, workspace)
     }
 
     #[test]
-    fn a_missing_database_is_reported() {
-        let dir = std::env::temp_dir().join(format!("dx-oci-scan-missing-{}", std::process::id()));
-        let cache = cache_in(&dir, None, false);
-        assert!(matches!(
-            database_problem(&cache, "2026-11-06"),
-            Some(DatabaseProblem::Missing(_))
-        ));
-        let cache = cache_in(&dir, None, true);
-        assert!(matches!(
-            database_problem(&cache, "2026-11-06"),
-            Some(DatabaseProblem::Missing(_))
-        ));
+    fn a_pinned_trivy_archive_is_unpacked_under_its_sha() {
+        let (dir, workspace) = pinned_workspace("pinned", false);
+        let cache = trivy_cache(Some(&workspace), "2026-11-06")
+            .expect("cache")
+            .expect("pinned");
+        assert!(cache.join("db").join("metadata.json").is_file());
+        assert!(cache.starts_with(workspace.join(".dx/local/advisory")));
+        assert!(cache.ends_with("trivy"));
+        let again = trivy_cache(Some(&workspace), "2026-11-06").expect("again");
+        assert_eq!(again, Some(cache));
         std::fs::remove_dir_all(&dir).expect("cleanup");
     }
 
     #[test]
-    fn an_old_database_is_stale_and_today_is_fine() {
-        let dir = std::env::temp_dir().join(format!("dx-oci-scan-stale-{}", std::process::id()));
-        let cache = cache_in(
-            &dir,
-            Some(r#"{"retrieved_at":"2026-11-05","db_updated_at":"x"}"#),
-            true,
-        );
-        assert!(matches!(
-            database_problem(&cache, "2026-11-06"),
-            Some(DatabaseProblem::Stale { .. })
-        ));
-        assert!(database_problem(&cache, "2026-11-05").is_none());
+    fn a_changed_trivy_sha_is_a_mismatch() {
+        let (dir, workspace) = pinned_workspace("mismatch", true);
+        let error = trivy_cache(Some(&workspace), "2026-11-06").expect_err("mismatch");
+        assert!(error.contains("advisory_pin_mismatch"), "{error}");
+        assert!(!workspace
+            .join(".dx/local/advisory")
+            .join("0".repeat(64))
+            .join("trivy")
+            .exists());
+        std::fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+    #[test]
+    fn without_a_pin_trivy_keeps_its_own_cache() {
+        let dir = std::env::temp_dir().join(format!("dx-oci-scan-nopin-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        assert_eq!(trivy_cache(Some(&dir), "2026-11-06"), Ok(None));
         std::fs::remove_dir_all(&dir).expect("cleanup");
     }
 

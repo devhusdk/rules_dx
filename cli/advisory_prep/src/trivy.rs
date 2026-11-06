@@ -86,6 +86,29 @@ pub fn prepare_with(
     })
 }
 
+/// Packs the trivy cache directory into a `.tar.gz` at `dest` with the system `tar` and returns its bytes.
+pub fn pack_cache(cache: &Path, dest: &Path) -> Result<Vec<u8>, PrepError> {
+    let fail = |detail: String| PrepError::Write {
+        path: dest.display().to_string(),
+        detail,
+    };
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| fail(error.to_string()))?;
+    }
+    let done = Process::new("tar")
+        .arg("-czf")
+        .arg(dest)
+        .arg("-C")
+        .arg(cache)
+        .arg(".")
+        .status()
+        .map_err(|error| fail(format!("tar: {error}")))?;
+    if !done.success() {
+        return Err(fail(format!("tar exited with {done}")));
+    }
+    std::fs::read(dest).map_err(|error| fail(error.to_string()))
+}
+
 fn run(binary: &Path, args: &[String]) -> Result<(), PrepError> {
     let done = Process::new(binary)
         .args(args)

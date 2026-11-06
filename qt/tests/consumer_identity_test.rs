@@ -24,6 +24,12 @@ fn identity_records_the_os_supplied_runtime() {
             .collect();
         if want.is_empty() {
             assert!(records.is_empty(), "{}: {identity}", archive.display());
+        } else if let Some((head, tail)) = want.split_once('*') {
+            assert!(
+                records.len() == 1 && records[0].starts_with(head) && records[0].ends_with(tail),
+                "{}: {identity}",
+                archive.display()
+            );
         } else {
             assert_eq!(
                 records,

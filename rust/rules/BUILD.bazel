@@ -35,16 +35,6 @@ config_setting(
 )
 
 config_setting(
-    name = "msvc_opt_pdb",
-    constraint_values = [
-        "@llvm//constraints/windows/abi:msvc",
-        "@platforms//os:windows",
-    ],
-    flag_values = {"//cli/cli:reproducible_pdb": "true"},
-    values = {"compilation_mode": "opt"},
-)
-
-config_setting(
     name = "libstdcxx",
     constraint_values = ["@llvm//constraints/cxxstdlib:libstdcxx"],
 )

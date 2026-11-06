@@ -25,7 +25,11 @@ def dx_wrapper_registry_tests(name):
             expect_equal("crate root default", dx_rust_crate_root(None), "src/lib.rs"),
             expect_equal("crate root multi-file", dx_rust_crate_root(["src/a.rs", "src/lib.rs"]), "src/lib.rs"),
             expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]),
-            expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, ["-Clink-arg=/Brepro", "-Clink-arg=/DEBUG:NONE"]),
+            expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, [
+                "-Clink-arg=/Brepro",
+                "-Clink-arg=/pdbsourcepath:X:\\dx",
+                "-Clink-arg=/pdbaltpath:%_PDB%",
+            ]),
             expect_equal("crate root missing", dx_rust_crate_root(["lib.rs"]), None),
         ],
     )

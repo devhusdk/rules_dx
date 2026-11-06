@@ -1,5 +1,4 @@
 # gazelle:ignore
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
@@ -156,15 +155,6 @@ rust_library(
     ],
 )
 
-# The rust wrapper drops debug info from MSVC opt links to stay reproducible (#8409).
-# --//cli/cli:reproducible_pdb keeps the PDB with the execroot remapped instead,
-# until evidence shows it matches across checkouts (#8410).
-bool_flag(
-    name = "reproducible_pdb",
-    build_setting_default = False,
-    visibility = ["//rust/rules:__pkg__"],
-)
-
 rust_binary(
     name = "dx",
     srcs = ["src/main.rs"],
@@ -192,6 +182,7 @@ rust_binary(
     ],
 )
 
+# MSVC opt links keep the PDB, remapped against X:\dx so it matches across checkouts (#8410).
 filegroup(
     name = "dx_pdb",
     srcs = [":dx"],

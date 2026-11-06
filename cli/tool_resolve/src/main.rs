@@ -23,7 +23,8 @@ use dx_tool_resolve::{
     name = "tool_resolve",
     about = "Resolve one pinned tool label to the absolute artifact path CI exports",
     long_about = "tool_resolve runs `bazel cquery --output=files` for one pinned tool label, \
-takes the last output line as the artifact path, joins it with `bazel info output_base`, \
+takes the last output line as the artifact path, joins an `external/` path with `bazel info output_base` and any other path (a built \
+output, which must be built first) with `bazel info execution_root`, \
 refuses a missing file, and appends VAR=path to the GitHub environment file so later \
 steps read the hermetic tool without host parsing.\n\n--label LABEL names the tool \
 (e.g. @rules_dx//quality/artifacts:gitleaks); --var NAME names the exported variable (e.g. \

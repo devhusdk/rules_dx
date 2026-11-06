@@ -211,7 +211,7 @@ A failure prints `advisory_prepare_failed: <family and reason>` and writes no sn
 bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print
 ```
 
-It runs `bazel cquery --output=files` for the label and writes the absolute artifact path to a variable.
+It runs `bazel cquery --output=files` for the label and writes the absolute artifact path to a variable. An `external/` path is read under `bazel info output_base`; any other path is a built output, read under `bazel info execution_root`, so build the label first.
 
 | Flag | What it does |
 | --- | --- |

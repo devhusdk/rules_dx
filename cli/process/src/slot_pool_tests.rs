@@ -63,9 +63,9 @@ fn slot_counts_follow_memory() {
 #[test]
 fn the_slot_directory_sits_under_the_user_cache() {
     let env = |name: &str| (name == "HOME").then(|| "/home/someone".to_string());
-    if let Some(dir) = slots_dir(&env) {
+    slots_dir(&env).into_iter().for_each(|dir| {
         assert!(dir.ends_with("dx/slots") || dir.ends_with("dx\\slots"));
-    }
+    });
     assert!(slots_dir(&|_: &str| None).is_none());
 }
 

@@ -10,17 +10,22 @@ fn run(vars: &[(&str, &str)], files: &[&str]) -> Result<Option<PathBuf>, WslBash
     resolve_bazel_sh(&get, &exists)
 }
 
-#[cfg(unix)]
-const PATH: &str = "/win/System32:/git/cmd";
-#[cfg(unix)]
-const SYS: &str = "/win";
+fn path(dirs: &[&str]) -> String {
+    std::env::join_paths(dirs)
+        .expect("joinable")
+        .into_string()
+        .expect("utf8")
+}
 
-#[cfg(unix)]
+const SYS: &str = "/win";
+const WIN_DIRS: [&str; 2] = ["/win/System32", "/git/cmd"];
+
 #[test]
 fn user_value_is_kept() {
+    let p = path(&WIN_DIRS);
     let vars = [
         ("BAZEL_SH", "/mine/bash.exe"),
-        ("PATH", PATH),
+        ("PATH", p.as_str()),
         ("SystemRoot", SYS),
     ];
     let files = [
@@ -31,10 +36,10 @@ fn user_value_is_kept() {
     assert_eq!(run(&vars, &files), Ok(None));
 }
 
-#[cfg(unix)]
 #[test]
 fn git_bash_wins_over_wsl() {
-    let vars = [("PATH", PATH), ("SystemRoot", SYS)];
+    let p = path(&WIN_DIRS);
+    let vars = [("PATH", p.as_str()), ("SystemRoot", SYS)];
     let files = [
         "/win/System32/bash.exe",
         "/git/cmd/git.exe",
@@ -46,27 +51,28 @@ fn git_bash_wins_over_wsl() {
     );
 }
 
-#[cfg(unix)]
 #[test]
 fn wsl_only_is_an_error() {
-    let vars = [("PATH", PATH), ("SystemRoot", SYS)];
+    let p = path(&WIN_DIRS);
+    let vars = [("PATH", p.as_str()), ("SystemRoot", SYS)];
     let err = run(&vars, &["/win/System32/bash.exe"]).unwrap_err();
     assert_eq!(err.0, PathBuf::from("/win/System32/bash.exe"));
     assert!(err.to_string().contains("BAZEL_SH"));
 }
 
-#[cfg(unix)]
 #[test]
 fn git_without_bash_and_other_bash_is_left_alone() {
-    let vars = [("PATH", PATH), ("SystemRoot", SYS)];
+    let p = path(&WIN_DIRS);
+    let m = path(&["/msys/bin"]);
+    let vars = [("PATH", p.as_str()), ("SystemRoot", SYS)];
     assert_eq!(run(&vars, &["/git/cmd/git.exe"]), Ok(None));
-    let vars = [("PATH", "/msys/bin"), ("SystemRoot", SYS)];
+    let vars = [("PATH", m.as_str()), ("SystemRoot", SYS)];
     assert_eq!(run(&vars, &["/msys/bin/bash.exe"]), Ok(None));
 }
 
-#[cfg(unix)]
 #[test]
 fn no_bash_leaves_env_unchanged() {
-    let vars = [("PATH", PATH), ("SystemRoot", SYS)];
+    let p = path(&WIN_DIRS);
+    let vars = [("PATH", p.as_str()), ("SystemRoot", SYS)];
     assert_eq!(run(&vars, &[]), Ok(None));
 }

@@ -102,7 +102,7 @@ fn a_lease_from_another_pid_namespace_is_left_alone() {
     let mut child = sleeper();
     let pgid = child.id() as i32;
     let path = dir.join("424246-0.lock");
-    std::fs::write(&path, format!("{pgid} pid:[1] -\n")).expect("lease");
+    std::fs::write(&path, format!("{pgid} pid:[1] 77 boot-a\n")).expect("lease");
     assert!(reap_in(&dir).is_empty());
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
@@ -173,23 +173,17 @@ fn an_owned_run_holds_a_lease_naming_its_group_and_removes_it() {
     let alive = Cell::new(false);
     let started = std::time::Instant::now();
     let withdraw = || {
-        if started.elapsed() >= Duration::from_secs(5) {
-            return true;
-        }
-        let Some(path) = leases(&dir).into_iter().next() else {
-            return false;
-        };
-        let Some(recorded) = std::fs::read_to_string(&path)
-            .ok()
+        let recorded = leases(&dir)
+            .first()
+            .and_then(|path| std::fs::read_to_string(path).ok())
             .as_deref()
-            .and_then(parse_lease)
-        else {
-            return false;
-        };
-        pgid.set(recorded.pgid);
-        reaped_none.set(reap_in(&dir).is_empty());
-        alive.set(group_alive(recorded.pgid));
-        true
+            .and_then(parse_lease);
+        if let Some(recorded) = &recorded {
+            pgid.set(recorded.pgid);
+            reaped_none.set(reap_in(&dir).is_empty());
+            alive.set(group_alive(recorded.pgid));
+        }
+        recorded.is_some() || started.elapsed() >= Duration::from_secs(5)
     };
     let outcome = crate::lifecycle::run_streamed_in(
         probe_spec(&["--sleep-ms=30000"], crate::lifecycle::StreamGroup::Owned),
@@ -493,4 +487,49 @@ fn recording_a_group_with_an_unknown_start_leaves_the_lease_empty() {
     let mut lease = GroupLease::acquire_in(scratch.path()).expect("lease");
     lease.record(i32::MAX);
     assert_eq!(std::fs::metadata(&lease.path).expect("lease file").len(), 0);
+}
+
+#[test]
+fn a_leader_matches_only_when_present_with_the_recorded_start_or_gone() {
+    assert!(leader_matches(&Leader::Present("7".to_owned()), "7"));
+    assert!(!leader_matches(&Leader::Present("8".to_owned()), "7"));
+    assert!(leader_matches(&Leader::Absent, "7"));
+    assert!(!leader_matches(&Leader::Unknown, "7"));
+}
+
+#[test]
+fn a_gone_leader_still_counts_as_the_recorded_one() {
+    let mut rec = recorded("77");
+    rec.pgid = i32::MAX;
+    assert!(still_recorded(&rec));
+}
+
+#[test]
+fn signalling_a_reserved_group_number_does_nothing() {
+    sys::signal_group(1, 9);
+    sys::signal_group(0, 9);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_stat_read_is_classified_by_its_outcome() {
+    use std::io::{Error, ErrorKind};
+    let fields = (0..18).map(|n| n.to_string()).collect::<Vec<_>>().join(" ");
+    let stat = format!("1 (a b) S {fields} 4242 0");
+    assert_eq!(
+        sys::leader_from_stat(Ok(stat)),
+        Leader::Present("4242".to_owned())
+    );
+    assert_eq!(
+        sys::leader_from_stat(Ok("short".to_owned())),
+        Leader::Unknown
+    );
+    assert_eq!(
+        sys::leader_from_stat(Err(Error::from(ErrorKind::NotFound))),
+        Leader::Absent
+    );
+    assert_eq!(
+        sys::leader_from_stat(Err(Error::from(ErrorKind::PermissionDenied))),
+        Leader::Unknown
+    );
 }

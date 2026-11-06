@@ -5,7 +5,7 @@ use std::process::Command;
 fn this_process_is_alive_and_a_reaped_child_is_not() {
     assert!(pid_alive(std::process::id()));
     let mut child = if cfg!(windows) {
-        Command::new("cmd").args(["/C", "exit 0"]).spawn()
+        Command::new("cmd").args(["/C", "exit 0"]).spawn() // LCOV_EXCL_LINE - reason: windows branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     } else {
         Command::new("true").spawn()
     }

@@ -1015,20 +1015,42 @@ fn ancestor_broken_marker_reports_unreadable() {
 
 #[test]
 fn expand_tilde_uses_home_and_leaves_user() {
-    let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) else {
-        assert_eq!(expand_tilde(Path::new("~/ws")), PathBuf::from("~/ws"));
-        return;
-    };
+    let home = || Some(OsString::from("/home/me"));
     assert_eq!(
-        expand_tilde(Path::new("~/ws")),
-        PathBuf::from(home.clone()).join("ws")
+        expand_tilde_with(Path::new("~/ws"), home()),
+        PathBuf::from("/home/me").join("ws")
     );
-    assert_eq!(expand_tilde(Path::new("~")), PathBuf::from(home));
     assert_eq!(
-        expand_tilde(Path::new("~other/ws")),
+        expand_tilde_with(Path::new("~"), home()),
+        PathBuf::from("/home/me")
+    );
+    assert_eq!(
+        expand_tilde_with(Path::new("~other/ws"), home()),
         PathBuf::from("~other/ws")
     );
-    assert_eq!(expand_tilde(Path::new("/abs/ws")), PathBuf::from("/abs/ws"));
+    assert_eq!(
+        expand_tilde_with(Path::new("/abs/ws"), home()),
+        PathBuf::from("/abs/ws")
+    );
+}
+
+#[test]
+fn expand_tilde_without_home_keeps_the_path() {
+    assert_eq!(
+        expand_tilde_with(Path::new("~/ws"), None),
+        PathBuf::from("~/ws")
+    );
+    let _ = expand_tilde(Path::new("~"));
+}
+
+#[test]
+fn output_base_of_value_ignores_unset_and_empty() {
+    assert_eq!(output_base_of_value(None), None);
+    assert_eq!(
+        output_base_of_value(Some(OsString::from("/x/ob/execroot/_main"))),
+        Some(PathBuf::from("/x/ob"))
+    );
+    assert_eq!(output_base_of_value(Some(OsString::new())), None);
 }
 
 #[test]
@@ -1112,12 +1134,11 @@ fn real_fs_override_keeps_display_path() {
     std::fs::create_dir_all(&root).expect("dirs");
     let display = root.join("./missing/../missing");
     let err = discover_real(&root, Some(display.as_path())).expect_err("missing");
-    match err {
-        DiscoverError::InvalidOverride { path } => {
-            assert_eq!(path, resolve_override_display(display.as_path(), &root));
-        }
-        other => panic!("expected InvalidOverride, got {other:?}"),
-    }
+    let expected = resolve_override_display(display.as_path(), &root);
+    assert!(
+        matches!(&err, DiscoverError::InvalidOverride { path } if *path == expected),
+        "got {err:?}"
+    );
     scratch.close().expect("cleanup");
 }
 
@@ -1130,6 +1151,7 @@ fn free_disk_bytes_defaults_to_unknown() {
         }
     }
     assert_eq!(Plain.free_disk_bytes(Path::new("/")), None);
+    assert!(Plain.run(&[], Path::new("/"), &[]).is_ok());
 }
 
 #[test]
@@ -1247,15 +1269,12 @@ fn remove_tree_deletes_read_only_trees() {
     let plain = build("plain");
     let tree = build("tree");
     let blocked = std::fs::remove_dir_all(&plain).is_err();
-    if !blocked {
-        // Running as root: permission bits are ignored, so only the result is checked.
-        assert!(remove_tree(&tree));
-        assert!(!tree.exists());
-        return;
-    }
     assert!(remove_tree(&tree));
     assert!(!tree.exists());
-    make_writable(&plain);
+    // As root the permission bits are ignored and `plain` is already gone.
+    if blocked {
+        make_writable(&plain);
+    }
 }
 
 #[cfg(unix)]
@@ -1402,6 +1421,7 @@ fn the_default_marker_hint_is_none() {
         }
     }
     assert_eq!(Bare.broken_marker_hint(Path::new("/")), None);
+    assert!(!Bare.is_file(Path::new("/")));
 }
 
 #[cfg(unix)]

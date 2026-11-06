@@ -119,8 +119,13 @@ mod sys {
 
     #[cfg(target_os = "linux")]
     pub fn leader(pid: i32) -> super::Leader {
+        leader_from_stat(std::fs::read_to_string(format!("/proc/{pid}/stat")))
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(super) fn leader_from_stat(stat: std::io::Result<String>) -> super::Leader {
         use super::Leader;
-        match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
+        match stat {
             Ok(stat) => stat
                 .rsplit_once(')')
                 .and_then(|(_, rest)| rest.split_whitespace().nth(19).map(str::to_owned))
@@ -338,9 +343,11 @@ fn reap_in(dir: &Path) -> Vec<Reaped> {
                 let now = observe(&recorded);
                 match verdict(&recorded, &now) {
                     Verdict::Keep => {
+                        // LCOV_EXCL_START - reason: a live group whose leader cannot be read cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                         if now.leader == Leader::Unknown {
                             log_decision(dir, "keep-unknown", pid, &recorded, &now);
                         }
+                        // LCOV_EXCL_STOP
                         continue;
                     }
                     Verdict::Drop => {}
@@ -380,8 +387,12 @@ fn lease_pid(path: &Path) -> Option<u32> {
 
 /// True while the recorded group's leader is still provably the recorded one or gone.
 fn still_recorded(recorded: &Recorded) -> bool {
-    match sys::leader(recorded.pgid) {
-        Leader::Present(start) => start == recorded.start,
+    leader_matches(&sys::leader(recorded.pgid), &recorded.start)
+}
+
+fn leader_matches(leader: &Leader, start: &str) -> bool {
+    match leader {
+        Leader::Present(now) => now == start,
         Leader::Absent => true,
         Leader::Unknown => false,
     }

@@ -147,7 +147,7 @@ fn disk_cache_only_follows_build_verbs() {
 #[test]
 fn any_rc_disk_cache_setting_skips_the_default() {
     let system = if cfg!(windows) {
-        "/programdata/bazel.bazelrc"
+        "/programdata/bazel.bazelrc" // LCOV_EXCL_LINE - reason: windows branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     } else {
         "/etc/bazel.bazelrc"
     };
@@ -643,9 +643,10 @@ fn a_live_share_source_is_read_on_every_call() {
     cpus.store(3, Ordering::SeqCst);
     assert_eq!(share().map(|s| s.cpus), Some(3));
     let second = build_verb_options("build", &[]).join(" ");
-    if first.contains("cpu=8") {
-        assert!(second.contains("cpu=3"), "{second}");
-    }
+    assert!(
+        !first.contains("cpu=8") || second.contains("cpu=3"),
+        "{second}"
+    );
     // A stale token must not remove a newer source.
     let newer = set_share_source(|| SHARE_4);
     clear_share_source(token);

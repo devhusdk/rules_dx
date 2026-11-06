@@ -8,7 +8,7 @@ fn runner() -> BinaryRunner {
     BinaryRunner {
         inherit_stdout: false,
         stop: || None,
-        on_stop: |_| {},
+        on_stop: |_| {}, // LCOV_EXCL_LINE - reason: the stop hook is never called by these tests, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 

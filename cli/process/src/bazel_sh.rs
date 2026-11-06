@@ -26,11 +26,12 @@ pub fn resolve_bazel_sh(
         if !exists(&dir.join("git.exe")) {
             continue;
         }
-        if let Some(root) = dir.parent() {
-            let bash = root.join("usr").join("bin").join("bash.exe");
-            if exists(&bash) {
-                return Ok(Some(bash));
-            }
+        let git_bash = dir
+            .parent()
+            .map(|root| root.join("usr").join("bin").join("bash.exe"))
+            .filter(|bash| exists(bash));
+        if git_bash.is_some() {
+            return Ok(git_bash);
         }
     }
     let first = dirs

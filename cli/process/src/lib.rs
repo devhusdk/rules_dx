@@ -8,7 +8,7 @@
     )
 )]
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -103,6 +103,11 @@ fn legacy_marker(fs: &dyn Fs, dir: &Path) -> bool {
 }
 
 pub fn expand_tilde(path: &Path) -> PathBuf {
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
+    expand_tilde_with(path, home)
+}
+
+fn expand_tilde_with(path: &Path, home: Option<OsString>) -> PathBuf {
     let Some(text) = path.to_str() else {
         return path.to_path_buf();
     };
@@ -111,7 +116,7 @@ pub fn expand_tilde(path: &Path) -> PathBuf {
     if !is_bare && !is_home_prefixed {
         return path.to_path_buf();
     }
-    let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) else {
+    let Some(home) = home else {
         return path.to_path_buf();
     };
     if is_bare {
@@ -237,7 +242,11 @@ pub fn output_base_of_execroot(execroot: &Path) -> Option<PathBuf> {
 
 /// Returns the output base of the enclosing `bazel run`, read from `BUILD_EXECROOT`.
 pub fn run_output_base() -> Option<PathBuf> {
-    let value = std::env::var_os("BUILD_EXECROOT").filter(|value| !value.is_empty())?;
+    output_base_of_value(std::env::var_os("BUILD_EXECROOT"))
+}
+
+fn output_base_of_value(value: Option<OsString>) -> Option<PathBuf> {
+    let value = value.filter(|value| !value.is_empty())?;
     output_base_of_execroot(Path::new(&value))
 }
 
@@ -767,13 +776,13 @@ fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
     let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
     let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
     if unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) } != 0 {
-        return None;
+        return None; // LCOV_EXCL_LINE - reason: statvfs fails only for a directory that vanished mid-call, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     let stat = unsafe { stat.assume_init() };
     let unit = widen(stat.f_frsize);
     let total = widen(stat.f_blocks).checked_mul(unit)?;
     if total == 0 {
-        return None;
+        return None; // LCOV_EXCL_LINE - reason: no portable directory reports zero blocks, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     // `f_bavail` is the space available to unprivileged users, the same figure `df` reports.
     let free = widen(stat.f_bavail).checked_mul(unit)?;
@@ -914,10 +923,8 @@ pub fn make_writable(path: &Path) {
     }
     let _ = std::fs::set_permissions(path, permissions);
     if metadata.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(path) {
-            for entry in entries.flatten() {
-                make_writable(&entry.path());
-            }
+        for entry in std::fs::read_dir(path).into_iter().flatten().flatten() {
+            make_writable(&entry.path());
         }
     }
 }

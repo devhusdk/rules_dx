@@ -37,12 +37,12 @@ dx_dune_build(
 
 dx_dune_library(
     name = "bisect_ppx_rewriter",
-    srcs = ["@dx_ocaml_bisect_duniverse//:srcs"],
+    srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
     dune = "//quality/tools/ocaml:dune",
     library = "bisect_ppx",
     package = "bisect_ppx",
     visibility = VIS_PUBLIC,
-    workspace = "@dx_ocaml_bisect_duniverse//:dune-project",
+    workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )
 
 ocaml_executable_marker(

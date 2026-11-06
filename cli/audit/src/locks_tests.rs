@@ -471,14 +471,14 @@ fn pnpm_lock_missing_packages_is_empty_and_invalid_fails() {
 
 #[test]
 fn pnpm_lock_git_resolutions_are_incomplete_never_dropped() {
-    let text = "lockfileVersion: '9.0'\npackages:\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n  'git-dep@github:user/repo#abc123':\n    resolution: {repo: 'https://github.com/user/repo.git', commit: abc123}\n  'typed-git@0.0.0':\n    resolution: {type: git, repo: 'https://github.com/user/typed.git', commit: def456}\n  'tarball-git@https://codeload.github.com/user/repo/tar.gz#abc':\n    resolution: {tarball: 'https://codeload.github.com/user/repo/tar.gz#abc'}\n  'local@file:../local':\n    resolution: {directory: ../local}\n";
+    let text = "lockfileVersion: '9.0'\npackages:\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n  'git-dep@github:user/repo#abc123':\n    resolution: {repo: 'https://github.com/user/repo.git', commit: abc123}\n  'typed-dep@0.0.0':\n    resolution: {type: git, repo: 'https://github.com/user/typed.git', commit: def456}\n  'tarball-git@https://codeload.github.com/user/repo/tar.gz#abc':\n    resolution: {tarball: 'https://codeload.github.com/user/repo/tar.gz#abc'}\n  'local@file:../local':\n    resolution: {directory: ../local}\n";
     let packages = parse_pnpm_lock(text).expect("parses");
     assert!(
         packages
             .iter()
             .any(|package| package.name == "react" && !package.is_git)
     );
-    for name in ["git-dep", "typed-git", "tarball-git"] {
+    for name in ["git-dep", "typed-dep", "tarball-git"] {
         let git = packages
             .iter()
             .find(|package| package.name == name)
@@ -515,6 +515,15 @@ fn npm_git_reference_markers_are_explicit_only() {
     assert!(is_npm_git_reference(
         "https://github.com/user/repo.git#abc123"
     ));
+    assert!(is_npm_git_reference("ssh://git@github.com/u/r"));
+    assert!(is_npm_git_reference("git+ssh://git@github.com/u/r.git"));
+    for name in [
+        "simple-git@3.16.0",
+        "@scope/foo-git@1.0.0",
+        "nodegit@npm:0.27.0",
+    ] {
+        assert!(!is_npm_git_reference(name), "{name}");
+    }
     assert!(!is_npm_git_reference("18.2.0"));
     assert!(!is_npm_git_reference(
         "https://registry.npmjs.org/react/-/react-18.2.0.tgz"
@@ -1742,4 +1751,29 @@ fn composer_lock_lists_both_arrays_and_skips_branches() {
         ]
     );
     assert!(parse_composer_lock("[").is_err());
+}
+
+#[test]
+fn npm_name_ending_in_git_is_assessed() {
+    let v6 = "lockfileVersion: 6.0\npackages:\n  /simple-git@3.16.0:\n    resolution: {integrity: sha512-abc}\n";
+    let v9 = "lockfileVersion: '9.0'\npackages:\n  simple-git@3.16.0:\n    resolution: {integrity: sha512-abc}\n";
+    let berry = "__metadata:\n  version: 6\n\n\"simple-git@npm:^3.16.0\":\n  version: 3.16.0\n  resolution: \"simple-git@npm:3.16.0\"\n  checksum: abc\n  languageName: node\n  linkType: hard\n";
+    for packages in [
+        parse_pnpm_lock(v6).expect("v6"),
+        parse_pnpm_lock(v9).expect("v9"),
+        parse_yarn_lock(berry).expect("berry"),
+    ] {
+        assert_eq!(packages.len(), 1);
+        assert!(!packages[0].is_git);
+        let (_, unassessed) = crate::vuln::match_packages(&packages, &[]);
+        assert!(unassessed.is_empty());
+    }
+}
+
+#[test]
+fn yarn_berry_git_resolution_is_git() {
+    let text = "__metadata:\n  version: 6\n\n\"foo@https://github.com/u/r.git#commit=abc\":\n  version: 1.0.0\n  resolution: \"foo@https://github.com/u/r.git#commit=abc\"\n  languageName: node\n  linkType: hard\n";
+    let packages = parse_yarn_lock(text).expect("parses");
+    assert_eq!(packages.len(), 1);
+    assert!(packages[0].is_git);
 }

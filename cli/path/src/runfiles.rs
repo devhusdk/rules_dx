@@ -499,6 +499,55 @@ mod tests {
     }
 
     #[test]
+    fn a_binary_under_the_filesystem_root_with_no_runfiles_is_an_error() {
+        let error = Resolver::for_binary(Path::new("/no-such-dir/tool")).expect_err("no runfiles");
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn a_runfiles_name_that_is_not_on_disk_is_not_a_tree() {
+        let error =
+            Resolver::for_binary(Path::new("/no-such-dir/x.runfiles/tool")).expect_err("none");
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn an_empty_tree_with_no_manifest_is_read_as_a_tree() {
+        let dir = scratch("empty-tree-alone");
+        let binary = write(&dir, "tool.exe", "binary\n");
+        std::fs::create_dir_all(dir.join("tool.exe.runfiles")).expect("tree");
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("tool.exe.runfiles"));
+    }
+
+    #[test]
+    fn a_tool_inside_another_targets_runfiles_reads_the_manifest_inside_it() {
+        let dir = scratch("enclosing-inner");
+        let tool = write(&dir, "tool.txt", "from the inner manifest\n");
+        let binary = write(&dir, "test.runfiles/_main/pkg/bin/tool.exe", "binary\n");
+        let manifest = write(
+            &dir,
+            "test.runfiles/MANIFEST",
+            &format!("_main/pkg/tool.txt {}\n", tool.display()),
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), manifest);
+        assert_eq!(found(&resolver, "_main/pkg/tool.txt"), tool);
+    }
+
+    #[test]
+    fn a_tool_inside_another_targets_runfiles_reads_that_tree() {
+        let dir = scratch("enclosing-tree");
+        let binary = write(&dir, "test.runfiles/_main/pkg/bin/tool.exe", "binary\n");
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("test.runfiles"));
+        assert_eq!(
+            found(&resolver, "_main/pkg/bin/tool.exe"),
+            dir.join("test.runfiles/_main/pkg/bin/tool.exe")
+        );
+    }
+
+    #[test]
     fn an_empty_tree_falls_back_to_the_sibling_manifest() {
         let dir = scratch("empty-tree");
         let binary = write(&dir, "tool.exe", "binary\n");

@@ -69,6 +69,17 @@ mod tests {
     }
 
     #[test]
+    fn native_keeps_the_path_as_given() {
+        assert_eq!(spell_of("a/b", Spelling::Native), "a/b");
+        assert_eq!(native(Path::new("a/b")), "a/b");
+    }
+
+    #[test]
+    fn posix_str_uses_forward_slashes() {
+        assert_eq!(posix_str(r"a\b\c"), "a/b/c");
+    }
+
+    #[test]
     fn posix_uses_forward_slashes_everywhere() {
         assert_eq!(spell_of(r"C:\tmp\a.py", Spelling::Posix), "C:/tmp/a.py");
         assert_eq!(spell_of("/tmp/a.py", Spelling::Posix), "/tmp/a.py");

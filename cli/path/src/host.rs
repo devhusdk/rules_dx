@@ -93,11 +93,15 @@ mod tests {
 
     #[test]
     fn the_host_filename_follows_the_host() {
-        let expected = if cfg!(windows) {
-            "python.exe"
-        } else {
-            "python"
-        };
-        assert_eq!(host_filename("python"), expected);
+        assert_eq!(
+            host_filename("python"),
+            host_filename_for("python", cfg!(windows))
+        );
+    }
+
+    #[test]
+    fn the_filename_follows_the_named_platform() {
+        assert_eq!(host_filename_for("python", true), "python.exe");
+        assert_eq!(host_filename_for("python", false), "python");
     }
 }

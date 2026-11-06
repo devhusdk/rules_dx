@@ -70,6 +70,27 @@ mod tests {
     }
 
     #[test]
+    fn encode_runs_the_validator_before_encoding() {
+        assert_eq!(
+            encode_with_validation(&(), |_| Ok::<_, &str>(())),
+            Ok(vec![])
+        );
+        assert_eq!(encode_with_validation(&(), |_| Err("bad")), Err("bad"));
+    }
+
+    #[test]
+    fn decode_maps_malformed_bytes_and_runs_the_validator() {
+        let ok: Result<(), String> = decode_with_validation(&[], |_| Ok(()), |text| text);
+        assert_eq!(ok, Ok(()));
+        let malformed: Result<(), String> =
+            decode_with_validation(&[0xff], |_| Ok(()), |text| format!("decode: {text}"));
+        assert!(malformed.unwrap_err().starts_with("decode: "));
+        let invalid: Result<(), String> =
+            decode_with_validation(&[], |_| Err("invalid".to_owned()), |text| text);
+        assert_eq!(invalid, Err("invalid".to_owned()));
+    }
+
+    #[test]
     fn unique_insert_rejects_repeat_with_caller_error() {
         let mut seen = BTreeSet::new();
         assert!(check_unique_insert(&mut seen, "a".to_owned(), |_| "dup").is_ok());

@@ -162,6 +162,49 @@ mod tests {
         assert_eq!(std::fs::read_to_string(resolved).unwrap(), "x");
     }
 
+    #[test]
+    fn target_existing_inside_is_accepted() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("uv.lock"), "x").unwrap();
+        let resolved = resolve_target_in_workspace(dir.path(), "uv.lock").unwrap();
+        assert_eq!(std::fs::read_to_string(resolved).unwrap(), "x");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn target_existing_outside_is_rejected() {
+        let outer = tempfile::tempdir().unwrap();
+        let workspace = outer.path().join("ws");
+        std::fs::create_dir_all(&workspace).unwrap();
+        std::fs::write(outer.path().join("uv.lock"), "x").unwrap();
+        let error = resolve_target_in_workspace(&workspace, "../uv.lock").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn target_below_a_file_reports_the_io_error() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("file"), "x").unwrap();
+        let error = resolve_target_in_workspace(dir.path(), "file/uv.lock").unwrap_err();
+        assert_ne!(error.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn target_under_a_dangling_parent_link_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(dir.path().join("nope"), dir.path().join("apps")).unwrap();
+        let error = resolve_target_in_workspace(dir.path(), "apps/uv.lock").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn target_ending_in_a_parent_component_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let error = resolve_target_in_workspace(dir.path(), "missing/..").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
     #[cfg(unix)]
     #[test]
     fn target_missing_leaf_with_parent_inside_is_accepted() {

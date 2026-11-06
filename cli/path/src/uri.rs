@@ -93,7 +93,9 @@ mod tests {
     /// A directory this host spells absolutely, with forward slashes for URIs.
     fn root() -> (&'static str, &'static str) {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             (r"C:\tmp", "/C:/tmp")
+            // LCOV_EXCL_STOP - reason: end expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             ("/tmp", "/tmp")
         }
@@ -102,11 +104,13 @@ mod tests {
     /// Filenames a temp directory holds on this host, with the URI each one spells as.
     fn escapes() -> &'static [(&'static str, &'static str)] {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             &[
                 ("a b.pb", "a%20b.pb"),
                 ("a%20b.pb", "a%2520b.pb"),
                 ("täst.pb", "t%C3%A4st.pb"),
             ]
+            // LCOV_EXCL_STOP - reason: end expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             &[
                 ("a b.pb", "a%20b.pb"),
@@ -121,6 +125,7 @@ mod tests {
     #[test]
     fn uri_escapes_each_character_a_reader_has_to_decode() {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             assert_eq!(uri_of(r"C:\tmp\a b.py"), "file:///C:/tmp/a%20b.py");
             assert_eq!(uri_of(r"\\?\C:\tmp\a b.py"), "file:///C:/tmp/a%20b.py");
             assert_eq!(
@@ -128,6 +133,7 @@ mod tests {
                 "file://srv/share/a%23b.py"
             );
             assert_eq!(uri_of(r"\\srv\share\a b.py"), "file://srv/share/a%20b.py");
+            // LCOV_EXCL_STOP - reason: end expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             for (path, want) in [
                 ("/", "file:///"),
@@ -142,6 +148,25 @@ mod tests {
                 assert_eq!(uri_of(path), want, "path: {path:?}");
             }
         }
+    }
+
+    #[test]
+    fn without_verbatim_drops_the_prefix_whatever_the_host() {
+        for (path, want) in [
+            (r"\\?\UNC\srv\share\a.py", r"\\srv\share\a.py"),
+            (r"\\?\C:\tmp\a.py", r"C:\tmp\a.py"),
+            (r"C:\tmp\a.py", r"C:\tmp\a.py"),
+        ] {
+            assert_eq!(without_verbatim(Path::new(path)), PathBuf::from(want));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn without_verbatim_keeps_a_path_that_is_not_text() {
+        use std::os::unix::ffi::OsStrExt;
+        let path = Path::new(std::ffi::OsStr::from_bytes(b"/tmp/\xff"));
+        assert_eq!(without_verbatim(path), path);
     }
 
     #[test]
@@ -187,6 +212,7 @@ mod tests {
     #[test]
     fn uri_to_path_decodes_the_escapes_uri_writes() {
         if cfg!(windows) {
+            // LCOV_EXCL_START - reason: expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             for (uri, want) in [
                 ("file:///C:/tmp/a.py", r"C:\tmp\a.py"),
                 ("file:///C:/tmp/a%20b.py", r"C:\tmp\a b.py"),
@@ -202,6 +228,7 @@ mod tests {
                     "uri: {uri:?}"
                 );
             }
+            // LCOV_EXCL_STOP - reason: end expectations for the Windows host only, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         } else {
             for (uri, want) in [
                 ("file:///", "/"),
@@ -258,14 +285,17 @@ mod tests {
                 "uri: {uri:?}"
             );
         }
-        if !cfg!(windows) {
-            assert_eq!(
-                uri_to_path("file://otherhost/out/a.pb").expect_err("remote host"),
-                UriError::NotLocalPath {
-                    uri: "file://otherhost/out/a.pb".to_owned()
-                }
-            );
-        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn uri_to_path_rejects_a_remote_host_on_unix() {
+        assert_eq!(
+            uri_to_path("file://otherhost/out/a.pb").expect_err("remote host"),
+            UriError::NotLocalPath {
+                uri: "file://otherhost/out/a.pb".to_owned()
+            }
+        );
     }
 
     #[test]

@@ -4,7 +4,6 @@ use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
 use super::notice_codes::CODE_CHANGES_PROPOSED;
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
-use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineGate, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{
@@ -21,7 +20,7 @@ use dx_plan::args::{Command, Invocation, QualityRequest, BREAKING_AGAINST_OPTION
 use dx_plan::plan::{
     bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP,
 };
-use dx_plan::reports::{plan_reports, BaselineReport, Destination};
+use dx_plan::reports::{plan_reports, Destination};
 use dx_plan::resolve::{resolve, RuleGraph};
 use std::collections::BTreeSet;
 use std::io::Write;
@@ -591,7 +590,6 @@ fn run_quality_request(
         changes: collected.changes.len() as u64,
         applied: applied.values().filter(|written| **written).count() as u64,
         not_applied: not_applied.len() as u64,
-        baseline_refreshed: false,
     };
     let on_disk = terminal_on_disk(
         &applied,
@@ -607,32 +605,9 @@ fn run_quality_request(
         !collected.changes.is_empty(),
     );
     super::quality_security::drop_excepted_findings(workspace, audit_today, &mut status);
-    let baseline: Option<BaselineView> = match apply_baseline(
-        workspace,
-        &status,
-        &analyzed_scope(&collected),
-        &collected.original_digests,
-        BaselineGate {
-            complete: collected.complete,
-            stable: collected.unstable.is_empty(),
-            applied_all: not_applied.is_empty(),
-        },
-        apply,
-        request.baseline.as_deref(),
-    ) {
-        Ok(view) => view,
-        Err((code, message)) => {
-            return operational_output(request.common.output, out, err, &code, &message);
-        }
-    };
-    effects.baseline_refreshed = baseline.as_ref().is_some_and(|view| view.refreshed);
-    let suppressed: Vec<bool> = baseline
-        .as_ref()
-        .map_or_else(|| vec![false; status.len()], |view| view.suppressed.clone());
-    let mut failed =
-        status.iter().zip(&suppressed).any(|(diagnostic, held)| {
-            !held && meets_threshold(diagnostic.severity, request.fail_on)
-        }) || baseline.as_ref().is_some_and(|view| !view.stale.is_empty());
+    let mut failed = status
+        .iter()
+        .any(|diagnostic| meets_threshold(diagnostic.severity, request.fail_on));
     if (!apply && !collected.changes.is_empty())
         || !not_applied.is_empty()
         || !collected.conflicts.is_empty()
@@ -675,8 +650,6 @@ fn run_quality_request(
             conflicts: &collected.conflicts,
             patch: &patch,
             stdout_report,
-            suppressed: &suppressed,
-            baseline: baseline.as_ref(),
             snapshots: &snapshots,
             original_digests: &collected.original_digests,
             terminal_digests: &collected.terminal_digests,
@@ -724,12 +697,6 @@ fn run_quality_request(
             planned: &planned_reports,
             output: &request.common.output,
             stdout_report,
-            baseline: baseline.as_ref().map(|view| BaselineReport {
-                file: view.rel.clone(),
-                total: view.total,
-                new: view.fresh,
-                suppressed: view.held,
-            }),
         },
         out,
         err,
@@ -799,7 +766,6 @@ fn run_quality_request(
                 } else {
                     None
                 },
-                baseline: baseline.as_ref().map(BaselineView::counts),
                 tests: None,
                 actions: action_counts,
             },

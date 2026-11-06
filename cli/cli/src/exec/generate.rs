@@ -272,7 +272,6 @@ fn run_generate_request(
         changes: projected.files.len() as u64,
         applied: projected.applied(),
         not_applied: projected.not_applied(),
-        baseline_refreshed: false,
     };
     if request.common.output == OutputMode::Json {
         for file in projected.sorted_files() {

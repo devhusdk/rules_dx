@@ -22,7 +22,6 @@ fn json_finding_names_lines_count_and_origin() {
     let diagnostic = event(&events, "diagnostic");
     assert_eq!(diagnostic["location"], "lines");
     assert_eq!(diagnostic["count"], 1);
-    assert!(diagnostic.get("baseline").is_none());
     let range = &diagnostic["range"];
     assert_eq!(range["start_byte"], 6);
     assert_eq!(range["end_byte"], 8);

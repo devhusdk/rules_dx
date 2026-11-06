@@ -93,7 +93,6 @@ impl ProjectedManifest {
             } else {
                 Some([self.applied(), self.not_applied()])
             },
-            baseline: None,
             tests: None,
             actions: None,
         }
@@ -547,7 +546,6 @@ mod tests {
                 diagnostics: None,
                 changes: Some([0, 0]),
                 effects: None,
-                baseline: None,
                 tests: None,
                 actions: None,
             }

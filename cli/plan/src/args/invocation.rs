@@ -66,7 +66,6 @@ pub struct QualityRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
-    pub baseline: Option<String>,
     pub origin: Option<UmbrellaOrigin>,
     /// The execution log file an umbrella `--explain` run has this phase write.
     pub exec_log: Option<String>,
@@ -98,7 +97,6 @@ pub struct UmbrellaRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
-    pub baseline: Option<String>,
     /// `dx check --explain`: save one execution log across the phases.
     pub explain: bool,
 }
@@ -205,7 +203,6 @@ impl UmbrellaRequest {
             workspace: self.workspace.clone(),
             common: self.common_with(reports),
             fail_on: self.fail_on,
-            baseline: self.baseline.clone(),
             origin: Some(self.origin()),
             exec_log: None,
         })
@@ -251,7 +248,6 @@ pub struct Invocation {
     pub build_slots: Option<dx_adopt::defaults::BuildSlots>,
     /// `dx watch --poll`: poll the tree on every platform.
     pub poll: bool,
-    pub baseline: Option<String>,
     pub include_edits: bool,
     pub min_coverage: Option<u32>,
     /// The `--min-changed-line-coverage` percent gate on lines changed since the merge-base.
@@ -474,7 +470,6 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
-            baseline: self.baseline.clone(),
             origin: None,
             exec_log: None,
         })
@@ -548,7 +543,6 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
-            baseline: self.baseline.clone(),
             explain: self.explain,
         })
     }
@@ -702,7 +696,6 @@ mod tests {
             fail_on_unused: false,
             build_slots: None,
             poll: false,
-            baseline: None,
             include_edits: false,
             min_coverage: None,
             min_changed_line_coverage: None,
@@ -1087,25 +1080,6 @@ mod tests {
             dx_output::Threshold::Error,
             "severity rides the typed request"
         );
-    }
-
-    #[test]
-    fn baseline_selection_rides_every_quality_request() {
-        let inv = crate::args::parse(&["lint", "--baseline", "b.json"]).expect("parse lint");
-        assert_eq!(
-            inv.quality_request().expect("quality").baseline.as_deref(),
-            Some("b.json")
-        );
-        let fix = crate::args::parse(&["check", "--baseline=b.json"]).expect("parse check");
-        let umbrella = fix.umbrella_request().expect("umbrella");
-        let phase = umbrella
-            .phase_quality_request(Command::Lint, Vec::new())
-            .expect("phase");
-        assert_eq!(phase.baseline.as_deref(), Some("b.json"));
-        let verify = umbrella
-            .verify_quality_request(Command::Lint)
-            .expect("verify");
-        assert_eq!(verify.baseline.as_deref(), Some("b.json"));
     }
 
     #[test]

@@ -1,5 +1,4 @@
 use super::super::test_support::*;
-use dx_fingerprint::baseline::{normalize_message, render_baseline, BaselineEntry, BaselineFile};
 use quality_result::proto::{self, Convergence};
 use quality_result::{decode_validated, encode_validated};
 
@@ -102,7 +101,7 @@ fn json_names_the_unstable_producer_and_keeps_the_result_set_complete() {
 }
 
 #[test]
-fn severity_and_suppression_cannot_hide_nonconvergence() {
+fn severity_cannot_hide_nonconvergence() {
     let info = Harness::diagnostic_with(
         proto::Severity::Info as i32,
         "lint-tool",
@@ -115,62 +114,6 @@ fn severity_and_suppression_cannot_hide_nonconvergence() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("minor"), "the finding stays visible: {out}");
     assert!(err.contains("dx: not_converged:"), "{err}");
-
-    let baselined = harness_with(
-        "unstable-baselined",
-        vec![Harness::diagnostic("unused", false)],
-        Convergence::Oscillation,
-        2,
-    );
-    let rel = "quality/baseline.json";
-    let recorded = render_baseline(&BaselineFile {
-        entries: vec![BaselineEntry {
-            tool: "lint-tool".to_owned(),
-            rule: "lint-tool/rule".to_owned(),
-            path: "src/a.py".to_owned(),
-            target: String::new(),
-            message: normalize_message("unused"),
-            context: dx_digest::blake3(b"x = 1"),
-            count: 1,
-        }],
-    })
-    .expect("render");
-    baselined.write_source(rel, &recorded);
-    for words in [
-        ["lint", "--baseline", rel, "--output=text"],
-        ["lint", "--baseline", rel, "--apply"],
-    ] {
-        let (code, out, err) = baselined.run(&words);
-        assert_eq!(code, 1, "{words:?}: {out}{err}");
-        assert!(
-            out.contains("unused [lint-tool/rule] (baselined)"),
-            "{words:?}: {out}"
-        );
-        assert!(err.contains("dx: not_converged:"), "{words:?}: {err}");
-        assert!(!out.contains("refreshed"), "{words:?}: {out}");
-        assert_eq!(
-            std::fs::read_to_string(baselined.workspace.join(rel)).expect("baseline"),
-            recorded,
-            "{words:?} never refreshes the baseline"
-        );
-    }
-}
-
-#[test]
-fn apply_never_records_a_missing_baseline_from_an_unstable_result() {
-    let harness = harness_with(
-        "unstable-no-baseline",
-        vec![],
-        Convergence::IterationLimit,
-        10,
-    );
-    let (code, _, err) = harness.run(&["lint", "--baseline", "quality/baseline.json", "--apply"]);
-    assert_eq!(code, 1, "{err}");
-    assert!(
-        err.contains("baseline quality/baseline.json is missing and was not recorded"),
-        "{err}"
-    );
-    assert!(!harness.workspace.join("quality/baseline.json").exists());
 }
 
 #[test]

@@ -20,12 +20,11 @@ dx format [flags] [scope...] [-- bazel-options ...]
 
 | Flag | What it does |
 | --- | --- |
-| `--apply` | Write validated fixes and refresh the `--baseline` file. Text output prints `Applied: <path>` per file, then `Applied N file(s).` |
+| `--apply` | Write validated fixes. Text output prints `Applied: <path>` per file, then `Applied N file(s).` |
 | `--breaking-against[=REF]` | `lint` only. Also run `buf breaking` against the merge base of `HEAD` and `REF` (default `origin/HEAD`). `dx` builds the base image with the pinned `buf`; the lint action runs unsandboxed and uncached. |
 | `--online` | `lint` only. Check external links too: `lychee` drops `--offline`. Needs network. |
 | `--diff` | Print a unified patch of the proposed fixes instead of findings. |
 | `--fail-on info\|warning\|error` | Severity that fails the run. Default `warning`. |
-| `--baseline <file>` | Suppress findings already in this workspace-relative `.json` file. See [Baselines](#baselines). |
 | `--report sarif=<dest>` | Write a SARIF report. Repeatable. `lint` and `typecheck` only; `format` has no report. |
 | `-o, --output text\|json` | Result shape. Default `text`. |
 | `--include-edits` | Add `source_digest` and full `edits` to JSON `change` events. Needs `--output json`, else exit `2`. |
@@ -64,7 +63,7 @@ Lines and columns count Unicode characters. A finding without a position prints 
 
 When files need changes, text prints `N file(s) need changes. Apply them with: dx <command> --apply ...`. Failures print a `next:` line with the fix.
 
-`--diff` prints the patch on stdout. `Not applied:`, `Conflict:` and `Baseline stale:` lines go to stderr.
+`--diff` prints the patch on stdout. `Not applied:` and `Conflict:` lines go to stderr.
 
 JSON prints one `change` per file with `path`, `kind`, `edit_count` and `effect` (`proposed`, `applied` or `refused`). A refused change has a `reason`: `stale_source`, `unreadable_source`, `invalid_edits`, `write_failed`, `incomplete_collection`, `conflicting_digests` or `conflicting_candidates`. A check with proposed changes adds an info `notice` with code `changes_proposed`; its `message` is the `--apply` command. Findings from several targets print once with a `count` and every target in `origins`.
 
@@ -87,7 +86,7 @@ Several targets that fix the same file apply identical fixes once. Fixes that di
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Findings at or above `--fail-on`; any proposed change in a check; an incomplete result set; a target that did not converge; a conflicting or unapplied fix; a failed report write; a missing, malformed or stale baseline; a Bazel failure. |
+| `1` | Findings at or above `--fail-on`; any proposed change in a check; an incomplete result set; a target that did not converge; a conflicting or unapplied fix; a failed report write; a Bazel failure. |
 | `2` | Usage or scope error. |
 
 ## Policy
@@ -440,38 +439,6 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | OCaml formatting | no | none | `.ocamlformat` | none |
 
 Formatters run on their tool defaults. dx ships no style for them, and `dx init` writes no formatter file.
-
-## Baselines
-
-A baseline keeps known findings while new ones fail. Pass the file with `--baseline` to `dx lint`, `dx typecheck`, `dx format`, `dx check` or `dx watch`.
-
-```sh
-tools/dx lint --baseline quality/baseline.json //...
-```
-
-The path is workspace-relative, stays inside the workspace, and names a `.json` file. Any other path exits `2`. A missing file fails checks. Pass `--apply` once to write it, then commit it.
-
-```json
-{
-  "schema_version": 1,
-  "entries": [
-    {
-      "tool": "ruff",
-      "rule": "F401",
-      "path": "src/app.py",
-      "message": "unused import",
-      "context": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "count": 1
-    }
-  ]
-}
-```
-
-A finding without a path records the Bazel `target` instead of `path`.
-
-Checks print `Baseline <file>: <total> total, <new> new, <suppressed> suppressed.` Suppressed findings print with `(baselined)` and stay in JSON and SARIF, where JSON marks them `"baseline": "suppressed"`. New findings fail. Fixed entries turn stale and fail. An incomplete run never goes green through a baseline.
-
-`--apply` adds new findings, prunes fixed entries in scope, and keeps the rest. It writes nothing after an incomplete run, a target that did not converge, or an unreadable source file. A malformed file fails and is not rewritten.
 
 ## Unused code
 

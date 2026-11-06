@@ -59,9 +59,6 @@ Options:
           
           [possible values: info, warning, error]
 
-      --baseline <FILE>
-          Suppress findings already in this workspace-relative JSON baseline
-
       --report <REPORT>
           Write a report file
 

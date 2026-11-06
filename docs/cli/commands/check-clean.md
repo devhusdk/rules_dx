@@ -11,7 +11,7 @@ dx clean --apply
 ## `dx check`
 
 ```text
-dx check [--here] [--affected] [--apply] [--diff] [--include-edits] [--explain] [--fail-on info|warning|error] [--baseline <file>] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected] [--apply] [--diff] [--include-edits] [--explain] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `--apply` writes validated fixes, then re-checks read-only.
@@ -25,7 +25,6 @@ Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `-
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |
 | `--explain` | Save one execution log for [`dx explain`](explain.md). |
 | `--fail-on <level>` | Fail on `info`, `warning`, or `error`. Applies to `format`, `lint`, and `typecheck`. |
-| `--baseline <file>` | Suppress findings in this workspace-relative JSON baseline. |
 | `--report sarif=<dest>` | Merge the `lint` and `typecheck` findings into one SARIF document. `-` is rejected. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |

@@ -10,7 +10,7 @@ use super::common::{
     SourceRead,
 };
 use super::results::Collected;
-use dx_plan::reports::{render_sarif_with_baseline, BaselineReport, PlannedReport, ReportError};
+use dx_plan::reports::{render_sarif_with_failures, PlannedReport, ReportError};
 
 pub(crate) struct StandardReports<'a> {
     pub(crate) workspace: &'a Path,
@@ -20,7 +20,6 @@ pub(crate) struct StandardReports<'a> {
     pub(crate) planned: &'a [PlannedReport],
     pub(crate) output: &'a OutputMode,
     pub(crate) stdout_report: bool,
-    pub(crate) baseline: Option<BaselineReport>,
 }
 
 pub(crate) type Snapshots = BTreeMap<(Snapshot, String), String>;
@@ -150,7 +149,6 @@ pub(crate) fn write_standard_reports(
         planned,
         output,
         stdout_report,
-        baseline,
     } = inputs;
     let mut reports_ok = true;
     let mut failures: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -166,13 +164,12 @@ pub(crate) fn write_standard_reports(
         let (snapshots, snapshot_result) = load_snapshots(workspace, collected, sources, status);
         let document = match snapshot_result {
             Err(error) => Err(error),
-            Ok(()) => render_sarif_with_baseline(
+            Ok(()) => render_sarif_with_failures(
                 &collected.tools,
                 status,
                 &snapshots,
                 collected.complete,
                 &failures,
-                baseline.as_ref(),
             ),
         };
         match document {
@@ -253,8 +250,6 @@ mod tests {
     fn collected() -> Collected {
         Collected {
             tools: vec!["lint".to_owned()],
-            ran: std::collections::BTreeSet::new(),
-            analyzed: std::collections::BTreeSet::new(),
             analyzed_by: BTreeMap::new(),
             initial: Vec::new(),
             terminal: Vec::new(),

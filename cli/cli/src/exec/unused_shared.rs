@@ -61,8 +61,6 @@ mod tests {
     fn collected(by: &[(&str, &[&str])], initial: Vec<DiagnosticEvent>) -> Collected {
         let mut collected = Collected {
             tools: Vec::new(),
-            ran: BTreeSet::new(),
-            analyzed: BTreeSet::new(),
             analyzed_by: BTreeMap::new(),
             initial: Vec::new(),
             terminal: Vec::new(),

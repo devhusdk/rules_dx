@@ -8,7 +8,7 @@
     )
 )]
 
-pub mod baseline;
+pub mod finding;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum FingerprintError {

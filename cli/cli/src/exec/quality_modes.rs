@@ -782,7 +782,6 @@ fn apply_phase_reports_written_effects_in_every_output_mode() {
                 changes: 1,
                 applied: 1,
                 not_applied: 0,
-                baseline_refreshed: false,
             },
             "{output}"
         );
@@ -884,7 +883,6 @@ fn a_refused_change_ends_the_phase_as_findings() {
             changes: 1,
             applied: 0,
             not_applied: 1,
-            baseline_refreshed: false,
         }
     );
 }

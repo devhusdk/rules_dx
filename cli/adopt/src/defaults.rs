@@ -1,5 +1,3 @@
-use std::path::{Path, PathBuf};
-
 pub const DX_WORKSPACE_ENV: &str = "DX_WORKSPACE";
 pub const DX_OUTPUT_ENV: &str = "DX_OUTPUT";
 pub const DX_VERBOSE_ENV: &str = "DX_VERBOSE";
@@ -133,24 +131,6 @@ pub fn resolve_bool(flag: Option<bool>, env: Option<bool>) -> bool {
     flag.or(env).unwrap_or(false)
 }
 
-/// Check a `--baseline` path: a workspace-relative `.json` file.
-pub fn check_quality_baseline(rel: &str) -> Result<String, String> {
-    if rel.is_empty() {
-        return Err("want a non-empty workspace-relative JSON path".to_owned());
-    }
-    if let Some(reason) = dx_path::reject_reason(rel) {
-        return Err(format!("invalid baseline {rel:?}: {reason}"));
-    }
-    if !rel.ends_with(".json") {
-        return Err(format!("invalid baseline {rel:?}: want a .json file"));
-    }
-    Ok(rel.to_owned())
-}
-
-pub fn join_quality_baseline(workspace: &Path, rel: &str) -> PathBuf {
-    workspace.join(rel)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,28 +255,6 @@ mod tests {
         assert!(resolve_bool(None, Some(true)));
         assert!(!resolve_bool(Some(false), Some(true)));
         assert!(!resolve_bool(None, None));
-    }
-
-    #[test]
-    fn quality_baseline_paths_are_checked() {
-        assert_eq!(
-            check_quality_baseline("quality/baseline.json"),
-            Ok("quality/baseline.json".to_owned())
-        );
-        for bad in [
-            "",
-            "/abs.json",
-            "../escape.json",
-            "a\\b.json",
-            "quality/baseline.toml",
-        ] {
-            assert!(check_quality_baseline(bad).is_err(), "{bad:?}");
-        }
-        let root = std::path::Path::new("/ws");
-        assert_eq!(
-            join_quality_baseline(root, "quality/baseline.json"),
-            root.join("quality/baseline.json")
-        );
     }
 
     #[test]

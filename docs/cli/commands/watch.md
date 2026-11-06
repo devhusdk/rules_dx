@@ -23,7 +23,7 @@ Flags go to the wrapped command and are checked as `dx <command>` checks them. A
 | `--here` | Resolve the scope once from the current directory. |
 | `--affected` | Re-resolve the affected targets each iteration. |
 | `--poll` | Poll the tree every second instead of using the platform watcher, on any platform. `DX_WATCH_POLL=1` makes polling the default. |
-| `--fail-on`, `--baseline`, `--report`, `--diff`, `--include-edits` | Passed to the wrapped command when it takes them. |
+| `--fail-on`, `--report`, `--diff`, `--include-edits` | Passed to the wrapped command when it takes them. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 

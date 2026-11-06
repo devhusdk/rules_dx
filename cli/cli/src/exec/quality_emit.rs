@@ -10,7 +10,6 @@ use super::common::{
     change_event_for, check_stdout_write, emit_event, text_finding, FileChange,
     REASON_INCOMPLETE_COLLECTION,
 };
-use super::quality_baseline::BaselineView;
 use super::quality_reconcile::Conflict;
 use super::quality_reports::Snapshots;
 use dx_plan::args::QualityRequest;
@@ -25,8 +24,6 @@ pub(crate) struct EmitInputs<'a> {
     pub(crate) conflicts: &'a [Conflict],
     pub(crate) patch: &'a str,
     pub(crate) stdout_report: bool,
-    pub(crate) suppressed: &'a [bool],
-    pub(crate) baseline: Option<&'a BaselineView>,
     pub(crate) snapshots: &'a Snapshots,
     pub(crate) original_digests: &'a BTreeMap<String, [u8; 32]>,
     pub(crate) terminal_digests: &'a BTreeMap<String, [u8; 32]>,
@@ -79,14 +76,12 @@ fn equivalent(a: &DiagnosticEvent, b: &DiagnosticEvent) -> bool {
 /// Folds findings proven equal on one verified snapshot and attaches their verified lines.
 pub(crate) fn finding_records(
     status: &[DiagnosticEvent],
-    suppressed: &[bool],
     snapshots: &Snapshots,
     original_digests: &BTreeMap<String, [u8; 32]>,
     terminal_digests: &BTreeMap<String, [u8; 32]>,
 ) -> Vec<FindingRecord> {
     let mut records: Vec<FindingRecord> = Vec::new();
-    for (index, diagnostic) in status.iter().enumerate() {
-        let held = suppressed.get(index).copied().unwrap_or(false);
+    for diagnostic in status {
         let proven = diagnostic
             .path
             .as_ref()
@@ -99,9 +94,7 @@ pub(crate) fn finding_records(
                 .iter_mut()
                 .rev()
                 .take_while(|record| same_place(&record.diagnostic, diagnostic))
-                .find(|record| {
-                    record.suppressed == held && equivalent(&record.diagnostic, diagnostic)
-                });
+                .find(|record| equivalent(&record.diagnostic, diagnostic));
             if let Some(record) = folded {
                 record.count += 1;
                 for origin in &diagnostic.origins {
@@ -114,7 +107,6 @@ pub(crate) fn finding_records(
             }
         }
         let mut record = FindingRecord::single(diagnostic.clone());
-        record.suppressed = held;
         record.span = span_of(
             snapshots,
             diagnostic.snapshot,
@@ -152,8 +144,6 @@ pub(crate) fn emit_findings(
         conflicts,
         patch,
         stdout_report,
-        suppressed,
-        baseline,
         snapshots,
         original_digests,
         terminal_digests,
@@ -180,13 +170,7 @@ pub(crate) fn emit_findings(
                 event_diagnostic
             })
             .collect();
-        for record in finding_records(
-            &resolved,
-            suppressed,
-            snapshots,
-            original_digests,
-            terminal_digests,
-        ) {
+        for record in finding_records(&resolved, snapshots, original_digests, terminal_digests) {
             emit_event(out, &finding_value(&record))?;
         }
         let include_edits = request.common.include_edits;
@@ -226,17 +210,8 @@ pub(crate) fn emit_findings(
     } else if matches!(request.common.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
         let required = !stdout_report;
-        for record in finding_records(
-            status,
-            suppressed,
-            snapshots,
-            original_digests,
-            terminal_digests,
-        ) {
-            let mut line = text_finding(&record);
-            if record.suppressed {
-                line.push_str(" (baselined)");
-            }
+        for record in finding_records(status, snapshots, original_digests, terminal_digests) {
+            let line = text_finding(&record);
             human_line(human, required, &line)?;
         }
         if request.applies() {
@@ -276,33 +251,6 @@ pub(crate) fn emit_findings(
             err,
             "next: resolve the Conflict files listed above by hand or fix one producer, then run the command again."
         );
-    }
-    if let Some(view) = baseline {
-        for stale in &view.stale {
-            let _ = writeln!(
-                err,
-                "Baseline stale: {stale} (run with --apply to refresh)."
-            );
-        }
-        if matches!(request.common.output, OutputMode::Text { .. }) {
-            let human: &mut dyn Write = if stdout_report { err } else { out };
-            let required = !stdout_report;
-            human_line(
-                human,
-                required,
-                &format!(
-                    "Baseline {}: {} total, {} new, {} suppressed.",
-                    view.rel, view.total, view.fresh, view.held
-                ),
-            )?;
-            if view.refreshed {
-                human_line(
-                    human,
-                    required,
-                    &format!("Baseline {} refreshed.", view.rel),
-                )?;
-            }
-        }
     }
     Ok(EmitCounts {
         applied_count,

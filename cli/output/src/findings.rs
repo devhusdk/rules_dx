@@ -53,14 +53,13 @@ pub struct Position {
 
 pub type Span = (Position, Position);
 
-/// One emitted finding: the diagnostic, its verified lines, its folded count and its baseline mark.
+/// One emitted finding: the diagnostic, its verified lines, its folded count.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FindingRecord {
     pub diagnostic: DiagnosticEvent,
     pub span: Option<Span>,
     pub related_spans: Vec<Option<Span>>,
     pub count: u64,
-    pub suppressed: bool,
 }
 
 impl FindingRecord {
@@ -70,7 +69,6 @@ impl FindingRecord {
             diagnostic,
             span: None,
             count: 1,
-            suppressed: false,
         }
     }
 }
@@ -247,12 +245,6 @@ pub fn finding_value(record: &FindingRecord) -> Value {
         );
     }
     map.insert("count".to_owned(), Value::from(record.count));
-    if record.suppressed {
-        map.insert(
-            "baseline".to_owned(),
-            Value::String("suppressed".to_owned()),
-        );
-    }
     if !diagnostic.origins.is_empty() {
         map.insert(
             "origins".to_owned(),
@@ -849,7 +841,6 @@ mod tests {
         assert_eq!(bytes["count"], Value::from(1));
         assert!(bytes["range"].get("start_line").is_none());
         assert!(bytes.get("origins").is_none());
-        assert!(bytes.get("baseline").is_none());
         let mut file = finding();
         file.range = None;
         assert_eq!(
@@ -901,12 +892,10 @@ mod tests {
         diagnostic_event(&diagnostic).expect("origins validate");
         let record = FindingRecord {
             count: 2,
-            suppressed: true,
             ..FindingRecord::single(diagnostic.clone())
         };
         let event = finding_value(&record);
         assert_eq!(event["count"], Value::from(2));
-        assert_eq!(event["baseline"], Value::from("suppressed"));
         assert_eq!(event["origins"][0]["producer"], Value::from("//src:a"));
         assert_eq!(
             event["origins"][0]["configuration"],

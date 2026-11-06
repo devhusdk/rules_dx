@@ -41,7 +41,6 @@ fn finished() -> Value {
         diagnostics: Some([1, 2, 3]),
         changes: Some([1, 2]),
         effects: Some([1, 0]),
-        baseline: Some([3, 2, 1]),
         tests: Some(TestCounts::default()),
         actions: Some(ActionCounts::default()),
     };
@@ -79,7 +78,6 @@ fn full_diagnostic() -> Value {
         applicability: Some("safe".to_owned()),
     }];
     let mut record = FindingRecord::single(d);
-    record.suppressed = true;
     record.span = Some((
         Position { line: 1, column: 1 },
         Position { line: 1, column: 2 },

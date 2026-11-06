@@ -635,29 +635,6 @@
           ],
           "additionalProperties": false
         },
-        "baseline": {
-          "type": "object",
-          "properties": {
-            "total": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "new": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "suppressed": {
-              "type": "integer",
-              "minimum": 0
-            }
-          },
-          "required": [
-            "total",
-            "new",
-            "suppressed"
-          ],
-          "additionalProperties": false
-        },
         "tests": {
           "type": "object",
           "properties": {
@@ -980,9 +957,6 @@
             "remaining",
             "not_applied"
           ]
-        },
-        "baseline": {
-          "const": "suppressed"
         },
         "origins": {
           "type": "array",
@@ -1401,29 +1375,6 @@
           "required": [
             "create",
             "modify"
-          ],
-          "additionalProperties": false
-        },
-        "baseline": {
-          "type": "object",
-          "properties": {
-            "total": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "new": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "suppressed": {
-              "type": "integer",
-              "minimum": 0
-            }
-          },
-          "required": [
-            "total",
-            "new",
-            "suppressed"
           ],
           "additionalProperties": false
         },

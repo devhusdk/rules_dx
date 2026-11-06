@@ -183,8 +183,6 @@ fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Stage
 
 pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
-    pub(crate) ran: BTreeSet<(String, String)>,
-    pub(crate) analyzed: BTreeSet<(String, String)>,
     pub(crate) analyzed_by: BTreeMap<String, BTreeSet<(String, String)>>,
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
@@ -477,8 +475,6 @@ pub(crate) fn collect_results_in(
 ) -> Result<Collected, (String, String)> {
     let account = collect_output_account(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
-    let mut ran = BTreeSet::new();
-    let mut analyzed = BTreeSet::new();
     let mut analyzed_by: BTreeMap<String, BTreeSet<(String, String)>> = BTreeMap::new();
     let mut initial = Vec::new();
     let mut producers = Vec::new();
@@ -537,13 +533,6 @@ pub(crate) fn collect_results_in(
             origin.configuration.clone_from(&target.configuration);
         }
         tools.extend(staged.tools.iter().cloned());
-        ran.extend(
-            staged
-                .tools
-                .iter()
-                .map(|tool| (tool.clone(), target.label.clone())),
-        );
-        analyzed.extend(staged.analyzed.iter().cloned());
         analyzed_by
             .entry(target.label.clone())
             .or_default()
@@ -613,11 +602,8 @@ pub(crate) fn collect_results_in(
             event.fixable = true;
         }
     }
-    analyzed.retain(|(_, path)| reconciled.digests.contains_key(path));
     Ok(Collected {
         tools: tools.into_iter().collect(),
-        ran,
-        analyzed,
         analyzed_by,
         initial,
         terminal: reconciled.terminal,
@@ -1039,7 +1025,6 @@ mod tests {
         let twice = collect(&harness, &lines);
         assert_eq!(once.initial.len(), twice.initial.len());
         assert!(!twice.initial.is_empty());
-        assert!(twice.ran.iter().all(|(_, label)| label == "//a:x"));
     }
 
     #[test]

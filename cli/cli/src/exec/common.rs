@@ -336,13 +336,12 @@ pub(crate) struct PhaseEffects {
     pub(crate) changes: u64,
     pub(crate) applied: u64,
     pub(crate) not_applied: u64,
-    pub(crate) baseline_refreshed: bool,
 }
 
 impl PhaseEffects {
-    /// Reports whether the phase changed, refused or refreshed anything.
+    /// Reports whether the phase changed or refused anything.
     pub(crate) fn touched(&self) -> bool {
-        self.changes > 0 || self.not_applied > 0 || self.baseline_refreshed
+        self.changes > 0 || self.not_applied > 0
     }
 }
 
@@ -1107,7 +1106,7 @@ mod tests {
     }
 
     #[test]
-    fn phase_effects_touched_counts_changes_refusals_and_baselines() {
+    fn phase_effects_touched_counts_changes_and_refusals() {
         assert!(!PhaseEffects::default().touched());
         let applied_only = PhaseEffects {
             applied: 1,
@@ -1122,10 +1121,6 @@ mod tests {
             },
             PhaseEffects {
                 not_applied: 1,
-                ..PhaseEffects::default()
-            },
-            PhaseEffects {
-                baseline_refreshed: true,
                 ..PhaseEffects::default()
             },
         ] {

@@ -366,7 +366,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         fail_regression,
         compare,
         check,
-        baseline,
         bazel_startup_options: startup_tokens,
         bazel_options: option_tokens,
     } = tokenized.flags;
@@ -739,7 +738,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         fail_on_unused,
         build_slots,
         poll,
-        baseline,
         include_edits,
         min_coverage,
         min_changed_line_coverage,

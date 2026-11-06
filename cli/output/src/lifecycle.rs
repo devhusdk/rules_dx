@@ -1082,7 +1082,6 @@ pub struct FinishedCounts {
     pub diagnostics: Option<[u64; 3]>,
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
-    pub baseline: Option<[u64; 3]>,
     /// Test result counts; see `TestCounts` for the unit.
     pub tests: Option<TestCounts>,
     /// Bazel action counts summed over the command's builds.
@@ -1160,12 +1159,6 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
             changes.insert("refused".to_owned(), Value::from(refused));
         }
         map.insert("changes".to_owned(), Value::Object(changes));
-    }
-    if let Some([total, new, suppressed]) = counts.baseline {
-        map.insert(
-            "baseline".to_owned(),
-            json!({"total": total, "new": new, "suppressed": suppressed}),
-        );
     }
     if let Some(t) = &counts.tests {
         map.insert(
@@ -1341,7 +1334,6 @@ mod tests {
             diagnostics: Some([0, 3, 1]),
             changes: Some([0, 2]),
             effects: Some([1, 1]),
-            baseline: None,
             tests: None,
             actions: None,
         };
@@ -1354,7 +1346,6 @@ mod tests {
             serde_json::json!({"create": 0, "modify": 2, "applied": 1, "refused": 1})
         );
         assert!(event.get("mutations").is_none());
-        assert!(event.get("baseline").is_none());
         let bare = command_finished(0, &FinishedCounts::default());
         assert!(bare.get("changes").is_none());
         assert!(bare.get("run_id").is_none());
@@ -1404,7 +1395,6 @@ mod tests {
             diagnostics: None,
             changes: Some([1, 2]),
             effects: None,
-            baseline: Some([5, 1, 4]),
             tests: None,
             actions: None,
         };
@@ -1413,9 +1403,6 @@ mod tests {
         assert_eq!(event["changes"]["modify"], Value::from(2));
         assert!(event["changes"].get("applied").is_none());
         assert!(event.get("diagnostics").is_none());
-        assert_eq!(event["baseline"]["total"], Value::from(5));
-        assert_eq!(event["baseline"]["new"], Value::from(1));
-        assert_eq!(event["baseline"]["suppressed"], Value::from(4));
     }
 
     #[test]

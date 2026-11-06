@@ -24,4 +24,11 @@ check(catalog.get(units, "bulb") == nil, "get misses an unknown unit")
 local missing, err = catalog.load("/nonexistent/units.tsv")
 check(missing == nil and err ~= nil, "a missing file is an error")
 
+local bad_path = os.getenv("TEST_TMPDIR") .. "/bad.tsv"
+local bad = assert(io.open(bad_path, "w"))
+bad:write("lamp\t4\t1250\n\nbroken\n")
+bad:close()
+local rejected, reason = catalog.load(bad_path)
+check(rejected == nil and reason:find("malformed row", 1, true), "a malformed row fails the load")
+
 print("catalog_test passed")

@@ -1,3 +1,4 @@
+-- LCOV_EXCL_START - reason: runs as a test subprocess, issue: 8545, policy: docs/cli/commands/build-test-coverage.md
 local catalog = require("catalog")
 local report = require("report")
 local runfiles = require("runfiles")
@@ -36,3 +37,4 @@ else
 	end
 	print(string.format("%s %d @ %d", unit.name, unit.qty, unit.price))
 end
+-- LCOV_EXCL_STOP - reason: end subprocess only, issue: 8545, policy: docs/cli/commands/build-test-coverage.md

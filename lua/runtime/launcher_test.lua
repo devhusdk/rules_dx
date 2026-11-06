@@ -6,6 +6,10 @@ assert(arg[1] == "one" and select("#", ...) == 1, "arguments reach the chunk")
 assert(runfiles.rlocation("_main/lua/runtime/launcher_test_helper.lua") ~= nil, "runfiles resolves")
 assert(runfiles.rlocation("../escape") == nil, "an invalid rlocation path resolves to nil")
 
+local sources = runfiles.sources()
+assert(sources[1] == "_main/lua/runtime/launcher_test.lua", "sources starts with the main chunk")
+assert(sources[2] == "_main/lua/runtime/launcher_test_helper.lua" and #sources == 2, "sources lists the modules")
+
 if package.config:sub(1, 1) == "\\" then
   return { answer = 42 }
 end

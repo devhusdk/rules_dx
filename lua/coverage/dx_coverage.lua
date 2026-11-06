@@ -1,3 +1,4 @@
+-- LCOV_EXCL_START - reason: runs before luacov starts so it cannot record itself, issue: 8545, policy: docs/cli/commands/build-test-coverage.md
 local dir = os.getenv("COVERAGE_DIR")
 if not dir then
   return
@@ -56,3 +57,4 @@ runner.init({
 })
 
 return names
+-- LCOV_EXCL_STOP - reason: end coverage bootstrap, issue: 8545, policy: docs/cli/commands/build-test-coverage.md

@@ -1,6 +1,5 @@
-load("//lua/rules:defs.bzl", "lua_binary")
+load("//lua/rules:defs.bzl", "lua_binary", "lua_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//lua/tests/fixtures/lua-app:__subpackages__"])
 
@@ -16,9 +15,9 @@ package(default_visibility = ["//lua/tests/fixtures/lua-app:__subpackages__"])
     ]
 ]
 
-rust_test(
+lua_test(
     name = "diagnostics_test",
-    srcs = ["diagnostics_test.rs"],
+    main = "diagnostics_test.lua",
     data = [
         "syntax_error.lua",
         "unformatted.lua",
@@ -34,26 +33,25 @@ rust_test(
         "@lua//:bin/luac",
     ],
     env = {
-        "LUAC": "$(rootpath @lua//:bin/luac)",
+        "LUAC": "$(rlocationpath @lua//:bin/luac)",
         "MISSING_DEP": "$(rlocationpath :missing_dep)",
         "RUNTIME_ERROR": "$(rlocationpath :runtime_error)",
-        "STYLUA": "$(rootpath @dx_tools//:stylua)",
+        "STYLUA": "$(rlocationpath @dx_tools//:stylua)",
         "STYLUA_CLEAN": " ".join([
-            "$(rootpath //lua/tests/fixtures/lua-app/catalog:catalog_test.lua)",
-            "$(rootpath //lua/tests/fixtures/lua-app/catalog:init.lua)",
-            "$(rootpath //lua/tests/fixtures/lua-app/catalog:parse.lua)",
-            "$(rootpath //lua/tests/fixtures/lua-app/cli:main.lua)",
-            "$(rootpath //lua/tests/fixtures/lua-app/report:init.lua)",
-            "$(rootpath //lua/tests/fixtures/lua-app/report:report_test.lua)",
+            "$(rlocationpath //lua/tests/fixtures/lua-app/catalog:catalog_test.lua)",
+            "$(rlocationpath //lua/tests/fixtures/lua-app/catalog:init.lua)",
+            "$(rlocationpath //lua/tests/fixtures/lua-app/catalog:parse.lua)",
+            "$(rlocationpath //lua/tests/fixtures/lua-app/cli:main.lua)",
+            "$(rlocationpath //lua/tests/fixtures/lua-app/report:init.lua)",
+            "$(rlocationpath //lua/tests/fixtures/lua-app/report:report_test.lua)",
         ]),
-        "SYNTAX_ERROR": "$(rootpath syntax_error.lua)",
-        "UNFORMATTED": "$(rootpath unformatted.lua)",
+        "SYNTAX_ERROR": "$(rlocationpath syntax_error.lua)",
+        "UNFORMATTED": "$(rlocationpath unformatted.lua)",
     },
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(
@@ -63,14 +61,4 @@ real_source_target(
     visibility = [
         "//tools/ci:__pkg__",
     ],
-)
-
-rustfmt_test(
-    name = "diagnostics_fmt_test",
-    targets = [":diagnostics_test"],
-)
-
-rust_clippy_test(
-    name = "diagnostics_clippy_test",
-    targets = [":diagnostics_test"],
 )

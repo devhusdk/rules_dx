@@ -28,6 +28,7 @@ fn covered_languages_include_wrapped_langs() {
         "elf.java",
         "elf.kt",
         "elf.scala",
+        "elf.lua",
         "elf.cs",
         "elf.fs",
         "elf.fsi",

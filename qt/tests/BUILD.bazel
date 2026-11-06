@@ -551,6 +551,7 @@ qt_cc_test(
         "linux_arm64",
         "macos_arm64",
         "windows_x86_64",
+        "windows_arm64",
     ]
 ]
 
@@ -577,5 +578,6 @@ qt_cc_test(
         ("linux_arm64", "linux", "arm64", "glibc-2.39", "resources/lib/libQt6Core.so.6"),
         ("macos_arm64", "macos", "arm64", "", "resources/lib/QtCore.framework/Versions/A/QtCore"),
         ("windows_x86_64", "windows", "x86_64", "", "Qt6Core.dll"),
+        ("windows_arm64", "windows", "arm64", "", "Qt6Core.dll"),
     ]
 ]

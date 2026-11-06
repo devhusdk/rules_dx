@@ -1,7 +1,10 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-exports_files(["libunwind_copy.patch"])
+exports_files([
+    "libunwind_copy.patch",
+    "clang_cl_crt_default_lib.patch",
+])
 
 sh_test(
     name = "libunwind_copy_test",

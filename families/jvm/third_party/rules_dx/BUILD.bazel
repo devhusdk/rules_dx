@@ -10,6 +10,7 @@ exports_files([
     "gcc_toolchain.target_identity_defs.patch",
     "gcc_toolchain.target_identity_extension.patch",
     "hermetic_launcher.windows_arm64_toolchains.patch",
+    "llvm.clang_cl_crt_default_lib.patch",
     "llvm.libunwind_copy.patch",
     "protobuf.no_crate_universe.patch",
     "rules_android.bundle_keystore_properties.patch",

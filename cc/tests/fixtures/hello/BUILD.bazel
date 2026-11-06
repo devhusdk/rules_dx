@@ -23,6 +23,17 @@ cc_binary(
     deps = [":hello_lib"],
 )
 
+cc_library(
+    name = "hello_main_lib",
+    srcs = ["main.cc"],
+    deps = [":hello_lib"],
+)
+
+cc_binary(
+    name = "hello_main_in_dep",
+    deps = [":hello_main_lib"],
+)
+
 cc_binary(
     name = "hello_linkopts_none",
     srcs = ["main.cc"],
@@ -108,6 +119,12 @@ cc_build_id_test(
 dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",
+    expected = "hello 42",
+)
+
+dx_hello_output_test(
+    name = "hello_main_in_dep_output_test",
+    binary = ":hello_main_in_dep",
     expected = "hello 42",
 )
 

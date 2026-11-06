@@ -269,10 +269,16 @@ pub const OVERRIDES: &[Override] = &[
         version: "0.8.26",
         patch_strip: 1,
         archive: None,
-        patches: &[OverridePatch {
-            file: "libunwind_copy.patch",
-            content: include_str!("../../../patches/llvm/libunwind_copy.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "libunwind_copy.patch",
+                content: include_str!("../../../patches/llvm/libunwind_copy.patch"),
+            },
+            OverridePatch {
+                file: "clang_cl_crt_default_lib.patch",
+                content: include_str!("../../../patches/llvm/clang_cl_crt_default_lib.patch"),
+            },
+        ],
     },
     Override {
         module: "windows_support",

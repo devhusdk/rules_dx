@@ -398,6 +398,32 @@ fn the_preparation_writes_one_snapshot_and_sidecar_per_needed_ecosystem() {
 }
 
 #[test]
+fn pinning_copies_each_snapshot_and_prints_its_pin_line() {
+    let workspace = workspace();
+    let options = with_archive(
+        &workspace,
+        options(&workspace),
+        &archive(&[Fixture::deflated(
+            "all/1/GHSA-a.json",
+            &advisory("GHSA-a", "aaa"),
+        )]),
+    );
+    let prepared = prepare(&options).expect("prepares");
+    let dir = workspace.path().join("pin");
+    let lines = write_pins(&options, &prepared, &dir, "file:///assets/").expect("pins");
+    let asset = dir.join("2026-09-22/cargo.json");
+    let sha = dx_digest::sha256_hex(&std::fs::read(&asset).expect("asset"));
+    assert_eq!(
+        lines,
+        vec![format!(
+            "advisory cargo 2026-09-22 {sha} file:///assets/2026-09-22/cargo.json"
+        )]
+    );
+    assert_eq!(sha, prepared[0].identity);
+    assert!(dx_audit::advisory::find_pin(&lines[0], "cargo").is_some());
+}
+
+#[test]
 fn a_failed_preparation_writes_nothing_for_that_ecosystem() {
     let workspace = workspace();
     let options = with_archive(&workspace, options(&workspace), b"not a zip");

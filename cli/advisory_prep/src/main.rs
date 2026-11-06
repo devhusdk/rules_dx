@@ -33,7 +33,7 @@ set locks (default the workspace root); --out DIR writes the snapshots (default 
 under it); --date YYYY-MM-DD stamps \
 every sidecar (default today, UTC); --max-time, --connect-timeout, --retries and --retry-delay \
 bound one download (defaults 600, 30, 3 and 5 seconds); --archive FAMILY=PATH converts a local \
-archive instead of fetching it; --cpansa-output FILE reads the cpansa_dump output instead of running the binary; --cpansa-dump BINARY overrides the bundled //perl/tools:cpansa_dump (the cpan family has no OSV archive: that binary prints the pinned CPANSA::DB database); --trivy BINARY runs the pinned trivy to download its vulnerability and checks databases into --out/trivy and writes trivy.meta.json (a second run on the same day downloads nothing); --cargo-index URL overrides the crates.io sparse index that supplies the yanked flags of the locked cargo crates (written as cargo-yanked); --pypi-index URL overrides the PyPI JSON API that supplies the yanked flags of the locked uv packages (written as pypi-yanked); --status-file FILE appends status, ecosystems and families \
+archive instead of fetching it; --cpansa-output FILE reads the cpansa_dump output instead of running the binary; --cpansa-dump BINARY overrides the bundled //perl/tools:cpansa_dump (the cpan family has no OSV archive: that binary prints the pinned CPANSA::DB database); --trivy BINARY runs the pinned trivy to download its vulnerability and checks databases into --out/trivy and writes trivy.meta.json (a second run on the same day downloads nothing); --cargo-index URL overrides the crates.io sparse index that supplies the yanked flags of the locked cargo crates (written as cargo-yanked); --pypi-index URL overrides the PyPI JSON API that supplies the yanked flags of the locked uv packages (written as pypi-yanked); --pin DIR also copies each snapshot to DIR/DATE/FAMILY.json and prints one `advisory FAMILY DATE SHA256 URL` line per family for .dx/pins, the URL under --pin-url-base (default the rules_dx-advisory release downloads); --status-file FILE appends status, ecosystems and families \
 as key=value lines (status is empty when no dependency set needs an ecosystem).\n\nExit codes: 0 success, 2 usage error, 1 preparation \
 failure."
 )]
@@ -77,6 +77,12 @@ struct Cli {
     /// Base URL of the PyPI JSON API the yanked flags are read from (default https://pypi.org/pypi).
     #[arg(long)]
     pypi_index: Option<String>,
+    /// Directory the snapshot assets are written to as `<date>/<family>.json`; the `.dx/pins` lines are printed.
+    #[arg(long, value_name = "DIR")]
+    pin: Option<PathBuf>,
+    /// Release download base the printed pin URLs point under.
+    #[arg(long, value_name = "URL")]
+    pin_url_base: Option<String>,
     /// File the status, ecosystem count and families are appended to.
     #[arg(long)]
     status_file: Option<PathBuf>,
@@ -114,8 +120,17 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
         .status_file
         .clone()
         .map(|path| anchor(root.as_deref(), path));
+    let pin = cli.pin.clone().map(|path| anchor(root.as_deref(), path));
+    let pin_url_base = cli
+        .pin_url_base
+        .clone()
+        .unwrap_or_else(|| dx_advisory_prep::PIN_URL_BASE.to_owned());
     let options = options_from(cli, root.as_deref())?;
     let prepared = prepare(&options)?;
+    let pin_lines = match &pin {
+        Some(dir) => dx_advisory_prep::write_pins(&options, &prepared, dir, &pin_url_base)?,
+        None => Vec::new(),
+    };
     let summary = Summary::of(&prepared);
     if let Some(path) = status_file {
         append_status(&path, &summary)?;
@@ -125,7 +140,7 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
             "no advisory ecosystems needed: no audited dependency lock found".to_owned(),
         ]);
     }
-    Ok(prepared
+    let mut lines: Vec<String> = prepared
         .into_iter()
         .map(|entry| {
             format!(
@@ -133,7 +148,9 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
                 entry.family, entry.advisories, entry.identity, entry.path
             )
         })
-        .collect())
+        .collect();
+    lines.extend(pin_lines);
+    Ok(lines)
 }
 
 fn append_status(path: &std::path::Path, summary: &Summary) -> Result<(), PrepError> {

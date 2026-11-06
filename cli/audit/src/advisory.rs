@@ -87,6 +87,75 @@ pub fn is_accepted_url(url: &str) -> bool {
     (url.starts_with("https://") || url.starts_with("file://")) && url::Url::parse(url).is_ok()
 }
 
+pub const CODE_ADVISORY_PIN_MISSING: &str = "advisory_pin_missing";
+pub const CODE_ADVISORY_PIN_MISMATCH: &str = "advisory_pin_mismatch";
+
+/// Pins older than this many days draw a warning.
+pub const PIN_MAX_AGE_DAYS: i64 = 14;
+
+/// One `advisory <family> <YYYY-MM-DD> <sha256> <url>` line of `.dx/pins`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdvisoryPin {
+    pub family: String,
+    pub date: String,
+    pub sha256: String,
+    pub url: String,
+}
+
+impl AdvisoryPin {
+    /// The line this pin takes in `.dx/pins`.
+    pub fn line(&self) -> String {
+        format!(
+            "advisory {} {} {} {}",
+            self.family, self.date, self.sha256, self.url
+        )
+    }
+
+    /// Where the verified snapshot is cached, relative to the workspace.
+    pub fn cache_rel(&self) -> String {
+        format!(".dx/local/advisory/{}/{}.json", self.sha256, self.family)
+    }
+
+    /// Whole days from the pin date to `today`, when both are audit dates.
+    pub fn age_days(&self, today: &str) -> Option<i64> {
+        let parse = |value: &str| chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").ok();
+        if !is_audit_date(today) {
+            return None;
+        }
+        Some((parse(today)? - parse(&self.date)?).num_days())
+    }
+}
+
+/// The pin for one family; lines of any other shape are ignored.
+pub fn find_pin(text: &str, family: &str) -> Option<AdvisoryPin> {
+    text.lines().find_map(|line| {
+        let fields: Vec<&str> = line.trim_end_matches('\r').split_whitespace().collect();
+        let ["advisory", line_family, date, sha256, url] = fields[..] else {
+            return None;
+        };
+        (line_family == family
+            && is_audit_date(date)
+            && dx_digest::is_hex(sha256)
+            && is_accepted_url(url))
+        .then(|| AdvisoryPin {
+            family: family.to_owned(),
+            date: date.to_owned(),
+            sha256: sha256.to_owned(),
+            url: url.to_owned(),
+        })
+    })
+}
+
+/// The local path a `file://` URL names.
+pub fn file_url_path(url: &str) -> Option<std::path::PathBuf> {
+    url::Url::parse(url).ok()?.to_file_path().ok()
+}
+
+/// The `file://` URL of one absolute local path.
+pub fn file_url(path: &std::path::Path) -> Option<String> {
+    url::Url::from_file_path(path).ok().map(String::from)
+}
+
 pub fn snapshot_rel(family: &str) -> String {
     format!(".dx/local/advisory/{family}.json")
 }
@@ -314,7 +383,11 @@ mod tests {
             assert_eq!(advisory_family(set), Some("npm"), "{set} is npm");
             let family = advisory_family(set).expect("family");
             assert_eq!(snapshot_rel(family), ".dx/local/advisory/npm.json", "{set}");
-            assert_eq!(identity_rel(family), ".dx/local/advisory/npm.meta.json", "{set}");
+            assert_eq!(
+                identity_rel(family),
+                ".dx/local/advisory/npm.meta.json",
+                "{set}"
+            );
         }
         assert_eq!(advisory_family("cargo"), Some("cargo"));
         assert_eq!(advisory_family("ruby"), Some("rubygems"));
@@ -326,7 +399,11 @@ mod tests {
                 Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
                 "{key}"
             );
-            assert_eq!(snapshot_rel(key), ".dx/local/advisory/rubygems.json", "{key}");
+            assert_eq!(
+                snapshot_rel(key),
+                ".dx/local/advisory/rubygems.json",
+                "{key}"
+            );
             assert_eq!(
                 identity_rel(key),
                 ".dx/local/advisory/rubygems.meta.json",
@@ -385,5 +462,26 @@ mod tests {
         assert!(identity_matches_bytes(&snap, bytes));
         snap.sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned();
         assert!(!identity_matches_bytes(&snap, b"tampered"));
+    }
+
+    #[test]
+    fn pins_are_found_by_family_and_other_lines_are_ignored() {
+        let sha = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let text = format!(
+            "0.0.0\n1.2.3 {sha} dx-linux\nadvisory npm 2026-10-01 {sha} https://example.test/npm.json\nadvisory cargo 2026-10-02 {sha} https://example.test/cargo.json\nadvisory cargo bad {sha} https://example.test/x\n"
+        );
+        let pin = find_pin(&text, "cargo").expect("cargo pin");
+        assert_eq!(pin.date, "2026-10-02");
+        assert_eq!(
+            pin.line(),
+            format!("advisory cargo 2026-10-02 {sha} https://example.test/cargo.json")
+        );
+        assert_eq!(
+            pin.cache_rel(),
+            format!(".dx/local/advisory/{sha}/cargo.json")
+        );
+        assert_eq!(pin.age_days("2026-10-16"), Some(14));
+        assert_eq!(pin.age_days("nope"), None);
+        assert!(find_pin(&text, "go").is_none());
     }
 }

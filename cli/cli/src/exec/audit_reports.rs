@@ -528,66 +528,35 @@ fn committed_gitleaks_config_produces_a_trust_warning() {
 }
 
 #[test]
-fn advisory_loader_rejects_corrupt_snapshots_and_identity_sidecars() {
+fn advisory_loader_rejects_corrupt_pinned_snapshots() {
     use super::AuditError;
-    for variant in [
-        "directory",
-        "utf8",
-        "empty",
-        "missing-meta",
-        "meta-utf8",
-        "meta-json",
-        "meta-invalid",
-        "wrong-set",
-        "invalid-json",
-    ] {
+    for variant in ["directory", "tampered", "invalid-json", "no-pin"] {
         let harness = Harness::new(&format!("advisory-corrupt-{variant}"));
-        write_advisory(&harness, "cargo", "[]");
-        let snapshot = harness.workspace.join(".dx/local/advisory/cargo.json");
-        let meta = harness.workspace.join(".dx/local/advisory/cargo.meta.json");
+        let json = if variant == "invalid-json" { "{" } else { "[]" };
+        write_advisory(&harness, "cargo", json);
+        let sha = dx_digest::sha256_hex(json.as_bytes());
+        let cached = harness
+            .workspace
+            .join(format!(".dx/local/advisory/{sha}/cargo.json"));
         match variant {
             "directory" => {
-                std::fs::remove_file(&snapshot).expect("remove snapshot");
-                std::fs::create_dir(&snapshot).expect("directory snapshot");
+                std::fs::remove_file(&cached).expect("remove snapshot");
+                std::fs::create_dir(&cached).expect("directory snapshot");
             }
-            "utf8" => std::fs::write(&snapshot, [0xff]).expect("invalid utf8"),
-            "empty" => std::fs::write(&snapshot, " \n").expect("empty snapshot"),
-            "missing-meta" => std::fs::remove_file(&meta).expect("remove meta"),
-            "meta-utf8" => std::fs::write(&meta, [0xff]).expect("invalid meta utf8"),
-            "meta-json" => std::fs::write(&meta, "{").expect("invalid meta json"),
-            "meta-invalid" | "wrong-set" => {
-                let mut value: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(&meta).expect("meta")).expect("json");
-                if variant == "meta-invalid" {
-                    value["sha256"] = serde_json::json!("invalid");
-                } else {
-                    value["set"] = serde_json::json!("npm");
-                    value["path"] = serde_json::json!(".dx/local/advisory/npm.json");
-                    value["url"] = serde_json::json!(
-                        dx_audit::advisory::advisory_source("npm").expect("source")
-                    );
-                }
-                std::fs::write(&meta, value.to_string()).expect("write meta");
-            }
-            "invalid-json" => write_advisory(&harness, "cargo", "{"),
-            _ => unreachable!(),
+            "tampered" => std::fs::write(&cached, "[ ]").expect("tamper"),
+            "no-pin" => std::fs::remove_file(harness.workspace.join(".dx/pins")).expect("pins"),
+            _ => {}
         }
-        let error = super::load_advisories(&harness.workspace, "cargo", "cargo", TEST_AUDIT_TODAY)
-            .expect_err(variant);
+        let error =
+            super::load_advisories(&harness.workspace, "cargo", "cargo", false).expect_err(variant);
         let expected = match variant {
-            "directory" => matches!(error, AuditError::AdvisoryRead { .. }),
-            "utf8" => matches!(error, AuditError::AdvisoryUtf8 { .. }),
-            "empty" => matches!(error, AuditError::AdvisoryEmpty { .. }),
-            "missing-meta" => matches!(error, AuditError::AdvisoryMissingMeta { .. }),
-            "meta-utf8" => matches!(error, AuditError::AdvisoryMeta { .. }),
-            "meta-json" => matches!(error, AuditError::AdvisoryIdentity { .. }),
-            "meta-invalid" => matches!(error, AuditError::AdvisorySnapshotInvalid { .. }),
-            "wrong-set" => matches!(error, AuditError::AdvisorySetMismatch { .. }),
+            "directory" => matches!(error, AuditError::AdvisoryPinFetch { .. }),
+            "tampered" => matches!(error, AuditError::AdvisoryPinMismatch { .. }),
             "invalid-json" => matches!(error, AuditError::AdvisoryParse { .. }),
+            "no-pin" => matches!(error, AuditError::AdvisoryPinMissing { .. }),
             _ => unreachable!(),
         };
         assert!(expected, "{variant}: {error}");
-        assert!(error.to_string().starts_with("advisory_refresh_failed:"));
     }
 }
 
@@ -1246,16 +1215,16 @@ fn audit_errors_stay_typed_with_stable_display() {
         "security.toml is invalid: schema_version is missing"
     );
     let harness = Harness::new("audit-typed-missing");
-    let missing = super::load_advisories(&harness.workspace, "cargo", "cargo", "2026-09-22")
-        .expect_err("missing snapshot fails");
-    assert!(matches!(missing, AuditError::AdvisoryMissing { .. }));
-    assert!(missing.to_string().contains("advisory_refresh_failed"));
+    let missing = super::load_advisories(&harness.workspace, "cargo", "cargo", false)
+        .expect_err("missing pin fails");
+    assert!(matches!(missing, AuditError::AdvisoryPinMissing { .. }));
+    assert!(missing.to_string().contains("advisory_pin_missing"));
     let lock_missing = AuditError::LockMissing {
         rel: "Cargo.lock".to_owned(),
     };
     assert_eq!(
         missing.code(),
-        dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED
+        dx_audit::advisory::CODE_ADVISORY_PIN_MISSING
     );
     assert_eq!(lock_missing.code(), "audit_failed");
     assert_eq!(security.code(), "audit_failed");

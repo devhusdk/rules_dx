@@ -50,20 +50,28 @@ Adopt fixtures under `tests/fixtures/adopt-*` select their own `-adopt` set. `//
 
 ### Security
 
-`dx security` matches each set's lockfile against `.dx/local/advisory/<family>.json`.
+`dx security` matches each set's lockfile against the advisory snapshot that `.dx/pins` pins for its family.
 
 - Sets with snapshots: `cargo`, `go`, `maven`, `npm`, `npm-adopt`, `npm-adopt-polyglot`, `npm-tools`, `nuget`. The `npm-*` sets share the `npm` snapshot. Configured `uv` sets use `pypi`, `ruby` sets use `rubygems`.
 - Sets without a snapshot print `no advisory coverage for <sets>`.
 - A version dx cannot parse marks the package unassessed with `unsupported version syntax`, and the run exits `1`.
 - npm reads `pnpm-lock.yaml` (`lockfileVersion` 5.x, 6.0, 9.0), `package-lock.json` and `yarn.lock`. Each finding names its lockfile.
 
-Create or refresh snapshots from the workspace root:
+Each snapshot is one line in `.dx/pins`, next to the dx release lines, which dx's launchers ignore:
 
-```sh
-bazel run @rules_dx//cli/advisory_prep --
+```text
+advisory <family> <YYYY-MM-DD> <sha256> <url>
 ```
 
-A missing or stale snapshot fails with `advisory_refresh_failed`.
+dx reads the cache `.dx/local/advisory/<sha256>/<family>.json`. On a miss it downloads `<url>` (`https://` or `file://`), checks the sha256 and fills the cache. `--offline` never downloads. A family with no line fails with `advisory_pin_missing`. A download or cached file with another sha256 fails with `advisory_pin_mismatch`. A pin older than 14 days adds an `advisory_pin_old` warning that shows the pin date; nothing else depends on today's date, so one commit gives one result.
+
+Build the snapshots and the pin lines with:
+
+```sh
+bazel run @rules_dx//cli/advisory_prep -- --pin <dir> [--pin-url-base <url>]
+```
+
+`--pin` writes `<dir>/<date>/<family>.json` per family and prints the `advisory` lines. Upload the files as assets of the release `<date>` and add the lines to `.dx/pins`. The default URL base is the `devhusdk/rules_dx-advisory` release downloads.
 
 Cargo sets also get a `cargo-yanked` snapshot, built from the crates.io sparse index (`--cargo-index` overrides it), that lists the locked yanked versions. A yanked version is a `yanked` finding: it fails under the strict profile and is `info` under standard. A missing yanked snapshot only warns with `yanked_unprepared`. uv sets get a `pypi-yanked` snapshot the same way, from the PyPI JSON API (`--pypi-index` overrides it); a version is yanked when every file of it is. Other families have no yanked data yet and report nothing.
 

@@ -211,6 +211,27 @@ pub(crate) enum AuditError {
     AdvisoryShaMismatch { set: String, rel: String },
     #[error("advisory_refresh_failed: could not obtain current advisory data for {set}: {detail}")]
     AdvisoryParse { set: String, detail: String },
+    #[error(
+        "advisory_pin_missing: no `advisory {family}` line in .dx/pins for {set}; run `advisory_prep --pin` and add the printed line"
+    )]
+    AdvisoryPinMissing { set: String, family: String },
+    #[error(
+        "advisory_pin_mismatch: the {family} snapshot for {set} has sha256 {actual}, .dx/pins says {want}"
+    )]
+    AdvisoryPinMismatch {
+        set: String,
+        family: String,
+        want: String,
+        actual: String,
+    },
+    #[error(
+        "advisory_refresh_failed: could not obtain the pinned {family} snapshot for {set}: {detail}"
+    )]
+    AdvisoryPinFetch {
+        set: String,
+        family: String,
+        detail: String,
+    },
     #[error("could not read {rel}: no such file")]
     LockMissing { rel: String },
     #[error("could not parse {rel}: {detail}")]
@@ -245,6 +266,11 @@ impl AuditError {
             | AuditError::AdvisoryStale { .. }
             | AuditError::AdvisoryShaMismatch { .. }
             | AuditError::AdvisoryParse { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
+            AuditError::AdvisoryPinMissing { .. } => dx_audit::advisory::CODE_ADVISORY_PIN_MISSING,
+            AuditError::AdvisoryPinMismatch { .. } => {
+                dx_audit::advisory::CODE_ADVISORY_PIN_MISMATCH
+            }
+            AuditError::AdvisoryPinFetch { .. } => dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED,
             AuditError::OfflineRequired { .. } => CODE_OFFLINE_REQUIRED,
             AuditError::NoOwningSet { .. }
             | AuditError::Read { .. }
@@ -353,20 +379,126 @@ fn load_advisories(
     workspace: &Path,
     key: &str,
     label: &str,
-    today: &str,
-) -> Result<Vec<dx_audit::vuln::Advisory>, AuditError> {
-    let set_name = label.to_owned();
+    offline: bool,
+) -> Result<
+    (
+        Vec<dx_audit::vuln::Advisory>,
+        dx_audit::advisory::AdvisoryPin,
+    ),
+    AuditError,
+> {
     let family = dx_audit::advisory::advisory_family(key)
+        .filter(|family| dx_audit::advisory::advisory_source(family).is_some())
         .ok_or_else(|| AuditError::AdvisoryUnsupported {
-            set: set_name.clone(),
-        })?
-        .to_owned();
-    if dx_audit::advisory::advisory_source(&family).is_none() {
-        return Err(AuditError::AdvisoryUnsupported {
-            set: set_name.clone(),
-        });
+            set: label.to_owned(),
+        })?;
+    load_pinned(workspace, family, label, offline)
+}
+
+/// Reads the snapshot `.dx/pins` names for one family, fetching it into the
+/// cache on a miss, and checks it against the pinned sha256.
+fn load_pinned(
+    workspace: &Path,
+    family: &str,
+    label: &str,
+    offline: bool,
+) -> Result<
+    (
+        Vec<dx_audit::vuln::Advisory>,
+        dx_audit::advisory::AdvisoryPin,
+    ),
+    AuditError,
+> {
+    let pins = std::fs::read_to_string(workspace.join(".dx/pins")).unwrap_or_default();
+    let pin = dx_audit::advisory::find_pin(&pins, family).ok_or_else(|| {
+        AuditError::AdvisoryPinMissing {
+            set: label.to_owned(),
+            family: family.to_owned(),
+        }
+    })?;
+    let fetch_error = |detail: String| AuditError::AdvisoryPinFetch {
+        set: label.to_owned(),
+        family: family.to_owned(),
+        detail,
+    };
+    let cache = workspace.join(pin.cache_rel());
+    let bytes = match std::fs::read(&cache) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            if offline {
+                return Err(fetch_error(format!(
+                    "not cached at {} and --offline never fetches",
+                    pin.cache_rel()
+                )));
+            }
+            let bytes = fetch_pinned(&pin.url).map_err(&fetch_error)?;
+            check_pin_sha(&pin, label, &bytes)?;
+            store_cached(&cache, &bytes).map_err(|error| fetch_error(error.to_string()))?;
+            bytes
+        }
+        Err(error) => return Err(fetch_error(format!("could not read the cache: {error}"))),
+    };
+    check_pin_sha(&pin, label, &bytes)?;
+    let text = String::from_utf8(bytes).map_err(|_| AuditError::AdvisoryUtf8 {
+        set: label.to_owned(),
+        rel: pin.cache_rel(),
+    })?;
+    let advisories =
+        dx_audit::vuln::parse_snapshot(&text).map_err(|detail| AuditError::AdvisoryParse {
+            set: label.to_owned(),
+            detail,
+        })?;
+    Ok((advisories, pin))
+}
+
+fn check_pin_sha(
+    pin: &dx_audit::advisory::AdvisoryPin,
+    label: &str,
+    bytes: &[u8],
+) -> Result<(), AuditError> {
+    let actual = dx_digest::sha256_hex(bytes);
+    if actual == pin.sha256 {
+        return Ok(());
     }
-    load_snapshot(workspace, &family, label, today)
+    Err(AuditError::AdvisoryPinMismatch {
+        set: label.to_owned(),
+        family: pin.family.clone(),
+        want: pin.sha256.clone(),
+        actual,
+    })
+}
+
+fn store_cached(cache: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let dir = cache.parent().unwrap_or(Path::new("."));
+    std::fs::create_dir_all(dir)?;
+    let partial = cache.with_extension(format!("part{}", std::process::id()));
+    std::fs::write(&partial, bytes)?;
+    std::fs::rename(&partial, cache)
+}
+
+fn fetch_pinned(url: &str) -> Result<Vec<u8>, String> {
+    if let Some(path) = dx_audit::advisory::file_url_path(url) {
+        return std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()));
+    }
+    let scratch = tempfile::Builder::new()
+        .prefix("dx-advisory-pin-")
+        .tempdir()
+        .map_err(|error| error.to_string())?;
+    let file = scratch.path().join("snapshot");
+    let plan = dx_audit::advisory_prep::fetch_many_plan(
+        &[(url.to_owned(), file.clone())],
+        dx_audit::advisory_prep::DEFAULT_LIMITS,
+        1,
+    )
+    .map_err(|error| error.to_string())?;
+    let done = std::process::Command::new(&plan.program)
+        .args(&plan.argv)
+        .status()
+        .map_err(|error| format!("{}: {error}", plan.program))?;
+    if !done.success() {
+        return Err(format!("{url}: {} {done}", plan.program));
+    }
+    std::fs::read(&file).map_err(|error| format!("{url}: {error}"))
 }
 
 fn load_snapshot(
@@ -1086,6 +1218,7 @@ struct Assessable {
     packages: Vec<dx_audit::vuln::LockedPackage>,
     lock_paths: LockPaths,
     advisories: Vec<dx_audit::vuln::Advisory>,
+    pin: dx_audit::advisory::AdvisoryPin,
     exception_set: String,
     yanked_missing: bool,
 }
@@ -1129,7 +1262,7 @@ fn collect_target(
             uncovered_message(&label, target.ecosystem_name()),
         ));
     }
-    let advisories = load_advisories(workspace, &key, &label, today).map_err(|error| {
+    let (advisories, pin) = load_advisories(workspace, &key, &label, offline).map_err(|error| {
         let wrapped = if offline {
             AuditError::OfflineRequired {
                 set: label.clone(),
@@ -1173,6 +1306,7 @@ fn collect_target(
         packages,
         lock_paths,
         advisories,
+        pin,
         exception_set,
         yanked_missing,
     }))
@@ -1291,9 +1425,27 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             packages,
             lock_paths,
             advisories,
+            pin,
             exception_set,
             yanked_missing,
         } = assessable;
+        if let Some(age) = pin.age_days(today) {
+            if age > dx_audit::advisory::PIN_MAX_AGE_DAYS {
+                diagnostics.push(DiagnosticEvent {
+                    rule: Some(format!("{}/advisory_pin_old", dx_audit::vuln::VULN_RULE_PREFIX)),
+                    ..DiagnosticEvent::new(
+                        Severity::Warning,
+                        "vuln",
+                        format!(
+                            "advisory_pin_old: the {} advisory pin for {label} is from {} ({age} days old, over {}); refresh the advisory lines in .dx/pins",
+                            pin.family,
+                            pin.date,
+                            dx_audit::advisory::PIN_MAX_AGE_DAYS
+                        ),
+                    )
+                });
+            }
+        }
         if yanked_missing && policy.fails_on(dx_audit::vuln::AdvisoryKind::Yanked) {
             if incomplete.is_none() {
                 incomplete = Some(format!(

@@ -258,21 +258,30 @@ pub(super) fn write_npm_locks(harness: &Harness) {
 }
 
 pub(super) fn write_advisory(harness: &Harness, set: &str, json: &str) {
-    let url = dx_audit::advisory::advisory_family(set)
-        .and_then(dx_audit::advisory::advisory_source)
-        .expect("supported set needs a source")
-        .to_owned();
-    let sha = dx_digest::sha256_hex(json.as_bytes());
-    let rel = dx_audit::advisory::snapshot_rel(set);
-    harness.write_source(&rel, json);
-    let meta = serde_json::json!({
-        "set": set,
-        "url": url,
-        "sha256": sha,
-        "retrieved_at": TEST_AUDIT_TODAY,
-        "path": rel,
-    });
-    harness.write_source(&dx_audit::advisory::identity_rel(set), &meta.to_string());
+    let family = dx_audit::advisory::advisory_family(set).expect("supported set needs a family");
+    let url = dx_audit::advisory::advisory_source(family).expect("supported set needs a source");
+    write_pin(harness, family, url, TEST_AUDIT_TODAY, json);
+}
+
+pub(super) fn write_pin(harness: &Harness, family: &str, url: &str, date: &str, json: &str) {
+    let pin = dx_audit::advisory::AdvisoryPin {
+        family: family.to_owned(),
+        date: date.to_owned(),
+        sha256: dx_digest::sha256_hex(json.as_bytes()),
+        url: url.to_owned(),
+    };
+    harness.write_source(&pin.cache_rel(), json);
+    let pins_path = harness.workspace.join(".dx/pins");
+    let old = std::fs::read_to_string(&pins_path).unwrap_or_default();
+    let prefix = format!("advisory {family} ");
+    let mut pins: String = old
+        .lines()
+        .filter(|line| !line.starts_with(&prefix))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    pins.push_str(&pin.line());
+    pins.push('\n');
+    harness.write_source(".dx/pins", &pins);
 }
 
 pub(super) fn write_yanked(harness: &Harness, key: &str, json: &str) {
@@ -642,16 +651,13 @@ pub(super) fn audit_live_vendored_mirror_analyzes_offline_like_upstream() {
     let (code, _out, err) = run_with(&["security", "//third_party/go:go"], &runner, &|harness| {
         write_go_mod(harness);
         let json = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
-        let sha = dx_digest::sha256_hex(json.as_bytes());
-        harness.write_source(".dx/local/advisory/go.json", json);
-        let meta = serde_json::json!({
-            "set": "go",
-            "url": "file:///opt/dx-offline/advisory/go.json",
-            "sha256": sha,
-            "retrieved_at": TEST_AUDIT_TODAY,
-            "path": ".dx/local/advisory/go.json",
-        });
-        harness.write_source(".dx/local/advisory/go.meta.json", &meta.to_string());
+        write_pin(
+            harness,
+            "go",
+            "file:///opt/dx-offline/advisory/go.json",
+            TEST_AUDIT_TODAY,
+            json,
+        );
     });
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
@@ -882,43 +888,118 @@ pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
     );
     assert_eq!(code, 1, "{out}{err}");
     assert!(
-        err.contains("dx: advisory_refresh_failed: audit security:"),
+        err.contains("dx: advisory_pin_missing: audit security:"),
         "{err}"
     );
     assert!(!out.contains("audit security: clean"), "{out}");
 }
 
 #[test]
-pub(super) fn audit_live_stale_advisory_fails_without_stale_fallback() {
+pub(super) fn audit_live_old_advisory_pin_warns_and_still_assesses() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(
         &["security", "//rust/tests/fixtures/hello:hello"],
         &runner,
         &|harness| {
             write_cargo_lock(harness);
-            let json = "[]";
-            let url = dx_audit::advisory::advisory_source("cargo")
-                .expect("source")
-                .to_owned();
-            let sha = dx_digest::sha256_hex(json.as_bytes());
-            harness.write_source(".dx/local/advisory/cargo.json", json);
-            let meta = serde_json::json!({
-                "set": "cargo",
-                "url": url,
-                "sha256": sha,
-                "retrieved_at": "2000-01-01",
-                "path": ".dx/local/advisory/cargo.json",
-            });
-            harness.write_source(".dx/local/advisory/cargo.meta.json", &meta.to_string());
+            let url = dx_audit::advisory::advisory_source("cargo").expect("source");
+            write_pin(harness, "cargo", url, "2000-01-01", "[]");
+        },
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        format!("{out}{err}").contains("advisory_pin_old"),
+        "{out}{err}"
+    );
+    assert!(format!("{out}{err}").contains("2000-01-01"), "{out}{err}");
+}
+
+fn write_cargo_pin_from_file(harness: &Harness, json: &str, cached: bool) -> String {
+    let source = harness.workspace.join("upstream/cargo.json");
+    std::fs::create_dir_all(source.parent().expect("parent")).expect("dir");
+    std::fs::write(&source, json).expect("asset");
+    let url = dx_audit::advisory::file_url(&source).expect("file url");
+    write_cargo_lock(harness);
+    write_pin(harness, "cargo", &url, TEST_AUDIT_TODAY, json);
+    let pin = dx_audit::advisory::find_pin(
+        &std::fs::read_to_string(harness.workspace.join(".dx/pins")).expect("pins"),
+        "cargo",
+    )
+    .expect("pin");
+    if !cached {
+        std::fs::remove_file(harness.workspace.join(pin.cache_rel())).expect("uncache");
+    }
+    pin.cache_rel()
+}
+
+#[test]
+pub(super) fn audit_live_pinned_snapshot_ignores_a_newer_upstream_advisory() {
+    let newer = r#"[{"id":"RUSTSEC-9999-0001","package":"hello","versions":">=0.0.0","severity":"high","fixed":[],"set":"cargo"}]"#;
+    let (code, out, err) = run_with(
+        &["security", "//rust/tests/fixtures/hello:hello"],
+        &AuditRunner::clean(),
+        &|harness| {
+            let cache = write_cargo_pin_from_file(harness, "[]", true);
+            std::fs::write(harness.workspace.join("upstream/cargo.json"), newer).expect("newer");
+            assert!(harness.workspace.join(cache).is_file());
+        },
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        !format!("{out}{err}").contains("RUSTSEC-9999"),
+        "{out}{err}"
+    );
+}
+
+#[test]
+pub(super) fn audit_live_pinned_snapshot_is_fetched_into_the_cache_on_a_miss() {
+    let cache_rel = std::cell::RefCell::new(String::new());
+    let (code, out, err) = run_with(
+        &["security", "//rust/tests/fixtures/hello:hello"],
+        &AuditRunner::clean(),
+        &|harness| {
+            *cache_rel.borrow_mut() = write_cargo_pin_from_file(harness, "[]", false);
+        },
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(cache_rel.borrow().contains(".dx/local/advisory/"));
+}
+
+#[test]
+pub(super) fn audit_live_changed_pin_sha_fails_with_a_mismatch() {
+    let (code, out, err) = run_with(
+        &[
+            "security",
+            "--output=json",
+            "//rust/tests/fixtures/hello:hello",
+        ],
+        &AuditRunner::clean(),
+        &|harness| {
+            write_cargo_pin_from_file(harness, "[]", false);
+            let pins_path = harness.workspace.join(".dx/pins");
+            let pins = std::fs::read_to_string(&pins_path).expect("pins");
+            let sha = dx_digest::sha256_hex(b"[]");
+            std::fs::write(&pins_path, pins.replace(&sha, &"a".repeat(64))).expect("pins");
+        },
+    );
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(out.contains("advisory_pin_mismatch"), "{out}{err}");
+}
+
+#[test]
+pub(super) fn audit_live_offline_never_fetches_an_uncached_pin() {
+    let (code, out, err) = run_with(
+        &["security", "--offline", "//rust/tests/fixtures/hello:hello"],
+        &AuditRunner::clean(),
+        &|harness| {
+            write_cargo_pin_from_file(harness, "[]", false);
         },
     );
     assert_eq!(code, 1, "{out}{err}");
     assert!(
-        err.contains("dx: advisory_refresh_failed: audit security:"),
-        "{err}"
+        format!("{out}{err}").contains("offline_required"),
+        "{out}{err}"
     );
-    assert!(err.contains("stale"), "{err}");
-    assert!(!out.contains("audit security: clean"), "{out}");
 }
 
 #[test]
@@ -942,7 +1023,7 @@ pub(super) fn audit_live_missing_advisory_json_error_code_is_advisory_refresh_fa
         .expect("error event");
     assert_eq!(
         error["code"],
-        serde_json::json!(dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED),
+        serde_json::json!(dx_audit::advisory::CODE_ADVISORY_PIN_MISSING),
         "{out}"
     );
 }
@@ -955,23 +1036,15 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
         &runner,
         &|harness| {
             write_cargo_lock(harness);
-            harness.write_source(".dx/local/advisory/cargo.json", "[]");
-            let url = dx_audit::advisory::advisory_source("cargo")
-                .expect("source")
-                .to_owned();
-            let meta = serde_json::json!({
-                "set": "cargo",
-                "url": url,
-                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                "retrieved_at": TEST_AUDIT_TODAY,
-                "path": ".dx/local/advisory/cargo.json",
-            });
-            harness.write_source(".dx/local/advisory/cargo.meta.json", &meta.to_string());
+            let url = dx_audit::advisory::advisory_source("cargo").expect("source");
+            write_pin(harness, "cargo", url, TEST_AUDIT_TODAY, "[]");
+            let sha = dx_digest::sha256_hex(b"[]");
+            harness.write_source(&format!(".dx/local/advisory/{sha}/cargo.json"), "[ ]");
         },
     );
     assert_eq!(code, 1, "{out}{err}");
     assert!(
-        err.contains("dx: advisory_refresh_failed: audit security:"),
+        err.contains("dx: advisory_pin_mismatch: audit security:"),
         "{err}"
     );
     assert!(!out.contains("audit security: clean"), "{out}");

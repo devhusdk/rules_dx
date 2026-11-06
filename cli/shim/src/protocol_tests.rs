@@ -108,6 +108,16 @@ fn pinned_hash_rejects_bad_lines() {
 }
 
 #[test]
+fn pinned_hash_ignores_advisory_lines() {
+    let (a, b) = ("a".repeat(64), "b".repeat(64));
+    let text = format!(
+        "advisory cargo 2026-10-01 {b} https://example.test/cargo.json\n1.2.3 {a} dx-linux-x86_64\nadvisory 1.2.3 {b} dx-linux-x86_64\n"
+    );
+    assert_eq!(pinned_hash(&text, "1.2.3", "dx-linux-x86_64"), Some(a));
+    assert_eq!(pinned_hash(&text, "advisory", "cargo"), None);
+}
+
+#[test]
 fn env_beats_module() {
     let dir = workspace(&module("1.2.3"), None);
     let route = resolve_version(&env(&[("DX_VERSION", "4.5.6")]), dir.path()).expect("resolves");

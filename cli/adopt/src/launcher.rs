@@ -16,6 +16,9 @@ pub const RELEASE_ASSETS: [&str; 5] = [
     "dx-windows-arm64",
 ];
 
+/// First word of the advisory snapshot lines `.dx/pins` also holds.
+pub const ADVISORY_PIN_WORD: &str = "advisory";
+
 /// The sha256 of each release asset, stored in `.dx/pins`.
 /// An empty pin means "no verified hash": the launcher refuses to download.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -84,6 +87,9 @@ impl LauncherPins {
         let mut version = None;
         for line in lines {
             let fields: Vec<&str> = line.split_whitespace().collect();
+            if fields.first() == Some(&ADVISORY_PIN_WORD) {
+                continue;
+            }
             let (line_version, hash, asset) = match fields.as_slice() {
                 [] => continue,
                 [version] => (*version, None, None),

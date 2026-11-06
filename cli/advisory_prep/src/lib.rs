@@ -110,6 +110,56 @@ impl Summary {
     }
 }
 
+/// Release download base of the shared snapshot repo; one release per date tag.
+pub const PIN_URL_BASE: &str = "https://github.com/devhusdk/rules_dx-advisory/releases/download";
+
+/// Copies each prepared snapshot to `<dir>/<date>/<family>.json` and returns the
+/// `.dx/pins` line that pins it, with the asset URL under `url_base`.
+pub fn write_pins(
+    options: &PrepareOptions,
+    prepared: &[Prepared],
+    dir: &Path,
+    url_base: &str,
+) -> Result<Vec<String>, PrepError> {
+    let date = &options.retrieved_at;
+    let mut lines = Vec::new();
+    for entry in prepared
+        .iter()
+        .filter(|entry| !entry.family.ends_with("-yanked"))
+    {
+        let payload =
+            std::fs::read(options.out.join(format!("{}.json", entry.family))).map_err(|error| {
+                PrepError::Write {
+                    path: entry.path.clone(),
+                    detail: error.to_string(),
+                }
+            })?;
+        let asset = dir.join(date).join(format!("{}.json", entry.family));
+        if let Some(parent) = asset.parent() {
+            std::fs::create_dir_all(parent).map_err(|error| PrepError::Write {
+                path: parent.display().to_string(),
+                detail: error.to_string(),
+            })?;
+        }
+        write_atomic(&asset, &payload).map_err(|error| PrepError::Write {
+            path: asset.display().to_string(),
+            detail: error.to_string(),
+        })?;
+        let pin = dx_audit::advisory::AdvisoryPin {
+            family: entry.family.clone(),
+            date: date.clone(),
+            sha256: dx_digest::sha256_hex(&payload),
+            url: format!(
+                "{}/{date}/{}.json",
+                url_base.trim_end_matches('/'),
+                entry.family
+            ),
+        };
+        lines.push(pin.line());
+    }
+    Ok(lines)
+}
+
 /// The families and upstream archives one preparation run will convert.
 pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, PrepError> {
     let mut families = needed_families(&options.workspace)?;

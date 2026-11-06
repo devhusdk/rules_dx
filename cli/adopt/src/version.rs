@@ -122,7 +122,15 @@ pub fn write_version_pins(
     std::fs::create_dir_all(&dir).map_err(|e| AdoptError::CreateDxDir {
         detail: e.to_string(),
     })?;
-    let text = pins.to_lines(version);
+    let mut text = pins.to_lines(version);
+    if let Ok(old) = std::fs::read_to_string(dir.join("pins")) {
+        for line in old.lines().filter(|line| {
+            line.split_whitespace().next() == Some(crate::launcher::ADVISORY_PIN_WORD)
+        }) {
+            text.push_str(line);
+            text.push('\n');
+        }
+    }
     dx_atomic_fs::write_atomic(&dir.join("pins"), text.as_bytes()).map_err(|e| {
         AdoptError::WriteVersionPin {
             detail: e.to_string(),

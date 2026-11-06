@@ -873,6 +873,15 @@ fn fixture_probe() -> Probe<'static> {
 }
 
 #[test]
+fn hermetic_test_builds_generate_check_only_with_coverage_targets() {
+    let mut session = fixture_session();
+    assert_eq!(session.hermetic_test_targets(), ["//..."]);
+    session.manifest.coverage = vec!["//lib:t".to_owned()];
+    let label = format!("@{}//dx:generate_check", session.manifest.repo_name);
+    assert_eq!(session.hermetic_test_targets(), ["//...".to_owned(), label]);
+}
+
+#[test]
 fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
     let argv = fixture_session().bazel_argv(&fixture_probe());
     assert_eq!(

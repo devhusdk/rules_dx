@@ -1017,6 +1017,16 @@ impl Session {
         env
     }
 
+    /// The targets of the `hermetic_test` probe. With coverage targets it also
+    /// builds the generate_check binary, so `dx_generate_check` only runs it.
+    pub fn hermetic_test_targets(&self) -> Vec<String> {
+        let mut targets = self.manifest.patterns.clone();
+        if !self.manifest.coverage.is_empty() {
+            targets.push(format!("@{}//dx:generate_check", self.manifest.repo_name));
+        }
+        targets
+    }
+
     /// The bazelisk command line of one probe, without the process wrapper.
     fn bazel_tail(&self, probe: &Probe) -> Vec<String> {
         let mut argv = vec![
@@ -2190,7 +2200,7 @@ fn run_all(
         output_root: &cold,
         repos: &repos,
         command: "test",
-        targets: patterns.clone(),
+        targets: session.hermetic_test_targets(),
         extra: vec!["--test_output=errors".to_owned()],
         expect: Expect::Pass,
     })?;
@@ -2287,9 +2297,9 @@ fn run_all(
         });
         check_coverage(&sources, &session.manifest)?;
         let coverage_targets = session.manifest.coverage.clone();
-        for (name, command) in [
-            ("dx_generate_check", "generate"),
-            ("dx_coverage", "coverage"),
+        for (name, command, root) in [
+            ("dx_generate_check", "generate", &cold),
+            ("dx_coverage", "coverage", &warm),
         ] {
             session.run_dx(
                 name,
@@ -2297,7 +2307,7 @@ fn run_all(
                 command,
                 &coverage_targets,
                 &clean_home,
-                &warm,
+                root,
                 &repos,
             )?;
         }

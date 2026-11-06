@@ -1039,6 +1039,7 @@ hermetic_qualification(
         "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
     },
+    compatible_with = LINUX_MACOS_WINDOWS,
     languages = ["cpp"],
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],

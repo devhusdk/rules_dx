@@ -403,6 +403,7 @@ fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, String> {
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn publish(
     root: &Path,
     tools: &Tools,

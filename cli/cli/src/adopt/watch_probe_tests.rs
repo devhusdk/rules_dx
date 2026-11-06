@@ -357,7 +357,7 @@ fn generated_outputs_written_by_the_command_never_loop() {
     let mut probe = Probe::start(
         "dx-watch-probe-loop-",
         &["watch", "build", "//..."],
-        &[("FAKE_BAZEL_TOUCH", "bazel-out/k8/bin/app .dx/state")],
+        &[("FAKE_BAZEL_TOUCH", "bazel-out/k8/bin/app .dx/local/state")],
     );
     probe.idle(1);
     probe.settle();

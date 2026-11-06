@@ -334,7 +334,7 @@ fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
     write("outside.py", "a = 2\n");
     git(&["commit", "--quiet", "-am", "rename"]);
     write("ws/src/my file.py", "x = 1\ny = 2\n");
-    write("ws/.dx/state.txt", "ignored\n");
+    write("ws/.dx/local/state.txt", "ignored\n");
     let workspace = root.join("ws");
     let (branch, base) =
         super::named_base(&workspace, &RealGit).unwrap_or_else(|_| panic!("merge-base"));

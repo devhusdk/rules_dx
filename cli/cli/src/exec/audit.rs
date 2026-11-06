@@ -368,7 +368,7 @@ fn load_pinned(
                     pin.cache_rel()
                 )));
             }
-            let bytes = fetch_pinned(&pin.url).map_err(&fetch_error)?;
+            let bytes = fetch_pinned(&pin.url).map_err(fetch_error)?;
             check_pin_sha(&pin, label, &bytes)?;
             store_cached(&cache, &bytes).map_err(|error| fetch_error(error.to_string()))?;
             bytes
@@ -1256,18 +1256,17 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
             continue;
         }
-        let assessable =
-            match collect_target(workspace, target, &accepted_uncovered, offline) {
-                Err((code, message)) => {
-                    if incomplete.is_none() {
-                        incomplete = Some(message);
-                        incomplete_code = code;
-                    }
-                    continue;
+        let assessable = match collect_target(workspace, target, &accepted_uncovered, offline) {
+            Err((code, message)) => {
+                if incomplete.is_none() {
+                    incomplete = Some(message);
+                    incomplete_code = code;
                 }
-                Ok(None) => continue,
-                Ok(Some(assessable)) => assessable,
-            };
+                continue;
+            }
+            Ok(None) => continue,
+            Ok(Some(assessable)) => assessable,
+        };
         let Assessable {
             label,
             packages,

@@ -135,7 +135,7 @@ fn fetch_failed(stderr: &str) -> Option<Hint> {
         .split(|c: char| c.is_whitespace() || matches!(c, '[' | ']' | '(' | ')' | '\'' | '"' | ','))
         .find(|word| word.starts_with("http://") || word.starts_with("https://"))
         .map(|word| word.trim_end_matches(&[':', '.'][..]));
-    let named = url.map_or("a download".to_owned(), |url| format!("{url}"));
+    let named = url.map_or("a download".to_owned(), |url| url.to_owned());
     Some(Hint {
         code: CODE_FETCH_FAILED,
         next: format!(

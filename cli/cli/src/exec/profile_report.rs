@@ -178,7 +178,7 @@ fn seconds(micros: u64) -> String {
 }
 
 fn percent(part: u64, total: u64) -> u64 {
-    if total == 0 { 0 } else { part * 100 / total }
+    part.saturating_mul(100).checked_div(total).unwrap_or(0)
 }
 
 fn megabytes(bytes: u64) -> String {

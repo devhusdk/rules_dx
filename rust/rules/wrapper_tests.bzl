@@ -431,3 +431,26 @@ def dx_browser_binary_tests(name, target):
         size = "small",
         target_under_test = target,
     )
+
+def _msvc_opt_pdb_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    pdbs = [f.basename for f in target[OutputGroupInfo].pdb_file.to_list()]
+    asserts.equals(env, [ctx.attr.expected], pdbs)
+    return analysistest.end(env)
+
+_msvc_opt_pdb_test = analysistest.make(
+    _msvc_opt_pdb_impl,
+    attrs = {"expected": attr.string()},
+    config_settings = {"//command_line_option:compilation_mode": "opt"},
+)
+
+def dx_msvc_opt_pdb_tests(name, target, expected):
+    """Asserts an MSVC opt rust_binary declares exactly its own PDB (#8410, #8428)."""
+    _msvc_opt_pdb_test(
+        name = name,
+        size = "small",
+        expected = expected,
+        target_compatible_with = ["@platforms//os:windows"],
+        target_under_test = target,
+    )

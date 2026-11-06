@@ -5,6 +5,7 @@ load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//deploy/rules:github.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:wrapper_tests.bzl", "dx_msvc_opt_pdb_tests")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
@@ -188,6 +189,12 @@ filegroup(
     srcs = [":dx"],
     output_group = "pdb_file",
     visibility = ["//visibility:public"],
+)
+
+dx_msvc_opt_pdb_tests(
+    name = "dx_opt_pdb_test",
+    expected = "dx.pdb",
+    target = ":dx",
 )
 
 github_deploy(

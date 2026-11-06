@@ -1,6 +1,6 @@
 # Swift app
 
-A small ledger command line on Linux. It shows a Swift binary that uses
+A small ledger command line for Linux and macOS. It shows a Swift binary that uses
 a third-party package (swift-argument-parser) that Swift Package Manager fetches from `Package.resolved`, a C library imported
 as a Swift module, and the Swift test frameworks.
 
@@ -25,3 +25,5 @@ digest: 4277201274
 ```
 
 Bad input exits with code 64 and the usage text.
+
+`ledger/cli:relocate_test` reads the ELF binary with `llvm-readelf`, so it runs on Linux only.

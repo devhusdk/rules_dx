@@ -1572,7 +1572,7 @@ crate.annotation(
 )
 crate.annotation_select(
     build_script_env = {
-        "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
         "CARGO_FEATURE_PREFER_INTRINSICS": "1",
     },
     build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
@@ -1597,8 +1597,8 @@ crate.annotation(
 # cc-rs archives objects under absolute paths; msvc_lib makes them relative.
 crate.annotation_select(
     build_script_env = {
-        "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-        "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
     },
     build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
     crate = "blake3",
@@ -1607,8 +1607,8 @@ crate.annotation_select(
 )
 crate.annotation_select(
     build_script_env = {
-        "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-        "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
     },
     build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
     crate = "libz-sys",
@@ -1620,8 +1620,8 @@ crate.annotation_select(
 )
 crate.annotation_select(
     build_script_env = {
-        "AR_aarch64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-        "AR_x86_64_pc_windows_msvc": "${pwd}/$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
     },
     build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
     crate = "ring",

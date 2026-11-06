@@ -1,6 +1,6 @@
 """Unit tests for the Ansible collections lock validation."""
 
-load("//ansible/private:lock.bzl", "ansible_lock_error", "ansible_manifest_error", "ansible_missing_deps")
+load("//ansible/private:lock.bzl", "ansible_file_url", "ansible_lock_error", "ansible_manifest_error", "ansible_missing_deps")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 
 _SHA = "0" * 64
@@ -43,5 +43,7 @@ def lock_unit_tests(name):
             ["a.one depends on c.three, which is not in the lock"],
         ),
         expect_equal("dependency present", ansible_missing_deps([a, b], {"a.one": _manifest("a", "one", "1.0.0", {"b.two": "*"})}), []),
+        expect_equal("posix file url", ansible_file_url("/tmp/x.tar.gz"), "file:///tmp/x.tar.gz"),
+        expect_equal("drive letter file url", ansible_file_url("C:\\work\\x.tar.gz"), "file:///C:/work/x.tar.gz"),
     ]
     starlark_test(name = name, mode = "unit", checks = checks)

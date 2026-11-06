@@ -1,6 +1,6 @@
 """Module extension that fetches locked Ansible collections into a hub repository."""
 
-load("//ansible/private:lock.bzl", "ansible_lock_error", "ansible_manifest_error", "ansible_missing_deps", "ansible_split_name")
+load("//ansible/private:lock.bzl", "ansible_file_url", "ansible_lock_error", "ansible_manifest_error", "ansible_missing_deps", "ansible_split_name")
 
 _BUILD_HEADER = """\
 package(default_visibility = ["//visibility:public"])
@@ -15,7 +15,7 @@ def _urls(lock_path, entry):
     """Returns the fetch URLs for one lock entry."""
     if "urls" in entry:
         return entry["urls"]
-    return ["file://" + str(lock_path.dirname.get_child(entry["path"]))]
+    return [ansible_file_url(lock_path.dirname.get_child(entry["path"]))]
 
 def _collections_repo_impl(rctx):
     """Downloads, verifies and lays out every locked collection."""

@@ -13,6 +13,11 @@ def _all_in(text, allowed):
             return False
     return True
 
+def ansible_file_url(path):
+    """Returns the file URL of a local path, including Windows drive paths."""
+    text = str(path).replace("\\", "/")
+    return "file://" + text if text.startswith("/") else "file:///" + text
+
 def ansible_split_name(name):
     """Splits 'ns.coll' into (ns, coll), or None when malformed."""
     if type(name) != "string":

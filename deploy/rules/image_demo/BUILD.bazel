@@ -1,3 +1,4 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("//cc/rules:defs.bzl", "cc_binary")
 load("//deploy/rules:image.bzl", "oci_image_from_binary")
 load("//deploy/rules:oci.bzl", "oci_deploy")
@@ -95,4 +96,17 @@ oci_image_from_binary(
     base = "java",
     binary = ":hello_java",
     main_class = "Hello",
+)
+
+js_binary(
+    name = "hello_node",
+    entry_point = "hello.js",
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_node",
+    base = "node",
+    binary = ":hello_node",
+    main = "deploy/rules/image_demo/hello.js",
 )

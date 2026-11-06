@@ -36,7 +36,7 @@ def image_unit_tests(name):
             expect_equal(
                 "image_options_error rejects an unknown base",
                 image_options_error(":server", "alpine", ["linux/amd64"]),
-                "oci_image_from_binary: invalid base 'alpine': want one of cc, java, python, static",
+                "oci_image_from_binary: invalid base 'alpine': want one of cc, java, node, python, static",
             ),
             expect_equal(
                 "image_options_error rejects an empty platform list",
@@ -76,7 +76,7 @@ def image_unit_tests(name):
             expect_equal(
                 "image_options_error rejects main on a static base",
                 image_options_error(":server", "static", ["linux/amd64"], main = "server.py"),
-                "oci_image_from_binary: main and main_class only apply to the python and java bases",
+                "oci_image_from_binary: main and main_class only apply to the python, java and node bases",
             ),
             expect_equal(
                 "image_entrypoint runs a binary from /app",
@@ -90,6 +90,21 @@ def image_unit_tests(name):
                     ["/usr/bin/python3", "/app/server.runfiles/_main/app/server.py"],
                     {"PYTHONPATH": "/app/server.runfiles/_main"},
                 ),
+            ),
+            expect_equal(
+                "image_options_error accepts a node base with main",
+                image_options_error(":server", "node", ["linux/amd64"], main = "app/server.js"),
+                "",
+            ),
+            expect_equal(
+                "image_options_error wants main for node",
+                image_options_error(":server", "node", ["linux/amd64"]),
+                "oci_image_from_binary: base 'node' needs main, the workspace path of the entry script",
+            ),
+            expect_equal(
+                "image_entrypoint runs node from the runfiles",
+                image_entrypoint("node", "server", main = "app/server.js"),
+                (["/nodejs/bin/node", "/app/server.runfiles/_main/app/server.js"], {}),
             ),
             expect_equal(
                 "image_entrypoint runs java from the jar directory",

@@ -8,6 +8,7 @@ load(":oci.bzl", "OCI_PLATFORMS", "oci_platform_error")
 IMAGE_BASES = {
     "cc": "@distroless_cc",
     "java": "@distroless_java",
+    "node": "@distroless_nodejs",
     "python": "@distroless_python",
     "static": "@distroless_static",
 }
@@ -38,12 +39,12 @@ def image_options_error(binary, base, platforms, main = None, main_class = None)
             return error.replace("oci_deploy", "oci_image_from_binary")
     if len(depset(platforms).to_list()) != len(platforms):
         return "oci_image_from_binary: want each platform once, got " + ", ".join(platforms)
-    if base == "python" and not main:
-        return "oci_image_from_binary: base 'python' needs main, the workspace path of the entry script"
+    if base in ("python", "node") and not main:
+        return "oci_image_from_binary: base '" + base + "' needs main, the workspace path of the entry script"
     if base == "java" and not main_class:
         return "oci_image_from_binary: base 'java' needs main_class"
-    if base not in ("python", "java") and (main or main_class):
-        return "oci_image_from_binary: main and main_class only apply to the python and java bases"
+    if base not in ("python", "java", "node") and (main or main_class):
+        return "oci_image_from_binary: main and main_class only apply to the python, java and node bases"
     return ""
 
 def image_entrypoint(base, app, main = None, main_class = None):
@@ -51,6 +52,8 @@ def image_entrypoint(base, app, main = None, main_class = None):
     if base == "python":
         root = "/app/" + app + ".runfiles/_main"
         return ["/usr/bin/python3", root + "/" + main], {"PYTHONPATH": root}
+    if base == "node":
+        return ["/nodejs/bin/node", "/app/" + app + ".runfiles/_main/" + main], {}
     if base == "java":
         return ["/usr/bin/java", "-cp", "/app/lib/*", main_class], {}
     return ["/app/" + app], {}
@@ -116,8 +119,8 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     name + "_load" loads the image of the first platform. tags apply to the
     image, index and load targets.
 
-    The python and java bases run on the distroless interpreter images. The
-    python base needs main, the workspace path of the entry script, and runs it
+    The python, java and node bases run on the distroless interpreter images.
+    The python and node bases need main, the workspace path of the entry script, and runs it
     from the binary's runfiles. The java base needs main_class and puts the
     binary's runtime jars under /app/lib.
     """

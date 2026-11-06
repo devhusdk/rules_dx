@@ -101,7 +101,11 @@ def _msvc_coverage_impl(ctx):
 
 _msvc_coverage_test = analysistest.make(
     _msvc_coverage_impl,
-    config_settings = {"//command_line_option:collect_code_coverage": True},
+    config_settings = {
+        "//command_line_option:collect_code_coverage": True,
+        # Matches coverage:windows in .bazelrc.
+        "//command_line_option:features": ["-coverage", "-gcc_coverage_map_format"],
+    },
 )
 
 _GCC_ATTRS = {"gcc": attr.string(default = "dx_gcc_linux_x86_64")}

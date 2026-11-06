@@ -1,7 +1,9 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use super::*;
-use crate::lib_tests::{held_spawn, probe_argv};
+#[cfg(unix)]
+use crate::lib_tests::held_spawn;
+use crate::lib_tests::probe_argv;
 use std::path::PathBuf;
 
 fn runner() -> BinaryRunner {

@@ -106,6 +106,7 @@ def matrix_unit_tests(name):
                     "        \"msvcp140.dll\",\n" +
                     "        \"msvcp140_1.dll\",\n" +
                     "        \"msvcp140_2.dll\",\n" +
+                    "        \"notices/msvc_vcruntime\",\n" +
                     "        \"vcruntime140.dll\",\n" +
                     "        \"vcruntime140_1.dll\"\n" +
                     "      ]\n" +
@@ -121,6 +122,7 @@ def matrix_unit_tests(name):
                     "        \"msvcp140.dll\",\n" +
                     "        \"msvcp140_1.dll\",\n" +
                     "        \"msvcp140_2.dll\",\n" +
+                    "        \"notices/msvc_vcruntime\",\n" +
                     "        \"vcruntime140.dll\",\n" +
                     "        \"vcruntime140_1.dll\"\n" +
                     "      ]\n" +

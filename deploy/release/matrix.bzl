@@ -7,12 +7,13 @@ load(":notice.bzl", "notice_bundle")
 
 RELEASE_MATRIX_SCHEMA = "release-matrix/v1"
 
-# Top-level archive members each runtime target ships. The Universal CRT is supplied by Windows.
+# Archive members each runtime target ships, including its notice. The Universal CRT is supplied by Windows.
 RUNTIME_MEMBERS = {
     "//cc/toolchains:msvc_vcruntime": [
         "msvcp140.dll",
         "msvcp140_1.dll",
         "msvcp140_2.dll",
+        "notices/msvc_vcruntime",
         "vcruntime140.dll",
         "vcruntime140_1.dll",
     ],

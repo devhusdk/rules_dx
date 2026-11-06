@@ -280,7 +280,7 @@ fn published_version(crate_name: &str) -> Result<Option<String>, String> {
 }
 
 /// Returns the highest `v<version>` tag below `version` in the workspace repository.
-fn previous_git_tag(version: &str) -> Result<Option<String>, String> {
+pub(crate) fn previous_git_tag(version: &str) -> Result<Option<String>, String> {
     let mut cmd = std::process::Command::new("git");
     cmd.args(["tag", "--list", "v*"]);
     if let Ok(dir) = std::env::var("BUILD_WORKSPACE_DIRECTORY") {

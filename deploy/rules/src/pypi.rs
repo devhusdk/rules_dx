@@ -1,6 +1,8 @@
 //! PyPI publisher: wheelhouse staging and the twine upload.
 
+use crate::api_compat::{breaking_refusal, required_bump, ApiCompatMode};
 use crate::archive::*;
+use crate::crates::previous_git_tag;
 use crate::run::{
     deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
 };
@@ -419,12 +421,118 @@ fn pypi_upload_staged(
     1
 }
 
-/// Runs the PyPI deploy tool.
+/// Public API check settings of one PyPI deployment.
+pub struct PypiApiCheck<'a> {
+    pub mode: &'a str,
+    pub package: &'a str,
+    pub src: &'a str,
+}
+
+/// Counts the breaking changes in `griffe check` output: one `path.py:line: ...` line each.
+fn count_griffe_breaking(output: &str) -> usize {
+    output
+        .lines()
+        .filter(|line| {
+            line.split_once(".py:")
+                .is_some_and(|(_, rest)| rest.starts_with(|c: char| c.is_ascii_digit()))
+        })
+        .count()
+}
+
+/// Compares the public API with the previous v<version> tag; a missing tool or tag skips with a note.
+fn pypi_api_check(
+    griffe: Option<&Path>,
+    version: &str,
+    check: &PypiApiCheck,
+    workspace: &Path,
+) -> Result<(), String> {
+    let mode = ApiCompatMode::parse(if check.mode.is_empty() {
+        "off"
+    } else {
+        check.mode
+    })
+    .ok_or_else(|| format!("pypi_deploy: invalid api_compat '{}'", check.mode))?;
+    if mode == ApiCompatMode::Off {
+        return Ok(());
+    }
+    let Some(program) = griffe else {
+        println!("api compat: griffe not found on PATH; skipped");
+        return Ok(());
+    };
+    let tag = match previous_git_tag(version) {
+        Ok(Some(tag)) => tag,
+        Ok(None) => {
+            println!("api compat: no earlier v<version> tag; skipped (first release)");
+            return Ok(());
+        }
+        Err(error) => return Err(format!("pypi_deploy: api compat: {error}")),
+    };
+    let previous = tag.trim_start_matches('v').to_owned();
+    let mut cmd = scrubbed_command(program, &[PUBLISH_CHILD_ENV_KEEP], &[]);
+    cmd.args([
+        "check",
+        check.package,
+        "--against",
+        &tag,
+        "--search",
+        check.src,
+    ])
+    .current_dir(workspace);
+    let output = cmd
+        .output()
+        .map_err(|error| format!("pypi_deploy: {error}"))?;
+    let text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let breaking = if output.status.success() {
+        0
+    } else {
+        count_griffe_breaking(&text).max(1)
+    };
+    println!("api compat: {breaking} breaking changes against {previous}");
+    for line in text.lines().filter(|line| line.contains(".py:")) {
+        println!("griffe: {line}");
+    }
+    match breaking_refusal(mode, required_bump(&previous, version), breaking) {
+        Some(reason) => Err(format!(
+            "pypi_deploy: api compat: {reason} ({previous} -> {version})"
+        )),
+        None => Ok(()),
+    }
+}
+
+/// Runs the PyPI deploy tool without an API compatibility check.
 pub fn pypi_main(
     wheel_rloc: &str,
     sdist_rloc: &str,
     dist_name: &str,
     repository_url: &str,
+    argv: &[String],
+) -> i32 {
+    let off = PypiApiCheck {
+        mode: "off",
+        package: "",
+        src: "",
+    };
+    pypi_main_checked(
+        wheel_rloc,
+        sdist_rloc,
+        dist_name,
+        repository_url,
+        &off,
+        argv,
+    )
+}
+
+/// Runs the PyPI deploy tool.
+pub fn pypi_main_checked(
+    wheel_rloc: &str,
+    sdist_rloc: &str,
+    dist_name: &str,
+    repository_url: &str,
+    api: &PypiApiCheck,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -457,6 +565,22 @@ pub fn pypi_main(
             repository_url,
             secrets.get("PYPI_API_TOKEN"),
         );
+    }
+    let checked = pypi_check_pair(&wheel, sdist.as_deref())
+        .map_err(|error| error.to_string())
+        .and_then(|(_, version)| {
+            let workspace =
+                std::env::var("BUILD_WORKSPACE_DIRECTORY").unwrap_or_else(|_| ".".to_owned());
+            pypi_api_check(
+                which_on_path("griffe").as_deref(),
+                &version,
+                api,
+                Path::new(&workspace),
+            )
+        });
+    if let Err(message) = checked {
+        eprintln!("{message}");
+        return 1;
     }
     match pypi_build_wheelhouse(&wheel, sdist.as_deref(), outdir, dist_name) {
         Ok(house) => {
@@ -491,6 +615,76 @@ pub fn pypi_main(
 mod tests {
     use super::*;
     use crate::test_support::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn api_check_fails_on_breaking_change_unless_major() {
+        let scratch = scratch_dir();
+        let repo = scratch.path().join("repo");
+        std::fs::create_dir_all(&repo).expect("repo dir");
+        write_crate_file(&repo, "src/pkg/__init__.py", "def hello(): ...\n");
+        for args in [
+            vec!["init", "-q"],
+            vec!["add", "."],
+            vec![
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.com",
+                "commit",
+                "-q",
+                "-m",
+                "x",
+            ],
+            vec!["tag", "v1.2.0"],
+        ] {
+            let status = std::process::Command::new("git")
+                .args(&args)
+                .current_dir(&repo)
+                .status()
+                .expect("git");
+            assert!(status.success(), "git {args:?}");
+        }
+        let args_log = scratch.path().join("args");
+        let fake = scratch.path().join("griffe");
+        std::fs::write(
+            &fake,
+            format!(
+                "#!/bin/sh\necho \"$@\" > {}\necho 'src/pkg/__init__.py:1: pkg.hello: Public object was removed'\nexit 1\n",
+                args_log.display()
+            ),
+        )
+        .expect("fake tool");
+        set_mode(&fake, 0o755);
+        let check = |mode: &'static str| PypiApiCheck {
+            mode,
+            package: "pkg",
+            src: "src",
+        };
+        let repo_dir = repo.display().to_string();
+        let run = |version: &str, mode: &'static str| {
+            with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
+                pypi_api_check(Some(&fake), version, &check(mode), &repo)
+            })
+        };
+        let refused = run("1.3.0", "fail").expect_err("minor bump refused");
+        assert!(refused.contains("1.2.0 -> 1.3.0"), "{refused}");
+        let logged = std::fs::read_to_string(&args_log).expect("args");
+        assert_eq!(logged.trim(), "check pkg --against v1.2.0 --search src");
+        assert!(run("2.0.0", "fail").is_ok());
+        assert!(run("1.3.0", "warn").is_ok());
+        std::fs::remove_file(&args_log).expect("clear log");
+        assert!(run("1.3.0", "off").is_ok());
+        assert!(run("1.3.0", "").is_ok());
+        assert!(!args_log.exists(), "off must not run the tool");
+        assert!(pypi_api_check(None, "1.3.0", &check("fail"), &repo).is_ok());
+    }
+
+    #[test]
+    fn griffe_output_counts_one_breaking_change_per_line() {
+        let text = "src/a.py:3: a.f: Parameter was removed\nsrc/b.py:9: b.g: Public object was removed\nnote: x\n";
+        assert_eq!(count_griffe_breaking(text), 2);
+    }
 
     fn wheel_bytes(files: &[&str]) -> Vec<u8> {
         wheel_bytes_with(files, None)

@@ -70,6 +70,12 @@ pub struct PypiConfig {
     pub sdist_rloc: Option<String>,
     pub dist_name: String,
     pub repository_url: String,
+    #[serde(default)]
+    pub api_compat: String,
+    #[serde(default)]
+    pub api_package: String,
+    #[serde(default)]
+    pub api_src: String,
 }
 
 /// Pins one Helm chart push: the chart files, the pinned helm and the target.
@@ -347,11 +353,16 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             },
             argv,
         ),
-        DeployConfig::Pypi(pypi) => crate::pypi_main(
+        DeployConfig::Pypi(pypi) => crate::pypi_main_checked(
             &pypi.wheel_rloc,
             pypi.sdist_rloc.as_deref().unwrap_or(""),
             &pypi.dist_name,
             &pypi.repository_url,
+            &crate::PypiApiCheck {
+                mode: &pypi.api_compat,
+                package: &pypi.api_package,
+                src: &pypi.api_src,
+            },
             argv,
         ),
         DeployConfig::HelmChart(helm) => crate::helm_main(
@@ -608,6 +619,9 @@ mod tests {
                 sdist_rloc: Some("s".to_owned()),
                 dist_name: "d".to_owned(),
                 repository_url: "https://x".to_owned(),
+                api_compat: String::new(),
+                api_package: String::new(),
+                api_src: String::new(),
             }))
         );
         assert_eq!(
@@ -884,6 +898,9 @@ mod tests {
                 sdist_rloc: None,
                 dist_name: "demo".to_owned(),
                 repository_url: "https://pypi.invalid".to_owned(),
+                api_compat: String::new(),
+                api_package: String::new(),
+                api_src: String::new(),
             }),
             DeployConfig::HelmChart(HelmChartConfig {
                 deploy_name: "demo".to_owned(),

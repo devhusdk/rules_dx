@@ -53,6 +53,9 @@ def _pypi_config_impl(ctx):
     wheel_rloc = rlocation_path(ctx, wheel_file)
 
     values = {
+        "api_compat": ctx.attr.api_compat,
+        "api_package": ctx.attr.api_package or ctx.attr.dist_name.replace("-", "_"),
+        "api_src": ctx.attr.api_src,
         "dist_name": ctx.attr.dist_name,
         "repository_url": ctx.attr.repository_url,
         "wheel_rloc": wheel_rloc,
@@ -77,6 +80,17 @@ _pypi_config = rule(
     implementation = _pypi_config_impl,
     doc = "Writes the deploy config for one PyPI deployment.",
     attrs = {
+        "api_compat": attr.string(
+            doc = "Public API check against the previous v<version> git tag: off, warn or fail.",
+            values = ["off", "warn", "fail"],
+            default = "off",
+        ),
+        "api_package": attr.string(
+            doc = "Import name of the package griffe checks; defaults to the distribution name.",
+        ),
+        "api_src": attr.string(
+            doc = "Workspace-relative source directory griffe searches for the package.",
+        ),
         "dist_name": attr.string(
             doc = "PyPI distribution name, taken from the deployment target name.",
             mandatory = True,
@@ -97,11 +111,20 @@ _pypi_config = rule(
     },
 )
 
-def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, profile = "release", sbom = None):
-    """Publishes one wheel plus an optional sdist as a local-first PyPI deployment."""
+def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, profile = "release", sbom = None, api_compat = "off", api_package = "", api_src = ""):
+    """Publishes one wheel plus an optional sdist as a local-first PyPI deployment.
+
+    api_compat runs `griffe check` (found on PATH) against the previous
+    v<version> git tag (off, warn, fail); a breaking change fails unless the
+    version bump is major. api_src is the workspace-relative source directory
+    and api_package the import name, which defaults to the distribution name.
+    """
     name_error = pypi_name_error(name)
     if name_error != "":
         fail(name_error + " (in " + native.package_name() + ":" + name + ")")
+    if api_compat != "off" and api_src == "":
+        fail("pypi_deploy: api_compat = \"" + api_compat + "\" needs api_src (in " +
+             native.package_name() + ":" + name + ")")
     repository_error = pypi_repository_error(repository_url)
     if repository_error != "":
         fail(repository_error + " (in " + native.package_name() + ":" + name + ")")
@@ -110,6 +133,9 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
     _pypi_config(
         name = config_target,
         dist_name = name,
+        api_compat = api_compat,
+        api_package = api_package,
+        api_src = api_src,
         repository_url = repository_url,
         sdist = sdist,
         wheel = wheel,

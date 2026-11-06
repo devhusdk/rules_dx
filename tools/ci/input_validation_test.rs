@@ -9,7 +9,6 @@ const FIXTURE_DIR: &str = "tools/ci/input_validation_fixtures";
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 const RELEASE_WORKFLOW: &str = ".github/workflows/release-cells.yml";
 const CONSUMER_WORKFLOW: &str = ".github/workflows/release-consumer.yml";
-const EVIDENCE_WORKFLOW: &str = ".github/workflows/evidence.yml";
 const ACTIONLINT_CONFIG: &str = ".github/actionlint.yaml";
 const DOCS: &str = "docs/github-ci.md";
 const CALLERS: [&str; 2] = ["examples/consumer-ci/caller.yml", CI_WORKFLOW];
@@ -244,26 +243,6 @@ fn table() -> Vec<(String, String)> {
         .collect()
 }
 
-fn dict_pairs(text: &str) -> Vec<(String, String)> {
-    let mut pairs = Vec::new();
-    let mut inside = false;
-    for line in text.lines().map(str::trim) {
-        if line == "PLATFORMS = {" {
-            inside = true;
-        } else if line == "}" {
-            inside = false;
-        } else if inside {
-            if let Some((key, value)) = line.trim_end_matches(',').split_once("\": ") {
-                pairs.push((
-                    key.trim_matches('"').to_string(),
-                    value.trim_matches('"').to_string(),
-                ));
-            }
-        }
-    }
-    pairs
-}
-
 fn preflight_pairs(text: &str) -> Vec<(String, String)> {
     let lines: Vec<&str> = text.lines().map(str::trim).collect();
     lines
@@ -387,10 +366,14 @@ fn platform_parity_catches_a_drifted_copy() {
 
 #[test]
 fn evidence_runners_match_the_table() {
+    let evidence: Vec<(String, String)> = evidence_inputs::PLATFORMS
+        .iter()
+        .map(|(name, runner)| (name.to_string(), runner.to_string()))
+        .collect();
     assert_eq!(
-        dict_pairs(&read_runfiles(EVIDENCE_WORKFLOW)),
+        evidence,
         table(),
-        "{EVIDENCE_WORKFLOW} PLATFORMS drifted from input_validation.rs"
+        "evidence_inputs.rs PLATFORMS drifted from input_validation.rs"
     );
 }
 

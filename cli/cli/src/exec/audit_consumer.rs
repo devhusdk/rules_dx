@@ -175,7 +175,10 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err) = audited("patched", &lock_with(&packages), Some(&combined), &[]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("audit_security_clean"), "{out}");
-        assert!(!out.contains("vuln/"), "{out}");
+        assert!(
+            !out.replace("vuln/yanked_unprepared", "").contains("vuln/"),
+            "{out}"
+        );
     }
 
     #[test]

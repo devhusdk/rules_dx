@@ -71,7 +71,6 @@ rust_test(
         ":input_validation_fixtures",
         "//.github:actionlint.yaml",
         "//.github:workflows/ci.yml",
-        "//.github:workflows/evidence.yml",
         "//.github:workflows/release-cells.yml",
         "//.github:workflows/release-consumer.yml",
         "//docs:github-ci.md",
@@ -79,6 +78,7 @@ rust_test(
     ],
     env = {"DX_INPUT_VALIDATION": "$(rootpath :input_validation_bin)"},
     deps = [
+        ":evidence_inputs",
         ":input_validation",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",

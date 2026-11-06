@@ -207,9 +207,6 @@ impl Consumer {
             ("HOME", home.as_str()),
             ("USERPROFILE", home.as_str()),
             ("XDG_CONFIG_HOME", xdg.as_str()),
-            ("UV_EXCLUDE_NEWER", "2020-01-01T00:00:00Z"),
-            ("UV_INDEX_URL", "https://example.invalid/simple"),
-            ("UV_DEFAULT_INDEX", "https://example.invalid/simple"),
             ("UV_OFFLINE", "1"),
             ("PATH", path.as_str()),
         ];
@@ -319,11 +316,11 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
 
     for (args, reason) in [
         (
-            &["update", "--apply", "--frozen", "frontend"][..],
+            &["update", "--apply", "--frozen", "pypi-frontend"][..],
             "frozen_locked",
         ),
         (
-            &["update", "--apply", "--offline", "frontend"][..],
+            &["update", "--apply", "--offline", "pypi-frontend"][..],
             "offline_required",
         ),
     ] {

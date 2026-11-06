@@ -885,7 +885,9 @@ mod tests {
             let dev_only = module.bazel_dep(name).is_ok_and(
                 |dep| matches!(dep.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True"),
             );
-            if dev_only && !in_table {
+            // lua only swaps in CI mirrors for rules_dx's own builds; consumers keep the BCR archive.
+            let repo_only = name == "lua";
+            if (dev_only || repo_only) && !in_table {
                 continue;
             }
             if !in_table && !patches.iter().any(|label| label.starts_with("//patches/")) {

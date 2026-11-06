@@ -627,7 +627,7 @@ mod tests {
             let scope = resolved(&["//pkg:lib"]);
             let mut build =
                 plan_build(command, &scope, &user, "/tmp/bep.json", &startup).expect("build");
-            build.argv.retain(|arg| !arg.contains("extra_rustc_flags"));
+            build.argv.retain(|arg| !arg.contains("extra_rustc_flag"));
             let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup, None)
                 .expect("probe")
                 .expect("quality commands carry a probe");

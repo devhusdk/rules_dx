@@ -1791,7 +1791,7 @@ mod tests {
                         command.get_name()
                     );
                 }
-                if let Some(long) = arg.get_long() {
+                if let Some(long) = arg.get_long().filter(|long| *long != "profile") {
                     assert_eq!(
                         value_options().contains(format!("--{long}").as_str()),
                         expected,
@@ -1803,7 +1803,14 @@ mod tests {
             stack.extend(command.get_subcommands());
         }
         assert!(seen > 0);
-        for option in ["--output", "-o", "--workspace", "--bazel-option"] {
+        // `--profile` takes a value in init and is a switch in build, so no global set can match both.
+        for option in [
+            "--output",
+            "-o",
+            "--workspace",
+            "--bazel-option",
+            "--profile",
+        ] {
             assert!(value_options().contains(option), "{option} takes a value");
         }
         for flag in ["-q", "-v", "--verbose"] {

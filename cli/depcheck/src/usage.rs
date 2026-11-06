@@ -87,6 +87,8 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
             name.ends_with("Test.php") || s.contains("/tests/") || s.contains("/Tests/")
         }
         Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
+        Ecosystem::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
+        Ecosystem::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
     }
 }
 
@@ -125,6 +127,10 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         ".dart",
         ".php",
         "analysis_options.yaml",
+        ".ex",
+        ".exs",
+        ".erl",
+        ".hrl",
     ]
     .into_iter()
     .collect()
@@ -160,6 +166,9 @@ fn skip_names() -> BTreeSet<&'static str> {
         "pubspec.lock",
         "composer.json",
         "composer.lock",
+        "mix.exs",
+        "mix.lock",
+        "rebar.lock",
     ]
     .into_iter()
     .collect()
@@ -269,6 +278,24 @@ fn php_patterns(dep: &str) -> Vec<String> {
     patterns
 }
 
+/// The modules a dependency is called by: `ex_doc` is `ExDoc`, and `plug_cowboy` is also `Plug`
+/// because its modules live under `Plug.Cowboy`.
+fn elixir_modules(dep: &str) -> Vec<String> {
+    let camel = |part: &str| {
+        let mut chars = part.chars();
+        chars
+            .next()
+            .map(|first| first.to_uppercase().chain(chars).collect::<String>())
+            .unwrap_or_default()
+    };
+    let mut modules = vec![dep.split('_').map(camel).collect::<String>()];
+    let head = camel(dep.split('_').next().unwrap_or(dep));
+    if !modules.contains(&head) {
+        modules.push(head);
+    }
+    modules
+}
+
 fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError> {
     let mut weak = Vec::new();
     let mut shadow = None;
@@ -357,6 +384,22 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
             ]
         }
         Ecosystem::Php => php_patterns(dep),
+        Ecosystem::Elixir => {
+            let mut patterns = vec![format!(r"(?:^|[^\w:]):{}\b", regex_escape(dep))];
+            for module in elixir_modules(dep) {
+                let module = regex_escape(&module);
+                patterns.push(format!(
+                    r"(?m)^\s*(?:alias|import|use|require)\s+{module}\b"
+                ));
+                patterns.push(format!(r"\b{module}\.\w"));
+            }
+            patterns
+        }
+        Ecosystem::Erlang => vec![
+            format!(r#"(?m)^\s*-include(?:_lib)?\(\s*"{}/"#, regex_escape(dep)),
+            format!(r"(?m)^\s*-behaviou?r\(\s*{}\s*\)", regex_escape(dep)),
+            format!(r"(?:^|[^\w:]){}:[a-z_]\w*\(", regex_escape(dep)),
+        ],
         Ecosystem::Ruby => vec![
             format!(r#"(?m)^\s*require\s+['"]{}['"]"#, regex_escape(dep)),
             format!(
@@ -401,7 +444,8 @@ pub(crate) fn find_first_imports(
     }
     let mut out = BTreeMap::new();
     for name in names {
-        let forms = [name.clone(), name.replace('-', "_"), name.replace('_', "-")];
+        let mut forms = vec![name.clone(), name.replace('-', "_"), name.replace('_', "-")];
+        forms.extend(elixir_modules(name));
         let hits: Vec<&(String, String)> = texts
             .iter()
             .filter(|(_, text)| {

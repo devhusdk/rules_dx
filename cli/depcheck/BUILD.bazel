@@ -9,6 +9,7 @@ rust_library(
     name = "depcheck_lib",
     srcs = [
         "src/consistency.rs",
+        "src/ecosystem/beam.rs",
         "src/ecosystem/cc.rs",
         "src/ecosystem/dart.rs",
         "src/ecosystem/dotnet.rs",
@@ -80,6 +81,8 @@ rust_test(
         ":cc_testdata",
         ":csharp_testdata",
         ":dart_testdata",
+        ":elixir_testdata",
+        ":erlang_testdata",
         ":fsharp_testdata",
         ":go_testdata",
         ":java_testdata",
@@ -265,6 +268,8 @@ rust_test(
         "julia",
         "dart",
         "php",
+        "elixir",
+        "erlang",
     ]
 ]
 

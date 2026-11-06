@@ -20,6 +20,7 @@ mod usage;
 mod version;
 
 pub use consistency::{cmd_consistency, cmd_locks};
+pub use ecosystem::beam::{parse_elixir_manifest, parse_erlang_manifest};
 pub use ecosystem::cc::{parse_cc_lock, parse_cc_lock_sha, parse_cc_manifest};
 pub use ecosystem::dart::{dart_lock_candidates, parse_dart_lock, parse_dart_manifest};
 pub use ecosystem::dotnet::parse_dotnet_manifest;

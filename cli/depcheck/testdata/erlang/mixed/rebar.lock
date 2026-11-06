@@ -1,0 +1,5 @@
+{"1.2.0",
+[{<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.12.1">>},0},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"3.1.0">>},0},
+ {<<"ranch">>,{pkg,<<"ranch">>,<<"1.8.0">>},0},
+ {<<"hackney">>,{git,"https://github.com/benoitc/hackney.git",{ref,"abc"}},0}]}.

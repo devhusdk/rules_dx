@@ -60,6 +60,8 @@ fn dep_keys_per_ecosystem() {
         (Ecosystem::Cc, "foo_bar.baz"),
         (Ecosystem::Ruby, "foo-bar.baz"),
         (Ecosystem::Dart, "foo-bar.baz"),
+        (Ecosystem::Elixir, "foo-bar.baz"),
+        (Ecosystem::Erlang, "foo-bar.baz"),
     ] {
         assert_eq!(normalize_dep_key(eco, "Foo-Bar.Baz"), want, "{eco:?}");
     }
@@ -700,6 +702,8 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Julia => "Project.toml",
         Ecosystem::Dart => "pubspec.yaml",
         Ecosystem::Php => "composer.json",
+        Ecosystem::Elixir => "mix.exs",
+        Ecosystem::Erlang => "rebar.config",
     }
 }
 
@@ -718,6 +722,8 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Julia => "Manifest.toml",
         Ecosystem::Dart => "pubspec.lock",
         Ecosystem::Php => "composer.lock",
+        Ecosystem::Elixir => "mix.lock",
+        Ecosystem::Erlang => "rebar.lock",
     }
 }
 
@@ -740,6 +746,8 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Julia => "julia",
         Ecosystem::Dart => "dart",
         Ecosystem::Php => "php",
+        Ecosystem::Elixir => "elixir",
+        Ecosystem::Erlang => "erlang",
     }
 }
 
@@ -1235,6 +1243,8 @@ fn ecosystem_parse_covers_every_name() {
         ("julia", Ecosystem::Julia),
         ("dart", Ecosystem::Dart),
         ("php", Ecosystem::Php),
+        ("elixir", Ecosystem::Elixir),
+        ("erlang", Ecosystem::Erlang),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -2761,4 +2771,73 @@ fn php_usage_covers_namespaces() {
     assert!(hits["monolog/monolog"].src);
     assert!(hits["mockery/mockery"].test && !hits["mockery/mockery"].src);
     assert!(!hits["symfony/process"].src);
+}
+
+fn unused_and_missing(eco: Ecosystem) -> (Vec<String>, Vec<String>) {
+    let base = testdata_root().join(eco_dir(eco)).join("mixed");
+    let manifest = base.join(manifest_name(eco));
+    let unused = find_unused(eco, &manifest, &base, &[]).expect("unused");
+    let missing =
+        find_missing(eco, &manifest, &base.join(lock_name(eco)), &base, &[]).expect("missing");
+    (
+        unused.into_iter().map(|dep| dep.name).collect(),
+        missing.into_iter().map(|dep| dep.name).collect(),
+    )
+}
+
+#[test]
+fn elixir_reports_the_unused_and_the_missing_dep() {
+    let (unused, missing) = unused_and_missing(Ecosystem::Elixir);
+    assert_eq!(unused, ["telemetry"]);
+    assert_eq!(missing, ["plug"]);
+    assert_eq!(consistency(Ecosystem::Elixir, "mixed"), 0);
+}
+
+#[test]
+fn erlang_reports_the_unused_and_the_missing_dep() {
+    let (unused, missing) = unused_and_missing(Ecosystem::Erlang);
+    assert_eq!(unused, ["hackney"]);
+    assert_eq!(missing, ["ranch"]);
+    assert_eq!(consistency(Ecosystem::Erlang, "mixed"), 0);
+}
+
+#[test]
+fn elixir_manifest_reads_flags_and_skips_other_tuples() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let mix = dir.path().join("mix.exs");
+    write_file(
+        &mix,
+        "def project, do: {:ok, 1}\ndefp deps do\n  [\n    {:a, \"~> 1.0\"},\n    {:b, \"~> 1.0 or ~> 2.0\", optional: true},\n    {:c, git: \"https://x\", only: :test}, # {:d, \"1\"}\n  ]\nend\n",
+    );
+    let deps = parse_elixir_manifest(&mix).expect("parse");
+    assert_eq!(deps.keys().collect::<Vec<_>>(), ["a", "b", "c"]);
+    assert_eq!(deps["a"].spec, "~> 1.0");
+    assert_eq!(deps["b"].spec, "*");
+    assert!(deps["b"].optional);
+    assert_eq!(deps["c"].category, "dev");
+}
+
+#[test]
+fn erlang_manifest_reads_atoms_tuples_and_git_deps() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let config = dir.path().join("rebar.config");
+    write_file(
+        &config,
+        "{deps, [a, {b, \"1.0.0\"}, {c, {git, \"https://x\", {tag, \"1\"}}}]}. % {deps, [z]}\n",
+    );
+    let deps = parse_erlang_manifest(&config).expect("parse");
+    assert_eq!(deps.keys().collect::<Vec<_>>(), ["a", "b", "c"]);
+    assert_eq!(deps["b"].spec, "1.0.0");
+    assert_eq!(deps["a"].spec, "*");
+}
+
+#[test]
+fn beam_test_files_are_recognised() {
+    assert!(is_test_file(Ecosystem::Elixir, Path::new("a/foo_test.exs")));
+    assert!(!is_test_file(Ecosystem::Elixir, Path::new("a/lib/foo.ex")));
+    assert!(is_test_file(
+        Ecosystem::Erlang,
+        Path::new("a/foo_SUITE.erl")
+    ));
+    assert!(!is_test_file(Ecosystem::Erlang, Path::new("a/src/foo.erl")));
 }

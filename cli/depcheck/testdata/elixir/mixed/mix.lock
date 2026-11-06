@@ -1,0 +1,6 @@
+%{
+  "ex_doc": {:hex, :ex_doc, "0.31.0", "aaaa", [:mix], [], "hexpm", "bbbb"},
+  "jason": {:hex, :jason, "1.4.1", "aaaa", [:mix], [], "hexpm", "bbbb"},
+  "plug": {:hex, :plug, "1.15.0", "aaaa", [:mix], [], "hexpm", "bbbb"},
+  "telemetry": {:hex, :telemetry, "1.2.1", "aaaa", [:rebar3], [], "hexpm", "bbbb"},
+}

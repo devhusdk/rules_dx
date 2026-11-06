@@ -155,6 +155,12 @@ fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckErr
         Ecosystem::Zig => Ok(crate::parse_zig_lock(lock)?.into_keys().collect()),
         Ecosystem::Dart => crate::dart_lock_candidates(lock),
         Ecosystem::Php => Ok(crate::parse_php_lock(lock)?.into_keys().collect()),
+        Ecosystem::Elixir => Ok(crate::ecosystem::beam::parse_mix_lock(lock)?
+            .into_keys()
+            .collect()),
+        Ecosystem::Erlang => Ok(crate::ecosystem::beam::parse_rebar_lock(lock)?
+            .into_keys()
+            .collect()),
         _ => Ok(Vec::new()),
     }
 }
@@ -190,6 +196,8 @@ pub fn find_missing(
         Ecosystem::Julia => "Project.toml",
         Ecosystem::Dart => "pubspec.yaml",
         Ecosystem::Php => "composer.json",
+        Ecosystem::Elixir => "mix.exs",
+        Ecosystem::Erlang => "rebar.config",
         _ => "package.json",
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;

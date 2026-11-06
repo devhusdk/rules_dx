@@ -1,3 +1,4 @@
+pub mod beam;
 pub mod cc;
 pub mod dart;
 pub mod dotnet;

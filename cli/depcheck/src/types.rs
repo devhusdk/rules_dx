@@ -76,6 +76,8 @@ pub enum Ecosystem {
     Julia,
     Dart,
     Php,
+    Elixir,
+    Erlang,
 }
 
 impl std::str::FromStr for Ecosystem {
@@ -107,6 +109,8 @@ impl Ecosystem {
             "julia" => Some(Self::Julia),
             "dart" => Some(Self::Dart),
             "php" => Some(Self::Php),
+            "elixir" => Some(Self::Elixir),
+            "erlang" => Some(Self::Erlang),
             _ => None,
         }
     }
@@ -130,6 +134,8 @@ impl Ecosystem {
             Self::Julia => "julia",
             Self::Dart => "dart",
             Self::Php => "php",
+            Self::Elixir => "elixir",
+            Self::Erlang => "erlang",
         }
     }
 

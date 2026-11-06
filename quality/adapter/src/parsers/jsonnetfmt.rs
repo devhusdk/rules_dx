@@ -78,7 +78,7 @@ fn syntax_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
             message.trim().to_owned(),
             ToolSeverity::Error,
             TextPosition { line: row, column },
-            ColumnEncoding::Scalars,
+            ColumnEncoding::Utf8,
         ));
     }
     Ok(findings)
@@ -107,6 +107,14 @@ mod tests {
         assert_eq!(findings[0].finding.message, "file is not formatted");
         let clean = parse_jsonnetfmt(b"", b"", Some(0), &FILES).expect("parsed");
         assert!(clean.is_empty());
+    }
+
+    #[test]
+    fn jsonnetfmt_columns_are_utf8_bytes() {
+        let stderr = b"/s/jsonnet/lib.libsonnet:1:21 Unexpected token\n";
+        let findings = parse_jsonnetfmt(b"", stderr, Some(1), &FILES).expect("parsed");
+        assert_eq!(findings[0].finding.start.column, 21);
+        assert_eq!(findings[0].finding.encoding, ColumnEncoding::Utf8);
     }
 
     #[test]

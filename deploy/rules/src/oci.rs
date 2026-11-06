@@ -1144,6 +1144,7 @@ pub fn oci_main<C: Into<OciChecks>>(
             println!("oci_deploy: staged {registry}/{repository}:{tag} (profile: {profile})");
             println!("  layout: {}", layout.display());
             println!("  index: {}", layout.join("index.json").display());
+            println!("{}", size_line(bytes, checks.size_budget));
             scan_and_report(&layout, &checks, run_trivy)
         }
         Err(error) => {
@@ -1153,10 +1154,27 @@ pub fn oci_main<C: Into<OciChecks>>(
     }
 }
 
+fn size_line(bytes: u64, budget: u64) -> String {
+    if budget == 0 {
+        format!("  size: {bytes} bytes")
+    } else {
+        format!("  size: {bytes} bytes (size_budget {budget} bytes)")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_support::*;
+
+    #[test]
+    fn size_line_names_the_budget_only_when_set() {
+        assert_eq!(size_line(2_000, 0), "  size: 2000 bytes");
+        assert_eq!(
+            size_line(2_000, 5_000),
+            "  size: 2000 bytes (size_budget 5000 bytes)"
+        );
+    }
 
     #[test]
     fn oci_layout_builds_index() {

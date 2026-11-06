@@ -760,6 +760,9 @@ oci_deploy(
   once per platform; `oci_deploy` takes one `platform` of it, and
   `<name>_load` loads the image of the first platform.
 
+The `oci_deploy` dry run prints the image size in bytes, and the `size_budget`
+when one is set.
+
 # oci_deploy
 
 Stages one image as a local OCI layout and pushes it to a registry.

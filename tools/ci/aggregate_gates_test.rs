@@ -212,8 +212,7 @@ fn every_aggregate_job_needs_every_other_job() {
         let needs = job_needs(workflow, id, job);
         for (other, _) in &all {
             if other == id
-                || (workflow == CI_WORKFLOW
-                    && (other == "repo-cache-prune" || other == "scheduled-report"))
+                || (workflow == CI_WORKFLOW && other == "scheduled-report")
                 || (workflow == CONSUMER_WORKFLOW
                     && (other == "advisory-bump" || other == "bench" || other == "fuzz"))
             {

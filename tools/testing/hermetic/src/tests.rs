@@ -1608,6 +1608,16 @@ fn markers_follow_the_host_os() {
 }
 
 #[test]
+fn cache_miss_marker_follows_the_host_os() {
+    assert_eq!(probe_expectation("cache_miss", "linux").1, MISS_MARKER);
+    assert_eq!(probe_expectation("cache_miss", "windows").1, MISS_MARKER);
+    assert_eq!(
+        probe_expectation("cache_miss", "macos").1,
+        MACOS_DENIED_MARKER
+    );
+}
+
+#[test]
 fn macos_evidence_is_checked_against_macos_markers() {
     let manifest = cpp_rust();
     let mut evidence = good_evidence();

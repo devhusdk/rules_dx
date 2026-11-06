@@ -388,6 +388,38 @@ mod tests {
         assert_eq!(text[text.len() - 2..], ["--input", "l"]);
     }
 
+    const DEBIAN_REPORT: &str = r#"{"SchemaVersion":2,"ArtifactType":"container_image","Results":[
+        {"Target":"layout (debian 11.6)","Class":"os-pkgs","Type":"debian","Vulnerabilities":[
+        {"VulnerabilityID":"CVE-2022-3602","PkgName":"libssl1.1","InstalledVersion":"1.1.1n-0+deb11u3","FixedVersion":"1.1.1n-0+deb11u4","Severity":"HIGH"},
+        {"VulnerabilityID":"CVE-2023-0286","PkgName":"libssl1.1","InstalledVersion":"1.1.1n-0+deb11u3","FixedVersion":"1.1.1n-0+deb11u4","Severity":"HIGH"}]}]}"#;
+
+    fn scan_recorded(security: Option<&str>) -> Vec<ImageFinding> {
+        let dir = std::env::temp_dir().join(format!("dx-oci-scan-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        if let Some(text) = security {
+            std::fs::write(dir.join("security.toml"), text).expect("security.toml");
+        }
+        let found = scan_layout(Path::new("layout"), "HIGH", Some(&dir), |args| {
+            let text: Vec<_> = args.iter().map(|arg| arg.to_string_lossy()).collect();
+            assert!(text.contains(&"HIGH,CRITICAL".into()));
+            Ok(DEBIAN_REPORT.to_owned())
+        });
+        std::fs::remove_dir_all(&dir).expect("cleanup");
+        found.expect("scan")
+    }
+
+    #[test]
+    fn a_recorded_report_with_real_cves_fails_until_excepted() {
+        let found = scan_recorded(None);
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].id, "CVE-2022-3602");
+        let toml = format!(
+            "{}\n[[exception]]\nadvisory = \"CVE-2023-0286\"\npackage = \"libssl1.1\"\nset = \"oci\"\nversions = \"1.1.1n-0+deb11u3\"\nreason = \"base image\"\nexpires = \"2999-01-01\"\n",
+            exception("CVE-2022-3602", "libssl1.1", "2999-01-01")
+        );
+        assert!(scan_recorded(Some(&toml)).is_empty());
+    }
+
     #[test]
     fn civil_dates_follow_the_calendar() {
         assert_eq!(civil_date(0), "1970-01-01");

@@ -8,7 +8,7 @@ load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
-load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test")
+load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_msvc_crt_tests")
 
 package(
     default_testonly = True,
@@ -246,6 +246,31 @@ cc_toolchain_test(
         "@platforms//cpu:x86_64",
     ],
     test = ":native_call_test",
+)
+
+_raw_cc_library(
+    name = "native_md",
+    srcs = ["native.c"],
+    hdrs = ["native.h"],
+    features = [
+        "-static_link_msvcrt",
+        "dynamic_link_msvcrt",
+    ],
+    tags = ["manual"],
+)
+
+rust_test(
+    name = "native_md_crt_test",
+    crate = ":native_call",
+    link_deps = [":native_md"],
+    tags = ["manual"],
+    deps = [":native_call_build_script"],
+)
+
+rust_msvc_crt_tests(
+    name = "native_call_msvc_crt_tests",
+    bad = ":native_md_crt_test",
+    ok = ":native_call_test",
 )
 
 _raw_cc_library(

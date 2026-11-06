@@ -10,6 +10,7 @@ load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_fo
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
+load(":msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_validate")
 
 _DX_FORWARD_PROVIDES = [
     _rust_common.crate_info,
@@ -26,6 +27,8 @@ _UNWIND = Label("//rust/rules:unwind")
 _MSVC = Label("//rust/rules:msvc")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
+_EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
+_MSVC_STATIC_CRT = ["-dynamic_link_msvcrt", "static_link_msvcrt"]
 
 _COVERAGE = "//command_line_option:collect_code_coverage"
 
@@ -40,11 +43,13 @@ def _cpp_runtime_transition_impl(settings, attr):
     features = settings["//command_line_option:features"]
     if attr.libstdcxx and _NO_STATIC_CPP_RUNTIMES not in features:
         features = features + [_NO_STATIC_CPP_RUNTIMES]
+    if attr.msvc and "-Ctarget-feature=+crt-static" in settings[_EXTRA_RUSTC_FLAG]:
+        features = features + [f for f in _MSVC_STATIC_CRT if f not in features]
     return {"//command_line_option:features": features}
 
 _cpp_runtime_transition = transition(
     implementation = _cpp_runtime_transition_impl,
-    inputs = ["//command_line_option:features"],
+    inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG],
     outputs = ["//command_line_option:features"],
 )
 
@@ -60,17 +65,21 @@ def _rust_binary_transition_impl(settings, attr):
 
 _rust_binary_transition = transition(
     implementation = _rust_binary_transition_impl,
-    inputs = ["//command_line_option:features", _PLATFORMS, _COVERAGE],
+    inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG, _PLATFORMS, _COVERAGE],
     outputs = ["//command_line_option:features", _PLATFORMS, _COVERAGE],
 )
 
 _LIBSTDCXX_ATTRS = {
     "libstdcxx": attr.bool(doc = "Whether the target platform uses libstdc++."),
+    "msvc": attr.bool(doc = "Whether the target platform uses the MSVC ABI."),
 }
 
 def _libstdcxx_forward():
     """Returns the forwarder kwargs that mark libstdc++ platforms."""
-    return {"libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False})}
+    return {
+        "libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False}),
+        "msvc": select({_MSVC: True, "//conditions:default": False}),
+    }
 
 def _libstdcxx_upstream(kwargs, link):
     """Returns upstream kwargs that build only below the forwarder on libstdc++ platforms."""
@@ -148,6 +157,8 @@ _rust_forward_binary = dx_executable_forward_rule(
     ],
     extra_attrs = _LIBSTDCXX_ATTRS | {"wasm": attr.string(doc = "Wasm target, or empty.")},
     upstream_cfg = _rust_binary_transition,
+    upstream_aspects = [dx_msvc_crt_aspect],
+    validate = dx_msvc_crt_validate,
 )
 
 _rust_forward_test = dx_executable_forward_rule(
@@ -168,7 +179,8 @@ _rust_forward_test = dx_executable_forward_rule(
         ),
     },
     upstream_cfg = _cpp_runtime_transition,
-    upstream_aspects = [dx_data_coverage_aspect],
+    upstream_aspects = [dx_data_coverage_aspect, dx_msvc_crt_aspect],
+    validate = dx_msvc_crt_validate,
     coverage_providers = dx_native_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
 )

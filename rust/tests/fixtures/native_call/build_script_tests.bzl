@@ -333,3 +333,41 @@ def rust_link_compiler_tests(name, target):
             )
             tests.append(arm64)
     native.test_suite(name = name, tests = tests)
+
+_EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
+_CRT_CONFIG = {
+    _COMPILER: "msvc",
+    _EXTRA_RUSTC_FLAG: ["-Ctarget-feature=+crt-static"],
+}
+
+def _crt_ok_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.true(env, analysistest.target_under_test(env) != None)
+    return analysistest.end(env)
+
+def _crt_bad_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.expect_failure(env, "MSVC CRT mismatch")
+    return analysistest.end(env)
+
+_crt_ok_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG)
+_crt_bad_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG, expect_failure = True)
+
+def rust_msvc_crt_tests(name, ok, bad):
+    """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones on MSVC.
+
+    Args:
+        name: Name of the test suite.
+        ok: A rust_test whose C deps are compiled /MT.
+        bad: A rust_test with a C dep compiled /MD.
+    """
+    ok_name = name + "_ok"
+    bad_name = name + "_bad"
+    for test, rule, target in [(ok_name, _crt_ok_test, ok), (bad_name, _crt_bad_test, bad)]:
+        rule(
+            name = test,
+            size = "small",
+            target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+            target_under_test = target,
+        )
+    native.test_suite(name = name, tests = [ok_name, bad_name])

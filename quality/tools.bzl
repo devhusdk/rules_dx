@@ -2885,6 +2885,28 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "weeder",
+        adapters = {"lint": ["haskell"]},
+        support = [
+            row(
+                capability = "lint",
+                classes = ["haskell"],
+                context = "target_coupled",
+                family = "haskell",
+                fix = "check_only",
+                platforms = ["linux_x86_64"],
+                state = "supported",
+                transport = "single",
+                unsupported = {
+                    "linux_arm64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
+                    "macos_arm64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
+                    "windows_arm64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
+                    "windows_x86_64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
+                },
+            ),
+        ],
+    ),
+    tool(
         id = "xmllint",
         adapters = {"lint": ["xml"]},
         support = [

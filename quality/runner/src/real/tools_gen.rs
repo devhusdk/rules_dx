@@ -132,6 +132,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "typstyle",
     "vale",
     "vulture",
+    "weeder",
     "xmllint",
     "xref",
     "yamlfmt",

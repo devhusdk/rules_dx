@@ -14,6 +14,7 @@ CompileCheckInfo = provider(
     doc = "Check-only replays of the compile actions of one target.",
     fields = {
         "diagnostics": "list of File: compiler stderr, one per replayed compile action.",
+        "scratch": "list of File: the directory each replayed Haskell action wrote its .hie files to; empty for other tools.",
         "sources": "list of string: the first source path (execroot relative) per replayed action.",
         "statuses": "list of File: compiler exit code, one per replayed action.",
         "tool": "string: the quality tool id the logs belong to (flang, ghc, ldc, ocaml or zig).",
@@ -143,7 +144,7 @@ def zig_check_argv(argv, scratch):
         out.append("-fno-emit-bin")
     return struct(argv = out, error = "", source = source)
 
-_GHC_FLAGS = ["-fno-code", "-fdiagnostics-as-json"]
+_GHC_FLAGS = ["-fno-code", "-fdiagnostics-as-json", "-fwrite-ide-info"]
 
 _GHC_DIRS = ["-odir", "-hidir", "-stubdir", "-hiedir", "-dumpdir"]
 
@@ -336,6 +337,7 @@ def _compile_check_impl(target, ctx):
     diagnostics = []
     statuses = []
     sources = []
+    scratch_dirs = []
     for i in range(len(actions)):
         action = actions[i]
         spec = _SPECS[action.mnemonic]
@@ -349,6 +351,8 @@ def _compile_check_impl(target, ctx):
             scratch_dir = ctx.actions.declare_directory("dx_compile_check/%s.scratch" % stem)
             outputs.append(scratch_dir)
             scratch = scratch_dir.path
+            if tool == "ghc":
+                scratch_dirs.append(scratch_dir)
         rewritten = spec.rewrite(list(argv), scratch)
         if rewritten.error != "":
             fail("compile_check: " + str(target.label) + ": " + rewritten.error)
@@ -386,7 +390,7 @@ def _compile_check_impl(target, ctx):
         diagnostics.append(log)
         statuses.append(status)
         sources.append(source)
-    return _forwarded(CompileCheckInfo(diagnostics = diagnostics, sources = sources, statuses = statuses, tool = tool))
+    return _forwarded(CompileCheckInfo(diagnostics = diagnostics, sources = sources, scratch = scratch_dirs, statuses = statuses, tool = tool))
 
 compile_check_aspect = aspect(
     implementation = _compile_check_impl,

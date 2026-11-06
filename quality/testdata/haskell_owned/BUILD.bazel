@@ -57,3 +57,26 @@ haskell_library(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = ["@dx_haskell_toolchains//:base"],
 )
+
+quality_family(
+    name = "weeder_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "haskell",
+    lint = ["weeder"],
+)
+
+workspace_policy(
+    name = "weeder_policy",
+    families = [":weeder_family"],
+)
+
+haskell_library(
+    name = "weeds",
+    srcs = ["Weeds.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = ["@dx_haskell_toolchains//:base"],
+)

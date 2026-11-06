@@ -30,6 +30,7 @@ pub(super) const TOOL_DEFS: &[&ToolDef] = &[
     &super::redocly::TOOL,
     &super::rustfmt::TOOL,
     &super::sqlfluff::TOOL,
+    &super::weeder::TOOL,
 ];
 
 pub(super) fn all_tool_defs() -> impl Iterator<Item = &'static ToolDef> {

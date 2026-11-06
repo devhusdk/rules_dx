@@ -887,6 +887,7 @@ mod sqlfluff;
 mod staging;
 mod tools_gen;
 mod web;
+mod weeder;
 
 pub use pipeline::{
     run_real_pipeline, run_real_pipeline_with_resolve, run_real_pipeline_with_siblings,
@@ -913,6 +914,9 @@ mod real_periphery;
 #[cfg(test)]
 #[path = "real_tools.rs"]
 mod real_tools;
+#[cfg(test)]
+#[path = "real_weeder.rs"]
+mod real_weeder;
 
 #[cfg(test)]
 mod tests {

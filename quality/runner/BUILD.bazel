@@ -36,6 +36,7 @@ rust_library(
         "src/real/staging.rs",
         "src/real/tools_gen.rs",
         "src/real/web.rs",
+        "src/real/weeder.rs",
         "src/real_fix.rs",
         "src/request.rs",
     ],
@@ -179,6 +180,7 @@ rust_test(
         "src/real/staging.rs",
         "src/real/tools_gen.rs",
         "src/real/web.rs",
+        "src/real/weeder.rs",
         "src/real_core.rs",
         "src/real_delegated.rs",
         "src/real_fix.rs",
@@ -186,6 +188,7 @@ rust_test(
         "src/real_helm.rs",
         "src/real_periphery.rs",
         "src/real_tools.rs",
+        "src/real_weeder.rs",
         "src/request.rs",
     ],
     aliases = aliases(

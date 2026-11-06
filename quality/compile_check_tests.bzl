@@ -56,7 +56,7 @@ def compile_check_unit_tests(name):
             expect_equal(
                 "ghc keeps the wrapper argv and appends check-only flags to the extra args file",
                 ghc_check_argv([_GHC, "flags", "extra"], "tmp").options,
-                ["--append", "2", "tmp/extra_args", "--line", "-fno-code", "--line", "-fdiagnostics-as-json"] +
+                ["--append", "2", "tmp/extra_args", "--line", "-fno-code", "--line", "-fdiagnostics-as-json", "--line", "-fwrite-ide-info"] +
                 ["--line", "-odir", "--line", "tmp", "--line", "-hidir", "--line", "tmp", "--line", "-stubdir", "--line", "tmp"] +
                 ["--line", "-hiedir", "--line", "tmp", "--line", "-dumpdir", "--line", "tmp"],
             ),

@@ -4,6 +4,7 @@ cc_library(
     name = "cli",
     srcs = ["cli.c"],
     hdrs = ["cli.h"],
+    linkstatic = True,
     copts = ["-std=c11"],
     linkstatic = True,
     data = ["//cc/tests/fixtures/c-app/store:stock_json"],
@@ -22,6 +23,7 @@ cc_binary(
 cc_test(
     name = "cli_test",
     srcs = ["cli_test.c"],
+    linkstatic = True,
     copts = ["-std=c11"],
     data = [
         "//cc/tests/fixtures/c-app/store:negative_json",

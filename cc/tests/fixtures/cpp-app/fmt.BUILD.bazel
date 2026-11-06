@@ -4,6 +4,7 @@ cc_library(
     name = "fmt",
     srcs = ["src/format.cc"],
     hdrs = glob(["include/fmt/*.h"]),
+    linkstatic = True,
     copts = ["-std=c++17"],
     defines = select({
         "@platforms//os:windows": ["FMT_UNICODE=0"],

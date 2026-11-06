@@ -23,6 +23,7 @@ cc_library(
         "menu.h",
         ":build_config_h",
     ],
+    linkstatic = True,
     copts = ["-std=c++17"],
     data = ["menu.csv"],
     visibility = _PUBLIC,
@@ -31,6 +32,7 @@ cc_library(
 cc_test(
     name = "menu_test",
     srcs = ["menu_test.cc"],
+    linkstatic = True,
     copts = ["-std=c++17"],
     data = ["menu.csv"],
     deps = [

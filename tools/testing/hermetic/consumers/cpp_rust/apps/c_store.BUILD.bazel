@@ -28,6 +28,7 @@ cc_library(
         "store.h",
         ":store_build_h",
     ],
+    linkstatic = True,
     copts = ["-std=c11"],
     linkstatic = True,
     visibility = _PUBLIC,
@@ -37,6 +38,7 @@ cc_library(
 cc_test(
     name = "store_test",
     srcs = ["store_test.c"],
+    linkstatic = True,
     copts = ["-std=c11"],
     data = [
         "VERSION",
@@ -49,6 +51,7 @@ cc_test(
 cc_test(
     name = "linkage_test",
     srcs = ["linkage_test.cc"],
+    linkstatic = True,
     copts = ["-std=c++17"],
     data = ["stock.json"],
     deps = [":store"],

@@ -21,7 +21,7 @@ fn configure_uses_msvc() {
 fn ninja_generator_is_used() {
     let log = log();
     assert!(!log.contains("Visual Studio 1"));
-    assert!(!log.contains("NMake"));
+    assert!(log.to_lowercase().contains("ninja"));
 }
 
 #[test]

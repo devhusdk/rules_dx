@@ -54,13 +54,16 @@ dx_wrapper_contract_tests(
             ],
         ),
         expect_equal(
-            "linux and windows x86_64 cells are qualified",
+            "linux cells are qualified",
             cuda_qualified_cells(),
             [
                 "linux_x86_64",
-                "windows_x86_64",
                 "linux_arm64",
             ],
+        ),
+        expect_true(
+            "windows x86_64 is blocked",
+            len(CUDA_CELLS["windows_x86_64"].blocker) > 0,
         ),
         expect_equal(
             "linux arm64 is qualified",

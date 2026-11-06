@@ -236,6 +236,7 @@ const PKL_LOAD_ONLY_ARGS: &[&str] = &[
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
 const BICEP_FORMAT_CHECK_ARGS: &[&str] = &["format", "--newline-kind", "LF", "--stdout"];
 const BICEP_FORMAT_FIX_ARGS: &[&str] = &["format", "--newline-kind", "LF"];
+const BICEP_BUILD_ARGS: &[&str] = &["build", "--no-restore", "--stdout"];
 const BICEP_LINT_ARGS: &[&str] = &["lint", "--no-restore", "--diagnostics-format", "sarif"];
 const OPA_FMT_CHECK_ARGS: &[&str] = &["fmt"];
 const OPA_FMT_FIX_ARGS: &[&str] = &["fmt", "-w"];
@@ -2514,6 +2515,11 @@ pub fn bicep_format_check(binary: &Path, file: &Path) -> Invocation {
 /// `format --newline-kind LF FILE` rewrites the file in place.
 pub fn bicep_format_fix(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, BICEP_FORMAT_FIX_ARGS, &[file], "")
+}
+
+/// `build --no-restore --stdout FILE`: prints the ARM JSON template for one Bicep file.
+pub fn bicep_build_stdout(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, BICEP_BUILD_ARGS, &[file], "")
 }
 
 /// `lint --no-restore --diagnostics-format sarif FILE`; `--no-restore` keeps a `br:` module

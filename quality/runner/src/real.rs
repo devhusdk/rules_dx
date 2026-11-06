@@ -701,7 +701,13 @@ impl RealBackend {
                 return result;
             }
         }
-        if tool_id == "bicep" {
+        let bicep_argv0 = invocation.argv.first().map(Path::new);
+        let runs_bicep = tool_id == "bicep"
+            || tool
+                .path_tools
+                .iter()
+                .any(|(name, binary)| name == "bicep" && bicep_argv0 == Some(binary.as_path()));
+        if runs_bicep {
             let home = scratch.root().join(BICEP_HOME_REL);
             std::fs::create_dir_all(&home)
                 .map_err(|err| execution(tool_id, format!("bicep home: {err}")))?;

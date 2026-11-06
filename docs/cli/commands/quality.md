@@ -318,7 +318,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `tflint` | Lint Terraform | |
 | `bicep` | Format and lint Bicep | |
 | `cfn_lint` | Lint CloudFormation | |
-| `trivy_config` | Lint Dockerfiles, Kubernetes, Helm charts, Terraform and CloudFormation for misconfigurations; opt-in | bicep: trivy does not read Bicep |
+| `trivy_config` | Lint Dockerfiles, Kubernetes, Helm charts, Terraform, CloudFormation and Bicep (through `bicep build`) for misconfigurations; opt-in | |
 | `nixfmt` | Format Nix | all but `linux_x86_64` |
 | `deadnix`, `statix` | Lint Nix | |
 | `opa` | Format and typecheck Rego | |

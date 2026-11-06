@@ -11,6 +11,12 @@ TOOLS = {
         "resources": "medium",
         "shard": "bicep",
     },
+    "trivy_config": {
+        "attr": attr.label(default = "//config:tool_trivy", allow_single_file = True, cfg = "exec"),
+        "kind": "file",
+        "resources": "light",
+        "shard": "bicep",
+    },
 }
 
 SHARD_SPECS = {
@@ -45,11 +51,22 @@ def _bicep_hook(target, _ctx, _resolved, _capability, _what, _shared):
         pairs.append((ws_path, f, False))
     return real_context(tool_files = tool_files, inputs = inputs, resolve_pairs = pairs)
 
+def _trivy_hook(target, ctx, resolved, capability, what, shared):
+    context = _bicep_hook(target, ctx, resolved, capability, what, shared)
+    if BicepInfo not in target:
+        return context
+    return real_context(
+        tool_files = context.tool_files,
+        inputs = context.inputs + [ctx.file._bicep],
+        resolve_pairs = context.resolve_pairs,
+        options = {"path_tools": [("bicep", ctx.file._bicep)]},
+    )
 
-HOOK_ORDER = ["bicep"]
+HOOK_ORDER = ["bicep", "trivy_config"]
 
 HOOKS = {
     "bicep": _bicep_hook,
+    "trivy_config": _trivy_hook,
 }
 
 _CFG = real_config(

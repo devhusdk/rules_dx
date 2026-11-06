@@ -119,7 +119,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
-| Bicep | `bicep`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
+| Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
 | Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64), `typos` | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | n/a | n/a |
 | CloudFormation | `cfn_lint`, `trivy_config`, `typos` | no | n/a | n/a | n/a | n/a |
 | CSS | `stylelint`, `typos` | `prettier` | no | n/a | n/a | n/a |

@@ -345,6 +345,9 @@ pub(super) const TOOLS: &[ToolDef] = &[
             if let Some(chart_root) = helm_chart_root(tool) {
                 return scan_chart(backend, call, &cache, &chart_root);
             }
+            if let Some((_, bicep)) = tool.path_tools.iter().find(|(name, _)| name == "bicep") {
+                return scan_bicep(backend, call, &cache, bicep);
+            }
             let (_, names) = super::single_run::paths(call);
             let mut findings = Vec::new();
             for name in &names {
@@ -660,6 +663,57 @@ fn scan_chart(
     let mut findings = parsed(tool_id, report)?;
     for found in &mut findings {
         if let Some((_, absolute)) = staged.iter().find(|(rel, _)| *rel == found.file) {
+            found.file = absolute.to_string_lossy().into_owned();
+        }
+        found.finding.start = TextPosition { line: 1, column: 1 };
+        found.finding.end = None;
+    }
+    Ok(findings)
+}
+
+const ARM_DIR_REL: &str = "dx-bicep-arm";
+
+/// Trivy does not read Bicep, so each file is built to ARM JSON and the staged templates are
+/// scanned together. ARM lines do not map to Bicep lines, so findings land on line 1.
+fn scan_bicep(
+    backend: &RealBackend,
+    call: &super::check::CheckCall,
+    cache: &Path,
+    bicep: &Path,
+) -> Result<Vec<parsers::FileFinding>, RunnerError> {
+    let tool_id = call.tool_id;
+    let scratch = &call.staged.scratch;
+    let arm_dir = scratch.root().join(ARM_DIR_REL);
+    std::fs::create_dir_all(&arm_dir)
+        .map_err(|err| execution(tool_id, format!("arm dir: {err}")))?;
+    let mut built: Vec<(String, &Path)> = Vec::new();
+    for (index, (workspace, absolute)) in call.staged.pairs.iter().enumerate() {
+        let invocation = commands::bicep_build_stdout(bicep, absolute);
+        let out = backend.run(tool_id, call.tool, &invocation, scratch)?;
+        if out.code != Some(0) {
+            return Err(execution(
+                tool_id,
+                format!(
+                    "bicep build {workspace} failed: {}",
+                    String::from_utf8_lossy(&out.stderr).trim()
+                ),
+            ));
+        }
+        let name = format!("{index}.json");
+        std::fs::write(arm_dir.join(&name), &out.stdout)
+            .map_err(|err| execution(tool_id, format!("write {name}: {err}")))?;
+        built.push((name, absolute.as_path()));
+    }
+    if built.is_empty() {
+        return Ok(Vec::new());
+    }
+    let names: Vec<&str> = built.iter().map(|(name, _)| name.as_str()).collect();
+    let invocation = commands::trivy_config_check(&call.tool.binary, &arm_dir, cache);
+    let out = backend.run(tool_id, call.tool, &invocation, scratch)?;
+    let report = parsers::parse_trivy_config(&out.stdout, &out.stderr, out.code, &names);
+    let mut findings = parsed(tool_id, report)?;
+    for found in &mut findings {
+        if let Some((_, absolute)) = built.iter().find(|(name, _)| *name == found.file) {
             found.file = absolute.to_string_lossy().into_owned();
         }
         found.finding.start = TextPosition { line: 1, column: 1 };

@@ -2702,11 +2702,20 @@ TOOLS = [
             ),
         ],
     ),
-    # No bicep row: trivy does not read Bicep.
     tool(
         id = "trivy_config",
-        adapters = {"lint": ["cloudformation", "dockerfile", "helm", "kubernetes", "terraform"]},
+        adapters = {"lint": ["bicep", "cloudformation", "dockerfile", "helm", "kubernetes", "terraform"]},
         support = [
+            row(
+                capability = "lint",
+                classes = ["bicep"],
+                context = "owned",
+                family = "bicep",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+                state = "supported",
+                transport = "single",
+            ),
             row(
                 capability = "lint",
                 classes = ["cloudformation"],

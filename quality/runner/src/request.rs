@@ -29,6 +29,7 @@ pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
     ("vale", &["rst2html", "asciidoctor"]),
     ("deadcode", &["go", "deadcode"]),
     ("helm", &["kubeconform"]),
+    ("trivy_config", &["bicep"]),
     ("pkl_lsp", &["java", "pkl-lsp.jar"]),
 ];
 

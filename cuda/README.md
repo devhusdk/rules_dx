@@ -63,6 +63,10 @@ cuda_library(
 - `cuda_binary`: a `cc_binary`. Its `.cu` and `.cuh` sources go through a
   `cuda_library` with the same `platforms`. The other sources compile as C++.
 - `cuda_test`: the same as `cuda_binary`, as a `cc_test`.
+
+`defines` and `local_defines` on `cuda_binary` and `cuda_test` apply to all
+srcs. `copts` and `features` apply to the host srcs only. `cuda_copts` goes
+to nvcc.
 - `cuda_objects`: compiles `srcs` into relocatable device objects without
   linking them. It only goes into `deps` of a `cuda_library`, `cuda_binary`
   or `cuda_test` with `rdc = True`.

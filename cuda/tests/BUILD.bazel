@@ -58,6 +58,13 @@ rust_test(
 )
 
 dx_hello_output_test(
+    name = "defines_output_test",
+    binary = "//cuda/tests/fixtures/executable:defines_binary",
+    expected = "defines ok",
+    target_compatible_with = CUDA_TARGET,
+)
+
+dx_hello_output_test(
     name = "rdc_output_test",
     binary = "//cuda/tests/fixtures/rdc:rdc_app",
     expected = "rdc n=1024 sum=1048576",

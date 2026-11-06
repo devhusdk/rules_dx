@@ -1269,6 +1269,7 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plu
         binary = binary,
         display_plugins = select({
             "@platforms//os:macos": [qt + "//:display_cocoa"] if len(display) > 0 else [],
+            "@platforms//os:windows": [],
             "//conditions:default": [qt + "//:display_" + platform for platform in display],
         }),
         license_files = [qt + "//:licenses"] + licenses,

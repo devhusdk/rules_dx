@@ -69,12 +69,13 @@ _for_platform = rule(
     },
 )
 
-def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd64"]):
+def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd64"], tags = []):
     """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
 
     One platform gives an oci_image and an oci_load target named name + "_load".
     Several platforms give an oci_image_index of one image per platform, and
-    name + "_load" loads the image of the first platform.
+    name + "_load" loads the image of the first platform. tags apply to the
+    image, index and load targets.
     """
     error = image_options_error(binary, base, platforms)
     if error != "":
@@ -104,6 +105,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
             name = image,
             base = IMAGE_BASES[base],
             entrypoint = ["/app/" + app],
+            tags = tags,
             tars = [name + "_layer" + suffix],
         )
         images.append(image)
@@ -112,6 +114,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
         name = name + "_load",
         image = images[0],
         repo_tags = [name + ":latest"],
+        tags = tags,
     )
 
     if single:
@@ -120,4 +123,5 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     oci_image_index(
         name = name,
         images = images,
+        tags = tags,
     )

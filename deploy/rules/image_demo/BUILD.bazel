@@ -52,6 +52,7 @@ oci_image_from_binary(
     name = "image_cc",
     base = "cc",
     binary = ":hello_cc",
+    tags = ["manual"],
 )
 
 zig_binary(

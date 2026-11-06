@@ -1936,7 +1936,10 @@ fn run_all(
     let isolation = Isolation::plan_with(&host, &shim, &keep, real_home.as_deref())?;
     let ambient = ambient_tools(&host.tool_dirs, AMBIENT_TOOLS)
         .into_iter()
-        .find(|(_, path)| isolation.tools.contains(path))
+        .find(|(_, path)| {
+            isolation.tools.contains(path)
+                || (cfg!(windows) && isolation.sdk_dirs.iter().any(|dir| covers(dir, path)))
+        })
         .map(|(name, _)| name)
         .ok_or("no ambient compiler or interpreter on this host for the ambient-tool probe")?;
     if cfg!(windows) {

@@ -46,6 +46,7 @@ go_library(
         "jvmplatform.go",
         "langcore.go",
         "manifest.go",
+        "modulefile.go",
         "moduledeps.go",
         "naming.go",
         "policyconfig.go",

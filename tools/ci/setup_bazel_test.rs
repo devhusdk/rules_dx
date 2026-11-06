@@ -241,6 +241,9 @@ fn step_condition(step: &serde_json::Value) -> &str {
 
 const LOCATE: &str = "Locate the Bazel repository cache";
 const RESTORE: &str = "Restore the Bazel repository cache";
+const RESOLVE: &str = "Resolve the setup inputs";
+const CONTENTS_LOCATE: &str = "Locate the Bazel repo contents cache";
+const CONTENTS_RESTORE: &str = "Restore the Bazel repo contents cache";
 const ACTION_FILE: &str = ".github/actions/setup-bazel/action.yml";
 
 fn action_document() -> serde_json::Value {
@@ -301,6 +304,71 @@ fn the_setup_bazel_action_restores_the_repository_cache() {
             "{ACTION_FILE} must expose {output}"
         );
     }
+}
+
+fn without_condition(step: &serde_json::Value) -> serde_json::Value {
+    let mut step = step.clone();
+    if let Some(map) = step.as_object_mut() {
+        map.remove("if");
+    }
+    step
+}
+
+fn action_input_default(action: &serde_json::Value, input: &str) -> String {
+    action["inputs"][input]["default"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{ACTION_FILE} has no {input} input default"))
+        .to_owned()
+}
+
+#[test]
+fn the_setup_bazel_action_inputs_default_to_what_any_repository_can_use() {
+    let action = action_document();
+    for input in ["bazelisk-version", "repo-cache", "bazelrc"] {
+        assert_eq!(action_input_default(&action, input), "", "{input}");
+    }
+    let resolve = action_step(&action, RESOLVE);
+    let run = resolve["run"].as_str().unwrap();
+    assert!(
+        run.contains(&format!("[ -f {PIN_ENV} ]")),
+        "{ACTION_FILE} must read {PIN_ENV} only when it exists"
+    );
+    assert!(run.contains("mode=contents") && run.contains("mode=none"));
+    assert!(run.contains("$HOME/.bazelrc"));
+    assert!(run.contains("BAZEL_SH=$(cygpath -m /usr/bin/bash.exe)"));
+    let steps = action["runs"]["steps"].as_array().unwrap();
+    let upstream = steps
+        .iter()
+        .find(|step| {
+            step["uses"]
+                .as_str()
+                .is_some_and(|uses| uses.starts_with(UPSTREAM_ACTION))
+        })
+        .expect("upstream setup-bazel step");
+    assert!(
+        action_index(steps, RESOLVE) < action_index(steps, LOCATE),
+        "{ACTION_FILE} must write ~/.bazelrc and BAZEL_SH before the first bazel call"
+    );
+    assert_eq!(upstream["with"]["bazelisk-cache"].as_bool(), Some(false));
+}
+
+#[test]
+fn the_repo_contents_cache_restores_one_exact_key() {
+    let action = action_document();
+    let restore = action_step(&action, CONTENTS_RESTORE);
+    assert!(restore["with"].get("restore-keys").is_none());
+    assert_eq!(
+        restore["with"]["key"].as_str(),
+        Some(repo_cache_key("dx-contents-${{ runner.os }}-${{ runner.arch }}-").as_str())
+    );
+    assert_eq!(
+        step_condition(&action_step(&action, CONTENTS_LOCATE)),
+        "steps.pin.outputs.repo-cache == 'contents'"
+    );
+    assert_eq!(
+        step_condition(&action_step(&action, LOCATE)),
+        "steps.pin.outputs.repo-cache == 'download'"
+    );
 }
 
 fn action_index(steps: &[serde_json::Value], name: &str) -> usize {
@@ -417,8 +485,8 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                 );
                 for (index, step_name) in [(locate, LOCATE), (restore, RESTORE)] {
                     assert_eq!(
-                        steps[index],
-                        action_step(&action, step_name),
+                        without_condition(&steps[index]),
+                        without_condition(&action_step(&action, step_name)),
                         "{name} job {job} step {index} differs from the setup-bazel action"
                     );
                 }

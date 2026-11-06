@@ -128,7 +128,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | GitHub workflows | `actionlint`, `zizmor` | `yamlfmt` | no | n/a | n/a | n/a |
 | GraphQL | `graphql_eslint`, `typos` | `prettier` | no | n/a | n/a | n/a |
-| Helm | `helm`, `typos` | no | n/a | n/a | n/a | n/a |
+| Helm | `helm`, `trivy_config`, `typos` | no | n/a | n/a | n/a | n/a |
 | HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |
 | Jsonnet | `jsonnet_lint`, `typos` | `jsonnetfmt` | n/a | n/a | n/a | n/a |
 | Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a | n/a |

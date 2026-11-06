@@ -34,12 +34,12 @@ SHARD_SPECS = {
     },
 }
 
-def _helm_context(target, ctx, what):
+def _helm_context(target, ctx, what, tool = "helm"):
     """Returns the chart context file for one helm_chart target."""
     if HelmChartInfo not in target:
         fail(what + ": helm needs a helm_chart target")
     chart = target[HelmChartInfo]
-    context = ctx.actions.declare_file(target.label.name + "-helm-context.json")
+    context = ctx.actions.declare_file(target.label.name + "-" + tool + "-context.json")
     ctx.actions.write(
         output = context,
         content = json.encode({
@@ -72,9 +72,24 @@ def _helm_hook(target, ctx, _resolved, _capability, what, _shared):
         options = {"path_tools": [("kubeconform", ctx.file._kubeconform)]},
     )
 
-HOOK_ORDER = ["helm"]
+def _trivy_hook(target, ctx, _resolved, _capability, what, _shared):
+    if HelmChartInfo not in target:
+        return real_context()
+    context = _helm_context(target, ctx, what, "trivy")
+    tool_files = []
+    inputs = []
+    stage(tool_files, inputs, "dx-helm/context.json", context)
+    pairs = []
+    for f in target[HelmChartInfo].dependencies:
+        ws_path = f.short_path
+        if ".." in ws_path.split("/") or ws_path.startswith("../"):
+            continue
+        pairs.append((ws_path, f, False))
+    return real_context(tool_files = tool_files, inputs = inputs, resolve_pairs = pairs)
 
-HOOKS = {"helm": _helm_hook}
+HOOK_ORDER = ["helm", "trivy_config"]
+
+HOOKS = {"helm": _helm_hook, "trivy_config": _trivy_hook}
 
 _CFG = real_config(
     tools = TOOLS,

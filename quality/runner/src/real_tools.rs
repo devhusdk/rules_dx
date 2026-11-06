@@ -3573,6 +3573,55 @@ fn trivy_config_reports_a_dockerfile_without_a_user() {
         .is_empty());
 }
 
+fn trivy_chart_tool(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let dir = last_file(argv);
+    assert!(
+        Path::new(&dir).ends_with("chart"),
+        "trivy scans the chart directory"
+    );
+    let report = serde_json::json!({
+        "SchemaVersion": 2,
+        "Results": [{"Target": "templates/pod.yaml", "Misconfigurations": [{
+            "ID": "KSV-0017",
+            "Title": "Privileged",
+            "Severity": "HIGH",
+            "CauseMetadata": {"StartLine": 8, "EndLine": 9},
+        }]}],
+    });
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: report.to_string().into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn trivy_config_scans_a_helm_chart_directory() {
+    let tool = RealTool {
+        tool_files: vec![(
+            "dx-helm/context.json".to_owned(),
+            br#"{"chart_root":"chart","schema_version":1}"#.to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let backend = backend_for("trivy_config", tool, trivy_chart_tool);
+    let findings = backend
+        .diagnose(
+            "trivy_config",
+            "lint",
+            &single("chart/templates/pod.yaml", "kind: Pod\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "KSV-0017");
+    assert_eq!(findings[0].path, "chart/templates/pod.yaml");
+}
+
 const DEADNIX_DIRTY: &str = "let\n  a = 1;\nin\n2\n";
 
 fn deadnix_tool(

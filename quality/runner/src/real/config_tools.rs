@@ -1,4 +1,4 @@
-use quality_adapter::{commands, parsers};
+use quality_adapter::{commands, parsers, TextPosition};
 
 use super::check::{group_by_parent, unused_roots, without_scratch_url, ToolDef};
 use super::*;
@@ -341,8 +341,11 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let tool_id = call.tool_id;
             let tool = call.tool;
             let scratch = &call.staged.scratch;
-            let (_, names) = super::single_run::paths(call);
             let cache = scratch.root().join("dx-trivy-cache");
+            if let Some(chart_root) = helm_chart_root(tool) {
+                return scan_chart(backend, call, &cache, &chart_root);
+            }
+            let (_, names) = super::single_run::paths(call);
             let mut findings = Vec::new();
             for name in &names {
                 let invocation =
@@ -606,3 +609,50 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
 ];
+
+/// The chart root from the helm context the aspect stages for a helm_chart target.
+fn helm_chart_root(tool: &RealTool) -> Option<String> {
+    let (_, bytes) = tool
+        .tool_files
+        .iter()
+        .find(|(rel, _)| rel == "dx-helm/context.json")?;
+    let doc: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    Some(doc.get("chart_root")?.as_str()?.to_owned())
+}
+
+/// Trivy renders a chart itself, so the chart directory is scanned once and each finding
+/// lands on the chart file it names. Lines refer to the rendered manifest, so they reset to 1.
+fn scan_chart(
+    backend: &RealBackend,
+    call: &super::check::CheckCall,
+    cache: &Path,
+    chart_root: &str,
+) -> Result<Vec<parsers::FileFinding>, RunnerError> {
+    let tool_id = call.tool_id;
+    let scratch = &call.staged.scratch;
+    let chart_abs = if chart_root.is_empty() {
+        scratch.root().to_path_buf()
+    } else {
+        scratch
+            .resolve(Path::new(chart_root))
+            .map_err(|err| execution(tool_id, format!("chart root: {err}")))?
+    };
+    let relative: Vec<String> = call
+        .staged
+        .pairs
+        .iter()
+        .filter_map(|(_, absolute)| absolute.strip_prefix(&chart_abs).ok())
+        .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+        .collect();
+    let relative: Vec<&str> = relative.iter().map(String::as_str).collect();
+    let invocation = commands::trivy_config_check(&call.tool.binary, &chart_abs, cache);
+    let out = backend.run(tool_id, call.tool, &invocation, scratch)?;
+    let report = parsers::parse_trivy_config(&out.stdout, &out.stderr, out.code, &relative);
+    let mut findings = parsed(tool_id, report)?;
+    for found in &mut findings {
+        found.file = chart_abs.join(&found.file).to_string_lossy().into_owned();
+        found.finding.start = TextPosition { line: 1, column: 1 };
+        found.finding.end = None;
+    }
+    Ok(findings)
+}

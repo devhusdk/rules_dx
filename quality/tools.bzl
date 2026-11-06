@@ -2704,7 +2704,7 @@ TOOLS = [
     ),
     tool(
         id = "trivy_config",
-        adapters = {"lint": ["cloudformation", "dockerfile", "kubernetes", "terraform"]},
+        adapters = {"lint": ["cloudformation", "dockerfile", "helm", "kubernetes", "terraform"]},
         support = [
             row(
                 capability = "lint",
@@ -2721,6 +2721,16 @@ TOOLS = [
                 classes = ["dockerfile"],
                 context = "owned",
                 family = "dockerfile",
+                fix = "check_only",
+                platforms = ["linux_x86_64"],
+                state = "supported",
+                transport = "single",
+            ),
+            row(
+                capability = "lint",
+                classes = ["helm"],
+                context = "owned",
+                family = "helm",
                 fix = "check_only",
                 platforms = ["linux_x86_64"],
                 state = "supported",

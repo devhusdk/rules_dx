@@ -6,6 +6,7 @@ pub mod js;
 pub mod julia;
 pub mod jvm;
 pub mod perl;
+pub mod php;
 pub mod python;
 pub mod ruby;
 pub mod rust;

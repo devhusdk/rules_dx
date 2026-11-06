@@ -18,6 +18,7 @@ rust_library(
         "src/ecosystem/jvm.rs",
         "src/ecosystem/mod.rs",
         "src/ecosystem/perl.rs",
+        "src/ecosystem/php.rs",
         "src/ecosystem/python.rs",
         "src/ecosystem/ruby.rs",
         "src/ecosystem/rust.rs",
@@ -86,6 +87,7 @@ rust_test(
         ":julia_testdata",
         ":kotlin_testdata",
         ":perl_testdata",
+        ":php_testdata",
         ":python_testdata",
         ":ruby_testdata",
         ":rust_testdata",
@@ -262,6 +264,7 @@ rust_test(
         "zig",
         "julia",
         "dart",
+        "php",
     ]
 ]
 

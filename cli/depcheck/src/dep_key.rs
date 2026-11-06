@@ -13,5 +13,6 @@ pub(crate) fn normalize_dep_key(eco: Ecosystem, raw: &str) -> String {
         Ecosystem::Ruby => normalize_lower(raw),
         Ecosystem::Perl | Ecosystem::Zig | Ecosystem::Julia => raw.to_owned(),
         Ecosystem::Dart => normalize_lower(raw),
+        Ecosystem::Php => normalize_lower(raw),
     }
 }

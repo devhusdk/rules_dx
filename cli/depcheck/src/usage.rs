@@ -82,6 +82,8 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         Ecosystem::Julia => name == "runtests.jl" || s.contains("/test/") || s.contains("/tests/"),
         Ecosystem::Zig => {
             name.ends_with("_test.zig") || s.contains("/test/") || s.contains("/tests/")
+        Ecosystem::Php => {
+            name.ends_with("Test.php") || s.contains("/tests/") || s.contains("/Tests/")
         }
         Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
     }
@@ -93,6 +95,7 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         ".scala", ".cs", ".fs", ".fsi", ".fsx", ".cc", ".cpp", ".cxx", ".c", ".h", ".hpp", ".rb",
         ".pl", ".pm", ".t", ".psgi", ".zig", ".jl", ".dart",
         "analysis_options.yaml",
+        ".pl", ".pm", ".t", ".psgi", ".php",
     ]
     .into_iter()
     .collect()
@@ -126,6 +129,8 @@ fn skip_names() -> BTreeSet<&'static str> {
         "JuliaManifest.toml",
         "pubspec.yaml",
         "pubspec.lock",
+        "composer.json",
+        "composer.lock",
     ]
     .into_iter()
     .collect()
@@ -209,6 +214,30 @@ fn jvm_patterns(dep: &str) -> Vec<String> {
         .iter()
         .map(|name| format!(r"{head}{prefix}{}(?:\.|\b)", regex_escape(name)))
         .collect()
+}
+
+/// Composer names are `vendor/package`; namespaces follow the vendor (`GuzzleHttp\\`) or put the
+/// package below it (`Symfony\\Component\\Console`). Matching is case-insensitive.
+fn php_patterns(dep: &str) -> Vec<String> {
+    let (vendor, package) = dep.split_once('/').unwrap_or((dep, dep));
+    let separators = |name: &str| {
+        name.split(['-', '_', '.'])
+            .map(regex_escape)
+            .collect::<Vec<_>>()
+            .join("[-_.]?")
+    };
+    let vendor_ns = separators(vendor);
+    let package_ns = package
+        .split(['-', '_', '.'])
+        .map(regex_escape)
+        .collect::<String>();
+    let head = r"(?mi)(?:^\s*use\s+(?:function\s+|const\s+)?\\?|[\s(,=!]\\)";
+    let mut patterns = vec![format!(r"{head}{vendor_ns}\\(?:\w+\\)*{package_ns}\b")];
+    let near = vendor == package || vendor.starts_with(package) || package.starts_with(vendor);
+    if near {
+        patterns.push(format!(r"{head}{vendor_ns}\\"));
+    }
+    patterns
 }
 
 fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError> {
@@ -298,6 +327,7 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(r#"(?m)^\s*include:\s*['"]?package:{dep}/"#),
             ]
         }
+        Ecosystem::Php => php_patterns(dep),
         Ecosystem::Ruby => vec![
             format!(r#"(?m)^\s*require\s+['"]{}['"]"#, regex_escape(dep)),
             format!(
@@ -345,7 +375,9 @@ pub(crate) fn find_first_imports(
         let forms = [name.clone(), name.replace('-', "_"), name.replace('_', "-")];
         let hits: Vec<&(String, String)> = texts
             .iter()
-            .filter(|(_, text)| forms.iter().any(|form| text.contains(form.as_str())))
+            .filter(|(_, text)| {
+                eco == Ecosystem::Php || forms.iter().any(|form| text.contains(form.as_str()))
+            })
             .collect();
         if hits.is_empty() {
             continue;

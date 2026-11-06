@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::ecosystem::{
-    cc, dart, dotnet, go, js, julia, jvm, parse_paren_lock, perl, python, ruby, rust, zig,
+    cc, dart, dotnet, go, js, julia, jvm, parse_paren_lock, perl, php, python, ruby, rust, zig,
 };
 use crate::version::satisfies_for;
 use crate::{DepInfo, DepcheckError, Ecosystem, LockVersions, WorkspaceLocks};
@@ -24,6 +24,7 @@ pub(crate) fn load_manifest(
         Ecosystem::Zig => zig::parse_zig_manifest(manifest),
         Ecosystem::Julia => julia::parse_julia_manifest(manifest),
         Ecosystem::Dart => dart::parse_dart_manifest(manifest),
+        Ecosystem::Php => php::parse_php_manifest(manifest),
     }
 }
 
@@ -49,6 +50,7 @@ fn load_lock(eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError>
         Ecosystem::Zig => single(zig::parse_zig_lock(lock)),
         Ecosystem::Julia => single(julia::parse_julia_lock(lock)),
         Ecosystem::Dart => dart::parse_dart_lock(lock),
+        Ecosystem::Php => single(php::parse_php_lock(lock)),
     }
 }
 

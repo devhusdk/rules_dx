@@ -1,7 +1,7 @@
 """Analysis test for the C/C++ tool identity of cargo build script actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
+load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT", "msvc_crt_static_settings")
 
 def _relative(value):
     if value.startswith("${pwd}/"):
@@ -382,7 +382,8 @@ def _link_windows_impl(ctx):
 
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
-_link_msvc_test = analysistest.make(_link_msvc_impl, config_settings = {_COMPILER: "msvc"})
+# Windows builds Rust with +crt-static, so the forwarder moves the crate under test to the static CRT; match it.
+_link_msvc_test = analysistest.make(_link_msvc_impl, config_settings = {_COMPILER: "msvc"} | msvc_crt_static_settings([]))
 
 # The forwarder's static CRT settings, so the crate under test and the upstream share one build script config.
 _link_windows_test = analysistest.make(_link_windows_impl, config_settings = {

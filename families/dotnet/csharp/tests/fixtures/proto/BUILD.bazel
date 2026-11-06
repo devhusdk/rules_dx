@@ -11,7 +11,9 @@ proto_library(
     name = "order_proto",
     srcs = [
         "a.proto",
+        "auth_2fa.proto",
         "b.proto",
+        "user-v1.proto",
     ],
     deps = ["@protobuf//:timestamp_proto"],
 )

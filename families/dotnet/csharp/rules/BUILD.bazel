@@ -19,7 +19,17 @@ dx_wrapper_contract_tests(
         expect_equal(
             "proto file names are Pascal case",
             [pascal_case("user"), pascal_case("user_profile"), pascal_case("v2beta")],
-            ["User", "UserProfile", "V2beta"],
+            ["User", "UserProfile", "V2Beta"],
+        ),
+        expect_equal(
+            "separators other than underscore are dropped",
+            [pascal_case("foo-bar"), pascal_case("user.v1"), pascal_case("foo_2fa"), pascal_case("v1_2beta")],
+            ["FooBar", "UserV1", "Foo2Fa", "V12Beta"],
+        ),
+        expect_equal(
+            "edge cases follow protoc",
+            [pascal_case("_1foo"), pascal_case("FOO_bar"), pascal_case("a#")],
+            ["_1Foo", "FOOBar", "A_"],
         ),
         expect_equal(
             "a letter after a digit is capitalised",

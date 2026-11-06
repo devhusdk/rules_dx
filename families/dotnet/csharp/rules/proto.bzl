@@ -3,18 +3,25 @@
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 
 def pascal_case(name):
-    """Returns name the way protoc spells a C# file: a_b_c becomes ABC, with a letter after a digit capitalised too."""
+    """Returns the .cs base name protoc's C# generator writes for a proto basename."""
     out = ""
-    upper = True
+    cap_next = True
     for ch in name.elems():
-        if ch == "_":
-            upper = True
-        elif upper:
-            out += ch.upper()
-            upper = False
-        else:
+        if "a" <= ch and ch <= "z":
+            out += ch.upper() if cap_next else ch
+            cap_next = False
+        elif "A" <= ch and ch <= "Z":
             out += ch
-            upper = ch.isdigit()
+            cap_next = False
+        elif "0" <= ch and ch <= "9":
+            out += ch
+            cap_next = True
+        else:
+            cap_next = True
+    if name.endswith("#"):
+        out += "_"
+    if out and "0" <= out[0] and out[0] <= "9" and name.startswith("_"):
+        out = "_" + out
     return out
 
 def _paths(proto_info):

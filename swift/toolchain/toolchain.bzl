@@ -56,7 +56,7 @@ def swift_linux_toolchain(name, cpu):
     archive = "@dx_swift_linux_" + cpu
     sysroot = "@dx_swift_sysroot_linux_" + cpu
     sysroot_root = Label(sysroot + "//:files").workspace_root
-    tags = ["manual"] if cpu == "aarch64" else []
+    tags = ["manual"]
 
     swift_tools(
         name = "tools_" + cpu,

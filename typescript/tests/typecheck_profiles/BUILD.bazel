@@ -44,12 +44,14 @@ ts_config(
         srcs = ["src/main.ts"],
         isolated_typecheck = False,
         out_dir = profile,
+        tags = tags,
         transpiler = "tsc",
         tsconfig = ":%s_config" % profile,
     )
-    for profile in [
-        "standard",
-        "strict",
+    for profile, tags in [
+        ("standard", []),
+        # strict fails on purpose (TS6133); strict_test diffs the tsc output instead.
+        ("strict", ["manual"]),
     ]
 ]
 

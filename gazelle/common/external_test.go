@@ -384,6 +384,37 @@ func TestExternalNpmWorkspaceImporters(t *testing.T) {
 	}
 }
 
+func TestPnpmWorkspaceMemberSyntax(t *testing.T) {
+	for _, tc := range []struct {
+		name, yaml string
+		in, out    []string
+	}{
+		{"comment", "packages:\n  - \"apps/*\" # front-ends\n", []string{"apps/ui"}, []string{"other"}},
+		{"flow", "packages: ['apps/*', \"libs/*\"]  # all\n", []string{"apps/ui", "libs/core"}, []string{"other"}},
+		{"empty", "packages: []\n", nil, []string{"apps/ui"}},
+		{"negation", "packages:\n  - 'apps/*'\n  - '!apps/skip'\n", []string{"apps/ui"}, []string{"apps/skip"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			dotFile(t, root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+			dotFile(t, root, "pnpm-workspace.yaml", tc.yaml)
+			for _, rel := range append(append([]string{}, tc.in...), tc.out...) {
+				dotFile(t, root, rel+"/package.json", "{}")
+			}
+			for _, rel := range tc.in {
+				if !IsPnpmWorkspaceMember(root, rel) {
+					t.Errorf("%s should be a member", rel)
+				}
+			}
+			for _, rel := range tc.out {
+				if IsPnpmWorkspaceMember(root, rel) {
+					t.Errorf("%s should not be a member", rel)
+				}
+			}
+		})
+	}
+}
+
 func TestExternalNpmBOM(t *testing.T) {
 	cfg, root := externalConfig(t)
 	dotFile(t, root, "package.json", "\xEF\xBB\xBF"+`{"dependencies":{"react":"1"}}`)

@@ -2,7 +2,7 @@ diff --git a/BUILD.bazel b/BUILD.bazel
 new file mode 100644
 --- /dev/null
 +++ b/BUILD.bazel
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,56 @@
 +load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 +load("@rules_cc//cc:cc_library.bzl", "cc_library")
 +
@@ -34,7 +34,6 @@ new file mode 100644
 +        "@platforms//os:ios": ["LUA_USE_IOS"],
 +        "@platforms//os:linux": ["LUA_USE_LINUX"],
 +        "@platforms//os:macos": ["LUA_USE_MACOSX"],
-+        "@platforms//os:windows": ["LUA_USE_WINDOWS"],
 +        "//conditions:default": [],
 +    }),
 +    strip_include_prefix = "src",

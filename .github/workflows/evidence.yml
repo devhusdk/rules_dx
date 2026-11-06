@@ -79,9 +79,13 @@ jobs:
         shell: pwsh
         run: |
           Set-MpPreference -DisableRealtimeMonitoring $true
-          Add-MpPreference -ExclusionPath $env:GITHUB_WORKSPACE, $env:RUNNER_TEMP, 'D:\_bazel', 'D:\bz', 'C:\bz', "$env:LOCALAPPDATA\bazelisk"
-          New-Item -ItemType Directory -Force -Path D:\bz | Out-Null
-          New-Item -ItemType Junction -Path C:\bz -Target D:\bz | Out-Null
+          $paths = @($env:GITHUB_WORKSPACE, $env:RUNNER_TEMP, 'C:\bz', "$env:LOCALAPPDATA\bazelisk")
+          if (Test-Path D:\) {
+            $paths += 'D:\_bazel', 'D:\bz'
+            New-Item -ItemType Directory -Force -Path D:\bz | Out-Null
+            New-Item -ItemType Junction -Path C:\bz -Target D:\bz | Out-Null
+          }
+          Add-MpPreference -ExclusionPath $paths
       - name: Free disk space
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |

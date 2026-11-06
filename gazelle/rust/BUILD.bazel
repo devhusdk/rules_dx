@@ -122,7 +122,6 @@ go_test(
 
 real_source_target(
     name = "corpus_markdown",
-    aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
         "testdata/cargo/README.md",
         "testdata/cargo_workspace/README.md",

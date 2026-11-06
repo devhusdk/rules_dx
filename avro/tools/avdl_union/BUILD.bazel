@@ -6,7 +6,6 @@ package(default_visibility = ["//avro:__subpackages__"])
 java_binary(
     name = "avdl_union",
     srcs = ["AvdlUnion.java"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
     main_class = "dx.avro.tools.AvdlUnion",
     deps = ["//quality/tools/jvm:avro_tools_import"],
 )

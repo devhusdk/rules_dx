@@ -34,28 +34,6 @@ func isGeneratedCorpusName(name string) bool {
 	return false
 }
 
-const corpusValeHint = "//quality:corpus_vale_config"
-
-const corpusBuildifierHint = "//:buildifier_config"
-
-const corpusBiomeHint = "//:biome_config"
-
-func rootBuildifierConfig(repoRoot string) bool {
-	if repoRoot == "" {
-		return false
-	}
-	_, err := os.Stat(filepath.Join(repoRoot, ".buildifier.json"))
-	return err == nil
-}
-
-func rootBiomeConfig(repoRoot string) bool {
-	if repoRoot == "" {
-		return false
-	}
-	_, err := os.Stat(filepath.Join(repoRoot, "biome.json"))
-	return err == nil
-}
-
 const corpusTag = "corpus"
 
 func corpusKinds() map[string]rule.KindInfo {
@@ -68,7 +46,6 @@ func corpusKinds() map[string]rule.KindInfo {
 				"toml_srcs":         true,
 				"json_srcs":         true,
 				"markdown_siblings": true,
-				"aspect_hints":      true,
 			},
 			MergeableAttrs: map[string]bool{
 				"markdown_srcs":     true,
@@ -246,8 +223,6 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	if onlySelf && args.File == nil && !hasOtherGen {
 		return plan
 	}
-	bindBuildifier := rootBuildifierConfig(args.Config.RepoRoot)
-	bindBiome := rootBiomeConfig(args.Config.RepoRoot)
 	emit := func(typ, attr string, srcs []string) {
 		if len(srcs) == 0 {
 			return
@@ -256,14 +231,9 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 		r.SetAttr(attr, srcs)
 		r.SetAttr("tags", []string{corpusTag})
 		if typ == "markdown" {
-			r.SetAttr("aspect_hints", []string{corpusValeHint})
 			if len(siblings) > 0 {
 				r.SetAttr("markdown_siblings", siblings)
 			}
-		} else if typ == "starlark" && bindBuildifier {
-			r.SetAttr("aspect_hints", []string{corpusBuildifierHint})
-		} else if typ == "json" && bindBiome {
-			r.SetAttr("aspect_hints", []string{corpusBiomeHint})
 		}
 		plan.gen = append(plan.gen, r)
 	}

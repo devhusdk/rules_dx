@@ -368,7 +368,6 @@ clang_format_config(
 
 real_source_target(
     name = "corpus_markdown",
-    aspect_hints = ["//quality:corpus_vale_config"],
     markdown_siblings = [
         "//docs:README.md",
         "//docs:adopting-existing-bazel.md",
@@ -491,6 +490,7 @@ workspace_policy(
         ":rustfmt_config",
         ":scalafmt_config",
         ":vale_config",
+        "//quality:corpus_checkstyle_config",
     ],
     extends = "//quality:default_workspace_policy",
     visibility = ["//visibility:public"],

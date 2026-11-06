@@ -65,7 +65,6 @@ go_test(
 
 real_source_target(
     name = "corpus_markdown",
-    aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = ["testdata/modules/README.md"],
     tags = ["corpus"],
 )

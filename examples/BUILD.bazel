@@ -11,7 +11,6 @@ exports_files([
 
 real_source_target(
     name = "corpus_markdown",
-    aspect_hints = ["//quality:corpus_vale_config"],
     markdown_siblings = [
         "//examples/adopt-polyglot:README.md",
         "//examples/shared-rust:README.md",

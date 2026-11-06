@@ -20,13 +20,11 @@ java_library(
         "src/dx/quality/scalac/Scala3Frontend.java",
         "src/dx/quality/scalac/ScalacCheck.java",
     ],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
 java_binary(
     name = "scalac_check",
     srcs = ["src/dx/quality/scalac/Main.java"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
     main_class = "dx.quality.scalac.Main",
     deps = [":scalac_check_lib"],
 )
@@ -35,7 +33,6 @@ java_test(
     name = "scalac_check_test",
     srcs = ["test/dx/quality/scalac/ScalacCheckTest.java"],
     args = ["$(rlocationpaths :compiler_jars)"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
     data = [":compiler_jars"],
     main_class = "dx.quality.scalac.ScalacCheckTest",
     use_testrunner = False,
@@ -46,7 +43,6 @@ java_test(
     name = "scala3_check_test",
     srcs = ["test/dx/quality/scalac/Scala3CheckTest.java"],
     args = ["$(rlocationpaths :scala3_compiler_jars)"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
     data = [":scala3_compiler_jars"],
     main_class = "dx.quality.scalac.Scala3CheckTest",
     use_testrunner = False,

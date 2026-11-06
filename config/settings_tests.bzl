@@ -27,6 +27,7 @@ def settings_tests(name):
 EXPECTED_WORKSPACE_POLICY_OBSERVATIONS = """subject //config:workspace_policy_under_test
 field config.biome=biome.json
 field config.buildifier=.buildifier.json
+field config.checkstyle=quality/corpus_checkstyle.xml
 field config.clang_format=.clang-format
 field config.ruff=ruff.toml
 field config.rustfmt=rustfmt.toml

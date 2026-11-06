@@ -1714,7 +1714,6 @@ deploy_analysis_test(
 java_library(
     name = "maven_demo_lib",
     srcs = ["testdata/maven/Demo.java"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
 genrule(

@@ -33,13 +33,11 @@ java_library(
         "java/dx/fixture/shapes/Shape.java",
         "java/dx/fixture/shapes/package-info.java",
     ],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
 java_library(
     name = "paint",
     srcs = ["java/dx/fixture/paint/Square.java"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
     deps = [":shapes"],
 )
 
@@ -78,7 +76,6 @@ write_file(
 java_library(
     name = "empty",
     srcs = [":empty_src"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
     tags = ["manual"],
 )
 

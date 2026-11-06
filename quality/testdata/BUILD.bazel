@@ -13,6 +13,7 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library",
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes", "windows_failure_test")
+load(":no_policy_failure_test.bzl", "no_policy_failure_test")
 load(":real_aspect_subject.bzl", "real_aspect_subject", "real_docs_shard_files", "real_docs_subject", "real_family_probe_subject", "real_shard_probe_subject")
 load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_docs_tests", "real_family_probe_tests", "real_shard_probe_tests")
 load(":real_result_cases.bzl", "real_result_cases")
@@ -831,7 +832,7 @@ real_aspect_subject(
     target = ":fixture_real_javascript_no_config",
 )
 
-failure_test(
+no_policy_failure_test(
     name = "fixture_real_javascript_no_config_test",
     expected_failure_substring = "Biome needs a config. Declare biome_config(",
     target = ":fixture_real_javascript_no_config_subject",
@@ -1034,7 +1035,7 @@ real_aspect_subject(
     target = ":plain",
 )
 
-failure_test(
+no_policy_failure_test(
     name = "fixture_real_java_no_config_test",
     expected_failure_substring = "Checkstyle needs a config. Declare checkstyle_config(",
     target = ":fixture_real_java_subject",
@@ -1046,7 +1047,7 @@ real_aspect_subject(
     target = ":fixture_real_markdown_no_config",
 )
 
-failure_test(
+no_policy_failure_test(
     name = "fixture_real_markdown_no_config_test",
     expected_failure_substring = "Vale needs a config. Declare vale_config(",
     target = ":fixture_real_markdown_no_config_subject",
@@ -1058,7 +1059,7 @@ real_aspect_subject(
     target = ":fixture_real_starlark_no_config",
 )
 
-failure_test(
+no_policy_failure_test(
     name = "fixture_real_starlark_no_config_test",
     expected_failure_substring = "Buildifier needs a config. Declare buildifier_config(",
     target = ":fixture_real_starlark_no_config_subject",
@@ -1070,7 +1071,7 @@ real_aspect_subject(
     target = ":fixture_real_python_no_config",
 )
 
-failure_test(
+no_policy_failure_test(
     name = "fixture_real_python_no_config_test",
     expected_failure_substring = "Ruff needs a config. Declare ruff_config(",
     target = ":fixture_real_python_no_config_subject",

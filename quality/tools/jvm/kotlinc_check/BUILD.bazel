@@ -18,13 +18,11 @@ _COMPILER_JARS = [
 java_library(
     name = "kotlinc_check_lib",
     srcs = ["src/dx/quality/kotlinc/KotlincCheck.java"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
 java_binary(
     name = "kotlinc_check",
     srcs = ["src/dx/quality/kotlinc/Main.java"],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
     main_class = "dx.quality.kotlinc.Main",
     deps = [":kotlinc_check_lib"],
 )
@@ -33,7 +31,6 @@ java_test(
     name = "kotlinc_check_test",
     srcs = ["test/dx/quality/kotlinc/KotlincCheckTest.java"],
     args = ["$(rlocationpaths %s)" % jar for jar in _COMPILER_JARS],
-    aspect_hints = ["//quality:corpus_checkstyle_config"],
     data = _COMPILER_JARS,
     main_class = "dx.quality.kotlinc.KotlincCheckTest",
     use_testrunner = False,

@@ -325,6 +325,8 @@ def _consumer_stage_impl(ctx):
         checked = [exe.basename] + runtime
         stamp = ctx.actions.declare_file(ctx.label.name + "/imports.ok")
         args = ctx.actions.args()
+        args.use_param_file("@%s", use_always = True)
+        args.set_param_file_format("multiline")
         args.add("--imports")
         args.add(stamp.path)
         for member in checked:

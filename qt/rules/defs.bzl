@@ -497,6 +497,7 @@ def _run_environment(ctx, gui):
         environment["QT_PLUGIN_PATH"] = _plugin_path(ctx.files.plugins)
     inherited = []
     if gui:
+        environment["QT_ASSUME_STDERR_HAS_CONSOLE"] = "1"
         if len([f for f in ctx.files.fonts if f.basename == "fonts.conf"]) > 0:
             environment["FONTCONFIG_PATH"] = _directory(ctx.files.fonts, "fonts.conf")
         environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platforms, "qoffscreen")

@@ -336,7 +336,7 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(OsString, OsString)> {
 }
 
 /// Launchers that read the manifest beside their own binary on every platform.
-const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint", "rst2html"];
+const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "rst2html"];
 
 /// Whether a launcher finds its runfiles beside its real path, not beside a symlink to it.
 fn resolves_launcher(tool_id: &str) -> bool {
@@ -1096,7 +1096,7 @@ mod tests {
     /// The Python launchers read wheels from the manifest on every platform.
     #[test]
     fn python_tools_read_their_own_manifest_everywhere() {
-        for tool_id in ["pydoclint", "flake8", "pylint"] {
+        for tool_id in ["pydoclint"] {
             assert!(reads_own_manifest(tool_id), "{tool_id}");
         }
     }

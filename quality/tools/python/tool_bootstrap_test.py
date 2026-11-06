@@ -65,7 +65,7 @@ class SitePackagesTest(BootstrapTestCase):
     def test_absolute_wheel_entry_yields_its_site_packages(self):
         """An absolute target contributes the site-packages holding it."""
         site = self.site_packages_dir()
-        self.manifest(["wheels/flake8 {}/flake8/__init__.py".format(site)])
+        self.manifest(["wheels/yamllint {}/yamllint/__init__.py".format(site)])
         self.assertEqual(site_packages(), [site])
 
     def test_repeated_entries_yield_one_site_packages(self):
@@ -73,8 +73,8 @@ class SitePackagesTest(BootstrapTestCase):
         site = self.site_packages_dir()
         self.manifest(
             [
-                "wheels/flake8 {}/flake8/__init__.py".format(site),
-                "wheels/pylint {}/pylint/__init__.py".format(site),
+                "wheels/yamllint {}/yamllint/__init__.py".format(site),
+                "wheels/djlint {}/djlint/__init__.py".format(site),
             ]
         )
         self.assertEqual(site_packages(), [site])
@@ -83,13 +83,13 @@ class SitePackagesTest(BootstrapTestCase):
         """A workspace path with a space is one target, not two columns."""
         site = self.root / "work space" / "venv" / "site-packages"
         site.mkdir(parents=True)
-        self.manifest(["wheels/flake8 {}/flake8/__init__.py".format(site)])
+        self.manifest(["wheels/yamllint {}/yamllint/__init__.py".format(site)])
         self.assertEqual(site_packages(), [site])
 
     def test_relative_targets_are_skipped(self):
         """The unmaterialized Windows link tree cannot be resolved."""
         self.site_packages_dir()
-        self.manifest(["wheels/flake8 ../venv/lib/site-packages/flake8/x.py"])
+        self.manifest(["wheels/yamllint ../venv/lib/site-packages/yamllint/x.py"])
         self.assertEqual(site_packages(), [])
 
     def test_entry_without_a_target_is_skipped(self):
@@ -101,7 +101,7 @@ class SitePackagesTest(BootstrapTestCase):
         """Only ancestors actually named site-packages are import roots."""
         other = self.root / "venv" / "lib"
         other.mkdir(parents=True)
-        self.manifest(["wheels/flake8 {}/flake8.py".format(other)])
+        self.manifest(["wheels/yamllint {}/yamllint.py".format(other)])
         self.assertEqual(site_packages(), [])
 
     def test_install_root_yields_the_site_packages_below_it(self):
@@ -117,7 +117,7 @@ class SitePackagesTest(BootstrapTestCase):
         outer = self.site_packages_dir()
         nested = outer / "inner" / "site-packages"
         nested.mkdir(parents=True)
-        self.manifest(["wheels/flake8 {}/flake8/__init__.py".format(nested)])
+        self.manifest(["wheels/yamllint {}/yamllint/__init__.py".format(nested)])
         self.assertEqual(site_packages(), [nested])
 
 

@@ -141,7 +141,7 @@ def main(argv):
     args = _parse(argv)
     try:
         text = dump(args.root, args.package, args.docstyle)
-    except Exception as error:  # pylint: disable=broad-exception-caught
+    except Exception as error:
         print(f"griffe_dump: {error}", file=sys.stderr)
         return 1
     pathlib.Path(args.out).write_text(text, encoding="utf-8")

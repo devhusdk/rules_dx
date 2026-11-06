@@ -536,64 +536,6 @@ fn pydoclint_reports_and_is_check_only() {
 }
 
 #[test]
-fn flake8_reports_and_is_check_only() {
-    let backend = backend_for("flake8", plain_tool(), roundtrip_flake8);
-    let findings = backend
-        .diagnose("flake8", "lint", &single("a.py", "import os\n"))
-        .expect("diagnosed");
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].tool_id, "flake8");
-    assert_eq!(findings[0].rule_id, "F401");
-    assert_eq!(findings[0].path, "a.py");
-    assert_eq!(
-        findings[0].severity,
-        quality_result::proto::Severity::Error as i32
-    );
-    assert!(backend
-        .diagnose("flake8", "lint", &single("a.py", "\"\"\"Module.\"\"\"\n"))
-        .expect("diagnosed")
-        .is_empty());
-    let text = "import os\n";
-    assert_eq!(
-        backend
-            .apply_fix("flake8", "a.py", text, "lint")
-            .expect("check-only"),
-        text
-    );
-}
-
-#[test]
-fn pylint_reports_and_is_check_only() {
-    let backend = backend_for("pylint", plain_tool(), roundtrip_pylint);
-    let findings = backend
-        .diagnose("pylint", "lint", &single("a.py", "import os\n"))
-        .expect("diagnosed");
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].tool_id, "pylint");
-    assert_eq!(findings[0].rule_id, "W0611");
-    assert_eq!(findings[0].path, "a.py");
-    assert_eq!(
-        findings[0].severity,
-        quality_result::proto::Severity::Warning as i32
-    );
-    assert_eq!(
-        (findings[0].start_byte, findings[0].end_byte),
-        (Some(0), Some(9))
-    );
-    assert!(backend
-        .diagnose("pylint", "lint", &single("a.py", "\"\"\"Module.\"\"\"\n"))
-        .expect("diagnosed")
-        .is_empty());
-    let text = "import os\n";
-    assert_eq!(
-        backend
-            .apply_fix("pylint", "a.py", text, "lint")
-            .expect("check-only"),
-        text
-    );
-}
-
-#[test]
 fn vulture_reports_unused_code_across_files_and_is_check_only() {
     let backend = backend_for("vulture", plain_tool(), roundtrip_vulture);
     let mut files = single("a.py", "def unused_fn():\n    pass\n");
@@ -1632,19 +1574,10 @@ fn json_reporting_fixtures_escape_a_path_that_names_a_backslash() {
     }
     std::fs::write(&file, "import os\nlet unusedVar = 1;\n").expect("write backslash fixture");
     let absolute = file.to_string_lossy().into_owned();
-    let relative = "a\\b.py";
     let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
     let env = quality_adapter::exec::hermetic_env(dir.path(), &[], &ambient);
     let path = file.as_os_str().to_owned();
     let buildifier_argv = [OsString::from("buildifier"), path.clone()];
-    let pylint_argv = [
-        OsString::from("pylint"),
-        OsString::from("--persistent=n"),
-        OsString::from("--reports=n"),
-        OsString::from("--score=n"),
-        OsString::from("--output-format=json"),
-        path.clone(),
-    ];
     let eslint_argv = [
         OsString::from("eslint"),
         OsString::from("-f"),
@@ -1655,18 +1588,12 @@ fn json_reporting_fixtures_escape_a_path_that_names_a_backslash() {
     ];
     let ruff_argv = [OsString::from("ruff"), path];
 
-    let pylint = roundtrip_pylint(&pylint_argv, dir.path(), &env).expect("pylint fixture runs");
     let eslint = roundtrip_eslint(&eslint_argv, dir.path(), &env).expect("eslint fixture runs");
     let buildifier =
         buildifier_plain(&buildifier_argv, dir.path(), &env).expect("buildifier fixture runs");
     let ruff = ruff_behavior(&ruff_argv).expect("ruff fixture runs");
 
     let reports = [
-        (
-            "pylint",
-            parsers::parse_pylint(&pylint.stdout, Some(4), &[relative]),
-            relative,
-        ),
         (
             "eslint",
             parsers::parse_eslint(&eslint.stdout, Some(1), &[absolute.as_str()]),
@@ -1810,18 +1737,6 @@ fn batched_ruff_equal(
     ruff_multi_behavior(argv, cwd, env)
 }
 
-static FLAKE8_SPAWNS: SpawnCount = SpawnCount::new();
-
-fn batched_flake8(
-    argv: &[OsString],
-    cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    FLAKE8_SPAWNS.bump();
-    assert_within_budget(argv);
-    flake8_multi_behavior(argv, cwd, env)
-}
-
 static LAUNCHER_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn batched_launcher(
@@ -1900,22 +1815,6 @@ fn ruff_batches_match_single_file_results() {
     singles.sort_by(|left, right| left.path.cmp(&right.path));
     assert_eq!(merged, singles);
     assert_eq!(merged.len(), 60);
-}
-
-#[test]
-fn flake8_large_selection_runs_batched() {
-    FLAKE8_SPAWNS.reset();
-    let files = python_selection(300, 96);
-    let backend = backend_for("flake8", plain_tool(), batched_flake8);
-    let findings = backend
-        .diagnose("flake8", "lint", &files)
-        .expect("batched flake8 runs");
-    assert!(FLAKE8_SPAWNS.get() > 1);
-    assert_eq!(findings.len(), 150);
-    let paths: Vec<&str> = findings.iter().map(|found| found.path.as_str()).collect();
-    let mut ordered = paths.clone();
-    ordered.sort();
-    assert_eq!(paths, ordered, "merged findings stay ordered");
 }
 
 #[test]

@@ -34,7 +34,6 @@ pub mod erlfmt;
 pub mod eslint;
 pub mod fantomas;
 pub mod ffmt;
-pub mod flake8;
 pub mod flang;
 pub mod flatc;
 pub mod fortitude;
@@ -88,7 +87,6 @@ pub mod pmd;
 pub mod prettier;
 pub mod psscriptanalyzer;
 pub mod pydoclint;
-pub mod pylint;
 pub mod qmlformat;
 pub mod qmllint;
 pub mod redocly;
@@ -177,7 +175,6 @@ pub use erlfmt::parse_erlfmt;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use ffmt::parse_ffmt;
-pub use flake8::parse_flake8;
 pub use flang::parse_flang;
 pub use flatc::{parse_flatc, FlatcReport};
 pub use fortitude::parse_fortitude;
@@ -229,7 +226,6 @@ pub use pmd::parse_pmd;
 pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
 pub use psscriptanalyzer::{parse_psscriptanalyzer, parse_psscriptanalyzer_format};
 pub use pydoclint::parse_pydoclint;
-pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
 pub use qmllint::{parse_qmllint, parse_qmllint_report, QmllintView};
 pub use redocly::parse_redocly;
@@ -1858,14 +1854,6 @@ mod tests {
         super::fantomas::parse_fantomas(input, code, files, Path::new("/scratch"))
     }
 
-    fn fuzz_flake8(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::flake8::parse_flake8(input, code, files)
-    }
-
     fn fuzz_flatc(
         input: &[u8],
         code: Option<i32>,
@@ -2262,14 +2250,6 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::pydoclint::parse_pydoclint(input, code, files)
-    }
-
-    fn fuzz_pylint(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::pylint::parse_pylint(input, code, files)
     }
 
     fn fuzz_qmlformat(
@@ -3065,7 +3045,6 @@ mod tests {
         ("gotype", fuzz_gotype),
         ("eslint", fuzz_eslint),
         ("fantomas", fuzz_fantomas),
-        ("flake8", fuzz_flake8),
         ("flatc", fuzz_flatc),
         ("ffmt", fuzz_ffmt),
         ("fortitude", fuzz_fortitude),
@@ -3129,7 +3108,6 @@ mod tests {
         ("psscriptanalyzer", fuzz_psscriptanalyzer),
         ("psscriptanalyzer_format", fuzz_psscriptanalyzer_format),
         ("pydoclint", fuzz_pydoclint),
-        ("pylint", fuzz_pylint),
         ("qmlformat", fuzz_qmlformat),
         ("qmllint", fuzz_qmllint),
         ("redocly", fuzz_redocly),
@@ -3220,7 +3198,6 @@ mod tests {
         ("gotype", include_str!("go_analysis.rs")),
         ("eslint", include_str!("eslint.rs")),
         ("fantomas", include_str!("fantomas.rs")),
-        ("flake8", include_str!("flake8.rs")),
         ("flatc", include_str!("flatc.rs")),
         ("ffmt", include_str!("ffmt.rs")),
         ("fortitude", include_str!("fortitude.rs")),
@@ -3277,7 +3254,6 @@ mod tests {
         ("prettier", include_str!("prettier.rs")),
         ("psscriptanalyzer", include_str!("psscriptanalyzer.rs")),
         ("pydoclint", include_str!("pydoclint.rs")),
-        ("pylint", include_str!("pylint.rs")),
         ("qmlformat", include_str!("qmlformat.rs")),
         ("qmllint", include_str!("qmllint.rs")),
         ("redocly", include_str!("redocly.rs")),

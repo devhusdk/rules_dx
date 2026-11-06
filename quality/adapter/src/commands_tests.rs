@@ -403,44 +403,6 @@ fn vulture_check_reports_unused_code_at_its_floor() {
 }
 
 #[test]
-fn flake8_check_is_isolated_single_job() {
-    let file = Path::new("/scratch/a.py");
-    let invocation = flake8_check(Path::new(BIN), &[file]);
-    assert_eq!(
-        argv_strings(&invocation),
-        vec![
-            BIN,
-            "--isolated",
-            "--color=never",
-            "--jobs=1",
-            "--format",
-            "%(path)s:%(row)s:%(col)s:%(code)s:%(text)s",
-            "/scratch/a.py"
-        ]
-    );
-    assert_eq!(invocation.cwd_rel, "");
-}
-
-#[test]
-fn pylint_check_is_json_without_cache_or_report() {
-    let file = Path::new("/scratch/a.py");
-    let invocation = pylint_check(Path::new(BIN), &[file]);
-    assert_eq!(
-        argv_strings(&invocation),
-        vec![
-            BIN,
-            "--persistent=n",
-            "--reports=n",
-            "--score=n",
-            "--output-format=json",
-            "--jobs=1",
-            "/scratch/a.py"
-        ]
-    );
-    assert_eq!(invocation.cwd_rel, "");
-}
-
-#[test]
 fn biome_lint_check_is_json_hermetic() {
     let file = Path::new("/scratch/src/a.js");
     let config = Path::new("/scratch/cfg");
@@ -2886,7 +2848,6 @@ fn file_independent_tools_batch() {
         "lychee",
         "notebook_outputs",
         "ruff",
-        "flake8",
         "pydoclint",
         "buildifier",
         "deadnix",
@@ -2897,7 +2858,6 @@ fn file_independent_tools_batch() {
     }
     for tool in [
         "ty",
-        "pylint",
         "scalafix",
         "spotbugs",
         "fsharplint",

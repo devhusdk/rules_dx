@@ -322,24 +322,6 @@ def real_pipeline_unit_tests(name):
                 [["rust"], [], []],
             ),
             expect_equal(
-                "real_supported_classes returns flake8 lint support only",
-                [
-                    real_supported_classes("flake8", "lint"),
-                    real_supported_classes("flake8", "format"),
-                    real_supported_classes("flake8", "typecheck"),
-                ],
-                [["python", "python_stub"], [], []],
-            ),
-            expect_equal(
-                "real_supported_classes returns pylint lint support only",
-                [
-                    real_supported_classes("pylint", "lint"),
-                    real_supported_classes("pylint", "format"),
-                    real_supported_classes("pylint", "typecheck"),
-                ],
-                [["python", "python_stub"], [], []],
-            ),
-            expect_equal(
                 "real_supported_classes returns ruff notebook support for format and lint only",
                 [
                     real_supported_classes("ruff", "format"),
@@ -465,14 +447,12 @@ def real_pipeline_unit_tests(name):
                 pipeline_stages(
                     ["python"],
                     "lint",
-                    {"python": ["ruff", "pylint", "pydoclint", "flake8"]},
+                    {"python": ["ruff", "pydoclint"]},
                     REAL_CLASS_TO_FAMILY,
                     REAL_ADAPTERS,
                 ),
                 [
-                    {"classes": ["python"], "tool": "flake8"},
                     {"classes": ["python"], "tool": "pydoclint"},
-                    {"classes": ["python"], "tool": "pylint"},
                     {"classes": ["python"], "tool": "ruff"},
                 ],
             ),
@@ -850,7 +830,7 @@ def real_pipeline_unit_tests(name):
                 "real quality actions reserve the costliest launched tool tier",
                 [
                     real_quality_resource_set(["buildifier", "taplo"])("linux", 0),
-                    real_quality_resource_set(["pylint"])("linux", 0),
+                    real_quality_resource_set(["pydoclint"])("linux", 0),
                     real_quality_resource_set(["pmd", "taplo"])("linux", 0),
                     real_quality_resource_set(["ruff", "taplo", "ty"])("linux", 0),
                     real_quality_resource_set([])("linux", 0),

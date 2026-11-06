@@ -248,53 +248,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
             )
         },
     },
-    ToolDef {
-        id: "flake8",
-        run: |backend, call| {
-            let tool_id = call.tool_id;
-            let tool = call.tool;
-            let scratch = &call.staged.scratch;
-            let pairs = &call.staged.pairs;
-            backend.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::flake8_check(&tool.binary, files)),
-                |out, names| parsed(tool_id, parsers::parse_flake8(&out.stdout, out.code, names)),
-            )
-        },
-    },
-    ToolDef {
-        id: "pylint",
-        run: |backend, call| {
-            let tool_id = call.tool_id;
-            let tool = call.tool;
-            let scratch = &call.staged.scratch;
-            let pairs = &call.staged.pairs;
-            let refs: Vec<&Path> = pairs
-                .iter()
-                .map(|(_, absolute)| absolute.as_path())
-                .collect();
-            {
-                let invocation = commands::pylint_check(&tool.binary, &refs);
-                let out = backend.run(tool_id, tool, &invocation, scratch)?;
-                let workspaces: Vec<&str> = pairs
-                    .iter()
-                    .map(|(workspace, _)| workspace.as_str())
-                    .collect();
-                let mut findings = parsed(
-                    tool_id,
-                    parsers::parse_pylint(&out.stdout, out.code, &workspaces),
-                )?;
-                for found in &mut findings {
-                    let absolute = reanchor(tool_id, pairs, &found.file)?;
-                    found.file = absolute.to_string_lossy().into_owned();
-                }
-                Ok(findings)
-            }
-        },
-    },
 ];
 
 impl RealBackend {

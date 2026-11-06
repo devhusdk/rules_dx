@@ -1203,32 +1203,6 @@ pub(super) fn ruff_multi_behavior(
     })
 }
 
-/// Flake8 over every `.py` file in argv, the way a batched spawn hands them over.
-pub(super) fn flake8_multi_behavior(
-    argv: &[OsString],
-    _cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    let mut stdout = String::new();
-    for file in argv
-        .iter()
-        .filter(|arg| arg.to_string_lossy().ends_with(".py"))
-    {
-        let name = file.to_string_lossy().into_owned();
-        let bytes = std::fs::read(&name).expect("checked file is materialized");
-        let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
-        if text.contains("import os") {
-            stdout.push_str(&format!("{name}:1:1:F401:'os' imported but unused\n"));
-        }
-    }
-    Ok(ChildOutput {
-        code: Some(i32::from(!stdout.is_empty())),
-        stdout: stdout.into_bytes(),
-        stderr: Vec::new(),
-    })
-}
-
 pub(super) fn roundtrip_ty(
     argv: &[OsString],
     cwd: &Path,
@@ -1293,42 +1267,6 @@ pub(super) fn roundtrip_pydoclint(
     })
 }
 
-pub(super) fn roundtrip_flake8(
-    argv: &[OsString],
-    _cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    assert!(
-        argv.iter().any(|arg| arg == "--isolated"),
-        "flake8 pins upstream defaults"
-    );
-    assert!(
-        argv.iter().any(|arg| arg == "--jobs=1"),
-        "flake8 keeps output order deterministic"
-    );
-    assert!(
-        argv.iter().any(|arg| arg == "--color=never"),
-        "flake8 never emits color"
-    );
-    let file = last_file(argv);
-    let bytes = std::fs::read(&file).expect("checked file is materialized");
-    let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
-    if text.contains("import os") {
-        let stdout = format!("{file}:1:1:F401:'os' imported but unused\n");
-        return Ok(ChildOutput {
-            code: Some(1),
-            stdout: stdout.into_bytes(),
-            stderr: Vec::new(),
-        });
-    }
-    Ok(ChildOutput {
-        code: Some(0),
-        stdout: Vec::new(),
-        stderr: Vec::new(),
-    })
-}
-
 pub(super) fn roundtrip_vulture(
     argv: &[OsString],
     _cwd: &Path,
@@ -1376,53 +1314,6 @@ pub(super) fn roundtrip_vulture(
     Ok(ChildOutput {
         code: Some(if stdout.is_empty() { 0 } else { 3 }),
         stdout: stdout.into_bytes(),
-        stderr: Vec::new(),
-    })
-}
-
-pub(super) fn roundtrip_pylint(
-    argv: &[OsString],
-    cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    assert!(
-        argv.iter().any(|arg| arg == "--persistent=n"),
-        "pylint never caches"
-    );
-    assert!(
-        argv.iter().any(|arg| arg == "--reports=n"),
-        "pylint suppresses the report"
-    );
-    assert!(
-        argv.iter().any(|arg| arg == "--score=n"),
-        "pylint suppresses the score"
-    );
-    assert!(
-        argv.iter().any(|arg| arg == "--output-format=json"),
-        "pylint reports JSON"
-    );
-    let file = last_file(argv);
-    let reported = Path::new(&file)
-        .strip_prefix(cwd)
-        .map(|relative| relative.to_string_lossy().into_owned())
-        .unwrap_or(file.clone());
-    let bytes = std::fs::read(&file).expect("checked file is materialized");
-    let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
-    if text.contains("import os") {
-        let stdout = format!(
-            "[{{\"type\": \"warning\", \"module\": \"a\", \"obj\": \"\", \"line\": 1, \"column\": 0, \"endLine\": 1, \"endColumn\": 9, \"path\": \"{}\", \"symbol\": \"unused-import\", \"message\": \"Unused import os\", \"message-id\": \"W0611\"}}]",
-            json_escape(&reported)
-        );
-        return Ok(ChildOutput {
-            code: Some(4),
-            stdout: stdout.into_bytes(),
-            stderr: Vec::new(),
-        });
-    }
-    Ok(ChildOutput {
-        code: Some(0),
-        stdout: b"[]".to_vec(),
         stderr: Vec::new(),
     })
 }

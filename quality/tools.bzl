@@ -1085,22 +1085,6 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "flake8",
-        adapters = {"lint": ["python", "python_stub"]},
-        support = [
-            row(
-                capability = "lint",
-                classes = ["python", "python_stub"],
-                context = "owned",
-                family = "python",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "qualified",
-                transport = "batched",
-            ),
-        ],
-    ),
-    tool(
         id = "flang",
         adapters = {"typecheck": ["fortran"]},
     ),
@@ -2113,22 +2097,6 @@ TOOLS = [
     ),
     tool(
         id = "pydoclint",
-        adapters = {"lint": ["python", "python_stub"]},
-        support = [
-            row(
-                capability = "lint",
-                classes = ["python", "python_stub"],
-                context = "owned",
-                family = "python",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "qualified",
-                transport = "batched",
-            ),
-        ],
-    ),
-    tool(
-        id = "pylint",
         adapters = {"lint": ["python", "python_stub"]},
         support = [
             row(

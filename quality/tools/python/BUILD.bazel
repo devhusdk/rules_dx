@@ -43,17 +43,6 @@ py_unittest_test(
 )
 
 py_binary(
-    name = "flake8",
-    srcs = [
-        "flake8_main.py",
-        "tool_bootstrap.py",
-    ],
-    dep_group = "dx-python-tools",
-    main = "flake8_main.py",
-    deps = ["@pypi//flake8"],
-)
-
-py_binary(
     name = "djlint",
     srcs = [
         "djlint_main.py",
@@ -74,17 +63,6 @@ py_binary(
     dep_group = "dx-python-tools",
     main = "vulture_main.py",
     deps = ["@pypi//vulture"],
-)
-
-py_binary(
-    name = "pylint",
-    srcs = [
-        "pylint_main.py",
-        "tool_bootstrap.py",
-    ],
-    dep_group = "dx-python-tools",
-    main = "pylint_main.py",
-    deps = ["@pypi//pylint"],
 )
 
 py_binary(

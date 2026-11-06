@@ -88,20 +88,6 @@ const PERIPHERY_ARGS: &[&str] = &[
     "--retain-public",
     "--generic-project-config",
 ];
-const FLAKE8_ARGS: &[&str] = &[
-    "--isolated",
-    "--color=never",
-    "--jobs=1",
-    "--format",
-    "%(path)s:%(row)s:%(col)s:%(code)s:%(text)s",
-];
-const PYLINT_ARGS: &[&str] = &[
-    "--persistent=n",
-    "--reports=n",
-    "--score=n",
-    "--output-format=json",
-    "--jobs=1",
-];
 const BIOME_LINT_SUBCOMMAND: &[&str] = &["lint"];
 const BIOME_FORMAT_SUBCOMMAND: &[&str] = &["format"];
 const BIOME_BASE_TAIL: &[&str] = &["--reporter=json", "--colors=off", "--config-path"];
@@ -731,14 +717,6 @@ pub fn weeder_check(binary: &Path, config: &Path, hie_dir: &Path) -> Invocation 
         ],
         cwd_rel: String::new(),
     }
-}
-
-pub fn flake8_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, FLAKE8_ARGS, files, "")
-}
-
-pub fn pylint_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, PYLINT_ARGS, files, "")
 }
 
 fn biome_base(binary: &Path, subcommand: &str, config_dir: &Path) -> Vec<OsString> {
@@ -3072,8 +3050,9 @@ pub enum ArgTransport {
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
         "actionlint" | "keep_sorted" | "typos" | "lychee" | "notebook_outputs" | "ruff"
-        | "flake8" | "pydoclint" | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint"
-        | "selene" => ArgTransport::Batched,
+        | "pydoclint" | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => {
+            ArgTransport::Batched
+        }
         _ => ArgTransport::Single,
     }
 }

@@ -168,7 +168,7 @@ def _runner_matrix_test_impl(ctx):
         })
 
     launcher_env = []
-    for launcher in ["pydoclint", "flake8", "pylint", "psscriptanalyzer"]:
+    for launcher in ["pydoclint", "psscriptanalyzer"]:
         if launcher in tools:
             launcher_env.append({"key": "RUNFILES_DIR", "tool": launcher, "value": "$TEST_SRCDIR"})
     for launcher in ["eslint", "gplint", "graphql_eslint", "prettier", "redocly", "remark", "stylelint"]:

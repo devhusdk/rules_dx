@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn bom_crlf_and_foreign_sections() {
-        let text = "\u{feff}[sqlfluff]\r\ndialect = ansi\r\n[flake8]\r\nmax = 3\r\n";
+        let text = "\u{feff}[sqlfluff]\r\ndialect = ansi\r\n[pytest]\r\nmax = 3\r\n";
         let leaves = parse(text).unwrap();
         assert_eq!(leaves.len(), 1);
         assert_eq!(leaves.values().next().unwrap(), "ansi");

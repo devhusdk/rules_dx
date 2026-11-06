@@ -5,22 +5,8 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 load("//quality:unused_roots.bzl", "unused_closure_sources", "unused_roots_aspect", "unused_roots_context")
 
 TOOLS = {
-    "flake8": {
-        "attr": attr.label(default = "//quality/tools/python:flake8", cfg = "exec", executable = True),
-        "kind": "executable",
-        "resources": "medium",
-        "runfiles_env": True,
-        "shard": "py",
-    },
     "pydoclint": {
         "attr": attr.label(default = "//quality/tools/python:pydoclint", cfg = "exec", executable = True),
-        "kind": "executable",
-        "resources": "medium",
-        "runfiles_env": True,
-        "shard": "py",
-    },
-    "pylint": {
-        "attr": attr.label(default = "//quality/tools/python:pylint", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,
@@ -64,7 +50,7 @@ SHARD_SPECS = {
     },
     "real_python_lint": {
         "capability": "lint",
-        "doc": "Additive Python lint family aspect (flake8/pylint/pydoclint).",
+        "doc": "Additive Python lint family aspect (pydoclint).",
         "shard": "py",
         "suffix": "-py",
     },

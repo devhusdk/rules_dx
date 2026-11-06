@@ -176,13 +176,6 @@
       },
       "type": "array"
     },
-    "extends": {
-      "default": null,
-      "type": [
-        "string",
-        "null"
-      ]
-    },
     "inventory": {
       "items": {
         "$ref": "#/definitions/LicenseInventory"
@@ -193,15 +186,14 @@
       "$ref": "#/definitions/PolicyFile"
     },
     "schema_version": {
-      "default": null,
       "format": "uint32",
       "minimum": 0,
-      "type": [
-        "integer",
-        "null"
-      ]
+      "type": "integer"
     }
   },
+  "required": [
+    "schema_version"
+  ],
   "title": "licenses.toml",
   "type": "object"
 }

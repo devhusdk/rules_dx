@@ -709,58 +709,43 @@ fn package_ref(
     })
 }
 
+/// The tier from the dx.toml `profile`; standard without one.
+fn audit_profile(workspace: &Path) -> Result<dx_audit::profile_base::Profile, String> {
+    match dx_config::load(workspace) {
+        Ok(config) => Ok(config.and_then(|config| config.profile).unwrap_or_default()),
+        Err(problem) => Err(format!("dx.toml: {problem}")),
+    }
+}
+
+/// The text of `rel`, or `None` when the file does not exist.
+fn read_policy_text(workspace: &Path, rel: &str) -> Result<Option<String>, AuditError> {
+    match read_workspace_text(workspace, rel) {
+        Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(None)
+        }
+        other => other.map(Some),
+    }
+}
+
 fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
-    let rel = "licenses.toml";
-    let text = match read_workspace_text(workspace, rel) {
-        Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
-            return dx_audit::license_policy::standard_policy()
-                .map_err(|error| AuditError::LicenseInvalid { error });
-        }
-        Err(other) => return Err(other),
-        Ok(text) => text,
-    };
-    if text.trim().is_empty() {
-        return dx_audit::license_policy::standard_policy()
-            .map_err(|error| AuditError::LicenseInvalid { error });
-    }
-    dx_audit::license_policy::load_licenses(&text, |rel| {
-        dx_path::workspace::resolve_in_workspace(workspace, rel)
-            .and_then(std::fs::read)
-            .and_then(|bytes| {
-                String::from_utf8(bytes)
-                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
-            })
-    })
-    .map_err(|error| AuditError::LicenseInvalid { error })
+    use dx_audit::license_policy::{load_licenses, PolicyProblem};
+    let invalid = |error| AuditError::LicenseInvalid { error };
+    let profile = audit_profile(workspace)
+        .map_err(|message| invalid(PolicyProblem::InvalidLicensesToml { message }))?;
+    let text = read_policy_text(workspace, "licenses.toml")?;
+    load_licenses(text.as_deref(), profile).map_err(invalid)
 }
 
 pub(super) fn load_security_policy(
     workspace: &Path,
 ) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
-    let rel = "security.toml";
-    let standard =
-        || dx_audit::exception::standard_security_policy().map_err(AuditError::SecurityInvalid);
-    let text = match read_workspace_text(workspace, rel) {
-        Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
-            return standard();
-        }
-        Err(other) => return Err(other),
-        Ok(text) => text,
-    };
-    if text.trim().is_empty() {
-        return standard();
-    }
-    dx_audit::exception::load_security(&text, |rel| {
-        dx_path::workspace::resolve_in_workspace(workspace, rel)
-            .and_then(std::fs::read)
-            .and_then(|bytes| {
-                String::from_utf8(bytes)
-                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
-            })
-    })
-    .map_err(AuditError::SecurityInvalid)
+    use dx_audit::exception::{load_security, SecurityProblem};
+    let profile = audit_profile(workspace)
+        .map_err(|message| AuditError::SecurityInvalid(SecurityProblem::InvalidToml { message }))?;
+    let text = read_policy_text(workspace, "security.toml")?;
+    load_security(text.as_deref(), profile).map_err(AuditError::SecurityInvalid)
 }
 
 fn tier_for_roots(

@@ -64,7 +64,7 @@ bazel run @rules_dx//cli/advisory_prep --
 
 A missing or stale snapshot fails with `advisory_refresh_failed`.
 
-Cargo sets also get a `cargo-yanked` snapshot, built from the crates.io sparse index (`--cargo-index` overrides it), that lists the locked yanked versions. A yanked version is a `yanked` finding: it fails under the strict base and is `info` under standard. A missing yanked snapshot only warns with `yanked_unprepared`. uv sets get a `pypi-yanked` snapshot the same way, from the PyPI JSON API (`--pypi-index` overrides it); a version is yanked when every file of it is. Other families have no yanked data yet and report nothing.
+Cargo sets also get a `cargo-yanked` snapshot, built from the crates.io sparse index (`--cargo-index` overrides it), that lists the locked yanked versions. A yanked version is a `yanked` finding: it fails under the strict profile and is `info` under standard. A missing yanked snapshot only warns with `yanked_unprepared`. uv sets get a `pypi-yanked` snapshot the same way, from the PyPI JSON API (`--pypi-index` overrides it); a version is yanked when every file of it is. Other families have no yanked data yet and report nothing.
 
 Secrets are scanned with the pinned `@rules_dx//quality/artifacts:gitleaks`. If `DX_GITLEAKS_BIN` holds an absolute path, dx runs it. Otherwise dx resolves the label through Bazel. A relative path is rejected and `PATH` is never searched. If no artifact is found, the run exits `1` with `secrets auditor unavailable`. Export the path with:
 
@@ -74,7 +74,7 @@ export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/ar
 
 A `.gitleaks.toml` in the workspace root is merged into the scan config and reported as a warning. A secret finding has the Gitleaks rule id, for example `gitleaks/aws-key`. Files git ignores are skipped. Outside git, every file is scanned.
 
-`security.toml` in the workspace root exempts findings. Without it nothing is exempted. `schema_version` is `1`. Keys are in [Config Reference](config.md). Each advisory has a kind (`vulnerability`, `unsound`, `unmaintained` or `notice`). Only kinds in `fail_on` fail the run; the default is `vulnerability` and `unsound`, so unmaintained and notice advisories are reported as `info` unless `security.toml` extends the strict base. An exception for an advisory that does not fail still counts as a match.
+`security.toml` in the workspace root exempts findings. Without it nothing is exempted. It needs `schema_version = 1`. Keys are in [Config Reference](config.md). Each advisory has a kind (`vulnerability`, `unsound`, `unmaintained` or `notice`). Only kinds in `fail_on` fail the run; the default is `vulnerability` and `unsound`, so unmaintained and notice advisories are reported as `info` unless `dx.toml` sets `profile = "strict"`. An exception for an advisory that does not fail still counts as a match.
 
 ```toml
 [[exception]]

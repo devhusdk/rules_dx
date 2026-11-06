@@ -72,13 +72,6 @@
       },
       "type": "array"
     },
-    "extends": {
-      "default": null,
-      "type": [
-        "string",
-        "null"
-      ]
-    },
     "fail_on": {
       "default": null,
       "items": {
@@ -90,13 +83,9 @@
       ]
     },
     "schema_version": {
-      "default": null,
       "format": "uint32",
       "minimum": 0,
-      "type": [
-        "integer",
-        "null"
-      ]
+      "type": "integer"
     },
     "uncovered": {
       "items": {
@@ -105,6 +94,9 @@
       "type": "array"
     }
   },
+  "required": [
+    "schema_version"
+  ],
   "title": "security.toml",
   "type": "object"
 }

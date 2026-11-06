@@ -1,7 +1,7 @@
 # dx: written once, yours to edit
 
 #:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json
-extends = ".dx/config/licenses/standard.toml"
+schema_version = 1
 
 [distribution]
 internal = ["//..."]

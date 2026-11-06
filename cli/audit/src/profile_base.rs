@@ -1,25 +1,7 @@
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Profile {
-    Standard,
-    Strict,
-}
-
-impl Profile {
-    fn name(self) -> &'static str {
-        match self {
-            Profile::Standard => "standard",
-            Profile::Strict => "strict",
-        }
-    }
-}
-
-/// Workspace-relative path of the base file `dx init --apply` writes.
-pub fn base_rel(file: &str, profile: Profile) -> String {
-    format!(".dx/config/{file}/{}.toml", profile.name())
-}
+pub use dx_config::Profile;
 
 /// The base text that ships inside dx_audit; `None` for a file without bases.
-pub fn base_text(file: &str, profile: Profile) -> Option<&'static str> {
+pub(crate) fn base_text(file: &str, profile: Profile) -> Option<&'static str> {
     match (file, profile) {
         ("licenses", Profile::Standard) => Some(include_str!("../profiles/licenses/standard.toml")),
         ("licenses", Profile::Strict) => Some(include_str!("../profiles/licenses/strict.toml")),
@@ -33,40 +15,16 @@ pub fn base_text(file: &str, profile: Profile) -> Option<&'static str> {
 mod tests {
     use super::*;
 
-    const COMMITTED: [(&str, Profile, &str); 4] = [
-        (
-            "licenses",
-            Profile::Standard,
-            include_str!("../../../.dx/config/licenses/standard.toml"),
-        ),
-        (
-            "licenses",
-            Profile::Strict,
-            include_str!("../../../.dx/config/licenses/strict.toml"),
-        ),
-        (
-            "security",
-            Profile::Standard,
-            include_str!("../../../.dx/config/security/standard.toml"),
-        ),
-        (
-            "security",
-            Profile::Strict,
-            include_str!("../../../.dx/config/security/strict.toml"),
-        ),
-    ];
-
     #[test]
-    fn committed_bases_match_the_embedded_ones() {
-        for (file, profile, committed) in COMMITTED {
-            let (header, body) = committed.split_once('\n').expect("header line");
-            assert!(header.starts_with("# dx: generated"), "{file} {profile:?}");
-            assert_eq!(
-                Some(body),
-                base_text(file, profile),
-                "{} differs; run dx init --apply",
-                base_rel(file, profile)
-            );
+    fn every_base_parses_and_has_no_entries() {
+        for profile in [Profile::Standard, Profile::Strict] {
+            let base = base_text("security", profile).expect("security base");
+            let security = crate::exception::load_security(Some(base), profile).expect("parses");
+            assert!(security.exceptions.is_empty() && security.uncovered.is_empty());
+            let base = base_text("licenses", profile).expect("licenses base");
+            let licenses =
+                crate::license_policy::load_licenses(Some(base), profile).expect("parses");
+            assert!(licenses.exceptions.is_empty() && licenses.inventory.is_empty());
         }
     }
 }

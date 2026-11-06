@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use dx_audit::exception::{live_exceptions_for_set, load_security};
+use dx_audit::profile_base::Profile;
 use serde::Deserialize;
 
 const SEVERITIES: [&str; 4] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
@@ -137,17 +138,15 @@ pub fn parse_report(json: &str) -> Result<Vec<ImageFinding>, String> {
 }
 
 /// Drops findings covered by an unexpired `[[exception]]` in set `oci` naming the same
-/// advisory and package, with `versions` either `*` or the installed version.
+/// advisory and package, with `versions` either `*` or the installed version. Only the
+/// exceptions are used, so the profile does not matter.
 pub fn apply_exceptions(
     findings: Vec<ImageFinding>,
     security_toml: Option<&str>,
-    read: impl Fn(&str) -> std::io::Result<String>,
     today: &str,
 ) -> Result<Vec<ImageFinding>, String> {
-    let Some(text) = security_toml else {
-        return Ok(findings);
-    };
-    let policy = load_security(text, read).map_err(|error| error.to_string())?;
+    let policy =
+        load_security(security_toml, Profile::Standard).map_err(|error| error.to_string())?;
     let live = live_exceptions_for_set(&policy, "oci", today);
     Ok(findings
         .into_iter()
@@ -268,16 +267,7 @@ pub fn scan_layout(
     let report = run(&trivy_args(layout, &severities, cache.as_deref()))?;
     let findings = parse_report(&report)?;
     let toml = workspace.and_then(|root| std::fs::read_to_string(root.join("security.toml")).ok());
-    let root = workspace.map(Path::to_path_buf);
-    apply_exceptions(
-        findings,
-        toml.as_deref(),
-        |path| match &root {
-            Some(root) => std::fs::read_to_string(root.join(path)),
-            None => Err(std::io::ErrorKind::NotFound.into()),
-        },
-        &today(),
-    )
+    apply_exceptions(findings, toml.as_deref(), &today())
 }
 
 /// The real trivy: `DX_TRIVY` or `trivy` on the PATH, offline.
@@ -335,10 +325,6 @@ mod tests {
         )
     }
 
-    fn no_files(_: &str) -> std::io::Result<String> {
-        Err(std::io::ErrorKind::NotFound.into())
-    }
-
     #[test]
     fn severities_run_from_the_floor_up() {
         assert_eq!(severity_list("HIGH").as_deref(), Ok("HIGH,CRITICAL"));
@@ -365,7 +351,7 @@ mod tests {
     fn an_exception_covers_one_finding() {
         let found = parse_report(REPORT).expect("report");
         let toml = exception("CVE-2024-0001", "openssl", "2999-01-01");
-        let left = apply_exceptions(found, Some(&toml), no_files, "2026-01-01").expect("policy");
+        let left = apply_exceptions(found, Some(&toml), "2026-01-01").expect("policy");
         assert_eq!(left.len(), 1);
         assert_eq!(left[0].id, "CVE-2024-0002");
     }
@@ -379,7 +365,7 @@ mod tests {
                 .replace("versions = \"*\"", &format!("versions = \"{versions}\""))
         };
         let run = |toml: String| {
-            apply_exceptions(found.clone(), Some(&toml), no_files, "2026-01-01")
+            apply_exceptions(found.clone(), Some(&toml), "2026-01-01")
                 .expect("policy")
                 .len()
         };
@@ -392,7 +378,7 @@ mod tests {
     fn an_expired_exception_covers_nothing() {
         let found = parse_report(REPORT).expect("report");
         let toml = exception("CVE-2024-0001", "openssl", "2020-01-01");
-        let left = apply_exceptions(found, Some(&toml), no_files, "2026-01-01").expect("policy");
+        let left = apply_exceptions(found, Some(&toml), "2026-01-01").expect("policy");
         assert_eq!(left.len(), 2);
     }
 

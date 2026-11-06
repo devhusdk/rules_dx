@@ -158,11 +158,6 @@ pub(crate) fn execute_init(
             .into_iter()
             .map(|note| format!("{}{note}", target.prefix)),
     );
-    notes.extend(
-        super::init_files::audit_policy_notes(root)
-            .into_iter()
-            .map(|note| format!("{}{note}", target.prefix)),
-    );
     if let Some(blocker) = &target.blocker {
         if !root.join("MODULE.bazel").exists() {
             notes.push(format!(

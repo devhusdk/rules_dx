@@ -43,6 +43,16 @@ fn typo_key_is_rejected() {
     assert!(!licenses.is_valid(&toml_value("[polcy]\nblocked = []")));
 }
 
+#[test]
+fn schema_version_is_required_and_extends_is_unknown() {
+    for schema in [SECURITY_SCHEMA, LICENSES_SCHEMA] {
+        let schema = validator(schema);
+        assert!(schema.is_valid(&toml_value("schema_version = 1")));
+        assert!(!schema.is_valid(&toml_value("")));
+        assert!(!schema.is_valid(&toml_value("schema_version = 1\nextends = \"base.toml\"")));
+    }
+}
+
 const CONFIG_DOC: &str = include_str!("../../../docs/cli/commands/config.md");
 
 fn table_keys(file: &str, table: &str) -> Vec<String> {

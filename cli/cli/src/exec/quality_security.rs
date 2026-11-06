@@ -64,7 +64,7 @@ mod tests {
         expires: &str,
     ) -> String {
         format!(
-            "[[exception]]\nadvisory = \"{advisory}\"\npackage = \"{package}\"\nset = \"{set}\"\nversions = \"{versions}\"\nreason = \"accepted\"\nexpires = \"{expires}\"\n"
+            "schema_version = 1\n[[exception]]\nadvisory = \"{advisory}\"\npackage = \"{package}\"\nset = \"{set}\"\nversions = \"{versions}\"\nreason = \"accepted\"\nexpires = \"{expires}\"\n"
         )
     }
 

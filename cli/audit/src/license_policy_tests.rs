@@ -1,5 +1,18 @@
 use super::*;
 use crate::license_expr::{evaluate, IdClass, LicenseExpr, TierOutcome};
+use crate::profile_base::Profile;
+
+/// Loads `body` as a standard-profile licenses.toml whose line 1 is `schema_version = 1`.
+fn load(body: &str) -> Result<LicensePolicy, PolicyProblem> {
+    load_licenses(
+        Some(&format!("schema_version = 1\n{body}")),
+        Profile::Standard,
+    )
+}
+
+fn standard() -> LicensePolicy {
+    load_licenses(None, Profile::Standard).expect("standard")
+}
 
 fn tables() -> PolicyTables {
     PolicyTables {
@@ -430,7 +443,7 @@ expires = "2027-03-01"
 
 #[test]
 fn loader_converts_doc_shape_to_domain_records() {
-    let policy = load_licenses_toml(doc_example()).expect("doc example loads");
+    let policy = load(doc_example()).expect("doc example loads");
     assert_eq!(
         policy.tables.blocked,
         ["AGPL-3.0-only", "AGPL-3.0-or-later", "SSPL-1.0"]
@@ -463,7 +476,7 @@ fn loader_converts_doc_shape_to_domain_records() {
     assert_eq!(
         policy.exceptions,
         vec![LicenseException {
-            line: 16,
+            line: 17,
             package: "some-copyleft-lib".to_owned(),
             set: "cargo".to_owned(),
             license: "GPL-3.0-only".to_owned(),
@@ -475,18 +488,16 @@ fn loader_converts_doc_shape_to_domain_records() {
 }
 
 #[test]
-fn loader_defaults_missing_sections_to_empty_and_stays_closed() {
-    let policy = load_licenses_toml("").expect("empty document loads");
+fn loader_defaults_missing_sections_to_the_base_and_stays_closed() {
+    let policy = load("").expect("empty document loads");
+    assert_eq!(policy, standard());
     assert_eq!(
-        policy,
-        LicensePolicy {
-            tables: PolicyTables::default(),
-            sets: Vec::new(),
-            distribution: Distribution::default(),
-            exceptions: Vec::new(),
-            inventory: Vec::new(),
-        }
+        load_licenses(Some(" \n"), Profile::Standard),
+        Ok(standard())
     );
+    assert!(policy.tables.allow.contains("MIT"));
+    assert!(policy.sets.is_empty() && policy.exceptions.is_empty() && policy.inventory.is_empty());
+    assert_eq!(policy.distribution, Distribution::default());
     assert_eq!(policy.distribution.tier_of("//cli:dx"), Tier::Distributed);
 }
 
@@ -502,10 +513,7 @@ fn loader_rejects_unknown_fields_typos_and_malformed_toml() {
         "[distribution]\ndistributed = [\"//cli:dx\"]\n",
     ] {
         assert!(
-            matches!(
-                load_licenses_toml(bad),
-                Err(PolicyProblem::InvalidLicensesToml { .. })
-            ),
+            matches!(load(bad), Err(PolicyProblem::InvalidLicensesToml { .. })),
             "{bad:?} must fail as invalid TOML"
         );
     }
@@ -515,7 +523,7 @@ fn loader_rejects_unknown_fields_typos_and_malformed_toml() {
 fn loader_validates_tables_and_set_adjustments() {
     let multi = "[policy.distributed]\nallow = [\"MIT\"]\ndeny = [\"MIT\"]\n";
     assert_eq!(
-        load_licenses_toml(multi),
+        load(multi),
         Err(PolicyProblem::MultiListed {
             identity: "MIT".to_owned()
         })
@@ -523,7 +531,7 @@ fn loader_validates_tables_and_set_adjustments() {
     let conflict = "[policy.distributed]\nallow = [\"MIT\"]\n\
                     [policy.sets.npm-root]\nreview = [\"MIT\"]\n";
     assert_eq!(
-        load_licenses_toml(conflict),
+        load(conflict),
         Err(PolicyProblem::SetConflict {
             set: "npm-root".to_owned(),
             identity: "MIT".to_owned(),
@@ -533,36 +541,38 @@ fn loader_validates_tables_and_set_adjustments() {
 
 #[test]
 fn loaded_exceptions_validate_against_audit_date() {
-    let policy = load_licenses_toml(doc_example()).expect("doc example loads");
+    let policy = load(doc_example()).expect("doc example loads");
     validate_license_exception(&policy.exceptions[0], "2026-09-14").expect("valid");
     assert!(validate_license_exception(&policy.exceptions[0], "2027-03-01").is_err());
 }
 
 #[test]
-fn schema_version_accepts_v1_and_rejects_other_versions() {
-    assert_eq!(LICENSE_POLICY_SCHEMA_VERSION, 1);
-    load_licenses_toml("").expect("empty document loads as v1");
-    load_licenses_toml("schema_version = 1\n").expect("explicit v1 loads");
-    for bad in [
-        "schema_version = 0\n",
-        "schema_version = 2\n",
-        "schema_version = 999\n",
+fn schema_version_is_required_and_must_be_current() {
+    let read = |text: &str| load_licenses(Some(text), Profile::Standard);
+    read("schema_version = 1\n").expect("v1 loads");
+    for (bad, want) in [
+        ("[policy]\nblocked = []\n", "schema_version is missing"),
+        ("schema_version = 0\n", "no longer read"),
+        ("schema_version = 2\n", "newer than this dx reads"),
+        ("schema_version = 999\n", "newer than this dx reads"),
     ] {
-        assert!(
-            matches!(
-                load_licenses_toml(bad),
-                Err(PolicyProblem::InvalidLicensesToml { .. })
-            ),
-            "{bad:?} must fail as unsupported schema version"
-        );
+        let error = read(bad).expect_err(bad).to_string();
+        assert!(error.contains(want), "{bad:?}: {error}");
     }
 }
 
 #[test]
+fn extends_is_an_unknown_key() {
+    let error = load("extends = \"base.toml\"\n")
+        .expect_err("extends")
+        .to_string();
+    assert!(error.contains("unknown field `extends`"), "{error}");
+}
+
+#[test]
 fn license_additions_need_no_struct_edits() {
-    let policy =
-        load_licenses_toml("[policy.distributed]\nallow = [\"MIT\", \"New-Permissive-1.0\"]\n")
-            .expect("new allow identity loads");
+    let policy = load("[policy.distributed]\nallow = [\"MIT\", \"New-Permissive-1.0\"]\n")
+        .expect("new allow identity loads");
     assert!(policy.tables.allow.contains("New-Permissive-1.0"));
     policy.tables.validate().expect("single listing passes");
 }
@@ -604,7 +614,7 @@ license = "MIT OR Apache-2.0"
 versions = "1.0.100"
 text_present = true
 "#;
-    let policy = load_licenses_toml(text).expect("inventory loads");
+    let policy = load(text).expect("inventory loads");
     assert_eq!(policy.inventory.len(), 5);
     let npm = policy
         .inventory
@@ -633,19 +643,13 @@ fn loader_rejects_empty_inventory_fields_and_unknown_keys() {
         "[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"\"\n",
     ] {
         assert!(
-            matches!(
-                load_licenses_toml(bad),
-                Err(PolicyProblem::ExceptionMissingField { .. })
-            ),
+            matches!(load(bad), Err(PolicyProblem::ExceptionMissingField { .. })),
             "{bad:?} must fail on empty inventory field"
         );
     }
     let typo = "[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"1.0.0\"\nlicence = \"x\"\n";
     assert!(
-        matches!(
-            load_licenses_toml(typo),
-            Err(PolicyProblem::InvalidLicensesToml { .. })
-        ),
+        matches!(load(typo), Err(PolicyProblem::InvalidLicensesToml { .. })),
         "typo'd inventory key must fail as invalid TOML"
     );
 }
@@ -653,7 +657,7 @@ fn loader_rejects_empty_inventory_fields_and_unknown_keys() {
 #[test]
 fn inventory_text_parses_validates_and_implies_present() {
     let ok = "[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext = \"vendor/react/LICENSE\"\n";
-    let policy = load_licenses_toml(ok).expect("text loads");
+    let policy = load(ok).expect("text loads");
     assert_eq!(
         policy.inventory[0].text.as_deref(),
         Some("vendor/react/LICENSE")
@@ -669,10 +673,7 @@ fn inventory_text_parses_validates_and_implies_present() {
             "[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext = \"{bad}\"\n"
         );
         assert!(
-            matches!(
-                load_licenses_toml(&text),
-                Err(PolicyProblem::InventoryText { .. })
-            ),
+            matches!(load(&text), Err(PolicyProblem::InventoryText { .. })),
             "{bad:?} must be rejected"
         );
     }
@@ -697,7 +698,7 @@ versions = \"*\"
 reason = \"ok\"
 expires = \"2000-01-01\"
 ";
-    let policy = load_licenses_toml(text).expect("loads");
+    let policy = load(text).expect("loads");
     let found: Vec<(usize, String, bool)> = policy
         .exceptions
         .iter()
@@ -712,26 +713,16 @@ expires = \"2000-01-01\"
     assert_eq!(
         found,
         vec![
-            (1, "MIT for alpha in cargo".to_owned(), true),
-            (9, "ISC for beta in npm".to_owned(), true),
+            (2, "MIT for alpha in cargo".to_owned(), true),
+            (10, "ISC for beta in npm".to_owned(), true),
         ]
     );
 }
 
-fn base_reader(text: &'static str) -> impl Fn(&str) -> std::io::Result<String> {
-    move |_| Ok(text.to_owned())
-}
-
-fn base(profile: crate::profile_base::Profile) -> &'static str {
-    crate::profile_base::base_text("licenses", profile).expect("base")
-}
-
 #[test]
 fn a_root_list_replaces_that_list_and_inherits_the_rest() {
-    use crate::profile_base::Profile;
-    let root = "extends = \".dx/config/licenses/standard.toml\"\n[policy.distributed]\nreview = [\"Zlib\"]\n";
-    let policy = load_licenses(root, base_reader(base(Profile::Standard))).expect("merged");
-    let standard = standard_policy().expect("standard");
+    let policy = load("[policy.distributed]\nreview = [\"Zlib\"]\n").expect("merged");
+    let standard = standard();
     assert_eq!(policy.tables.review, ["Zlib".to_owned()].into());
     assert_eq!(policy.tables.allow, standard.tables.allow);
     assert_eq!(policy.tables.deny, standard.tables.deny);
@@ -739,99 +730,57 @@ fn a_root_list_replaces_that_list_and_inherits_the_rest() {
 }
 
 #[test]
-fn a_root_file_without_extends_does_not_read_a_base() {
-    let policy = load_licenses("[policy]\nblocked = [\"X\"]\n", |_| {
-        panic!("no base is read")
-    })
-    .expect("single file");
-    assert!(policy.tables.allow.is_empty());
-}
-
-#[test]
-fn the_strict_base_denies_what_the_standard_base_only_reviews() {
-    use crate::profile_base::Profile;
-    let standard = load_licenses_toml(base(Profile::Standard)).expect("standard");
-    let strict = load_licenses_toml(base(Profile::Strict)).expect("strict");
+fn the_strict_profile_denies_what_the_standard_profile_only_reviews() {
+    let standard = standard();
+    let strict = load_licenses(None, Profile::Strict).expect("strict");
     for id in ["LGPL-3.0-only", "MPL-2.0", "EPL-2.0", "CDDL-1.0"] {
         assert!(standard.tables.review.contains(id));
         assert!(strict.tables.deny.contains(id));
     }
     assert!(strict.tables.review.is_empty());
-}
-
-#[test]
-fn a_base_with_exceptions_inventory_or_extends_is_rejected() {
-    for body in [
-        "[[exception]]\npackage = \"a\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"*\"\nreason = \"r\"\nexpires = \"2999-01-01\"\n",
-        "[[inventory]]\npackage = \"a\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"*\"\n",
-        "extends = \"other.toml\"\n",
-    ] {
-        let error = load_licenses("extends = \"b/base.toml\"\n", |_| Ok(body.to_owned()))
-            .expect_err("rejected")
-            .to_string();
-        assert!(error.contains("extends b/base.toml"), "{error}");
-    }
-}
-
-#[test]
-fn a_missing_base_names_the_path_and_the_fix() {
-    let error = load_licenses("extends = \"b/base.toml\"\n", |_| {
-        Err(std::io::ErrorKind::NotFound.into())
-    })
-    .expect_err("missing")
-    .to_string();
+    let root = "schema_version = 1\n[distribution]\ninternal = [\"//a/...\"]\n";
+    let strict_root = load_licenses(Some(root), Profile::Strict).expect("strict root");
+    assert_eq!(strict_root.tables, strict.tables);
     assert_eq!(
-        error,
-        "invalid licenses.toml: extends b/base.toml: not found; run dx init --apply"
+        strict_root.distribution.internal,
+        ["//a/...".to_owned()].into()
     );
-}
-
-#[test]
-fn an_extends_path_must_stay_inside_the_workspace() {
-    for path in ["../base.toml", "/etc/base.toml", "a\\\\b.toml", ""] {
-        let root = format!("extends = {path:?}\n");
-        let error = load_licenses(&root, |_| panic!("not read"))
-            .expect_err("outside")
-            .to_string();
-        assert!(error.contains("inside the workspace"), "{error}");
-    }
 }
 
 #[test]
 fn merged_tables_are_validated_and_exceptions_keep_root_lines() {
-    use crate::profile_base::Profile;
-    let clash = "extends = \"b.toml\"\n[policy.distributed]\nallow = [\"MPL-2.0\"]\n";
+    let clash = "[policy.distributed]\nallow = [\"MPL-2.0\"]\n";
     assert!(matches!(
-        load_licenses(clash, base_reader(base(Profile::Standard))),
+        load(clash),
         Err(PolicyProblem::MultiListed { .. })
     ));
-    let root = "extends = \"b.toml\"\n\n[[exception]]\npackage = \"a\"\nset = \"cargo\"\nlicense = \"MPL-2.0\"\nversions = \"*\"\nreason = \"r\"\nexpires = \"2999-01-01\"\n";
-    let policy = load_licenses(root, base_reader(base(Profile::Standard))).expect("merged");
+    let root = "\n[[exception]]\npackage = \"a\"\nset = \"cargo\"\nlicense = \"MPL-2.0\"\nversions = \"*\"\nreason = \"r\"\nexpires = \"2999-01-01\"\n";
+    let policy = load(root).expect("merged");
     assert_eq!(policy.exceptions[0].line, 3);
 }
 
 #[test]
-fn the_no_file_policy_is_the_standard_base() {
-    use crate::profile_base::Profile;
+fn set_overrides_and_the_distribution_come_from_the_root() {
+    let root =
+        "[policy.sets.cargo]\nreview = [\"BSL-1.0\"]\n[distribution]\ninternal = [\"//b/...\"]\n";
+    let policy = load(root).expect("merged");
     assert_eq!(
-        standard_policy().expect("standard"),
-        load_licenses_toml(base(Profile::Standard)).expect("standard")
+        policy.sets,
+        vec![SetAdjustment {
+            set: "cargo".to_owned(),
+            review: ["BSL-1.0".to_owned()].into(),
+        }]
     );
+    assert_eq!(policy.distribution.internal, ["//b/...".to_owned()].into());
 }
 
 #[test]
-fn a_set_override_and_the_distribution_replace_the_base_entries() {
-    let base_text = "[policy.sets.cargo]\nreview = [\"Zlib\"]\n[policy.sets.npm]\nreview = [\"Zlib\"]\n[distribution]\ninternal = [\"//a/...\"]\n";
-    let root = "extends = \"b.toml\"\n[policy.sets.cargo]\nreview = [\"BSL-1.0\"]\n[distribution]\ninternal = [\"//b/...\"]\n";
-    let policy = load_licenses(root, |_| Ok(base_text.to_owned())).expect("merged");
-    let review = |set: &str| {
-        policy
-            .sets
-            .iter()
-            .find(|entry| entry.set == set)
-            .map(|entry| entry.review.clone())
-    };
-    assert_eq!(review("cargo"), Some(["BSL-1.0".to_owned()].into()));
-    assert_eq!(review("npm"), Some(["Zlib".to_owned()].into()));
-    assert_eq!(policy.distribution.internal, ["//b/...".to_owned()].into());
+fn internal_entries_must_be_label_patterns() {
+    let error = load("[distribution]\ninternal = [\"cli/...\"]\n")
+        .expect_err("not a label")
+        .to_string();
+    assert!(
+        error.contains("invalid label pattern \"cli/...\""),
+        "{error}"
+    );
 }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::profile_base::Profile;
 
 fn sample() -> RiskException {
     RiskException {
@@ -321,7 +322,6 @@ fn npm_partial_upper_bounds_are_inclusive_of_everything_below_them() {
 
 #[test]
 fn exception_schema_stays_versioned_without_allowlist() {
-    assert_eq!(EXCEPTION_SCHEMA_VERSION, 1);
     let mut novel = sample();
     novel.advisory = "GHSA-novel-0000-0001".to_owned();
     novel.package = "brand-new-dep".to_owned();
@@ -329,8 +329,12 @@ fn exception_schema_stays_versioned_without_allowlist() {
     validate_exception(&novel, "2026-09-14").expect("novel data validates");
 }
 
+fn load(text: &str) -> Result<SecurityPolicy, SecurityProblem> {
+    load_security(Some(text), Profile::Standard)
+}
+
 fn security_toml(entries: &[RiskException]) -> String {
-    let mut text = String::new();
+    let mut text = String::from("schema_version = 1\n");
     for entry in entries {
         text.push_str("[[exception]]\n");
         for (key, value) in [
@@ -353,12 +357,12 @@ fn security_toml_loads_every_exception_in_file_order() {
     second.advisory = "GHSA-dddd-eeee-ffff".to_owned();
     second.package = "another-copyleft-lib".to_owned();
     let text = security_toml(&[sample(), second]);
-    let policy = load_security_toml(&text).expect("loads");
+    let policy = load(&text).expect("loads");
     assert_eq!(policy.exceptions.len(), 2);
     assert_eq!(
         policy.exceptions[0],
         RiskException {
-            line: 1,
+            line: 2,
             ..sample()
         }
     );
@@ -366,44 +370,57 @@ fn security_toml_loads_every_exception_in_file_order() {
 }
 
 #[test]
-fn security_toml_defaults_to_no_exceptions_and_the_current_schema() {
+fn security_toml_defaults_to_no_exceptions_and_needs_a_schema_version() {
     assert_eq!(
-        load_security_toml("").expect("empty file"),
+        load_security(None, Profile::Standard).expect("no file"),
         SecurityPolicy::default()
     );
     assert_eq!(
-        load_security_toml(&format!("schema_version = {EXCEPTION_SCHEMA_VERSION}\n"))
-            .expect("pinned"),
+        load_security(Some("  \n"), Profile::Standard).expect("blank file"),
         SecurityPolicy::default()
     );
-    assert_eq!(
-        load_security_toml("schema_version = 99\n"),
-        Err(SecurityProblem::UnsupportedSchema { version: 99 })
-    );
+    assert_eq!(load("schema_version = 1\n"), Ok(SecurityPolicy::default()));
+    for (text, want) in [
+        ("fail_on = []\n", "schema_version is missing"),
+        ("schema_version = 99\n", "schema_version 99 is newer"),
+        ("schema_version = \"1\"\n", "must be a whole number"),
+    ] {
+        let error = load(text).expect_err(text).to_string();
+        assert!(error.contains(want), "{text}: {error}");
+    }
 }
 
 #[test]
 fn security_toml_rejects_missing_and_unknown_keys() {
-    let text = "[[exception]]\npackage = \"p\"\n";
+    let text = "schema_version = 1\n[[exception]]\npackage = \"p\"\n";
     assert!(matches!(
-        load_security_toml(text),
+        load(text),
         Err(SecurityProblem::InvalidToml { .. })
     ));
     let text = format!("{}\nextra = 1\n", security_toml(&[sample()]));
     assert!(matches!(
-        load_security_toml(&text),
+        load(&text),
         Err(SecurityProblem::InvalidToml { .. })
     ));
 }
 
 #[test]
+fn extends_is_an_unknown_key() {
+    let error = load("schema_version = 1\nextends = \"base.toml\"\n")
+        .expect_err("extends")
+        .to_string();
+    assert!(error.contains("unknown field `extends`"), "{error}");
+    assert!(error.contains("line 2"), "{error}");
+}
+
+#[test]
 fn security_toml_loads_uncovered_acceptances() {
-    let text = "[[uncovered]]\nset = \"powershell\"\nreason = \"r\"\nexpires = \"2027-01-01\"\n";
-    let policy = load_security_toml(text).expect("loads");
+    let text = "schema_version = 1\n[[uncovered]]\nset = \"powershell\"\nreason = \"r\"\nexpires = \"2027-01-01\"\n";
+    let policy = load(text).expect("loads");
     assert_eq!(
         policy.uncovered,
         vec![UncoveredAcceptance {
-            line: 1,
+            line: 2,
             set: "powershell".to_owned(),
             reason: "r".to_owned(),
             expires: "2027-01-01".to_owned(),
@@ -412,7 +429,7 @@ fn security_toml_loads_uncovered_acceptances() {
     assert!(policy.exceptions.is_empty());
     let text = format!("{text}extra = 1\n");
     assert!(matches!(
-        load_security_toml(&text),
+        load(&text),
         Err(SecurityProblem::InvalidToml { .. })
     ));
 }
@@ -458,6 +475,7 @@ fn line_of_counts_newlines_before_offset() {
 #[test]
 fn every_bad_entry_keeps_its_line_and_label() {
     let text = "\
+schema_version = 1
 [[exception]]
 advisory = \"GHSA-1\"
 package = \"alpha\"
@@ -482,7 +500,7 @@ versions = \"*\"
 reason = \"\"
 expires = \"2999-01-01\"
 ";
-    let policy = load_security_toml(text).expect("loads");
+    let policy = load(text).expect("loads");
     let found: Vec<(usize, String, bool)> = policy
         .exceptions
         .iter()
@@ -497,16 +515,16 @@ expires = \"2999-01-01\"
     assert_eq!(
         found,
         vec![
-            (1, "GHSA-1 on alpha".to_owned(), true),
-            (9, "GHSA-2 on beta".to_owned(), true),
-            (17, "GHSA-3 on gamma".to_owned(), true),
+            (2, "GHSA-1 on alpha".to_owned(), true),
+            (10, "GHSA-2 on beta".to_owned(), true),
+            (18, "GHSA-3 on gamma".to_owned(), true),
         ]
     );
 }
 
 #[test]
 fn syntax_error_reports_its_line() {
-    let error = load_security_toml("schema_version = 1\n[[exception\n").expect_err("bad toml");
+    let error = load("schema_version = 1\n[[exception\n").expect_err("bad toml");
     assert!(
         error.to_string().contains("invalid TOML at line 2"),
         "{error}"
@@ -520,51 +538,32 @@ fn empty_fields_show_as_question_mark() {
     assert_eq!(entry.entry_label(), format!("? on {}", entry.package));
 }
 
-fn base(profile: crate::profile_base::Profile) -> String {
-    crate::profile_base::base_text("security", profile)
-        .expect("base")
-        .to_owned()
-}
-
 #[test]
-fn fail_on_defaults_to_the_standard_kinds_and_a_root_list_replaces_the_base() {
-    use crate::profile_base::Profile;
-    let kinds = |policy: SecurityPolicy| policy.fail_on;
+fn the_profile_picks_the_base_and_a_root_list_replaces_it() {
+    let standard = load_security(None, Profile::Standard).expect("standard");
     assert_eq!(
-        kinds(standard_security_policy().expect("standard")),
+        standard.fail_on,
         vec![AdvisoryKind::Vulnerability, AdvisoryKind::Unsound]
     );
-    assert_eq!(
-        kinds(load_security_toml("").expect("empty")),
-        kinds(SecurityPolicy::default())
-    );
-    let read = |_: &str| Ok(base(Profile::Strict));
-    let strict = load_security("extends = \"b.toml\"\n", read).expect("strict");
+    assert_eq!(standard.fail_on, SecurityPolicy::default().fail_on);
+    let strict = load_security(None, Profile::Strict).expect("strict");
     assert!(strict.fails_on(AdvisoryKind::Unmaintained));
     assert!(strict.fails_on(AdvisoryKind::Notice));
     assert!(strict.fails_on(AdvisoryKind::Yanked));
-    let own = "extends = \"b.toml\"\nfail_on = [\"unsound\"]\n";
-    let own = load_security(own, read).expect("own list");
+    let with_exception = security_toml(&[sample()]);
+    let strict = load_security(Some(&with_exception), Profile::Strict).expect("strict");
+    assert!(strict.fails_on(AdvisoryKind::Unmaintained));
+    assert_eq!(strict.exceptions.len(), 1);
+    let own = "schema_version = 1\nfail_on = [\"unsound\"]\n";
+    let own = load_security(Some(own), Profile::Strict).expect("own list");
     assert_eq!(own.fail_on, vec![AdvisoryKind::Unsound]);
 }
 
 #[test]
-fn security_base_rules_and_unknown_kinds_are_rejected() {
-    let yanked = load_security_toml("fail_on = [\"withdrawn\"]\n");
-    assert!(matches!(yanked, Err(SecurityProblem::InvalidToml { .. })));
-    let with_exception = format!("fail_on = []\n{}", security_toml(&[sample()]));
-    let error = load_security("extends = \"b.toml\"\n", |_| Ok(with_exception.clone()));
-    assert!(error
-        .expect_err("rejected")
-        .to_string()
-        .contains("a base may not have"));
-    let missing = load_security("extends = \"b.toml\"\n", |_| {
-        Err(std::io::Error::from(std::io::ErrorKind::NotFound))
-    });
-    assert!(missing
-        .expect_err("missing")
-        .to_string()
-        .contains("dx init --apply"));
-    let outside = load_security("extends = \"../b.toml\"\n", |_| Ok(String::new()));
-    assert!(outside.is_err());
+fn unknown_kinds_are_rejected() {
+    let withdrawn = load("schema_version = 1\nfail_on = [\"withdrawn\"]\n");
+    assert!(matches!(
+        withdrawn,
+        Err(SecurityProblem::InvalidToml { .. })
+    ));
 }

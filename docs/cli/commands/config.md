@@ -1,8 +1,9 @@
 # Config Reference
 
 dx reads two files from the workspace root: `security.toml` for `dx security`
-and `licenses.toml` for `dx license`. Both are optional. An unknown key fails
-the run. Defaults come from flags and `DX_` variables (see
+and `licenses.toml` for `dx license`. Both are optional. Each is merged over a
+base that ships with dx; the top-level `profile` in `dx.toml` picks it:
+`standard` (the default) or `strict`. An unknown key fails the run. Defaults come from flags and `DX_` variables (see
 [Command Reference](README.md)).
 
 In every table, a key without a default is required. Dates are `YYYY-MM-DD`.
@@ -16,11 +17,10 @@ Used by `dx security`. See [Audit, Update](audit-update.md).
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `schema_version` | integer | `1` | Must be `1` when set. |
+| `schema_version` | integer | none | Must be `1`. |
 | `exception` | array of tables | none | Accepted advisories. |
 | `uncovered` | array of tables | none | Accepted sets with no advisory source. |
-| `extends` | string | none | Workspace-relative path of a base, such as `.dx/config/security/standard.toml`. A `fail_on` set here replaces the base's. `exception` and `uncovered` entries are added to the base's. A base may not have `extends`, `exception` or `uncovered`. A missing base fails; run `dx init --apply`. |
-| `fail_on` | array of strings | `["vulnerability", "unsound"]` | Advisory kinds that fail the run: `vulnerability`, `unsound`, `unmaintained`, `notice`, `yanked`. Other kinds are reported as `info`. The strict base adds `unmaintained`, `notice` and `yanked`. |
+| `fail_on` | array of strings | the profile's | Advisory kinds that fail the run: `vulnerability`, `unsound`, `unmaintained`, `notice`, `yanked`. Other kinds are reported as `info`. Standard fails on `vulnerability` and `unsound`; strict adds `unmaintained`, `notice` and `yanked`. A list set here replaces the profile's. |
 
 ### security.toml `[[exception]]`
 
@@ -50,12 +50,14 @@ Two sets are not dependency sets:
 
 Used by `dx license`. See [Audit, Update](audit-update.md).
 
+A list this file sets replaces the profile's list; a list it leaves out comes
+from the profile. The strict profile denies what standard only reviews.
+
 ### licenses.toml top level
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `schema_version` | integer | `1` | Must be `1` when set. |
-| `extends` | string | none | Workspace-relative path of a base, such as `.dx/config/licenses/standard.toml`. A key this file sets replaces the base's key; a key it leaves out is inherited. `policy.sets.<set>` replaces per set, `distribution.internal` replaces, and `exception` and `inventory` entries are added to the base's. A base may not have `extends`, `exception` or `inventory`. A missing base fails; run `dx init --apply`. |
+| `schema_version` | integer | none | Must be `1`. |
 | `policy` | table | empty | License tiers. |
 | `distribution` | table | empty | Which scopes are internal. |
 | `exception` | array of tables | none | Accepted license findings. |

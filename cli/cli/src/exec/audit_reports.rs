@@ -135,13 +135,13 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
 }
 
 #[test]
-fn the_strict_base_denies_a_license_the_standard_base_only_reviews() {
+fn the_strict_profile_denies_a_license_the_standard_profile_only_reviews() {
     for (profile, reviewed) in [("standard", true), ("strict", false)] {
-        let harness = Harness::new("license-base");
-        let base = dx_audit::profile_base::base_rel("licenses", profile_of(profile));
-        let text = dx_audit::profile_base::base_text("licenses", profile_of(profile));
-        harness.write_source(&base, text.expect("base"));
-        harness.write_source("licenses.toml", &format!("extends = \"{base}\"\n"));
+        let harness = Harness::new("license-profile");
+        harness.write_source(
+            "dx.toml",
+            &format!("schema_version = 1\nprofile = \"{profile}\"\n"),
+        );
         let tables = super::load_license_policy(&harness.workspace)
             .expect("policy")
             .tables;
@@ -150,16 +150,25 @@ fn the_strict_base_denies_a_license_the_standard_base_only_reviews() {
     }
 }
 
-fn profile_of(name: &str) -> dx_audit::profile_base::Profile {
-    match name {
-        "strict" => dx_audit::profile_base::Profile::Strict,
-        _ => dx_audit::profile_base::Profile::Standard,
-    }
+#[test]
+fn an_invalid_dx_toml_fails_both_policies() {
+    let harness = Harness::new("audit-bad-dx-toml");
+    harness.write_source("dx.toml", "profile = \"strict\"\n");
+    let security = super::load_security_policy(&harness.workspace).expect_err("security");
+    assert!(matches!(security, super::AuditError::SecurityInvalid(_)));
+    assert!(
+        security.to_string().contains("dx.toml: ")
+            && security.to_string().contains("schema_version is missing"),
+        "{security}"
+    );
+    let license = super::load_license_policy(&harness.workspace).expect_err("license");
+    assert!(matches!(license, super::AuditError::LicenseInvalid { .. }));
+    assert!(license.to_string().contains("dx.toml: "), "{license}");
 }
 
 #[test]
 fn an_internal_license_scope_skips_the_review_and_notice_tables() {
-    let policy = "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//rust/tests/fixtures/hello:internal\"]\n";
+    let policy = "schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\nreview = []\ndeny = []\n[distribution]\ninternal = [\"//rust/tests/fixtures/hello:internal\"]\n";
     for (license, code) in [("Zlib", 0), ("ISC", 0), ("MIT", 0), ("AGPL-3.0-only", 1)] {
         let (code_seen, out, err) = run_with(
             &[
@@ -203,8 +212,7 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
 
 #[test]
 fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
-    let policy =
-        "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//...\"]\n";
+    let policy = "schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\nreview = []\ndeny = []\n[distribution]\ninternal = [\"//...\"]\n";
     for scope in [
         "//rust/tests/fixtures/hello:all",
         "//rust/tests/fixtures/hello:app",
@@ -225,7 +233,13 @@ fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
             );
         }
     }
-    let load = |text: &str| dx_audit::license_policy::load_licenses_toml(text).expect("policy");
+    let load = |text: &str| {
+        dx_audit::license_policy::load_licenses(
+            Some(text),
+            dx_audit::profile_base::Profile::Standard,
+        )
+        .expect("policy")
+    };
     let roots = |labels: &[&str]| {
         labels
             .iter()
@@ -237,7 +251,7 @@ fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
         super::tier_for_roots(&wide, &roots(&["//cli/cli:dx_cli", "//cli/audit:dx_audit"])),
         dx_audit::license_expr::Tier::Internal
     );
-    let narrow = load("[distribution]\ninternal = [\"//cli/...\"]\n");
+    let narrow = load("schema_version = 1\n[distribution]\ninternal = [\"//cli/...\"]\n");
     assert_eq!(
         super::tier_for_roots(&narrow, &roots(&["//cli/cli:dx_cli", "//go:x"])),
         dx_audit::license_expr::Tier::Distributed
@@ -282,7 +296,7 @@ fn license_exceptions_only_approve_matching_current_findings() {
     ] {
         let (code, out, err) = run_with(&["license", "//rust/tests/fixtures/hello:demo", "--output=json"], &AuditRunner::clean(), &|h| {
             write_demo_license(h, license);
-            h.write_source("licenses.toml", &format!("[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\ndeny = [\"GPL-3.0-only\"]\nreview = [\"MPL-2.0\"]\n{exception}\n[[inventory]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"{license}\"\nversions = \"1.0.0\"\ntext_present = true\n"));
+            h.write_source("licenses.toml", &format!("schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\ndeny = [\"GPL-3.0-only\"]\nreview = [\"MPL-2.0\"]\n{exception}\n[[inventory]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"{license}\"\nversions = \"1.0.0\"\ntext_present = true\n"));
         });
         assert_eq!(code, expected, "{license}: {out}{err}");
     }
@@ -621,7 +635,7 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
     );
     harness.write_source(
         "licenses.toml",
-        "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\ndeny = [\"GPL-3.0-only\"]\nreview = []\n[[inventory]]\npackage = \"pnpmonly\"\nset = \"cargo\"\nlicense = \"AGPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = false\n[[inventory]]\npackage = \"yarnonly\"\nset = \"cargo\"\nlicense = \"AGPL-3.0-only\"\nversions = \"3.0.0\"\ntext_present = false\n",
+        "schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\ndeny = [\"GPL-3.0-only\"]\nreview = []\n[[inventory]]\npackage = \"pnpmonly\"\nset = \"cargo\"\nlicense = \"AGPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = false\n[[inventory]]\npackage = \"yarnonly\"\nset = \"cargo\"\nlicense = \"AGPL-3.0-only\"\nversions = \"3.0.0\"\ntext_present = false\n",
     );
     write_advisory(&harness, "npm", &advisories);
     {
@@ -1184,13 +1198,12 @@ fn audit_errors_stay_typed_with_stable_display() {
         .to_string(),
         "could not parse pnpm-lock.yaml: boom"
     );
-    let security =
-        AuditError::SecurityInvalid(dx_audit::exception::SecurityProblem::UnsupportedSchema {
-            version: 99,
-        });
+    let security = AuditError::SecurityInvalid(dx_audit::exception::SecurityProblem::InvalidToml {
+        message: "schema_version is missing".to_owned(),
+    });
     assert_eq!(
         security.to_string(),
-        "unsupported security.toml schema_version 99 (want 1)"
+        "security.toml is invalid: schema_version is missing"
     );
     let harness = Harness::new("audit-typed-missing");
     let missing = super::load_advisories(&harness.workspace, "cargo", "cargo", "2026-09-22")

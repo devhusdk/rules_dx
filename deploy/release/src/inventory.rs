@@ -194,7 +194,8 @@ pub fn join(
         .get("crates")
         .and_then(serde_json::Value::as_object)
         .ok_or("inventory: cargo-bazel-lock.json has no crates table")?;
-    let policy = dx_audit::license_policy::load_licenses_toml(licenses_toml)
+    let profile = dx_audit::profile_base::Profile::Standard;
+    let policy = dx_audit::license_policy::load_licenses(Some(licenses_toml), profile)
         .map_err(|error| format!("inventory: {error}"))?;
     let packages: Vec<dx_audit::vuln::LockedPackage> = crates
         .iter()
@@ -593,7 +594,8 @@ mod tests {
 
     #[test]
     fn licenses_toml_exception_approves_missing_words() {
-        let policy = r#"
+        let policy = r#"schema_version = 1
+
 [[exception]]
 package = "beta"
 set = "cargo"
@@ -609,22 +611,6 @@ expires = "2099-01-01"
         );
         let other = policy.replace("\"beta\"", "\"alpha\"");
         assert!(join(&[shipped("beta", "2.0.0", vec![])], LOCK, &other).is_err());
-    }
-
-    #[test]
-    fn licenses_toml_with_an_extends_line_still_approves_exceptions() {
-        let policy = r#"extends = ".dx/config/licenses/standard.toml"
-
-[[exception]]
-package = "beta"
-set = "cargo"
-license = "MIT"
-versions = "=2.0.0"
-reason = "upstream ships no LICENSE file"
-expires = "2099-01-01"
-"#;
-        let joined = join(&[shipped("beta", "2.0.0", vec![])], LOCK, policy).expect("approved");
-        assert!(joined[0].words.contains("declared license: MIT"));
     }
 
     #[test]

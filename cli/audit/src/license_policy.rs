@@ -3,11 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::exception::{check_expiry, line_of, ExceptionProblem};
+use crate::exception::{check_expiry, line_of, toml_message, ExceptionProblem};
 use crate::license_expr::Tier;
+use crate::profile_base::{base_text, Profile};
 use dx_config::conventions::pattern_covers;
-
-pub const LICENSE_POLICY_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PolicyTables {
@@ -240,86 +239,37 @@ pub fn validate_license_inventory(entry: &LicenseInventory) -> Result<(), Policy
 }
 
 fn parse_file(text: &str) -> Result<LicensesFile, PolicyProblem> {
-    let file: LicensesFile =
-        toml::from_str(text).map_err(|error| PolicyProblem::InvalidLicensesToml {
-            message: match error.span() {
-                Some(span) => format!(
-                    "invalid TOML at line {}: {}",
-                    line_of(text, span.start),
-                    error.message()
-                ),
-                None => error.to_string(),
-            },
-        })?;
-    let version = file.schema_version.unwrap_or(LICENSE_POLICY_SCHEMA_VERSION);
-    if version != LICENSE_POLICY_SCHEMA_VERSION {
-        return Err(PolicyProblem::InvalidLicensesToml {
-            message: format!(
-                "unsupported licenses.toml schema_version {version} (want {LICENSE_POLICY_SCHEMA_VERSION})"
-            ),
-        });
-    }
-    Ok(file)
-}
-
-/// Parses one file. An `extends` line is accepted and not followed.
-pub fn load_licenses_toml(text: &str) -> Result<LicensePolicy, PolicyProblem> {
-    build_policy(text, parse_file(text)?, None)
-}
-
-/// The policy of the standard base, used when a workspace has no licenses.toml.
-pub fn standard_policy() -> Result<LicensePolicy, PolicyProblem> {
-    let text = crate::profile_base::base_text("licenses", crate::profile_base::Profile::Standard)
-        .ok_or_else(|| PolicyProblem::InvalidLicensesToml {
-        message: "the standard base is missing".to_owned(),
-    })?;
-    load_licenses_toml(text)
-}
-
-/// Parses `root_text` and merges it over the base named by its `extends`.
-/// `read` returns the text of a workspace-relative path.
-pub fn load_licenses(
-    root_text: &str,
-    read: impl Fn(&str) -> std::io::Result<String>,
-) -> Result<LicensePolicy, PolicyProblem> {
-    let root = parse_file(root_text)?;
-    let Some(path) = root.extends.clone() else {
-        return build_policy(root_text, root, None);
-    };
     let invalid = |message: String| PolicyProblem::InvalidLicensesToml { message };
-    let inside = !path.is_empty()
-        && std::path::Path::new(&path)
-            .components()
-            .all(|part| matches!(part, std::path::Component::Normal(_)))
-        && !path.contains('\\');
-    if !inside {
-        return Err(invalid(format!(
-            "extends {path}: must be a relative path inside the workspace"
-        )));
-    }
-    let base_text = read(&path).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::NotFound {
-            invalid(format!("extends {path}: not found; run dx init --apply"))
-        } else {
-            invalid(format!("extends {path}: {error}"))
-        }
+    let table: toml::Table = text.parse().map_err(|error: toml::de::Error| {
+        invalid(toml_message(text, &error, error.message().to_owned()))
     })?;
-    let base =
-        parse_file(&base_text).map_err(|error| invalid(format!("extends {path}: {error}")))?;
-    if base.extends.is_some() || !base.exception.is_empty() || !base.inventory.is_empty() {
-        return Err(invalid(format!(
-            "extends {path}: a base may not have extends, [[exception]] or [[inventory]]"
-        )));
+    dx_config::conventions::check_schema_version(table.get("schema_version"))
+        .map_err(|problem| invalid(problem.to_string()))?;
+    toml::from_str(text).map_err(|error: toml::de::Error| {
+        let message = dx_config::conventions::explain_unknown_key(error.message());
+        invalid(toml_message(text, &error, message))
+    })
+}
+
+/// The policy for `profile`: its embedded base with `text`, the workspace's
+/// licenses.toml, merged over it. Missing or blank text means the base alone.
+pub fn load_licenses(text: Option<&str>, profile: Profile) -> Result<LicensePolicy, PolicyProblem> {
+    let base_text =
+        base_text("licenses", profile).ok_or_else(|| PolicyProblem::InvalidLicensesToml {
+            message: format!("the {} base is missing", profile.as_str()),
+        })?;
+    let base = parse_file(base_text)?;
+    match text.filter(|text| !text.trim().is_empty()) {
+        Some(text) => build_policy(text, parse_file(text)?, base),
+        None => build_policy("", LicensesFile::default(), base),
     }
-    build_policy(root_text, root, Some(base))
 }
 
 fn build_policy(
     text: &str,
     file: LicensesFile,
-    base: Option<LicensesFile>,
+    base: LicensesFile,
 ) -> Result<LicensePolicy, PolicyProblem> {
-    let base = base.unwrap_or_default();
     let list = |own: Option<Vec<String>>, inherited: Option<Vec<String>>| -> BTreeSet<String> {
         own.or(inherited).unwrap_or_default().into_iter().collect()
     };
@@ -356,6 +306,17 @@ fn build_policy(
             .collect(),
         inventory: file.inventory,
     };
+    if let Some(bad) = policy
+        .distribution
+        .internal
+        .iter()
+        .find(|entry| !dx_config::conventions::is_valid_pattern(entry))
+    {
+        let problem = dx_config::conventions::ConventionProblem::BadPattern { value: bad.clone() };
+        return Err(PolicyProblem::InvalidLicensesToml {
+            message: format!("[distribution] internal: {problem}"),
+        });
+    }
     policy.tables.validate()?;
     for adjustment in &policy.sets {
         policy.tables.validate_set(adjustment)?;
@@ -369,10 +330,9 @@ fn build_policy(
 #[derive(Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct LicensesFile {
-    #[serde(default)]
-    schema_version: Option<u32>,
-    #[serde(default)]
-    extends: Option<String>,
+    // Checked by `parse_file` before the rest of the file.
+    #[allow(dead_code)]
+    schema_version: u32,
     #[serde(default)]
     policy: PolicyFile,
     #[serde(default)]
@@ -457,7 +417,6 @@ impl LicensesFile {
     pub(crate) fn key_names() -> Vec<&'static str> {
         key_names!(Self {
             schema_version,
-            extends,
             policy,
             distribution,
             exception,

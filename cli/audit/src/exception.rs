@@ -1,9 +1,8 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::profile_base::{base_text, Profile};
 use crate::vuln::{AdvisoryKind, VersionScope};
-
-pub const EXCEPTION_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -89,10 +88,6 @@ const STANDARD_FAIL_ON: [AdvisoryKind; 2] = [AdvisoryKind::Vulnerability, Adviso
 pub enum SecurityProblem {
     #[error("security.toml is invalid: {message}")]
     InvalidToml { message: String },
-    #[error(
-        "unsupported security.toml schema_version {version} (want {EXCEPTION_SCHEMA_VERSION})"
-    )]
-    UnsupportedSchema { version: u32 },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -212,81 +207,48 @@ pub fn version_in_scope(scope: &str, version: &str) -> bool {
 }
 
 fn parse_file(text: &str) -> Result<SecurityFile, SecurityProblem> {
-    let file: SecurityFile =
-        toml::from_str(text).map_err(|error| SecurityProblem::InvalidToml {
-            message: match error.span() {
-                Some(span) => format!(
-                    "invalid TOML at line {}: {}",
-                    line_of(text, span.start),
-                    error.message()
-                ),
-                None => error.to_string(),
-            },
-        })?;
-    let version = file.schema_version.unwrap_or(EXCEPTION_SCHEMA_VERSION);
-    if version != EXCEPTION_SCHEMA_VERSION {
-        return Err(SecurityProblem::UnsupportedSchema { version });
-    }
-    Ok(file)
-}
-
-/// Parses one file. An `extends` line is accepted and not followed.
-pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem> {
-    Ok(build_policy(text, parse_file(text)?, None))
-}
-
-/// The policy of the standard base, used when a workspace has no security.toml.
-pub fn standard_security_policy() -> Result<SecurityPolicy, SecurityProblem> {
-    let text = crate::profile_base::base_text("security", crate::profile_base::Profile::Standard)
-        .ok_or_else(|| SecurityProblem::InvalidToml {
-        message: "the standard base is missing".to_owned(),
-    })?;
-    load_security_toml(text)
-}
-
-/// Parses `root_text` and merges it over the base named by its `extends`.
-/// `read` returns the text of a workspace-relative path. Without `extends` the
-/// standard base's `fail_on` applies.
-pub fn load_security(
-    root_text: &str,
-    read: impl Fn(&str) -> std::io::Result<String>,
-) -> Result<SecurityPolicy, SecurityProblem> {
-    let root = parse_file(root_text)?;
-    let Some(path) = root.extends.clone() else {
-        return Ok(build_policy(root_text, root, None));
-    };
     let invalid = |message: String| SecurityProblem::InvalidToml { message };
-    let inside = !path.is_empty()
-        && std::path::Path::new(&path)
-            .components()
-            .all(|part| matches!(part, std::path::Component::Normal(_)))
-        && !path.contains('\\');
-    if !inside {
-        return Err(invalid(format!(
-            "extends {path}: must be a relative path inside the workspace"
-        )));
-    }
-    let base_text = read(&path).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::NotFound {
-            invalid(format!("extends {path}: not found; run dx init --apply"))
-        } else {
-            invalid(format!("extends {path}: {error}"))
-        }
+    let table: toml::Table = text.parse().map_err(|error: toml::de::Error| {
+        invalid(toml_message(text, &error, error.message().to_owned()))
     })?;
-    let base =
-        parse_file(&base_text).map_err(|error| invalid(format!("extends {path}: {error}")))?;
-    if base.extends.is_some() || !base.exception.is_empty() || !base.uncovered.is_empty() {
-        return Err(invalid(format!(
-            "extends {path}: a base may not have extends, [[exception]] or [[uncovered]]"
-        )));
-    }
-    Ok(build_policy(root_text, root, Some(base)))
+    dx_config::conventions::check_schema_version(table.get("schema_version"))
+        .map_err(|problem| invalid(problem.to_string()))?;
+    toml::from_str(text).map_err(|error: toml::de::Error| {
+        let message = dx_config::conventions::explain_unknown_key(error.message());
+        invalid(toml_message(text, &error, message))
+    })
 }
 
-fn build_policy(text: &str, file: SecurityFile, base: Option<SecurityFile>) -> SecurityPolicy {
+pub(crate) fn toml_message(text: &str, error: &toml::de::Error, message: String) -> String {
+    match error.span() {
+        Some(span) => format!(
+            "invalid TOML at line {}: {message}",
+            line_of(text, span.start)
+        ),
+        None => message,
+    }
+}
+
+/// The policy for `profile`: its embedded base with `text`, the workspace's
+/// security.toml, merged over it. Missing or blank text means the base alone.
+pub fn load_security(
+    text: Option<&str>,
+    profile: Profile,
+) -> Result<SecurityPolicy, SecurityProblem> {
+    let base_text = base_text("security", profile).ok_or_else(|| SecurityProblem::InvalidToml {
+        message: format!("the {} base is missing", profile.as_str()),
+    })?;
+    let base = parse_file(base_text)?;
+    match text.filter(|text| !text.trim().is_empty()) {
+        Some(text) => Ok(build_policy(text, parse_file(text)?, base)),
+        None => Ok(build_policy("", SecurityFile::default(), base)),
+    }
+}
+
+fn build_policy(text: &str, file: SecurityFile, base: SecurityFile) -> SecurityPolicy {
     let fail_on = file
         .fail_on
-        .or_else(|| base.and_then(|base| base.fail_on))
+        .or(base.fail_on)
         .unwrap_or_else(|| STANDARD_FAIL_ON.to_vec());
     SecurityPolicy {
         exceptions: file
@@ -315,19 +277,18 @@ fn build_policy(text: &str, file: SecurityFile, base: Option<SecurityFile>) -> S
     }
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SecurityFile {
-    #[serde(default)]
-    schema_version: Option<u32>,
+    // Checked by `parse_file` before the rest of the file.
+    #[allow(dead_code)]
+    schema_version: u32,
     #[serde(default)]
     #[schemars(with = "Vec<RiskException>")]
     exception: Vec<toml::Spanned<RiskException>>,
     #[serde(default)]
     #[schemars(with = "Vec<UncoveredAcceptance>")]
     uncovered: Vec<toml::Spanned<UncoveredAcceptance>>,
-    #[serde(default)]
-    extends: Option<String>,
     #[serde(default)]
     fail_on: Option<Vec<AdvisoryKind>>,
 }
@@ -372,7 +333,6 @@ impl SecurityFile {
             schema_version,
             exception,
             uncovered,
-            extends,
             fail_on
         })
     }

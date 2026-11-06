@@ -288,28 +288,11 @@ exports_files([
     "pnpm-workspace.yaml",
     "licenses.toml",
     "security.toml",
-    ".dx/config/licenses/standard.toml",
-    ".dx/config/licenses/strict.toml",
-    ".dx/config/security/standard.toml",
-    ".dx/config/security/strict.toml",
 ])
 
 filegroup(
-    name = "audit_bases",
-    srcs = [
-        ".dx/config/licenses/standard.toml",
-        ".dx/config/licenses/strict.toml",
-        ".dx/config/security/standard.toml",
-        ".dx/config/security/strict.toml",
-    ],
-)
-
-filegroup(
     name = "audit_curator",
-    srcs = [
-        "licenses.toml",
-        ":audit_bases",
-    ],
+    srcs = ["licenses.toml"],
 )
 
 filegroup(
@@ -430,8 +413,6 @@ json_schema(
     src = "//cli/audit:schema/security.schema.json",
     files = [
         "security.toml",
-        ".dx/config/security/standard.toml",
-        ".dx/config/security/strict.toml",
     ],
     url = "https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json",
 )
@@ -441,8 +422,6 @@ json_schema(
     src = "//cli/audit:schema/licenses.schema.json",
     files = [
         "licenses.toml",
-        ".dx/config/licenses/standard.toml",
-        ".dx/config/licenses/strict.toml",
     ],
     url = "https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json",
 )
@@ -466,10 +445,6 @@ real_source_target(
         "rustfmt.toml",
         "licenses.toml",
         "security.toml",
-        ".dx/config/licenses/standard.toml",
-        ".dx/config/licenses/strict.toml",
-        ".dx/config/security/standard.toml",
-        ".dx/config/security/strict.toml",
     ],
 )
 

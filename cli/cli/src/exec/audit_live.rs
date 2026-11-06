@@ -223,14 +223,14 @@ pub(super) fn write_nuget_lock(harness: &Harness) {
 pub(super) fn write_mit_licenses(harness: &Harness) {
     harness.write_source(
         "licenses.toml",
-        "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n",
+        "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n",
     );
 }
 
 pub(super) fn write_cargo_inventory_licenses(harness: &Harness) {
     harness.write_source(
         "licenses.toml",
-        "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
+        "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
     );
 }
 
@@ -300,15 +300,14 @@ pub(super) fn audit_live_yanked_cargo_version_fails_only_under_the_strict_base()
                 write_cargo_lock(harness);
                 write_advisory(harness, "cargo", "[]");
                 write_yanked(harness, "cargo-yanked", SERDE_YANKED);
-                let chosen = if profile == "strict" {
-                    dx_audit::profile_base::Profile::Strict
-                } else {
-                    dx_audit::profile_base::Profile::Standard
-                };
-                let base = dx_audit::profile_base::base_rel("security", chosen);
-                let text = dx_audit::profile_base::base_text("security", chosen);
-                harness.write_source(&base, text.expect("base"));
-                harness.write_source("security.toml", &format!("extends = \"{base}\"\n"));
+                harness.write_source(
+                    "dx.toml",
+                    &format!(
+                        "schema_version = 1
+profile = \"{profile}\"
+"
+                    ),
+                );
             },
         );
         assert_eq!(code, expected, "{profile}: {out}{err}");
@@ -345,11 +344,7 @@ pub(super) fn audit_live_missing_yanked_snapshot_is_incomplete_under_the_strict_
         &|harness| {
             write_cargo_lock(harness);
             write_advisory(harness, "cargo", "[]");
-            let strict = dx_audit::profile_base::Profile::Strict;
-            let base = dx_audit::profile_base::base_rel("security", strict);
-            let text = dx_audit::profile_base::base_text("security", strict);
-            harness.write_source(&base, text.expect("base"));
-            harness.write_source("security.toml", &format!("extends = \"{base}\"\n"));
+            harness.write_source("dx.toml", "schema_version = 1\nprofile = \"strict\"\n");
         },
     );
     let shown = format!("{out}{err}");
@@ -741,15 +736,14 @@ pub(super) fn audit_live_unmaintained_advisory_fails_only_under_the_strict_base(
             &|harness| {
                 write_go_mod(harness);
                 write_advisory(harness, "go", &unmaintained);
-                let chosen = if profile == "strict" {
-                    dx_audit::profile_base::Profile::Strict
-                } else {
-                    dx_audit::profile_base::Profile::Standard
-                };
-                let base = dx_audit::profile_base::base_rel("security", chosen);
-                let text = dx_audit::profile_base::base_text("security", chosen);
-                harness.write_source(&base, text.expect("base"));
-                harness.write_source("security.toml", &format!("extends = \"{base}\"\n"));
+                harness.write_source(
+                    "dx.toml",
+                    &format!(
+                        "schema_version = 1
+profile = \"{profile}\"
+"
+                    ),
+                );
             },
         );
         assert_eq!(code, expected, "{profile}: {out}{err}");
@@ -780,7 +774,11 @@ fn go_exception(versions: &str, expires: &str) -> String {
     security_exception("go", GO_PACKAGE, versions, expires)
 }
 
-fn security_with_go_advisory(security_toml: &str) -> (i32, String, String) {
+fn security_with_go_advisory(exceptions: &str) -> (i32, String, String) {
+    security_with_go_advisory_file(&format!("schema_version = 1\n{exceptions}"))
+}
+
+fn security_with_go_advisory_file(security_toml: &str) -> (i32, String, String) {
     run_with(
         &["security", "//third_party/go:go"],
         &AuditRunner::clean(),
@@ -847,11 +845,21 @@ pub(super) fn audit_live_security_toml_exceptions_outside_the_scope_stay_unrepor
 
 #[test]
 pub(super) fn audit_live_invalid_security_toml_fails_without_assessing() {
-    let (code, out, err) = security_with_go_advisory("schema_version = 99\n");
-    assert_eq!(code, 1, "{out}{err}");
-    let schema = "unsupported security.toml schema_version 99";
-    assert!(err.contains(schema), "{err}");
-    assert!(err.contains("security.toml"), "{err}");
+    for (text, detail) in [
+        (
+            "schema_version = 99\n",
+            "schema_version 99 is newer than this dx reads",
+        ),
+        (
+            &go_exception(">=v0.6.0", "2999-01-01"),
+            "schema_version is missing",
+        ),
+    ] {
+        let (code, out, err) = security_with_go_advisory_file(text);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains(detail), "{err}");
+        assert!(err.contains("security.toml"), "{err}");
+    }
 }
 
 #[test]
@@ -1001,7 +1009,7 @@ fn audit_live_license_names_uncovered_dependency_sets() {
         write_go_mod(harness);
         harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//third_party/go:go\"]\n",
+                "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//third_party/go:go\"]\n",
             );
     });
     assert_eq!(code, 0, "{out}{err}");
@@ -1016,7 +1024,7 @@ fn write_junit_exception(harness: &Harness) {
     );
     harness.write_source(
         "licenses.toml",
-        "[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\ntext_present = true\n",
+        "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\ntext_present = true\n",
     );
 }
 
@@ -1043,7 +1051,7 @@ pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
         harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
         harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
+                "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
             );
     });
     assert_eq!(code, 0, "{out}{err}");
@@ -1057,7 +1065,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
         harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
         harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
+                "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
             );
     });
     assert_eq!(code, 0, "{out}{err}");
@@ -1092,7 +1100,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
             );
             harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"FSharp.Core\"\nset = \"nuget\"\nlicense = \"MIT\"\nversions = \"10.1.201\"\ntext_present = true\n",
+                "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"FSharp.Core\"\nset = \"nuget\"\nlicense = \"MIT\"\nversions = \"10.1.201\"\ntext_present = true\n",
             );
         },
     );
@@ -1107,7 +1115,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
         );
         harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"BSD-3-Clause\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"example.com/hello\"\nset = \"go\"\nlicense = \"BSD-3-Clause\"\nversions = \"v1.0.0\"\ntext_present = true\n",
+                "schema_version = 1\n[policy.distributed]\nallow = [\"BSD-3-Clause\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"example.com/hello\"\nset = \"go\"\nlicense = \"BSD-3-Clause\"\nversions = \"v1.0.0\"\ntext_present = true\n",
             );
     });
     assert_eq!(code, 0, "{out}{err}");
@@ -1121,7 +1129,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
         );
         harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"BSD-3-Clause\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"example.com/hello\"\nset = \"go\"\nlicense = \"BSD-3-Clause\"\nversions = \"v1.0.0\"\n",
+                "schema_version = 1\n[policy.distributed]\nallow = [\"BSD-3-Clause\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"example.com/hello\"\nset = \"go\"\nlicense = \"BSD-3-Clause\"\nversions = \"v1.0.0\"\n",
             );
     });
     assert_eq!(code, 1, "{err}");
@@ -1135,7 +1143,7 @@ pub(super) fn audit_live_target_scopes_to_owning_set_only() {
         write_go_mod(harness);
         harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//third_party/go:go\"]\n",
+                "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//third_party/go:go\"]\n",
             );
     });
     assert_eq!(code, 0, "{out}{err}");

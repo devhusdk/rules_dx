@@ -1,1 +1,3 @@
+schema_version = 1
+
 fail_on = ["vulnerability", "unsound"]

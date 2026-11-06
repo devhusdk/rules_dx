@@ -1,6 +1,5 @@
 #:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json
 schema_version = 1
-extends = ".dx/config/security/standard.toml"
 
 [[exception]]
 advisory = "RUSTSEC-2023-0089"

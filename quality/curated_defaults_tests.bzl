@@ -234,6 +234,17 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
+                "swift curated defaults are swift-format format + lint",
+                CURATED_DEFAULTS["swift"],
+                {
+                    "audit": [],
+                    "format": ["swift_format"],
+                    "lint": ["swift_lint", "typos"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
                 "zig curated defaults are zig fmt + ast-check",
                 CURATED_DEFAULTS["zig"],
                 {

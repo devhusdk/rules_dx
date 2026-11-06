@@ -32,8 +32,9 @@ dx test //app:tests
 ## Format and lint
 
 `dx format` and `dx lint` run `swift-format` from the pinned toolchain on Swift
-sources. Select `swift_format` and `swift_lint` in a `swift` family. They use
-the default swift-format style.
+sources. The default policy runs `swift_format` and `swift_lint` with the
+default swift-format style. They run on Linux only; other platforms skip them
+with a note.
 
 ```sh
 dx format --apply

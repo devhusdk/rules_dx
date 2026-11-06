@@ -1,7 +1,7 @@
 """Curated quality defaults."""
 
 
-# Not curated yet: swift (its linter still stages a Linux binary on macOS, #8273).
+# periphery stays opt-in: macOS arm64 only, needs an index-store build.
 # Julia lints with julialint only. Its extra fetch over typos is the dx_julia_lint package set
 # (21 packages, about 4.2 MB); the 1.12.5 runtime (about 288 MB on linux_x86_64) is already
 # fetched to precompile any julia_library (#8048). JET and JuliaFormatter stay opt-in.
@@ -84,6 +84,7 @@ CURATED_DEFAULTS = {
         "typecheck": [],
         "unused": [],
     },
+    # ghc typecheck stays opt-in: it replays every compile action (heavy tier).
     "haskell": {
         "audit": [],
         "format": ["ormolu"],
@@ -169,6 +170,7 @@ CURATED_DEFAULTS = {
         "typecheck": [],
         "unused": [],
     },
+    # ocaml typecheck stays opt-in: it replays every compile action (heavy tier).
     "ocaml": {
         "audit": [],
         "format": ["topiary"],
@@ -223,6 +225,13 @@ CURATED_DEFAULTS = {
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
+        "unused": [],
+    },
+    "swift": {
+        "audit": [],
+        "format": ["swift_format"],
+        "lint": ["swift_lint", "typos"],
+        "typecheck": [],
         "unused": [],
     },
     "text": {

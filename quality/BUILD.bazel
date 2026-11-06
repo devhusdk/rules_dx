@@ -233,6 +233,16 @@ consumer_policy_tests(
             "subject": "//powershell/tests/fixtures/hello:hello",
         },
         {
+            "case": "default_swift",
+            "expected_dx_results": [
+                "greet-real-format-swift.pb",
+                "greet-real-lint-swift.pb",
+                "greet-real-lint-text.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//swift/tests/fixtures/hello:greet",
+        },
+        {
             "case": "default_haskell",
             "expected_dx_results": [
                 "cli-real-format-haskell.pb",

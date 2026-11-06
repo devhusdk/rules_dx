@@ -24,14 +24,39 @@ func openPaths(content []byte) []string {
 			return true
 		}
 		for _, c := range n.Children() {
-			if tree.Type(c) == "long_identifier" {
-				out = append(out, tree.Dotted(c))
-				break
+			if tree.Type(c) != "long_identifier" {
+				continue
 			}
+			if tree.Text(c) != "type" {
+				out = append(out, tree.Dotted(c))
+			} else if p := openTypePath(tree, n.NextSibling()); p != "" {
+				out = append(out, p)
+			}
+			break
 		}
 		return false
 	})
 	return out
+}
+
+// openTypePath reads the path of `open type X.Y.Z`, which the grammar places
+// in the sibling after the import_decl.
+func openTypePath(tree *treesitter.Tree, n *treesitter.Node) string {
+	if n == nil {
+		return ""
+	}
+	switch tree.Type(n) {
+	case "dot_expression", "long_identifier_or_op", "long_identifier":
+		return tree.Dotted(n)
+	case "typed_expression":
+		for _, c := range n.Children() {
+			switch tree.Type(c) {
+			case "dot_expression", "long_identifier_or_op", "long_identifier":
+				return tree.Dotted(c)
+			}
+		}
+	}
+	return ""
 }
 
 // topDeclTree reads the file-level namespace or module declaration.

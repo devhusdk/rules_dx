@@ -660,3 +660,13 @@ func TestResolveNuGetNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 		t.Fatalf("errors = %v, want unresolved import", errs)
 	}
 }
+
+func TestGenerateOpenTypeOrder(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Demo.fs": "namespace Acme.Core\n\nopen type Acme.Core.Math\n\ntype Demo = class end\n",
+		"pkg/demo/Math.fs": "namespace Acme.Core\n\ntype Math =\n    static member Add(a: int, b: int) = a + b\n",
+	})
+	if got != "Math.fs,Demo.fs" {
+		t.Errorf("library srcs = %q, want Math.fs,Demo.fs", got)
+	}
+}

@@ -222,3 +222,24 @@ func TestTopModuleNameRec(t *testing.T) {
 		}
 	}
 }
+
+func TestParseImportsOpenType(t *testing.T) {
+	got := ParseImports([]byte("namespace Demo\n\nopen type Acme.Core.Math\nopen type System.Math\nopen System.Text\n"))
+	want := []string{"Math", "System.Text"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+	got = ParseOpenPaths([]byte("namespace Demo\n\nopen type System.Collections.Generic.List<int>\nopen type System.Math\n"))
+	want = []string{"System.Collections.Generic.List", "System.Math"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("generic ParseOpenPaths = %v, want %v", got, want)
+	}
+}
+
+func TestParseOpenPathsOpenType(t *testing.T) {
+	got := ParseOpenPaths([]byte("namespace Demo\n\nopen type Acme.Core.Math\n"))
+	want := []string{"Acme.Core.Math"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseOpenPaths = %v, want %v", got, want)
+	}
+}

@@ -10,6 +10,7 @@
 // or where a resolve error remains:
 //   - [<AutoOpen>] modules: names used through them are not traced to the file.
 //   - Unqualified union cases and record fields: only type names are tracked.
+//   - `open type X.Y.Z` is read from the node after the declaration; other forms are skipped.
 //   - Extension members: `x.Ext()` does not tie to the file that adds Ext.
 //   - `open` of the directory's own namespace or of a sibling nested module
 //     orders correctly, but still reaches Resolve and fails as unresolved.

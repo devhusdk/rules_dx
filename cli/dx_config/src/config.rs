@@ -29,7 +29,7 @@ impl Profile {
 pub struct DxConfig {
     pub schema_version: u32,
     /// The tier for every family that does not set its own.
-    #[serde(default)]
+    #[serde(default, rename = "tier")]
     pub profile: Option<Profile>,
     /// Per-family overrides, keyed by family id.
     #[serde(default)]
@@ -71,7 +71,7 @@ pub enum CommitsPolicy {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FamilyConfig {
-    #[serde(default)]
+    #[serde(default, rename = "tier")]
     pub profile: Option<Profile>,
     #[serde(default)]
     pub lint: Option<Vec<String>>,

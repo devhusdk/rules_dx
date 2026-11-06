@@ -46,7 +46,7 @@ impl Profile {
     }
 }
 
-pub const DX_PROFILE_ENV: &str = "DX_PROFILE";
+pub const DX_BUILD_MODE_ENV: &str = "DX_BUILD_MODE";
 
 pub fn resolve_profile(flag: Option<Profile>, attr: Option<Profile>, default: Profile) -> Profile {
     flag.or(attr).unwrap_or(default)
@@ -123,7 +123,7 @@ mod tests {
         assert_eq!(Profile::Debug.config_flag(), "--config=dx_debug");
         assert_eq!(Profile::Dev.config_flag(), "--config=dx_dev");
         assert_eq!(Profile::Release.config_flag(), "--config=dx_release");
-        assert_eq!(DX_PROFILE_ENV, "DX_PROFILE");
+        assert_eq!(DX_BUILD_MODE_ENV, "DX_BUILD_MODE");
     }
 
     #[test]

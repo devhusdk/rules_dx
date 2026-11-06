@@ -144,7 +144,7 @@ fn the_strict_profile_denies_a_license_the_standard_profile_only_reviews() {
         let harness = Harness::new("license-profile");
         harness.write_source(
             "dx.toml",
-            &format!("schema_version = 1\nprofile = \"{profile}\"\n"),
+            &format!("schema_version = 1\ntier = \"{profile}\"\n"),
         );
         let tables = super::load_license_policy(&harness.workspace)
             .expect("policy")
@@ -157,7 +157,7 @@ fn the_strict_profile_denies_a_license_the_standard_profile_only_reviews() {
 #[test]
 fn an_invalid_dx_toml_fails_both_policies() {
     let harness = Harness::new("audit-bad-dx-toml");
-    harness.write_source("dx.toml", "profile = \"strict\"\n");
+    harness.write_source("dx.toml", "tier = \"strict\"\n");
     let security = super::load_security_policy(&harness.workspace).expect_err("security");
     assert!(matches!(security, super::AuditError::SecurityInvalid(_)));
     assert!(

@@ -35,7 +35,7 @@ fn curated_tools_are_known_tools() {
 #[test]
 fn a_family_override_replaces_one_capability() {
     let config = parse(
-        "schema_version = 1\nprofile = \"strict\"\n[families.rust]\nlint = [\"typos\"]\n[families.go]\ndisabled = true\n",
+        "schema_version = 1\ntier = \"strict\"\n[families.rust]\nlint = [\"typos\"]\n[families.go]\ndisabled = true\n",
     )
     .unwrap();
     let selection = effective(Some(&config)).unwrap();
@@ -64,7 +64,7 @@ fn an_unknown_tool_gets_a_hint() {
 #[test]
 fn two_profiles_on_one_shared_tool_conflict() {
     let error = problem(
-        "schema_version = 1\n[families.go]\nprofile = \"strict\"\nlint = [\"cppcheck\"]\n[families.rust]\nlint = [\"cppcheck\"]\n",
+        "schema_version = 1\n[families.go]\ntier = \"strict\"\nlint = [\"cppcheck\"]\n[families.rust]\nlint = [\"cppcheck\"]\n",
     );
     let text = error.to_string();
     assert!(text.contains("`cppcheck`"), "{text}");
@@ -77,7 +77,7 @@ fn two_profiles_on_one_shared_tool_conflict() {
 #[test]
 fn cross_family_tools_follow_the_root_profile() {
     let config = parse(
-        "schema_version = 1\n[families.go]\nprofile = \"strict\"\n[families.rust]\nprofile = \"standard\"\n",
+        "schema_version = 1\n[families.go]\ntier = \"strict\"\n[families.rust]\ntier = \"standard\"\n",
     )
     .unwrap();
     assert!(effective(Some(&config)).is_ok());

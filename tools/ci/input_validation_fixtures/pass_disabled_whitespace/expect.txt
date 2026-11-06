@@ -3,8 +3,8 @@ exit 0
 says DX_DISABLED_CHECKS lint,coverage
 out artifact_suffix ""
 out cache_saver "checks"
-out check_lines "typecheck|typecheck|sarif=typecheck.sarif|true\nformat|format||true\ngenerate|generate||true\nlicense-audit|license||false\ntest|test --profile|junit=junit.xml failures=failures.json results=results.json|true\nbuild|build --profile|failures=failures.json|true"
-out checks [{"id":"typecheck","args":["typecheck"],"reports":["sarif=typecheck.sarif"],"passthrough":true,"timeout":30},{"id":"format","args":["format"],"reports":[],"passthrough":true,"timeout":30},{"id":"generate","args":["generate"],"reports":[],"passthrough":true,"timeout":30},{"id":"license-audit","args":["license"],"reports":[],"passthrough":false,"timeout":30},{"id":"test","args":["test","--profile"],"reports":["junit=junit.xml","failures=failures.json","results=results.json"],"passthrough":true,"timeout":60},{"id":"build","args":["build","--profile"],"reports":["failures=failures.json"],"passthrough":true,"timeout":60}]
+out check_lines "typecheck|typecheck|sarif=typecheck.sarif|true\nformat|format||true\ngenerate|generate||true\nlicense-audit|license||false\ntest|test --timings|junit=junit.xml failures=failures.json results=results.json|true\nbuild|build --timings|failures=failures.json|true"
+out checks [{"id":"typecheck","args":["typecheck"],"reports":["sarif=typecheck.sarif"],"passthrough":true,"timeout":30},{"id":"format","args":["format"],"reports":[],"passthrough":true,"timeout":30},{"id":"generate","args":["generate"],"reports":[],"passthrough":true,"timeout":30},{"id":"license-audit","args":["license"],"reports":[],"passthrough":false,"timeout":30},{"id":"test","args":["test","--timings"],"reports":["junit=junit.xml","failures=failures.json","results=results.json"],"passthrough":true,"timeout":60},{"id":"build","args":["build","--timings"],"reports":["failures=failures.json"],"passthrough":true,"timeout":60}]
 out checks_timeout "240"
 out disabled "lint,coverage"
 out min_changed_line_coverage ""

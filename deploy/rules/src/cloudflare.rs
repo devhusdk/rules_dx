@@ -591,7 +591,7 @@ fn pages_main_with(
         );
     }
     let text = |key: &str| vars(key).and_then(|value| value.into_string().ok());
-    let profile = text("DX_PROFILE").unwrap_or_else(|| "<unset>".to_owned());
+    let profile = text("DX_BUILD_MODE").unwrap_or_else(|| "<unset>".to_owned());
     let var = |key: &str| text(key).unwrap_or_default();
     if CLOUDFLARE_GATE.requested(var) {
         if let Some(message) = CLOUDFLARE_GATE.refusal(var) {
@@ -1169,7 +1169,7 @@ exit 7
     #[test]
     fn main_without_live_checks_and_uploads_nothing() {
         let (code, out, err, uploaded) = run_gated(
-            &[("CLOUDFLARE_API_TOKEN", TOKEN), ("DX_PROFILE", "release")],
+            &[("CLOUDFLARE_API_TOKEN", TOKEN), ("DX_BUILD_MODE", "release")],
             &SITE,
         );
         assert_eq!(code, 0, "{err}");
@@ -1322,7 +1322,7 @@ exit 7
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
                 ("CLOUDFLARE_ACCOUNT_ID", ACCOUNT),
                 ("PATH", "/usr/bin:/bin"),
-                ("DX_PROFILE", "debug"),
+                ("DX_BUILD_MODE", "debug"),
                 ("AMBIENT_SECRET", "ambient"),
             ],
             site.path(),

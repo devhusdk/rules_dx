@@ -207,9 +207,9 @@ fn redacted_streams(out: &std::process::Output, secret: &str) -> (String, String
     )
 }
 
-/// Returns the DX_PROFILE the launcher runs under, `<unset>` when unset.
+/// Returns the DX_BUILD_MODE the launcher runs under, `<unset>` when unset.
 pub fn deploy_profile() -> String {
-    std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned())
+    std::env::var("DX_BUILD_MODE").unwrap_or_else(|_| "<unset>".to_owned())
 }
 
 /// Returns the bytes in one file, or the total bytes of every file under one directory.
@@ -557,10 +557,10 @@ mod tests {
         if env_test_in_child("run::tests::deploy_profile_reports_unset") {
             return;
         }
-        with_env(&[("DX_PROFILE", None)], || {
+        with_env(&[("DX_BUILD_MODE", None)], || {
             assert_eq!(deploy_profile(), "<unset>");
         });
-        with_env(&[("DX_PROFILE", Some("release"))], || {
+        with_env(&[("DX_BUILD_MODE", Some("release"))], || {
             assert_eq!(deploy_profile(), "release");
         });
     }

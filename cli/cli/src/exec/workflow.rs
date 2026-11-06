@@ -377,7 +377,7 @@ fn execute_checked(
     })
 }
 
-/// Creates `.dx/local/profile` and returns the trace file Bazel should write.
+/// Creates `.dx/local/timings` and returns the trace file Bazel should write.
 pub(super) fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result<String, String> {
     let dir = profile_report::dir(workspace);
     std::fs::create_dir_all(&dir)
@@ -390,7 +390,7 @@ pub(super) fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result
 }
 
 /// Reads the trace Bazel wrote and reports where the time went: text on stderr, or a notice
-/// pointing at `.dx/local/profile/report.json` in JSON.
+/// pointing at `.dx/local/timings/report.json` in JSON.
 pub(super) fn announce_profile(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -658,7 +658,7 @@ mod tests {
     #[test]
     fn profile_passes_the_trace_flag_and_reports_json_and_text() {
         let harness = Harness::new("build-profile");
-        let dir = harness.workspace.join(".dx/local").join("profile");
+        let dir = harness.workspace.join(".dx/local").join("timings");
         std::fs::create_dir_all(&dir).expect("dir");
         let id = dx_plan::plan::run_id(std::process::id(), 0, &harness.temp);
         let trace = dir.join(format!("{id}.json.gz"));
@@ -667,7 +667,7 @@ mod tests {
         let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
         std::io::Write::write_all(&mut gz, json.as_bytes()).expect("gzip");
         std::fs::write(&trace, gz.finish().expect("finish")).expect("trace");
-        let inv = invocation(&["build", "--profile", "--output=json"]);
+        let inv = invocation(&["build", "--timings", "--output=json"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         let flag = format!("--profile={}", trace.display());
         assert!(run.argv[0].contains(&flag), "{:?}", run.argv);
@@ -681,7 +681,7 @@ mod tests {
             .out
             .lines()
             .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("json"))
-            .find(|event| event["code"] == "profile_report")
+            .find(|event| event["code"] == "timings_report")
             .expect("notice");
         assert_eq!(
             notice["path"],
@@ -694,9 +694,9 @@ mod tests {
                 .contains("slow")
         );
         assert!(dir.join("report.json").is_file());
-        let (code, _, err) = harness.run(&["build", "--profile"]);
+        let (code, _, err) = harness.run(&["build", "--timings"]);
         assert_eq!(code, 0);
-        assert!(err.contains("dx: profile, wall time 2.0s"), "{err}");
+        assert!(err.contains("dx: timings, wall time 2.0s"), "{err}");
         let run = harness.probe_with(&invocation(&["build"]), &[Some(0)]);
         assert!(!run.argv[0].iter().any(|arg| arg.starts_with("--profile")));
     }
@@ -704,7 +704,7 @@ mod tests {
     #[test]
     fn profile_reports_json_and_text_from_the_trace() {
         let harness = Harness::new("build-profile-report");
-        let dir = harness.workspace.join(".dx/local").join("profile");
+        let dir = harness.workspace.join(".dx/local").join("timings");
         std::fs::create_dir_all(&dir).expect("dir");
         let trace = dir.join("1.json.gz");
         let json =
@@ -716,7 +716,7 @@ mod tests {
         let bep = harness.workspace.join("missing-bep.json");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let inv = invocation(&["build", "--profile", "--output=json"]);
+        let inv = invocation(&["build", "--timings", "--output=json"]);
         super::announce_profile(
             &inv,
             &harness.workspace,
@@ -728,7 +728,7 @@ mod tests {
         )
         .expect("announce");
         let notice: serde_json::Value = serde_json::from_slice(&out).expect("json");
-        assert_eq!(notice["code"], "profile_report");
+        assert_eq!(notice["code"], "timings_report");
         assert_eq!(
             notice["path"],
             dir.join("report.json").display().to_string()
@@ -741,7 +741,7 @@ mod tests {
         );
         assert!(dir.join("report.json").is_file());
         let mut err = Vec::new();
-        let inv = invocation(&["build", "--profile"]);
+        let inv = invocation(&["build", "--timings"]);
         super::announce_profile(
             &inv,
             &harness.workspace,
@@ -753,7 +753,7 @@ mod tests {
         )
         .expect("announce");
         let err = String::from_utf8(err).expect("utf8");
-        assert!(err.contains("dx: profile, wall time 2.0s"), "{err}");
+        assert!(err.contains("dx: timings, wall time 2.0s"), "{err}");
     }
 
     #[test]

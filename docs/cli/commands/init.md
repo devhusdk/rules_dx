@@ -71,7 +71,7 @@ other entries stay.
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/bazelrc/`,
-`/.dx/local/docs/`, `/.dx/local/results.json`, `/.dx/local/explain/`, `/.dx/local/profile/`, `/.dx/local/fuzz/`, `/.dx/local/advisory/`, `/.dx/local/bench/`, `/.dx/local/` and
+`/.dx/local/docs/`, `/.dx/local/results.json`, `/.dx/local/explain/`, `/.dx/local/timings/`, `/.dx/local/fuzz/`, `/.dx/local/advisory/`, `/.dx/local/bench/`, `/.dx/local/` and
 `/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
 warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/local`, `.dx/bazelrc`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx/local; add the dx lines so Bazel skips dx state`

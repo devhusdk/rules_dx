@@ -923,7 +923,7 @@ flag_group! {
 flag_group! {
     /// Print where build time went.
     BuildProfileFlag, {
-        #[arg(long = "profile", overrides_with = "build_profile")]
+        #[arg(long = "timings", overrides_with = "build_profile")]
         build_profile: bool,
     }
 }

@@ -279,7 +279,7 @@ jobs:
             echo "::endgroup::"
             case "$id" in
               test|build)
-                cp .dx/local/profile/report.json "$reports/profile-$id.json" 2>/dev/null || true
+                cp .dx/local/timings/report.json "$reports/profile-$id.json" 2>/dev/null || true
                 ;;
             esac
             if [ "$rc" -eq 0 ]; then

@@ -14,19 +14,19 @@ dx deploy --apply //app:deploy
 ## `dx build`
 
 ```text
-dx build [--here] [--affected] [--debug|--release] [--explain] [--profile] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx build [--here] [--affected] [--debug|--release] [--explain] [--timings] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## `dx test`
 
 ```text
-dx test [--here] [--affected] [--debug|--release] [--explain] [--profile] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--affected] [--debug|--release] [--explain] [--timings] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--explain] [--profile] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--explain] [--timings] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## Flags
@@ -35,10 +35,10 @@ dx coverage [--here] [--affected] [--explain] [--profile] [--min-coverage <perce
 | --- | --- |
 | `--here` | Use the current directory tree. |
 | `--affected` | Use the targets your git changes reach. |
-| `--debug` | Compile with the `dx_debug` profile (`build`, `test`, `run`, `deploy`). |
-| `--release` | Compile with the `dx_release` profile. No flag uses `dx_dev`. |
+| `--debug` | Compile with the `dx_debug` build mode (`build`, `test`, `run`, `deploy`). |
+| `--release` | Compile with the `dx_release` build mode. No flag uses `dx_dev`. |
 | `--explain` | Save the execution log for [`dx explain`](explain.md). |
-| `--profile` | (`build`, `test`, `coverage`, `run`; `run` reports on its build step.) Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions (with Bazel mnemonics when the trace has them), cache hit rate (disk, remote, local), bytes downloaded, Bazel peak heap and CPU time per action mnemonic (from the build event stream, absent for `run`), the ten slowest actions and repository fetch time. The trace is `.dx/local/profile/<run id>.json.gz` (the last five are kept) and the report `.dx/local/profile/report.json`; with `--output=json` the report is the message of a `profile_report` notice. |
+| `--timings` | (`build`, `test`, `coverage`, `run`; `run` reports on its build step.) Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions (with Bazel mnemonics when the trace has them), cache hit rate (disk, remote, local), bytes downloaded, Bazel peak heap and CPU time per action mnemonic (from the build event stream, absent for `run`), the ten slowest actions and repository fetch time. The trace is `.dx/local/timings/<run id>.json.gz` (the last five are kept) and the report `.dx/local/timings/report.json`; with `--output=json` the report is the message of a `timings_report` notice. |
 | `--min-coverage <percent>` | `coverage`: fail below this whole percent (0-100). |
 | `--min-changed-line-coverage <percent>` | `coverage`: fail below this whole percent (0-100) on lines changed since the merge-base. |
 | `--report <format>=<path>` | Write a report. Repeatable. `-` is stdout. |
@@ -125,7 +125,7 @@ Exclude code with `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`. Each
 ## `dx run`
 
 ```text
-dx run [--debug|--release] [--profile] [--bazel-option <token>]... <label...> [-- args...]
+dx run [--debug|--release] [--timings] [--bazel-option <token>]... <label...> [-- args...]
 ```
 
 Builds the runnable targets, then runs them in order. Args after `--` go to the app. `--bazel-option <token>` passes one option to the build and the run. Repeatable.
@@ -141,7 +141,7 @@ Builds the runnable targets, then runs them in order. Args after `--` go to the 
 dx deploy [--apply] [--debug|--release] <label> [-- args...]
 ```
 
-Builds one deployable target. `--apply` runs the deployment and sets `DX_PROFILE`. Without a flag the profile comes from the target's `profile` attribute. Args after `--` reach the app on `--apply` only. Output: text only. The agent guard hook asks first (Claude, Copilot) or refuses (Codex, Gemini, Cursor) when a command runs `dx deploy` with `--apply`; run the dry run, and let a human or CI publish.
+Builds one deployable target. `--apply` runs the deployment and sets `DX_BUILD_MODE`. Without a flag the build mode comes from the target's `profile` attribute. Args after `--` reach the app on `--apply` only. Output: text only. The agent guard hook asks first (Claude, Copilot) or refuses (Codex, Gemini, Cursor) when a command runs `dx deploy` with `--apply`; run the dry run, and let a human or CI publish.
 
 ### Registries released by tag
 

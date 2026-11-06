@@ -304,7 +304,7 @@ pub(super) fn audit_live_yanked_cargo_version_fails_only_under_the_strict_base()
                     "dx.toml",
                     &format!(
                         "schema_version = 1
-profile = \"{profile}\"
+tier = \"{profile}\"
 "
                     ),
                 );
@@ -344,7 +344,7 @@ pub(super) fn audit_live_missing_yanked_snapshot_is_incomplete_under_the_strict_
         &|harness| {
             write_cargo_lock(harness);
             write_advisory(harness, "cargo", "[]");
-            harness.write_source("dx.toml", "schema_version = 1\nprofile = \"strict\"\n");
+            harness.write_source("dx.toml", "schema_version = 1\ntier = \"strict\"\n");
         },
     );
     let shown = format!("{out}{err}");
@@ -741,7 +741,7 @@ pub(super) fn audit_live_unmaintained_advisory_fails_only_under_the_strict_base(
                     "dx.toml",
                     &format!(
                         "schema_version = 1
-profile = \"{profile}\"
+tier = \"{profile}\"
 "
                     ),
                 );

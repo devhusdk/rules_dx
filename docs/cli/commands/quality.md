@@ -218,9 +218,9 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `clang_tidy` uses a dx default `.clang-tidy` when no `clang_tidy_config` is bound. It enables `misc-unused-parameters`, `misc-unused-using-decls` and `readability-redundant-declaration`. Findings from these checks are reported as info.
 
-`standard` and `strict` clang-tidy profiles live in `quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a profile is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
+`standard` and `strict` clang-tidy tiers live in `quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a tier is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
 
-`cppcheck` takes extra check sets from `--//config:cppcheck_enable=warning,performance,portability`, merged into one `--enable=`. The default is empty. Allowed values are `warning`, `style`, `performance`, `portability` and `information`; `unusedFunction` and `all` are rejected. The standard profile uses `warning,performance,portability` and strict adds `style`.
+`cppcheck` takes extra check sets from `--//config:cppcheck_enable=warning,performance,portability`, merged into one `--enable=`. The default is empty. Allowed values are `warning`, `style`, `performance`, `portability` and `information`; `unusedFunction` and `all` are rejected. The standard tier uses `warning,performance,portability` and strict adds `style`.
 
 ### JVM and .NET
 

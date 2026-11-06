@@ -1,12 +1,12 @@
-//! The `--profile` report: where a build's time went, read from Bazel's JSON trace profile.
+//! The `--timings` report: where a build's time went, read from Bazel's JSON trace profile.
 
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-pub(crate) const CODE_PROFILE_REPORT: &str = "profile_report";
-pub(crate) const CODE_PROFILE_UNREADABLE: &str = "profile_unreadable";
+pub(crate) const CODE_PROFILE_REPORT: &str = "timings_report";
+pub(crate) const CODE_PROFILE_UNREADABLE: &str = "timings_unreadable";
 
 const TRACE_SUFFIX: &str = ".json.gz";
 const KEPT_TRACES: usize = 5;
@@ -14,7 +14,7 @@ const CRITICAL_SHOWN: usize = 5;
 const SLOWEST_SHOWN: usize = 10;
 
 pub(crate) fn dir(workspace: &Path) -> PathBuf {
-    dx_path::state::local_dir(workspace).join(dx_path::state::PROFILE)
+    dx_path::state::local_dir(workspace).join(dx_path::state::TIMINGS)
 }
 
 pub(crate) fn profile_path(workspace: &Path, run_id: &str) -> PathBuf {
@@ -207,7 +207,7 @@ impl Report {
 
     pub(crate) fn text(&self) -> String {
         let mut lines = vec![format!(
-            "dx: profile, wall time {}",
+            "dx: timings, wall time {}",
             seconds(self.wall_micros())
         )];
         lines.push(format!(

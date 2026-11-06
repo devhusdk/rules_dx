@@ -1126,13 +1126,13 @@ fn explain_parses_its_log_pair_and_build_test_take_explain() {
     assert!(!parse(&strings(&["build"])).expect("plain").explain);
     for command in ["build", "test", "coverage", "run"] {
         assert!(
-            parse(&strings(&[command, "--profile"]))
+            parse(&strings(&[command, "--timings"]))
                 .expect(command)
                 .build_profile
         );
         assert!(!parse(&strings(&[command])).expect(command).build_profile);
     }
-    assert!(parse(&strings(&["lint", "--profile"])).is_err());
+    assert!(parse(&strings(&["lint", "--timings"])).is_err());
     assert!(
         parse(&strings(&["check", "--explain"]))
             .expect("check")

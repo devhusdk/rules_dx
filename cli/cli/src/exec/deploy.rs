@@ -1,5 +1,5 @@
 use super::common::*;
-use dx_plan::args::{Command, DX_PROFILE_ENV, Invocation, Profile, resolve_profile};
+use dx_plan::args::{Command, DX_BUILD_MODE_ENV, Invocation, Profile, resolve_profile};
 use dx_plan::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{check_deployable, resolve_deploy};
@@ -150,7 +150,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         workspace,
         runner,
         &run_plan.argv,
-        &[(DX_PROFILE_ENV, profile_name)],
+        &[(DX_BUILD_MODE_ENV, profile_name)],
     ) {
         Ok(AppExit {
             code,
@@ -334,7 +334,7 @@ mod tests {
         let seen_env = harness.seen_env.borrow();
         assert_eq!(seen_env.len(), 2);
         assert!(
-            seen_env[1].contains(&("DX_PROFILE".to_owned(), "release".to_owned())),
+            seen_env[1].contains(&("DX_BUILD_MODE".to_owned(), "release".to_owned())),
             "{seen_env:?}"
         );
         let harness = harness_with_deploy("deploy-attr", "True|debug|None|True");

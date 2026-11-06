@@ -2,7 +2,7 @@
 
 dx reads two files from the workspace root: `security.toml` for `dx security`
 and `licenses.toml` for `dx license`. Both are optional. Each is merged over a
-base that ships with dx; the top-level `profile` in `dx.toml` picks it:
+base that ships with dx; the top-level `tier` in `dx.toml` picks it:
 `standard` (the default) or `strict`. An unknown key fails the run. Defaults come from flags and `DX_` variables (see
 [Command Reference](README.md)).
 
@@ -32,7 +32,7 @@ Used by `dx security`. See [Audit, Update](audit-update.md).
 | `schema_version` | integer | none | Must be `1`. |
 | `exception` | array of tables | none | Accepted advisories. |
 | `uncovered` | array of tables | none | Accepted sets with no advisory source. |
-| `fail_on` | array of strings | the profile's | Advisory kinds that fail the run: `vulnerability`, `unsound`, `unmaintained`, `notice`, `yanked`. Other kinds are reported as `info`. Standard fails on `vulnerability` and `unsound`; strict adds `unmaintained`, `notice` and `yanked`. A list set here replaces the profile's. |
+| `fail_on` | array of strings | the tier's | Advisory kinds that fail the run: `vulnerability`, `unsound`, `unmaintained`, `notice`, `yanked`. Other kinds are reported as `info`. Standard fails on `vulnerability` and `unsound`; strict adds `unmaintained`, `notice` and `yanked`. A list set here replaces the tier's. |
 
 ### security.toml `[[exception]]`
 
@@ -62,8 +62,8 @@ Two sets are not dependency sets:
 
 Used by `dx license`. See [Audit, Update](audit-update.md).
 
-A list this file sets replaces the profile's list; a list it leaves out comes
-from the profile. The strict profile denies what standard only reviews.
+A list this file sets replaces the tier's list; a list it leaves out comes
+from the tier. The strict tier denies what standard only reviews.
 
 ### licenses.toml top level
 

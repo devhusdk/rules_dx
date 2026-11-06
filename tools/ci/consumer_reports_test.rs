@@ -150,7 +150,7 @@ fn the_profile_report_is_kept_and_summarised_in_the_pr_comment() {
     };
     let checks = run_of("@rules_dx//:dx -- \"${args[@]}\"");
     assert!(
-        checks.contains("cp .dx/local/profile/report.json \"$reports/profile-$id.json\""),
+        checks.contains("cp .dx/local/timings/report.json \"$reports/profile-$id.json\""),
         "{checks}"
     );
     let summary = run_of("dx-coverage-summary");

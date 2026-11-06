@@ -10,10 +10,10 @@ fn a_full_file_parses() {
     let config = parse(
         r#"
 schema_version = 1
-profile = "strict"
+tier = "strict"
 
 [families.rust]
-profile = "standard"
+tier = "standard"
 lint = ["clippy"]
 disabled = false
 
@@ -30,7 +30,7 @@ exclude = ["//third_party/..."]
 #[test]
 fn schema_version_is_required() {
     assert_eq!(
-        parse("profile = \"strict\"").unwrap_err(),
+        parse("tier = \"strict\"").unwrap_err(),
         LoadProblem::Convention(ConventionProblem::MissingSchemaVersion)
     );
     assert!(message("schema_version = 9").contains("newer"));
@@ -57,7 +57,7 @@ fn paths_are_not_supported_yet() {
 
 #[test]
 fn bad_profile_and_pattern_are_errors() {
-    assert!(message("schema_version = 1\nprofile = \"loose\"").contains("loose"));
+    assert!(message("schema_version = 1\ntier = \"loose\"").contains("loose"));
     assert!(
         message("schema_version = 1\n[scope]\nexclude = [\"third_party\"]")
             .contains("invalid label pattern")

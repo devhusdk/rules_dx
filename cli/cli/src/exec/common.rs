@@ -1257,14 +1257,14 @@ mod tests {
             Path::new("/ws"),
             &runner,
             &argv,
-            &[("DX_PROFILE", "release")],
+            &[("DX_BUILD_MODE", "release")],
         );
         assert_eq!(code, Ok(7));
         let seen = seen.borrow();
         assert_eq!(seen.0, argv);
         assert_eq!(
             seen.1,
-            vec![("DX_PROFILE".to_owned(), "release".to_owned())]
+            vec![("DX_BUILD_MODE".to_owned(), "release".to_owned())]
         );
         assert_eq!(err, Vec::<u8>::new());
     }

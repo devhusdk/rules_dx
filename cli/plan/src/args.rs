@@ -134,7 +134,7 @@ pub use parser::{
     json_output_intent, parse, parse_with, parse_with_ci, startup_workspace,
 };
 pub(crate) use profile::filter_profile_configs;
-pub use profile::{DX_PROFILE_ENV, Profile, resolve_profile};
+pub use profile::{DX_BUILD_MODE_ENV, Profile, resolve_profile};
 
 pub use dx_adopt::defaults::DX_WORKSPACE_ENV;
 

@@ -174,7 +174,7 @@ fn cloudflare_case() {
         ("CLOUDFLARE_PAGES_APPROVED", "1"),
         ("CLOUDFLARE_API_TOKEN", token),
         ("AMBIENT_SECRET", "ambient"),
-        ("DX_PROFILE", "release"),
+        ("DX_BUILD_MODE", "release"),
     ];
 
     let preview =
@@ -273,7 +273,7 @@ fn cloudflare_case() {
         &prog,
         "DX_CLOUDFLARE_CONFIG",
         &[],
-        &[("CLOUDFLARE_API_TOKEN", token), ("DX_PROFILE", "release")],
+        &[("CLOUDFLARE_API_TOKEN", token), ("DX_BUILD_MODE", "release")],
     )
     .expect("check run must execute");
     let out = checked.combined();

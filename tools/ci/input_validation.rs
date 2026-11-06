@@ -79,7 +79,7 @@ pub const MATRIX_CHECKS: [MatrixCheck; 7] = [
     },
     MatrixCheck {
         id: "test",
-        args: &["test", "--profile"],
+        args: &["test", "--timings"],
         reports: &[
             "junit=junit.xml",
             "failures=failures.json",
@@ -90,7 +90,7 @@ pub const MATRIX_CHECKS: [MatrixCheck; 7] = [
     },
     MatrixCheck {
         id: "build",
-        args: &["build", "--profile"],
+        args: &["build", "--timings"],
         reports: &["failures=failures.json"],
         passthrough: true,
         timeout: 60,

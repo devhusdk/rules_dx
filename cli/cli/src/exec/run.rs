@@ -1048,13 +1048,13 @@ mod tests {
     #[test]
     fn run_profile_writes_a_trace_for_the_build_only() {
         let harness = Harness::new("run-trace");
-        let inv = invocation(&["run", "--profile", "//app:bin"]);
+        let inv = invocation(&["run", "--timings", "//app:bin"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         let traced = |argv: &Vec<String>| argv.iter().any(|arg| arg.starts_with("--profile="));
         assert!(traced(&run.argv[0]), "{:?}", run.argv);
         assert!(!traced(&run.argv[1]), "{:?}", run.argv);
-        assert!(harness.workspace.join(".dx/local").join("profile").is_dir());
+        assert!(harness.workspace.join(".dx/local").join("timings").is_dir());
     }
 
     #[test]

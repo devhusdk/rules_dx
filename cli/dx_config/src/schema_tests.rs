@@ -23,7 +23,7 @@ fn checked_in_schema_is_current() {
 fn schema_accepts_a_config_and_rejects_typos() {
     let schema = validator();
     assert!(schema.is_valid(&toml_value(
-        "schema_version = 1\nprofile = \"strict\"\n[families.go]\nlint = [\"typos\"]\n"
+        "schema_version = 1\ntier = \"strict\"\n[families.go]\nlint = [\"typos\"]\n"
     )));
     assert!(!schema.is_valid(&toml_value("schema_version = 1\nprofle = \"strict\"")));
     assert!(!schema.is_valid(&toml_value("schema_version = 1\nprofile = \"loose\"")));

@@ -1638,7 +1638,7 @@ pub(crate) mod tests {
             "MAVEN_ALLOW_UNSIGNED",
         ];
         let mut vars: Vec<(&str, Option<&str>)> = cleared.iter().map(|key| (*key, None)).collect();
-        vars.push(("DX_PROFILE", Some("dx_dev")));
+        vars.push(("DX_BUILD_MODE", Some("dx_dev")));
         let run = || {
             maven_main(
                 &MavenLaunch {

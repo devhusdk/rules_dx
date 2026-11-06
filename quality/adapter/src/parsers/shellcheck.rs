@@ -1,5 +1,5 @@
 use super::{
-    columned, finding, lines, located, missing, require_findings, FileFinding, ParseError,
+    FileFinding, ParseError, columned, finding, lines, located, missing, require_findings,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};

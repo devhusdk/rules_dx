@@ -10,4 +10,4 @@ pub use request::{
     ConfiguredKind, ConfiguredSet, DepTarget, DepVersion, EditError, EditPlanOutcome, UpdateRequest,
 };
 pub use sets::UpdateSet;
-pub use version::{compare, is_stable, VersionError, WidenVersion};
+pub use version::{VersionError, WidenVersion, compare, is_stable};

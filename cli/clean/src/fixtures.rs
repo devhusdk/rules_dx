@@ -6,25 +6,25 @@ use std::path::{Path, PathBuf};
 use dx_setup::{GenerationId, SetupPair};
 
 use crate::planning::GenerationView;
-use crate::records::{validate_record, SetupRecordView};
+use crate::records::{SetupRecordView, validate_record};
 use dx_atomic_fs::lease::GenerationUse;
 
 pub(crate) fn digest(tag: char) -> String {
     tag.to_string().repeat(64)
 }
 
-pub(crate) fn pair_env_gen(env: char, gen: char) -> (String, String, String) {
+pub(crate) fn pair_env_gen(env: char, gen_id: char) -> (String, String, String) {
     let environment = GenerationId::new(&digest(env)).expect("env digest");
-    let generated = GenerationId::new(&digest(gen)).expect("gen digest");
+    let generated = GenerationId::new(&digest(gen_id)).expect("gen digest");
     let pair = SetupPair {
         environment,
         generated,
     };
-    (dx_setup::setup_hex(&pair), digest(env), digest(gen))
+    (dx_setup::setup_hex(&pair), digest(env), digest(gen_id))
 }
 
-pub(crate) fn record(env: char, gen: char) -> SetupRecordView {
-    let (hex, environment_hex, generated_hex) = pair_env_gen(env, gen);
+pub(crate) fn record(env: char, gen_id: char) -> SetupRecordView {
+    let (hex, environment_hex, generated_hex) = pair_env_gen(env, gen_id);
     validate_record(&hex, &environment_hex, &generated_hex).expect("valid record")
 }
 
@@ -35,10 +35,10 @@ pub(crate) fn generation(kind: GenerationUse, tag: char) -> GenerationView {
     }
 }
 
-pub(crate) fn setup_pair(env: char, gen: char) -> SetupPair {
+pub(crate) fn setup_pair(env: char, gen_id: char) -> SetupPair {
     SetupPair {
         environment: GenerationId::new(&digest(env)).expect("env digest"),
-        generated: GenerationId::new(&digest(gen)).expect("gen digest"),
+        generated: GenerationId::new(&digest(gen_id)).expect("gen digest"),
     }
 }
 

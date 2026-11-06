@@ -1,5 +1,5 @@
-use super::{check_output_size, code_name, known, FileFinding, ParseError};
-use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity, LINE_END};
+use super::{FileFinding, ParseError, check_output_size, code_name, known};
+use crate::{ColumnEncoding, Finding, LINE_END, TextPosition, ToolSeverity};
 
 /// Parses `gplint -f json`. Every requested file must be named exactly once, because gplint
 /// treats arguments as globs and silently drops what does not match, and because it exits 0
@@ -78,7 +78,7 @@ pub fn parse_gplint(
                     return Err(ParseError::Shape {
                         tool: TOOL,
                         detail: format!("unknown level {other:?}"),
-                    })
+                    });
                 }
             };
             // Parse errors have no column; they cover their whole line.
@@ -142,9 +142,11 @@ mod tests {
         let findings = parse_gplint(DIRTY.as_bytes(), Some(1), FILES).expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "no-unnamed-features");
-        assert!(parse_gplint(CLEAN.as_bytes(), Some(0), FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_gplint(CLEAN.as_bytes(), Some(0), FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

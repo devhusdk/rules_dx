@@ -3,11 +3,11 @@ use std::process::Command;
 use std::sync::OnceLock;
 
 use dx_release_tools::candidate::{
-    build_source_archive, candidate_module_file, ls_remote_output, read_git_state,
-    source_archive_error, stage_local_registry, write_release_source, Candidate, PINS_PATH,
+    Candidate, PINS_PATH, build_source_archive, candidate_module_file, ls_remote_output,
+    read_git_state, source_archive_error, stage_local_registry, write_release_source,
 };
 use dx_release_tools::{
-    bcr_candidate_error, bcr_integrity_of_digest, release_remote_error, release_run, RELEASE_REMOTE,
+    RELEASE_REMOTE, bcr_candidate_error, bcr_integrity_of_digest, release_remote_error, release_run,
 };
 
 const VERSION: &str = "1.2.3-rc1";
@@ -921,9 +921,11 @@ fn registry_stage_serves_family_modules_from_the_one_archive() {
         module.contains(&format!("version = \"{VERSION}\"")),
         "{module}"
     );
-    assert!(registry
-        .join("modules/rules_dx")
-        .join(VERSION)
-        .join("source.json")
-        .exists());
+    assert!(
+        registry
+            .join("modules/rules_dx")
+            .join(VERSION)
+            .join("source.json")
+            .exists()
+    );
 }

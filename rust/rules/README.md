@@ -58,6 +58,10 @@ crates and their dependencies build without the static C++ runtime.
 Binaries and tests link LLVM libunwind. The private `<name>_upstream`
 targets are incompatible there; build `<name>`.
 
+## Edition
+
+Targets default to Rust edition 2024. Set `edition` on a target to build it with another edition, for example `edition = "2021"`.
+
 ## Target triples
 
 Add the Wasm triples for browser and WASI builds to your root `MODULE.bazel`:
@@ -67,7 +71,7 @@ bazel_dep(name = "rules_rust", version = "0.75.0")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
-    edition = "2021",
+    edition = "2024",
     extra_target_triples = ["wasm32-unknown-unknown", "wasm32-wasip1"],
     rustfmt_version = "1.99.1",
     versions = ["1.99.1"],

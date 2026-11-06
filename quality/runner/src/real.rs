@@ -292,10 +292,10 @@ fn absolute_argv(argv: &[OsString]) -> Vec<OsString> {
     let mut out = argv.to_vec();
     if let Some(first) = out.first_mut() {
         let path = PathBuf::from(&*first);
-        if !path.is_absolute() {
-            if let Ok(cwd) = std::env::current_dir() {
-                *first = cwd.join(path).into_os_string();
-            }
+        if !path.is_absolute()
+            && let Ok(cwd) = std::env::current_dir()
+        {
+            *first = cwd.join(path).into_os_string();
         }
     }
     out
@@ -842,12 +842,11 @@ fn short_socket_dir() -> io::Result<SocketDir> {
 /// The argv a tool is spawned with: an absolute binary, resolved for launchers that need it.
 fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
     let mut argv = absolute_argv(&invocation.argv);
-    if resolves_launcher(tool_id) {
-        if let Some(first) = argv.first_mut() {
-            if let Ok(real) = std::fs::canonicalize(&*first) {
-                *first = real.into_os_string();
-            }
-        }
+    if resolves_launcher(tool_id)
+        && let Some(first) = argv.first_mut()
+        && let Ok(real) = std::fs::canonicalize(&*first)
+    {
+        *first = real.into_os_string();
     }
     argv
 }
@@ -908,12 +907,12 @@ mod real_weeder;
 #[cfg(test)]
 mod tests {
     use super::{
+        ALWAYS_OWN_MANIFEST, GPLINT_DEFAULTS_BYTES, REAL_TOOLS, STYLELINT_DEFAULTS_BYTES,
         absolute_argv, javascript_manifest, own_runfiles_manifest, parsed, reads_own_manifest,
-        resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, GPLINT_DEFAULTS_BYTES, REAL_TOOLS,
-        STYLELINT_DEFAULTS_BYTES,
+        resolves_launcher, spawn_argv,
     };
     use crate::RunnerError;
-    use quality_adapter::launch::{policy_for, RunfilesPolicy};
+    use quality_adapter::launch::{RunfilesPolicy, policy_for};
     use std::ffi::OsString;
     use std::path::{Path, PathBuf};
 

@@ -214,24 +214,34 @@ fn ids_escape_unusual_characters() {
 #[test]
 fn failures_are_rejected() {
     assert!(convert("{", "mylib").unwrap_err().contains("malformed"));
-    assert!(convert(GOOGLE, "other")
-        .unwrap_err()
-        .contains("describes package"));
-    assert!(convert(GOOGLE, "a.b")
-        .unwrap_err()
-        .contains("invalid package"));
+    assert!(
+        convert(GOOGLE, "other")
+            .unwrap_err()
+            .contains("describes package")
+    );
+    assert!(
+        convert(GOOGLE, "a.b")
+            .unwrap_err()
+            .contains("invalid package")
+    );
     let format = edited(|d| d["format"] = json!(2));
-    assert!(convert(&format, "mylib")
-        .unwrap_err()
-        .contains("not supported"));
+    assert!(
+        convert(&format, "mylib")
+            .unwrap_err()
+            .contains("not supported")
+    );
     let module = edited(|d| d["module"]["path"] = json!("elsewhere"));
-    assert!(convert(&module, "mylib")
-        .unwrap_err()
-        .contains("is not package"));
+    assert!(
+        convert(&module, "mylib")
+            .unwrap_err()
+            .contains("is not package")
+    );
     let empty = edited(|d| d["module"]["members"] = json!({}));
-    assert!(convert(&empty, "mylib")
-        .unwrap_err()
-        .contains("no public Python API"));
+    assert!(
+        convert(&empty, "mylib")
+            .unwrap_err()
+            .contains("no public Python API")
+    );
     let private = edited(|d| {
         d["module"]["exports"] = json!([]);
         d["module"]["members"]
@@ -239,33 +249,39 @@ fn failures_are_rejected() {
             .unwrap()
             .retain(|name, _| name.starts_with('_'));
     });
-    assert!(convert(&private, "mylib")
-        .unwrap_err()
-        .contains("no public Python API"));
+    assert!(
+        convert(&private, "mylib")
+            .unwrap_err()
+            .contains("no public Python API")
+    );
     let unsafe_path = edited(|d| {
         d["module"]["members"]["LIMIT"]["relative_package_filepath"] = json!("../escape.py");
     });
-    assert!(convert(&unsafe_path, "mylib")
-        .unwrap_err()
-        .contains("invalid IR"));
+    assert!(
+        convert(&unsafe_path, "mylib")
+            .unwrap_err()
+            .contains("invalid IR")
+    );
 }
 
 #[test]
 fn parse_requires_every_flag() {
     let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
-    assert!(parse(&args(&[
-        "--json",
-        "a",
-        "--package",
-        "p",
-        "--root",
-        "r",
-        "--srcs",
-        "s",
-        "--out",
-        "o"
-    ]))
-    .is_ok());
+    assert!(
+        parse(&args(&[
+            "--json",
+            "a",
+            "--package",
+            "p",
+            "--root",
+            "r",
+            "--srcs",
+            "s",
+            "--out",
+            "o"
+        ]))
+        .is_ok()
+    );
     assert!(parse(&args(&["--json", "a"])).is_err());
     assert!(parse(&args(&["--bad", "a"])).is_err());
     assert!(parse(&args(&["--json", "a", "--json", "b"])).is_err());

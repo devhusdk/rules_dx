@@ -1,7 +1,7 @@
 //! The modules one release publishes: core `rules_dx` and the modules under `families/`.
 
-use crate::candidate::{call_end, string_fields};
 use crate::BCR_WANT_MODULE;
+use crate::candidate::{call_end, string_fields};
 
 /// One module of a release. The root is empty for core and `families/<f>` for a family.
 #[derive(Clone, Debug, PartialEq, Eq)]

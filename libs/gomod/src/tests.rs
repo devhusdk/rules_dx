@@ -336,9 +336,11 @@ fn replacement_for_prefers_specific_version_over_wildcard_in_any_order() {
 fn duplicate_replacements_for_one_module_version_are_errors() {
     let wildcard =
         "module a\nreplace example.com/lib => ../one\nreplace example.com/lib => ../two\n";
-    assert!(parse_mod(wildcard)
-        .expect_err("rejects")
-        .contains("multiple replacements"));
+    assert!(
+        parse_mod(wildcard)
+            .expect_err("rejects")
+            .contains("multiple replacements")
+    );
     let exact = "module a\nreplace (\n\texample.com/lib v1.0.0 => ../one\n\texample.com/lib v1.0.0 => ../two\n)\n";
     assert!(parse_mod(exact).is_err());
     let mixed =

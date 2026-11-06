@@ -4,7 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use super::ReportError;
 use crate::args::{Command, ReportRequest};
 use crate::plan::spec;
-use dx_output::{check_output_conflict, OutputError, OutputMode};
+use dx_output::{OutputError, OutputMode, check_output_conflict};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StandardFormat {
@@ -411,113 +411,141 @@ mod tests {
             stdout_conflict(OutputError::SecondStdoutReport),
             ReportError::MultipleStdoutReports
         );
-        assert!(format!(
-            "{}",
-            ReportError::UnsupportedFormat {
-                command: "lint",
-                format: "junit".to_owned(),
-                supported: vec![],
-            }
-        )
-        .contains("no standard report exists"));
-        assert!(format!(
-            "{}",
-            ReportError::UnsupportedFormat {
-                command: "lint",
-                format: "junit".to_owned(),
-                supported: vec!["sarif"],
-            }
-        )
-        .contains("sarif"));
-        assert!(format!(
-            "{}",
-            ReportError::DuplicateReport {
-                format: "sarif".to_owned(),
-                destination: "out.sarif".to_owned(),
-            }
-        )
-        .contains("duplicate"));
-        assert!(format!(
-            "{}",
-            ReportError::ConflictingReports {
-                first: "failures=out.json".to_owned(),
-                second: "junit=out.json".to_owned(),
-                destination: "out.json".to_owned(),
-            }
-        )
-        .contains("same file"));
+        assert!(
+            format!(
+                "{}",
+                ReportError::UnsupportedFormat {
+                    command: "lint",
+                    format: "junit".to_owned(),
+                    supported: vec![],
+                }
+            )
+            .contains("no standard report exists")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::UnsupportedFormat {
+                    command: "lint",
+                    format: "junit".to_owned(),
+                    supported: vec!["sarif"],
+                }
+            )
+            .contains("sarif")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::DuplicateReport {
+                    format: "sarif".to_owned(),
+                    destination: "out.sarif".to_owned(),
+                }
+            )
+            .contains("duplicate")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::ConflictingReports {
+                    first: "failures=out.json".to_owned(),
+                    second: "junit=out.json".to_owned(),
+                    destination: "out.json".to_owned(),
+                }
+            )
+            .contains("same file")
+        );
         assert!(format!("{}", ReportError::MultipleStdoutReports).contains("stdout"));
-        assert!(format!(
-            "{}",
-            ReportError::StdoutReportConflictsMode { mode: "diff" }
-        )
-        .contains("diff"));
-        assert!(format!(
-            "{}",
-            ReportError::InvalidFinding {
-                detail: "empty tool",
-            }
-        )
-        .contains("empty tool"));
+        assert!(
+            format!(
+                "{}",
+                ReportError::StdoutReportConflictsMode { mode: "diff" }
+            )
+            .contains("diff")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::InvalidFinding {
+                    detail: "empty tool",
+                }
+            )
+            .contains("empty tool")
+        );
         assert!(format!("{}", ReportError::RangeWithoutPath).contains("byte range"));
         assert!(format!("{}", ReportError::InvertedRange).contains("starts after"));
-        assert!(format!(
-            "{}",
-            ReportError::MissingSnapshot {
-                path: "src/a.py".to_owned(),
-            }
-        )
-        .contains("src/a.py"));
-        assert!(format!(
-            "{}",
-            ReportError::UnknownTool {
-                tool: "other".to_owned(),
-            }
-        )
-        .contains("other"));
-        assert!(format!(
-            "{}",
-            ReportError::BadOffset {
-                path: "src/a.py".to_owned(),
-                offset: 1,
-            }
-        )
-        .contains("character boundary"));
-        assert!(format!(
-            "{}",
-            ReportError::InvalidJunit {
-                detail: "boom".to_owned(),
-            }
-        )
-        .contains("boom"));
-        assert!(format!(
-            "{}",
-            ReportError::InvalidLcov {
-                detail: "boom".to_owned(),
-            }
-        )
-        .contains("boom"));
-        assert!(format!(
-            "{}",
-            ReportError::UnexpectedOutputConflict {
-                detail: "unknown output mode \"xml\"".to_owned(),
-            }
-        )
-        .contains("unexpected output conflict"));
-        assert!(format!(
-            "{}",
-            ReportError::JunitRender {
-                detail: "boom".to_owned(),
-            }
-        )
-        .contains("junit report serialization failed"));
-        assert!(format!(
-            "{}",
-            ReportError::Fingerprint(dx_fingerprint::FingerprintError::Json {
-                detail: "boom".to_owned(),
-            })
-        )
-        .contains("fingerprint JSON serializes"));
+        assert!(
+            format!(
+                "{}",
+                ReportError::MissingSnapshot {
+                    path: "src/a.py".to_owned(),
+                }
+            )
+            .contains("src/a.py")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::UnknownTool {
+                    tool: "other".to_owned(),
+                }
+            )
+            .contains("other")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::BadOffset {
+                    path: "src/a.py".to_owned(),
+                    offset: 1,
+                }
+            )
+            .contains("character boundary")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::InvalidJunit {
+                    detail: "boom".to_owned(),
+                }
+            )
+            .contains("boom")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::InvalidLcov {
+                    detail: "boom".to_owned(),
+                }
+            )
+            .contains("boom")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::UnexpectedOutputConflict {
+                    detail: "unknown output mode \"xml\"".to_owned(),
+                }
+            )
+            .contains("unexpected output conflict")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::JunitRender {
+                    detail: "boom".to_owned(),
+                }
+            )
+            .contains("junit report serialization failed")
+        );
+        assert!(
+            format!(
+                "{}",
+                ReportError::Fingerprint(dx_fingerprint::FingerprintError::Json {
+                    detail: "boom".to_owned(),
+                })
+            )
+            .contains("fingerprint JSON serializes")
+        );
     }
 
     #[test]

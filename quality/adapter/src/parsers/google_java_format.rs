@@ -1,4 +1,4 @@
-use super::{listed_paths, FileFinding, ParseError, Spelling};
+use super::{FileFinding, ParseError, Spelling, listed_paths};
 
 pub fn parse_google_java_format(
     stdout: &[u8],

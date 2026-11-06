@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known_native, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known_native, unformatted_at};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -234,9 +234,11 @@ mod tests {
         assert_eq!(findings[0].finding.message, "file is not formatted");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
         let clean = r#"{"summary":{},"diagnostics":[],"command":"format"}"#;
-        assert!(parse_biome_format(clean.as_bytes(), Some(0), &["/s/c.js"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_biome_format(clean.as_bytes(), Some(0), &["/s/c.js"])
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_biome_format(clean.as_bytes(), Some(1), &["/s/c.js"]).is_err());
         assert!(parse_biome_format(b"not json", Some(1), &["/s/fmt.js"]).is_err());
         let wrong_cat = BIOME_FMT_DIRTY.replace(

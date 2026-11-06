@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use super::rust_unused_deps::UnusedDependency;
 use super::sarif::{file_url_path, parse_sarif, suppressed};
-use super::{check_output_size, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size};
 
 const TOOL: &str = "roslyn";
 

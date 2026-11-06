@@ -1,2 +1,2 @@
 # `edition` follows RUST_EDITION in //modules:versions.bzl, checked by //modules:versions_contract.
-edition = "2021"
+edition = "2024"

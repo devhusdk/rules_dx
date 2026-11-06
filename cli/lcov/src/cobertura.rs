@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use crate::clover::attribute;
 use crate::LcovError;
+use crate::clover::attribute;
 
 /// Converts a Cobertura XML report (kcov, coverage.py) to LCOV text.
 ///

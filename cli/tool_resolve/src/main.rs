@@ -15,7 +15,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use dx_tool_resolve::{
-    append_env_file, context_dir, env_line, resolve, validate_var, CommandBazel,
+    CommandBazel, append_env_file, context_dir, env_line, resolve, validate_var,
 };
 
 #[derive(Debug, Parser)]

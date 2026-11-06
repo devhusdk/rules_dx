@@ -1,7 +1,7 @@
 //! `dx test --test_arg` reaches the test binary verbatim (#3774).
 #![cfg(unix)]
 
-use dx_test_scratch::{scratch, TempDir};
+use dx_test_scratch::{TempDir, scratch};
 use dx_testing::Run;
 
 mod support;

@@ -1,7 +1,7 @@
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{as_text, code_name, finding, known, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known};
 
 const TOOL: &str = "perlcritic";
 

@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, point, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled, point, require_findings};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "actionlint";
@@ -83,12 +83,16 @@ mod tests {
 
     #[test]
     fn actionlint_clean_run_is_clean() {
-        assert!(parse_actionlint(b"null", b"", Some(0), &[FILE])
-            .expect("parsed")
-            .is_empty());
-        assert!(parse_actionlint(b"[]\n", b"", Some(0), &[FILE])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_actionlint(b"null", b"", Some(0), &[FILE])
+                .expect("parsed")
+                .is_empty()
+        );
+        assert!(
+            parse_actionlint(b"[]\n", b"", Some(0), &[FILE])
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

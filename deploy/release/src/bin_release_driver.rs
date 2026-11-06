@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use dx_release_tools::candidate::{self, Candidate};
-use dx_release_tools::ledger::{sync_assets, ReleaseBackend};
-use dx_release_tools::{ledger_exit, render_ledger, GitState, OpRecord, OpState};
+use dx_release_tools::ledger::{ReleaseBackend, sync_assets};
+use dx_release_tools::{GitState, OpRecord, OpState, ledger_exit, render_ledger};
 
 const DRY_RUN_TAG: &str = "v0.0.0-dryrun";
 const DEFAULT_REPO: &str = "devhusdk/rules_dx";

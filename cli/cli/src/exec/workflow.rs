@@ -6,14 +6,14 @@ use super::failure_reports::write_failure_reports;
 use super::profile_report;
 use super::run::execute_run;
 use super::skipped_targets::{group_skipped, read_skipped, skipped_notice};
-use super::test_reports::{execute_test_reports, TestReportsRequest};
+use super::test_reports::{TestReportsRequest, execute_test_reports};
 use dx_output::{
-    command_finished, notice_event, ActionCounts, FinishedCounts, NoticeEvent, OutputMode,
+    ActionCounts, FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_event,
 };
 use dx_plan::args::{Command, Invocation};
-use dx_plan::plan::{bep_path, plan_workflow, results_path, run_id, WorkflowVerb};
-use dx_plan::reports::{plan_reports, Destination, PlannedReport, StandardFormat};
-use dx_plan::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
+use dx_plan::plan::{WorkflowVerb, bep_path, plan_workflow, results_path, run_id};
+use dx_plan::reports::{Destination, PlannedReport, StandardFormat, plan_reports};
+use dx_plan::resolve::{SelectionContext, resolve, resolve_for_test_with_selection};
 use dx_process::ForwardError;
 use std::io::Write;
 
@@ -270,10 +270,11 @@ fn execute_checked(
             discard_log();
             return exit;
         }
-    } else if invocation.chatty() && !stdout_report {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary)) {
-            return exit;
-        }
+    } else if invocation.chatty()
+        && !stdout_report
+        && let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary))
+    {
+        return exit;
     }
     if let Err(exit) = warn_scope_excluded(invocation.output, out, err, &resolved.kept) {
         discard_log();
@@ -296,8 +297,8 @@ fn execute_checked(
         }
     }
     let action_counts = read_actions(&bep, actions);
-    if let Some(trace) = &trace {
-        if let Err(exit) = announce_profile(
+    if let Some(trace) = &trace
+        && let Err(exit) = announce_profile(
             invocation,
             workspace,
             out,
@@ -305,17 +306,17 @@ fn execute_checked(
             trace,
             Some(&bep),
             action_counts,
-        ) {
-            let _ = std::fs::remove_file(&bep);
-            return kept_child(err, bazel_code, exit);
-        }
+        )
+    {
+        let _ = std::fs::remove_file(&bep);
+        return kept_child(err, bazel_code, exit);
     }
     if verb == WorkflowVerb::Build {
-        if bazel_code != 0 {
-            if let Err(exit) = report_build_failures(&bep, invocation.output, out, err) {
-                let _ = std::fs::remove_file(&bep);
-                return kept_child(err, bazel_code, exit);
-            }
+        if bazel_code != 0
+            && let Err(exit) = report_build_failures(&bep, invocation.output, out, err)
+        {
+            let _ = std::fs::remove_file(&bep);
+            return kept_child(err, bazel_code, exit);
         }
         let groups = group_skipped(&read_skipped(&bep), invocation, workspace, query_runner);
         if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
@@ -341,19 +342,18 @@ fn execute_checked(
         } else {
             bazel_code
         };
-        if invocation.output == OutputMode::Json {
-            if let Err(exit) =
+        if invocation.output == OutputMode::Json
+            && let Err(exit) =
                 emit_build_completion(invocation, out, bazel_code, code, action_counts)
-            {
-                if code == 0 {
-                    return exit;
-                }
-                let _ = writeln!(
-                    err,
-                    "dx: could not write the final events to stdout; keeping exit {code}"
-                );
-                return code;
+        {
+            if code == 0 {
+                return exit;
             }
+            let _ = writeln!(
+                err,
+                "dx: could not write the final events to stdout; keeping exit {code}"
+            );
+            return code;
         }
         return code;
     }
@@ -687,10 +687,12 @@ mod tests {
             notice["path"],
             dir.join("report.json").display().to_string()
         );
-        assert!(notice["message"]
-            .as_str()
-            .expect("message")
-            .contains("slow"));
+        assert!(
+            notice["message"]
+                .as_str()
+                .expect("message")
+                .contains("slow")
+        );
         assert!(dir.join("report.json").is_file());
         let (code, _, err) = harness.run(&["build", "--profile"]);
         assert_eq!(code, 0);
@@ -731,10 +733,12 @@ mod tests {
             notice["path"],
             dir.join("report.json").display().to_string()
         );
-        assert!(notice["message"]
-            .as_str()
-            .expect("message")
-            .contains("slow"));
+        assert!(
+            notice["message"]
+                .as_str()
+                .expect("message")
+                .contains("slow")
+        );
         assert!(dir.join("report.json").is_file());
         let mut err = Vec::new();
         let inv = invocation(&["build", "--profile"]);

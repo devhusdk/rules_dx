@@ -73,7 +73,9 @@ pub enum Error {
     InvertedRange { index: usize },
     #[error("empty role at diagnostic[{index}].related[{item}]: want a non-empty role")]
     EmptyRelatedRole { index: usize, item: usize },
-    #[error("invalid location at diagnostic[{index}].related[{item}]: want a path with an ordered range, or neither")]
+    #[error(
+        "invalid location at diagnostic[{index}].related[{item}]: want a path with an ordered range, or neither"
+    )]
     BadRelatedLocation { index: usize, item: usize },
     #[error("empty edits for {path:?}: want at least one edit")]
     EmptyEdits { path: String },

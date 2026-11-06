@@ -1,7 +1,7 @@
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
-use super::check::{in_file, real_launcher, CheckCall, ToolDef};
+use super::check::{CheckCall, ToolDef, in_file, real_launcher};
 use super::single_run::paths;
 use super::*;
 

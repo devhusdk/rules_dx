@@ -19,7 +19,9 @@ pub enum AddError {
         selector: String,
         hint: &'static str,
     },
-    #[error("{selector} is already declared in {manifest}; use `dx update {selector} <version>` to change its version (nothing added)")]
+    #[error(
+        "{selector} is already declared in {manifest}; use `dx update {selector} <version>` to change its version (nothing added)"
+    )]
     Declared { selector: String, manifest: String },
     #[error("unsupported manifest shape in {manifest}: {reason} (nothing added)")]
     UnsupportedManifest { manifest: String, reason: String },
@@ -38,8 +40,7 @@ impl From<EditError> for AddError {
     }
 }
 
-const GITHUB_ACTIONS_HINT: &str =
-    "add the `uses:` step to the workflow, then pin it with `dx update github-actions:<owner/repo> <tag-or-sha>`";
+const GITHUB_ACTIONS_HINT: &str = "add the `uses:` step to the workflow, then pin it with `dx update github-actions:<owner/repo> <tag-or-sha>`";
 
 impl AddRequest {
     /// The insert request for the package an update request names.

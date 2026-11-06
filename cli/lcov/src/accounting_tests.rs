@@ -8,7 +8,7 @@ fn manifest(text: &str) -> SourceManifest {
     parse_source_manifest(text).unwrap()
 }
 
-fn sources(files: &[(&str, &str)]) -> impl Fn(&str) -> Result<String, LcovError> {
+fn sources(files: &[(&str, &str)]) -> impl Fn(&str) -> Result<String, LcovError> + use<> {
     let files: BTreeMap<String, String> = files
         .iter()
         .map(|(path, text)| (path.to_string(), text.to_string()))
@@ -261,9 +261,11 @@ fn cell_only_file_is_required_in_that_cell_only() {
         "v1 cell linux_arm64\nprod source a.rs\nprod source arm.rs\n",
     )];
     let documents = [lcov("a.rs", &[(1, 1)])];
-    assert!(account(&x86, &documents, &blank_sources())
-        .errors
-        .is_empty());
+    assert!(
+        account(&x86, &documents, &blank_sources())
+            .errors
+            .is_empty()
+    );
     let result = account(&arm, &documents, &blank_sources());
     assert_eq!(result.cell, "linux_arm64");
     assert_eq!(

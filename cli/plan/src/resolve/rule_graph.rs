@@ -474,9 +474,11 @@ mod tests {
         for want in ["a/a.rs", "a/sub/b.rs", "root.rs", "c/sel_arm.rs"] {
             assert!(paths.contains(want), "{want}: {paths:?}");
         }
-        assert!(!paths
-            .iter()
-            .any(|path| path.contains("ruby") || path.contains("d.rs")));
+        assert!(
+            !paths
+                .iter()
+                .any(|path| path.contains("ruby") || path.contains("d.rs"))
+        );
     }
 
     fn shard_graph() -> RuleGraph {
@@ -524,12 +526,16 @@ mod tests {
             graph.reached_of_kind(&seeds, |kind| kind == "rust_binary"),
             ["//gen:bin"]
         );
-        assert!(graph
-            .reached_of_kind(&seeds, |kind| kind == "toolchain")
-            .is_empty());
-        assert!(graph
-            .reached_of_kind(&[], |kind| kind == "rust_binary")
-            .is_empty());
+        assert!(
+            graph
+                .reached_of_kind(&seeds, |kind| kind == "toolchain")
+                .is_empty()
+        );
+        assert!(
+            graph
+                .reached_of_kind(&[], |kind| kind == "rust_binary")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -607,9 +613,11 @@ mod tests {
                 "{label}"
             );
         }
-        assert!(graph
-            .dependents_of_kind("@other//pkg:schema", dx_codegen::is_shard_kind)
-            .is_empty());
+        assert!(
+            graph
+                .dependents_of_kind("@other//pkg:schema", dx_codegen::is_shard_kind)
+                .is_empty()
+        );
     }
 
     #[test]
@@ -625,9 +633,11 @@ mod tests {
     #[test]
     fn unknown_labels_have_no_shards() {
         let graph = shard_graph();
-        assert!(graph
-            .dependents_of_kind("//gone:schema", dx_codegen::is_shard_kind)
-            .is_empty());
+        assert!(
+            graph
+                .dependents_of_kind("//gone:schema", dx_codegen::is_shard_kind)
+                .is_empty()
+        );
     }
 
     #[test]
@@ -666,9 +676,11 @@ mod tests {
             graph.affected(&strings(&["//a:a.txt"])),
             ["//a:lib", "//a:t", "//b:t", "//c:t"]
         );
-        assert!(graph
-            .affected(&strings(&["//d:lone"]))
-            .contains(&"//d:lone".to_owned()));
+        assert!(
+            graph
+                .affected(&strings(&["//d:lone"]))
+                .contains(&"//d:lone".to_owned())
+        );
     }
 
     #[test]

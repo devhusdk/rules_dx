@@ -100,7 +100,7 @@ pub fn load(workspace: &Path) -> Result<Option<DxConfig>, LoadProblem> {
             return Err(LoadProblem::Read {
                 path: path.display().to_string(),
                 message: error.to_string(),
-            })
+            });
         }
     };
     parse(&text).map(Some)

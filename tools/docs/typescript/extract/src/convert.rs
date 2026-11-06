@@ -50,7 +50,7 @@ pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
         Some(other) => {
             return Err(format!(
                 "TypeDoc JSON schemaVersion '{other}' is not supported, expected '{SCHEMA_VERSION}'"
-            ))
+            ));
         }
         None => return Err("TypeDoc JSON has no schemaVersion".to_owned()),
     }
@@ -305,14 +305,14 @@ impl Walker<'_> {
                 parent: parent.to_owned(),
             };
             let mut symbol = self.build(node, Some(signature), draft)?;
-            if kind != KIND_CONSTRUCTOR {
-                if let Some(ty) = signature.get("type") {
-                    let returns_doc = block(signature, "@returns").unwrap_or_default();
-                    symbol.returns = Some(Returns {
-                        r#type: render_type(ty)?,
-                        doc: returns_doc,
-                    });
-                }
+            if kind != KIND_CONSTRUCTOR
+                && let Some(ty) = signature.get("type")
+            {
+                let returns_doc = block(signature, "@returns").unwrap_or_default();
+                symbol.returns = Some(Returns {
+                    r#type: render_type(ty)?,
+                    doc: returns_doc,
+                });
             }
             symbol.params = list(signature, "parameters")
                 .iter()

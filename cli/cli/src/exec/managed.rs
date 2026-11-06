@@ -1,8 +1,8 @@
 use super::common::*;
 use super::managed_prepare::{map_commit_error, prepare_managed_sides};
 use dx_output::{
-    command_finished, command_started, notice_event, operation_event, selection_event,
-    ActionCounts, FinishedCounts, NoticeEvent, OutputMode,
+    ActionCounts, FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started,
+    notice_event, operation_event, selection_event,
 };
 use dx_plan::args::{Command, Invocation};
 use dx_plan::plan::{bep_path, plan_managed, plan_managed_with_roots};
@@ -117,10 +117,11 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    if !json && verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary)) {
-            return exit;
-        }
+    if !json
+        && verbose
+        && let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary))
+    {
+        return exit;
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
@@ -137,16 +138,19 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 .as_deref()
                 .map(|scope| scope.join(" "))
                 .unwrap_or_else(|| "//...".to_owned());
-            if let Err(exit) = emit_built(out, bazel_exit_event(
-                CODE_BAZEL_FAILED,
-                &format!(
-                    "Bazel collection build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
+            if let Err(exit) = emit_built(
+                out,
+                bazel_exit_event(
+                    CODE_BAZEL_FAILED,
+                    &format!(
+                        "Bazel collection build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
+                    ),
+                    bazel_code,
+                    "collect",
                 ),
-                bazel_code,
-                "collect",
-            )) {
- return kept_child(err, bazel_code, exit);
- }
+            ) {
+                return kept_child(err, bazel_code, exit);
+            }
             let finished = command_finished(bazel_code, &with_actions(action_counts));
             if let Err(exit) = emit_event(out, &finished) {
                 return kept_child(err, bazel_code, exit);
@@ -398,7 +402,7 @@ mod tests {
     use super::super::managed_codegen::{empty_generated_id, stage_codegen_side};
     use super::super::managed_env::{empty_env_id, stage_env_side};
     use super::super::test_support::*;
-    use dx_setup::{read_current_pair, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME};
+    use dx_setup::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, read_current_pair};
 
     #[test]
     fn env_shell_succeeds_before_any_bin_exists() {
@@ -704,9 +708,11 @@ mod tests {
             for field in ["setup_id", "environment_id", "codegen_id"] {
                 let value = selection[field].as_str().expect("hex");
                 assert_eq!(value.len(), 64, "{selection}");
-                assert!(value
-                    .chars()
-                    .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+                assert!(
+                    value
+                        .chars()
+                        .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+                );
             }
             assert_eq!(
                 events.last().expect("finished")["exit_code"],

@@ -3,7 +3,7 @@
 use std::io;
 use std::path::Path;
 
-use super::agents::{eol, target, FILE as AGENTS};
+use super::agents::{FILE as AGENTS, eol, target};
 
 pub(crate) const FILE: &str = "CLAUDE.md";
 const NESTED: &str = ".claude/CLAUDE.md";
@@ -259,9 +259,11 @@ mod tests {
             get(dir.path(), "docs/memory.md"),
             "# Memory\n\n@AGENTS.md\n"
         );
-        assert!(std::fs::symlink_metadata(dir.path().join(FILE))
-            .expect("meta")
-            .file_type()
-            .is_symlink());
+        assert!(
+            std::fs::symlink_metadata(dir.path().join(FILE))
+                .expect("meta")
+                .file_type()
+                .is_symlink()
+        );
     }
 }

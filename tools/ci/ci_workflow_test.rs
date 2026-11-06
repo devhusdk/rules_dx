@@ -234,7 +234,8 @@ fn consumer_jobs_write_the_preset_layers_through_the_launcher_before_bazel_info(
         assert!(
             script.contains("tools/dx completion bash")
                 && script.contains("tools\\\\dx.cmd completion bash")
-                && script.contains("bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash"),
+                && script
+                    .contains("bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash"),
             "{CONSUMER} job {id} must prefer the launcher and keep the bazel run fallback: {script}"
         );
         let info = job_steps

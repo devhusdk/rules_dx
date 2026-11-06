@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
-use super::{check_output_size, known, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, known, require_findings};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -127,12 +127,16 @@ mod tests {
 
     #[test]
     fn clean_and_empty_are_clean_only_on_zero() {
-        assert!(parse_go_analysis("govet", b"", Some(0), &[])
-            .unwrap()
-            .is_empty());
-        assert!(parse_go_analysis("govet", br#"{"p":{}}"#, Some(0), &[])
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_go_analysis("govet", b"", Some(0), &[])
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            parse_go_analysis("govet", br#"{"p":{}}"#, Some(0), &[])
+                .unwrap()
+                .is_empty()
+        );
         assert!(parse_go_analysis("govet", b"", Some(1), &[]).is_err());
         assert!(parse_go_analysis("govet", b"", None, &[]).is_err());
     }
@@ -171,16 +175,20 @@ mod tests {
             .map(|f| f.finding.rule_id.as_str())
             .collect();
         assert_eq!(ids, ["syntax", "typecheck"]);
-        assert!(findings
-            .iter()
-            .all(|f| matches!(f.finding.severity, ToolSeverity::Error)));
+        assert!(
+            findings
+                .iter()
+                .all(|f| matches!(f.finding.severity, ToolSeverity::Error))
+        );
     }
 
     #[test]
     fn gotype_clean_and_context_failures() {
-        assert!(parse_gotype("gotype", br#"{"p":{}}"#, Some(0), &[])
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_gotype("gotype", br#"{"p":{}}"#, Some(0), &[])
+                .unwrap()
+                .is_empty()
+        );
         assert!(parse_gotype("gotype", b"", Some(1), &[]).is_err());
         let err = br#"{"p":{"typecheck":{"error":"missing export data"}}}"#;
         assert!(parse_gotype("gotype", err, Some(0), &[]).is_err());

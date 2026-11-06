@@ -4,7 +4,7 @@ use std::env;
 use std::io;
 use std::process::{Command, ExitCode};
 
-use msvc_paths::{edit_args, exit_code, Rewriter};
+use msvc_paths::{Rewriter, edit_args, exit_code};
 
 fn main() -> ExitCode {
     run().unwrap_or_else(|err| {

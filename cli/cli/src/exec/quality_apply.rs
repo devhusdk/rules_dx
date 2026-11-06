@@ -1,9 +1,9 @@
 use super::common::{
-    apply_to_bytes, read_verified, FileChange, SourceRead, REASON_INCOMPLETE_COLLECTION,
-    REASON_INVALID_EDITS, REASON_STALE_SOURCE, REASON_UNREADABLE_SOURCE, REASON_WRITE_FAILED,
+    FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
+    REASON_UNREADABLE_SOURCE, REASON_WRITE_FAILED, SourceRead, apply_to_bytes, read_verified,
 };
 use dx_apply::FileSystem;
-use dx_output::{meets_threshold, DiagnosticEvent, Threshold};
+use dx_output::{DiagnosticEvent, Threshold, meets_threshold};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -176,7 +176,7 @@ mod tests {
         FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
         REASON_WRITE_FAILED,
     };
-    use super::super::test_support::{temp_dir, FailingWrites};
+    use super::super::test_support::{FailingWrites, temp_dir};
     use super::apply_collected_changes;
     use dx_apply::RealFileSystem;
     use dx_digest::blake3 as digest;

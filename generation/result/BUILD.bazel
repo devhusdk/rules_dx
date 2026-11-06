@@ -17,7 +17,6 @@ rust_library(
     ),
     crate_name = "generation_result",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "generation/generation_result",
         normal = True,

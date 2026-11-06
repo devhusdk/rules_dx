@@ -169,7 +169,6 @@ rust_library(
     ),
     crate_name = "quality_adapter",
     crate_root = "src/lib.rs",
-    edition = "2021",
     visibility = VIS_QUALITY + ["//api_spec/codegen:__pkg__"],
     deps = all_crate_deps(
         package_name = "quality/quality_adapter",
@@ -354,7 +353,6 @@ rust_test(
         "//python/ide:python_tool",
         "//tools/testing/process_probe",
     ],
-    edition = "2021",
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
         "DX_TEST_NODE": "$(rootpath //javascript/ide:node_tool)",

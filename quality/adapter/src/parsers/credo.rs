@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "credo";

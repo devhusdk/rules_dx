@@ -2,8 +2,8 @@ use crate::{ColumnEncoding, TextPosition};
 use serde::Deserialize;
 
 use super::{
-    check_output_size, finding, known, lines, located, missing, numbered, require_findings,
-    FileFinding, ParseError,
+    FileFinding, ParseError, check_output_size, finding, known, lines, located, missing, numbered,
+    require_findings,
 };
 use crate::ToolSeverity;
 

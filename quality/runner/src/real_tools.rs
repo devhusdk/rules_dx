@@ -4,9 +4,9 @@ use super::*;
 use crate::{full_selection, run_convergence, synthetic::per_path};
 use quality_adapter::exec::{MirrorContents, MirrorFile};
 use quality_adapter::parsers;
+use quality_result::MAX_COMPLETED_ROUNDS;
 use quality_result::encode_validated;
 use quality_result::proto::Convergence;
-use quality_result::MAX_COMPLETED_ROUNDS;
 
 #[test]
 fn escaping_paths_fail_the_action() {
@@ -265,22 +265,26 @@ fn keep_sorted_lint_reports_and_fix_sorts() {
         (Some(20), Some(20))
     );
     assert!(!findings[0].fixable);
-    assert!(backend
-        .diagnose(
-            "keep_sorted",
-            "lint",
-            &single("notes.txt", KEEP_SORTED_CLEAN)
-        )
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose(
+                "keep_sorted",
+                "lint",
+                &single("notes.txt", KEEP_SORTED_CLEAN)
+            )
+            .expect("diagnosed")
+            .is_empty()
+    );
     let fixed = backend
         .apply_fix("keep_sorted", "notes.txt", KEEP_SORTED_DIRTY, "lint")
         .expect("fixed");
     assert_eq!(fixed, KEEP_SORTED_CLEAN);
-    assert!(backend
-        .diagnose("keep_sorted", "lint", &single("notes.txt", &fixed))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("keep_sorted", "lint", &single("notes.txt", &fixed))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -401,10 +405,12 @@ fn ruff_lint_reports_and_fix_rereads_on_exit_one() {
         .apply_fix("ruff", "a.py", "import os\n# UNFIXABLE\n", "lint")
         .expect("fixed");
     assert_eq!(fixed, "# UNFIXABLE\n");
-    assert!(backend
-        .diagnose("ruff", "lint", &single("a.py", "x = 1\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("ruff", "lint", &single("a.py", "x = 1\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -491,10 +497,12 @@ fn ty_reports_and_is_check_only() {
         findings[0].severity,
         quality_result::proto::Severity::Error as i32
     );
-    assert!(backend
-        .diagnose("ty", "typecheck", &single("a.py", "x: int = 1\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("ty", "typecheck", &single("a.py", "x: int = 1\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     let text = "x: int = BADTYPE\n";
     assert_eq!(
         backend
@@ -518,14 +526,16 @@ fn pydoclint_reports_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "pydoclint");
     assert_eq!(findings[0].rule_id, "DOC201");
     assert_eq!(findings[0].path, "a.py");
-    assert!(backend
-        .diagnose(
-            "pydoclint",
-            "lint",
-            &single("a.py", "\"\"\"Module.\"\"\"\n")
-        )
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose(
+                "pydoclint",
+                "lint",
+                &single("a.py", "\"\"\"Module.\"\"\"\n")
+            )
+            .expect("diagnosed")
+            .is_empty()
+    );
     let text = "def foo():\n    NODOC\n";
     assert_eq!(
         backend
@@ -549,10 +559,12 @@ fn biome_lint_uses_pinned_defaults_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "biome");
     assert_eq!(findings[0].rule_id, "lint/correctness/noUnusedVariables");
     assert_eq!(findings[0].path, "src/a.js");
-    assert!(backend
-        .diagnose("biome", "lint", &single("src/a.js", "const x = 1;\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("biome", "lint", &single("src/a.js", "const x = 1;\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     let text = "const unusedVar = 1;\n";
     assert_eq!(
         backend
@@ -598,10 +610,12 @@ fn biome_format_reports_and_fix_rewrites() {
     assert_eq!(findings[0].tool_id, "biome");
     assert_eq!(findings[0].rule_id, "");
     assert_eq!(findings[0].path, "src/a.js");
-    assert!(backend
-        .diagnose("biome", "format", &single("src/a.js", "const x = 1;\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("biome", "format", &single("src/a.js", "const x = 1;\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     assert_eq!(
         backend
             .apply_fix("biome", "src/a.js", "const x = BADFMT;\n", "format")
@@ -635,10 +649,12 @@ fn eslint_reports_and_fix_rereads_on_exit_1() {
     assert_eq!(findings[0].tool_id, "eslint");
     assert_eq!(findings[0].rule_id, "no-unused-vars");
     assert_eq!(findings[0].path, "src/a.js");
-    assert!(backend
-        .diagnose("eslint", "lint", &single("src/a.js", "const x = 1;\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("eslint", "lint", &single("src/a.js", "const x = 1;\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     assert_eq!(
         backend
             .apply_fix("eslint", "src/a.js", "const unusedVar = 1;\n", "lint")
@@ -693,14 +709,16 @@ fn graphql_eslint_reports_findings_and_never_fixes() {
         "@graphql-eslint/fields-on-correct-type"
     );
     assert_eq!(findings[0].path, "api/query.graphql");
-    assert!(backend
-        .diagnose(
-            "graphql_eslint",
-            "lint",
-            &single("api/query.graphql", "{ user { id } }\n")
-        )
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose(
+                "graphql_eslint",
+                "lint",
+                &single("api/query.graphql", "{ user { id } }\n")
+            )
+            .expect("diagnosed")
+            .is_empty()
+    );
     assert_eq!(
         backend
             .apply_fix(
@@ -772,14 +790,16 @@ fn gplint_reports_findings_with_the_default_config_and_never_fixes() {
     assert_eq!(findings[0].tool_id, "gplint");
     assert_eq!(findings[0].rule_id, "no-unnamed-features");
     assert_eq!(findings[0].path, "features/a.feature");
-    assert!(backend
-        .diagnose(
-            "gplint",
-            "lint",
-            &single("features/a.feature", "Feature: a\n  Scenario: s\n")
-        )
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose(
+                "gplint",
+                "lint",
+                &single("features/a.feature", "Feature: a\n  Scenario: s\n")
+            )
+            .expect("diagnosed")
+            .is_empty()
+    );
     let dirty = "Feature:\n  Scenario: s\n    Given x\n";
     assert_eq!(
         backend
@@ -797,14 +817,16 @@ fn gplint_consumer_config_replaces_the_defaults() {
         ..plain_tool()
     };
     let backend = backend_for("gplint", tool, roundtrip_gplint);
-    assert!(backend
-        .diagnose(
-            "gplint",
-            "lint",
-            &single("features/a.feature", "Feature:\n  Scenario: s\n")
-        )
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose(
+                "gplint",
+                "lint",
+                &single("features/a.feature", "Feature:\n  Scenario: s\n")
+            )
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -831,9 +853,11 @@ fn scalafix_consumer_config_replaces_the_default() {
         ..plain_tool()
     };
     let mirrors = RealBackend::mirror_tool_files("scalafix", &tool, &[], Path::new("/s"));
-    assert!(mirrors
-        .iter()
-        .all(|mirror| mirror.mirror_rel != Path::new("dx-scalafix-default/.scalafix.conf")));
+    assert!(
+        mirrors
+            .iter()
+            .all(|mirror| mirror.mirror_rel != Path::new("dx-scalafix-default/.scalafix.conf"))
+    );
 }
 
 fn selene_mirrors(tool: &RealTool, staged: &[MirrorFile]) -> Vec<String> {
@@ -912,9 +936,11 @@ fn selene_embedded_defaults_use_the_merged_files() {
 #[test]
 fn pmd_without_a_ruleset_stages_the_unused_code_default() {
     let mirrors = RealBackend::mirror_tool_files("pmd", &plain_tool(), &[], Path::new("/s"));
-    assert!(mirrors
-        .iter()
-        .any(|mirror| mirror.mirror_rel == Path::new(PMD_DEFAULTS_REL)));
+    assert!(
+        mirrors
+            .iter()
+            .any(|mirror| mirror.mirror_rel == Path::new(PMD_DEFAULTS_REL))
+    );
 }
 
 #[test]
@@ -925,9 +951,11 @@ fn pmd_consumer_ruleset_replaces_the_default() {
         ..plain_tool()
     };
     let mirrors = RealBackend::mirror_tool_files("pmd", &tool, &[], Path::new("/s"));
-    assert!(mirrors
-        .iter()
-        .all(|mirror| mirror.mirror_rel != Path::new(PMD_DEFAULTS_REL)));
+    assert!(
+        mirrors
+            .iter()
+            .all(|mirror| mirror.mirror_rel != Path::new(PMD_DEFAULTS_REL))
+    );
 }
 
 #[test]
@@ -1084,10 +1112,12 @@ fn prettier_reports_relative_and_fix_rewrites() {
     assert_eq!(findings[0].tool_id, "prettier");
     assert_eq!(findings[0].rule_id, "");
     assert_eq!(findings[0].path, "src/a.js");
-    assert!(backend
-        .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     assert_eq!(
         backend
             .apply_fix("prettier", "src/a.js", "const x = BADFMT;\n", "format")
@@ -1486,10 +1516,12 @@ fn ty_garbage(
 #[test]
 fn ruff_format_clean_and_unterminated_fix() {
     let backend = backend_for("ruff", plain_tool(), roundtrip_ruff);
-    assert!(backend
-        .diagnose("ruff", "format", &single("a.py", "x = 1\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("ruff", "format", &single("a.py", "x = 1\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     let fixed = backend
         .apply_fix("ruff", "a.py", "x = 1  ", "format")
         .expect("fixed");
@@ -1957,10 +1989,12 @@ fn qmllint_settings_replace_read_only_copies_and_links() {
     std::os::unix::fs::symlink(&outside, &target).expect("plant link");
     staging::place_qmllint_settings("qmllint", &config, &sources).expect("place over link");
     assert_eq!(std::fs::read(&outside).expect("outside"), b"keep\n");
-    assert!(!std::fs::symlink_metadata(&target)
-        .expect("target")
-        .file_type()
-        .is_symlink());
+    assert!(
+        !std::fs::symlink_metadata(&target)
+            .expect("target")
+            .file_type()
+            .is_symlink()
+    );
     assert_eq!(std::fs::read(&target).expect("target"), b"[General]\n");
 }
 
@@ -2179,14 +2213,16 @@ fn hadolint_unbound_config_uses_the_scratch_default_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "hadolint");
     assert_eq!(findings[0].rule_id, "DL4006");
     assert_eq!(findings[0].path, "img/Dockerfile");
-    assert!(backend
-        .diagnose(
-            "hadolint",
-            "lint",
-            &single("img/Dockerfile", "FROM ubuntu:24.04\n")
-        )
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose(
+                "hadolint",
+                "lint",
+                &single("img/Dockerfile", "FROM ubuntu:24.04\n")
+            )
+            .expect("diagnosed")
+            .is_empty()
+    );
     assert_eq!(
         backend
             .apply_fix("hadolint", "img/Dockerfile", HADOLINT_DIRTY, "lint")
@@ -2318,10 +2354,12 @@ fn checkmake_unbound_config_uses_the_scratch_default_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "checkmake");
     assert_eq!(findings[0].rule_id, "minphony");
     assert_eq!(findings[0].path, "Makefile");
-    assert!(backend
-        .diagnose("checkmake", "lint", &single("Makefile", "X = 1\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("checkmake", "lint", &single("Makefile", "X = 1\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     assert_eq!(
         backend
             .apply_fix("checkmake", "Makefile", CHECKMAKE_DIRTY, "lint")
@@ -2347,9 +2385,11 @@ fn checkmake_bound_config_reaches_the_tool() {
 #[test]
 fn checkmake_config_fallback_is_an_error_not_a_clean_run() {
     let backend = backend_for("checkmake", plain_tool(), checkmake_ignores_config);
-    assert!(backend
-        .diagnose("checkmake", "lint", &single("Makefile", "X = 1\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("checkmake", "lint", &single("Makefile", "X = 1\n"))
+            .is_err()
+    );
 }
 
 fn gersemi_config_arg(argv: &[OsString]) -> PathBuf {
@@ -2448,10 +2488,12 @@ fn gersemi_unbound_config_uses_the_scratch_default_and_check_never_writes() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "gersemi");
     assert_eq!(findings[0].path, "CMakeLists.txt");
-    assert!(backend
-        .diagnose("gersemi", "format", &single("CMakeLists.txt", "GOOD\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("gersemi", "format", &single("CMakeLists.txt", "GOOD\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -2461,10 +2503,12 @@ fn gersemi_fix_rewrites_and_a_recheck_is_clean() {
         .apply_fix("gersemi", "CMakeLists.txt", GERSEMI_DIRTY, "format")
         .expect("fixed");
     assert_eq!(fixed, "GOOD\n");
-    assert!(backend
-        .diagnose("gersemi", "format", &single("CMakeLists.txt", &fixed))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("gersemi", "format", &single("CMakeLists.txt", &fixed))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -2506,9 +2550,11 @@ fn gersemi_exit_one_without_a_diff(
 #[test]
 fn gersemi_failing_without_a_diff_is_an_error_not_a_clean_run() {
     let backend = backend_for("gersemi", plain_tool(), gersemi_exit_one_without_a_diff);
-    assert!(backend
-        .diagnose("gersemi", "format", &single("CMakeLists.txt", "GOOD\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("gersemi", "format", &single("CMakeLists.txt", "GOOD\n"))
+            .is_err()
+    );
 }
 
 /// Stands in for mbake: a file holding `BAD` is unformatted, a fix run rewrites it to `GOOD`.
@@ -2526,15 +2572,18 @@ fn mbake_run(
             "{key} never reaches mbake"
         );
     }
-    assert!(env
-        .iter()
-        .any(|(key, value)| key == "NO_COLOR" && value == "1"));
-    assert!(env
-        .iter()
-        .any(|(key, value)| key == "TERM" && value == "dumb"));
-    assert!(env
-        .iter()
-        .any(|(key, value)| key == "COLUMNS" && value == "100000"));
+    assert!(
+        env.iter()
+            .any(|(key, value)| key == "NO_COLOR" && value == "1")
+    );
+    assert!(
+        env.iter()
+            .any(|(key, value)| key == "TERM" && value == "dumb")
+    );
+    assert!(
+        env.iter()
+            .any(|(key, value)| key == "COLUMNS" && value == "100000")
+    );
     assert_eq!(argv[1], OsString::from("format"));
     let flags: Vec<String> = argv[1..]
         .iter()
@@ -2613,10 +2662,12 @@ fn mbake_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "mbake");
-    assert!(backend
-        .diagnose("mbake", "format", &single("Makefile", "GOOD\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("mbake", "format", &single("Makefile", "GOOD\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     let fixed = backend
         .apply_fix("mbake", "Makefile", "BAD\n", "format")
         .expect("fixed");
@@ -2626,9 +2677,11 @@ fn mbake_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
 #[test]
 fn mbake_failing_without_a_file_is_an_error_not_a_clean_run() {
     let backend = backend_for("mbake", plain_tool(), mbake_config_error);
-    assert!(backend
-        .diagnose("mbake", "format", &single("Makefile", "GOOD\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("mbake", "format", &single("Makefile", "GOOD\n"))
+            .is_err()
+    );
 }
 
 /// Stands in for ffmt: a file holding `BAD` is unformatted, a fix run rewrites it to `GOOD`.
@@ -2720,10 +2773,12 @@ fn ffmt_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "ffmt");
-    assert!(backend
-        .diagnose("ffmt", "format", &single("a.f90", "GOOD\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("ffmt", "format", &single("a.f90", "GOOD\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     let fixed = backend
         .apply_fix("ffmt", "a.f90", "BAD\n", "format")
         .expect("fixed");
@@ -2739,10 +2794,12 @@ fn ffmt_never_receives_fixed_form_or_f08_sources_on_check_or_fix() {
         .expect("diagnosed");
     assert_eq!(findings.len(), 1, "{findings:?}");
     // Nothing left to format skips the run: the stand-in asserts it gets a file.
-    assert!(backend
-        .diagnose("ffmt", "format", &ffmt_files(&["a.f", "b.F", "c.f08"]))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("ffmt", "format", &ffmt_files(&["a.f", "b.F", "c.f08"]))
+            .expect("diagnosed")
+            .is_empty()
+    );
     for name in ["a.f", "b.F", "c.f08", "d.F08"] {
         let text = backend
             .apply_fix("ffmt", name, "BAD\n", "format")
@@ -2760,9 +2817,11 @@ fn ffmt_never_receives_fixed_form_or_f08_sources_on_check_or_fix() {
 #[test]
 fn ffmt_failing_is_an_error_not_a_clean_run() {
     let backend = backend_for("ffmt", plain_tool(), ffmt_exit_two);
-    assert!(backend
-        .diagnose("ffmt", "format", &single("a.f90", "GOOD\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("ffmt", "format", &single("a.f90", "GOOD\n"))
+            .is_err()
+    );
 }
 
 fn elvis_report(argv: &[OsString], cwd: &Path, config_tail: &str) -> io::Result<ChildOutput> {
@@ -2840,10 +2899,12 @@ fn elvis_unbound_config_uses_the_scratch_default_and_is_check_only() {
     assert_eq!(findings[0].tool_id, "elvis");
     assert_eq!(findings[0].rule_id, "no_debug_call");
     assert_eq!(findings[0].path, "lib/src/sub/a.erl");
-    assert!(backend
-        .diagnose("elvis", "lint", &single("lib/src/a.erl", "-module(a).\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("elvis", "lint", &single("lib/src/a.erl", "-module(a).\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     assert_eq!(
         backend
             .apply_fix("elvis", "lib/src/a.erl", ELVIS_DIRTY, "lint")
@@ -2879,10 +2940,12 @@ fn redocly_files(root: &str) -> BTreeMap<String, String> {
 #[test]
 fn redocly_reports_root_findings_and_never_fixes() {
     let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
-    assert!(backend
-        .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
-        .expect("clean")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
+            .expect("clean")
+            .is_empty()
+    );
     let dupe = format!("{REDOCLY_ROOT}# dupe\n");
     let findings = backend
         .diagnose("redocly", "lint", &redocly_files(&dupe))
@@ -3291,14 +3354,16 @@ fn trivy_config_reports_a_dockerfile_without_a_user() {
     assert_eq!(findings[0].tool_id, "trivy_config");
     assert_eq!(findings[0].rule_id, "DS-0002");
     assert_eq!(findings[0].path, "Dockerfile");
-    assert!(backend
-        .diagnose(
-            "trivy_config",
-            "lint",
-            &single("Dockerfile", "FROM scratch\nUSER 1000\n")
-        )
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose(
+                "trivy_config",
+                "lint",
+                &single("Dockerfile", "FROM scratch\nUSER 1000\n")
+            )
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -3491,9 +3556,11 @@ fn kubeconform_fake(
         args[..4],
         ["-output", "json", "-summary=false", "-kubernetes-version"]
     );
-    assert!(!args
-        .iter()
-        .any(|arg| arg.contains("ignore-missing-schemas")));
+    assert!(
+        !args
+            .iter()
+            .any(|arg| arg.contains("ignore-missing-schemas"))
+    );
     let locations: Vec<&String> = args
         .iter()
         .zip(args.iter().skip(1))
@@ -4096,10 +4163,12 @@ fn bicep_bound_config_is_written_at_the_scratch_root() {
 #[test]
 fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
     let backend = backend_for("bicep", plain_tool(), bicep_fake);
-    assert!(backend
-        .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_CLEAN))
-        .expect("clean")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_CLEAN))
+            .expect("clean")
+            .is_empty()
+    );
     let findings = backend
         .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_DIRTY))
         .expect("dirty");
@@ -4128,10 +4197,12 @@ fn bicep_format_fails_on_a_syntax_error_but_not_on_other_lint_errors() {
             .contains("infra/a.bicep:1:20 does not parse"),
         "{err}"
     );
-    assert!(backend
-        .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_REGISTRY))
-        .expect("registry")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_REGISTRY))
+            .expect("registry")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -4845,10 +4916,12 @@ fn ruff_notebook_fix_splices_only_the_edited_cell() {
     );
     assert_eq!(fixed, expected);
     assert!(serde_json::from_str::<serde_json::Value>(&fixed).is_ok());
-    assert!(backend
-        .diagnose("ruff", "lint", &single("n.ipynb", &fixed))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("ruff", "lint", &single("n.ipynb", &fixed))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5007,10 +5080,12 @@ fn typstyle_check_reports_dirty_files_by_workspace_path() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "typstyle");
     assert_eq!(findings[0].path, "docs/a.typ");
-    assert!(backend
-        .diagnose("typstyle", "format", &single("docs/b.typ", TYPST_CLEAN))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("typstyle", "format", &single("docs/b.typ", TYPST_CLEAN))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5020,10 +5095,12 @@ fn typstyle_apply_rewrites_the_owned_file_and_the_recheck_is_clean() {
         .apply_fix("typstyle", "docs/a.typ", TYPST_DIRTY, "format")
         .expect("fixed");
     assert_eq!(fixed, TYPST_CLEAN);
-    assert!(backend
-        .diagnose("typstyle", "format", &single("docs/a.typ", &fixed))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("typstyle", "format", &single("docs/a.typ", &fixed))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5136,10 +5213,12 @@ fn topiary_reports_a_dirty_file_and_fix_rewrites_it() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "topiary");
     assert_eq!(findings[0].path, "a.ml");
-    assert!(backend
-        .diagnose("topiary", "format", &single("a.mli", TOPIARY_CLEAN))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("topiary", "format", &single("a.mli", TOPIARY_CLEAN))
+            .expect("diagnosed")
+            .is_empty()
+    );
     let fixed = backend
         .apply_fix("topiary", "a.ml", "let   x=1\n", "format")
         .expect("fixed");
@@ -5149,9 +5228,11 @@ fn topiary_reports_a_dirty_file_and_fix_rewrites_it() {
 #[test]
 fn topiary_syntax_error_is_an_error_not_a_clean_run() {
     let backend = backend_for("topiary", plain_tool(), fake_topiary);
-    assert!(backend
-        .diagnose("topiary", "format", &single("a.ml", "BROKEN\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("topiary", "format", &single("a.ml", "BROKEN\n"))
+            .is_err()
+    );
 }
 
 static TFLINT_SPAWNS: SpawnCount = SpawnCount::new();
@@ -5241,18 +5322,22 @@ fn nixfmt_reports_a_dirty_file_and_fix_rewrites_it() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "nixfmt");
     assert_eq!(findings[0].path, "a.nix");
-    assert!(backend
-        .diagnose("nixfmt", "format", &single("a.nix", NIXFMT_CLEAN))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("nixfmt", "format", &single("a.nix", NIXFMT_CLEAN))
+            .expect("diagnosed")
+            .is_empty()
+    );
     let fixed = backend
         .apply_fix("nixfmt", "a.nix", "{a=1;}\n", "format")
         .expect("fixed");
     assert_eq!(fixed, NIXFMT_CLEAN);
-    assert!(backend
-        .diagnose("nixfmt", "format", &single("a.nix", &fixed))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("nixfmt", "format", &single("a.nix", &fixed))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5433,10 +5518,12 @@ fn latexindent_check_reports_dirty_files_by_workspace_path() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "latexindent");
     assert_eq!(findings[0].path, "docs/a.tex");
-    assert!(backend
-        .diagnose("latexindent", "format", &single("docs/b.tex", LATEX_CLEAN))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("latexindent", "format", &single("docs/b.tex", LATEX_CLEAN))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5446,10 +5533,12 @@ fn latexindent_apply_rewrites_the_owned_file_and_the_recheck_is_clean() {
         .apply_fix("latexindent", "docs/a.tex", LATEX_DIRTY, "format")
         .expect("fixed");
     assert_eq!(fixed, LATEX_CLEAN);
-    assert!(backend
-        .diagnose("latexindent", "format", &single("docs/a.tex", &fixed))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("latexindent", "format", &single("docs/a.tex", &fixed))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5567,10 +5656,12 @@ fn chktex_reports_findings_by_workspace_path_per_file() {
 #[test]
 fn chktex_clean_file_has_no_findings() {
     let backend = backend_for("chktex", plain_tool(), chktex_tool);
-    assert!(backend
-        .diagnose("chktex", "lint", &single("docs/b.tex", LATEX_CLEAN))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("chktex", "lint", &single("docs/b.tex", LATEX_CLEAN))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5762,10 +5853,12 @@ fn notebook_outputs_fix_strips_only_outputs_and_counts() {
         .apply_fix("notebook_outputs", "n.ipynb", NOTEBOOK_DIRTY, "lint")
         .expect("fixed");
     assert_eq!(fixed, outputs_stripped());
-    assert!(backend
-        .diagnose("notebook_outputs", "lint", &single("n.ipynb", &fixed))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("notebook_outputs", "lint", &single("n.ipynb", &fixed))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -6060,10 +6153,12 @@ fn phpcs_passes_the_default_standard_and_maps_paths_back() {
             "phpcs/PSR12.Files.FileHeader.SpacingAfterTagBlock"
         )]
     );
-    assert!(backend
-        .diagnose("phpcs", "lint", &single("lib/clean.php", "<?php\n"))
-        .expect("clean")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("phpcs", "lint", &single("lib/clean.php", "<?php\n"))
+            .expect("clean")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -6147,9 +6242,11 @@ fn luals_without_a_report_fails_the_run() {
         })
     }
     let backend = backend_for("luals", luals_tool(), crash);
-    assert!(backend
-        .diagnose("luals", "typecheck", &single("lib/a.lua", "return 1\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("luals", "typecheck", &single("lib/a.lua", "return 1\n"))
+            .is_err()
+    );
 }
 
 #[test]
@@ -6237,9 +6334,11 @@ fn jet_without_a_report_fails_the_run() {
         })
     }
     let backend = backend_for("jet", jet_tool(), crash);
-    assert!(backend
-        .diagnose("jet", "typecheck", &single("lib/a.jl", "x = 1\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("jet", "typecheck", &single("lib/a.jl", "x = 1\n"))
+            .is_err()
+    );
 }
 
 #[test]
@@ -6325,9 +6424,11 @@ fn sorbet_with_unparsable_output_fails_the_run() {
         })
     }
     let backend = backend_for("sorbet", sorbet_tool(), crash);
-    assert!(backend
-        .diagnose("sorbet", "typecheck", &single("lib/a.rb", "puts 1\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("sorbet", "typecheck", &single("lib/a.rb", "puts 1\n"))
+            .is_err()
+    );
 }
 
 #[test]
@@ -6407,10 +6508,12 @@ fn phpstan_writes_its_config_keeps_owned_findings_and_maps_paths_back() {
         .map(|f| (f.path.as_str(), f.rule_id.as_str()))
         .collect();
     assert_eq!(seen, vec![("lib/bad.php", "phpstan/return.type")]);
-    assert!(backend
-        .diagnose("phpstan", "typecheck", &single("lib/clean.php", "<?php\n"))
-        .expect("clean")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("phpstan", "typecheck", &single("lib/clean.php", "<?php\n"))
+            .expect("clean")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -6957,10 +7060,12 @@ fn typos_lint_reports_and_fix_corrects() {
     assert_eq!(findings[0].tool_id, "typos");
     assert_eq!(findings[0].message, "`teh` should be `the`");
     assert_eq!(findings[0].path, "notes.txt");
-    assert!(backend
-        .diagnose("typos", "lint", &single("notes.txt", "say the word\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("typos", "lint", &single("notes.txt", "say the word\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
     let fixed = backend
         .apply_fix("typos", "notes.txt", "say teh word\n", "lint")
         .expect("fixed");
@@ -7008,10 +7113,12 @@ fn lychee_reports_broken_links_with_scratch_free_messages() {
     assert_eq!(findings[0].tool_id, "lychee");
     assert_eq!(findings[0].path, "docs/a.md");
     assert_eq!(findings[0].message, "gone.md: File not found");
-    assert!(backend
-        .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 fn actionlint_fake(
@@ -7051,13 +7158,17 @@ fn actionlint_reports_an_undefined_context_property() {
     assert_eq!(findings[0].tool_id, "actionlint");
     assert_eq!(findings[0].path, path);
     assert_eq!(findings[0].rule_id, "expression");
-    assert!(findings[0]
-        .message
-        .contains("property \"foo\" is not defined in object type"));
-    assert!(backend
-        .diagnose("actionlint", "lint", &single(path, "name: ci\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        findings[0]
+            .message
+            .contains("property \"foo\" is not defined in object type")
+    );
+    assert!(
+        backend
+            .diagnose("actionlint", "lint", &single(path, "name: ci\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 fn zizmor_fake(
@@ -7099,10 +7210,12 @@ fn zizmor_reports_an_unpinned_action() {
     assert_eq!(findings[0].tool_id, "zizmor");
     assert_eq!(findings[0].path, path);
     assert_eq!(findings[0].rule_id, "unpinned-uses");
-    assert!(backend
-        .diagnose("zizmor", "lint", &single(path, "name: ci\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("zizmor", "lint", &single(path, "name: ci\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 fn lychee_online_fake(
@@ -7123,10 +7236,12 @@ fn lychee_goes_online_when_the_request_sets_the_env() {
     let mut tool = plain_tool();
     tool.extra_env = vec![("DX_LINT_ONLINE".to_owned(), "1".to_owned())];
     let backend = backend_for("lychee", tool, lychee_online_fake);
-    assert!(backend
-        .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
-        .expect("diagnosed")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
+            .expect("diagnosed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -7153,7 +7268,9 @@ fn scalafmt_hinted_config_wins() {
         ..plain_tool()
     };
     let mirrors = RealBackend::mirror_tool_files("scalafmt", &tool, &[], Path::new("/s"));
-    assert!(mirrors
-        .iter()
-        .all(|mirror| mirror.mirror_rel != Path::new(SCALAFMT_DEFAULTS_REL)));
+    assert!(
+        mirrors
+            .iter()
+            .all(|mirror| mirror.mirror_rel != Path::new(SCALAFMT_DEFAULTS_REL))
+    );
 }

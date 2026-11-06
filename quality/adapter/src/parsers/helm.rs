@@ -1,4 +1,4 @@
-use super::{as_text, code_name, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "helm";
@@ -165,7 +165,7 @@ pub fn parse_helm_lint(
                         "unrecognised line {:?}",
                         line.chars().take(80).collect::<String>()
                     ),
-                ))
+                ));
             }
         }
     }
@@ -316,17 +316,21 @@ mod tests {
         assert!(parse_helm_lint(b"", Some(2), "c", FILES).is_err());
         assert!(parse_helm_lint(b"", None, "c", FILES).is_err());
         assert!(parse_helm_lint(b"weird\n", Some(0), "c", FILES).is_err());
-        assert!(parse_helm_lint(b"", Some(0), "c", FILES)
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_helm_lint(b"", Some(0), "c", FILES)
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]
     fn helm_lint_drops_info_only_output() {
         let out = b"[INFO] Chart.yaml: icon is recommended\n";
-        assert!(parse_helm_lint(out, Some(0), "c", FILES)
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_helm_lint(out, Some(0), "c", FILES)
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]

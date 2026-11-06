@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 
 use dx_process::lifecycle::{
-    run_command_until, CapturePolicy, ChildOutcome, CleanupBudget, Descendants, Exit,
+    CapturePolicy, ChildOutcome, CleanupBudget, Descendants, Exit, run_command_until,
 };
 
 use super::WorktreeError;
@@ -270,10 +270,10 @@ pub(super) fn default_base(repo: &Path) -> Result<String, WorktreeError> {
             "--short",
             "refs/remotes/origin/HEAD",
         ],
-    ) {
-        if !name.is_empty() && ref_exists(repo, &name) {
-            return Ok(name);
-        }
+    ) && !name.is_empty()
+        && ref_exists(repo, &name)
+    {
+        return Ok(name);
     }
     for candidate in ["origin/main", "origin/master"] {
         if succeeds(repo, &["rev-parse", "--verify", "--quiet", candidate]) {

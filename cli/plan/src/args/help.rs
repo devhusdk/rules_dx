@@ -1,8 +1,8 @@
 use std::ffi::OsStr;
 
-use super::command::Command;
-use super::grammar::{option_at, Cli};
 use super::ArgsError;
+use super::command::Command;
+use super::grammar::{Cli, option_at};
 
 /// Index of the word after the flag `arg` at `index`, skipping its separate value word.
 fn skip_flag<S: AsRef<OsStr>>(args: &[S], index: usize, arg: &str) -> usize {
@@ -341,7 +341,7 @@ pub(crate) fn render_command_help(command: Command) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{assert_usage, parse, ArgsError, Command};
+    use super::super::{ArgsError, Command, assert_usage, parse};
     use super::{render_command_help, usage_banner};
     use dx_testing::cli::strings;
 

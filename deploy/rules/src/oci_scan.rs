@@ -536,11 +536,13 @@ mod tests {
         let (dir, workspace) = pinned_workspace("mismatch", true);
         let error = trivy_cache(Some(&workspace), "2026-11-06").expect_err("mismatch");
         assert!(error.contains("advisory_pin_mismatch"), "{error}");
-        assert!(!workspace
-            .join(".dx/local/advisory")
-            .join("0".repeat(64))
-            .join("trivy")
-            .exists());
+        assert!(
+            !workspace
+                .join(".dx/local/advisory")
+                .join("0".repeat(64))
+                .join("trivy")
+                .exists()
+        );
         std::fs::remove_dir_all(&dir).expect("cleanup");
     }
 

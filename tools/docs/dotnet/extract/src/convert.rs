@@ -1,6 +1,6 @@
 //! Maps the dotnet API facts onto the versioned documentation IR.
 
-use crate::types::{parse_api, Api, Item, SCHEMA};
+use crate::types::{Api, Item, SCHEMA, parse_api};
 use documentation_ir::escape_id_segment;
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,

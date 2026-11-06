@@ -1,6 +1,6 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-use super::{as_text, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, finding};
 
 const TOOL: &str = "luals";
 
@@ -24,7 +24,7 @@ pub fn parse_luals(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pa
             return Err(ParseError::shape(
                 TOOL,
                 "report is not an object".to_owned(),
-            ))
+            ));
         }
     };
     let mut findings: Vec<FileFinding> = Vec::new();
@@ -159,12 +159,16 @@ mod tests {
     #[test]
     fn luals_clean_reports_have_no_findings() {
         assert!(parse_luals(b"[]", &["/s/a.lua"]).expect("array").is_empty());
-        assert!(parse_luals(b"{}", &["/s/a.lua"])
-            .expect("object")
-            .is_empty());
-        assert!(parse_luals(REPORT.as_bytes(), &["/s/other.lua"])
-            .expect("library only")
-            .is_empty());
+        assert!(
+            parse_luals(b"{}", &["/s/a.lua"])
+                .expect("object")
+                .is_empty()
+        );
+        assert!(
+            parse_luals(REPORT.as_bytes(), &["/s/other.lua"])
+                .expect("library only")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -183,9 +187,11 @@ mod tests {
                 ("C:/w/b.lua", "luals/error")
             ]
         );
-        assert!(found
-            .iter()
-            .all(|f| f.finding.severity == ToolSeverity::Info));
+        assert!(
+            found
+                .iter()
+                .all(|f| f.finding.severity == ToolSeverity::Info)
+        );
     }
 
     #[test]

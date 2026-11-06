@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 /// The error code, with no position, that reports `-Werror` turned warnings into a failure.
@@ -219,9 +219,11 @@ mod tests {
 
     #[test]
     fn clean_log_is_clean_and_other_files_are_dropped() {
-        assert!(parse_jvm_diagnostics("javac", &log(0, ""), Some(0), &[])
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_jvm_diagnostics("javac", &log(0, ""), Some(0), &[])
+                .unwrap()
+                .is_empty()
+        );
         let body = entry("gen/B.java", 2, "warning", "compiler.warn.y");
         assert!(
             parse_jvm_diagnostics("javac", &log(0, &body), Some(0), &["j/A.java"])

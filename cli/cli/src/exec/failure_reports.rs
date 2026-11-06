@@ -1,10 +1,10 @@
 use super::build_failures::to_event;
 use super::common::*;
-use dx_bep::{collect_build_failures, BuildFailure, StderrRef};
-use dx_output::{build_failure_event, report_event, OutputMode};
+use dx_bep::{BuildFailure, StderrRef, collect_build_failures};
+use dx_output::{OutputMode, build_failure_event, report_event};
 use dx_plan::args::Invocation;
 use dx_plan::reports::PlannedReport;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 
@@ -197,7 +197,7 @@ pub(crate) fn write_failure_reports(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     const ERROR_LINE: &str = r#"{"$message_type":"diagnostic","message":"cannot find value `y` in this scope","code":{"code":"E0425","explanation":null},"level":"error","spans":[{"file_name":"app/src/main.rs","byte_start":30,"byte_end":31,"line_start":3,"line_end":3,"column_start":5,"column_end":6,"is_primary":true,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":null}"#;
 

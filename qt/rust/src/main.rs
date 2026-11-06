@@ -5,8 +5,8 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use cxx_qt_gen::{
-    parse_qt_file, self_inlining::qualify_self_types, write_cpp, write_rust, CppFragment,
-    CxxQtItem, GeneratedCppBlocks, GeneratedOpt, GeneratedRustBlocks, Parser,
+    CppFragment, CxxQtItem, GeneratedCppBlocks, GeneratedOpt, GeneratedRustBlocks, Parser,
+    parse_qt_file, self_inlining::qualify_self_types, write_cpp, write_rust,
 };
 use proc_macro2::TokenStream;
 use quote::ToTokens;
@@ -31,7 +31,8 @@ struct Generated {
 }
 
 fn main() -> ExitCode {
-    std::env::set_var("CLANG_FORMAT_BINARY", "");
+    // SAFETY: the process is single-threaded here or the env lock is held.
+    unsafe { std::env::set_var("CLANG_FORMAT_BINARY", "") };
     let args: Vec<String> = std::env::args().skip(1).collect();
     match run(&args) {
         Ok(()) => ExitCode::SUCCESS,
@@ -51,7 +52,15 @@ fn run(args: &[String]) -> Result<(), String> {
             write(header, &generated.header)?;
             write(source, &generated.source)
         }
-        ["qt", src, include, qobject_header, qobject_source, header, source] => {
+        [
+            "qt",
+            src,
+            include,
+            qobject_header,
+            qobject_source,
+            header,
+            source,
+        ] => {
             let generated = generate(src, Some(include))?;
             let Some((qt_header, qt_source)) = generated.qobject else {
                 return Err(format!("{src}: no #[cxx_qt::bridge] module"));

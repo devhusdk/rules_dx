@@ -20,11 +20,11 @@ pub mod state;
 pub mod uri;
 pub mod workspace;
 
-pub use runfiles::{manifest_beside, manifest_for, Resolver};
+pub use runfiles::{Resolver, manifest_beside, manifest_for};
 pub use spelling::spell;
-pub use spelling::{manifest, msys, native, posix, posix_str, Spelling};
-pub use uri::{uri, uri_to_path, without_verbatim, UriError};
-pub use workspace::{resolve_in_workspace, resolve_target_in_workspace, WorkspaceRelativePath};
+pub use spelling::{Spelling, manifest, msys, native, posix, posix_str};
+pub use uri::{UriError, uri, uri_to_path, without_verbatim};
+pub use workspace::{WorkspaceRelativePath, resolve_in_workspace, resolve_target_in_workspace};
 
 /// Why one serialized path is not a workspace-relative path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

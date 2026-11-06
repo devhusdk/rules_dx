@@ -3,8 +3,8 @@
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 const STALE_EMPTY: Duration = Duration::from_secs(60);

@@ -1,9 +1,9 @@
+use quick_xml::XmlVersion;
 use quick_xml::encoding::Decoder;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
-use quick_xml::XmlVersion;
 
-use super::{check_output_size, code_name, missing, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, missing};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "detekt";

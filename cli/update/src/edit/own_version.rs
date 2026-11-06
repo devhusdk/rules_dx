@@ -166,12 +166,11 @@ fn toml_spans(content: &str, tables: &[&str]) -> Vec<Range<usize>> {
             let name = trimmed.trim_start_matches('[');
             let name = name.split(']').next().unwrap_or("").trim();
             inside = !trimmed.starts_with("[[") && tables.contains(&name);
-        } else if inside {
-            if let Some(rest) = key_value(line.trim_start(), "version", '=') {
-                if let Some(span) = quoted(rest) {
-                    spans.push(shifted(start, line, rest, span));
-                }
-            }
+        } else if inside
+            && let Some(rest) = key_value(line.trim_start(), "version", '=')
+            && let Some(span) = quoted(rest)
+        {
+            spans.push(shifted(start, line, rest, span));
         }
     }
     spans

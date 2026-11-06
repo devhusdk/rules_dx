@@ -15,11 +15,7 @@ fn key_of(line: &str) -> Option<&str> {
 }
 
 fn line_ending(text: &str) -> &'static str {
-    if text.contains("\r\n") {
-        "\r\n"
-    } else {
-        "\n"
-    }
+    if text.contains("\r\n") { "\r\n" } else { "\n" }
 }
 
 /// Sets each key in the last `[section]`, adding the key or the section when missing.

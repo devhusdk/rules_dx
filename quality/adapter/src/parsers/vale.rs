@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -182,9 +182,11 @@ mod tests {
                 })
             )
         );
-        assert!(parse_vale(b"{}", Some(0), &["/s/vale/clean.md"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_vale(b"{}", Some(0), &["/s/vale/clean.md"])
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

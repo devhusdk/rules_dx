@@ -128,7 +128,6 @@ rust_binary(
     srcs = ["src/bin_config_schemas.rs"],
     crate_name = "config_schemas",
     crate_root = "src/bin_config_schemas.rs",
-    edition = "2021",
     deps = [":dx_audit"],
 )
 

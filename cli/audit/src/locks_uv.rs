@@ -1,4 +1,4 @@
-use crate::vuln::{normalize_pypi_name, LockedPackage};
+use crate::vuln::{LockedPackage, normalize_pypi_name};
 
 const PYPI_HOST: &str = "pypi.org";
 

@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use ci_workflow::{document, jobs, steps, triggers};
 use dx_testing::read_runfiles;
@@ -286,10 +286,12 @@ fn the_scheduled_report_only_follows_the_gate() {
     let document = document(CI_WORKFLOW);
     let job = &document["jobs"]["scheduled-report"];
     assert_eq!(job["needs"], json!(["ci"]));
-    assert!(job["if"]
-        .as_str()
-        .unwrap_or_default()
-        .contains("github.event_name == 'schedule'"));
+    assert!(
+        job["if"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("github.event_name == 'schedule'")
+    );
     let step = &job["steps"][0];
     assert_eq!(step["env"]["CI_RESULT"], json!("${{ needs.ci.result }}"));
     let run = step["run"].as_str().unwrap_or_default();

@@ -230,38 +230,44 @@ mod tests {
         ];
         check_edits(&edits).expect("adjacent ok");
         assert!(check_edits(&[]).is_err());
-        assert!(check_edits(&[Edit {
-            start: 9,
-            end: 3,
-            replacement: String::new(),
-        }])
-        .is_err());
-        assert!(check_edits(&[
-            Edit {
-                start: 4,
-                end: 4,
-                replacement: "a".to_owned(),
-            },
-            Edit {
-                start: 4,
-                end: 4,
-                replacement: "b".to_owned(),
-            },
-        ])
-        .is_err());
-        assert!(check_edits(&[
-            Edit {
-                start: 2,
-                end: 8,
-                replacement: "a".to_owned(),
-            },
-            Edit {
-                start: 5,
-                end: 5,
-                replacement: "b".to_owned(),
-            },
-        ])
-        .is_err());
+        assert!(
+            check_edits(&[Edit {
+                start: 9,
+                end: 3,
+                replacement: String::new(),
+            }])
+            .is_err()
+        );
+        assert!(
+            check_edits(&[
+                Edit {
+                    start: 4,
+                    end: 4,
+                    replacement: "a".to_owned(),
+                },
+                Edit {
+                    start: 4,
+                    end: 4,
+                    replacement: "b".to_owned(),
+                },
+            ])
+            .is_err()
+        );
+        assert!(
+            check_edits(&[
+                Edit {
+                    start: 2,
+                    end: 8,
+                    replacement: "a".to_owned(),
+                },
+                Edit {
+                    start: 5,
+                    end: 5,
+                    replacement: "b".to_owned(),
+                },
+            ])
+            .is_err()
+        );
     }
 
     #[test]

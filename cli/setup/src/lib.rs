@@ -14,14 +14,14 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use dx_atomic_fs::commit::{
-    acquire_commit_lock, clear_stale_stage, publish_pointer_swap, CommitError as StageError,
-    CommitLock, LockError, ManagedRoot, PointerSwap,
+    CommitError as StageError, CommitLock, LockError, ManagedRoot, PointerSwap,
+    acquire_commit_lock, clear_stale_stage, publish_pointer_swap,
 };
 use dx_atomic_fs::lease::GenerationUse;
-use dx_atomic_fs::{create_pointer, PointerKind};
+use dx_atomic_fs::{PointerKind, create_pointer};
 use dx_digest::blake3 as digest;
 use dx_path::state;
-use dx_roots::{resolve_exact_target, ExactScopeError};
+use dx_roots::{ExactScopeError, resolve_exact_target};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupScope {

@@ -139,14 +139,14 @@ pub(crate) fn package_relative_paths(
             "{label}: no {manifest_name} among the source files"
         )));
     };
-    if let Some(second) = manifests.get(1) {
-        if second.components().count() == first.components().count() {
-            return Err(bad(format!(
-                "{label}: ambiguous package root, found '{}' and '{}'",
-                first.display(),
-                second.display()
-            )));
-        }
+    if let Some(second) = manifests.get(1)
+        && second.components().count() == first.components().count()
+    {
+        return Err(bad(format!(
+            "{label}: ambiguous package root, found '{}' and '{}'",
+            first.display(),
+            second.display()
+        )));
     }
     let root = first.parent().unwrap_or_else(|| Path::new(""));
     let mut mapped: Vec<(std::path::PathBuf, String)> = Vec::new();
@@ -169,7 +169,7 @@ pub(crate) fn package_relative_paths(
                     return Err(bad(format!(
                         "{label}: unsafe package path '{}'",
                         rel.display()
-                    )))
+                    )));
                 }
             }
         }
@@ -342,11 +342,7 @@ mod tests {
         let tool = dir.path().join("dx_fake_tool");
         std::fs::write(&tool, b"#!/bin/sh\n").expect("write tool");
         let path = format!("{}{}", dir.path().to_string_lossy(), {
-            if cfg!(windows) {
-                ";"
-            } else {
-                ":"
-            }
+            if cfg!(windows) { ";" } else { ":" }
         });
         with_env(&[("PATH", Some(&path))], || {
             assert_eq!(

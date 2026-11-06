@@ -1,6 +1,6 @@
 use super::super::{Command, OperationMode};
 use super::parse_with;
-use dx_adopt::defaults::{parse_bool, BOOL_SPELLINGS, DX_QUIET_ENV, DX_VERBOSE_ENV, ENV_DEFAULTS};
+use dx_adopt::defaults::{BOOL_SPELLINGS, DX_QUIET_ENV, DX_VERBOSE_ENV, ENV_DEFAULTS, parse_bool};
 use dx_output::{ColorMode, OutputMode, Threshold};
 use dx_testing::cli::strings;
 
@@ -14,7 +14,7 @@ fn env_of<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String
 }
 
 /// An environment getter that owns its pairs, so it outlives a temporary slice.
-fn owned_env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+fn owned_env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> + use<> {
     let owned: Vec<(String, String)> = pairs
         .iter()
         .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))

@@ -92,14 +92,18 @@ fn build_script_output_is_marked_generated() {
 #[test]
 fn the_crate_features_select_the_documented_items() {
     let shard = decoded(SHARD);
-    assert!(shard
-        .symbols
-        .iter()
-        .any(|s| s.id.ends_with("shapes.unit_circle")));
-    assert!(!shard
-        .symbols
-        .iter()
-        .any(|s| s.id.ends_with("without_extra")));
+    assert!(
+        shard
+            .symbols
+            .iter()
+            .any(|s| s.id.ends_with("shapes.unit_circle"))
+    );
+    assert!(
+        !shard
+            .symbols
+            .iter()
+            .any(|s| s.id.ends_with("without_extra"))
+    );
 }
 
 #[test]

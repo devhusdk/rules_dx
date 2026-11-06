@@ -1,4 +1,4 @@
-use super::{comment_text, nearby_reason, take_word, Ignores};
+use super::{Ignores, comment_text, nearby_reason, take_word};
 use crate::LcovError;
 
 pub fn find_ignores(path: &str, source: &str) -> Result<Ignores, LcovError> {

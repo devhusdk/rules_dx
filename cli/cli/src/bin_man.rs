@@ -26,13 +26,13 @@ fn main() {
         tracing::error!("dx_man: render failed: {error}");
         std::process::exit(1);
     });
-    if let Some(parent) = out.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent).unwrap_or_else(|error| {
-                tracing::error!("dx_man: cannot create {}: {error}", parent.display());
-                std::process::exit(1);
-            });
-        }
+    if let Some(parent) = out.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent).unwrap_or_else(|error| {
+            tracing::error!("dx_man: cannot create {}: {error}", parent.display());
+            std::process::exit(1);
+        });
     }
     let mut file = std::fs::File::create(&out).unwrap_or_else(|error| {
         tracing::error!("dx_man: cannot write {}: {error}", out.display());

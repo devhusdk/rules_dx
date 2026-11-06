@@ -3,8 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use super::{
-    default_install_dir, host_launcher, is_plain_date, manifest_entry, parse_args, pinned,
-    publish_set, recorded_field, run, today_utc, usage, Command, Options, ADVISORY_SETS,
+    ADVISORY_SETS, Command, Options, default_install_dir, host_launcher, is_plain_date,
+    manifest_entry, parse_args, pinned, publish_set, recorded_field, run, today_utc, usage,
 };
 
 fn scratch(name: &str) -> PathBuf {
@@ -366,8 +366,8 @@ fn the_identity_url_is_a_file_uri_of_the_bundle() {
     let (root, mut options) = bundle_with_launcher("dx bootstrap url-", b"launcher");
     options.bundle = Some(root.to_string_lossy().into_owned());
     assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
-    let meta =
-        std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json")).expect("identity");
+    let meta = std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json"))
+        .expect("identity");
     assert!(meta.contains("%20"), "a space is percent-encoded: {meta}");
     assert!(!meta.contains('\\'), "no backslash in the URL: {meta}");
     assert!(meta.contains("\"url\": \"file://"), "file URL: {meta}");
@@ -438,8 +438,8 @@ fn a_plain_date_is_a_real_calendar_day() {
 fn an_old_bundle_date_survives_bootstrap() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-old-date-", b"launcher");
     assert_eq!(run(&options, "linux", "x86_64", "2026-10-24"), "");
-    let meta =
-        std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json")).expect("identity");
+    let meta = std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json"))
+        .expect("identity");
     assert!(meta.contains("\"retrieved_at\": \"2026-01-01\""), "{meta}");
     assert!(!meta.contains("2026-10-24"), "{meta}");
 }

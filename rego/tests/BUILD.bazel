@@ -111,7 +111,6 @@ rust_test(
         ":pass_test",
         ":pass_test_manifest",
     ],
-    edition = "2021",
     env = {
         "EMPTY_EXE": "$(rootpath :empty_test)",
         "EMPTY_MANIFEST": "$(rlocationpath :empty_test_manifest)",

@@ -349,7 +349,7 @@ pub fn validate_platforms(text: &str) -> Result<Vec<String>, String> {
                 return Err(format!(
                     "{PLATFORMS_ENV} holds a JSON {}, not a platform label string. {hint}",
                     other.type_name()
-                ))
+                ));
             }
         }
     }
@@ -524,11 +524,7 @@ fn render_check(check: &MatrixCheck) -> String {
 }
 
 fn or_none(text: &str) -> &str {
-    if text.is_empty() {
-        "(none)"
-    } else {
-        text
-    }
+    if text.is_empty() { "(none)" } else { text }
 }
 
 /// Validates every input read through `get` and returns the job outputs, or every diagnostic.

@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, point, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled, point, require_findings};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "checkmake";
@@ -72,7 +72,9 @@ pub fn parse_checkmake(
                 .unwrap_or_default();
             return Err(ParseError::shape(
                 TOOL,
-                format!("the checkmake config is invalid and checkmake fell back to its defaults: {first}"),
+                format!(
+                    "the checkmake config is invalid and checkmake fell back to its defaults: {first}"
+                ),
             ));
         }
         let wanted = format!("Using configuration file: {}", go_quoted(config));

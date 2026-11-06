@@ -1,7 +1,7 @@
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{as_text, code_name, finding, located, missing, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, located, missing};
 
 const TOOL: &str = "chktex";
 const UNREADABLE: &str = "Unable to open the TeX file";

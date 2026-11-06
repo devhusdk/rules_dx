@@ -394,11 +394,11 @@ fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
 
 /// Resolves the runfiles of the invoked test executable.
 fn resolver_for(exe: &Path) -> std::io::Result<Resolver> {
-    if let Some(tree) = tree_ancestor(exe) {
-        if tree.is_dir() {
-            return Resolver::for_tree(&tree)
-                .map_err(|error| bad(format!("no runfiles tree at {}: {error}", tree.display())));
-        }
+    if let Some(tree) = tree_ancestor(exe)
+        && tree.is_dir()
+    {
+        return Resolver::for_tree(&tree)
+            .map_err(|error| bad(format!("no runfiles tree at {}: {error}", tree.display())));
     }
     Resolver::for_binary(exe)
         .map_err(|error| bad(format!("no runfiles beside {}: {error}", exe.display())))

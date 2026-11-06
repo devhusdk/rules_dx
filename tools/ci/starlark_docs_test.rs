@@ -370,11 +370,13 @@ fn an_aspect_without_doc_is_reported() {
 
 #[test]
 fn a_test_rule_is_exempt() {
-    assert!(findings(
-        "pkg/defs.bzl",
-        "x = rule(implementation = _impl, test = True)\n"
-    )
-    .is_empty());
+    assert!(
+        findings(
+            "pkg/defs.bzl",
+            "x = rule(implementation = _impl, test = True)\n"
+        )
+        .is_empty()
+    );
 }
 
 #[test]

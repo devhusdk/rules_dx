@@ -1,6 +1,6 @@
 //! Lists direct hosted packages whose newest release on pub.dev is newer than the one locked.
 
-use super::{release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
@@ -111,10 +111,10 @@ fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), Str
     let mut best = stable.clone().ok_or_else(|| "no version".to_owned())?;
     if prereleases {
         for entry in json["versions"].as_array().into_iter().flatten() {
-            if let Some(version) = entry["version"].as_str() {
-                if release_cmp(&strip_build(version), &strip_build(&best)) == Ordering::Greater {
-                    best = version.to_owned();
-                }
+            if let Some(version) = entry["version"].as_str()
+                && release_cmp(&strip_build(version), &strip_build(&best)) == Ordering::Greater
+            {
+                best = version.to_owned();
             }
         }
     }
@@ -215,9 +215,11 @@ sdks:
     fn prereleases_need_the_flag() {
         let only = ["pre_pkg".to_owned()];
         let text = [LOCK.to_owned()];
-        assert!(outdated("dart", &text, &only, false, DEFAULT_BASE, &api)
-            .candidates
-            .is_empty());
+        assert!(
+            outdated("dart", &text, &only, false, DEFAULT_BASE, &api)
+                .candidates
+                .is_empty()
+        );
         let found = outdated("dart", &text, &only, true, DEFAULT_BASE, &api);
         assert_eq!(found.candidates[0].latest, "2.0.0-beta.1");
         assert!(found.candidates[0].prerelease);

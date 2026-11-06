@@ -26,7 +26,6 @@ rust_binary(
     ),
     crate_name = "split",
     crate_root = "src/bin_split.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_symbols",
         normal = True,
@@ -42,7 +41,6 @@ rust_binary(
     ),
     crate_name = "dsym",
     crate_root = "src/bin_dsym.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_symbols",
         normal = True,
@@ -58,7 +56,6 @@ rust_binary(
     ),
     crate_name = "pdb",
     crate_root = "src/bin_pdb.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_symbols",
         normal = True,

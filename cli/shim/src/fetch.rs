@@ -134,7 +134,10 @@ fn download(
 ) -> Result<String, ShimError> {
     let body = get(agent, request, request.url)?;
     let mut reader = body.into_with_config().limit(MAX_BINARY_BYTES).reader();
-    let mut file = part.file.as_ref().expect("open part file");
+    let mut file = part
+        .file
+        .as_ref()
+        .ok_or_else(|| ShimError::failure("the download part file is not open"))?;
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 64 * 1024];
     let failed =
@@ -204,16 +207,16 @@ fn sweep_stale_parts(dir: &Path, asset: &str) {
 
 #[cfg(unix)]
 mod interrupt {
-    use std::ffi::{c_char, c_int, CString};
+    use std::ffi::{CString, c_char, c_int};
     use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
-    use std::sync::atomic::{AtomicPtr, Ordering};
     use std::sync::Once;
+    use std::sync::atomic::{AtomicPtr, Ordering};
 
     const SIGINT: c_int = 2;
     const SIGTERM: c_int = 15;
 
-    extern "C" {
+    unsafe extern "C" {
         fn signal(signum: c_int, handler: usize) -> usize;
         fn unlink(path: *const c_char) -> c_int;
         fn _exit(code: c_int) -> !;
@@ -340,7 +343,9 @@ mod tests {
     fn mismatch_points_at_retry_and_proxies() {
         assert_eq!(
             mismatch_message("https://h/dx", "aa", "bb"),
-            format!("sha256 mismatch for https://h/dx: want 'aa', got bb; refusing to run it; retry, and if it repeats a proxy may be rewriting downloads; check network and proxy settings, {DOC}")
+            format!(
+                "sha256 mismatch for https://h/dx: want 'aa', got bb; refusing to run it; retry, and if it repeats a proxy may be rewriting downloads; check network and proxy settings, {DOC}"
+            )
         );
     }
 

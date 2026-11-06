@@ -240,7 +240,9 @@ fn vm_init_error_on_stdout_is_reported() {
     let mut out = Vec::new();
     let input = Cursor::new(b"Error occurred during initialization of VM\n".to_vec());
     let error = check(input, &mut out, &[PathBuf::from("/a.pkl")], &options()).unwrap_err();
-    assert!(error
-        .to_string()
-        .contains("Error occurred during initialization of VM"));
+    assert!(
+        error
+            .to_string()
+            .contains("Error occurred during initialization of VM")
+    );
 }

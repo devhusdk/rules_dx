@@ -1,7 +1,7 @@
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{as_text, code_name, finding, rewrite_format, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, rewrite_format};
 
 const TOOL: &str = "perltidy";
 

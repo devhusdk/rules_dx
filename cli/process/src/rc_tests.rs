@@ -2,7 +2,7 @@ use super::*;
 
 use std::collections::HashMap;
 
-use crate::{build_workflow_argv_with, startup_argv_with, ArgvPolicy};
+use crate::{ArgvPolicy, build_workflow_argv_with, startup_argv_with};
 
 #[cfg(windows)]
 const SYSTEM_RC: &str = "/programdata/bazel.bazelrc";

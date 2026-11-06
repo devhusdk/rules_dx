@@ -9,7 +9,7 @@ use crate::lifecycle::{
     self, CleanupBudget, EnvPolicy, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
     StreamStdin,
 };
-use crate::{stderr_tail, ChildStatus, Runner};
+use crate::{ChildStatus, Runner, stderr_tail};
 
 const STREAM_CLEANUP: CleanupBudget = CleanupBudget {
     graceful: Duration::from_secs(10),
@@ -122,10 +122,10 @@ impl Runner for BinaryRunner {
 
     fn tool_version(&self, path: &Path) -> Option<String> {
         let version = crate::version_line(path, &self.stop);
-        if version.is_none() {
-            if let Some(signal) = (self.stop)() {
-                (self.on_stop)(signal);
-            }
+        if version.is_none()
+            && let Some(signal) = (self.stop)()
+        {
+            (self.on_stop)(signal);
         }
         version
     }

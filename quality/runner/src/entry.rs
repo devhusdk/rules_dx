@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use crate::{
+    FileInput,
     real::{RealBackend, RealTool},
     request::RequestTool,
-    FileInput,
 };
 use clap::Parser;
 use quality_result::encode_validated;

@@ -3,14 +3,14 @@ use std::io::Write;
 use std::path::Path;
 
 use dx_digest::blake3 as digest;
-use dx_output::{report_event, DiagnosticEvent, OutputMode, Snapshot};
+use dx_output::{DiagnosticEvent, OutputMode, Snapshot, report_event};
 
 use super::common::{
-    apply_to_bytes, check_stdout_write, emit_built, report_failed, write_report_document,
-    SourceRead,
+    SourceRead, apply_to_bytes, check_stdout_write, emit_built, report_failed,
+    write_report_document,
 };
 use super::results::Collected;
-use dx_plan::reports::{render_sarif_with_failures, PlannedReport, ReportError};
+use dx_plan::reports::{PlannedReport, ReportError, render_sarif_with_failures};
 
 pub(crate) struct StandardReports<'a> {
     pub(crate) workspace: &'a Path,
@@ -48,12 +48,11 @@ fn snapshot_bytes(
     }
     if let Some(SourceRead::Bytes(original)) = sources.get(path) {
         candidates.push(original.clone());
-        if snapshot == Snapshot::Terminal {
-            if let Some(change) = collected.changes.iter().find(|change| change.path == path) {
-                if let Some(bytes) = apply_to_bytes(original, &change.edits) {
-                    candidates.push(bytes);
-                }
-            }
+        if snapshot == Snapshot::Terminal
+            && let Some(change) = collected.changes.iter().find(|change| change.path == path)
+            && let Some(bytes) = apply_to_bytes(original, &change.edits)
+        {
+            candidates.push(bytes);
         }
     }
     candidates

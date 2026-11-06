@@ -81,14 +81,14 @@ pub(super) fn plan_module_bazel(
             .set_bazel_dep_version(package, &new)
             .map_err(module_error(package)),
         (DepVersion::Floor { reason }, tested) => {
-            if let Some(tested) = tested {
-                if dx_module_bazel::compare_module_versions(&new, &tested) == Ordering::Greater {
-                    return Err(EditError::FloorAboveTested {
-                        package: package.to_owned(),
-                        floor: new,
-                        tested,
-                    });
-                }
+            if let Some(tested) = tested
+                && dx_module_bazel::compare_module_versions(&new, &tested) == Ordering::Greater
+            {
+                return Err(EditError::FloorAboveTested {
+                    package: package.to_owned(),
+                    floor: new,
+                    tested,
+                });
             }
             let edited = module
                 .set_bazel_dep_version(package, &new)
@@ -122,7 +122,7 @@ pub(super) fn plan_oci_pull(
             return Err(EditError::NotFound {
                 manifest: "MODULE.bazel".to_owned(),
                 package: package.to_owned(),
-            })
+            });
         }
         [call] => call,
         many => {
@@ -130,7 +130,7 @@ pub(super) fn plan_oci_pull(
                 manifest: "MODULE.bazel".to_owned(),
                 package: package.to_owned(),
                 count: many.len(),
-            })
+            });
         }
     };
     let Some(dx_module_bazel::Value::Str(literal)) = call.arg("digest") else {

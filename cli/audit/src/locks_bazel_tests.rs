@@ -82,10 +82,12 @@ fn locked_packages_are_bazel_set_members_with_provenance_location() {
     assert_eq!(packages.len(), 1);
     assert_eq!(packages[0].set, "bazel");
     assert!(!packages[0].is_git && !packages[0].is_private);
-    assert!(packages[0]
-        .location
-        .as_deref()
-        .is_some_and(|text| text.starts_with("registry https://bcr.bazel.build")));
+    assert!(
+        packages[0]
+            .location
+            .as_deref()
+            .is_some_and(|text| text.starts_with("registry https://bcr.bazel.build"))
+    );
 }
 
 #[test]
@@ -145,10 +147,12 @@ git_override(module_name = "rules_bar", remote = "https://example.com/rules_bar.
     assert_eq!(packages.len(), 1);
     assert!(packages[0].is_git);
     assert_eq!(packages[0].version, "0123456789abcdef");
-    assert!(packages[0]
-        .location
-        .as_deref()
-        .is_some_and(|text| text.contains("https://example.com/rules_bar.git")));
+    assert!(
+        packages[0]
+            .location
+            .as_deref()
+            .is_some_and(|text| text.contains("https://example.com/rules_bar.git"))
+    );
 }
 
 #[test]
@@ -334,9 +338,11 @@ _custom(name = "loose")
 "#;
     let inputs = inputs_of(module, &lock(&[])).expect("parses");
     assert_eq!(inputs.len(), 2);
-    assert!(inputs
-        .iter()
-        .all(|input| input.source == BazelSource::RepoRule));
+    assert!(
+        inputs
+            .iter()
+            .all(|input| input.source == BazelSource::RepoRule)
+    );
     let git = inputs
         .iter()
         .find(|input| input.name == "tool_src")

@@ -1,7 +1,7 @@
 use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
-use super::{as_text, code_name, finding, missing, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, missing, unformatted_at};
 use crate::ToolSeverity;
 
 const TOOL: &str = "djlint";
@@ -212,9 +212,11 @@ mod tests {
         assert_eq!(found[0].file, "/s/templates/page.html");
         assert_eq!(found[0].finding.message, "file is not formatted");
         let clean = b"Checking 2/2 files\n\n\n0 files would be updated.\n\n";
-        assert!(parse_djlint_format(clean, Some(0), FILES)
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_djlint_format(clean, Some(0), FILES)
+                .expect("clean")
+                .is_empty()
+        );
     }
     #[test]
     fn format_rejects_output_outside_the_grammar() {

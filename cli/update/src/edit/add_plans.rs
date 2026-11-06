@@ -1,6 +1,6 @@
 //! Insert planners for the manifests a missing `dx update` package is written to. Each one keeps every other byte.
 
-use crate::edit::request::plans::{paket_tokens, JsonScan, NPM_SECTIONS};
+use crate::edit::request::plans::{JsonScan, NPM_SECTIONS, paket_tokens};
 
 fn line_ending(content: &str) -> &'static str {
     if content.contains("\r\n") {

@@ -8,10 +8,10 @@ pub mod planning;
 pub mod sarif;
 
 pub use identity::finding_identity;
-pub use junit::{junit_infrastructure_case, parse_test_xml, render_junit, JunitCase, JunitMessage};
+pub use junit::{JunitCase, JunitMessage, junit_infrastructure_case, parse_test_xml, render_junit};
 pub use lcov::validate_lcov;
 pub use planning::{
-    format_names, plan_reports, resolve_destination, Destination, PlannedReport, StandardFormat,
+    Destination, PlannedReport, StandardFormat, format_names, plan_reports, resolve_destination,
 };
 pub use sarif::{render_sarif, render_sarif_with_failures};
 

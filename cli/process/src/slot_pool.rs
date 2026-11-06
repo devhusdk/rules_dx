@@ -112,7 +112,7 @@ pub fn available_memory() -> Option<u64> {
         avail_virtual: u64,
         avail_extended: u64,
     }
-    extern "system" {
+    unsafe extern "system" {
         fn GlobalMemoryStatusEx(status: *mut MemoryStatus) -> i32;
     }
     let mut status = MemoryStatus {

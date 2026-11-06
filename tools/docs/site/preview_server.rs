@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use dx_docs_serve::{Handle, Site};
-use dx_site_browser::{wait_for, Browser};
+use dx_site_browser::{Browser, wait_for};
 
 const FIREFOX: &str = "DX_FIREFOX";
 const USER_SITE: &str = "DX_USER_SITE";
@@ -19,7 +19,7 @@ impl Server {
         let port = site.local_addr().expect("local addr").port();
         Server {
             port,
-            _site: site.spawn(),
+            _site: site.spawn().expect("spawn"),
         }
     }
 

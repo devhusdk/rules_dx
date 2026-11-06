@@ -176,7 +176,6 @@ rust_library(
     srcs = ["scaffold.rs"],
     crate_name = "starter_scaffold",
     crate_root = "scaffold.rs",
-    edition = "2021",
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",

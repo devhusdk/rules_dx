@@ -1,5 +1,5 @@
 use super::zig_ast_check::zig_errors;
-use super::{as_text, code_name, prefixed, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, prefixed};
 
 const TOOL: &str = "zig";
 
@@ -53,9 +53,11 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_zig_compile(b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_zig_compile(b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

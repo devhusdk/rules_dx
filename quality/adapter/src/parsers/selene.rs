@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known_native, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known_native};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "selene";
@@ -141,13 +141,17 @@ mod tests {
 
     #[test]
     fn selene_is_clean_on_no_output_and_exit_zero() {
-        assert!(parse_selene(b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_selene(b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
         let summary = br#"{"type":"Summary","errors":0,"warnings":0,"parse_errors":0}"#;
-        assert!(parse_selene(summary, Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_selene(summary, Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

@@ -53,7 +53,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{env, invocation, run, Truncated};
+    use crate::adopt::test_support::{Truncated, env, invocation, run};
 
     #[test]
     fn status_missing_pin_json_truncation_never_reports_success() {

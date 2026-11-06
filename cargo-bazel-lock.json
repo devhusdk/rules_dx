@@ -1,5 +1,5 @@
 {
-  "checksum": "eae1c44efbc81bee3d5dc9f146f4d6f95b2a32dadd7a7a4d02fe676370d75c73",
+  "checksum": "dc62baf0982a863c3f82d16030ec634b0975bf3d344c9051a171871d8750ea8c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1210,7 +1210,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "appimage_packer",
       "license": "Apache-2.0",
@@ -2929,7 +2929,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "cc_context",
       "license": "Apache-2.0",
@@ -3737,7 +3737,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "codegen_shard",
       "license": "Apache-2.0",
@@ -3907,7 +3907,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_component_extract",
       "license": "Apache-2.0",
@@ -6679,7 +6679,7 @@
     },
     "documentation_ir 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "documentation_ir",
       "license": "Apache-2.0",
@@ -6714,7 +6714,7 @@
             "target": "sha2"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_dotnet_extract",
       "license": "Apache-2.0",
@@ -6913,7 +6913,7 @@
             "target": "insta"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_adopt",
       "license": "Apache-2.0",
@@ -6960,7 +6960,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_advisory_prep",
       "license": "Apache-2.0",
@@ -6995,7 +6995,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_apply",
       "license": "Apache-2.0",
@@ -7036,7 +7036,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_archive",
       "license": "Apache-2.0",
@@ -7067,7 +7067,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_atomic_fs",
       "license": "Apache-2.0",
@@ -7176,7 +7176,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_audit",
       "license": "Apache-2.0",
@@ -7213,7 +7213,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_bep",
       "license": "Apache-2.0",
@@ -7240,7 +7240,7 @@
             "target": "object"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_binfmt",
       "license": "Apache-2.0",
@@ -7261,7 +7261,7 @@
     },
     "dx_bootstrap 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_bootstrap",
       "license": "Apache-2.0",
@@ -7300,7 +7300,7 @@
             "target": "walkdir"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_clean",
       "license": "Apache-2.0",
@@ -7385,7 +7385,7 @@
             "target": "predicates"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_cli",
       "license": "Apache-2.0",
@@ -7422,7 +7422,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_codegen",
       "license": "Apache-2.0",
@@ -7475,7 +7475,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_config",
       "license": "Apache-2.0",
@@ -7536,7 +7536,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_depcheck",
       "license": "Apache-2.0",
@@ -7625,7 +7625,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_deploy_tools",
       "license": "Apache-2.0",
@@ -7656,7 +7656,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_diff",
       "license": "Apache-2.0",
@@ -7705,7 +7705,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_digest",
       "license": "Apache-2.0",
@@ -7726,7 +7726,7 @@
     },
     "dx_docs_serve 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_serve",
       "license": "Apache-2.0",
@@ -7769,7 +7769,7 @@
             "target": "tracing"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_env",
       "license": "Apache-2.0",
@@ -7806,7 +7806,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_env_plan",
       "license": "Apache-2.0",
@@ -7837,7 +7837,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_families",
       "license": "Apache-2.0",
@@ -7872,7 +7872,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_fingerprint",
       "license": "Apache-2.0",
@@ -7899,7 +7899,7 @@
             "target": "gomod_parser"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_gomod",
       "license": "Apache-2.0",
@@ -7926,7 +7926,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_ide",
       "license": "Apache-2.0",
@@ -7953,7 +7953,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_install_tools",
       "license": "Apache-2.0",
@@ -7974,7 +7974,7 @@
     },
     "dx_js_launcher 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_js_launcher",
       "license": "Apache-2.0",
@@ -8009,7 +8009,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_lcov",
       "license": "Apache-2.0",
@@ -8044,7 +8044,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_merge",
       "license": "Apache-2.0",
@@ -8075,7 +8075,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_module_bazel",
       "license": "Apache-2.0",
@@ -8128,7 +8128,7 @@
             "target": "jsonschema"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_output",
       "license": "Apache-2.0",
@@ -8165,7 +8165,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_path",
       "license": "Apache-2.0",
@@ -8250,7 +8250,7 @@
             "target": "insta"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_plan",
       "license": "Apache-2.0",
@@ -8277,7 +8277,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_preset",
       "license": "Apache-2.0",
@@ -8308,7 +8308,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_process",
       "license": "Apache-2.0",
@@ -8345,7 +8345,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_release_tools",
       "license": "Apache-2.0",
@@ -8366,7 +8366,7 @@
     },
     "dx_roots 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_roots",
       "license": "Apache-2.0",
@@ -8401,7 +8401,7 @@
             "target": "spdx"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_sbom",
       "license": "Apache-2.0",
@@ -8432,7 +8432,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_sbom_schema",
       "license": "Apache-2.0",
@@ -8465,7 +8465,7 @@
             "target": "insta"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_setup",
       "license": "Apache-2.0",
@@ -8506,7 +8506,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_shard_writer",
       "license": "Apache-2.0",
@@ -8557,7 +8557,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_shim",
       "license": "Apache-2.0",
@@ -8592,7 +8592,7 @@
             "target": "sha2"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_symbols",
       "license": "Apache-2.0",
@@ -8619,7 +8619,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_test_scratch",
       "license": "Apache-2.0",
@@ -8666,7 +8666,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_testing",
       "license": "Apache-2.0",
@@ -8703,7 +8703,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_tool_resolve",
       "license": "Apache-2.0",
@@ -8764,7 +8764,7 @@
             "target": "toml"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_update",
       "license": "Apache-2.0",
@@ -8805,7 +8805,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_worktree",
       "license": "Apache-2.0",
@@ -9459,7 +9459,7 @@
             "target": "tempfile"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "env_shard",
       "license": "Apache-2.0",
@@ -9480,7 +9480,7 @@
     },
     "env_stubs 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "license": "Apache-2.0",
       "license_ids": [
@@ -10466,7 +10466,7 @@
             "target": "thiserror"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "generation_result",
       "license": "Apache-2.0",
@@ -10960,7 +10960,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_go_extract",
       "license": "Apache-2.0",
@@ -13436,7 +13436,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_jvm_convert",
       "license": "Apache-2.0",
@@ -17739,7 +17739,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_powershell_extract",
       "license": "Apache-2.0",
@@ -18209,7 +18209,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_python_extract",
       "license": "Apache-2.0",
@@ -18319,7 +18319,7 @@
             "target": "syn"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "license": "Apache-2.0",
       "license_ids": [
@@ -18378,7 +18378,7 @@
             "target": "url"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "quality_adapter",
       "license": "Apache-2.0",
@@ -18431,7 +18431,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "quality_markdown",
       "license": "Apache-2.0",
@@ -18458,7 +18458,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "quality_notebook",
       "license": "Apache-2.0",
@@ -18493,7 +18493,7 @@
             "target": "tracing"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "quality_result",
       "license": "Apache-2.0",
@@ -18544,7 +18544,7 @@
             "target": "zip"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "quality_runner",
       "license": "Apache-2.0",
@@ -19694,7 +19694,7 @@
     },
     "repin_all 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "license": "Apache-2.0",
       "license_ids": [
@@ -20059,7 +20059,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_ruby_extract",
       "license": "Apache-2.0",
@@ -20090,7 +20090,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_rust_extract",
       "license": "Apache-2.0",
@@ -22524,7 +22524,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_site_aggregate",
       "license": "Apache-2.0",
@@ -22551,7 +22551,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_site_browser",
       "license": "Apache-2.0",
@@ -22572,7 +22572,7 @@
     },
     "site_build 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_site_build",
       "license": "Apache-2.0",
@@ -22593,7 +22593,7 @@
     },
     "site_check 0.0.0": {
       "common_attrs": {
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_site_check",
       "license": "Apache-2.0",
@@ -25322,7 +25322,7 @@
             "target": "serde_json"
           }
         ],
-        "edition": "2021"
+        "edition": "2024"
       },
       "library_target_name": "dx_docs_typescript_extract",
       "license": "Apache-2.0",

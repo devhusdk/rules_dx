@@ -493,10 +493,11 @@ pub fn validate_result(bytes: &[u8], manifest: &Manifest) -> Result<(), HarnessE
 fn header_count(lines: &[&str], prefix: &str) -> Result<usize, HarnessError> {
     for line in lines {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() == 2 && parts[0] == prefix {
-            if let Ok(count) = parts[1].parse::<usize>() {
-                return Ok(count);
-            }
+        if parts.len() == 2
+            && parts[0] == prefix
+            && let Ok(count) = parts[1].parse::<usize>()
+        {
+            return Ok(count);
         }
     }
     Err(HarnessError::BadPrint {
@@ -651,10 +652,10 @@ fn env_value(name: &str) -> Result<String, HarnessError> {
 
 fn update_dir() -> PathBuf {
     for name in [UNDECLARED_ENV, TMPDIR_ENV] {
-        if let Ok(dir) = std::env::var(name) {
-            if !dir.is_empty() {
-                return PathBuf::from(dir);
-            }
+        if let Ok(dir) = std::env::var(name)
+            && !dir.is_empty()
+        {
+            return PathBuf::from(dir);
         }
     }
     PathBuf::from("/tmp")
@@ -777,13 +778,13 @@ fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
 }
 
 fn resolver_for(exe: &Path) -> Result<Resolver, HarnessError> {
-    if let Some(tree) = tree_ancestor(exe) {
-        if tree.is_dir() {
-            return Resolver::for_tree(&tree).map_err(|error| HarnessError::NoRunfiles {
-                binary: display(exe),
-                detail: error.to_string(),
-            });
-        }
+    if let Some(tree) = tree_ancestor(exe)
+        && tree.is_dir()
+    {
+        return Resolver::for_tree(&tree).map_err(|error| HarnessError::NoRunfiles {
+            binary: display(exe),
+            detail: error.to_string(),
+        });
     }
     Resolver::for_binary(exe).map_err(|error| HarnessError::NoRunfiles {
         binary: display(exe),
@@ -908,7 +909,9 @@ fn compare_golden(resolved: &Resolved, name: &str, actual: &[u8]) -> Result<(), 
         println!("{}", render_diff(&expected, actual));
         println!("--- actual:");
         println!("{}", String::from_utf8_lossy(actual));
-        println!("re-run with UPDATE_EXPECT=1 to stage the fresh golden (bazel test --test_env=UPDATE_EXPECT), then review before pinning.");
+        println!(
+            "re-run with UPDATE_EXPECT=1 to stage the fresh golden (bazel test --test_env=UPDATE_EXPECT), then review before pinning."
+        );
         return Err(HarnessError::GoldenMismatch {
             name: name.to_owned(),
         });

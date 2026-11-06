@@ -1,23 +1,23 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
-use super::coverage_candidate::{candidate, tracked_orphans, Candidate, Unavailable};
+use super::coverage_candidate::{Candidate, Unavailable, candidate, tracked_orphans};
 use super::failure::CODE_NO_TESTS;
 use super::failure_reports::write_failure_reports;
 use super::skipped_targets::{group_skipped, skipped_notice};
 use dx_bep::{
-    collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
-    TestResultRecord,
+    ArtifactReader, OutputLocations, TestEvents, TestResultFile, TestResultRecord,
+    collect_test_events,
 };
-use dx_lcov::{parse_source_manifest, CellAccount, SourceManifest, SOURCES_OUTPUT_GROUP};
+use dx_lcov::{CellAccount, SOURCES_OUTPUT_GROUP, SourceManifest, parse_source_manifest};
 use dx_output::{
-    command_finished, notice_event, report_event, test_outcome_event, test_result_record,
     ActionCounts, FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
+    command_finished, notice_event, report_event, test_outcome_event, test_result_record,
 };
 use dx_plan::args::Invocation;
 use dx_plan::plan::WorkflowVerb;
 use dx_plan::reports::{
-    junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov, Destination, JunitCase,
-    JunitMessage, PlannedReport, ReportError, StandardFormat,
+    Destination, JunitCase, JunitMessage, PlannedReport, ReportError, StandardFormat,
+    junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
 };
 use dx_plan::resolve::QueryRunner;
 use std::collections::BTreeMap;
@@ -166,10 +166,10 @@ fn output_locations(
     argv.push("bazel-testlogs".to_owned());
     argv.push("execution_root".to_owned());
     argv.push("output_path".to_owned());
-    if let Ok(result) = query_runner.run_info(&argv, workspace) {
-        if result.code == Some(0) {
-            locations.apply_bazel_info(&result.stdout);
-        }
+    if let Ok(result) = query_runner.run_info(&argv, workspace)
+        && result.code == Some(0)
+    {
+        locations.apply_bazel_info(&result.stdout);
     }
     locations
 }
@@ -1526,16 +1526,16 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         }
         None => true,
     };
-    if let Some(account) = &account {
-        if let Err(exit) = coverage_event(
+    if let Some(account) = &account
+        && let Err(exit) = coverage_event(
             &sources,
             account,
             invocation.min_coverage,
             invocation.output,
             out,
-        ) {
-            return kept_child(err, bazel_code, exit);
-        }
+        )
+    {
+        return kept_child(err, bazel_code, exit);
     }
     let changed_ok = if verb == WorkflowVerb::Coverage {
         let gate = super::changed_coverage::ChangedGate {
@@ -1596,18 +1596,21 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             ) {
                 return kept_child(err, bazel_code, exit);
             }
-        } else if bazel_code != 0 {
-            if let Err(exit) = emit_built(out, bazel_exit_event(
-                bazel_failure_code(bazel_code),
-                &format!(
-                    "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
-                    invocation.command.name(),
+        } else if bazel_code != 0
+            && let Err(exit) = emit_built(
+                out,
+                bazel_exit_event(
+                    bazel_failure_code(bazel_code),
+                    &format!(
+                        "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
+                        invocation.command.name(),
+                    ),
+                    bazel_code,
+                    "execute",
                 ),
-                bazel_code,
-                "execute",
-            )) {
-return kept_child(err, bazel_code, exit);
-}
+            )
+        {
+            return kept_child(err, bazel_code, exit);
         }
         let finished = command_finished(
             code,
@@ -5360,15 +5363,16 @@ mod tests {
 
     #[test]
     fn a_cancelled_result_keeps_the_bazel_code_and_its_cause() {
-        let harness = Harness {
-            bazel_code: 8,
-            raw_bep: Some(vec![serde_json::json!({
+        let harness =
+            Harness {
+                bazel_code: 8,
+                raw_bep: Some(vec![serde_json::json!({
                 "id": {"testResult": {"label": "//a:t", "run": 1, "shard": 1, "attempt": 1}},
                 "aborted": {"reason": "USER_INTERRUPTED"},
             })
             .to_string()]),
-            ..Harness::new("test-cancelled")
-        };
+                ..Harness::new("test-cancelled")
+            };
         let (code, out, _) = harness.run(&["test", "--output=json"]);
         assert_eq!(code, 8, "{out}");
         let events = json_events(&out);

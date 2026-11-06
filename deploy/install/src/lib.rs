@@ -1270,16 +1270,20 @@ mod tests {
             verifier.sha256_file(&file).expect("hash"),
             dx_digest::sha256_hex(b"standalone-dx-bytes-v1")
         );
-        assert!(verifier
-            .sha256_file(&scratch.path().join("missing"))
-            .is_err());
+        assert!(
+            verifier
+                .sha256_file(&scratch.path().join("missing"))
+                .is_err()
+        );
         assert_eq!(
             verifier.read_text(&file).as_deref(),
             Some("standalone-dx-bytes-v1")
         );
-        assert!(verifier
-            .read_text(&scratch.path().join("missing"))
-            .is_none());
+        assert!(
+            verifier
+                .read_text(&scratch.path().join("missing"))
+                .is_none()
+        );
         assert!(!verifier.have("/nonexistent-dx-tool"));
         #[cfg(unix)]
         {
@@ -1296,8 +1300,10 @@ mod tests {
         if let Some(raw) = std::env::var_os("DX_INSTALL_VERIFY_CHILD") {
             let raw = raw.to_string_lossy().into_owned();
             let (mode, sentinel) = raw.split_once(':').expect("mode:path");
-            std::env::set_var("DX_VERIFY_COSIGN", "pinned-cosign");
-            std::env::set_var("DX_VERIFY_GH", "pinned-gh");
+            // SAFETY: the process is single-threaded here or the env lock is held.
+            unsafe { std::env::set_var("DX_VERIFY_COSIGN", "pinned-cosign") };
+            // SAFETY: the process is single-threaded here or the env lock is held.
+            unsafe { std::env::set_var("DX_VERIFY_GH", "pinned-gh") };
             let verifier = SystemVerifier;
             assert_eq!(verifier.cosign_bin(), "pinned-cosign");
             assert_eq!(verifier.gh_bin(), "pinned-gh");
@@ -1305,8 +1311,10 @@ mod tests {
                 panic!("intentional child failure");
             }
             std::fs::write(sentinel, b"ok").expect("sentinel");
-            std::env::remove_var("DX_VERIFY_COSIGN");
-            std::env::remove_var("DX_VERIFY_GH");
+            // SAFETY: the process is single-threaded here or the env lock is held.
+            unsafe { std::env::remove_var("DX_VERIFY_COSIGN") };
+            // SAFETY: the process is single-threaded here or the env lock is held.
+            unsafe { std::env::remove_var("DX_VERIFY_GH") };
             return;
         }
         let verifier = SystemVerifier;

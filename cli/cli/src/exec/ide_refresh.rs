@@ -3,7 +3,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use dx_output::{notice_event, NoticeEvent, OutputMode};
+use dx_output::{NoticeEvent, OutputMode, notice_event};
 use dx_plan::resolve::QueryRunner;
 
 use super::common::{emit_built, flush_out};

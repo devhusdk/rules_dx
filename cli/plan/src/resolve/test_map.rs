@@ -3,7 +3,7 @@ use std::path::Path;
 use super::query::quote_label;
 
 use super::{
-    parse_owners, quote_set, QueryFailure, QueryRunner, ResolveError, RuleGraph, SelectionContext,
+    QueryFailure, QueryRunner, ResolveError, RuleGraph, SelectionContext, parse_owners, quote_set,
 };
 
 pub(crate) fn strip_configuration(line: &str) -> &str {

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known};
 use crate::{
     ColumnEncoding, Finding, Related, RelatedLocation, Suggestion, TextPosition, ToolSeverity,
 };
@@ -341,9 +341,11 @@ mod tests {
         assert_eq!(broken[0].finding.rule_id, "");
         assert_eq!(broken[0].finding.severity, ToolSeverity::Error);
 
-        assert!(parse_clippy(b"", Some(0), &["/s/clean.rs"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_clippy(b"", Some(0), &["/s/clean.rs"])
+                .expect("parsed")
+                .is_empty()
+        );
         let err = parse_clippy(
             CLIPPY_LINT.lines().nth(1).expect("summary").as_bytes(),
             Some(1),
@@ -375,9 +377,11 @@ mod tests {
                 })
             )
         );
-        assert!(parse_rustc(b"", Some(0), &["/s/clean.rs"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_rustc(b"", Some(0), &["/s/clean.rs"])
+                .expect("parsed")
+                .is_empty()
+        );
         let err = parse_rustc(
             RUSTC_TYPE_ERROR.lines().nth(1).expect("summary").as_bytes(),
             Some(1),
@@ -391,14 +395,18 @@ mod tests {
     #[test]
     fn clippy_rejects_bytes_lines_and_unplaced_diagnostics() {
         assert!(parse_clippy(b"\xff", Some(1), &["/s/x.rs"]).is_err());
-        assert!(parse_clippy(b"  \n", Some(0), &["/s/x.rs"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_clippy(b"  \n", Some(0), &["/s/x.rs"])
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_clippy(b"hello\n", Some(0), &["/s/x.rs"]).is_err());
         let artifact = "{\"$message_type\": \"artifact\", \"x\": 1}\n";
-        assert!(parse_clippy(artifact.as_bytes(), Some(0), &["/s/x.rs"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_clippy(artifact.as_bytes(), Some(0), &["/s/x.rs"])
+                .expect("parsed")
+                .is_empty()
+        );
         let bare = "{\"$message_type\": \"diagnostic\"}\n";
         assert!(parse_clippy(bare.as_bytes(), Some(0), &["/s/x.rs"]).is_err());
         let outside = diagnostic(

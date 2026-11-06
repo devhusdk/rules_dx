@@ -90,12 +90,12 @@ pub(crate) fn filter_profile_configs(
             index += consumed;
             continue;
         }
-        if let Some(value) = value {
-            if is_dx_profile_config(&value) {
-                return Err(dx_process::ForwardError::ConflictingOption {
-                    flag: "config".to_owned(),
-                });
-            }
+        if let Some(value) = value
+            && is_dx_profile_config(&value)
+        {
+            return Err(dx_process::ForwardError::ConflictingOption {
+                flag: "config".to_owned(),
+            });
         }
         for offset in 0..consumed {
             kept.push(options[index + offset].clone());
@@ -107,7 +107,7 @@ pub(crate) fn filter_profile_configs(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{assert_usage, parse, ArgsError};
+    use super::super::{ArgsError, assert_usage, parse};
     use super::*;
     use clap::ValueEnum;
     use dx_testing::cli::strings;

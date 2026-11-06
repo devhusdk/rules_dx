@@ -1,4 +1,4 @@
-use super::{finding, lines, FileFinding, ParseError};
+use super::{FileFinding, ParseError, finding, lines};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -220,11 +220,13 @@ mod tests {
     #[test]
     fn an_unlocated_error_is_an_error() {
         assert!(parse("error FS0225: Source file 'x.fs' could not be found\n", 1).is_err());
-        assert!(parse(
-            "fs/a.fs(1,1): error FS0001: y\nerror FS0084: assembly missing\n",
-            1
-        )
-        .is_err());
+        assert!(
+            parse(
+                "fs/a.fs(1,1): error FS0001: y\nerror FS0084: assembly missing\n",
+                1
+            )
+            .is_err()
+        );
     }
 
     #[test]

@@ -1,9 +1,9 @@
-use super::affected::{named_base, PlanError};
+use super::affected::{PlanError, named_base};
 use super::common::{
-    emit_built, git_output, CODE_CHANGED_LINE_BELOW_MINIMUM, CODE_CHANGED_LINE_INCOMPLETE,
-    CODE_CHANGED_LINE_UNAVAILABLE,
+    CODE_CHANGED_LINE_BELOW_MINIMUM, CODE_CHANGED_LINE_INCOMPLETE, CODE_CHANGED_LINE_UNAVAILABLE,
+    emit_built, git_output,
 };
-use dx_lcov::{all_lines, changed_account, parse_added_lines, AddedLines, CellAccount};
+use dx_lcov::{AddedLines, CellAccount, all_lines, changed_account, parse_added_lines};
 use dx_output::{ChangedLineCoverageEvent, OutputMode};
 use dx_plan::resolve::QueryRunner;
 use std::io::Write;

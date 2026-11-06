@@ -36,7 +36,6 @@ rust_library(
     ],
     crate_name = "support_matrix",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = [
         "@crates//:serde",
         "@crates//:serde_json",
@@ -58,7 +57,6 @@ rust_test(
         ":inputs",
         "//docs:support-matrix.md",
     ],
-    edition = "2021",
     deps = [
         ":support_matrix",
         "@rules_rust//rust/runfiles",
@@ -72,7 +70,6 @@ rust_binary(
     args = ["--write"],
     crate_root = "src/main.rs",
     data = [":inputs"],
-    edition = "2021",
     deps = [":support_matrix"],
 )
 

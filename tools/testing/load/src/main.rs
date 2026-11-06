@@ -8,8 +8,8 @@ use std::fs;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -35,7 +35,7 @@ const SIGTERM: i32 = 15;
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
-extern "C" {
+unsafe extern "C" {
     fn signal(signum: i32, handler: usize) -> usize;
     fn prctl(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> i32;
     fn kill(pid: i32, sig: i32) -> i32;
@@ -565,7 +565,7 @@ fn start_servers(trees: &Trees, policy: &RcPolicy) -> Result<Vec<Vec<u8>>, Strin
                 return Err(format!(
                     "no running Bazel server after start in {}",
                     tree.dir.display()
-                ))
+                ));
             }
         }
     }

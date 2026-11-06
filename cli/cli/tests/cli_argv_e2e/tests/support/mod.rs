@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{rules_dx_module, write_rules_dx_config};
-use dx_testing::{resolve_runfiles, run, Run};
+use dx_testing::{Run, resolve_runfiles, run};
 
 const BAZELRC: &str = "common:dx_dev --define=dx=dev\ncommon:dx_release --define=dx=release\n";
 

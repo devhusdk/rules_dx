@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use super::cell::{self, CellOutcome, Expected};
-use super::{notice_verify_files, sbom_verify_files, OpRecord, OpState};
+use super::{OpRecord, OpState, notice_verify_files, sbom_verify_files};
 
 pub const REPORT_SCHEMA: &str = "publish-dry-run/v3";
 
@@ -379,7 +379,7 @@ mod tests {
         (manifest, vec![a, b])
     }
 
-    use crate::cell::tests::{matrix_json, release, Release};
+    use crate::cell::tests::{Release, matrix_json, release};
 
     /// Two qualified synthetic cells with their records, archives and sidecars.
     fn valid_inputs(dir: &Path, release: &Release) -> PublishDryRunInputs {
@@ -497,9 +497,11 @@ mod tests {
             ]
             .map(serde_json::Value::from)
         );
-        assert!(operations
-            .iter()
-            .all(|op| op["state"] == serde_json::json!("not-authorized")));
+        assert!(
+            operations
+                .iter()
+                .all(|op| op["state"] == serde_json::json!("not-authorized"))
+        );
         assert_eq!(report["stray"], serde_json::json!([]));
         let record: crate::cell::CellRecord = serde_json::from_str(
             &std::fs::read_to_string(release.records().join(format!("{TAR}.json")))
@@ -639,9 +641,11 @@ mod tests {
         )
         .expect("copy");
         let report = report_of(&rejected(&release));
-        assert!(report["stray"][0]
-            .as_str()
-            .is_some_and(|stray| stray.contains("unknown cell")));
+        assert!(
+            report["stray"][0]
+                .as_str()
+                .is_some_and(|stray| stray.contains("unknown cell"))
+        );
     }
 
     #[test]

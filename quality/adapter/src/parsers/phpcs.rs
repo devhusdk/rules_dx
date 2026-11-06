@@ -1,6 +1,6 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-use super::{as_text, code_name, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "phpcs";
 
@@ -126,7 +126,7 @@ fn one(path: &str, message: &serde_json::Value) -> Result<(FileFinding, bool), P
             return Err(ParseError::shape(
                 TOOL,
                 format!("{path} message without a known type"),
-            ))
+            ));
         }
     };
     let position = |key: &str| {
@@ -219,9 +219,11 @@ mod tests {
     #[test]
     fn phpcs_clean_run_has_no_findings() {
         let out = br#"{"totals":{"errors":0,"warnings":0,"fixable":0},"files":[]}"#;
-        assert!(parse_phpcs(out, Some(0), &["/s/a.php"])
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_phpcs(out, Some(0), &["/s/a.php"])
+                .expect("clean")
+                .is_empty()
+        );
         let empty = br#"{"totals":{"errors":0,"warnings":0,"fixable":0},"files":{}}"#;
         assert!(parse_phpcs(empty, Some(0), &[]).expect("clean").is_empty());
     }

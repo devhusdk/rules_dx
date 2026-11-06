@@ -7,7 +7,7 @@ use dx_testing::serde_json::Value;
 use quality_adapter::commands::{self, Invocation};
 use quality_adapter::launch::ResolvedTool;
 use quality_adapter::parsers::{self, FileFinding};
-use quality_adapter::{place_finding, ColumnEncoding};
+use quality_adapter::{ColumnEncoding, place_finding};
 
 fn tool(variable: &str) -> PathBuf {
     let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must be set"));

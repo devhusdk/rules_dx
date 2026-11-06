@@ -5,8 +5,8 @@ use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
 use dx_plan::plan::OUTPUT_GROUP;
 use quality_result::{build_deps, decode_validated, proto};
 
-use super::common::{apply_to_bytes, collect_output_account, FileChange};
-use super::quality_reconcile::{reconcile, Conflict, Producer};
+use super::common::{FileChange, apply_to_bytes, collect_output_account};
+use super::quality_reconcile::{Conflict, Producer, reconcile};
 
 #[derive(Default)]
 struct Staged {
@@ -257,11 +257,11 @@ fn map_diagnostic(
         _ => return None,
     };
     let mut path = (!diagnostic.path.is_empty()).then(|| diagnostic.path.clone());
-    if let (None, Some(dep)) = (&path, &diagnostic.build_dep) {
-        if let Some((found, at)) = place_build_dep(dep, workspace) {
-            path = Some(found);
-            range = Some(at);
-        }
+    if let (None, Some(dep)) = (&path, &diagnostic.build_dep)
+        && let Some((found, at)) = place_build_dep(dep, workspace)
+    {
+        path = Some(found);
+        range = Some(at);
     }
     if path.is_none() && range.is_some() {
         return None;
@@ -1106,10 +1106,12 @@ mod tests {
             !after.contains("//a:a") && !after.contains("//b:b"),
             "{after}"
         );
-        assert!(collected
-            .terminal
-            .iter()
-            .all(|e| e.path.as_deref() != Some("p/BUILD.bazel")));
+        assert!(
+            collected
+                .terminal
+                .iter()
+                .all(|e| e.path.as_deref() != Some("p/BUILD.bazel"))
+        );
         assert!(collected.initial.iter().all(|e| e.fixable));
     }
 
@@ -1150,11 +1152,13 @@ mod tests {
             .find(|e| on_list(e))
             .expect("event");
         assert!(external.path.is_some() && !external.fixable);
-        assert!(collected
-            .initial
-            .iter()
-            .filter(|e| !on_list(e))
-            .all(|e| e.fixable));
+        assert!(
+            collected
+                .initial
+                .iter()
+                .filter(|e| !on_list(e))
+                .all(|e| e.fixable)
+        );
     }
 
     #[test]

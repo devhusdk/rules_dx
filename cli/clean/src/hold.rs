@@ -12,12 +12,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use dx_atomic_fs::commit::{acquire_commit_lock, ManagedRoot};
+use dx_atomic_fs::commit::{ManagedRoot, acquire_commit_lock};
 use dx_atomic_fs::lease::{self, GenerationUse, SharedLease};
-use dx_setup::{read_current_pair, SetupPair};
+use dx_setup::{SetupPair, read_current_pair};
 
-use super::apply::map_lock_error;
 use super::CleanError;
+use super::apply::map_lock_error;
 
 /// Why the current selection could not be held.
 #[derive(Debug, thiserror::Error)]

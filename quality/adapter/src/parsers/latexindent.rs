@@ -1,4 +1,4 @@
-use super::{as_text, code_name, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, unformatted_at};
 use crate::ColumnEncoding;
 
 const HOME_WARNING: &str = "Use of uninitialized value $homeDir in concatenation";

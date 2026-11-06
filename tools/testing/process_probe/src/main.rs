@@ -765,10 +765,10 @@ fn main() {
         fail(EXIT_USAGE, "--require-foreground needs unix");
     }
     #[cfg(unix)]
-    if let Some(path) = &plan.count_sigint {
-        if let Err(error) = start_counting_sigint(path) {
-            fail(EXIT_OUTPUT, &format!("cannot count SIGINT: {error}"));
-        }
+    if let Some(path) = &plan.count_sigint
+        && let Err(error) = start_counting_sigint(path)
+    {
+        fail(EXIT_OUTPUT, &format!("cannot count SIGINT: {error}"));
     }
     #[cfg(not(unix))]
     if plan.count_sigint.is_some() {
@@ -818,10 +818,10 @@ fn main() {
     if plan.spawn_descendant && !plan.detached_descendant {
         exit_code = start_descendant(&plan);
     }
-    if let Some(marker) = &plan.marker {
-        if let Err(error) = std::fs::write(marker, b"finished\n") {
-            fail(EXIT_OUTPUT, &format!("cannot write the marker: {error}"));
-        }
+    if let Some(marker) = &plan.marker
+        && let Err(error) = std::fs::write(marker, b"finished\n")
+    {
+        fail(EXIT_OUTPUT, &format!("cannot write the marker: {error}"));
     }
     std::process::exit(exit_code);
 }

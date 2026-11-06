@@ -9,9 +9,9 @@ use dx_process::lifecycle::{
 
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
 
-use super::command::{Command, FirstSlot, COMMANDS};
-use super::grammar::option_at;
 use super::ArgsError;
+use super::command::{COMMANDS, Command, FirstSlot};
+use super::grammar::option_at;
 
 pub const COMPLETION_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
 
@@ -494,12 +494,12 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
         if dir != workspace && is_workspace_root(&dir) {
             continue;
         }
-        if dir != workspace {
-            if let Ok(rel) = dir.strip_prefix(workspace) {
-                let rel = dx_path::posix(rel);
-                if !rel.is_empty() && is_ignored(&rel, &ignores) {
-                    continue;
-                }
+        if dir != workspace
+            && let Ok(rel) = dir.strip_prefix(workspace)
+        {
+            let rel = dx_path::posix(rel);
+            if !rel.is_empty() && is_ignored(&rel, &ignores) {
+                continue;
             }
         }
         let entries = match std::fs::read_dir(&dir) {
@@ -749,12 +749,16 @@ mod tests {
             vec![&"--help".to_owned(), &"--version".to_owned()],
             "clap adds only its own flags to the command table"
         );
-        assert!(complete(&["dx", "b"], root)
-            .iter()
-            .any(|value| value == "build"));
-        assert!(!complete(&["dx", "b"], root)
-            .iter()
-            .any(|value| value == "test"));
+        assert!(
+            complete(&["dx", "b"], root)
+                .iter()
+                .any(|value| value == "build")
+        );
+        assert!(
+            !complete(&["dx", "b"], root)
+                .iter()
+                .any(|value| value == "test")
+        );
         let flags = complete(&["dx", "build", "-"], root);
         for flag in [
             "--workspace",

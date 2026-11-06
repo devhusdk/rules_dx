@@ -1,6 +1,6 @@
 //! Lists cabal packages whose newest preferred release on Hackage is newer than the freeze file pin.
 
-use super::{numeric_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -118,10 +118,10 @@ pub(crate) fn build_depends(text: &str) -> Vec<Depend> {
     let mut field_indent: Option<usize> = None;
     let mut entry: Option<(usize, usize)> = None;
     let mut finish = |entry: &mut Option<(usize, usize)>| {
-        if let Some((start, end)) = entry.take() {
-            if let Some(depend) = parse_entry(text, start, end) {
-                out.push(depend);
-            }
+        if let Some((start, end)) = entry.take()
+            && let Some(depend) = parse_entry(text, start, end)
+        {
+            out.push(depend);
         }
     };
     for line in text.split_inclusive('\n') {

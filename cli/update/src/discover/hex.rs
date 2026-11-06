@@ -1,6 +1,6 @@
 //! Lists locked hex packages whose newest release on hex.pm is newer than the one in mix.lock.
 
-use super::{release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
@@ -164,9 +164,11 @@ mod tests {
     fn prereleases_need_the_flag() {
         let only = ["pre".to_owned()];
         let text = [LOCK.to_owned()];
-        assert!(outdated("deps", &text, &only, false, DEFAULT_BASE, &api)
-            .candidates
-            .is_empty());
+        assert!(
+            outdated("deps", &text, &only, false, DEFAULT_BASE, &api)
+                .candidates
+                .is_empty()
+        );
         let found = outdated("deps", &text, &only, true, DEFAULT_BASE, &api);
         assert_eq!(found.candidates[0].latest, "2.0.0-rc.1");
         assert!(found.candidates[0].prerelease);

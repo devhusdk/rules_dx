@@ -77,10 +77,12 @@ fn manifest_matches_the_binary_and_its_dsym() {
     let json = dx_testing::read_json(&known_manifest()).unwrap();
     assert_eq!(json["uuid"], pair.uuid);
     assert_eq!(json["arch"], pair.arch);
-    assert!(json["dwarf"]
-        .as_str()
-        .unwrap()
-        .starts_with("Contents/Resources/DWARF/"));
+    assert!(
+        json["dwarf"]
+            .as_str()
+            .unwrap()
+            .starts_with("Contents/Resources/DWARF/")
+    );
     assert!(!json["dsymutil"].as_str().unwrap_or("").is_empty());
     assert_eq!(
         json["sha256"].as_str().unwrap(),

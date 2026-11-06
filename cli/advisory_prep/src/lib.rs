@@ -21,8 +21,8 @@ use std::process::Command as Process;
 
 use dx_atomic_fs::write_atomic;
 use dx_audit::advisory_prep::{
-    convert_entries, cpan_snapshot, fetch_many_plan, identity_bytes, needed_families,
-    split_cpansa_output, FetchLimits, PrepError, DEFAULT_LIMITS,
+    DEFAULT_LIMITS, FetchLimits, PrepError, convert_entries, cpan_snapshot, fetch_many_plan,
+    identity_bytes, needed_families, split_cpansa_output,
 };
 
 pub const DEFAULT_OUT: &str = ".dx/local/advisory";
@@ -260,7 +260,7 @@ fn publish(
             return Err(PrepError::Write {
                 path: dx_audit::advisory::identity_rel(family),
                 detail: error.to_string(),
-            })
+            });
         }
     }
     write_atomic(
@@ -299,7 +299,7 @@ fn prepare_cpan(
         (None, None) => {
             return Err(PrepError::Usage {
                 detail: "the cpan family needs --cpansa-dump or --cpansa-output".to_owned(),
-            })
+            });
         }
     };
     let (version, database) = split_cpansa_output(&output)?;

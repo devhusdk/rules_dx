@@ -61,11 +61,7 @@ fn prepend_path(command: &mut Command, prefix: &std::path::Path) {
 }
 
 fn path_separator() -> &'static str {
-    if cfg!(windows) {
-        ";"
-    } else {
-        ":"
-    }
+    if cfg!(windows) { ";" } else { ":" }
 }
 
 fn bad(message: impl std::fmt::Display) -> std::io::Error {

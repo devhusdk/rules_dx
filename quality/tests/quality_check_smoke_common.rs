@@ -5,7 +5,7 @@ use std::path::Path;
 
 use dx_nested::{self as nested, Case};
 use dx_test_scratch::scratch;
-use dx_testing::{read, resolve_runfiles, rules_dx_source, serde_json, write, Run};
+use dx_testing::{Run, read, resolve_runfiles, rules_dx_source, serde_json, write};
 
 pub const CLEAN: &str = "def add(a: int, b: int) -> int:\n    return a + b\n";
 
@@ -61,9 +61,7 @@ ruff_config(
 pub const RUFF_TOML: &str = "line-length = 88\n";
 
 pub fn library(name: &str) -> String {
-    format!(
-        "python_library(\n    name = \"{name}\",\n    srcs = [\"{name}.py\"],\n)\n"
-    )
+    format!("python_library(\n    name = \"{name}\",\n    srcs = [\"{name}.py\"],\n)\n")
 }
 
 pub fn package(names: &[&str]) -> String {

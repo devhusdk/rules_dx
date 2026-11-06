@@ -185,7 +185,7 @@ pub(crate) fn stage_codegen_side(
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use dx_setup::{read_current_pair, GENERATED_DIR_NAME};
+    use dx_setup::{GENERATED_DIR_NAME, read_current_pair};
 
     #[test]
     fn managed_live_invalid_codegen_shard_fails_closed() {

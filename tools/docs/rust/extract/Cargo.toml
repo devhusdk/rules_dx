@@ -2,7 +2,7 @@
 license = "Apache-2.0"
 name = "rust_extract"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 rustdoc-types = "=0.61.0"

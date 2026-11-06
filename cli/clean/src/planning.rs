@@ -134,9 +134,9 @@ mod tests {
         tag.to_string().repeat(64)
     }
 
-    fn record(env: char, gen: char) -> SetupRecordView {
+    fn record(env: char, gen_id: char) -> SetupRecordView {
         let environment_hex = digest(env);
-        let generated_hex = digest(gen);
+        let generated_hex = digest(gen_id);
         let pair = dx_setup::SetupPair {
             environment: dx_setup::GenerationId::new(&environment_hex).expect("env digest"),
             generated: dx_setup::GenerationId::new(&generated_hex).expect("gen digest"),
@@ -246,10 +246,12 @@ mod tests {
             unobserved: UnobservedPolicy::Preserve,
         });
         assert_eq!(plan.refused_unmanaged, unmanaged);
-        assert!(!plan
-            .prune_setup_records
-            .iter()
-            .any(|hex| unmanaged.contains(hex)));
+        assert!(
+            !plan
+                .prune_setup_records
+                .iter()
+                .any(|hex| unmanaged.contains(hex))
+        );
     }
 
     #[test]

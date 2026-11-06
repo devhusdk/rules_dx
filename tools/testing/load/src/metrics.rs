@@ -778,7 +778,9 @@ mod tests {
         let sum = |log: &str| parse_process_summary(log);
         let a = |executed, cached| Some(Actions { executed, cached });
         assert_eq!(
-            sum("INFO: 12 processes: 3 action cache hit, 2 disk cache hit, 1 remote cache hit, 2 internal, 4 linux-sandbox."),
+            sum(
+                "INFO: 12 processes: 3 action cache hit, 2 disk cache hit, 1 remote cache hit, 2 internal, 4 linux-sandbox."
+            ),
             a(4, 6)
         );
         assert_eq!(sum("INFO: 1 process: 1 internal."), a(0, 0));
@@ -855,9 +857,11 @@ mod tests {
             .find(|d| d.phase == "cold" && d.metric == "executed_actions")
             .unwrap();
         assert!(executed.percent > 15.0);
-        assert!(deltas
-            .iter()
-            .all(|d| d.phase != "warm" || !d.metric.ends_with("_actions")));
+        assert!(
+            deltas
+                .iter()
+                .all(|d| d.phase != "warm" || !d.metric.ends_with("_actions"))
+        );
         let broken = new.replace("\"oom_kills\"", "\"x\"");
         assert!(compare(&new, &broken).is_err());
     }

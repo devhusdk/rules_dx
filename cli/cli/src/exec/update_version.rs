@@ -2,7 +2,7 @@ use super::common::*;
 use super::dep_edit;
 use super::update_version_add;
 use dx_output::{
-    command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, notice_event,
 };
 use dx_plan::args::Invocation;
 use dx_plan::reports::plan_reports;
@@ -105,10 +105,8 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
             return exit;
         }
-    } else if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-            return exit;
-        }
+    } else if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+        return exit;
     }
     let planned = match plan_widens(&request, workspace) {
         Ok(planned) => planned,
@@ -219,10 +217,10 @@ fn check_edit(
         out,
         err,
     } = io;
-    if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "check")) {
-            return exit;
-        }
+    if invocation.output == OutputMode::Json
+        && let Err(exit) = emit_built(out, command_started(invocation.command.name(), "check"))
+    {
+        return exit;
     }
     let planned = match plan_widens(request, workspace) {
         Ok(planned) => planned,
@@ -291,10 +289,8 @@ fn check_edit(
             }
             return 0;
         }
-        if verbose {
-            if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
-                return exit;
-            }
+        if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+            return exit;
         }
         return 0;
     }
@@ -503,10 +499,8 @@ fn emit_update_no_change(
         }
         return 0;
     }
-    if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
-            return exit;
-        }
+    if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+        return exit;
     }
     0
 }
@@ -2020,11 +2014,61 @@ dependencies = ["anyio>=4"]
     fn live_github_actions_fails_closed_and_writes_no_workflow() {
         let sha = "cccccccccccccccccccccccccccccccccccccccc";
         let cases = [
-            ("ambiguous", vec![("ci.yml", vec!["jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n", "      - uses: actions/checkout@2222222222222222222222222222222222222222\n"])], "ambiguous requirement"),
-            ("unpinned", vec![("ci.yml", vec!["jobs:\n  b:\n    steps:\n      - uses: bazel-contrib/setup-bazel@cccccccccccccccccccccccccccccccccccccccc # v0.19.0\n"])], "no declared requirement"),
-            ("malformed", vec![("a.yml", vec!["jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n"]), ("b.yml", vec!["jobs: [\n"])], "not valid YAML"),
-            ("aliased", vec![("a.yml", vec!["jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n"]), ("b.yml", vec!["x: &s\n  - uses: actions/checkout@v1\njobs:\n  b:\n    steps: *s\n"])], "aliases or merge keys"),
-            ("no-workflows", vec![("README.md", vec!["not a workflow\n"])], "no declared requirement"),
+            (
+                "ambiguous",
+                vec![(
+                    "ci.yml",
+                    vec![
+                        "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n",
+                        "      - uses: actions/checkout@2222222222222222222222222222222222222222\n",
+                    ],
+                )],
+                "ambiguous requirement",
+            ),
+            (
+                "unpinned",
+                vec![(
+                    "ci.yml",
+                    vec![
+                        "jobs:\n  b:\n    steps:\n      - uses: bazel-contrib/setup-bazel@cccccccccccccccccccccccccccccccccccccccc # v0.19.0\n",
+                    ],
+                )],
+                "no declared requirement",
+            ),
+            (
+                "malformed",
+                vec![
+                    (
+                        "a.yml",
+                        vec![
+                            "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n",
+                        ],
+                    ),
+                    ("b.yml", vec!["jobs: [\n"]),
+                ],
+                "not valid YAML",
+            ),
+            (
+                "aliased",
+                vec![
+                    (
+                        "a.yml",
+                        vec![
+                            "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n",
+                        ],
+                    ),
+                    (
+                        "b.yml",
+                        vec!["x: &s\n  - uses: actions/checkout@v1\njobs:\n  b:\n    steps: *s\n"],
+                    ),
+                ],
+                "aliases or merge keys",
+            ),
+            (
+                "no-workflows",
+                vec![("README.md", vec!["not a workflow\n"])],
+                "no declared requirement",
+            ),
         ];
         for (name, workflows, expected) in cases {
             let harness = Harness::new(&format!("update-live-gha-{name}"));

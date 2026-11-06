@@ -1,9 +1,7 @@
 use super::*;
 
-const SECURITY_SCHEMA: &str =
-    "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json";
-const LICENSE_SCHEMA: &str =
-    "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json";
+const SECURITY_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json";
+const LICENSE_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json";
 
 /// A vulnerability finding that an `--accept` can turn into an exception.
 pub(super) struct VulnCandidate {

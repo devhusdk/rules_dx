@@ -4,7 +4,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use dx_test_scratch::{scratch, TempDir};
+use dx_test_scratch::{TempDir, scratch};
 use dx_testing::resolve_runfiles;
 
 struct Out {

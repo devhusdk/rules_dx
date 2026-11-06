@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, known_spelled, missing, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known_spelled, missing, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 fn pydoclint_violation(line: &str) -> Result<(u64, &str, String), ParseError> {
@@ -107,9 +107,11 @@ mod tests {
             (TextPosition { line: 4, column: 1 }, None)
         );
         assert_eq!(findings[1].finding.rule_id, "DOC201");
-        assert!(parse_pydoclint(b"", Some(0), &["/s/a.py"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_pydoclint(b"", Some(0), &["/s/a.py"])
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_pydoclint(b"", Some(1), &["/s/a.py"]).is_err());
         assert!(parse_pydoclint(stderr.as_bytes(), Some(1), &["/s/other.py"]).is_err());
         assert!(parse_pydoclint(b"    4: DOC101: msg\n", Some(1), &["/s/a.py"]).is_err());
@@ -139,12 +141,14 @@ mod tests {
         assert!(
             parse_pydoclint(stderr.as_bytes(), Some(1), &[r"C:\tmp\dx-scratch-a\b.py"]).is_err()
         );
-        assert!(parse_pydoclint(
-            stderr.as_bytes(),
-            Some(1),
-            &[r"C:\tmp\dx-scratch-a\..\a.py"]
-        )
-        .is_err());
+        assert!(
+            parse_pydoclint(
+                stderr.as_bytes(),
+                Some(1),
+                &[r"C:\tmp\dx-scratch-a\..\a.py"]
+            )
+            .is_err()
+        );
     }
 
     #[test]

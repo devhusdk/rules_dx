@@ -1,6 +1,6 @@
 //! Lists Cargo dependencies whose newest stable crates.io version is outside the declared requirement.
 
-use super::{github_repo, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
 use semver::{Version, VersionReq};
 use std::collections::BTreeMap;
 use toml_edit::{DocumentMut, Item, Table};

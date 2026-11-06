@@ -64,7 +64,9 @@ fn render(results: &[Measurement]) -> String {
 }
 
 fn run(args: &[String]) -> Result<(), String> {
-    let (binary, rest) = args.split_first().ok_or("usage: bench_report BINARY [ARGS...]")?;
+    let (binary, rest) = args
+        .split_first()
+        .ok_or("usage: bench_report BINARY [ARGS...]")?;
     let outputs = std::env::var_os("TEST_UNDECLARED_OUTPUTS_DIR")
         .map(PathBuf::from)
         .ok_or("TEST_UNDECLARED_OUTPUTS_DIR is not set")?;

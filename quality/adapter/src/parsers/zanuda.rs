@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known_native, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known_native};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "zanuda";
@@ -107,9 +107,11 @@ mod tests {
 
     #[test]
     fn zanuda_is_clean_on_an_empty_report() {
-        assert!(parse_zanuda(b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_zanuda(b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

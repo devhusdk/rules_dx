@@ -14,14 +14,14 @@ rust_library(
     srcs = ["src/lib.rs"],
     crate_name = "msvc_paths",
     crate_root = "src/lib.rs",
-    edition = "2021",
+    edition = "2024",
     visibility = ["//visibility:public"],
 )
 
 rust_binary(
     name = "msvc_link",
     srcs = ["src/msvc_link.rs"],
-    edition = "2021",
+    edition = "2024",
     rustc_flags = _RUSTC_FLAGS,
     visibility = ["//visibility:public"],
     deps = [":msvc_paths"],
@@ -30,7 +30,7 @@ rust_binary(
 rust_binary(
     name = "msvc_lib",
     srcs = ["src/msvc_lib.rs"],
-    edition = "2021",
+    edition = "2024",
     rustc_flags = _RUSTC_FLAGS,
     visibility = ["//visibility:public"],
     deps = [":msvc_paths"],
@@ -40,7 +40,7 @@ rust_test(
     name = "msvc_paths_test",
     size = "small",
     crate = ":msvc_paths",
-    edition = "2021",
+    edition = "2024",
     rustc_flags = _RUSTC_FLAGS,
 )
 

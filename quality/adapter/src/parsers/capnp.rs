@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "capnp";
@@ -203,9 +203,11 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_capnp(b"", Some(0), &[FILE])
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_capnp(b"", Some(0), &[FILE])
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]

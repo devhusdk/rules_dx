@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use dx_module_bazel::{load_labels, Call, ModuleFile, Value};
+use dx_module_bazel::{Call, ModuleFile, Value, load_labels};
 
 fn read(workspace: &Path, rel: &str) -> Result<Option<String>, String> {
     match std::fs::read_to_string(workspace.join(rel)) {
@@ -345,13 +345,13 @@ fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, String> {
         for line in text.lines() {
             let line = line.split('#').next().unwrap_or_default();
             let words: Vec<&str> = line.split_whitespace().collect();
-            if let [verb, path] = words.as_slice() {
-                if matches!(*verb, "import" | "try-import") {
-                    if let Some(rest) = path.strip_prefix("%workspace%/") {
-                        pending.push(rest.to_owned());
-                    }
-                    continue;
+            if let [verb, path] = words.as_slice()
+                && matches!(*verb, "import" | "try-import")
+            {
+                if let Some(rest) = path.strip_prefix("%workspace%/") {
+                    pending.push(rest.to_owned());
                 }
+                continue;
             }
             for word in words.iter().skip(1) {
                 let word = word.strip_prefix("--").unwrap_or(word);
@@ -1133,7 +1133,11 @@ mod tests {
             );
             assert_eq!(input_paths(root), (Vec::new(), false), "{tag}");
         }
-        write(root, "MODULE.bazel", "module(name = \"demo\")\nbazel_dep(name = \"x\", version = VERSION)\nother.tag(lock = \"//:x.lock\")\n");
+        write(
+            root,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nbazel_dep(name = \"x\", version = VERSION)\nother.tag(lock = \"//:x.lock\")\n",
+        );
         assert_eq!(input_paths(root), (Vec::new(), true));
     }
 

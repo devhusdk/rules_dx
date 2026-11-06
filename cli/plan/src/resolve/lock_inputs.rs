@@ -175,15 +175,17 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
         }
         let bzl = literal(call, "extension_bzl_file", Some(0))?.unwrap_or_default();
         let name = literal(call, "extension_name", Some(1))?.unwrap_or_default();
-        if bzl.ends_with(CRATE_EXTENSION_BZL) && name == "crate" {
-            if let Some(binding) = &call.binding {
-                bindings.insert(binding);
-            }
+        if bzl.ends_with(CRATE_EXTENSION_BZL)
+            && name == "crate"
+            && let Some(binding) = &call.binding
+        {
+            bindings.insert(binding);
         }
-        if bzl.ends_with(NPM_EXTENSION_BZL) && name == "npm" {
-            if let Some(binding) = &call.binding {
-                npm_bindings.insert(binding);
-            }
+        if bzl.ends_with(NPM_EXTENSION_BZL)
+            && name == "npm"
+            && let Some(binding) = &call.binding
+        {
+            npm_bindings.insert(binding);
         }
     }
     let mut hubs = Vec::new();
@@ -267,10 +269,9 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
         let name = literal(call, "extension_name", Some(1)).ok().flatten();
         if bzl.is_some_and(|bzl| bzl.ends_with("extensions.bzl"))
             && name.as_deref() == Some("go_deps")
+            && let Some(binding) = &call.binding
         {
-            if let Some(binding) = &call.binding {
-                bindings.insert(binding);
-            }
+            bindings.insert(binding);
         }
     }
     let mut hubs = Vec::new();
@@ -557,19 +558,19 @@ fn hub_aliases(
                 out.entry(name.clone()).or_default().insert(key.clone());
             }
         }
-        if binaries.contains(id) {
-            if let Some(serde_json::Value::Array(targets)) = entry.get("targets") {
-                for bin in targets
-                    .iter()
-                    .filter_map(|target| target.get("Binary")?.get("crate_name")?.as_str())
-                {
-                    out.entry(format!("{}__{bin}", key.0))
-                        .or_default()
-                        .insert(key.clone());
-                    out.entry(format!("{}-{}__{bin}", key.0, key.1))
-                        .or_default()
-                        .insert(key.clone());
-                }
+        if binaries.contains(id)
+            && let Some(serde_json::Value::Array(targets)) = entry.get("targets")
+        {
+            for bin in targets
+                .iter()
+                .filter_map(|target| target.get("Binary")?.get("crate_name")?.as_str())
+            {
+                out.entry(format!("{}__{bin}", key.0))
+                    .or_default()
+                    .insert(key.clone());
+                out.entry(format!("{}-{}__{bin}", key.0, key.1))
+                    .or_default()
+                    .insert(key.clone());
             }
         }
     }
@@ -693,10 +694,11 @@ pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
             .ok()
             .flatten()
             .unwrap_or_default();
-        if bzl.ends_with(PIP_EXTENSION_BZL) && name == "pip" {
-            if let Some(binding) = &call.binding {
-                bindings.insert(binding);
-            }
+        if bzl.ends_with(PIP_EXTENSION_BZL)
+            && name == "pip"
+            && let Some(binding) = &call.binding
+        {
+            bindings.insert(binding);
         }
     }
     let mut hubs = Vec::new();
@@ -859,10 +861,12 @@ pub(crate) fn maven_hubs(module_text: &str) -> Vec<Hub> {
             .ok()
             .flatten()
             .unwrap_or_default();
-        if bzl.contains("rules_jvm_external") && bzl.ends_with(MAVEN_EXTENSION) && name == "maven" {
-            if let Some(binding) = &call.binding {
-                bindings.insert(binding);
-            }
+        if bzl.contains("rules_jvm_external")
+            && bzl.ends_with(MAVEN_EXTENSION)
+            && name == "maven"
+            && let Some(binding) = &call.binding
+        {
+            bindings.insert(binding);
         }
     }
     let mut hubs = Vec::new();
@@ -1032,10 +1036,11 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
         }
         let bzl = literal(call, "extension_bzl_file", Some(0))?.unwrap_or_default();
         let name = literal(call, "extension_name", Some(1))?.unwrap_or_default();
-        if bzl.contains("rules_dx") && name == "ruby" {
-            if let Some(binding) = &call.binding {
-                bindings.insert(binding);
-            }
+        if bzl.contains("rules_dx")
+            && name == "ruby"
+            && let Some(binding) = &call.binding
+        {
+            bindings.insert(binding);
         }
     }
     let mut hubs = Vec::new();
@@ -1140,12 +1145,12 @@ fn pnpm_settings(text: &str) -> BTreeMap<String, String> {
             let name = line.split(':').next().unwrap_or(line).to_owned();
             key = Some(name);
         }
-        if let Some(key) = &key {
-            if !matches!(key.as_str(), "importers" | "packages" | "snapshots") {
-                let entry = out.entry(key.clone()).or_default();
-                entry.push_str(line);
-                entry.push('\n');
-            }
+        if let Some(key) = &key
+            && !matches!(key.as_str(), "importers" | "packages" | "snapshots")
+        {
+            let entry = out.entry(key.clone()).or_default();
+            entry.push_str(line);
+            entry.push('\n');
         }
     }
     out
@@ -1311,14 +1316,18 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         );
         assert_eq!(classify("Cargo.lock", &hubs), LockKind::Unknown);
         let lock = |rake: &str| {
-            format!("GEM\n  remote: https://rubygems.org/\n  specs:\n    rake ({rake})\n    racc (1.8.1)\n\nPLATFORMS\n  ruby\n")
+            format!(
+                "GEM\n  remote: https://rubygems.org/\n  specs:\n    rake ({rake})\n    racc (1.8.1)\n\nPLATFORMS\n  ruby\n"
+            )
         };
         let change = changed_gems(&lock("13.0.0"), &lock("13.1.0")).expect("diff");
         assert_eq!(change.crates, crates(&[("rake", &["13.0.0", "13.1.0"])]));
-        assert!(changed_gems(&lock("1"), &lock("1"))
-            .expect("same")
-            .crates
-            .is_empty());
+        assert!(
+            changed_gems(&lock("1"), &lock("1"))
+                .expect("same")
+                .crates
+                .is_empty()
+        );
     }
 
     #[test]

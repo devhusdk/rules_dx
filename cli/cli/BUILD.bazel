@@ -114,7 +114,6 @@ rust_library(
     compile_data = ["src/exec/unsupported.json"],
     crate_name = "dx_cli",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_cli",
         normal = True,
@@ -168,7 +167,6 @@ rust_binary(
     crate_name = "dx",
     crate_root = "src/main.rs",
     data = ["//cli/prebuilt:pins.bzl"],
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "cli/dx_cli",
@@ -214,7 +212,6 @@ rust_binary(
     ),
     crate_name = "dx_man",
     crate_root = "src/bin_man.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_cli",
         normal = True,
@@ -380,7 +377,6 @@ rust_test(
         "//tools/testing/process_probe",
         "@dx_tools//:gitleaks",
     ],
-    edition = "2021",
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
         "DX_TEST_GITLEAKS": "$(rootpath @dx_tools//:gitleaks)",

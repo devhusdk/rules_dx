@@ -164,9 +164,11 @@ fn scope_rejects_non_exact_inputs() {
 
 #[test]
 fn scope_errors_display() {
-    assert!(ScopeError::MultipleTargets { count: 2 }
-        .to_string()
-        .contains("at most one target"));
+    assert!(
+        ScopeError::MultipleTargets { count: 2 }
+            .to_string()
+            .contains("at most one target")
+    );
 }
 
 #[test]
@@ -406,7 +408,8 @@ fn fingerprint_matches_starlark_rendering() {
             "//env:a",
             "rust",
             vec![entry_with_exec("runtime", "stable", "out/rustc")]
-        )]).expect("fingerprint"),
+        )])
+        .expect("fingerprint"),
         "[{\"entries\":[{\"exec_path\":\"out/rustc\",\"key\":\"runtime\",\"value\":\"stable\"}],\"integration\":\"rust\",\"producer\":\"//env:a\"}]"
     );
 }

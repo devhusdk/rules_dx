@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 pub use crate::pointer_index::escape;
-use crate::pointer_index::{scan_yaml as scan, Offsets, Raw, SyntaxAt};
+use crate::pointer_index::{Offsets, Raw, SyntaxAt, scan_yaml as scan};
 
 /// A file that does not parse as YAML or JSON, or is too large or not UTF-8.
 pub const RULE_SYNTAX: &str = "dx/kubernetes-syntax";

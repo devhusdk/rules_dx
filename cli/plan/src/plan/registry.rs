@@ -428,9 +428,13 @@ mod tests {
                 "@rules_dx//quality:real_aspects.bzl%real_{probe}_probe_aspect"
             )));
         }
-        assert!(labels.contains(&"@rules_dx//quality:real_aspects.bzl%real_lint_aspect".to_owned()));
-        assert!(labels
-            .contains(&"@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect".to_owned()));
+        assert!(
+            labels.contains(&"@rules_dx//quality:real_aspects.bzl%real_lint_aspect".to_owned())
+        );
+        assert!(
+            labels
+                .contains(&"@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect".to_owned())
+        );
         assert!(labels.contains(&dx_codegen::aspect_label(super::super::rules_dx_repo())));
         assert!(labels.contains(&dx_env_plan::aspect_label(super::super::rules_dx_repo())));
         let mut sorted = labels.clone();

@@ -1,6 +1,6 @@
 //! `gate_base_bin` pins origin/main for the affected checks and writes GATE_BASE to GITHUB_ENV.
 
-use gate_base::{export, pin, Event};
+use gate_base::{Event, export, pin};
 use std::process::ExitCode;
 
 fn env(name: &str) -> String {

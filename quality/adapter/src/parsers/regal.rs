@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{
-    as_text, check_output_size, code_name, finding, known_native, FileFinding, ParseError,
+    FileFinding, ParseError, as_text, check_output_size, code_name, finding, known_native,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -93,7 +93,7 @@ pub fn parse_regal(
                 return Err(ParseError::shape(
                     TOOL,
                     format!("unknown level {other:?} for {}", violation.title),
-                ))
+                ));
             }
         };
         let Some(location) = violation.location else {
@@ -161,9 +161,11 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_regal(CLEAN.as_bytes(), b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_regal(CLEAN.as_bytes(), b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -216,8 +218,10 @@ mod tests {
     #[test]
     fn ignored_files_may_scan_fewer() {
         let partial = CLEAN.replace("\"files_scanned\":2", "\"files_scanned\":1");
-        assert!(parse_regal(partial.as_bytes(), b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_regal(partial.as_bytes(), b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 }

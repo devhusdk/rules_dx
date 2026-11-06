@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::Ownership;
 
-use super::{plan_profile_files, release_pins, AdoptError, Profile, DX_VERSION};
+use super::{AdoptError, DX_VERSION, Profile, plan_profile_files, release_pins};
 
 /// How a scaffold file is treated when it already exists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -823,11 +823,11 @@ pub(crate) fn entries(
 #[cfg(test)]
 mod tests {
     use super::{
+        Applied, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
+        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION, EDITORCONFIG_CONTENT, ScaffoldFile,
         editor_settings_value, entries, owned_file_drift, plan_init_files, plan_init_files_at,
         refresh_scaffold, render_consumer_caller, render_consumer_caller_for,
-        render_editor_settings, Applied, ScaffoldFile, CONSUMER_WORKFLOW_OWNER,
-        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
-        DX_VERSION, EDITORCONFIG_CONTENT,
+        render_editor_settings,
     };
 
     pub(super) fn apply_init(
@@ -988,10 +988,12 @@ mod tests {
         }
         assert!(parsed.get("name").is_none());
         assert!(parsed["customizations"].is_null());
-        assert!(parsed["mounts"][0]
-            .as_str()
-            .expect("cache mount")
-            .contains("type=volume"));
+        assert!(
+            parsed["mounts"][0]
+                .as_str()
+                .expect("cache mount")
+                .contains("type=volume")
+        );
         assert_eq!(parsed["postCreateCommand"], "tools/dx env --apply");
     }
 
@@ -1017,12 +1019,16 @@ mod tests {
             parsed["java.configuration.updateBuildConfiguration"],
             serde_json::Value::from("manual")
         );
-        assert!(settings
-            .content
-            .contains("rust-analyzer.workspace.discoverConfig"));
-        assert!(settings
-            .content
-            .contains("rust-analyzer.check.overrideCommand"));
+        assert!(
+            settings
+                .content
+                .contains("rust-analyzer.workspace.discoverConfig")
+        );
+        assert!(
+            settings
+                .content
+                .contains("rust-analyzer.check.overrideCommand")
+        );
         assert!(!settings.content.contains("rust-analyzer.check.command"));
         assert!(settings.content.contains("go.toolsManagement"));
         let devcontainer = files
@@ -1145,9 +1151,11 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-editorconfig-new-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
-        assert!(editorconfig_file(&root)
-            .content
-            .ends_with(EDITORCONFIG_CONTENT));
+        assert!(
+            editorconfig_file(&root)
+                .content
+                .ends_with(EDITORCONFIG_CONTENT)
+        );
         std::fs::write(root.join("Main.kt"), "fun main() {}\n").expect("kt");
         let content = editorconfig_file(&root).content;
         assert!(content.contains(EDITORCONFIG_CONTENT));
@@ -1273,7 +1281,9 @@ mod tests {
             "9lives"
         );
         assert_eq!(
-            super::validate_init_module("Bad Name").unwrap_err().to_string(),
+            super::validate_init_module("Bad Name")
+                .unwrap_err()
+                .to_string(),
             "invalid module name for dx init: \"Bad Name\": module names start with [a-z0-9] and use [a-z0-9._-] only"
         );
     }
@@ -1598,9 +1608,11 @@ mod tests {
                 assert!(listed.contains(&format!(".dx/{dir}").as_str()), "{dir}");
             }
         }
-        assert!(!listed
-            .iter()
-            .any(|line| line.starts_with(".dx/config") || *line == ".dx/pins"));
+        assert!(
+            !listed
+                .iter()
+                .any(|line| line.starts_with(".dx/config") || *line == ".dx/pins")
+        );
     }
 
     #[test]

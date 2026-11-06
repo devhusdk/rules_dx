@@ -1,12 +1,12 @@
 use super::{
-    canonical_severity, family_assess, go_assess, is_version_family, maven_assess, normalize_level,
-    normalize_pypi_name, nuget_assess, pypi_assess, ruby_assess, split_gem_lock_version, Advisory,
-    LockedPackage, Unassessed, VersionScope, VulnFinding, REASON_GIT, REASON_PRIVATE,
-    REASON_VERSION_SYNTAX,
+    Advisory, LockedPackage, REASON_GIT, REASON_PRIVATE, REASON_VERSION_SYNTAX, Unassessed,
+    VersionScope, VulnFinding, canonical_severity, family_assess, go_assess, is_version_family,
+    maven_assess, normalize_level, normalize_pypi_name, nuget_assess, pypi_assess, ruby_assess,
+    split_gem_lock_version,
 };
 use crate::exception::{
-    cargo_assess, check_expiry, npm_assess, validate_exception, ExceptionProblem, FindingRef,
-    RiskException,
+    ExceptionProblem, FindingRef, RiskException, cargo_assess, check_expiry, npm_assess,
+    validate_exception,
 };
 
 /// The single dispatch table from a lock set to its version matcher.

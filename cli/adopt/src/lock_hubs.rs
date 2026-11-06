@@ -8,8 +8,8 @@ use std::path::Path;
 
 use dx_module_bazel::{Arg, ModuleError, ModuleFile, NewTag, Value};
 
-use crate::module_pin::ModuleEdit;
 use crate::AdoptError;
+use crate::module_pin::ModuleEdit;
 
 const MODULE_FILE: &str = "MODULE.bazel";
 const CARGO_LOCK: &str = "Cargo.lock";
@@ -162,11 +162,11 @@ impl Planner<'_> {
             }
         }
         for label in labels {
-            if let Ok(path) = dx_module_bazel::label_path(&label) {
-                if !self.exists(&path) {
-                    self.notes
-                        .push(format!("{MODULE_FILE} names {label}, but {path} is gone"));
-                }
+            if let Ok(path) = dx_module_bazel::label_path(&label)
+                && !self.exists(&path)
+            {
+                self.notes
+                    .push(format!("{MODULE_FILE} names {label}, but {path} is gone"));
             }
         }
     }

@@ -1,4 +1,4 @@
-use remote_cache_flags::{flags, Cache};
+use remote_cache_flags::{Cache, flags};
 
 fn cache<'a>(url: &'a str, header: &'a str, key: &'a str, event: &'a str) -> Cache<'a> {
     Cache {

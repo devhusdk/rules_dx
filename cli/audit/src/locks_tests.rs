@@ -30,10 +30,12 @@ fn lock_fallback_parsers_match_normal_paths() {
             "{key}"
         );
     }
-    assert!(parse_cargo_lock(
-        "[[package]]\nname = \"\"\nversion = \"1.0.0\"\nsource = \"registry+test\"\n"
-    )
-    .is_err());
+    assert!(
+        parse_cargo_lock(
+            "[[package]]\nname = \"\"\nversion = \"1.0.0\"\nsource = \"registry+test\"\n"
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -310,9 +312,11 @@ version = "0.0.0"
     assert_eq!(sparse.name, "sparse-dep");
     assert!(!sparse.is_git && !sparse.is_private);
     assert!(!packages.iter().any(|package| package.name == "path-dep"));
-    assert!(!packages
-        .iter()
-        .any(|package| package.name == "workspace-member"));
+    assert!(
+        !packages
+            .iter()
+            .any(|package| package.name == "workspace-member")
+    );
 }
 
 #[test]
@@ -402,12 +406,16 @@ checksum = "abc"
 fn pnpm_lock_parses_external_and_skips_links() {
     let text = "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n\n  '@astrojs/compiler@4.0.0':\n    resolution: {integrity: sha512-def}\n\n  'my-workspace@link:.':\n    resolution: {directory: .}\n";
     let packages = parse_pnpm_lock(text).expect("parses");
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "react" && package.version == "18.2.0"));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "@astrojs/compiler" && package.version == "4.0.0"));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "react" && package.version == "18.2.0")
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "@astrojs/compiler" && package.version == "4.0.0")
+    );
     assert!(!packages.iter().any(|package| package.name.contains("link")));
 }
 
@@ -415,25 +423,37 @@ fn pnpm_lock_parses_external_and_skips_links() {
 fn pnpm_lock_handles_quoted_bare_scoped_peer_and_link_keys() {
     let text = "lockfileVersion: '9.0'\npackages:\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n  \"lodash@4.17.21\":\n    resolution: {integrity: sha512-def}\n  acorn@8.18.0:\n    resolution: {integrity: sha512-ghi}\n  '@babel/core@7.29.7':\n    resolution: {integrity: sha512-jkl}\n  'jest@30.2.0(@types/node@22.20.2)':\n    resolution: {integrity: sha512-mno}\n  'my-workspace@link:.':\n    resolution: {directory: .}\n  some-pkg@link:../some-pkg:\n    resolution: {directory: ../some-pkg}\n";
     let packages = parse_pnpm_lock(text).expect("parses");
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "react" && package.version == "18.2.0"));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "lodash" && package.version == "4.17.21"));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "acorn" && package.version == "8.18.0"));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "@babel/core" && package.version == "7.29.7"));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "jest" && package.version == "30.2.0"));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "react" && package.version == "18.2.0")
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "lodash" && package.version == "4.17.21")
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "acorn" && package.version == "8.18.0")
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "@babel/core" && package.version == "7.29.7")
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "jest" && package.version == "30.2.0")
+    );
     assert!(!packages.iter().any(|package| package.name.contains("link")));
-    assert!(!packages
-        .iter()
-        .any(|package| package.version.contains("link:")));
+    assert!(
+        !packages
+            .iter()
+            .any(|package| package.version.contains("link:"))
+    );
     assert_eq!(packages.len(), 5);
 }
 
@@ -453,9 +473,11 @@ fn pnpm_lock_missing_packages_is_empty_and_invalid_fails() {
 fn pnpm_lock_git_resolutions_are_incomplete_never_dropped() {
     let text = "lockfileVersion: '9.0'\npackages:\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n  'git-dep@github:user/repo#abc123':\n    resolution: {repo: 'https://github.com/user/repo.git', commit: abc123}\n  'typed-git@0.0.0':\n    resolution: {type: git, repo: 'https://github.com/user/typed.git', commit: def456}\n  'tarball-git@https://codeload.github.com/user/repo/tar.gz#abc':\n    resolution: {tarball: 'https://codeload.github.com/user/repo/tar.gz#abc'}\n  'local@file:../local':\n    resolution: {directory: ../local}\n";
     let packages = parse_pnpm_lock(text).expect("parses");
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "react" && !package.is_git));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "react" && !package.is_git)
+    );
     for name in ["git-dep", "typed-git", "tarball-git"] {
         let git = packages
             .iter()
@@ -467,9 +489,11 @@ fn pnpm_lock_git_resolutions_are_incomplete_never_dropped() {
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[]);
     assert!(findings.is_empty());
     assert_eq!(unassessed.len(), 3);
-    assert!(unassessed
-        .iter()
-        .all(|entry| entry.reason == crate::vuln::REASON_GIT));
+    assert!(
+        unassessed
+            .iter()
+            .all(|entry| entry.reason == crate::vuln::REASON_GIT)
+    );
 }
 
 #[test]
@@ -502,12 +526,16 @@ fn npm_git_reference_markers_are_explicit_only() {
 fn package_lock_parses_registry_skips_links_and_flags_git() {
     let text = r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/react":{"version":"18.2.0","resolved":"https://registry.npmjs.org/react/-/react-18.2.0.tgz"},"node_modules/@scope/pkg":{"version":"1.0.0","resolved":"https://registry.npmjs.org/@scope/pkg/-/pkg-1.0.0.tgz"},"node_modules/linked":{"version":"1.0.0","link":true},"node_modules/local":{"version":"file:../local"},"node_modules/git-dep":{"version":"github:user/repo#abc123"},"node_modules/git-url":{"version":"1.0.0","resolved":"git+https://github.com/user/repo.git#abc123"}}}"#;
     let packages = parse_package_lock(text).expect("parses");
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "react" && !package.is_git));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "@scope/pkg" && !package.is_git));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "react" && !package.is_git)
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "@scope/pkg" && !package.is_git)
+    );
     for name in ["git-dep", "git-url"] {
         let git = packages
             .iter()
@@ -521,18 +549,22 @@ fn package_lock_parses_registry_skips_links_and_flags_git() {
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[]);
     assert!(findings.is_empty());
     assert_eq!(unassessed.len(), 2);
-    assert!(unassessed
-        .iter()
-        .all(|entry| entry.reason == crate::vuln::REASON_GIT));
+    assert!(
+        unassessed
+            .iter()
+            .all(|entry| entry.reason == crate::vuln::REASON_GIT)
+    );
 }
 
 #[test]
 fn package_lock_legacy_dependencies_shape_flags_git() {
     let text = r#"{"name":"root","lockfileVersion":1,"dependencies":{"react":{"version":"18.2.0","resolved":"https://registry.npmjs.org/react/-/react-18.2.0.tgz"},"git-dep":{"version":"0.0.0","resolved":"git+ssh://git@github.com/user/repo.git#abc123"}}}"#;
     let packages = parse_package_lock(text).expect("parses");
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "react" && !package.is_git));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "react" && !package.is_git)
+    );
     let git = packages
         .iter()
         .find(|package| package.name == "git-dep")
@@ -546,12 +578,16 @@ fn package_lock_legacy_dependencies_shape_flags_git() {
 fn yarn_lock_parses_registry_skips_file_and_flags_git() {
     let text = "# yarn lockfile v1\n\nreact@^18.0.0:\n  version \"18.2.0\"\n  resolved \"https://registry.yarnpkg.com/react/-/react-18.2.0.tgz#abc\"\n\n\"@scope/pkg@^1.0.0\":\n  version \"1.0.0\"\n  resolved \"https://registry.yarnpkg.com/@scope/pkg/-/pkg-1.0.0.tgz#def\"\n\n\"git-dep@github:user/repo#abc123\":\n  version \"0.0.0\"\n  resolved \"https://github.com/user/repo.git#abc123\"\n\nlocal@file:../local:\n  version \"file:../local\"\n";
     let packages = parse_yarn_lock(text).expect("parses");
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "react" && package.version == "18.2.0" && !package.is_git));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "@scope/pkg" && !package.is_git));
+    assert!(
+        packages.iter().any(|package| package.name == "react"
+            && package.version == "18.2.0"
+            && !package.is_git)
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "@scope/pkg" && !package.is_git)
+    );
     let git = packages
         .iter()
         .find(|package| package.name == "git-dep")
@@ -589,12 +625,16 @@ fn yarn_v1_npm_alias_is_reported_under_the_real_package() {
     let real = packages.iter().find(|p| p.name == "real").expect("real");
     assert_eq!(real.version, "1.2.0");
     assert_eq!(real.location.as_deref(), Some("alias"));
-    assert!(packages
-        .iter()
-        .any(|p| p.name == "@scope/real" && p.version == "1.3.0"));
-    assert!(!packages
-        .iter()
-        .any(|p| p.name == "alias" || p.name == "scoped"));
+    assert!(
+        packages
+            .iter()
+            .any(|p| p.name == "@scope/real" && p.version == "1.3.0")
+    );
+    assert!(
+        !packages
+            .iter()
+            .any(|p| p.name == "alias" || p.name == "scoped")
+    );
 }
 
 #[test]
@@ -650,9 +690,11 @@ fn maven_install_parses_artifacts() {
     let text = r#"{"artifacts": {"junit:junit": {"version": "4.13.2"}, "com.google.guava:guava": {"version": "32.0.0"}}}"#;
     let packages = parse_maven_install(text).expect("parses");
     assert_eq!(packages.len(), 2);
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "junit:junit" && package.version == "4.13.2"));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "junit:junit" && package.version == "4.13.2")
+    );
 }
 
 #[test]
@@ -706,16 +748,22 @@ fn gemfile_lock_parses_registry_specs_and_skips_dependency_lines() {
         .map(|package| package.name.as_str())
         .collect();
     assert_eq!(names, ["diff-lcs", "rspec", "rspec-core", "rspec-support"]);
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "rspec" && package.version == "3.13.0"));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "rspec" && package.version == "3.13.0")
+    );
     assert!(packages.iter().all(|package| package.set == "ruby"));
-    assert!(packages
-        .iter()
-        .all(|package| !package.is_git && !package.is_private));
-    assert!(!packages
-        .iter()
-        .any(|package| package.name == "rspec-support" && package.version.is_empty()));
+    assert!(
+        packages
+            .iter()
+            .all(|package| !package.is_git && !package.is_private)
+    );
+    assert!(
+        !packages
+            .iter()
+            .any(|package| package.name == "rspec-support" && package.version.is_empty())
+    );
     assert_eq!(packages[0].version, "1.5.0");
 }
 
@@ -780,9 +828,11 @@ fn psgallery_lock_parses_every_pinned_module_as_a_powershell_package() {
             .collect::<Vec<_>>(),
         vec![("PSScriptAnalyzer", "1.25.0"), ("Pester", "5.7.1")]
     );
-    assert!(packages
-        .iter()
-        .all(|package| package.set == "powershell" && !package.is_git && !package.is_private));
+    assert!(
+        packages
+            .iter()
+            .all(|package| package.set == "powershell" && !package.is_git && !package.is_private)
+    );
 }
 
 #[test]
@@ -795,9 +845,11 @@ fn psgallery_lock_missing_modules_or_versions_fails_closed() {
         parse_psgallery_lock("{\"modules\": {\"Pester\": {\"notes\": \"floating\"}}}").is_err()
     );
     assert!(parse_psgallery_lock("{\"modules\": {\"Pester\": {\"version\": \"\"}}}").is_err());
-    assert!(parse_psgallery_lock("{\"modules\": {}}")
-        .expect("an empty lock is valid")
-        .is_empty());
+    assert!(
+        parse_psgallery_lock("{\"modules\": {}}")
+            .expect("an empty lock is valid")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -805,40 +857,52 @@ fn go_mod_parses_require_block_and_single_line_with_comments() {
     let text = "module rules_dx/third_party/go\n\ngo 1.24.12\n\nrequire (\n\tgithub.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52 // indirect\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/pmezard/go-difflib v1.0.0\n)\n\nrequire example.com/single v1.2.3 // indirect\n";
     let packages = go_locked_packages(text).expect("parses");
     assert_eq!(packages.len(), 4);
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "github.com/google/go-cmp"
-            && package.version == "v0.6.0"
-            && package.set == "go"
-            && !package.is_git
-            && !package.is_private));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "github.com/bazelbuild/buildtools"
-            && package.version == "v0.0.0-20250930140053-2eb4fccefb52"));
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "example.com/single" && package.version == "v1.2.3"));
-    assert!(!packages
-        .iter()
-        .any(|package| package.name == "rules_dx/third_party/go"));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "github.com/google/go-cmp"
+                && package.version == "v0.6.0"
+                && package.set == "go"
+                && !package.is_git
+                && !package.is_private)
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "github.com/bazelbuild/buildtools"
+                && package.version == "v0.0.0-20250930140053-2eb4fccefb52")
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "example.com/single" && package.version == "v1.2.3")
+    );
+    assert!(
+        !packages
+            .iter()
+            .any(|package| package.name == "rules_dx/third_party/go")
+    );
 }
 
 #[test]
 fn go_mod_replace_paths_skip_while_versioned_replacements_assess() {
     let text = "module example.com/root\n\ngo 1.24.12\n\nrequire (\n\texample.com/local v1.0.0\n\texample.com/forked v1.0.0\n\texample.com/kept v1.0.0\n)\n\nreplace example.com/local => ../local\n\nreplace example.com/forked => example.com/upstream v1.1.0\n";
     let packages = go_locked_packages(text).expect("parses");
-    assert!(!packages
-        .iter()
-        .any(|package| package.name == "example.com/local"));
+    assert!(
+        !packages
+            .iter()
+            .any(|package| package.name == "example.com/local")
+    );
     let forked = packages
         .iter()
         .find(|package| package.name == "example.com/upstream")
         .expect("versioned replacement assesses");
     assert_eq!(forked.version, "v1.1.0");
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "example.com/kept"));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "example.com/kept")
+    );
 }
 
 #[test]
@@ -1152,10 +1216,12 @@ fn package_lock_alias_uses_registry_identity_and_keeps_location() {
         .iter()
         .find(|p| p.name == "lodash" && p.version == "4.17.20")
         .expect("lodash");
-    assert!(aliased
-        .location
-        .as_deref()
-        .is_some_and(|l| l.starts_with("node_modules/")));
+    assert!(
+        aliased
+            .location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("node_modules/"))
+    );
     assert!(!packages.iter().any(|p| p.name == "safe-name"));
     let licensed = npm_licenses(text, &packages);
     let scoped = licensed
@@ -1252,14 +1318,16 @@ fn package_lock_v1_rejects_malformed_and_too_deep_children() {
         parse_package_lock(r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":[]}}}"#)
             .is_err()
     );
-    assert!(parse_package_lock(
-        r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":{"b":1}}}}"#
-    )
-    .is_err());
-    assert!(parse_package_lock(
-        r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":{"b":{"version":"npm:@"}}}}}"#
-    )
-    .is_err());
+    assert!(
+        parse_package_lock(r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":{"b":1}}}}"#)
+            .is_err()
+    );
+    assert!(
+        parse_package_lock(
+            r#"{"dependencies":{"a":{"version":"1.0.0","dependencies":{"b":{"version":"npm:@"}}}}}"#
+        )
+        .is_err()
+    );
     let mut text = String::from(r#"{"dependencies":"#);
     for _ in 0..70 {
         text.push_str(r#"{"a":{"version":"1.0.0","dependencies":"#);
@@ -1287,9 +1355,11 @@ fn paket_lock_collapses_differently_cased_duplicates_and_keeps_spelling() {
     let text = "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    newtonsoft.json (12.0.1)\nGROUP Test\nNUGET\n  remote: https://api.nuget.org/v3/index.json\n    Newtonsoft.Json (12.0.1)\n    Newtonsoft.Json.Bson (1.0.2)\n";
     let packages = parse_paket_lock(text).expect("parses");
     assert_eq!(packages.len(), 2);
-    assert!(packages
-        .iter()
-        .any(|package| package.name == "Newtonsoft.Json.Bson"));
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.name == "Newtonsoft.Json.Bson")
+    );
 }
 
 fn go_inventory(replace: &str) -> Vec<(String, String)> {
@@ -1446,7 +1516,9 @@ fn uv_lock_lists_transitive_packages_and_marks_unassessable_sources() {
         .collect();
     assert_eq!(
         names,
-        vec!["direct", "django", "gitdep", "internal", "localdir", "sqlparse", "vendored"]
+        vec![
+            "direct", "django", "gitdep", "internal", "localdir", "sqlparse", "vendored"
+        ]
     );
     assert!(packages.iter().all(|package| package.set == "uv"));
     let flags: Vec<(&str, bool, bool)> = packages

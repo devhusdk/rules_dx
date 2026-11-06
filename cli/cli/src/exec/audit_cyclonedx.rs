@@ -1,5 +1,5 @@
 use dx_audit::locks::LicensedPackage;
-use dx_sbom::cyclonedx::{license_choices, CdxComponent, CycloneDxDocument};
+use dx_sbom::cyclonedx::{CdxComponent, CycloneDxDocument, license_choices};
 
 use super::audit_spdx::{id_part, license_value, purl};
 

@@ -300,7 +300,7 @@ pub(crate) fn owners_in_graph(
 mod tests {
     use super::*;
     use crate::resolve::query::quote_label;
-    use crate::resolve::{resolve, resolve_for_test_with_selection, resolve_run, SelectionContext};
+    use crate::resolve::{SelectionContext, resolve, resolve_for_test_with_selection, resolve_run};
     use dx_process::Scope;
     use dx_test_scratch::write;
 

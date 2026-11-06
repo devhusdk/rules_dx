@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::accounting::{count_lines, resolve_dart_uris, source_key};
-use crate::{find_ignores, merge_lcov_reports, CellAccount, Disposition, FileHits, LcovError};
+use crate::{CellAccount, Disposition, FileHits, LcovError, find_ignores, merge_lcov_reports};
 
 /// The added lines of every file a diff touches, keyed by the new path.
 pub type AddedLines = BTreeMap<String, BTreeSet<u32>>;

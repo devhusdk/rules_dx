@@ -1,6 +1,6 @@
 //! Lists Go modules whose newest release on the module proxy is newer than the go.mod requirement.
 
-use super::{github_repo, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
 use semver::Version;
 
 pub const DEFAULT_BASE: &str = "https://proxy.golang.org";

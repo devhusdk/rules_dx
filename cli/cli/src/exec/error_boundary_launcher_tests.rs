@@ -1,4 +1,4 @@
-use super::super::test_support::{hang_up, Harness};
+use super::super::test_support::{Harness, hang_up};
 use quality_result::proto::FileSnapshot;
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -6,8 +6,8 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 const MODULE: &str = "module(name = \"acme_renamed\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";

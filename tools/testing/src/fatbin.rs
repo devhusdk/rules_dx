@@ -85,7 +85,7 @@ pub fn fatbin_entries(data: &[u8]) -> Result<Vec<Entry>, String> {
                 other => {
                     return Err(format!(
                         "unknown fatbin entry kind {other} at offset {entry_at}"
-                    ))
+                    ));
                 }
             };
             let entry_version = u16_at(data, entry_at + 2)?;
@@ -595,18 +595,22 @@ mod tests {
     fn fatbin_rejects_bad_magic() {
         let mut data = fixture_fatbin();
         data[0] = 0x51;
-        assert!(fatbin_entries(&data)
-            .unwrap_err()
-            .contains("bad fatbin magic"));
+        assert!(
+            fatbin_entries(&data)
+                .unwrap_err()
+                .contains("bad fatbin magic")
+        );
     }
 
     #[test]
     fn fatbin_rejects_unknown_header_version() {
         let mut data = fixture_fatbin();
         data[4] = 2;
-        assert!(fatbin_entries(&data)
-            .unwrap_err()
-            .contains("unsupported fatbin version"));
+        assert!(
+            fatbin_entries(&data)
+                .unwrap_err()
+                .contains("unsupported fatbin version")
+        );
     }
 
     #[test]
@@ -731,10 +735,7 @@ mod tests {
 
     #[test]
     fn fatbin_device_code_reads_bigobj_members() {
-        let object = bigobj(&[
-            (".text", vec![0xC3]),
-            ("__nv_relfatbin", fixture_fatbin()),
-        ]);
+        let object = bigobj(&[(".text", vec![0xC3]), ("__nv_relfatbin", fixture_fatbin())]);
         assert!(is_coff_object(&object));
         assert_eq!(device_code(&object).unwrap().len(), 3);
         assert_eq!(device_code(&ar(&[("a.obj", object)])).unwrap().len(), 3);
@@ -802,8 +803,10 @@ mod tests {
 
     #[test]
     fn fatbin_rejects_non_elf() {
-        assert!(device_code(b"#!/bin/sh\n")
-            .unwrap_err()
-            .contains("not an ELF"));
+        assert!(
+            device_code(b"#!/bin/sh\n")
+                .unwrap_err()
+                .contains("not an ELF")
+        );
     }
 }

@@ -14,8 +14,8 @@ use std::time::{Duration, Instant, SystemTime};
 use crate::args::Command;
 use dx_adopt::defaults::BuildSlots;
 pub use dx_process::slot_pool::{
-    available_memory, cgroup_limit_in, lock_slot, parse_cgroup_limit, parse_meminfo, slot_count,
-    slot_path, slots_dir, BYTES_PER_NESTED_BAZEL, BYTES_PER_SLOT, MAX_SLOTS,
+    BYTES_PER_NESTED_BAZEL, BYTES_PER_SLOT, MAX_SLOTS, available_memory, cgroup_limit_in,
+    lock_slot, parse_cgroup_limit, parse_meminfo, slot_count, slot_path, slots_dir,
 };
 use dx_worktree::host::{self, Host, Server, SystemHost};
 
@@ -30,7 +30,7 @@ pub const DISK_LOW_CODE: &str = "disk_low";
 
 pub mod pressure;
 
-use pressure::{HostPressure, NoSignal, Pressure, PressurePause, PRESSURE_WAIT};
+use pressure::{HostPressure, NoSignal, PRESSURE_WAIT, Pressure, PressurePause};
 
 /// Set once a slot is held; nested dx calls see it and take no second slot.
 pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
@@ -1709,10 +1709,10 @@ impl<W: Warm> KeepWarm<W> {
 
 impl<W: Warm> Drop for KeepWarm<W> {
     fn drop(&mut self) {
-        if let Warming::On { ping, .. } = &mut self.state {
-            if let Some(child) = ping.take() {
-                self.warm.stop(child);
-            }
+        if let Warming::On { ping, .. } = &mut self.state
+            && let Some(child) = ping.take()
+        {
+            self.warm.stop(child);
         }
     }
 }
@@ -2857,12 +2857,14 @@ mod tests {
                 ..
             }))
         ));
-        assert!(scratch
-            .path()
-            .join("dx")
-            .join("slots")
-            .join("slot-0.lock")
-            .exists());
+        assert!(
+            scratch
+                .path()
+                .join("dx")
+                .join("slots")
+                .join("slot-0.lock")
+                .exists()
+        );
     }
 
     fn counting(
@@ -2995,17 +2997,21 @@ mod tests {
         with_gate(Some(gate), || {
             let slot = take(Command::Run, &mut Vec::new(), &mut Vec::new()).expect("take");
             assert!(slot.is_some());
-            assert!(with_gate(None, || take(
-                Command::Run,
-                &mut Vec::new(),
-                &mut Vec::new()
-            ))
-            .expect("none")
-            .is_none());
+            assert!(
+                with_gate(None, || take(
+                    Command::Run,
+                    &mut Vec::new(),
+                    &mut Vec::new()
+                ))
+                .expect("none")
+                .is_none()
+            );
         });
-        assert!(take(Command::Run, &mut Vec::new(), &mut Vec::new())
-            .expect("none")
-            .is_none());
+        assert!(
+            take(Command::Run, &mut Vec::new(), &mut Vec::new())
+                .expect("none")
+                .is_none()
+        );
         assert!(slot_settles_free(&dir, 1));
     }
 
@@ -4191,9 +4197,11 @@ mod tests {
         );
         let notice = wait_notice(&events);
         assert_eq!(notice["reaped_servers"], 2);
-        assert!(notice["message"]
-            .as_str()
-            .is_some_and(|text| text.ends_with("; stopped 2 idle Bazel servers")));
+        assert!(
+            notice["message"]
+                .as_str()
+                .is_some_and(|text| text.ends_with("; stopped 2 idle Bazel servers"))
+        );
     }
 
     #[test]

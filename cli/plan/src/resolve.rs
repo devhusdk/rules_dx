@@ -17,8 +17,8 @@ pub mod test_map;
 pub mod types;
 
 pub use changed::{
-    collect_range, collect_working_tree, local_override_changes, merge_base,
-    missing_base_shallow_error, resolve_affected, shallow_clone, AffectedSelection, WidenedScope,
+    AffectedSelection, WidenedScope, collect_range, collect_working_tree, local_override_changes,
+    merge_base, missing_base_shallow_error, resolve_affected, shallow_clone,
 };
 pub use classify::first_line;
 pub(crate) use classify::{classify_scopes, owners_in_graph, parse_owners};
@@ -32,7 +32,7 @@ pub use query::quote_set;
 pub(crate) use query::run_label_query;
 pub use query::run_label_query_file;
 pub use rule_graph::RuleGraph;
-pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
+pub use run_deploy::{DeployInfo, check_deployable, resolve_deploy, resolve_run};
 pub use selection::SelectionContext;
 #[cfg(test)]
 pub use test_map::map_owners_to_tests_with_selection;

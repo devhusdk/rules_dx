@@ -21,7 +21,6 @@ rust_library(
     ),
     crate_name = "dx_js_launcher",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = ["//cli/path:dx_path"],
 )
 
@@ -34,7 +33,6 @@ rust_binary(
     ),
     crate_name = "js_launcher",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "quality/tools/javascript/dx_js_launcher",
         normal = True,
@@ -57,7 +55,6 @@ rust_test(
     data = [
         ":js_launcher",
     ],
-    edition = "2021",
     env = {
         "DX_JS_LAUNCHER": "$(rootpath :js_launcher)",
     },

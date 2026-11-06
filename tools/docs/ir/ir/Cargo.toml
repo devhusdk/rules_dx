@@ -2,7 +2,7 @@
 license = "Apache-2.0"
 name = "documentation_ir"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 name = "documentation_ir"

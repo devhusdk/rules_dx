@@ -58,13 +58,12 @@ pub(crate) fn stage_env_generation(
         if let Some((value, artifact)) = seen.insert(
             entry.key.as_str(),
             (entry.value.as_str(), entry.artifact.as_str()),
-        ) {
-            if value != entry.value.as_str() || artifact != entry.artifact.as_str() {
-                return Err((
-                    CODE_INVALID_RESULT.to_owned(),
-                    format!("env identity key {} maps to multiple inputs", entry.key),
-                ));
-            }
+        ) && (value != entry.value.as_str() || artifact != entry.artifact.as_str())
+        {
+            return Err((
+                CODE_INVALID_RESULT.to_owned(),
+                format!("env identity key {} maps to multiple inputs", entry.key),
+            ));
         }
     }
     let artifacts = dir.join(ENV_ARTIFACTS_DIR);
@@ -154,7 +153,7 @@ pub(crate) fn stage_env_side(
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use dx_setup::{read_current_pair, ENVIRONMENTS_DIR_NAME};
+    use dx_setup::{ENVIRONMENTS_DIR_NAME, read_current_pair};
 
     #[test]
     fn managed_live_invalid_env_shard_fails_closed() {

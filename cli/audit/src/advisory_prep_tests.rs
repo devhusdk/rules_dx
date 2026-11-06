@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::*;
-use crate::advisory::{advisory_source, is_audit_date, parse_identity, Freshness};
+use crate::advisory::{Freshness, advisory_source, is_audit_date, parse_identity};
 use crate::vuln::parse_snapshot;
 
 const CRATES_URL: &str = "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip";
@@ -196,7 +196,10 @@ fn many_files_are_fetched_by_one_bounded_parallel_curl() {
     assert_eq!(position.map(|at| plan.argv[at + 1].as_str()), Some("16"));
     assert!(plan.argv.contains(&"--parallel".to_owned()));
     assert!(plan.argv.contains(&"--max-time".to_owned()));
-    assert_eq!(plan.argv.iter().filter(|arg| *arg == "--output").count(), 40);
+    assert_eq!(
+        plan.argv.iter().filter(|arg| *arg == "--output").count(),
+        40
+    );
 }
 
 #[test]
@@ -251,12 +254,14 @@ fn a_fetch_refuses_a_url_or_limit_it_cannot_hold_to() {
             "{url}"
         );
     }
-    assert!(fetch_plan(
-        "file:///opt/dx/all.zip",
-        Path::new("/tmp/dx/all.zip"),
-        DEFAULT_LIMITS
-    )
-    .is_ok());
+    assert!(
+        fetch_plan(
+            "file:///opt/dx/all.zip",
+            Path::new("/tmp/dx/all.zip"),
+            DEFAULT_LIMITS
+        )
+        .is_ok()
+    );
     for limits in [
         FetchLimits {
             connect_timeout_seconds: 0,
@@ -408,7 +413,10 @@ fn yanked_snapshot_lists_sorted_synthetic_advisories_the_audit_can_read() {
         &yanked,
     )
     .expect("builds");
-    assert_eq!(prepared.snapshot.path, ".dx/local/advisory/cargo-yanked.json");
+    assert_eq!(
+        prepared.snapshot.path,
+        ".dx/local/advisory/cargo-yanked.json"
+    );
     assert_eq!(prepared.advisories, 2);
     let text = String::from_utf8(prepared.payload).expect("utf8");
     let parsed = parse_snapshot(&text).expect("parses");

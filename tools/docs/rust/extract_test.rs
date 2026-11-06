@@ -94,10 +94,12 @@ fn the_fixture_json_becomes_a_valid_shard() {
     let bytes = std::fs::read(dir.join("shard.ir.pb")).expect("read shard");
     let shard = decode_shard(&bytes).unwrap_or_else(|error| panic!("decode: {error:?}"));
     assert_eq!(shard.package, "docs_fixture");
-    assert!(shard
-        .symbols
-        .iter()
-        .any(|s| s.id == "rust:docs_fixture:add"));
+    assert!(
+        shard
+            .symbols
+            .iter()
+            .any(|s| s.id == "rust:docs_fixture:add")
+    );
 }
 
 #[test]
@@ -105,10 +107,12 @@ fn the_aspect_shard_keeps_the_enabled_features() {
     let bytes = std::fs::read(runfile("DX_ASPECT_SHARD")).expect("read aspect shard");
     let shard = decode_shard(&bytes).unwrap_or_else(|error| panic!("decode: {error:?}"));
     assert!(shard.symbols.iter().any(|s| s.id.ends_with("unit_circle")));
-    assert!(!shard
-        .symbols
-        .iter()
-        .any(|s| s.id.ends_with("without_extra")));
+    assert!(
+        !shard
+            .symbols
+            .iter()
+            .any(|s| s.id.ends_with("without_extra"))
+    );
 }
 
 #[test]

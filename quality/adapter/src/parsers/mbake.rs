@@ -1,5 +1,5 @@
 use super::{
-    as_text, check_output_size, code_name, known_native, unformatted_at, FileFinding, ParseError,
+    FileFinding, ParseError, as_text, check_output_size, code_name, known_native, unformatted_at,
 };
 use crate::ColumnEncoding;
 
@@ -96,12 +96,16 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_mbake(CLEAN.as_bytes(), b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
-        assert!(parse_mbake(b"", b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_mbake(CLEAN.as_bytes(), b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
+        assert!(
+            parse_mbake(b"", b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -117,9 +121,11 @@ mod tests {
     #[test]
     fn advisories_alone_are_clean() {
         let out = "/w/b.mk:3: Warning: Missing final newline\n";
-        assert!(parse_mbake(out.as_bytes(), b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_mbake(out.as_bytes(), b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -140,13 +146,15 @@ mod tests {
         assert!(parse_mbake(b"", b"", None, &FILES).is_err());
         // A file the run did not name, and foreign output.
         assert!(parse_mbake(b"Would reformat: /w/other.mk\n", b"", Some(1), &FILES).is_err());
-        assert!(parse_mbake(
-            b"Traceback (most recent call last):\n",
-            b"",
-            Some(1),
-            &FILES
-        )
-        .is_err());
+        assert!(
+            parse_mbake(
+                b"Traceback (most recent call last):\n",
+                b"",
+                Some(1),
+                &FILES
+            )
+            .is_err()
+        );
         assert!(parse_mbake(b"/w/other.mk:1: Warning: x\n", b"", Some(0), &FILES).is_err());
         assert!(parse_mbake(&[0xff], b"", Some(0), &FILES).is_err());
     }

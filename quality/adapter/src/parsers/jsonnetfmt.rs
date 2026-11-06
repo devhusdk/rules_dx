@@ -1,5 +1,5 @@
 use super::{
-    as_text, code_name, finding, listed_paths, prefixed, row_col, FileFinding, ParseError, Spelling,
+    FileFinding, ParseError, Spelling, as_text, code_name, finding, listed_paths, prefixed, row_col,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};

@@ -10,7 +10,6 @@ rust_binary(
     srcs = ["main.rs"],
     crate_name = "capnpc_rust_dx",
     crate_root = "main.rs",
-    edition = "2021",
     rustc_flags = ["--cap-lints=allow"],
     deps = [
         "@dx_capnproto_rust//:capnp",

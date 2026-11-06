@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, known, point, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known, point, unformatted_at};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "psscriptanalyzer";
@@ -42,7 +42,7 @@ pub fn parse_psscriptanalyzer(
                     return Err(ParseError::shape(
                         TOOL,
                         format!("unknown severity {other:?}"),
-                    ))
+                    ));
                 }
             };
             let message = text(diagnostic, "message")?;
@@ -230,12 +230,14 @@ mod tests {
         assert!(parse(FORMAT, None, FORMAT_FILES).is_err());
         assert!(parse("", Some(0), FORMAT_FILES).is_err());
         assert!(parse(FORMAT, Some(0), &["Bad.ps1", "Good.ps1"]).is_err());
-        assert!(parse(
-            FORMAT,
-            Some(0),
-            &["Bad.ps1", "Good.ps1", "Broken.ps1", "More.ps1"]
-        )
-        .is_err());
+        assert!(
+            parse(
+                FORMAT,
+                Some(0),
+                &["Bad.ps1", "Good.ps1", "Broken.ps1", "More.ps1"]
+            )
+            .is_err()
+        );
         let error = parse(
             r#"{"error":"S.psd1 configures no formatter rule"}"#,
             Some(0),

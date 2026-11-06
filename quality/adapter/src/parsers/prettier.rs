@@ -1,6 +1,6 @@
 use super::{
-    check_output_size, code_name, finding, known_native, row_col, unformatted_at, FileFinding,
-    ParseError,
+    FileFinding, ParseError, check_output_size, code_name, finding, known_native, row_col,
+    unformatted_at,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -347,8 +347,7 @@ mod tests {
         let findings =
             parse_prettier_check(padded.as_bytes(), Some(1), &["src/a.js"]).expect("parsed");
         assert_eq!(findings.len(), 1);
-        let windows_noise =
-            "The system cannot find the path specified.\n[warn] src/a.js\n[warn] Code style issues found in the above file. Run Prettier with --write to fix.\n";
+        let windows_noise = "The system cannot find the path specified.\n[warn] src/a.js\n[warn] Code style issues found in the above file. Run Prettier with --write to fix.\n";
         let findings =
             parse_prettier_check(windows_noise.as_bytes(), Some(1), &["src/a.js"]).expect("parsed");
         assert_eq!(findings.len(), 1);
@@ -400,10 +399,12 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[0].finding.start.line, 4);
         assert_eq!(findings[0].finding.start.column, 1);
-        assert!(findings[0]
-            .finding
-            .message
-            .contains("Unexpected closing tag \"template\""));
+        assert!(
+            findings[0]
+                .finding
+                .message
+                .contains("Unexpected closing tag \"template\"")
+        );
         assert_eq!(findings[1].file, "app/Dirty.vue");
         assert_eq!(findings[1].finding.message, "file is not formatted");
     }
@@ -422,10 +423,12 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[0].finding.start.line, 3);
         assert_eq!(findings[0].finding.start.column, 3);
-        assert!(findings[0]
-            .finding
-            .message
-            .contains("Closing tag '</p>' has no matching opening tag."));
+        assert!(
+            findings[0]
+                .finding
+                .message
+                .contains("Closing tag '</p>' has no matching opening tag.")
+        );
         assert_eq!(findings[1].file, "app/Dirty.astro");
         assert_eq!(findings[1].finding.message, "file is not formatted");
         let unlocated = "[error] app/Broken.astro: SyntaxError: Unexpected end of frontmatter\n";
@@ -458,10 +461,12 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[0].finding.start.line, 3);
         assert_eq!(findings[0].finding.start.column, 1);
-        assert!(findings[0]
-            .finding
-            .message
-            .contains("`</p>` attempted to close an element that was not open"));
+        assert!(
+            findings[0]
+                .finding
+                .message
+                .contains("`</p>` attempted to close an element that was not open")
+        );
         assert_eq!(findings[1].file, "app/Dirty.svelte");
         assert_eq!(findings[1].finding.message, "file is not formatted");
         let padded = "[error] app/Broken.svelte: element_unclosed: `<div>` was left open\n[error] https://svelte.dev/e/element_unclosed\n[error]  9: <p>\n[error] 10: let x =\n[error]            ^\n";
@@ -483,12 +488,14 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[0].finding.start.line, 1);
         assert_eq!(findings[0].finding.start.column, 1);
-        assert!(parse_prettier_check(
-            b"[error] https://svelte.dev/e/element_unclosed\n",
-            Some(2),
-            &["app/Broken.svelte"],
-        )
-        .is_err());
+        assert!(
+            parse_prettier_check(
+                b"[error] https://svelte.dev/e/element_unclosed\n",
+                Some(2),
+                &["app/Broken.svelte"],
+            )
+            .is_err()
+        );
     }
 
     /// Real `prettier-plugin-svelte` 4.1.1 output: the frame shows blank source lines as a bare

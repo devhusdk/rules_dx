@@ -339,29 +339,41 @@ fn platform_parity_catches_a_drifted_copy() {
         "- platform: windows_arm64\n            runner: windows-11-arm\n",
         "",
     );
-    assert!(platform_drift(&dropped, &release, &consumer, &actionlint)
-        .iter()
-        .any(|problem| problem.contains(CI_WORKFLOW)));
+    assert!(
+        platform_drift(&dropped, &release, &consumer, &actionlint)
+            .iter()
+            .any(|problem| problem.contains(CI_WORKFLOW))
+    );
     let swapped = ci.replace("runner: macos-15", "runner: macos-14");
-    assert!(platform_drift(&swapped, &release, &consumer, &actionlint)
-        .iter()
-        .any(|problem| problem.contains("preflight")));
+    assert!(
+        platform_drift(&swapped, &release, &consumer, &actionlint)
+            .iter()
+            .any(|problem| problem.contains("preflight"))
+    );
     let dogfood = ci.replace("\"windows_x86_64\", ", "");
-    assert!(platform_drift(&dogfood, &release, &consumer, &actionlint)
-        .iter()
-        .any(|problem| problem.contains("dogfood")));
+    assert!(
+        platform_drift(&dogfood, &release, &consumer, &actionlint)
+            .iter()
+            .any(|problem| problem.contains("dogfood"))
+    );
     let drifted = release.replace("macos-15", "macos-14");
-    assert!(platform_drift(&ci, &drifted, &consumer, &actionlint)
-        .iter()
-        .any(|problem| problem.contains(RELEASE_WORKFLOW)));
+    assert!(
+        platform_drift(&ci, &drifted, &consumer, &actionlint)
+            .iter()
+            .any(|problem| problem.contains(RELEASE_WORKFLOW))
+    );
     let drifted = consumer.replace("macos-15", "macos-14");
-    assert!(platform_drift(&ci, &release, &drifted, &actionlint)
-        .iter()
-        .any(|problem| problem.contains(CONSUMER_WORKFLOW)));
+    assert!(
+        platform_drift(&ci, &release, &drifted, &actionlint)
+            .iter()
+            .any(|problem| problem.contains(CONSUMER_WORKFLOW))
+    );
     let actionlint = actionlint.replace("windows-11-arm", "x");
-    assert!(platform_drift(&ci, &release, &consumer, &actionlint)
-        .iter()
-        .any(|problem| problem.contains(ACTIONLINT_CONFIG)));
+    assert!(
+        platform_drift(&ci, &release, &consumer, &actionlint)
+            .iter()
+            .any(|problem| problem.contains(ACTIONLINT_CONFIG))
+    );
 }
 
 #[test]

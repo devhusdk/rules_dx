@@ -2892,14 +2892,16 @@ fn spotbugs_check_rejects_aux_jar_that_cannot_be_joined() {
         "/scratch/a:b.jar"
     };
     let java = Path::new("/scratch/src/Hello.java");
-    assert!(spotbugs_check(
-        Path::new(BIN),
-        &[java],
-        &[Path::new(bad)],
-        "default",
-        "medium"
-    )
-    .is_err());
+    assert!(
+        spotbugs_check(
+            Path::new(BIN),
+            &[java],
+            &[Path::new(bad)],
+            "default",
+            "medium"
+        )
+        .is_err()
+    );
     let colon_target = Path::new("/scratch/src/He:llo.java");
     assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[], "default", "medium").is_ok());
 }
@@ -3014,9 +3016,11 @@ fn kubeconform_pins_local_schema_locations() {
             "/scratch/dx-kubeconform/docs/0.yaml".to_owned(),
         ]
     );
-    assert!(!argv_strings(&invocation)
-        .iter()
-        .any(|arg| arg.contains("ignore-missing-schemas")));
+    assert!(
+        !argv_strings(&invocation)
+            .iter()
+            .any(|arg| arg.contains("ignore-missing-schemas"))
+    );
     let loose = r#"{"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
     let config = kubeconform_config(config_path, loose.as_bytes()).expect("defaults");
     let argv = argv_strings(&kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv"));
@@ -3447,9 +3451,11 @@ fn sorbet_check_ignores_the_source_tree_config_and_takes_every_path_after_a_sepa
             "/s/dx-sorbet/dep/b.rb",
         ]
     );
-    assert!(!argv_strings(&invocation)
-        .iter()
-        .any(|arg| arg.contains("cache-dir")));
+    assert!(
+        !argv_strings(&invocation)
+            .iter()
+            .any(|arg| arg.contains("cache-dir"))
+    );
 }
 
 #[test]

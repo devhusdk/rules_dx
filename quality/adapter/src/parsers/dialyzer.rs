@@ -1,6 +1,6 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-use super::{as_text, code_name, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "dialyzer";
 
@@ -226,10 +226,12 @@ mod tests {
                 (6, 8, "unknown_function"),
             ]
         );
-        assert!(found[0]
-            .finding
-            .message
-            .contains("But the spec is bad:g(integer()) -> atom()"));
+        assert!(
+            found[0]
+                .finding
+                .message
+                .contains("But the spec is bad:g(integer()) -> atom()")
+        );
         assert_eq!(found[3].finding.message, "Unknown function foo:bar/1");
         assert!(found.iter().all(|f| f.file == "bad.erl"));
     }
@@ -255,9 +257,11 @@ mod tests {
     #[test]
     fn dialyzer_clean_run_has_no_findings() {
         let out = "  Proceeding with analysis...\n done in 0m0.03s\ndone (passed successfully)\n";
-        assert!(parse_dialyzer(out.as_bytes(), Some(0), &["a.erl"])
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_dialyzer(out.as_bytes(), Some(0), &["a.erl"])
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]

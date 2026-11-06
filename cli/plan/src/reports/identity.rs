@@ -1,4 +1,4 @@
-use dx_fingerprint::finding::{line_context_digest, normalize_message, Finding};
+use dx_fingerprint::finding::{Finding, line_context_digest, normalize_message};
 use dx_output::DiagnosticEvent;
 
 /// Builds the identity of a finding from its file bytes.

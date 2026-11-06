@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::profile_base::{base_text, Profile};
+use crate::profile_base::{Profile, base_text};
 use crate::vuln::{AdvisoryKind, VersionScope};
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
@@ -44,11 +44,7 @@ impl UncoveredAcceptance {
 }
 
 pub fn or_unknown(value: &str) -> &str {
-    if value.trim().is_empty() {
-        "?"
-    } else {
-        value
-    }
+    if value.trim().is_empty() { "?" } else { value }
 }
 
 pub fn line_of(text: &str, offset: usize) -> usize {
@@ -104,7 +100,9 @@ pub enum ExceptionProblem {
     MissingUncoveredField { field: &'static str },
     #[error("uncovered acceptance for {set} has invalid expiration {value:?}; want YYYY-MM-DD")]
     UncoveredInvalidDate { set: String, value: String },
-    #[error("uncovered acceptance for {set} expired {expires} (audit date {today}); renewal needs review")]
+    #[error(
+        "uncovered acceptance for {set} expired {expires} (audit date {today}); renewal needs review"
+    )]
     UncoveredExpired {
         set: String,
         expires: String,

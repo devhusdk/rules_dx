@@ -177,9 +177,11 @@ fn a_breaking_api_report_raises_a_refactor_only_log_to_major() {
     report.raise_for_api(breaking);
     assert_eq!(report.next.as_deref(), Some("2.0.0"));
     assert_eq!(report.bump, Bump::Major);
-    assert!(report
-        .render()
-        .contains("api compat: //pkg:lib reports breaking changes"));
+    assert!(
+        report
+            .render()
+            .contains("api compat: //pkg:lib reports breaking changes")
+    );
 }
 
 #[test]

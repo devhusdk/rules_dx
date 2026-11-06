@@ -38,8 +38,8 @@ pub(super) fn add_missing(
     let request = dx_update::edit::AddRequest::from_request(update);
     let applies = invocation.applies();
     let verbose = invocation.chatty();
-    if applies {
-        if let Err(exit) = dep_edit::preflight(
+    if applies
+        && let Err(exit) = dep_edit::preflight(
             &ADD_VERB,
             invocation,
             out,
@@ -47,15 +47,15 @@ pub(super) fn add_missing(
             workspace,
             &request.target,
             &request.selector,
-        ) {
-            return exit;
-        }
+        )
+    {
+        return exit;
     }
     let manifest = request.target_manifest().to_owned();
     let inserted = match plan_insert(&request, workspace, &manifest) {
         Ok(inserted) => inserted,
         Err(message) => {
-            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message)
+            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
         }
     };
     if !applies {

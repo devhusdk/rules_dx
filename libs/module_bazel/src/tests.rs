@@ -591,7 +591,10 @@ fn insert_maven_artifact_in_fails_closed() {
             "tools",
             "maven.install(name = \"tools\", artifacts = [\"a:b:1\"])\nmaven.install(name = \"tools\", artifacts = [\"c:d:1\"])\n",
         ),
-        ("tools", "maven.install(name = \"tools\", artifacts = ARTIFACTS)\n"),
+        (
+            "tools",
+            "maven.install(name = \"tools\", artifacts = ARTIFACTS)\n",
+        ),
         ("tools", "maven.install(name = \"tools\", artifacts = [])\n"),
     ] {
         assert!(insert_in(repository, body).is_err(), "{body:?}");
@@ -635,11 +638,15 @@ fn insert_include_anchors_after_the_named_dep() {
 fn insert_include_keeps_crlf_and_falls_back() {
     assert_eq!(
         insert_inc("bazel_dep(name = \"a\", version = \"1\")\r\nx = 1\r\n").as_deref(),
-        Ok("bazel_dep(name = \"a\", version = \"1\")\r\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\r\nx = 1\r\n")
+        Ok(
+            "bazel_dep(name = \"a\", version = \"1\")\r\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\r\nx = 1\r\n"
+        )
     );
     assert_eq!(
         insert_inc("module(name = \"demo\")").as_deref(),
-        Ok("module(name = \"demo\")\n\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\n")
+        Ok(
+            "module(name = \"demo\")\n\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\n"
+        )
     );
     assert_eq!(
         insert_inc("").as_deref(),
@@ -806,9 +813,18 @@ fn maven_installs_follow_the_rules_jvm_external_extension() {
         ]
     );
     for (source, line) in [
-        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = N)\n", 2),
-        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = L)\n", 2),
-        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(**KW)\n", 2),
+        (
+            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = N)\n",
+            2,
+        ),
+        (
+            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = L)\n",
+            2,
+        ),
+        (
+            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(**KW)\n",
+            2,
+        ),
     ] {
         assert_eq!(
             parse(source).maven_installs(),
@@ -855,7 +871,9 @@ fn single_version_override_is_found_missing_ambiguous_or_computed() {
             name: "other".to_owned()
         })
     );
-    let twice = parse("single_version_override(module_name = \"demo\", version = \"1\")\nsingle_version_override(module_name = \"demo\", version = \"2\")\n");
+    let twice = parse(
+        "single_version_override(module_name = \"demo\", version = \"1\")\nsingle_version_override(module_name = \"demo\", version = \"2\")\n",
+    );
     assert_eq!(
         twice.single_version_override("demo"),
         Err(ModuleError::OverrideAmbiguous {
@@ -1056,7 +1074,9 @@ fn extension_bindings_and_use_repos_follow_the_binding() {
 
 #[test]
 fn npm_translate_locks_follow_the_aspect_rules_js_extension() {
-    let file = parse("npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//apps/web:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"bare\")\nfake = use_extension(\"@fake//npm:extensions.bzl\", \"npm\")\nfake.npm_translate_lock(name = \"no\")\n");
+    let file = parse(
+        "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//apps/web:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"bare\")\nfake = use_extension(\"@fake//npm:extensions.bzl\", \"npm\")\nfake.npm_translate_lock(name = \"no\")\n",
+    );
     assert_eq!(
         file.npm_translate_locks().expect("locks"),
         [
@@ -1072,7 +1092,9 @@ fn npm_translate_locks_follow_the_aspect_rules_js_extension() {
             },
         ]
     );
-    let computed = parse("npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = NAME)\n");
+    let computed = parse(
+        "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = NAME)\n",
+    );
     assert_eq!(
         computed.npm_translate_locks(),
         Err(ModuleError::ComputedHub {
@@ -1084,7 +1106,9 @@ fn npm_translate_locks_follow_the_aspect_rules_js_extension() {
 
 #[test]
 fn uv_projects_follow_the_rules_py_extension() {
-    let file = parse("uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.declare_hub(hub_name = \"pypi\")\nuv.project(hub_name = \"pypi\", lock = \"//a:uv.lock\", pyproject = \"//a:pyproject.toml\")\n");
+    let file = parse(
+        "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.declare_hub(hub_name = \"pypi\")\nuv.project(hub_name = \"pypi\", lock = \"//a:uv.lock\", pyproject = \"//a:pyproject.toml\")\n",
+    );
     assert_eq!(
         file.uv_projects().expect("projects"),
         [UvProject {
@@ -1094,13 +1118,17 @@ fn uv_projects_follow_the_rules_py_extension() {
             line: 3,
         }]
     );
-    let missing = parse("uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//a:pyproject.toml\")\n");
+    let missing = parse(
+        "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//a:pyproject.toml\")\n",
+    );
     assert!(missing.uv_projects().is_err());
 }
 
 #[test]
 fn go_deps_files_follow_the_gazelle_extension() {
-    let file = parse("go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\ngo_deps.from_file(go_work = \"//:go.work\")\n");
+    let file = parse(
+        "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\ngo_deps.from_file(go_work = \"//:go.work\")\n",
+    );
     assert_eq!(
         file.go_deps_files().expect("files"),
         [GoModFile {
@@ -1112,7 +1140,9 @@ fn go_deps_files_follow_the_gazelle_extension() {
 
 #[test]
 fn bundle_fetches_follow_the_rules_ruby_extension() {
-    let file = parse("ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(name = \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//g:Gemfile\", gemfile_lock = \"//g:Gemfile.lock\")\n");
+    let file = parse(
+        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(name = \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//g:Gemfile\", gemfile_lock = \"//g:Gemfile.lock\")\n",
+    );
     let names: Vec<_> = file
         .bundle_fetches()
         .expect("fetches")
@@ -1130,7 +1160,9 @@ fn bundle_fetches_follow_the_rules_ruby_extension() {
 
 #[test]
 fn pub_locks_follow_the_rules_dart_rules_flutter_and_own_extensions() {
-    let file = parse("pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"deps\", lock = \"//dart:pubspec.lock\")\nflutter = use_extension(\"@rules_flutter//flutter:extensions.bzl\", \"flutter\")\nflutter.pub(name = \"app\", lock = \"//app:pubspec.lock\")\nflutter.toolchain(flutter_version = \"3\")\nother = use_extension(\"//dart:extensions.bzl\", \"pub\")\nother.from_lock(name = \"x\", lock = \"//x:pubspec.lock\")\n");
+    let file = parse(
+        "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"deps\", lock = \"//dart:pubspec.lock\")\nflutter = use_extension(\"@rules_flutter//flutter:extensions.bzl\", \"flutter\")\nflutter.pub(name = \"app\", lock = \"//app:pubspec.lock\")\nflutter.toolchain(flutter_version = \"3\")\nother = use_extension(\"//dart:extensions.bzl\", \"pub\")\nother.from_lock(name = \"x\", lock = \"//x:pubspec.lock\")\n",
+    );
     let found: Vec<_> = file
         .pub_locks()
         .expect("locks")
@@ -1149,7 +1181,9 @@ fn pub_locks_follow_the_rules_dart_rules_flutter_and_own_extensions() {
 
 #[test]
 fn julia_manifests_follow_the_rules_julia_pkg_extension() {
-    let file = parse("pkg = use_extension(\"@rules_julia//julia/pkg:extensions.bzl\", \"pkg\")\npkg.from_manifest(name = \"deps\", lockfile = \"//julia:Manifest.bazel.json\")\npkg.pkg_annotation(dep = \"X\")\nother = use_extension(\"//julia:extensions.bzl\", \"pkg\")\nother.from_manifest(name = \"x\", lockfile = \"//x:Manifest.bazel.json\")\n");
+    let file = parse(
+        "pkg = use_extension(\"@rules_julia//julia/pkg:extensions.bzl\", \"pkg\")\npkg.from_manifest(name = \"deps\", lockfile = \"//julia:Manifest.bazel.json\")\npkg.pkg_annotation(dep = \"X\")\nother = use_extension(\"//julia:extensions.bzl\", \"pkg\")\nother.from_manifest(name = \"x\", lockfile = \"//x:Manifest.bazel.json\")\n",
+    );
     let found: Vec<_> = file
         .julia_manifests()
         .expect("manifests")
@@ -1161,7 +1195,9 @@ fn julia_manifests_follow_the_rules_julia_pkg_extension() {
 
 #[test]
 fn composer_locks_follow_the_rules_dx_extension() {
-    let file = parse("composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\nother = use_extension(\"//php:extensions.bzl\", \"composer\")\nother.lock(name = \"x\", lock = \"//x:composer.lock\", digests = \"//x:d.json\")\n");
+    let file = parse(
+        "composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\nother = use_extension(\"//php:extensions.bzl\", \"composer\")\nother.lock(name = \"x\", lock = \"//x:composer.lock\", digests = \"//x:d.json\")\n",
+    );
     let found: Vec<_> = file
         .composer_locks()
         .expect("locks")
@@ -1180,7 +1216,9 @@ fn composer_locks_follow_the_rules_dx_extension() {
 
 #[test]
 fn swift_packages_follow_the_swift_deps_extension() {
-    let file = parse("swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//app:Package.resolved\", swift = \"//app:Package.swift\")\nother = use_extension(\"//x:extensions.bzl\", \"swift_deps\")\nother.from_package(resolved = \"//y:Package.resolved\", swift = \"//y:Package.swift\")\n");
+    let file = parse(
+        "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//app:Package.resolved\", swift = \"//app:Package.swift\")\nother = use_extension(\"//x:extensions.bzl\", \"swift_deps\")\nother.from_package(resolved = \"//y:Package.resolved\", swift = \"//y:Package.swift\")\n",
+    );
     let found: Vec<_> = file
         .swift_packages()
         .expect("packages")
@@ -1192,7 +1230,9 @@ fn swift_packages_follow_the_swift_deps_extension() {
 
 #[test]
 fn cpan_installs_follow_the_rules_perl_extension() {
-    let file = parse("cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl/cpan:extensions.bzl\", \"cpan_dev\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n");
+    let file = parse(
+        "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl/cpan:extensions.bzl\", \"cpan_dev\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n",
+    );
     let found: Vec<_> = file
         .cpan_installs()
         .expect("installs")
@@ -1204,7 +1244,9 @@ fn cpan_installs_follow_the_rules_perl_extension() {
 
 #[test]
 fn opam_packages_follow_the_ocaml_extension() {
-    let file = parse("ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.packages(name = \"app\", lock = \"//app:app.opam.locked\")\nocaml.annotation(package = \"x\", build_file = \"//x:BUILD\")\n");
+    let file = parse(
+        "ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.packages(name = \"app\", lock = \"//app:app.opam.locked\")\nocaml.annotation(package = \"x\", build_file = \"//x:BUILD\")\n",
+    );
     let found: Vec<_> = file
         .opam_packages()
         .expect("packages")
@@ -1216,7 +1258,9 @@ fn opam_packages_follow_the_ocaml_extension() {
 
 #[test]
 fn haskell_packages_follow_the_haskell_extension() {
-    let file = parse("haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.packages(name = \"hackage\", deps = \"//app:haskell_deps.json\")\n");
+    let file = parse(
+        "haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.packages(name = \"hackage\", deps = \"//app:haskell_deps.json\")\n",
+    );
     let found: Vec<_> = file
         .haskell_packages()
         .expect("packages")
@@ -1228,7 +1272,9 @@ fn haskell_packages_follow_the_haskell_extension() {
 
 #[test]
 fn paket_extensions_are_main_repository_paket_loaders() {
-    let file = parse("paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\nmain = use_extension(\"//deps:paket.main_extension.bzl\", \"main_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:extension.bzl\", \"paket\")\n");
+    let file = parse(
+        "paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\nmain = use_extension(\"//deps:paket.main_extension.bzl\", \"main_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:extension.bzl\", \"paket\")\n",
+    );
     assert_eq!(
         file.paket_extensions(),
         [
@@ -1240,7 +1286,9 @@ fn paket_extensions_are_main_repository_paket_loaders() {
 
 #[test]
 fn conan_extensions_are_main_repository_bazeldeps_loaders() {
-    let file = parse("conan = use_extension(\"//build:conan_deps_module_extension.bzl\", \"conan_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:conan_deps_module_extension.bzl\", \"conan_extension\")\n");
+    let file = parse(
+        "conan = use_extension(\"//build:conan_deps_module_extension.bzl\", \"conan_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:conan_deps_module_extension.bzl\", \"conan_extension\")\n",
+    );
     assert_eq!(
         file.conan_extensions(),
         ["//build:conan_deps_module_extension.bzl"]
@@ -1389,7 +1437,9 @@ fn build_files_parse_with_load_statements() {
 
 #[test]
 fn mix_locks_follow_the_elixir_mix_tag() {
-    let file = parse("elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.mix(name = \"deps\", lock = \"//app:mix.lock\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n");
+    let file = parse(
+        "elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.mix(name = \"deps\", lock = \"//app:mix.lock\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n",
+    );
     let found: Vec<_> = file
         .mix_locks()
         .expect("locks")

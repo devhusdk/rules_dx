@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use hermetic::{
-    ambient_tools, capture, markers, preflight, Isolation, Net, AMBIENT_TOOLS, SHIM, TOOL_DIRS,
+    AMBIENT_TOOLS, Isolation, Net, SHIM, TOOL_DIRS, ambient_tools, capture, markers, preflight,
 };
 
 fn scratch() -> PathBuf {

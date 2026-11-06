@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use super::host::{same_path, DiskSpace, Host, Server};
+use super::host::{DiskSpace, Host, Server, same_path};
 use super::ops::{self, AddRequest, State};
 use super::pool::{Pool, Who};
 
@@ -1160,10 +1160,12 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_after_the_quiet_period() 
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Reclaimable);
     assert_eq!(slot_one(&listing).reason, None);
-    assert!(slot_one(&listing)
-        .holder
-        .as_deref()
-        .is_some_and(|holder| holder.contains("(gone)")));
+    assert!(
+        slot_one(&listing)
+            .holder
+            .as_deref()
+            .is_some_and(|holder| holder.contains("(gone)"))
+    );
     host.serve(70, &first.path);
     let second = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("second");
     assert_eq!(second.slot, 1);
@@ -1176,10 +1178,12 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_after_the_quiet_period() 
     assert_eq!(host.shutdown_paths(), vec![first.path.clone()]);
     let after = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&after).state, State::Held);
-    assert!(slot_one(&after)
-        .holder
-        .as_deref()
-        .is_some_and(|holder| holder.contains("s2")));
+    assert!(
+        slot_one(&after)
+            .holder
+            .as_deref()
+            .is_some_and(|holder| holder.contains("s2"))
+    );
 }
 
 fn run_dx_in(pool: &Pool, slot: u32) -> dx_atomic_fs::lease::SharedLease {
@@ -1291,9 +1295,11 @@ fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
     std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
-    assert!(slot_one(&listing)
-        .reason
-        .is_some_and(|reason| reason.contains("uncommitted")));
+    assert!(
+        slot_one(&listing)
+            .reason
+            .is_some_and(|reason| reason.contains("uncommitted"))
+    );
     let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
     assert_eq!(refused.code, "branch_held");
     assert!(
@@ -1318,9 +1324,11 @@ fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
     git(&first.path, &["commit", "--quiet", "-m", "work"]);
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
-    assert!(slot_one(&listing)
-        .reason
-        .is_some_and(|reason| reason.contains("not pushed")));
+    assert!(
+        slot_one(&listing)
+            .reason
+            .is_some_and(|reason| reason.contains("not pushed"))
+    );
     let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
     assert_eq!(refused.code, "branch_held");
     let second = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("second");
@@ -1576,7 +1584,8 @@ fn low_disk_add_leases_the_warmest_slot_and_drops_other_free_bases_oldest_first(
         format!(
             "low disk at {}: 5.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}, {}; 50.0 GiB free now",
             fixture.cache.join("repo").display(),
-            slots[0].slot, slots[1].slot
+            slots[0].slot,
+            slots[1].slot
         )
     );
 }
@@ -2684,9 +2693,11 @@ fn prune_lists_old_free_slots_and_apply_deletes_them() {
     let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
     let c = ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
     ops::release(&pool, &host, &me, &a.path, true).expect("release");
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
-        .expect("plan")
-        .is_empty());
+    assert!(
+        ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+            .expect("plan")
+            .is_empty()
+    );
     host.advance(31 * DAY);
     let base_b = output_base(&roots, "b", &b.path);
     let base_c = output_base(&roots, "c", &c.path);
@@ -2715,9 +2726,11 @@ fn prune_lists_old_free_slots_and_apply_deletes_them() {
     let slots: Vec<u32> = pool.records().iter().map(|record| record.slot).collect();
     assert_eq!(slots, vec![b.slot, c.slot]);
     host.script_space(&[OK]);
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
-        .expect("plan")
-        .is_empty());
+    assert!(
+        ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+            .expect("plan")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -3250,9 +3263,11 @@ mod hooks {
         let held = ops::add(&pool, &host, &second, &existing("feature/a")).expect_err("live");
         assert_eq!(held.code, "branch_held");
         let stop = serde_json::json!({"agent_id": "a2"});
-        assert!(hook::stop(&pool, &host, &first, &stop)
-            .expect("stop")
-            .is_empty());
+        assert!(
+            hook::stop(&pool, &host, &first, &stop)
+                .expect("stop")
+                .is_empty()
+        );
         let stop = serde_json::json!({"agent_id": "a1"});
         assert_eq!(
             hook::stop(&pool, &host, &first, &stop).expect("stop"),
@@ -3280,12 +3295,16 @@ mod hooks {
     #[test]
     fn guard_blocks_git_worktree_add_remove_and_prune_only() {
         let block = blocked;
-        assert!(block("git worktree add ../x -b y")
-            .expect("add")
-            .contains("worktree add"));
-        assert!(block("cd /r && git -C /r worktree remove x")
-            .expect("remove")
-            .contains("release"));
+        assert!(
+            block("git worktree add ../x -b y")
+                .expect("add")
+                .contains("worktree add")
+        );
+        assert!(
+            block("cd /r && git -C /r worktree remove x")
+                .expect("remove")
+                .contains("release")
+        );
         assert!(block("git worktree prune").is_some());
         assert!(block("/usr/bin/git worktree add x").is_some());
         assert!(block("git worktree list").is_none());
@@ -4243,10 +4262,12 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     assert!(fresh.exists());
     assert!(locked.exists());
     assert!(serving.exists());
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
-        .expect("plan")
-        .externals
-        .is_empty());
+    assert!(
+        ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+            .expect("plan")
+            .externals
+            .is_empty()
+    );
 }
 
 #[test]
@@ -4261,10 +4282,12 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
     git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
     let follower = tracking_checkout(&fixture, "follower", "origin/topic");
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
-        .expect("plan")
-        .externals
-        .is_empty());
+    assert!(
+        ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+            .expect("plan")
+            .externals
+            .is_empty()
+    );
     git(
         &fixture.main,
         &["push", "--quiet", "origin", "--delete", "topic"],
@@ -4368,10 +4391,12 @@ fn prune_lists_detached_external_worktrees_as_removable_or_kept() {
     for path in [&fresh, &ahead, &side, &dirty] {
         assert!(path.exists(), "{}", path.display());
     }
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
-        .expect("plan")
-        .externals
-        .is_empty());
+    assert!(
+        ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+            .expect("plan")
+            .externals
+            .is_empty()
+    );
 }
 
 fn upstream_deleted_checkout(fixture: &Fixture) -> PathBuf {
@@ -4566,14 +4591,18 @@ fn prune_apply_skips_stuck_bases_as_busy() {
     host.stick(&orphan);
     let pruned = ops::prune(&pool, &host, true, true).expect("prune");
     assert_eq!(pruned.skipped_bases.len(), 2);
-    assert!(pruned
-        .skipped_bases
-        .iter()
-        .all(|base| base.reason == "busy"));
-    assert!(pruned
-        .skipped_bases
-        .iter()
-        .any(|base| base.owner == ops::BaseOwner::Orphan));
+    assert!(
+        pruned
+            .skipped_bases
+            .iter()
+            .all(|base| base.reason == "busy")
+    );
+    assert!(
+        pruned
+            .skipped_bases
+            .iter()
+            .any(|base| base.owner == ops::BaseOwner::Orphan)
+    );
     assert!(pruned.plan.bases.is_empty());
     assert_eq!(pruned.plan.bytes(), 0);
     assert!(owned.exists() && orphan.exists());
@@ -5091,9 +5120,11 @@ fn prune_lists_downloads_unused_for_30_days_and_apply_deletes_them() {
     assert_eq!(entry_dirs(&pruned.plan), vec![old.clone()]);
     assert!(!old.exists());
     assert!(recent.exists(), "a download used within 30 days stays");
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
-        .expect("plan")
-        .is_empty());
+    assert!(
+        ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+            .expect("plan")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5120,9 +5151,11 @@ fn download_with_a_fresh_tmp_file_is_not_stale() {
     let writing = download(&roots, "writing", &[("file", STALE), ("tmp-1", now)]);
     let reading = download(&roots, "reading", &[("file", STALE), ("id-x", now)]);
     std::fs::create_dir_all(downloads_of(&roots).join("sha256").join("empty")).expect("empty");
-    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
-        .expect("plan")
-        .is_empty());
+    assert!(
+        ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+            .expect("plan")
+            .is_empty()
+    );
     ops::prune(&pool, &host, true, false).expect("apply");
     assert!(writing.join("file").exists());
     assert!(reading.join("file").exists());
@@ -5156,7 +5189,10 @@ fn reclaim_drops_stale_downloads_before_free_slot_bases() {
     assert!(base.exists(), "the free slot keeps its output base");
     assert_eq!(
         reclaimed.warning.message,
-        format!("low disk at {}: 5.0 GiB free; removed 1 repository cache download(s); 50.0 GiB free now", fixture.cache.join("repo").display())
+        format!(
+            "low disk at {}: 5.0 GiB free; removed 1 repository cache download(s); 50.0 GiB free now",
+            fixture.cache.join("repo").display()
+        )
     );
 }
 
@@ -5492,7 +5528,10 @@ fn reclaim_drops_nested_cases_when_the_nested_root_disk_is_low() {
     assert!(busy.exists(), "a held nested slot keeps its cases");
     assert_eq!(
         reclaimed.warning.message,
-        format!("low disk at {}: 3.0 GiB free; removed 1 nested Bazel output base(s); 3.0 GiB free now; run dx worktree prune --apply", root.display())
+        format!(
+            "low disk at {}: 3.0 GiB free; removed 1 nested Bazel output base(s); 3.0 GiB free now; run dx worktree prune --apply",
+            root.display()
+        )
     );
 }
 
@@ -5551,7 +5590,7 @@ fn prune_apply_removes_a_free_base_with_read_only_entries() {
 
 mod reaping {
     use super::*;
-    use crate::reap::{reap_idle, Keep, Reaped};
+    use crate::reap::{Keep, Reaped, reap_idle};
 
     const ROOT: &str = "/home/u/.cache/bazel/_bazel_u";
 

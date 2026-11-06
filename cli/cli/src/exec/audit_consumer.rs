@@ -2,7 +2,7 @@
 mod tests {
     use super::super::super::test_support::Harness;
     use super::super::super::test_support::{event_kinds, json_events};
-    use super::super::audit_live::{write_advisory, write_pin, AuditRunner};
+    use super::super::audit_live::{AuditRunner, write_advisory, write_pin};
 
     const UV_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nuv.project(hub_name = \"pypi\", pyproject = \"//services/worker:pyproject.toml\", lock = \"//services/worker:uv.lock\")\n";
 
@@ -523,8 +523,7 @@ source = { registry = "https://pypi.org/simple" }
 
     const NPM_MODULE: &str = "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"frontend\", pnpm_lock = \"//apps/web:pnpm-lock.yaml\")\n";
 
-    const REACT_LOCK: &str =
-        "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
+    const REACT_LOCK: &str = "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
 
     const REACT_ADVISORY: &str = r#"[{
         "id": "GHSA-react-0001",

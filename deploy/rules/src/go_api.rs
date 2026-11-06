@@ -1,7 +1,7 @@
 //! Go module API compatibility check for github_deploy, using apidiff.
 
-use crate::api_compat::{breaking_refusal, previous_tag, required_bump, ApiCompatMode};
-use crate::run::{scrubbed_command, PUBLISH_CHILD_ENV_KEEP};
+use crate::api_compat::{ApiCompatMode, breaking_refusal, previous_tag, required_bump};
+use crate::run::{PUBLISH_CHILD_ENV_KEEP, scrubbed_command};
 use crate::stage::tempfile_stage_dir;
 use std::path::Path;
 

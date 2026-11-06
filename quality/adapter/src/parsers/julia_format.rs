@@ -2,8 +2,8 @@ use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
 use super::{
-    as_text, code_name, columned, finding, listed_paths, prefixed, FileFinding, ParseError,
-    Spelling,
+    FileFinding, ParseError, Spelling, as_text, code_name, columned, finding, listed_paths,
+    prefixed,
 };
 
 const TOOL: &str = "julia_format";
@@ -72,9 +72,11 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "src/dirty.jl");
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        assert!(parse_julia_format(b"", b"", Some(0), &files)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_julia_format(b"", b"", Some(0), &files)
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_julia_format(b"", b"", Some(1), &files).is_err());
         assert!(parse_julia_format(b"other.jl\n", b"", Some(1), &files).is_err());
         assert!(parse_julia_format(&[0xff], b"", Some(0), &files).is_err());

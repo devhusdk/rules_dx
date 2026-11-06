@@ -1,13 +1,13 @@
 use std::collections::HashMap;
-use std::path::{Path, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
+use std::path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR, Path};
 
 use url::Url;
 
 use serde_sarif::sarif::{ArtifactLocation, Invocation, Notification, Region, ResultLevel, Sarif};
 
-use super::{check_output_size, code_name, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name};
 use crate::{
-    ColumnEncoding, Finding, Related, RelatedLocation, TextPosition, ToolSeverity, LINE_END,
+    ColumnEncoding, Finding, LINE_END, Related, RelatedLocation, TextPosition, ToolSeverity,
 };
 
 fn sarif_severity(level: Option<ResultLevel>) -> ToolSeverity {
@@ -528,22 +528,26 @@ mod tests {
         )
         .expect("clean");
         assert!(clean.is_empty());
-        assert!(parse_sarif(
-            TOOL,
-            &clean_json,
-            Some(1),
-            &["/s/a.java"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
-        assert!(parse_sarif(
-            TOOL,
-            b"not json",
-            Some(1),
-            &["/s/a.java"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
+        assert!(
+            parse_sarif(
+                TOOL,
+                &clean_json,
+                Some(1),
+                &["/s/a.java"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
+        assert!(
+            parse_sarif(
+                TOOL,
+                b"not json",
+                Some(1),
+                &["/s/a.java"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
     }
 
     fn suppressed_result(rule: &str, suppressions: &str) -> String {
@@ -842,14 +846,16 @@ mod tests {
         .expect("base join");
         assert_eq!(findings[0].file, "/tmp/x/Dirty.kt");
         let unknown_base = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"k"}},"results":[{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"a.java","uriBaseId":"%MISSING%"},"region":{"startLine":1}}}]}]}]}"#;
-        assert!(parse_sarif(
-            TOOL,
-            unknown_base,
-            Some(1),
-            &["/tmp/x/Dirty.kt"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
+        assert!(
+            parse_sarif(
+                TOOL,
+                unknown_base,
+                Some(1),
+                &["/tmp/x/Dirty.kt"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -883,56 +889,66 @@ mod tests {
         let bad_level = log(
             r#"{"ruleId":"R","level":"fatal","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":1}}}]}"#,
         );
-        assert!(parse_sarif(
-            TOOL,
-            &bad_level,
-            Some(1),
-            &["/s/a.java"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
+        assert!(
+            parse_sarif(
+                TOOL,
+                &bad_level,
+                Some(1),
+                &["/s/a.java"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
         let unknown = log(
             r#"{"ruleId":"R","level":"warning","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/other.java"},"region":{"startLine":1,"startColumn":1}}}]}"#,
         );
-        assert!(parse_sarif(
-            TOOL,
-            &unknown,
-            Some(1),
-            &["/s/a.java"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
+        assert!(
+            parse_sarif(
+                TOOL,
+                &unknown,
+                Some(1),
+                &["/s/a.java"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
         let empty_msg = log(
             r#"{"ruleId":"R","level":"warning","message":{"text":""},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":1}}}]}"#,
         );
-        assert!(parse_sarif(
-            TOOL,
-            &empty_msg,
-            Some(1),
-            &["/s/a.java"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
+        assert!(
+            parse_sarif(
+                TOOL,
+                &empty_msg,
+                Some(1),
+                &["/s/a.java"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
         let no_loc = log(r#"{"ruleId":"R","message":{"text":"m"},"locations":[]}"#);
-        assert!(parse_sarif(
-            TOOL,
-            &no_loc,
-            Some(1),
-            &["/s/a.java"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
+        assert!(
+            parse_sarif(
+                TOOL,
+                &no_loc,
+                Some(1),
+                &["/s/a.java"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
         let bad_line = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":0,"startColumn":1}}}]}"#,
         );
-        assert!(parse_sarif(
-            TOOL,
-            &bad_line,
-            Some(1),
-            &["/s/a.java"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
+        assert!(
+            parse_sarif(
+                TOOL,
+                &bad_line,
+                Some(1),
+                &["/s/a.java"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
         for region in [
             r#"{"startLine":3,"endLine":2}"#,
             r#"{"startLine":3,"endLine":0}"#,
@@ -1039,7 +1055,9 @@ mod tests {
     #[test]
     fn sarif_related_locations_become_related_items() {
         let result = r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":5}}}],"relatedLocations":[{"id":1,"message":{"text":"declared here"},"physicalLocation":{"artifactLocation":{"uri":"/s/b.java"},"region":{"startLine":3,"startColumn":2}}},{"message":{"text":"outside"},"physicalLocation":{"artifactLocation":{"uri":"/elsewhere/c.java"},"region":{"startLine":1,"startColumn":1}}},{"physicalLocation":{"artifactLocation":{"uri":"/s/b.java"}}}]}"#;
-        let log = format!("{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},\"results\":[{result}]}}]}}");
+        let log = format!(
+            "{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},\"results\":[{result}]}}]}}"
+        );
         let found = parse_sarif(
             TOOL,
             log.as_bytes(),

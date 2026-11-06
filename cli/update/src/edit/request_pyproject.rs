@@ -82,11 +82,11 @@ fn scan_array(
 ) -> Result<Vec<(usize, String)>, EditError> {
     let mut found = Vec::new();
     for (index, value) in array.iter().enumerate() {
-        if let Some(text) = value.as_str() {
-            if let Some(widened) = widen_requirement(text, package, version)? {
-                hits.push(widened.clone());
-                found.push((index, widened));
-            }
+        if let Some(text) = value.as_str()
+            && let Some(widened) = widen_requirement(text, package, version)?
+        {
+            hits.push(widened.clone());
+            found.push((index, widened));
         }
     }
     Ok(found)

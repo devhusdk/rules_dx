@@ -3,9 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::exception::{check_expiry, line_of, toml_message, ExceptionProblem};
+use crate::exception::{ExceptionProblem, check_expiry, line_of, toml_message};
 use crate::license_expr::Tier;
-use crate::profile_base::{base_text, Profile};
+use crate::profile_base::{Profile, base_text};
 use dx_config::conventions::pattern_covers;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]

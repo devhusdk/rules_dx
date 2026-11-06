@@ -7,7 +7,7 @@
 
 use std::path::Path;
 
-use super::{as_text, code_name, known_lexical, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_lexical};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "terraform";
@@ -55,7 +55,7 @@ fn diagnostic(
             return Err(ParseError::shape(
                 TOOL,
                 format!("unknown diagnostic severity {other:?}"),
-            ))
+            ));
         }
     };
     let summary = text_of(diag, "summary");
@@ -299,10 +299,12 @@ mod tests {
             Some(TextPosition { line: 3, column: 9 })
         );
         assert_eq!(found[0].finding.rule_id, "validate");
-        assert!(found[0]
-            .finding
-            .message
-            .starts_with("Reference to undeclared"));
+        assert!(
+            found[0]
+                .finding
+                .message
+                .starts_with("Reference to undeclared")
+        );
         assert_eq!(found[0].finding.encoding, ColumnEncoding::Scalars);
     }
 
@@ -409,9 +411,10 @@ mod tests {
     fn init_missing_provider_fails_the_run() {
         let out = init_line("Failed to query available provider packages", None);
         let err = parse_terraform_init(out.as_bytes(), b"", Some(1), dir(), KNOWN).unwrap_err();
-        assert!(err
-            .to_string()
-            .contains("Failed to query available provider"));
+        assert!(
+            err.to_string()
+                .contains("Failed to query available provider")
+        );
     }
 
     #[test]

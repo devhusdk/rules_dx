@@ -123,7 +123,7 @@ mod win {
 
     type NtQuery = unsafe extern "system" fn(Handle, u32, *mut c_void, u32, *mut u32) -> i32;
 
-    extern "system" {
+    unsafe extern "system" {
         fn CreateToolhelp32Snapshot(flags: u32, process_id: u32) -> Handle;
         fn Process32FirstW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;
         fn Process32NextW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;

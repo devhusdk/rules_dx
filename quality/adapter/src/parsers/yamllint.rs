@@ -1,5 +1,5 @@
 use super::{
-    columned, finding, lines, located, missing, require_findings, FileFinding, ParseError,
+    FileFinding, ParseError, columned, finding, lines, located, missing, require_findings,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -81,12 +81,14 @@ mod tests {
         assert!(clean.is_empty());
         assert!(parse_yamllint(b"", Some(1), &["Sample.yaml"]).is_err());
         assert!(parse_yamllint(DIRTY.as_bytes(), Some(1), &["other.yaml"]).is_err());
-        assert!(parse_yamllint(
-            b"Sample.yaml:1:1: [info] x (r)\n",
-            Some(1),
-            &["Sample.yaml"]
-        )
-        .is_err());
+        assert!(
+            parse_yamllint(
+                b"Sample.yaml:1:1: [info] x (r)\n",
+                Some(1),
+                &["Sample.yaml"]
+            )
+            .is_err()
+        );
         assert!(parse_yamllint(&[0xff], Some(1), &["x"]).is_err());
     }
 

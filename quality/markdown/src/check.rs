@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use clap::error::ErrorKind;
 use clap::Parser as ClapParser;
+use clap::error::ErrorKind;
 use serde::Serialize;
 
 use super::frontmatter::{check_headings, code_regions, headings, line_starts};

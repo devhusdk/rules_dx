@@ -335,9 +335,11 @@ fn inspect_reads_the_running_test_binary() {
     #[cfg(not(any(windows, target_os = "macos", target_os = "ios")))]
     let want = Format::Elf;
     assert_eq!(images[0].format, want);
-    assert!(images
-        .iter()
-        .any(|image| image.machine == std::env::consts::ARCH));
+    assert!(
+        images
+            .iter()
+            .any(|image| image.machine == std::env::consts::ARCH)
+    );
 }
 
 #[test]
@@ -485,10 +487,12 @@ fn fat_rejects_empty_and_non_macho_slices() {
     )]);
     let slice = elf(elf::EM_X86_64, None, &[]);
     put(&mut with_elf, 4096, &slice);
-    assert!(inspect(&with_elf)
-        .unwrap_err()
-        .to_string()
-        .contains("fat slice"));
+    assert!(
+        inspect(&with_elf)
+            .unwrap_err()
+            .to_string()
+            .contains("fat slice")
+    );
 }
 
 #[test]

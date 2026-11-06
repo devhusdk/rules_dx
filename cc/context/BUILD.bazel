@@ -47,7 +47,6 @@ rust_library(
     ),
     crate_name = "cc_context",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cc/cc_context",
         normal = True,
@@ -67,7 +66,6 @@ rust_test(
     ),
     crate_name = "cc_context",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cc/cc_context",
         normal = True,
@@ -84,7 +82,6 @@ rust_binary(
     ),
     crate_name = "compile_db",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cc/cc_context",
         normal = True,
@@ -100,7 +97,6 @@ rust_binary(
     ),
     crate_name = "qualify",
     crate_root = "qualify/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cc/cc_context",
         normal = True,
@@ -134,7 +130,6 @@ rust_test(
         "//cc/tests/fixtures/compilation_db:probe_plain.aquery.json",
         "@llvm//tools:clang-tidy",
     ],
-    edition = "2021",
     env = {
         "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",
         "DX_IDENTITY": "$(rootpath :identity)",
@@ -171,7 +166,6 @@ rust_test(
         "@llvm//tools:clang",
         "@llvm//tools:clangd",
     ],
-    edition = "2021",
     env = {
         "DX_LSP_AQUERY": "$(rootpath //cc/tests/fixtures/compilation_db:probe_legacy.aquery.json)",
         "DX_LSP_CLANG": "$(rootpath @llvm//tools:clang)",
@@ -205,7 +199,6 @@ rust_test(
         "@rust_analyzer//:rustc",
         "@rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc",
     ],
-    edition = "2021",
     env = {
         "DX_LSP_RUSTC_CHECK": "$(rootpath @rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc)",
         "DX_LSP_RUSTC_PROJECT": "$(rootpath @rust_analyzer//:rustc)",

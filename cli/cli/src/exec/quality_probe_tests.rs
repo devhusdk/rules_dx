@@ -158,24 +158,31 @@ fn unsafe_reaches_only_the_build_argv_and_the_started_event() {
         serde_json::from_str(out.lines().next().expect("started line")).expect("json");
     assert_eq!(started["event"], "command_started");
     assert_eq!(started["unsafe_fixes"], true);
-    assert!(harness.build_argv.borrow()[0]
-        .iter()
-        .any(|arg| arg == PARAMETER));
-    assert!(!harness.probe_argv.borrow()[0]
-        .iter()
-        .any(|arg| arg == PARAMETER));
+    assert!(
+        harness.build_argv.borrow()[0]
+            .iter()
+            .any(|arg| arg == PARAMETER)
+    );
+    assert!(
+        !harness.probe_argv.borrow()[0]
+            .iter()
+            .any(|arg| arg == PARAMETER)
+    );
 
     let harness = clean_harness("probe-safe");
     let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 0, "{out}");
-    assert!(!out
-        .lines()
-        .next()
-        .expect("started line")
-        .contains("unsafe_fixes"));
-    assert!(!harness.build_argv.borrow()[0]
-        .iter()
-        .any(|arg| arg.contains("aspects_parameters")));
+    assert!(
+        !out.lines()
+            .next()
+            .expect("started line")
+            .contains("unsafe_fixes")
+    );
+    assert!(
+        !harness.build_argv.borrow()[0]
+            .iter()
+            .any(|arg| arg.contains("aspects_parameters"))
+    );
 }
 
 #[test]

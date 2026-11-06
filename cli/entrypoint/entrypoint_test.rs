@@ -224,7 +224,8 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
     );
     let cargo = read("DX_SETS_SECURITY_CARGO");
     assert!(
-        cargo.contains("failed to assess crates") && cargo.contains(".dx/local/advisory/cargo.json"),
+        cargo.contains("failed to assess crates")
+            && cargo.contains(".dx/local/advisory/cargo.json"),
         "audit checks configured cargo sets against the cargo snapshot: {cargo}"
     );
     assert!(
@@ -233,7 +234,8 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
     );
     let cpan = read("DX_SETS_SECURITY_CPAN");
     assert!(
-        cpan.contains("failed to assess cpan_deps") && cpan.contains(".dx/local/advisory/cpan.json"),
+        cpan.contains("failed to assess cpan_deps")
+            && cpan.contains(".dx/local/advisory/cpan.json"),
         "audit checks configured cpan sets against the cpan snapshot: {cpan}"
     );
     assert!(

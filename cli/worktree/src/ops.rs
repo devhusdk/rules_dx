@@ -4,14 +4,14 @@ use std::time::Duration;
 
 use dx_path::nested_bazel;
 
+use super::WorktreeError;
 use super::cache;
 use super::git;
 use super::host::{
-    download_used, resolved, same_path, scan_downloads, scan_output_bases, DiskSpace, Download,
-    Host, OutputBase, Server,
+    DiskSpace, Download, Host, OutputBase, Server, download_used, resolved, same_path,
+    scan_downloads, scan_output_bases,
 };
 use super::pool::{Pool, Record, Who};
-use super::WorktreeError;
 
 const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
 const EXTERNAL_GRACE_SECS: u64 = 24 * 60 * 60;

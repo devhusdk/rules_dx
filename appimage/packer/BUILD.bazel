@@ -16,7 +16,6 @@ rust_library(
     ),
     crate_name = "appimage_packer",
     crate_root = "src/lib.rs",
-    edition = "2021",
     target_compatible_with = _LINUX,
     deps = all_crate_deps(
         package_name = "appimage/appimage_packer",
@@ -33,7 +32,6 @@ rust_binary(
     ),
     crate_name = "appimage_packer",
     crate_root = "src/main.rs",
-    edition = "2021",
     target_compatible_with = _LINUX,
     deps = all_crate_deps(
         package_name = "appimage/appimage_packer",

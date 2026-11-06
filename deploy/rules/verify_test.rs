@@ -1,4 +1,4 @@
-use dx_testing::http::{requests, serve as serve_with, Reply, RequestLog};
+use dx_testing::http::{Reply, RequestLog, requests, serve as serve_with};
 use std::path::{Path, PathBuf};
 
 fn data(name: &str) -> PathBuf {
@@ -975,9 +975,11 @@ fn pypi_native_linked_case() {
     );
     let (url, _log) = serve(house);
     let target = install(&url, "dx_native_probe");
-    assert!(!target
-        .join("dx_native_probe/libdx_probe_helper.so")
-        .exists());
+    assert!(
+        !target
+            .join("dx_native_probe/libdx_probe_helper.so")
+            .exists()
+    );
     let output = linked_import(&target, call);
     assert!(!output.status.success());
     assert!(

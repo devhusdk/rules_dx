@@ -4,9 +4,9 @@ use std::path::Path;
 
 use dx_setup::SETUPS_DIR_NAME;
 
+use super::CleanError;
 use super::apply::CleanOutcome;
 use super::planning::{CleanPlan, GenerationView};
-use super::CleanError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PruneBytes {
@@ -202,7 +202,7 @@ mod tests {
     use super::*;
     use crate::fixtures::*;
     use crate::inventory::collect_inventory;
-    use crate::planning::{plan_prune, PruneInputs, UnobservedPolicy};
+    use crate::planning::{PruneInputs, UnobservedPolicy, plan_prune};
     use crate::records::SetupRecordView;
     use dx_atomic_fs::lease::GenerationUse;
 

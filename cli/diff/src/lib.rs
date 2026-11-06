@@ -24,7 +24,9 @@ pub struct FilePatch<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum DiffError {
-    #[error("unrepresentable path {path:?}: paths with tab, carriage return, or line feed cannot be rendered")]
+    #[error(
+        "unrepresentable path {path:?}: paths with tab, carriage return, or line feed cannot be rendered"
+    )]
     UnrepresentablePath { path: String },
     #[error("duplicate path {path:?}")]
     DuplicatePath { path: String },
@@ -350,9 +352,11 @@ mod tests {
             unrepresentable.to_string(),
             "unrepresentable path \"a\\tb\": paths with tab, carriage return, or line feed cannot be rendered"
         );
-        assert!(!unrepresentable
-            .to_string()
-            .contains("UnrepresentablePath {"));
+        assert!(
+            !unrepresentable
+                .to_string()
+                .contains("UnrepresentablePath {")
+        );
         assert_eq!(
             DiffError::DuplicatePath {
                 path: "a".to_owned()

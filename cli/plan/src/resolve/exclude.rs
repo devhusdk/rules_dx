@@ -8,7 +8,7 @@ use std::path::Path;
 
 use dx_config::conventions::pattern_covers;
 
-use super::{quote_set, ResolveError, ResolvedScope};
+use super::{ResolveError, ResolvedScope, quote_set};
 
 /// The exclude patterns of `workspace/dx.toml`; none when the file is missing.
 pub fn load(workspace: &Path) -> Result<Vec<String>, ResolveError> {

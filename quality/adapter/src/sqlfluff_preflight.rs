@@ -121,13 +121,13 @@ fn check(text: &str, require_dialect: bool) -> Result<(), String> {
             return Err(format!(
                 "sqlfluff config must set `dialect` under [sqlfluff]; one of {}",
                 DIALECTS.join(", ")
-            ))
+            ));
         }
         Some(name) if !DIALECTS.contains(&name) => {
             return Err(format!(
                 "sqlfluff config dialect `{name}` is unknown to sqlfluff 4.4.0; use one of {}",
                 DIALECTS.join(", ")
-            ))
+            ));
         }
         Some(_) => {}
     }

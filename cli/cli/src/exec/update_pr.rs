@@ -1,14 +1,14 @@
 use super::common::*;
-use super::update_outdated::{collect, registry_fetch, registry_for, split_builtin, Collected};
+use super::update_outdated::{Collected, collect, registry_fetch, registry_for, split_builtin};
 use dx_adopt::dependency_sets::{self, Selection};
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, FinishedCounts, NoticeEvent,
-    OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
+    notice_event,
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::Fetch;
-use dx_update::policy::{automerge, filter, Level, Policy};
-use dx_update::pr::{body, lock_numstat, pick_tags, plan, Group, GroupPlan, Item, Scope};
+use dx_update::policy::{Level, Policy, automerge, filter};
+use dx_update::pr::{Group, GroupPlan, Item, Scope, body, lock_numstat, pick_tags, plan};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -88,10 +88,8 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         }
     };
     let json = invocation.output == OutputMode::Json;
-    if json {
-        if let Err(exit) = emit_built(out, command_started("update", "default")) {
-            return exit;
-        }
+    if json && let Err(exit) = emit_built(out, command_started("update", "default")) {
+        return exit;
     }
     let Collected {
         found, registries, ..
@@ -1356,7 +1354,10 @@ mod tests {
                     "MODULE.bazel",
                     "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:go.mod\")\n",
                 ),
-                ("go.mod", "module m\n\ngo 1.22\n\nrequire example.com/x v1.0.0\n"),
+                (
+                    "go.mod",
+                    "module m\n\ngo 1.22\n\nrequire example.com/x v1.0.0\n",
+                ),
             ],
             &[("proxy.golang.org/example.com/x/@v/list", "v1.0.0\nv1.1.0\n")],
         );
@@ -1428,7 +1429,9 @@ mod tests {
     fn a_workflow_push_refusal_skips_the_group() {
         let fx = fixture_with_hook(
             "[]",
-            Some("refusing to allow a GitHub App to create or update workflow `.github/workflows/ci.yml` without `workflows` permission"),
+            Some(
+                "refusing to allow a GitHub App to create or update workflow `.github/workflows/ci.yml` without `workflows` permission",
+            ),
         );
         let mut step = editing(fx.work.clone(), None);
         let got = publish(
@@ -1451,10 +1454,12 @@ mod tests {
             .iter()
             .find(|o| o.branch == "dx-update/cargo")
             .expect("outcome");
-        assert!(opened
-            .result
-            .as_ref()
-            .is_ok_and(|t| t.starts_with("opened")));
+        assert!(
+            opened
+                .result
+                .as_ref()
+                .is_ok_and(|t| t.starts_with("opened"))
+        );
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(!argv.contains("--head dx-update/github-actions"));
         let remote = sh(&fx.origin, &["branch", "--list"]);
@@ -1465,8 +1470,10 @@ mod tests {
         );
         let mut out = Vec::new();
         emit(&mut out, &got, false, 0).expect("emit");
-        assert!(String::from_utf8_lossy(&out)
-            .contains("dx-update/github-actions: skipped: token cannot push workflow files"));
+        assert!(
+            String::from_utf8_lossy(&out)
+                .contains("dx-update/github-actions: skipped: token cannot push workflow files")
+        );
     }
 
     #[test]

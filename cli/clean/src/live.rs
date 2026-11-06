@@ -3,11 +3,11 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use dx_atomic_fs::lease::{self, GenerationUse};
-use dx_setup::{GenerationId, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, SETUPS_DIR_NAME};
+use dx_setup::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, GenerationId, SETUPS_DIR_NAME};
 
-use super::inventory::{collect_inventory, CollectedInventory};
-use super::planning::{GenerationView, UnobservedPolicy};
 use super::CleanError;
+use super::inventory::{CollectedInventory, collect_inventory};
+use super::planning::{GenerationView, UnobservedPolicy};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LiveHexes {
@@ -208,10 +208,11 @@ fn scan_live_observation_with(
         };
         let name = entry.file_name();
         let pid = name.to_string_lossy();
-        if !pid.is_empty() && pid.bytes().all(|byte| byte.is_ascii_digit()) {
-            if let Err(reason) = observe_process(&entry.path(), dx_dir, &mut live) {
-                unreadable.push(format!("process {pid}: {reason}"));
-            }
+        if !pid.is_empty()
+            && pid.bytes().all(|byte| byte.is_ascii_digit())
+            && let Err(reason) = observe_process(&entry.path(), dx_dir, &mut live)
+        {
+            unreadable.push(format!("process {pid}: {reason}"));
         }
     }
     live.setup.sort();

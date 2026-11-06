@@ -4,7 +4,7 @@ use std::path::Path;
 use quality_adapter::api_spec_preflight::{self, Problem};
 use quality_adapter::launch::ResolvedTool;
 use quality_adapter::parsers::FileFinding;
-use quality_adapter::{commands, parsers, ColumnEncoding, Finding, TextPosition, ToolSeverity};
+use quality_adapter::{ColumnEncoding, Finding, TextPosition, ToolSeverity, commands, parsers};
 
 use super::check::ToolDef;
 use super::*;

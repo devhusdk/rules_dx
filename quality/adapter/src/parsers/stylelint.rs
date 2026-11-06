@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 pub fn parse_stylelint(
@@ -91,7 +91,7 @@ pub fn parse_stylelint(
                     return Err(ParseError::Shape {
                         tool: TOOL,
                         detail: format!("unknown severity {other:?}"),
-                    })
+                    });
                 }
             };
             if line == 0 || col == 0 {

@@ -117,11 +117,13 @@ mod tests {
 
     #[test]
     fn accepts_matching_statement() {
-        assert!(check(
-            &good(PROVENANCE_BUILDER_RELEASE),
-            PROVENANCE_BUILDER_RELEASE
-        )
-        .is_ok());
+        assert!(
+            check(
+                &good(PROVENANCE_BUILDER_RELEASE),
+                PROVENANCE_BUILDER_RELEASE
+            )
+            .is_ok()
+        );
     }
 
     #[test]

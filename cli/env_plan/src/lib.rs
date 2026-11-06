@@ -14,10 +14,10 @@ use std::path::Path;
 use dx_bep::TargetOutput;
 use dx_digest::blake3 as digest;
 use dx_roots::{
-    build_argv, invocation_targets, repository_plan, resolve_exact_target, ExactScopeError,
-    RepositoryRootPlan,
+    ExactScopeError, RepositoryRootPlan, build_argv, invocation_targets, repository_plan,
+    resolve_exact_target,
 };
-use env_shard::{decode_validated, Error};
+use env_shard::{Error, decode_validated};
 use serde::Serialize;
 
 pub const OUTPUT_GROUP: &str = "dx_env_plans";

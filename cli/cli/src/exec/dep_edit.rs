@@ -2,7 +2,7 @@
 
 use super::common::*;
 use dx_output::{
-    command_finished, error_event, notice_event, FinishedCounts, NoticeEvent, OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, error_event, notice_event,
 };
 use dx_plan::args::Invocation;
 
@@ -245,21 +245,21 @@ pub(crate) fn preflight(
             ),
         ));
     }
-    if invocation.offline && target.needs_update_refresh() {
-        if let Some((_, Err(dx_update::backend::BackendError::OfflineRequired { .. }))) =
+    if invocation.offline
+        && target.needs_update_refresh()
+        && let Some((_, Err(dx_update::backend::BackendError::OfflineRequired { .. }))) =
             refresh_plan(workspace, invocation, target, None)
-        {
-            return Err(operational(
-                invocation,
-                out,
-                err,
-                CODE_OFFLINE_REQUIRED,
-                &format!(
-                    "cannot refresh {selector} without network: re-run without --offline once connected (no {} performed)",
-                    verb.noun,
-                ),
-            ));
-        }
+    {
+        return Err(operational(
+            invocation,
+            out,
+            err,
+            CODE_OFFLINE_REQUIRED,
+            &format!(
+                "cannot refresh {selector} without network: re-run without --offline once connected (no {} performed)",
+                verb.noun,
+            ),
+        ));
     }
     if target.needs_update_refresh() && target.configured.is_none() {
         return Err(operational(
@@ -416,10 +416,8 @@ pub(crate) fn write_and_refresh(
             }
             return 0;
         }
-        if verbose {
-            if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
-                return exit;
-            }
+        if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+            return exit;
         }
         return 0;
     }

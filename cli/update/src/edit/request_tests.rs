@@ -195,9 +195,24 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
             (duplicate.to_owned(), malformed.to_owned())
         };
         let (duplicate, malformed) = (duplicate.as_str(), malformed.as_str());
-        assert!(matches!(update.plan_edit(missing), Err(EditError::NotFound { .. })), "{selector}");
-        assert!(matches!(update.plan_edit(duplicate), Err(EditError::Ambiguous { count: 2, .. })), "{selector}");
-        assert!(matches!(update.plan_edit(malformed), Err(EditError::UnsupportedManifest { .. })), "{selector}");
+        assert!(
+            matches!(update.plan_edit(missing), Err(EditError::NotFound { .. })),
+            "{selector}"
+        );
+        assert!(
+            matches!(
+                update.plan_edit(duplicate),
+                Err(EditError::Ambiguous { count: 2, .. })
+            ),
+            "{selector}"
+        );
+        assert!(
+            matches!(
+                update.plan_edit(malformed),
+                Err(EditError::UnsupportedManifest { .. })
+            ),
+            "{selector}"
+        );
     }
     let update = UpdateRequest::parse_grammar("npm:demo", "2.0.0").expect("npm");
     assert!(matches!(
@@ -218,8 +233,16 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
 #[test]
 fn widen_preserves_comments_crlf_and_package_boundaries() {
     for (selector, input, expected) in [
-        ("go:example.com/demo", "module example.com/root\n// example.com/demo v9.0.0\nrequire (\n example.com/demo-extra v1.0.0\n example.com/demo v1.2.3-beta+build // indirect\n)\n", "module example.com/root\n// example.com/demo v9.0.0\nrequire (\n example.com/demo-extra v1.0.0\n example.com/demo v2.0.0 // indirect\n)\n"),
-        ("nuget:Demo", "# nuget Demo 9.0.0\r\n// keep\r\nnuget Demo.Other 1.0.0\r\n  nuget Demo 1.2.3  # pinned\r\n", "# nuget Demo 9.0.0\r\n// keep\r\nnuget Demo.Other 1.0.0\r\n  nuget Demo 2.0.0  # pinned\r\n"),
+        (
+            "go:example.com/demo",
+            "module example.com/root\n// example.com/demo v9.0.0\nrequire (\n example.com/demo-extra v1.0.0\n example.com/demo v1.2.3-beta+build // indirect\n)\n",
+            "module example.com/root\n// example.com/demo v9.0.0\nrequire (\n example.com/demo-extra v1.0.0\n example.com/demo v2.0.0 // indirect\n)\n",
+        ),
+        (
+            "nuget:Demo",
+            "# nuget Demo 9.0.0\r\n// keep\r\nnuget Demo.Other 1.0.0\r\n  nuget Demo 1.2.3  # pinned\r\n",
+            "# nuget Demo 9.0.0\r\n// keep\r\nnuget Demo.Other 1.0.0\r\n  nuget Demo 2.0.0  # pinned\r\n",
+        ),
         ("nuget:Demo", "nuget Demo 1.2.3", "nuget Demo 2.0.0"),
     ] {
         let update = UpdateRequest::parse_grammar(selector, "2.0.0").expect("request");
@@ -286,7 +309,9 @@ fn workflow_widen_keeps_quotes_comments_and_formatting() {
         ),
         (
             "      - name: x\n        uses: \"actions/checkout@v4\"\n        with:\n          a: 1\n",
-            format!("      - name: x\n        uses: \"actions/checkout@{sha}\"\n        with:\n          a: 1\n"),
+            format!(
+                "      - name: x\n        uses: \"actions/checkout@{sha}\"\n        with:\n          a: 1\n"
+            ),
         ),
         (
             "      - uses: \"actions\\x2fcheckout@v4\"\n",
@@ -319,7 +344,9 @@ fn workflow_widen_selects_job_level_reusable_workflows() {
     let source = "jobs:\n  call:\n    uses: org/repo/.github/workflows/ci.yml@v1 # v1\n    with:\n      a: 1\n";
     assert_eq!(
         update.plan_edit(source).expect("edit"),
-        format!("jobs:\n  call:\n    uses: org/repo/.github/workflows/ci.yml@{sha} # v1\n    with:\n      a: 1\n")
+        format!(
+            "jobs:\n  call:\n    uses: org/repo/.github/workflows/ci.yml@{sha} # v1\n    with:\n      a: 1\n"
+        )
     );
     let not_workflow = "jobs:\n  call:\n    uses: org/repo/other/ci.yml@v1\n";
     assert!(matches!(
@@ -355,11 +382,15 @@ fn workflow_widen_ignores_text_that_is_not_a_real_pin() {
 #[test]
 fn workflow_widen_only_edits_the_real_pin_beside_fake_text() {
     let sha = "a".repeat(40);
-    let source = steps("      - run: |\n          uses: actions/checkout@v1\n      # uses: actions/checkout@v1\n      - uses: actions/checkout@v1 # uses: actions/checkout@v1\n");
+    let source = steps(
+        "      - run: |\n          uses: actions/checkout@v1\n      # uses: actions/checkout@v1\n      - uses: actions/checkout@v1 # uses: actions/checkout@v1\n",
+    );
     let widened = widen(&source).expect("edit");
     assert_eq!(
         widened,
-        steps(&format!("      - run: |\n          uses: actions/checkout@v1\n      # uses: actions/checkout@v1\n      - uses: actions/checkout@{sha} # uses: actions/checkout@v1\n"))
+        steps(&format!(
+            "      - run: |\n          uses: actions/checkout@v1\n      # uses: actions/checkout@v1\n      - uses: actions/checkout@{sha} # uses: actions/checkout@v1\n"
+        ))
     );
 }
 
@@ -863,7 +894,10 @@ fn cargo_toml_preserves_format_and_fails_closed() {
 #[test]
 fn github_actions_needs_sha_for_tags() {
     let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    let workflow = steps(&format!("      - uses: actions/checkout@{old} # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n", old = "3d3c42e5aac5ba805825da76410c181273ba90b1"));
+    let workflow = steps(&format!(
+        "      - uses: actions/checkout@{old} # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
+        old = "3d3c42e5aac5ba805825da76410c181273ba90b1"
+    ));
     let update = UpdateRequest::parse("github-actions:actions/checkout", sha).expect("sha");
     let widened = update.plan_edit(&workflow).expect("edit");
     assert!(
@@ -934,11 +968,15 @@ fn module_bazel_edits_one_literal_version_token() {
         ),
     ] {
         assert_eq!(
-            update.plan_edit_outcome(update.target_manifest(), before).expect(before),
+            update
+                .plan_edit_outcome(update.target_manifest(), before)
+                .expect(before),
             EditPlanOutcome::Changed(after.to_owned())
         );
         assert_eq!(
-            update.plan_edit_outcome(update.target_manifest(), after).expect(after),
+            update
+                .plan_edit_outcome(update.target_manifest(), after)
+                .expect(after),
             EditPlanOutcome::Unchanged
         );
     }
@@ -1691,15 +1729,17 @@ fn ruby_widen_refuses_what_it_cannot_rewrite_literally() {
 
 #[test]
 fn ruby_versions_are_dotted_numbers() {
-    assert!(UpdateRequest::parse_configured_set(
-        ConfiguredKind::Ruby,
-        "bundle",
-        &["Gemfile".to_owned()],
-        None,
-        "bundle:rake",
-        "1.0.0.rc1",
-    )
-    .is_err());
+    assert!(
+        UpdateRequest::parse_configured_set(
+            ConfiguredKind::Ruby,
+            "bundle",
+            &["Gemfile".to_owned()],
+            None,
+            "bundle:rake",
+            "1.0.0.rc1",
+        )
+        .is_err()
+    );
 }
 
 fn cpan_request(module: &str, version: &str) -> Result<UpdateRequest, EditError> {

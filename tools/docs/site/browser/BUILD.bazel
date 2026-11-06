@@ -36,7 +36,6 @@ rust_library(
     ),
     crate_name = "dx_site_browser",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_browser",
         normal = True,
@@ -56,7 +55,6 @@ rust_test(
     ),
     crate_name = "dx_site_browser",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_browser",
         normal = True,

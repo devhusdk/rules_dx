@@ -141,7 +141,7 @@ pub fn convert(json: &str) -> Result<DocIr, String> {
         other => {
             return Err(format!(
                 "Go doc JSON schema {other} is not supported, expected {SCHEMA}"
-            ))
+            ));
         }
     }
     let importpath = string(root, "importpath", at)?;

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "qmllint";
@@ -305,10 +305,12 @@ mod tests {
         .expect("parsed");
         assert_eq!(import.len(), 3);
         assert!(import.iter().all(|found| found.finding.rule_id == "import"));
-        assert!(import[1]
-            .finding
-            .message
-            .contains("Failed to import Nope.Missing"));
+        assert!(
+            import[1]
+                .finding
+                .message
+                .contains("Failed to import Nope.Missing")
+        );
     }
 
     #[test]
@@ -331,10 +333,12 @@ mod tests {
     #[test]
     fn every_requested_file_must_be_reported_once() {
         let missing = lint(CLEAN.as_bytes(), Some(0), &["clean.qml", "other.qml"]);
-        assert!(missing
-            .expect_err("missing")
-            .to_string()
-            .contains("no report for other.qml"));
+        assert!(
+            missing
+                .expect_err("missing")
+                .to_string()
+                .contains("no report for other.qml")
+        );
         let twice = CLEAN.replace(
             "]",
             ",{\"filename\":\"clean.qml\",\"success\":true,\"warnings\":[]}]",

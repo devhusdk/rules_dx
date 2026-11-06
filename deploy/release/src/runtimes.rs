@@ -56,16 +56,16 @@ pub fn build(runtimes: &[ShippedRuntime]) -> Result<Vec<RuntimeRecord>, String> 
             "build_only" => {
                 return Err(format!(
                     "inventory: runtime {name} is build_only and cannot ship"
-                ))
+                ));
             }
             "app_local" if runtime.notice.is_none() => {
-                return Err(format!("inventory: app_local runtime {name} has no notice"))
+                return Err(format!("inventory: app_local runtime {name} has no notice"));
             }
             "app_local" | "os_supplied" => {}
             other => {
                 return Err(format!(
                     "inventory: runtime {name} has unsupported redistribution {other:?}"
-                ))
+                ));
             }
         }
         let mut files = Vec::with_capacity(runtime.files.len());

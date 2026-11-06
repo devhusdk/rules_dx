@@ -1,4 +1,4 @@
-use crate::lang::{LineComment, COVERED_LANGUAGES};
+use crate::lang::{COVERED_LANGUAGES, LineComment};
 use crate::{find_ignores, is_covered_language};
 
 fn marker(kind: &str) -> String {

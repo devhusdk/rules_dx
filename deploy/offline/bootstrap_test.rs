@@ -519,7 +519,10 @@ fn the_demo_offline_bundle_bootstraps() {
     let home = scratch();
     let bundle = std::fs::canonicalize(&staged).expect("canonical demo bundle");
     bootstrap(&bundle.to_string_lossy(), &home, &home).expect_ok();
-    assert!(home.join("workspace/.dx/local/advisory/cargo.json").is_file());
+    assert!(
+        home.join("workspace/.dx/local/advisory/cargo.json")
+            .is_file()
+    );
     assert!(
         identity(&home, "cargo").contains("\"retrieved_at\": \"2026-01-01\""),
         "the demo bundle records its own date: {}",

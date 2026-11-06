@@ -2,8 +2,8 @@
 
 use crate::archive::*;
 use crate::run::{
-    deploy_profile, env_or_empty, print_redacted, scrubbed_command, DeployRun, OwnerGate,
-    DOTNET_CHILD_ENV_EXTRA, PUBLISH_CHILD_ENV_KEEP,
+    DOTNET_CHILD_ENV_EXTRA, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile,
+    env_or_empty, print_redacted, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -171,7 +171,7 @@ pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), String> {
                 "{} has more than one root .nuspec: {}",
                 nupkg.display(),
                 names.join(", ")
-            ))
+            ));
         }
     };
     let mut xml = String::new();
@@ -491,13 +491,17 @@ mod tests {
         let scratch = scratch_dir();
         let path = scratch.path().join("bad.nupkg");
         std::fs::write(&path, b"not a zip").expect("write");
-        assert!(nuget_read_identity(&path)
-            .expect_err("zip")
-            .contains("not a valid nupkg"));
+        assert!(
+            nuget_read_identity(&path)
+                .expect_err("zip")
+                .contains("not a valid nupkg")
+        );
         write_nupkg(&path, &[("lib/a.dll", "x")]);
-        assert!(nuget_read_identity(&path)
-            .expect_err("none")
-            .contains("no root .nuspec"));
+        assert!(
+            nuget_read_identity(&path)
+                .expect_err("none")
+                .contains("no root .nuspec")
+        );
         write_nupkg(
             &path,
             &[
@@ -505,9 +509,11 @@ mod tests {
                 ("b.nuspec", &nuspec("B", "1.0.0")),
             ],
         );
-        assert!(nuget_read_identity(&path)
-            .expect_err("two")
-            .contains("more than one root .nuspec"));
+        assert!(
+            nuget_read_identity(&path)
+                .expect_err("two")
+                .contains("more than one root .nuspec")
+        );
         write_nupkg(
             &path,
             &[(
@@ -515,26 +521,37 @@ mod tests {
                 "<package><metadata><id>A</id></metadata></package>",
             )],
         );
-        assert!(nuget_read_identity(&path)
-            .expect_err("no version")
-            .contains("no <version>"));
+        assert!(
+            nuget_read_identity(&path)
+                .expect_err("no version")
+                .contains("no <version>")
+        );
         write_nupkg(
             &path,
-            &[("a.nuspec", "<package><metadata><id>A</id><id>B</id><version>1.0.0</version></metadata></package>")],
+            &[(
+                "a.nuspec",
+                "<package><metadata><id>A</id><id>B</id><version>1.0.0</version></metadata></package>",
+            )],
         );
-        assert!(nuget_read_identity(&path)
-            .expect_err("dup")
-            .contains("more than one <id>"));
+        assert!(
+            nuget_read_identity(&path)
+                .expect_err("dup")
+                .contains("more than one <id>")
+        );
         write_nupkg(&path, &[("a.nuspec", "<package><metadata><id>A</id>")]);
         assert!(nuget_read_identity(&path).is_err());
         write_nupkg(&path, &[("a.nuspec", &nuspec("A/../B", "1.0.0"))]);
-        assert!(nuget_read_identity(&path)
-            .expect_err("id chars")
-            .contains("invalid NuGet package id"));
+        assert!(
+            nuget_read_identity(&path)
+                .expect_err("id chars")
+                .contains("invalid NuGet package id")
+        );
         write_nupkg(&path, &[("a.nuspec", &nuspec("A", "one"))]);
-        assert!(nuget_read_identity(&path)
-            .expect_err("version")
-            .contains("invalid NuGet version"));
+        assert!(
+            nuget_read_identity(&path)
+                .expect_err("version")
+                .contains("invalid NuGet version")
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use super::clang_syntax::{diagnostic, include_entry, locate, split_rule};
-use super::{finding, lines, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, finding, lines, require_findings};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 

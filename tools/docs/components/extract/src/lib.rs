@@ -12,7 +12,7 @@
 
 mod convert;
 
-pub use convert::{convert, Settings, SCHEMA};
+pub use convert::{SCHEMA, Settings, convert};
 
 use std::fs;
 

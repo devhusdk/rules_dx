@@ -318,9 +318,11 @@ mod tests {
             found(&resolver, "dep/pkg/tool.txt"),
             PathBuf::from("out/tool.txt")
         );
-        assert!(resolver
-            .lookup_from("dep/pkg/tool.txt", "other_repo")
-            .is_err());
+        assert!(
+            resolver
+                .lookup_from("dep/pkg/tool.txt", "other_repo")
+                .is_err()
+        );
     }
 
     #[test]

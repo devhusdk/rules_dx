@@ -2,9 +2,9 @@
 //! see `.git`, so the image is built here and its path replaces the ref in the
 //! `--breaking-against` build setting.
 
-use super::pinned_tool::{resolve_pinned, PinnedTool, PinnedToolError, QueryBazel};
+use super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use dx_plan::args::BREAKING_AGAINST_OPTION;
-use dx_plan::resolve::{merge_base, QueryRunner};
+use dx_plan::resolve::{QueryRunner, merge_base};
 use std::path::{Path, PathBuf};
 
 const BUF: PinnedTool<'static> = PinnedTool {

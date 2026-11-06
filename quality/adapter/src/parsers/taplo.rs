@@ -1,5 +1,5 @@
 use super::{
-    check_output_size, code_name, finding, known, missing, unformatted_at, FileFinding, ParseError,
+    FileFinding, ParseError, check_output_size, code_name, finding, known, missing, unformatted_at,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -196,25 +196,31 @@ mod tests {
 
     #[test]
     fn taplo_rejects_orphan_blocks_bad_locations_and_bytes() {
-        assert!(parse_taplo_lint(
-            "  \u{250c}\u{2500} /s/x.toml:1:5\n".as_bytes(),
-            Some(1),
-            &["/s/x.toml"]
-        )
-        .is_err());
-        assert!(parse_taplo_lint(
-            "error: bad\n  \u{250c}\u{2500} /s/x.toml:a:b\n".as_bytes(),
-            Some(1),
-            &["/s/x.toml"]
-        )
-        .is_err());
+        assert!(
+            parse_taplo_lint(
+                "  \u{250c}\u{2500} /s/x.toml:1:5\n".as_bytes(),
+                Some(1),
+                &["/s/x.toml"]
+            )
+            .is_err()
+        );
+        assert!(
+            parse_taplo_lint(
+                "error: bad\n  \u{250c}\u{2500} /s/x.toml:a:b\n".as_bytes(),
+                Some(1),
+                &["/s/x.toml"]
+            )
+            .is_err()
+        );
         assert!(parse_taplo_lint(b"\xff", Some(1), &["/s/x.toml"]).is_err());
         assert!(parse_taplo_format_check(b"\xff", Some(1), &["/s/x.toml"]).is_err());
-        assert!(parse_taplo_format_check(
-            b"ERROR taplo:format_files: the file is not properly formatted\n",
-            Some(1),
-            &["/s/x.toml"]
-        )
-        .is_err());
+        assert!(
+            parse_taplo_format_check(
+                b"ERROR taplo:format_files: the file is not properly formatted\n",
+                Some(1),
+                &["/s/x.toml"]
+            )
+            .is_err()
+        );
     }
 }

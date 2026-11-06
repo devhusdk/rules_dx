@@ -87,15 +87,15 @@ fn go_matches_exact(comparator: &semver::Comparator, version: &semver::Version) 
     if version.major != comparator.major {
         return false;
     }
-    if let Some(minor) = comparator.minor {
-        if version.minor != minor {
-            return false;
-        }
+    if let Some(minor) = comparator.minor
+        && version.minor != minor
+    {
+        return false;
     }
-    if let Some(patch) = comparator.patch {
-        if version.patch != patch {
-            return false;
-        }
+    if let Some(patch) = comparator.patch
+        && version.patch != patch
+    {
+        return false;
     }
     version.pre == comparator.pre
 }
@@ -142,15 +142,15 @@ fn go_matches_tilde(comparator: &semver::Comparator, version: &semver::Version) 
     if version.major != comparator.major {
         return false;
     }
-    if let Some(minor) = comparator.minor {
-        if version.minor != minor {
-            return false;
-        }
+    if let Some(minor) = comparator.minor
+        && version.minor != minor
+    {
+        return false;
     }
-    if let Some(patch) = comparator.patch {
-        if version.patch != patch {
-            return version.patch > patch;
-        }
+    if let Some(patch) = comparator.patch
+        && version.patch != patch
+    {
+        return version.patch > patch;
     }
     version.pre >= comparator.pre
 }

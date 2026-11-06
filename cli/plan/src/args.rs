@@ -121,20 +121,20 @@ fn unsupported_hint(command: &str, option: &str) -> String {
 
 pub use command::{Command, WorkflowVerb};
 pub use completion::{
-    registers_callback, render_completion, try_complete, COMPLETE_VAR, COMPLETION_SHELLS,
+    COMPLETE_VAR, COMPLETION_SHELLS, registers_callback, render_completion, try_complete,
 };
-pub use grammar::{cli_command, man_page, Agent, ProfileArg};
+pub use grammar::{Agent, ProfileArg, cli_command, man_page};
 pub use invocation::{
-    apply_here, bare_scope_note, here_scope, AffectedHandoff, CommonOptions, GenerateRequest,
-    HintScope, Invocation, OperationMode, QualityRequest, ReportRequest, UmbrellaOrigin,
-    UmbrellaRequest, AGENT_QUIET_FLAGS,
+    AGENT_QUIET_FLAGS, AffectedHandoff, CommonOptions, GenerateRequest, HintScope, Invocation,
+    OperationMode, QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest, apply_here,
+    bare_scope_note, here_scope,
 };
 pub use parser::{
-    ci_ignores_env, early_output_flag, is_discovery_exempt, json_output_intent, parse, parse_with,
-    parse_with_ci, startup_workspace, BREAKING_AGAINST_OPTION,
+    BREAKING_AGAINST_OPTION, ci_ignores_env, early_output_flag, is_discovery_exempt,
+    json_output_intent, parse, parse_with, parse_with_ci, startup_workspace,
 };
 pub(crate) use profile::filter_profile_configs;
-pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
+pub use profile::{DX_PROFILE_ENV, Profile, resolve_profile};
 
 pub use dx_adopt::defaults::DX_WORKSPACE_ENV;
 

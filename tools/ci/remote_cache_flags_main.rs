@@ -1,6 +1,6 @@
 //! `remote_cache_flags_bin` prints the Bazel flags for the remote cache, one per line.
 
-use remote_cache_flags::{flags, Cache};
+use remote_cache_flags::{Cache, flags};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

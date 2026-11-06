@@ -1,5 +1,5 @@
-use super::{as_text, code_name, FileFinding, ParseError};
-use crate::kubernetes_preflight::{escape, Document};
+use super::{FileFinding, ParseError, as_text, code_name};
+use crate::kubernetes_preflight::{Document, escape};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "kubeconform";

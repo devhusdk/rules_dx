@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "thrift";
@@ -320,10 +320,12 @@ Program: /s/pkg/a.thrift\n"
         let err = b"[FAILURE:/s/pkg/a.thrift:1] Could not find include file missing.thrift";
         let report = parse_thrift(b"", err, Some(1), &[FILE]).expect("findings");
         assert_eq!(report.findings.len(), 1);
-        assert!(report.findings[0]
-            .finding
-            .message
-            .contains("missing.thrift"));
+        assert!(
+            report.findings[0]
+                .finding
+                .message
+                .contains("missing.thrift")
+        );
     }
 
     #[test]
@@ -332,10 +334,12 @@ Program: /s/pkg/a.thrift\n"
         let report = parse_thrift(b"", err, Some(1), &[FILE]).expect("findings");
         assert_eq!(report.findings.len(), 1);
         assert_eq!(report.findings[0].file, FILE);
-        assert!(report.findings[0]
-            .finding
-            .message
-            .contains("/s/pkg/b.thrift:4: bad field"));
+        assert!(
+            report.findings[0]
+                .finding
+                .message
+                .contains("/s/pkg/b.thrift:4: bad field")
+        );
     }
 
     #[test]

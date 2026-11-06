@@ -60,7 +60,7 @@ pub use promotion::*;
 pub use pub_dev::*;
 pub use pypi::*;
 pub use rubygems::*;
-pub use run::{check_files_size_budget, deploy_profile, DeployRun};
+pub use run::{DeployRun, check_files_size_budget, deploy_profile};
 pub use stage::*;
 
 #[cfg(test)]

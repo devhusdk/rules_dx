@@ -14,7 +14,7 @@ mod convert;
 mod exports;
 mod types;
 
-pub use convert::{clean, convert, signature, Settings};
+pub use convert::{Settings, clean, convert, signature};
 pub use exports::wildcard_match;
 pub use types::SCHEMA;
 

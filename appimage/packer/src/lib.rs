@@ -7,7 +7,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 const FIXED_ARGS: usize = 13;
@@ -577,10 +577,12 @@ mod tests {
         let text = fs::read_to_string(&request.identity).unwrap();
         let identity: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(identity["min_glibc"], "");
-        assert!(identity["files"]
-            .as_object()
-            .unwrap()
-            .contains_key("app.png"));
+        assert!(
+            identity["files"]
+                .as_object()
+                .unwrap()
+                .contains_key("app.png")
+        );
     }
 
     #[test]

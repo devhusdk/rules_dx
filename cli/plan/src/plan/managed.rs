@@ -1,6 +1,6 @@
 use dx_process::{ForwardError, ProtectedFlag};
 
-use super::{bep_guards, bep_options, BuildPlan};
+use super::{BuildPlan, bep_guards, bep_options};
 use crate::args::Command;
 
 pub fn plan_managed(
@@ -165,9 +165,10 @@ mod tests {
             plan.argv.last(),
             Some(&"//generation:result_proto".to_owned())
         );
-        assert!(plan
-            .argv
-            .contains(&"//generation:codegen_prost_fixture".to_owned()));
+        assert!(
+            plan.argv
+                .contains(&"//generation:codegen_prost_fixture".to_owned())
+        );
         assert_eq!(
             plan.summary,
             "Running env for //generation:codegen_prost_fixture //generation:result_proto"

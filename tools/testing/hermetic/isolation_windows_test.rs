@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use hermetic::{capture, Isolation, Net, Outcome, WINDOWS_DENIED_MARKER};
+use hermetic::{Isolation, Net, Outcome, WINDOWS_DENIED_MARKER, capture};
 
 const OUTSIDE: &str = "1.1.1.1:443";
 

@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::{flag_value, import_path, sets_flag, tokenize, unquote, MAX_IMPORT_DEPTH};
+use super::{MAX_IMPORT_DEPTH, flag_value, import_path, sets_flag, tokenize, unquote};
 
 const MAX_CONFIG_DEPTH: usize = 32;
 
@@ -241,11 +241,11 @@ pub fn explicit_rc_files(
         let option = startup[index].as_str();
         if let Some(path) = option.strip_prefix("--bazelrc=") {
             flag_paths.push(path.to_owned());
-        } else if option == "--bazelrc" {
-            if let Some(path) = startup.get(index + 1) {
-                flag_paths.push(path.clone());
-                index += 1;
-            }
+        } else if option == "--bazelrc"
+            && let Some(path) = startup.get(index + 1)
+        {
+            flag_paths.push(path.clone());
+            index += 1;
         }
         index += 1;
     }

@@ -1,6 +1,6 @@
 use super::{
-    alias_errors, alias_route, api_pages, log_error, manifest_error, manifest_pages, pages_error,
-    parse, route_error, run, stage, usage, Options, Page,
+    Options, Page, alias_errors, alias_route, api_pages, log_error, manifest_error, manifest_pages,
+    pages_error, parse, route_error, run, stage, usage,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -307,9 +307,11 @@ fn an_api_tree_routes_every_page_under_api() {
         "docs_site: route 'api/rust/demo/bad name.md' is not a relative clean path"
     );
     fs::create_dir_all(dir.join("empty")).expect("empty tree");
-    assert!(api_pages(&dir.join("empty"))
-        .expect_err("empty tree")
-        .ends_with("holds no page"));
+    assert!(
+        api_pages(&dir.join("empty"))
+            .expect_err("empty tree")
+            .ends_with("holds no page")
+    );
 }
 
 #[test]

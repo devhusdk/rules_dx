@@ -15,17 +15,17 @@ pub mod outputs;
 pub mod test_outputs;
 
 pub use failures::{
-    collect_build_failures, BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef,
+    BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef, collect_build_failures,
 };
 pub use ledger::{EventGap, EventLedger};
 pub use metrics::{
-    collect_action_summary, collect_build_totals, collect_bytes_received, ActionSummary,
-    BuildTotals, MnemonicTime,
+    ActionSummary, BuildTotals, MnemonicTime, collect_action_summary, collect_build_totals,
+    collect_bytes_received,
 };
-pub use outputs::{collect_account, OutputAccount};
+pub use outputs::{OutputAccount, collect_account};
 pub use test_outputs::{
-    collect_test_events, TestEvents, TestResultFile, TestResultRecord, TestSummaryRecord,
-    UnbuiltTest,
+    TestEvents, TestResultFile, TestResultRecord, TestSummaryRecord, UnbuiltTest,
+    collect_test_events,
 };
 
 use std::io::BufRead;
@@ -84,7 +84,9 @@ pub enum BepError {
     MissingNamedSet { id: String, line: u64 },
     #[error("unreadable artifact {path:?}: {message}")]
     UnreadableArtifact { path: String, message: String },
-    #[error("missing test output {name:?} for {label} (run {run}, shard {shard}, attempt {attempt}): {reason}")]
+    #[error(
+        "missing test output {name:?} for {label} (run {run}, shard {shard}, attempt {attempt}): {reason}"
+    )]
     MissingTestOutput {
         label: String,
         name: String,
@@ -186,14 +188,12 @@ pub fn stream_build_tool_version(path: &Path) -> std::io::Result<Option<String>>
         if event
             .pointer("/id/started")
             .is_some_and(|id| id.is_object())
-        {
-            if let Some(version) = event
+            && let Some(version) = event
                 .pointer("/started/buildToolVersion")
                 .and_then(serde_json::Value::as_str)
                 .filter(|version| !version.is_empty())
-            {
-                return Ok(Some(version.to_owned()));
-            }
+        {
+            return Ok(Some(version.to_owned()));
         }
     }
     Ok(None)

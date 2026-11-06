@@ -1,7 +1,7 @@
 use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
-use super::{as_text, code_name, finding, known_relative, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known_relative, unformatted_at};
 use crate::ToolSeverity;
 
 const TOOL: &str = "mix_format";
@@ -141,8 +141,7 @@ mod tests {
     const DIRTY: &str = "** (Mix) mix format failed due to --check-formatted.\nThe following files are not formatted:\n\n\u{1b}[1m\u{1b}[31m/s/b.ex\n\u{1b}[0m\n1 1  |defmodule A do\n2   -|  def f( x ),do: x\n  2 +|  def f(x), do: x\n3 3  |end\n\n\u{1b}[1m\u{1b}[31m/s/lib/c.ex\n\u{1b}[0m\n1   -|x=1\n  1 +|x = 1\n\n";
     const MISMATCHED: &str = "mix format failed for file: syn.ex\n** (MismatchedDelimiterError) mismatched delimiter found on syn.ex:3:1:\n    error: unexpected reserved word: end\n    \u{2502}\n  2 \u{2502}   def f(x, do: x\n    \u{2514}\u{2500} syn.ex:3:1\n    (elixir 1.20.4) lib/code.ex:1123: Code.format_string!/2\n";
     const MISSING_TOKEN: &str = "mix format failed for file: lib/d.ex\n** (TokenMissingError) token missing on lib/d.ex:3:6:\n    error: missing terminator: end\n";
-    const BARE: &str =
-        "mix format failed for file: lib/d.ex\n** (SyntaxError) invalid syntax found on lib/d.ex:2:20:\n";
+    const BARE: &str = "mix format failed for file: lib/d.ex\n** (SyntaxError) invalid syntax found on lib/d.ex:2:20:\n";
 
     fn cwd() -> &'static Path {
         Path::new(CWD)
@@ -225,27 +224,33 @@ mod tests {
     #[test]
     fn mix_format_rejects_unshaped_output() {
         let files = ["/s/b.ex"];
-        assert!(parse_mix_format(b"", b"", Some(0), &files, cwd())
-            .expect("parsed")
-            .is_empty());
-        assert!(parse_mix_format(
-            b"",
-            DIRTY.as_bytes(),
-            Some(0),
-            &["/s/b.ex", "/s/lib/c.ex"],
-            cwd()
-        )
-        .is_err());
+        assert!(
+            parse_mix_format(b"", b"", Some(0), &files, cwd())
+                .expect("parsed")
+                .is_empty()
+        );
+        assert!(
+            parse_mix_format(
+                b"",
+                DIRTY.as_bytes(),
+                Some(0),
+                &["/s/b.ex", "/s/lib/c.ex"],
+                cwd()
+            )
+            .is_err()
+        );
         assert!(parse_mix_format(b"", b"", Some(1), &files, cwd()).is_err());
         assert!(parse_mix_format(b"", b"noise\n", Some(0), &files, cwd()).is_err());
-        assert!(parse_mix_format(
-            b"",
-            b"** (Mix) Could not find a file to format.\n",
-            Some(1),
-            &files,
-            cwd()
-        )
-        .is_err());
+        assert!(
+            parse_mix_format(
+                b"",
+                b"** (Mix) Could not find a file to format.\n",
+                Some(1),
+                &files,
+                cwd()
+            )
+            .is_err()
+        );
         assert!(parse_mix_format(b"", b"", None, &files, cwd()).is_err());
         assert!(parse_mix_format(b"", b"", Some(2), &files, cwd()).is_err());
         assert!(parse_mix_format(b"x\n", b"", Some(0), &files, cwd()).is_err());

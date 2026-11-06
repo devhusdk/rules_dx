@@ -120,10 +120,12 @@ fn without_the_dependency_shard_links_degrade_to_code() {
     let paint = shard("DX_PAINT_NODEP_SHARD");
     validate_shard(&paint).expect("validate_shard passes");
     let square = symbol(&paint, "kotlin:paint:dx.fixture.paint.Square");
-    assert!(square
-        .relations
-        .as_ref()
-        .is_none_or(|r| r.implements.is_empty()));
+    assert!(
+        square
+            .relations
+            .as_ref()
+            .is_none_or(|r| r.implements.is_empty())
+    );
     assert_eq!(
         square.doc_markdown,
         "A square that is painted like a `Circle`."

@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, located, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, located, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 use std::collections::BTreeSet;
 
@@ -234,9 +234,11 @@ mod tests {
 
     #[test]
     fn vulture_exit_codes_must_match_the_findings() {
-        assert!(parse_vulture(b"", Some(0), &["/s/a.py"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_vulture(b"", Some(0), &["/s/a.py"])
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_vulture(b"", Some(3), &["/s/a.py"]).is_err());
         assert!(parse_vulture(VULTURE_DIRTY.as_bytes(), Some(0), &["/s/a.py"]).is_err());
         assert!(parse_vulture(VULTURE_DIRTY.as_bytes(), Some(1), &["/s/a.py"]).is_err());

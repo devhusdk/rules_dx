@@ -1,4 +1,4 @@
-use crate::{link, Ctx, Plugin};
+use crate::{Ctx, Plugin, link};
 
 pub const PLUGIN: Plugin = Plugin {
     name: "jdk",

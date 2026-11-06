@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "avro_tools";
@@ -155,9 +155,11 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse("Input files to compile:\n  /s/a.avsc\n", Some(0))
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse("Input files to compile:\n  /s/a.avsc\n", Some(0))
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]

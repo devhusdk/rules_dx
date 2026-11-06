@@ -241,8 +241,7 @@ pub(super) fn write_go_mod(harness: &Harness) {
     );
 }
 
-const NPM_LOCK: &str =
-    "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
+const NPM_LOCK: &str = "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
 
 const NPM_FAMILY_LOCKS: [&str; 3] = [
     "javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml",
@@ -377,9 +376,11 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     assert_eq!(runner.envs.borrow()[0].len(), 1);
     assert_eq!(runner.envs.borrow()[0][0].0, "TMPDIR");
     assert!(!runner.envs.borrow()[0].iter().any(|(key, _)| key == "PATH"));
-    assert!(!runner.envs.borrow()[0]
-        .iter()
-        .any(|(key, _)| key == "GITLEAKS_CONFIG"));
+    assert!(
+        !runner.envs.borrow()[0]
+            .iter()
+            .any(|(key, _)| key == "GITLEAKS_CONFIG")
+    );
 }
 
 fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32, String, String) {
@@ -493,10 +494,12 @@ fn run_unpinned(
 ) -> (i32, String, String, Vec<Vec<String>>, Vec<Vec<String>>) {
     use dx_plan::args::parse;
     use dx_testing::cli::strings;
-    assert!(runner
-        .pinned_tool(dx_audit::secrets::TOOL_ENV_VAR)
-        .path()
-        .is_none());
+    assert!(
+        runner
+            .pinned_tool(dx_audit::secrets::TOOL_ENV_VAR)
+            .path()
+            .is_none()
+    );
     let invocation = parse(&strings(&["security"])).expect("parse");
     let harness = Harness::new(name);
     write_hubs(&harness);

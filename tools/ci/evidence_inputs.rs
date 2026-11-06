@@ -1,6 +1,6 @@
 //! Validates the evidence workflow dispatch inputs.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub const PLATFORMS: [(&str, &str); 5] = [
     ("linux_x86_64", "ubuntu-latest"),
@@ -122,7 +122,7 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
                 return Err(format!(
                     "platforms must hold strings, got a JSON {}",
                     json_type(item)
-                ))
+                ));
             }
         }
     }

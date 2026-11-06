@@ -1,6 +1,6 @@
 use super::{
-    as_text, check_output_size, code_name, finding, known_native, unformatted_at, FileFinding,
-    ParseError,
+    FileFinding, ParseError, as_text, check_output_size, code_name, finding, known_native,
+    unformatted_at,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -234,9 +234,11 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_gersemi(b"", b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_gersemi(b"", b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -302,17 +304,21 @@ mod tests {
     #[test]
     fn unknown_command_warnings_are_neither_findings_nor_errors() {
         let stderr = "Warning: unknown command 'foo' used at:\n/w/a.cmake:1:1\n\n";
-        assert!(parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]
     fn unknown_command_warnings_with_many_call_sites_are_skipped() {
         let stderr = "Warning: unknown command 'foo' used at:\n/w/a.cmake:1:1\n/w/a.cmake:7:1\n/w/b.cmake:2:3\n\nWarning: unknown command 'bar' used at:\n/w/a.cmake:9:1\n\n";
-        assert!(parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]

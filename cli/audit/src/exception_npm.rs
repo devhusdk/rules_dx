@@ -1,4 +1,4 @@
-use crate::vuln::{any_scope, VersionScope};
+use crate::vuln::{VersionScope, any_scope};
 use nodejs_semver::{Range, Version};
 
 pub fn npm_in_scope(scope: &str, version: &str) -> bool {

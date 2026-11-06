@@ -1,4 +1,4 @@
-use quality_adapter::parsers::{self, jvm_unused_deps, rust_unused_deps, FileFinding};
+use quality_adapter::parsers::{self, FileFinding, jvm_unused_deps, rust_unused_deps};
 
 use quality_result::proto::{BuildDep, Diagnostic, Severity};
 
@@ -784,7 +784,9 @@ impl RealBackend {
         if tool.upstream_diagnostics.is_empty() {
             return Err(execution(
                 tool_id,
-                format!("{tool_id} requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected"),
+                format!(
+                    "{tool_id} requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected"
+                ),
             ));
         }
         let mut findings = Vec::new();
@@ -831,7 +833,9 @@ impl RealBackend {
                         Some(other) => {
                             return Err(execution(
                                 tool_id,
-                                format!("{tool_id} does not know the compiler driver {other:?} for {stem}"),
+                                format!(
+                                    "{tool_id} does not know the compiler driver {other:?} for {stem}"
+                                ),
                             ));
                         }
                         None => {
@@ -1023,7 +1027,7 @@ impl RealBackend {
                     return Err(execution(
                         tool_id,
                         format!("unsupported file-family delegated tool: {tool_id}"),
-                    ))
+                    ));
                 }
             };
             findings.extend(parsed(tool_id, report)?);

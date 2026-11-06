@@ -415,14 +415,17 @@ mod declared_input_tests {
         let inner = root.join("root");
         let ok = vec![inner.join("pkg/a.fbs").to_string_lossy().into_owned()];
         declared_input_escape("flatc", "pkg/a.fbs", &inner, &ok).expect("inside");
-        let up = vec![inner
-            .join("pkg/../../outside.fbs")
-            .to_string_lossy()
-            .into_owned()];
+        let up = vec![
+            inner
+                .join("pkg/../../outside.fbs")
+                .to_string_lossy()
+                .into_owned(),
+        ];
         let err = declared_input_escape("flatc", "pkg/a.fbs", &inner, &up).expect_err("escape");
-        assert!(err
-            .to_string()
-            .contains("is outside the declared inputs of pkg/a.fbs"));
+        assert!(
+            err.to_string()
+                .contains("is outside the declared inputs of pkg/a.fbs")
+        );
         let missing = vec![inner.join("pkg/none.fbs").to_string_lossy().into_owned()];
         assert!(declared_input_escape("flatc", "pkg/a.fbs", &inner, &missing).is_err());
     }
@@ -438,9 +441,10 @@ mod declared_input_tests {
         assert_eq!(outside.len(), 2, "{outside:?}");
         let err =
             declared_input_escape("avro_tools", "pkg/a.avdl", &root, &outside).expect_err("escape");
-        assert!(err
-            .to_string()
-            .contains("is outside the declared inputs of pkg/a.avdl"));
+        assert!(
+            err.to_string()
+                .contains("is outside the declared inputs of pkg/a.avdl")
+        );
         assert!(avdl_imports_outside("import schema \"b.avsc\";", &file, &root).is_empty());
     }
 
@@ -457,13 +461,16 @@ mod declared_input_tests {
         let absolute = vec![root.join("outside.thrift").to_string_lossy().into_owned()];
         let err = declared_input_escape("thrift", "pkg/a.thrift", &inner, &absolute)
             .expect_err("absolute include escapes");
-        assert!(err
-            .to_string()
-            .contains("is outside the declared inputs of pkg/a.thrift"));
-        let parent = vec![inner
-            .join("pkg/../../outside.thrift")
-            .to_string_lossy()
-            .into_owned()];
+        assert!(
+            err.to_string()
+                .contains("is outside the declared inputs of pkg/a.thrift")
+        );
+        let parent = vec![
+            inner
+                .join("pkg/../../outside.thrift")
+                .to_string_lossy()
+                .into_owned(),
+        ];
         assert!(declared_input_escape("thrift", "pkg/a.thrift", &inner, &parent).is_err());
     }
 }

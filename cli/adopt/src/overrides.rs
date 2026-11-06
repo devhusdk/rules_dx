@@ -12,7 +12,7 @@ use dx_families::Family;
 
 use dx_module_bazel::ModuleFile;
 
-use super::{init_apply_command, AdoptError, DX_VERSION};
+use super::{AdoptError, DX_VERSION, init_apply_command};
 
 /// One patch of an override: the rules_dx label it comes from and its bytes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -165,7 +165,9 @@ pub const OVERRIDES: &[Override] = &[
             },
             OverridePatch {
                 file: "native_sdist_toolchain_flags.patch",
-                content: include_str!("../../../patches/rules_py/native_sdist_toolchain_flags.patch"),
+                content: include_str!(
+                    "../../../patches/rules_py/native_sdist_toolchain_flags.patch"
+                ),
             },
             OverridePatch {
                 file: "pep517_msvc.patch",
@@ -473,10 +475,10 @@ fn observe(root: &Path, text: &str) -> Result<Observed, String> {
                     if target == Some("rules_dx") && name != "single_version_override" {
                         observed.pin_overridden = true;
                     }
-                    if let Some(row) = OVERRIDES.iter().find(|row| Some(row.module) == target) {
-                        if !observed.owned.contains(&row.module) {
-                            observed.owned.push(row.module);
-                        }
+                    if let Some(row) = OVERRIDES.iter().find(|row| Some(row.module) == target)
+                        && !observed.owned.contains(&row.module)
+                    {
+                        observed.owned.push(row.module);
                     }
                 }
                 _ => {}
@@ -605,10 +607,12 @@ pub fn check_overrides_in(root: &Path, owned: Option<&[String]>) -> OverridesSta
         ));
     }
     match &observed.pin {
-        Some(pin) if pin != DX_VERSION && !observed.pin_overridden => OverridesState::Warn(format!(
-            "rules_dx is pinned at {pin} but these overrides come from dx {DX_VERSION}; run `{}` with the matching dx",
-            init_apply_command(root)
-        )),
+        Some(pin) if pin != DX_VERSION && !observed.pin_overridden => {
+            OverridesState::Warn(format!(
+                "rules_dx is pinned at {pin} but these overrides come from dx {DX_VERSION}; run `{}` with the matching dx",
+                init_apply_command(root)
+            ))
+        }
         _ => OverridesState::Ok,
     }
 }
@@ -653,7 +657,7 @@ pub fn apply_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
         Err(e) => {
             return Err(AdoptError::ReadModuleFile {
                 detail: e.to_string(),
-            })
+            });
         }
     };
     let observed = match &text {
@@ -1072,7 +1076,9 @@ archive_override(
     }
 
     fn dep_module() -> String {
-        format!("module(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.27\")\n")
+        format!(
+            "module(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.27\")\n"
+        )
     }
 
     #[test]

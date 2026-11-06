@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_test_scratch::{scratch, TempDir};
+use dx_test_scratch::{TempDir, scratch};
 use dx_testing::resolve_runfiles;
 
 struct Out {

@@ -1,6 +1,6 @@
 //! Lists PyPI dependencies whose latest release is outside the declared specifier.
 
-use super::{wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use crate::edit::request::pyproject::normalize;
 use pep440_rs::{Version, VersionSpecifiers};
 use std::collections::BTreeMap;

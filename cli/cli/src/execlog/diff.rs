@@ -224,19 +224,19 @@ fn args(old: &[String], new: &[String], changes: &mut Vec<Change>) {
     }
     let before = changes.len();
     for arg in old {
-        if let Some(count) = counts.get_mut(arg.as_str()) {
-            if *count < 0 {
-                *count += 1;
-                changes.push(Change::new(ChangeKind::Arg, Delta::Removed, arg));
-            }
+        if let Some(count) = counts.get_mut(arg.as_str())
+            && *count < 0
+        {
+            *count += 1;
+            changes.push(Change::new(ChangeKind::Arg, Delta::Removed, arg));
         }
     }
     for arg in new {
-        if let Some(count) = counts.get_mut(arg.as_str()) {
-            if *count > 0 {
-                *count -= 1;
-                changes.push(Change::new(ChangeKind::Arg, Delta::Added, arg));
-            }
+        if let Some(count) = counts.get_mut(arg.as_str())
+            && *count > 0
+        {
+            *count -= 1;
+            changes.push(Change::new(ChangeKind::Arg, Delta::Added, arg));
         }
     }
     if changes.len() == before && old != new {

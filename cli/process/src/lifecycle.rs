@@ -5,9 +5,9 @@ use std::io;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc;
-use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 /// How the child sees the environment.
@@ -778,13 +778,13 @@ fn output_stdio(output: &StreamOutput) -> Stdio {
 
 fn await_drained(pending: &mut Vec<mpsc::Receiver<()>>, until: Instant) {
     let wait = until.saturating_duration_since(Instant::now());
-    if let Some(first) = pending.first() {
-        if !matches!(
+    if let Some(first) = pending.first()
+        && !matches!(
             first.recv_timeout(wait),
             Err(mpsc::RecvTimeoutError::Timeout)
-        ) {
-            pending.remove(0);
-        }
+        )
+    {
+        pending.remove(0);
     }
     pending.retain(|rx| matches!(rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
 }
@@ -1454,13 +1454,13 @@ mod backend {
     }
 
     #[cfg(unix)]
-    pub use super::terminal::{allow_background_tty_writes, TerminalJob};
+    pub use super::terminal::{TerminalJob, allow_background_tty_writes};
 
     #[cfg(unix)]
     pub use unix::{
-        end_owned_descendants, force_stream, send, send_kill, spawn_owned, spawn_streamed,
-        stream_target, terminal_foreground, terminate_forced, terminate_graceful,
-        termination_signal, tree_alive, OwnedChild,
+        OwnedChild, end_owned_descendants, force_stream, send, send_kill, spawn_owned,
+        spawn_streamed, stream_target, terminal_foreground, terminate_forced, terminate_graceful,
+        termination_signal, tree_alive,
     };
 
     #[cfg(not(unix))]
@@ -1530,16 +1530,16 @@ mod backend {
     pub use plain_stream::spawn_streamed;
     #[cfg(not(unix))]
     pub use plain_stream::{
-        allow_background_tty_writes, force_stream, send, send_kill, stream_target,
-        terminal_foreground, tree_alive, TerminalJob,
+        TerminalJob, allow_background_tty_writes, force_stream, send, send_kill, stream_target,
+        terminal_foreground, tree_alive,
     };
     #[cfg(not(unix))]
     pub fn end_owned_descendants(_owned: &mut OwnedChild) {}
 
     #[cfg(windows)]
     pub use windows::{
-        install_console_stop, spawn_owned, spawn_streamed, terminate_forced, terminate_graceful,
-        termination_signal, OwnedChild,
+        OwnedChild, install_console_stop, spawn_owned, spawn_streamed, terminate_forced,
+        terminate_graceful, termination_signal,
     };
 
     #[cfg(not(any(unix, windows)))]
@@ -1590,7 +1590,7 @@ mod backend {
 
     #[cfg(not(any(unix, windows)))]
     pub use portable::{
-        spawn_owned, terminate_forced, terminate_graceful, termination_signal, OwnedChild,
+        OwnedChild, spawn_owned, terminate_forced, terminate_graceful, termination_signal,
     };
 }
 

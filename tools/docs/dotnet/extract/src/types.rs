@@ -78,7 +78,7 @@ pub fn parse_api(json: &str) -> Result<Api, String> {
         Some(other) => {
             return Err(format!(
                 "API JSON schema '{other}' is not supported, expected '{SCHEMA}'"
-            ))
+            ));
         }
         None => return Err("API JSON has no schema".to_owned()),
     }

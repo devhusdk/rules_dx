@@ -1168,7 +1168,7 @@ pub fn resolve_affected(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::{resolve, FakeQuery, NeverQuery, QueryFailure, QueryResult};
+    use crate::resolve::{FakeQuery, NeverQuery, QueryFailure, QueryResult, resolve};
     use dx_test_scratch::write;
     use dx_testing::cli::strings;
 

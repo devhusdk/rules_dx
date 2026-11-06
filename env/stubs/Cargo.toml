@@ -2,7 +2,7 @@
 license = "Apache-2.0"
 name = "env_stubs"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "doctor"

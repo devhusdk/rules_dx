@@ -48,17 +48,16 @@ pub fn prepare_with(
 ) -> Result<TrivyPrepared, PrepError> {
     let cache = out.join(CACHE_DIR);
     let meta_path = out.join(META_FILE);
-    if let Ok(text) = std::fs::read_to_string(&meta_path) {
-        if json_string(&text, "retrieved_at").as_deref() == Some(retrieved_at) {
-            if let Some(db_updated_at) = json_string(&text, "db_updated_at") {
-                return Ok(TrivyPrepared {
-                    cache,
-                    retrieved_at: retrieved_at.to_owned(),
-                    db_updated_at,
-                    fetched: false,
-                });
-            }
-        }
+    if let Ok(text) = std::fs::read_to_string(&meta_path)
+        && json_string(&text, "retrieved_at").as_deref() == Some(retrieved_at)
+        && let Some(db_updated_at) = json_string(&text, "db_updated_at")
+    {
+        return Ok(TrivyPrepared {
+            cache,
+            retrieved_at: retrieved_at.to_owned(),
+            db_updated_at,
+            fetched: false,
+        });
     }
     for args in download_args(&cache) {
         run(&args)?;

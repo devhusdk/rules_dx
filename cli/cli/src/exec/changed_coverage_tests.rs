@@ -45,7 +45,9 @@ fn script_changes(harness: &Harness, diff: &str, untracked: &str) {
 
 fn diff_adding(path: &str, start: u32, count: u32) -> String {
     let body: String = (0..count).map(|_| "+x\n").collect();
-    format!("diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -0,0 +{start},{count} @@\n{body}")
+    format!(
+        "diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -0,0 +{start},{count} @@\n{body}"
+    )
 }
 
 fn gate_event(out: &str) -> serde_json::Value {

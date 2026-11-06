@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -261,9 +261,10 @@ mod tests {
         let files = ["/s/api/query.graphql", "/s/api/other.graphql"];
         let err = parse_graphql_eslint(GRAPHQL_CLEAN.as_bytes(), Some(0), &files)
             .expect_err("missing file");
-        assert!(err
-            .to_string()
-            .contains("no result for /s/api/other.graphql"));
+        assert!(
+            err.to_string()
+                .contains("no result for /s/api/other.graphql")
+        );
         assert!(parse_graphql_eslint(b"not json", Some(1), &files[..1]).is_err());
         assert!(parse_graphql_eslint(b"", Some(2), &files[..1]).is_err());
         assert!(parse_graphql_eslint(GRAPHQL_CLEAN.as_bytes(), Some(1), &files[..1]).is_err());

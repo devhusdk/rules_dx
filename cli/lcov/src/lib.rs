@@ -19,18 +19,18 @@ mod lang;
 pub mod parse;
 
 pub use accounting::{
-    account, orphan_candidates, parse_source_manifest, CellAccount, Disposition, SourceManifest,
-    SourceRow, SOURCES_ASPECT, SOURCES_OUTPUT_GROUP,
+    CellAccount, Disposition, SOURCES_ASPECT, SOURCES_OUTPUT_GROUP, SourceManifest, SourceRow,
+    account, orphan_candidates, parse_source_manifest,
 };
 pub use changed::{
-    all_lines, changed_account, parse_added_lines, AddedLines, ChangedAccount, ChangedLine,
-    ChangedResult,
+    AddedLines, ChangedAccount, ChangedLine, ChangedResult, all_lines, changed_account,
+    parse_added_lines,
 };
 pub use clover::clover_to_lcov;
 pub use cobertura::cobertura_to_lcov;
-pub use ignores::{find_ignores, is_ignored, Ignores};
+pub use ignores::{Ignores, find_ignores, is_ignored};
 pub use lang::is_covered_language;
-pub use parse::{merge_lcov_reports, parse_lcov, validate_lcov_report, FileHits};
+pub use parse::{FileHits, merge_lcov_reports, parse_lcov, validate_lcov_report};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LcovError {
@@ -42,7 +42,9 @@ pub enum LcovError {
     BranchOutsideSf { line: String },
     #[error("malformed LCOV BRDA record in {path}: {line}")]
     MalformedBranch { path: String, line: String },
-    #[error("incomplete LCOV branch summary in {path}: BRF declares {declared} branches but {recorded} BRDA records are present")]
+    #[error(
+        "incomplete LCOV branch summary in {path}: BRF declares {declared} branches but {recorded} BRDA records are present"
+    )]
     BranchSummaryMismatch {
         path: String,
         declared: u32,
@@ -60,25 +62,33 @@ pub enum LcovError {
     NoSfRecords,
     #[error("LCOV SF record without end_of_record")]
     SfWithoutEndOfRecord,
-    #[error("coverage ignore without nearby reason at {path}:{lineno}: {directive} requires a reason: comment on the same or previous line")]
+    #[error(
+        "coverage ignore without nearby reason at {path}:{lineno}: {directive} requires a reason: comment on the same or previous line"
+    )]
     MissingReason {
         path: String,
         lineno: usize,
         directive: String,
     },
-    #[error("coverage ignore with bare policy at {path}:{lineno}: {directive} requires reason: plus issue: (bare policy: without reason: is rejected)")]
+    #[error(
+        "coverage ignore with bare policy at {path}:{lineno}: {directive} requires reason: plus issue: (bare policy: without reason: is rejected)"
+    )]
     BarePolicyWithoutReason {
         path: String,
         lineno: usize,
         directive: String,
     },
-    #[error("coverage ignore without issue tracking at {path}:{lineno}: {directive} requires issue: <number> on the same or previous line for budget/expiry review")]
+    #[error(
+        "coverage ignore without issue tracking at {path}:{lineno}: {directive} requires issue: <number> on the same or previous line for budget/expiry review"
+    )]
     MissingIssue {
         path: String,
         lineno: usize,
         directive: String,
     },
-    #[error("coverage ignore reason too long at {path}:{lineno}: {directive} reason is {len} chars, max {max}")]
+    #[error(
+        "coverage ignore reason too long at {path}:{lineno}: {directive} reason is {len} chars, max {max}"
+    )]
     ReasonTooLong {
         path: String,
         lineno: usize,

@@ -1,4 +1,4 @@
-use dx_audit::locks::{LicensedPackage, BAZEL_SET};
+use dx_audit::locks::{BAZEL_SET, LicensedPackage};
 
 /// Builds the SPDX 2.3 document for one `dx license` run: a root package for the scope and one
 /// package per resolved dependency, in the order given.

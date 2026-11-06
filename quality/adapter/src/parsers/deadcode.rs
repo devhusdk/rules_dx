@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, point, vulture::UnusedRoots, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, point, vulture::UnusedRoots};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 use serde::Deserialize;
 
@@ -162,9 +162,11 @@ mod tests {
     #[test]
     fn clean_output_has_no_findings() {
         let none = roots(&[], &[]);
-        assert!(parse_deadcode(b"[]", Some(0), &FILES, &none)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_deadcode(b"[]", Some(0), &FILES, &none)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

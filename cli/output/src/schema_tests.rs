@@ -1,5 +1,5 @@
 use crate::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const SCHEMA: &str = include_str!("../schema/events.schema.json");
 const DIGEST: &str = "0000000000000000000000000000000000000000000000000000000000000000";

@@ -1,8 +1,8 @@
 //! Help and usage-error tests that run the built `dx` binary, so they live
 //! in the launcher layer next to the binary's other process tests.
 
-use dx_plan::args::help::usage_banner;
 use dx_plan::args::Command;
+use dx_plan::args::help::usage_banner;
 
 fn banner() -> String {
     usage_banner()

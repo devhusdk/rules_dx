@@ -3,7 +3,7 @@ use std::process::Command;
 
 use dx_test_scratch::{scratch, write};
 use dx_testing::runfiles_root;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const SCRIPT: &str = "tools/ci/compiler_evidence.sh";
 

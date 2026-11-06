@@ -1,6 +1,6 @@
 //! Lists Swift packages whose newest semver tag on GitHub is newer than the Package.resolved pin.
 
-use super::{github_repo, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
 use semver::Version;
 use serde_json::Value;
 

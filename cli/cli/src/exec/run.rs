@@ -1,7 +1,7 @@
 use super::common::*;
-use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
+use dx_output::{FinishedCounts, OutputMode, command_finished, command_started, operation_event};
 use dx_plan::args::Invocation;
-use dx_plan::plan::{plan_run, plan_run_build, BuildPlan};
+use dx_plan::plan::{BuildPlan, plan_run, plan_run_build};
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::resolve_run;
 use std::io::Write;
@@ -131,8 +131,8 @@ impl Launcher<'_> {
             Ok(None) => return Some(withdrawn(invocation, out, err)),
             Err(exit) => return Some(exit),
         };
-        if let Some(trace) = &trace {
-            if let Err(exit) = super::workflow::announce_profile(
+        if let Some(trace) = &trace
+            && let Err(exit) = super::workflow::announce_profile(
                 invocation,
                 self.workspace,
                 out,
@@ -140,9 +140,9 @@ impl Launcher<'_> {
                 trace,
                 None,
                 None,
-            ) {
-                return Some(kept_child(err, code, exit));
-            }
+            )
+        {
+            return Some(kept_child(err, code, exit));
         }
         if code == 0 {
             return None;
@@ -248,10 +248,10 @@ impl Launcher<'_> {
 
 fn withdrawn(invocation: &Invocation, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let code = dx_process::interrupted_code(WITHDRAW_SIGNAL);
-    if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
-            return kept_child(err, code, exit);
-        }
+    if invocation.output == OutputMode::Json
+        && let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
+    {
+        return kept_child(err, code, exit);
     }
     code
 }
@@ -324,10 +324,10 @@ fn finish_run(
         }
         return code;
     }
-    if let Some(target) = failed {
-        if let Err(exit) = emit_built(out, application_failed_event(target, code, signal)) {
-            return kept_child(err, code, exit);
-        }
+    if let Some(target) = failed
+        && let Err(exit) = emit_built(out, application_failed_event(target, code, signal))
+    {
+        return kept_child(err, code, exit);
     }
     if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
         return kept_child(err, code, exit);
@@ -385,8 +385,8 @@ fn run_targets(
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use dx_plan::args::parse;
     use dx_plan::args::Command;
+    use dx_plan::args::parse;
     use dx_plan::resolve::ResolveError;
 
     #[test]

@@ -1,6 +1,6 @@
 use super::*;
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 fn settings() -> Settings {
     Settings {
@@ -71,12 +71,14 @@ fn maps_every_kind_with_ids_signatures_and_membership() {
     assert_eq!(component.signature_text, "component Button");
     assert_eq!(component.display_name, "Button.vue");
     assert_eq!(component.doc_markdown, "A button.");
-    assert!(component
-        .relations
-        .as_ref()
-        .expect("relations")
-        .member_of
-        .is_empty());
+    assert!(
+        component
+            .relations
+            .as_ref()
+            .expect("relations")
+            .member_of
+            .is_empty()
+    );
     let kinds = |id: &str| find(&shard, id).kind;
     assert_eq!(kinds("vue:ui:Button.event_click"), SymbolKind::Event as i32);
     assert_eq!(kinds("vue:ui:Button.slot_default"), SymbolKind::Slot as i32);
@@ -164,14 +166,19 @@ fn failure(json: String) -> String {
 #[test]
 fn rejects_malformed_or_mismatched_metadata() {
     assert!(failure("{".to_owned()).contains("invalid JSON"));
-    assert!(failure(
-        json!({"schema": "x/2", "framework": "vue", "components": [{"name": "A"}]}).to_string()
-    )
-    .contains("unsupported schema"));
-    assert!(failure(
-        json!({"schema": SCHEMA, "framework": "svelte", "components": [{"name": "A"}]}).to_string()
-    )
-    .contains("framework 'svelte'"));
+    assert!(
+        failure(
+            json!({"schema": "x/2", "framework": "vue", "components": [{"name": "A"}]}).to_string()
+        )
+        .contains("unsupported schema")
+    );
+    assert!(
+        failure(
+            json!({"schema": SCHEMA, "framework": "svelte", "components": [{"name": "A"}]})
+                .to_string()
+        )
+        .contains("framework 'svelte'")
+    );
     assert!(failure(doc(json!([]))).contains("no components"));
     assert!(
         failure(json!({"schema": SCHEMA, "framework": "vue"}).to_string())
@@ -206,19 +213,21 @@ fn parse_requires_every_mandatory_flag_once() {
     assert_eq!((ok.meta.as_str(), ok.language.as_str()), ("m", "vue"));
     assert!(parse(&args(&["--meta", "m", "--out", "o", "--package", "ui"])).is_err());
     assert!(parse(&args(&["--bogus", "x"])).is_err());
-    assert!(parse(&args(&[
-        "--meta",
-        "m",
-        "--meta",
-        "n",
-        "--out",
-        "o",
-        "--language",
-        "vue",
-        "--package",
-        "ui",
-    ]))
-    .is_err());
+    assert!(
+        parse(&args(&[
+            "--meta",
+            "m",
+            "--meta",
+            "n",
+            "--out",
+            "o",
+            "--language",
+            "vue",
+            "--package",
+            "ui",
+        ]))
+        .is_err()
+    );
 }
 
 #[test]

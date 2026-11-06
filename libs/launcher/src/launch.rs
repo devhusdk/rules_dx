@@ -174,13 +174,13 @@ fn locate(resolver: &Resolver, key: &str) -> io::Result<PathBuf> {
     };
     let mut parent = key;
     while let Some((head, _)) = parent.rsplit_once('/') {
-        if let Ok(tree) = resolver.lookup(head) {
-            if tree.is_dir() {
-                let rest = key.get(head.len() + 1..).unwrap_or_default();
-                let path = tree.join(rest);
-                if path.exists() {
-                    return Ok(path);
-                }
+        if let Ok(tree) = resolver.lookup(head)
+            && tree.is_dir()
+        {
+            let rest = key.get(head.len() + 1..).unwrap_or_default();
+            let path = tree.join(rest);
+            if path.exists() {
+                return Ok(path);
             }
         }
         parent = head;

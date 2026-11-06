@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{
-    as_text, check_output_size, code_name, known, rewrite_format, FileFinding, ParseError,
+    FileFinding, ParseError, as_text, check_output_size, code_name, known, rewrite_format,
 };
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 

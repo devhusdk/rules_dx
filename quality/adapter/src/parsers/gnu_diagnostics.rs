@@ -4,7 +4,7 @@
 //! columns. Lines that are not diagnostic headers (source excerpts, carets,
 //! notes, flang `because:` lines) are skipped.
 
-use super::{as_text, finding, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, finding, require_findings};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 

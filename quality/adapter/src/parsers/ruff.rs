@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 use quality_notebook::Notebook;
 
@@ -241,9 +241,11 @@ mod tests {
             )
         );
         assert!(findings[0].finding.suggestions.is_empty());
-        assert!(parse_ruff(b"[]", Some(0), &["/s/dirty.py"], &[])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_ruff(b"[]", Some(0), &["/s/dirty.py"], &[])
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_ruff(b"[]", Some(1), &["/s/dirty.py"], &[]).is_err());
         assert!(parse_ruff(RUFF_LINT_DIRTY.as_bytes(), Some(1), &["/s/other.py"], &[]).is_err());
         assert!(parse_ruff(b"not json", Some(1), &["/s/dirty.py"], &[]).is_err());
@@ -265,9 +267,11 @@ mod tests {
                 Some(TextPosition { line: 5, column: 7 })
             )
         );
-        assert!(parse_ruff_format(b"[]", Some(0), &["/s/dirty.py"], &[])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_ruff_format(b"[]", Some(0), &["/s/dirty.py"], &[])
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(
             parse_ruff_format(RUFF_LINT_DIRTY.as_bytes(), Some(1), &["/s/dirty.py"], &[]).is_err()
         );
@@ -394,13 +398,15 @@ mod tests {
         let names = ["/s/nb.ipynb"];
         assert!(parse_ruff(NB_LINT.as_bytes(), Some(1), &names, &[]).is_err());
         let wrong_cell = NB_LINT.replace("\"cell\":4", "\"cell\":9");
-        assert!(parse_ruff(
-            wrong_cell.as_bytes(),
-            Some(1),
-            &names,
-            &[("/s/nb.ipynb", NB)]
-        )
-        .is_err());
+        assert!(
+            parse_ruff(
+                wrong_cell.as_bytes(),
+                Some(1),
+                &names,
+                &[("/s/nb.ipynb", NB)]
+            )
+            .is_err()
+        );
         assert!(parse_ruff(NB_LINT.as_bytes(), Some(1), &names, &[("/s/nb.ipynb", "{")]).is_err());
         let no_cell = NB_LINT.replace("\"cell\":4", "\"cell\":null");
         assert!(parse_ruff(no_cell.as_bytes(), Some(1), &names, &[("/s/nb.ipynb", NB)]).is_err());

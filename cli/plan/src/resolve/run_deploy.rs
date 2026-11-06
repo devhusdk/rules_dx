@@ -3,8 +3,8 @@ use std::path::Path;
 use super::classify::classify_run_scopes;
 use super::packages::PackageCache;
 use super::{
-    owners_in_graph, quote_set, run_label_query, QueryFailure, QueryRunner, ResolveError,
-    RuleGraph, SelectionContext,
+    QueryFailure, QueryRunner, ResolveError, RuleGraph, SelectionContext, owners_in_graph,
+    quote_set, run_label_query,
 };
 
 fn dir_runnable_expression(pattern: &str) -> String {

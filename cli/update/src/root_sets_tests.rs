@@ -1,6 +1,6 @@
 //! Keeps the dependency sets rules_dx finds in its own MODULE.bazel stable.
 
-use dx_adopt::dependency_sets::{discover, DependencySet, Ecosystem};
+use dx_adopt::dependency_sets::{DependencySet, Ecosystem, discover};
 
 const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");

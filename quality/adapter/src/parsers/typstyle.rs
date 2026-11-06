@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{as_text, code_name, finding, known_relative, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known_relative, unformatted_at};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "typstyle";
@@ -39,7 +39,7 @@ pub fn parse_typstyle(
             return Err(ParseError::shape(
                 TOOL,
                 format!("unexpected exit {} with output", code_name(code)),
-            ))
+            ));
         }
     }
 
@@ -216,11 +216,13 @@ mod tests {
     fn typstyle_rejects_a_path_outside_the_checked_files() {
         let error = parse("Would reformat: other.typ\n", "", 1).expect_err("unknown");
         assert!(matches!(error, ParseError::UnknownFile { .. }));
-        assert!(parse(
-            "",
-            "warn: Failed to parse other.typ. The source is erroneous.\n",
-            0
-        )
-        .is_err());
+        assert!(
+            parse(
+                "",
+                "warn: Failed to parse other.typ. The source is erroneous.\n",
+                0
+            )
+            .is_err()
+        );
     }
 }

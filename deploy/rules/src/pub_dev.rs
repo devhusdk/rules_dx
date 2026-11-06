@@ -1,8 +1,8 @@
 //! pub.dev publisher: package staging, pubspec checks and the dart or flutter publish.
 
 use crate::run::{
-    deploy_profile, env_or_empty, placeholder_refusal, scrubbed_command, DeployRun, OwnerGate,
-    PUBLISH_CHILD_ENV_KEEP,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    placeholder_refusal, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -116,11 +116,7 @@ fn pub_checked_stage(
 }
 
 fn tool_name(flutter: bool) -> &'static str {
-    if flutter {
-        "flutter"
-    } else {
-        "dart"
-    }
+    if flutter { "flutter" } else { "dart" }
 }
 
 fn failure_message(
@@ -375,9 +371,11 @@ mod tests {
         );
         assert!(changelog_refusal(Some("## 1.2.30\n"), "1.2.3").is_some());
         assert!(changelog_refusal(Some("1.2.3\n"), "1.2.3").is_some());
-        assert!(changelog_refusal(None, "1.2.3")
-            .expect("missing")
-            .contains("no CHANGELOG.md"));
+        assert!(
+            changelog_refusal(None, "1.2.3")
+                .expect("missing")
+                .contains("no CHANGELOG.md")
+        );
     }
 
     fn write_package(root: &Path, pubspec: &str, changelog: Option<&str>) -> Vec<String> {

@@ -1,7 +1,7 @@
 use crate::{ColumnEncoding, ToolSeverity};
 
 use super::sarif::{read_sarif, sarif_findings};
-use super::{code_name, FileFinding, ParseError};
+use super::{FileFinding, ParseError, code_name};
 
 const TOOL: &str = "ansible_lint";
 const ALWAYS_ERROR: [&str; 4] = [

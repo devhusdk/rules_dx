@@ -1,10 +1,20 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 //! Serves a built docs site over HTTP with nothing but the standard library.
 
 use std::io::{self, BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Component, Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -64,11 +74,8 @@ impl Site {
     }
 
     /// Serves on a background thread until the returned handle is dropped.
-    pub fn spawn(self) -> Handle {
-        let addr = self
-            .listener
-            .local_addr()
-            .expect("a bound listener has an address");
+    pub fn spawn(self) -> io::Result<Handle> {
+        let addr = self.listener.local_addr()?;
         let stop = Arc::new(AtomicBool::new(false));
         let flag = Arc::clone(&stop);
         let thread = thread::spawn(move || {
@@ -82,11 +89,11 @@ impl Site {
                 spawn_connection(stream, &root, &prefix);
             }
         });
-        Handle {
+        Ok(Handle {
             addr,
             stop,
             thread: Some(thread),
-        }
+        })
     }
 }
 
@@ -283,6 +290,7 @@ mod tests {
         Site::bind("127.0.0.1", 0, dir.as_ref().to_path_buf(), base)
             .expect("bind")
             .spawn()
+            .expect("spawn")
     }
 
     fn request(handle: &Handle, method: &str, path: &str) -> Response {

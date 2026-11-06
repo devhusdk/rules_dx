@@ -287,9 +287,11 @@ fn scope_rejects_non_exact_inputs() {
 
 #[test]
 fn scope_errors_display() {
-    assert!(ScopeError::MultipleTargets { count: 2 }
-        .to_string()
-        .contains("at most one target"));
+    assert!(
+        ScopeError::MultipleTargets { count: 2 }
+            .to_string()
+            .contains("at most one target")
+    );
 }
 
 #[test]
@@ -513,7 +515,8 @@ fn fingerprint_matches_starlark_rendering() {
             "//gen:a",
             "rust",
             vec![entry_with_exec("a", "b", "", "out/a.rs")]
-        )]).expect("fingerprint"),
+        )])
+        .expect("fingerprint"),
         "[{\"entries\":[{\"exec_path\":\"out/a.rs\",\"import_root\":\"b\",\"logical_path\":\"a\",\"namespace\":\"\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//gen:a\"}]"
     );
     assert_eq!(
@@ -521,7 +524,8 @@ fn fingerprint_matches_starlark_rendering() {
             "//gen:a",
             "rust",
             vec![entry_with_replaces("a", "b", "", "out/a.rs", "a")]
-        )]).expect("fingerprint"),
+        )])
+        .expect("fingerprint"),
         "[{\"entries\":[{\"exec_path\":\"out/a.rs\",\"import_root\":\"b\",\"logical_path\":\"a\",\"namespace\":\"\",\"read_only\":true,\"replaces\":\"a\"}],\"language\":\"rust\",\"producer\":\"//gen:a\"}]"
     );
 }

@@ -50,7 +50,7 @@ pub fn color_override() -> ColorMode {
 }
 
 pub fn init_diagnostics(verbose: bool) {
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
     let filter = EnvFilter::new(if verbose {
         VERBOSE_LOG_FILTER
     } else {
@@ -461,22 +461,14 @@ mod tests {
             let raw = raw.to_string_lossy().into_owned();
             let (mode, sentinel) = raw.split_once(':').expect("mode:path");
             if mode == "panic" {
-                unsafe {
-                    std::env::set_var("NO_COLOR", "");
-                }
+                unsafe { std::env::set_var("NO_COLOR", "") }
                 panic!("intentional child failure");
             }
-            unsafe {
-                std::env::set_var("NO_COLOR", "");
-            }
+            unsafe { std::env::set_var("NO_COLOR", "") }
             assert!(!no_color_present(), "an empty NO_COLOR is ignored");
-            unsafe {
-                std::env::set_var("NO_COLOR", "1");
-            }
+            unsafe { std::env::set_var("NO_COLOR", "1") }
             assert!(no_color_present(), "a non-empty NO_COLOR counts");
-            unsafe {
-                std::env::remove_var("NO_COLOR");
-            }
+            unsafe { std::env::remove_var("NO_COLOR") }
             assert!(!no_color_present(), "removing NO_COLOR restores absence");
             std::fs::write(sentinel, b"ok").expect("sentinel");
             return;

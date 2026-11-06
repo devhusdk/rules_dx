@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, known_native, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known_native, unformatted_at};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -119,9 +119,11 @@ mod tests {
 
     #[test]
     fn ormolu_clean_is_empty() {
-        assert!(parse_ormolu(b"", b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_ormolu(b"", b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]

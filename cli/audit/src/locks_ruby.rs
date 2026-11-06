@@ -1,5 +1,5 @@
 use crate::locks::{indent_of, split_paren_spec};
-use crate::vuln::{split_gem_lock_version, LockedPackage};
+use crate::vuln::{LockedPackage, split_gem_lock_version};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum Source {

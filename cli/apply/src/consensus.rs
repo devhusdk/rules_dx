@@ -53,7 +53,7 @@ pub fn merge(a: &Envelope, b: &Envelope) -> Result<Envelope, ConsensusError> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::envelope::{FileOperation, ENVELOPE_VERSION};
+    use super::super::envelope::{ENVELOPE_VERSION, FileOperation};
     use super::*;
 
     fn op(path: &str, content: &str) -> FileOperation {

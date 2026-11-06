@@ -1,6 +1,6 @@
 //! Lists modules whose newest release on MetaCPAN is newer than the version in the cpanfile.
 
-use super::{numeric_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
@@ -192,9 +192,11 @@ mod tests {
     fn developer_releases_need_the_prerelease_flag() {
         let only = ["Dev".to_owned()];
         let text = [CPANFILE.to_owned()];
-        assert!(outdated("perl", &text, &only, false, DEFAULT_BASE, &api)
-            .candidates
-            .is_empty());
+        assert!(
+            outdated("perl", &text, &only, false, DEFAULT_BASE, &api)
+                .candidates
+                .is_empty()
+        );
         let found = outdated("perl", &text, &only, true, DEFAULT_BASE, &api);
         assert!(found.candidates[0].prerelease);
     }

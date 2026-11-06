@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use super::AdoptError;
-use crate::scaffold::{with_header, FileKind, ScaffoldFile};
 use crate::Ownership;
+use crate::scaffold::{FileKind, ScaffoldFile, with_header};
 
 /// The module name `dx init` uses for the current directory.
 pub const DEFAULT_INIT_MODULE: &str = "my_project";
@@ -303,16 +303,20 @@ mod tests {
         let module = &files[0];
         assert_eq!(module.path, "MODULE.bazel");
         let parsed = dx_module_bazel::ModuleFile::parse(&module.content).expect("parses");
-        assert!(parsed
-            .include_labels()
-            .contains(&crate::overrides::OVERRIDES_INCLUDE));
+        assert!(
+            parsed
+                .include_labels()
+                .contains(&crate::overrides::OVERRIDES_INCLUDE)
+        );
         assert!(module.content.contains(&format!(
             "bazel_dep(name = \"rules_dx\", version = \"{}\")",
             super::super::DX_VERSION
         )));
-        assert!(module
-            .content
-            .starts_with("# dx: yours; dx adds its missing lines\nmodule(name = \"demo\")\n"));
+        assert!(
+            module
+                .content
+                .starts_with("# dx: yours; dx adds its missing lines\nmodule(name = \"demo\")\n")
+        );
     }
 
     #[test]

@@ -4,14 +4,14 @@ use std::path::{Path, PathBuf};
 
 use super::common::*;
 use dx_output::{
-    command_finished, command_started, notice_event, slot_event, summary_event, FinishedCounts,
-    NoticeEvent, OutputMode, SlotEvent, SummaryEvent,
+    FinishedCounts, NoticeEvent, OutputMode, SlotEvent, SummaryEvent, command_finished,
+    command_started, notice_event, slot_event, summary_event,
 };
 use dx_plan::args::Invocation;
 use dx_worktree::host::{Host, SystemHost};
-use dx_worktree::ops::{self, size, AddRequest, Added, Listing, PrunePlan, Released, Row, Warning};
-use dx_worktree::pool::{cache_base, Pool, Who};
-use dx_worktree::{hook, HookKind, WorktreeError};
+use dx_worktree::ops::{self, AddRequest, Added, Listing, PrunePlan, Released, Row, Warning, size};
+use dx_worktree::pool::{Pool, Who, cache_base};
+use dx_worktree::{HookKind, WorktreeError, hook};
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
 
@@ -78,10 +78,10 @@ fn start(out: &mut dyn Write, invocation: &Invocation, mode: &str) -> Result<(),
 }
 
 fn finish(out: &mut dyn Write, invocation: &Invocation, code: i32) -> i32 {
-    if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
-            return exit;
-        }
+    if invocation.output == OutputMode::Json
+        && let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
+    {
+        return exit;
     }
     code
 }
@@ -131,11 +131,11 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
         return fail(invocation, out, err, &error);
     }
-    if let ["hook", word] = words.as_slice() {
-        if let Some(kind) = HookKind::from_word(word) {
-            let stdin = read_stdin();
-            return run_hook(kind, &stdin, workspace, &host, &who, out, err);
-        }
+    if let ["hook", word] = words.as_slice()
+        && let Some(kind) = HookKind::from_word(word)
+    {
+        let stdin = read_stdin();
+        return run_hook(kind, &stdin, workspace, &host, &who, out, err);
     }
     let result = match words.as_slice() {
         ["add", branch] => add(invocation, workspace, &host, &who, branch, out, err),
@@ -740,11 +740,7 @@ fn kept_external_line(item: &ops::PruneKept) -> String {
 }
 
 fn prune_exit(apply: bool, plan: &PrunePlan) -> i32 {
-    if apply || plan.is_empty() {
-        0
-    } else {
-        1
-    }
+    if apply || plan.is_empty() { 0 } else { 1 }
 }
 
 fn read_stdin() -> String {

@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const COUNTS: [&str; 3] = ["modules", "lock_extensions", "external_repos"];
 const LOCK_HEADROOM_PERCENT: u64 = 5;

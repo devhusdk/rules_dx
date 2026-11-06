@@ -3,7 +3,7 @@ mod support;
 use std::path::{Path, PathBuf};
 
 use dx_shim::fetch::{self, ChecksumSource, Request};
-use support::{leftovers, Reply, Server};
+use support::{Reply, Server, leftovers};
 
 const VERSION: &str = "1.2.3";
 const ASSET: &str = "dx-linux-x86_64";

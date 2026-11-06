@@ -560,9 +560,11 @@ mod tests {
             join(&[], "{}", ""),
             Err("inventory: cargo-bazel-lock.json has no crates table".to_owned())
         );
-        assert!(join(&[], LOCK, "[policy\n")
-            .expect_err("bad toml")
-            .starts_with("inventory: invalid licenses.toml"));
+        assert!(
+            join(&[], LOCK, "[policy\n")
+                .expect_err("bad toml")
+                .starts_with("inventory: invalid licenses.toml")
+        );
     }
 
     #[test]
@@ -587,9 +589,11 @@ mod tests {
             Err("inventory: bytes@1.7.1 (@crates//:bytes) is not in cargo-bazel-lock.json and its Cargo.toml declares no license".to_owned())
         );
         krate.manifest = Some(dir.path().join("absent/Cargo.toml"));
-        assert!(join(&[krate], LOCK, "")
-            .expect_err("unreadable")
-            .starts_with("inventory: bytes@1.7.1 cannot read"));
+        assert!(
+            join(&[krate], LOCK, "")
+                .expect_err("unreadable")
+                .starts_with("inventory: bytes@1.7.1 cannot read")
+        );
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled, point};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "trivy_config";
@@ -59,7 +59,7 @@ pub fn parse_trivy_config(
                     return Err(ParseError::shape(
                         TOOL,
                         format!("unknown severity {other:?}"),
-                    ))
+                    ));
                 }
             };
             let cause = entry.get("CauseMetadata");
@@ -108,9 +108,11 @@ mod tests {
             .expect("parsed");
         assert!(clean.is_empty());
         let passing = br#"{"Results":[{"Target":"Dockerfile","Misconfigurations":null}]}"#;
-        assert!(parse_trivy_config(passing, b"", Some(0), &["Dockerfile"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_trivy_config(passing, b"", Some(0), &["Dockerfile"])
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

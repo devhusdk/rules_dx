@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use dx_test_scratch::{scratch, TempDir};
-use dx_testing::http::{requests, serve, Reply, RequestLog};
-use dx_testing::{resolve_runfiles, run, Run};
+use dx_test_scratch::{TempDir, scratch};
+use dx_testing::http::{Reply, RequestLog, requests, serve};
+use dx_testing::{Run, resolve_runfiles, run};
 
 const MODULE: &str = r#"module(name = "consumer")
 

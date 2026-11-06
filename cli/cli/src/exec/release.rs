@@ -6,8 +6,8 @@ use std::process::Command as Process;
 use super::common::*;
 use dx_plan::args::Invocation;
 use dx_update::release::{
-    apply, breaking_targets, changelog_section, lint, plan, tag_message, today, write_changelog,
-    LOG_ARGS, TAG_PREFIX,
+    LOG_ARGS, TAG_PREFIX, apply, breaking_targets, changelog_section, lint, plan, tag_message,
+    today, write_changelog,
 };
 
 fn git(workspace: &Path, args: &[&str]) -> Option<String> {
@@ -56,12 +56,14 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(report) => report,
         Err(message) => return refusal(invocation.output, out, err, &message),
     };
-    if !invocation.apply && !invocation.no_api_compat && invocation.to.is_none() {
-        if let Some(candidate) = report.major_candidate() {
-            match api_breaking(workspace, &candidate) {
-                Ok(targets) => report.raise_for_api(targets),
-                Err(message) => return refusal(invocation.output, out, err, &message),
-            }
+    if !invocation.apply
+        && !invocation.no_api_compat
+        && invocation.to.is_none()
+        && let Some(candidate) = report.major_candidate()
+    {
+        match api_breaking(workspace, &candidate) {
+            Ok(targets) => report.raise_for_api(targets),
+            Err(message) => return refusal(invocation.output, out, err, &message),
         }
     }
     if let Err(exit) = check_stdout_write(out.write_all(report.render().as_bytes())) {
@@ -151,7 +153,9 @@ fn lint_commits(
             out,
             err,
             "release_git_failed",
-            &format!("cannot read the commits in {range}; check the range and that this is a git checkout"),
+            &format!(
+                "cannot read the commits in {range}; check the range and that this is a git checkout"
+            ),
         );
     };
     let bad = lint(&log);

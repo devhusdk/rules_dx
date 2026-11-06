@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use dx_release_tools::cell::{parse_matrix, Cell};
+use dx_release_tools::cell::{Cell, parse_matrix};
 
 fn data(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));

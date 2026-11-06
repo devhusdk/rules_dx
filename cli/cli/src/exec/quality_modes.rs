@@ -391,9 +391,11 @@ fn non_utf8_temp_path_is_operational() {
     env.temp_dir = &temp;
     let code = execute(&invocation, env);
     assert_eq!(code, 1);
-    assert!(String::from_utf8(err)
-        .expect("stderr")
-        .contains("dx: unreadable_bep: temporary event path is not UTF-8"));
+    assert!(
+        String::from_utf8(err)
+            .expect("stderr")
+            .contains("dx: unreadable_bep: temporary event path is not UTF-8")
+    );
 }
 
 #[test]

@@ -17,7 +17,6 @@ rust_binary(
     ),
     crate_name = "doctor",
     crate_root = "src/bin_doctor.rs",
-    edition = "2021",
     deps = [],
 )
 
@@ -31,7 +30,6 @@ rust_binary(
     ),
     crate_name = "tool_sh",
     crate_root = "src/bin_tool.rs",
-    edition = "2021",
     deps = [],
 )
 

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, finding, known, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, finding, known, unformatted_at};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]

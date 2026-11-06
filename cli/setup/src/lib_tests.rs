@@ -120,9 +120,11 @@ fn scope_rejects_non_exact_inputs() {
 
 #[test]
 fn scope_errors_display() {
-    assert!(ScopeError::MultipleTargets { count: 2 }
-        .to_string()
-        .contains("at most one target"));
+    assert!(
+        ScopeError::MultipleTargets { count: 2 }
+            .to_string()
+            .contains("at most one target")
+    );
 }
 
 fn generation(tag: char) -> GenerationId {
@@ -157,9 +159,11 @@ fn generation_ids_validate_digest_shape() {
     ] {
         assert!(GenerationId::new(&bad).is_err(), "digest {bad:?} must fail");
     }
-    assert!(GenerationIdError("x".to_owned())
-        .to_string()
-        .contains("generation id"));
+    assert!(
+        GenerationIdError("x".to_owned())
+            .to_string()
+            .contains("generation id")
+    );
 }
 
 #[test]
@@ -240,15 +244,17 @@ fn scope_without_either_capability_fails() {
         )),
         Err(ResolveError::NoCapability)
     );
-    assert!(ResolveError::NoCapability
-        .to_string()
-        .contains("no capability"));
+    assert!(
+        ResolveError::NoCapability
+            .to_string()
+            .contains("no capability")
+    );
 }
 
-fn pair(env: char, gen: char) -> SetupPair {
+fn pair(env: char, gen_id: char) -> SetupPair {
     SetupPair {
         environment: generation(env),
-        generated: generation(gen),
+        generated: generation(gen_id),
     }
 }
 
@@ -362,9 +368,9 @@ fn prepared_commits_carry_forward_under_one_lock() {
     };
     let root = scratch.path().to_path_buf();
     let workspace = workspace_of(&root);
-    let sides = |env: Option<char>, gen: Option<char>| PreparedSides {
+    let sides = |env: Option<char>, gen_id: Option<char>| PreparedSides {
         prepared_environment: env.map(generation),
-        prepared_generated: gen.map(generation),
+        prepared_generated: gen_id.map(generation),
         empty_environment: generation('e'),
         empty_generated: generation('0'),
     };

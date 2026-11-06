@@ -1,3 +1,13 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 //! Loads and validates `dx.toml`, and holds the conventions `security.toml` and
 //! `licenses.toml` share with it.
 
@@ -7,8 +17,8 @@ mod curated_defaults_gen;
 pub mod schema;
 pub mod select;
 
-pub use config::{load, DxConfig, FamilyConfig, LargeFiles, LoadProblem, Profile, Scope};
-pub use select::{effective, FamilySelection, Selection, SelectionProblem};
+pub use config::{DxConfig, FamilyConfig, LargeFiles, LoadProblem, Profile, Scope, load};
+pub use select::{FamilySelection, Selection, SelectionProblem, effective};
 
 #[cfg(test)]
 #[path = "config_tests.rs"]

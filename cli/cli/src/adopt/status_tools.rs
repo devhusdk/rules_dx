@@ -3,7 +3,7 @@ use std::path::Path;
 
 use dx_adopt::StatusCheck;
 use dx_path::state::LOCAL_DIR;
-use dx_setup::{CommitError, CURRENT_LINK_NAME, ENVIRONMENTS_DIR_NAME, SETUPS_DIR_NAME};
+use dx_setup::{CURRENT_LINK_NAME, CommitError, ENVIRONMENTS_DIR_NAME, SETUPS_DIR_NAME};
 
 use crate::exec::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 
@@ -64,7 +64,9 @@ pub(crate) fn managed_tools_check(workspace: &Path) -> StatusCheck {
     if !dir.is_dir() {
         return tools(
             "error",
-            format!("unavailable: selected environment {short} is missing from {LOCAL_DIR}/{ENVIRONMENTS_DIR_NAME}"),
+            format!(
+                "unavailable: selected environment {short} is missing from {LOCAL_DIR}/{ENVIRONMENTS_DIR_NAME}"
+            ),
             REFRESH,
         );
     }
@@ -234,9 +236,11 @@ mod tests {
             corrupt.detail
         );
         std::fs::remove_file(env.join("values.json")).expect("rm values");
-        assert!(managed_tools_check(root)
-            .detail
-            .contains("no readable values.json"));
+        assert!(
+            managed_tools_check(root)
+                .detail
+                .contains("no readable values.json")
+        );
         std::fs::remove_dir_all(&env).expect("rm env");
         let pruned = managed_tools_check(root);
         assert_eq!(pruned.status, "error");

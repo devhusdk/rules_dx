@@ -140,9 +140,11 @@ fn the_legacy_configuration_reports_a_real_include_and_macro_finding() {
     assert_consumer_compiler(&commands);
     assert_eq!(entries[0].arguments, commands[0].arguments);
     assert_eq!(entries.len(), 1);
-    assert!(entries[0]
-        .arguments
-        .contains(&"-DDX_ENABLE_LEGACY_BRANCH".to_string()));
+    assert!(
+        entries[0]
+            .arguments
+            .contains(&"-DDX_ENABLE_LEGACY_BRANCH".to_string())
+    );
     assert!(
         commands[0].inputs.contains(
             &"bazel-out/k8-fastbuild/bin/cc/tests/fixtures/compilation_db/generated/limits.h"
@@ -151,9 +153,11 @@ fn the_legacy_configuration_reports_a_real_include_and_macro_finding() {
         "{:?}",
         commands[0].inputs
     );
-    assert!(entries[0]
-        .file
-        .ends_with("cc/tests/fixtures/compilation_db/probe.c"));
+    assert!(
+        entries[0]
+            .file
+            .ends_with("cc/tests/fixtures/compilation_db/probe.c")
+    );
     assert!(
         entries[0]
             .file
@@ -189,9 +193,11 @@ fn the_plain_configuration_is_clean_because_the_macro_is_absent() {
     )
     .expect("plain bundle");
     assert_consumer_compiler(&commands);
-    assert!(!entries[0]
-        .arguments
-        .contains(&"-DDX_ENABLE_LEGACY_BRANCH".to_string()));
+    assert!(
+        !entries[0]
+            .arguments
+            .contains(&"-DDX_ENABLE_LEGACY_BRANCH".to_string())
+    );
     let (code, text) = tidy(&env, "plain");
     assert_eq!(code, Some(0), "{text}");
     assert!(!text.contains("readability-else-after-return"), "{text}");
@@ -211,9 +217,11 @@ fn a_consumer_defined_macro_wins_over_the_generated_default() {
     .expect("consumer bundle");
     assert_consumer_compiler(&commands);
     assert_eq!(entries[0].arguments, commands[0].arguments);
-    assert!(entries[0]
-        .arguments
-        .contains(&"-DDX_ZERO_RESULT=9".to_string()));
+    assert!(
+        entries[0]
+            .arguments
+            .contains(&"-DDX_ZERO_RESULT=9".to_string())
+    );
     let (code, text) = tidy(&env, "consumer");
     assert_eq!(code, Some(1), "{text}");
     assert!(text.contains("readability-else-after-return"), "{text}");

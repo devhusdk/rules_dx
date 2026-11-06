@@ -145,7 +145,7 @@ pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
 pub use capnp::parse_capnp;
 pub use cfn_lint::parse_cfn_lint;
-pub use check_jsonschema::{parse_check_jsonschema, CheckJsonschemaTarget};
+pub use check_jsonschema::{CheckJsonschemaTarget, parse_check_jsonschema};
 pub use checkmake::parse_checkmake;
 pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use chktex::parse_chktex;
@@ -157,7 +157,7 @@ pub use cppcheck::{keep_unused_function, parse_cppcheck};
 pub use credo::parse_credo;
 pub use csharpier::parse_csharpier;
 pub use cue::{parse_cue, parse_cue_vet};
-pub use dart_analyze::{parse_dart_analyze, DartAnalyzeView};
+pub use dart_analyze::{DartAnalyzeView, parse_dart_analyze};
 pub use dart_format::parse_dart_format;
 pub use deadcode::parse_deadcode;
 pub use deadnix::parse_deadnix;
@@ -171,7 +171,7 @@ pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use ffmt::parse_ffmt;
 pub use flang::parse_flang;
-pub use flatc::{parse_flatc, FlatcReport};
+pub use flatc::{FlatcReport, parse_flatc};
 pub use fortitude::parse_fortitude;
 pub use fsc::parse_fsc;
 pub use fsharplint::parse_fsharplint;
@@ -182,7 +182,7 @@ pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use gplint::parse_gplint;
 pub use hadolint::parse_hadolint;
-pub use helm::{parse_helm_lint, parse_helm_template_error, split_rendered, RenderedFile};
+pub use helm::{RenderedFile, parse_helm_lint, parse_helm_template_error, split_rendered};
 pub use hlint::parse_hlint;
 pub use jet::parse_jet;
 pub use jsonnet_lint::parse_jsonnet_lint;
@@ -194,7 +194,7 @@ pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use knip::parse_knip;
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
-pub use kubeconform::{parse_kubeconform, KubeconformTarget};
+pub use kubeconform::{KubeconformTarget, parse_kubeconform};
 pub use latexindent::parse_latexindent;
 pub use ldc::parse_ldc;
 pub use luals::parse_luals;
@@ -222,11 +222,11 @@ pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
 pub use psscriptanalyzer::{parse_psscriptanalyzer, parse_psscriptanalyzer_format};
 pub use pydoclint::parse_pydoclint;
 pub use qmlformat::parse_qmlformat;
-pub use qmllint::{parse_qmllint, parse_qmllint_report, QmllintView};
+pub use qmllint::{QmllintView, parse_qmllint, parse_qmllint_report};
 pub use redocly::parse_redocly;
 pub use regal::parse_regal;
 pub use remark::parse_remark;
-pub use roslyn::{parse_csc, parse_roslyn, parse_unused_references, UNUSED_REFERENCE_RULE};
+pub use roslyn::{UNUSED_REFERENCE_RULE, parse_csc, parse_roslyn, parse_unused_references};
 pub use rubocop::parse_rubocop;
 pub use ruff::{parse_ruff, parse_ruff_format};
 pub use rust::{parse_clippy, parse_rustc};
@@ -249,7 +249,7 @@ pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
 pub use terraform_validate::{parse_terraform_init, parse_terraform_validate};
 pub use tflint::parse_tflint;
-pub use thrift::{parse_thrift, ThriftReport};
+pub use thrift::{ThriftReport, parse_thrift};
 pub use tinymist::parse_tinymist;
 pub use topiary::parse_topiary;
 pub use trivy_config::parse_trivy_config;
@@ -258,7 +258,7 @@ pub use ty::parse_ty;
 pub use typos::parse_typos;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
-pub use vulture::{parse_vulture, parse_vulture_unused, UnusedRoots};
+pub use vulture::{UnusedRoots, parse_vulture, parse_vulture_unused};
 pub use weeder::parse_weeder;
 pub use xmllint::parse_xmllint;
 pub use xref::parse_xref;
@@ -780,7 +780,7 @@ pub(super) fn rubocop_json(
                     return Err(ParseError::Shape {
                         tool,
                         detail: format!("unknown severity {other:?}"),
-                    })
+                    });
                 }
             };
             if line == 0 || col == 0 {
@@ -996,9 +996,9 @@ mod tests {
     use std::path::Path;
 
     use super::{
-        check_output_size, code_name, columned, finding, known_native, lines, located, missing,
-        numbered, path_row_col, prefixed, require_findings, row_col, FileFinding, ParseError,
-        Spelling, MAX_OUTPUT_BYTES,
+        FileFinding, MAX_OUTPUT_BYTES, ParseError, Spelling, check_output_size, code_name,
+        columned, finding, known_native, lines, located, missing, numbered, path_row_col, prefixed,
+        require_findings, row_col,
     };
     use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
@@ -1081,10 +1081,12 @@ mod tests {
             located("tsc", "/s/b.rs:1:2: x", &files),
             Err(ParseError::UnknownFile { path, .. }) if path == "/s/b.rs"
         ));
-        assert!(located("tsc", "no-colon-here", &files)
-            .expect_err("no location")
-            .to_string()
-            .contains("malformed location: no-colon-here"));
+        assert!(
+            located("tsc", "no-colon-here", &files)
+                .expect_err("no location")
+                .to_string()
+                .contains("malformed location: no-colon-here")
+        );
     }
 
     #[test]
@@ -1110,10 +1112,12 @@ mod tests {
             located("tsc", r"C:\x\b.sh:1:1: m", &files),
             Err(ParseError::UnknownFile { path, .. }) if path == r"C:\x\b.sh"
         ));
-        assert!(located("tsc", "no-colon-here", &files)
-            .expect_err("no location")
-            .to_string()
-            .contains("malformed location"));
+        assert!(
+            located("tsc", "no-colon-here", &files)
+                .expect_err("no location")
+                .to_string()
+                .contains("malformed location")
+        );
     }
 
     #[test]
@@ -1215,38 +1219,48 @@ mod tests {
             ColumnEncoding::Scalars,
         )];
         assert!(require_findings("tsc", &one, Some(1)).is_ok());
-        assert!(require_findings("tsc", &[], Some(2))
-            .expect_err("silent exit")
-            .to_string()
-            .contains("exit 2 with no diagnostics"));
+        assert!(
+            require_findings("tsc", &[], Some(2))
+                .expect_err("silent exit")
+                .to_string()
+                .contains("exit 2 with no diagnostics")
+        );
     }
 
     #[test]
     fn error_display_is_stable() {
-        assert!(ParseError::Json {
-            tool: "vale",
-            detail: "x".to_owned()
-        }
-        .to_string()
-        .contains("vale"));
-        assert!(ParseError::UnknownFile {
-            tool: "taplo",
-            path: "/s/x".to_owned()
-        }
-        .to_string()
-        .contains("/s/x"));
-        assert!(ParseError::ValeConfig {
-            detail: "E100".to_owned()
-        }
-        .to_string()
-        .contains("E100"));
-        assert!(ParseError::TooLarge {
-            tool: "sarif",
-            bytes: MAX_OUTPUT_BYTES + 1,
-            limit: MAX_OUTPUT_BYTES,
-        }
-        .to_string()
-        .contains("max size"));
+        assert!(
+            ParseError::Json {
+                tool: "vale",
+                detail: "x".to_owned()
+            }
+            .to_string()
+            .contains("vale")
+        );
+        assert!(
+            ParseError::UnknownFile {
+                tool: "taplo",
+                path: "/s/x".to_owned()
+            }
+            .to_string()
+            .contains("/s/x")
+        );
+        assert!(
+            ParseError::ValeConfig {
+                detail: "E100".to_owned()
+            }
+            .to_string()
+            .contains("E100")
+        );
+        assert!(
+            ParseError::TooLarge {
+                tool: "sarif",
+                bytes: MAX_OUTPUT_BYTES + 1,
+                limit: MAX_OUTPUT_BYTES,
+            }
+            .to_string()
+            .contains("max size")
+        );
     }
 
     #[test]
@@ -1280,14 +1294,16 @@ mod tests {
                 limit: MAX_OUTPUT_BYTES,
             })
         );
-        assert!(super::sarif::parse_sarif(
-            "sarif-test",
-            &big,
-            Some(1),
-            &["/s/a.java"],
-            ColumnEncoding::Utf16
-        )
-        .is_err());
+        assert!(
+            super::sarif::parse_sarif(
+                "sarif-test",
+                &big,
+                Some(1),
+                &["/s/a.java"],
+                ColumnEncoding::Utf16
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -1488,9 +1504,11 @@ mod tests {
             super::DiffExit::ZeroOrOne,
             super::DiffExit::One,
         ] {
-            assert!(super::diff_format("t", b"", Some(0), &["x.go"], exit)
-                .expect("clean")
-                .is_empty());
+            assert!(
+                super::diff_format("t", b"", Some(0), &["x.go"], exit)
+                    .expect("clean")
+                    .is_empty()
+            );
         }
     }
 
@@ -1525,16 +1543,18 @@ mod tests {
         )
         .expect("parsed");
         assert_eq!(findings.len(), 1);
-        assert!(super::listed_paths(
-            "t",
-            b"HEADER: none\n",
-            Some(0),
-            &["x.go"],
-            &["HEADER: none"],
-            Spelling::Exact
-        )
-        .expect("clean")
-        .is_empty());
+        assert!(
+            super::listed_paths(
+                "t",
+                b"HEADER: none\n",
+                Some(0),
+                &["x.go"],
+                &["HEADER: none"],
+                Spelling::Exact
+            )
+            .expect("clean")
+            .is_empty()
+        );
     }
 
     #[test]

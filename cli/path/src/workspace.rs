@@ -1,6 +1,6 @@
 //! One validated workspace-relative path.
 
-use super::{classify, PathProblem};
+use super::{PathProblem, classify};
 use std::fmt;
 use std::path::{Path, PathBuf};
 

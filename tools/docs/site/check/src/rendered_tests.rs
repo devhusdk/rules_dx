@@ -4,8 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use super::{
-    check_rendered, decode_fragment, is_internal, pages, resolve, route_report, split_target,
-    usage, Rendered,
+    Rendered, check_rendered, decode_fragment, is_internal, pages, resolve, route_report,
+    split_target, usage,
 };
 
 fn write(dir: &Path, name: &str, body: &str) {

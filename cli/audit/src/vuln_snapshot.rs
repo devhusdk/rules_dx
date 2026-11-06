@@ -1,4 +1,4 @@
-use super::{is_version_family, Advisory, AdvisoryKind};
+use super::{Advisory, AdvisoryKind, is_version_family};
 
 /// The set opam advisories belong to. The osv crate has no opam ecosystem, so those entries are
 /// read under `GHC`, an ecosystem no snapshot family downloads.
@@ -8,10 +8,10 @@ pub fn parse_snapshot(text: &str) -> Result<Vec<Advisory>, String> {
     if let Ok(vulns) = serde_json::from_str::<Vec<osv::schema::Vulnerability>>(text) {
         return Ok(project_osv_snapshot(&vulns));
     }
-    if text.contains("\"opam\"") {
-        if let Ok(vulns) = parse_opam_vulnerabilities(text) {
-            return Ok(project_osv_snapshot(&vulns));
-        }
+    if text.contains("\"opam\"")
+        && let Ok(vulns) = parse_opam_vulnerabilities(text)
+    {
+        return Ok(project_osv_snapshot(&vulns));
     }
     serde_json::from_str(text).map_err(|error| format!("invalid advisory snapshot: {error}"))
 }
@@ -23,10 +23,10 @@ fn parse_opam_vulnerabilities(text: &str) -> serde_json::Result<Vec<osv::schema:
             .get_mut("affected")
             .and_then(|value| value.as_array_mut());
         for item in affected.into_iter().flatten() {
-            if let Some(ecosystem) = item.pointer_mut("/package/ecosystem") {
-                if ecosystem == "opam" {
-                    *ecosystem = serde_json::Value::from("GHC");
-                }
+            if let Some(ecosystem) = item.pointer_mut("/package/ecosystem")
+                && ecosystem == "opam"
+            {
+                *ecosystem = serde_json::Value::from("GHC");
             }
         }
     }
@@ -88,12 +88,11 @@ fn osv_severity_text(
         affected.ecosystem_specific.as_ref(),
         vuln.database_specific.as_ref(),
     ] {
-        if let Some(serde_json::Value::Object(map)) = value {
-            if let Some(serde_json::Value::String(score)) = map.get("severity") {
-                if let Some(word) = known_severity_word(score) {
-                    return word;
-                }
-            }
+        if let Some(serde_json::Value::Object(map)) = value
+            && let Some(serde_json::Value::String(score)) = map.get("severity")
+            && let Some(word) = known_severity_word(score)
+        {
+            return word;
         }
     }
     String::new()
@@ -289,10 +288,11 @@ fn project_osv_affected(
                 continue;
             }
             for (lower, upper, inclusive) in range_events_to_intervals(&range.events) {
-                if let Some(scope) = interval_to_scope(set, &lower, &upper, inclusive) {
-                    if !scope.trim().is_empty() && !scopes.iter().any(|seen| seen == &scope) {
-                        scopes.push(scope);
-                    }
+                if let Some(scope) = interval_to_scope(set, &lower, &upper, inclusive)
+                    && !scope.trim().is_empty()
+                    && !scopes.iter().any(|seen| seen == &scope)
+                {
+                    scopes.push(scope);
                 }
             }
         }

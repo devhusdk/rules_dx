@@ -102,9 +102,10 @@ fn rejects_unknown_task_and_displays() {
         }
         .to_string()
     });
-    assert!(task
-        .err()
-        .is_some_and(|e| e.contains("task must be one of")));
+    assert!(
+        task.err()
+            .is_some_and(|e| e.contains("task must be one of"))
+    );
     let displays = validate(|name| {
         match name {
             "DX_TASK" => "test",
@@ -114,9 +115,11 @@ fn rejects_unknown_task_and_displays() {
         }
         .to_string()
     });
-    assert!(displays
-        .err()
-        .is_some_and(|e| e.contains("displays must be one of")));
+    assert!(
+        displays
+            .err()
+            .is_some_and(|e| e.contains("displays must be one of"))
+    );
 }
 
 #[test]

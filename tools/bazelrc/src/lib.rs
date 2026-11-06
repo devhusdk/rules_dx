@@ -606,10 +606,10 @@ pub fn bin_cannot(err: &mut dyn std::io::Write, error: impl std::fmt::Display) -
 }
 
 pub fn resolve_workspace() -> std::io::Result<PathBuf> {
-    if let Ok(workspace) = std::env::var("BUILD_WORKSPACE_DIRECTORY") {
-        if !workspace.is_empty() {
-            return Ok(PathBuf::from(workspace));
-        }
+    if let Ok(workspace) = std::env::var("BUILD_WORKSPACE_DIRECTORY")
+        && !workspace.is_empty()
+    {
+        return Ok(PathBuf::from(workspace));
     }
     std::env::current_dir()
 }
@@ -795,9 +795,11 @@ mod tests {
         assert_eq!(kept.matches("user.bazelrc").count(), 1);
         let empty = prepend_imports("", CONSUMER_DIR, &all);
         assert_eq!(empty.lines().count(), 3 + all.len());
-        assert!(empty
-            .trim_end()
-            .ends_with("try-import %workspace%/user.bazelrc"));
+        assert!(
+            empty
+                .trim_end()
+                .ends_with("try-import %workspace%/user.bazelrc")
+        );
         for (_, state) in layer_import_state(&lf, CONSUMER_DIR) {
             assert_eq!(state, ImportState::Active);
         }
@@ -928,7 +930,9 @@ mod tests {
             );
             assert_eq!(
                 lines.next(),
-                Some("# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.")
+                Some(
+                    "# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx."
+                )
             );
             assert_eq!(
                 lines.next(),
@@ -1059,9 +1063,11 @@ mod tests {
             layer_import_state(continued, CONSUMER_DIR)[2],
             (Layer::Resources, ImportState::Active)
         );
-        assert!(layer_import_state(&lines.join("\n"), REPO_DIR)
-            .iter()
-            .all(|(_, state)| *state == ImportState::Absent));
+        assert!(
+            layer_import_state(&lines.join("\n"), REPO_DIR)
+                .iter()
+                .all(|(_, state)| *state == ImportState::Absent)
+        );
         let plain = "import %workspace%/.dx/bazelrc/resources.bazelrc\n";
         assert_eq!(
             layer_import_state(plain, CONSUMER_DIR)[2].1,
@@ -1071,9 +1077,11 @@ mod tests {
             .iter()
             .map(|layer| import_line(REPO_DIR, *layer))
             .collect();
-        assert!(layer_import_state(&repo.join("\n"), REPO_DIR)
-            .iter()
-            .all(|(_, state)| *state == ImportState::Active));
+        assert!(
+            layer_import_state(&repo.join("\n"), REPO_DIR)
+                .iter()
+                .all(|(_, state)| *state == ImportState::Active)
+        );
         let both = format!("# {}\n{}\n", lines[2], lines[2]);
         assert_eq!(
             layer_import_state(&both, CONSUMER_DIR)[2].1,

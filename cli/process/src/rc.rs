@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, RwLock};
 
-use crate::{is_ci_value, WORKFLOW_STARTUP_OPTS};
+use crate::{WORKFLOW_STARTUP_OPTS, is_ci_value};
 
 pub(crate) const MAX_IMPORT_DEPTH: usize = 16;
 
@@ -155,10 +155,10 @@ pub fn set_share(share: Option<LocalShare>) {
 
 /// Clears the share when it is the fixed value `share`.
 pub fn clear_share(share: &LocalShare) {
-    if let Ok(mut current) = SHARE.write() {
-        if matches!(current.as_ref(), Some(ShareSource::Fixed(fixed)) if fixed == share) {
-            *current = None;
-        }
+    if let Ok(mut current) = SHARE.write()
+        && matches!(current.as_ref(), Some(ShareSource::Fixed(fixed)) if fixed == share)
+    {
+        *current = None;
     }
 }
 
@@ -176,10 +176,10 @@ pub fn set_share_source(f: impl Fn() -> LocalShare + Send + Sync + 'static) -> S
 
 /// Removes the live source registered under `token`; a newer source stays.
 pub fn clear_share_source(token: ShareToken) {
-    if let Ok(mut current) = SHARE.write() {
-        if matches!(current.as_ref(), Some(ShareSource::Live { token: t, .. }) if *t == token.0) {
-            *current = None;
-        }
+    if let Ok(mut current) = SHARE.write()
+        && matches!(current.as_ref(), Some(ShareSource::Live { token: t, .. }) if *t == token.0)
+    {
+        *current = None;
     }
 }
 
@@ -288,10 +288,10 @@ impl RcPolicy {
                 options.push(format!("{GC_MAX_AGE_FLAG}={DISK_CACHE_GC_MAX_AGE}"));
             }
         }
-        if let Some(secs) = self.gc_idle_delay_secs {
-            if !user_sets_flag(GC_IDLE_DELAY_FLAG) {
-                options.push(format!("{GC_IDLE_DELAY_FLAG}={secs}s"));
-            }
+        if let Some(secs) = self.gc_idle_delay_secs
+            && !user_sets_flag(GC_IDLE_DELAY_FLAG)
+        {
+            options.push(format!("{GC_IDLE_DELAY_FLAG}={secs}s"));
         }
         let Some(share) = share else {
             return options;
@@ -699,7 +699,7 @@ pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
 mod sections;
 
 pub use sections::{
-    explicit_rc_files, nested_bazel_selected, remote_execution, startup_output_paths, StartupPaths,
+    StartupPaths, explicit_rc_files, nested_bazel_selected, remote_execution, startup_output_paths,
 };
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, finding, known, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, finding, known};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "typos";
@@ -45,7 +45,7 @@ pub fn parse_typos(
                 return Err(ParseError::shape(
                     TOOL,
                     format!("unknown record type: {other}"),
-                ))
+                ));
             }
         }
         let missing = |what: &str| ParseError::shape(TOOL, format!("typo record without {what}"));
@@ -113,13 +113,17 @@ mod tests {
 
     #[test]
     fn typos_clean_and_binary_files_report_nothing() {
-        assert!(parse_typos(b"", Some(0), &["a.txt"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_typos(b"", Some(0), &["a.txt"])
+                .expect("parsed")
+                .is_empty()
+        );
         let binary = "{\"type\":\"binary_file\",\"path\":\"a.txt\"}\n";
-        assert!(parse_typos(binary.as_bytes(), Some(0), &["a.txt"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_typos(binary.as_bytes(), Some(0), &["a.txt"])
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

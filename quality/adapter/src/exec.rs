@@ -1,4 +1,4 @@
-use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
+use dx_atomic_fs::{EntryKind, LinkPolicy, Mechanism, classify, materialize_file, write_atomic};
 use dx_process::lifecycle::{
     CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, SpawnSpec,
 };
@@ -445,9 +445,11 @@ mod tests {
         let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
         assert!(scratch.resolve(Path::new("../../evil")).is_err());
         assert!(scratch.resolve(Path::new("/absolute")).is_err());
-        assert!(scratch
-            .resolve(Path::new("../../../../../../../../evil"))
-            .is_err());
+        assert!(
+            scratch
+                .resolve(Path::new("../../../../../../../../evil"))
+                .is_err()
+        );
         assert_eq!(
             scratch
                 .resolve(Path::new("sub/../ok.rs"))

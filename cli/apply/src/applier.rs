@@ -4,7 +4,7 @@ use std::path::Path;
 use dx_digest::sha256_hex;
 
 use super::envelope::Envelope;
-use super::validators::{validate, ValidationError};
+use super::validators::{ValidationError, validate};
 
 pub trait FileSystem {
     fn read(&self, path: &Path) -> io::Result<Option<Vec<u8>>>;
@@ -125,7 +125,7 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::{Mutex, MutexGuard};
 
-    use super::super::envelope::{FileOperation, ENVELOPE_VERSION};
+    use super::super::envelope::{ENVELOPE_VERSION, FileOperation};
     use super::*;
 
     struct FakeFs {

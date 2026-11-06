@@ -308,7 +308,8 @@ pub enum DeployConfig {
 /// Clearing it keeps child processes from inheriting it.
 pub fn load_deploy_config<T: DeserializeOwned>() -> Result<T, String> {
     let raw = std::env::var_os(DEPLOY_CONFIG_ENV);
-    std::env::remove_var(DEPLOY_CONFIG_ENV);
+    // SAFETY: the process is single-threaded here or the env lock is held.
+    unsafe { std::env::remove_var(DEPLOY_CONFIG_ENV) };
     load_deploy_config_from(raw, &crate::resolve_runfile)
 }
 

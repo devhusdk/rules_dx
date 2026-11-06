@@ -53,7 +53,6 @@ rust_library(
     ],
     crate_name = "quality_runner",
     crate_root = "src/lib.rs",
-    edition = "2021",
     visibility = VIS_QUALITY + ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "quality/quality_runner",
@@ -79,7 +78,6 @@ rust_binary(
     ),
     crate_name = "quality_runner",
     crate_root = "src/main.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "quality/quality_runner",
@@ -97,7 +95,6 @@ rust_binary(
     ),
     crate_name = "matrix_harness",
     crate_root = "src/matrix_harness.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "quality/quality_runner",
         normal = True,
@@ -204,7 +201,6 @@ rust_test(
     ],
     crate_name = "quality_runner",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "quality/quality_runner",
         normal = True,

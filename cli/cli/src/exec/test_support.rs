@@ -1,12 +1,12 @@
-use super::{execute, ActionTally, Env};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use super::{ActionTally, Env, execute};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use dx_digest::blake3 as digest;
 use dx_plan::args::Invocation;
 use dx_plan::plan::GENERATE_ENV_INTENDED;
 use dx_plan::resolve::{QueryResult, QueryRunner};
 use dx_process::{ChildStatus, Runner};
 use dx_setup::{
-    commit_pair, setup_hex, GenerationId, SetupPair, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME,
+    ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, GenerationId, SetupPair, commit_pair, setup_hex,
 };
 use quality_result::encode_validated;
 use quality_result::proto;
@@ -1115,13 +1115,13 @@ pub(crate) fn generate_witness(workspace_text: &str, name: &str) -> Harness {
     harness
 }
 
-pub(crate) fn commit_clean_pair(harness: &Harness, env: char, gen: char) -> String {
+pub(crate) fn commit_clean_pair(harness: &Harness, env: char, gen_id: char) -> String {
     let pair = SetupPair {
         environment: GenerationId::new(&env.to_string().repeat(64)).expect("environment digest"),
-        generated: GenerationId::new(&gen.to_string().repeat(64)).expect("generated digest"),
+        generated: GenerationId::new(&gen_id.to_string().repeat(64)).expect("generated digest"),
     };
     commit_pair(&harness.workspace, &pair).expect("commit pair");
-    for (dir, tag) in [(ENVIRONMENTS_DIR_NAME, env), (GENERATED_DIR_NAME, gen)] {
+    for (dir, tag) in [(ENVIRONMENTS_DIR_NAME, env), (GENERATED_DIR_NAME, gen_id)] {
         std::fs::create_dir_all(
             dx_path::state::local_dir(&harness.workspace)
                 .join(dir)

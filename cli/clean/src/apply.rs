@@ -3,13 +3,13 @@ use std::io;
 use std::path::Path;
 use std::time::Duration;
 
-use dx_atomic_fs::commit::{acquire_commit_lock, LockError, ManagedRoot};
+use dx_atomic_fs::commit::{LockError, ManagedRoot, acquire_commit_lock};
 use dx_atomic_fs::lease::{self, GenerationUse};
-use dx_setup::{read_current_pair, GenerationId, SETUPS_DIR_NAME};
+use dx_setup::{GenerationId, SETUPS_DIR_NAME, read_current_pair};
 
+use super::CleanError;
 use super::inventory::collect_inventory;
 use super::planning::{CleanPlan, GenerationView};
-use super::CleanError;
 
 pub const CLEAN_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -154,7 +154,7 @@ mod tests {
     use super::*;
     use crate::fixtures::*;
     use crate::inventory::collect_inventory;
-    use crate::planning::{plan_prune, PruneInputs, UnobservedPolicy};
+    use crate::planning::{PruneInputs, UnobservedPolicy, plan_prune};
     use std::path::PathBuf;
 
     #[test]
@@ -243,14 +243,18 @@ mod tests {
         assert_eq!(outcome.removed_generations.len(), 2);
         let setups = dx_path::state::local_dir(&workspace).join("setups");
         assert!(setups.join(&current_hex).join("environment").is_symlink());
-        assert!(dx_path::state::local_dir(&workspace)
-            .join("environments")
-            .join(digest('1'))
-            .is_dir());
-        assert!(dx_path::state::local_dir(&workspace)
-            .join("generated")
-            .join(digest('2'))
-            .is_dir());
+        assert!(
+            dx_path::state::local_dir(&workspace)
+                .join("environments")
+                .join(digest('1'))
+                .is_dir()
+        );
+        assert!(
+            dx_path::state::local_dir(&workspace)
+                .join("generated")
+                .join(digest('2'))
+                .is_dir()
+        );
         assert!(!setups.join(&stale_hex).exists());
         assert_eq!(
             dx_setup::read_current_pair(&workspace)
@@ -318,10 +322,12 @@ mod tests {
         let outcome = apply_plan(&workspace, &plan).expect("apply");
         assert_eq!(outcome.removed_setup_records, vec![stale_hex]);
         assert!(outcome.removed_generations.is_empty());
-        assert!(dx_path::state::local_dir(&workspace)
-            .join("environments")
-            .join(digest('1'))
-            .is_dir());
+        assert!(
+            dx_path::state::local_dir(&workspace)
+                .join("environments")
+                .join(digest('1'))
+                .is_dir()
+        );
         let _ = fs::remove_dir_all(&root);
     }
 

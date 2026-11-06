@@ -16,9 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
-use dx_advisory_prep::{prepare, PrepareOptions, Summary, DEFAULT_OUT};
+use dx_advisory_prep::{DEFAULT_OUT, PrepareOptions, Summary, prepare};
 use dx_audit::advisory::is_audit_date;
-use dx_audit::advisory_prep::{FetchLimits, PrepError, DEFAULT_LIMITS};
+use dx_audit::advisory_prep::{DEFAULT_LIMITS, FetchLimits, PrepError};
 
 #[derive(Debug, Parser)]
 #[command(

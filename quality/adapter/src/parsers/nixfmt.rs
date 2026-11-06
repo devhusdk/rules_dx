@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, known_native, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known_native, unformatted_at};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -67,7 +67,7 @@ fn records(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, ParseError>
                     return Err(ParseError::shape(
                         TOOL,
                         format!("unrecognized stderr line: {line}"),
-                    ))
+                    ));
                 }
             },
         }
@@ -198,16 +198,20 @@ mod tests {
         assert!(run("/s/other.nix: not formatted\n", Some(1)).is_err());
         assert!(run("/s/other.nix:1:1:\n  |\n", Some(1)).is_err());
         assert!(run("stray\n/s/a.nix: not formatted\n", Some(1)).is_err());
-        assert!(run(
-            "\u{1b}[33m/s/a.nix is a symbolic link\u{1b}[39m\n/s/a.nix: not formatted\n",
-            Some(1)
-        )
-        .is_err());
-        assert!(run(
-            &format!("{BROKEN}nixfmt: Uncaught exception ghc-internal:IOException:\n"),
-            Some(1)
-        )
-        .is_err());
+        assert!(
+            run(
+                "\u{1b}[33m/s/a.nix is a symbolic link\u{1b}[39m\n/s/a.nix: not formatted\n",
+                Some(1)
+            )
+            .is_err()
+        );
+        assert!(
+            run(
+                &format!("{BROKEN}nixfmt: Uncaught exception ghc-internal:IOException:\n"),
+                Some(1)
+            )
+            .is_err()
+        );
         assert!(parse_nixfmt(b"x\n", b"", Some(0), &FILES).is_err());
         assert!(parse_nixfmt(b"x\n", b"/s/a.nix: not formatted\n", Some(1), &FILES).is_err());
         assert!(parse_nixfmt(b"", &[0xff], Some(1), &FILES).is_err());

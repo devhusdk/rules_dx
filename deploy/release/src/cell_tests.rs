@@ -414,12 +414,14 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
                 format!("{exe_name} check //... in consumer"),
             ]
         );
-        assert!(fixture
-            .inputs
-            .work
-            .join(MOVED_DIR)
-            .join(&cell.exe)
-            .is_file());
+        assert!(
+            fixture
+                .inputs
+                .work
+                .join(MOVED_DIR)
+                .join(&cell.exe)
+                .is_file()
+        );
         assert!(!fixture.inputs.work.join(INSTALL_DIR).exists());
     }
 }
@@ -664,11 +666,13 @@ fn qualify_rejects_failed_runs_relocation_and_consumers() {
     let record = qualify(&fixture.inputs, &runner);
     assert_failed(&record, "consumer", "stage: ");
     assert_failed(&record, "consumer", "init broke");
-    assert!(!runner
-        .calls
-        .borrow()
-        .iter()
-        .any(|call| call.contains("build")));
+    assert!(
+        !runner
+            .calls
+            .borrow()
+            .iter()
+            .any(|call| call.contains("build"))
+    );
     let fixture = synthetic("tar.gz", |_| {});
     let blocker = fixture.inputs.work.join(MOVED_DIR).join("keep");
     std::fs::create_dir_all(&blocker).expect("blocker");
@@ -719,12 +723,16 @@ fn parse_matrix_reads_cells_and_rejects_bad_ones() {
     assert!(with(|cell| cell.exe = "bin/dx".to_owned()).contains("top-level name"));
     assert!(with(|cell| cell.exe = "a=b".to_owned()).contains("must not contain '='"));
     assert!(with(|cell| cell.runtime = vec!["NOTICE".to_owned()]).contains("listed twice"));
-    assert!(parse_matrix("{")
-        .expect_err("json")
-        .starts_with("release matrix:"));
-    assert!(parse_matrix(r#"{"schema":"release-matrix/v2","cells":[]}"#)
-        .expect_err("schema")
-        .contains("want \"release-matrix/v1\""));
+    assert!(
+        parse_matrix("{")
+            .expect_err("json")
+            .starts_with("release matrix:")
+    );
+    assert!(
+        parse_matrix(r#"{"schema":"release-matrix/v2","cells":[]}"#)
+            .expect_err("schema")
+            .contains("want \"release-matrix/v1\"")
+    );
     assert!(
         parse_matrix(r#"{"schema":"release-matrix/v1","cells":[],"extra":1}"#)
             .expect_err("unknown field")
@@ -866,9 +874,11 @@ fn verify_rejects_a_swapped_or_missing_archive() {
     release.edit(TAR, |value| {
         value["archive"]["name"] = "other.tar.gz".into()
     });
-    assert!(release
-        .errors()
-        .contains("archive name is \"other.tar.gz\", want \"dx-linux-x86_64-tar-gz.tar.gz\""));
+    assert!(
+        release
+            .errors()
+            .contains("archive name is \"other.tar.gz\", want \"dx-linux-x86_64-tar-gz.tar.gz\"")
+    );
 }
 
 #[test]
@@ -1003,14 +1013,18 @@ fn qualify_main_and_verify_main_run_from_flags() {
     let mut bad = args.clone();
     let at = bad.len() - 5;
     bad[at] = path(&release.dir.path().join("no/such/record.json"));
-    assert!(qualify_main(&bad, &FakeRunner::new())
-        .expect_err("unwritable")
-        .starts_with("cannot write"));
+    assert!(
+        qualify_main(&bad, &FakeRunner::new())
+            .expect_err("unwritable")
+            .starts_with("cannot write")
+    );
     let mut bad = args.clone();
     bad[1] = path(&release.dir.path().join("missing.json"));
-    assert!(qualify_main(&bad, &FakeRunner::new())
-        .expect_err("no matrix")
-        .starts_with("cannot read"));
+    assert!(
+        qualify_main(&bad, &FakeRunner::new())
+            .expect_err("no matrix")
+            .starts_with("cannot read")
+    );
     assert_eq!(
         qualify_main(&strings(&["--sha"]), &FakeRunner::new()).map(drop),
         Err("--sha needs a value".to_owned())
@@ -1036,8 +1050,10 @@ fn qualify_main_and_verify_main_run_from_flags() {
     let (ok, summary) = verify_main(&verify_args(&"a".repeat(40))).expect("verify");
     assert!(ok);
     assert_eq!(summary.lines().count(), 2);
-    assert!(summary
-        .starts_with("dx-linux-x86_64-tar-gz qualified dx-linux-x86_64-tar-gz.tar.gz sha256 "));
+    assert!(
+        summary
+            .starts_with("dx-linux-x86_64-tar-gz qualified dx-linux-x86_64-tar-gz.tar.gz sha256 ")
+    );
     assert!(summary.contains(" version 1.2.3 job cell (dx-linux-x86_64) run 77\n"));
     let (ok, stale) = verify_main(&verify_args("stale")).expect("stale");
     assert!(!ok);
@@ -1156,9 +1172,11 @@ fn printed_version_takes_the_first_dx_line() {
         printed_version("banner\ndx 0.4.0-rc.1 (abc)\ndx 9\n"),
         Ok("0.4.0-rc.1 (abc)".to_owned())
     );
-    assert!(printed_version("")
-        .expect_err("empty")
-        .starts_with("no `dx <version>` line"));
+    assert!(
+        printed_version("")
+            .expect_err("empty")
+            .starts_with("no `dx <version>` line")
+    );
     assert!(printed_version("dx \nfoo\n").is_err());
     assert!(printed_version("dxx 1\n").is_err());
 }
@@ -1172,9 +1190,11 @@ fn version_main_asks_the_executable() {
     );
     let mut runner = FakeRunner::new();
     runner.fail = vec!["--version"];
-    assert!(version_main(&exe, &runner)
-        .expect_err("failed")
-        .contains("version broke"));
+    assert!(
+        version_main(&exe, &runner)
+            .expect_err("failed")
+            .contains("version broke")
+    );
     runner = FakeRunner::new();
     runner.version = "nothing\n".to_owned();
     assert!(version_main(&exe, &runner).is_err());
@@ -1203,7 +1223,8 @@ fn consumer_module_drops_the_init_header_and_module_call() {
     let init = format!("# dx: yours; dx adds its missing lines\n{SNIPPET}");
     let module = consumer_module(&init, Path::new("/src")).expect("module");
     assert_eq!(module.matches("module(").count(), 1, "{module}");
-    let multi = "module(\n    name = \"x\",\n)\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
+    let multi =
+        "module(\n    name = \"x\",\n)\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
     let module = consumer_module(multi, Path::new("/src")).expect("module");
     assert_eq!(module.matches("module(").count(), 1, "{module}");
     assert!(!module.contains("name = \"x\""), "{module}");

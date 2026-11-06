@@ -3,8 +3,8 @@
 use crate::archive::*;
 use crate::config::GithubConfig;
 use crate::run::{
-    env_or_empty, placeholder_refusal, scrubbed_command, DeployRun, OwnerGate,
-    PUBLISH_CHILD_ENV_KEEP,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal,
+    scrubbed_command,
 };
 use crate::stage::*;
 use base64::Engine as _;
@@ -377,11 +377,7 @@ pub fn homebrew_tap_main(launch: &HomebrewLaunch<'_>, argv: &[String]) -> i32 {
             }
             println!("  command: {}", homebrew_api_command(launch));
             println!("  formula: {}", file.display());
-            if homebrew_syntax_check(&file) {
-                0
-            } else {
-                1
-            }
+            if homebrew_syntax_check(&file) { 0 } else { 1 }
         }
         Err(error) => {
             eprintln!("homebrew_tap_deploy: {error}");

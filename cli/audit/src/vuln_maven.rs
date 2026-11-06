@@ -1,4 +1,4 @@
-use super::{any_scope, VersionScope};
+use super::{VersionScope, any_scope};
 use mvn_version::ComparableVersion;
 use std::cmp::Ordering;
 

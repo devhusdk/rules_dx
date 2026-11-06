@@ -431,10 +431,10 @@ pub(crate) fn repo_owners(files: &[ModuleFile]) -> BTreeMap<String, String> {
                 for (name, _) in &call.named {
                     owners.insert(name.clone(), module.clone());
                 }
-            } else if let Some(module) = rules.get(call.name.as_str()) {
-                if let Some(name) = call.str("name") {
-                    owners.insert(name.to_owned(), module.clone());
-                }
+            } else if let Some(module) = rules.get(call.name.as_str())
+                && let Some(name) = call.str("name")
+            {
+                owners.insert(name.to_owned(), module.clone());
             }
         }
     }

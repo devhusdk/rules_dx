@@ -189,7 +189,7 @@ pub(crate) fn release_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 
 #[cfg(test)]
 mod tests {
-    use super::{github_repo, numeric_cmp, release_cmp, Registry};
+    use super::{Registry, github_repo, numeric_cmp, release_cmp};
     use std::cmp::Ordering;
 
     #[test]

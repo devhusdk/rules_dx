@@ -25,11 +25,7 @@ pub fn rejected_value(error: &clap::Error) -> Option<String> {
         clap::error::ContextValue::Strings(values) => values.first().cloned().unwrap_or_default(),
         _ => String::new(),
     };
-    if raw.is_empty() {
-        None
-    } else {
-        Some(raw)
-    }
+    if raw.is_empty() { None } else { Some(raw) }
 }
 
 pub fn recover_unknown_token(args: &[String], token: &str) -> String {

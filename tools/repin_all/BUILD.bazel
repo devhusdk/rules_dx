@@ -23,7 +23,6 @@ rust_binary(
     crate_name = "repin_all",
     crate_root = "src/main.rs",
     data = ["//cli/cli:dx"],
-    edition = "2021",
     env = {
         "DX_REPIN_DX": "$(rlocationpath //cli/cli:dx)",
     },
@@ -44,7 +43,6 @@ rust_test(
     crate_name = "workspace_cwd_test",
     crate_root = "tests/workspace_cwd_test.rs",
     data = [":repin_all"],
-    edition = "2021",
     env = {
         "DX_REPIN_ALL": "$(rootpath :repin_all)",
     },

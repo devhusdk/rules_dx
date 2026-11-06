@@ -488,9 +488,11 @@ pub(super) fn zanuda_reads_the_staged_typed_trees_and_never_trusts_a_failed_run(
         backend.diagnose("zanuda", "lint", &map)
     };
     // A clean run, and a finding mapped back onto the owned file.
-    assert!(lint(&[("pkg/a.ml", "let x = 1\n")])
-        .expect("check")
-        .is_empty());
+    assert!(
+        lint(&[("pkg/a.ml", "let x = 1\n")])
+            .expect("check")
+            .is_empty()
+    );
     let warned = lint(&[
         ("pkg/a.ml", "let x = 1\nsmells\n"),
         ("pkg/a.mli", "val x : int\n"),
@@ -748,9 +750,11 @@ pub(super) fn pkl_lsp_maps_findings_and_needs_both_companions() {
             ..plain_tool()
         };
         let backend = backend_for("pkl_lsp", partial, pkl_lsp_behavior);
-        assert!(backend
-            .diagnose("pkl_lsp", "lint", &single("a.pkl", "x = 1\n"))
-            .is_err());
+        assert!(
+            backend
+                .diagnose("pkl_lsp", "lint", &single("a.pkl", "x = 1\n"))
+                .is_err()
+        );
     }
     assert_eq!(
         backend
@@ -939,7 +943,9 @@ fn xmllint_behavior(
     } else if text.contains("broken") {
         (
             4,
-            format!("{file}:1: parser error : Extra content at the end of the document\n<a/><b/>\n    ^\n"),
+            format!(
+                "{file}:1: parser error : Extra content at the end of the document\n<a/><b/>\n    ^\n"
+            ),
         )
     } else {
         (0, String::new())
@@ -1140,7 +1146,9 @@ fn opa_behavior(
         return done(
             2,
             "",
-            format!("failed to format Rego source file: 1 error occurred:\n{file}:2: rego_parse_error: unexpected assign token\n"),
+            format!(
+                "failed to format Rego source file: 1 error occurred:\n{file}:2: rego_parse_error: unexpected assign token\n"
+            ),
         );
     }
     let formatted = "package a\n\nx := 1\n";
@@ -1155,10 +1163,12 @@ fn opa_behavior(
 pub(super) fn opa_format_reports_unformatted_files_and_parse_errors() {
     let backend = backend_for("opa", plain_tool(), opa_behavior);
     let clean = single("a.rego", "package a\n\nx := 1\n");
-    assert!(backend
-        .diagnose("opa", "format", &clean)
-        .expect("clean")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("opa", "format", &clean)
+            .expect("clean")
+            .is_empty()
+    );
     let findings = backend
         .diagnose(
             "opa",
@@ -1189,10 +1199,12 @@ pub(super) fn opa_fix_rewrites_an_owned_file() {
 pub(super) fn opa_typecheck_reports_errors_and_never_counts_noise_as_clean() {
     let backend = backend_for("opa", plain_tool(), opa_behavior);
     let clean = single("a.rego", "package a\n\nx := 1\n");
-    assert!(backend
-        .diagnose("opa", "typecheck", &clean)
-        .expect("clean")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("opa", "typecheck", &clean)
+            .expect("clean")
+            .is_empty()
+    );
     let findings = backend
         .diagnose(
             "opa",
@@ -1203,9 +1215,11 @@ pub(super) fn opa_typecheck_reports_errors_and_never_counts_noise_as_clean() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id, "rego_type_error");
     assert_eq!(findings[0].path, "a.rego");
-    assert!(backend
-        .diagnose("opa", "typecheck", &single("a.rego", "noise\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("opa", "typecheck", &single("a.rego", "noise\n"))
+            .is_err()
+    );
 }
 
 fn regal_behavior(
@@ -1267,10 +1281,12 @@ pub(super) fn regal_lint_reports_errors_and_warnings_and_never_counts_noise_as_c
     let mut tool = plain_tool();
     tool.extra_env = vec![("REGAL_DISABLE_VERSION_CHECK".to_owned(), "1".to_owned())];
     let backend = backend_for("regal", tool, regal_behavior);
-    assert!(backend
-        .diagnose("regal", "lint", &single("p/a.rego", "package p\n"))
-        .expect("clean")
-        .is_empty());
+    assert!(
+        backend
+            .diagnose("regal", "lint", &single("p/a.rego", "package p\n"))
+            .expect("clean")
+            .is_empty()
+    );
     let findings = backend
         .diagnose(
             "regal",
@@ -1304,9 +1320,11 @@ pub(super) fn regal_lint_with_a_missing_binary_is_an_error() {
     let backend = backend_for("regal", plain_tool(), |_, _, _| {
         Err(io::Error::new(io::ErrorKind::NotFound, "no regal"))
     });
-    assert!(backend
-        .diagnose("regal", "lint", &single("a.rego", "package a\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("regal", "lint", &single("a.rego", "package a\n"))
+            .is_err()
+    );
 }
 
 fn opa_dependency_behavior(
@@ -1587,9 +1605,11 @@ fn delegated_roslyn_fails_closed_on_one_malformed_framework_log() {
             ("net10.0", ROSLYN_CLEAN, Some("0")),
         ],
     );
-    assert!(backend_for("roslyn", tool, must_not_spawn)
-        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
-        .is_err());
+    assert!(
+        backend_for("roslyn", tool, must_not_spawn)
+            .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+            .is_err()
+    );
 }
 
 #[test]
@@ -1677,9 +1697,11 @@ fn delegated_fsc_merges_frameworks_and_fails_on_a_silent_failure() {
         scratch.path(),
         &[("net8.0", FSC_ERROR, Some("1")), ("net10.0", "", Some("1"))],
     );
-    assert!(backend_for("fsc", tool, must_not_spawn)
-        .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
-        .is_err());
+    assert!(
+        backend_for("fsc", tool, must_not_spawn)
+            .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+            .is_err()
+    );
 }
 
 fn clang_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
@@ -2238,9 +2260,11 @@ fn gotype_reports_findings_and_fails_closed_on_driver_errors() {
         delegated_tool(failed.path().to_path_buf()),
         must_not_spawn,
     );
-    assert!(backend
-        .diagnose("gotype", "typecheck", &single("a.txt", "x\n"))
-        .is_err());
+    assert!(
+        backend
+            .diagnose("gotype", "typecheck", &single("a.txt", "x\n"))
+            .is_err()
+    );
 }
 
 #[test]
@@ -2282,9 +2306,11 @@ fn rustc_unused_dependency_is_a_diagnostic_without_a_path() {
             ("p", "lib", "serde")
         );
     }
-    assert!(delegated::build_dep_diagnostics("shellcheck", &tool)
-        .expect("diagnostics")
-        .is_empty());
+    assert!(
+        delegated::build_dep_diagnostics("shellcheck", &tool)
+            .expect("diagnostics")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -2314,9 +2340,11 @@ fn scalac_unused_dependency_is_a_diagnostic_without_a_path() {
         ("p", "lib", "gone")
     );
     tool.upstream_diagnostics.pop();
-    assert!(delegated::build_dep_diagnostics("scalac", &tool)
-        .expect("diagnostics")
-        .is_empty());
+    assert!(
+        delegated::build_dep_diagnostics("scalac", &tool)
+            .expect("diagnostics")
+            .is_empty()
+    );
 }
 
 #[test]

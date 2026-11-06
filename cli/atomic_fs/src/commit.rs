@@ -5,7 +5,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use super::managed::{create_pointer, remove_managed, PointerKind};
+use super::managed::{PointerKind, create_pointer, remove_managed};
 
 /// Lock file inside a managed root that serializes generation commits.
 pub const COMMIT_LOCK_FILE_NAME: &str = dx_path::state::COMMIT_LOCK;
@@ -213,9 +213,10 @@ mod tests {
             }
             other => panic!("expected busy: {other:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
-        assert!(busy
-            .to_string()
-            .ends_with("wait for it to finish, then retry"));
+        assert!(
+            busy.to_string()
+                .ends_with("wait for it to finish, then retry")
+        );
         drop(_held);
         acquire_commit_lock(&root, Duration::ZERO).expect("released lock acquires");
         scratch.close().expect("cleanup");

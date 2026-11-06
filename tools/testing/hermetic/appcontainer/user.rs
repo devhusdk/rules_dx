@@ -5,20 +5,19 @@
 use std::ffi::c_void;
 use std::ptr::{null, null_mut};
 
-use windows_sys::core::GUID;
-use windows_sys::Win32::Foundation::{CloseHandle, LocalFree, HANDLE};
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, LocalFree};
 use windows_sys::Win32::NetworkManagement::NetManagement::{
-    NetLocalGroupAddMembers, NetUserAdd, NetUserDel, LOCALGROUP_MEMBERS_INFO_3,
+    LOCALGROUP_MEMBERS_INFO_3, NetLocalGroupAddMembers, NetUserAdd, NetUserDel,
     UF_DONT_EXPIRE_PASSWD, UF_PASSWD_CANT_CHANGE, UF_SCRIPT, USER_INFO_1, USER_PRIV_USER,
 };
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::{
-    FwpmEngineClose0, FwpmEngineOpen0, FwpmFilterAdd0, FWPM_CONDITION_ALE_USER_ID,
-    FWPM_CONDITION_FLAGS, FWPM_FILTER0, FWPM_FILTER_CONDITION0, FWPM_LAYER_ALE_AUTH_CONNECT_V4,
-    FWPM_LAYER_ALE_AUTH_CONNECT_V6, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4,
-    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, FWPM_SESSION0, FWPM_SESSION_FLAG_DYNAMIC, FWP_ACTION_BLOCK,
-    FWP_ACTION_PERMIT, FWP_BYTE_BLOB, FWP_CONDITION_FLAG_IS_LOOPBACK, FWP_CONDITION_VALUE0,
-    FWP_CONDITION_VALUE0_0, FWP_MATCH_EQUAL, FWP_MATCH_FLAGS_ALL_SET, FWP_SECURITY_DESCRIPTOR_TYPE,
-    FWP_UINT32, FWP_UINT8, FWP_VALUE0, FWP_VALUE0_0,
+    FWP_ACTION_BLOCK, FWP_ACTION_PERMIT, FWP_BYTE_BLOB, FWP_CONDITION_FLAG_IS_LOOPBACK,
+    FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_EQUAL, FWP_MATCH_FLAGS_ALL_SET,
+    FWP_SECURITY_DESCRIPTOR_TYPE, FWP_UINT8, FWP_UINT32, FWP_VALUE0, FWP_VALUE0_0,
+    FWPM_CONDITION_ALE_USER_ID, FWPM_CONDITION_FLAGS, FWPM_FILTER_CONDITION0, FWPM_FILTER0,
+    FWPM_LAYER_ALE_AUTH_CONNECT_V4, FWPM_LAYER_ALE_AUTH_CONNECT_V6,
+    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6,
+    FWPM_SESSION_FLAG_DYNAMIC, FWPM_SESSION0, FwpmEngineClose0, FwpmEngineOpen0, FwpmFilterAdd0,
 };
 use windows_sys::Win32::Security::Authentication::Identity::RtlGenRandom;
 use windows_sys::Win32::Security::Authorization::{
@@ -30,16 +29,16 @@ use windows_sys::Win32::System::Console::{
 };
 use windows_sys::Win32::System::JobObjects::AssignProcessToJobObject;
 use windows_sys::Win32::System::Threading::{
-    CreateProcessWithLogonW, GetExitCodeProcess, ResumeThread, WaitForSingleObject,
-    LOGON_WITH_PROFILE, PROCESS_INFORMATION, STARTUPINFOW,
+    CreateProcessWithLogonW, GetExitCodeProcess, LOGON_WITH_PROFILE, PROCESS_INFORMATION,
+    ResumeThread, STARTUPINFOW, WaitForSingleObject,
 };
 use windows_sys::Win32::UI::Shell::DeleteProfileW;
+use windows_sys::core::GUID;
 
-use crate::args::{command_line, environment, password, user_name, Config};
+use crate::args::{Config, command_line, environment, password, user_name};
 use crate::sys::{
-    check, kill_on_close_job, set_access, user_defaults, wide, CREATE_SUSPENDED,
-    CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE, REVOKE_ACCESS,
-    STARTF_USESTDHANDLES,
+    CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
+    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, set_access, user_defaults, wide,
 };
 
 const RPC_C_AUTHN_DEFAULT: u32 = 0xFFFF_FFFF;

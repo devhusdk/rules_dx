@@ -1,11 +1,11 @@
 //! crates.io publisher: vendor staging and the cargo publish.
 
 use crate::api_compat::{
-    breaking_refusal, export_git_dir, latest_published, previous_tag, required_bump, ApiCompatMode,
+    ApiCompatMode, breaking_refusal, export_git_dir, latest_published, previous_tag, required_bump,
 };
 use crate::run::{
-    deploy_profile, env_or_empty, placeholder_refusal, scrubbed_command, DeployRun, OwnerGate,
-    PUBLISH_CHILD_ENV_KEEP,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    placeholder_refusal, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -915,7 +915,11 @@ mod tests {
             ".cargo/config.toml",
             &format!(
                 "[source.crates-io]\nreplace-with = \"vendored\"\n[source.vendored]\ndirectory = \"{}\"\n",
-                house.join("vendor").display().to_string().replace('\\', "/")
+                house
+                    .join("vendor")
+                    .display()
+                    .to_string()
+                    .replace('\\', "/")
             ),
         );
         let output = std::process::Command::new("cargo")

@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use crate::real::REAL_TOOLS;
 use crate::StageSpec;
+use crate::real::REAL_TOOLS;
 
 pub const REQUEST_SCHEMA_VERSION: u32 = 1;
 
@@ -241,13 +241,13 @@ fn check_tool(
     if let Some(config) = &doc.config {
         check_workspace("tool config", config)?;
     }
-    if let Some(edition) = &doc.edition {
-        if edition.is_empty() {
-            return Err(RequestError::EmptyExec {
-                role: "tool edition".to_owned(),
-                workspace: tool_id.to_owned(),
-            });
-        }
+    if let Some(edition) = &doc.edition
+        && edition.is_empty()
+    {
+        return Err(RequestError::EmptyExec {
+            role: "tool edition".to_owned(),
+            workspace: tool_id.to_owned(),
+        });
     }
     if doc.dialect.as_deref() == Some("") {
         return Err(RequestError::EmptyExec {

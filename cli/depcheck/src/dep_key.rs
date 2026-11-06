@@ -1,5 +1,5 @@
-use crate::ecosystem::{normalize_lower, normalize_snake, python};
 use crate::Ecosystem;
+use crate::ecosystem::{normalize_lower, normalize_snake, python};
 
 pub(crate) fn normalize_dep_key(eco: Ecosystem, raw: &str) -> String {
     match eco {

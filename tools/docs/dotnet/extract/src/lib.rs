@@ -13,7 +13,7 @@
 mod convert;
 mod types;
 
-pub use convert::{convert, parse_sources, Settings, Source};
+pub use convert::{Settings, Source, convert, parse_sources};
 pub use types::SCHEMA;
 
 use std::fs;

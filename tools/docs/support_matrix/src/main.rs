@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use support_matrix::runfiles_source::RunfilesSource;
 use support_matrix::{
-    generate, parse_facts, unsupported_json, Source, MATRIX_PATH, UNSUPPORTED_PATH, UPDATE_COMMAND,
+    MATRIX_PATH, Source, UNSUPPORTED_PATH, UPDATE_COMMAND, generate, parse_facts, unsupported_json,
 };
 
 const FACTS: &str = "tools/docs/support_matrix/facts.json";

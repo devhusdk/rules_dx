@@ -1,6 +1,6 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-use super::{as_text, code_name, finding, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, require_findings};
 
 const TOOL: &str = "phpstan";
 
@@ -219,9 +219,11 @@ mod tests {
     #[test]
     fn phpstan_clean_run_has_no_findings() {
         let out = br#"{"totals":{"errors":0,"file_errors":0},"files":[],"errors":[]}"#;
-        assert!(parse_phpstan(out, Some(0), &["/s/a.php"])
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_phpstan(out, Some(0), &["/s/a.php"])
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]

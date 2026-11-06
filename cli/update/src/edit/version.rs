@@ -33,17 +33,17 @@ impl WidenVersion {
 pub enum VersionError {
     #[error("empty version")]
     Empty,
-    #[error(
-        "invalid version {version:?} for set {set}: expected exact stable semver (e.g. 1.2.3)"
-    )]
+    #[error("invalid version {version:?} for set {set}: expected exact stable semver (e.g. 1.2.3)")]
     InvalidSemver { set: &'static str, version: String },
-    #[error("prerelease version {version:?} follows upstream resolver and project config, never a private dx policy")]
-    Prerelease { version: String },
-    #[error("invalid version {version:?} for set {set}: expected a Git tag (e.g. v4) or a 40/64-char commit SHA")]
-    InvalidGit { set: &'static str, version: String },
     #[error(
-        "invalid digest {version:?} for set {set}: expected sha256: followed by 64 hex digits"
+        "prerelease version {version:?} follows upstream resolver and project config, never a private dx policy"
     )]
+    Prerelease { version: String },
+    #[error(
+        "invalid version {version:?} for set {set}: expected a Git tag (e.g. v4) or a 40/64-char commit SHA"
+    )]
+    InvalidGit { set: &'static str, version: String },
+    #[error("invalid digest {version:?} for set {set}: expected sha256: followed by 64 hex digits")]
     InvalidDigest { set: &'static str, version: String },
 }
 

@@ -3,8 +3,8 @@ use std::path::Path;
 use dx_process::Scope;
 
 use super::{
-    classify_scopes, exclude, owners_in_graph, tests_for_owners, PackageCache, QueryRunner,
-    ResolveError, ResolvedScope, RuleGraph, SelectionContext,
+    PackageCache, QueryRunner, ResolveError, ResolvedScope, RuleGraph, SelectionContext,
+    classify_scopes, exclude, owners_in_graph, tests_for_owners,
 };
 
 /// Expands `scopes` into Bazel targets, leaving out the `dx.toml` excludes.

@@ -1,7 +1,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::{Run, mkscratch, resolve_runfiles, run};
 
 const FAKE_XCRUN: &str = r#"#!/bin/sh
 printf '%s\n' "$*" >>"$FAKE_LOG"
@@ -230,7 +230,10 @@ fn simulator_selection_never_falls_back() {
         "dx-apple-simctl: DX_SIMCTL_DEVICE names the simulator by name or UDID",
     );
     fails(
-        &simctl(&fake, &[("DX_SIMCTL_OP", "boot"), ("DX_SIMCTL_DEVICE", "iPhone 15")]),
+        &simctl(
+            &fake,
+            &[("DX_SIMCTL_OP", "boot"), ("DX_SIMCTL_DEVICE", "iPhone 15")],
+        ),
         2,
         "dx-apple-simctl: no available simulator named 'iPhone 15'; create one with xcrun simctl create",
     );
@@ -344,7 +347,9 @@ fn a_missing_test_runtime_fails_instead_of_using_the_sdk_runtime() {
         fails(
             &ran,
             2,
-            &format!("dx-apple-test-simulator: no available iOS {os} simulator runtime {runtime}; install it with xcodebuild -downloadPlatform iOS -buildVersion {os}"),
+            &format!(
+                "dx-apple-test-simulator: no available iOS {os} simulator runtime {runtime}; install it with xcodebuild -downloadPlatform iOS -buildVersion {os}"
+            ),
         );
         assert_eq!(ran.stdout, "", "{}", ran.combined());
     }

@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{finding_identity, ReportError};
+use super::{ReportError, finding_identity};
 use dx_fingerprint::finding::finding_fingerprint;
-use dx_output::{sort_diagnostics, DiagnosticEvent, Severity, Snapshot};
+use dx_output::{DiagnosticEvent, Severity, Snapshot, sort_diagnostics};
 use line_index::{LineIndex, TextSize, WideEncoding};
 use serde_json::Value;
 use serde_sarif::sarif::{
@@ -52,10 +52,10 @@ fn check_shape(finding: &DiagnosticEvent) -> Result<(), ReportError> {
     if finding.path.is_none() && finding.range.is_some() {
         return Err(ReportError::RangeWithoutPath);
     }
-    if let Some((start, end)) = finding.range {
-        if start > end {
-            return Err(ReportError::InvertedRange);
-        }
+    if let Some((start, end)) = finding.range
+        && start > end
+    {
+        return Err(ReportError::InvertedRange);
     }
     Ok(())
 }
@@ -359,7 +359,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     fn finding(tool: &str, severity: Severity, path: Option<&str>) -> DiagnosticEvent {
         DiagnosticEvent {
@@ -595,9 +595,11 @@ mod tests {
             lint_results[1]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
             json!("src/a.py")
         );
-        assert!(lint_results[1]["locations"][0]["physicalLocation"]
-            .get("region")
-            .is_none());
+        assert!(
+            lint_results[1]["locations"][0]["physicalLocation"]
+                .get("region")
+                .is_none()
+        );
         let rules = runs[0]["tool"]["driver"]["rules"]
             .as_array()
             .expect("rules");
@@ -835,11 +837,13 @@ mod tests {
             .expect("empty render");
         let typed_empty: Sarif = serde_json::from_str(&empty).expect("typed empty");
         assert_eq!(typed_empty.runs.len(), 1);
-        assert!(typed_empty.runs[0]
-            .results
-            .as_ref()
-            .expect("results")
-            .is_empty());
+        assert!(
+            typed_empty.runs[0]
+                .results
+                .as_ref()
+                .expect("results")
+                .is_empty()
+        );
 
         let snapshots = BTreeMap::new();
         let tools = ["b-tool".to_owned(), "a-tool".to_owned()];

@@ -181,13 +181,15 @@ fn finds_module_bazel_from_a_nested_directory() {
     let output = fixture.command(&nested, &["x"]).output().expect("run");
     assert!(output.status.success(), "{}", stderr(&output));
     let (_, file) = support::host_asset();
-    assert!(fixture
-        .cache
-        .path()
-        .join("bin")
-        .join(VERSION)
-        .join(file)
-        .is_file());
+    assert!(
+        fixture
+            .cache
+            .path()
+            .join("bin")
+            .join(VERSION)
+            .join(file)
+            .is_file()
+    );
 }
 
 #[test]

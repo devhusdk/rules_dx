@@ -1,4 +1,4 @@
-use super::{as_text, code_name, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "periphery";
@@ -120,19 +120,23 @@ mod tests {
         let failed = parse_periphery(b"", b"boom\n", Some(1), &[]).expect_err("exit");
         assert!(failed.to_string().contains("exit 1"));
         assert!(parse_periphery(b"not json", b"", Some(0), &[]).is_err());
-        assert!(parse_periphery(
-            br#"[{"kind":"x","name":"y","location":"a.swift"}]"#,
-            b"",
-            Some(0),
-            &[]
-        )
-        .is_err());
-        assert!(parse_periphery(
-            br#"[{"name":"y","location":"a.swift:1:1"}]"#,
-            b"",
-            Some(0),
-            &[]
-        )
-        .is_err());
+        assert!(
+            parse_periphery(
+                br#"[{"kind":"x","name":"y","location":"a.swift"}]"#,
+                b"",
+                Some(0),
+                &[]
+            )
+            .is_err()
+        );
+        assert!(
+            parse_periphery(
+                br#"[{"name":"y","location":"a.swift:1:1"}]"#,
+                b"",
+                Some(0),
+                &[]
+            )
+            .is_err()
+        );
     }
 }

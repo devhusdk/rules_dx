@@ -305,11 +305,7 @@ fn parameter_name(parameter: &str) -> Option<String> {
         .trim_start_matches('*')
         .trim_end_matches(':')
         .to_owned();
-    if name.is_empty() {
-        None
-    } else {
-        Some(name)
-    }
+    if name.is_empty() { None } else { Some(name) }
 }
 
 /// The documented shape of one emitted symbol before ids are resolved.
@@ -359,10 +355,11 @@ fn draft(object: &Object) -> Option<Draft<'_>> {
         }
         (Type::Method, None) => {
             let mut signature = object.signature.replace("\r\n", "\n");
-            if object.singleton && !signature.starts_with("def self.") {
-                if let Some(rest) = signature.strip_prefix("def ") {
-                    signature = format!("def self.{rest}");
-                }
+            if object.singleton
+                && !signature.starts_with("def self.")
+                && let Some(rest) = signature.strip_prefix("def ")
+            {
+                signature = format!("def self.{rest}");
             }
             (SymbolKind::Method, object.name.clone(), signature)
         }
@@ -447,7 +444,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         other => {
             return Err(format!(
                 "YARD JSON format {other} is not supported, expected {FORMAT}"
-            ))
+            ));
         }
     }
     let config = format!(

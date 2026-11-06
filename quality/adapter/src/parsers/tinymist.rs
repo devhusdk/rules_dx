@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, known_spelled, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known_spelled};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "tinymist";

@@ -118,7 +118,9 @@ fn the_assets_go_through_the_release_driver_without_clobber() {
     assert!(assets.contains("echo '```json'; cat \"$RUNNER_TEMP/ledger.json\"; echo '```'"));
     assert!(assets.contains(">> \"$GITHUB_STEP_SUMMARY\""));
     assert!(assets.contains("exit \"$status\""));
-    assert!(assets.contains("name: release-ledger\n          path: ${{ runner.temp }}/ledger.json"));
+    assert!(
+        assets.contains("name: release-ledger\n          path: ${{ runner.temp }}/ledger.json")
+    );
     assert!(assets.contains("if: ${{ always() && !inputs.dry_run }}"));
     assert!(assets.contains("echo \"$PWD/out/$file\" >> \"$RUNNER_TEMP/paths.txt\""));
     assert!(assets.contains("mapfile -t paths < \"$RUNNER_TEMP/paths.txt\""));
@@ -260,8 +262,15 @@ const CELL_SCRIPT: &str = "tools/ci/release_cell.sh";
 fn both_workflows_run_the_one_release_cell_script() {
     for path in [CELLS_WORKFLOW, EVIDENCE_WORKFLOW] {
         let text = read_runfiles(path);
-        assert_eq!(text.matches(CELL_SCRIPT).count(), 1, "{path} calls {CELL_SCRIPT} once");
-        assert!(!text.contains("\"$tool\" qualify"), "{path} must not copy the cell procedure");
+        assert_eq!(
+            text.matches(CELL_SCRIPT).count(),
+            1,
+            "{path} calls {CELL_SCRIPT} once"
+        );
+        assert!(
+            !text.contains("\"$tool\" qualify"),
+            "{path} must not copy the cell procedure"
+        );
     }
     assert!(read_runfiles(CELL_SCRIPT).contains("\"$tool\" qualify"));
 }
@@ -275,7 +284,10 @@ fn the_evidence_release_cell_runs_uncached_and_only_on_request() {
     let cache = text
         .find("- name: Use the BuildBuddy remote cache\n        env:\n          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}\n          DX_PLATFORM")
         .expect("evidence BuildBuddy step");
-    assert!(step < cache, "the cell must build before the remote cache is configured");
+    assert!(
+        step < cache,
+        "the cell must build before the remote cache is configured"
+    );
     assert!(text[step..cache].contains("if: ${{ inputs.release_cell }}"));
 }
 

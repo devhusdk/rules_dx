@@ -1,14 +1,14 @@
-use super::common::{emit_built, emit_event, refusal, resolve_failed, Env};
+use super::common::{Env, emit_built, emit_event, refusal, resolve_failed};
 use super::execute;
 use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
-use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
+use dx_output::{FinishedCounts, OutputMode, command_finished, command_started};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::{
-    collect_range, collect_working_tree, exclude, local_override_changes, merge_base,
-    missing_base_shallow_error, quote_set, resolve_affected, run_label_query_file, shallow_clone,
-    AffectedSelection, QueryRunner, ResolveError, RuleGraph, WidenedScope,
+    AffectedSelection, QueryRunner, ResolveError, RuleGraph, WidenedScope, collect_range,
+    collect_working_tree, exclude, local_override_changes, merge_base, missing_base_shallow_error,
+    quote_set, resolve_affected, run_label_query_file, shallow_clone,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -448,7 +448,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(base) => base,
         Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
         Err(PlanError::Resolve(error)) => {
-            return resolve_failed(invocation.output, out, err, &error)
+            return resolve_failed(invocation.output, out, err, &error);
         }
     };
     if text {
@@ -464,7 +464,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(plan) => plan,
         Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
         Err(PlanError::Resolve(error)) => {
-            return resolve_failed(invocation.output, out, err, &error)
+            return resolve_failed(invocation.output, out, err, &error);
         }
     };
     if plan.empty() {
@@ -807,10 +807,12 @@ mod tests {
         let graph = graph();
         let (plan, _) = run(dir.path(), Command::Build, &[&graph]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
-        assert!(!plan
-            .targets
-            .iter()
-            .any(|target| target == "//a:android" || target == "//a:ruby"));
+        assert!(
+            !plan
+                .targets
+                .iter()
+                .any(|target| target == "//a:android" || target == "//a:ruby")
+        );
     }
 
     #[test]
@@ -1007,9 +1009,10 @@ mod tests {
             plan.json(Command::Check)["skipped_external"],
             json!(["@shared_consumer//:x_test"])
         );
-        assert!(plan
-            .summary()
-            .contains("skipping 1 external-repo tests: @shared_consumer//:x_test"));
+        assert!(
+            plan.summary()
+                .contains("skipping 1 external-repo tests: @shared_consumer//:x_test")
+        );
         let (plan, _) = run(dir.path(), Command::Test, &[&graph, answer]);
         assert_eq!(plan.targets, ["//a:t", "@@//a:u"]);
     }
@@ -1028,9 +1031,10 @@ mod tests {
             unscoped: false,
             skipped_external: Vec::new(),
         };
-        assert!(plan
-            .summary()
-            .ends_with(&format!("since {}", short_base(base))));
+        assert!(
+            plan.summary()
+                .ends_with(&format!("since {}", short_base(base)))
+        );
         assert!(line.ends_with(&short_base(base)));
     }
 

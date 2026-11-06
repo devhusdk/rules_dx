@@ -6,11 +6,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 use crate::{
-    bcr_candidate_version_error, bcr_integrity_of_digest, bcr_module_candidate_error,
-    bcr_source_url, bcr_strip_prefix,
-    modules::{module_versions_error, release_modules, ReleaseModule},
-    render_bcr_module_source_for_digest, render_pretty, write_bcr_source_for_archive, GitState,
-    BCR_WANT_MODULE, RELEASE_REMOTE, RELEASE_REPOSITORY,
+    BCR_WANT_MODULE, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_version_error,
+    bcr_integrity_of_digest, bcr_module_candidate_error, bcr_source_url, bcr_strip_prefix,
+    modules::{ReleaseModule, module_versions_error, release_modules},
+    render_bcr_module_source_for_digest, render_pretty, write_bcr_source_for_archive,
 };
 
 /// One release candidate: a SemVer version at one full commit.
@@ -174,13 +173,13 @@ fn commit_tree(repo: &Path, candidate: &Candidate) -> Result<Vec<TreeFile>, Stri
             ["100755", "blob", _] => 0o755,
             [mode, kind, _] => {
                 return Err(format!(
-                "candidate: {path} is a {kind} with mode {mode}; only regular files are archived"
-            ))
+                    "candidate: {path} is a {kind} with mode {mode}; only regular files are archived"
+                ));
             }
             _ => {
                 return Err(format!(
                     "candidate: malformed git ls-tree record {record:?}"
-                ))
+                ));
             }
         };
         if path.contains('\n') {
@@ -342,7 +341,7 @@ fn read_batch(
             _ => {
                 return Err(format!(
                     "candidate: git cat-file bad header {header:?} for {path}"
-                ))
+                ));
             }
         };
         let mut data = vec![0; size + 1];
@@ -640,16 +639,16 @@ pub(crate) fn string_fields(body: &str, base: usize) -> Vec<(String, String, usi
                 let after_eq = rest.trim_start();
                 if let Some(value) = after_eq.strip_prefix('=').filter(|v| !v.starts_with('=')) {
                     let value_trim = value.trim_start();
-                    if let Some(quoted) = value_trim.strip_prefix('"') {
-                        if let Some(close) = quoted.find('"') {
-                            let open = body.len() - quoted.len();
-                            fields.push((
-                                name.to_owned(),
-                                quoted[..close].to_owned(),
-                                base + open,
-                                base + open + close,
-                            ));
-                        }
+                    if let Some(quoted) = value_trim.strip_prefix('"')
+                        && let Some(close) = quoted.find('"')
+                    {
+                        let open = body.len() - quoted.len();
+                        fields.push((
+                            name.to_owned(),
+                            quoted[..close].to_owned(),
+                            base + open,
+                            base + open + close,
+                        ));
                     }
                 }
                 continue;
@@ -684,7 +683,7 @@ pub fn candidate_named_module_file(
             return Err(format!(
                 "candidate: MODULE.bazel has {} module() calls, want exactly one",
                 found.len()
-            ))
+            ));
         }
     };
     let close = call_end(text, open)
@@ -708,7 +707,7 @@ pub fn candidate_named_module_file(
             return Err(format!(
                 "candidate: MODULE.bazel module() has {} version fields, want exactly one",
                 found.len()
-            ))
+            ));
         }
     };
     Ok(format!("{}{version}{}", &text[..start], &text[end..]))
@@ -972,9 +971,11 @@ mod tests {
 
     #[test]
     fn candidate_rejects_bad_versions_and_commits() {
-        assert!(Candidate::new("0.0.0", SHA)
-            .expect_err("shape version")
-            .contains("unpublishable"));
+        assert!(
+            Candidate::new("0.0.0", SHA)
+                .expect_err("shape version")
+                .contains("unpublishable")
+        );
         for bad in ["", "1.2", "v1.2.3", "1.2.3.4", "1..3"] {
             assert!(
                 Candidate::new(bad, SHA).is_err(),
@@ -1011,20 +1012,28 @@ mod tests {
     #[test]
     fn candidate_module_file_rejects_foreign_and_ambiguous_modules() {
         let foreign = MODULE.replacen("\"rules_dx\"", "\"other\"", 1);
-        assert!(candidate_module_file(&foreign, "1.2.3")
-            .expect_err("foreign")
-            .contains("name is [\"other\"]"));
+        assert!(
+            candidate_module_file(&foreign, "1.2.3")
+                .expect_err("foreign")
+                .contains("name is [\"other\"]")
+        );
         let twice = format!("{MODULE}module(name = \"rules_dx\", version = \"1\")\n");
-        assert!(candidate_module_file(&twice, "1.2.3")
-            .expect_err("two calls")
-            .contains("2 module() calls"));
+        assert!(
+            candidate_module_file(&twice, "1.2.3")
+                .expect_err("two calls")
+                .contains("2 module() calls")
+        );
         let unversioned = "module(name = \"rules_dx\")\n";
-        assert!(candidate_module_file(unversioned, "1.2.3")
-            .expect_err("no version")
-            .contains("0 version fields"));
-        assert!(candidate_module_file("bazel_dep(name = \"x\")\n", "1.2.3")
-            .expect_err("none")
-            .contains("0 module() calls"));
+        assert!(
+            candidate_module_file(unversioned, "1.2.3")
+                .expect_err("no version")
+                .contains("0 version fields")
+        );
+        assert!(
+            candidate_module_file("bazel_dep(name = \"x\")\n", "1.2.3")
+                .expect_err("none")
+                .contains("0 module() calls")
+        );
         assert!(
             candidate_module_file("module(name = \"rules_dx\"\n", "1.2.3")
                 .expect_err("open")
@@ -1067,14 +1076,18 @@ mod tests {
     #[test]
     fn remote_tag_commit_rejects_duplicate_and_conflicting_lines() {
         let duplicate = format!("{SHA}\trefs/tags/v1.2.3\n{SHA}\trefs/tags/v1.2.3\n");
-        assert!(remote_tag_commit(&duplicate, "v1.2.3")
-            .expect_err("duplicate")
-            .contains("ambiguous"));
+        assert!(
+            remote_tag_commit(&duplicate, "v1.2.3")
+                .expect_err("duplicate")
+                .contains("ambiguous")
+        );
         let conflicting =
             format!("{SHA}\trefs/tags/v1.2.3^{{}}\n{PEELED}\trefs/tags/v1.2.3^{{}}\n");
-        assert!(remote_tag_commit(&conflicting, "v1.2.3")
-            .expect_err("conflicting")
-            .contains("ambiguous"));
+        assert!(
+            remote_tag_commit(&conflicting, "v1.2.3")
+                .expect_err("conflicting")
+                .contains("ambiguous")
+        );
     }
 
     #[test]
@@ -1101,13 +1114,17 @@ mod tests {
             Ok(None)
         );
         let twice = format!("refs/tags/v1.2.3 {SHA} \nrefs/tags/v1.2.3 {PEELED} \n");
-        assert!(local_tag_commit(&twice, "v1.2.3")
-            .expect_err("twice")
-            .contains("ambiguous"));
+        assert!(
+            local_tag_commit(&twice, "v1.2.3")
+                .expect_err("twice")
+                .contains("ambiguous")
+        );
         for bad in ["v1.2.3\n".to_owned(), format!("refs/tags/v1.2.3 xyz \n")] {
-            assert!(local_tag_commit(&bad, "v1.2.3")
-                .expect_err("malformed")
-                .contains("malformed"));
+            assert!(
+                local_tag_commit(&bad, "v1.2.3")
+                    .expect_err("malformed")
+                    .contains("malformed")
+            );
         }
     }
 
@@ -1152,14 +1169,16 @@ mod tests {
             .err(),
             Some("third".to_owned())
         );
-        assert!(git_state_of(
-            Ok(String::new()),
-            Ok("HEAD".to_owned()),
-            Ok(String::new()),
-            "v1.2.3"
-        )
-        .expect_err("bad head")
-        .contains("HEAD is"));
+        assert!(
+            git_state_of(
+                Ok(String::new()),
+                Ok("HEAD".to_owned()),
+                Ok(String::new()),
+                "v1.2.3"
+            )
+            .expect_err("bad head")
+            .contains("HEAD is")
+        );
     }
 
     #[cfg(unix)]
@@ -1202,20 +1221,30 @@ mod tests {
             read_batch(&b"0123 blob 2\nhi\n"[..], SHA, &entries),
             Ok(vec![b"hi".to_vec()])
         );
-        assert!(read_batch(&b"a.txt missing\n"[..], SHA, &entries)
-            .expect_err("missing")
-            .contains("is missing"));
-        assert!(read_batch(&b"0123 blob 5\nhi\n"[..], SHA, &entries)
-            .expect_err("short")
-            .contains("short read"));
-        assert!(read_batch(&b"0123 blob 1\nhi\n"[..], SHA, &entries)
-            .expect_err("size")
-            .contains("size mismatch"));
-        assert!(read_batch(&b"0123 tree 1\nh\n"[..], SHA, &entries)
-            .expect_err("tree")
-            .contains("bad header"));
-        assert!(read_batch(&b"0123 blob x\nh\n"[..], SHA, &entries)
-            .expect_err("size")
-            .contains("bad size"));
+        assert!(
+            read_batch(&b"a.txt missing\n"[..], SHA, &entries)
+                .expect_err("missing")
+                .contains("is missing")
+        );
+        assert!(
+            read_batch(&b"0123 blob 5\nhi\n"[..], SHA, &entries)
+                .expect_err("short")
+                .contains("short read")
+        );
+        assert!(
+            read_batch(&b"0123 blob 1\nhi\n"[..], SHA, &entries)
+                .expect_err("size")
+                .contains("size mismatch")
+        );
+        assert!(
+            read_batch(&b"0123 tree 1\nh\n"[..], SHA, &entries)
+                .expect_err("tree")
+                .contains("bad header")
+        );
+        assert!(
+            read_batch(&b"0123 blob x\nh\n"[..], SHA, &entries)
+                .expect_err("size")
+                .contains("bad size")
+        );
     }
 }

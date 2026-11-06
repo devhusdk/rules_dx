@@ -1,8 +1,8 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::rules_dx_override;
-use dx_nested::{self as nested, footprint, Case};
-use dx_testing::{read_text, resolve_runfiles, rules_dx_source, write_text, Run};
+use dx_nested::{self as nested, Case, footprint};
+use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
 
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
@@ -115,10 +115,10 @@ fn the_readme_quickstart_runs_as_written() {
     let mut within_budget = |stage: &str| {
         let measured = footprint_of(&case);
         eprintln!("footprint {stage}: {}", measured.to_json());
-        if cfg!(target_os = "linux") {
-            if let Err(error) = footprint::check_budget(&measured, &budget[stage]) {
-                failures.push(format!("{stage}:\n{error}"));
-            }
+        if cfg!(target_os = "linux")
+            && let Err(error) = footprint::check_budget(&measured, &budget[stage])
+        {
+            failures.push(format!("{stage}:\n{error}"));
         }
     };
     within_budget("after_test");

@@ -1004,9 +1004,11 @@ mod tests {
         let text = std::fs::read_to_string(&path).expect("read");
         let (key, _) = text.split_once(':').expect("key");
         std::fs::write(&path, format!("{key}: 1,\n\"x\": 1}}\n")).expect("write");
-        assert!(drift_of(root)
-            .stale
-            .contains(&".vscode/settings.json".to_owned()));
+        assert!(
+            drift_of(root)
+                .stale
+                .contains(&".vscode/settings.json".to_owned())
+        );
         let (code, _out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,

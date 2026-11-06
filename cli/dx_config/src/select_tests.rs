@@ -1,6 +1,6 @@
 use crate::config::parse;
 use crate::curated_defaults_gen::{CROSS_FAMILY_TOOLS, FAMILIES, TOOLS};
-use crate::select::{effective, SelectionProblem};
+use crate::select::{SelectionProblem, effective};
 
 fn problem(text: &str) -> SelectionProblem {
     effective(Some(&parse(text).unwrap())).unwrap_err()

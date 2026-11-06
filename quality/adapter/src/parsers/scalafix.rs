@@ -1,5 +1,5 @@
-use super::{as_text, code_name, hunk_counts, known, path_row_col, FileFinding, ParseError};
-use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity, LINE_END};
+use super::{FileFinding, ParseError, as_text, code_name, hunk_counts, known, path_row_col};
+use crate::{ColumnEncoding, Finding, LINE_END, TextPosition, ToolSeverity};
 
 const TOOL: &str = "scalafix";
 const TEST_ERROR: i32 = 32;
@@ -373,9 +373,10 @@ mod tests {
             let err =
                 parse("error: SemanticDB not found: app/V.scala\n", code).expect_err("failure");
             assert!(err.to_string().contains(name), "{err}");
-            assert!(err
-                .to_string()
-                .contains("SemanticDB not found: app/V.scala"));
+            assert!(
+                err.to_string()
+                    .contains("SemanticDB not found: app/V.scala")
+            );
         }
         assert!(parse("", 8 | 32).is_err());
         assert!(parse_scalafix(b"", b"", None, &[FILE]).is_err());
@@ -408,11 +409,13 @@ mod tests {
         let other = LINT.replace("/s/app/V.scala", "/s/app/Other.scala");
         assert!(parse(&other, 64).is_err());
         assert!(parse("surprise\n", 0).is_err());
-        assert!(parse(
-            "--- /s/app/V.scala\n+++ <expected fix>\n@@ -1 +1 @@\n-a\n",
-            32
-        )
-        .is_err());
+        assert!(
+            parse(
+                "--- /s/app/V.scala\n+++ <expected fix>\n@@ -1 +1 @@\n-a\n",
+                32
+            )
+            .is_err()
+        );
         assert!(parse_scalafix(&[0xff], b"", Some(0), &[FILE]).is_err());
     }
 

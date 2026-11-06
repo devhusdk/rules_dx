@@ -39,7 +39,6 @@ rust_library(
     ),
     crate_name = "dx_testing",
     crate_root = "src/lib.rs",
-    edition = "2021",
     visibility = VIS_TOOLS_PUBLIC + VIS_TOOLS_CLI_TEST,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
@@ -87,7 +86,6 @@ rust_library(
     ],
     crate_name = "dx_nested",
     crate_root = "src/nested.rs",
-    edition = "2021",
     visibility = VIS_TOOLS_PUBLIC,
     deps = [
         ":dx_testing",
@@ -126,7 +124,6 @@ rust_library(
     srcs = ["src/lsp.rs"],
     crate_name = "dx_lsp",
     crate_root = "src/lsp.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
@@ -194,7 +191,6 @@ rust_binary(
     name = "nested_bazel_probe",
     testonly = True,
     srcs = ["nested_bazel_probe.rs"],
-    edition = "2021",
     deps = [":dx_nested"],
 )
 
@@ -203,7 +199,6 @@ rust_binary(
     name = "nested_bazel_shim",
     testonly = True,
     srcs = ["nested_bazel_shim.rs"],
-    edition = "2021",
     visibility = VIS_TOOLS_PUBLIC,
     deps = [":dx_nested"],
 )
@@ -314,7 +309,6 @@ rust_binary(
     ),
     crate_name = "starlark_harness",
     crate_root = "starlark_harness.rs",
-    edition = "2021",
     visibility = VIS_TOOLS_PUBLIC + VIS_TOOLS_CLI_TEST,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",

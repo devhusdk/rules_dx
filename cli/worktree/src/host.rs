@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use dx_process::lifecycle::{
-    run_within_until, CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, SpawnSpec,
+    CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, SpawnSpec, run_within_until,
 };
 
 /// One running Bazel server.
@@ -514,10 +514,10 @@ pub fn default_output_roots(env_get: &dyn Fn(&str) -> Option<String>) -> Vec<Pat
     if let Some(cache) = dx_process::user_cache_dir(env_get) {
         roots.push(cache.join("bazel").join(format!("_bazel_{user}")));
     }
-    if cfg!(windows) {
-        if let Some(home) = home(env_get) {
-            roots.push(home.join(format!("_bazel_{user}")));
-        }
+    if cfg!(windows)
+        && let Some(home) = home(env_get)
+    {
+        roots.push(home.join(format!("_bazel_{user}")));
     }
     roots.push(PathBuf::from(format!("/private/var/tmp/_bazel_{user}")));
     roots
@@ -550,10 +550,10 @@ pub fn rc_output_roots(files: Vec<PathBuf>, workspace: &Path) -> Vec<PathBuf> {
                             "--output_user_root" => words.next(),
                             _ => token.strip_prefix("--output_user_root="),
                         };
-                        if let Some(root) = root.map(|root| workspace.join(root)) {
-                            if !roots.contains(&root) {
-                                roots.push(root);
-                            }
+                        if let Some(root) = root.map(|root| workspace.join(root))
+                            && !roots.contains(&root)
+                        {
+                            roots.push(root);
                         }
                     }
                 }
@@ -656,10 +656,10 @@ impl Host for SystemHost {
     fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf> {
         let mut roots = self.config_output_roots();
         for server in servers.iter().cloned() {
-            if let Some(root) = server.output_user_root {
-                if !roots.contains(&root) {
-                    roots.push(root);
-                }
+            if let Some(root) = server.output_user_root
+                && !roots.contains(&root)
+            {
+                roots.push(root);
             }
         }
         roots
@@ -723,10 +723,10 @@ impl Host for SystemHost {
 
     fn disk_bytes(&self, path: &Path) -> u64 {
         let stop: &dyn Fn() -> Option<i32> = &dx_process::interrupted;
-        if cfg!(unix) {
-            if let Some(bytes) = du_bytes(path, stop) {
-                return bytes;
-            }
+        if cfg!(unix)
+            && let Some(bytes) = du_bytes(path, stop)
+        {
+            return bytes;
         }
         if stop().is_some() {
             return 0;

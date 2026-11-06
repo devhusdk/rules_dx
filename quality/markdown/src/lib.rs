@@ -17,6 +17,6 @@ mod frontmatter;
 mod lib_tests;
 
 pub use check::{
-    check_markdown, kind_id, run_cli, CheckOutcome, Finding, FindingKind, MarkdownError,
+    CheckOutcome, Finding, FindingKind, MarkdownError, check_markdown, kind_id, run_cli,
 };
 pub use frontmatter::slug;

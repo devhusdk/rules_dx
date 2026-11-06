@@ -27,7 +27,6 @@ rust_library(
     ),
     crate_name = "dx_site_check",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = ["//tools/docs/ir/ir:documentation_ir"],
 )
 
@@ -40,7 +39,6 @@ rust_binary(
     ),
     crate_name = "site_check",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_check",
         normal = True,
@@ -62,7 +60,6 @@ rust_test(
     ),
     crate_name = "dx_site_check",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_check",
         normal = True,

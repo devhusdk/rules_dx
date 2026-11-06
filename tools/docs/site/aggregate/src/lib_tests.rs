@@ -1,6 +1,6 @@
 //! Tests for the API aggregator.
 
-use super::{api_path, code, parse, relative, render, title, Options};
+use super::{Options, api_path, code, parse, relative, render, title};
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind};
 
 fn args(list: &[&str]) -> Vec<String> {
@@ -184,18 +184,26 @@ fn every_symbol_and_alias_gets_a_page_index_entry_summary_line_and_record() {
         "{generated}"
     );
 
-    assert!(rendered
-        .api
-        .starts_with("# API Reference\n\n## Rust crate `demo`\n\n"));
-    assert!(rendered
-        .api
-        .contains("- [`demo::add`](api/rust/demo/add.md): Adds.\n"));
-    assert!(rendered
-        .api
-        .contains("- [`demo::Circle`](api/rust/demo/Circle.md): A circle.\n"));
-    assert!(rendered
-        .summary
-        .starts_with("- [API](api.md)\n    - [demo::Circle](api/rust/demo/Circle.md)\n"));
+    assert!(
+        rendered
+            .api
+            .starts_with("# API Reference\n\n## Rust crate `demo`\n\n")
+    );
+    assert!(
+        rendered
+            .api
+            .contains("- [`demo::add`](api/rust/demo/add.md): Adds.\n")
+    );
+    assert!(
+        rendered
+            .api
+            .contains("- [`demo::Circle`](api/rust/demo/Circle.md): A circle.\n")
+    );
+    assert!(
+        rendered
+            .summary
+            .starts_with("- [API](api.md)\n    - [demo::Circle](api/rust/demo/Circle.md)\n")
+    );
     assert_eq!(rendered.summary.lines().count(), 6);
 
     let records: serde_json::Value = serde_json::from_str(&rendered.records).expect("records");

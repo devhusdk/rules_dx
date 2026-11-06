@@ -2,7 +2,7 @@
 license = "Apache-2.0"
 name = "dx_update"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 mvn_version = "0.1"

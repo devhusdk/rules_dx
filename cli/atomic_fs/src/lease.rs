@@ -141,11 +141,9 @@ pub fn try_acquire_exclusive(
 }
 
 fn open_lock_file(path: &Path, create: bool) -> io::Result<File> {
-    if create {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        } // LCOV_EXCL_LINE - reason: lease paths always carry a parent, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
-    }
+    if create && let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    } // LCOV_EXCL_LINE - reason: lease paths always carry a parent, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
     OpenOptions::new()
         .read(true)
         .write(true)
@@ -442,15 +440,17 @@ mod tests {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         for preset in [true, false] {
             if preset {
-                std::env::set_var(LEASE_ENV_VAR, "preset");
+                // SAFETY: the process is single-threaded here or the env lock is held.
+                unsafe { std::env::set_var(LEASE_ENV_VAR, "preset") };
             } else {
-                std::env::remove_var(LEASE_ENV_VAR);
+                // SAFETY: the process is single-threaded here or the env lock is held.
+                unsafe { std::env::remove_var(LEASE_ENV_VAR) };
             }
             let saved = std::env::var_os(LEASE_ENV_VAR);
             inherit_value_checks();
             match saved {
-                Some(value) => std::env::set_var(LEASE_ENV_VAR, value),
-                None => std::env::remove_var(LEASE_ENV_VAR),
+                Some(value) => unsafe { std::env::set_var(LEASE_ENV_VAR, value) },
+                None => unsafe { std::env::remove_var(LEASE_ENV_VAR) },
             }
         }
     }
@@ -468,13 +468,15 @@ mod tests {
             } else {
                 bad.to_owned()
             };
-            std::env::set_var(LEASE_ENV_VAR, entry);
+            // SAFETY: the process is single-threaded here or the env lock is held.
+            unsafe { std::env::set_var(LEASE_ENV_VAR, entry) };
             assert!(
                 acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO).is_err(),
                 "malformed inheritance fails closed"
             );
         }
-        std::env::remove_var(LEASE_ENV_VAR);
+        // SAFETY: the process is single-threaded here or the env lock is held.
+        unsafe { std::env::remove_var(LEASE_ENV_VAR) };
         assert!(
             acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO)
                 .expect("absent inheritance")
@@ -484,14 +486,18 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::ffi::OsStrExt as _;
-            std::env::set_var(
-                LEASE_ENV_VAR,
-                std::ffi::OsStr::from_bytes(b"environments:\xff\xfe"),
-            );
+            // SAFETY: the env lock is held.
+            unsafe {
+                std::env::set_var(
+                    LEASE_ENV_VAR,
+                    std::ffi::OsStr::from_bytes(b"environments:\xff\xfe"),
+                )
+            };
             let err = acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO)
                 .expect_err("non-UTF-8 inheritance fails closed");
             assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
-            std::env::remove_var(LEASE_ENV_VAR);
+            // SAFETY: the process is single-threaded here or the env lock is held.
+            unsafe { std::env::remove_var(LEASE_ENV_VAR) };
         }
     }
 
@@ -524,7 +530,7 @@ mod tests {
             if let Some(value) = probe() {
                 return value;
             } // LCOV_EXCL_LINE - reason: the probe succeeds on the first poll, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-              // LCOV_EXCL_START - reason: test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            // LCOV_EXCL_START - reason: test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             if start.elapsed() > Duration::from_secs(30) {
                 panic!("timed out waiting for {what}");
             }

@@ -1,9 +1,8 @@
-use dx_diff::{render_patch, DiffError, FilePatch, PatchKind};
+use dx_diff::{DiffError, FilePatch, PatchKind, render_patch};
 use dx_output::{ChangeEffect, ChangeEvent, ChangeKind, Edit, FinishedCounts, NoticeEvent};
 use generation_result::{
-    file_text,
+    Error, FileText, file_text,
     proto::{GenerationManifest, Mode, WriteOutcome},
-    Error, FileText,
 };
 
 pub const IGNORED_IMPORT_CODE: &str = "ignored_import";
@@ -106,11 +105,7 @@ impl ProjectedManifest {
             return 1;
         }
         if self.is_check {
-            if self.files.is_empty() {
-                0
-            } else {
-                1
-            }
+            if self.files.is_empty() { 0 } else { 1 }
         } else if self.not_applied() > 0 {
             1
         } else {
@@ -291,7 +286,7 @@ mod tests {
     use dx_digest::blake3 as digest;
     use dx_output::{change_event, notice_event};
     use generation_result::proto::{
-        file_result, Edit as ProtoEdit, FileResult, IgnoredImport, Modification, Scope,
+        Edit as ProtoEdit, FileResult, IgnoredImport, Modification, Scope, file_result,
     };
 
     fn scope(value: &str, complete: bool) -> Scope {

@@ -1,6 +1,6 @@
 //! Asserts the docs workflow validates one artifact before and after deploying it.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use ci_workflow::{document, job, scripts, steps};
 use dx_testing::read_runfiles;

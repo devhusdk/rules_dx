@@ -3,8 +3,8 @@ use std::io::Write;
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal};
 use crate::exec::notice_codes::{CODE_INIT_ABSENT, CODE_INIT_PLAN_PARTIAL};
 use dx_output::{
-    command_finished, command_started, init_plan_event, notice_event, FinishedCounts, NoticeEvent,
-    OutputMode, PlanFindingEvent,
+    FinishedCounts, NoticeEvent, OutputMode, PlanFindingEvent, command_finished, command_started,
+    init_plan_event, notice_event,
 };
 use dx_plan::args::{Agent, Invocation, ProfileArg};
 
@@ -158,13 +158,13 @@ pub(crate) fn execute_init(
             .into_iter()
             .map(|note| format!("{}{note}", target.prefix)),
     );
-    if let Some(blocker) = &target.blocker {
-        if !root.join("MODULE.bazel").exists() {
-            notes.push(format!(
+    if let Some(blocker) = &target.blocker
+        && !root.join("MODULE.bazel").exists()
+    {
+        notes.push(format!(
                 "{}{blocker} exists, treating this as an existing repo; create MODULE.bazel first or run in an empty directory",
                 target.prefix
             ));
-        }
     }
     if let Some(plan) = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
         .ok()
@@ -255,10 +255,10 @@ fn check_init(
         .map(|setup| dx_adopt::preflight(workspace, &setup))
         .filter(|plan| plan.applicable);
     let json = invocation.output == OutputMode::Json;
-    if json {
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
-            return exit;
-        }
+    if json
+        && let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default"))
+    {
+        return exit;
     }
     if let (Some(plan), true) = (&plan, json) {
         for f in &plan.findings {
@@ -284,16 +284,15 @@ fn check_init(
                 return exit;
             }
         }
-    } else if let Some(plan) = &plan {
-        if !summaries_suppressed(invocation) {
-            if let Err(exit) = check_stdout_write(write!(
-                out,
-                "{}",
-                dx_adopt::render_plan_text(module, &target.apply_command(), plan)
-            )) {
-                return exit;
-            }
-        }
+    } else if let Some(plan) = &plan
+        && !summaries_suppressed(invocation)
+        && let Err(exit) = check_stdout_write(write!(
+            out,
+            "{}",
+            dx_adopt::render_plan_text(module, &target.apply_command(), plan)
+        ))
+    {
+        return exit;
     }
     let conflicts: Vec<String> = plan
         .iter()
@@ -318,10 +317,10 @@ fn check_init(
             }
         } else if !absent.is_empty() {
             let _ = writeln!(err, "{}", absent_message(&absent, &apply));
-        } else if !summaries_suppressed(invocation) {
-            if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
-                return exit;
-            }
+        } else if !summaries_suppressed(invocation)
+            && let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}"))
+        {
+            return exit;
         }
         return 0;
     }
@@ -361,7 +360,7 @@ fn check_init(
 
 #[cfg(test)]
 mod tests {
-    use crate::adopt::test_support::{env, invocation, run, Truncated};
+    use crate::adopt::test_support::{Truncated, env, invocation, run};
     use dx_process::pre_exec_code;
 
     #[test]

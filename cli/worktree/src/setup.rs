@@ -1,7 +1,7 @@
 use std::io;
 use std::path::Path;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::HookKind;
 
@@ -263,12 +263,13 @@ fn sync(workspace: &Path, write: bool, create: &[&str]) -> io::Result<Outcome> {
                 Vec::new()
             };
             let missing = missing_entries(file, &existing);
-            if write && (!missing.is_empty() || !rules.is_empty()) {
-                if let Ok(merged) = merge(file, &existing) {
-                    dx_atomic_fs::write_atomic(&path, merged.as_bytes())?;
-                    outcome.wrote.push(file.path.to_owned());
-                    continue;
-                }
+            if write
+                && (!missing.is_empty() || !rules.is_empty())
+                && let Ok(merged) = merge(file, &existing)
+            {
+                dx_atomic_fs::write_atomic(&path, merged.as_bytes())?;
+                outcome.wrote.push(file.path.to_owned());
+                continue;
             }
             outcome.missing_allow.extend(rules);
             if !missing.is_empty() {
@@ -426,10 +427,12 @@ mod tests {
         assert_eq!(parsed["version"], 1);
         let entry = &parsed["hooks"]["PreToolUse"][0];
         assert_eq!(entry["matcher"], "Bash");
-        assert!(entry["bash"]
-            .as_str()
-            .expect("bash")
-            .ends_with("worktree hook guard"));
+        assert!(
+            entry["bash"]
+                .as_str()
+                .expect("bash")
+                .ends_with("worktree hook guard")
+        );
         std::fs::create_dir_all(dir.path().join(".github/hooks")).expect("dir");
         let own = "{\"version\": 1, \"hooks\": {\"PreToolUse\": [{\"bash\": \"mine\"}]}}\n";
         std::fs::write(dir.path().join(COPILOT.path), own).expect("hooks");

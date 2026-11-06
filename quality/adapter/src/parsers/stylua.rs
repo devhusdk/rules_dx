@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
 use super::{
-    as_text, check_output_size, code_name, finding, known_native, unformatted_at, FileFinding,
-    ParseError,
+    FileFinding, ParseError, as_text, check_output_size, code_name, finding, known_native,
+    unformatted_at,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -156,9 +156,11 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_stylua(b"", b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_stylua(b"", b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]

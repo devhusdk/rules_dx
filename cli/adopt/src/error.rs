@@ -87,7 +87,9 @@ mod tests {
         assert_eq!(
             AdoptError::InitInvalidDir {
                 dir: "../evil".to_owned(),
-                reason: "directories stay inside the current directory (no empty, '.' or '..' segments)".to_owned(),
+                reason:
+                    "directories stay inside the current directory (no empty, '.' or '..' segments)"
+                        .to_owned(),
             }
             .to_string(),
             "invalid directory for dx init: \"../evil\": directories stay inside the current directory (no empty, '.' or '..' segments)"

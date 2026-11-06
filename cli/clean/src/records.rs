@@ -1,4 +1,4 @@
-use dx_setup::{setup_hex, GenerationId, SetupPair};
+use dx_setup::{GenerationId, SetupPair, setup_hex};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetupRecordView {
@@ -55,14 +55,14 @@ mod tests {
         tag.to_string().repeat(64)
     }
 
-    fn pair_env_gen(env: char, gen: char) -> (String, String, String) {
+    fn pair_env_gen(env: char, gen_id: char) -> (String, String, String) {
         let environment = GenerationId::new(&digest(env)).expect("env digest");
-        let generated = GenerationId::new(&digest(gen)).expect("gen digest");
+        let generated = GenerationId::new(&digest(gen_id)).expect("gen digest");
         let pair = SetupPair {
             environment,
             generated,
         };
-        (setup_hex(&pair), digest(env), digest(gen))
+        (setup_hex(&pair), digest(env), digest(gen_id))
     }
 
     #[test]

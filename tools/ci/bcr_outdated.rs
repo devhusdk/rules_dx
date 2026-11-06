@@ -1,6 +1,6 @@
 //! Lists the `bazel_dep` modules whose declared version is behind the newest stable BCR version.
 
-use dx_module_bazel::{compare_module_versions, ModuleFile, Value};
+use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 use std::cmp::Ordering;
 
 const SKIPPED_OVERRIDES: [&str; 3] = ["local_path_override", "git_override", "archive_override"];

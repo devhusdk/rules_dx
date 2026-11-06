@@ -1,10 +1,10 @@
 //! npm publisher: deterministic pack, pack verification and the npm publish.
 
-use crate::api_compat::{breaking_refusal, required_bump, ApiCompatMode};
+use crate::api_compat::{ApiCompatMode, breaking_refusal, required_bump};
 use crate::archive::*;
 use crate::run::{
-    deploy_profile, env_or_empty, print_redacted, scrubbed_command, DeployRun, OwnerGate,
-    PUBLISH_CHILD_ENV_KEEP,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty, print_redacted,
+    scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -44,11 +44,7 @@ pub fn npm_create_pack(
             {
                 use std::os::unix::fs::PermissionsExt as _;
                 let bits = std::fs::metadata(&src)?.permissions().mode();
-                if bits & 0o111 != 0 {
-                    0o755
-                } else {
-                    0o644
-                }
+                if bits & 0o111 != 0 { 0o755 } else { 0o644 }
             }
             #[cfg(not(unix))]
             {
@@ -63,10 +59,10 @@ pub fn npm_create_pack(
             .map(|(member, (data, mode))| (member.as_str(), data.as_slice(), *mode)),
     )?;
     let gz = gzip_compress(&tar)?;
-    if let Some(parent) = tgz_out.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = tgz_out.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     std::fs::write(tgz_out, &gz)?;
     let digest = dx_digest::sha256_file_hex(tgz_out)?;
@@ -82,10 +78,10 @@ pub fn npm_create_pack(
         "tag": tag,
         "tarball": tgz_base,
     }))?;
-    if let Some(parent) = feed_out.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = feed_out.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     std::fs::write(feed_out, feed.as_bytes())?;
     Ok(digest)
@@ -1070,9 +1066,11 @@ mod tests {
             String::from_utf8_lossy(&run.stderr)
         );
         assert_eq!(String::from_utf8_lossy(&run.stdout).trim(), "43");
-        assert!(consumer
-            .join("node_modules/npm-nested/dist/index.d.ts")
-            .is_file());
+        assert!(
+            consumer
+                .join("node_modules/npm-nested/dist/index.d.ts")
+                .is_file()
+        );
         assert!(consumer.join("node_modules/.bin/npm-nested").exists());
     }
 
@@ -1569,13 +1567,17 @@ mod tests {
             },
         );
         assert!(outdir.join("npm_demo.tgz").is_file());
-        assert!(outdir
-            .join("npm_demo-feed")
-            .join("npm_demo.feed.json")
-            .is_file());
-        assert!(npm_tar_members(&outdir.join("npm_demo.tgz"))
-            .expect("members")
-            .contains(&"package/[id].js".to_owned()));
+        assert!(
+            outdir
+                .join("npm_demo-feed")
+                .join("npm_demo.feed.json")
+                .is_file()
+        );
+        assert!(
+            npm_tar_members(&outdir.join("npm_demo.tgz"))
+                .expect("members")
+                .contains(&"package/[id].js".to_owned())
+        );
         std::fs::remove_dir_all(&outdir).expect("cleanup");
     }
 
@@ -1712,12 +1714,14 @@ mod tests {
         let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
         assert!(!env.contains("DX_LEAK_PROBE"), "{env}");
         assert!(!env.contains("sekret"), "{env}");
-        assert!(env
-            .lines()
-            .any(|line| line == "ACTIONS_ID_TOKEN_REQUEST_URL=https://ci.example/token"));
-        assert!(env
-            .lines()
-            .any(|line| line == "CI_PROJECT_URL=https://gitlab.example/p"));
+        assert!(
+            env.lines()
+                .any(|line| line == "ACTIONS_ID_TOKEN_REQUEST_URL=https://ci.example/token")
+        );
+        assert!(
+            env.lines()
+                .any(|line| line == "CI_PROJECT_URL=https://gitlab.example/p")
+        );
     }
 
     #[cfg(unix)]

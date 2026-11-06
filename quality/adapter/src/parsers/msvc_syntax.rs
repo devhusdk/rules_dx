@@ -1,4 +1,4 @@
-use super::{finding, lines, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, finding, lines, require_findings};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -169,10 +169,12 @@ mod tests {
         let text = "src/a.cpp(1): fatal error C1083: Cannot open include file: 'x.h': No such file or directory\n";
         let found = parse(text, 2).expect("parsed");
         assert_eq!(found[0].finding.rule_id, "C1083");
-        assert!(found[0]
-            .finding
-            .message
-            .starts_with("Cannot open include file: 'x.h'"));
+        assert!(
+            found[0]
+                .finding
+                .message
+                .starts_with("Cannot open include file: 'x.h'")
+        );
     }
 
     #[test]
@@ -205,9 +207,11 @@ mod tests {
     fn a_foreign_file_is_dropped_and_fails_closed() {
         let text = "C:\\other\\c.h(2): error C2143: syntax error\n";
         assert!(parse(text, 2).is_err());
-        assert!(parse(&text.replace("error", "warning"), 0)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse(&text.replace("error", "warning"), 0)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

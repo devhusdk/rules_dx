@@ -3,7 +3,7 @@
 use std::io;
 use std::path::Path;
 
-use super::agents::{eol, target, FILE as AGENTS};
+use super::agents::{FILE as AGENTS, eol, target};
 
 pub(crate) const FILE: &str = ".github/copilot-instructions.md";
 

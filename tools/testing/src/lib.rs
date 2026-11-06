@@ -544,10 +544,10 @@ pub fn expect_absent(path: &Path, patterns: &[&str]) -> Result<(), String> {
 }
 
 fn workspace_root() -> Option<PathBuf> {
-    if let Ok(dir) = std::env::var("BUILD_WORKSPACE_DIRECTORY") {
-        if !dir.is_empty() {
-            return Some(PathBuf::from(dir));
-        }
+    if let Ok(dir) = std::env::var("BUILD_WORKSPACE_DIRECTORY")
+        && !dir.is_empty()
+    {
+        return Some(PathBuf::from(dir));
     }
     std::process::Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
@@ -617,18 +617,17 @@ pub fn snapshot_diff(
         return Ok(());
     }
     if update_expect() {
-        if let Some(rel) = workspace_rel {
-            if let Some(root) = workspace_root() {
-                if root.is_dir() {
-                    let dest = root.join(rel);
-                    if let Some(parent) = dest.parent() {
-                        let _ = std::fs::create_dir_all(parent);
-                    }
-                    std::fs::copy(actual, &dest)
-                        .map_err(|err| format!("cannot refresh {}: {err}", dest.display()))?;
-                    return Ok(());
-                }
+        if let Some(rel) = workspace_rel
+            && let Some(root) = workspace_root()
+            && root.is_dir()
+        {
+            let dest = root.join(rel);
+            if let Some(parent) = dest.parent() {
+                let _ = std::fs::create_dir_all(parent);
             }
+            std::fs::copy(actual, &dest)
+                .map_err(|err| format!("cannot refresh {}: {err}", dest.display()))?;
+            return Ok(());
         }
         let expected_text = expected.to_string_lossy();
         if !expected_text.contains("/runfiles/") && std::fs::copy(actual, expected).is_ok() {

@@ -1,5 +1,5 @@
 use super::common::*;
-use dx_plan::args::{resolve_profile, Command, Invocation, Profile, DX_PROFILE_ENV};
+use dx_plan::args::{Command, DX_PROFILE_ENV, Invocation, Profile, resolve_profile};
 use dx_plan::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{check_deployable, resolve_deploy};

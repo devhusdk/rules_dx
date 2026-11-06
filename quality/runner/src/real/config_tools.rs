@@ -1,6 +1,6 @@
-use quality_adapter::{commands, parsers, TextPosition};
+use quality_adapter::{TextPosition, commands, parsers};
 
-use super::check::{group_by_parent, without_scratch_url, ToolDef};
+use super::check::{ToolDef, group_by_parent, without_scratch_url};
 use super::*;
 
 /// Config, policy and text tools that build their own invocation and parse.
@@ -119,12 +119,12 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     names.sort();
                     names.dedup();
                     return Err(execution(
-                            tool_id,
-                            format!(
-                                "opa check failed in dependencies before the owned files were type checked: {}",
-                                names.join(", ")
-                            ),
-                        ));
+                        tool_id,
+                        format!(
+                            "opa check failed in dependencies before the owned files were type checked: {}",
+                            names.join(", ")
+                        ),
+                    ));
                 }
                 Ok(findings)
             }

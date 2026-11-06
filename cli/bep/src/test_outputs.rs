@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use super::{
+    BepError, EventGap, EventLedger, EventLines, OutputLocations, TestOutputIdentity,
     file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, prefix_names_repo,
-    testlog_path, testlog_path_under, BepError, EventGap, EventLedger, EventLines, OutputLocations,
-    TestOutputIdentity,
+    testlog_path, testlog_path_under,
 };
 
 /// One named artifact of one test result, resolved to its local path.
@@ -871,9 +871,11 @@ mod tests {
     fn test_output_shape_failures_fail_collection() {
         let events = collect_test_events(Cursor::new("not json"), || None).expect("cut-off tail");
         assert!(events.results.is_empty());
-        assert!(events
-            .problem
-            .is_some_and(|problem| problem.starts_with("line 1:")));
+        assert!(
+            events
+                .problem
+                .is_some_and(|problem| problem.starts_with("line 1:"))
+        );
         for stream in [
             r#"{"no-id":true}"#.to_owned(),
             r#"{"id":{"testResult":{}},"testResult":{"testActionOutput":[]}}"#.to_owned(),

@@ -2,8 +2,8 @@
 
 use support_matrix::runfiles_source::RunfilesSource;
 use support_matrix::{
-    diff, generate, parse_facts, unsupported_json, Source, MATRIX_PATH, UNSUPPORTED_PATH,
-    UPDATE_COMMAND,
+    MATRIX_PATH, Source, UNSUPPORTED_PATH, UPDATE_COMMAND, diff, generate, parse_facts,
+    unsupported_json,
 };
 
 fn generated() -> (String, RunfilesSource) {
@@ -25,7 +25,9 @@ fn committed_page_matches_the_source_data() {
     let (matrix, source) = generated();
     let committed = source.read(MATRIX_PATH).expect("committed page");
     if let Some(changes) = diff(&committed, &matrix) {
-        panic!("{MATRIX_PATH} is out of date (-committed, +generated):\n{changes}\nrun `{UPDATE_COMMAND}`");
+        panic!(
+            "{MATRIX_PATH} is out of date (-committed, +generated):\n{changes}\nrun `{UPDATE_COMMAND}`"
+        );
     }
 }
 
@@ -38,6 +40,8 @@ fn committed_unsupported_json_matches_the_source_data() {
     let want = unsupported_json(&parse_facts(&facts).expect("facts parse"));
     let committed = source.read(UNSUPPORTED_PATH).expect("committed json");
     if let Some(changes) = diff(&committed, &want) {
-        panic!("{UNSUPPORTED_PATH} is out of date (-committed, +generated):\n{changes}\nrun `{UPDATE_COMMAND}`");
+        panic!(
+            "{UNSUPPORTED_PATH} is out of date (-committed, +generated):\n{changes}\nrun `{UPDATE_COMMAND}`"
+        );
     }
 }

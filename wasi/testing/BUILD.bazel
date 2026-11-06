@@ -11,7 +11,6 @@ rust_library(
     srcs = ["wasi_run.rs"],
     crate_name = "wasi_run",
     crate_root = "wasi_run.rs",
-    edition = "2021",
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -28,7 +27,6 @@ rust_binary(
     srcs = ["wasi_test_runner.rs"],
     crate_name = "wasi_test_runner",
     crate_root = "wasi_test_runner.rs",
-    edition = "2021",
     deps = [
         ":wasi_run",
         "//tools/testing:dx_testing",

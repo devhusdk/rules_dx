@@ -386,9 +386,11 @@ fn verify_rejects_stale_dirty_or_foreign_evidence() {
     assert!(verify(&dirty).unwrap_err().contains("uncommitted"));
     let mut foreign = good_evidence();
     foreign["qualification"] = json!("//other:qualification");
-    assert!(verify(&foreign)
-        .unwrap_err()
-        .contains("want //tools/testing/hermetic:cpp_rust"));
+    assert!(
+        verify(&foreign)
+            .unwrap_err()
+            .contains("want //tools/testing/hermetic:cpp_rust")
+    );
     let mut schema = good_evidence();
     schema["schema"] = json!("dx.hermetic.v0");
     assert!(verify(&schema).unwrap_err().contains("schema"));
@@ -453,12 +455,14 @@ fn verify_rejects_evidence_for_other_languages() {
     let mut none = good_evidence();
     none["languages"] = json!(null);
     assert!(verify(&none).unwrap_err().contains("languages"));
-    assert!(verify_evidence(
-        &good_evidence(),
-        "abc123",
-        &manifest_for("//tools/testing/hermetic:cpp_rust", &[])
-    )
-    .is_err());
+    assert!(
+        verify_evidence(
+            &good_evidence(),
+            "abc123",
+            &manifest_for("//tools/testing/hermetic:cpp_rust", &[])
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -486,9 +490,11 @@ fn verify_rejects_missing_or_inconsistent_artifacts() {
     let mut foreign = good_evidence();
     foreign["artifacts"][0]["machine"] = json!(null);
     foreign["target"]["machines"] = json!([]);
-    assert!(verify(&foreign)
-        .unwrap_err()
-        .contains("no native artifact machine"));
+    assert!(
+        verify(&foreign)
+            .unwrap_err()
+            .contains("no native artifact machine")
+    );
 }
 
 #[test]
@@ -1105,9 +1111,11 @@ fn read_head_reads_at_most_a_page() {
     std::fs::write(&file, vec![0u8; 5000]).unwrap();
     assert_eq!(read_head(&file).unwrap().len(), 4096);
     let missing = dir.path().join("missing.exe");
-    assert!(read_head(&missing)
-        .unwrap_err()
-        .starts_with(&format!("cannot read {}: ", missing.display())));
+    assert!(
+        read_head(&missing)
+            .unwrap_err()
+            .starts_with(&format!("cannot read {}: ", missing.display()))
+    );
 }
 
 #[test]
@@ -1621,9 +1629,11 @@ fn c_evidence_needs_a_native_artifact_machine() {
     let mut foreign = c_fixture_evidence();
     foreign["artifacts"][0]["machine"] = json!(null);
     foreign["target"]["machines"] = json!([]);
-    assert!(verify_evidence(&foreign, "abc123", &manifest)
-        .unwrap_err()
-        .contains("no native artifact machine"));
+    assert!(
+        verify_evidence(&foreign, "abc123", &manifest)
+            .unwrap_err()
+            .contains("no native artifact machine")
+    );
 }
 
 #[test]
@@ -1772,12 +1782,15 @@ fn copy_test_logs_keeps_layout_and_returns_heads() {
     std::fs::write(case.join("test.xml"), "<testsuites/>").unwrap();
     let dest = dir.path().join("out/testlogs");
     let text = copy_test_logs(&logs, &dest);
-    assert!(dest
-        .join("javascript/cli/exit_codes_test/test.log")
-        .is_file());
-    assert!(!dest
-        .join("javascript/cli/exit_codes_test/test.xml")
-        .exists());
+    assert!(
+        dest.join("javascript/cli/exit_codes_test/test.log")
+            .is_file()
+    );
+    assert!(
+        !dest
+            .join("javascript/cli/exit_codes_test/test.xml")
+            .exists()
+    );
     assert!(text.contains("javascript/cli/exit_codes_test/test.log"));
     assert!(text.contains("line 40") && !text.contains("line 41"));
     assert_eq!(copy_test_logs(&dir.path().join("missing"), &dest), "");

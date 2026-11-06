@@ -91,7 +91,7 @@ use_repo(maven, "maven")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust", dev_dependency = True)
 rust.toolchain(
-    edition = "2021",
+    edition = "2024",
     rustfmt_version = "1.99.1",
     versions = ["1.99.1"],
 )

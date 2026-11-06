@@ -38,10 +38,12 @@ fn missing_github_env_without_print_or_file_is_a_usage_error() {
     cli.env_file = None;
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = std::env::var_os("GITHUB_ENV");
-    std::env::remove_var("GITHUB_ENV");
+    // SAFETY: the process is single-threaded here or the env lock is held.
+    unsafe { std::env::remove_var("GITHUB_ENV") };
     let result = run(cli);
     if let Some(value) = saved {
-        std::env::set_var("GITHUB_ENV", value);
+        // SAFETY: the process is single-threaded here or the env lock is held.
+        unsafe { std::env::set_var("GITHUB_ENV", value) };
     }
     let error = result.unwrap_err();
     match error {

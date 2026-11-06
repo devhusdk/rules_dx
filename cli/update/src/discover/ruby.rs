@@ -1,7 +1,7 @@
 //! Lists gems whose newest release on rubygems.org is newer than the version in the Gemfile.
 
 use super::{
-    github_repo, numeric_cmp, release_cmp, wanted, Candidate, Fetch, Findings, LookupError,
+    Candidate, Fetch, Findings, LookupError, github_repo, numeric_cmp, release_cmp, wanted,
 };
 use std::cmp::Ordering;
 use std::collections::BTreeMap;

@@ -2,36 +2,35 @@ use std::ffi::c_void;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr::{null, null_mut};
 
-use windows_sys::Win32::Foundation::{CloseHandle, LocalFree, ERROR_SUCCESS, HANDLE};
+use windows_sys::Win32::Foundation::{CloseHandle, ERROR_SUCCESS, HANDLE, LocalFree};
 use windows_sys::Win32::Security::Authorization::{
-    ConvertStringSidToSidW, GetNamedSecurityInfoW, GetSecurityInfo, SetEntriesInAclW,
-    SetNamedSecurityInfoW, SetSecurityInfo, EXPLICIT_ACCESS_W, SE_KERNEL_OBJECT, TRUSTEE_W,
+    ConvertStringSidToSidW, EXPLICIT_ACCESS_W, GetNamedSecurityInfoW, GetSecurityInfo,
+    SE_KERNEL_OBJECT, SetEntriesInAclW, SetNamedSecurityInfoW, SetSecurityInfo, TRUSTEE_W,
 };
 use windows_sys::Win32::Security::Isolation::{
     CreateAppContainerProfile, DeleteAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
 };
 use windows_sys::Win32::Security::{
-    GetSecurityDescriptorControl, InitializeSecurityDescriptor, SetFileSecurityW,
-    SetSecurityDescriptorControl, SetSecurityDescriptorDacl, ACL, SECURITY_CAPABILITIES,
-    SECURITY_DESCRIPTOR, SE_DACL_AUTO_INHERITED, SE_DACL_PROTECTED, SID_AND_ATTRIBUTES,
-    TOKEN_DUPLICATE, TOKEN_QUERY,
+    ACL, GetSecurityDescriptorControl, InitializeSecurityDescriptor, SE_DACL_AUTO_INHERITED,
+    SE_DACL_PROTECTED, SECURITY_CAPABILITIES, SECURITY_DESCRIPTOR, SID_AND_ATTRIBUTES,
+    SetFileSecurityW, SetSecurityDescriptorControl, SetSecurityDescriptorDacl, TOKEN_DUPLICATE,
+    TOKEN_QUERY,
 };
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
 };
 use windows_sys::Win32::System::Environment::{CreateEnvironmentBlock, DestroyEnvironmentBlock};
 use windows_sys::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject,
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+    AssignProcessToJobObject, CreateJobObjectW, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+    SetInformationJobObject,
 };
 use windows_sys::Win32::System::Threading::{
     CreateMutexW, CreateProcessW, DeleteProcThreadAttributeList, GetCurrentProcess,
-    GetExitCodeProcess, InitializeProcThreadAttributeList, OpenProcessToken, ReleaseMutex,
-    ResumeThread, UpdateProcThreadAttribute, WaitForSingleObject, PROCESS_INFORMATION,
-    STARTUPINFOEXW,
+    GetExitCodeProcess, InitializeProcThreadAttributeList, OpenProcessToken, PROCESS_INFORMATION,
+    ReleaseMutex, ResumeThread, STARTUPINFOEXW, UpdateProcThreadAttribute, WaitForSingleObject,
 };
 
-use crate::args::{ancestors, command_line, environment, Config};
+use crate::args::{Config, ancestors, command_line, environment};
 
 const ALREADY_EXISTS: i32 = 0x800700B7_u32 as i32;
 const SE_GROUP_ENABLED: u32 = 4;

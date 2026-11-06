@@ -9,8 +9,8 @@ use std::path::Path;
 use dx_families::Family;
 use dx_module_bazel::ModuleFile;
 
-use crate::module_pin::ModuleEdit;
 use crate::AdoptError;
+use crate::module_pin::ModuleEdit;
 
 const MODULE_FILE: &str = "MODULE.bazel";
 
@@ -45,7 +45,7 @@ pub fn plan_family_deps(root: &Path, families: &[Family]) -> Result<FamilyDeps, 
         for call in file.calls() {
             match call.name.as_str() {
                 "module" if call.str("name") == Some("rules_dx") => {
-                    return Ok(FamilyDeps::default())
+                    return Ok(FamilyDeps::default());
                 }
                 "bazel_dep" => {
                     let Some(name) = call.str("name") else {

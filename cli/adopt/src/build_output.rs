@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::git_changes::{
-    dedupe_changes, parse_name_status_nul, ChangeKind, DEFAULT_BRANCH_CANDIDATES,
+    ChangeKind, DEFAULT_BRANCH_CANDIDATES, dedupe_changes, parse_name_status_nul,
 };
 
 /// Largest file a change may add without being listed in `[large_files] allow` of dx.toml.
@@ -558,10 +558,12 @@ mod tests {
         git(&root, &["commit", "-q", "-m", "work"]);
         assert!(found(&root).is_empty());
         git(&root, &["switch", "-q", "main"]);
-        assert!(scan_isolated(&root)
-            .expect("scan")
-            .committed_skipped
-            .is_none());
+        assert!(
+            scan_isolated(&root)
+                .expect("scan")
+                .committed_skipped
+                .is_none()
+        );
     }
 
     #[test]

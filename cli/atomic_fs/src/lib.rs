@@ -18,8 +18,8 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 pub use managed::{
-    classify, create_pointer, materialize_file, materialize_file_with, remove_managed, EntryKind,
-    LinkPolicy, Mechanism, PointerKind,
+    EntryKind, LinkPolicy, Mechanism, PointerKind, classify, create_pointer, materialize_file,
+    materialize_file_with, remove_managed,
 };
 
 fn staging_for(path: &Path) -> io::Result<tempfile::NamedTempFile> {
@@ -29,6 +29,7 @@ fn staging_for(path: &Path) -> io::Result<tempfile::NamedTempFile> {
     if let Some(parent) = parent {
         std::fs::create_dir_all(long_path(parent)?)?;
     }
+    let dir = long_path(parent.unwrap_or(Path::new(".")))?;
     tempfile::Builder::new()
         .prefix(&staging_prefix(path))
         .suffix(STAGING_SUFFIX)
@@ -56,7 +57,9 @@ fn staging_prefix(path: &Path) -> String {
 
 /// True when candidate is a staging file that write_atomic makes next to target.
 pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
-    if candidate == target || candidate.parent() != target.parent() {
+    if candidate == target
+        || without_verbatim(candidate.parent()) != without_verbatim(target.parent())
+    {
         return false;
     }
     let Some(name) = candidate.file_name().and_then(|name| name.to_str()) else {
@@ -66,6 +69,14 @@ pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
     name.len() > prefix.len() + STAGING_SUFFIX.len()
         && name.starts_with(&prefix)
         && name.ends_with(STAGING_SUFFIX)
+}
+
+fn without_verbatim(path: Option<&Path>) -> Option<std::path::PathBuf> {
+    path.map(|path| {
+        let text = path.to_string_lossy();
+        let plain = text.strip_prefix(r"\\?\").unwrap_or(&text);
+        std::path::PathBuf::from(plain)
+    })
 }
 
 const STALE_STAGING_AGE: Duration = Duration::from_secs(60 * 60);

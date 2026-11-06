@@ -1,3 +1,13 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 //! Editor support files under `.dx/local/ide/`, refreshed from `dx env --apply` and `dx upgrade`.
 
 mod cc;
@@ -195,10 +205,10 @@ fn walk(dir: &Path, ignored: &[PathBuf], found: &mut Vec<String>) {
             if !skip {
                 walk(&path, ignored, found);
             }
-        } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            if !found.iter().any(|f| f == ext) {
-                found.push(ext.to_owned());
-            }
+        } else if let Some(ext) = path.extension().and_then(|e| e.to_str())
+            && !found.iter().any(|f| f == ext)
+        {
+            found.push(ext.to_owned());
         }
     }
 }

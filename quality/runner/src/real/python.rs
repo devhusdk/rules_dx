@@ -126,10 +126,10 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     .collect();
                 let mut dirs: Vec<PathBuf> = Vec::new();
                 for (_, absolute) in checked_pairs.iter().chain(resolve_pairs.iter()) {
-                    if let Some(parent) = absolute.parent() {
-                        if !dirs.contains(&parent.to_path_buf()) {
-                            dirs.push(parent.to_path_buf());
-                        }
+                    if let Some(parent) = absolute.parent()
+                        && !dirs.contains(&parent.to_path_buf())
+                    {
+                        dirs.push(parent.to_path_buf());
                     }
                 }
                 for extra in &tool.search_paths {

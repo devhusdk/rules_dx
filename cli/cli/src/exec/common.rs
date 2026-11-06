@@ -2,21 +2,21 @@ use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
 use dx_output::{
-    command_started, notice_event, write_event, ActionCounts, ChangeEvent, ChangeKind,
-    FindingRecord, NoticeEvent, OutputMode, Span,
+    ActionCounts, ChangeEvent, ChangeKind, FindingRecord, NoticeEvent, OutputMode, Span,
+    command_started, notice_event, write_event,
 };
 use dx_plan::args::Invocation;
 use dx_plan::reports::Destination;
 use dx_plan::resolve::QueryRunner;
-use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
+use dx_process::{Runner, broken_pipe_code, operational_code, pre_exec_code, stdout_io_code};
 use std::cell::Cell;
 use std::io::{self, BufReader, Write};
 use std::path::Path;
 
 pub(crate) use super::failure::{
-    emit_failure_events, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED,
-    CODE_APPLICATION_FAILED, CODE_BAZEL_FAILED, CODE_DISK_FULL, CODE_INVALID_ARGUMENTS,
-    CODE_SERVER_CRASHED, CODE_SERVER_OUT_OF_MEMORY, CODE_TESTS_FAILED,
+    CODE_ANALYSIS_FAILED, CODE_APPLICATION_FAILED, CODE_BAZEL_FAILED, CODE_DISK_FULL,
+    CODE_INVALID_ARGUMENTS, CODE_SERVER_CRASHED, CODE_SERVER_OUT_OF_MEMORY, CODE_TESTS_FAILED,
+    Cause, Failure, emit_failure_events, report_failure,
 };
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
@@ -1103,7 +1103,7 @@ mod tests {
             "dx: 20 actions, 6 executed, 14 cached\n"
         );
     }
-    use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity};
+    use dx_output::{DiagnosticEvent, FinishedCounts, Severity, command_finished};
     use std::cell::RefCell;
     use std::path::PathBuf;
     use std::rc::Rc;
@@ -1780,11 +1780,13 @@ mod tests {
         assert_eq!(emit_event(&mut FailingWriter, &event), Err(1));
         assert_eq!(flush_out(&mut BrokenPipeWriter), Err(128 + 13));
         assert_eq!(flush_out(&mut FailingWriter), Err(1));
-        assert!(check_stdout_write(Err(io::Error::new(
-            io::ErrorKind::BrokenPipe,
-            "broken pipe"
-        )))
-        .is_err());
+        assert!(
+            check_stdout_write(Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "broken pipe"
+            )))
+            .is_err()
+        );
     }
 
     #[test]
@@ -1800,7 +1802,10 @@ mod tests {
             ),
             Ok(())
         );
-        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
+        assert_eq!(
+            String::from_utf8(err).unwrap(),
+            "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n"
+        );
         assert!(out.is_empty());
 
         let mut out = Vec::new();
@@ -1809,7 +1814,10 @@ mod tests {
             report_failed(&mut out, &mut err, OutputMode::Diff, "boom"),
             Ok(())
         );
-        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
+        assert_eq!(
+            String::from_utf8(err).unwrap(),
+            "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n"
+        );
         assert!(out.is_empty());
 
         let mut out = Vec::new();
@@ -1818,7 +1826,10 @@ mod tests {
             report_failed(&mut out, &mut err, OutputMode::Json, "boom"),
             Ok(())
         );
-        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
+        assert_eq!(
+            String::from_utf8(err).unwrap(),
+            "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n"
+        );
         let event: serde_json::Value = serde_json::from_slice(&out).unwrap();
         assert_eq!(event["code"], CODE_REPORT_FAILED);
         assert_eq!(event["message"], "boom");

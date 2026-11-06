@@ -1,4 +1,4 @@
-use super::super::{assert_usage, ArgsError, Command};
+use super::super::{ArgsError, Command, assert_usage};
 use super::parse;
 use dx_testing::cli::strings;
 

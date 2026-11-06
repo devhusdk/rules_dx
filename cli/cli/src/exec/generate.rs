@@ -1,13 +1,13 @@
 use super::common::*;
 use dx_output::{
-    change_value, command_finished, command_started, notice_value, FinishedCounts, OutputMode,
+    FinishedCounts, OutputMode, change_value, command_finished, command_started, notice_value,
 };
 use dx_plan::args::{GenerateRequest, Invocation};
-use dx_plan::finalize::{finalize, FinalizeError, FinalizeInput, GazelleStatus};
-use dx_plan::generate::{project, refused_lines, render_diff, text_lines, ProjectedManifest};
+use dx_plan::finalize::{FinalizeError, FinalizeInput, GazelleStatus, finalize};
+use dx_plan::generate::{ProjectedManifest, project, refused_lines, render_diff, text_lines};
 use dx_plan::plan::{
-    generate_scope_json, intended_path, patch_path, plan_generate_logged, GENERATE_ENV_INTENDED,
-    GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
+    GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_scope_json,
+    intended_path, patch_path, plan_generate_logged,
 };
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::resolve;
@@ -25,12 +25,11 @@ fn finish_incomplete_generate(
     code: i32,
 ) -> i32 {
     if output == OutputMode::Json {
-        if code != 0 {
-            if let Err(exit) =
+        if code != 0
+            && let Err(exit) =
                 emit_bazel_exit(out, CODE_BAZEL_FAILED, &bazel_failed_message(code), code)
-            {
-                return kept_child(err, code, exit);
-            }
+        {
+            return kept_child(err, code, exit);
         }
         let finished = command_finished(
             code,
@@ -175,7 +174,7 @@ fn run_generate_request(
     ) {
         Ok(plan) => plan,
         Err(error) => {
-            return pre_exec(request.common.output, env.out, env.err, &format!("{error}"))
+            return pre_exec(request.common.output, env.out, env.err, &format!("{error}"));
         }
     };
     *kind = PhaseKind::Tool;
@@ -184,10 +183,10 @@ fn run_generate_request(
         if let Err(exit) = emit_built(env.out, command_started("generate", mode)) {
             return exit;
         }
-    } else if request.chatty() {
-        if let Err(exit) = check_stdout_write(writeln!(env.out, "{}", plan.summary)) {
-            return exit;
-        }
+    } else if request.chatty()
+        && let Err(exit) = check_stdout_write(writeln!(env.out, "{}", plan.summary))
+    {
+        return exit;
     }
     let intended = intended_path(env.temp_dir, env.pid, env.nonce);
     let intended_str = intended.display().to_string();
@@ -304,15 +303,15 @@ fn run_generate_request(
                 return kept_child(env.err, bazel_code, exit);
             }
         }
-        if let (GazelleStatus::Failed(failed), true) = (gazelle, projected.errors.is_empty()) {
-            if let Err(exit) = emit_bazel_exit(
+        if let (GazelleStatus::Failed(failed), true) = (gazelle, projected.errors.is_empty())
+            && let Err(exit) = emit_bazel_exit(
                 env.out,
                 CODE_BAZEL_FAILED,
                 &bazel_failed_message(failed),
                 failed,
-            ) {
-                return kept_child(env.err, bazel_code, exit);
-            }
+            )
+        {
+            return kept_child(env.err, bazel_code, exit);
         }
         *kind = next_kind;
         let finished = command_finished(code, &projected.finished_counts());

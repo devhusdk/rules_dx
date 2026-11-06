@@ -2,7 +2,7 @@
 license = "Apache-2.0"
 name = "dx_test_scratch"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 name = "dx_test_scratch"

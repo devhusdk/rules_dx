@@ -144,12 +144,14 @@ pub(super) fn binary_fix(
 
 #[test]
 pub(super) fn real_spawn_reports_missing_binaries() {
-    assert!(real_spawn(
-        &[OsString::from("/nonexistent-dx-tool-binary")],
-        Path::new("/tmp"),
-        &[]
-    )
-    .is_err());
+    assert!(
+        real_spawn(
+            &[OsString::from("/nonexistent-dx-tool-binary")],
+            Path::new("/tmp"),
+            &[]
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -387,11 +389,13 @@ pub(super) fn rustfmt_syntax_errors_keep_the_input_and_stay_diagnostics() {
         .collect();
     assert_eq!(paths, ["src/lib.rs"]);
     assert_eq!(result.terminal_diagnostics.len(), 1);
-    assert!(result
-        .terminal_diagnostics
-        .iter()
-        .all(|diagnostic| diagnostic.path == "src/child.rs"
-            && diagnostic.message.contains("unclosed delimiter")));
+    assert!(
+        result
+            .terminal_diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.path == "src/child.rs"
+                && diagnostic.message.contains("unclosed delimiter"))
+    );
 }
 
 #[test]

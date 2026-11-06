@@ -1,5 +1,5 @@
 use super::clang_syntax::{diagnostic, include_entry, split_rule};
-use super::{finding, lines, missing, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, finding, lines, missing, require_findings};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const INFO_RULES: &[&str] = &[

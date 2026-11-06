@@ -1,11 +1,11 @@
 use super::common::*;
 use super::failure::CODE_NO_TESTS;
-use dx_bep::{collect_test_events, TestResultRecord};
+use dx_bep::{TestResultRecord, collect_test_events};
 use dx_output::OutputMode;
 use dx_plan::args::Invocation;
-use dx_plan::plan::{bep_path, plan_workflow, WorkflowVerb};
+use dx_plan::plan::{WorkflowVerb, bep_path, plan_workflow};
 use dx_plan::resolve::{
-    exclude, resolve_for_test_with_selection, run_label_query_file, ResolvedScope, SelectionContext,
+    ResolvedScope, SelectionContext, exclude, resolve_for_test_with_selection, run_label_query_file,
 };
 use dx_process::Scope;
 use serde::{Deserialize, Serialize};
@@ -449,10 +449,10 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(plan) => plan,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
-    if invocation.chatty() {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary)) {
-            return exit;
-        }
+    if invocation.chatty()
+        && let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary))
+    {
+        return exit;
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
@@ -537,7 +537,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::test_support::{write_bep_artifact, Harness};
+    use super::super::test_support::{Harness, write_bep_artifact};
     use super::*;
 
     fn row(name: &str, mean: f64) -> Measurement {
@@ -577,9 +577,11 @@ mod tests {
         let other = br#"{"schema":"dx-bench/v2","results":[]}"#;
         assert!(parse_bench_file(other).unwrap_err().contains("schema"));
         let bad = br#"{"schema":"dx-bench/v1","results":[{"name":"a"}]}"#;
-        assert!(parse_bench_file(bad)
-            .unwrap_err()
-            .starts_with("invalid dx-bench.json"));
+        assert!(
+            parse_bench_file(bad)
+                .unwrap_err()
+                .starts_with("invalid dx-bench.json")
+        );
     }
 
     #[test]

@@ -286,7 +286,7 @@ fn policy_flags(policy: &RcPolicy) -> Vec<String> {
 #[cfg(unix)]
 mod sh {
     use super::*;
-    use dx_test_scratch::{scratch, TempDir};
+    use dx_test_scratch::{TempDir, scratch};
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
     use std::process::Command;
@@ -1474,7 +1474,7 @@ exec /bin/find "$@""#,
 #[cfg(windows)]
 mod cmd {
     use super::*;
-    use dx_test_scratch::{scratch, TempDir};
+    use dx_test_scratch::{TempDir, scratch};
     use std::path::Path;
     use std::process::Command;
 

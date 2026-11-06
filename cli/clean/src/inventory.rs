@@ -3,13 +3,13 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use dx_setup::{
-    GenerationId, CURRENT_LINK_NAME, CURRENT_STAGE_NAME, ENVIRONMENT_LINK_NAME,
-    GENERATED_LINK_NAME, SETUPS_DIR_NAME,
+    CURRENT_LINK_NAME, CURRENT_STAGE_NAME, ENVIRONMENT_LINK_NAME, GENERATED_LINK_NAME,
+    GenerationId, SETUPS_DIR_NAME,
 };
 
-use super::planning::{plan_prune, CleanPlan, GenerationView, PruneInputs, UnobservedPolicy};
-use super::records::{validate_record, SetupRecordView};
 use super::CleanError;
+use super::planning::{CleanPlan, GenerationView, PruneInputs, UnobservedPolicy, plan_prune};
+use super::records::{SetupRecordView, validate_record};
 use dx_atomic_fs::lease::GenerationUse;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -357,10 +357,12 @@ mod tests {
         }
         let plan = inventory.plan();
         assert!(!plan.prune_setup_records.contains(&spoofed_hex));
-        assert!(!plan
-            .prune_generations
-            .iter()
-            .any(|generation| generation.hex == "latest" || generation.hex == "not-hex"));
+        assert!(
+            !plan
+                .prune_generations
+                .iter()
+                .any(|generation| generation.hex == "latest" || generation.hex == "not-hex")
+        );
         let _ = fs::remove_dir_all(&root);
     }
 }

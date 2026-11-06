@@ -1,8 +1,8 @@
+use quick_xml::XmlVersion;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
-use quick_xml::XmlVersion;
 
-use super::{check_output_size, sarif::parse_sarif, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, sarif::parse_sarif};
 use crate::ColumnEncoding;
 
 const DEFAULT_TAB_WIDTH: u32 = 8;

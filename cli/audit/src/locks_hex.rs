@@ -95,15 +95,19 @@ pub fn parse_mix_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
     }
     let mut out = Vec::new();
     for window in tokens.windows(4) {
-        if let [Token::Open, Token::Atom(kind), Token::Atom(package), Token::Str(version)] = window
+        if let [
+            Token::Open,
+            Token::Atom(kind),
+            Token::Atom(package),
+            Token::Str(version),
+        ] = window
+            && kind == "hex"
         {
-            if kind == "hex" {
-                out.push(LockedPackage::new(
-                    "hex",
-                    package.as_str(),
-                    version.as_str(),
-                ));
-            }
+            out.push(LockedPackage::new(
+                "hex",
+                package.as_str(),
+                version.as_str(),
+            ));
         }
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));

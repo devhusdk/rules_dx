@@ -2,7 +2,7 @@
 license = "Apache-2.0"
 name = "qt_rust_bridge"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "qt_rust_bridge"

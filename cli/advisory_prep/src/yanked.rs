@@ -1,12 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use dx_adopt::dependency_sets::{Ecosystem, CARGO_LOCK};
-use dx_audit::advisory_prep::{yanked_snapshot, PrepError, PreparedSnapshot};
-use dx_update::discover::cargo::{index_path, yanked_versions, DEFAULT_BASE};
-use dx_update::discover::pypi::{yanked_releases, DEFAULT_BASE as PYPI_BASE};
+use dx_adopt::dependency_sets::{CARGO_LOCK, Ecosystem};
+use dx_audit::advisory_prep::{PrepError, PreparedSnapshot, yanked_snapshot};
+use dx_update::discover::cargo::{DEFAULT_BASE, index_path, yanked_versions};
+use dx_update::discover::pypi::{DEFAULT_BASE as PYPI_BASE, yanked_releases};
 
-use crate::{fetch_many, PrepareOptions};
+use crate::{PrepareOptions, fetch_many};
 
 pub const CARGO_YANKED: &str = "cargo-yanked";
 const UV_LOCK: &str = "uv.lock";

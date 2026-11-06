@@ -16,9 +16,9 @@ use std::fs;
 use documentation_ir::encode_shard;
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind, Visibility};
 use rustdoc_types::{
-    Crate, GenericArg, GenericArgs, GenericBound, GenericParamDef, GenericParamDefKind, Generics,
-    Id, Item, ItemEnum, MacroKind, Path, StructKind, Term, TraitBoundModifier, Type, VariantKind,
-    WherePredicate, FORMAT_VERSION,
+    Crate, FORMAT_VERSION, GenericArg, GenericArgs, GenericBound, GenericParamDef,
+    GenericParamDefKind, Generics, Id, Item, ItemEnum, MacroKind, Path, StructKind, Term,
+    TraitBoundModifier, Type, VariantKind, WherePredicate,
 };
 
 /// The inputs of one conversion.
@@ -352,10 +352,10 @@ impl<'a> Walker<'a> {
             }
             ItemEnum::Trait(data) => {
                 for child in &data.items {
-                    if let Some(child) = self.item(*child) {
-                        if let Some(kind) = member_kind(&child.inner) {
-                            self.member(child, &qualified, Some(item.id), kind)?;
-                        }
+                    if let Some(child) = self.item(*child)
+                        && let Some(kind) = member_kind(&child.inner)
+                    {
+                        self.member(child, &qualified, Some(item.id), kind)?;
                     }
                 }
             }

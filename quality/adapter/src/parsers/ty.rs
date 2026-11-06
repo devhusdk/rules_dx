@@ -1,4 +1,4 @@
-use super::{finding, lines, located, missing, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, finding, lines, located, missing, require_findings};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -116,9 +116,11 @@ mod tests {
             )
         );
         assert!(findings[0].finding.suggestions.is_empty());
-        assert!(parse_ty(b"All checks passed!\n", Some(0), &["/s/dirty.py"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_ty(b"All checks passed!\n", Some(0), &["/s/dirty.py"])
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_ty(b"All checks passed!\n", Some(1), &["/s/dirty.py"]).is_err());
         assert!(parse_ty(b"garbage\n", Some(1), &["/s/dirty.py"]).is_err());
         assert!(parse_ty(stdout.as_bytes(), Some(1), &["/s/other.py"]).is_err());

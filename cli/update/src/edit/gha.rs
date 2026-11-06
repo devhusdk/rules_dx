@@ -329,7 +329,9 @@ pub enum GhaResolveError {
     Upstream { message: String },
     #[error("GitHub commit response carries no commit SHA (nothing widened; never invent a SHA)")]
     MissingSha,
-    #[error("GitHub commit response carries an invalid SHA {sha:?} (nothing widened; never invent a SHA)")]
+    #[error(
+        "GitHub commit response carries an invalid SHA {sha:?} (nothing widened; never invent a SHA)"
+    )]
     InvalidSha { sha: String },
 }
 

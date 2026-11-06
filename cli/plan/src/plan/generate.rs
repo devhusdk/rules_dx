@@ -1,7 +1,7 @@
-use dx_process::{describe_scope, ForwardError};
+use dx_process::{ForwardError, describe_scope};
 
 use super::{
-    bazel_argv, exec_log_guards, exec_log_options, rules_dx_label, workflow_scope_labels, BuildPlan,
+    BuildPlan, bazel_argv, exec_log_guards, exec_log_options, rules_dx_label, workflow_scope_labels,
 };
 use crate::resolve::ResolvedScope;
 

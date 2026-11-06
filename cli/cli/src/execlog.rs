@@ -20,7 +20,7 @@ use ruzstd::decoding::{BlockDecodingStrategy, FrameDecoder};
 
 pub mod diff;
 
-pub use diff::{explain, CacheMiss, Change, ChangeKind, Delta, CHANGE_CAP};
+pub use diff::{CHANGE_CAP, CacheMiss, Change, ChangeKind, Delta, explain};
 pub use spawn_proto::tools::protos as proto;
 
 use proto::exec_log_entry::{self as entry, Type};
@@ -270,12 +270,11 @@ fn digest_text(digest: &Option<proto::Digest>) -> String {
 /// The path of an artifact inside a runfiles tree, from its exec path.
 fn runfiles_path(exec_path: &str, ws: &str) -> String {
     let mut path = exec_path;
-    if let Some(rest) = path.strip_prefix("bazel-out/") {
-        if let Some((_, rest)) = rest.split_once('/') {
-            if let Some((_, rest)) = rest.split_once('/') {
-                path = rest;
-            }
-        }
+    if let Some(rest) = path.strip_prefix("bazel-out/")
+        && let Some((_, rest)) = rest.split_once('/')
+        && let Some((_, rest)) = rest.split_once('/')
+    {
+        path = rest;
     }
     if let Some(rest) = path.strip_prefix("external/") {
         return rest.to_owned();

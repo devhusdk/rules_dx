@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use super::host::{same_path, Host, Server};
+use super::host::{Host, Server, same_path};
 
 /// Longest a reap may keep starting shutdowns, in seconds; below the slot ticket's 30 s staleness.
 pub const BUDGET_SECS: u64 = 20;

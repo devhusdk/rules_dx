@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known_native, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known_native, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -97,9 +97,11 @@ mod tests {
 
     #[test]
     fn clean_exit_zero_has_no_findings() {
-        assert!(parse_notebook_outputs(b"", Some(0), &["/w/a.ipynb"])
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_notebook_outputs(b"", Some(0), &["/w/a.ipynb"])
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

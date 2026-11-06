@@ -11,12 +11,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use codegen_shard::{decode_validated, Error};
+use codegen_shard::{Error, decode_validated};
 use dx_bep::TargetOutput;
 use dx_digest::blake3 as digest;
 use dx_roots::{
-    build_argv, invocation_targets, repository_plan, resolve_exact_target, ExactScopeError,
-    RepositoryRootPlan,
+    ExactScopeError, RepositoryRootPlan, build_argv, invocation_targets, repository_plan,
+    resolve_exact_target,
 };
 use serde::Serialize;
 

@@ -1,12 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ffi::OsStr;
 
-use quality_adapter::{place_finding_with, PlacementText};
+use quality_adapter::{PlacementText, place_finding_with};
 use quality_result::proto::Diagnostic;
 
 use crate::{
-    assemble, full_selection, max_rounds_for_capability, run_convergence, stage_subset,
-    validate_request, FileInput, QualityResult, RunnerError, StageSpec,
+    FileInput, QualityResult, RunnerError, StageSpec, assemble, full_selection,
+    max_rounds_for_capability, run_convergence, stage_subset, validate_request,
 };
 
 use super::real_fix::FixSession;

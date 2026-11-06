@@ -44,10 +44,12 @@ fn single_line_ignore_accepts_marker_at_end_of_line() {
         format!("    // {}", marker("_LINE")),
         "    1".to_string(),
     ]);
-    assert!(find_ignores("t.rs", &source)
-        .unwrap()
-        .singles
-        .contains_key(&2));
+    assert!(
+        find_ignores("t.rs", &source)
+            .unwrap()
+            .singles
+            .contains_key(&2)
+    );
 }
 
 #[test]
@@ -602,10 +604,12 @@ fn max_length_reason_passes_at_boundary() {
     let suffix = ", issue: 1055";
     let exact = "z".repeat(MAX_REASON_LEN - suffix.len());
     let source = file_lines(&[format!("// {} - reason: {exact}{suffix}", marker("_LINE"))]);
-    assert!(find_ignores("t.rs", &source)
-        .unwrap()
-        .singles
-        .contains_key(&1));
+    assert!(
+        find_ignores("t.rs", &source)
+            .unwrap()
+            .singles
+            .contains_key(&1)
+    );
 }
 
 #[test]

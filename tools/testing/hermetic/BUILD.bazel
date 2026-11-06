@@ -50,7 +50,6 @@ rust_library(
     ),
     crate_name = "hermetic",
     crate_root = "src/lib.rs",
-    edition = "2021",
     target_compatible_with = MANIFEST_HOSTS,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
@@ -92,7 +91,6 @@ rust_binary(
     name = "verify",
     testonly = True,
     srcs = ["verify.rs"],
-    edition = "2021",
     target_compatible_with = LINUX_MACOS_WINDOWS,
     deps = [
         ":hermetic",
@@ -134,7 +132,6 @@ rust_binary(
         normal = True,
     ),
     crate_root = "appcontainer/main.rs",
-    edition = "2021",
     target_compatible_with = WINDOWS,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
@@ -151,7 +148,6 @@ rust_binary(
     name = "isolation_windows_probe",
     testonly = True,
     srcs = ["isolation_windows_probe.rs"],
-    edition = "2021",
     target_compatible_with = WINDOWS,
 )
 

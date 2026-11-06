@@ -1,7 +1,7 @@
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{as_text, code_name, finding, known, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known, unformatted_at};
 
 const TOOL: &str = "dart";
 
@@ -184,45 +184,53 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "/s/dirty.dart");
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        assert!(parse_dart_format(
-            b"Formatted 2 files (0 changed) in 0 seconds.\n",
-            b"",
-            Some(0),
-            files
-        )
-        .expect("parsed")
-        .is_empty());
+        assert!(
+            parse_dart_format(
+                b"Formatted 2 files (0 changed) in 0 seconds.\n",
+                b"",
+                Some(0),
+                files
+            )
+            .expect("parsed")
+            .is_empty()
+        );
     }
 
     #[test]
     fn dart_format_fails_closed_when_exit_and_output_disagree() {
         let files = &FILES[..2];
         assert!(parse_dart_format(DIRTY.as_bytes(), b"", Some(0), files).is_err());
-        assert!(parse_dart_format(
-            b"Formatted 2 files (0 changed) in 0 seconds.\n",
-            b"",
-            Some(1),
-            files
-        )
-        .is_err());
+        assert!(
+            parse_dart_format(
+                b"Formatted 2 files (0 changed) in 0 seconds.\n",
+                b"",
+                Some(1),
+                files
+            )
+            .is_err()
+        );
         assert!(parse_dart_format(b"", b"", Some(0), files).is_err());
         assert!(parse_dart_format(b"", b"", Some(1), files).is_err());
         assert!(parse_dart_format(DIRTY.as_bytes(), b"", Some(2), files).is_err());
         assert!(parse_dart_format(DIRTY.as_bytes(), b"", None, files).is_err());
-        assert!(parse_dart_format(
-            b"Changed /s/other.dart\nFormatted 2 files (1 changed) in 0 seconds.\n",
-            b"",
-            Some(1),
-            files
-        )
-        .is_err());
-        assert!(parse_dart_format(
-            b"Changed /s/dirty.dart\nFormatted 2 files (2 changed) in 0 seconds.\n",
-            b"",
-            Some(1),
-            files
-        )
-        .is_err());
+        assert!(
+            parse_dart_format(
+                b"Changed /s/other.dart\nFormatted 2 files (1 changed) in 0 seconds.\n",
+                b"",
+                Some(1),
+                files
+            )
+            .is_err()
+        );
+        assert!(
+            parse_dart_format(
+                b"Changed /s/dirty.dart\nFormatted 2 files (2 changed) in 0 seconds.\n",
+                b"",
+                Some(1),
+                files
+            )
+            .is_err()
+        );
         assert!(parse_dart_format(&[0xff], b"", Some(0), files).is_err());
         assert!(parse_dart_format(CLEAN.as_bytes(), &[0xff], Some(0), files).is_err());
     }
@@ -244,23 +252,29 @@ mod tests {
 
     #[test]
     fn dart_format_requires_every_file_to_be_accounted_for() {
-        assert!(parse_dart_format(
-            b"Formatted no files in 0.00 seconds.\n",
-            b"",
-            Some(0),
-            &FILES[..2]
-        )
-        .is_err());
-        assert!(parse_dart_format(
-            b"Formatted 1 file (0 changed) in 0.00 seconds.\n",
-            b"",
-            Some(0),
-            &FILES[..2]
-        )
-        .is_err());
-        assert!(parse_dart_format(CLEAN.as_bytes(), b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_dart_format(
+                b"Formatted no files in 0.00 seconds.\n",
+                b"",
+                Some(0),
+                &FILES[..2]
+            )
+            .is_err()
+        );
+        assert!(
+            parse_dart_format(
+                b"Formatted 1 file (0 changed) in 0.00 seconds.\n",
+                b"",
+                Some(0),
+                &FILES[..2]
+            )
+            .is_err()
+        );
+        assert!(
+            parse_dart_format(CLEAN.as_bytes(), b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -292,12 +306,14 @@ mod tests {
         assert!(parse_dart_format(summary, b"", Some(65), &files).is_err());
         assert!(parse_dart_format(summary, PARSE_FAILURE.as_bytes(), Some(65), &files).is_err());
         assert!(parse_dart_format(summary, BROKEN.as_bytes(), Some(0), &files).is_err());
-        assert!(parse_dart_format(
-            summary,
-            b"line 1, column 1 of /s/other.dart: nope\n",
-            Some(65),
-            &files
-        )
-        .is_err());
+        assert!(
+            parse_dart_format(
+                summary,
+                b"line 1, column 1 of /s/other.dart: nope\n",
+                Some(65),
+                &files
+            )
+            .is_err()
+        );
     }
 }

@@ -558,7 +558,7 @@ pub fn poll_definition(
             Instant::now() + Duration::from_secs(15),
         ) {
             Ok(result) if result != serde_json::Value::Null && result != serde_json::json!([]) => {
-                return Ok(result)
+                return Ok(result);
             }
             Ok(result) => last = result,
             Err(Error::Timeout(_)) => {}

@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, point, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled, point, require_findings};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "hadolint";
@@ -159,13 +159,15 @@ mod tests {
         let err = parse_hadolint(b"[]", CONFIG_STDERR.as_bytes(), Some(0), &["Dockerfile"])
             .expect_err("config error");
         assert!(err.to_string().contains("config"), "{err}");
-        assert!(parse_hadolint(
-            DIRTY.as_bytes(),
-            CONFIG_STDERR.as_bytes(),
-            Some(1),
-            &["Dockerfile"]
-        )
-        .is_err());
+        assert!(
+            parse_hadolint(
+                DIRTY.as_bytes(),
+                CONFIG_STDERR.as_bytes(),
+                Some(1),
+                &["Dockerfile"]
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -191,13 +193,15 @@ mod tests {
         let missing =
             b"hadolint: missing: withBinaryFile: does not exist (No such file or directory)\n";
         assert!(parse_hadolint(b"", missing, Some(1), &["missing"]).is_err());
-        assert!(parse_hadolint(
-            b"",
-            b"Please provide a Dockerfile\n",
-            Some(1),
-            &["Dockerfile"]
-        )
-        .is_err());
+        assert!(
+            parse_hadolint(
+                b"",
+                b"Please provide a Dockerfile\n",
+                Some(1),
+                &["Dockerfile"]
+            )
+            .is_err()
+        );
         assert!(parse_hadolint(DIRTY.as_bytes(), b"", Some(2), &["Dockerfile"]).is_err());
         assert!(parse_hadolint(DIRTY.as_bytes(), b"", None, &["Dockerfile"]).is_err());
     }

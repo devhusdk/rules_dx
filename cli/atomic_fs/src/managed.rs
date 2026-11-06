@@ -221,7 +221,7 @@ mod tests {
         if result.is_ok() {
             return false;
         } // LCOV_EXCL_LINE - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-          // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         eprintln!("host refuses links; the copy path covers this case instead");
         true
         // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md

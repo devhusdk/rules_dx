@@ -246,9 +246,11 @@ mod tests {
         ]);
         let results = found.gaps(&["testResult"]);
         assert_eq!(results[0].outcome(), "cancelled");
-        assert!(results[0]
-            .describe()
-            .ends_with("was aborted: USER_INTERRUPTED"));
+        assert!(
+            results[0]
+                .describe()
+                .ends_with("was aborted: USER_INTERRUPTED")
+        );
         let targets = found.gaps(&["targetCompleted"]);
         assert_eq!(targets.len(), 3);
         assert_eq!(targets[0].outcome(), "aborted");

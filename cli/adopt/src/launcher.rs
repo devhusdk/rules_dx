@@ -901,9 +901,8 @@ mod tests {
     #[test]
     fn from_sha256sums_skips_symbols_lines() {
         let a = "a".repeat(64);
-        let symbols = format!(
-            "{a}  dx-windows-x86_64-pdb.zip\n{a}  dx-windows-arm64-pdb.zip.spdx.json\n"
-        );
+        let symbols =
+            format!("{a}  dx-windows-x86_64-pdb.zip\n{a}  dx-windows-arm64-pdb.zip.spdx.json\n");
         assert_eq!(
             LauncherPins::from_sha256sums(&format!("{MANIFEST}{symbols}")).expect("combined"),
             LauncherPins::from_sha256sums(MANIFEST).expect("manifest")
@@ -1084,9 +1083,11 @@ mod tests {
         assert_eq!(wrote, vec!["tools/dx"]);
         assert!(!dir.path().join(LAUNCHER_CMD_REL).exists());
         assert!(stale_launchers(dir.path()).is_empty());
-        assert!(refresh_launcher_files(dir.path())
-            .expect("current")
-            .is_empty());
+        assert!(
+            refresh_launcher_files(dir.path())
+                .expect("current")
+                .is_empty()
+        );
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -1142,9 +1143,11 @@ mod tests {
         )
         .expect("custom with VERSION");
         assert_eq!(launcher_state(dir.path(), LAUNCHER_SH_REL), None);
-        assert!(refresh_launcher_files(dir.path())
-            .expect("custom kept")
-            .is_empty());
+        assert!(
+            refresh_launcher_files(dir.path())
+                .expect("custom kept")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -1154,9 +1157,11 @@ mod tests {
             plan_launcher_files(dir.path(), true).expect("plan"),
             vec!["tools/dx", "tools/dx.cmd"]
         );
-        assert!(plan_launcher_files(dir.path(), false)
-            .expect("plan")
-            .is_empty());
+        assert!(
+            plan_launcher_files(dir.path(), false)
+                .expect("plan")
+                .is_empty()
+        );
         assert!(!dir.path().join("tools").exists());
     }
 

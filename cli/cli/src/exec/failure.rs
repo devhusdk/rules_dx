@@ -1,6 +1,6 @@
-use super::common::{emit_event, flush_out, stdout_output_code, CODE_INVALID_RESULT};
+use super::common::{CODE_INVALID_RESULT, emit_event, flush_out, stdout_output_code};
 use dx_output::{
-    command_finished, failure_event, Excerpt, FailureFacts, FinishedCounts, OutputMode,
+    Excerpt, FailureFacts, FinishedCounts, OutputMode, command_finished, failure_event,
 };
 use dx_plan::resolve::{QueryFailure, ResolveError};
 use dx_process::{interrupted, interrupted_code, operational_code, pre_exec_code};
@@ -334,10 +334,10 @@ pub fn report_failure(
     } else if let Some(next) = super::guidance::next_action(&failure.code) {
         let _ = writeln!(err, "{next}");
     }
-    if output == OutputMode::Json {
-        if let Err(exit) = emit_failure_events(out, failure) {
-            return exit;
-        }
+    if output == OutputMode::Json
+        && let Err(exit) = emit_failure_events(out, failure)
+    {
+        return exit;
     }
     failure.exit
 }

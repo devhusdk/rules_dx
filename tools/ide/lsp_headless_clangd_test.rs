@@ -25,8 +25,8 @@ struct CppFixture {
 fn stage_cpp(tag: &str, clang: &Path) -> CppFixture {
     let root_tmp = dx_test_scratch::scratch(tag);
     let root = root_tmp.path().to_path_buf();
-    let gen = root.join("gen");
-    let header = gen.join("probe_generated.h");
+    let gen_dir = root.join("gen");
+    let header = gen_dir.join("probe_generated.h");
     write_text(&header, CPP_HEADER);
     let main = root.join("main.cc");
     write_text(&main, CPP_MAIN);
@@ -40,7 +40,7 @@ fn stage_cpp(tag: &str, clang: &Path) -> CppFixture {
             "-o".to_owned(),
             root.join("main.o").to_string_lossy().into_owned(),
             "-I".to_owned(),
-            gen.to_string_lossy().into_owned(),
+            gen_dir.to_string_lossy().into_owned(),
             "-std=c++17".to_owned(),
         ],
     };

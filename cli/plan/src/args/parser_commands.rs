@@ -1,6 +1,6 @@
 use super::super::command::owners::{AFFECTED_OWNERS, PROFILE_OWNERS};
 use super::super::scope_error;
-use super::super::{assert_usage, ArgsError, Command, OperationMode};
+use super::super::{ArgsError, Command, OperationMode, assert_usage};
 use super::parse;
 use clap::ValueEnum;
 use dx_output::{OutputMode, Threshold};

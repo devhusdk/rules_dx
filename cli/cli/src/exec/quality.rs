@@ -5,22 +5,22 @@ use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
 use super::notice_codes::CODE_CHANGES_PROPOSED;
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
-use super::quality_emit::{emit_findings, EmitInputs};
+use super::quality_emit::{EmitInputs, emit_findings};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{
-    verified_snapshots, write_standard_reports, Snapshots, StandardReports,
+    Snapshots, StandardReports, verified_snapshots, write_standard_reports,
 };
 use super::results::{collect_results, invert_repo_mapping};
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
-    command_finished, meets_threshold, notice_event, quality_started, ActionCounts, FinishedCounts,
-    NoticeEvent, OutputMode, Severity,
+    ActionCounts, FinishedCounts, NoticeEvent, OutputMode, Severity, command_finished,
+    meets_threshold, notice_event, quality_started,
 };
-use dx_plan::args::{Command, Invocation, QualityRequest, BREAKING_AGAINST_OPTION};
+use dx_plan::args::{BREAKING_AGAINST_OPTION, Command, Invocation, QualityRequest};
 use dx_plan::plan::{
-    bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP,
+    SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Selection, bep_path, plan_build_with, plan_probe,
 };
-use dx_plan::reports::{plan_reports, Destination};
+use dx_plan::reports::{Destination, plan_reports};
 use dx_plan::resolve::resolve;
 use std::collections::BTreeSet;
 use std::io::Write;
@@ -159,10 +159,10 @@ pub(super) fn guard_build_output(
                     .collect();
                 return Some(operational_build_output(output, out, err, &lines));
             }
-            if output != OutputMode::Json {
-                if let Some(note) = report.committed_skipped {
-                    let _ = writeln!(err, "dx: build-output check: {note}");
-                }
+            if output != OutputMode::Json
+                && let Some(note) = report.committed_skipped
+            {
+                let _ = writeln!(err, "dx: build-output check: {note}");
             }
             None
         }
@@ -332,10 +332,11 @@ fn run_quality_request(
         Ok(planned) => planned,
         Err(error) => return pre_exec(request.common.output, out, err, &error.to_string()),
     };
-    if request.command == Command::Lint && !request.applies() {
-        if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
-            return exit;
-        }
+    if request.command == Command::Lint
+        && !request.applies()
+        && let Some(exit) = guard_build_output(workspace, request.common.output, out, err)
+    {
+        return exit;
     }
     let stdout_report = planned_reports
         .iter()
@@ -417,10 +418,11 @@ fn run_quality_request(
         ) {
             return exit;
         }
-    } else if request.chatty() && !stdout_report {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{}", build.summary)) {
-            return exit;
-        }
+    } else if request.chatty()
+        && !stdout_report
+        && let Err(exit) = check_stdout_write(writeln!(out, "{}", build.summary))
+    {
+        return exit;
     }
     if let Err(exit) = warn_scope_excluded(request.common.output, out, err, &resolved.kept) {
         return exit;

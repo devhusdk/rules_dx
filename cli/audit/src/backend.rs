@@ -66,11 +66,11 @@ pub fn plan_secrets(
         EXIT_CODE_FLAG.to_owned(),
         SECRETS_ERROR_EXIT.to_owned(),
     ];
-    if let Some(config) = config {
-        if !config.trim().is_empty() {
-            argv.push(CONFIG_FLAG.to_owned());
-            argv.push(config.to_owned());
-        }
+    if let Some(config) = config
+        && !config.trim().is_empty()
+    {
+        argv.push(CONFIG_FLAG.to_owned());
+        argv.push(config.to_owned());
     }
     Ok(BackendPlan {
         argv,
@@ -269,19 +269,21 @@ mod tests {
             vec!["uv"]
         );
         assert!(sets_without_coverage(["cargo", "npm", "maven", "nuget", "go"]).is_empty());
-        assert!(sets_without_coverage([
-            "cargo",
-            "npm",
-            "npm-adopt",
-            "npm-adopt-polyglot",
-            "npm-tools",
-            "maven",
-            "nuget",
-            "powershell",
-            "go",
-            "ruby"
-        ])
-        .is_empty());
+        assert!(
+            sets_without_coverage([
+                "cargo",
+                "npm",
+                "npm-adopt",
+                "npm-adopt-polyglot",
+                "npm-tools",
+                "maven",
+                "nuget",
+                "powershell",
+                "go",
+                "ruby"
+            ])
+            .is_empty()
+        );
         assert_eq!(sets_without_coverage(["unknown-set"]), vec!["unknown-set"]);
     }
 

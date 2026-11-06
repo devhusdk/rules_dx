@@ -1,7 +1,7 @@
 use crate::lifecycle::{base, nonempty};
 use crate::severity::Severity;
-use crate::validation::{check_path, OutputError};
-use serde_json::{json, Value};
+use crate::validation::{OutputError, check_path};
+use serde_json::{Value, json};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Snapshot {
@@ -134,10 +134,10 @@ fn check_diagnostic(diagnostic: &DiagnosticEvent) -> Result<(), OutputError> {
     } else if diagnostic.range.is_some() {
         return Err(OutputError::RangeWithoutPath);
     }
-    if let Some((start, end)) = diagnostic.range {
-        if start > end {
-            return Err(OutputError::InvertedRange);
-        }
+    if let Some((start, end)) = diagnostic.range
+        && start > end
+    {
+        return Err(OutputError::InvertedRange);
     }
     for item in &diagnostic.related {
         nonempty("related role", &item.role)?;

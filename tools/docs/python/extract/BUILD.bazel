@@ -24,7 +24,6 @@ rust_library(
     ),
     crate_name = "dx_docs_python_extract",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/python/python_extract",
         normal = True,
@@ -43,7 +42,6 @@ rust_binary(
     ),
     crate_name = "python_extract",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/python/python_extract",
         normal = True,
@@ -64,7 +62,6 @@ rust_test(
     compile_data = glob(["testdata/*.json"]),
     crate_name = "dx_docs_python_extract",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/python/python_extract",
         normal = True,

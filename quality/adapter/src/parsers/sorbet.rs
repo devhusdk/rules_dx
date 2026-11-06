@@ -1,6 +1,6 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-use super::{as_text, code_name, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "sorbet";
 
@@ -31,7 +31,7 @@ pub fn parse_sorbet(
             return Err(ParseError::shape(
                 TOOL,
                 format!("exit {}: {}", code_name(code), excerpt(text)),
-            ))
+            ));
         }
     }
     let mut headers = 0_usize;
@@ -84,7 +84,7 @@ pub fn parse_sorbet(
                     "exit 100 with {headers} error line(s) and count {counted:?}: {}",
                     excerpt(text)
                 ),
-            ))
+            ));
         }
     }
     findings.sort_by(|a, b| (&a.file, a.finding.start.line).cmp(&(&b.file, b.finding.start.line)));
@@ -157,9 +157,11 @@ mod tests {
                 ),
             ]
         );
-        assert!(found
-            .iter()
-            .all(|f| f.finding.severity == ToolSeverity::Error));
+        assert!(
+            found
+                .iter()
+                .all(|f| f.finding.severity == ToolSeverity::Error)
+        );
     }
 
     #[test]
@@ -169,9 +171,11 @@ mod tests {
                 .expect("clean")
                 .is_empty()
         );
-        assert!(parse_sorbet(ERRORS.as_bytes(), Some(100), &["/s/other.rb"])
-            .expect("dependency only")
-            .is_empty());
+        assert!(
+            parse_sorbet(ERRORS.as_bytes(), Some(100), &["/s/other.rb"])
+                .expect("dependency only")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -181,19 +185,23 @@ mod tests {
         assert!(parse_sorbet(b"boom\n", None, &[]).is_err());
         assert!(parse_sorbet(b"Errors: 1\n", Some(100), &["/s/a.rb"]).is_err());
         // An error without a line number is counted but has no header.
-        assert!(parse_sorbet(
-            b"nonexist.rb: File Not Found https://srb.help/1004\nErrors: 1\n",
-            Some(100),
-            &["nonexist.rb"]
-        )
-        .is_err());
+        assert!(
+            parse_sorbet(
+                b"nonexist.rb: File Not Found https://srb.help/1004\nErrors: 1\n",
+                Some(100),
+                &["nonexist.rb"]
+            )
+            .is_err()
+        );
         // The summary must match the header lines.
-        assert!(parse_sorbet(
-            b"/s/a.rb:1: m https://srb.help/1\nErrors: 2\n",
-            Some(100),
-            &["/s/a.rb"]
-        )
-        .is_err());
+        assert!(
+            parse_sorbet(
+                b"/s/a.rb:1: m https://srb.help/1\nErrors: 2\n",
+                Some(100),
+                &["/s/a.rb"]
+            )
+            .is_err()
+        );
         assert!(parse_sorbet(b"/s/a.rb:1: m\nErrors: x\n", Some(100), &["/s/a.rb"]).is_err());
     }
 

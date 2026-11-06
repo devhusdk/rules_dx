@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, known, row_col, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known, row_col, unformatted_at};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -157,11 +157,13 @@ mod tests {
     #[test]
     fn csharpier_rejects_an_unknown_error_line() {
         assert!(parse_csharpier(b"Error /s/Sample.cs - Boom.\n", Some(1), &[FILE]).is_err());
-        assert!(parse_csharpier(
-            b"There was no file or directory found at x\n",
-            Some(1),
-            &[FILE]
-        )
-        .is_err());
+        assert!(
+            parse_csharpier(
+                b"There was no file or directory found at x\n",
+                Some(1),
+                &[FILE]
+            )
+            .is_err()
+        );
     }
 }

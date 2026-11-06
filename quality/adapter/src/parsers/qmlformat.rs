@@ -1,4 +1,4 @@
-use super::{rewrite_format, FileFinding, ParseError};
+use super::{FileFinding, ParseError, rewrite_format};
 use crate::ColumnEncoding;
 
 pub fn parse_qmlformat(

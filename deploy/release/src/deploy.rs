@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use crate::{bcr_run, signing_run, CosignPin};
+use crate::{CosignPin, bcr_run, signing_run};
 
 /// Config for one `bcr_check` deploy.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

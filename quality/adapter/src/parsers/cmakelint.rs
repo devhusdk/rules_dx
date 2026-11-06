@@ -1,4 +1,4 @@
-use super::{as_text, code_name, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "cmakelint";
@@ -151,9 +151,11 @@ mod tests {
 
     #[test]
     fn cmakelint_clean_run_is_clean() {
-        assert!(run("", "Total Errors: 0\n", Some(0))
-            .expect("clean")
-            .is_empty());
+        assert!(
+            run("", "Total Errors: 0\n", Some(0))
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -206,12 +208,14 @@ mod tests {
     #[test]
     fn cmakelint_ignored_files_and_odd_lines_are_errors() {
         assert!(run("Ignoring file: x.txt\n", "Total Errors: 0\n", Some(0)).is_err());
-        assert!(run(
-            "Exception occurred while processing 'CMakeLists.txt:1':\n",
-            "Total Errors: 0\n",
-            Some(0)
-        )
-        .is_err());
+        assert!(
+            run(
+                "Exception occurred while processing 'CMakeLists.txt:1':\n",
+                "Total Errors: 0\n",
+                Some(0)
+            )
+            .is_err()
+        );
         assert!(run("CMakeLists.txt:x: m [a/b]\n", "Total Errors: 1\n", Some(1)).is_err());
         assert!(run("CMakeLists.txt:1: m\n", "Total Errors: 1\n", Some(1)).is_err());
         assert!(run("\n", "Total Errors: 0\n", Some(0)).is_err());

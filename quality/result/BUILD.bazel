@@ -17,7 +17,6 @@ rust_library(
     ),
     crate_name = "quality_result",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "quality/quality_result",
         normal = True,
@@ -76,7 +75,6 @@ rust_binary(
     ),
     crate_name = "print_result",
     crate_root = "src/print.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "quality/quality_result",
         normal = True,

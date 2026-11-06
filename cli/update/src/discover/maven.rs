@@ -1,6 +1,6 @@
 //! Lists Maven artifacts whose newest release on Maven Central is newer than the declared version.
 
-use super::{wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use dx_module_bazel::ModuleFile;
 use mvn_version::ComparableVersion;
 
@@ -106,7 +106,9 @@ mod tests {
             .iter()
             .map(|v| format!("<version>{v}</version>"))
             .collect();
-        format!("<metadata><versioning><latest>zzz</latest><versions>{list}</versions></versioning></metadata>")
+        format!(
+            "<metadata><versioning><latest>zzz</latest><versions>{list}</versions></versioning></metadata>"
+        )
     }
 
     fn repo(url: &str) -> Result<String, String> {

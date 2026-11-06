@@ -1,11 +1,11 @@
 use super::super::common::{
-    check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec, Env,
+    Env, check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec,
 };
-use super::super::pinned_tool::{resolve_pinned, PinnedTool, PinnedToolError, QueryBazel};
-use super::super::staged::{run_staged_core, write_outputs, StagedError, ToolRun};
+use super::super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
+use super::super::staged::{StagedError, ToolRun, run_staged_core, write_outputs};
 use super::{
-    record_backend_error, record_named, runner_status, unavailable_message, RunMode, SetDetail,
-    SlotGate,
+    RunMode, SetDetail, SlotGate, record_backend_error, record_named, runner_status,
+    unavailable_message,
 };
 use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, ResolvedTarget, Selection};
 use dx_plan::args::Invocation;
@@ -41,10 +41,8 @@ pub(super) fn execute_configured(
         ) {
             return exit;
         }
-    } else if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-            return exit;
-        }
+    } else if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+        return exit;
     }
     let mut outcomes = Outcomes::default();
     let mut gate = SlotGate {
@@ -172,17 +170,17 @@ fn run_configured_target(
         );
         return Ok(());
     }
-    if mode == RunMode::Check {
-        if let Err(error) = dependency_sets::check_lock_ready(workspace, set) {
-            record_named(
-                attempted,
-                details,
-                &set.name,
-                dx_update::outcome::SetStatus::Unsupported,
-                format!("cannot {verb} {}: {error}", set.name),
-            );
-            return Ok(());
-        }
+    if mode == RunMode::Check
+        && let Err(error) = dependency_sets::check_lock_ready(workspace, set)
+    {
+        record_named(
+            attempted,
+            details,
+            &set.name,
+            dx_update::outcome::SetStatus::Unsupported,
+            format!("cannot {verb} {}: {error}", set.name),
+        );
+        return Ok(());
     }
     if let Some(error) = dx_update::backend::host_env_refusal(set, mode == RunMode::Check, &|key| {
         std::env::var_os(key).is_some()
@@ -398,10 +396,10 @@ fn run_staged(
         Err(StagedError::Exit(code)) => return Err(code),
         Err(StagedError::Failed { message, code }) => {
             record_named(attempted, details, &set.name, SetStatus::Failed, message);
-            if let Some(code) = code {
-                if let Some(detail) = details.get_mut(&set.name) {
-                    detail.failure_code = Some(code);
-                }
+            if let Some(code) = code
+                && let Some(detail) = details.get_mut(&set.name)
+            {
+                detail.failure_code = Some(code);
             }
             return Ok(());
         }
@@ -643,7 +641,7 @@ fn success_line(set: &ResolvedSet, request: &Selection) -> String {
 mod tests {
     use super::super::super::test_support::Harness;
     use super::super::super::test_support::{event, event_kinds, json_events};
-    use super::super::update_live::{fake_pinned, Launch, ScriptRunner};
+    use super::super::update_live::{Launch, ScriptRunner, fake_pinned};
 
     fn uv_call(check: bool, dir: &str) -> Vec<String> {
         let mut argv = vec![fake_pinned("uv"), "lock".to_owned()];
@@ -807,9 +805,11 @@ source = { registry = "https://pypi.org/simple" }
         let calls = harness.query.calls.borrow();
         assert_eq!(calls.len(), 2, "one cquery per tool: {calls:?}");
         assert!(calls[0].contains(&"@dx_tools//:uv".to_owned()), "{calls:?}");
-        assert!(!calls[0]
-            .iter()
-            .any(|arg| arg.contains("repository_disable")));
+        assert!(
+            !calls[0]
+                .iter()
+                .any(|arg| arg.contains("repository_disable"))
+        );
         let launched = runner.calls.borrow();
         assert_eq!(launched.len(), 2, "{launched:?}");
         let uv = base.path().join("external").join("x").join("uv");
@@ -1117,7 +1117,11 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_invalid_config_fails_before_any_backend() {
-        let harness = consumer_harness("invalid", "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\")\n", true);
+        let harness = consumer_harness(
+            "invalid",
+            "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\")\n",
+            true,
+        );
         let runner = ScriptRunner::new(&[]);
         let (code, _, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 2, "{err}");
@@ -1251,10 +1255,12 @@ source = { registry = "https://pypi.org/simple" }
         ] {
             assert_eq!(read_bytes(&harness, rel), PNPM_LOCK.as_bytes(), "{rel}");
         }
-        assert!(!harness
-            .workspace
-            .join("consumer-npm/web/node_modules")
-            .exists());
+        assert!(
+            !harness
+                .workspace
+                .join("consumer-npm/web/node_modules")
+                .exists()
+        );
     }
 
     #[test]
@@ -2081,7 +2087,9 @@ source = { registry = "https://pypi.org/simple" }
     fn nuget_harness(name: &str) -> Harness {
         let harness = consumer_harness(
             name,
-            &format!("{UV_MODULE}paket = use_extension(\"//third_party/dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n"),
+            &format!(
+                "{UV_MODULE}paket = use_extension(\"//third_party/dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n"
+            ),
             true,
         );
         for dir in ["dotnet", "dotnet_tools"] {
@@ -2211,10 +2219,12 @@ source = { registry = "https://pypi.org/simple" }
                 assert_eq!(after[index], before[index], "{rel}");
             }
         }
-        assert!(!harness
-            .workspace
-            .join("third_party/dotnet/deps/paket.main_extension.bzl")
-            .exists());
+        assert!(
+            !harness
+                .workspace
+                .join("third_party/dotnet/deps/paket.main_extension.bzl")
+                .exists()
+        );
         assert!(!scratch_out(&runner).exists());
     }
 
@@ -2284,12 +2294,16 @@ source = { registry = "https://pypi.org/simple" }
             OPAM_FILE.replace("0.8.5", "0.9.0").as_bytes()
         );
         let launches = runner.launches.borrow();
-        assert!(launches
-            .iter()
-            .any(|run| run.argv.iter().any(|a| a == "upgrade")));
-        assert!(launches
-            .iter()
-            .any(|run| run.argv.iter().any(|a| a == "lock")));
+        assert!(
+            launches
+                .iter()
+                .any(|run| run.argv.iter().any(|a| a == "upgrade"))
+        );
+        assert!(
+            launches
+                .iter()
+                .any(|run| run.argv.iter().any(|a| a == "lock"))
+        );
     }
 
     #[test]
@@ -2437,7 +2451,9 @@ source = { registry = "https://pypi.org/simple" }
     fn go_harness(name: &str) -> Harness {
         let harness = consumer_harness(
             name,
-            &format!("{UV_MODULE}bazel_dep(name = \"rules_go\", version = \"0.50.1\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n"),
+            &format!(
+                "{UV_MODULE}bazel_dep(name = \"rules_go\", version = \"0.50.1\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n"
+            ),
             true,
         );
         harness.write_source("third_party/go/go.mod", GO_MOD);
@@ -2687,10 +2703,12 @@ source = { registry = "https://pypi.org/simple" }
             err.contains("check_wrote: consumer-rs/crates/Cargo.lock (restored)"),
             "{err}"
         );
-        assert!(std::fs::symlink_metadata(&at)
-            .expect("meta")
-            .file_type()
-            .is_symlink());
+        assert!(
+            std::fs::symlink_metadata(&at)
+                .expect("meta")
+                .file_type()
+                .is_symlink()
+        );
         assert_eq!(std::fs::read(&real).expect("real"), before);
     }
 

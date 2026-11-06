@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
 use super::{
-    as_text, check_output_size, code_name, finding, known_native, unformatted_at, FileFinding,
-    ParseError,
+    FileFinding, ParseError, as_text, check_output_size, code_name, finding, known_native,
+    unformatted_at,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -186,9 +186,11 @@ mod tests {
     #[test]
     fn fmt_clean_and_dirty() {
         let clean = b"package a\n\nx := 1\n";
-        assert!(parse_opa_fmt(clean, b"", Some(0), clean, "/s/a.rego")
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_opa_fmt(clean, b"", Some(0), clean, "/s/a.rego")
+                .expect("ok")
+                .is_empty()
+        );
         let dirty = b"package a\n\nx :=   1\n";
         let found = parse_opa_fmt(clean, b"", Some(0), dirty, "/s/a.rego").expect("ok");
         assert_eq!(found.len(), 1);
@@ -231,9 +233,11 @@ mod tests {
 
     #[test]
     fn check_clean_run_has_no_findings() {
-        assert!(parse_opa_check(b"", b"", Some(0), &FILES)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_opa_check(b"", b"", Some(0), &FILES)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]

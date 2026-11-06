@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use super::{check_output_size, code_name, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "redocly";
@@ -251,10 +251,12 @@ mod tests {
         let body = problem("struct", "warn", "api\\\\schemas\\\\pet.yaml", 2, 1);
         let findings = parse(&report(0, 1, &body), Some(0)).expect("windows");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
-        assert!(findings[0]
-            .finding
-            .message
-            .starts_with("api/schemas/pet.yaml:2:1"));
+        assert!(
+            findings[0]
+                .finding
+                .message
+                .starts_with("api/schemas/pet.yaml:2:1")
+        );
     }
 
     #[test]

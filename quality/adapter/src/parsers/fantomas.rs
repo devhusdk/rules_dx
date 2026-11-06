@@ -4,7 +4,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 use super::{
-    check_output_size, code_name, finding, known, unformatted_at, FileFinding, ParseError,
+    FileFinding, ParseError, check_output_size, code_name, finding, known, unformatted_at,
 };
 use crate::ToolSeverity;
 
@@ -178,27 +178,33 @@ mod tests {
         .expect("parsed");
         assert!(clean.is_empty());
         assert!(parse_fantomas(b"", Some(99), &["x"], Path::new("/scratch")).is_err());
-        assert!(parse_fantomas(
-            DIRTY.as_bytes(),
-            Some(0),
-            &["fsharp/tests/fixtures/fantomas/Sample.fs"],
-            Path::new("/scratch")
-        )
-        .is_err());
-        assert!(parse_fantomas(
-            CLEAN.as_bytes(),
-            Some(99),
-            &["fsharp/tests/fixtures/fantomas/Sample.fs"],
-            Path::new("/scratch")
-        )
-        .is_err());
-        assert!(parse_fantomas(
-            DIRTY.as_bytes(),
-            Some(99),
-            &["other.fs"],
-            Path::new("/scratch")
-        )
-        .is_err());
+        assert!(
+            parse_fantomas(
+                DIRTY.as_bytes(),
+                Some(0),
+                &["fsharp/tests/fixtures/fantomas/Sample.fs"],
+                Path::new("/scratch")
+            )
+            .is_err()
+        );
+        assert!(
+            parse_fantomas(
+                CLEAN.as_bytes(),
+                Some(99),
+                &["fsharp/tests/fixtures/fantomas/Sample.fs"],
+                Path::new("/scratch")
+            )
+            .is_err()
+        );
+        assert!(
+            parse_fantomas(
+                DIRTY.as_bytes(),
+                Some(99),
+                &["other.fs"],
+                Path::new("/scratch")
+            )
+            .is_err()
+        );
         assert!(parse_fantomas(&[0xff], Some(99), &["x"], Path::new("/scratch")).is_err());
         let syntax = r#"{"command": "check", "exitCode": 1, "error": null, "files": [{"path": "a.fs", "status": "error", "message": "a.fs could not be parsed by Fantomas", "diagnostics": [{"severity": "error", "code": "FS0010", "message": "Unexpected symbol", "range": {"startLine": 2, "startColumn": 9, "endLine": 2, "endColumn": 10}}]}]}"#;
         let found = parse_fantomas(syntax.as_bytes(), Some(1), &["a.fs"], Path::new("/scratch"))
@@ -215,13 +221,15 @@ mod tests {
             .expect("parsed");
         assert_eq!(found[0].finding.rule_id, "syntax");
         let missing = r#"{"error": "Input path 'x.fs' not found.", "files": []}"#;
-        assert!(parse_fantomas(
-            missing.as_bytes(),
-            Some(1),
-            &["x.fs"],
-            Path::new("/scratch")
-        )
-        .is_err());
+        assert!(
+            parse_fantomas(
+                missing.as_bytes(),
+                Some(1),
+                &["x.fs"],
+                Path::new("/scratch")
+            )
+            .is_err()
+        );
         let absolute = DIRTY.replace(
             "fsharp/tests/fixtures/fantomas/Sample.fs",
             "/scratch/core/Sample.fs",
@@ -235,12 +243,14 @@ mod tests {
         .expect("parsed");
         assert_eq!(found[0].file, "core/Sample.fs");
         let bad_status = r#"{"files": [{"path": "x", "status": "bogus"}]}"#;
-        assert!(parse_fantomas(
-            bad_status.as_bytes(),
-            Some(99),
-            &["x"],
-            Path::new("/scratch")
-        )
-        .is_err());
+        assert!(
+            parse_fantomas(
+                bad_status.as_bytes(),
+                Some(99),
+                &["x"],
+                Path::new("/scratch")
+            )
+            .is_err()
+        );
     }
 }

@@ -48,12 +48,12 @@ pub fn parse_envelope(json: &str) -> Result<Envelope, EnvelopeError> {
         if op.path.is_empty() {
             return Err(EnvelopeError::EmptyPath);
         }
-        if let Some(digest) = &op.original_sha256 {
-            if !dx_digest::is_hex(digest) {
-                return Err(EnvelopeError::InvalidDigest {
-                    path: op.path.clone(),
-                });
-            }
+        if let Some(digest) = &op.original_sha256
+            && !dx_digest::is_hex(digest)
+        {
+            return Err(EnvelopeError::InvalidDigest {
+                path: op.path.clone(),
+            });
         }
     }
     Ok(envelope)

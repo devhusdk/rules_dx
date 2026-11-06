@@ -21,25 +21,25 @@ fn pnpm_resolution_is_git(resolution: &yaml_serde::Value) -> bool {
             }
         })
     };
-    if let Some(kind) = get_str("type") {
-        if kind.trim().eq_ignore_ascii_case("git") {
-            return true;
-        }
+    if let Some(kind) = get_str("type")
+        && kind.trim().eq_ignore_ascii_case("git")
+    {
+        return true;
     }
-    if let Some(commit) = get_str("commit") {
-        if !commit.trim().is_empty() {
-            return true;
-        }
+    if let Some(commit) = get_str("commit")
+        && !commit.trim().is_empty()
+    {
+        return true;
     }
-    if let Some(repo) = get_str("repo") {
-        if is_npm_git_reference(&repo) {
-            return true;
-        }
+    if let Some(repo) = get_str("repo")
+        && is_npm_git_reference(&repo)
+    {
+        return true;
     }
-    if let Some(tarball) = get_str("tarball") {
-        if is_npm_git_reference(&tarball) {
-            return true;
-        }
+    if let Some(tarball) = get_str("tarball")
+        && is_npm_git_reference(&tarball)
+    {
+        return true;
     }
     false
 }
@@ -129,7 +129,7 @@ fn pnpm_packages_from_value(
             _ => {
                 return Err(format!(
                     "invalid pnpm-lock.yaml: unusable package key {key_value:?}"
-                ))
+                ));
             }
         };
         if key.contains("link:") || key.contains("file:") {
@@ -206,12 +206,12 @@ pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
     }
     if out.is_empty() {
         let single: Result<yaml_serde::Value, _> = yaml_serde::from_str(text);
-        if let Ok(value) = single {
-            if let Some(packages) = value.get("packages") {
-                if !packages.is_null() && packages.as_mapping().is_none() {
-                    return Err("invalid pnpm-lock.yaml: missing packages".to_owned());
-                }
-            }
+        if let Ok(value) = single
+            && let Some(packages) = value.get("packages")
+            && !packages.is_null()
+            && packages.as_mapping().is_none()
+        {
+            return Err("invalid pnpm-lock.yaml: missing packages".to_owned());
         }
     }
     out.sort_by(|a, b| (&a.name, &a.version, a.is_git).cmp(&(&b.name, &b.version, b.is_git)));

@@ -15,7 +15,6 @@ rust_binary(
     ),
     crate_name = "qt_rust_bridge",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "qt/qt_rust_bridge",
         normal = True,

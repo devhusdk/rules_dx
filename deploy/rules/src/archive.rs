@@ -1,6 +1,6 @@
 //! Deterministic tar, gzip and zip archives, plus the archive publisher.
 
-use crate::run::{check_size_budget, deploy_profile, tree_bytes, DeployRun};
+use crate::run::{DeployRun, check_size_budget, deploy_profile, tree_bytes};
 use crate::stage::*;
 use std::io::{self, Read, Write};
 use std::path::Path;
@@ -13,8 +13,7 @@ const UID: u64 = 0;
 
 const GID: u64 = 0;
 
-const USTAR_LIMIT: &str =
-    "must be at most 100 bytes, or split at a '/' into a prefix of at most 155 bytes and a name of at most 100 bytes, with no NUL";
+const USTAR_LIMIT: &str = "must be at most 100 bytes, or split at a '/' into a prefix of at most 155 bytes and a name of at most 100 bytes, with no NUL";
 
 /// Returns whether a path fits the ustar name and prefix fields.
 fn fits_ustar(name: &str) -> bool {
@@ -1049,14 +1048,16 @@ mod tests {
         std::fs::write(&plain, b"plain\n").expect("write plain");
         let out = scratch.path().join("out.tar.gz");
         assert!(archive_members(&[], &out).is_err());
-        assert!(archive_members(
-            &[
-                ("plain.txt", plain.as_path(), false),
-                ("plain.txt", plain.as_path(), false)
-            ],
-            &out
-        )
-        .is_err());
+        assert!(
+            archive_members(
+                &[
+                    ("plain.txt", plain.as_path(), false),
+                    ("plain.txt", plain.as_path(), false)
+                ],
+                &out
+            )
+            .is_err()
+        );
         assert!(archive_members(&[("/absolute", plain.as_path(), false)], &out).is_err());
         assert!(archive_members(&[("../escape", plain.as_path(), false)], &out).is_err());
         let missing = scratch.path().join("does-not-exist");

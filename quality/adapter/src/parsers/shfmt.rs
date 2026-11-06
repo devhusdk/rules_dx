@@ -1,4 +1,4 @@
-use super::{diff_format, DiffExit, FileFinding, ParseError};
+use super::{DiffExit, FileFinding, ParseError, diff_format};
 
 pub fn parse_shfmt(
     stdout: &[u8],

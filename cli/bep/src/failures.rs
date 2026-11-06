@@ -211,10 +211,10 @@ fn aborted_class(reason: Option<&str>) -> Option<(FailureStage, &'static str)> {
 
 fn label_of<'a>(id: &'a Map<String, Value>, keys: &[&str]) -> Option<(&'a str, Option<String>)> {
     for key in keys {
-        if let Some(entry) = id.get(*key).and_then(Value::as_object) {
-            if let Some(label) = entry.get("label").and_then(Value::as_str) {
-                return Some((label, configuration_of(entry)));
-            }
+        if let Some(entry) = id.get(*key).and_then(Value::as_object)
+            && let Some(label) = entry.get("label").and_then(Value::as_str)
+        {
+            return Some((label, configuration_of(entry)));
         }
     }
     None
@@ -254,20 +254,20 @@ pub fn collect_build_failures(reader: impl BufRead) -> BuildFailures {
         let Some(id) = object.get("id").and_then(Value::as_object) else {
             continue;
         };
-        if let Some(configured) = object.get("configured").and_then(Value::as_object) {
-            if let Some((label, _)) = label_of(id, &["targetConfigured"]) {
-                let is_test = configured
-                    .get("targetKind")
-                    .and_then(Value::as_str)
-                    .is_some_and(|kind| kind.ends_with("_test rule"))
-                    || configured.contains_key("testSize");
-                let kind = if is_test {
-                    FailedTargetKind::Test
-                } else {
-                    FailedTargetKind::Other
-                };
-                kinds.insert(label.to_owned(), kind);
-            }
+        if let Some(configured) = object.get("configured").and_then(Value::as_object)
+            && let Some((label, _)) = label_of(id, &["targetConfigured"])
+        {
+            let is_test = configured
+                .get("targetKind")
+                .and_then(Value::as_str)
+                .is_some_and(|kind| kind.ends_with("_test rule"))
+                || configured.contains_key("testSize");
+            let kind = if is_test {
+                FailedTargetKind::Test
+            } else {
+                FailedTargetKind::Other
+            };
+            kinds.insert(label.to_owned(), kind);
         }
         if let Some(action) = object.get("action").and_then(Value::as_object) {
             if action.get("success").and_then(Value::as_bool) == Some(true) {

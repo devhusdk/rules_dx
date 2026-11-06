@@ -1,7 +1,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::{Run, mkscratch, resolve_runfiles, run};
 
 const FAKE_SECURITY: &str = r#"#!/bin/sh
 printf 'security %s\n' "$*" >>"$FAKE_LOG"
@@ -519,7 +519,11 @@ fn a_profile_that_does_not_cover_the_app_fails() {
     let other_cert = PROFILE.replace("ab:cd:ef:01", "99:88:77:66");
     let narrow = PROFILE.replace("Entitlements.get-task-allow=true\n", "");
     let cases = [
-        (&expired, &expired, "provisioning profile {p} expired on 2026-01-01T00:00:00Z"),
+        (
+            &expired,
+            &expired,
+            "provisioning profile {p} expired on 2026-01-01T00:00:00Z",
+        ),
         (
             &other_app,
             &other_app,
@@ -530,7 +534,11 @@ fn a_profile_that_does_not_cover_the_app_fails() {
             &PROFILE.to_owned(),
             "{ipa} embeds a provisioning profile other than the declared {p}",
         ),
-        (&other_cert, &other_cert, "certificate ABCDEF01 is not in the provisioning profile {p}"),
+        (
+            &other_cert,
+            &other_cert,
+            "certificate ABCDEF01 is not in the provisioning profile {p}",
+        ),
         (
             &narrow,
             &narrow,

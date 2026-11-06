@@ -1,9 +1,9 @@
 //! Serves the rendered site and drives it in a real Firefox at every hosting base.
 
-use dx_site_browser::{wait_for, Browser};
+use dx_site_browser::{Browser, wait_for};
 
 mod preview_server;
-use preview_server::{firefox_binary, search_query, user_site, Server};
+use preview_server::{Server, firefox_binary, search_query, user_site};
 
 const DESKTOP: (u64, u64) = (1280, 900);
 const PHONE: (u64, u64) = (390, 780);

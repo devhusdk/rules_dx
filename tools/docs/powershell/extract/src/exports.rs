@@ -12,15 +12,14 @@ pub struct Public<'a> {
 
 /// Returns the exported functions in definition order, or why the set cannot be known.
 pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
-    if let Some(manifest) = &api.manifest {
-        if let Some(root) = &manifest.root_module {
-            if root.to_ascii_lowercase().ends_with(".dll") {
-                return Err(format!(
-                    "{}: RootModule '{root}' is a binary module, which is not supported",
-                    manifest.rel
-                ));
-            }
-        }
+    if let Some(manifest) = &api.manifest
+        && let Some(root) = &manifest.root_module
+        && root.to_ascii_lowercase().ends_with(".dll")
+    {
+        return Err(format!(
+            "{}: RootModule '{root}' is a binary module, which is not supported",
+            manifest.rel
+        ));
     }
     let all: Vec<Public<'_>> = api
         .files
@@ -45,7 +44,7 @@ pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
                 return Err(format!(
                     "{}: FunctionsToExport '{other}' must be '*' or a list",
                     manifest.rel
-                ))
+                ));
             }
             Some(Names::List(patterns)) => {
                 require_defined(&manifest.rel, patterns, &all)?;
@@ -78,7 +77,7 @@ fn exported_by_module<'a>(
                 return Err(format!(
                     "{}: Export-ModuleMember -Function is not a literal list",
                     file.rel
-                ))
+                ));
             }
             ExportKind::Literal => {
                 literal = true;

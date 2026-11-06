@@ -1,11 +1,11 @@
 //! OCI image publisher: layout staging, docker-save reading and the registry push.
 
 use crate::archive::*;
-use crate::oci_scan::{run_trivy, scan_and_report, OciChecks, ScanMode};
+use crate::oci_scan::{OciChecks, ScanMode, run_trivy, scan_and_report};
 use crate::registry;
 use crate::run::{
-    check_size_budget, deploy_profile, env_or_empty, placeholder_refusal, tree_bytes, DeployRun,
-    OwnerGate,
+    DeployRun, OwnerGate, check_size_budget, deploy_profile, env_or_empty, placeholder_refusal,
+    tree_bytes,
 };
 use std::io::{self, Read, Write};
 use std::path::Path;
@@ -292,7 +292,7 @@ fn oci_dir_open(root: &Path, name: &str) -> io::Result<Option<std::fs::File>> {
             return Err(io::Error::new(
                 error.kind(),
                 format!("{}: {error}", path.display()),
-            ))
+            ));
         }
     }
     std::fs::File::open(&path)
@@ -1339,9 +1339,11 @@ mod tests {
         let layer = oci_test_layer(false);
         let config = oci_config("amd64", &[&layer]);
         oci_tar(&archive, &[("manifest.json", b"[]")], &[]);
-        assert!(oci_declared_image_id(&archive, "linux/amd64")
-            .expect_err("empty")
-            .contains("exactly one"));
+        assert!(
+            oci_declared_image_id(&archive, "linux/amd64")
+                .expect_err("empty")
+                .contains("exactly one")
+        );
         oci_tar(
             &archive,
             &[
@@ -1354,9 +1356,11 @@ mod tests {
             ],
             &[],
         );
-        assert!(oci_declared_image_id(&archive, "linux/amd64")
-            .expect_err("many")
-            .contains("2 images"));
+        assert!(
+            oci_declared_image_id(&archive, "linux/amd64")
+                .expect_err("many")
+                .contains("2 images")
+        );
         oci_tar(
             &archive,
             &[
@@ -1369,9 +1373,11 @@ mod tests {
             ],
             &[],
         );
-        assert!(oci_declared_image_id(&archive, "linux/amd64")
-            .expect_err("missing config")
-            .contains("missing its config"));
+        assert!(
+            oci_declared_image_id(&archive, "linux/amd64")
+                .expect_err("missing config")
+                .contains("missing its config")
+        );
         oci_tar(
             &archive,
             &[
@@ -1380,13 +1386,17 @@ mod tests {
             ],
             &[],
         );
-        assert!(oci_declared_image_id(&archive, "linux/amd64")
-            .expect_err("no layers")
-            .contains("missing Layers"));
+        assert!(
+            oci_declared_image_id(&archive, "linux/amd64")
+                .expect_err("no layers")
+                .contains("missing Layers")
+        );
         oci_tar(&archive, &[("manifest.json", b"{not json")], &[]);
-        assert!(oci_declared_image_id(&archive, "linux/amd64")
-            .expect_err("malformed")
-            .contains("malformed manifest.json"));
+        assert!(
+            oci_declared_image_id(&archive, "linux/amd64")
+                .expect_err("malformed")
+                .contains("malformed manifest.json")
+        );
         std::fs::write(&archive, b"image").expect("rootfs");
         assert!(oci_declared_image_id(&archive, "linux/amd64").is_err());
         let layer = {
@@ -1397,9 +1407,11 @@ mod tests {
             builder.into_inner().expect("tar")
         };
         std::fs::write(&archive, layer).expect("layer");
-        assert!(oci_declared_image_id(&archive, "linux/amd64")
-            .expect_err("rootfs layer")
-            .contains("no manifest.json or index.json"));
+        assert!(
+            oci_declared_image_id(&archive, "linux/amd64")
+                .expect_err("rootfs layer")
+                .contains("no manifest.json or index.json")
+        );
     }
 
     fn oci_digest(bytes: &[u8]) -> String {

@@ -5,13 +5,11 @@ package(default_visibility = ["//visibility:public"])
 rust_binary(
     name = "bench_report",
     srcs = ["src/main.rs"],
-    edition = "2021",
 )
 
 rust_test(
     name = "bench_report_test",
     srcs = ["src/main.rs"],
-    edition = "2021",
 )
 
 rustfmt_test(

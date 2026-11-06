@@ -27,7 +27,6 @@ rust_binary(
     crate_name = "advisory_prep",
     crate_root = "src/main.rs",
     data = ["//perl/tools:cpansa_dump"],
-    edition = "2021",
     env = {"DX_CPANSA_DUMP": "$(rlocationpath //perl/tools:cpansa_dump)"},
     deps = all_crate_deps(
         package_name = "cli/dx_advisory_prep",
@@ -60,7 +59,6 @@ rust_test(
     ),
     crate_name = "dx_advisory_prep",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_advisory_prep",
         normal = True,
@@ -87,7 +85,6 @@ rust_test(
     ),
     crate_name = "advisory_prep",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_advisory_prep",
         normal = True,
@@ -142,7 +139,6 @@ rust_library(
     ),
     crate_name = "dx_advisory_prep",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_advisory_prep",
         normal = True,

@@ -1,4 +1,4 @@
-use crate::run::{pages_redact, OwnerGate};
+use crate::run::{OwnerGate, pages_redact};
 use crate::stage::copy_verified;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -273,19 +273,19 @@ pub fn pages_parse_output(
     if !url_ok {
         return Err("wrangler output has no valid https url".to_owned());
     }
-    if let Some(reported) = text_field("pages_project") {
-        if reported != project {
-            return Err(format!(
-                "wrangler deployed to project '{reported}', expected '{project}'"
-            ));
-        }
+    if let Some(reported) = text_field("pages_project")
+        && reported != project
+    {
+        return Err(format!(
+            "wrangler deployed to project '{reported}', expected '{project}'"
+        ));
     }
     let environment = match text_field("environment") {
         Some(reported) if reported == expected_environment => reported.to_owned(),
         Some(reported) => {
             return Err(format!(
                 "deployment {id} landed in {reported}, expected {expected_environment}; check the project's production branch"
-            ))
+            ));
         }
         None => expected_environment.to_owned(),
     };
@@ -381,13 +381,13 @@ fn pages_validate(
     ) {
         return Err(message);
     }
-    if let Some(account) = account_id.filter(|value| !value.is_empty()) {
-        if account != launch.account_id {
-            return Err(
+    if let Some(account) = account_id.filter(|value| !value.is_empty())
+        && account != launch.account_id
+    {
+        return Err(
                 "CLOUDFLARE_ACCOUNT_ID does not match the account_id of this target; publishing nothing"
                     .to_owned(),
             );
-        }
     }
     let files = pages_scan_site(site)?;
     Ok((files, pages_intent(launch.branch, launch.production_branch)))
@@ -458,7 +458,7 @@ fn pages_deploy_with(
                 err,
                 name,
                 &format!("cannot create a work directory: {error}"),
-            )
+            );
         }
     };
     let code = pages_deploy_staged(launch, &files, wrangler, env, &work, intent, out, err);
@@ -520,7 +520,7 @@ fn pages_deploy_staged(
                 err,
                 name,
                 &format!("cannot run wrangler {}: {error}", wrangler.display()),
-            )
+            );
         }
     };
     if !output.status.success() {
@@ -966,9 +966,11 @@ exit 7
         let bad_id = ok.replace("d-1", "d 1");
         assert!(pages_parse_output(&bad_id, "p", "preview").is_err());
         let other = ok.replace("\"p\"", "\"other\"");
-        assert!(pages_parse_output(&other, "p", "preview")
-            .expect_err("project")
-            .contains("project 'other'"));
+        assert!(
+            pages_parse_output(&other, "p", "preview")
+                .expect_err("project")
+                .contains("project 'other'")
+        );
     }
 
     #[test]
@@ -983,46 +985,62 @@ exit 7
     #[test]
     fn scan_rejects_missing_index_empty_and_skipped_names() {
         let dir = site(&[("a.txt", "x")]);
-        assert!(pages_scan_site(dir.path())
-            .expect_err("index")
-            .contains("no index.html"));
+        assert!(
+            pages_scan_site(dir.path())
+                .expect_err("index")
+                .contains("no index.html")
+        );
         let empty = tempfile::TempDir::new().expect("empty");
-        assert!(pages_scan_site(empty.path())
-            .expect_err("empty")
-            .contains("holds no files"));
+        assert!(
+            pages_scan_site(empty.path())
+                .expect_err("empty")
+                .contains("holds no files")
+        );
         let skipped = site(&[("index.html", "x"), ("node_modules/a.js", "x")]);
-        assert!(pages_scan_site(skipped.path())
-            .expect_err("skip")
-            .contains("silently skip"));
+        assert!(
+            pages_scan_site(skipped.path())
+                .expect_err("skip")
+                .contains("silently skip")
+        );
         let missing = empty.path().join("absent");
-        assert!(pages_scan_site(&missing)
-            .expect_err("missing")
-            .contains("is missing"));
+        assert!(
+            pages_scan_site(&missing)
+                .expect_err("missing")
+                .contains("is missing")
+        );
         let file = dir.path().join("a.txt");
-        assert!(pages_scan_site(&file)
-            .expect_err("file")
-            .contains("not a directory"));
+        assert!(
+            pages_scan_site(&file)
+                .expect_err("file")
+                .contains("not a directory")
+        );
     }
 
     #[test]
     fn scan_rejects_directory_and_broken_symlinks_and_oversize_files() {
         let dir = site(&[("index.html", "x")]);
         std::os::unix::fs::symlink("/etc", dir.path().join("link")).expect("symlink");
-        assert!(pages_scan_site(dir.path())
-            .expect_err("symlink")
-            .contains("symlink 'link'"));
+        assert!(
+            pages_scan_site(dir.path())
+                .expect_err("symlink")
+                .contains("symlink 'link'")
+        );
         let broken = site(&[("index.html", "x")]);
         std::os::unix::fs::symlink("/nonexistent/target", broken.path().join("gone"))
             .expect("symlink");
-        assert!(pages_scan_site(broken.path())
-            .expect_err("broken")
-            .contains("broken symlink 'gone'"));
+        assert!(
+            pages_scan_site(broken.path())
+                .expect_err("broken")
+                .contains("broken symlink 'gone'")
+        );
         let big = site(&[("index.html", "x")]);
         let file = std::fs::File::create(big.path().join("big.bin")).expect("big");
         file.set_len(MAX_FILE_BYTES + 1).expect("len");
-        assert!(pages_scan_site(big.path())
-            .expect_err("big")
-            .contains("at most"));
+        assert!(
+            pages_scan_site(big.path())
+                .expect_err("big")
+                .contains("at most")
+        );
     }
 
     #[test]
@@ -1346,26 +1364,34 @@ exit 7
         use std::os::unix::ffi::OsStrExt as _;
         // APFS refuses non-UTF-8 names, so test the conversion directly.
         let raw = std::ffi::OsStr::from_bytes(b"bad\xff").to_owned();
-        assert!(pages_entry_name(Path::new("/site"), raw)
-            .expect_err("utf8")
-            .contains("not UTF-8"));
+        assert!(
+            pages_entry_name(Path::new("/site"), raw)
+                .expect_err("utf8")
+                .contains("not UTF-8")
+        );
         let control = site(&[("index.html", "x"), ("a\u{1}b", "x")]);
-        assert!(pages_scan_site(control.path())
-            .expect_err("control")
-            .contains("control characters"));
+        assert!(
+            pages_scan_site(control.path())
+                .expect_err("control")
+                .contains("control characters")
+        );
         let slash = site(&[("index.html", "x"), ("a\\b", "x")]);
-        assert!(pages_scan_site(slash.path())
-            .expect_err("backslash")
-            .contains("unsafe path"));
+        assert!(
+            pages_scan_site(slash.path())
+                .expect_err("backslash")
+                .contains("unsafe path")
+        );
         let special = site(&[("index.html", "x")]);
         let made = std::process::Command::new("mkfifo")
             .arg(special.path().join("sock"))
             .status()
             .expect("mkfifo");
         assert!(made.success());
-        assert!(pages_scan_site(special.path())
-            .expect_err("special")
-            .contains("special file 'sock'"));
+        assert!(
+            pages_scan_site(special.path())
+                .expect_err("special")
+                .contains("special file 'sock'")
+        );
     }
 
     #[test]
@@ -1374,9 +1400,11 @@ exit 7
         for index in 0..MAX_FILES {
             std::fs::write(dir.path().join(format!("f{index}")), "").expect("file");
         }
-        assert!(pages_scan_site(dir.path())
-            .expect_err("count")
-            .contains("more than"));
+        assert!(
+            pages_scan_site(dir.path())
+                .expect_err("count")
+                .contains("more than")
+        );
     }
 
     #[test]

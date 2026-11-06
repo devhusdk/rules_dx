@@ -29,8 +29,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         suffixes: &[".toml"],
         files: &["ruff.toml", ".ruff.toml"],
         ext: "toml",
-        extends_syntax:
-            "# Repo settings go here; the extend line picks the profile.\nextend = \"{base}\"\n",
+        extends_syntax: "# Repo settings go here; the extend line picks the profile.\nextend = \"{base}\"\n",
         shared: false,
         tier_dir: "",
         comment: "#",

@@ -1,7 +1,7 @@
 //! Maps the exported functions onto the versioned documentation IR.
 
-use crate::exports::{public_functions, wildcard_match, Public};
-use crate::types::{parse_api, Api, Function, Names, Parameter, ParameterSet, SCHEMA};
+use crate::exports::{Public, public_functions, wildcard_match};
+use crate::types::{Api, Function, Names, Parameter, ParameterSet, SCHEMA, parse_api};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
@@ -230,10 +230,9 @@ fn set_names(function: &Function) -> Vec<String> {
         .cmdlet_binding
         .as_ref()
         .and_then(|b| b.default_set.as_ref())
+        && default != ALL_SETS
     {
-        if default != ALL_SETS {
-            names.push(default.clone());
-        }
+        names.push(default.clone());
     }
     for param in &function.params {
         for set in &param.sets {
@@ -334,9 +333,5 @@ fn param_text(param: &Parameter, mandatory: bool, positional: bool) -> String {
     } else {
         format!("-{} <{}>", param.name, type_name(param))
     };
-    if mandatory {
-        core
-    } else {
-        format!("[{core}]")
-    }
+    if mandatory { core } else { format!("[{core}]") }
 }

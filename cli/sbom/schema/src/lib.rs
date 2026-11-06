@@ -64,7 +64,7 @@ pub fn cyclonedx_schema_errors(instance: &Value) -> Vec<String> {
     ) {
         (Ok(bom), Ok(spdx), Ok(jsf)) => (bom, spdx, jsf),
         (Err(error), _, _) | (_, Err(error), _) | (_, _, Err(error)) => {
-            return vec![format!("vendored CycloneDX schema is not JSON: {error}")]
+            return vec![format!("vendored CycloneDX schema is not JSON: {error}")];
         }
     };
     let registry = jsonschema::Registry::new()
@@ -83,7 +83,7 @@ pub fn cyclonedx_schema_errors(instance: &Value) -> Vec<String> {
         Err(error) => {
             return vec![format!(
                 "vendored CycloneDX schema does not compile: {error}"
-            )]
+            )];
         }
     };
     validator

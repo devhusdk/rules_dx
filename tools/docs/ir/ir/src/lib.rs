@@ -12,7 +12,7 @@ pub use doc_ir_proto::dx::documentation::v1 as proto;
 use proto::{DocIr, Symbol};
 
 use dx_path::proto_validate::{
-    check_sorted_next, decode_with_validation, encode_with_validation, OrderViolation,
+    OrderViolation, check_sorted_next, decode_with_validation, encode_with_validation,
 };
 use dx_path::reject_reason;
 
@@ -205,14 +205,14 @@ fn validate_symbol(symbol: &Symbol, index: usize, prefix: &str) -> Result<(), Er
             id: symbol.id.clone(),
         });
     }
-    if let Some(source) = symbol.source.as_ref() {
-        if let Some(reason) = source_path_reason(&source.file) {
-            return Err(Error::UnsafeSourcePath {
-                id: symbol.id.clone(),
-                path: source.file.clone(),
-                reason,
-            });
-        }
+    if let Some(source) = symbol.source.as_ref()
+        && let Some(reason) = source_path_reason(&source.file)
+    {
+        return Err(Error::UnsafeSourcePath {
+            id: symbol.id.clone(),
+            path: source.file.clone(),
+            reason,
+        });
     }
     let mut previous: Option<&String> = None;
     for extension in symbol.extensions.iter() {

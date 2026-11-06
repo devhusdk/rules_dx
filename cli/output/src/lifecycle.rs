@@ -1,5 +1,5 @@
-use crate::validation::{check_correlation, check_path, parse_digest, OutputError};
-use serde_json::{json, Value};
+use crate::validation::{OutputError, check_correlation, check_path, parse_digest};
+use serde_json::{Value, json};
 
 pub const SCHEMA_MAJOR: u64 = 3;
 pub const SCHEMA_MINOR: u64 = 7;
@@ -1248,17 +1248,19 @@ mod tests {
         assert!(bare.get("status").is_none());
         assert!(bare.get("excerpt").is_none());
         assert!(bare.get("truncated").is_none());
-        assert!(failure_event(
-            "x",
-            "y",
-            None,
-            &FailureFacts {
-                cause: "",
-                status: None,
-                excerpt: None
-            }
-        )
-        .is_err());
+        assert!(
+            failure_event(
+                "x",
+                "y",
+                None,
+                &FailureFacts {
+                    cause: "",
+                    status: None,
+                    excerpt: None
+                }
+            )
+            .is_err()
+        );
     }
 
     const DIGEST: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -1390,9 +1392,11 @@ mod tests {
             command_finished(0, &counts)["actions"],
             serde_json::json!({"created": 9, "executed": 4, "cache_hits": {"disk": 1, "remote": 2, "local": 3}})
         );
-        assert!(command_finished(0, &FinishedCounts::default())
-            .get("actions")
-            .is_none());
+        assert!(
+            command_finished(0, &FinishedCounts::default())
+                .get("actions")
+                .is_none()
+        );
         let sum = ActionCounts {
             created: 1,
             executed: 2,
@@ -1723,10 +1727,12 @@ mod tests {
         assert_eq!(event["path"], "MODULE.bazel");
         assert!(event.get("file").is_none());
         finding.line = 0;
-        assert!(init_plan_event(&finding)
-            .expect("event")
-            .get("line")
-            .is_none());
+        assert!(
+            init_plan_event(&finding)
+                .expect("event")
+                .get("line")
+                .is_none()
+        );
         finding.severity = "bogus".to_owned();
         assert!(init_plan_event(&finding).is_err());
         finding.severity = "hard".to_owned();
@@ -1756,13 +1762,15 @@ mod tests {
         assert!(status_event(&bad).is_err());
         bad.status = String::new();
         assert!(status_event(&bad).is_err());
-        assert!(status_event(&StatusEvent {
-            name: String::new(),
-            status: "ok".to_owned(),
-            detail: "d".to_owned(),
-            hint: "h".to_owned(),
-        })
-        .is_err());
+        assert!(
+            status_event(&StatusEvent {
+                name: String::new(),
+                status: "ok".to_owned(),
+                detail: "d".to_owned(),
+                hint: "h".to_owned(),
+            })
+            .is_err()
+        );
         let mut buf = Vec::new();
         write_event(&mut buf, &event).expect("write");
         assert!(buf.ends_with(b"\n"));
@@ -1894,13 +1902,15 @@ mod tests {
         assert_eq!(twice.expect_err("nested twice"), OutputError::NotAnEvent);
         assert!(nest_phase_event(Value::Null, "check", "lint", "check/lint").is_err());
         assert!(nest_phase_event(schema(), "check", "lint", "check/lint").is_err());
-        assert!(nest_phase_event(
-            command_finished(0, &FinishedCounts::default()),
-            "",
-            "lint",
-            "c"
-        )
-        .is_err());
+        assert!(
+            nest_phase_event(
+                command_finished(0, &FinishedCounts::default()),
+                "",
+                "lint",
+                "c"
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -1986,11 +1996,13 @@ mod tests {
         assert_eq!(incomplete["evidence_complete"], false);
         assert_eq!(incomplete["cases_omitted"], 3);
         assert!(test_outcome_event(&TestOutcome::default()).is_err());
-        assert!(test_outcome_event(&TestOutcome {
-            target: "//a:t".to_owned(),
-            ..TestOutcome::default()
-        })
-        .is_err());
+        assert!(
+            test_outcome_event(&TestOutcome {
+                target: "//a:t".to_owned(),
+                ..TestOutcome::default()
+            })
+            .is_err()
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
 //! Lists npm dependencies whose latest registry version is outside the declared range.
 
-use super::{wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use nodejs_semver::{Range, Version};
 use std::collections::BTreeMap;
 

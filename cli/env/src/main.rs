@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use clap::Parser;
-use dx_env::{identity_hex, parse_staged, probe_symlink, refresh, RefreshOptions, RefreshOutcome};
+use dx_env::{RefreshOptions, RefreshOutcome, identity_hex, parse_staged, probe_symlink, refresh};
 
 const METADATA_CANDIDATES: &[(&str, &str)] = &[
     ("rules_dx/env/default_tree.metadata.json", "_main"),
@@ -127,7 +127,9 @@ fn run() -> i32 {
         _ => match locate_default_tree() {
             Some(paths) => paths,
             None => {
-                tracing::error!("dx env: default tree not found in runfiles; pass --staged-bin and --metadata explicitly");
+                tracing::error!(
+                    "dx env: default tree not found in runfiles; pass --staged-bin and --metadata explicitly"
+                );
                 return 1;
             }
         },
@@ -173,14 +175,13 @@ fn run() -> i32 {
 fn locate_default_tree() -> Option<(PathBuf, PathBuf)> {
     let runfiles = runfiles::Runfiles::create().ok()?;
     for (path, source_repo) in METADATA_CANDIDATES {
-        if let Some(metadata) = runfiles.rlocation_from(Path::new(path), source_repo) {
-            if metadata.is_file() {
-                if let Some(parent) = metadata.parent() {
-                    let staged_bin = parent.join(dx_env::BIN_DIR_NAME);
-                    if staged_bin.is_dir() {
-                        return Some((staged_bin, metadata));
-                    }
-                }
+        if let Some(metadata) = runfiles.rlocation_from(Path::new(path), source_repo)
+            && metadata.is_file()
+            && let Some(parent) = metadata.parent()
+        {
+            let staged_bin = parent.join(dx_env::BIN_DIR_NAME);
+            if staged_bin.is_dir() {
+                return Some((staged_bin, metadata));
             }
         }
     }

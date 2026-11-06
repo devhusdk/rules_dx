@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "flatc";

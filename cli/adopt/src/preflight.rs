@@ -12,7 +12,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use dx_module_bazel::{compare_module_versions, ModuleFile, Value};
+use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
 use crate::overrides::{OVERRIDES, OVERRIDES_INCLUDE};
 
@@ -228,13 +228,13 @@ fn bazelrc_conflicts(root: &Path) -> Vec<Finding> {
                 continue;
             }
             let words: Vec<&str> = line.split_whitespace().collect();
-            if let [verb, path] = words.as_slice() {
-                if matches!(*verb, "import" | "try-import") {
-                    if let Some(next) = path.strip_prefix("%workspace%/") {
-                        pending.push(next.to_owned());
-                    }
-                    continue;
+            if let [verb, path] = words.as_slice()
+                && matches!(*verb, "import" | "try-import")
+            {
+                if let Some(next) = path.strip_prefix("%workspace%/") {
+                    pending.push(next.to_owned());
                 }
+                continue;
             }
             if owned.contains(line) {
                 out.push(Finding {
@@ -338,10 +338,10 @@ fn version_raises(
     let mut overridden = BTreeSet::new();
     for source in sources {
         for call in source.module.calls() {
-            if call.name.ends_with("_override") {
-                if let Some(target) = call.str("module_name") {
-                    overridden.insert(target.to_owned());
-                }
+            if call.name.ends_with("_override")
+                && let Some(target) = call.str("module_name")
+            {
+                overridden.insert(target.to_owned());
             }
         }
         for call in source.module.calls_named("bazel_dep") {
@@ -434,10 +434,10 @@ fn override_conflicts(sources: &[Source]) -> Vec<Finding> {
             if !owned && floor.is_none() {
                 continue;
             }
-            if let (false, Some((_, min)), Some(version)) = (owned, floor, call.str("version")) {
-                if compare_module_versions(version, min).is_ge() {
-                    continue;
-                }
+            if let (false, Some((_, min)), Some(version)) = (owned, floor, call.str("version"))
+                && compare_module_versions(version, min).is_ge()
+            {
+                continue;
             }
             let before = match call.arg("version") {
                 Some(Value::Str(v)) => format!("{} {}", call.name, v.value),
@@ -757,8 +757,10 @@ mod tests {
         let dir = scratch(&[("MODULE.bazel", "module(name = \"app\")\n")]);
         let plan = preflight(dir.path(), &snippet());
         assert!(plan.applicable && plan.findings.is_empty());
-        assert!(render_plan_text("app", "dx init app --apply", &plan)
-            .contains("version raises:\n  none\n"));
+        assert!(
+            render_plan_text("app", "dx init app --apply", &plan)
+                .contains("version raises:\n  none\n")
+        );
     }
 
     #[test]
@@ -775,8 +777,10 @@ mod tests {
             ("rules_rust", "0.60.0", 1)
         );
         assert!(!f.hard);
-        assert!(render_plan_text("app", "dx init app --apply", &plan)
-            .contains("rules_rust 0.60.0 -> 0.75.0"));
+        assert!(
+            render_plan_text("app", "dx init app --apply", &plan)
+                .contains("rules_rust 0.60.0 -> 0.75.0")
+        );
     }
 
     #[test]
@@ -923,9 +927,11 @@ mod tests {
         );
         assert_eq!(found[0].file, "MODULE.bazel.lock");
         assert!(found[0].line > 0);
-        assert!(notes
-            .iter()
-            .any(|n| n.contains("read from MODULE.bazel.lock")));
+        assert!(
+            notes
+                .iter()
+                .any(|n| n.contains("read from MODULE.bazel.lock"))
+        );
     }
 
     /// A module only the consumer graph knows (not a direct rules_dx dep, not patched).
@@ -1127,7 +1133,8 @@ mod tests {
             "x = use_extension(\"@toolchains_llvm//toolchain/extensions:llvm.bzl\", \"llvm\")\n",
             "x = use_extension(\"@bazel_tools//tools/cpp:cc_configure.bzl\", \"cc_configure_extension\")\n",
         ] {
-            let module = format!("{ext}use_repo(x, \"cc_x\")\nregister_toolchains(\"@cc_x//:all\")\n");
+            let module =
+                format!("{ext}use_repo(x, \"cc_x\")\nregister_toolchains(\"@cc_x//:all\")\n");
             let found = toolchain_findings(&module);
             assert_eq!(found.len(), 1, "{found:?}");
             assert!(!found[0].hard && found[0].subject == "llvm/cc");

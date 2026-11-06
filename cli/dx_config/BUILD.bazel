@@ -53,7 +53,6 @@ rust_binary(
     srcs = ["src/bin_schema.rs"],
     crate_name = "update_schema",
     crate_root = "src/bin_schema.rs",
-    edition = "2021",
     deps = [":dx_config"],
 )
 

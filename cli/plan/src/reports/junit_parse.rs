@@ -1,7 +1,7 @@
-use super::junit_types::{JunitCase, JunitMessage};
 use super::ReportError;
-use quick_xml::events::attributes::Attribute;
+use super::junit_types::{JunitCase, JunitMessage};
 use quick_xml::events::BytesStart;
+use quick_xml::events::attributes::Attribute;
 use std::borrow::Cow;
 
 fn junit_error(detail: impl Into<String>) -> ReportError {
@@ -154,10 +154,10 @@ fn decode_numeric_references(text: &str) -> Cow<'_, str> {
 
 fn strip_leading_decl(text: &str) -> &str {
     let trimmed = text.trim_start();
-    if trimmed.starts_with("<?xml") {
-        if let Some(end) = trimmed.find("?>") {
-            return trimmed[end + 2..].trim_start();
-        }
+    if trimmed.starts_with("<?xml")
+        && let Some(end) = trimmed.find("?>")
+    {
+        return trimmed[end + 2..].trim_start();
     }
     text
 }
@@ -375,23 +375,27 @@ mod tests {
         let nested = r#"<testsuite><testcase name="a"><failure>text <b>bold</b> moretail</failure></testcase><testcase name="b"><error><![CDATA[blob]]></error></testcase></testsuite>"#;
         let cases = parse_test_xml(nested.as_bytes(), 0, 0).expect("nested");
         assert_eq!(cases.len(), 2);
-        assert!(cases[0]
-            .failure
-            .as_ref()
-            .expect("failure")
-            .text
-            .contains("text"));
+        assert!(
+            cases[0]
+                .failure
+                .as_ref()
+                .expect("failure")
+                .text
+                .contains("text")
+        );
         assert!(parse_test_xml(&[0xff], 0, 0).is_err());
         assert!(parse_test_xml(b"hello", 0, 0).is_err());
         assert!(parse_test_xml(b"<testcase", 0, 0).is_err());
         assert!(parse_test_xml(b"<testsuite><testcase/></testsuite>", 0, 0).is_err());
         assert!(parse_test_xml(b"<testsuite><testcase name=\"\"/></testsuite>", 0, 0).is_err());
-        assert!(parse_test_xml(
-            b"<testsuite><testcase name=\"a\" time=\"bogus\"/></testsuite>",
-            0,
-            0
-        )
-        .is_err());
+        assert!(
+            parse_test_xml(
+                b"<testsuite><testcase name=\"a\" time=\"bogus\"/></testsuite>",
+                0,
+                0
+            )
+            .is_err()
+        );
         let negative = parse_test_xml(
             b"<testsuite><testcase name=\"a\" time=\"-1\"/></testsuite>",
             0,
@@ -400,24 +404,30 @@ mod tests {
         .expect("negative time clamps");
         assert_eq!(negative.len(), 1);
         assert_eq!(negative[0].time, 0.0);
-        assert!(parse_test_xml(
-            b"<testsuite><testcase name=\"a\" time=\"inf\"/></testsuite>",
-            0,
-            0
-        )
-        .is_err());
-        assert!(parse_test_xml(
-            b"<testsuite><testcase name=\"a\"><failure/><failure/></testcase></testsuite>",
-            0,
-            0
-        )
-        .is_err());
-        assert!(parse_test_xml(
-            b"<testsuite><testcase name=\"a\"><error/><error/></testcase></testsuite>",
-            0,
-            0
-        )
-        .is_err());
+        assert!(
+            parse_test_xml(
+                b"<testsuite><testcase name=\"a\" time=\"inf\"/></testsuite>",
+                0,
+                0
+            )
+            .is_err()
+        );
+        assert!(
+            parse_test_xml(
+                b"<testsuite><testcase name=\"a\"><failure/><failure/></testcase></testsuite>",
+                0,
+                0
+            )
+            .is_err()
+        );
+        assert!(
+            parse_test_xml(
+                b"<testsuite><testcase name=\"a\"><error/><error/></testcase></testsuite>",
+                0,
+                0
+            )
+            .is_err()
+        );
         assert!(parse_test_xml(b"<testsuite><testcase name=\"a\">", 0, 0).is_err());
         assert!(parse_test_xml(
             b"<testsuite><testcase name=\"a\"><failure message=\"\xff\"/></testcase></testsuite>",
@@ -442,12 +452,14 @@ mod tests {
 
     #[test]
     fn junit_parse_covers_start_and_end_branches() {
-        assert!(parse_test_xml(
-            b"<testsuite><testcase name=\"\"></testcase></testsuite>",
-            0,
-            0
-        )
-        .is_err());
+        assert!(
+            parse_test_xml(
+                b"<testsuite><testcase name=\"\"></testcase></testsuite>",
+                0,
+                0
+            )
+            .is_err()
+        );
         for bad in ["bogus", "inf", "NaN"] {
             let xml =
                 format!("<testsuite><testcase name=\"a\" time=\"{bad}\"></testcase></testsuite>");
@@ -475,18 +487,22 @@ mod tests {
             let xml = format!("<testsuite><testcase name=\"a\">{dup}</testcase></testsuite>");
             assert!(parse_test_xml(xml.as_bytes(), 0, 0).is_ok(), "{dup}");
         }
-        assert!(parse_test_xml(
-            b"<testsuite><testcase name=\"a\">hello</testcase></testsuite>",
-            0,
-            0
-        )
-        .is_ok());
-        assert!(parse_test_xml(
-            b"<testsuite><testcase name=\"a\"><![CDATA[hello]]></testcase></testsuite>",
-            0,
-            0
-        )
-        .is_ok());
+        assert!(
+            parse_test_xml(
+                b"<testsuite><testcase name=\"a\">hello</testcase></testsuite>",
+                0,
+                0
+            )
+            .is_ok()
+        );
+        assert!(
+            parse_test_xml(
+                b"<testsuite><testcase name=\"a\"><![CDATA[hello]]></testcase></testsuite>",
+                0,
+                0
+            )
+            .is_ok()
+        );
         assert!(parse_test_xml(
             b"<testsuite><testcase name=\"a\"><failure>&notanentity</failure></testcase></testsuite>",
             0,
@@ -508,18 +524,22 @@ mod tests {
             let xml = format!("<testsuite><testcase name=\"a\">{dup}</testcase></testsuite>");
             assert!(parse_test_xml(xml.as_bytes(), 0, 0).is_ok(), "{dup}");
         }
-        assert!(parse_test_xml(
-            b"<testsuite><failure></failure><testcase name=\"a\"/></testsuite>",
-            0,
-            0
-        )
-        .is_ok());
-        assert!(parse_test_xml(
-            b"<testsuite><testcase name=\"a\"></testcase></testsuite>",
-            0,
-            0
-        )
-        .is_ok());
+        assert!(
+            parse_test_xml(
+                b"<testsuite><failure></failure><testcase name=\"a\"/></testsuite>",
+                0,
+                0
+            )
+            .is_ok()
+        );
+        assert!(
+            parse_test_xml(
+                b"<testsuite><testcase name=\"a\"></testcase></testsuite>",
+                0,
+                0
+            )
+            .is_ok()
+        );
         assert!(parse_test_xml(b"<testsuite><testcase name=\"a\"></testsuite>", 0, 0).is_err());
     }
 
@@ -538,12 +558,14 @@ mod tests {
         assert_eq!(cases.len(), 2);
         let tricky = r#"<testsuite name="a" timestamp="2026-09-19T21:10:02"><testcase name="a"><failure>timestamp="kept"</failure></testcase></testsuite>"#;
         let cases = parse_test_xml(tricky.as_bytes(), 0, 0).expect("tricky");
-        assert!(cases[0]
-            .failure
-            .as_ref()
-            .expect("failure")
-            .text
-            .contains("kept"));
+        assert!(
+            cases[0]
+                .failure
+                .as_ref()
+                .expect("failure")
+                .text
+                .contains("kept")
+        );
     }
 
     #[test]
@@ -575,12 +597,14 @@ mod tests {
         let stripped = normalize_document(cdata);
         assert!(stripped.contains(cdata_inner));
         let cases = parse_test_xml(cdata.as_bytes(), 0, 0).expect("cdata");
-        assert!(cases[0]
-            .failure
-            .as_ref()
-            .expect("failure")
-            .text
-            .contains("testsuite"));
+        assert!(
+            cases[0]
+                .failure
+                .as_ref()
+                .expect("failure")
+                .text
+                .contains("testsuite")
+        );
 
         let comment = r#"<!-- <testsuite timestamp="2026-09-19T21:10:02"> -->"#;
         let with_comment = format!(

@@ -1,7 +1,7 @@
 //! The `--profile` report: where a build's time went, read from Bazel's JSON trace profile.
 
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -178,11 +178,7 @@ fn seconds(micros: u64) -> String {
 }
 
 fn percent(part: u64, total: u64) -> u64 {
-    if total == 0 {
-        0
-    } else {
-        part * 100 / total
-    }
+    if total == 0 { 0 } else { part * 100 / total }
 }
 
 fn megabytes(bytes: u64) -> String {
@@ -486,10 +482,12 @@ mod tests {
         assert!(report.fetches > 0);
         let totals = report.totals.as_ref().expect("totals");
         assert!(totals.critical_path_ms.unwrap_or(0) > 0);
-        assert!(totals
-            .mnemonics
-            .iter()
-            .all(|row| row.cpu_ms <= totals.mnemonics[0].cpu_ms));
+        assert!(
+            totals
+                .mnemonics
+                .iter()
+                .all(|row| row.cpu_ms <= totals.mnemonics[0].cpu_ms)
+        );
         assert!(totals.mnemonics[0].cpu_ms > 0, "{totals:?}");
         assert!(report.text().contains("critical path"), "{}", report.text());
     }

@@ -1,7 +1,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::{Run, mkscratch, resolve_runfiles, run};
 
 const FAKE_SECURITY: &str = r#"#!/bin/sh
 printf 'security %s\n' "$*" >>"$FAKE_LOG"
@@ -548,7 +548,9 @@ fn sign_rejects_bad_input_before_signing() {
         (
             SIGN[2..].to_vec(),
             vec![],
-            format!("--certificate names the Developer ID identity .p12 file, or --identity names one in a keychain; {usage}"),
+            format!(
+                "--certificate names the Developer ID identity .p12 file, or --identity names one in a keychain; {usage}"
+            ),
         ),
         (
             [&SIGN[..2], &SIGN[4..]].concat(),
@@ -595,8 +597,16 @@ fn sign_rejects_bad_input_before_signing() {
             format!("--keychain only goes with --identity; {usage}"),
         ),
         (
-            [&SIGN[4..], &["--identity", "ABCDEF01", "--keychain", "keys/gone.keychain-db"][..]]
-                .concat(),
+            [
+                &SIGN[4..],
+                &[
+                    "--identity",
+                    "ABCDEF01",
+                    "--keychain",
+                    "keys/gone.keychain-db",
+                ][..],
+            ]
+            .concat(),
             vec![],
             format!("--keychain {ws}/keys/gone.keychain-db is not a file"),
         ),
@@ -987,7 +997,9 @@ fn notarize_accepted_staples_and_keeps_the_log() {
     let app = fixture.path("ws/dist/Ledger.app");
     assert_eq!(
         ran.stdout,
-        format!("dx-apple-notarize: notarized and stapled {app} (submission {SUBMISSION}); notary log at {app}.notary.json\n")
+        format!(
+            "dx-apple-notarize: notarized and stapled {app} (submission {SUBMISSION}); notary log at {app}.notary.json\n"
+        )
     );
     assert!(text(&fixture.root.join("ws/dist/Ledger.app.notary.json")).contains("Accepted"));
     let log = fixture.log();
@@ -1064,7 +1076,9 @@ fn notarize_invalid_keeps_the_log_and_does_not_staple() {
         &ran,
         "dx-apple-notarize",
         1,
-        &format!("submission {SUBMISSION} of Ledger.app is Invalid; see the notary log {app}.notary.json"),
+        &format!(
+            "submission {SUBMISSION} of Ledger.app is Invalid; see the notary log {app}.notary.json"
+        ),
     );
     assert!(text(&fixture.root.join("ws/dist/Ledger.app.notary.json")).contains("Invalid"));
     assert!(!fixture.log().contains("stapler"), "{}", fixture.log());
@@ -1098,7 +1112,9 @@ fn notarize_offline_or_still_in_progress_exits_3() {
         &ran,
         "dx-apple-notarize",
         3,
-        &format!("submission {SUBMISSION} is still In Progress after --timeout 2h; check it with xcrun notarytool info {SUBMISSION}"),
+        &format!(
+            "submission {SUBMISSION} is still In Progress after --timeout 2h; check it with xcrun notarytool info {SUBMISSION}"
+        ),
     );
     assert!(!pending.log().contains("stapler"), "{}", pending.log());
 }

@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, listed_paths, FileFinding, ParseError, Spelling};
+use super::{FileFinding, ParseError, Spelling, as_text, code_name, finding, listed_paths};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 

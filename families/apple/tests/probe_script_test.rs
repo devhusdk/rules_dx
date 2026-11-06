@@ -28,7 +28,9 @@ fn a_linux_executor_never_stands_in_for_macos() {
     let arch = std::env::consts::ARCH;
     assert_eq!(
         ran.stderr,
-        format!("apple: probe ran on Linux {arch}, not a macOS executor; the managed route needs macos_arm64 with Xcode 16.4.0.16F6\n")
+        format!(
+            "apple: probe ran on Linux {arch}, not a macOS executor; the managed route needs macos_arm64 with Xcode 16.4.0.16F6\n"
+        )
     );
     assert!(!out.exists(), "a failed probe leaves no report");
 }

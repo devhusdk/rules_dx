@@ -129,7 +129,9 @@ mod tests {
 
     #[test]
     fn module_replaces_the_init_module_line_after_a_comment_header() {
-        let written = format!("# dx: yours; dx adds its missing lines\nmodule(name = \"my_project\")\n\n{SNIPPET}");
+        let written = format!(
+            "# dx: yours; dx adds its missing lines\nmodule(name = \"my_project\")\n\n{SNIPPET}"
+        );
         let module = compose_module(&written, "m", "rules_dx", "", Path::new("/s")).unwrap();
         assert!(
             module.starts_with("module(name = \"m\")\n\nbazel_dep("),

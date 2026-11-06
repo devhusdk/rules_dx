@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known_native, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known_native};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "hlint";
@@ -211,11 +211,13 @@ mod tests {
         assert!(parse_hlint(SYNTAX.as_bytes(), b"", Some(1), &["/s/other.hs"]).is_err());
         // A zero position.
         assert!(parse(&SYNTAX.replace("\"startLine\":3", "\"startLine\":0"), 1).is_err());
-        assert!(parse(
-            &SYNTAX.replace("\"startColumn\":11", "\"startColumn\":0"),
-            1
-        )
-        .is_err());
+        assert!(
+            parse(
+                &SYNTAX.replace("\"startColumn\":11", "\"startColumn\":0"),
+                1
+            )
+            .is_err()
+        );
     }
 
     #[test]

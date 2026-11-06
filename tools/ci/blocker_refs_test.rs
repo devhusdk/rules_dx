@@ -48,7 +48,9 @@ fn bare_number_after_a_cross_repo_ref_stays_local() {
 #[test]
 fn urls_name_their_own_repo() {
     assert_eq!(
-        refs("Blocked on: https://github.com/devhusdk/rules_dx/pull/9 https://github.com/apache/avro/pull/4076 https://github.com/a/b/issues/7\n"),
+        refs(
+            "Blocked on: https://github.com/devhusdk/rules_dx/pull/9 https://github.com/apache/avro/pull/4076 https://github.com/a/b/issues/7\n"
+        ),
         "devhusdk/rules_dx 9 https://github.com/devhusdk/rules_dx/pull/9\n\
          apache/avro 4076 https://github.com/apache/avro/pull/4076\n\
          a/b 7 https://github.com/a/b/issues/7\n"

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, finding};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "dart";
@@ -207,9 +207,10 @@ mod tests {
     fn options_file_diagnostics_are_a_config_error() {
         let found = [diag(OPTIONS, "COMPILE_TIME_ERROR", "ERROR")];
         let err = run(&found, 3, DartAnalyzeView::Lint).unwrap_err();
-        assert!(err
-            .to_string()
-            .contains("analysis_options.yaml is unusable"));
+        assert!(
+            err.to_string()
+                .contains("analysis_options.yaml is unusable")
+        );
     }
 
     #[test]
@@ -228,24 +229,28 @@ mod tests {
         assert!(run(&unknown_type, 0, DartAnalyzeView::Lint).is_err());
         let unknown_severity = [diag(FILES[0], "LINT", "FATAL")];
         assert!(run(&unknown_severity, 0, DartAnalyzeView::Lint).is_err());
-        assert!(parse_dart_analyze(
-            b"nope",
-            b"",
-            Some(0),
-            &FILES,
-            OPTIONS,
-            DartAnalyzeView::Lint
-        )
-        .is_err());
+        assert!(
+            parse_dart_analyze(
+                b"nope",
+                b"",
+                Some(0),
+                &FILES,
+                OPTIONS,
+                DartAnalyzeView::Lint
+            )
+            .is_err()
+        );
         let bad_version = br#"{"version":2,"diagnostics":[]}"#;
-        assert!(parse_dart_analyze(
-            bad_version,
-            b"",
-            Some(0),
-            &FILES,
-            OPTIONS,
-            DartAnalyzeView::Lint
-        )
-        .is_err());
+        assert!(
+            parse_dart_analyze(
+                bad_version,
+                b"",
+                Some(0),
+                &FILES,
+                OPTIONS,
+                DartAnalyzeView::Lint
+            )
+            .is_err()
+        );
     }
 }

@@ -187,7 +187,7 @@ fn current_uid() -> Result<u32, String> {
     use std::os::unix::fs::MetadataExt;
     let dir = dx_test_scratch::scratch("nested-bazel-uid");
     let probe = dir.path().join("uid");
-    let result = File::options()
+    File::options()
         .write(true)
         .create_new(true)
         .open(&probe)
@@ -198,8 +198,7 @@ fn current_uid() -> Result<u32, String> {
                 "cannot probe the current uid at {}: {error}",
                 probe.display()
             )
-        });
-    result
+        })
 }
 
 #[cfg(unix)]
@@ -1122,7 +1121,7 @@ impl Server {
                     }
                     Err(std::fs::TryLockError::WouldBlock) => {}
                     Err(std::fs::TryLockError::Error(error)) => {
-                        return Err(format!("cannot lock {}: {error}", lock.display()))
+                        return Err(format!("cannot lock {}: {error}", lock.display()));
                     }
                 }
             }
@@ -1183,7 +1182,7 @@ impl Server {
             None => {
                 return Err(format!(
                     "{SHIM_ENV} is not set; nested Bazel needs the native shim on this platform (add NESTED_BAZEL_DATA and NESTED_BAZEL_ENV)"
-                ))
+                ));
             }
         }
         write(&server.calls_log(), "")?;
@@ -1234,10 +1233,10 @@ impl Server {
 
     /// Stops the server and returns any that survive.
     pub fn shutdown(&mut self) -> Vec<u32> {
-        if let Some(root) = self.workspace.as_ref().filter(|root| root.is_dir()) {
-            if !self.servers().is_empty() {
-                let _ = self.bazel_command(root, &["shutdown"]).output();
-            }
+        if let Some(root) = self.workspace.as_ref().filter(|root| root.is_dir())
+            && !self.servers().is_empty()
+        {
+            let _ = self.bazel_command(root, &["shutdown"]).output();
         }
         kill_slot_servers(&self.user_root(), &self.home.join(nested_bazel::WORKSPACES))
     }
@@ -2800,9 +2799,10 @@ common --repository_cache=/rc/repos
                 "build".to_owned()
             ]
         );
-        assert!(fake
-            .path()
-            .starts_with(&*dir.path().join("bin").to_string_lossy()));
+        assert!(
+            fake.path()
+                .starts_with(&*dir.path().join("bin").to_string_lossy())
+        );
     }
 
     fn stand_in(workspace: &Path) -> Child {
@@ -3117,10 +3117,12 @@ mod portable_tests {
         std::fs::write(old_shim(&dst, 1), "stale").expect("write");
         install_shim(&src, &dst).expect("install");
         assert_eq!(std::fs::read_to_string(&dst).expect("read"), "new");
-        assert!(!std::fs::metadata(&dst)
-            .expect("meta")
-            .permissions()
-            .readonly());
+        assert!(
+            !std::fs::metadata(&dst)
+                .expect("meta")
+                .permissions()
+                .readonly()
+        );
         assert!(!old_shim(&dst, 1).exists());
         let before = std::fs::metadata(&dst)
             .expect("meta")

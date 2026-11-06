@@ -1,7 +1,7 @@
-use dx_output::{dx_text_visible, ColorMode, OutputMode, Threshold};
+use dx_output::{ColorMode, OutputMode, Threshold, dx_text_visible};
 
-use super::profile::{resolve_profile, Profile};
 use super::Command;
+use super::profile::{Profile, resolve_profile};
 
 /// Typed marker that an invocation was handed off from an affected plan,
 /// carrying the planned test targets.
@@ -655,15 +655,14 @@ pub fn bare_scope_note(
 
 /// The command that owns `--here` and the index where its scopes start.
 fn here_owner(invocation: &Invocation) -> (Command, usize) {
-    if invocation.command == Command::Watch {
-        if let Some(wrapped) = invocation
+    if invocation.command == Command::Watch
+        && let Some(wrapped) = invocation
             .targets
             .first()
             .map(String::as_str)
             .and_then(Command::parse)
-        {
-            return (wrapped, 1);
-        }
+    {
+        return (wrapped, 1);
     }
     (invocation.command, 0)
 }
@@ -944,25 +943,31 @@ mod tests {
             apply_here(&invocation_for(Command::License, &[]), workspace, root).expect("resolves");
         assert_eq!(resolved.targets, vec!["//...".to_owned()]);
 
-        assert!(apply_here(
-            &invocation_for(Command::Lint, &["//a:one"]),
-            workspace,
-            subdir
-        )
-        .is_err());
-        assert!(apply_here(
-            &invocation_for(Command::Security, &["//a:one"]),
-            workspace,
-            subdir
-        )
-        .is_err());
+        assert!(
+            apply_here(
+                &invocation_for(Command::Lint, &["//a:one"]),
+                workspace,
+                subdir
+            )
+            .is_err()
+        );
+        assert!(
+            apply_here(
+                &invocation_for(Command::Security, &["//a:one"]),
+                workspace,
+                subdir
+            )
+            .is_err()
+        );
         assert!(apply_here(&invocation_for(Command::Clean, &[]), workspace, subdir).is_err());
-        assert!(apply_here(
-            &invocation_for(Command::Lint, &[]),
-            workspace,
-            std::path::Path::new("/other")
-        )
-        .is_err());
+        assert!(
+            apply_here(
+                &invocation_for(Command::Lint, &[]),
+                workspace,
+                std::path::Path::new("/other")
+            )
+            .is_err()
+        );
 
         let scratch = dx_test_scratch::scratch("dx-here-bazel-run-");
         let ws = scratch.path().join("ws");
@@ -1152,12 +1157,16 @@ mod tests {
             agent(&["build", "--output=json"]).agent_quiet_flags(),
             quiet_flags()
         );
-        assert!(agent(&["build", "--output=text"])
-            .agent_quiet_flags()
-            .is_empty());
-        assert!(parsed(&["build", "--output=json"])
-            .agent_quiet_flags()
-            .is_empty());
+        assert!(
+            agent(&["build", "--output=text"])
+                .agent_quiet_flags()
+                .is_empty()
+        );
+        assert!(
+            parsed(&["build", "--output=json"])
+                .agent_quiet_flags()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -1202,9 +1211,11 @@ mod tests {
         assert_eq!(phase.mode, OperationMode::Apply);
         assert_eq!(phase.targets, vec!["//a:one".to_owned()]);
         assert_eq!(phase.fail_on, dx_output::Threshold::Error);
-        assert!(umbrella
-            .phase_quality_request(Command::Generate, Vec::new())
-            .is_err());
+        assert!(
+            umbrella
+                .phase_quality_request(Command::Generate, Vec::new())
+                .is_err()
+        );
         let generate = umbrella.phase_generate_request(Vec::new());
         assert_eq!(generate.mode, OperationMode::Apply);
         assert_eq!(generate.targets, vec!["//a:one".to_owned()]);

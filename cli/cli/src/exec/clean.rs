@@ -1,12 +1,13 @@
 use super::common::*;
 use super::explain_store;
 use dx_clean::{
-    apply_plan, collect_inventory_with_scan_from, measure_preserved_bytes, measure_prune_bytes,
-    render_prune_listing, GenerationView, PruneBytes, UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
+    GenerationView, PRUNE_UNOBSERVED_FLAG, PruneBytes, UnobservedPolicy, apply_plan,
+    collect_inventory_with_scan_from, measure_preserved_bytes, measure_prune_bytes,
+    render_prune_listing,
 };
 use dx_output::{
-    command_finished, command_started, notice_event, operation_event, FinishedCounts, NoticeEvent,
-    OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, notice_event,
+    operation_event,
 };
 use dx_path::state::{LOCAL_DIR, SETUPS};
 use dx_plan::args::Invocation;
@@ -85,13 +86,13 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
                 if let Err(exit) = emit_built(out, notice_event(&notice)) {
                     return exit;
                 }
-            } else if verbose {
-                if let Err(exit) = check_stdout_write(writeln!(
+            } else if verbose
+                && let Err(exit) = check_stdout_write(writeln!(
                     out,
                     "dx clean: pruned {removed} execution logs from .dx/local/explain"
-                )) {
-                    return exit;
-                }
+                ))
+            {
+                return exit;
             }
         }
         Err(error) => {
@@ -104,10 +105,8 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             );
         }
     }
-    if json {
-        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-            return exit;
-        }
+    if json && let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+        return exit;
     }
     0
 }
@@ -201,10 +200,10 @@ fn check_clean(
             }
             return 0;
         }
-        if verbose {
-            if let Err(exit) = check_stdout_write(writeln!(out, "dx clean: nothing to prune")) {
-                return exit;
-            }
+        if verbose
+            && let Err(exit) = check_stdout_write(writeln!(out, "dx clean: nothing to prune"))
+        {
+            return exit;
         }
         return 0;
     }
@@ -317,7 +316,12 @@ fn emit_preserved_unobserved(
             notice_event(&NoticeEvent {
                 related_command: Some("clean".to_owned()),
                 path: Some(path.clone()),
-                ..NoticeEvent::info(CODE_CLEAN_PRESERVED_UNOBSERVED, format!("preserved unobserved setup record {path} (observation unavailable, {size} bytes)"))
+                ..NoticeEvent::info(
+                    CODE_CLEAN_PRESERVED_UNOBSERVED,
+                    format!(
+                        "preserved unobserved setup record {path} (observation unavailable, {size} bytes)"
+                    ),
+                )
             }),
         )?;
     }
@@ -333,7 +337,12 @@ fn emit_preserved_unobserved(
             notice_event(&NoticeEvent {
                 related_command: Some("clean".to_owned()),
                 path: Some(path.clone()),
-                ..NoticeEvent::info(CODE_CLEAN_PRESERVED_UNOBSERVED, format!("preserved unobserved generation {path} (observation unavailable, {size} bytes)"))
+                ..NoticeEvent::info(
+                    CODE_CLEAN_PRESERVED_UNOBSERVED,
+                    format!(
+                        "preserved unobserved generation {path} (observation unavailable, {size} bytes)"
+                    ),
+                )
             }),
         )?;
     }
@@ -414,14 +423,18 @@ mod tests {
         let dx_dir = dx_path::state::local_dir(&harness.workspace);
         assert!(!dx_dir.join("setups").join(&stale).exists());
         assert!(dx_dir.join("setups").join(&current).exists());
-        assert!(!dx_dir
-            .join("environments")
-            .join('3'.to_string().repeat(64))
-            .exists());
-        assert!(!dx_dir
-            .join("generated")
-            .join('4'.to_string().repeat(64))
-            .exists());
+        assert!(
+            !dx_dir
+                .join("environments")
+                .join('3'.to_string().repeat(64))
+                .exists()
+        );
+        assert!(
+            !dx_dir
+                .join("generated")
+                .join('4'.to_string().repeat(64))
+                .exists()
+        );
         assert!(
             dx_dir
                 .join("environments")

@@ -1,7 +1,7 @@
 use super::update_unused::{self, Missing, Via};
 use dx_adopt::dependency_sets::{Ecosystem, ResolvedTarget};
 use dx_plan::resolve::QueryRunner;
-use dx_update::discover::{cargo, npm, pypi, ruby, Fetch};
+use dx_update::discover::{Fetch, cargo, npm, pypi, ruby};
 use dx_update::edit::{AddError, AddRequest, ConfiguredKind, UpdateRequest};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -235,9 +235,11 @@ mod tests {
         let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
         assert!(update_unused::find_missing(root, &resolved, &NoQuery, &[]).is_empty());
-        assert!(add_missing(root, &resolved, &registry, &NoQuery, &[])
-            .expect("again")
-            .is_empty());
+        assert!(
+            add_missing(root, &resolved, &registry, &NoQuery, &[])
+                .expect("again")
+                .is_empty()
+        );
     }
 
     #[test]

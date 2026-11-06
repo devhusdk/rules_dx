@@ -199,11 +199,7 @@ fn main() {
     let execroot = PathBuf::from(required("ROOT"));
     let runfiles_dir = env::var("RUNFILES_DIR").ok().map(|d| {
         let p = PathBuf::from(d);
-        if p.is_absolute() {
-            p
-        } else {
-            execroot.join(p)
-        }
+        if p.is_absolute() { p } else { execroot.join(p) }
     });
     let ctx = Context {
         coverage_dir,

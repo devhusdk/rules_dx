@@ -1,7 +1,7 @@
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{as_text, code_name, columned, finding, prefixed, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, columned, finding, prefixed};
 
 const TOOL: &str = "zig_ast_check";
 
@@ -92,9 +92,11 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_zig_ast_check(b"", b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_zig_ast_check(b"", b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

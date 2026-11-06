@@ -1,7 +1,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, read_json, resolve_runfiles, run, Run};
+use dx_testing::{Run, mkscratch, read_json, resolve_runfiles, run};
 
 const FAKE_UNZIP: &str = r#"#!/bin/sh
 if [ -n "${FAKE_BAD_ZIP:-}" ]; then
@@ -74,11 +74,15 @@ fn loads(extra: &str) -> String {
 }
 
 fn load(name: &str) -> String {
-    format!("Load command 11\n          cmd LC_LOAD_DYLIB\n      cmdsize 56\n         name {name} (offset 24)\n")
+    format!(
+        "Load command 11\n          cmd LC_LOAD_DYLIB\n      cmdsize 56\n         name {name} (offset 24)\n"
+    )
 }
 
 fn rpath(path: &str) -> String {
-    format!("Load command 12\n          cmd LC_RPATH\n      cmdsize 40\n         path {path} (offset 12)\n")
+    format!(
+        "Load command 12\n          cmd LC_RPATH\n      cmdsize 40\n         path {path} (offset 12)\n"
+    )
 }
 
 fn mach_o(path: &Path, archs: &str, loads: &str) {
@@ -91,7 +95,9 @@ fn mach_o(path: &Path, archs: &str, loads: &str) {
 }
 
 fn plist(bundle_id: &str, version: &str) -> String {
-    format!("CFBundleIdentifier={bundle_id}\nCFBundleExecutable=Ledger\nCFBundleShortVersionString={version}\nCFBundleVersion={version}\nLSMinimumSystemVersion=14.0\nCFBundlePackageType=APPL\nCFBundleSupportedPlatforms.0=MacOSX\n")
+    format!(
+        "CFBundleIdentifier={bundle_id}\nCFBundleExecutable=Ledger\nCFBundleShortVersionString={version}\nCFBundleVersion={version}\nLSMinimumSystemVersion=14.0\nCFBundlePackageType=APPL\nCFBundleSupportedPlatforms.0=MacOSX\n"
+    )
 }
 
 struct Case {

@@ -452,13 +452,13 @@ impl<'a> Session<'a> {
         if status != 201 {
             return Err(status_error("manifest upload", status));
         }
-        if let Some(pushed) = header(&done, "docker-content-digest") {
-            if pushed.trim() != digest {
-                return Err(format!(
-                    "registry: pushed manifest digest {} differs from the staged {digest}",
-                    pushed.trim()
-                ));
-            }
+        if let Some(pushed) = header(&done, "docker-content-digest")
+            && pushed.trim() != digest
+        {
+            return Err(format!(
+                "registry: pushed manifest digest {} differs from the staged {digest}",
+                pushed.trim()
+            ));
         }
         Ok(())
     }
@@ -508,10 +508,12 @@ fn staged_manifest(
             "oci layout: want an image manifest, got media type '{media_type}'"
         ));
     }
-    let mut blobs = vec![manifest["config"]["digest"]
-        .as_str()
-        .unwrap_or("")
-        .to_owned()];
+    let mut blobs = vec![
+        manifest["config"]["digest"]
+            .as_str()
+            .unwrap_or("")
+            .to_owned(),
+    ];
     for layer in manifest["layers"].as_array().into_iter().flatten() {
         blobs.push(layer["digest"].as_str().unwrap_or("").to_owned());
     }
@@ -794,10 +796,12 @@ mod tests {
         let basic = crate::http::basic_auth(USER, SECRET);
         let requests = fake.requests();
         assert!(requests.iter().all(|r| !r.path.starts_with("/token")));
-        assert!(requests
-            .iter()
-            .skip(1)
-            .all(|r| auth_of(r) == basic.as_str()));
+        assert!(
+            requests
+                .iter()
+                .skip(1)
+                .all(|r| auth_of(r) == basic.as_str())
+        );
     }
 
     #[test]
@@ -813,10 +817,11 @@ mod tests {
             let error = push(&fake, &layout).expect_err("bad credentials");
             assert_eq!(error, OCI_BAD_CREDENTIALS);
             assert!(!error.contains(SECRET));
-            assert!(fake
-                .requests()
-                .iter()
-                .all(|r| !r.path.contains("/manifests/")));
+            assert!(
+                fake.requests()
+                    .iter()
+                    .all(|r| !r.path.contains("/manifests/"))
+            );
         }
     }
 
@@ -914,9 +919,10 @@ mod tests {
             .expect("big layer");
         assert_eq!(big.content_length.as_deref(), Some("70000"));
         assert!(puts.iter().all(|r| r.transfer_encoding.is_none()));
-        assert!(puts
-            .iter()
-            .all(|r| r.content_type.as_deref() == Some("application/octet-stream")));
+        assert!(
+            puts.iter()
+                .all(|r| r.content_type.as_deref() == Some("application/octet-stream"))
+        );
     }
 
     #[test]
@@ -948,10 +954,11 @@ mod tests {
             });
             let error = push(&fake, &layout).expect_err("blob failure");
             assert!(error.contains(&format!("HTTP {status}")), "{error}");
-            assert!(fake
-                .requests()
-                .iter()
-                .all(|r| !r.path.contains("/manifests/")));
+            assert!(
+                fake.requests()
+                    .iter()
+                    .all(|r| !r.path.contains("/manifests/"))
+            );
         }
     }
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::exception::{cargo_assess, version_in_scope, ExceptionProblem, RiskException};
+use crate::exception::{ExceptionProblem, RiskException, cargo_assess, version_in_scope};
 
 #[test]
 fn osv_range_boundaries_project_to_native_ecosystem_scopes() {
@@ -831,9 +831,11 @@ fn exception_problems_fail_and_obsolete_is_reported() {
         ..exception("cargo", "GHSA-gone", "gone", "*")
     };
     let (_, problems) = apply_exceptions(&findings, &[obsolete], "2026-09-18");
-    assert!(problems
-        .iter()
-        .any(|p| matches!(p, ExceptionProblem::Obsolete { .. })));
+    assert!(
+        problems
+            .iter()
+            .any(|p| matches!(p, ExceptionProblem::Obsolete { .. }))
+    );
 }
 
 #[test]
@@ -881,9 +883,11 @@ fn osv_explicit_versions_do_not_caret_match_fixed_release() {
     }]"#;
     let parsed = parse_snapshot(text).expect("osv parses");
     assert!(parsed.iter().any(|entry| entry.versions == "=0.4.10"));
-    assert!(parsed
-        .iter()
-        .any(|entry| entry.versions == ">=0.4.10, <0.4.11"));
+    assert!(
+        parsed
+            .iter()
+            .any(|entry| entry.versions == ">=0.4.10, <0.4.11")
+    );
     let any_affected = |version: &str| {
         parsed
             .iter()
@@ -1320,9 +1324,11 @@ fn malformed_advisories_mark_packages_unassessed_not_clean() {
     let (findings, unassessed) = match_packages(&packages, &advisories);
     assert!(findings.is_empty());
     assert_eq!(unassessed.len(), 4);
-    assert!(unassessed
-        .iter()
-        .all(|entry| entry.reason == REASON_VERSION_SYNTAX));
+    assert!(
+        unassessed
+            .iter()
+            .all(|entry| entry.reason == REASON_VERSION_SYNTAX)
+    );
 
     let mixed = vec![LockedPackage::new("npm", "lodash", "1.0.0")];
     let advisories = vec![

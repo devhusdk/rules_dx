@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_native, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_native};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "weeder";

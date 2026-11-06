@@ -51,10 +51,10 @@ pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), Valid
         | Some(dx_path::PathProblem::Dot) => return Err(ValidationError::MalformedPath),
         Some(dx_path::PathProblem::DotDot) => return Err(ValidationError::EscapesWorkspace),
     }
-    if let Some(extension) = extension_of(&op.path) {
-        if BLOCKED_EXTENSIONS.contains(&extension.as_str()) {
-            return Err(ValidationError::BlockedExtension { extension });
-        }
+    if let Some(extension) = extension_of(&op.path)
+        && BLOCKED_EXTENSIONS.contains(&extension.as_str())
+    {
+        return Err(ValidationError::BlockedExtension { extension });
     }
     if op.content.len() > MAX_OPERATION_BYTES {
         return Err(ValidationError::TooLarge {

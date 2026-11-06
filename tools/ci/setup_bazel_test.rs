@@ -270,10 +270,12 @@ fn the_setup_bazel_action_restores_the_repository_cache() {
     let locate = &steps[order[0]];
     let restore = &steps[order[1]];
     let stamp = &steps[order[2]];
-    assert!(locate["run"]
-        .as_str()
-        .unwrap()
-        .contains("bazel info repository_cache"));
+    assert!(
+        locate["run"]
+            .as_str()
+            .unwrap()
+            .contains("bazel info repository_cache")
+    );
     assert_eq!(
         restore["with"]["path"].as_str(),
         Some("${{ steps.repo-cache.outputs.path }}/content_addressable")

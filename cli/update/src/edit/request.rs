@@ -140,13 +140,17 @@ pub enum EditError {
         package: String,
         reason: &'static str,
     },
-    #[error("update needs one package, not a whole set: {set:?} selects the set; use `{set}:<package> <version>`")]
+    #[error(
+        "update needs one package, not a whole set: {set:?} selects the set; use `{set}:<package> <version>`"
+    )]
     BareSet { set: String },
     #[error("update needs `set:package`, not a label or path: {target:?}")]
     NotAPackage { target: String },
     #[error("no declared requirement for {package:?} in {manifest} (nothing widened)")]
     NotFound { manifest: String, package: String },
-    #[error("ambiguous requirement for {package:?} in {manifest}: {count} matches (nothing widened; widen one requirement per invocation)")]
+    #[error(
+        "ambiguous requirement for {package:?} in {manifest}: {count} matches (nothing widened; widen one requirement per invocation)"
+    )]
     Ambiguous {
         manifest: String,
         package: String,
@@ -154,7 +158,9 @@ pub enum EditError {
     },
     #[error("unsupported manifest shape in {manifest}: {reason} (nothing widened)")]
     UnsupportedManifest { manifest: String, reason: String },
-    #[error("github-actions {package:?} tag {tag:?} needs SHA resolution via the upstream GitHub releases client; pass the resolved SHA as <version> (nothing widened)")]
+    #[error(
+        "github-actions {package:?} tag {tag:?} needs SHA resolution via the upstream GitHub releases client; pass the resolved SHA as <version> (nothing widened)"
+    )]
     NeedsSha { package: String, tag: String },
     #[error(transparent)]
     Version(#[from] VersionError),
@@ -166,13 +172,17 @@ pub enum EditError {
     FloorNotBazelDep { selector: String },
     #[error("floor reason {reason:?} must be one non-empty line")]
     UnsafeReason { reason: String },
-    #[error("floor {floor} of {package:?} would be above its tested version {tested} in the single_version_override; update the tested version first (nothing changed)")]
+    #[error(
+        "floor {floor} of {package:?} would be above its tested version {tested} in the single_version_override; update the tested version first (nothing changed)"
+    )]
     FloorAboveTested {
         package: String,
         floor: String,
         tested: String,
     },
-    #[error("tested version {tested} of {package:?} would be below its floor {floor} in the bazel_dep; lower the floor first with --floor --reason (nothing changed)")]
+    #[error(
+        "tested version {tested} of {package:?} would be below its floor {floor} in the bazel_dep; lower the floor first with --floor --reason (nothing changed)"
+    )]
     TestedBelowFloor {
         package: String,
         tested: String,

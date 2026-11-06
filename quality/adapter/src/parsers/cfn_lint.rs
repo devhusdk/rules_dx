@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "cfn_lint";
@@ -146,9 +146,11 @@ mod tests {
 
     #[test]
     fn clean_run_is_clean() {
-        assert!(parse_cfn_lint(b"[]\n", b"", Some(0), &files())
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_cfn_lint(b"[]\n", b"", Some(0), &files())
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -170,9 +172,10 @@ mod tests {
     fn warnings_use_exit_four() {
         let out = parse_cfn_lint(DIRTY_WARNING.as_bytes(), b"", Some(4), &files()).expect("warn");
         assert_eq!(out.len(), 2);
-        assert!(out
-            .iter()
-            .all(|item| item.finding.severity == ToolSeverity::Warning));
+        assert!(
+            out.iter()
+                .all(|item| item.finding.severity == ToolSeverity::Warning)
+        );
         assert!(parse_cfn_lint(DIRTY_WARNING.as_bytes(), b"", Some(2), &files()).is_err());
         assert!(parse_cfn_lint(DIRTY_WARNING.as_bytes(), b"", Some(0), &files()).is_err());
     }

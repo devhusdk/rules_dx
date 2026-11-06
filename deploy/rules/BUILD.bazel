@@ -187,7 +187,6 @@ rust_library(
     ),
     crate_name = "dx_deploy_tools",
     crate_root = "src/lib.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "deploy/dx_deploy_tools",
@@ -213,7 +212,6 @@ rust_binary(
     ),
     crate_name = "archiver",
     crate_root = "src/bin_archiver.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":dx_deploy_tools"],
 )
@@ -227,7 +225,6 @@ rust_binary(
     ),
     crate_name = "cloudflare_verify",
     crate_root = "src/bin_cloudflare_verify.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":dx_deploy_tools"],
 )
@@ -241,7 +238,6 @@ rust_binary(
     ),
     crate_name = "deploy_tool",
     crate_root = "src/bin_deploy_tool.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":dx_deploy_tools"],
 )
@@ -255,7 +251,6 @@ rust_binary(
     ),
     crate_name = "hasher",
     crate_root = "src/bin_hasher.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":dx_deploy_tools"],
 )
@@ -269,7 +264,6 @@ rust_binary(
     ),
     crate_name = "size_checker",
     crate_root = "src/bin_size_checker.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":dx_deploy_tools"],
 )
@@ -369,7 +363,6 @@ rust_binary(
     ),
     crate_name = "npm_packer",
     crate_root = "src/bin_npm_pack.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":dx_deploy_tools"],
 )
@@ -383,7 +376,6 @@ rust_binary(
     ),
     crate_name = "deploy_program",
     crate_root = "src/bin_deploy_program.rs",
-    edition = "2021",
     deps = [":dx_deploy_tools"],
 )
 
@@ -396,7 +388,6 @@ rust_binary(
     ),
     crate_name = "deploy_app",
     crate_root = "src/bin_deploy_app.rs",
-    edition = "2021",
     deps = [":dx_deploy_tools"],
 )
 

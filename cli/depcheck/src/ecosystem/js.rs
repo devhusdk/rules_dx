@@ -197,7 +197,7 @@ fn parse_importer(
             Some(_) => {
                 return Err(lock_error(format!(
                     "importer '{key}' {section} must be a mapping"
-                )))
+                )));
             }
         };
         for (name, entry) in deps {
@@ -220,7 +220,7 @@ fn parse_importer(
                 Some(prev) if *prev != parsed => {
                     return Err(lock_error(format!(
                         "importer '{key}' resolves '{name}' more than once"
-                    )))
+                    )));
                 }
                 Some(_) => {}
                 None => {

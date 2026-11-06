@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use dx_testing::serde_json::Value;
-use quality_adapter::commands::{qmlformat_check, qmlformat_fix, qmllint_check, Invocation};
-use quality_adapter::parsers::{parse_qmlformat, parse_qmllint, QmllintView};
+use quality_adapter::commands::{Invocation, qmlformat_check, qmlformat_fix, qmllint_check};
+use quality_adapter::parsers::{QmllintView, parse_qmlformat, parse_qmllint};
 
 fn path(variable: &str) -> PathBuf {
     let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must be set"));
@@ -244,10 +244,11 @@ fn qmllint_unknown_import_is_reported_not_ignored() {
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     let found = parsed.expect("parsed");
     assert!(found.iter().all(|item| item.finding.rule_id == "import"));
-    assert!(found.iter().any(|item| item
-        .finding
-        .message
-        .contains("Failed to import Nope.Missing")));
+    assert!(found.iter().any(|item| {
+        item.finding
+            .message
+            .contains("Failed to import Nope.Missing")
+    }));
 }
 
 #[test]
@@ -282,10 +283,12 @@ fn qmllint_declared_import_dir_resolves_a_module() {
 
     let (out, parsed) = view(&[user.as_path()], &[], false, QmllintView::Typecheck);
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
-    assert!(parsed
-        .expect("parsed")
-        .iter()
-        .any(|item| item.finding.message.contains("Failed to import Foo")));
+    assert!(
+        parsed
+            .expect("parsed")
+            .iter()
+            .any(|item| item.finding.message.contains("Failed to import Foo"))
+    );
 
     let (out, parsed) = lint(&[user.as_path()], &[roots.as_path()], false);
     assert_eq!(out.status.code(), Some(0), "{}", out.combined());

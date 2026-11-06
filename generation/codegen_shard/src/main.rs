@@ -46,7 +46,7 @@ fn main() {
 mod tests {
     use super::*;
     use codegen_shard::decode_validated;
-    use dx_shard_writer::{run, WriterError};
+    use dx_shard_writer::{WriterError, run};
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| (*value).to_owned()).collect()

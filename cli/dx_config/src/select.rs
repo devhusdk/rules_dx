@@ -181,7 +181,7 @@ fn check_profiles(families: &BTreeMap<String, FamilySelection>) -> Result<(), Se
                         first_profile: profile.as_str(),
                         second: id.clone(),
                         second_profile: family.profile.as_str(),
-                    })
+                    });
                 }
                 Some(_) => {}
                 None => {

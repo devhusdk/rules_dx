@@ -1,4 +1,4 @@
-use super::super::{assert_usage, ArgsError, Command, OperationMode, ReportRequest};
+use super::super::{ArgsError, Command, OperationMode, ReportRequest, assert_usage};
 use super::parse;
 use dx_output::{OutputMode, Threshold};
 use dx_testing::cli::strings;

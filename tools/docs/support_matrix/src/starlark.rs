@@ -241,28 +241,36 @@ pub fn parse(path: &str, text: &str) -> Result<File, String> {
                 let mut source = None;
                 for arg in &args {
                     match arg.as_slice() {
-                        [Token {
-                            tok: Tok::Str(text),
-                            ..
-                        }] if source.is_none() => {
+                        [
+                            Token {
+                                tok: Tok::Str(text),
+                                ..
+                            },
+                        ] if source.is_none() => {
                             source = Some(text.clone());
                         }
-                        [Token {
-                            tok: Tok::Str(text),
-                            ..
-                        }] => {
+                        [
+                            Token {
+                                tok: Tok::Str(text),
+                                ..
+                            },
+                        ] => {
                             file.loads.insert(
                                 text.clone(),
                                 (source.clone().unwrap_or_default(), text.clone()),
                             );
                         }
-                        [Token {
-                            tok: Tok::Ident(local),
-                            ..
-                        }, eq, Token {
-                            tok: Tok::Str(text),
-                            ..
-                        }] if is_op(Some(eq), "=") => {
+                        [
+                            Token {
+                                tok: Tok::Ident(local),
+                                ..
+                            },
+                            eq,
+                            Token {
+                                tok: Tok::Str(text),
+                                ..
+                            },
+                        ] if is_op(Some(eq), "=") => {
                             file.loads.insert(
                                 local.clone(),
                                 (source.clone().unwrap_or_default(), text.clone()),
@@ -277,14 +285,17 @@ pub fn parse(path: &str, text: &str) -> Result<File, String> {
                     args: BTreeMap::new(),
                 };
                 for arg in args {
-                    if let [Token {
-                        tok: Tok::Ident(key),
-                        ..
-                    }, eq, rest @ ..] = arg.as_slice()
+                    if let [
+                        Token {
+                            tok: Tok::Ident(key),
+                            ..
+                        },
+                        eq,
+                        rest @ ..,
+                    ] = arg.as_slice()
+                        && is_op(Some(eq), "=")
                     {
-                        if is_op(Some(eq), "=") {
-                            call.args.insert(key.clone(), rest.to_vec());
-                        }
+                        call.args.insert(key.clone(), rest.to_vec());
                     }
                 }
                 file.calls.push(call);
@@ -360,11 +371,12 @@ impl Eval<'_> {
     fn atom(&self, tokens: &[Token]) -> Result<Value, String> {
         match tokens {
             [] => Err(self.err("empty expression")),
-            [Token {
-                tok: Tok::Str(_), ..
-            }, ..]
-                if tokens.iter().all(|token| matches!(token.tok, Tok::Str(_))) =>
-            {
+            [
+                Token {
+                    tok: Tok::Str(_), ..
+                },
+                ..,
+            ] if tokens.iter().all(|token| matches!(token.tok, Tok::Str(_))) => {
                 let mut text = String::new();
                 for token in tokens {
                     if let Tok::Str(part) = &token.tok {
@@ -373,12 +385,16 @@ impl Eval<'_> {
                 }
                 Ok(Value::Str(text))
             }
-            [Token {
-                tok: Tok::Op(open), ..
-            }, inner @ .., Token {
-                tok: Tok::Op(close),
-                ..
-            }] if open == "[" && close == "]" && wrapped(tokens) => {
+            [
+                Token {
+                    tok: Tok::Op(open), ..
+                },
+                inner @ ..,
+                Token {
+                    tok: Tok::Op(close),
+                    ..
+                },
+            ] if open == "[" && close == "]" && wrapped(tokens) => {
                 let mut items = Vec::new();
                 for item in split_commas(inner) {
                     match self.sum(item)? {
@@ -388,48 +404,63 @@ impl Eval<'_> {
                 }
                 Ok(Value::List(vec![Part::Fixed(items)]))
             }
-            [Token {
-                tok: Tok::Op(open), ..
-            }, inner @ .., Token {
-                tok: Tok::Op(close),
-                ..
-            }] if open == "(" && close == ")" && wrapped(tokens) => self.sum(inner),
-            [Token {
-                tok: Tok::Ident(name),
-                ..
-            }, Token {
-                tok: Tok::Op(open), ..
-            }, inner @ .., Token {
-                tok: Tok::Op(close),
-                ..
-            }] if name == "select" && open == "(" && close == ")" && wrapped(&tokens[1..]) => {
+            [
+                Token {
+                    tok: Tok::Op(open), ..
+                },
+                inner @ ..,
+                Token {
+                    tok: Tok::Op(close),
+                    ..
+                },
+            ] if open == "(" && close == ")" && wrapped(tokens) => self.sum(inner),
+            [
+                Token {
+                    tok: Tok::Ident(name),
+                    ..
+                },
+                Token {
+                    tok: Tok::Op(open), ..
+                },
+                inner @ ..,
+                Token {
+                    tok: Tok::Op(close),
+                    ..
+                },
+            ] if name == "select" && open == "(" && close == ")" && wrapped(&tokens[1..]) => {
                 self.select(inner)
             }
-            [Token {
-                tok: Tok::Ident(name),
-                ..
-            }, Token {
-                tok: Tok::Op(open), ..
-            }, ..]
-                if open == "(" =>
-            {
-                Err(self.err(&format!("cannot evaluate the call {name}()")))
-            }
-            [Token {
-                tok: Tok::Ident(name),
-                ..
-            }] => self.resolve(name),
+            [
+                Token {
+                    tok: Tok::Ident(name),
+                    ..
+                },
+                Token {
+                    tok: Tok::Op(open), ..
+                },
+                ..,
+            ] if open == "(" => Err(self.err(&format!("cannot evaluate the call {name}()"))),
+            [
+                Token {
+                    tok: Tok::Ident(name),
+                    ..
+                },
+            ] => self.resolve(name),
             _ => Err(self.err("cannot evaluate the expression")),
         }
     }
 
     fn select(&self, tokens: &[Token]) -> Result<Value, String> {
-        let [Token {
-            tok: Tok::Op(open), ..
-        }, inner @ .., Token {
-            tok: Tok::Op(close),
-            ..
-        }] = tokens
+        let [
+            Token {
+                tok: Tok::Op(open), ..
+            },
+            inner @ ..,
+            Token {
+                tok: Tok::Op(close),
+                ..
+            },
+        ] = tokens
         else {
             return Err(self.err("select() takes one dict"));
         };
@@ -726,7 +757,7 @@ pub fn test_facts(file: &File, name: &str, loader: &dyn Loader) -> Result<TestFa
                     match part {
                         Part::Fixed(values) => tags.extend(values),
                         Part::Select(_) | Part::AnyOf(_) => {
-                            return Err(eval.err("tags use select()"))
+                            return Err(eval.err("tags use select()"));
                         }
                     }
                 }
@@ -767,11 +798,7 @@ pub struct Platform {
 }
 
 fn cpu_alias(cpu: &str) -> &str {
-    if cpu == "aarch64" {
-        "arm64"
-    } else {
-        cpu
-    }
+    if cpu == "aarch64" { "arm64" } else { cpu }
 }
 
 fn select_key_matches(key: &str, platform: &Platform) -> Result<bool, String> {

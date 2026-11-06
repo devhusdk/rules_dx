@@ -1,4 +1,4 @@
-use super::{finding, lines, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, finding, lines, require_findings};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -146,15 +146,19 @@ mod tests {
     #[test]
     fn failing_exit_without_a_diagnostic_is_an_error() {
         assert!(parse_clang_syntax(b"", Some(1), &[FILE]).is_err());
-        assert!(parse_clang_syntax(
-            b"clang: error: no such file or directory: 'x.c'\n",
-            Some(1),
-            &[FILE]
-        )
-        .is_err());
-        assert!(parse_clang_syntax(b"", Some(0), &[FILE])
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_clang_syntax(
+                b"clang: error: no such file or directory: 'x.c'\n",
+                Some(1),
+                &[FILE]
+            )
+            .is_err()
+        );
+        assert!(
+            parse_clang_syntax(b"", Some(0), &[FILE])
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]

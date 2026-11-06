@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{rubocop_json, FileFinding, ParseError};
+use super::{FileFinding, ParseError, rubocop_json};
 
 /// Parses `standardrb --format json`, which is RuboCop's own JSON grammar.
 pub fn parse_standardrb(

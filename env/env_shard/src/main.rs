@@ -45,7 +45,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dx_shard_writer::{run, WriterError};
+    use dx_shard_writer::{WriterError, run};
     use env_shard::decode_validated;
 
     fn args(values: &[&str]) -> Vec<String> {

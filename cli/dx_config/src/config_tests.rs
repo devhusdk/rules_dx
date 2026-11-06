@@ -1,4 +1,4 @@
-use crate::config::{load, parse, LoadProblem, Profile};
+use crate::config::{LoadProblem, Profile, load, parse};
 use crate::conventions::ConventionProblem;
 
 fn message(text: &str) -> String {

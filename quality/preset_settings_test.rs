@@ -1,4 +1,4 @@
-use dx_preset::{render_layer, Layer, DEFAULT_REPO};
+use dx_preset::{DEFAULT_REPO, Layer, render_layer};
 
 #[test]
 fn dx_settings_are_in_the_correctness_layer() {

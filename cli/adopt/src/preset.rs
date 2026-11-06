@@ -4,16 +4,15 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::Ownership;
 use crate::build_output::IGNORE_LINES;
 use crate::error::AdoptError;
 use crate::preset_fragment::{
-    bazelrc_imports, is_generated, layer_import_state, layer_warnings_as_errors,
-    owned_collisions_in_content, prepend_imports, render_all, ImportState, Layer, CONSUMER_DIR,
-    REPO_DIR,
+    CONSUMER_DIR, ImportState, Layer, REPO_DIR, bazelrc_imports, is_generated, layer_import_state,
+    layer_warnings_as_errors, owned_collisions_in_content, prepend_imports, render_all,
 };
-use crate::profiles::{config_policy_wanted, Profile};
-use crate::scaffold::{scaffold_dest_within_root, with_header, Applied};
-use crate::Ownership;
+use crate::profiles::{Profile, config_policy_wanted};
+use crate::scaffold::{Applied, scaffold_dest_within_root, with_header};
 use dx_preset::{layer_is_current_pinned, render_layer_pinned};
 
 /// The root `.bazelrc` file.
@@ -525,9 +524,11 @@ mod tests {
             .map(|(path, _)| path)
             .collect();
         assert_eq!(files, super::preset_paths());
-        assert!(super::preset_files(Path::new("."), None)
-            .iter()
-            .all(|(_, content)| !content.is_empty()));
+        assert!(
+            super::preset_files(Path::new("."), None)
+                .iter()
+                .all(|(_, content)| !content.is_empty())
+        );
     }
 
     use super::*;

@@ -4,10 +4,10 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
-use dx_site_browser::{wait_for, Browser};
+use dx_site_browser::{Browser, wait_for};
 
 mod preview_server;
-use preview_server::{firefox_binary, search_query, user_site, Server};
+use preview_server::{Server, firefox_binary, search_query, user_site};
 
 const DEPLOYED_URL: &str = "DX_PAGES_URL";
 const READINESS_ATTEMPTS: u32 = 10;

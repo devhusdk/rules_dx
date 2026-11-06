@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, known_native, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, known_native, unformatted_at};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -306,9 +306,11 @@ mod tests {
 
     #[test]
     fn eval_clean_is_exit_zero_with_quiet_stderr() {
-        assert!(parse_pkl_eval(b"x = 1\n", b"", Some(0), &KNOWN)
-            .expect("ok")
-            .is_empty());
+        assert!(
+            parse_pkl_eval(b"x = 1\n", b"", Some(0), &KNOWN)
+                .expect("ok")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -324,10 +326,12 @@ mod tests {
         assert_eq!(found[0].file, OWNED);
         assert_eq!(found[0].finding.start.line, 1);
         assert_eq!(found[0].finding.start.column, 4);
-        assert!(found[0]
-            .finding
-            .message
-            .starts_with("Expected value of type"));
+        assert!(
+            found[0]
+                .finding
+                .message
+                .starts_with("Expected value of type")
+        );
     }
 
     #[test]

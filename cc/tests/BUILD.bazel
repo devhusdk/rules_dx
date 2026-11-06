@@ -18,7 +18,6 @@ rust_test(
         "@llvm//tools:clang++",
         "@llvm//tools:clang-cl",
     ],
-    edition = "2021",
     env = {
         "DX_CLANG": "$(rootpath @llvm//tools:clang)",
         "DX_CLANGCL": "$(rootpath @llvm//tools:clang-cl)",
@@ -46,7 +45,6 @@ rust_test(
         "//cc/tests/fixtures/foreign_cmake:zlib_log",
         "//cc/tests/fixtures/foreign_cmake:zlib_log_gcc_copy",
     ],
-    edition = "2021",
     env = {
         "DX_FOREIGN_CMAKE_INCLUDE": "$(rootpaths //cc/tests/fixtures/foreign_cmake:zlib_include)",
         "DX_FOREIGN_CMAKE_LOG": "$(rootpaths //cc/tests/fixtures/foreign_cmake:zlib_log)",
@@ -70,7 +68,6 @@ rust_test(
     crate_name = "foreign_cmake_msvc_log_test",
     crate_root = "foreign_cmake_msvc_log.rs",
     data = ["//cc/tests/fixtures/foreign_cmake:zlib_msvc_log"],
-    edition = "2021",
     env = {"DX_FOREIGN_CMAKE_MSVC_LOG": "$(rootpaths //cc/tests/fixtures/foreign_cmake:zlib_msvc_log)"},
     tags = ["no-coverage"],
     target_compatible_with = [
@@ -93,7 +90,6 @@ rust_test(
         "//cc/tests/fixtures/foreign_cmake:zlib_arm64_log",
         "//cc/tests/fixtures/foreign_cmake:zlib_arm64_wrong_arch_link",
     ],
-    edition = "2021",
     env = {
         "DX_FOREIGN_CMAKE_CROSS_LOG": "$(rootpaths //cc/tests/fixtures/foreign_cmake:zlib_arm64_log)",
         "DX_FOREIGN_CMAKE_WRONG_ARCH_LINK": "$(rootpath //cc/tests/fixtures/foreign_cmake:zlib_arm64_wrong_arch_link)",

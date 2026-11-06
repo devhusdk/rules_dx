@@ -12,7 +12,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use topiary_core::{formatter_str, Language, Operation, TopiaryQuery};
+use topiary_core::{Language, Operation, TopiaryQuery, formatter_str};
 
 /// The single language-to-grammar table. Add new topiary languages here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -207,11 +207,7 @@ fn run(args: Args) -> u8 {
             }
         }
     }
-    if failed {
-        2
-    } else {
-        u8::from(changed)
-    }
+    if failed { 2 } else { u8::from(changed) }
 }
 
 fn main() -> ExitCode {
@@ -264,9 +260,9 @@ mod tests {
         assert_eq!(Lang::from_path("a.mll"), None);
         assert_eq!(Lang::from_path("a.mly"), None);
         assert_eq!(Lang::from_path("a"), None);
-        assert!(parse_args(
-            ["--language".to_owned(), "cobol".to_owned(), "a".to_owned()].into_iter()
-        )
-        .is_err());
+        assert!(
+            parse_args(["--language".to_owned(), "cobol".to_owned(), "a".to_owned()].into_iter())
+                .is_err()
+        );
     }
 }

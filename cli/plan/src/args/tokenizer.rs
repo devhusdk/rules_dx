@@ -4,7 +4,7 @@ use clap::Parser;
 
 use super::command::Command;
 use super::grammar::{Cli, Flags, Verb};
-use super::{help, ArgsError};
+use super::{ArgsError, help};
 
 /// clap's error text with its own usage block dropped.
 pub(crate) fn without_usage(text: &str) -> String {

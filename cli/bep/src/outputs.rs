@@ -5,8 +5,8 @@ use std::path::Path;
 use serde_json::Value;
 
 use super::{
-    file_uri_to_path, is_bytestream_uri, local_path_for_bep_file, ArtifactReader, BepError,
-    CollectedArtifact, CollectorConfig, EventGap, EventLedger, EventLines, TargetOutput,
+    ArtifactReader, BepError, CollectedArtifact, CollectorConfig, EventGap, EventLedger,
+    EventLines, TargetOutput, file_uri_to_path, is_bytestream_uri, local_path_for_bep_file,
 };
 
 struct RawFile {
@@ -191,43 +191,41 @@ fn read_account(
             let mut set_ids = Vec::new();
             let mut declared = false;
             let mut incomplete = false;
-            if success {
-                if let Some(groups) = completed.get("outputGroup") {
-                    let groups = groups.as_array().ok_or_else(|| BepError::MalformedEvent {
+            if success && let Some(groups) = completed.get("outputGroup") {
+                let groups = groups.as_array().ok_or_else(|| BepError::MalformedEvent {
+                    line: line_no,
+                    reason: "outputGroup must be an array".to_owned(),
+                })?;
+                for group in groups {
+                    let group = group.as_object().ok_or_else(|| BepError::MalformedEvent {
                         line: line_no,
-                        reason: "outputGroup must be an array".to_owned(),
+                        reason: "output group must be an object".to_owned(),
                     })?;
-                    for group in groups {
-                        let group = group.as_object().ok_or_else(|| BepError::MalformedEvent {
-                            line: line_no,
-                            reason: "output group must be an object".to_owned(),
-                        })?;
-                        if group.get("name").and_then(Value::as_str) != Some(&config.output_group) {
-                            continue;
-                        }
-                        if group.get("incomplete").and_then(Value::as_bool) == Some(true) {
-                            incomplete = true;
-                        }
-                        if let Some(file_sets) = group.get("fileSets") {
-                            let file_sets =
-                                file_sets
-                                    .as_array()
-                                    .ok_or_else(|| BepError::MalformedEvent {
-                                        line: line_no,
-                                        reason: "fileSets must be an array".to_owned(),
-                                    })?;
-                            for set in file_sets {
-                                let set_id = set
-                                    .as_object()
-                                    .and_then(|s| s.get("id"))
-                                    .and_then(Value::as_str)
-                                    .ok_or_else(|| BepError::MalformedEvent {
-                                        line: line_no,
-                                        reason: "file set without id".to_owned(),
-                                    })?;
-                                set_ids.push(set_id.to_owned());
-                                declared = true;
-                            }
+                    if group.get("name").and_then(Value::as_str) != Some(&config.output_group) {
+                        continue;
+                    }
+                    if group.get("incomplete").and_then(Value::as_bool) == Some(true) {
+                        incomplete = true;
+                    }
+                    if let Some(file_sets) = group.get("fileSets") {
+                        let file_sets =
+                            file_sets
+                                .as_array()
+                                .ok_or_else(|| BepError::MalformedEvent {
+                                    line: line_no,
+                                    reason: "fileSets must be an array".to_owned(),
+                                })?;
+                        for set in file_sets {
+                            let set_id = set
+                                .as_object()
+                                .and_then(|s| s.get("id"))
+                                .and_then(Value::as_str)
+                                .ok_or_else(|| BepError::MalformedEvent {
+                                    line: line_no,
+                                    reason: "file set without id".to_owned(),
+                                })?;
+                            set_ids.push(set_id.to_owned());
+                            declared = true;
                         }
                     }
                 }
@@ -981,9 +979,11 @@ mod tests {
         let account = collect_account(Cursor::new("not json\n"), &config(), &artifacts, None)
             .expect("cut-off tail");
         assert!(account.targets.is_empty());
-        assert!(account
-            .problem
-            .is_some_and(|problem| problem.starts_with("line 1:")));
+        assert!(
+            account
+                .problem
+                .is_some_and(|problem| problem.starts_with("line 1:"))
+        );
         let err = collect_account(Cursor::new("[1,2]\n"), &config(), &artifacts, None)
             .expect_err("array");
         assert!(matches!(err, BepError::MalformedEvent { .. }));

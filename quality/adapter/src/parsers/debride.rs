@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "debride";
@@ -160,27 +160,33 @@ mod tests {
         assert!(parse_debride(b"", b"", Some(0), &["lib/foo.rb"]).is_err());
         assert!(parse_debride(b"Foo\n  bar lib/foo.rb:2", b"", Some(0), &["lib/foo.rb"]).is_err());
         assert!(parse_debride(br#"{"other":{}}"#, b"", Some(0), &["lib/foo.rb"]).is_err());
-        assert!(parse_debride(
-            br#"{"missing":{"Foo":["bar"]}}"#,
-            b"",
-            Some(0),
-            &["lib/foo.rb"]
-        )
-        .is_err());
-        assert!(parse_debride(
-            br#"{"missing":{"Foo":[["bar",null]]}}"#,
-            b"",
-            Some(0),
-            &["lib/foo.rb"]
-        )
-        .is_err());
-        assert!(parse_debride(
-            br#"{"missing":{"Foo":[["bar","lib/foo.rb:x"]]}}"#,
-            b"",
-            Some(0),
-            &["lib/foo.rb"]
-        )
-        .is_err());
+        assert!(
+            parse_debride(
+                br#"{"missing":{"Foo":["bar"]}}"#,
+                b"",
+                Some(0),
+                &["lib/foo.rb"]
+            )
+            .is_err()
+        );
+        assert!(
+            parse_debride(
+                br#"{"missing":{"Foo":[["bar",null]]}}"#,
+                b"",
+                Some(0),
+                &["lib/foo.rb"]
+            )
+            .is_err()
+        );
+        assert!(
+            parse_debride(
+                br#"{"missing":{"Foo":[["bar","lib/foo.rb:x"]]}}"#,
+                b"",
+                Some(0),
+                &["lib/foo.rb"]
+            )
+            .is_err()
+        );
         assert!(parse_debride(&[0xff], b"", Some(0), &["lib/foo.rb"]).is_err());
     }
 }

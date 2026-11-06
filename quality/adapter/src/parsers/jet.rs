@@ -1,6 +1,6 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-use super::{as_text, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, finding};
 
 const TOOL: &str = "jet";
 
@@ -124,9 +124,11 @@ mod tests {
     #[test]
     fn jet_empty_reports_have_no_findings() {
         assert!(parse_jet(b"", &["/s/a.jl"]).expect("empty").is_empty());
-        assert!(parse_jet(REPORT.as_bytes(), &["/s/other.jl"])
-            .expect("other")
-            .is_empty());
+        assert!(
+            parse_jet(REPORT.as_bytes(), &["/s/other.jl"])
+                .expect("other")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -135,10 +137,12 @@ mod tests {
         assert!(parse_jet(br#"{"v":2,"kind":"k","message":"m","frames":[]}"#, &[]).is_err());
         assert!(parse_jet(br#"{"v":1,"message":"m","frames":[]}"#, &[]).is_err());
         assert!(parse_jet(br#"{"v":1,"kind":"k","message":"m"}"#, &[]).is_err());
-        assert!(parse_jet(
-            br#"{"v":1,"kind":"k","message":"m","frames":[{"file":"/s/a.jl"}]}"#,
-            &["/s/a.jl"]
-        )
-        .is_err());
+        assert!(
+            parse_jet(
+                br#"{"v":1,"kind":"k","message":"m","frames":[{"file":"/s/a.jl"}]}"#,
+                &["/s/a.jl"]
+            )
+            .is_err()
+        );
     }
 }

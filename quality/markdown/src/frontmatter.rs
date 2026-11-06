@@ -1,7 +1,7 @@
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 use unicode_properties::{GeneralCategory, UnicodeGeneralCategory};
 
-use super::check::{push_finding, CheckOutcome, FindingKind};
+use super::check::{CheckOutcome, FindingKind, push_finding};
 
 pub(crate) struct Heading {
     pub(crate) level: usize,

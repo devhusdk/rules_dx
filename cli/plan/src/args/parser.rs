@@ -99,10 +99,10 @@ fn resolve_output_name(
     if let Some(flag) = flag {
         return flag.to_owned();
     }
-    if let Some(value) = env.as_deref() {
-        if command.is_none_or(|command| output_supported(command, value)) {
-            return value.to_owned();
-        }
+    if let Some(value) = env.as_deref()
+        && command.is_none_or(|command| output_supported(command, value))
+    {
+        return value.to_owned();
     }
     if agent && command.is_none_or(Command::supports_json) {
         "json".to_owned()
@@ -271,7 +271,7 @@ fn resolve_build_slots(
     flag: Option<String>,
     env_get: &dyn Fn(&str) -> Option<String>,
 ) -> Result<Option<dx_adopt::defaults::BuildSlots>, ArgsError> {
-    use dx_adopt::defaults::{env_string, BuildSlots, DX_BUILD_SLOTS_ENV};
+    use dx_adopt::defaults::{BuildSlots, DX_BUILD_SLOTS_ENV, env_string};
     let (source, value) = match (flag, env_string(env_get, DX_BUILD_SLOTS_ENV)) {
         (Some(flag), _) => ("--build-slots", flag),
         (None, Some(env)) => (DX_BUILD_SLOTS_ENV, env),
@@ -293,10 +293,10 @@ fn parse_inner<S: AsRef<OsStr>>(
         return Err(error);
     }
     let tokenized = tokenize(args)?;
-    if tokenized.command == Command::Watch {
-        if let Some(wrapped) = wrapped_invocation(args, &tokenized, env_get) {
-            return wrapped;
-        }
+    if tokenized.command == Command::Watch
+        && let Some(wrapped) = wrapped_invocation(args, &tokenized, env_get)
+    {
+        return wrapped;
     }
     let command = tokenized.command;
     let Flags {
@@ -498,10 +498,10 @@ fn parse_inner<S: AsRef<OsStr>>(
         }
         fail_on = Threshold::Warning;
     }
-    if command == Command::Clean {
-        if let Some(scope) = targets.first() {
-            return Err(unsupported(command, scope.clone()));
-        }
+    if command == Command::Clean
+        && let Some(scope) = targets.first()
+    {
+        return Err(unsupported(command, scope.clone()));
     }
     if !passthrough.is_empty() && !grammar::advertises_passthrough(command) {
         return Err(unsupported(command, "--"));
@@ -517,20 +517,20 @@ fn parse_inner<S: AsRef<OsStr>>(
     if let Some(reference) = breaking_against {
         bazel_options.insert(0, format!("{BREAKING_AGAINST_OPTION}={reference}"));
     }
-    if command.is_managed() {
-        if let Err(error) = dx_setup::resolve_scope(&targets) {
-            return Err(match error {
-                dx_setup::ScopeError::MultipleTargets { count } => ArgsError::UnsupportedOption {
-                    command: command.name(),
-                    option: targets
-                        .get(1)
-                        .cloned()
-                        .unwrap_or(format!("<{count} targets>")),
-                },
-                dx_setup::ScopeError::TargetPattern { value }
-                | dx_setup::ScopeError::NotTargetLabel { value } => scope_error(&value),
-            });
-        }
+    if command.is_managed()
+        && let Err(error) = dx_setup::resolve_scope(&targets)
+    {
+        return Err(match error {
+            dx_setup::ScopeError::MultipleTargets { count } => ArgsError::UnsupportedOption {
+                command: command.name(),
+                option: targets
+                    .get(1)
+                    .cloned()
+                    .unwrap_or(format!("<{count} targets>")),
+            },
+            dx_setup::ScopeError::TargetPattern { value }
+            | dx_setup::ScopeError::NotTargetLabel { value } => scope_error(&value),
+        });
     }
     if command == Command::Release && check && apply {
         return Err(unsupported(command, "--check with --apply"));
@@ -647,24 +647,24 @@ fn parse_inner<S: AsRef<OsStr>>(
             option: "--to <version>".to_owned(),
         });
     }
-    if command == Command::Generate {
-        if let Some(scope) = targets.iter().find(|scope| {
+    if command == Command::Generate
+        && let Some(scope) = targets.iter().find(|scope| {
             scope.starts_with('@') && !scope.starts_with("@//") && !scope.starts_with("@@//")
-        }) {
-            return Err(ArgsError::InvalidScope {
-                scope: scope.clone(),
-            });
-        }
+        })
+    {
+        return Err(ArgsError::InvalidScope {
+            scope: scope.clone(),
+        });
     }
-    if matches!(command, Command::Explain | Command::Release) {
-        if let Some(scope) = targets.first() {
-            return Err(extra_positional(command, scope));
-        }
+    if matches!(command, Command::Explain | Command::Release)
+        && let Some(scope) = targets.first()
+    {
+        return Err(extra_positional(command, scope));
     }
-    if command == Command::Upgrade {
-        if let Some(scope) = targets.first() {
-            return Err(unsupported(command, scope.clone()));
-        }
+    if command == Command::Upgrade
+        && let Some(scope) = targets.first()
+    {
+        return Err(unsupported(command, scope.clone()));
     }
     if command == Command::Docs {
         if port.is_some() && !serve {

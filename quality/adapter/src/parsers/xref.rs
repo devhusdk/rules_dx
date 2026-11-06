@@ -1,7 +1,7 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 use super::dialyzer::resolve;
-use super::{as_text, code_name, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "xref";
 
@@ -83,9 +83,11 @@ mod tests {
 
     #[test]
     fn xref_clean_run_has_no_findings() {
-        assert!(parse_xref(b"", Some(0), &["a.erl"])
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_xref(b"", Some(0), &["a.erl"])
+                .expect("clean")
+                .is_empty()
+        );
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled, require_findings};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "knip";
@@ -125,9 +125,11 @@ mod tests {
     #[test]
     fn knip_clean_run_is_clean() {
         let clean = br#"{"files":[],"issues":[]}"#;
-        assert!(parse_knip(clean, b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_knip(clean, b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -143,9 +145,11 @@ mod tests {
         assert_eq!(findings[2].finding.rule_id, "exports");
         assert_eq!(findings[2].finding.start.line, 3);
         assert_eq!(findings[2].finding.start.column, 14);
-        assert!(findings
-            .iter()
-            .all(|found| found.finding.severity == ToolSeverity::Warning));
+        assert!(
+            findings
+                .iter()
+                .all(|found| found.finding.severity == ToolSeverity::Warning)
+        );
     }
 
     #[test]

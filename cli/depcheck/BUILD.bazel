@@ -47,7 +47,6 @@ rust_library(
     ),
     crate_name = "dx_depcheck",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_depcheck",
         normal = True,
@@ -66,7 +65,6 @@ rust_binary(
     ),
     crate_name = "depcheck",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_depcheck",
         normal = True,

@@ -500,10 +500,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(report["a.rs"].lines[&1], 1);
-        assert!(validate_lcov_report(
-            "SF:/a.rs\ngarbage line without colon\nDA:1,1\nend_of_record\n"
-        )
-        .is_ok());
+        assert!(
+            validate_lcov_report("SF:/a.rs\ngarbage line without colon\nDA:1,1\nend_of_record\n")
+                .is_ok()
+        );
     }
 
     #[test]
@@ -544,10 +544,12 @@ mod tests {
 
     #[test]
     fn validator_accepts_matching_branch_summary() {
-        assert!(validate_lcov_report(
-            "SF:/a.rs\nDA:1,1\nBRDA:2,0,0,1\nBRDA:2,0,1,-\nBRF:2\nBRH:1\nend_of_record\n"
-        )
-        .is_ok());
+        assert!(
+            validate_lcov_report(
+                "SF:/a.rs\nDA:1,1\nBRDA:2,0,0,1\nBRDA:2,0,1,-\nBRF:2\nBRH:1\nend_of_record\n"
+            )
+            .is_ok()
+        );
         assert!(
             validate_lcov_report(
                 "SF:/a.rs\nDA:1,1\nBRDA:1,0,0,1\nBRF:1\nend_of_record\nSF:/a.rs\nDA:2,1\nBRDA:2,0,0,1\nBRF:1\nend_of_record\n"

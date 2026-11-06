@@ -3,7 +3,7 @@ use greeter_proto::dx::tonic::v1::greeter_server::{Greeter, GreeterServer};
 use greeter_proto::dx::tonic::v1::{HelloReply, HelloRequest};
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{Request, Response, Status, transport::Server};
 
 struct Hello;
 
@@ -29,7 +29,9 @@ async fn unary_call_over_loopback() {
             .serve_with_incoming(TcpListenerStream::new(listener)),
     );
 
-    let mut client = GreeterClient::connect(format!("http://{addr}")).await.unwrap();
+    let mut client = GreeterClient::connect(format!("http://{addr}"))
+        .await
+        .unwrap();
     let reply = client
         .say_hello(HelloRequest { name: "dx".into() })
         .await

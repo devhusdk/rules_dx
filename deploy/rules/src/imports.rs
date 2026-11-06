@@ -360,8 +360,10 @@ mod tests {
 
     #[test]
     fn missing_imports_skips_non_images() {
-        assert!(missing_imports(b"not a library", &[], &[])
-            .unwrap()
-            .is_empty());
+        assert!(
+            missing_imports(b"not a library", &[], &[])
+                .unwrap()
+                .is_empty()
+        );
     }
 }

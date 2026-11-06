@@ -2,7 +2,7 @@ use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
 use super::{
-    as_text, code_name, finding, known, prefixed, unformatted_at, FileFinding, ParseError,
+    FileFinding, ParseError, as_text, code_name, finding, known, prefixed, unformatted_at,
 };
 
 const TOOL: &str = "erlfmt";
@@ -114,9 +114,11 @@ mod tests {
         assert_eq!(findings[0].file, "src/dirty.erl");
         assert_eq!(findings[0].finding.message, "file is not formatted");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
-        assert!(parse_erlfmt(b"", CLEAN.as_bytes(), Some(0), &files)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_erlfmt(b"", CLEAN.as_bytes(), Some(0), &files)
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_erlfmt(b"", CLEAN.as_bytes(), Some(1), &files).is_err());
         assert!(parse_erlfmt(b"", DIRTY.as_bytes(), Some(0), &files).is_err());
         assert!(matches!(

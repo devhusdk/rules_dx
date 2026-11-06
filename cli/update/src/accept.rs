@@ -1,6 +1,6 @@
 //! Appends accepted findings to `security.toml` and `licenses.toml`, keeping the file's comments and order.
 
-use toml_edit::{value, ArrayOfTables, DocumentMut, Item, Table};
+use toml_edit::{ArrayOfTables, DocumentMut, Item, Table, value};
 
 /// One `[[table]]` entry to append.
 #[derive(Clone, Debug, Eq, PartialEq)]

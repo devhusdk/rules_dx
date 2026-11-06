@@ -203,9 +203,10 @@ mod tests {
         assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
         assert_eq!(plan.retry_command, "dx update --apply maven");
         assert!(plan.restore_paths.contains(&"pnpm-lock.yaml".to_owned()));
-        assert!(plan
-            .restore_paths
-            .contains(&"rust/tests/fixtures/hello/Cargo.lock".to_owned()));
+        assert!(
+            plan.restore_paths
+                .contains(&"rust/tests/fixtures/hello/Cargo.lock".to_owned())
+        );
         let restore = plan.restore_command.expect("kept successes restore");
         assert!(restore.starts_with("git checkout -- "));
         assert!(restore.contains("pnpm-lock.yaml"));

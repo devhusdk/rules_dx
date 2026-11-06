@@ -49,7 +49,7 @@ fn agent_config(
 pub fn multipart_single_file(field: &str, filename: &str, bytes: &[u8]) -> (String, Vec<u8>) {
     use rand::Rng as _;
     let boundary = loop {
-        let token: u128 = rand::thread_rng().gen();
+        let token: u128 = rand::thread_rng().r#gen();
         let candidate = format!("dx-boundary-{token:032x}");
         if !bytes
             .windows(candidate.len())
@@ -103,9 +103,11 @@ mod tests {
         let boundary = content_type
             .strip_prefix("multipart/form-data; boundary=")
             .expect("boundary");
-        assert!(!payload
-            .windows(boundary.len())
-            .any(|window| window == boundary.as_bytes()));
+        assert!(
+            !payload
+                .windows(boundary.len())
+                .any(|window| window == boundary.as_bytes())
+        );
         let head = format!(
             "--{boundary}\r\nContent-Disposition: form-data; name=\"bundle\"; filename=\"bundle.zip\"\r\nContent-Type: application/octet-stream\r\n\r\n"
         );

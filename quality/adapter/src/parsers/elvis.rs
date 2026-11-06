@@ -1,6 +1,6 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-use super::{as_text, code_name, finding, located, missing, numbered, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, located, missing, numbered};
 
 const TOOL: &str = "elvis";
 
@@ -150,12 +150,16 @@ mod tests {
                 .len(),
             2
         );
-        assert!(parse_elvis(b"", b"", Some(0), &files)
-            .expect("parsed")
-            .is_empty());
-        assert!(parse_elvis(b"\n", b"\n", Some(0), &files)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_elvis(b"", b"", Some(0), &files)
+                .expect("parsed")
+                .is_empty()
+        );
+        assert!(
+            parse_elvis(b"\n", b"\n", Some(0), &files)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

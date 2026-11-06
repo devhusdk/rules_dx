@@ -18,7 +18,9 @@ fn main() -> ExitCode {
     let Some(workspace) =
         std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty())
     else {
-        eprintln!("repin-all: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools:repin-all`");
+        eprintln!(
+            "repin-all: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools:repin-all`"
+        );
         return ExitCode::from(2);
     };
     let Some(dx) = resolve_dx() else {
@@ -32,12 +34,12 @@ fn main() -> ExitCode {
     command.arg("update");
     // The outer `bazel run` may use a non-default output base; hand it to dx so its bazel calls
     // reuse that server instead of starting a second one.
-    if !names_output_base(&user_args) {
-        if let Some(output_base) = dx_process::run_output_base() {
-            let mut option = OsString::from("--bazel-startup-option=--output_base=");
-            option.push(output_base);
-            command.arg(option);
-        }
+    if !names_output_base(&user_args)
+        && let Some(output_base) = dx_process::run_output_base()
+    {
+        let mut option = OsString::from("--bazel-startup-option=--output_base=");
+        option.push(output_base);
+        command.arg(option);
     }
     command
         .args(&user_args)

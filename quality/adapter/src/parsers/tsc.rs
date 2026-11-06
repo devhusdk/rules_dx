@@ -1,4 +1,4 @@
-use super::{as_text, finding, missing, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, finding, missing, require_findings};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 struct Diagnostic<'a> {

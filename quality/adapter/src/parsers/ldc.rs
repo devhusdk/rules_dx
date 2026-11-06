@@ -1,4 +1,4 @@
-use super::gnu_diagnostics::{read, Dialect, Disposition};
+use super::gnu_diagnostics::{Dialect, Disposition, read};
 use super::{FileFinding, ParseError};
 use crate::ColumnEncoding;
 use crate::ToolSeverity;
@@ -73,8 +73,10 @@ mod tests {
             Err(ParseError::UnknownFile { .. })
         ));
         let foreign_warning = "d/b.d:1:1: Warning: noise\n";
-        assert!(parse_ldc(foreign_warning.as_bytes(), Some(0), &[FILE])
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_ldc(foreign_warning.as_bytes(), Some(0), &[FILE])
+                .expect("clean")
+                .is_empty()
+        );
     }
 }

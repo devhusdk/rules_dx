@@ -1,10 +1,10 @@
-use super::common::{emit_built, CODE_BUILD_EVENTS_INCOMPLETE};
+use super::common::{CODE_BUILD_EVENTS_INCOMPLETE, emit_built};
 use super::rustc_stderr::{self, ActionDiagnostic};
 use super::skipped_targets::language_in_message;
-use dx_bep::{collect_build_failures, BuildFailure, FailureStage, StderrRef};
+use dx_bep::{BuildFailure, FailureStage, StderrRef, collect_build_failures};
 use dx_output::{
-    build_failure_event, notice_event, BuildFailureEvent, FailureDiagnostic, FailureRelated,
-    NoticeEvent, OutputMode,
+    BuildFailureEvent, FailureDiagnostic, FailureRelated, NoticeEvent, OutputMode,
+    build_failure_event, notice_event,
 };
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
@@ -349,8 +349,8 @@ pub(crate) fn report_build_failures(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use super::{dedupe, BuildFailureEvent, FailureDiagnostic, FailureRelated};
-    use serde_json::{json, Value};
+    use super::{BuildFailureEvent, FailureDiagnostic, FailureRelated, dedupe};
+    use serde_json::{Value, json};
 
     const ERROR_LINE: &str = r#"{"$message_type":"diagnostic","message":"cannot find value `y` in this scope","code":{"code":"E0425","explanation":null},"level":"error","spans":[{"file_name":"app/src/main.rs","byte_start":30,"byte_end":31,"line_start":3,"line_end":3,"column_start":5,"column_end":6,"is_primary":true,"text":[],"label":"not found in this scope","suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[{"message":"a local variable with a similar name exists: `x`","level":"help","spans":[{"file_name":"app/src/main.rs","line_start":3,"column_start":5,"is_primary":true,"label":null,"suggested_replacement":"x","suggestion_applicability":"MaybeIncorrect"}],"children":[]}],"rendered":null}"#;
     const LINK_LINE: &str = r#"{"$message_type":"diagnostic","message":"linking with `cc` failed: exit status: 1","code":null,"level":"error","spans":[],"children":[],"rendered":null}"#;

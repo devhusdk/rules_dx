@@ -1,6 +1,6 @@
 use super::{
-    as_text, check_output_size, code_name, finding, known, located, row_col, unformatted_at,
-    FileFinding, ParseError,
+    FileFinding, ParseError, as_text, check_output_size, code_name, finding, known, located,
+    row_col, unformatted_at,
 };
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
@@ -108,9 +108,11 @@ mod tests {
         assert_eq!(findings[0].finding.start.line, 1);
         assert_eq!(findings[0].finding.start.column, 1);
         let clean = br#"[{"file":"/s/docs/a.mdx","formatted":true}]"#;
-        assert!(parse_remark(clean, b"", Some(0), &[FILE])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_remark(clean, b"", Some(0), &[FILE])
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -157,22 +159,26 @@ mod tests {
     fn remark_rejects_output_outside_the_grammar() {
         assert!(parse_remark(b"not json", b"", Some(0), &[FILE]).is_err());
         assert!(parse_remark(b"{}", b"", Some(0), &[FILE]).is_err());
-        assert!(parse_remark(
-            br#"[{"file":"/s/x.mdx","formatted":false}]"#,
-            b"",
-            Some(1),
-            &[FILE]
-        )
-        .is_err());
+        assert!(
+            parse_remark(
+                br#"[{"file":"/s/x.mdx","formatted":false}]"#,
+                b"",
+                Some(1),
+                &[FILE]
+            )
+            .is_err()
+        );
         assert!(parse_remark(br#"[{"file":"/s/docs/a.mdx"}]"#, b"", Some(1), &[FILE]).is_err());
         assert!(parse_remark(b"[]", b"", Some(2), &[FILE]).is_err());
-        assert!(parse_remark(
-            b"[]",
-            b"remark: settings r.json has keys remark-stringify does not take: plugins\n",
-            Some(2),
-            &[FILE]
-        )
-        .is_err());
+        assert!(
+            parse_remark(
+                b"[]",
+                b"remark: settings r.json has keys remark-stringify does not take: plugins\n",
+                Some(2),
+                &[FILE]
+            )
+            .is_err()
+        );
         assert!(parse_remark(b"[]", b"/s/docs/a.mdx:x:1: boom\n", Some(2), &[FILE]).is_err());
         assert!(parse_remark(b"[]", b"/s/docs/a.mdx:1:1: \n", Some(2), &[FILE]).is_err());
         assert!(parse_remark(b"[]", &[0xff], Some(2), &[FILE]).is_err());

@@ -1,7 +1,7 @@
+use quality_adapter::ToolSeverity;
 use quality_adapter::commands;
 use quality_adapter::exec::ChildOutput;
 use quality_adapter::parsers::{self, FileFinding};
-use quality_adapter::ToolSeverity;
 
 use super::check::ToolDef;
 use super::real_fix::Outcome;

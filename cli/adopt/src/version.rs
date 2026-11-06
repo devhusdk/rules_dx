@@ -176,13 +176,13 @@ pub fn parse_module_dependency(
     for call in modules.iter().flat_map(ModuleFile::calls) {
         let name = call.name.as_str();
         if name == "module" {
-            if dependency.workspace_module.is_none() {
-                if let Some(module_name) = call.str("name") {
-                    dependency.workspace_module = Some((
-                        module_name.to_owned(),
-                        call.str("version").map(str::to_owned),
-                    ));
-                }
+            if dependency.workspace_module.is_none()
+                && let Some(module_name) = call.str("name")
+            {
+                dependency.workspace_module = Some((
+                    module_name.to_owned(),
+                    call.str("version").map(str::to_owned),
+                ));
             }
             continue;
         }
@@ -246,10 +246,10 @@ pub fn module_rules_dx_version(root: &Path) -> Option<String> {
 }
 
 pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
-    if let Some((name, _)) = &dependency.workspace_module {
-        if name == "rules_dx" {
-            return "ok";
-        }
+    if let Some((name, _)) = &dependency.workspace_module
+        && name == "rules_dx"
+    {
+        return "ok";
     }
     match dependency.resolved_version() {
         Some(version) if version == MODULE_VERSION => "ok",
@@ -260,13 +260,13 @@ pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
 }
 
 pub fn render_module_dependency(dependency: &ModuleDependency) -> String {
-    if let Some((name, version)) = &dependency.workspace_module {
-        if name == "rules_dx" {
-            return match version {
-                Some(version) => format!("rules_dx {version} (workspace module)"),
-                None => "rules_dx unknown version (workspace module)".to_owned(),
-            };
-        }
+    if let Some((name, version)) = &dependency.workspace_module
+        && name == "rules_dx"
+    {
+        return match version {
+            Some(version) => format!("rules_dx {version} (workspace module)"),
+            None => "rules_dx unknown version (workspace module)".to_owned(),
+        };
     }
     match (
         &dependency.declared,

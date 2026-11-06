@@ -9,7 +9,7 @@
 )]
 
 use proto::{
-    file_result, FileResult, GenerationManifest, IgnoredImport, Mode, Modification, Scope,
+    FileResult, GenerationManifest, IgnoredImport, Mode, Modification, Scope, file_result,
 };
 pub use result_proto::dx::generation::v1 as proto;
 

@@ -8,7 +8,7 @@
     )
 )]
 
-use lsp_check::{check, Options};
+use lsp_check::{Options, check};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;

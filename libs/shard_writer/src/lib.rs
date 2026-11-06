@@ -10,7 +10,7 @@
 
 use std::{fmt::Display, path::PathBuf};
 
-use clap::{error::ErrorKind, Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command, error::ErrorKind};
 
 pub trait ShardKind: 'static {
     const PROGRAM: &'static str;
@@ -136,8 +136,7 @@ mod tests {
     impl ShardKind for FakeKind {
         const PROGRAM: &'static str = "fake_shard_writer";
         const GROUP_FLAG: &'static str = "group";
-        const USAGE: &'static str =
-            "usage: fake_shard_writer --producer LABEL --group G --entry A|B [--entry ...] --output OUT";
+        const USAGE: &'static str = "usage: fake_shard_writer --producer LABEL --group G --entry A|B [--entry ...] --output OUT";
         const ENTRY_SHAPE: &'static str = "A|B";
 
         type Entry = (String, String);

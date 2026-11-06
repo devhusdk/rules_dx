@@ -1,6 +1,6 @@
 use quality_adapter::parsers::{self, FileFinding};
 
-use super::check::{in_file, CheckCall, ToolDef};
+use super::check::{CheckCall, ToolDef, in_file};
 use super::*;
 
 fn paths<'a>(call: &'a CheckCall<'a>) -> (Vec<&'a Path>, Vec<String>) {
@@ -543,7 +543,7 @@ fn clamp_to_text(found: &mut FileFinding) {
 mod clamp_tests {
     use quality_adapter::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
-    use super::{clamp_to_text, FileFinding};
+    use super::{FileFinding, clamp_to_text};
 
     fn clamped(text: &str, encoding: ColumnEncoding) -> (TextPosition, Option<u64>) {
         let dir = tempfile::tempdir().expect("scratch");

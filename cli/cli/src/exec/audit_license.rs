@@ -176,10 +176,10 @@ pub(super) fn run_license(
             }
             continue;
         }
-        if let Err(error) = lock_texts_for_configured(workspace, set) {
-            if incomplete.is_none() {
-                incomplete = Some(format!("failed to assess {}: {error}", target.name()));
-            }
+        if let Err(error) = lock_texts_for_configured(workspace, set)
+            && incomplete.is_none()
+        {
+            incomplete = Some(format!("failed to assess {}: {error}", target.name()));
         }
         continue;
     }
@@ -438,10 +438,10 @@ fn configured_cargo_licenses(
             .map(|entry| ((entry.name, entry.version), entry.license))
             .collect();
     for entry in &mut licensed {
-        if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone())) {
-            if license != "UNKNOWN" {
-                entry.license = license.clone();
-            }
+        if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone()))
+            && license != "UNKNOWN"
+        {
+            entry.license = license.clone();
         }
     }
     licensed
@@ -465,10 +465,10 @@ fn configured_npm_licenses(
             .map(|entry| ((entry.name, entry.version), entry.license))
             .collect();
     for entry in &mut licensed {
-        if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone())) {
-            if license != "UNKNOWN" {
-                entry.license = license.clone();
-            }
+        if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone()))
+            && license != "UNKNOWN"
+        {
+            entry.license = license.clone();
         }
     }
     licensed

@@ -1,9 +1,9 @@
 //! Binds a release SPDX document to the artifact it describes; the model lives in dx_sbom.
 
 pub use dx_sbom::{
-    contains, describes, license_error, purl_name, purl_version, sha256_of, Document, SpdxChecksum,
-    SpdxDocument, SpdxExternalRef, SpdxFile, SpdxPackage, DOCUMENT_ID, NOASSERTION, SHA256,
-    SPDX_VERSION,
+    DOCUMENT_ID, Document, NOASSERTION, SHA256, SPDX_VERSION, SpdxChecksum, SpdxDocument,
+    SpdxExternalRef, SpdxFile, SpdxPackage, contains, describes, license_error, purl_name,
+    purl_version, sha256_of,
 };
 
 pub fn document_error(document: &SpdxDocument, base: &str, digest: &str) -> Result<(), String> {
@@ -75,7 +75,7 @@ fn package_purls(package: &SpdxPackage) -> impl Iterator<Item = &str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dx_sbom::{SpdxCreationInfo, SpdxRelationship, DATA_LICENSE};
+    use dx_sbom::{DATA_LICENSE, SpdxCreationInfo, SpdxRelationship};
 
     fn checksum(digest: &str) -> SpdxChecksum {
         SpdxChecksum {

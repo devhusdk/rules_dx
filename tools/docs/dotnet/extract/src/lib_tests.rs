@@ -152,9 +152,11 @@ fn case_folded_collisions_fail() {
         item("T:A.Foo", "class", "Foo", None),
         item("T:A.foo", "class", "foo", None),
     ]);
-    assert!(convert(&json, &settings())
-        .unwrap_err()
-        .contains("case folding"));
+    assert!(
+        convert(&json, &settings())
+            .unwrap_err()
+            .contains("case folding")
+    );
 }
 
 #[test]
@@ -163,9 +165,11 @@ fn duplicate_doc_ids_fail() {
         item("T:A.Foo", "class", "Foo", None),
         item("T:A.Foo", "class", "Foo", None),
     ]);
-    assert!(convert(&json, &settings())
-        .unwrap_err()
-        .contains("duplicate"));
+    assert!(
+        convert(&json, &settings())
+            .unwrap_err()
+            .contains("duplicate")
+    );
 }
 
 #[test]
@@ -188,9 +192,11 @@ fn sources_map_through_the_manifest() {
 #[test]
 fn sources_outside_the_manifest_fail() {
     let json = api(&[item("T:A.X", "class", "X", None)]).replace("lib/A.cs", "lib/Other.cs");
-    assert!(convert(&json, &settings())
-        .unwrap_err()
-        .contains("not a declared source"));
+    assert!(
+        convert(&json, &settings())
+            .unwrap_err()
+            .contains("not a declared source")
+    );
 }
 
 #[test]
@@ -207,30 +213,38 @@ fn incomplete_markers_and_missing_summaries_are_recorded() {
 
 #[test]
 fn empty_api_is_rejected() {
-    assert!(convert(&api(&[]), &settings())
-        .unwrap_err()
-        .contains("no public items"));
+    assert!(
+        convert(&api(&[]), &settings())
+            .unwrap_err()
+            .contains("no public items")
+    );
 }
 
 #[test]
 fn malformed_and_foreign_inputs_are_rejected() {
     assert!(convert("{", &settings()).unwrap_err().contains("malformed"));
     let wrong = api(&[item("T:A.X", "class", "X", None)]).replace("api/1", "api/2");
-    assert!(convert(&wrong, &settings())
-        .unwrap_err()
-        .contains("not supported"));
+    assert!(
+        convert(&wrong, &settings())
+            .unwrap_err()
+            .contains("not supported")
+    );
     let extra = api(&[item("T:A.X", "class", "X", None)])
         .replace("\"assembly\"", "\"extra\":1,\"assembly\"");
-    assert!(convert(&extra, &settings())
-        .unwrap_err()
-        .contains("does not match"));
+    assert!(
+        convert(&extra, &settings())
+            .unwrap_err()
+            .contains("does not match")
+    );
     let other = Settings {
         language: "fsharp".to_owned(),
         ..settings()
     };
-    assert!(convert(&api(&[item("T:A.X", "class", "X", None)]), &other)
-        .unwrap_err()
-        .contains("language"));
+    assert!(
+        convert(&api(&[item("T:A.X", "class", "X", None)]), &other)
+            .unwrap_err()
+            .contains("language")
+    );
 }
 
 #[test]
@@ -254,9 +268,11 @@ fn parse_requires_flags_and_known_language() {
     let mut bad = full.to_vec();
     bad[3] = "vb";
     assert!(parse(&args(&bad)).unwrap_err().contains("csharp or fsharp"));
-    assert!(parse(&args(&["--nope", "x"]))
-        .unwrap_err()
-        .contains("unknown"));
+    assert!(
+        parse(&args(&["--nope", "x"]))
+            .unwrap_err()
+            .contains("unknown")
+    );
 }
 
 #[test]

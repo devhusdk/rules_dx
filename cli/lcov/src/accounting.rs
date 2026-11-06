@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::lang::{line_comment_syntax, LineComment};
+use crate::lang::{LineComment, line_comment_syntax};
 use crate::{
-    find_ignores, is_covered_language, is_ignored, merge_lcov_reports, FileHits, Ignores, LcovError,
+    FileHits, Ignores, LcovError, find_ignores, is_covered_language, is_ignored, merge_lcov_reports,
 };
 
 /// The rules_dx-relative aspect that writes one source manifest per top-level target.
@@ -148,10 +148,10 @@ pub fn orphan_candidates(tracked: &[String], ignored_prefixes: &[String]) -> Vec
 /// The path key a manifest row and an LCOV SF record share.
 pub(crate) fn source_key(path: &str) -> String {
     let normalized = normalize_path(path);
-    if let Some(rest) = normalized.strip_prefix("bazel-out/") {
-        if let Some((_, tail)) = rest.split_once("/bin/") {
-            return tail.to_string();
-        }
+    if let Some(rest) = normalized.strip_prefix("bazel-out/")
+        && let Some((_, tail)) = rest.split_once("/bin/")
+    {
+        return tail.to_string();
     }
     normalized
 }
@@ -222,7 +222,7 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, String> {
             return Err(format!(
                 "unsupported source manifest header: {:?}",
                 header.join(" ")
-            ))
+            ));
         }
     };
     if cell == UNKNOWN_CELL {

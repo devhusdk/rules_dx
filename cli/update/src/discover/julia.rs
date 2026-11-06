@@ -1,6 +1,6 @@
 //! Lists direct Julia packages whose newest General registry release is newer than the one locked.
 
-use super::{release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 

@@ -11,7 +11,7 @@
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::cell::Expected;
-use dx_release_tools::{publish_dry_run_check, PublishDryRunInputs};
+use dx_release_tools::{PublishDryRunInputs, publish_dry_run_check};
 
 fn flag_value(argv: &[String], name: &str) -> Option<String> {
     argv.windows(2).find_map(|pair| {

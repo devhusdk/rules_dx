@@ -1,7 +1,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::{Run, mkscratch, resolve_runfiles, run};
 
 const FAKE_UNZIP: &str = r#"#!/bin/sh
 if [ -n "${FAKE_BAD_ZIP:-}" ]; then
@@ -86,7 +86,9 @@ fn library(tree: &Path, identifier: &str, supported: &str, archs: &[(&str, &str)
     }
     write(
         &framework.join("Info.plist"),
-        &format!("CFBundleIdentifier=com.example.share\nCFBundleExecutable=Share\nCFBundlePackageType=FMWK\nCFBundleShortVersionString=1.4\nMinimumOSVersion=17.0\nCFBundleSupportedPlatforms.0={supported}\n"),
+        &format!(
+            "CFBundleIdentifier=com.example.share\nCFBundleExecutable=Share\nCFBundlePackageType=FMWK\nCFBundleShortVersionString=1.4\nMinimumOSVersion=17.0\nCFBundleSupportedPlatforms.0={supported}\n"
+        ),
     );
     write(&framework.join("rates.txt"), "tea 450\n");
     write(
@@ -234,10 +236,12 @@ slice=simulator/x86_64 library=ios-arm64_x86_64-simulator platform=iphonesimulat
         std::fs::read_to_string(case.out()).unwrap_or_default(),
         ZIP_BYTES
     );
-    assert!(!case
-        .root
-        .join("out/Share_xcframework.txt.unpacked")
-        .exists());
+    assert!(
+        !case
+            .root
+            .join("out/Share_xcframework.txt.unpacked")
+            .exists()
+    );
 }
 
 #[test]
@@ -279,7 +283,9 @@ fn a_slice_listed_twice_fails() {
     );
     write(
         &case.tree.join("Share.xcframework/Info.plist"),
-        &format!("{ROOT_PLIST}AvailableLibraries.2.LibraryIdentifier=ios-arm64-simulator\nAvailableLibraries.2.LibraryPath=Share.framework\nAvailableLibraries.2.SupportedPlatform=ios\nAvailableLibraries.2.SupportedPlatformVariant=simulator\nAvailableLibraries.2.SupportedArchitectures.0=arm64\n"),
+        &format!(
+            "{ROOT_PLIST}AvailableLibraries.2.LibraryIdentifier=ios-arm64-simulator\nAvailableLibraries.2.LibraryPath=Share.framework\nAvailableLibraries.2.SupportedPlatform=ios\nAvailableLibraries.2.SupportedPlatformVariant=simulator\nAvailableLibraries.2.SupportedArchitectures.0=arm64\n"
+        ),
     );
     case.rejects(
         SLICES,

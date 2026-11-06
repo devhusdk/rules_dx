@@ -1,6 +1,6 @@
 use super::common::{
-    apply_to_bytes, read_verified, FileChange, SourceRead, REASON_CONFLICTING_CANDIDATES,
-    REASON_CONFLICTING_DIGESTS,
+    FileChange, REASON_CONFLICTING_CANDIDATES, REASON_CONFLICTING_DIGESTS, SourceRead,
+    apply_to_bytes, read_verified,
 };
 use dx_output::{DiagnosticEvent, Snapshot};
 use std::collections::{BTreeMap, BTreeSet};
@@ -155,10 +155,10 @@ pub(crate) fn reconcile(workspace: &Path, mut producers: Vec<Producer>) -> Recon
     }
     for (index, producer) in producers.iter_mut().enumerate() {
         for mut finding in std::mem::take(&mut producer.terminal) {
-            if let Some(path) = &finding.path {
-                if retag.contains(&(index, path.clone())) {
-                    finding.snapshot = Snapshot::Initial;
-                }
+            if let Some(path) = &finding.path
+                && retag.contains(&(index, path.clone()))
+            {
+                finding.snapshot = Snapshot::Initial;
             }
             out.terminal.push(finding);
         }

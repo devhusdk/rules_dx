@@ -1,6 +1,6 @@
 //! Lists NuGet packages whose newest stable version on nuget.org is newer than the paket.dependencies requirement.
 
-use super::{numeric_cmp, release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, release_cmp, wanted};
 use crate::edit::request::plans::paket_tokens;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;

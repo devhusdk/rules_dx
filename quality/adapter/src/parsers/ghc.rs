@@ -3,7 +3,7 @@ use serde_json::Value;
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{as_text, finding, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, finding, require_findings};
 
 const TOOL: &str = "ghc";
 

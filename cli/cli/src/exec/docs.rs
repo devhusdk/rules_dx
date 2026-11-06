@@ -1,8 +1,8 @@
 use super::common::*;
 use super::docs_index::{build_index, built_shards};
-use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
+use dx_output::{FinishedCounts, OutputMode, command_finished, command_started, operation_event};
 use dx_plan::args::Invocation;
-use dx_plan::plan::{bep_path, plan_docs, DOCS_SITE_OUTPUT_GROUP};
+use dx_plan::plan::{DOCS_SITE_OUTPUT_GROUP, bep_path, plan_docs};
 use dx_plan::resolve::resolve;
 use std::path::{Path, PathBuf};
 
@@ -167,10 +167,11 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
             }
         }
     }
-    if !json && invocation.chatty() {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-            return exit;
-        }
+    if !json
+        && invocation.chatty()
+        && let Err(exit) = check_stdout_write(writeln!(out, "{summary}"))
+    {
+        return exit;
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &argv, &[]) {
         Ok(code) => code,
@@ -179,16 +180,19 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     if bazel_code != 0 {
         let _ = std::fs::remove_file(&bep);
         if json {
-            if let Err(exit) = emit_built(out, bazel_exit_event(
-                CODE_BAZEL_FAILED,
-                &format!(
-                    "Bazel docs build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
+            if let Err(exit) = emit_built(
+                out,
+                bazel_exit_event(
+                    CODE_BAZEL_FAILED,
+                    &format!(
+                        "Bazel docs build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
+                    ),
+                    bazel_code,
+                    "execute",
                 ),
-                bazel_code,
-                "execute",
-            )) {
- return kept_child(err, bazel_code, exit);
- }
+            ) {
+                return kept_child(err, bazel_code, exit);
+            }
             if let Err(exit) = emit_event(
                 out,
                 &command_finished(bazel_code, &FinishedCounts::default()),
@@ -228,10 +232,9 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     }
     if !invocation.serve {
         let _ = std::fs::remove_file(&bep);
-        if json {
-            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-                return exit;
-            }
+        if json && let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default()))
+        {
+            return exit;
         }
         return 0;
     }
@@ -255,7 +258,9 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
                 out,
                 err,
                 CODE_SERVE_FAILED,
-                &format!("failed to bind docs preview at {url}: {error} (port in use? retry another --port)"),
+                &format!(
+                    "failed to bind docs preview at {url}: {error} (port in use? retry another --port)"
+                ),
             );
         }
     };
@@ -265,10 +270,10 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         {
             return exit;
         }
-        if invocation.open {
-            if let Err(exit) = check_stdout_write(writeln!(out, "Opening {url}")) {
-                return exit;
-            }
+        if invocation.open
+            && let Err(exit) = check_stdout_write(writeln!(out, "Opening {url}"))
+        {
+            return exit;
         }
     }
     if invocation.open {
@@ -305,10 +310,9 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         );
     }
     let code = dx_process::interrupted().map_or(0, dx_process::interrupted_code);
-    if json {
-        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
-            return exit;
-        }
+    if json && let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
+    {
+        return exit;
     }
     code
 }
@@ -317,8 +321,8 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
 mod tests {
     use super::super::test_support::*;
     use super::{
-        execute_docs_with, opener_argv, opener_argv_for, PreviewServer, RunningPreview,
-        CODE_SERVE_FAILED,
+        CODE_SERVE_FAILED, PreviewServer, RunningPreview, execute_docs_with, opener_argv,
+        opener_argv_for,
     };
     use dx_plan::resolve::QueryResult;
     use dx_testing::cli::strings;

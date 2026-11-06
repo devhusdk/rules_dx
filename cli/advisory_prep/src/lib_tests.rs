@@ -753,7 +753,10 @@ fn a_cpan_set_is_prepared_from_the_cpansa_output() {
             "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"cpan\", lock = \"//pl:cpanfile.snapshot.lock.json\")\n",
         ),
         ("pl/cpanfile", "requires 'Mojolicious';\n"),
-        ("pl/cpanfile.snapshot", "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n"),
+        (
+            "pl/cpanfile.snapshot",
+            "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n",
+        ),
     ] {
         let path = workspace.path().join(rel);
         std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");

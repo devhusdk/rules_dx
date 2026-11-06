@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use dx_output::{
-    change_value, finding_value, refusal_value, ChangeEffect, ChangeKind, DiagnosticEvent,
-    FindingRecord, OutputMode, Position, Resolution, Snapshot, Span,
+    ChangeEffect, ChangeKind, DiagnosticEvent, FindingRecord, OutputMode, Position, Resolution,
+    Snapshot, Span, change_value, finding_value, refusal_value,
 };
 
 use super::common::{
-    change_event_for, check_stdout_write, emit_event, text_finding, FileChange,
-    REASON_INCOMPLETE_COLLECTION,
+    FileChange, REASON_INCOMPLETE_COLLECTION, change_event_for, check_stdout_write, emit_event,
+    text_finding,
 };
 use super::quality_reconcile::Conflict;
 use super::quality_reports::Snapshots;

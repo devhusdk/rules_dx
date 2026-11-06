@@ -64,10 +64,10 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Page>) {
             walk(root, &path, out);
             continue;
         }
-        if path.extension().is_some_and(|ext| ext == "html") {
-            if let Some(page) = page(root, &path) {
-                out.push(page);
-            }
+        if path.extension().is_some_and(|ext| ext == "html")
+            && let Some(page) = page(root, &path)
+        {
+            out.push(page);
         }
     }
 }

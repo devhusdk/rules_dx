@@ -182,10 +182,10 @@ fn is_public(container: &Value, name: &str, member: &Value) -> bool {
     if kind_of(member) == "module" && !alias {
         return !name.starts_with('_');
     }
-    if kind_of(container) == "module" {
-        if let Some(names) = exports(container) {
-            return names.contains(name);
-        }
+    if kind_of(container) == "module"
+        && let Some(names) = exports(container)
+    {
+        return names.contains(name);
     }
     if alias || name.starts_with('_') {
         return false;

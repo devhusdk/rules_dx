@@ -3,7 +3,7 @@ use crate::apply::apply_plan;
 use crate::fixtures::*;
 use crate::inventory::collect_inventory;
 use dx_atomic_fs::lease::GenerationUse;
-use dx_setup::{setup_hex, GenerationId};
+use dx_setup::{GenerationId, setup_hex};
 use std::time::Instant;
 
 const WAIT: Duration = Duration::from_secs(10);
@@ -322,8 +322,8 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
 #[test]
 fn a_streamed_child_keeps_its_selection_through_cleanup() {
     use dx_process::lifecycle::{
-        run_streamed, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput,
-        StreamSpec, StreamStdin,
+        CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
+        StreamStdin, run_streamed,
     };
     let (scratch, workspace) = workspace("dx-clean-hold-streamed-");
     select(&workspace, &setup_pair('1', '2'));

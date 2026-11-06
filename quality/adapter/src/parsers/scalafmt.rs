@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{code_name, listed_paths, FileFinding, ParseError, Spelling};
+use super::{FileFinding, ParseError, Spelling, code_name, listed_paths};
 
 pub fn parse_scalafmt(
     stdout: &[u8],

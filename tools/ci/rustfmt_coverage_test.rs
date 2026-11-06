@@ -424,7 +424,7 @@ impl<'a> Module<'a> {
                 match self.eval(krate, env, 0) {
                     Ok(Value::Str(krate)) => Some(krate),
                     Ok(Value::List(_)) => {
-                        return self.fail(call, format!("{symbol} crate is a list"))
+                        return self.fail(call, format!("{symbol} crate is a list"));
                     }
                     Err(why) => return self.fail(call, format!("{symbol} crate: {why}")),
                 }
@@ -800,7 +800,9 @@ fn comprehensions_on_both_sides_are_evaluated() {
     let partial = source.replace("for c in _CASES]", "for c in [\"a\"]]");
     assert_eq!(
         check(&partial, &[]),
-        ["pkg/BUILD.bazel:5: //pkg:case_b_test is in no rustfmt_test; add it to one in its package"]
+        [
+            "pkg/BUILD.bazel:5: //pkg:case_b_test is in no rustfmt_test; add it to one in its package"
+        ]
     );
 }
 
@@ -868,7 +870,9 @@ fn a_call_it_cannot_see_fails() {
     let source = format!("{LOAD}def f():\n    rust_test(name = \"t\", srcs = [\"t.rs\"])\n");
     assert_eq!(
         check(&source, &[]),
-        ["pkg/BUILD.bazel:3: rust_test() is called where this check cannot see it; call it at the top level"]
+        [
+            "pkg/BUILD.bazel:3: rust_test() is called where this check cannot see it; call it at the top level"
+        ]
     );
 }
 

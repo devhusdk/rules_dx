@@ -1,9 +1,9 @@
+use quick_xml::XmlVersion;
 use quick_xml::encoding::Decoder;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
-use quick_xml::XmlVersion;
 
-use super::{check_output_size, code_name, known, missing, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known, missing};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "cppcheck";
@@ -292,12 +292,14 @@ mod tests {
         )
         .expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_cppcheck(
-            CLEAN.as_bytes(),
-            Some(1),
-            &["cc/tests/fixtures/cppcheck/Sample.c"]
-        )
-        .is_err());
+        assert!(
+            parse_cppcheck(
+                CLEAN.as_bytes(),
+                Some(1),
+                &["cc/tests/fixtures/cppcheck/Sample.c"]
+            )
+            .is_err()
+        );
         assert!(parse_cppcheck(b"not xml", Some(1), &["x"]).is_err());
         assert!(parse_cppcheck(DIRTY.as_bytes(), Some(1), &["other.c"]).is_err());
         assert!(parse_cppcheck(b"<error ", Some(1), &["x"]).is_err());
@@ -358,13 +360,17 @@ mod tests {
             "<results version=\"2\"><errors><error id=\"a\" severity=\"style\" msg=\"m\"/></errors></results>",
         ] {
             let error = parse_cppcheck(xml.as_bytes(), Some(0), &["x"]).expect_err(xml);
-            assert!(error.to_string().contains("malformed location"), "{xml}: {error}");
+            assert!(
+                error.to_string().contains("malformed location"),
+                "{xml}: {error}"
+            );
         }
-        let informational =
-            "<results version=\"2\"><errors><error id=\"a\" severity=\"information\" msg=\"m\"/></errors></results>";
-        assert!(parse_cppcheck(informational.as_bytes(), Some(0), &["x"])
-            .expect("information needs no location")
-            .is_empty());
+        let informational = "<results version=\"2\"><errors><error id=\"a\" severity=\"information\" msg=\"m\"/></errors></results>";
+        assert!(
+            parse_cppcheck(informational.as_bytes(), Some(0), &["x"])
+                .expect("information needs no location")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -418,9 +424,11 @@ mod tests {
     #[test]
     fn a_real_clean_report_is_clean() {
         let clean = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<results version=\"2\">\n    <cppcheck version=\"2.21.0\"/>\n    <errors>\n    </errors>\n</results>\n";
-        assert!(parse_cppcheck(clean.as_bytes(), Some(0), &["x"])
-            .expect("clean 2.21.0 report")
-            .is_empty());
+        assert!(
+            parse_cppcheck(clean.as_bytes(), Some(0), &["x"])
+                .expect("clean 2.21.0 report")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -456,10 +464,7 @@ mod tests {
             ),
         ] {
             let error = parse_cppcheck(xml.as_bytes(), Some(0), &["x"]).expect_err(xml);
-            assert!(
-                error.to_string().contains(needle),
-                "{xml} gave {error}"
-            );
+            assert!(error.to_string().contains(needle), "{xml} gave {error}");
         }
     }
 }

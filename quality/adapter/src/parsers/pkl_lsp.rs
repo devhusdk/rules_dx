@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known_native, lines, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known_native, lines};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "pkl_lsp";
@@ -95,9 +95,11 @@ mod tests {
 
     #[test]
     fn pkl_lsp_is_clean_on_no_output_and_exit_zero() {
-        assert!(parse_pkl_lsp(b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_pkl_lsp(b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

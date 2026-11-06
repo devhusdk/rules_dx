@@ -2,8 +2,8 @@
 
 use crate::archive::basename;
 use crate::run::{
-    deploy_profile, env_or_empty, placeholder_refusal, print_redacted, scrubbed_command, DeployRun,
-    OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    placeholder_refusal, print_redacted, scrubbed_command,
 };
 use crate::stage::*;
 use std::io::{self, Read};
@@ -249,12 +249,16 @@ mod tests {
         assert_eq!(identity, ("demo".to_owned(), "1.2.0".to_owned()));
         assert_eq!(hackage_check_identity(&identity, "demo", "1.2.0"), Ok(()));
         assert_eq!(hackage_check_identity(&identity, "", ""), Ok(()));
-        assert!(hackage_check_identity(&identity, "", "1.2.1")
-            .expect_err("version")
-            .contains("BUILD declares 1.2.1"));
-        assert!(hackage_check_identity(&identity, "other", "")
-            .expect_err("package")
-            .contains("BUILD declares other"));
+        assert!(
+            hackage_check_identity(&identity, "", "1.2.1")
+                .expect_err("version")
+                .contains("BUILD declares 1.2.1")
+        );
+        assert!(
+            hackage_check_identity(&identity, "other", "")
+                .expect_err("package")
+                .contains("BUILD declares other")
+        );
     }
 
     #[test]
@@ -275,22 +279,28 @@ mod tests {
         let dir = scratch_dir();
         let plain = dir.path().join("demo.zip");
         std::fs::write(&plain, b"x").expect("write");
-        assert!(hackage_read_identity(&plain)
-            .expect_err("suffix")
-            .contains("not a .tar.gz"));
+        assert!(
+            hackage_read_identity(&plain)
+                .expect_err("suffix")
+                .contains("not a .tar.gz")
+        );
         let unversioned = write_sdist(dir.path(), "demo.tar.gz", "demo/demo.cabal", CABAL);
-        assert!(hackage_read_identity(&unversioned)
-            .expect_err("name")
-            .contains("<package>-<version>"));
+        assert!(
+            hackage_read_identity(&unversioned)
+                .expect_err("name")
+                .contains("<package>-<version>")
+        );
         let missing = write_sdist(
             dir.path(),
             "demo-1.2.0.tar.gz",
             "demo-1.2.0/other.cabal",
             CABAL,
         );
-        assert!(hackage_read_identity(&missing)
-            .expect_err("missing")
-            .contains("has no demo-1.2.0/demo.cabal"));
+        assert!(
+            hackage_read_identity(&missing)
+                .expect_err("missing")
+                .contains("has no demo-1.2.0/demo.cabal")
+        );
     }
 
     #[test]

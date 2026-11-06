@@ -1,4 +1,4 @@
-use super::gnu_diagnostics::{read, Dialect, Disposition};
+use super::gnu_diagnostics::{Dialect, Disposition, read};
 use super::{FileFinding, ParseError};
 use crate::ColumnEncoding;
 use crate::ToolSeverity;
@@ -74,9 +74,11 @@ mod tests {
 
     #[test]
     fn flang_fails_closed() {
-        assert!(parse_flang(b"", Some(0), &[FILE])
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_flang(b"", Some(0), &[FILE])
+                .expect("clean")
+                .is_empty()
+        );
         assert!(parse_flang(b"", Some(1), &[FILE]).is_err());
         assert!(parse_flang(b"", None, &[FILE]).is_err());
         assert!(parse_flang(b"segfault\n", Some(139), &[FILE]).is_err());

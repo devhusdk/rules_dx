@@ -1,6 +1,6 @@
 use crate::lifecycle::base;
-use crate::validation::{check_edits, check_path, parse_digest, Edit, OutputError};
-use serde_json::{json, Value};
+use crate::validation::{Edit, OutputError, check_edits, check_path, parse_digest};
+use serde_json::{Value, json};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChangeKind {

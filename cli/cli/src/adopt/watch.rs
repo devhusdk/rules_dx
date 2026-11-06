@@ -1,4 +1,4 @@
-use crate::exec::{print_actions, ActionTally};
+use crate::exec::{ActionTally, print_actions};
 use std::cell::RefCell;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use dx_adopt::AdoptError;
 use dx_output::OutputMode;
 
-use crate::exec::common::check_stdout_write;
 use crate::exec::Env;
+use crate::exec::common::check_stdout_write;
 use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::QueryRunner;
 
@@ -246,10 +246,10 @@ fn watch(
         if let Some(signo) = stop() {
             return stopped(progress, out, err, signo);
         }
-        if round == 1 {
-            if let Err(exit) = progress.say(&mut *out, &mut *err, "watching (Ctrl-C to stop)") {
-                return exit;
-            }
+        if round == 1
+            && let Err(exit) = progress.say(&mut *out, &mut *err, "watching (Ctrl-C to stop)")
+        {
+            return exit;
         }
         let mut change = pending.into_inner();
         let mut quiet = (!session.polling())
@@ -264,10 +264,9 @@ fn watch(
                     if quiet
                         .as_mut()
                         .is_some_and(|quiet| quiet.missed_save(Instant::now()))
+                        && let Err(exit) = progress.say(&mut *out, &mut *err, POLL_HINT)
                     {
-                        if let Err(exit) = progress.say(&mut *out, &mut *err, POLL_HINT) {
-                            return exit;
-                        }
+                        return exit;
                     }
                     (wait.borrow_mut())(&session, WATCH_POLL)
                 }
@@ -281,7 +280,7 @@ fn watch(
                     break;
                 }
                 Err(error) => {
-                    return operational(invocation, out, err, "watch_failed", &error.to_string())
+                    return operational(invocation, out, err, "watch_failed", &error.to_string());
                 }
             }
         }
@@ -327,7 +326,7 @@ fn changed_line(paths: &[PathBuf]) -> String {
 mod tests {
     use super::*;
     use crate::adopt::test_support::{
-        event_kinds, events_of_kind, invocation, json_events, NullQuery, Truncated,
+        NullQuery, Truncated, event_kinds, events_of_kind, invocation, json_events,
     };
     use dx_plan::args::OperationMode;
     use dx_plan::resolve::QueryResult;
@@ -1109,9 +1108,11 @@ mod tests {
         assert_eq!(code, 143);
         assert_eq!(waits, 2, "polls until the signal lands");
         assert_eq!(harness.seen.borrow().len(), 1);
-        assert!(harness
-            .stdout()
-            .contains("watching (Ctrl-C to stop)\nstopped\n"));
+        assert!(
+            harness
+                .stdout()
+                .contains("watching (Ctrl-C to stop)\nstopped\n")
+        );
     }
 
     #[test]

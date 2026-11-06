@@ -1,6 +1,6 @@
 use super::{
-    as_text, known, missing, path_row_col, require_findings, unformatted_at, FileFinding,
-    ParseError,
+    FileFinding, ParseError, as_text, known, missing, path_row_col, require_findings,
+    unformatted_at,
 };
 use crate::ColumnEncoding;
 

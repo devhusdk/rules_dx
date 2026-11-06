@@ -1,7 +1,7 @@
 //! Environment promotion: record, health check and rollback.
 
 use crate::archive::*;
-use crate::run::{deploy_profile, env_or_empty, DeployRun, OwnerGate};
+use crate::run::{DeployRun, OwnerGate, deploy_profile, env_or_empty};
 use crate::stage::*;
 use std::io;
 use std::path::Path;
@@ -45,8 +45,12 @@ impl PromotionHealth {
     pub fn manifest_line(self) -> &'static str {
         match self {
             Self::Passed => "health: passed (PROMOTION_HEALTH_CMD exited 0)",
-            Self::NotRequired => "health: not required; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check",
-            Self::SkippedLocal => "health: skipped locally; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check",
+            Self::NotRequired => {
+                "health: not required; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check"
+            }
+            Self::SkippedLocal => {
+                "health: skipped locally; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check"
+            }
         }
     }
 }

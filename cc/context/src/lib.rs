@@ -432,7 +432,7 @@ pub fn read_identities(paths: &[PathBuf]) -> Result<Vec<CompilerIdentity>, Error
             Some(known) if *known != identity => {
                 return Err(Error::ConflictingIdentity {
                     configuration: identity.configuration,
-                })
+                });
             }
             Some(_) => {}
             None => identities.push(identity),

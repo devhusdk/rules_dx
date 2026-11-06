@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use ci_workflow::{document, job, text_at};
 use dx_testing::read_runfiles;
@@ -303,7 +303,9 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     let render = coverage_step("Render first-party coverage summary");
     assert_eq!(
         render["if"],
-        json!("${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}")
+        json!(
+            "${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}"
+        )
     );
     let render_run = text_at(&render["run"], "render step run");
     for needle in [
@@ -322,7 +324,9 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     let publish = coverage_step("Publish PR summary comment");
     assert_eq!(
         publish["if"],
-        json!("${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && github.event_name == 'pull_request' }}"),
+        json!(
+            "${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && github.event_name == 'pull_request' }}"
+        ),
         "{WORKFLOW} must publish the coverage comment even after a failed gate"
     );
     let publish_run = text_at(&publish["run"], "publish step run");

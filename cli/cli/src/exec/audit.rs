@@ -2,12 +2,12 @@ use super::common::*;
 use super::pinned_tool::QueryBazel;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
-    command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
     DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
-    Threshold,
+    Threshold, command_finished, command_started, diagnostic_event, error_event, notice_event,
+    report_event,
 };
 use dx_plan::args::{Command, Invocation};
-use dx_plan::reports::{plan_reports, Destination};
+use dx_plan::reports::{Destination, plan_reports};
 use dx_plan::resolve::QueryRunner;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -30,7 +30,7 @@ fn today_utc_from(pinned: Option<String>) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_locked_for_configured, today_utc_from, uncovered_message, QueryBazel, AUDIT_TODAY_ENV,
+        AUDIT_TODAY_ENV, QueryBazel, parse_locked_for_configured, today_utc_from, uncovered_message,
     };
     use dx_adopt::dependency_sets::{Ecosystem, ResolvedSet};
     use dx_plan::resolve::{QueryResult, QueryRunner};
@@ -190,7 +190,9 @@ pub(crate) enum AuditError {
     },
     #[error(transparent)]
     SecurityInvalid(dx_audit::exception::SecurityProblem),
-    #[error("offline_required: cannot obtain current advisory data for {set} without network: {detail} (re-run without --offline once connected)")]
+    #[error(
+        "offline_required: cannot obtain current advisory data for {set} without network: {detail} (re-run without --offline once connected)"
+    )]
     OfflineRequired { set: String, detail: String },
 }
 
@@ -719,7 +721,7 @@ fn read_policy_text(workspace: &Path, rel: &str) -> Result<Option<String>, Audit
 fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
-    use dx_audit::license_policy::{load_licenses, PolicyProblem};
+    use dx_audit::license_policy::{PolicyProblem, load_licenses};
     let invalid = |error| AuditError::LicenseInvalid { error };
     let profile = audit_profile(workspace)
         .map_err(|message| invalid(PolicyProblem::InvalidLicensesToml { message }))?;
@@ -730,7 +732,7 @@ fn load_license_policy(
 pub(super) fn load_security_policy(
     workspace: &Path,
 ) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
-    use dx_audit::exception::{load_security, SecurityProblem};
+    use dx_audit::exception::{SecurityProblem, load_security};
     let profile = audit_profile(workspace)
         .map_err(|message| AuditError::SecurityInvalid(SecurityProblem::InvalidToml { message }))?;
     let text = read_policy_text(workspace, "security.toml")?;
@@ -794,7 +796,7 @@ fn gitleaks_path(
     bazel: &dyn dx_tool_resolve::Bazel,
     offline: bool,
 ) -> Result<PathBuf, String> {
-    use super::pinned_tool::{resolve_pinned, PinnedTool, PinnedToolError};
+    use super::pinned_tool::{PinnedTool, PinnedToolError, resolve_pinned};
     use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
     let tool = PinnedTool {
         var: TOOL_ENV_VAR,
@@ -834,7 +836,7 @@ fn scoped_secrets_config(
     pid: u32,
     nonce: u64,
 ) -> Result<Option<String>, String> {
-    use dx_audit::secrets::{ignored_path_patterns, parse_ignored, scoped_config, IGNORED_QUERY};
+    use dx_audit::secrets::{IGNORED_QUERY, ignored_path_patterns, parse_ignored, scoped_config};
     let mut argv = vec!["git".to_owned()];
     argv.extend(IGNORED_QUERY.iter().map(ToString::to_string));
     let mut ignored = match query_runner.run_query(&argv, workspace) {
@@ -1254,18 +1256,17 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
             continue;
         }
-        let assessable =
-            match collect_target(workspace, target, &accepted_uncovered, offline) {
-                Err((code, message)) => {
-                    if incomplete.is_none() {
-                        incomplete = Some(message);
-                        incomplete_code = code;
-                    }
-                    continue;
+        let assessable = match collect_target(workspace, target, &accepted_uncovered, offline) {
+            Err((code, message)) => {
+                if incomplete.is_none() {
+                    incomplete = Some(message);
+                    incomplete_code = code;
                 }
-                Ok(None) => continue,
-                Ok(Some(assessable)) => assessable,
-            };
+                continue;
+            }
+            Ok(None) => continue,
+            Ok(Some(assessable)) => assessable,
+        };
         let Assessable {
             label,
             packages,
@@ -1275,9 +1276,10 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             exception_set,
             yanked_missing,
         } = assessable;
-        if let Some(age) = pin.age_days(today) {
-            if age > dx_audit::advisory::PIN_MAX_AGE_DAYS {
-                diagnostics.push(DiagnosticEvent {
+        if let Some(age) = pin.age_days(today)
+            && age > dx_audit::advisory::PIN_MAX_AGE_DAYS
+        {
+            diagnostics.push(DiagnosticEvent {
                     rule: Some(format!("{}/advisory_pin_old", dx_audit::vuln::VULN_RULE_PREFIX)),
                     ..DiagnosticEvent::new(
                         Severity::Warning,
@@ -1290,7 +1292,6 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                         ),
                     )
                 });
-            }
         }
         if yanked_missing && policy.fails_on(dx_audit::vuln::AdvisoryKind::Yanked) {
             if incomplete.is_none() {
@@ -1536,7 +1537,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 out,
                 err,
                 "audit dispatch guards commands",
-            )
+            );
         }
     };
     let request = dx_audit::AuditRequest {
@@ -1603,10 +1604,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
             return exit;
         }
-    } else if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-            return exit;
-        }
+    } else if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+        return exit;
     }
     let today = today_utc(audit_today);
     let owned: Vec<&str> = registry
@@ -1749,10 +1748,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 "{}",
                 text_finding(&FindingRecord::single(diagnostic.clone()))
             );
-            if !stdout_report {
-                if let Err(exit) = check_stdout_write(written) {
-                    return exit;
-                }
+            if !stdout_report && let Err(exit) = check_stdout_write(written) {
+                return exit;
             }
         }
     }
@@ -1805,14 +1802,15 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ) {
                     return exit;
                 }
-            } else if verbose && planned.destination != Destination::Stdout {
-                if let Err(exit) = check_stdout_write(writeln!(
+            } else if verbose
+                && planned.destination != Destination::Stdout
+                && let Err(exit) = check_stdout_write(writeln!(
                     out,
                     "Wrote {name} report to {}.",
                     planned.destination.display()
-                )) {
-                    return exit;
-                }
+                ))
+            {
+                return exit;
             }
             continue;
         }
@@ -1859,14 +1857,15 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ) {
                     return exit;
                 }
-            } else if verbose && planned.destination != Destination::Stdout {
-                if let Err(exit) = check_stdout_write(writeln!(
+            } else if verbose
+                && planned.destination != Destination::Stdout
+                && let Err(exit) = check_stdout_write(writeln!(
                     out,
                     "Wrote sarif report to {}.",
                     planned.destination.display()
-                )) {
-                    return exit;
-                }
+                ))
+            {
+                return exit;
             }
         }
     }
@@ -1883,12 +1882,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             if let Err(exit) = emit_event(out, &finished) {
                 return exit;
             }
-        } else if verbose {
-            if let Err(exit) =
+        } else if verbose
+            && let Err(exit) =
                 check_stdout_write(writeln!(out, "dx security/license: report write failed"))
-            {
-                return exit;
-            }
+        {
+            return exit;
         }
         return 1;
     }
@@ -1957,12 +1955,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             .unwrap_or_else(|| "clean".to_owned());
         match outcome.status {
             dx_audit::outcome::FamilyStatus::Clean => {
-                if verbose {
-                    if let Err(exit) =
+                if verbose
+                    && let Err(exit) =
                         check_stdout_write(writeln!(out, "audit {family_name}: {message}"))
-                    {
-                        return exit;
-                    }
+                {
+                    return exit;
                 }
             }
             dx_audit::outcome::FamilyStatus::Findings

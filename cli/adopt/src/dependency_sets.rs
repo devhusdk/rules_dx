@@ -37,8 +37,7 @@ pub const ECOSYSTEM_SWIFTPM: &str = "swiftpm";
 
 pub const ECOSYSTEM_CABAL: &str = "cabal";
 
-pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal";
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -394,7 +393,9 @@ pub enum DependencySetsError {
         "invalid {MODULE_BAZEL}: dependency set {name:?} owns path {path:?} which escapes the workspace"
     )]
     EscapingPath { name: String, path: String },
-    #[error("invalid {MODULE_BAZEL}: dependency set {name:?} manifest {path:?} must be named {want} for ecosystem {ecosystem}")]
+    #[error(
+        "invalid {MODULE_BAZEL}: dependency set {name:?} manifest {path:?} must be named {want} for ecosystem {ecosystem}"
+    )]
     InvalidManifest {
         name: String,
         path: String,
@@ -405,7 +406,9 @@ pub enum DependencySetsError {
     DuplicateName { name: String },
     #[error("invalid {MODULE_BAZEL}: {path:?} is owned by dependency sets {names}")]
     ConflictingOwnership { path: String, names: String },
-    #[error("unknown dependency set or scope {selector:?}; expected {names}, set:package, or a workspace path")]
+    #[error(
+        "unknown dependency set or scope {selector:?}; expected {names}, set:package, or a workspace path"
+    )]
     UnknownSelector { selector: String, names: String },
     #[error("invalid package {package:?} for set {set}: {reason}")]
     InvalidPackage {
@@ -413,7 +416,9 @@ pub enum DependencySetsError {
         package: String,
         reason: &'static str,
     },
-    #[error("no owning dependency set for {scope:?} (non-dependency paths are out of dependency-set scope; sets: {names})")]
+    #[error(
+        "no owning dependency set for {scope:?} (non-dependency paths are out of dependency-set scope; sets: {names})"
+    )]
     NoOwningSet { scope: String, names: String },
     #[error("dependency set {name:?} is missing {path} (declared in {rel})")]
     MissingFile {
@@ -427,7 +432,9 @@ pub enum DependencySetsError {
         path: String,
         rel: String,
     },
-    #[error("dependency set {name:?} relies on uv settings dx does not apply: {detail}; keep resolver settings out of uv.toml and [tool.uv]")]
+    #[error(
+        "dependency set {name:?} relies on uv settings dx does not apply: {detail}; keep resolver settings out of uv.toml and [tool.uv]"
+    )]
     UnsupportedSettings { name: String, detail: String },
     #[error("dependency set {name:?} cannot run pnpm in {dir}: {detail}")]
     UnsupportedNpmLayout {
@@ -435,31 +442,41 @@ pub enum DependencySetsError {
         dir: String,
         detail: String,
     },
-    #[error("dependency set {name:?} must declare {path} in locks; dx reads the {ecosystem} lock beside its manifest")]
+    #[error(
+        "dependency set {name:?} must declare {path} in locks; dx reads the {ecosystem} lock beside its manifest"
+    )]
     MissingPinnedLock {
         name: String,
         path: String,
         ecosystem: &'static str,
     },
-    #[error("dependency set {name:?} has a stale {lock}: {detail}; regenerate Manifest.toml and Manifest.bazel.json together")]
+    #[error(
+        "dependency set {name:?} has a stale {lock}: {detail}; regenerate Manifest.toml and Manifest.bazel.json together"
+    )]
     StaleJuliaLock {
         name: String,
         lock: String,
         detail: String,
     },
-    #[error("dependency set {name:?} has a stale {lock}: {detail}; run the cpan_compiler next to the cpanfile")]
+    #[error(
+        "dependency set {name:?} has a stale {lock}: {detail}; run the cpan_compiler next to the cpanfile"
+    )]
     StaleCpanLock {
         name: String,
         lock: String,
         detail: String,
     },
-    #[error("dependency set {name:?} has a stale {lock}: {detail}; regenerate the digests for composer.lock")]
+    #[error(
+        "dependency set {name:?} has a stale {lock}: {detail}; regenerate the digests for composer.lock"
+    )]
     StaleComposerLock {
         name: String,
         lock: String,
         detail: String,
     },
-    #[error("dependency set {name:?} has a stale {lock}: {detail}; run the haskell_deps_resolve target next to cabal.project")]
+    #[error(
+        "dependency set {name:?} has a stale {lock}: {detail}; run the haskell_deps_resolve target next to cabal.project"
+    )]
     StaleCabalLock {
         name: String,
         lock: String,
@@ -481,7 +498,9 @@ pub enum DependencySetsError {
     UnsupportedNugetLayout { name: String, detail: String },
     #[error("dependency set {name:?} cannot run go mod download: {detail}")]
     UnsupportedGoLayout { name: String, detail: String },
-    #[error("invalid {MODULE_BAZEL}: dependency set {name:?} repository {repository:?} must start with a letter and use [A-Za-z0-9_.-] only")]
+    #[error(
+        "invalid {MODULE_BAZEL}: dependency set {name:?} repository {repository:?} must start with a letter and use [A-Za-z0-9_.-] only"
+    )]
     InvalidRepository { name: String, repository: String },
 }
 
@@ -827,13 +846,13 @@ fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
             });
         }
     }
-    if let Some(repository) = &set.repository {
-        if !valid_repository(repository) {
-            return Err(DependencySetsError::InvalidRepository {
-                name: name.clone(),
-                repository: repository.clone(),
-            });
-        }
+    if let Some(repository) = &set.repository
+        && !valid_repository(repository)
+    {
+        return Err(DependencySetsError::InvalidRepository {
+            name: name.clone(),
+            repository: repository.clone(),
+        });
     }
     Ok(())
 }
@@ -1123,24 +1142,24 @@ fn parse_selector<'a>(
 ) -> Result<ParsedSelector<'a>, DependencySetsError> {
     let names = registry.name_list();
     if text.contains(':') {
-        if let Some((head, tail)) = text.split_once(':') {
-            if let Some(set) = registry.find(head) {
-                if tail.is_empty() {
-                    return Err(DependencySetsError::InvalidPackage {
-                        set: set.name.clone(),
-                        package: tail.to_owned(),
-                        reason: "package identity is empty",
-                    });
-                }
-                if let Err(reason) = validate_package(set.ecosystem, tail) {
-                    return Err(DependencySetsError::InvalidPackage {
-                        set: set.name.clone(),
-                        package: tail.to_owned(),
-                        reason,
-                    });
-                }
-                return Ok(ParsedSelector::Package(&set.name, tail.to_owned()));
+        if let Some((head, tail)) = text.split_once(':')
+            && let Some(set) = registry.find(head)
+        {
+            if tail.is_empty() {
+                return Err(DependencySetsError::InvalidPackage {
+                    set: set.name.clone(),
+                    package: tail.to_owned(),
+                    reason: "package identity is empty",
+                });
             }
+            if let Err(reason) = validate_package(set.ecosystem, tail) {
+                return Err(DependencySetsError::InvalidPackage {
+                    set: set.name.clone(),
+                    package: tail.to_owned(),
+                    reason,
+                });
+            }
+            return Ok(ParsedSelector::Package(&set.name, tail.to_owned()));
         }
         if text.starts_with("//") || text.starts_with('@') {
             return scope_selector(registry, text, &names);
@@ -1207,10 +1226,8 @@ fn normalize_scope(text: &str) -> (String, bool) {
     while path.ends_with('/') && path.len() > 1 {
         path.pop();
     }
-    if label {
-        if let Some(colon) = path.find(':') {
-            path = path[..colon].to_owned();
-        }
+    if label && let Some(colon) = path.find(':') {
+        path = path[..colon].to_owned();
     }
     (path, recursive)
 }
@@ -1251,23 +1268,23 @@ pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
     if target.starts_with('@') {
         return Vec::new();
     }
-    if !target.contains("MODULE.bazel") {
-        if let Some(path) = declared_file_path(target) {
-            let mut owners: Vec<&str> = registry
-                .sets
-                .iter()
-                .filter(|set| {
-                    set.manifests
-                        .iter()
-                        .chain(&set.locks)
-                        .any(|file| *file == path)
-                })
-                .map(|set| set.name.as_str())
-                .collect();
-            if !owners.is_empty() {
-                owners.sort();
-                return owners;
-            }
+    if !target.contains("MODULE.bazel")
+        && let Some(path) = declared_file_path(target)
+    {
+        let mut owners: Vec<&str> = registry
+            .sets
+            .iter()
+            .filter(|set| {
+                set.manifests
+                    .iter()
+                    .chain(&set.locks)
+                    .any(|file| *file == path)
+            })
+            .map(|set| set.name.as_str())
+            .collect();
+        if !owners.is_empty() {
+            owners.sort();
+            return owners;
         }
     }
     let (mut package, recursive) = normalize_scope(target);
@@ -1502,12 +1519,11 @@ pub fn cpan_compiler_label(workspace: &Path, set: &ResolvedSet) -> Option<String
         .iter()
         .find_map(|name| std::fs::read_to_string(workspace.join(package).join(name)).ok())?;
     let build = dx_module_bazel::ModuleFile::parse_build(&text).ok()?;
-    let label = build.calls_named("cpan_compiler").find_map(|call| {
+    build.calls_named("cpan_compiler").find_map(|call| {
         let named = call.str("lockfile")?;
         let named = named.rsplit([':', '/']).next().unwrap_or(named);
         (named == file).then(|| format!("//{package}:{}", call.str("name").unwrap_or_default()))
-    });
-    label
+    })
 }
 
 /// The `//pkg:name` of the first `rule` call in the BUILD file of the set's directory.
@@ -1673,7 +1689,7 @@ fn check_composer_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depe
                 (Some(wanted), Some(have)) if wanted != have => {
                     return Err(stale(format!(
                         "its reference for {name} is {have}, but {lock} has {wanted}"
-                    )))
+                    )));
                 }
                 _ => {}
             }
@@ -2415,7 +2431,9 @@ mod tests {
         )
         .expect("freeze");
         let sidecar = |safe: &str| {
-            format!("{{\"packages\":[{{\"name\":\"base\",\"version\":\"4.20.2.0\"}},{{\"name\":\"safe\",\"version\":\"{safe}\"}}]}}")
+            format!(
+                "{{\"packages\":[{{\"name\":\"base\",\"version\":\"4.20.2.0\"}},{{\"name\":\"safe\",\"version\":\"{safe}\"}}]}}"
+            )
         };
         let set = ResolvedSet {
             name: "hackage".to_owned(),
@@ -2799,13 +2817,15 @@ mod tests {
                 repository: "1crates".to_owned(),
             })
         );
-        assert!(hub_set(
-            "Crate_index.v2-x",
-            Ecosystem::Cargo,
-            strings(&["a/Cargo.toml"]),
-            strings(&["a/Cargo.lock"])
-        )
-        .is_ok());
+        assert!(
+            hub_set(
+                "Crate_index.v2-x",
+                Ecosystem::Cargo,
+                strings(&["a/Cargo.toml"]),
+                strings(&["a/Cargo.lock"])
+            )
+            .is_ok()
+        );
         for bad in [
             "../up/pyproject.toml",
             "a/../../pyproject.toml",
@@ -3260,13 +3280,15 @@ mod tests {
             );
             assert!(error.to_string().contains(want), "{error}");
         }
-        assert!(hub_set(
-            "root",
-            Ecosystem::Npm,
-            strings(&["package.json"]),
-            strings(&["pnpm-lock.yaml"])
-        )
-        .is_ok());
+        assert!(
+            hub_set(
+                "root",
+                Ecosystem::Npm,
+                strings(&["package.json"]),
+                strings(&["pnpm-lock.yaml"])
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -3812,7 +3834,10 @@ mod tests {
         let root = scratch.path();
         assert_eq!(check_backend_settings(root, &set), Ok(()));
         let cases = [
-            ("bazel_dep(name = \"x\", version = \"1\")\n", "no maven.install"),
+            (
+                "bazel_dep(name = \"x\", version = \"1\")\n",
+                "no maven.install",
+            ),
             (
                 "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\n",
                 "use_repo",

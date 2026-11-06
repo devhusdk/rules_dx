@@ -1,10 +1,10 @@
 //! PyPI publisher: wheelhouse staging and the twine upload.
 
-use crate::api_compat::{breaking_refusal, required_bump, ApiCompatMode};
+use crate::api_compat::{ApiCompatMode, breaking_refusal, required_bump};
 use crate::archive::*;
 use crate::crates::previous_git_tag;
 use crate::run::{
-    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -98,10 +98,8 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
         let lower = path.to_ascii_lowercase();
         let native = NATIVE_SUFFIXES.iter().any(|suffix| lower.ends_with(suffix));
         has_native |= native;
-        if native {
-            if let Some(tags) = &tags {
-                tags.check_native(&name, path, &lower)?;
-            }
+        if native && let Some(tags) = &tags {
+            tags.check_native(&name, path, &lower)?;
         }
         if none_any && NATIVE_SUFFIXES.iter().any(|suffix| lower.ends_with(suffix)) {
             return Err(format!(
@@ -117,18 +115,18 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
             ));
         }
     }
-    if let Some(tags) = tags {
-        if has_native || !tags.platforms.iter().all(|platform| platform == "any") {
-            let wheel_name = record_name.replace("RECORD", "WHEEL");
-            let mut metadata = String::new();
-            archive
-                .by_name(&wheel_name)
-                .and_then(|mut entry| entry.read_to_string(&mut metadata).map_err(Into::into))
-                .map_err(|error| {
-                    format!("pypi_deploy: cannot read {wheel_name} in wheel {name}: {error}")
-                })?;
-            tags.check_metadata(&name, &metadata)?;
-        }
+    if let Some(tags) = tags
+        && (has_native || !tags.platforms.iter().all(|platform| platform == "any"))
+    {
+        let wheel_name = record_name.replace("RECORD", "WHEEL");
+        let mut metadata = String::new();
+        archive
+            .by_name(&wheel_name)
+            .and_then(|mut entry| entry.read_to_string(&mut metadata).map_err(Into::into))
+            .map_err(|error| {
+                format!("pypi_deploy: cannot read {wheel_name} in wheel {name}: {error}")
+            })?;
+        tags.check_metadata(&name, &metadata)?;
     }
     Ok(())
 }
@@ -578,12 +576,7 @@ pub fn pypi_main_checked(
             } else {
                 run.resolve(api.griffe_rloc)
             };
-            pypi_api_check(
-                griffe.as_deref(),
-                &version,
-                api,
-                Path::new(&workspace),
-            )
+            pypi_api_check(griffe.as_deref(), &version, api, Path::new(&workspace))
         });
     if let Err(message) = checked {
         eprintln!("{message}");
@@ -866,11 +859,13 @@ mod tests {
         std::fs::create_dir_all(&outdir).expect("outdir");
         let house = pypi_build_wheelhouse(&wheel, Some(&sdist), &outdir, "publish").expect("house");
         assert_eq!(house, outdir.join("publish-wheelhouse"));
-        assert!(house
-            .join("simple-index")
-            .join("my-pkg-name")
-            .join("index.html")
-            .is_file());
+        assert!(
+            house
+                .join("simple-index")
+                .join("my-pkg-name")
+                .join("index.html")
+                .is_file()
+        );
         assert!(!house.join("simple-index").join("publish").exists());
         let other = scratch.path().join("other-1.0.tar.gz");
         std::fs::write(&other, b"o").expect("other");

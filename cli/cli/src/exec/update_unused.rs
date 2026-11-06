@@ -1,7 +1,7 @@
 use super::common::*;
-use dx_adopt::dependency_sets::{cargo_fetch_repository, Ecosystem, ResolvedTarget, Selection};
-use dx_output::{notice_event, NoticeEvent};
-use dx_plan::resolve::{run_label_query_file, QueryRunner};
+use dx_adopt::dependency_sets::{Ecosystem, ResolvedTarget, Selection, cargo_fetch_repository};
+use dx_output::{NoticeEvent, notice_event};
+use dx_plan::resolve::{QueryRunner, run_label_query_file};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;

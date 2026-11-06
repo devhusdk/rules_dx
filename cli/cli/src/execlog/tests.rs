@@ -4,7 +4,7 @@ use proto::exec_log_entry::{
     SymlinkEntrySet, UnresolvedSymlink,
 };
 use proto::{Digest, ExecLogEntry};
-use ruzstd::encoding::{compress_to_vec, CompressionLevel};
+use ruzstd::encoding::{CompressionLevel, compress_to_vec};
 
 pub(crate) fn entry(id: u32, payload: Type) -> ExecLogEntry {
     ExecLogEntry {
@@ -292,8 +292,10 @@ fn tool_set_members_are_inputs() {
         entry(0, Type::Spawn(tool_spawn)),
     ]);
     let (segment, spawn) = log.spawns().next().expect("spawn");
-    assert!(segment
-        .inputs(spawn)
-        .expect("inputs")
-        .contains_key("tools/gen.sh"));
+    assert!(
+        segment
+            .inputs(spawn)
+            .expect("inputs")
+            .contains_key("tools/gen.sh")
+    );
 }

@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-use dx_module_bazel::{compare_module_versions, ModuleFile, Value};
+use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
 /// Modules released together whose floors must move together.
 const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_prost", "rules_rust_wasm_bindgen"]];
@@ -299,7 +299,9 @@ fn fixture_table(pins: &[(&str, &str, &str)]) -> Table {
 }
 
 fn good(dep: &str, over: &str) -> String {
-    format!("# floor: equals tested\nbazel_dep(name = \"demo\", version = \"{dep}\")\nsingle_version_override(\n    module_name = \"demo\",\n    version = \"{over}\",\n)\n\nbazel_dep(name = \"dev\", version = \"9.0.0\", dev_dependency = True)\n")
+    format!(
+        "# floor: equals tested\nbazel_dep(name = \"demo\", version = \"{dep}\")\nsingle_version_override(\n    module_name = \"demo\",\n    version = \"{over}\",\n)\n\nbazel_dep(name = \"dev\", version = \"9.0.0\", dev_dependency = True)\n"
+    )
 }
 
 #[test]
@@ -317,7 +319,9 @@ fn a_matching_fixture_passes() {
 fn disagreeing_fixtures_fail() {
     let demo = fixture_table(&[("demo", "1.2.0", "1.2.0")]);
     let rust = |floor: &str, tested: &str| {
-        format!("# floor: equals tested\nbazel_dep(name = \"rules_rust\", version = \"{floor}\")\nsingle_version_override(module_name = \"rules_rust\", version = \"{tested}\")\n# floor: equals tested\nbazel_dep(name = \"rules_rust_prost\", version = \"2\")\nsingle_version_override(module_name = \"rules_rust_prost\", version = \"2\")\n")
+        format!(
+            "# floor: equals tested\nbazel_dep(name = \"rules_rust\", version = \"{floor}\")\nsingle_version_override(module_name = \"rules_rust\", version = \"{tested}\")\n# floor: equals tested\nbazel_dep(name = \"rules_rust_prost\", version = \"2\")\nsingle_version_override(module_name = \"rules_rust_prost\", version = \"2\")\n"
+        )
     };
     for (source, table, needle) in [
         (good("1.1.0", "1.2.0"), demo.clone(), "but its floor is"),

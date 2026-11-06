@@ -126,7 +126,7 @@ pub fn automerge(limit: Option<Level>, plan: &GroupPlan) -> bool {
 mod tests {
     use super::*;
     use crate::discover::Registry;
-    use crate::pr::{plan, Group, Item};
+    use crate::pr::{Group, Item, plan};
 
     fn candidate(package: &str, current: &str, latest: &str, published: Option<&str>) -> Candidate {
         Candidate {

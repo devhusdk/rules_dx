@@ -1,8 +1,8 @@
 use super::common::*;
 use super::{update_add_missing, update_outdated, update_prune, update_unused};
 use dx_output::{
-    command_finished, error_event, notice_event, with_correlation, FinishedCounts, NoticeEvent,
-    OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, error_event, notice_event,
+    with_correlation,
 };
 use dx_plan::args::{Command, Invocation};
 use dx_plan::reports::plan_reports;
@@ -28,27 +28,27 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(registry) => registry,
         Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
     } {
-        if invocation.prune {
-            if let Err(code) = prune_unused(
+        if invocation.prune
+            && let Err(code) = prune_unused(
                 invocation,
                 env.workspace,
                 env.query_runner,
                 &registry,
                 env.err,
-            ) {
-                return code;
-            }
+            )
+        {
+            return code;
         }
-        if invocation.add_missing {
-            if let Err(code) = add_missing(
+        if invocation.add_missing
+            && let Err(code) = add_missing(
                 invocation,
                 env.workspace,
                 env.query_runner,
                 &registry,
                 env.err,
-            ) {
-                return code;
-            }
+            )
+        {
+            return code;
         }
         return update_consumer::execute_configured(invocation, env, &registry, verbose, mode);
     }
@@ -449,10 +449,8 @@ fn emit_update_json(
                 ) {
                     return exit;
                 }
-                if verbose {
-                    if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
-                        return exit;
-                    }
+                if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+                    return exit;
                 }
             }
         }
@@ -503,12 +501,10 @@ fn emit_update_text(
             dx_update::outcome::ReportedStatus::Updated
             | dx_update::outcome::ReportedStatus::Current
             | dx_update::outcome::ReportedStatus::Pinned => {
-                if verbose {
-                    if let Some(detail) = details.get(outcome.set.as_str()) {
-                        let message = &detail.message;
-                        if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
-                            return exit;
-                        }
+                if verbose && let Some(detail) = details.get(outcome.set.as_str()) {
+                    let message = &detail.message;
+                    if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+                        return exit;
                     }
                 }
             }
@@ -526,14 +522,14 @@ fn emit_update_text(
                 }
             }
             dx_update::outcome::ReportedStatus::Blocked => {
-                if verbose {
-                    if let Err(exit) = check_stdout_write(writeln!(
+                if verbose
+                    && let Err(exit) = check_stdout_write(writeln!(
                         out,
                         "blocked {} (depends on a failed update)",
                         outcome.set
-                    )) {
-                        return exit;
-                    }
+                    ))
+                {
+                    return exit;
                 }
             }
         }
@@ -546,10 +542,10 @@ fn emit_update_text(
             plan.message
         );
     }
-    if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{}", status_summary(report, mode))) {
-            return exit;
-        }
+    if verbose
+        && let Err(exit) = check_stdout_write(writeln!(out, "{}", status_summary(report, mode)))
+    {
+        return exit;
     }
     exit
 }

@@ -17,7 +17,6 @@ rust_binary(
     ],
     crate_name = "launcher",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = ["//cli/path:dx_path"],
 )
 
@@ -30,7 +29,6 @@ rust_test(
     ],
     crate_name = "launcher",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = ["//cli/path:dx_path"],
 )
 

@@ -4,9 +4,9 @@ use std::time::Duration;
 use dx_path::state;
 use serde::{Deserialize, Serialize};
 
+use super::WorktreeError;
 use super::git;
 use super::host;
-use super::WorktreeError;
 
 pub const POOL_LOCK_WAIT: Duration = Duration::from_secs(120);
 const QUIET_WAIT: Duration = Duration::from_millis(250);
@@ -593,10 +593,9 @@ pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
             if let Some(found) = std::fs::read(&record)
                 .ok()
                 .and_then(|bytes| serde_json::from_slice::<Record>(&bytes).ok())
+                && found.slot == slot
             {
-                if found.slot == slot {
-                    return Some((dir.to_path_buf(), found));
-                }
+                return Some((dir.to_path_buf(), found));
             }
         }
         current = Some(parent);

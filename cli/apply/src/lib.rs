@@ -16,12 +16,12 @@ pub mod envelope;
 pub mod validators;
 
 pub use applier::{
-    apply_envelope, AppliedFile, ApplyError, ApplyReport, FileSystem, HookError, HookRunner,
-    NoHooks, RealFileSystem,
+    AppliedFile, ApplyError, ApplyReport, FileSystem, HookError, HookRunner, NoHooks,
+    RealFileSystem, apply_envelope,
 };
-pub use consensus::{merge, ConsensusError};
+pub use consensus::{ConsensusError, merge};
 pub use envelope::{
-    emit_envelope, parse_envelope, Envelope, EnvelopeError, FileOperation, ENVELOPE_VERSION,
+    ENVELOPE_VERSION, Envelope, EnvelopeError, FileOperation, emit_envelope, parse_envelope,
 };
-pub use validators::{validate, ValidationError, BLOCKED_EXTENSIONS, MAX_OPERATION_BYTES};
+pub use validators::{BLOCKED_EXTENSIONS, MAX_OPERATION_BYTES, ValidationError, validate};
 // LCOV_EXCL_STOP - reason: end re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

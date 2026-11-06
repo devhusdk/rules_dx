@@ -13,7 +13,7 @@ use std::path::Path;
 
 use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
 use dx_cli::exec::common::flush_out;
-use dx_cli::{execute, print_actions, ActionTally, Env};
+use dx_cli::{ActionTally, Env, execute, print_actions};
 use dx_output::OutputMode;
 use dx_plan::args::{is_discovery_exempt, json_output_intent, parse_with_ci};
 use dx_plan::plan::{create_run_temp_dir, remove_on_stop};
@@ -171,7 +171,8 @@ fn main() {
     for (key, value) in
         dx_process::bazel_env_defaults(&|name| std::env::var_os(name), cfg!(target_os = "linux"))
     {
-        std::env::set_var(key, value);
+        // SAFETY: the process is single-threaded here or the env lock is held.
+        unsafe { std::env::set_var(key, value) };
     }
     install_forwarding();
     dx_cli::exec::install_panic_hint();
@@ -181,7 +182,7 @@ fn main() {
 
 // LCOV_EXCL_START - reason: thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
 fn run_as_tool() -> Option<i32> {
-    use dx_cli::multicall::{tool_for, Tool};
+    use dx_cli::multicall::{Tool, tool_for};
     let mut args = std::env::args_os();
     let tool = tool_for(&args.next()?)?;
     let args: Vec<String> = args.map(|arg| arg.to_string_lossy().into_owned()).collect();
@@ -271,7 +272,7 @@ fn run() -> i32 {
     if cfg!(windows) && dx_plan::args::help::runs_bazel(invocation.command) {
         let exists = |path: &Path| path.is_file();
         match dx_process::bazel_sh::resolve_bazel_sh(&|name| std::env::var_os(name), &exists) {
-            Ok(Some(bash)) => std::env::set_var("BAZEL_SH", bash),
+            Ok(Some(bash)) => unsafe { std::env::set_var("BAZEL_SH", bash) },
             Ok(None) => {}
             Err(error) => {
                 let message = error.to_string();

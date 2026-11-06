@@ -69,7 +69,6 @@ rust_library(
     ),
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -93,7 +92,6 @@ rust_binary(
     ),
     crate_name = "release_tool",
     crate_root = "src/bin_release_tool.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -124,7 +122,6 @@ rust_test(
     ),
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -279,7 +276,6 @@ rust_binary(
     ),
     crate_name = "publish_dry_run_check",
     crate_root = "src/bin_publish_dry_run_check.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -295,7 +291,6 @@ rust_binary(
     ),
     crate_name = "release_cell",
     crate_root = "src/bin_release_cell.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -311,7 +306,6 @@ rust_binary(
     ),
     crate_name = "bcr_ledger",
     crate_root = "src/bin_bcr_ledger.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -327,7 +321,6 @@ rust_binary(
     ),
     crate_name = "release_driver",
     crate_root = "src/bin_release_driver.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -346,7 +339,6 @@ rust_binary(
     ),
     crate_name = "source_archive",
     crate_root = "src/bin_source_archive.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -362,7 +354,6 @@ rust_binary(
     ),
     crate_name = "bump_version",
     crate_root = "src/bin_bump_version.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -769,7 +760,6 @@ rust_binary(
     ),
     crate_name = "release_deploy_tool",
     crate_root = "src/bin_release_deploy_tool.rs",
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",

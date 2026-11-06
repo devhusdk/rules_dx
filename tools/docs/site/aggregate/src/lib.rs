@@ -173,10 +173,10 @@ pub fn run(options: &Options) -> String {
     let tree = Path::new(&options.api_tree);
     for (rel, text) in &rendered.pages {
         let path = tree.join(rel);
-        if let Some(parent) = path.parent() {
-            if let Err(error) = fs::create_dir_all(parent) {
-                return format!("cannot create '{}': {error}", parent.display());
-            }
+        if let Some(parent) = path.parent()
+            && let Err(error) = fs::create_dir_all(parent)
+        {
+            return format!("cannot create '{}': {error}", parent.display());
         }
         if let Err(error) = fs::write(&path, text) {
             return format!("cannot write '{}': {error}", path.display());
@@ -496,22 +496,23 @@ fn rewrite_dx_line(line: &str, from: &str, known: &BTreeSet<&str>, titles: &Titl
             rest = &rest[ticks..];
             continue;
         }
-        if rest.starts_with('[') {
-            if let Some(close) = rest.find("](dx:") {
-                let label = &rest[1..close];
-                let target_start = close + "](dx:".len();
-                if !label.contains('[') && !label.contains('`') {
-                    if let Some(end) = rest[target_start..].find(')') {
-                        let id = &rest[target_start..target_start + end];
-                        if known.contains(id) {
-                            out.push_str(&format!("[{label}]({})", relative(from, &api_path(id))));
-                        } else {
-                            out.push_str(&code(&titles.of(id)));
-                        }
-                        rest = &rest[target_start + end + 1..];
-                        continue;
-                    }
+        if rest.starts_with('[')
+            && let Some(close) = rest.find("](dx:")
+        {
+            let label = &rest[1..close];
+            let target_start = close + "](dx:".len();
+            if !label.contains('[')
+                && !label.contains('`')
+                && let Some(end) = rest[target_start..].find(')')
+            {
+                let id = &rest[target_start..target_start + end];
+                if known.contains(id) {
+                    out.push_str(&format!("[{label}]({})", relative(from, &api_path(id))));
+                } else {
+                    out.push_str(&code(&titles.of(id)));
                 }
+                rest = &rest[target_start + end + 1..];
+                continue;
             }
         }
         let ch = rest.chars().next().map_or(1, char::len_utf8);

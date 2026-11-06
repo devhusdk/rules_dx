@@ -1,7 +1,7 @@
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{as_text, code_name, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "swift_lint";
 
@@ -99,9 +99,11 @@ mod tests {
 
     #[test]
     fn swift_lint_is_clean_on_exit_zero_without_lines() {
-        assert!(parse_swift_lint(b"", b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_swift_lint(b"", b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

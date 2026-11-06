@@ -59,7 +59,7 @@ mod tests {
     use dx_adopt::Applied;
 
     use crate::adopt::init::CODE_INIT_FAILED;
-    use crate::adopt::test_support::{invocation, Truncated};
+    use crate::adopt::test_support::{Truncated, invocation};
 
     fn applied(root: &Path, prefix: &str, code: &str, words: &[&str]) -> (i32, String, String) {
         let inv = invocation(words);
@@ -180,14 +180,18 @@ mod tests {
         let drift = crate::adopt::test_support::drift_of(root);
         assert!(drift.missing.contains(&"tools/dx".to_owned()), "{drift:?}");
         assert_eq!(full_init(root).0, 0);
-        assert!(crate::adopt::test_support::drift_of(root)
-            .missing
-            .is_empty());
+        assert!(
+            crate::adopt::test_support::drift_of(root)
+                .missing
+                .is_empty()
+        );
         let layer = root.join(".dx/bazelrc/resources.bazelrc");
         std::fs::remove_file(&layer).expect("rm");
-        assert!(crate::adopt::test_support::drift_of(root)
-            .missing
-            .is_empty());
+        assert!(
+            crate::adopt::test_support::drift_of(root)
+                .missing
+                .is_empty()
+        );
         assert_eq!(init(root).0, 0);
         assert!(layer.exists());
     }
@@ -206,11 +210,12 @@ mod tests {
         assert_eq!(code, 0);
         assert_eq!(
             out,
-            format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/.github/hooks/dx.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\nwrote demo/.github/copilot-instructions.md\n",
-            overrides = dx_adopt::render_overrides(&Default::default())
-                .iter()
-                .map(|(path, _)| format!("wrote demo/{path}\n"))
-                .collect::<String>()
+            format!(
+                "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/.github/hooks/dx.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\nwrote demo/.github/copilot-instructions.md\n",
+                overrides = dx_adopt::render_overrides(&Default::default())
+                    .iter()
+                    .map(|(path, _)| format!("wrote demo/{path}\n"))
+                    .collect::<String>()
             )
         );
         std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
@@ -335,9 +340,11 @@ mod tests {
             "{drift:?}"
         );
         std::fs::write(root.join("AGENTS.md"), "<!-- dx:begin -->\n").expect("orphan");
-        assert!(crate::adopt::test_support::drift_of(root)
-            .other
-            .iter()
-            .any(|o| o.starts_with("AGENTS.md: ")));
+        assert!(
+            crate::adopt::test_support::drift_of(root)
+                .other
+                .iter()
+                .any(|o| o.starts_with("AGENTS.md: "))
+        );
     }
 }

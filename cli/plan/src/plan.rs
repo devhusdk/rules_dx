@@ -12,11 +12,11 @@ use std::sync::OnceLock;
 use dx_process::{ForwardError, ProtectedFlag};
 
 pub use generate::{
-    generate_package_scope, generate_scope_json, plan_generate, plan_generate_logged,
-    GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
+    GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_package_scope,
+    generate_scope_json, plan_generate, plan_generate_logged,
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
-pub use quality::{plan_build, plan_build_with, plan_docs, plan_probe, Selection};
+pub use quality::{Selection, plan_build, plan_build_with, plan_docs, plan_probe};
 pub(crate) use quality::{workflow_bazel_labels, workflow_scope_labels};
 pub use registry::spec;
 pub use run_deploy::{
@@ -27,10 +27,10 @@ pub use run_temp::{
     bep_path, clean_for_stop, create_run_temp_dir, intended_path, patch_path, remove_on_stop,
     remove_stale_run_dirs, results_path, run_id,
 };
-pub use workflow::{plan_workflow, workflow_protected, WorkflowVerb};
+pub use workflow::{WorkflowVerb, plan_workflow, workflow_protected};
 
 pub use dx_process::{
-    head_settings, BAZEL_SETTINGS, CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG,
+    BAZEL_SETTINGS, CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG, head_settings,
 };
 
 const UPSTREAM_SETTINGS: [&str; 2] = [
@@ -321,8 +321,8 @@ pub struct BuildPlan {
 #[cfg(test)]
 mod tests {
     use super::{
-        bazel_argv_in, correctness_layer_imported, rules_dx_label, rules_dx_repo_of, settings_for,
-        BAZEL_SETTINGS,
+        BAZEL_SETTINGS, bazel_argv_in, correctness_layer_imported, rules_dx_label,
+        rules_dx_repo_of, settings_for,
     };
     use dx_process::ForwardError;
 

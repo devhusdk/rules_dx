@@ -1,6 +1,6 @@
 //! Lists Composer packages whose newest stable release on Packagist is newer than composer.lock.
 
-use super::{github_repo, release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{Candidate, Fetch, Findings, LookupError, github_repo, release_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 

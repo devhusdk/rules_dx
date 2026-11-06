@@ -2,8 +2,8 @@ use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
 use super::{
-    as_text, code_name, diff_paths, finding, known_relative, path_row_col, unformatted_at,
-    FileFinding, ParseError,
+    FileFinding, ParseError, as_text, code_name, diff_paths, finding, known_relative, path_row_col,
+    unformatted_at,
 };
 use crate::ToolSeverity;
 
@@ -266,15 +266,17 @@ mod tests {
         assert!(ok.expect("clean").is_empty());
         assert!(parse_cue_vet(b"", b"x\n", Some(0), &owned, &vet_files(), scratch()).is_err());
         assert!(parse_cue_vet(b"", b"", Some(1), &owned, &vet_files(), scratch()).is_err());
-        assert!(parse_cue_vet(
-            b"",
-            VET.as_bytes(),
-            Some(2),
-            &owned,
-            &vet_files(),
-            scratch()
-        )
-        .is_err());
+        assert!(
+            parse_cue_vet(
+                b"",
+                VET.as_bytes(),
+                Some(2),
+                &owned,
+                &vet_files(),
+                scratch()
+            )
+            .is_err()
+        );
         assert!(parse_cue_vet(b"", VET.as_bytes(), None, &owned, &vet_files(), scratch()).is_err());
         assert!(parse_cue_vet(b"", b"boom\n", Some(1), &owned, &vet_files(), scratch()).is_err());
     }
@@ -294,10 +296,12 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file, "/tmp/dx-scratch/main.cue");
         assert_eq!(found[0].finding.start.line, 5);
-        assert!(found[0]
-            .finding
-            .message
-            .starts_with("greeting.name: conflicting values"));
+        assert!(
+            found[0]
+                .finding
+                .message
+                .starts_with("greeting.name: conflicting values")
+        );
     }
 
     #[test]
@@ -331,14 +335,16 @@ mod tests {
         .expect("parsed");
         assert_eq!(found.len(), 2);
         let stray = "oops:\n    ./other.cue:1:1\n";
-        assert!(parse_cue_vet(
-            b"",
-            stray.as_bytes(),
-            Some(1),
-            &owned,
-            &vet_files(),
-            scratch()
-        )
-        .is_err());
+        assert!(
+            parse_cue_vet(
+                b"",
+                stray.as_bytes(),
+                Some(1),
+                &owned,
+                &vet_files(),
+                scratch()
+            )
+            .is_err()
+        );
     }
 }

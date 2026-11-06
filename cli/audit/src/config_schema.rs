@@ -1,5 +1,5 @@
-use schemars::generate::SchemaSettings;
 use schemars::JsonSchema;
+use schemars::generate::SchemaSettings;
 
 use crate::exception::SecurityFile;
 use crate::license_policy::LicensesFile;

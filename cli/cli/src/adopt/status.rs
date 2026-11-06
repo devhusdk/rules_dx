@@ -4,8 +4,8 @@ use clap::ValueEnum;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event};
 use dx_output::{
-    capability_event, command_finished, command_started, owned_file_event, status_event,
-    CapabilityEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent,
+    CapabilityEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent, capability_event,
+    command_finished, command_started, owned_file_event, status_event,
 };
 use dx_plan::args::grammar::advertises_passthrough;
 use dx_plan::args::{Command, Invocation};

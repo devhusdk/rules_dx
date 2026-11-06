@@ -295,9 +295,15 @@ mod tests {
         let got = eco_case(
             Ecosystem::Rust,
             &[
-                ("Cargo.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n"),
+                (
+                    "Cargo.toml",
+                    "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n",
+                ),
                 ("Cargo.lock", lock),
-                ("src/lib.rs", "mod time;\nuse serde::Serialize;\n\nfn f() {\n    itoa::Buffer::new();\n}\n"),
+                (
+                    "src/lib.rs",
+                    "mod time;\nuse serde::Serialize;\n\nfn f() {\n    itoa::Buffer::new();\n}\n",
+                ),
                 ("member/Cargo.toml", "[package]\nname = \"m\"\n"),
                 ("member/src/lib.rs", "use time::Duration;\n"),
             ],
@@ -332,9 +338,15 @@ mod tests {
         let got = eco_case(
             Ecosystem::Python,
             &[
-                ("pyproject.toml", "[project]\nname = \"app\"\nversion = \"0.1.0\"\ndependencies = [\"requests>=2\"]\n"),
+                (
+                    "pyproject.toml",
+                    "[project]\nname = \"app\"\nversion = \"0.1.0\"\ndependencies = [\"requests>=2\"]\n",
+                ),
                 ("uv.lock", lock),
-                ("app/main.py", "import requests\nimport app\n\nfrom urllib3 import PoolManager\n"),
+                (
+                    "app/main.py",
+                    "import requests\nimport app\n\nfrom urllib3 import PoolManager\n",
+                ),
             ],
             "pyproject.toml",
             "uv.lock",

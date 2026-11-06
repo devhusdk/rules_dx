@@ -1,5 +1,6 @@
 mod affected;
 mod audit;
+mod bazel_hint;
 mod bench;
 mod breaking_base;
 mod build_failures;
@@ -22,7 +23,6 @@ mod failure_reports;
 pub mod first_run;
 mod fuzz;
 mod generate;
-mod bazel_hint;
 mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
@@ -70,7 +70,7 @@ mod worktree;
 use dx_plan::args::{Command, Invocation};
 
 pub use audit::AUDIT_TODAY_ENV;
-pub use common::{print_actions, ActionTally, Env};
+pub use common::{ActionTally, Env, print_actions};
 pub use failure::{cancel, install_panic_events, install_panic_hint, set_usage_command};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 pub use update_version::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;
@@ -294,7 +294,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::delivery_sink::{Fault, Sink};
-    use super::test_support::{invocation, Harness};
+    use super::test_support::{Harness, invocation};
     use super::{hold_slot, lease_refusal_for};
     use dx_plan::args::Command;
     use std::io::ErrorKind;
@@ -390,8 +390,8 @@ mod tests {
 
     #[test]
     fn agent_quiet_flags_reach_every_bazel_backed_json_command() {
-        use dx_plan::args::command::COMMANDS;
         use dx_plan::args::AGENT_QUIET_FLAGS;
+        use dx_plan::args::command::COMMANDS;
         for (command, words) in QUIET_ROWS {
             let argvs = bazel_build_argvs(words, true, "--output=json");
             assert!(
@@ -680,9 +680,11 @@ mod tests {
         let held = hold_slot(Command::Test, &slot.join("sub"), Duration::from_secs(10))
             .expect("in a slot")
             .expect("free");
-        assert!(dx_atomic_fs::lease::try_lock_file(&busy, false)
-            .expect("probe")
-            .is_none());
+        assert!(
+            dx_atomic_fs::lease::try_lock_file(&busy, false)
+                .expect("probe")
+                .is_none()
+        );
         let nested = hold_slot(Command::Check, &slot, Duration::from_secs(10))
             .expect("in a slot")
             .expect("shared");
@@ -740,18 +742,22 @@ mod tests {
     #[test]
     fn free_slots_and_leases_without_a_session_are_not_refused() {
         let free = leased_slot(Some("s1"), false);
-        assert!(lease_refusal_for(
-            Command::Build,
-            &free.path().join("pool").join("1"),
-            &who(Some("s2"))
-        )
-        .is_none());
+        assert!(
+            lease_refusal_for(
+                Command::Build,
+                &free.path().join("pool").join("1"),
+                &who(Some("s2"))
+            )
+            .is_none()
+        );
         let bare = leased_slot(None, true);
-        assert!(lease_refusal_for(
-            Command::Build,
-            &bare.path().join("pool").join("1"),
-            &who(Some("s2"))
-        )
-        .is_none());
+        assert!(
+            lease_refusal_for(
+                Command::Build,
+                &bare.path().join("pool").join("1"),
+                &who(Some("s2"))
+            )
+            .is_none()
+        );
     }
 }

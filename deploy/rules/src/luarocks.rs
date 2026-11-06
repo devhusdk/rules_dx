@@ -2,8 +2,8 @@
 
 use crate::archive::basename;
 use crate::run::{
-    deploy_profile, env_or_empty, placeholder_refusal, print_redacted, scrubbed_command, DeployRun,
-    OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    placeholder_refusal, print_redacted, scrubbed_command,
 };
 use crate::stage::*;
 use std::path::Path;
@@ -225,29 +225,39 @@ mod tests {
         for version in ["", "1.2.0-1", "1.2.0"] {
             assert_eq!(luarocks_check_identity(&identity, "demo", version), Ok(()));
         }
-        assert!(luarocks_check_identity(&identity, "", "1.2.1")
-            .expect_err("version")
-            .contains("BUILD declares 1.2.1"));
-        assert!(luarocks_check_identity(&identity, "other", "")
-            .expect_err("package")
-            .contains("BUILD declares other"));
+        assert!(
+            luarocks_check_identity(&identity, "", "1.2.1")
+                .expect_err("version")
+                .contains("BUILD declares 1.2.1")
+        );
+        assert!(
+            luarocks_check_identity(&identity, "other", "")
+                .expect_err("package")
+                .contains("BUILD declares other")
+        );
     }
 
     #[test]
     fn rejects_a_rockspec_that_disagrees_with_its_file_name() {
         let dir = scratch_dir();
         let wrong = write_rockspec(dir.path(), "demo-1.3.0-1.rockspec", ROCKSPEC);
-        assert!(luarocks_read_identity(&wrong)
-            .expect_err("name")
-            .contains("must be named demo-1.2.0-1.rockspec"));
+        assert!(
+            luarocks_read_identity(&wrong)
+                .expect_err("name")
+                .contains("must be named demo-1.2.0-1.rockspec")
+        );
         let bare = write_rockspec(dir.path(), "demo-1.rockspec", "package = \"demo\"\n");
-        assert!(luarocks_read_identity(&bare)
-            .expect_err("version")
-            .contains("no top-level version"));
+        assert!(
+            luarocks_read_identity(&bare)
+                .expect_err("version")
+                .contains("no top-level version")
+        );
         let other = write_rockspec(dir.path(), "demo.txt", ROCKSPEC);
-        assert!(luarocks_read_identity(&other)
-            .expect_err("suffix")
-            .contains("not a .rockspec"));
+        assert!(
+            luarocks_read_identity(&other)
+                .expect_err("suffix")
+                .contains("not a .rockspec")
+        );
     }
 
     #[test]

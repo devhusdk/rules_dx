@@ -66,14 +66,15 @@ fn walk(dir: &Path, rel: &str, owned: &[&str], found: &mut Vec<UnownedLock>) {
             if !name.starts_with("bazel-") && !SKIPPED_DIRS.contains(&name.as_str()) {
                 walk(&entry.path(), &path, owned, found);
             }
-        } else if kind.is_file() && !owned.contains(&path.as_str()) {
-            if let Some((_, ecosystem)) = UNOWNED_NAMES.iter().find(|(known, _)| *known == name) {
-                found.push(UnownedLock {
-                    path,
-                    ecosystem,
-                    uv_hint: *ecosystem == "pypi",
-                });
-            }
+        } else if kind.is_file()
+            && !owned.contains(&path.as_str())
+            && let Some((_, ecosystem)) = UNOWNED_NAMES.iter().find(|(known, _)| *known == name)
+        {
+            found.push(UnownedLock {
+                path,
+                ecosystem,
+                uv_hint: *ecosystem == "pypi",
+            });
         }
     }
 }

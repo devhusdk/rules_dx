@@ -1,7 +1,7 @@
 use std::io;
 use std::path::Path;
 
-use dx_atomic_fs::{create_pointer, PointerKind};
+use dx_atomic_fs::{PointerKind, create_pointer};
 
 /// Points `dir/name` at `target`, replacing any earlier link in one rename.
 pub fn link(dir: &Path, name: &str, target: &Path) -> io::Result<()> {

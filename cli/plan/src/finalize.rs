@@ -1,6 +1,6 @@
 use generation_result::proto::{
-    file_result, Edit, FileResult, GenerationError, GenerationManifest, IgnoredImport, Mode,
-    Modification, Scope, WriteOutcome,
+    Edit, FileResult, GenerationError, GenerationManifest, IgnoredImport, Mode, Modification,
+    Scope, WriteOutcome, file_result,
 };
 use serde::Deserialize;
 use std::path::Path;
@@ -48,7 +48,7 @@ pub enum FinalizeError {
 }
 
 fn decode_b64(value: &str) -> Result<Vec<u8>, ()> {
-    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
     if value.is_empty() {
         return Ok(Vec::new());
     }
@@ -895,10 +895,12 @@ mod tests {
         let manifest = finalized.manifest;
         assert_eq!(manifest.mode, Mode::Check as i32);
         assert_eq!(manifest.scopes.len(), 2);
-        assert!(manifest
-            .scopes
-            .iter()
-            .all(|scope| scope.results_complete == Some(true)));
+        assert!(
+            manifest
+                .scopes
+                .iter()
+                .all(|scope| scope.results_complete == Some(true))
+        );
         let created: Vec<_> = manifest
             .files
             .iter()
@@ -915,20 +917,24 @@ mod tests {
             .collect();
         assert_eq!(modified.len(), 1);
         let (file, modification) = modified[0];
-        assert!(modification
-            .edits
-            .iter()
-            .any(|edit| edit.replacement.is_empty()));
+        assert!(
+            modification
+                .edits
+                .iter()
+                .any(|edit| edit.replacement.is_empty())
+        );
         let applied = generation_result::candidate(file).unwrap();
         assert!(!applied.is_empty());
         assert_ne!(applied, modification.original_content);
         assert!(manifest.files.iter().any(|file| file.scope_index > 0));
         let first = manifest.ignored_imports.first().expect("ignored imports");
         assert!(!first.import.is_empty());
-        assert!(manifest
-            .ignored_imports
-            .iter()
-            .any(|ignored| ignored.scope_index > 0));
+        assert!(
+            manifest
+                .ignored_imports
+                .iter()
+                .any(|ignored| ignored.scope_index > 0)
+        );
     }
 
     fn failed_payload(mode: &str, files: bool, errors: bool) -> Vec<u8> {

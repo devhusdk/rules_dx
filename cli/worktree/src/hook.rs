@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
+use super::WorktreeError;
 use super::git;
 use super::host::Host;
 use super::ops::{self, AddRequest, Added, Released};
-use super::pool::{Pool, Record, Who, HOLDER_ENV, SESSION_ENV};
-use super::WorktreeError;
+use super::pool::{HOLDER_ENV, Pool, Record, SESSION_ENV, Who};
 
 fn field(input: &Value, name: &str) -> Option<String> {
     input
@@ -776,19 +776,19 @@ pub fn guard_with(
     };
     let dialect = Dialect::of(input);
     let mut exports = Vec::new();
-    if let Some(session) = dialect.session(input) {
-        if runs_dx(command) {
-            exports.push(format!("export {SESSION_ENV}={}", shell_quote(&session)));
-        }
+    if let Some(session) = dialect.session(input)
+        && runs_dx(command)
+    {
+        exports.push(format!("export {SESSION_ENV}={}", shell_quote(&session)));
     }
     let codex_thread = env_get("CODEX_THREAD_ID").filter(|id| !id.is_empty());
     let subagent_thread = field(input, "session_id").filter(|id| {
         dialect == Dialect::Claude && codex_thread.as_deref().is_some_and(|t| t != id)
     });
-    if let Some(agent) = field(input, "agent_id").or(subagent_thread) {
-        if runs_dx(command) {
-            exports.push(format!("export {HOLDER_ENV}={}", shell_quote(&agent)));
-        }
+    if let Some(agent) = field(input, "agent_id").or(subagent_thread)
+        && runs_dx(command)
+    {
+        exports.push(format!("export {HOLDER_ENV}={}", shell_quote(&agent)));
     }
     if exports.is_empty() {
         return Guard::Allow;
@@ -919,13 +919,13 @@ fn blocked(input: &Value) -> Option<String> {
             Some("add") => {
                 return Some(
                     "dx: use `dx worktree add <branch>` instead of `git worktree add`".to_owned(),
-                )
+                );
             }
             Some("remove") | Some("prune") => {
                 return Some(
                     "dx: use `dx worktree release` instead of `git worktree remove|prune`"
                         .to_owned(),
-                )
+                );
             }
             _ => {}
         }

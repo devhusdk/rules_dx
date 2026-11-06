@@ -6,16 +6,16 @@ use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;
 use super::quality::{execute_quality_phase, guard_build_output, guard_overrides};
 use dx_output::{
-    command_finished, command_started, error_event, nest_phase_event, notice_event,
-    quality_started, read_event, report_event, with_correlation, write_event, FinishedCounts,
-    NoticeEvent, OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
+    nest_phase_event, notice_event, quality_started, read_event, report_event, with_correlation,
+    write_event,
 };
 use dx_plan::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use dx_plan::plan::spec;
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner};
-use dx_process::{interrupted, Runner};
-use serde_json::{json, Value};
+use dx_process::{Runner, interrupted};
+use serde_json::{Value, json};
 use serde_sarif::sarif::Sarif;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -920,10 +920,8 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
         return exit;
     }
-    if !fix_apply {
-        if let Some(exit) = guard_overrides(workspace, request.common.output, out, err) {
-            return exit;
-        }
+    if !fix_apply && let Some(exit) = guard_overrides(workspace, request.common.output, out, err) {
+        return exit;
     }
     let explain_log = if request.explain {
         match explain_store::reserve(workspace) {
@@ -941,13 +939,13 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     } else {
         None
     };
-    if request.common.output == OutputMode::Json {
-        if let Err(exit) = emit_built(out, quality_started(command, mode, request.unsafe_fixes)) {
-            if let Some(reserved) = &explain_log {
-                let _ = std::fs::remove_file(&reserved.path);
-            }
-            return exit;
+    if request.common.output == OutputMode::Json
+        && let Err(exit) = emit_built(out, quality_started(command, mode, request.unsafe_fixes))
+    {
+        if let Some(reserved) = &explain_log {
+            let _ = std::fs::remove_file(&reserved.path);
         }
+        return exit;
     }
     let mut phases: Vec<(Command, &'static str)> = UMBRELLA_PHASES
         .iter()
@@ -1205,10 +1203,10 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     collector.cleanup();
     if let Some(reserved) = &explain_log {
         let _ = explain_store::prune(workspace, explain_store::KEEP, reserved.number);
-        if stdout_exit.is_none() {
-            if let Err(exit) = announce_explain_log(request, out, err, &reserved.path) {
-                stdout_exit = Some(exit);
-            }
+        if stdout_exit.is_none()
+            && let Err(exit) = announce_explain_log(request, out, err, &reserved.path)
+        {
+            stdout_exit = Some(exit);
         }
     }
     if !matches!(request.common.output, OutputMode::Json)
@@ -1278,10 +1276,10 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
 /// Appends one finished phase's execution log to the run's store file, then removes the phase file.
 /// Concatenated zstd frames are one valid log, so `dx explain` reads the phases as segments.
 fn append_phase_log(store: &Path, phase: &Path) {
-    if let Ok(bytes) = std::fs::read(phase) {
-        if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(store) {
-            let _ = file.write_all(&bytes);
-        }
+    if let Ok(bytes) = std::fs::read(phase)
+        && let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(store)
+    {
+        let _ = file.write_all(&bytes);
     }
     let _ = std::fs::remove_file(phase);
 }
@@ -2302,9 +2300,11 @@ mod tests {
             })
             .collect();
         assert_eq!(unsafe_builds.len(), 3, "{builds:?}");
-        assert!(unsafe_builds
-            .iter()
-            .all(|argv| argv.iter().any(|arg| arg.starts_with("--aspects="))));
+        assert!(
+            unsafe_builds
+                .iter()
+                .all(|argv| argv.iter().any(|arg| arg.starts_with("--aspects=")))
+        );
     }
 
     #[test]

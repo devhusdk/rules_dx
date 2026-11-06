@@ -14,7 +14,6 @@ rust_library(
     ),
     crate_name = "dx_install_tools",
     crate_root = "src/lib.rs",
-    edition = "2021",
     deps = [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
@@ -31,7 +30,6 @@ rust_binary(
     ),
     crate_name = "dx_verify",
     crate_root = "src/main.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_install_tools",
         normal = True,
@@ -70,7 +68,6 @@ rust_test(
         ":dx_verify",
         "//deploy/release:cosign",
     ],
-    edition = "2021",
     env = {
         "DX_COSIGN_BIN": "$(rootpath //deploy/release:cosign)",
         "DX_COSIGN_VERSION": COSIGN_VERSION,

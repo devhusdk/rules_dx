@@ -4,7 +4,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use super::{
-    control_port, firefox_executable, missing_libraries, wait_for_control, Browser, Frame, Launch,
+    Browser, Frame, Launch, control_port, firefox_executable, missing_libraries, wait_for_control,
 };
 
 fn script(dir: &Path, body: &str) -> PathBuf {

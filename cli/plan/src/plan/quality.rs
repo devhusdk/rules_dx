@@ -1,14 +1,14 @@
 use dx_process::{
-    describe_scope, operation_summary, redact_url_credentials, ForwardError, ProtectedFlag, Scope,
+    ForwardError, ProtectedFlag, Scope, describe_scope, operation_summary, redact_url_credentials,
 };
 
 use super::{
+    BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP, DOCS_TOOLS_OUTPUT_GROUP,
+    KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG, SKIP_OUTPUT_GROUP,
     bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
     exec_log_options,
     registry::{aspects_for, probes_for, spec},
-    rules_dx_label, BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP,
-    DOCS_TOOLS_OUTPUT_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
-    SKIP_INCOMPATIBLE_FLAG, SKIP_OUTPUT_GROUP,
+    rules_dx_label,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
@@ -489,7 +489,7 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::args::{parse, ArgsError};
+    use crate::args::{ArgsError, parse};
     use crate::plan::BAZEL_SETTINGS;
 
     #[test]
@@ -618,7 +618,7 @@ mod tests {
             assert!(!all.contains("hunter2"), "{input:?}: {all}");
         }
     }
-    use crate::resolve::{resolve, FakeQuery};
+    use crate::resolve::{FakeQuery, resolve};
     use dx_process::Scope;
     use dx_testing::cli::{graph_rule, graph_stdout, strings};
     use std::path::PathBuf;
@@ -678,16 +678,18 @@ mod tests {
                 "{command:?}"
             );
         }
-        assert!(plan_probe(
-            Command::Build,
-            &resolved(&[]),
-            &[],
-            "/tmp/p.json",
-            &[],
-            None
-        )
-        .expect("plan")
-        .is_none());
+        assert!(
+            plan_probe(
+                Command::Build,
+                &resolved(&[]),
+                &[],
+                "/tmp/p.json",
+                &[],
+                None
+            )
+            .expect("plan")
+            .is_none()
+        );
     }
 
     #[test]
@@ -1215,10 +1217,11 @@ mod tests {
             .expect("local paths keep the build event file readable");
             assert!(plan.argv.iter().any(|arg| arg == option), "{plan:?}");
             assert_eq!(plan.argv.last(), Some(&"//...".to_owned()), "{plan:?}");
-            assert!(plan
-                .argv
-                .iter()
-                .any(|arg| arg == "--build_event_json_file_path_conversion=false"));
+            assert!(
+                plan.argv
+                    .iter()
+                    .any(|arg| arg == "--build_event_json_file_path_conversion=false")
+            );
         }
     }
 

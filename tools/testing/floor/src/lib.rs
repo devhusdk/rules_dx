@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use dx_module_bazel::{compare_module_versions, ModuleError, ModuleFile, Value};
+use dx_module_bazel::{ModuleError, ModuleFile, Value, compare_module_versions};
 use std::cmp::Ordering;
 
 /// The environment variable that carries candidate versions into floor runs.
@@ -220,10 +220,12 @@ pub fn render_graph_table(graph: &str) -> Result<String, String> {
     for node in nodes {
         let name = node.get("name").and_then(serde_json::Value::as_str);
         let version = node.get("version").and_then(serde_json::Value::as_str);
-        if let (Some(name), Some(version)) = (name, version) {
-            if !version.is_empty() && name != "consumer" && name != "rules_dx" {
-                table.insert(name.to_owned(), version.to_owned());
-            }
+        if let (Some(name), Some(version)) = (name, version)
+            && !version.is_empty()
+            && name != "consumer"
+            && name != "rules_dx"
+        {
+            table.insert(name.to_owned(), version.to_owned());
         }
     }
     let mut text = serde_json::to_string_pretty(&table).map_err(|e| e.to_string())?;

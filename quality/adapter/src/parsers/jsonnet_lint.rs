@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, prefixed, row_col, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding, prefixed, row_col};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -83,9 +83,11 @@ mod tests {
 
     #[test]
     fn jsonnet_lint_is_clean_on_exit_zero_with_no_output() {
-        assert!(parse_jsonnet_lint(b"", b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_jsonnet_lint(b"", b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -122,21 +124,25 @@ mod tests {
         assert!(parse_jsonnet_lint(b"", b"", Some(2), &FILES).is_err());
         assert!(parse_jsonnet_lint(b"", b"Problems found!\n", Some(2), &FILES).is_err());
         // A run failure carries no location.
-        assert!(parse_jsonnet_lint(
-            b"",
-            b"ERROR: open a.jsonnet: no such file or directory\n",
-            Some(1),
-            &FILES
-        )
-        .is_err());
+        assert!(
+            parse_jsonnet_lint(
+                b"",
+                b"ERROR: open a.jsonnet: no such file or directory\n",
+                Some(1),
+                &FILES
+            )
+            .is_err()
+        );
         // A problem in a file that was not passed.
-        assert!(parse_jsonnet_lint(
-            b"",
-            b"/s/other.jsonnet:1:1 m\n\nProblems found!\n",
-            Some(2),
-            &FILES
-        )
-        .is_err());
+        assert!(
+            parse_jsonnet_lint(
+                b"",
+                b"/s/other.jsonnet:1:1 m\n\nProblems found!\n",
+                Some(2),
+                &FILES
+            )
+            .is_err()
+        );
         // A truncated run lacks the trailer.
         assert!(parse_jsonnet_lint(b"", b"/s/jsonnet/a.jsonnet:1:1 m\n", Some(2), &FILES).is_err());
         // Signal exit and other codes.

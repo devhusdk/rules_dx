@@ -86,7 +86,9 @@ fn this_process_has_a_stable_start_time() {
 #[test]
 fn start_time_runs_ps_in_the_c_locale() {
     let command = start_time_command(std::process::id());
-    assert!(command
-        .get_envs()
-        .any(|(key, value)| key == "LC_ALL" && value == Some(std::ffi::OsStr::new("C"))));
+    assert!(
+        command
+            .get_envs()
+            .any(|(key, value)| key == "LC_ALL" && value == Some(std::ffi::OsStr::new("C")))
+    );
 }

@@ -179,9 +179,13 @@ impl StagedRun {
 pub enum BackendError {
     #[error("unsupported selective update for {set}: {reason}")]
     Unsupported { set: String, reason: &'static str },
-    #[error("offline_required: cannot update {set} without network (re-run without --offline once connected)")]
+    #[error(
+        "offline_required: cannot update {set} without network (re-run without --offline once connected)"
+    )]
     OfflineRequired { set: String },
-    #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
+    #[error(
+        "frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)"
+    )]
     FrozenLocked { set: String },
     #[error("invalid_path: cannot update {set}: {path} is not valid UTF-8")]
     NonUtf8Path { set: String, path: String },
@@ -338,11 +342,7 @@ pub const NPM_CONFIG_ENV: [&str; 2] = ["npm_config_globalconfig", "npm_config_us
 
 /// Names the OS null device the npm config variables point at.
 pub fn null_device() -> &'static str {
-    if cfg!(windows) {
-        "NUL"
-    } else {
-        "/dev/null"
-    }
+    if cfg!(windows) { "NUL" } else { "/dev/null" }
 }
 
 fn npm_env() -> Vec<(String, String)> {
@@ -660,7 +660,9 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => {
+            Ok(BackendPlan::Noop)
+        }
         (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
@@ -675,7 +677,11 @@ pub fn plan_configured(
                 Selection::Packages(packages) => packages.clone(),
             };
             Ok(BackendPlan::Staged(hex_staged(
-                set, head, offline, "deps.update", &packages,
+                set,
+                head,
+                offline,
+                "deps.update",
+                &packages,
             )?))
         }
         (Ecosystem::Pub, request) => {
@@ -714,7 +720,13 @@ pub fn plan_configured(
             command.extend(packages.iter().map(String::as_str));
             command.extend(["--with-all-dependencies", "--no-install"]);
             let mut runs = vec![Run {
-                argv: composer_argv(workspace, set, head, "@rules_dx//php/tools:composer", &command)?,
+                argv: composer_argv(
+                    workspace,
+                    set,
+                    head,
+                    "@rules_dx//php/tools:composer",
+                    &command,
+                )?,
                 env: composer_env(),
             }];
             let digests = set
@@ -776,7 +788,8 @@ pub fn plan_configured(
                     set: set.name.clone(),
                 });
             }
-            let Some(resolve) = dependency_sets::julia_target_label(workspace, set, "julia_pkg_resolve")
+            let Some(resolve) =
+                dependency_sets::julia_target_label(workspace, set, "julia_pkg_resolve")
             else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
@@ -917,14 +930,12 @@ pub fn plan_configured(
                 (Some(dependency_sets::NpmBackend::Yarn), Selection::Full) => {
                     strings(&["install", "--mode=update-lockfile"])
                 }
-                (Some(dependency_sets::NpmBackend::Yarn), Selection::Packages(packages)) => {
-                    [
-                        strings(&["up"]),
-                        packages.clone(),
-                        strings(&["--mode=update-lockfile"]),
-                    ]
-                    .concat()
-                }
+                (Some(dependency_sets::NpmBackend::Yarn), Selection::Packages(packages)) => [
+                    strings(&["up"]),
+                    packages.clone(),
+                    strings(&["--mode=update-lockfile"]),
+                ]
+                .concat(),
                 (Some(dependency_sets::NpmBackend::Npm), Selection::Full) => {
                     strings(&["install", "--package-lock-only", "--ignore-scripts"])
                 }
@@ -1066,12 +1077,18 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => {
+            Ok(CheckPlan::Pinned)
+        }
         (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Staged(hex_staged(
-            set, head, offline, "deps.get", &[],
+            set,
+            head,
+            offline,
+            "deps.get",
+            &[],
         )?)),
         (Ecosystem::Hex, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
@@ -1183,7 +1200,14 @@ pub fn check_configured(
                     workspace,
                     set,
                     head,
-                    &["install", "--locked", "--deps-only", "--dry-run", "--show-actions", "."],
+                    &[
+                        "install",
+                        "--locked",
+                        "--deps-only",
+                        "--dry-run",
+                        "--show-actions",
+                        ".",
+                    ],
                 )?,
                 env: opam_env(),
             })
@@ -2153,9 +2177,11 @@ mod tests {
     fn cpan_update_refuses_without_a_compiler() {
         let dir = cpan_workspace("");
         let error = cpan_update(dir.path(), false, false).expect_err("refused");
-        assert!(error
-            .to_string()
-            .contains("add a cpan_compiler next to the cpanfile"));
+        assert!(
+            error
+                .to_string()
+                .contains("add a cpan_compiler next to the cpanfile")
+        );
     }
 
     #[test]
@@ -2400,9 +2426,11 @@ mod tests {
             &UvClosure::default(),
         )
         .expect_err("refused");
-        assert!(error
-            .to_string()
-            .contains("add a haskell_deps_resolve_test"));
+        assert!(
+            error
+                .to_string()
+                .contains("add a haskell_deps_resolve_test")
+        );
     }
 
     fn swift_set() -> ResolvedSet {
@@ -2480,16 +2508,18 @@ mod tests {
             (Selection::Full, true),
             (Selection::Packages(strings(&["a"])), false),
         ] {
-            assert!(check_configured(
-                ws(),
-                &swift_set(),
-                &request,
-                offline,
-                false,
-                &no_head(),
-                &UvClosure::default()
-            )
-            .is_err());
+            assert!(
+                check_configured(
+                    ws(),
+                    &swift_set(),
+                    &request,
+                    offline,
+                    false,
+                    &no_head(),
+                    &UvClosure::default()
+                )
+                .is_err()
+            );
         }
     }
 
@@ -2500,9 +2530,10 @@ mod tests {
         else {
             panic!("expected a run");
         };
-        assert!(argv
-            .iter()
-            .any(|arg| arg.ends_with(&format!("sh '{}' apply", dir_arg("app")))));
+        assert!(
+            argv.iter()
+                .any(|arg| arg.ends_with(&format!("sh '{}' apply", dir_arg("app"))))
+        );
         assert_eq!(argv[argv.len() - 3..], ["package", "update", "vapor"]);
         assert!(matches!(
             swift_update(&["a"], true, false),
@@ -2525,13 +2556,17 @@ mod tests {
             ["upgrade", "astring"]
         );
         assert_eq!(runs[1].argv[runs[1].argv.len() - 2..], ["lock", "app.opam"]);
-        assert!(runs[0]
-            .argv
-            .iter()
-            .any(|a| a.contains("cd '/dx-workspace/app'")));
-        assert!(runs[1]
-            .argv
-            .contains(&"@rules_dx//ocaml/tools:opam".to_owned()));
+        assert!(
+            runs[0]
+                .argv
+                .iter()
+                .any(|a| a.contains("cd '/dx-workspace/app'"))
+        );
+        assert!(
+            runs[1]
+                .argv
+                .contains(&"@rules_dx//ocaml/tools:opam".to_owned())
+        );
         assert_eq!(runs[0].env[0].0, "OPAMROOT");
     }
 
@@ -3402,10 +3437,12 @@ mod tests {
             );
         }
         assert!(expected.argv_head.contains(&"--output_base=/ob".to_owned()));
-        assert!(!expected
-            .argv_head
-            .iter()
-            .any(|arg| arg.starts_with("--") && arg.contains("rules_dx")));
+        assert!(
+            !expected
+                .argv_head
+                .iter()
+                .any(|arg| arg.starts_with("--") && arg.contains("rules_dx"))
+        );
         let argv = expected.argv(Path::new("/scratch/1"));
         assert_eq!(
             argv[expected.argv_head.len()..],
@@ -3511,10 +3548,12 @@ mod tests {
                 set: "gomods".to_owned()
             })
         );
-        assert!(!expected
-            .argv_head
-            .iter()
-            .any(|arg| arg.contains("rules_dx")));
+        assert!(
+            !expected
+                .argv_head
+                .iter()
+                .any(|arg| arg.contains("rules_dx"))
+        );
         let scratch = Path::new("/scratch/1");
         let argv = expected.argv(scratch);
         assert_eq!(

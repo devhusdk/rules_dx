@@ -108,15 +108,15 @@ pub fn parse_bazel_inputs(
     let deps = declared_deps(&calls)?;
     let mut out: Vec<BazelInput> = Vec::new();
     for pick in &selected {
-        if let Some(over) = overrides.get(&pick.name) {
-            if over.source != BazelSource::Registry {
-                return Err(format!(
-                    "MODULE.bazel.lock selects {}@{} from a registry but MODULE.bazel overrides it with {}; refresh the lock with `bazel mod deps`",
-                    pick.name,
-                    pick.version,
-                    over.source.as_str()
-                ));
-            }
+        if let Some(over) = overrides.get(&pick.name)
+            && over.source != BazelSource::Registry
+        {
+            return Err(format!(
+                "MODULE.bazel.lock selects {}@{} from a registry but MODULE.bazel overrides it with {}; refresh the lock with `bazel mod deps`",
+                pick.name,
+                pick.version,
+                over.source.as_str()
+            ));
         }
         out.push(BazelInput {
             name: pick.name.clone(),
@@ -423,7 +423,7 @@ fn urls_of(call: &Call) -> Result<Vec<String>, String> {
                         return Err(format!(
                             "{} at MODULE.bazel line {} has a computed url",
                             call.name, call.line
-                        ))
+                        ));
                     }
                 }
             }
@@ -433,7 +433,7 @@ fn urls_of(call: &Call) -> Result<Vec<String>, String> {
             return Err(format!(
                 "{} at MODULE.bazel line {} has computed urls",
                 call.name, call.line
-            ))
+            ));
         }
         None => {
             if let Some(url) = literal(call, "url")? {

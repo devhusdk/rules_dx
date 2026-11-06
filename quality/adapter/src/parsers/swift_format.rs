@@ -1,5 +1,5 @@
-use super::gnu_diagnostics::{read, Dialect, Disposition};
-use super::{as_text, code_name, rewrite_format, FileFinding, ParseError};
+use super::gnu_diagnostics::{Dialect, Disposition, read};
+use super::{FileFinding, ParseError, as_text, code_name, rewrite_format};
 use crate::{ColumnEncoding, ToolSeverity};
 
 const TOOL: &str = "swift_format";

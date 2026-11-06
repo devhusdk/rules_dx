@@ -2,7 +2,7 @@ use std::path::{Component, Path, PathBuf};
 
 use quality_adapter::kubernetes_preflight::{self, Document};
 use quality_adapter::parsers::FileFinding;
-use quality_adapter::{commands, parsers, TextPosition};
+use quality_adapter::{TextPosition, commands, parsers};
 
 use super::check::ToolDef;
 use super::kubeconform::preflight_finding;

@@ -4,7 +4,7 @@ use dx_module_bazel::ModuleFile;
 
 use crate::AdoptError;
 
-use super::{read_module_dependency, version_pin_matches_module, MODULE_VERSION};
+use super::{MODULE_VERSION, read_module_dependency, version_pin_matches_module};
 use crate::version::version_move_hint;
 use crate::{LauncherPins, RELEASE_ASSETS};
 use dx_versions::{
@@ -50,7 +50,9 @@ fn pin_check(
                 Some(asset) => check(
                     "pin",
                     "warn",
-                    format!("dx {pinned} has no sha256 for {asset}; launchers run dx through Bazel until .dx/pins is refreshed"),
+                    format!(
+                        "dx {pinned} has no sha256 for {asset}; launchers run dx through Bazel until .dx/pins is refreshed"
+                    ),
                     "dx init --apply",
                 ),
                 None => check(
@@ -64,13 +66,17 @@ fn pin_check(
         Ok(pinned) => check(
             "pin",
             "warn",
-            format!("dx {pinned} vs module {MODULE_VERSION}; launchers run dx through Bazel until .dx/pins is refreshed"),
+            format!(
+                "dx {pinned} vs module {MODULE_VERSION}; launchers run dx through Bazel until .dx/pins is refreshed"
+            ),
             "dx init --apply",
         ),
         Err(_) => check(
             "pin",
             "warn",
-            format!("launchers run dx through Bazel until .dx/pins is refreshed (module {MODULE_VERSION})"),
+            format!(
+                "launchers run dx through Bazel until .dx/pins is refreshed (module {MODULE_VERSION})"
+            ),
             "dx init --apply",
         ),
     }
@@ -183,7 +189,7 @@ fn module_check(root: &Path) -> StatusCheck {
                 "error",
                 format!("unavailable: {error}"),
                 "bazel mod graph",
-            )
+            );
         }
         Err(error) => {
             return check(
@@ -191,21 +197,21 @@ fn module_check(root: &Path) -> StatusCheck {
                 "error",
                 format!("unavailable: cannot {error}"),
                 "dx init",
-            )
-        }
-    };
-    if let Some((name, version)) = &dependency.workspace_module {
-        if name == "rules_dx" {
-            return check(
-                "module",
-                "ok",
-                format!(
-                    "not applicable: this workspace is rules_dx {}",
-                    version.as_deref().unwrap_or("unknown")
-                ),
-                "dx status",
             );
         }
+    };
+    if let Some((name, version)) = &dependency.workspace_module
+        && name == "rules_dx"
+    {
+        return check(
+            "module",
+            "ok",
+            format!(
+                "not applicable: this workspace is rules_dx {}",
+                version.as_deref().unwrap_or("unknown")
+            ),
+            "dx status",
+        );
     }
     match dependency.resolved_version() {
         Some(version) if version == MODULE_VERSION => check(
@@ -259,10 +265,11 @@ fn toolchain_check(root: &Path) -> StatusCheck {
         module
             .calls_named("use_extension")
             .find_map(|call| match call.positional.as_slice() {
-                [dx_module_bazel::Value::Str(label), dx_module_bazel::Value::Str(name), ..]
-                    if label.value == "@rules_rust//rust:extensions.bzl"
-                        && name.value == "rust" =>
-                {
+                [
+                    dx_module_bazel::Value::Str(label),
+                    dx_module_bazel::Value::Str(name),
+                    ..,
+                ] if label.value == "@rules_rust//rust:extensions.bzl" && name.value == "rust" => {
                     call.binding.clone()
                 }
                 _ => None,
@@ -331,7 +338,9 @@ pub fn host_check(os: &str, arch: &str) -> StatusCheck {
         Some(name) => check(
             "host",
             "ok",
-            format!("available: {name} is a v1 execution platform; native qualification is not read by status"),
+            format!(
+                "available: {name} is a v1 execution platform; native qualification is not read by status"
+            ),
             "see docs/github-ci.md for qualified hosts",
         ),
         None => check(
@@ -481,7 +490,7 @@ pub fn observed_status_checks(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{StatusCheck, MODULE_VERSION};
+    use super::super::{MODULE_VERSION, StatusCheck};
 
     use crate::{LauncherPins, RELEASE_ASSETS};
 

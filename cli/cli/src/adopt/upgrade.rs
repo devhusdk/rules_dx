@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
-use dx_output::{command_finished, command_started, status_event, FinishedCounts, StatusEvent};
+use dx_output::{FinishedCounts, StatusEvent, command_finished, command_started, status_event};
 use dx_plan::args::Invocation;
 use dx_plan::resolve::QueryRunner;
 use dx_process::Runner;
@@ -45,10 +45,10 @@ fn fail(
     code: &str,
     message: &str,
 ) -> i32 {
-    if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_started(invocation, out) {
-            return exit;
-        }
+    if invocation.output == OutputMode::Json
+        && let Err(exit) = emit_started(invocation, out)
+    {
+        return exit;
     }
     operational(invocation, out, err, code, message)
 }
@@ -238,10 +238,10 @@ pub(crate) fn execute_upgrade(
                 if let Err(exit) = check_stdout_write(writeln!(out, "upgrade current: {to}")) {
                     return exit;
                 }
-                if !lines.is_empty() {
-                    if let Err(exit) = check_stdout_write(writeln!(out, "{}", lines.join("\n"))) {
-                        return exit;
-                    }
+                if !lines.is_empty()
+                    && let Err(exit) = check_stdout_write(writeln!(out, "{}", lines.join("\n")))
+                {
+                    return exit;
                 }
             }
             return 0;
@@ -349,7 +349,7 @@ pub(crate) fn execute_upgrade(
 mod tests {
     use super::*;
     use crate::adopt::test_support::{
-        event, event_kinds, invocation, json_events, run, run_with, Recorder,
+        Recorder, event, event_kinds, invocation, json_events, run, run_with,
     };
     use std::path::PathBuf;
 
@@ -794,17 +794,19 @@ mod tests {
         assert!(calls[0].contains(&"mod".to_owned()), "{calls:?}");
         assert!(calls[0].ends_with(&["deps".to_owned(), "--lockfile_mode=update".to_owned()]));
         assert!(calls[1].contains(&"run".to_owned()), "{calls:?}");
-        assert!(calls[1].ends_with(
-            &[
-                "@rules_dx//:dx",
-                "--",
-                "upgrade",
-                "--to",
-                "2.0.0",
-                "--apply"
-            ]
-            .map(str::to_owned)
-        ));
+        assert!(
+            calls[1].ends_with(
+                &[
+                    "@rules_dx//:dx",
+                    "--",
+                    "upgrade",
+                    "--to",
+                    "2.0.0",
+                    "--apply"
+                ]
+                .map(str::to_owned)
+            )
+        );
     }
 
     #[test]

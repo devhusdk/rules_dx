@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use serde::Deserialize;
 
-use super::{as_text, code_name, known_spelled, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "sqlfluff";
@@ -147,9 +147,11 @@ mod tests {
 
     #[test]
     fn sqlfluff_is_clean_when_every_file_is_reported_without_violations() {
-        assert!(parse_sqlfluff(CLEAN.as_bytes(), b"", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_sqlfluff(CLEAN.as_bytes(), b"", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

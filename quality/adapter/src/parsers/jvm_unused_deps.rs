@@ -7,8 +7,8 @@ use std::collections::BTreeSet;
 
 use serde::Deserialize;
 
-use super::rust_unused_deps::UnusedDependency;
 use super::ParseError;
+use super::rust_unused_deps::UnusedDependency;
 
 pub const RULE_ID: &str = "unused_deps";
 
@@ -354,9 +354,11 @@ mod tests {
         let jdeps = dependency("a.jar", 0);
         let found = parse_missing_dependencies("javac", INDIRECT_MAP.as_bytes(), &jdeps).unwrap();
         assert!(found.is_empty());
-        assert!(parse_missing_dependencies("javac", MAP.as_bytes(), &jdeps)
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_missing_dependencies("javac", MAP.as_bytes(), &jdeps)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     fn scalac_log(entries: &[(&str, &str)]) -> Vec<u8> {
@@ -412,16 +414,20 @@ mod tests {
             "scalac.unused.dep",
             "Target '//z:other' is specified as a dependency to //p:lib but isn't used",
         )]);
-        assert!(parse_scalac_unused_dependencies(MAP.as_bytes(), &log)
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_scalac_unused_dependencies(MAP.as_bytes(), &log)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
     fn scalac_other_warnings_are_ignored() {
         let log = scalac_log(&[("scalac", "Target '//b:idle' is something else")]);
-        assert!(parse_scalac_unused_dependencies(MAP.as_bytes(), &log)
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_scalac_unused_dependencies(MAP.as_bytes(), &log)
+                .unwrap()
+                .is_empty()
+        );
     }
 }

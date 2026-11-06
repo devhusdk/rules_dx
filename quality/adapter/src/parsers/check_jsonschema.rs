@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use super::{as_text, code_name, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, point};
 use crate::json_schema::{self, Filetype};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
@@ -156,7 +156,7 @@ pub fn parse_check_jsonschema(
             return Err(shape(format!(
                 "exit {} with status {other:?}",
                 code_name(code)
-            )))
+            )));
         }
     }
     let mut seen: BTreeSet<String> = strings(&value, "successes")?

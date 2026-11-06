@@ -1,5 +1,5 @@
 use super::sarif::parse_sarif;
-use super::{check_output_size, code_name, unformatted_at, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, unformatted_at};
 use crate::{ColumnEncoding, ToolSeverity};
 
 const TOOL: &str = "bicep";
@@ -190,9 +190,11 @@ mod tests {
 
     #[test]
     fn clean_run_has_no_findings() {
-        assert!(parse_bicep_lint(&sarif(""), Some(0), &[FILE])
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_bicep_lint(&sarif(""), Some(0), &[FILE])
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -254,9 +256,11 @@ mod tests {
     #[test]
     fn format_clean_and_unformatted() {
         let source = b"param x string\n";
-        assert!(parse_bicep_format(source, b"", Some(0), source, FILE)
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_bicep_format(source, b"", Some(0), source, FILE)
+                .unwrap()
+                .is_empty()
+        );
         let found = parse_bicep_format(source, b"", Some(0), b"param   x string\n", FILE).unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].finding.start.line, 1);
@@ -269,8 +273,10 @@ mod tests {
         assert!(parse_bicep_format(b"", b"", Some(0), b"param x string\n", FILE).is_err());
         assert!(parse_bicep_format(b"param x string\n", b"", Some(1), b"", FILE).is_err());
         assert!(parse_bicep_format(b"param x string\n", b"", None, b"", FILE).is_err());
-        assert!(parse_bicep_format(b"", b"", Some(0), b"", FILE)
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_bicep_format(b"", b"", Some(0), b"", FILE)
+                .unwrap()
+                .is_empty()
+        );
     }
 }

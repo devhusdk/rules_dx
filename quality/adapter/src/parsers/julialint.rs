@@ -1,6 +1,6 @@
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-use super::{as_text, code_name, finding, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "julialint";
 
@@ -64,7 +64,7 @@ pub fn parse_julialint(
                 return Err(ParseError::shape(
                     TOOL,
                     format!("report line {at} has unknown severity {other}"),
-                ))
+                ));
             }
         };
         findings.push(finding(
@@ -119,9 +119,11 @@ mod tests {
 
     #[test]
     fn julialint_empty_reports_have_no_findings() {
-        assert!(parse_julialint(b"", Some(0), &["a.jl"])
-            .expect("empty")
-            .is_empty());
+        assert!(
+            parse_julialint(b"", Some(0), &["a.jl"])
+                .expect("empty")
+                .is_empty()
+        );
     }
 
     #[test]

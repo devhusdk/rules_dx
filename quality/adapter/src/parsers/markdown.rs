@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -99,9 +99,11 @@ mod tests {
         );
         assert_eq!(findings[1].finding.rule_id, "unclosed-code-fence");
         assert!(findings[0].finding.suggestions.is_empty());
-        assert!(parse_markdown_findings(b"\n", Some(0), &["doc/guide.md"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_markdown_findings(b"\n", Some(0), &["doc/guide.md"])
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -122,8 +124,7 @@ mod tests {
 
     #[test]
     fn markdown_rejects_exits_kinds_lines_and_files() {
-        let clean =
-            "{\"path\":\"doc/guide.md\",\"line\":1,\"kind\":\"heading-hierarchy\",\"message\":\"m\"}";
+        let clean = "{\"path\":\"doc/guide.md\",\"line\":1,\"kind\":\"heading-hierarchy\",\"message\":\"m\"}";
         assert!(parse_markdown_findings(clean.as_bytes(), Some(1), &["doc/guide.md"]).is_err());
         assert!(parse_markdown_findings(clean.as_bytes(), None, &["doc/guide.md"]).is_err());
         assert!(parse_markdown_findings(b"", Some(2), &["doc/guide.md"]).is_err());

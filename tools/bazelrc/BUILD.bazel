@@ -16,7 +16,6 @@ rust_library(
     compile_data = ["//:.bazelversion"],
     crate_name = "dx_preset",
     crate_root = "src/lib.rs",
-    edition = "2021",
     visibility = VIS_TOOLS_CLI_TEST,
     deps = [],
 )
@@ -113,7 +112,6 @@ rust_binary(
     ),
     crate_name = "preset_update",
     crate_root = "src/bin_preset_update.rs",
-    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/dx_preset",
         normal = True,

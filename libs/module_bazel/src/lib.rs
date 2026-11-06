@@ -727,10 +727,10 @@ impl ModuleFile {
                 continue;
             }
             for value in &call.positional[1..] {
-                if let Value::Str(repo) = value {
-                    if repo.value == hub.name {
-                        return Some(repo.value.as_str());
-                    }
+                if let Value::Str(repo) = value
+                    && repo.value == hub.name
+                {
+                    return Some(repo.value.as_str());
                 }
             }
             for (alias, value) in &call.named {
@@ -1074,7 +1074,7 @@ impl ModuleFile {
             Ok(_) | Err(ModuleError::Ambiguous { .. }) => {
                 return Err(ModuleError::AlreadyDeclared {
                     name: name.to_owned(),
-                })
+                });
             }
             Err(ModuleError::NotFound { .. }) => {}
             Err(other) => return Err(other),
@@ -1287,7 +1287,7 @@ impl ModuleFile {
                 None if call.unpacked => {
                     return Err(ModuleError::NoInsertPoint {
                         reason: format!("maven.install at line {} has a computed name", call.line),
-                    })
+                    });
                 }
                 None if repository == "maven" => installs.push(call),
                 None => {}
@@ -1296,7 +1296,7 @@ impl ModuleFile {
                 Some(_) => {
                     return Err(ModuleError::NoInsertPoint {
                         reason: format!("maven.install at line {} has a computed name", call.line),
-                    })
+                    });
                 }
             }
         }
@@ -1305,7 +1305,7 @@ impl ModuleFile {
             [] => {
                 return Err(ModuleError::NoInsertPoint {
                     reason: format!("no maven.install tag for the @{repository} repository"),
-                })
+                });
             }
             many => {
                 return Err(ModuleError::NoInsertPoint {
@@ -1313,7 +1313,7 @@ impl ModuleFile {
                         "{} maven.install tags feed the @{repository} repository",
                         many.len()
                     ),
-                })
+                });
             }
         };
         let items = match call.arg("artifacts") {
@@ -1770,7 +1770,7 @@ fn collect_module(
                 return Err(format!(
                     "include at MODULE.bazel line {} needs a string literal label",
                     call.line
-                ))
+                ));
             }
         }
     }

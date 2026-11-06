@@ -449,9 +449,11 @@ fn fresh_install_noop_and_replacement() {
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
     assert!(!bin.join("a").exists());
     assert!(bin.join("beta").exists());
-    assert!(!dx_path::state::local_dir(&root.join("ws"))
-        .join("bin.prev")
-        .exists());
+    assert!(
+        !dx_path::state::local_dir(&root.join("ws"))
+            .join("bin.prev")
+            .exists()
+    );
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -800,9 +802,11 @@ fn busy_lock_fails_after_deadline() {
         text.ends_with("wait for it to finish, then retry"),
         "{text}"
     );
-    assert!(!dx_path::state::local_dir(&root.join("ws"))
-        .join("symlink.probe")
-        .exists());
+    assert!(
+        !dx_path::state::local_dir(&root.join("ws"))
+            .join("symlink.probe")
+            .exists()
+    );
     drop(_held);
     let _ = fs::remove_dir_all(&root);
 }
@@ -870,9 +874,11 @@ fn probe_failure_reports_before_mutation() {
         error,
         Error::SymlinkUnsupported { detail } if detail.contains("no changes were made")
     ));
-    assert!(!dx_path::state::local_dir(&root.join("ws"))
-        .join("bin")
-        .exists());
+    assert!(
+        !dx_path::state::local_dir(&root.join("ws"))
+            .join("bin")
+            .exists()
+    );
     dx_atomic_fs::commit::acquire_commit_lock(
         &dx_atomic_fs::commit::ManagedRoot::new(dx_path::state::local_dir(&root.join("ws"))),
         Duration::from_millis(1),

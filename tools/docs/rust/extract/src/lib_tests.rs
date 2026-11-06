@@ -1,10 +1,10 @@
 //! Tests for the rustdoc JSON converter.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use super::{extract, map_source, parse, parse_sources, ty, Options, Source};
+use super::{Options, Source, extract, map_source, parse, parse_sources, ty};
 use documentation_ir::proto::SymbolKind;
-use rustdoc_types::{Type, FORMAT_VERSION};
+use rustdoc_types::{FORMAT_VERSION, Type};
 
 fn args(list: &[&str]) -> Vec<String> {
     list.iter().map(|s| s.to_string()).collect()
@@ -304,10 +304,12 @@ fn a_reexport_of_a_private_module_item_becomes_its_canonical_symbol() {
             "rust:demo:add",
         ]
     );
-    assert!(shard.symbols[0]
-        .relations
-        .as_ref()
-        .is_none_or(|r| r.reexported_as.is_empty()));
+    assert!(
+        shard.symbols[0]
+            .relations
+            .as_ref()
+            .is_none_or(|r| r.reexported_as.is_empty())
+    );
 }
 
 #[test]
@@ -699,9 +701,11 @@ fn glob_names_follow_rusts_shadowing_rules() {
         &[1, 3, 8],
     );
     let shard = run(&shadowed).expect("shadowed");
-    assert!(symbol(&shard, "rust:demo:m.S")
-        .relations
-        .is_none_or(|r| r.reexported_as.is_empty()));
+    assert!(
+        symbol(&shard, "rust:demo:m.S")
+            .relations
+            .is_none_or(|r| r.reexported_as.is_empty())
+    );
     // Two globs that give one name make that name unusable.
     let ambiguous = crate_json(
         vec![
@@ -716,9 +720,11 @@ fn glob_names_follow_rusts_shadowing_rules() {
     );
     let shard = run(&ambiguous).expect("ambiguous");
     for id in ["rust:demo:a.S", "rust:demo:b.S"] {
-        assert!(symbol(&shard, id)
-            .relations
-            .is_none_or(|r| r.reexported_as.is_empty()));
+        assert!(
+            symbol(&shard, id)
+                .relations
+                .is_none_or(|r| r.reexported_as.is_empty())
+        );
     }
 }
 

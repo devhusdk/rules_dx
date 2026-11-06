@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{parse_owners, QueryFailure, QueryRunner, ResolveError};
+use super::{QueryFailure, QueryRunner, ResolveError, parse_owners};
 
 pub fn quote_set(items: &[String]) -> String {
     let mut sorted: Vec<&String> = items.iter().collect();
@@ -70,7 +70,7 @@ pub fn run_label_query_file(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::{first_line, resolve, FakeQuery, QueryFailure, QueryResult};
+    use crate::resolve::{FakeQuery, QueryFailure, QueryResult, first_line, resolve};
     use dx_test_scratch::write;
     use dx_testing::cli::strings;
     use std::cell::RefCell;

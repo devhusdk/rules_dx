@@ -1,6 +1,6 @@
 use super::{
-    check_output_size, code_name, finding, known_lexical, missing, unformatted_at, FileFinding,
-    ParseError,
+    FileFinding, ParseError, check_output_size, code_name, finding, known_lexical, missing,
+    unformatted_at,
 };
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -151,9 +151,11 @@ mod tests {
         );
         assert!(broken[0].finding.message.starts_with("error:"));
 
-        assert!(parse_rustfmt(b"", b"", Some(0), &["/s/clean.rs"])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_rustfmt(b"", b"", Some(0), &["/s/clean.rs"])
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_rustfmt(b"", b"", Some(1), &["/s/clean.rs"]).is_err());
         assert!(
             parse_rustfmt(b"Diff in /s/other.rs:1:\n", b"", Some(1), &["/s/clean.rs"]).is_err()
@@ -180,13 +182,15 @@ mod tests {
                 .expect("parsed")
                 .is_empty()
         );
-        assert!(parse_rustfmt(
-            b"",
-            b"error: boom\n --> /s/x.rs:a:b\n",
-            Some(1),
-            &["/s/x.rs"]
-        )
-        .is_err());
+        assert!(
+            parse_rustfmt(
+                b"",
+                b"error: boom\n --> /s/x.rs:a:b\n",
+                Some(1),
+                &["/s/x.rs"]
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -215,12 +219,14 @@ mod tests {
         assert!(
             matches!(err, ParseError::UnknownFile { ref path, .. } if path == "/s/src/../other.rs")
         );
-        assert!(parse_rustfmt(
-            b"Diff in /s/../../shared/util.rs:1:\n",
-            b"",
-            Some(1),
-            &files
-        )
-        .is_err());
+        assert!(
+            parse_rustfmt(
+                b"Diff in /s/../../shared/util.rs:1:\n",
+                b"",
+                Some(1),
+                &files
+            )
+            .is_err()
+        );
     }
 }

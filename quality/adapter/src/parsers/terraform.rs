@@ -2,7 +2,7 @@ use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
 use super::{
-    as_text, code_name, finding, known_relative, listed_paths, FileFinding, ParseError, Spelling,
+    FileFinding, ParseError, Spelling, as_text, code_name, finding, known_relative, listed_paths,
 };
 use crate::ToolSeverity;
 

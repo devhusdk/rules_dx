@@ -11,11 +11,7 @@ fn key_value(line: &str, key: &str) -> Option<String> {
         .unwrap_or(value)
         .trim_end()
         .to_string();
-    if value.is_empty() {
-        None
-    } else {
-        Some(value)
-    }
+    if value.is_empty() { None } else { Some(value) }
 }
 
 fn reason_value(line: &str) -> Option<String> {

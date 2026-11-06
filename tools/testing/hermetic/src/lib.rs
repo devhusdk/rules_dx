@@ -14,7 +14,7 @@ use std::process::Command;
 use std::time::Instant;
 
 use dx_nested::compose::{compose_module, family_modules};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Returns the lowercase hex SHA-256 digest of `data`.
 pub fn sha256_hex(data: &[u8]) -> String {

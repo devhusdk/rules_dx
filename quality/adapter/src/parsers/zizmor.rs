@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known_spelled, require_findings, FileFinding, ParseError};
+use super::{FileFinding, ParseError, as_text, code_name, known_spelled, require_findings};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "zizmor";
@@ -127,9 +127,11 @@ mod tests {
 
     #[test]
     fn zizmor_clean_run_is_clean() {
-        assert!(parse_zizmor(b"[]", b"", Some(0), &[FILE])
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_zizmor(b"[]", b"", Some(0), &[FILE])
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

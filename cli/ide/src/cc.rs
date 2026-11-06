@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 
 use std::path::PathBuf;
 
-use cc_context::{read_identities, AqueryGraph, Entry};
+use cc_context::{AqueryGraph, Entry, read_identities};
 
-use crate::{link, Ctx, Plugin};
+use crate::{Ctx, Plugin, link};
 
 const AQUERY: &str = r#"mnemonic("CppCompile|ObjcCompile", //...)"#;
 

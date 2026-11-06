@@ -1,7 +1,7 @@
 //! Severity by rule category, mapped once per tool in `quality/tools.bzl`.
 
-pub use crate::severity_gen::TOOL_SEVERITIES;
 use crate::ToolSeverity;
+pub use crate::severity_gen::TOOL_SEVERITIES;
 
 pub struct ToolSeverityMap {
     pub default: Option<ToolSeverity>,

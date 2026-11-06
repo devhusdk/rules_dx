@@ -306,18 +306,18 @@ impl Resolver {
                 opens.push(out.len());
             } else if ch == ']' {
                 let open = opens.pop();
-                if let (Some(open), Some(after)) = (open, rest[1..].strip_prefix("(jvm:")) {
-                    if let Some(end) = target_end(after) {
-                        let target = &after[..end];
-                        let label = out[open + 1..].replace('`', "");
-                        out.truncate(open);
-                        match self.resolve(target) {
-                            Some(id) => out.push_str(&format!("[{label}](dx:{id})")),
-                            None => out.push_str(&format!("`{label}`")),
-                        }
-                        rest = &after[end + 1..];
-                        continue;
+                if let (Some(open), Some(after)) = (open, rest[1..].strip_prefix("(jvm:"))
+                    && let Some(end) = target_end(after)
+                {
+                    let target = &after[..end];
+                    let label = out[open + 1..].replace('`', "");
+                    out.truncate(open);
+                    match self.resolve(target) {
+                        Some(id) => out.push_str(&format!("[{label}](dx:{id})")),
+                        None => out.push_str(&format!("`{label}`")),
                     }
+                    rest = &after[end + 1..];
+                    continue;
                 }
             }
             out.push(ch);
@@ -498,7 +498,7 @@ pub fn convert(
         other => {
             return Err(format!(
                 "JVM doc JSON format {other:?} is not supported, expected {FORMAT}"
-            ))
+            ));
         }
     }
     let found = string(root, "language", at)?;

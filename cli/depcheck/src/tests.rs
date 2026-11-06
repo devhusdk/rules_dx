@@ -417,7 +417,10 @@ fn jvm_manifest_and_lock() {
 fn dotnet_manifest_and_lock() {
     let dir = tempfile::tempdir().expect("scratch");
     let man = dir.path().join("paket.dependencies");
-    write_file(&man, "source https://api.nuget.org/v3/index.json\nnuget Foo 1.0.0\ngroup Test\nnuget Bar 2.0.0\n");
+    write_file(
+        &man,
+        "source https://api.nuget.org/v3/index.json\nnuget Foo 1.0.0\ngroup Test\nnuget Bar 2.0.0\n",
+    );
     let deps = parse_dotnet_manifest(&man).expect("parse");
     assert_eq!(deps["foo"].category, "prod");
     assert_eq!(deps["bar"].category, "dev");

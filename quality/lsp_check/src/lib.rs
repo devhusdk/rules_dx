@@ -11,7 +11,7 @@
 //! Runs a language server over stdio, opens files and collects the
 //! diagnostics it publishes, for servers that have no batch mode.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::io::{BufRead, Read, Write};
 use std::path::{Path, PathBuf};

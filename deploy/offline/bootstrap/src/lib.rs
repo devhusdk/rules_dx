@@ -169,13 +169,13 @@ pub fn recorded_field(text: &str, key: &str) -> Option<String> {
         let after = &text[start + needle.len()..];
         let before = text[..start].trim_end();
         // A key opens an object or follows a comma; a value never does.
-        if before.ends_with('{') || before.ends_with(',') {
-            if let Some(rest) = after.trim_start().strip_prefix(':') {
-                let rest = rest.trim_start();
-                let body = rest.strip_prefix('"')?;
-                let value = &body[..body.find('"')?];
-                return (!value.contains('\\')).then(|| value.to_string());
-            }
+        if (before.ends_with('{') || before.ends_with(','))
+            && let Some(rest) = after.trim_start().strip_prefix(':')
+        {
+            let rest = rest.trim_start();
+            let body = rest.strip_prefix('"')?;
+            let value = &body[..body.find('"')?];
+            return (!value.contains('\\')).then(|| value.to_string());
         }
         from = start + needle.len();
     }
@@ -270,7 +270,8 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         .filter(|name| name.ends_with(".meta.json"))
         .collect();
     identities.sort();
-    let populated = dx_path::state::local_dir(Path::new(&options.workspace)).join(dx_path::state::ADVISORY);
+    let populated =
+        dx_path::state::local_dir(Path::new(&options.workspace)).join(dx_path::state::ADVISORY);
     if let Err(error) = std::fs::create_dir_all(&populated) {
         return format!("cannot create {}: {error}", populated.display());
     }
@@ -313,7 +314,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
             _ => {
                 return format!(
                     "advisory identity {identity} has no valid retrieved_at; want YYYY-MM-DD"
-                )
+                );
             }
         };
         if retrieved.as_str() > today {
@@ -328,7 +329,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
                 return format!(
                     "advisory identity {identity} is for other bytes: \
                      sha256 {bound} but {named} is {sha}"
-                )
+                );
             }
             None => return format!("advisory identity {identity} has no sha256"),
         }

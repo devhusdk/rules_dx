@@ -6,7 +6,7 @@ use std::io;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-use msvc_paths::{edit_args, exit_code, link_copy_dir, rustc_temp_file, split_option, Rewriter};
+use msvc_paths::{Rewriter, edit_args, exit_code, link_copy_dir, rustc_temp_file, split_option};
 
 fn main() -> ExitCode {
     run().unwrap_or_else(|err| {

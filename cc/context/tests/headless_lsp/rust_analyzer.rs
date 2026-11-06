@@ -2,7 +2,7 @@
 
 use dx_lsp::*;
 use dx_testing::resolve_runfiles;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};

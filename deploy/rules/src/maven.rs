@@ -7,12 +7,12 @@ use pgp::composed::{
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::types::Password;
 
-use crate::api_compat::{breaking_refusal, previous_release, required_bump, ApiCompatMode};
+use crate::api_compat::{ApiCompatMode, breaking_refusal, previous_release, required_bump};
 use crate::http;
 use crate::run::{
-    env_or_empty, placeholder_refusal, scrubbed_command, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+    OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal, scrubbed_command,
 };
-use crate::{copy_verified, deploy_profile, tempfile_stage_dir, zip_archive, DeployRun};
+use crate::{DeployRun, copy_verified, deploy_profile, tempfile_stage_dir, zip_archive};
 
 const MAVEN_CHECKSUMS: [&str; 4] = ["md5", "sha1", "sha256", "sha512"];
 
@@ -362,10 +362,10 @@ pub fn maven_pom_metadata_error(
             Some(_) => {}
         }
     }
-    if let Some(packaging) = text("packaging") {
-        if packaging != "jar" {
-            problems.push(format!("packaging is '{packaging}', want jar"));
-        }
+    if let Some(packaging) = text("packaging")
+        && packaging != "jar"
+    {
+        problems.push(format!("packaging is '{packaging}', want jar"));
     }
     for field in [
         "name",
@@ -1115,9 +1115,11 @@ pub(crate) mod tests {
                 let written =
                     std::fs::read_to_string(dir.join(format!("{base}.{suffix}"))).expect("sum");
                 assert_eq!(written, digest, "{base}.{suffix}");
-                assert!(written
-                    .chars()
-                    .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+                assert!(
+                    written
+                        .chars()
+                        .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+                );
             }
             let asc = std::fs::read_to_string(dir.join(format!("{base}.asc"))).expect("asc");
             assert!(asc.starts_with("-----BEGIN PGP SIGNATURE-----"), "{asc}");
@@ -1139,9 +1141,11 @@ pub(crate) mod tests {
             None,
         )
         .expect("unsigned repo");
-        assert!(!unsigned
-            .join("com/example/maven_demo/0.0.0/maven_demo-0.0.0.jar.asc")
-            .exists());
+        assert!(
+            !unsigned
+                .join("com/example/maven_demo/0.0.0/maven_demo-0.0.0.jar.asc")
+                .exists()
+        );
     }
 
     #[test]
@@ -1380,7 +1384,9 @@ pub(crate) mod tests {
         ] {
             assert_eq!(
                 gate_error(&vars, "1.0.0", url),
-                Some(format!("maven_deploy: invalid repository_url '{url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"))
+                Some(format!(
+                    "maven_deploy: invalid repository_url '{url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"
+                ))
             );
         }
         assert_eq!(
@@ -1401,7 +1407,9 @@ pub(crate) mod tests {
         ] {
             assert_eq!(
                 gate_error(&vars, "1.0.0", url),
-                Some(format!("maven_deploy: invalid repository_url '{url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"))
+                Some(format!(
+                    "maven_deploy: invalid repository_url '{url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"
+                ))
             );
         }
         assert_eq!(
@@ -1421,7 +1429,9 @@ pub(crate) mod tests {
         let url = "http://central.sonatype.com/api/v1/publisher/";
         assert_eq!(
             gate_error(&vars, "1.0.0", url),
-            Some(format!("maven_deploy: invalid repository_url '{url}': want an https URL so uploads never go over plaintext"))
+            Some(format!(
+                "maven_deploy: invalid repository_url '{url}': want an https URL so uploads never go over plaintext"
+            ))
         );
     }
 
@@ -1549,9 +1559,10 @@ pub(crate) mod tests {
             text.starts_with("POST /api/v1/publisher/upload?publishingType=USER_MANAGED&name=com.example%3Ademo%3A1.0.0 HTTP/1.1\r\n"),
             "{text}"
         );
-        assert!(text
-            .lines()
-            .any(|line| line.eq_ignore_ascii_case("authorization: Bearer dXNlcjpwYXNz")));
+        assert!(
+            text.lines()
+                .any(|line| line.eq_ignore_ascii_case("authorization: Bearer dXNlcjpwYXNz"))
+        );
         let boundary = text
             .lines()
             .find_map(|line| {
@@ -1662,9 +1673,11 @@ pub(crate) mod tests {
             .expect("list")
             .map(|entry| std::fs::read_to_string(entry.expect("entry").path()).unwrap_or_default())
             .collect();
-        assert!(staged
-            .iter()
-            .all(|body| !body.contains("PRIVATE KEY") && !body.contains(PASSPHRASE)));
+        assert!(
+            staged
+                .iter()
+                .all(|body| !body.contains("PRIVATE KEY") && !body.contains(PASSPHRASE))
+        );
         vars.pop();
         vars.push(("MAVEN_GPG_PASSPHRASE", Some("wrong")));
         assert_eq!(with_env(&vars, run), 1);
@@ -1772,12 +1785,16 @@ pub(crate) mod tests {
             None,
         )
         .expect("repo");
-        assert!(house
-            .join("com/example/maven_demo/0.0.0/maven_demo-0.0.0.jar")
-            .is_file());
-        assert!(house
-            .join("com/example/maven_demo/maven-metadata.xml")
-            .is_file());
+        assert!(
+            house
+                .join("com/example/maven_demo/0.0.0/maven_demo-0.0.0.jar")
+                .is_file()
+        );
+        assert!(
+            house
+                .join("com/example/maven_demo/maven-metadata.xml")
+                .is_file()
+        );
     }
 
     #[test]

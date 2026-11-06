@@ -1,4 +1,4 @@
-use super::{diff_format, DiffExit, FileFinding, ParseError};
+use super::{DiffExit, FileFinding, ParseError, diff_format};
 
 pub fn parse_gofumpt(
     stdout: &[u8],
@@ -28,12 +28,14 @@ mod tests {
         let clean =
             parse_gofumpt(b"", Some(0), &["go/tests/fixtures/gofumpt/Sample.go"]).expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_gofumpt(
-            DIRTY.as_bytes(),
-            Some(0),
-            &["go/tests/fixtures/gofumpt/Sample.go"]
-        )
-        .is_err());
+        assert!(
+            parse_gofumpt(
+                DIRTY.as_bytes(),
+                Some(0),
+                &["go/tests/fixtures/gofumpt/Sample.go"]
+            )
+            .is_err()
+        );
         assert!(parse_gofumpt(DIRTY.as_bytes(), Some(1), &["other.go"]).is_err());
         assert!(parse_gofumpt(&[0xff], Some(1), &["x"]).is_err());
     }

@@ -10,12 +10,12 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use dx_digest::{blake3 as digest, DIGEST_LEN};
+use dx_digest::{DIGEST_LEN, blake3 as digest};
 use quality_result::{
+    MAX_COMPLETED_ROUNDS,
     proto::{
         Capability, Convergence, Diagnostic, Edit, FileEdits, FileSnapshot, QualityResult, Stage,
     },
-    MAX_COMPLETED_ROUNDS,
 };
 
 pub mod entry;

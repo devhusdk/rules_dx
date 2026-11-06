@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::{
-    bcr_candidate_error, modules::ReleaseModule, notice_verify_files, sbom_verify_files,
-    write_bcr_source_for_archive, PROVENANCE_BUILDER_RELEASE,
+    PROVENANCE_BUILDER_RELEASE, bcr_candidate_error, modules::ReleaseModule, notice_verify_files,
+    sbom_verify_files, write_bcr_source_for_archive,
 };
 
 fn data(name: &str) -> PathBuf {

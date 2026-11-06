@@ -4,8 +4,8 @@ use std::cmp::Ordering;
 
 use semver::{Version, VersionReq};
 
-use crate::ecosystem::python;
 use crate::Ecosystem;
+use crate::ecosystem::python;
 
 /// Settles `spec` against `locked` in the grammar `eco` declares requirements in.
 pub fn satisfies_for(eco: Ecosystem, spec: &str, locked: &str) -> bool {

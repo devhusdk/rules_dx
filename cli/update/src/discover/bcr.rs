@@ -1,7 +1,7 @@
 //! Lists `bazel_dep` modules whose declared version is behind the newest stable BCR version.
 
-use super::{wanted, Candidate, Fetch, Findings, LookupError};
-use dx_module_bazel::{compare_module_versions, ModuleFile, Value};
+use super::{Candidate, Fetch, Findings, LookupError, wanted};
+use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://bcr.bazel.build";

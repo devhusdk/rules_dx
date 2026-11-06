@@ -83,11 +83,20 @@ fn release_waits_for_dry_run_and_plan_and_plan_needs_a_tag() {
         .iter()
         .filter_map(|n| n.as_str())
         .collect();
-    assert!(needs.contains(&"dry-run") && needs.contains(&"plan"), "{needs:?}");
+    assert!(
+        needs.contains(&"dry-run") && needs.contains(&"plan"),
+        "{needs:?}"
+    );
     let dry = job(WORKFLOW, "dry-run");
     assert_eq!(dry["needs"], serde_json::json!(["plan"]));
-    let condition = job(WORKFLOW, "plan")["if"].as_str().unwrap_or_default().to_owned();
-    assert!(condition.contains("startsWith(github.ref, 'refs/tags/')"), "{condition}");
+    let condition = job(WORKFLOW, "plan")["if"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    assert!(
+        condition.contains("startsWith(github.ref, 'refs/tags/')"),
+        "{condition}"
+    );
 }
 
 #[test]
@@ -118,7 +127,10 @@ fn only_the_publish_step_applies() {
 fn deploys_run_dx_through_cmd_on_windows() {
     for name in ["dry-run", "release"] {
         let script = scripts(WORKFLOW, name);
-        assert!(script.contains("cmd.exe //c tools\\\\dx.cmd deploy"), "{name}");
+        assert!(
+            script.contains("cmd.exe //c tools\\\\dx.cmd deploy"),
+            "{name}"
+        );
         assert!(steps(WORKFLOW, name).len() >= 3);
     }
 }

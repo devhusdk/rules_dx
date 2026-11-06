@@ -1,5 +1,5 @@
 use super::zig_ast_check::zig_errors;
-use super::{code_name, listed_paths, FileFinding, ParseError, Spelling};
+use super::{FileFinding, ParseError, Spelling, code_name, listed_paths};
 
 const TOOL: &str = "zig_fmt";
 
@@ -41,9 +41,11 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "src/dirty.zig");
         assert_eq!(findings[0].finding.message, "file is not formatted");
-        assert!(parse_zig_fmt(b"", b"", Some(0), &files)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_zig_fmt(b"", b"", Some(0), &files)
+                .expect("parsed")
+                .is_empty()
+        );
         assert!(parse_zig_fmt(b"", b"", Some(1), &files).is_err());
         assert!(parse_zig_fmt(b"other.zig\n", b"", Some(1), &files).is_err());
         assert!(parse_zig_fmt(&[0xff], b"", Some(0), &files).is_err());

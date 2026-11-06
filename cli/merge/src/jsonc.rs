@@ -1,7 +1,7 @@
 //! Key and array edits of JSONC text that keep comments, trailing commas and untouched bytes.
 
-use jsonc_parser::cst::{CstInputValue, CstObject, CstRootNode};
 use jsonc_parser::ParseOptions;
+use jsonc_parser::cst::{CstInputValue, CstObject, CstRootNode};
 use serde_json::Value;
 
 use crate::Error;

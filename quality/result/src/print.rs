@@ -47,11 +47,7 @@ fn opt_number(value: Option<u64>) -> String {
 }
 
 fn rule_name(rule: &str) -> &str {
-    if rule.is_empty() {
-        "-"
-    } else {
-        rule
-    }
+    if rule.is_empty() { "-" } else { rule }
 }
 
 fn print_diagnostics(prefix: &str, diagnostics: &[proto::Diagnostic]) {

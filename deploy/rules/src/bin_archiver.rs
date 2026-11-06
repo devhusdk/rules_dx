@@ -106,17 +106,17 @@ fn run(argv: &[String]) -> i32 {
 
 fn main() {
     let mut argv: Vec<String> = std::env::args().collect();
-    if argv.len() == 2 {
-        if let Some(path) = argv[1].strip_prefix('@') {
-            match std::fs::read_to_string(path) {
-                Ok(text) => {
-                    argv.truncate(1);
-                    argv.extend(text.lines().map(str::to_owned));
-                }
-                Err(error) => {
-                    eprintln!("archiver: cannot read {path}: {error}");
-                    std::process::exit(1);
-                }
+    if argv.len() == 2
+        && let Some(path) = argv[1].strip_prefix('@')
+    {
+        match std::fs::read_to_string(path) {
+            Ok(text) => {
+                argv.truncate(1);
+                argv.extend(text.lines().map(str::to_owned));
+            }
+            Err(error) => {
+                eprintln!("archiver: cannot read {path}: {error}");
+                std::process::exit(1);
             }
         }
     }

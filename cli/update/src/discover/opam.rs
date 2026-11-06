@@ -1,7 +1,7 @@
 //! Lists packages of an opam.locked file whose newest version in the pinned opam-repository
 //! snapshot is newer than the locked one. It reads the snapshot's `packages/<name>/` directories.
 
-use super::{wanted, Candidate, Findings, LookupError};
+use super::{Candidate, Findings, LookupError, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -97,12 +97,11 @@ fn locked(text: &str) -> Vec<(String, String)> {
                 }
                 if braces == 0 {
                     name = Some(literal);
-                } else if after_equals {
-                    if let Some(name) = name.as_ref().filter(|n| !is_toolchain(n)) {
-                        if !out.iter().any(|(seen, _)| seen == name) {
-                            out.push((name.clone(), literal));
-                        }
-                    }
+                } else if after_equals
+                    && let Some(name) = name.as_ref().filter(|n| !is_toolchain(n))
+                    && !out.iter().any(|(seen, _)| seen == name)
+                {
+                    out.push((name.clone(), literal));
                 }
             }
             _ => {}

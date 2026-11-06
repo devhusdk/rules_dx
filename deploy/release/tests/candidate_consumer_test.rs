@@ -6,9 +6,9 @@ use std::process::Command;
 
 use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{
-    build_source_archive, source_archive_error, stage_local_registry, Candidate,
+    Candidate, build_source_archive, source_archive_error, stage_local_registry,
 };
-use dx_testing::{mkscratch, resolve_runfiles, rules_dx_source, Run};
+use dx_testing::{Run, mkscratch, resolve_runfiles, rules_dx_source};
 
 const VERSION: &str = "1.2.3-rc1";
 

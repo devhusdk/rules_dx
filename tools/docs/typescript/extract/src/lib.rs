@@ -13,7 +13,7 @@
 mod convert;
 mod types;
 
-pub use convert::{convert, Settings};
+pub use convert::{Settings, convert};
 
 use std::fs;
 

@@ -288,14 +288,35 @@ mod tests {
 
     fn fixture(root: &Path) {
         let files = [
-            ("MODULE.bazel", "module(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\nbazel_dep(name = \"x\", version = \"9.9.9\")\n"),
+            (
+                "MODULE.bazel",
+                "module(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\nbazel_dep(name = \"x\", version = \"9.9.9\")\n",
+            ),
             ("cli/prebuilt/pins.bzl", "DX_VERSION = \"0.0.0\"\n"),
-            ("cli/adopt/src/version.rs", "pub const DX_VERSION: &str = \"0.0.0\";\npub const MODULE_VERSION: &str = \"0.0.0\";\n"),
-            ("cli/adopt/src/scaffold.rs", "pub const CONSUMER_WORKFLOW_PIN: &str = \"e97ab7b550d08e047c35edc5f50c7d242227842f\";\n"),
-            ("docs/github-ci.md", "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nmodule(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\n"),
-            ("examples/consumer-ci/caller.yml", "    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@e97ab7b550d08e047c35edc5f50c7d242227842f\n    with:\n"),
-            ("examples/gitlab-ci/.gitlab-ci.yml", "include:\n  - remote: https://raw.githubusercontent.com/devhusdk/rules_dx/e97ab7b550d08e047c35edc5f50c7d242227842f/ci/gitlab/dx.gitlab-ci.yml\n"),
-            ("examples/docs-ci/caller.yml", "    uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@e97ab7b550d08e047c35edc5f50c7d242227842f\n    with:\n      docs_scope: \"//...\"\n"),
+            (
+                "cli/adopt/src/version.rs",
+                "pub const DX_VERSION: &str = \"0.0.0\";\npub const MODULE_VERSION: &str = \"0.0.0\";\n",
+            ),
+            (
+                "cli/adopt/src/scaffold.rs",
+                "pub const CONSUMER_WORKFLOW_PIN: &str = \"e97ab7b550d08e047c35edc5f50c7d242227842f\";\n",
+            ),
+            (
+                "docs/github-ci.md",
+                "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nmodule(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\n",
+            ),
+            (
+                "examples/consumer-ci/caller.yml",
+                "    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@e97ab7b550d08e047c35edc5f50c7d242227842f\n    with:\n",
+            ),
+            (
+                "examples/gitlab-ci/.gitlab-ci.yml",
+                "include:\n  - remote: https://raw.githubusercontent.com/devhusdk/rules_dx/e97ab7b550d08e047c35edc5f50c7d242227842f/ci/gitlab/dx.gitlab-ci.yml\n",
+            ),
+            (
+                "examples/docs-ci/caller.yml",
+                "    uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@e97ab7b550d08e047c35edc5f50c7d242227842f\n    with:\n      docs_scope: \"//...\"\n",
+            ),
         ];
         for (file, text) in files {
             let path = root.join(file);
@@ -332,8 +353,10 @@ mod tests {
         assert!(docs_ci.contains(&format!("reusable-docs.yml@{NEW}\n")));
         assert!(docs_ci.contains("docs_scope: \"//...\""));
         assert!(!docs_ci.contains(OLD));
-        assert!(read(dir.path(), "examples/gitlab-ci/.gitlab-ci.yml")
-            .contains(&format!("rules_dx/{NEW}/ci/gitlab/dx.gitlab-ci.yml\n")));
+        assert!(
+            read(dir.path(), "examples/gitlab-ci/.gitlab-ci.yml")
+                .contains(&format!("rules_dx/{NEW}/ci/gitlab/dx.gitlab-ci.yml\n"))
+        );
     }
 
     #[test]

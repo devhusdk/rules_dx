@@ -50,7 +50,7 @@ use_repo(rules_java_toolchains, "remote_java_tools")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust", dev_dependency = True)
 rust.toolchain(
-    edition = "2021",
+    edition = "2024",
     extra_target_triples = [
         "aarch64-linux-android",
         "x86_64-linux-android",

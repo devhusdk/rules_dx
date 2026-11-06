@@ -1,6 +1,6 @@
 use super::*;
 use documentation_ir::proto::{DocIr, Symbol};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 fn settings() -> Settings {
     Settings {

@@ -2,13 +2,13 @@ use super::common::*;
 use super::update_unused::{self, Missing, Unused};
 use dx_adopt::dependency_sets::{self, Ecosystem, Selection};
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, FinishedCounts, NoticeEvent,
-    OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
+    notice_event,
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cabal, cargo, composer, containers, cpan, github, go, hex, julia, maven, npm, nuget, opam,
-    pub_dev, pypi, ruby, swiftpm, Candidate, Fetch, Findings, Registry,
+    Candidate, Fetch, Findings, Registry, bcr, cabal, cargo, composer, containers, cpan, github,
+    go, hex, julia, maven, npm, nuget, opam, pub_dev, pypi, ruby, swiftpm,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -140,10 +140,8 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         }
     };
     let json = invocation.output == OutputMode::Json;
-    if json {
-        if let Err(exit) = emit_built(out, command_started("update", "outdated")) {
-            return exit;
-        }
+    if json && let Err(exit) = emit_built(out, command_started("update", "outdated")) {
+        return exit;
     }
     let Collected {
         found,
@@ -552,25 +550,25 @@ fn run_builtins(builtins: &Builtins, workspace: &Path, fetch: &dyn Fetch, found:
             github::actions(&flows, only, github::DEFAULT_BASE, fetch),
         );
     }
-    if let Some(only) = &builtins.containers {
-        if let Ok(text) = std::fs::read_to_string(workspace.join("MODULE.bazel")) {
-            match dx_module_bazel::ModuleFile::parse(&text) {
-                Ok(module) => merge(found, containers::outdated(&module, only, fetch)),
-                Err(error) => found.errors.push(dx_update::discover::LookupError {
-                    set: containers::SET.to_owned(),
-                    package: "MODULE.bazel".to_owned(),
-                    reason: error.to_string(),
-                }),
-            }
+    if let Some(only) = &builtins.containers
+        && let Ok(text) = std::fs::read_to_string(workspace.join("MODULE.bazel"))
+    {
+        match dx_module_bazel::ModuleFile::parse(&text) {
+            Ok(module) => merge(found, containers::outdated(&module, only, fetch)),
+            Err(error) => found.errors.push(dx_update::discover::LookupError {
+                set: containers::SET.to_owned(),
+                package: "MODULE.bazel".to_owned(),
+                reason: error.to_string(),
+            }),
         }
     }
-    if builtins.bazelversion {
-        if let Ok(text) = std::fs::read_to_string(workspace.join(".bazelversion")) {
-            merge(
-                found,
-                github::bazelversion(&text, github::DEFAULT_BASE, fetch),
-            );
-        }
+    if builtins.bazelversion
+        && let Ok(text) = std::fs::read_to_string(workspace.join(".bazelversion"))
+    {
+        merge(
+            found,
+            github::bazelversion(&text, github::DEFAULT_BASE, fetch),
+        );
     }
 }
 

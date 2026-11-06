@@ -3,7 +3,7 @@
 use std::ffi::OsString;
 use std::path::Path;
 
-use super::{policy_for, LaunchError, ResolvedTool, RunfilesPolicy};
+use super::{LaunchError, ResolvedTool, RunfilesPolicy, policy_for};
 
 fn launch() -> ResolvedTool {
     ResolvedTool::javascript("eslint", Path::new("/out/bin/eslint"))

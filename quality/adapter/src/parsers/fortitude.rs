@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known_native, FileFinding, ParseError};
+use super::{FileFinding, ParseError, check_output_size, code_name, known_native};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "fortitude";
@@ -108,9 +108,11 @@ mod tests {
 
     #[test]
     fn fortitude_is_clean_on_an_empty_array_and_exit_zero() {
-        assert!(parse_fortitude(b"[]", Some(0), &FILES)
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_fortitude(b"[]", Some(0), &FILES)
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]

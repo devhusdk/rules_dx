@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use url::Url;
 
-use crate::pointer_index::{self, escape, Index, SyntaxAt};
+use crate::pointer_index::{self, Index, SyntaxAt, escape};
 
 /// The `$schema` spellings dx accepts, without a trailing `#`. A missing `$schema` means 2020-12.
 pub const DRAFTS: [&str; 5] = [

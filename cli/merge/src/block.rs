@@ -23,11 +23,7 @@ pub fn orphaned(text: &str, begin: &str, end: &str) -> bool {
 
 /// The line break the text uses.
 pub fn eol(text: &str) -> &'static str {
-    if text.contains("\r\n") {
-        "\r\n"
-    } else {
-        "\n"
-    }
+    if text.contains("\r\n") { "\r\n" } else { "\n" }
 }
 
 /// The text with `block` (LF, markers included) replaced or appended and every other byte kept.

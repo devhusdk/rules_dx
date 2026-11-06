@@ -48,9 +48,11 @@ fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
     );
     assert!(findings.is_empty());
     assert!(diagnostics.is_empty());
-    assert!(incomplete
-        .expect("incomplete")
-        .contains("failed to launch secrets auditor"));
+    assert!(
+        incomplete
+            .expect("incomplete")
+            .contains("failed to launch secrets auditor")
+    );
 }
 
 #[test]
@@ -58,11 +60,13 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
     let harness = Harness::new("license-policy-io");
     let path = harness.workspace.join("licenses.toml");
     std::fs::write(&path, " \n").expect("empty");
-    assert!(super::load_license_policy(&harness.workspace)
-        .expect("default")
-        .tables
-        .allow
-        .contains("MIT"));
+    assert!(
+        super::load_license_policy(&harness.workspace)
+            .expect("default")
+            .tables
+            .allow
+            .contains("MIT")
+    );
     std::fs::write(&path, [0xff]).expect("invalid utf8");
     assert!(matches!(
         super::load_license_policy(&harness.workspace),
@@ -261,16 +265,20 @@ fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
 #[test]
 fn security_policy_read_failures_and_absent_file_are_explicit() {
     let harness = Harness::new("security-policy-io");
-    assert!(super::load_security_policy(&harness.workspace)
-        .expect("absent file")
-        .exceptions
-        .is_empty());
+    assert!(
+        super::load_security_policy(&harness.workspace)
+            .expect("absent file")
+            .exceptions
+            .is_empty()
+    );
     let path = harness.workspace.join("security.toml");
     std::fs::write(&path, " \n").expect("empty");
-    assert!(super::load_security_policy(&harness.workspace)
-        .expect("empty file")
-        .exceptions
-        .is_empty());
+    assert!(
+        super::load_security_policy(&harness.workspace)
+            .expect("empty file")
+            .exceptions
+            .is_empty()
+    );
     std::fs::write(&path, [0xff]).expect("invalid utf8");
     assert!(matches!(
         super::load_security_policy(&harness.workspace),
@@ -290,14 +298,34 @@ fn license_exceptions_only_approve_matching_current_findings() {
         ("AGPL-3.0-only", "", 1),
         ("GPL-3.0-only", "", 1),
         ("MPL-2.0", "", 1),
-        ("GPL-3.0-only", "[[exception]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2999-01-01\"\n", 0),
-        ("GPL-3.0-only", "[[exception]]\npackage = \"other\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2999-01-01\"\n", 1),
-        ("GPL-3.0-only", "[[exception]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2000-01-01\"\n", 1),
+        (
+            "GPL-3.0-only",
+            "[[exception]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+            0,
+        ),
+        (
+            "GPL-3.0-only",
+            "[[exception]]\npackage = \"other\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+            1,
+        ),
+        (
+            "GPL-3.0-only",
+            "[[exception]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2000-01-01\"\n",
+            1,
+        ),
     ] {
-        let (code, out, err) = run_with(&["license", "//rust/tests/fixtures/hello:demo", "--output=json"], &AuditRunner::clean(), &|h| {
-            write_demo_license(h, license);
-            h.write_source("licenses.toml", &format!("schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\ndeny = [\"GPL-3.0-only\"]\nreview = [\"MPL-2.0\"]\n{exception}\n[[inventory]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"{license}\"\nversions = \"1.0.0\"\ntext_present = true\n"));
-        });
+        let (code, out, err) = run_with(
+            &[
+                "license",
+                "//rust/tests/fixtures/hello:demo",
+                "--output=json",
+            ],
+            &AuditRunner::clean(),
+            &|h| {
+                write_demo_license(h, license);
+                h.write_source("licenses.toml", &format!("schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\ndeny = [\"GPL-3.0-only\"]\nreview = [\"MPL-2.0\"]\n{exception}\n[[inventory]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"{license}\"\nversions = \"1.0.0\"\ntext_present = true\n"));
+            },
+        );
         assert_eq!(code, expected, "{license}: {out}{err}");
     }
     let (code, out, err) = run_with(
@@ -496,10 +524,12 @@ fn secrets_scan_skips_git_ignored_paths() {
     assert!(written.contains("[[allowlists]]"), "{written}");
     assert!(!written.contains("[allowlist]"), "{written}");
     assert!(written.contains("fixtures"), "{written}");
-    assert!(diagnostics
-        .iter()
-        .any(|event| event.message.contains("without a hash pin")
-            && event.path.as_deref() == Some(".gitleaks.toml")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|event| event.message.contains("without a hash pin")
+                && event.path.as_deref() == Some(".gitleaks.toml"))
+    );
 }
 
 #[test]
@@ -558,11 +588,13 @@ fn committed_gitleaks_config_produces_a_trust_warning() {
         assert_eq!(code, 0, "{out}{err}");
         let value: serde_json::Value = serde_json::from_str(&out).expect("sarif");
         assert!(value.to_string().contains("without a hash pin"));
-        assert!(runner
-            .calls
-            .borrow()
-            .iter()
-            .any(|args| args.iter().any(|arg| arg.ends_with(config))));
+        assert!(
+            runner
+                .calls
+                .borrow()
+                .iter()
+                .any(|args| args.iter().any(|arg| arg.ends_with(config)))
+        );
     }
 }
 

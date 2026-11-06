@@ -11,7 +11,7 @@ pub mod entry;
 mod outputs;
 
 pub use cli::run_cli;
-pub use outputs::{output_findings, strip_outputs, OutputFinding, CELL_OUTPUTS, EXECUTION_COUNT};
+pub use outputs::{CELL_OUTPUTS, EXECUTION_COUNT, OutputFinding, output_findings, strip_outputs};
 
 pub(crate) type Span = (usize, usize);
 
@@ -334,7 +334,7 @@ impl<'a> Notebook<'a> {
             Some(other) => {
                 return Err(NotebookError::Format(format!(
                     "nbformat {other} (only nbformat 4 is supported)"
-                )))
+                )));
             }
             None => return Err(NotebookError::Format("missing nbformat".to_owned())),
         }
@@ -420,7 +420,7 @@ impl<'a> Notebook<'a> {
             Some(_) => {
                 return Err(NotebookError::Format(
                     "a cell source is neither a string nor an array".to_owned(),
-                ))
+                ));
             }
         };
         Ok(Cell {
@@ -852,7 +852,10 @@ mod tests {
     fn non_python_kernel_and_old_format_fail_closed() {
         let r = nb(&code("[\"x\"]"), "{\"kernelspec\": {\"language\": \"R\"}}");
         assert_eq!(preflight(&r), Err(NotebookError::Language("R".to_owned())));
-        let julia = nb(&code("[\"x\"]"), "{\"language_info\": {\"name\": \"julia\"}, \"kernelspec\": {\"language\": \"python\"}}");
+        let julia = nb(
+            &code("[\"x\"]"),
+            "{\"language_info\": {\"name\": \"julia\"}, \"kernelspec\": {\"language\": \"python\"}}",
+        );
         assert!(matches!(preflight(&julia), Err(NotebookError::Language(_))));
         let v3 = nb(&code("[\"x\"]"), "{}").replace("\"nbformat\": 4", "\"nbformat\": 3");
         assert!(matches!(preflight(&v3), Err(NotebookError::Format(_))));

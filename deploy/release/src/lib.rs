@@ -33,14 +33,14 @@ pub const RELEASE_REPOSITORY: &str = release_repository!();
 pub const RELEASE_REMOTE: &str = concat!(release_repository!(), ".git");
 
 pub use publish::{
-    publish_dry_run_check, sha256sum_line, PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA,
+    PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA, publish_dry_run_check, sha256sum_line,
 };
 
 pub use deploy::{
-    bcr_deploy, release_deploy_tool_main, signing_deploy, BcrDeployConfig, ReleaseDeployConfig,
-    SigningDeployConfig,
+    BcrDeployConfig, ReleaseDeployConfig, SigningDeployConfig, bcr_deploy,
+    release_deploy_tool_main, signing_deploy,
 };
-pub use ledger::{ledger_exit, render_ledger, OpRecord, OpState};
+pub use ledger::{OpRecord, OpState, ledger_exit, render_ledger};
 pub use tool::release_tool_run;
 
 use spdx::SpdxDocument;
@@ -297,7 +297,7 @@ pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, String> 
         other => {
             return Err(format!(
                 "unknown lock kind '{other}': want npm, go, maven or pip"
-            ))
+            ));
         }
     };
     Ok(packages
@@ -1106,8 +1106,8 @@ pub fn sbom_verify_files(
 }
 
 pub use dx_audit::notice_manifest::{
-    notice_text_path_error, notice_text_sha256, parse_notice_manifest, render_notice_manifest,
-    NoticeEntry,
+    NoticeEntry, notice_text_path_error, notice_text_sha256, parse_notice_manifest,
+    render_notice_manifest,
 };
 
 /// The NOTICE section header one inventory entry renders as.
@@ -1523,10 +1523,12 @@ mod tests {
         assert_eq!(packages.len(), 3);
         assert_eq!(packages[1]["name"], "libc");
         assert_eq!(packages[1]["supplier"], "Organization: fixture");
-        assert!(packages[1]["comment"]
-            .as_str()
-            .unwrap()
-            .contains("operating system"));
+        assert!(
+            packages[1]["comment"]
+                .as_str()
+                .unwrap()
+                .contains("operating system")
+        );
         assert_eq!(packages[2]["versionInfo"], "1.2");
         let files = value["files"].as_array().expect("files");
         assert_eq!(files.len(), 2);
@@ -1697,9 +1699,11 @@ mod tests {
             let record = bcr_submit_record("rules_dx@1.2.3", result, url);
             assert_eq!(record.state, OpState::Failed, "{result} {url}");
         }
-        assert!(bcr_submit_record("s", "failure", "")
-            .detail
-            .contains("failure"));
+        assert!(
+            bcr_submit_record("s", "failure", "")
+                .detail
+                .contains("failure")
+        );
     }
 
     #[test]
@@ -1766,7 +1770,12 @@ mod tests {
         );
         assert_eq!(
             release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, None)),
-            Ok(vec![OpRecord::new("tag-local", "v1.2.3", OpState::Failed, "release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)")])
+            Ok(vec![OpRecord::new(
+                "tag-local",
+                "v1.2.3",
+                OpState::Failed,
+                "release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)"
+            )])
         );
         let live = release_run("v1.2.3", Some(SHA), "1", false, || {
             git_ok(false, SHA, Some(SHA))
@@ -1907,10 +1916,12 @@ mod tests {
         assert!(bcr_integrity_of_digest("xyz").is_err());
         assert!(bcr_integrity_of_digest(&"0".repeat(63)).is_err());
         assert!(bcr_integrity_of_digest(&"0".repeat(64)).is_ok());
-        assert!(bcr_integrity_of_digest(
-            "A948904F2F0F479B8F8197694B30184B0D2ED1C1CD2A1EC0FB85D299A192A447"
-        )
-        .is_err());
+        assert!(
+            bcr_integrity_of_digest(
+                "A948904F2F0F479B8F8197694B30184B0D2ED1C1CD2A1EC0FB85D299A192A447"
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -2010,13 +2021,15 @@ mod tests {
             write_bcr_source_for_archive(&dst, &modules::ReleaseModule::core(), "0.0.0", &src)
                 .is_err()
         );
-        assert!(write_bcr_source_for_archive(
-            &dst,
-            &modules::ReleaseModule::core(),
-            "1.2.3-rc1",
-            &scratch.path().join("missing")
-        )
-        .is_err());
+        assert!(
+            write_bcr_source_for_archive(
+                &dst,
+                &modules::ReleaseModule::core(),
+                "1.2.3-rc1",
+                &scratch.path().join("missing")
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -2051,7 +2064,9 @@ mod tests {
         let output = format!("{OTHER}\trefs/tags/v1.2.3\n");
         assert_eq!(
             release_remote_error(&candidate, Ok(output)),
-            Err(format!("release: remote tag v1.2.3 points at {OTHER}, candidate is {SHA} (git ls-remote --tags {RELEASE_REMOTE})"))
+            Err(format!(
+                "release: remote tag v1.2.3 points at {OTHER}, candidate is {SHA} (git ls-remote --tags {RELEASE_REMOTE})"
+            ))
         );
         let error =
             release_remote_error(&candidate, Ok("garbage\n".to_owned())).expect_err("malformed");
@@ -2580,12 +2595,14 @@ mod tests {
         assert_eq!(found("NOTLICENSE"), vec!["y/NOTLICENSE"]);
         assert_eq!(
             found("abs/COPYING"),
-            vec![scratch
-                .path()
-                .join("abs")
-                .join("COPYING")
-                .display()
-                .to_string()]
+            vec![
+                scratch
+                    .path()
+                    .join("abs")
+                    .join("COPYING")
+                    .display()
+                    .to_string()
+            ]
         );
         let mut rev = inputs.clone();
         rev.reverse();

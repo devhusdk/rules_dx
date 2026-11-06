@@ -7,7 +7,7 @@ use super::common::*;
 use super::explain_store;
 use crate::execlog::{self, CacheMiss, ExeclogError};
 use dx_output::{
-    cache_miss_event, command_finished, CacheMissChange, CacheMissEvent, FinishedCounts, OutputMode,
+    CacheMissChange, CacheMissEvent, FinishedCounts, OutputMode, cache_miss_event, command_finished,
 };
 use dx_plan::args::{Command, Invocation};
 
@@ -168,10 +168,8 @@ pub(crate) fn execute_explain(invocation: &Invocation, env: Env<'_>) -> i32 {
         ..
     } = env;
     let json = invocation.output == OutputMode::Json;
-    if json {
-        if let Err(exit) = emit_started(invocation, out) {
-            return exit;
-        }
+    if json && let Err(exit) = emit_started(invocation, out) {
+        return exit;
     }
     let found = pick(workspace, invocation).and_then(|(old, new)| misses(&old, &new));
     let misses = match found {
@@ -202,7 +200,7 @@ pub(crate) fn execute_explain(invocation: &Invocation, env: Env<'_>) -> i32 {
 mod tests {
     use super::super::test_support::*;
     use crate::execlog::proto::exec_log_entry::{
-        output, File, InputSet, Invocation as Inv, Output, Spawn, Type,
+        File, InputSet, Invocation as Inv, Output, Spawn, Type, output,
     };
     use crate::execlog::proto::{Digest, ExecLogEntry};
     use std::path::Path;

@@ -1,8 +1,8 @@
-use dx_process::{describe_scope, ForwardError, ProtectedFlag};
+use dx_process::{ForwardError, ProtectedFlag, describe_scope};
 
 use super::{
-    bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
-    exec_log_options, profile_options, workflow_bazel_labels, BuildPlan, SKIP_INCOMPATIBLE_FLAG,
+    BuildPlan, SKIP_INCOMPATIBLE_FLAG, bazel_argv, bep_guards, bep_options, download_flag,
+    download_guards, exec_log_guards, exec_log_options, profile_options, workflow_bazel_labels,
 };
 use crate::resolve::ResolvedScope;
 
@@ -302,10 +302,11 @@ mod tests {
             &[],
         )
         .expect("local paths pass");
-        assert!(plan
-            .argv
-            .iter()
-            .any(|arg| arg == "--build_event_json_file_path_conversion=false"));
+        assert!(
+            plan.argv
+                .iter()
+                .any(|arg| arg == "--build_event_json_file_path_conversion=false")
+        );
         let plan = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
@@ -552,10 +553,11 @@ mod tests {
             &[],
         )
         .expect("plan");
-        assert!(plan
-            .argv
-            .iter()
-            .any(|arg| arg == COVERAGE_COMBINED_REPORT_FLAG));
+        assert!(
+            plan.argv
+                .iter()
+                .any(|arg| arg == COVERAGE_COMBINED_REPORT_FLAG)
+        );
         let repeated = plan_workflow(
             WorkflowVerb::Coverage,
             &resolved(&[]),
@@ -566,10 +568,12 @@ mod tests {
             &[],
         )
         .expect("repeated required flag is accepted");
-        assert!(repeated
-            .argv
-            .iter()
-            .any(|arg| arg == COVERAGE_COMBINED_REPORT_FLAG));
+        assert!(
+            repeated
+                .argv
+                .iter()
+                .any(|arg| arg == COVERAGE_COMBINED_REPORT_FLAG)
+        );
         let err = plan_workflow(
             WorkflowVerb::Coverage,
             &resolved(&[]),

@@ -166,6 +166,7 @@ pub(crate) struct Flags {
     pub(crate) add_missing: bool,
     pub(crate) pr: bool,
     pub(crate) push: bool,
+    pub(crate) no_api_compat: bool,
     pub(crate) group: Option<String>,
     pub(crate) labels: Option<String>,
     pub(crate) automerge: Option<String>,
@@ -714,6 +715,14 @@ flag_group! {
     PushFlag, {
         #[arg(long, overrides_with = "push")]
         push: bool,
+    }
+}
+
+flag_group! {
+    /// Skip the api_compat step of the deploy targets when deriving the version.
+    NoApiCompatFlag, {
+        #[arg(long = "no-api-compat", overrides_with = "no_api_compat")]
+        no_api_compat: bool,
     }
 }
 
@@ -1355,6 +1364,7 @@ command_args! {
         check: CheckFlag,
         apply: ApplyFlag,
         push: PushFlag,
+        no_api_compat: NoApiCompatFlag,
         own: ToFlag,
         commits: CommitsFlag,
     };

@@ -547,6 +547,34 @@ pub fn crates_main_checked(
     } else {
         run.resolve(semver_checks_rloc)
     };
+    if let Some(next) = std::env::var("DX_API_COMPAT_CHECK")
+        .ok()
+        .filter(|value| !value.is_empty())
+    {
+        if mode == ApiCompatMode::Off {
+            return 0;
+        }
+        let reported = crates_package_paths(&files)
+            .map_err(|error| format!("crates_deploy: {error}"))
+            .and_then(|mapped| {
+                crates_api_check(
+                    semver_checks.as_deref(),
+                    &mapped,
+                    &next,
+                    crate_name,
+                    ApiCompatMode::Warn,
+                    api_baseline,
+                    crate_dir,
+                )
+            });
+        return match reported {
+            Ok(()) => 0,
+            Err(message) => {
+                eprintln!("{message}");
+                1
+            }
+        };
+    }
     let checked = crates_package_paths(&files)
         .map_err(|error| format!("crates_deploy: {error}"))
         .and_then(|mapped| {

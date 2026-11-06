@@ -105,9 +105,30 @@ pub struct Report {
     pub bump: Bump,
     pub next: Option<String>,
     pub manifests: Vec<ManifestLine>,
+    /// Deploy targets whose api-compat check found breaking changes.
+    pub api_breaking: Vec<String>,
 }
 
 impl Report {
+    /// The next major version after the current one, which the api-compat step compares against the last tag.
+    pub fn major_candidate(&self) -> Option<String> {
+        let current = Version::parse(self.current.as_deref()?).ok()?;
+        bumped(&current, Bump::Major).map(|version| version.to_string())
+    }
+
+    /// Raises the bump to major because these deploy targets report breaking API changes.
+    pub fn raise_for_api(&mut self, targets: Vec<String>) {
+        if targets.is_empty() || self.bump == Bump::Major {
+            self.api_breaking = targets;
+            return;
+        }
+        self.api_breaking = targets;
+        if let Some(current) = self.current.as_deref().and_then(|v| Version::parse(v).ok()) {
+            self.bump = Bump::Major;
+            self.next = bumped(&current, Bump::Major).map(|v| v.to_string());
+        }
+    }
+
     pub fn out_of_sync(&self) -> usize {
         self.manifests.iter().filter(|line| !line.in_sync).count()
     }
@@ -134,6 +155,11 @@ impl Report {
             }
             (None, _) => out.push_str("next version: none (no feat, fix or breaking commits)\n"),
         }
+        for target in &self.api_breaking {
+            out.push_str(&format!(
+                "api compat: {target} reports breaking changes; the bump is major\n"
+            ));
+        }
         if self.manifests.is_empty() {
             out.push_str("manifests: none carry a version\n");
         } else {
@@ -145,6 +171,41 @@ impl Report {
         }
         out
     }
+}
+
+/// The deploy target a `_crates_config` label belongs to.
+pub fn deploy_target(config_label: &str) -> &str {
+    config_label.strip_suffix("_config").unwrap_or(config_label)
+}
+
+/// True when a deploy tool's output says cargo-semver-checks found breaking changes.
+pub fn reports_breaking(output: &str) -> bool {
+    output.lines().any(|line| {
+        line.trim()
+            .strip_prefix("api compat: ")
+            .and_then(|rest| rest.split_whitespace().next())
+            .and_then(|count| count.parse::<usize>().ok())
+            .is_some_and(|count| count > 0)
+    })
+}
+
+/// Runs `check` for each config label and returns the deploy targets that report breaking changes.
+pub fn breaking_targets(
+    config_labels: &str,
+    check: &mut dyn FnMut(&str) -> Result<String, String>,
+) -> Result<Vec<String>, String> {
+    let mut breaking = Vec::new();
+    for label in config_labels
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+    {
+        let target = deploy_target(label);
+        if reports_breaking(&check(target)?) {
+            breaking.push(target.to_owned());
+        }
+    }
+    Ok(breaking)
 }
 
 fn parse_tag(tag: &str, prefix: &str) -> Option<Version> {
@@ -225,6 +286,7 @@ pub fn plan(
         bump: if forced.is_some() { Bump::None } else { bump },
         next: next.map(|version| version.to_string()),
         manifests: lines,
+        api_breaking: Vec::new(),
     })
 }
 

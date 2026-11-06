@@ -11,7 +11,7 @@ dx release --to 2.0.0 --apply
 ```
 
 ```text
-dx release [--check [--commits <range>] | --apply [--push]] [--to <x.y.z>]
+dx release [--check [--commits <range>] | --apply [--push]] [--to <x.y.z>] [--no-api-compat]
 ```
 
 | Flag | What it does |
@@ -21,9 +21,12 @@ dx release [--check [--commits <range>] | --apply [--push]] [--to <x.y.z>]
 | `--apply` | Set the version in every manifest, run `bazel mod deps --lockfile_mode=update` when a `MODULE.bazel` changed, commit them as `release: <tag>` and create the tag. The tag is annotated and its message lists the commits since the last tag. Refuses a dirty working tree, a detached HEAD, an existing tag, or no version to release. Cannot be combined with `--check`. |
 | `--push` | With `--apply`, push the branch and the tag to `origin`. Without it, the output says `next: git push --follow-tags`. |
 | `--to <x.y.z>` | Use this version instead of the derived one, for teams that do not use conventional commits. |
+| `--no-api-compat` | Skip the api-compat step of `--check`. |
 | `--workspace`, `-q`, `-v`, `--color` | Global flags. |
 
 The base is the newest tag that starts with the tag prefix (`v` by default). With no tag, the base is the version most manifests carry. Commits since the tag decide the bump: `feat:` is minor, `fix:` and `perf:` are patch, and `!` after the type or a `BREAKING CHANGE:` footer is major. Other commits do not bump.
+
+With `--check`, every `crates_deploy` target with `api_compat` other than `off` is run in warn mode against the last tag. When any reports breaking changes, the bump becomes major and the output names the target. This needs Bazel and cargo-semver-checks; `--to` and `--apply` skip it.
 
 The manifests are `Cargo.toml`, `package.json`, `pyproject.toml`, `pubspec.yaml`, `build.gradle(.kts)`, `*.csproj`, `mix.exs`, `MODULE.bazel`, `*.gemspec` and `Chart.yaml`. A manifest that does not carry the base version is listed as out of sync.
 

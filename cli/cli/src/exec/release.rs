@@ -6,7 +6,8 @@ use std::process::Command as Process;
 use super::common::*;
 use dx_plan::args::Invocation;
 use dx_update::release::{
-    apply, changelog_section, lint, plan, prepend_section, read_config, tag_message, today,
+    apply, breaking_targets, changelog_section, lint, plan, prepend_section, read_config,
+    tag_message, today,
 };
 
 fn git(workspace: &Path, args: &[&str]) -> Option<String> {
@@ -55,7 +56,7 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
             "cannot read the git log; run dx release inside a git checkout",
         );
     };
-    let report = match plan(
+    let mut report = match plan(
         workspace,
         &config,
         tag.as_deref(),
@@ -65,6 +66,14 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(report) => report,
         Err(message) => return refusal(invocation.output, out, err, &message),
     };
+    if !invocation.apply && !invocation.no_api_compat && invocation.to.is_none() {
+        if let Some(candidate) = report.major_candidate() {
+            match api_breaking(workspace, &candidate) {
+                Ok(targets) => report.raise_for_api(targets),
+                Err(message) => return refusal(invocation.output, out, err, &message),
+            }
+        }
+    }
     if let Err(exit) = check_stdout_write(out.write_all(report.render().as_bytes())) {
         return exit;
     }
@@ -100,6 +109,34 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Err(message) => refusal(invocation.output, out, err, &message),
     }
+}
+
+fn bazel_output(workspace: &Path, args: &[&str], next: Option<&str>) -> Result<String, String> {
+    let mut command = Process::new("bazel");
+    command.args(args).current_dir(workspace);
+    if let Some(next) = next {
+        command.env("DX_API_COMPAT_CHECK", next);
+    }
+    let output = command
+        .output()
+        .map_err(|error| format!("cannot run bazel {}: {error}", args.join(" ")))?;
+    if !output.status.success() {
+        return Err(format!(
+            "bazel {} failed; pass --no-api-compat to skip the api-compat step\n{}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Runs the api-compat step of every deploy target that has it on, against the last tag.
+fn api_breaking(workspace: &Path, candidate: &str) -> Result<Vec<String>, String> {
+    let expr = "attr(api_compat, \"^(warn|fail)$\", kind(\"_crates_config rule\", //...))";
+    let labels = bazel_output(workspace, &["query", "--output=label", expr], None)?;
+    breaking_targets(&labels, &mut |target| {
+        bazel_output(workspace, &["run", target], Some(candidate))
+    })
 }
 
 fn lint_commits(

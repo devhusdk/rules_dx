@@ -191,3 +191,43 @@ fn dates_come_from_days_since_the_epoch() {
     assert_eq!(date_of_day(20_455), "2026-01-02");
     assert_eq!(date_of_day(19_782), "2024-02-29");
 }
+
+#[test]
+fn a_breaking_api_report_raises_a_refactor_only_log_to_major() {
+    let dir = workspace(&[("Cargo.toml", "1.2.3")]);
+    let log = "aaa\0refactor: drop old_fn\0\x1e";
+    let mut report = plan(dir.path(), &Config::default(), Some("v1.2.3"), log, None).expect("plan");
+    assert_eq!(report.next, None);
+    assert_eq!(report.major_candidate().as_deref(), Some("2.0.0"));
+    let mut asked = Vec::new();
+    let labels = "//pkg:lib_config\n//pkg:other_config\n";
+    let breaking = breaking_targets(labels, &mut |target| {
+        asked.push(target.to_owned());
+        Ok(if target == "//pkg:lib" {
+            "api compat: 1 breaking changes against 1.2.3\n".to_owned()
+        } else {
+            "api compat: 0 breaking changes against 1.2.3\n".to_owned()
+        })
+    })
+    .expect("targets");
+    assert_eq!(asked, ["//pkg:lib", "//pkg:other"]);
+    report.raise_for_api(breaking);
+    assert_eq!(report.next.as_deref(), Some("2.0.0"));
+    assert_eq!(report.bump, Bump::Major);
+    assert!(report
+        .render()
+        .contains("api compat: //pkg:lib reports breaking changes"));
+}
+
+#[test]
+fn skipped_api_checks_do_not_count_as_breaking() {
+    assert!(!reports_breaking(
+        "api compat: no earlier v<version> tag; skipped (first release)\n"
+    ));
+    assert!(!reports_breaking(
+        "api compat: 0 breaking changes against 1.0.0\n"
+    ));
+    assert!(reports_breaking(
+        "x\napi compat: 2 breaking changes against 1.0.0\n"
+    ));
+}

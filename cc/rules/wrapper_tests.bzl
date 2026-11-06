@@ -215,11 +215,11 @@ def _static_link_impl(ctx):
     env = analysistest.begin(ctx)
     links = [a for a in analysistest.target_actions(env) if a.mnemonic == "CppLink"]
     asserts.equals(env, 1, len(links))
-    dylibs = [f.path for f in links[0].inputs.to_list() if f.path.endswith(".dylib")]
+    dylibs = [f.path for f in links[0].inputs.to_list() if f.path.endswith(tuple(ctx.attr.suffixes))]
     asserts.equals(env, [], dylibs)
     return analysistest.end(env)
 
-_static_link_test = analysistest.make(_static_link_impl)
+_static_link_test = analysistest.make(_static_link_impl, attrs = {"suffixes": attr.string_list()})
 
 def cc_macos_static_link_test(name, target):
     """Asserts a cc_test link on macOS takes no dynamic library inputs."""
@@ -227,5 +227,16 @@ def cc_macos_static_link_test(name, target):
         name = name,
         size = "small",
         target_under_test = target,
+        suffixes = [".dylib"],
         target_compatible_with = ["@platforms//os:macos"],
+    )
+
+def cc_windows_static_link_test(name, target):
+    """Asserts a cc_test link on Windows takes no DLL import library inputs."""
+    _static_link_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        suffixes = [".if.lib"],
+        target_compatible_with = ["@platforms//os:windows"],
     )

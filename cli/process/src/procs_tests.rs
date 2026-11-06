@@ -4,12 +4,9 @@ use std::process::Command;
 #[test]
 fn this_process_is_alive_and_a_reaped_child_is_not() {
     assert!(pid_alive(std::process::id()));
-    let mut child = if cfg!(windows) {
-        Command::new("cmd").args(["/C", "exit 0"]).spawn() // LCOV_EXCL_LINE - reason: windows branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    } else {
-        Command::new("true").spawn()
-    }
-    .expect("spawn");
+    let mut child = Command::new(dx_testing::process_probe())
+        .spawn()
+        .expect("spawn");
     let pid = child.id();
     child.wait().expect("wait");
     assert!(!pid_alive(pid));
@@ -49,6 +46,7 @@ fn a_child_that_exited_with_259_is_not_alive() {
 #[cfg(windows)]
 #[test]
 fn the_live_table_has_this_process_and_its_parent() {
+    assert_eq!(boot_id(), None);
     let own = std::process::id();
     let table = process_table();
     let (_, parent, _) = table

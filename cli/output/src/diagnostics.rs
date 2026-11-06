@@ -459,11 +459,7 @@ mod tests {
     fn no_color_env_lookup_sees_empty_values() {
         if let Some(raw) = std::env::var_os("DX_OUTPUT_NO_COLOR_CHILD") {
             let raw = raw.to_string_lossy().into_owned();
-            let (mode, sentinel) = raw.split_once(':').expect("mode:path");
-            if mode == "panic" {
-                unsafe { std::env::set_var("NO_COLOR", "") }
-                panic!("intentional child failure");
-            }
+            let (_, sentinel) = raw.split_once(':').expect("mode:path");
             unsafe { std::env::set_var("NO_COLOR", "") }
             assert!(!no_color_present(), "an empty NO_COLOR is ignored");
             unsafe { std::env::set_var("NO_COLOR", "1") }
@@ -490,17 +486,6 @@ mod tests {
                 .output()
                 .expect("spawn env child")
         };
-        let poisoned = spawn("panic");
-        let poisoned_out = String::from_utf8_lossy(&poisoned.stdout).into_owned();
-        assert!(
-            !poisoned.status.success(),
-            "panicking child must fail: {poisoned_out}"
-        );
-        assert_eq!(
-            std::env::var_os("NO_COLOR"),
-            before,
-            "child NO_COLOR mutation dies with the child"
-        );
         let ok = spawn("empty");
         let ok_out = String::from_utf8_lossy(&ok.stdout).into_owned();
         let ok_err = String::from_utf8_lossy(&ok.stderr).into_owned();

@@ -291,6 +291,27 @@ mod tests {
     }
 
     #[test]
+    fn classify_reports_an_invalid_path() {
+        let err = classify(Path::new("bad\0name")).expect_err("a NUL byte is not a path");
+        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn materializes_by_copy_when_the_link_fails() {
+        let scratch = scratch("dx-fs-link-fallback-");
+        let source = scratch.path().join("source.toml");
+        std::fs::write(&source, b"config = true\n").expect("source");
+        let destination = scratch.path().join("current.toml");
+        assert_eq!(
+            materialize_file_with(&source, &destination, LinkPolicy::LinkOrCopy, &refuses_link)
+                .expect("copy fallback"),
+            Mechanism::Copied
+        );
+        assert_eq!(classify(&destination).expect("copy"), EntryKind::File);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn materializes_bytes_and_reports_the_mechanism() {
         let scratch = scratch("dx-fs-materialize-");
         let source = scratch.path().join("source.toml");
@@ -462,7 +483,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(unix)]
     fn refuses_a_link_destination_and_keeps_the_target() {
         let scratch = scratch("dx-fs-link-dest-");
         let source = scratch.path().join("source.toml");
@@ -470,7 +490,12 @@ mod tests {
         let outside = scratch.path().join("outside.toml");
         std::fs::write(&outside, b"secret\n").expect("outside");
         let destination = scratch.path().join("current.toml");
-        std::os::unix::fs::symlink(&outside, &destination).expect("plant link");
+        if skip_without_link_privileges(file_pointer(&outside, &destination)) {
+            // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            scratch.close().expect("cleanup");
+            return;
+            // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
         let err = materialize_file(&source, &destination, LinkPolicy::LinkOrCopy)
             .expect_err("a managed link is never written through");
         assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
@@ -671,6 +696,23 @@ mod tests {
         assert_eq!(classify(&pointer).expect("pointer"), EntryKind::Link);
         remove_managed(&pointer).expect("remove pointer");
         assert!(first.is_dir(), "the directory target survives removal");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn create_pointer_links_a_file() {
+        let scratch = scratch("dx-fs-file-pointer-");
+        let target = scratch.path().join("target.txt");
+        std::fs::write(&target, b"target\n").expect("target");
+        let link = scratch.path().join("link");
+        if skip_without_link_privileges(create_pointer(&target, &link, PointerKind::File)) {
+            // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            scratch.close().expect("cleanup");
+            return;
+            // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+        assert_eq!(classify(&link).expect("link"), EntryKind::Link);
+        assert_eq!(std::fs::read_link(&link).expect("identity"), target);
         scratch.close().expect("cleanup");
     }
 

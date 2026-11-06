@@ -715,13 +715,8 @@ mod tests {
 
     /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only URI, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            format!("file:///C:/out/{rel}")
-            // LCOV_EXCL_STOP - reason: end Windows-only URI, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            format!("file:///out/{rel}")
-        }
+        let root = if cfg!(windows) { "C:/out" } else { "out" };
+        format!("file:///{root}/{rel}")
     }
 
     /// The host path one fixture root plus its path parts name.

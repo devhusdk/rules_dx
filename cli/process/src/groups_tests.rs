@@ -523,6 +523,7 @@ fn a_gone_leader_still_counts_as_the_recorded_one() {
     assert!(still_recorded(&rec));
 }
 
+#[cfg(unix)]
 #[test]
 fn signalling_a_reserved_group_number_does_nothing() {
     sys::signal_group(1, 9);
@@ -557,7 +558,7 @@ fn a_stat_read_is_classified_by_its_outcome() {
 #[test]
 fn without_unix_groups_nothing_is_known_and_a_lease_is_dropped() {
     assert!(!group_alive(4000));
-    sys::signal_group(4000, 9);
+    stop_group(&recorded("77"));
     assert_eq!(sys::cmdline(4000), "");
     assert!(sys::start_time(4000).is_none());
     assert!(sys::own_groups().is_empty());
@@ -570,4 +571,69 @@ fn without_unix_groups_nothing_is_known_and_a_lease_is_dropped() {
     std::fs::write(&path, "4000 - 77 -\n").expect("lease");
     assert!(reap_in(&dir).is_empty());
     assert!(!path.exists());
+}
+
+#[test]
+fn a_recorded_line_replaces_the_lease_text() {
+    use std::io::{Read, Seek, SeekFrom};
+    let scratch = dx_test_scratch::scratch("dx-groups-line-");
+    let mut lease = GroupLease::acquire_in(scratch.path()).expect("lease");
+    lease.write_line(Some(lease_text(4000, "77")));
+    lease.write_line(Some(lease_text(4001, "78")));
+    let mut text = String::new();
+    lease.file.seek(SeekFrom::Start(0)).expect("rewind");
+    lease.file.read_to_string(&mut text).expect("lease text");
+    let recorded = parse_lease(&text).expect("parses");
+    assert_eq!((recorded.pgid, recorded.start.as_str()), (4001, "78"));
+}
+
+static STOPPED: std::sync::Mutex<Vec<i32>> = std::sync::Mutex::new(Vec::new());
+
+fn fake_stop(recorded: &Recorded) {
+    STOPPED.lock().unwrap().push(recorded.pgid);
+}
+
+fn orphaned(_recorded: &Recorded) -> Observed {
+    observed()
+}
+
+fn unreadable_leader(_recorded: &Recorded) -> Observed {
+    Observed {
+        leader: Leader::Unknown,
+        ..observed()
+    }
+}
+
+fn one_lease(dir: &Path) -> PathBuf {
+    let path = dir.join("424270-0.lock");
+    std::fs::write(&path, "4000 pid:[1] 77 boot-a\n").expect("lease");
+    path
+}
+
+#[test]
+fn a_provably_orphaned_group_is_stopped_and_its_lease_removed() {
+    let scratch = dx_test_scratch::scratch("dx-groups-orphan-");
+    let path = one_lease(scratch.path());
+    let reaped = reap_with(scratch.path(), orphaned, fake_stop);
+    assert_eq!(
+        reaped,
+        vec![Reaped {
+            pid: 424270,
+            pgid: 4000
+        }]
+    );
+    assert!(!path.exists());
+    assert!(STOPPED.lock().unwrap().contains(&4000));
+    let log = std::fs::read_to_string(scratch.path().join(LOG_NAME)).expect("log");
+    assert!(log.contains(" stop "));
+}
+
+#[test]
+fn a_group_with_an_unreadable_leader_keeps_its_lease_and_is_logged() {
+    let scratch = dx_test_scratch::scratch("dx-groups-unknown-");
+    let path = one_lease(scratch.path());
+    assert!(reap_with(scratch.path(), unreadable_leader, fake_stop).is_empty());
+    assert!(path.exists());
+    let log = std::fs::read_to_string(scratch.path().join(LOG_NAME)).expect("log");
+    assert!(log.contains(" keep-unknown "));
 }

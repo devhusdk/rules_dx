@@ -126,6 +126,21 @@ pub fn resolve_target_in_workspace(workspace: &Path, rel: &str) -> std::io::Resu
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    fn link(target: impl AsRef<Path>, link: impl AsRef<Path>) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
+
+    #[cfg(windows)]
+    fn link(target: impl AsRef<Path>, link: impl AsRef<Path>) -> std::io::Result<()> {
+        let target = target.as_ref();
+        if target.is_dir() {
+            std::os::windows::fs::symlink_dir(target, link)
+        } else {
+            std::os::windows::fs::symlink_file(target, link)
+        }
+    }
+
     #[test]
     fn resolve_in_workspace_reads_a_file_inside() {
         let dir = tempfile::tempdir().unwrap();
@@ -142,7 +157,6 @@ mod tests {
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     }
 
-    #[cfg(unix)]
     #[test]
     fn resolve_in_workspace_rejects_a_symlink_leaving_the_workspace() {
         let outer = tempfile::tempdir().unwrap();
@@ -150,22 +164,21 @@ mod tests {
         std::fs::create_dir_all(&workspace).unwrap();
         let outside = outer.path().join("uv.lock");
         std::fs::write(&outside, "x").unwrap();
-        std::os::unix::fs::symlink(&outside, workspace.join("uv.lock")).unwrap();
+        link(&outside, workspace.join("uv.lock")).unwrap();
         let error = resolve_in_workspace(&workspace, "uv.lock").unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
         assert!(error.to_string().contains(LEAVES_WORKSPACE), "{error}");
     }
 
-    #[cfg(unix)]
     #[test]
     fn resolve_in_workspace_follows_a_symlink_inside_the_workspace() {
         let outer = tempfile::tempdir().unwrap();
         let real = outer.path().join("real");
         std::fs::create_dir_all(real.join("locks")).unwrap();
         std::fs::write(real.join("locks/uv.lock"), "x").unwrap();
-        std::os::unix::fs::symlink(real.join("locks/uv.lock"), real.join("uv.lock")).unwrap();
+        link(real.join("locks/uv.lock"), real.join("uv.lock")).unwrap();
         let linked = outer.path().join("linked");
-        std::os::unix::fs::symlink(&real, &linked).unwrap();
+        link(&real, &linked).unwrap();
         let resolved = resolve_in_workspace(&linked, "uv.lock").unwrap();
         assert_eq!(std::fs::read_to_string(resolved).unwrap(), "x");
     }
@@ -178,7 +191,6 @@ mod tests {
         assert_eq!(std::fs::read_to_string(resolved).unwrap(), "x");
     }
 
-    #[cfg(unix)]
     #[test]
     fn target_existing_outside_is_rejected() {
         let outer = tempfile::tempdir().unwrap();
@@ -197,11 +209,10 @@ mod tests {
         assert_ne!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
 
-    #[cfg(unix)]
     #[test]
     fn target_under_a_dangling_parent_link_is_rejected() {
         let dir = tempfile::tempdir().unwrap();
-        std::os::unix::fs::symlink(dir.path().join("nope"), dir.path().join("apps")).unwrap();
+        link(dir.path().join("nope"), dir.path().join("apps")).unwrap();
         let error = resolve_target_in_workspace(dir.path(), "apps/uv.lock").unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
@@ -213,7 +224,6 @@ mod tests {
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
 
-    #[cfg(unix)]
     #[test]
     fn target_missing_leaf_with_parent_inside_is_accepted() {
         let dir = tempfile::tempdir().unwrap();
@@ -222,18 +232,16 @@ mod tests {
         assert!(resolved.ends_with("apps/uv.lock"));
     }
 
-    #[cfg(unix)]
     #[test]
     fn target_dangling_leaf_link_is_rejected() {
         let outer = tempfile::tempdir().unwrap();
         let workspace = outer.path().join("ws");
         std::fs::create_dir_all(&workspace).unwrap();
-        std::os::unix::fs::symlink(outer.path().join("nope"), workspace.join("uv.lock")).unwrap();
+        link(outer.path().join("nope"), workspace.join("uv.lock")).unwrap();
         let error = resolve_target_in_workspace(&workspace, "uv.lock").unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
 
-    #[cfg(unix)]
     #[test]
     fn target_under_a_parent_linking_outside_is_rejected() {
         let outer = tempfile::tempdir().unwrap();
@@ -241,12 +249,11 @@ mod tests {
         let outside = outer.path().join("out");
         std::fs::create_dir_all(&workspace).unwrap();
         std::fs::create_dir_all(&outside).unwrap();
-        std::os::unix::fs::symlink(&outside, workspace.join("apps")).unwrap();
+        link(&outside, workspace.join("apps")).unwrap();
         let error = resolve_target_in_workspace(&workspace, "apps/uv.lock").unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
 
-    #[cfg(unix)]
     #[test]
     fn target_under_a_missing_parent_inside_is_accepted() {
         let dir = tempfile::tempdir().unwrap();

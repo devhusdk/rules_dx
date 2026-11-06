@@ -31,6 +31,7 @@ def dx_rust_crate(
         srcs = None,
         test_srcs = None,
         unix_srcs = None,
+        windows_srcs = None,
         compile_data = None,
         size = "small",
         testonly = None,
@@ -39,9 +40,9 @@ def dx_rust_crate(
     crate = name if crate_name == None else crate_name
     lib_srcs = srcs or ["src/lib.rs"]
     platform_srcs = select({
-        "@platforms//os:windows": [],
-        "//conditions:default": unix_srcs,
-    }) if unix_srcs else []
+        "@platforms//os:windows": windows_srcs or [],
+        "//conditions:default": unix_srcs or [],
+    }) if unix_srcs or windows_srcs else []
     if test_srcs and srcs == None:
         fail("dx_rust_crate test_srcs needs srcs")
     overlap = [src for src in (test_srcs or []) if src in lib_srcs]

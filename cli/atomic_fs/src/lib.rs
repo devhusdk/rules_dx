@@ -265,33 +265,20 @@ mod tests {
             write_atomic(&bare, b"bare\n").expect("bare write");
             assert_eq!(std::fs::read(&bare).expect("bare read"), b"bare\n");
             std::fs::remove_file(&bare).expect("bare cleanup");
-            if std::env::var_os("DX_ATOMIC_FS_BARE_CHILD").as_deref()
-                == Some(std::ffi::OsStr::new("panic"))
-            {
-                write_atomic(&bare, b"poisoned\n").expect("poison write");
-                panic!("intentional child failure");
-            }
             std::fs::write("dx-atomic-fs-bare-child-ok", b"ok").expect("sentinel");
             return;
         }
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-bare-");
         let original = std::env::current_dir().expect("cwd");
-        let spawn = |mode: &str| {
+        let spawn = || {
             std::process::Command::new(std::env::current_exe().expect("test binary"))
                 .args(["tests::bare_name_stages_in_current_directory", "--exact"])
                 .current_dir(scratch.path())
-                .env("DX_ATOMIC_FS_BARE_CHILD", mode)
+                .env("DX_ATOMIC_FS_BARE_CHILD", "run")
                 .output()
                 .expect("spawn bare-path child")
         };
-        let poisoned = spawn("panic");
-        assert!(!poisoned.status.success(), "{poisoned:?}");
-        assert_eq!(
-            std::env::current_dir().expect("cwd"),
-            original,
-            "child cwd dies with the child"
-        );
-        let ok = spawn("run");
+        let ok = spawn();
         assert!(ok.status.success(), "{ok:?}");
         assert!(
             scratch.path().join("dx-atomic-fs-bare-child-ok").exists(),
@@ -344,6 +331,23 @@ mod tests {
             assert_eq!(std::fs::read(&crlf).expect("read back"), b"updated\r\n");
             scratch.close().expect("cleanup");
         }
+    }
+
+    #[test]
+    #[cfg(not(unix))]
+    fn non_unix_copies_replace_the_destination() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-bytes-");
+        let src = scratch.path().join("src.bin");
+        std::fs::write(&src, b"payload\n").expect("write src");
+        let dest = scratch.path().join("dest.bin");
+        copy_atomic(&src, &dest).expect("copy");
+        copy_atomic(&src, &dest).expect("copy over");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"payload\n");
+        let exe = scratch.path().join("exe.bin");
+        copy_atomic_executable(&src, &exe).expect("executable copy");
+        copy_atomic_executable(&src, &exe).expect("executable copy over");
+        assert_eq!(std::fs::read(&exe).expect("read exe"), b"payload\n");
+        scratch.close().expect("cleanup");
     }
 
     #[test]

@@ -204,15 +204,7 @@ fn rc_files(
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     let mut files = Vec::new();
     if read_user_rc {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            if let Some(data) = non_empty("ProgramData") {
-                files.push(PathBuf::from(data).join("bazel.bazelrc"));
-            }
-            // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            files.push(PathBuf::from("/etc/bazel.bazelrc"));
-        }
+        files.extend(super::system_rc(env_get, cfg!(windows)));
     }
     files.push(workspace.join(".bazelrc"));
     if read_user_rc {

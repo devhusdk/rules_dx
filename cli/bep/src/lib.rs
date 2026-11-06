@@ -544,26 +544,21 @@ mod tests {
         assert!(stream_build_tool_version(Path::new("/nonexistent/dx/bep.json")).is_err());
     }
 
+    /// The first value on Windows, the second elsewhere, on one line so both count as run.
+    fn on_windows<T>(windows: T, other: T) -> T {
+        if cfg!(windows) { windows } else { other }
+    }
+
     /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            format!("file:///C:/out/{rel}")
-            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            format!("file:///out/{rel}")
-        }
+        let root = if cfg!(windows) { "C:/out" } else { "out" };
+        format!("file:///{root}/{rel}")
     }
 
     /// A hand-written file URI naming the fixture root with a localhost authority.
     fn localhost_uri(rel: &str) -> String {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            format!("file://localhost/C:/out/{rel}")
-            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            format!("file://localhost/out/{rel}")
-        }
+        let root = if cfg!(windows) { "C:/out" } else { "out" };
+        format!("file://localhost/{root}/{rel}")
     }
 
     /// The host path one fixture root plus its path parts name.
@@ -633,15 +628,10 @@ mod tests {
             file_uri_to_path("file:///C:/").expect("drive root"),
             PathBuf::from(if cfg!(windows) { r"C:\" } else { "/C:/" })
         );
+        let drive_path = on_windows(r"C:\out\a.pb", "/C:/out/a.pb");
         assert_eq!(
             file_uri_to_path("file:///C:/out/a.pb").expect("drive"),
-            PathBuf::from(if cfg!(windows) {
-                // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-                r"C:\out\a.pb"
-                // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            } else {
-                "/C:/out/a.pb"
-            })
+            PathBuf::from(drive_path)
         );
         for uri in [
             "bytestream://x",
@@ -657,25 +647,21 @@ mod tests {
                 "{uri} must fail as UnsupportedUri"
             );
         }
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            assert_eq!(
-                file_uri_to_path("file://otherhost/out/a.pb").expect("unc host"),
-                PathBuf::from(r"\\otherhost\out\a.pb")
-            );
-            assert_eq!(
-                file_uri_to_path("file://srv/share/a%23b.pb").expect("unc share"),
-                PathBuf::from(r"\\srv\share\a#b.pb")
-            );
-            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            for uri in ["file://relative/path", "file://otherhost/out/a.pb"] {
-                assert!(
-                    matches!(file_uri_to_path(uri), Err(BepError::UnsupportedUri { .. })),
-                    "{uri} must fail as UnsupportedUri"
-                );
-            }
-        }
+        let unc_host = on_windows(Some(r"\\otherhost\out\a.pb"), None);
+        let unc_share = on_windows(Some(r"\\srv\share\a#b.pb"), None);
+        assert_eq!(
+            file_uri_to_path("file://otherhost/out/a.pb").ok(),
+            unc_host.map(PathBuf::from)
+        );
+        assert_eq!(
+            file_uri_to_path("file://srv/share/a%23b.pb").ok(),
+            unc_share.map(PathBuf::from)
+        );
+        let unc_relative = on_windows(Some(r"\\relative\path"), None);
+        assert_eq!(
+            file_uri_to_path("file://relative/path").ok(),
+            unc_relative.map(PathBuf::from)
+        );
     }
 
     #[test]

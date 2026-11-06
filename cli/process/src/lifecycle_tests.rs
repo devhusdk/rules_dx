@@ -126,6 +126,19 @@ fn signal_exit_is_distinct_from_an_exit_code() {
     }
     assert_eq!(Exit::Code(0).code(), Some(0));
     assert_eq!(Exit::Signal(15).code(), None);
+    assert_eq!(exit_from(Some(1), Some(9)), Exit::Code(1));
+    assert_eq!(exit_from(None, Some(9)), Exit::Signal(9));
+    assert_eq!(exit_from(None, None), Exit::Signal(0));
+}
+
+#[test]
+fn polling_a_running_child_gives_up_at_the_deadline() {
+    let mut command = Command::new(dx_testing::process_probe());
+    command.arg("--sleep-ms=30000");
+    let mut owned = backend::spawn_owned(&mut command, Descendants::Owned).expect("probe spawns");
+    assert!(poll_exit(&mut owned, Instant::now()).is_none());
+    backend::terminate_forced(&mut owned);
+    assert!(poll_exit(&mut owned, Instant::now() + Duration::from_secs(10)).is_some());
 }
 
 #[cfg(unix)]
@@ -435,10 +448,17 @@ fn an_owned_run_kills_a_detached_server() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-server");
     let lock = scratch.path().join("server.alive");
     let spec = daemon_probe(&lock, 0, Descendants::Owned);
-    match run_within(&spec, INTERACTIVE).expect("probe runs") {
-        ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
-        outcome => panic!("the probe must finish, got {outcome:?}"),
-    }
+    let outcome = run_within(&spec, INTERACTIVE).expect("probe runs");
+    assert!(
+        matches!(
+            outcome,
+            ChildOutcome::Finished {
+                exit: Exit::Code(0),
+                ..
+            }
+        ),
+        "{outcome:?}"
+    );
     assert_released(&lock);
 }
 
@@ -981,9 +1001,9 @@ fn owned_child_gets_every_forwarded_sigint() {
     let scratch = dx_test_scratch::scratch("dx-forward-owned");
     let (mut child, log) = counting_probe(scratch.path());
     let target = -(child.0.id() as i32);
-    forward(target, 2);
+    backend::send(target, 2);
     assert_eq!(sigints(&log, 1), 1);
-    forward(target, 2);
+    backend::send(target, 2);
     assert_eq!(sigints(&log, 2), 2);
     assert_survived(&mut child);
 }
@@ -1511,12 +1531,93 @@ fn streamed_held_tree_dies_with_parent_crash() {
 }
 
 #[test]
-fn stream_group_is_owned_without_a_terminal() {
-    if !terminal_foreground() {
-        assert!(matches!(stream_group(), StreamGroup::Owned));
-        // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
-    // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+fn stream_group_follows_the_terminal_foreground() {
+    assert_eq!(stream_group_for(true), StreamGroup::Terminal);
+    assert_eq!(stream_group_for(false), StreamGroup::Owned);
+    assert_eq!(stream_group(), stream_group_for(terminal_foreground()));
+}
+
+#[test]
+fn a_stop_seen_after_spawning_cancels_the_run() {
+    let sink = Sink::default();
+    let spec = streamed(probe_argv(&["--sleep-ms=30000"]), &sink, StreamGroup::Owned);
+    let calls = std::sync::atomic::AtomicUsize::new(0);
+    let stop = || (calls.fetch_add(1, Ordering::SeqCst) > 0).then_some(2);
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &stop).expect("stop is an outcome"),
+        StreamOutcome::Cancelled { signal: 2 }
+    );
+}
+
+static FAKE_ALIVE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static FAKE_SENT: Mutex<Vec<(i32, i32)>> = Mutex::new(Vec::new());
+static FAKE_TREE_LOCK: Mutex<()> = Mutex::new(());
+
+fn fake_alive(_target: i32) -> bool {
+    let left = FAKE_ALIVE.load(Ordering::SeqCst);
+    FAKE_ALIVE.store(left.saturating_sub(1), Ordering::SeqCst);
+    left > 0
+}
+
+fn fake_send(target: i32, signo: i32) {
+    FAKE_SENT.lock().unwrap().push((target, signo));
+}
+
+fn fake_kill(target: i32) {
+    fake_send(target, 9);
+}
+
+const FAKE_TREE: Tree = Tree {
+    alive: fake_alive,
+    send: fake_send,
+    kill: fake_kill,
+};
+
+fn fake_tree(alive_checks: usize) -> std::sync::MutexGuard<'static, ()> {
+    let guard = FAKE_TREE_LOCK.lock().unwrap();
+    FAKE_ALIVE.store(alive_checks, Ordering::SeqCst);
+    FAKE_SENT.lock().unwrap().clear();
+    guard
+}
+
+#[test]
+fn a_leftover_tree_is_asked_to_withdraw_only_while_it_runs() {
+    let _tree = fake_tree(1);
+    assert!(withdraw_leftover(&FAKE_TREE, 7));
+    assert!(!withdraw_leftover(&FAKE_TREE, 7));
+    assert_eq!(*FAKE_SENT.lock().unwrap(), vec![(7, WITHDRAW_SIGNAL)]);
+}
+
+#[test]
+fn a_tree_that_outlives_the_graceful_wait_is_killed() {
+    let _tree = fake_tree(usize::MAX);
+    let budget = CleanupBudget {
+        graceful: Duration::from_millis(20),
+        forced: Duration::ZERO,
+        drain: Duration::ZERO,
+    };
+    settle_owned_tree(&FAKE_TREE, 7, budget);
+    assert_eq!(*FAKE_SENT.lock().unwrap(), vec![(7, 9)]);
+}
+
+#[test]
+fn a_tree_that_ends_in_the_graceful_wait_is_not_killed() {
+    let _tree = fake_tree(0);
+    settle_owned_tree(&FAKE_TREE, 7, STREAM_BUDGET);
+    assert!(FAKE_SENT.lock().unwrap().is_empty());
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_has_no_terminal_job_and_no_signals() {
+    install_console_stop();
+    assert!(backend::TerminalJob::start().is_none());
+    let job = backend::TerminalJob;
+    assert_eq!(job.pgid(), 0);
+    assert_eq!(job.take_reported(), None);
+    job.tend(1);
+    backend::send_kill(1);
+    assert!(!backend::tree_alive(1));
 }
 
 #[cfg(unix)]
@@ -1615,12 +1716,30 @@ fn a_stop_reaches_only_the_runs_still_registered() {
     let first = Forwarding::register_in(&TABLE, -(a.0.id() as i32));
     let mut second = Forwarding::register_in(&TABLE, -(b.0.id() as i32));
     second.clear();
-    forward_from(&TABLE, 2, ignore);
+    forward_from(&TABLE, 2, ignore, backend::send);
     assert_eq!(sigints(&a_log, 1), 1);
     assert_eq!(sigints(&b_log, 1), 0);
     assert!(first.claimed());
     assert!(!second.claimed());
     assert_survived(&mut a);
+}
+
+#[test]
+fn a_stop_is_recorded_and_sent_to_each_registered_run() {
+    static TABLE: [Slot; 2] = [const { Slot::new() }; 2];
+    static RECORDED: AtomicI32 = AtomicI32::new(0);
+    static SENT: Mutex<Vec<(i32, i32)>> = Mutex::new(Vec::new());
+    fn record(signo: i32) {
+        RECORDED.store(signo, Ordering::SeqCst);
+    }
+    fn send(target: i32, signo: i32) {
+        SENT.lock().unwrap().push((target, signo));
+    }
+    let registered = Forwarding::register_in(&TABLE, 4242);
+    forward_from(&TABLE, 2, record, send);
+    assert_eq!(RECORDED.load(Ordering::SeqCst), 2);
+    assert_eq!(*SENT.lock().unwrap(), vec![(4242, 2)]);
+    assert!(registered.claimed());
 }
 
 #[test]

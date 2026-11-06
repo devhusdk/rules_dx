@@ -407,13 +407,8 @@ mod tests {
 
     /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
-        if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only URI, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            format!("file:///C:/out/{rel}")
-            // LCOV_EXCL_STOP - reason: end Windows-only URI, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            format!("file:///out/{rel}")
-        }
+        let root = if cfg!(windows) { "C:/out" } else { "out" };
+        format!("file:///{root}/{rel}")
     }
 
     /// The host path one slash-separated relative name under the fixture root names.
@@ -1055,18 +1050,13 @@ mod tests {
     fn reports_read_the_filenames_their_uris_name() {
         let dir = tempfile::TempDir::new().expect("scratch");
         let root = dx_path::manifest(dir.path());
-        let names: &[(&str, &str)] = if cfg!(windows) {
-            // LCOV_EXCL_START - reason: Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            &[("a b.pb", "a%20b.pb"), ("a%20b.pb", "a%2520b.pb")]
-            // LCOV_EXCL_STOP - reason: end Windows-only branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        } else {
-            &[
-                ("a b.pb", "a%20b.pb"),
-                ("a%20b.pb", "a%2520b.pb"),
-                ("a#b.pb", "a%23b.pb"),
-                ("a?b.pb", "a%3Fb.pb"),
-            ]
-        };
+        let all = [
+            ("a b.pb", "a%20b.pb"),
+            ("a%20b.pb", "a%2520b.pb"),
+            ("a#b.pb", "a%23b.pb"),
+            ("a?b.pb", "a%3Fb.pb"),
+        ];
+        let names = &all[..if cfg!(windows) { 2 } else { 4 }];
         let mut uris = Vec::new();
         for (name, escaped) in names {
             let path = dir.path().join(name);

@@ -257,11 +257,9 @@ pub fn run_command_until(
         }
         None => {
             backend::terminate_graceful(&mut owned);
-            let exit = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
+            let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
             backend::terminate_forced(&mut owned);
-            if exit.is_none() {
-                let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
-            }
+            let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
             let _ = collect(&stdout_rx, hard);
             let _ = collect(&stderr_rx, hard);
             Ok(ChildOutcome::TimedOut)
@@ -282,10 +280,13 @@ fn apply_env(command: &mut Command, env: &EnvPolicy) {
 }
 
 pub(crate) fn exit_of(status: &ExitStatus) -> Exit {
-    if let Some(code) = status.code() {
-        Exit::Code(code)
-    } else {
-        Exit::Signal(backend::termination_signal(status).unwrap_or(0))
+    exit_from(status.code(), backend::termination_signal(status))
+}
+
+fn exit_from(code: Option<i32>, signal: Option<i32>) -> Exit {
+    match code {
+        Some(code) => Exit::Code(code),
+        None => Exit::Signal(signal.unwrap_or(0)),
     }
 }
 
@@ -462,11 +463,11 @@ pub fn console_stop_signal(ctrl_type: u32) -> Option<i32> {
 /// Records a stop signal and forwards it once to each running child's group; safe inside a signal handler.
 // LCOV_EXCL_START - reason: the signal handler entry records a process-wide interrupt, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 pub fn forward_stop(signo: i32) {
-    forward_from(&FORWARDS, signo, crate::record_interrupt);
+    forward_from(&FORWARDS, signo, crate::record_interrupt, backend::send);
 }
 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
-fn forward_from(slots: &[Slot], signo: i32, record: fn(i32)) {
+fn forward_from(slots: &[Slot], signo: i32, record: fn(i32), send: fn(i32, i32)) {
     let mut targets = [0; FORWARD_SLOTS];
     for (copy, slot) in targets.iter_mut().zip(slots) {
         let target = slot.target.load(Ordering::SeqCst);
@@ -478,13 +479,9 @@ fn forward_from(slots: &[Slot], signo: i32, record: fn(i32)) {
     record(signo);
     for target in targets {
         if target != 0 {
-            forward(target, signo);
+            send(target, signo);
         }
     }
-}
-
-fn forward(target: i32, signo: i32) {
-    backend::send(target, signo);
 }
 
 /// Whether this process is in the foreground group of its controlling terminal.
@@ -494,8 +491,12 @@ pub fn terminal_foreground() -> bool {
 
 /// The group a streamed child joins: the terminal foreground when this process holds it, else its own.
 pub fn stream_group() -> StreamGroup {
-    if terminal_foreground() {
-        StreamGroup::Terminal // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+    stream_group_for(terminal_foreground())
+}
+
+fn stream_group_for(foreground: bool) -> StreamGroup {
+    if foreground {
+        StreamGroup::Terminal
     } else {
         StreamGroup::Owned
     }
@@ -710,17 +711,10 @@ pub(crate) fn run_streamed_in(
     if stopped.is_none() {
         stopped = stop();
     }
-    let settle = if stopped.is_some() || withdrawn {
-        true
-    } else if owned && backend::tree_alive(target) {
-        backend::send(target, WITHDRAW_SIGNAL);
-        true
-    } else {
-        false
-    };
+    let settle = stopped.is_some() || withdrawn || (owned && withdraw_leftover(&OS_TREE, target));
     if settle {
         if owned {
-            settle_owned_tree(target, cleanup);
+            settle_owned_tree(&OS_TREE, target, cleanup);
         }
         let until = Instant::now() + cleanup.forced;
         while !drained.is_empty() && Instant::now() < until {
@@ -749,16 +743,38 @@ fn record_reported(job: &backend::TerminalJob) {
 }
 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
-fn settle_owned_tree(target: i32, cleanup: CleanupBudget) {
-    if !wait_tree_gone(target, Instant::now() + cleanup.graceful) {
-        backend::send_kill(target);
-        let _ = wait_tree_gone(target, Instant::now() + cleanup.forced);
+/// How the run reaches an owned tree; tests swap in fakes.
+struct Tree {
+    alive: fn(i32) -> bool,
+    send: fn(i32, i32),
+    kill: fn(i32),
+}
+
+const OS_TREE: Tree = Tree {
+    alive: backend::tree_alive,
+    send: backend::send,
+    kill: backend::send_kill,
+};
+
+/// Asks an owned tree that is still running to withdraw; false when it is gone.
+fn withdraw_leftover(tree: &Tree, target: i32) -> bool {
+    let alive = (tree.alive)(target);
+    if alive {
+        (tree.send)(target, WITHDRAW_SIGNAL);
+    }
+    alive
+}
+
+fn settle_owned_tree(tree: &Tree, target: i32, cleanup: CleanupBudget) {
+    if !wait_tree_gone(tree, target, Instant::now() + cleanup.graceful) {
+        (tree.kill)(target);
+        let _ = wait_tree_gone(tree, target, Instant::now() + cleanup.forced);
     }
 }
 
-fn wait_tree_gone(target: i32, until: Instant) -> bool {
+fn wait_tree_gone(tree: &Tree, target: i32, until: Instant) -> bool {
     loop {
-        if !backend::tree_alive(target) {
+        if !(tree.alive)(target) {
             return true;
         }
         let now = Instant::now();
@@ -812,6 +828,13 @@ mod terminal;
 #[path = "lifecycle_unix.rs"]
 mod unix_backend;
 
+#[cfg(windows)]
+#[path = "lifecycle_windows.rs"]
+mod windows_backend;
+
+#[cfg(all(windows, test))]
+pub(crate) use windows_backend::console_stop;
+
 mod backend {
     /// Which process group a streamed child joins.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -826,558 +849,24 @@ mod backend {
     }
 
     #[cfg(unix)]
-    use super::unix_backend as unix;
-
-    #[cfg(windows)]
-    mod windows {
-        use super::super::{Command, Descendants, ExitStatus};
-        use std::ffi::c_void;
-        use std::io;
-        use std::os::windows::io::AsRawHandle;
-        use std::process::{ChildStderr, ChildStdout};
-
-        type Handle = *mut c_void;
-
-        unsafe extern "system" fn console_stop(ctrl_type: u32) -> i32 {
-            match super::super::console_stop_signal(ctrl_type) {
-                Some(signo) => {
-                    crate::record_interrupt(signo);
-                    1
-                }
-                None => 0,
-            }
-        }
-
-        /// Makes Ctrl-C and Ctrl-Break record a stop like SIGINT. Every process on the console gets the event itself, so nothing is forwarded.
-        pub fn install_console_stop() {
-            // SAFETY: registers a static function that only records the stop.
-            unsafe {
-                // A parent that started dx with Ctrl-C disabled passes that on; dx wants the event.
-                SetConsoleCtrlHandler(None, 0);
-                SetConsoleCtrlHandler(Some(console_stop), 1);
-            }
-        }
-
-        const KILL_ON_JOB_CLOSE: u32 = 0x2000;
-        const JOB_OBJECT_LIMIT_BREAKAWAY_OK: u32 = 0x800;
-        const CREATE_SUSPENDED: u32 = 0x4;
-        const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
-        const ERROR_ACCESS_DENIED: i32 = 5;
-        const TH32CS_SNAPTHREAD: u32 = 0x4;
-        const THREAD_SUSPEND_RESUME: u32 = 0x2;
-        const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: i32 = 9;
-        const JOB_OBJECT_BASIC_PROCESS_ID_LIST: i32 = 3;
-        const PROCESS_TERMINATE: u32 = 0x1;
-        const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
-        const ERROR_MORE_DATA: i32 = 234;
-        const LIST_ATTEMPTS: usize = 8;
-
-        #[repr(C)]
-        struct BasicLimit {
-            per_process_user_time_limit: i64,
-            per_job_user_time_limit: i64,
-            limit_flags: u32,
-            minimum_working_set_size: usize,
-            maximum_working_set_size: usize,
-            active_process_limit: u32,
-            affinity: usize,
-            priority_class: u32,
-            scheduling_class: u32,
-        }
-
-        #[repr(C)]
-        struct IoCounters {
-            read_operation_count: u64,
-            write_operation_count: u64,
-            other_operation_count: u64,
-            read_transfer_count: u64,
-            write_transfer_count: u64,
-            other_transfer_count: u64,
-        }
-
-        #[repr(C)]
-        struct ExtendedLimit {
-            basic: BasicLimit,
-            io: IoCounters,
-            process_memory_limit: usize,
-            job_memory_limit: usize,
-            peak_process_memory_used: usize,
-            peak_job_memory_used: usize,
-        }
-
-        unsafe extern "system" {
-            fn SetConsoleCtrlHandler(
-                handler: Option<unsafe extern "system" fn(u32) -> i32>,
-                add: i32,
-            ) -> i32;
-            fn CreateJobObjectW(attributes: *const c_void, name: *const u16) -> Handle;
-            fn SetInformationJobObject(
-                handle: Handle,
-                class: i32,
-                info: *const c_void,
-                len: u32,
-            ) -> i32;
-            fn AssignProcessToJobObject(job: Handle, process: Handle) -> i32;
-            fn TerminateJobObject(job: Handle, exit_code: u32) -> i32;
-            fn QueryInformationJobObject(
-                job: Handle,
-                class: i32,
-                info: *mut c_void,
-                len: u32,
-                returned: *mut u32,
-            ) -> i32;
-            fn GetConsoleProcessList(list: *mut u32, count: u32) -> u32;
-            fn OpenProcess(access: u32, inherit: i32, process_id: u32) -> Handle;
-            fn IsProcessInJob(process: Handle, job: Handle, result: *mut i32) -> i32;
-            fn TerminateProcess(process: Handle, exit_code: u32) -> i32;
-            fn CloseHandle(handle: Handle) -> i32;
-            fn CreateToolhelp32Snapshot(flags: u32, process_id: u32) -> Handle;
-            fn Thread32First(snapshot: Handle, entry: *mut ThreadEntry) -> i32;
-            fn Thread32Next(snapshot: Handle, entry: *mut ThreadEntry) -> i32;
-            fn OpenThread(access: u32, inherit: i32, thread_id: u32) -> Handle;
-            fn ResumeThread(thread: Handle) -> u32;
-        }
-
-        #[repr(C)]
-        struct ThreadEntry {
-            size: u32,
-            usage: u32,
-            thread_id: u32,
-            owner_process_id: u32,
-            base_priority: i32,
-            delta_priority: i32,
-            flags: u32,
-        }
-
-        fn resume_threads(pid: u32) -> io::Result<()> {
-            let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
-            if snapshot.is_null() || snapshot as isize == -1 {
-                return Err(io::Error::last_os_error());
-            }
-            let mut entry: ThreadEntry = unsafe { std::mem::zeroed() };
-            entry.size = std::mem::size_of::<ThreadEntry>() as u32;
-            let mut resumed = 0usize;
-            let mut failure = None;
-            let mut more = unsafe { Thread32First(snapshot, &mut entry) } != 0;
-            while more {
-                if entry.owner_process_id == pid {
-                    let thread = unsafe { OpenThread(THREAD_SUSPEND_RESUME, 0, entry.thread_id) };
-                    if thread.is_null() {
-                        failure = Some(io::Error::last_os_error());
-                        break;
-                    }
-                    let previous = unsafe { ResumeThread(thread) };
-                    let err = io::Error::last_os_error();
-                    unsafe {
-                        CloseHandle(thread);
-                    }
-                    if previous == u32::MAX {
-                        failure = Some(err);
-                        break;
-                    }
-                    resumed += 1;
-                }
-                more = unsafe { Thread32Next(snapshot, &mut entry) } != 0;
-            }
-            unsafe {
-                CloseHandle(snapshot);
-            }
-            match failure {
-                Some(err) => Err(err),
-                None if resumed == 0 => Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "the suspended child has no thread",
-                )),
-                None => Ok(()),
-            }
-        }
-
-        fn console_members() -> Vec<u32> {
-            let mut list = vec![0u32; 64];
-            for _ in 0..LIST_ATTEMPTS {
-                let count =
-                    unsafe { GetConsoleProcessList(list.as_mut_ptr(), list.len() as u32) } as usize;
-                if count <= list.len() {
-                    list.truncate(count);
-                    return list;
-                }
-                list.resize(count + 16, 0);
-            }
-            Vec::new()
-        }
-
-        struct Job {
-            handle: Handle,
-            descendants: Descendants,
-        }
-
-        impl Job {
-            fn create(descendants: Descendants) -> io::Result<Job> {
-                let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
-                if handle.is_null() {
-                    return Err(io::Error::last_os_error());
-                }
-                let mut info: ExtendedLimit = unsafe { std::mem::zeroed() };
-                info.basic.limit_flags = match descendants {
-                    Descendants::Owned => KILL_ON_JOB_CLOSE,
-                    Descendants::Detachable => JOB_OBJECT_LIMIT_BREAKAWAY_OK,
-                };
-                let applied = unsafe {
-                    SetInformationJobObject(
-                        handle,
-                        JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
-                        std::ptr::addr_of!(info) as *const c_void,
-                        std::mem::size_of::<ExtendedLimit>() as u32,
-                    )
-                };
-                if applied == 0 {
-                    let err = io::Error::last_os_error();
-                    unsafe {
-                        CloseHandle(handle);
-                    }
-                    return Err(err);
-                }
-                Ok(Job {
-                    handle,
-                    descendants,
-                })
-            }
-
-            fn assign(&self, child: &std::process::Child) -> io::Result<()> {
-                let process = child.as_raw_handle() as Handle;
-                let assigned = unsafe { AssignProcessToJobObject(self.handle, process) };
-                if assigned == 0 {
-                    Err(io::Error::last_os_error())
-                } else {
-                    Ok(())
-                }
-            }
-
-            fn terminate(&self) {
-                unsafe {
-                    TerminateJobObject(self.handle, 1);
-                }
-            }
-
-            fn members(&self) -> Option<Vec<u32>> {
-                let header = 8 / std::mem::size_of::<usize>();
-                let mut capacity = 64usize;
-                for _ in 0..LIST_ATTEMPTS {
-                    let mut buffer = vec![0usize; header + capacity];
-                    let queried = unsafe {
-                        QueryInformationJobObject(
-                            self.handle,
-                            JOB_OBJECT_BASIC_PROCESS_ID_LIST,
-                            buffer.as_mut_ptr() as *mut c_void,
-                            (buffer.len() * std::mem::size_of::<usize>()) as u32,
-                            std::ptr::null_mut(),
-                        )
-                    } != 0;
-                    let err = io::Error::last_os_error();
-                    let counts = buffer.as_ptr() as *const u32;
-                    let (assigned, listed) = unsafe { (*counts as usize, *counts.add(1) as usize) };
-                    if queried && assigned <= listed {
-                        let listed = listed.min(capacity);
-                        return Some(
-                            buffer[header..header + listed]
-                                .iter()
-                                .map(|&pid| pid as u32)
-                                .collect(),
-                        );
-                    }
-                    if !queried && err.raw_os_error() != Some(ERROR_MORE_DATA) {
-                        return None;
-                    }
-                    capacity = (assigned + 16).max(capacity * 2);
-                }
-                None
-            }
-
-            fn kill_member(&self, pid: u32) {
-                let process = unsafe {
-                    OpenProcess(
-                        PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION,
-                        0,
-                        pid,
-                    )
-                };
-                if process.is_null() {
-                    return;
-                }
-                let mut inside = 0;
-                unsafe {
-                    if IsProcessInJob(process, self.handle, &mut inside) != 0 && inside != 0 {
-                        TerminateProcess(process, 1);
-                    }
-                    CloseHandle(process);
-                }
-            }
-
-            fn stop_attached(&self) -> bool {
-                let members = self.members();
-                let console = console_members();
-                let Some(targets) = super::super::attached_targets(
-                    std::process::id(),
-                    members.as_deref(),
-                    &console,
-                ) else {
-                    return false;
-                };
-                for pid in targets {
-                    self.kill_member(pid);
-                }
-                true
-            }
-
-            fn stop(&self) {
-                // Without a console this ends the whole job, server included; see
-                // docs/cli/commands/completion.md.
-                if self.descendants == Descendants::Owned || !self.stop_attached() {
-                    self.terminate();
-                }
-            }
-        }
-
-        impl Drop for Job {
-            fn drop(&mut self) {
-                if self.descendants == Descendants::Detachable {
-                    // No console: nothing is killed, so a normal exit leaves the server alone.
-                    self.stop_attached();
-                }
-                unsafe {
-                    CloseHandle(self.handle);
-                }
-            }
-        }
-
-        pub struct OwnedChild {
-            child: std::process::Child,
-            job: Job,
-        }
-
-        impl OwnedChild {
-            pub fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
-                self.child.try_wait()
-            }
-
-            pub fn take_stdout(&mut self) -> Option<ChildStdout> {
-                self.child.stdout.take()
-            }
-
-            pub fn take_stderr(&mut self) -> Option<ChildStderr> {
-                self.child.stderr.take()
-            }
-        }
-
-        pub fn spawn_owned(
-            command: &mut Command,
-            descendants: Descendants,
-        ) -> io::Result<OwnedChild> {
-            use std::os::windows::process::CommandExt;
-            let job = Job::create(descendants)?;
-            let mut child = match descendants {
-                Descendants::Owned => command.creation_flags(CREATE_SUSPENDED).spawn()?,
-                Descendants::Detachable => match command
-                    .creation_flags(CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB)
-                    .spawn()
-                {
-                    Err(err) if err.raw_os_error() == Some(ERROR_ACCESS_DENIED) => {
-                        command.creation_flags(CREATE_SUSPENDED).spawn()?
-                    }
-                    other => other?,
-                },
-            };
-            let started = job.assign(&child).and_then(|()| resume_threads(child.id()));
-            if let Err(err) = started {
-                job.terminate();
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(err);
-            }
-            Ok(OwnedChild { child, job })
-        }
-
-        /// Keeps a streamed child's kill-on-close job open while the run lasts.
-        pub struct StreamTree {
-            _job: Option<Job>,
-        }
-
-        /// Spawns a streamed child; an owned or lock-holding child runs in a
-        /// kill-on-close job so its tree never outlives the run.
-        pub fn spawn_streamed(
-            command: &mut Command,
-            group: super::Group,
-            held: &[std::fs::File],
-        ) -> io::Result<(std::process::Child, StreamTree)> {
-            use std::os::windows::process::CommandExt;
-            if held.is_empty() && !matches!(group, super::Group::Owned) {
-                return Ok((command.spawn()?, StreamTree { _job: None }));
-            }
-            let job = Job::create(Descendants::Owned)?;
-            let mut child = command.creation_flags(CREATE_SUSPENDED).spawn()?;
-            let started = job.assign(&child).and_then(|()| resume_threads(child.id()));
-            if let Err(err) = started {
-                job.terminate();
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(err);
-            }
-            Ok((child, StreamTree { _job: Some(job) }))
-        }
-
-        pub fn terminate_graceful(owned: &mut OwnedChild) {
-            terminate_forced(owned);
-        }
-
-        pub fn terminate_forced(owned: &mut OwnedChild) {
-            owned.job.stop();
-            let _ = owned.child.kill();
-        }
-
-        pub fn termination_signal(_status: &ExitStatus) -> Option<i32> {
-            None
-        }
-    }
-
-    #[cfg(unix)]
     pub use super::terminal::{TerminalJob, allow_background_tty_writes};
 
     #[cfg(unix)]
-    pub use unix::{
+    pub use super::unix_backend::{
         OwnedChild, end_owned_descendants, force_stream, send, send_kill, spawn_owned,
         spawn_streamed, stream_target, terminal_foreground, terminate_forced, terminate_graceful,
         termination_signal, tree_alive,
     };
 
-    #[cfg(not(unix))]
-    mod plain_stream {
-        #[cfg(not(windows))]
-        use super::super::Command;
-        #[cfg(not(windows))]
-        use std::io;
-        use std::process::Child;
-
-        /// The parent's own handles are all that keep a portable tree's locks.
-        #[cfg(not(windows))]
-        pub struct StreamTree;
-
-        #[cfg(not(windows))]
-        pub fn spawn_streamed(
-            command: &mut Command,
-            _group: super::Group,
-            _held: &[std::fs::File],
-        ) -> io::Result<(Child, StreamTree)> {
-            Ok((command.spawn()?, StreamTree))
-        }
-
-        pub fn stream_target(_child: &Child, _group: super::Group) -> i32 {
-            0
-        }
-
-        pub fn send(_target: i32, _signo: i32) {}
-
-        pub fn send_kill(_target: i32) {}
-
-        pub fn force_stream(child: &mut Child, _target: i32) {
-            let _ = child.kill();
-        }
-
-        pub fn tree_alive(_target: i32) -> bool {
-            false
-        }
-
-        pub fn terminal_foreground() -> bool {
-            true
-        }
-
-        pub fn allow_background_tty_writes() {}
-
-        /// No portable terminal job; streamed children share the console.
-        pub struct TerminalJob;
-
-        impl TerminalJob {
-            pub fn start() -> Option<TerminalJob> {
-                None
-            }
-
-            pub fn pgid(&self) -> i32 {
-                0
-            }
-
-            pub fn take_reported(&self) -> Option<i32> {
-                None
-            }
-
-            pub fn tend(&self, _child: i32) {}
-        }
-    }
-
-    #[cfg(not(any(unix, windows)))]
-    pub use plain_stream::spawn_streamed;
-    #[cfg(not(unix))]
-    pub use plain_stream::{
-        TerminalJob, allow_background_tty_writes, force_stream, send, send_kill, stream_target,
-        terminal_foreground, tree_alive,
+    #[cfg(windows)]
+    pub use super::windows_backend::{
+        OwnedChild, TerminalJob, allow_background_tty_writes, end_owned_descendants, force_stream,
+        send, send_kill, spawn_owned, spawn_streamed, stream_target, terminal_foreground,
+        terminate_forced, terminate_graceful, termination_signal, tree_alive,
     };
-    #[cfg(not(unix))]
-    pub fn end_owned_descendants(_owned: &mut OwnedChild) {}
 
     #[cfg(windows)]
-    pub use windows::{
-        OwnedChild, install_console_stop, spawn_owned, spawn_streamed, terminate_forced,
-        terminate_graceful, termination_signal,
-    };
-
-    #[cfg(not(any(unix, windows)))]
-    mod portable {
-        use super::super::{Command, Descendants, ExitStatus};
-        use std::io;
-        use std::process::{ChildStderr, ChildStdout};
-
-        pub struct OwnedChild {
-            child: std::process::Child,
-        }
-
-        impl OwnedChild {
-            pub fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
-                self.child.try_wait()
-            }
-
-            pub fn take_stdout(&mut self) -> Option<ChildStdout> {
-                self.child.stdout.take()
-            }
-
-            pub fn take_stderr(&mut self) -> Option<ChildStderr> {
-                self.child.stderr.take()
-            }
-        }
-
-        pub fn spawn_owned(
-            command: &mut Command,
-            _descendants: Descendants,
-        ) -> io::Result<OwnedChild> {
-            Ok(OwnedChild {
-                child: command.spawn()?,
-            })
-        }
-
-        pub fn terminate_graceful(owned: &mut OwnedChild) {
-            terminate_forced(owned);
-        }
-
-        pub fn terminate_forced(owned: &mut OwnedChild) {
-            let _ = owned.child.kill();
-        }
-
-        pub fn termination_signal(_status: &ExitStatus) -> Option<i32> {
-            None
-        }
-    }
-
-    #[cfg(not(any(unix, windows)))]
-    pub use portable::{
-        OwnedChild, spawn_owned, terminate_forced, terminate_graceful, termination_signal,
-    };
+    pub use super::windows_backend::install_console_stop;
 }
 
 #[cfg(test)]

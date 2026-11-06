@@ -483,16 +483,19 @@ mod tests {
                 .is_empty(),
             "an absent inheritance entry holds no lease"
         );
-        #[cfg(unix)]
         {
-            use std::os::unix::ffi::OsStrExt as _;
-            // SAFETY: the env lock is held.
-            unsafe {
-                std::env::set_var(
-                    LEASE_ENV_VAR,
-                    std::ffi::OsStr::from_bytes(b"environments:\xff\xfe"),
-                )
+            #[cfg(unix)]
+            let invalid = {
+                use std::os::unix::ffi::OsStrExt as _;
+                std::ffi::OsStr::from_bytes(b"environments:\xff\xfe").to_owned()
             };
+            #[cfg(windows)]
+            let invalid = {
+                use std::os::windows::ffi::OsStringExt as _;
+                std::ffi::OsString::from_wide(&[0xD800])
+            };
+            // SAFETY: the env lock is held.
+            unsafe { std::env::set_var(LEASE_ENV_VAR, &invalid) };
             let err = acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO)
                 .expect_err("non-UTF-8 inheritance fails closed");
             assert_eq!(err.kind(), io::ErrorKind::InvalidInput);

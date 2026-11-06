@@ -127,10 +127,15 @@ fn real_fs_missing_module_suggests_override() {
     let root = scratch.path().to_path_buf();
     std::fs::create_dir_all(&root).expect("dirs");
     // On Windows the test tmpdir sits inside the execroot, below its MODULE.bazel.
-    match discover_real(&root, None) {
-        Err(err) => assert!(err.to_string().contains("--workspace")),
-        Ok(found) => assert!(!found.starts_with(root.canonicalize().expect("canonical root"))),
-    }
+    let canonical = root.canonicalize().expect("canonical root");
+    let outcome = discover_real(&root, None).map_err(|err| err.to_string());
+    let escaped = outcome
+        .as_ref()
+        .is_ok_and(|found| !found.starts_with(&canonical));
+    let suggested = outcome
+        .as_ref()
+        .is_err_and(|err| err.contains("--workspace"));
+    assert!(escaped || suggested, "{outcome:?}");
     scratch.close().expect("cleanup");
 }
 
@@ -1018,6 +1023,13 @@ fn pinned_var_classifies_values() {
 #[test]
 fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
     assert_eq!(interrupted(), None);
+    #[cfg(windows)]
+    {
+        assert_eq!(unsafe { crate::lifecycle::console_stop(2) }, 0);
+        assert_eq!(interrupted(), None);
+        assert_eq!(unsafe { crate::lifecycle::console_stop(0) }, 1);
+        assert_eq!(interrupted(), Some(2));
+    }
     record_interrupt(2);
     assert_eq!(interrupted(), Some(2));
     assert_eq!(interrupted_code(2), 130);
@@ -1153,7 +1165,6 @@ fn real_fs_symlinked_root_canonicalizes() {
     scratch.close().expect("cleanup");
 }
 
-#[cfg(unix)]
 #[test]
 fn real_fs_broken_marker_carries_io_hint() {
     let scratch = dx_test_scratch::scratch("dx-workspace-broken-");
@@ -1161,7 +1172,7 @@ fn real_fs_broken_marker_carries_io_hint() {
     std::fs::create_dir_all(&root).expect("dirs");
     let missing = root.join("missing-target");
     let marker = root.join("MODULE.bazel");
-    std::os::unix::fs::symlink(&missing, &marker).expect("broken link");
+    link(&missing, &marker).expect("broken link");
     let err = discover_real(&root, Some(root.as_path())).expect_err("broken override");
     assert!(
         matches!(err, DiscoverError::UnreadableOverride { .. }),
@@ -1409,6 +1420,12 @@ fn output_base_of_execroot_rejects_other_shapes() {
     ] {
         assert_eq!(output_base_of_execroot(Path::new(value)), None, "{value}");
     }
+    let rooted = format!("{ROOT}/x/ob/_main");
+    assert_eq!(
+        output_base_of_execroot(Path::new(&rooted)),
+        None,
+        "{rooted}"
+    );
 }
 
 struct Plain;
@@ -1464,7 +1481,6 @@ fn the_default_marker_hint_is_none() {
     assert!(!Bare.is_file(Path::new("/")));
 }
 
-#[cfg(unix)]
 #[test]
 fn real_marker_hint_reports_only_a_broken_marker() {
     let scratch = dx_test_scratch::scratch("dx-marker-hint-");
@@ -1476,19 +1492,74 @@ fn real_marker_hint_reports_only_a_broken_marker() {
     assert_eq!(RealFs.broken_marker_hint(&plain), None);
     let target = root.join("target-dir");
     std::fs::create_dir_all(&target).expect("target");
-    std::os::unix::fs::symlink(&target, root.join("MODULE.bazel")).expect("link");
+    link(&target, &root.join("MODULE.bazel")).expect("link");
     assert_eq!(
         RealFs.broken_marker_hint(root).as_deref(),
         Some("symlink target is not a regular file")
     );
 }
 
-#[cfg(unix)]
 #[test]
 fn expand_tilde_keeps_a_path_that_is_not_utf8() {
-    use std::os::unix::ffi::OsStrExt as _;
-    let path = Path::new(std::ffi::OsStr::from_bytes(b"~/\xff"));
+    #[cfg(unix)]
+    let text = {
+        use std::os::unix::ffi::OsStrExt as _;
+        std::ffi::OsStr::from_bytes(b"~/\xff").to_owned()
+    };
+    #[cfg(windows)]
+    let text = {
+        use std::os::windows::ffi::OsStringExt as _;
+        OsString::from_wide(&[u16::from(b'~'), u16::from(b'/'), 0xD800])
+    };
+    let path = Path::new(&text);
     assert_eq!(expand_tilde(path), path);
+}
+
+/// Links `link` to `target`, a directory link on Windows when the target is a directory.
+fn link(target: &Path, link: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    return std::os::unix::fs::symlink(target, link);
+    #[cfg(windows)]
+    return match target.is_dir() {
+        true => std::os::windows::fs::symlink_dir(target, link),
+        false => std::os::windows::fs::symlink_file(target, link),
+    };
+}
+
+#[test]
+fn make_writable_clears_read_only_entries_but_not_through_links() {
+    let scratch = dx_test_scratch::scratch("dx-writable-tree-");
+    let tree = scratch.path().join("tree");
+    let outside = scratch.path().join("outside.txt");
+    std::fs::create_dir_all(&tree).expect("tree");
+    let read_only = |path: &Path| {
+        std::fs::metadata(path)
+            .expect("entry")
+            .permissions()
+            .readonly()
+    };
+    let set_read_only = |path: &Path| {
+        std::fs::write(path, "x").expect("file");
+        let mut permissions = std::fs::metadata(path).expect("file").permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(path, permissions).expect("read-only");
+    };
+    set_read_only(&tree.join("f"));
+    set_read_only(&outside);
+    link(&outside, &tree.join("link")).expect("link");
+    make_writable(&tree);
+    assert!(!read_only(&tree.join("f")));
+    assert!(read_only(&outside), "a link target keeps its mode");
+    make_writable(&outside);
+    assert!(remove_tree(&tree));
+    scratch.close().expect("cleanup");
+}
+
+#[cfg(windows)]
+#[test]
+fn disk_space_of_a_missing_directory_is_none() {
+    let missing = std::env::temp_dir().join("dx-no-such-dir-8104");
+    assert_eq!(dir_disk_space(&missing), None);
 }
 
 #[test]

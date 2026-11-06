@@ -29,6 +29,7 @@ cc_library(
         ":store_build_h",
     ],
     copts = ["-std=c11"],
+    linkstatic = True,
     visibility = _PUBLIC,
     deps = ["@c_app_cjson//:cjson"],
 )

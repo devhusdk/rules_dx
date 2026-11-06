@@ -1,0 +1,5 @@
+opam-version: "2.0"
+synopsis: "Fixture library that depends on greet"
+maintainer: "dx"
+authors: "dx"
+build: [["dune" "build" "-p" name "-j" jobs]]

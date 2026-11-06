@@ -64,6 +64,7 @@ _LIBRARY = """mkdir "$SCRATCH/ws"
 cp -rL "$ROOT/{root}/." "$SCRATCH/ws"
 chmod -R u+w "$SCRATCH/ws"
 cd "$SCRATCH/ws"
+{ocamlpath}
 if [ -f dune ] && grep -q '^(vendored_dirs' dune; then
   sed -i '/^(vendored_dirs/d' dune
   "$ROOT/{dune}" build --display=quiet -j {jobs} @{package}/install
@@ -71,6 +72,18 @@ else
   "$ROOT/{dune}" build --display=quiet -j {jobs} -p {package} @install
 fi
 LIB="_build/install/default/lib/{package}"
+STUBS="$LIB/lib{library}_stubs.a"
+if [ -f "$STUBS" ] && [ -z "{stubs}" ]; then
+  echo "dx_dune_library: $STUBS holds C stubs; set stubs = True to link them" >&2
+  exit 1
+fi
+if [ -n "{stubs}" ]; then
+  if [ ! -f "$STUBS" ]; then
+    echo "dx_dune_library: stubs = True but $STUBS was not built" >&2
+    exit 1
+  fi
+  cp "$STUBS" "$ROOT/{stubs}"
+fi
 for archive in {archives}; do
   if [ ! -f "$LIB/$archive" ]; then
     echo "dx_dune_library: $LIB/$archive was not built; set library = to the dune (name) of the library" >&2
@@ -201,11 +214,21 @@ def _dune_library_impl(ctx):
     native = ctx.attr._emitter[BuildSettingInfo].value == "sys"
     names = [library + ".cmxa", library + ".a"] if native else [library + ".cma"]
     tree = ctx.actions.declare_directory(ctx.label.name + "_ocamlpath/" + package)
+    dep_info = [dep[OCamlDepsProvider] for dep in ctx.attr.deps]
+    dep_trees = depset(transitive = [d.sigs for d in dep_info] + [d.archives for d in dep_info] + [d.afiles for d in dep_info])
+    dep_dirs = {}
+    for path in depset(transitive = [d.paths for d in dep_info]).to_list():
+        dep_dirs[_abs(path.rpartition("/")[0])] = True
+    ocamlpath = 'export OCAMLPATH="{}"'.format(":".join(sorted(dep_dirs))) if dep_dirs else ""
+    stubs = ctx.actions.declare_file("{}_archive/lib{}_stubs.a".format(ctx.label.name, library)) if ctx.attr.stubs else None
     archives = [ctx.actions.declare_file("{}_archive/{}".format(ctx.label.name, n)) for n in names]
     ctx.actions.run_shell(
-        outputs = [tree] + archives,
-        inputs = depset(ctx.files.srcs + [dune], transitive = [inputs]),
+        outputs = [tree] + archives + ([stubs] if stubs else []),
+        inputs = depset(ctx.files.srcs + [dune], transitive = [inputs, dep_trees]),
         command = prelude + _LIBRARY.format(
+            library = library,
+            ocamlpath = ocamlpath,
+            stubs = stubs.path if stubs else "",
             root = ctx.file.workspace.dirname,
             dune = dune.path,
             jobs = ctx.attr.jobs,
@@ -223,9 +246,21 @@ def _dune_library_impl(ctx):
     deps = [dep[OCamlDepsProvider] for dep in ctx.attr.deps if OCamlDepsProvider in dep]
     merge = lambda field, direct: depset(direct, transitive = [getattr(d, field) for d in deps], order = DEPSET_ORDER)
     empty = lambda field: merge(field, [])
-    cc_info = cc_common.merge_cc_infos(cc_infos = [dep[CcInfo] for dep in ctx.attr.deps if CcInfo in dep])
+    cc_infos = [dep[CcInfo] for dep in ctx.attr.deps if CcInfo in dep]
+    if stubs:
+        cc_infos.append(CcInfo(linking_context = cc_common.create_linking_context(linker_inputs = depset([
+            cc_common.create_linker_input(
+                owner = ctx.label,
+                libraries = depset([cc_common.create_library_to_link(
+                    actions = ctx.actions,
+                    static_library = stubs,
+                    alwayslink = True,
+                )]),
+            ),
+        ]))))
+    cc_info = cc_common.merge_cc_infos(cc_infos = cc_infos)
     return [
-        DefaultInfo(files = depset([tree] + archives)),
+        DefaultInfo(files = depset([tree] + archives + ([stubs] if stubs else []))),
         OCamlDepsProvider(
             sigs = merge("sigs", [tree]),
             cli_link_deps = merge("cli_link_deps", [archive]),
@@ -257,6 +292,7 @@ _dx_dune_library = rule(
         "library": attr.string(doc = "The dune (name) of the library whose archive is linked; defaults to the package."),
         "package": attr.string(mandatory = True, doc = "The opam package, built with dune build -p."),
         "srcs": attr.label_list(allow_files = True, mandatory = True, doc = "Every file of the workspace."),
+        "stubs": attr.bool(doc = "Link lib<library>_stubs.a, the package's C stubs, into native links."),
         "workspace": attr.label(allow_single_file = True, mandatory = True, doc = "The workspace's root dune-project file."),
         "_emitter": attr.label(default = "//ocaml/toolchain:emitter"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),

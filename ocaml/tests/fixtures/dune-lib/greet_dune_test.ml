@@ -1,3 +1,3 @@
 let () =
-  let got = Greet.hello "dune" in
-  if got <> "HELLO DUNE!" then (prerr_endline got; exit 1)
+  let got = Farewell.bye "dune" in
+  if got <> "HELLO DUNE! 42" then (prerr_endline got; exit 1)

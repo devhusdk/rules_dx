@@ -214,7 +214,7 @@ def packages_hub_build(group, packages):
         for package in sorted(packages)
     ])
 
-def dune_package_build(package, library, dune, rule):
+def dune_package_build(package, library, dune, rule, deps = [], hub = ""):
     """Returns the BUILD file that builds one dune package of an opam archive."""
     return """load("{rule}", "dx_dune_library")
 
@@ -223,12 +223,13 @@ package(default_visibility = ["//visibility:public"])
 dx_dune_library(
     name = "{package}",
     srcs = glob(["**"], exclude = ["**/BUILD", "**/BUILD.bazel"]),
+    deps = {deps},
     dune = "{dune}",
     library = "{library}",
     package = "{package}",
     workspace = "dune-project",
 )
-""".format(package = package, library = library, dune = dune, rule = rule)
+""".format(package = package, library = library, dune = dune, rule = rule, deps = repr(["@{}//:{}".format(hub, d) for d in deps]))
 
 _DUNE_BUILD = """package(default_visibility = ["//visibility:public"])
 
@@ -246,7 +247,8 @@ def _snapshot_opam(mctx, package, version):
 
 def _declare_packages(mctx, tag, annotations):
     packages = {}
-    for package, version in parse_depends(mctx.read(tag.lock)).items():
+    locked = parse_depends(mctx.read(tag.lock))
+    for package, version in locked.items():
         if is_toolchain_package(package):
             continue
         opam = _snapshot_opam(mctx, package, version)
@@ -256,11 +258,11 @@ def _declare_packages(mctx, tag, annotations):
             build_file = mctx.read(annotation.build_file)
         else:
             needs = [n for n in parse_depend_names(opam) if not is_toolchain_package(n)]
-            if needs:
-                fail(("{} {} depends on {}: dune packages with opam dependencies are not supported yet; " +
-                      "give {} an ocaml.annotation(build_file = ...)").format(package, version, ", ".join(needs), package))
+            missing = [n for n in needs if n not in locked]
+            if missing:
+                fail("{} {} depends on {}, which {} does not lock".format(package, version, ", ".join(missing), tag.lock))
             library = annotation.library if annotation and annotation.library else package.replace("-", "_").replace(".", "_")
-            build_file = dune_package_build(package, library, str(Label("//ocaml/toolchain:dune")), str(Label("//ocaml/rules:dune.bzl")))
+            build_file = dune_package_build(package, library, str(Label("//ocaml/toolchain:dune")), str(Label("//ocaml/rules:dune.bzl")), needs, tag.name)
         pinned_archive(
             name = package_repo_name(tag.name, package),
             files = {"BUILD.bazel": build_file},

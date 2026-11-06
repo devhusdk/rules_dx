@@ -7,26 +7,41 @@ package(default_visibility = ["//:__subpackages__"])
 
 dx_dune_library(
     name = "greet",
-    srcs = glob(["src/*"]) + [
-        "dune-project",
-        "greet.opam",
-    ],
+    srcs = glob([
+        "src/*",
+        "*.opam",
+    ]) + ["dune-project"],
     dune = "//quality/tools/ocaml:dune",
     library = "greet",
     package = "greet",
     workspace = "dune-project",
 )
 
+dx_dune_library(
+    name = "farewell",
+    srcs = glob([
+        "src/*",
+        "*.opam",
+    ]) + ["dune-project"],
+    dune = "//quality/tools/ocaml:dune",
+    library = "farewell",
+    package = "farewell",
+    stubs = True,
+    workspace = "dune-project",
+    deps = [":greet"],
+)
+
 ocaml_module(
     name = "greet_dune_test_main",
     testonly = True,
     struct = "greet_dune_test.ml",
-    deps = [":greet"],
+    deps = [":farewell"],
 )
 
 ocaml_test(
     name = "greet_dune_test",
     main = ":greet_dune_test_main",
+    tags = ["manual"],
 )
 
 sys_cell_test(

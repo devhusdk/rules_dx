@@ -85,6 +85,7 @@ def _checks():
         expect_equal("an unpinned entry is skipped", parse_depends("depends: [\"a\" {>= \"1\"}]"), {}),
         expect_equal("a version after a build filter is kept", parse_depends("depends: [\"a\" {build & = \"2\"}]"), {"a": "2"}),
         expect_equal("build dependencies are named", parse_depend_names("depends: [\"dune\" {>= \"2\"} \"a\" \"t\" {with-test}]"), ["dune", "a"]),
+        expect_contains("dune package build passes hub deps", dune_package_build("a", "a", "//d", "//r:d.bzl", ["b"], "hub"), "deps = [\"@hub//:b\"]"),
         expect_contains("dune package build names the library", dune_package_build("a-b", "a_b", "//d", "//r:d.bzl"), "library = \"a_b\""),
         expect_equal("url and sha256 are read", parse_url(_URL_OPAM), struct(src = "https://example.org/a-1.tbz", sha256 = "ab12")),
         expect_equal("src may sit on the next line", parse_url("url {\n  src:\n    \"https://x/a.tbz\"\n  checksum: \"sha256=cd\"\n}\n").src, "https://x/a.tbz"),

@@ -1,1 +1,7 @@
-(library (name greet) (public_name greet))
+(library (name greet) (public_name greet) (modules greet shout))
+(library
+ (name farewell)
+ (public_name farewell)
+ (libraries greet)
+ (foreign_stubs (language c) (names stamp))
+ (modules farewell))

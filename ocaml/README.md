@@ -145,8 +145,10 @@ on a dune workspace and returns the package as rules_ocaml providers, so
 tree artifact `<name>_ocamlpath/<package>` (a findlib layout); the archive named
 by `library` (`.cma`, or `.cmxa` plus `.a` under the native emitter) is exposed
 as its own file. `dune` is a label, for example `//quality/tools/ocaml:dune`.
-See `ocaml/tests/fixtures/dune-lib`. Dependencies between dune packages and C
-stubs are not supported yet.
+`deps` names other `dx_dune_library` targets; their trees go on `OCAMLPATH`.
+A package with `lib<library>_stubs.a` needs `stubs = True`, which links the
+archive natively (the bytecode cell does not support C stubs). See
+`ocaml/tests/fixtures/dune-lib`.
 
 ### Coverage with your own ppx
 

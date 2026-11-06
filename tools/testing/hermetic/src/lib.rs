@@ -1028,6 +1028,26 @@ pub struct Probe<'a> {
     pub expect: Expect,
 }
 
+pub struct DxRun<'a> {
+    pub name: &'a str,
+    pub net: Net,
+    pub command: &'a str,
+    pub targets: &'a [String],
+    pub home: &'a Path,
+    pub output_root: &'a Path,
+    pub repos: &'a Path,
+}
+
+struct Exec<'a> {
+    name: &'a str,
+    net: Net,
+    home: &'a Path,
+    argv: &'a [String],
+    recorded: Vec<String>,
+    expect: &'a Expect,
+    windows: Option<WindowsRun>,
+}
+
 pub struct Session {
     pub manifest: Manifest,
     pub root: PathBuf,
@@ -1197,16 +1217,16 @@ impl Session {
     }
 
     /// Runs the dx binary on `targets` with `bazel` on its PATH.
-    pub fn run_dx(
-        &mut self,
-        name: &str,
-        net: Net,
-        command: &str,
-        targets: &[String],
-        home: &Path,
-        output_root: &Path,
-        repos: &Path,
-    ) -> Result<Outcome, String> {
+    pub fn run_dx(&mut self, run: DxRun<'_>) -> Result<Outcome, String> {
+        let DxRun {
+            name,
+            net,
+            command,
+            targets,
+            home,
+            output_root,
+            repos,
+        } = run;
         let bin = self.bazel_bin(output_root)?;
         let mut args = vec![command.to_owned()];
         args.extend(targets.iter().cloned());
@@ -1244,7 +1264,15 @@ impl Session {
                 env,
                 shutdown: self.windows_shutdown(output_root),
             };
-            return self.execute(name, net, home, &argv, argv.clone(), &expect, Some(run));
+            return self.execute(Exec {
+                name,
+                net,
+                home,
+                argv: &argv,
+                recorded: argv.clone(),
+                expect: &expect,
+                windows: Some(run),
+            });
         }
         let mut argv = vec![
             "/usr/bin/env".to_owned(),
@@ -1268,7 +1296,15 @@ impl Session {
         } else {
             Expect::Pass
         };
-        self.execute(name, net, home, &argv, recorded, &expect, None)
+        self.execute(Exec {
+            name,
+            net,
+            home,
+            argv: &argv,
+            recorded,
+            expect: &expect,
+            windows: None,
+        })
     }
 
     /// Runs one probe, logs it and records its verdict.
@@ -1281,27 +1317,27 @@ impl Session {
                 env,
                 shutdown: self.windows_shutdown(probe.output_root),
             };
-            return self.execute(
-                &probe.name,
-                probe.net,
-                probe.home,
-                &argv,
-                argv.clone(),
-                &probe.expect,
-                Some(run),
-            );
+            return self.execute(Exec {
+                name: &probe.name,
+                net: probe.net,
+                home: probe.home,
+                argv: &argv,
+                recorded: argv.clone(),
+                expect: &probe.expect,
+                windows: Some(run),
+            });
         }
         let argv = self.bazel_argv(&probe);
         let recorded = argv[10..].to_vec();
-        self.execute(
-            &probe.name,
-            probe.net,
-            probe.home,
-            &argv,
+        self.execute(Exec {
+            name: &probe.name,
+            net: probe.net,
+            home: probe.home,
+            argv: &argv,
             recorded,
-            &probe.expect,
-            None,
-        )
+            expect: &probe.expect,
+            windows: None,
+        })
     }
 
     fn windows_shutdown(&self, output_root: &Path) -> Vec<String> {
@@ -1311,16 +1347,16 @@ impl Session {
         argv
     }
 
-    fn execute(
-        &mut self,
-        name: &str,
-        net: Net,
-        home: &Path,
-        argv: &[String],
-        recorded: Vec<String>,
-        expect: &Expect,
-        windows: Option<WindowsRun>,
-    ) -> Result<Outcome, String> {
+    fn execute(&mut self, exec: Exec<'_>) -> Result<Outcome, String> {
+        let Exec {
+            name,
+            net,
+            home,
+            argv,
+            recorded,
+            expect,
+            windows,
+        } = exec;
         let started = Instant::now();
         let outcome = match windows {
             Some(run) => {
@@ -2381,15 +2417,15 @@ fn run_all(
     let failures = session.manifest.failures.clone();
     let leak = |name: &str| vec![format!("//{LEAKS_PACKAGE}:{name}")];
     if session.manifest.generate {
-        session.run_dx(
-            "dx_generate",
-            Net::Allowed,
-            "generate",
-            &patterns,
-            &clean_home,
-            &cold,
-            &repos,
-        )?;
+        session.run_dx(DxRun {
+            name: "dx_generate",
+            net: Net::Allowed,
+            command: "generate",
+            targets: &patterns,
+            home: &clean_home,
+            output_root: &cold,
+            repos: &repos,
+        })?;
     }
     session.run(Probe {
         name: "fetch".to_owned(),
@@ -2555,27 +2591,27 @@ fn run_all(
             ("dx_generate_check", "generate", &cold),
             ("dx_coverage", "coverage", &warm),
         ] {
-            session.run_dx(
+            session.run_dx(DxRun {
                 name,
-                Net::Denied,
+                net: Net::Denied,
                 command,
-                &coverage_targets,
-                &clean_home,
-                root,
-                &repos,
-            )?;
+                targets: &coverage_targets,
+                home: &clean_home,
+                output_root: root,
+                repos: &repos,
+            })?;
         }
     }
     if !session.manifest.lint_findings.is_empty() {
-        let lint = session.run_dx(
-            "dx_lint",
-            Net::Denied,
-            "lint",
-            &["//...".to_owned()],
-            &clean_home,
-            &warm,
-            &repos,
-        )?;
+        let lint = session.run_dx(DxRun {
+            name: "dx_lint",
+            net: Net::Denied,
+            command: "lint",
+            targets: &["//...".to_owned()],
+            home: &clean_home,
+            output_root: &warm,
+            repos: &repos,
+        })?;
         let counts = lint_counts(&lint.stdout);
         if lint.exit == 1 && counts.is_empty() {
             return Err("dx lint exited 1 without reporting a finding".to_owned());

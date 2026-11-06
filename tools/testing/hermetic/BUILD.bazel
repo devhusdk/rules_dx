@@ -17,8 +17,6 @@ exports_files(
     visibility = VIS_TOOLS_CLI_TEST,
 )
 
-LINUX = ["@platforms//os:linux"]
-
 WINDOWS = ["@platforms//os:windows"]
 
 LINUX_MACOS_WINDOWS = select({
@@ -1159,7 +1157,7 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "hermetic_clippy_test",
-    target_compatible_with = LINUX,
+    target_compatible_with = HERMETIC_COMPATIBLE_WITH,
     targets = [
         ":adopt_android",
         ":appimage",

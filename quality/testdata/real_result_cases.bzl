@@ -232,6 +232,7 @@ REAL_RESULT_CASES = [
     _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "double", "U1000", "unusedHelper"], [], _GO_STATICCHECK_POLICY),
     _go_case("staticcheck", "lint", "standard_profile", "//go/tests/fixtures/staticcheck:strict_only_standard", ["staticcheck"], ["ST1003"], _GO_STATICCHECK_POLICY),
     _go_case("staticcheck", "lint", "strict_profile", "//go/tests/fixtures/staticcheck:strict_only_strict", ["ST1003", "HttpServer"], [], _GO_STATICCHECK_POLICY),
+    _go_case("staticcheck", "lint", "initialisms", "//go/tests/fixtures/staticcheck:strict_only_initialisms", ["staticcheck"], ["ST1003"], _GO_STATICCHECK_POLICY),
     _go_case("govet", "lint", "shadow", "//go/tests/fixtures/govet:shadowed", ["declaration of"], [], _GO_GOVET_POLICY, govet_analyzers = ["shadow"]),
     _go_case("govet", "lint", "shadow_off", "//go/tests/fixtures/govet:shadowed", ["govet"], ["declaration of"], _GO_GOVET_POLICY),
     _go_case("errcheck", "lint", "blank", "//go/tests/fixtures/errcheck:blank", ["unchecked error"], [], errcheck_flags = ["blank"]),

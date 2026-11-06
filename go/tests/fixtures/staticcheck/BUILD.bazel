@@ -82,3 +82,16 @@ go_library(
     importpath = "rules_dx/go/tests/fixtures/staticcheck/strictonly",
     tags = ["manual"],
 )
+
+staticcheck_config(
+    name = "initialisms_config",
+    src = "initialisms/staticcheck.conf",
+)
+
+go_library(
+    name = "strict_only_initialisms",
+    srcs = ["strict_only.go"],
+    aspect_hints = [":initialisms_config"],
+    importpath = "rules_dx/go/tests/fixtures/staticcheck/strictonly",
+    tags = ["manual"],
+)

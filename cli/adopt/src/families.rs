@@ -102,7 +102,7 @@ pub(crate) fn file_extensions(root: &Path) -> BTreeSet<String> {
     let paths = git_files(root).unwrap_or_else(|| walk(root));
     paths
         .iter()
-        .filter(|path| *path != ".dx" && !path.starts_with(".dx/"))
+        .filter(|path| *path != dx_path::state::DX_DIR && !path.starts_with(".dx/"))
         .filter(|path| {
             !ignored.iter().any(|dir| {
                 path.strip_prefix(dir.as_str())
@@ -171,7 +171,7 @@ fn walk(root: &Path) -> Vec<String> {
             };
             let rel = format!("{prefix}{name}");
             if kind.is_dir() {
-                if name != ".git" && name != ".dx" && !name.starts_with("bazel-") {
+                if name != ".git" && name != dx_path::state::DX_DIR && !name.starts_with("bazel-") {
                     pending.push((entry.path(), format!("{rel}/")));
                 }
             } else if kind.is_file() {

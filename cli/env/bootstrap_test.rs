@@ -105,21 +105,21 @@ fn env_bootstrap() {
             "generated host name is not native for {tool}"
         );
         assert!(
-            is_symlink(&root.join(".dx/bin").join(host(tool))),
+            is_symlink(&root.join(".dx/local/bin").join(host(tool))),
             "missing managed symlink: {tool}"
         );
     }
     assert!(
-        root.join(".dx/bin/.rules_dx_managed").is_file()
-            && !is_symlink(&root.join(".dx/bin/.rules_dx_managed")),
+        root.join(".dx/local/bin/.rules_dx_managed").is_file()
+            && !is_symlink(&root.join(".dx/local/bin/.rules_dx_managed")),
         "missing regular marker file"
     );
     assert!(
-        !root.join(".dx/bin.next").exists() && !root.join(".dx/bin.prev").exists(),
+        !root.join(".dx/local/bin.next").exists() && !root.join(".dx/local/bin.prev").exists(),
         "staging leftovers after commit"
     );
 
-    let doctor_bin = root.join(".dx/bin").join(host("doctor"));
+    let doctor_bin = root.join(".dx/local/bin").join(host("doctor"));
     let doctor = dx_testing::run(&doctor_bin, &[], &[]).expect("doctor must execute");
     assert!(
         doctor.status.success(),
@@ -134,7 +134,7 @@ fn env_bootstrap() {
         doctor.combined()
     );
 
-    let dx_bin = root.join(".dx/bin").join(host("dx"));
+    let dx_bin = root.join(".dx/local/bin").join(host("dx"));
     let dx = dx_testing::run(&dx_bin, &["--version"], &[]).expect("dx must execute");
     assert!(dx.status.success(), "dx failed\n{}", dx.combined());
     assert!(
@@ -198,11 +198,14 @@ fn env_bootstrap() {
         replace.combined()
     );
     assert!(
-        !root.join(".dx/bin").join(host("quality_markdown")).exists(),
+        !root
+            .join(".dx/local/bin")
+            .join(host("quality_markdown"))
+            .exists(),
         "stale entry survived replacement"
     );
     assert!(
-        is_symlink(&root.join(".dx/bin").join(host("doctor"))),
+        is_symlink(&root.join(".dx/local/bin").join(host("doctor"))),
         "surviving entry lost in replacement"
     );
 
@@ -212,13 +215,13 @@ fn env_bootstrap() {
         "unexpected restore output: {restore}"
     );
     assert!(
-        is_symlink(&root.join(".dx/bin").join(host("quality_markdown"))),
+        is_symlink(&root.join(".dx/local/bin").join(host("quality_markdown"))),
         "restored entry missing"
     );
 
     let foreign = scratch.path().join("foreign");
-    std::fs::create_dir_all(foreign.join(".dx/bin")).expect("foreign");
-    std::fs::write(foreign.join(".dx/bin").join("stale_tool"), b"stale").expect("stale tool");
+    std::fs::create_dir_all(foreign.join(".dx/local/bin")).expect("foreign");
+    std::fs::write(foreign.join(".dx/local/bin").join("stale_tool"), b"stale").expect("stale tool");
     let refused = dx_testing::run(
         &bin,
         &["--workspace", foreign.to_string_lossy().as_ref()],
@@ -232,7 +235,8 @@ fn env_bootstrap() {
         refused.combined()
     );
     assert_eq!(
-        std::fs::read_to_string(foreign.join(".dx/bin").join("stale_tool")).expect("read stale"),
+        std::fs::read_to_string(foreign.join(".dx/local/bin").join("stale_tool"))
+            .expect("read stale"),
         "stale",
         "foreign tree was modified"
     );
@@ -258,7 +262,7 @@ fn relative_workspace_resolves_against_build_working_directory() {
         run.combined()
     );
     assert!(
-        is_symlink(&base.join("ws/.dx/bin").join(host("doctor"))),
+        is_symlink(&base.join("ws/.dx/local/bin").join(host("doctor"))),
         "install did not land under BUILD_WORKING_DIRECTORY: {}",
         run.combined()
     );

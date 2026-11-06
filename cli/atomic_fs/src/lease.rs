@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// Directory inside a managed root that holds generation lease files.
-pub const LEASES_DIR_NAME: &str = "leases";
+pub const LEASES_DIR_NAME: &str = dx_path::state::LEASES;
 
 /// Variable carrying `kind:hex` lease entries to a controlled child.
 pub const LEASE_ENV_VAR: &str = "DX_MANAGED_LEASES";
@@ -25,8 +25,8 @@ impl GenerationUse {
     /// Generation directory this use protects.
     pub const fn dir_name(self) -> &'static str {
         match self {
-            GenerationUse::Environment => "environments",
-            GenerationUse::Generated => "generated",
+            GenerationUse::Environment => dx_path::state::ENVIRONMENTS,
+            GenerationUse::Generated => dx_path::state::GENERATED,
         }
     }
 
@@ -239,7 +239,7 @@ mod tests {
     const HEX_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
     fn root(scratch: &std::path::Path) -> PathBuf {
-        scratch.join(".dx")
+        dx_path::state::local_dir(scratch)
     }
 
     #[test]

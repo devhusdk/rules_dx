@@ -321,7 +321,7 @@ fn fresh_install_noop_and_replacement() {
         read_current_pair(&workspace).expect("read"),
         Some(pair('3', '4'))
     );
-    let setups = workspace.join(".dx").join("setups");
+    let setups = dx_path::state::local_dir(&workspace).join("setups");
     let record = setups.join(setup_hex(&pair('3', '4')));
     assert!(record.join("environment").is_symlink());
     assert!(record.join("generated").is_symlink());
@@ -419,7 +419,7 @@ fn record_mismatch_preserves_current() {
         CommitOutcome::InstalledFresh
     );
     let spoofed = pair('3', '4');
-    let setups = workspace.join(".dx").join("setups");
+    let setups = dx_path::state::local_dir(&workspace).join("setups");
     let record = setups.join(setup_hex(&spoofed));
     fs::create_dir_all(&record).expect("spoof record");
     create_pointer(
@@ -456,7 +456,7 @@ fn unmanaged_current_states_fail_closed() {
         commit_ok(&workspace, &pair('1', '2')),
         CommitOutcome::InstalledFresh
     );
-    let setups = workspace.join(".dx").join("setups");
+    let setups = dx_path::state::local_dir(&workspace).join("setups");
     let current = setups.join("current");
     let pointed = fs::read_link(&current).expect("pointer");
 
@@ -507,7 +507,7 @@ fn digest_spoofed_pointer_fails_closed() {
         commit_ok(&workspace, &pair('1', '2')),
         CommitOutcome::InstalledFresh
     );
-    let setups = workspace.join(".dx").join("setups");
+    let setups = dx_path::state::local_dir(&workspace).join("setups");
     let current = setups.join("current");
     let other = setup_hex(&pair('3', '4'));
     fs::create_dir_all(setups.join(&other)).expect("other record");
@@ -541,7 +541,7 @@ fn stale_staged_pointer_is_reclaimed() {
     };
     let root = scratch.path().to_path_buf();
     let workspace = workspace_of(&root);
-    let setups = workspace.join(".dx").join("setups");
+    let setups = dx_path::state::local_dir(&workspace).join("setups");
     fs::create_dir_all(&setups).expect("setups");
     create_pointer(
         Path::new("stale-target"),
@@ -586,7 +586,7 @@ fn busy_lock_fails_after_deadline() {
     };
     let root = scratch.path().to_path_buf();
     let workspace = workspace_of(&root);
-    let dx_dir = workspace.join(".dx");
+    let dx_dir = dx_path::state::local_dir(&workspace);
     fs::create_dir_all(&dx_dir).expect("dx dir");
     let _held = dx_atomic_fs::commit::acquire_commit_lock(
         &dx_atomic_fs::commit::ManagedRoot::new(dx_dir.clone()),
@@ -616,7 +616,7 @@ fn lock_open_failure_aborts() {
     };
     let root = scratch.path().to_path_buf();
     let workspace = workspace_of(&root);
-    let dx_dir = workspace.join(".dx");
+    let dx_dir = dx_path::state::local_dir(&workspace);
     fs::create_dir_all(&dx_dir).expect("dx dir");
     fs::create_dir_all(dx_dir.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME))
         .expect("lock is a directory");
@@ -655,7 +655,7 @@ fn concurrent_commits_serialize_with_idempotent_reuse() {
     for outcome in &outcomes {
         assert!(outcome.is_ok(), "racing commit must succeed: {outcome:?}");
     }
-    let setups = workspace.join(".dx").join("setups");
+    let setups = dx_path::state::local_dir(&workspace).join("setups");
     for candidate in &wanted {
         let record = setups.join(setup_hex(candidate));
         assert!(record.join("environment").is_symlink());
@@ -682,7 +682,7 @@ fn staged_directory_preserves_current() {
         commit_ok(&workspace, &pair('1', '2')),
         CommitOutcome::InstalledFresh
     );
-    let setups = workspace.join(".dx").join("setups");
+    let setups = dx_path::state::local_dir(&workspace).join("setups");
     fs::create_dir_all(setups.join("current.next")).expect("foreign staged dir");
     assert_eq!(
         commit_pair(&workspace, &pair('3', '4'))
@@ -712,11 +712,11 @@ fn commit_errors_display() {
             path: PathBuf::from("/ws"),
         },
         CommitError::Busy {
-            path: PathBuf::from("/ws/.dx/.commit.lock"),
+            path: PathBuf::from("/ws/.dx/local/.commit.lock"),
             holder: None,
         },
         CommitError::LockFailed {
-            path: PathBuf::from("/ws/.dx/.commit.lock"),
+            path: PathBuf::from("/ws/.dx/local/.commit.lock"),
             reason: "r".to_string(),
         },
         CommitError::CurrentInvalid {

@@ -584,14 +584,14 @@ fn root_and_container_config_comments_are_one_bare_line() {
     }
 }
 
-/// Returns the name of the dx state directory, read from its constant in dx_env.
+/// Returns the name of the dx state directory, read from its constant in dx_path.
 fn dx_dir_name() -> String {
-    const SOURCE: &str = "cli/env/src/lib.rs";
-    const PREFIX: &str = "pub const DX_DIR_NAME: &str = \"";
+    const SOURCE: &str = "cli/path/src/state.rs";
+    const PREFIX: &str = "pub const DX_DIR: &str = \"";
     read_runfiles(SOURCE)
         .lines()
         .find_map(|line| line.trim().strip_prefix(PREFIX)?.strip_suffix("\";"))
-        .unwrap_or_else(|| panic!("{SOURCE} declares no DX_DIR_NAME string constant"))
+        .unwrap_or_else(|| panic!("{SOURCE} declares no DX_DIR string constant"))
         .to_owned()
 }
 

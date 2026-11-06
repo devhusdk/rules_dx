@@ -10,7 +10,7 @@ use dx_plan::resolve::expand_codegen_roots;
 use dx_process::ForwardError;
 use std::path::Path;
 
-/// Prints the direnv lines for `.dx/bin`. Runs no Bazel.
+/// Prints the direnv lines for `.dx/local/bin`. Runs no Bazel.
 pub(crate) fn execute_env_shell(env: Env<'_>) -> i32 {
     let Env {
         workspace,
@@ -18,14 +18,14 @@ pub(crate) fn execute_env_shell(env: Env<'_>) -> i32 {
         err,
         ..
     } = env;
-    if !workspace.join(".dx").join("bin").is_dir() {
+    if !dx_path::state::local_dir(workspace).join("bin").is_dir() {
         let _ = writeln!(
             err,
-            "dx env: missing .dx/bin; run `dx env --apply` to regenerate"
+            "dx env: missing .dx/local/bin; run `dx env --apply` to regenerate"
         );
         return 1;
     }
-    let _ = writeln!(out, "PATH_add .dx/bin\nwatch_file .dx/bin");
+    let _ = writeln!(out, "PATH_add .dx/local/bin\nwatch_file .dx/local/bin");
     0
 }
 
@@ -437,7 +437,10 @@ mod tests {
                     _ => pair.environment.as_str(),
                 };
                 assert!(
-                    harness.workspace.join(".dx").join(side).join(id).is_dir(),
+                    dx_path::state::local_dir(&harness.workspace)
+                        .join(side)
+                        .join(id)
+                        .is_dir(),
                     "{command} stages its {side} generation"
                 );
             }
@@ -567,9 +570,9 @@ mod tests {
         let harness = Harness::new("managed-bad-current");
         let (code, _, _) = harness.run(&["env", "--apply"]);
         assert_eq!(code, 0);
-        let generations = harness.workspace.join(".dx").join(GENERATED_DIR_NAME);
+        let generations = dx_path::state::local_dir(&harness.workspace).join(GENERATED_DIR_NAME);
         assert!(generations.is_dir(), "first commit stages generations");
-        let pointer = harness.workspace.join(".dx/setups/current");
+        let pointer = harness.workspace.join(".dx/local/setups/current");
         dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
         let (code, _, err) = harness.run(&["env"]);
@@ -598,8 +601,7 @@ mod tests {
         let (staged, _held) = stage_env_side(workspace, &env_plan).expect("stage");
         assert_eq!(staged, empty_env_id());
         let values = std::fs::read_to_string(
-            workspace
-                .join(".dx")
+            dx_path::state::local_dir(&workspace)
                 .join(ENVIRONMENTS_DIR_NAME)
                 .join(empty_env_id().as_str())
                 .join("values.json"),
@@ -874,9 +876,9 @@ mod tests {
     #[test]
     fn managed_check_malformed_current_fails_closed() {
         let harness = Harness::new("managed-check-bad-current");
-        let generations = harness.workspace.join(".dx").join(GENERATED_DIR_NAME);
+        let generations = dx_path::state::local_dir(&harness.workspace).join(GENERATED_DIR_NAME);
         std::fs::create_dir_all(&generations).expect("generations dir");
-        let pointer = harness.workspace.join(".dx/setups/current");
+        let pointer = harness.workspace.join(".dx/local/setups/current");
         std::fs::create_dir_all(pointer.parent().expect("parent")).expect("setups dir");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
         let (code, out, err) = harness.run(&["env"]);

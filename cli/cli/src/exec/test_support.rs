@@ -1123,9 +1123,7 @@ pub(crate) fn commit_clean_pair(harness: &Harness, env: char, gen: char) -> Stri
     commit_pair(&harness.workspace, &pair).expect("commit pair");
     for (dir, tag) in [(ENVIRONMENTS_DIR_NAME, env), (GENERATED_DIR_NAME, gen)] {
         std::fs::create_dir_all(
-            harness
-                .workspace
-                .join(".dx")
+            dx_path::state::local_dir(&harness.workspace)
                 .join(dir)
                 .join(tag.to_string().repeat(64)),
         )

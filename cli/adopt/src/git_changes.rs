@@ -89,7 +89,7 @@ pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, String> {
 ///
 /// Only the top level of the root counts; a nested `.dx` is an ordinary file.
 pub fn is_dx_state(path: &str) -> bool {
-    (path == ".dx" || path.starts_with(".dx/"))
+    (path == dx_path::state::DX_DIR || path.starts_with(".dx/"))
         && path != DX_CONFIG_DIR
         && !path.starts_with(".dx/config/")
 }
@@ -167,7 +167,9 @@ mod tests {
         assert!(super::is_dx_state(".dx/pins"));
         assert!(!super::is_dx_state(".dx/config"));
         assert!(!super::is_dx_state(".dx/config/ruff/strict.toml"));
-        assert!(super::is_dx_state(".dx/leases/process-groups/1-7.lock"));
+        assert!(super::is_dx_state(
+            ".dx/local/leases/process-groups/1-7.lock"
+        ));
         assert!(!super::is_dx_state(".dxfoo"));
         assert!(!super::is_dx_state("a/.dx/x"));
         assert!(!super::is_dx_state(""));

@@ -3,7 +3,6 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use dx_atomic_fs::lease::{self, GenerationUse};
-use dx_env::DX_DIR_NAME;
 use dx_setup::{GenerationId, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, SETUPS_DIR_NAME};
 
 use super::inventory::{collect_inventory, CollectedInventory};
@@ -250,14 +249,14 @@ fn leased_generation_hexes(
     workspace_root: &Path,
     generations: &[GenerationView],
 ) -> Result<Vec<String>, CleanError> {
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(workspace_root);
     let mut leased = Vec::new();
     for generation in generations {
         let held =
             lease::shared_held(&dx_dir, generation.kind, &generation.hex).map_err(|error| {
                 CleanError::Install {
                     reason: format!(
-                        "cannot probe the lease for .dx/{}/{}: {error}",
+                        "cannot probe the lease for .dx/local/{}/{}: {error}",
                         generation.kind.dir_name(),
                         generation.hex
                     ),
@@ -277,7 +276,7 @@ pub fn collect_inventory_with_scan_from(
     proc_root: &Path,
     unobserved: UnobservedPolicy,
 ) -> Result<CollectedInventory, CleanError> {
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(workspace_root);
     let (live, observation_unknown) = match scan_live_observation(proc_root, &dx_dir) {
         LiveObservation::Known(live) => (live, false),
         LiveObservation::Unknown { partial, .. } => (partial, true),
@@ -372,7 +371,7 @@ mod tests {
             __scratch
         };
         let root = scratch.path().to_path_buf();
-        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("proc root");
         let setup = digest('3');
@@ -401,7 +400,7 @@ mod tests {
             __scratch
         };
         let root = scratch.path().to_path_buf();
-        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         match scan_live_observation(&root.join("no-such-proc"), &dx_dir) {
             LiveObservation::Unknown { partial, reason } => {
                 assert!(!reason.is_empty());
@@ -420,7 +419,7 @@ mod tests {
             __scratch
         };
         let root = scratch.path().to_path_buf();
-        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let blocker = root.join("proc");
         fs::write(&blocker, "not a directory").expect("blocker file");
         match scan_live_observation(&blocker, &dx_dir) {
@@ -439,7 +438,7 @@ mod tests {
         };
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
-        let dx_dir = workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&workspace);
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("proc root");
         let stale = digest('3');
@@ -465,7 +464,7 @@ mod tests {
         };
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
-        let dx_dir = workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&workspace);
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("proc root");
         let (setup_hex_value, _, _) = pair_env_gen('3', '4');
@@ -512,7 +511,7 @@ mod tests {
         };
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
-        let dx_dir = workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&workspace);
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("proc root");
         let env_hex = digest('5');
@@ -557,7 +556,7 @@ mod tests {
         };
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
-        let dx_dir = workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&workspace);
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("proc root");
         let low = digest('1');
@@ -683,7 +682,7 @@ mod tests {
     fn scan_unreadable_cwd_reports_unknown_with_partial_hexes() {
         let scratch = dx_test_scratch::scratch("dx-clean-test-scan-unreadable-cwd-");
         let root = scratch.path().to_path_buf();
-        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("proc root");
         let hex = digest('3');
@@ -702,7 +701,7 @@ mod tests {
     fn scan_unreadable_fd_dir_reports_unknown() {
         let scratch = dx_test_scratch::scratch("dx-clean-test-scan-unreadable-fd-");
         let root = scratch.path().to_path_buf();
-        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
         fs::create_dir_all(proc_root.join("12")).expect("pid dir");
         fs::write(proc_root.join("12").join("fd"), "not a dir").expect("fd file");
@@ -716,7 +715,7 @@ mod tests {
     fn scan_skips_processes_that_are_gone() {
         let scratch = dx_test_scratch::scratch("dx-clean-test-scan-gone-");
         let root = scratch.path().to_path_buf();
-        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
         fs::create_dir_all(proc_root.join("13")).expect("pid dir");
         match scan_live_observation(&proc_root, &dx_dir) {
@@ -731,7 +730,7 @@ mod tests {
         std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
         let root = scratch.path().to_path_buf();
         let (workspace, stale_hex, _) = two_record_workspace(&root);
-        let dx_dir = workspace.join(DX_DIR_NAME);
+        let dx_dir = dx_path::state::local_dir(&workspace);
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("proc root");
         stage_process(
@@ -772,7 +771,7 @@ mod tests {
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("empty proc root");
         let stale_env = digest('3');
-        let dx_dir = workspace.join(DX_DIR_NAME);
+        let dx_dir = dx_path::state::local_dir(&workspace);
         let lease = dx_atomic_fs::lease::acquire_shared(
             &dx_dir,
             dx_atomic_fs::lease::GenerationUse::Environment,

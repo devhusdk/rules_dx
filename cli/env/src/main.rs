@@ -21,7 +21,7 @@ const METADATA_CANDIDATES: &[(&str, &str)] = &[
 
 const USAGE: &str =
     "usage: env [--workspace DIR] [--staged-bin DIR --metadata FILE] [--lock-timeout-ms N]";
-const ABOUT: &str = "install the staged environment tree into .dx/bin";
+const ABOUT: &str = "install the staged environment tree into .dx/local/bin";
 
 fn usage_error(message: &str) -> i32 {
     tracing::error!("dx env: {message}");
@@ -86,13 +86,13 @@ fn plan(args: &[String]) -> Result<Plan, String> {
 fn installed_message(outcome: &RefreshOutcome, count: usize, identity: &str) -> String {
     match outcome {
         RefreshOutcome::AlreadyCurrent => {
-            format!("dx env: already current (.dx/bin {identity})")
+            format!("dx env: already current (.dx/local/bin {identity})")
         }
         RefreshOutcome::InstalledFresh => {
-            format!("dx env: installed {count} tool(s) (.dx/bin {identity})")
+            format!("dx env: installed {count} tool(s) (.dx/local/bin {identity})")
         }
         RefreshOutcome::InstalledReplacement => {
-            format!("dx env: replaced managed tree with {count} tool(s) (.dx/bin {identity})")
+            format!("dx env: replaced managed tree with {count} tool(s) (.dx/local/bin {identity})")
         }
     }
 }
@@ -385,15 +385,15 @@ mod tests {
         let identity = "ab".repeat(32);
         assert_eq!(
             installed_message(&RefreshOutcome::AlreadyCurrent, 3, &identity),
-            format!("dx env: already current (.dx/bin {identity})")
+            format!("dx env: already current (.dx/local/bin {identity})")
         );
         assert_eq!(
             installed_message(&RefreshOutcome::InstalledFresh, 3, &identity),
-            format!("dx env: installed 3 tool(s) (.dx/bin {identity})")
+            format!("dx env: installed 3 tool(s) (.dx/local/bin {identity})")
         );
         assert_eq!(
             installed_message(&RefreshOutcome::InstalledReplacement, 3, &identity),
-            format!("dx env: replaced managed tree with 3 tool(s) (.dx/bin {identity})")
+            format!("dx env: replaced managed tree with 3 tool(s) (.dx/local/bin {identity})")
         );
     }
 }

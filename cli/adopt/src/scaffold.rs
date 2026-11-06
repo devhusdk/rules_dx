@@ -62,15 +62,13 @@ pub const IDE_CHECK_OUTPUT_BASE: &str = ".dx/ide/rust_check";
 /// The `.dx` subdirectories Bazel must skip, one per line in a new `.bazelignore`.
 ///
 /// `.dx/ide` holds the Bazel output bases (`IDE_OUTPUT_BASE`, `IDE_CHECK_OUTPUT_BASE`).
-/// `.dx/setups`, `.dx/environments` and `.dx/generated` hold symlink trees into setup artifacts,
-/// which can ship BUILD files. The other entries are scratch output dx writes. Everything else
+/// `.dx/local` holds the managed setups, environments and generated trees, symlinks into setup
+/// artifacts that can ship BUILD files. The other entries are scratch output dx writes. Everything else
 /// under `.dx` holds only dx files, and `.dx/config` is checked-in source Bazel stages.
 /// A new `.dx` writer that can hold BUILD files or an output base must be added here.
-pub const BAZELIGNORE_LINES: [&str; 12] = [
+pub const BAZELIGNORE_LINES: [&str; 10] = [
     ".dx/ide",
-    ".dx/setups",
-    ".dx/environments",
-    ".dx/generated",
+    ".dx/local",
     ".dx/bazelrc",
     ".dx/docs",
     ".dx/explain",
@@ -96,7 +94,10 @@ pub fn bazelignore_content() -> String {
 }
 
 fn is_bare_dx_line(line: &str) -> bool {
-    matches!(line.trim(), ".dx" | ".dx/" | "./.dx" | "/.dx")
+    matches!(
+        line.trim(),
+        dx_path::state::DX_DIR | ".dx/" | "./.dx" | "/.dx"
+    )
 }
 
 /// Whether a `.bazelignore` still has a bare `.dx` line that init replaces with the list.
@@ -500,7 +501,7 @@ pub fn bazelignore_covers_dx(text: &str) -> bool {
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .map(|line| line.strip_prefix("./").unwrap_or(line))
         .map(|line| line.strip_suffix('/').unwrap_or(line))
-        .any(|line| line == ".dx" || line == ".dx/ide")
+        .any(|line| line == dx_path::state::DX_DIR || line == ".dx/ide")
 }
 
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
@@ -921,16 +922,17 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn envrc_adds_the_managed_bin_to_path() {
-        let (status, path) = run_envrc("echo 'PATH_add .dx/bin'\necho 'watch_file .dx/bin'");
+        let (status, path) =
+            run_envrc("echo 'PATH_add .dx/local/bin'\necho 'watch_file .dx/local/bin'");
         assert!(status.success(), "{status}");
         assert!(path.starts_with('/'), "{path}");
-        assert!(path.ends_with("/.dx/bin:/usr/bin:/bin"), "{path}");
+        assert!(path.ends_with("/.dx/local/bin:/usr/bin:/bin"), "{path}");
     }
 
     #[cfg(unix)]
     #[test]
     fn envrc_fails_when_the_pinned_dx_fails() {
-        let (status, path) = run_envrc("echo 'dx env: missing .dx/bin' >&2\nexit 1");
+        let (status, path) = run_envrc("echo 'dx env: missing .dx/local/bin' >&2\nexit 1");
         assert!(!status.success());
         assert_eq!(path, "/usr/bin:/bin");
     }
@@ -1529,7 +1531,7 @@ mod tests {
             (".dx/ide\n", true),
             ("node_modules\n.dx/\n", true),
             ("# .dx\n", false),
-            (".dx/setups\n", false),
+            (".dx/local\n", false),
             (".dxx\n", false),
             ("node_modules\n", false),
         ] {

@@ -118,7 +118,7 @@ pub fn write_version_pins(
     if version.is_empty() {
         return Err(AdoptError::EmptyVersion);
     }
-    let dir = root.join(".dx");
+    let dir = root.join(dx_path::state::DX_DIR);
     std::fs::create_dir_all(&dir).map_err(|e| AdoptError::CreateDxDir {
         detail: e.to_string(),
     })?;

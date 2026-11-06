@@ -3154,7 +3154,7 @@ mod tests {
         let query = FakeQuery::new(vec![
             FakeQuery::raw(Vec::new()),
             FakeQuery::raw(Vec::new()),
-            FakeQuery::raw(b".dx/leases/process-groups/1-7.lock\0pkg/c.py\0".to_vec()),
+            FakeQuery::raw(b".dx/local/leases/process-groups/1-7.lock\0pkg/c.py\0".to_vec()),
         ]);
         let changes =
             collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect("collect");
@@ -3374,7 +3374,7 @@ mod tests {
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"sub/\n".to_vec()),
             FakeQuery::raw(b"lib/x.rs\0".to_vec()),
-            FakeQuery::raw(b"lib/.dx/leases/process-groups/1-7.lock\0lib/a/.dx/y\0".to_vec()),
+            FakeQuery::raw(b"lib/.dx/local/leases/process-groups/1-7.lock\0lib/a/.dx/y\0".to_vec()),
         ]);
         let changes = local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "b")
             .expect("override changes");
@@ -3393,7 +3393,7 @@ mod tests {
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"a/b/\n".to_vec()),
             FakeQuery::raw(b"a/x.rs\0".to_vec()),
-            FakeQuery::raw(b"a/b/.dx/leases/process-groups/1-7.lock\0".to_vec()),
+            FakeQuery::raw(b"a/b/.dx/local/leases/process-groups/1-7.lock\0".to_vec()),
         ]);
         let changes = local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "b")
             .expect("override changes");

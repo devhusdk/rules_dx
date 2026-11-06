@@ -17,11 +17,10 @@ use marker_proto::dx::env::v1::{EnvIdentity, EnvMarker, ToolEntry};
 use prost::Message;
 use serde::Deserialize;
 
-pub const DX_DIR_NAME: &str = ".dx";
 pub const MARKER_FILE_NAME: &str = ".rules_dx_managed";
-pub const BIN_DIR_NAME: &str = "bin";
-pub const STAGE_DIR_NAME: &str = "bin.next";
-pub const PREV_DIR_NAME: &str = "bin.prev";
+pub const BIN_DIR_NAME: &str = dx_path::state::BIN;
+pub const STAGE_DIR_NAME: &str = dx_path::state::BIN_NEXT;
+pub const PREV_DIR_NAME: &str = dx_path::state::BIN_PREV;
 pub const IDENTITY_LEN: usize = 32;
 pub const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -294,7 +293,7 @@ pub fn refresh(
             path: options.workspace_root.clone(),
         });
     }
-    let dx_dir = options.workspace_root.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(&options.workspace_root);
     fs::create_dir_all(&dx_dir).map_err(|e| Error::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;

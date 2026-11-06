@@ -1,6 +1,6 @@
 # `dx env`
 
-Collects the managed tools for `.dx/bin`, the env values, and the declared generated source in one Bazel build. It upgrades nothing.
+Collects the managed tools for `.dx/local/bin`, the env values, and the declared generated source in one Bazel build. It upgrades nothing.
 
 ```sh
 dx env
@@ -17,7 +17,7 @@ dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options...]
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Select the setup. Also refreshes the editor files in `.dx/ide/`. |
-| `--shell=direnv` | Print `PATH_add .dx/bin` and `watch_file .dx/bin`. Runs no Bazel and writes nothing. Ignores `--apply`, the label, and `--output`. |
+| `--shell=direnv` | Print `PATH_add .dx/local/bin` and `watch_file .dx/local/bin`. Runs no Bazel and writes nothing. Ignores `--apply`, the label, and `--output`. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 
@@ -25,9 +25,9 @@ dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options...]
 
 Scopes: none selects the whole repository. One exact `//` or `@` label selects that label and every codegen shard that depends on it. A pattern, relative label, path, empty value, or second label is a usage error.
 
-Run `dx env --apply` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a codegen rule reads. Selected outputs link under `.dx/setups/current/generated`.
+Run `dx env --apply` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a codegen rule reads. Selected outputs link under `.dx/local/setups/current/generated`.
 
-Without `--apply`, dx reports drift and writes nothing. A missing selection is drift. Managed state lives under `.dx/`. `dx clean` reports unselected state.
+Without `--apply`, dx reports drift and writes nothing. A missing selection is drift. Managed state lives under `.dx/local/`. `dx clean` reports unselected state.
 
 `--apply` refreshes `.dx/ide/`: the TypeScript `lib` link, `cc/compile_commands.json` and the `cc/clangd` link for C and C++ trees, `go/gopackagesdriver` for Go trees, and for Rust trees `rust_analyzer/flycheck.exe`, `rust_analyzer/discover_bazel_rust_project.exe` and a `user_config.json` that makes flycheck run clippy. Set `go.toolsEnvVars.GOPACKAGESDRIVER` to the Go wrapper. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
 
@@ -55,7 +55,7 @@ JSON emits `command_started`, an `operation` event, a `managed_drift` notice on 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Drift, `invalid_result`, `no_capability`, `unreadable_bep`, `managed_commit_failed`, a Bazel launch failure, or `--shell=direnv` with no `.dx/bin`. |
+| `1` | Drift, `invalid_result`, `no_capability`, `unreadable_bep`, `managed_commit_failed`, a Bazel launch failure, or `--shell=direnv` with no `.dx/local/bin`. |
 | `2` | Usage or scope error, a conflicting diagnostics flag, a rejected arg, or a failed label query. |
 | Bazel's code | Bazel failed. |
 

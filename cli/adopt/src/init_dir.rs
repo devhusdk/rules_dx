@@ -118,7 +118,7 @@ pub fn fresh_blocker(root: &Path) -> Option<String> {
             .filter_map(|entry| {
                 let name = entry.file_name().to_string_lossy().into_owned();
                 let blocks = match name.as_str() {
-                    ".git" | ".bazelversion" | ".dx" => false,
+                    ".git" | ".bazelversion" | dx_path::state::DX_DIR => false,
                     "MODULE.bazel" => !is_fresh_module(&entry.path()),
                     _ => !is_repo_file(&name),
                 };

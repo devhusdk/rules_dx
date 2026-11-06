@@ -8,6 +8,7 @@ use dx_output::{
     command_finished, command_started, notice_event, operation_event, FinishedCounts, NoticeEvent,
     OutputMode,
 };
+use dx_path::state::{LOCAL_DIR, SETUPS};
 use dx_plan::args::Invocation;
 
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -274,7 +275,7 @@ fn emit_prune_notices(
 ) -> Result<(), i32> {
     for hex in setup_records {
         let size = setup_record_size(bytes, hex);
-        let path = format!(".dx/setups/{hex}");
+        let path = format!("{LOCAL_DIR}/{SETUPS}/{hex}");
         emit_built(
             out,
             notice_event(&NoticeEvent {
@@ -286,7 +287,11 @@ fn emit_prune_notices(
     }
     for generation in generations {
         let size = generation_size(bytes, generation);
-        let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
+        let path = format!(
+            "{LOCAL_DIR}/{}/{}",
+            generation.kind.dir_name(),
+            generation.hex
+        );
         emit_built(
             out,
             notice_event(&NoticeEvent {
@@ -306,7 +311,7 @@ fn emit_preserved_unobserved(
 ) -> Result<(), i32> {
     for hex in &plan.preserved_unobserved_setup_records {
         let size = setup_record_size(preserved, hex);
-        let path = format!(".dx/setups/{hex}");
+        let path = format!("{LOCAL_DIR}/{SETUPS}/{hex}");
         emit_built(
             out,
             notice_event(&NoticeEvent {
@@ -318,7 +323,11 @@ fn emit_preserved_unobserved(
     }
     for generation in &plan.preserved_unobserved_generations {
         let size = generation_size(preserved, generation);
-        let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
+        let path = format!(
+            "{LOCAL_DIR}/{}/{}",
+            generation.kind.dir_name(),
+            generation.hex
+        );
         emit_built(
             out,
             notice_event(&NoticeEvent {
@@ -346,7 +355,11 @@ fn emit_clean_pruned(
     )?;
     for generation in &outcome.skipped_leased_generations {
         let size = generation_size(bytes, generation);
-        let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
+        let path = format!(
+            "{LOCAL_DIR}/{}/{}",
+            generation.kind.dir_name(),
+            generation.hex
+        );
         emit_built(
             out,
             notice_event(&NoticeEvent {
@@ -378,7 +391,7 @@ mod tests {
         let current = commit_clean_pair(&harness, '1', '2');
         let (code, out, err) = harness.run(&["clean", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
-        let dx_dir = harness.workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&harness.workspace);
         assert!(
             dx_dir.join("setups").join(&stale).exists(),
             "unobserved stale record is preserved: {out}{err}"
@@ -398,7 +411,7 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("bytes reclaimed"), "{out}");
-        let dx_dir = harness.workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&harness.workspace);
         assert!(!dx_dir.join("setups").join(&stale).exists());
         assert!(dx_dir.join("setups").join(&current).exists());
         assert!(!dx_dir
@@ -441,7 +454,7 @@ mod tests {
         assert!(
             harness
                 .workspace
-                .join(".dx/generated")
+                .join(".dx/local/generated")
                 .join('2'.to_string().repeat(64))
                 .exists(),
             "generation shared with current survives"
@@ -453,7 +466,7 @@ mod tests {
         let harness = Harness::new("clean-apply-leased");
         let stale = commit_clean_pair(&harness, '3', '4');
         let current = commit_clean_pair(&harness, '1', '2');
-        let dx_dir = harness.workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&harness.workspace);
         let leased_hex = "4".repeat(64);
         let _leased = lease::acquire_shared(
             &dx_dir,
@@ -505,7 +518,11 @@ mod tests {
             "a rejected flag never launches Bazel"
         );
         assert!(
-            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            harness
+                .workspace
+                .join(".dx/local/setups")
+                .join(&stale)
+                .exists(),
             "a rejected flag prunes nothing"
         );
     }
@@ -514,7 +531,7 @@ mod tests {
     fn clean_malformed_current_fails_closed_without_pruning() {
         let harness = Harness::new("clean-bad-current");
         let stale = commit_clean_pair(&harness, '3', '4');
-        let pointer = harness.workspace.join(".dx/setups/current");
+        let pointer = harness.workspace.join(".dx/local/setups/current");
         dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
         for args in [&["clean"][..], &["clean", "--apply"][..]] {
@@ -524,7 +541,11 @@ mod tests {
             assert!(combined.contains("clean_failed"), "{combined}");
         }
         assert!(
-            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            harness
+                .workspace
+                .join(".dx/local/setups")
+                .join(&stale)
+                .exists(),
             "failure prunes nothing"
         );
     }
@@ -532,9 +553,9 @@ mod tests {
     #[test]
     fn clean_unmanaged_paths_are_refused_and_preserved() {
         let harness = Harness::new("clean-unmanaged");
-        let setups = harness.workspace.join(".dx/setups");
+        let setups = harness.workspace.join(".dx/local/setups");
         std::fs::create_dir_all(setups.join("notes")).expect("unmanaged record");
-        let environments = harness.workspace.join(".dx/environments");
+        let environments = harness.workspace.join(".dx/local/environments");
         std::fs::create_dir_all(&environments).expect("environments dir");
         std::fs::write(environments.join("README"), "operator notes").expect("unmanaged file");
         let (code, out, err) = harness.run(&["clean"]);
@@ -577,7 +598,7 @@ mod tests {
     fn clean_json_failure_emits_error_and_finished() {
         let harness = Harness::new("clean-json-fail");
         let stale = commit_clean_pair(&harness, '3', '4');
-        let pointer = harness.workspace.join(".dx/setups/current");
+        let pointer = harness.workspace.join(".dx/local/setups/current");
         dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
         let (code, out, err) = harness.run(&["clean", "--output=json"]);
@@ -586,7 +607,11 @@ mod tests {
         assert!(out.contains("command_finished"), "{out}");
         assert!(err.contains("clean_failed"), "{err}");
         assert!(
-            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            harness
+                .workspace
+                .join(".dx/local/setups")
+                .join(&stale)
+                .exists(),
             "failure prunes nothing"
         );
     }
@@ -599,17 +624,25 @@ mod tests {
         let (code, out, err) = harness.run(&["clean", "--prune-unobserved"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            out.contains(&format!("prune setup record: .dx/setups/{stale}")),
+            out.contains(&format!("prune setup record: .dx/local/setups/{stale}")),
             "{out}"
         );
         assert!(out.contains("run `dx clean --apply` to prune it"), "{out}");
         assert_eq!(err, "", "{err}");
         assert!(
-            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            harness
+                .workspace
+                .join(".dx/local/setups")
+                .join(&stale)
+                .exists(),
             "check prunes nothing"
         );
         assert!(
-            harness.workspace.join(".dx/setups").join(&current).exists(),
+            harness
+                .workspace
+                .join(".dx/local/setups")
+                .join(&current)
+                .exists(),
             "check keeps current"
         );
         assert!(
@@ -655,7 +688,11 @@ mod tests {
         );
         assert_eq!(err, "", "{err}");
         assert!(
-            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            harness
+                .workspace
+                .join(".dx/local/setups")
+                .join(&stale)
+                .exists(),
             "json check prunes nothing"
         );
     }
@@ -723,13 +760,13 @@ mod tests {
         assert_eq!(code, 0, "{out}");
         assert!(
             out.contains(&format!(
-                "preserve unobserved setup record: .dx/setups/{hex}"
+                "preserve unobserved setup record: .dx/local/setups/{hex}"
             )),
             "{out}"
         );
         assert!(
             out.contains(&format!(
-                "preserve unobserved generation: .dx/environments/{hex}"
+                "preserve unobserved generation: .dx/local/environments/{hex}"
             )),
             "{out}"
         );
@@ -755,22 +792,22 @@ mod tests {
         assert_eq!(preserved.len(), 2, "{out}");
         assert_eq!(
             preserved[0]["path"],
-            serde_json::json!(format!(".dx/setups/{hex}"))
+            serde_json::json!(format!(".dx/local/setups/{hex}"))
         );
         assert_eq!(
             preserved[1]["path"],
-            serde_json::json!(format!(".dx/environments/{hex}"))
+            serde_json::json!(format!(".dx/local/environments/{hex}"))
         );
         assert_eq!(
             preserved[0]["message"],
             serde_json::json!(format!(
-                "preserved unobserved setup record .dx/setups/{hex} (observation unavailable, 11 bytes)"
+                "preserved unobserved setup record .dx/local/setups/{hex} (observation unavailable, 11 bytes)"
             ))
         );
         assert_eq!(
             preserved[1]["message"],
             serde_json::json!(format!(
-                "preserved unobserved generation .dx/environments/{hex} (observation unavailable, 22 bytes)"
+                "preserved unobserved generation .dx/local/environments/{hex} (observation unavailable, 22 bytes)"
             ))
         );
         assert!(!out.contains("clean_planned"), "{out}");
@@ -806,7 +843,7 @@ mod tests {
         assert_eq!(
             events[0]["message"],
             serde_json::json!(format!(
-                "preserved leased generation .dx/generated/{} (a live reader holds it, 33 bytes)",
+                "preserved leased generation .dx/local/generated/{} (a live reader holds it, 33 bytes)",
                 "4".repeat(64)
             ))
         );
@@ -842,8 +879,8 @@ mod tests {
         assert_eq!(
             paths,
             vec![
-                &serde_json::json!(format!(".dx/setups/{hex}")),
-                &serde_json::json!(format!(".dx/environments/{hex}")),
+                &serde_json::json!(format!(".dx/local/setups/{hex}")),
+                &serde_json::json!(format!(".dx/local/environments/{hex}")),
             ],
             "{json}"
         );

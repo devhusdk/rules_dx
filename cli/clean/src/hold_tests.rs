@@ -17,7 +17,7 @@ fn workspace(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf) {
 }
 
 fn materialize(workspace: &Path, pair: &SetupPair) {
-    let dx_dir = workspace.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(&workspace);
     for (kind, hex) in [
         (GenerationUse::Environment, pair.environment.as_str()),
         (GenerationUse::Generated, pair.generated.as_str()),
@@ -34,11 +34,13 @@ fn select(workspace: &Path, pair: &SetupPair) {
 }
 
 fn generation_dir(workspace: &Path, kind: GenerationUse, hex: &str) -> PathBuf {
-    workspace.join(DX_DIR_NAME).join(kind.dir_name()).join(hex)
+    dx_path::state::local_dir(&workspace)
+        .join(kind.dir_name())
+        .join(hex)
 }
 
 fn exclusive_free(workspace: &Path, kind: GenerationUse, hex: &str) -> bool {
-    lease::try_acquire_exclusive(&workspace.join(DX_DIR_NAME), kind, hex)
+    lease::try_acquire_exclusive(&dx_path::state::local_dir(&workspace), kind, hex)
         .expect("probe lease")
         .is_some()
 }
@@ -98,10 +100,10 @@ fn hold_current_without_selection_is_none() {
     let (_scratch, workspace) = workspace("dx-clean-hold-none-");
     assert!(hold_current(&workspace, WAIT).expect("hold").is_none());
     assert!(
-        !workspace.join(DX_DIR_NAME).exists(),
+        !dx_path::state::local_dir(&workspace).exists(),
         "holding nothing creates nothing"
     );
-    fs::create_dir_all(workspace.join(DX_DIR_NAME)).expect("create .dx");
+    fs::create_dir_all(dx_path::state::local_dir(&workspace)).expect("create .dx");
     assert!(hold_current(&workspace, WAIT).expect("hold").is_none());
     assert!(matches!(
         hold_current(&workspace.join("missing"), WAIT),
@@ -125,10 +127,12 @@ fn hold_current_waits_for_commit_lock_then_reads_new_current() {
     let first = setup_pair('1', '2');
     let second = setup_pair('3', '4');
     select(&workspace, &second);
-    let current = workspace.join(DX_DIR_NAME).join("setups").join("current");
+    let current = dx_path::state::local_dir(&workspace)
+        .join("setups")
+        .join("current");
     let second_target = fs::read_link(&current).expect("read current");
     select(&workspace, &first);
-    let dx_dir = workspace.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(&workspace);
     let lock = dx_atomic_fs::commit::acquire_commit_lock(
         &dx_atomic_fs::commit::ManagedRoot::new(dx_dir),
         WAIT,
@@ -184,7 +188,7 @@ fn hold_current_fails_closed_while_cleanup_holds_exclusive() {
     let (_scratch, workspace) = workspace("dx-clean-hold-removing-");
     select(&workspace, &setup_pair('1', '2'));
     let _exclusive = lease::try_acquire_exclusive(
-        &workspace.join(DX_DIR_NAME),
+        &dx_path::state::local_dir(&workspace),
         GenerationUse::Generated,
         &digest('2'),
     )
@@ -290,16 +294,17 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
         (GenerationUse::Environment, last.environment.as_str()),
         (GenerationUse::Generated, last.generated.as_str()),
     ] {
-        let names: Vec<String> = fs::read_dir(workspace.join(DX_DIR_NAME).join(kind.dir_name()))
-            .expect("list generations")
-            .map(|entry| {
-                entry
-                    .expect("entry")
-                    .file_name()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .collect();
+        let names: Vec<String> =
+            fs::read_dir(dx_path::state::local_dir(&workspace).join(kind.dir_name()))
+                .expect("list generations")
+                .map(|entry| {
+                    entry
+                        .expect("entry")
+                        .file_name()
+                        .to_string_lossy()
+                        .into_owned()
+                })
+                .collect();
         assert_eq!(
             names,
             vec![keep.to_owned()],

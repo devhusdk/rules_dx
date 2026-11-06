@@ -339,7 +339,7 @@ fn regressions(targets: &[TargetResults], baseline: &Baseline, limit: u32) -> Ve
 }
 
 fn write_last(workspace: &Path, document: &serde_json::Value) -> std::io::Result<()> {
-    let dir = workspace.join(".dx").join("bench");
+    let dir = workspace.join(dx_path::state::DX_DIR).join("bench");
     std::fs::create_dir_all(&dir)?;
     let mut text = serde_json::to_string_pretty(document).map_err(std::io::Error::other)?;
     text.push('\n');

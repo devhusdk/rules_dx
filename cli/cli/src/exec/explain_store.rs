@@ -13,7 +13,7 @@ pub(crate) const CODE_EXPLAIN_LOG_UNWRITABLE: &str = "explain_log_unwritable";
 pub(crate) const KEEP: usize = 2;
 
 pub(crate) fn dir(workspace: &Path) -> PathBuf {
-    workspace.join(".dx").join("explain")
+    workspace.join(dx_path::state::DX_DIR).join("explain")
 }
 
 fn number(name: &str) -> Option<u64> {

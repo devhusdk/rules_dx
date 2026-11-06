@@ -98,7 +98,7 @@ fn execute_checked(
         .any(|report| report.destination == Destination::Stdout);
     if results_default {
         let path = results_path(workspace);
-        let _ = std::fs::create_dir_all(workspace.join(".dx"));
+        let _ = std::fs::create_dir_all(workspace.join(dx_path::state::DX_DIR));
         results_reports.push(PlannedReport {
             format: StandardFormat::Results,
             destination: Destination::File(path.to_string_lossy().into_owned()),

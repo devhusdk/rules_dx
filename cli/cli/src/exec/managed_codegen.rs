@@ -282,8 +282,7 @@ mod tests {
             assert_eq!(code, CODE_INVALID_RESULT);
             assert!(message.contains("invalid codegen plan"), "{message}");
             assert!(
-                !workspace
-                    .join(".dx")
+                !dx_path::state::local_dir(&workspace)
                     .join(GENERATED_DIR_NAME)
                     .join(id.as_str())
                     .exists(),
@@ -304,8 +303,7 @@ mod tests {
             codegen_entry("nested/b.txt", &second),
         ];
         stage_codegen_generation(&workspace, &workspace, &id, &projection).expect("stage");
-        let dir = workspace
-            .join(".dx")
+        let dir = dx_path::state::local_dir(&workspace)
             .join(GENERATED_DIR_NAME)
             .join(id.as_str());
         assert_eq!(
@@ -468,8 +466,7 @@ mod tests {
             &[codegen_replacement_entry("gen/owned.txt", &first)],
         )
         .expect("contracted collision stages");
-        let dir = workspace
-            .join(".dx")
+        let dir = dx_path::state::local_dir(&workspace)
             .join(GENERATED_DIR_NAME)
             .join(id.as_str());
         assert_eq!(
@@ -508,8 +505,7 @@ mod tests {
             &[codegen_entry("a.txt", &first)],
         )
         .expect("stage");
-        let dir = workspace
-            .join(".dx")
+        let dir = dx_path::state::local_dir(&workspace)
             .join(GENERATED_DIR_NAME)
             .join(id.as_str());
         set_mode(&dir, 0o555);

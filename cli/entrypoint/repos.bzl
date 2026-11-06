@@ -64,15 +64,15 @@ workspace() {
 }
 select_tool() {
   ws="$$root/$$1"
-  mkdir -p "$$ws/.dx/environments/$$env/artifacts" "$$ws/.dx/generated/$$gen" "$$ws/.dx/setups/$$setup"
-  ln -s "../../environments/$$env/" "$$ws/.dx/setups/$$setup/environment"
-  ln -s "../../generated/$$gen/" "$$ws/.dx/setups/$$setup/generated"
-  ln -s "$$setup" "$$ws/.dx/setups/current"
+  mkdir -p "$$ws/.dx/local/environments/$$env/artifacts" "$$ws/.dx/local/generated/$$gen" "$$ws/.dx/local/setups/$$setup"
+  ln -s "../../environments/$$env/" "$$ws/.dx/local/setups/$$setup/environment"
+  ln -s "../../generated/$$gen/" "$$ws/.dx/local/setups/$$setup/generated"
+  ln -s "$$setup" "$$ws/.dx/local/setups/current"
   mkdir -p "$$ws/bazel-out"
   echo '#!/bin/sh' > "$$ws/bazel-out/tool"
   chmod +x "$$ws/bazel-out/tool"
-  ln -s "$$ws/bazel-out/tool" "$$ws/.dx/environments/$$env/artifacts/tool"
-  echo '{"tool":"v1"}' > "$$ws/.dx/environments/$$env/values.json"
+  ln -s "$$ws/bazel-out/tool" "$$ws/.dx/local/environments/$$env/artifacts/tool"
+  echo '{"tool":"v1"}' > "$$ws/.dx/local/environments/$$env/values.json"
 }
 status() {
   set +e
@@ -105,8 +105,8 @@ rm "$$root/missing_tool/bazel-out/tool"
 status missing_tool 1
 workspace corrupt_tool 0.0.0 0.0.0
 select_tool corrupt_tool
-rm "$$root/corrupt_tool/.dx/environments/$$env/artifacts/tool"
-echo 'not the pinned tool' > "$$root/corrupt_tool/.dx/environments/$$env/artifacts/tool"
+rm "$$root/corrupt_tool/.dx/local/environments/$$env/artifacts/tool"
+echo 'not the pinned tool' > "$$root/corrupt_tool/.dx/local/environments/$$env/artifacts/tool"
 status corrupt_tool 1
 workspace pin 9.9.9 0.0.0
 status pin 0

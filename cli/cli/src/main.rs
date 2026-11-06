@@ -365,7 +365,7 @@ fn run() -> i32 {
             .iter()
             .any(|report| report.destination == "-");
     if workspace.join("MODULE.bazel").is_file() {
-        dx_process::groups::set_lease_root(&workspace.join(".dx"));
+        dx_process::groups::set_lease_root(&dx_path::state::local_dir(&workspace));
     }
     dx_plan::plan::remove_stale_run_dirs(&temp_base);
     let reaped = dx_process::groups::reap_orphans();

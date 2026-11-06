@@ -885,10 +885,10 @@ mod tests {
         let inv = invocation(&["status", "--output=json", "--capabilities"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-tool-");
         let root = scratch.path().to_path_buf();
-        std::fs::create_dir_all(root.join(".dx/setups")).expect("setups");
+        std::fs::create_dir_all(root.join(".dx/local/setups")).expect("setups");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
-        std::fs::write(root.join(".dx/setups/current"), "foreign").expect("foreign");
+        std::fs::write(root.join(".dx/local/setups/current"), "foreign").expect("foreign");
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1);
         assert!(err.contains(CODE_STATUS_CHECK_FAILED), "{err}");

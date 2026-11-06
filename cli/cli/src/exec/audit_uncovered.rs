@@ -16,7 +16,7 @@ const UNOWNED_NAMES: &[(&str, &str)] = &[
     ("Pipfile.lock", "pypi"),
 ];
 
-const SKIPPED_DIRS: &[&str] = &["node_modules", ".dx", ".git"];
+const SKIPPED_DIRS: &[&str] = &["node_modules", dx_path::state::DX_DIR, ".git"];
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct UnownedLock {

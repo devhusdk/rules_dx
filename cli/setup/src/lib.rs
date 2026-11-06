@@ -15,11 +15,12 @@ use std::time::Duration;
 
 use dx_atomic_fs::commit::{
     acquire_commit_lock, clear_stale_stage, publish_pointer_swap, CommitError as StageError,
-    CommitLock, LockError, ManagedRoot, PointerSwap, DX_DIR_NAME,
+    CommitLock, LockError, ManagedRoot, PointerSwap,
 };
 use dx_atomic_fs::lease::GenerationUse;
 use dx_atomic_fs::{create_pointer, PointerKind};
 use dx_digest::blake3 as digest;
+use dx_path::state;
 use dx_roots::{resolve_exact_target, ExactScopeError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -120,11 +121,11 @@ pub fn resolve_pair(inputs: PairInputs) -> Result<SetupPair, ResolveError> {
     }
 }
 
-pub const SETUPS_DIR_NAME: &str = "setups";
+pub const SETUPS_DIR_NAME: &str = state::SETUPS;
 
-pub const CURRENT_LINK_NAME: &str = "current";
+pub const CURRENT_LINK_NAME: &str = state::CURRENT;
 
-pub const CURRENT_STAGE_NAME: &str = "current.next";
+pub const CURRENT_STAGE_NAME: &str = state::CURRENT_NEXT;
 
 pub const ENVIRONMENTS_DIR_NAME: &str = GenerationUse::Environment.dir_name();
 
@@ -226,9 +227,10 @@ fn generation_from_link_target(target: &Path) -> Option<GenerationId> {
 }
 
 fn foreign_parent(workspace_root: &Path) -> Option<PathBuf> {
-    let dx = workspace_root.join(DX_DIR_NAME);
-    let setups = dx.join(SETUPS_DIR_NAME);
-    [dx, setups]
+    let dx = state::dx_dir(workspace_root);
+    let local = state::local_dir(workspace_root);
+    let setups = local.join(SETUPS_DIR_NAME);
+    [dx, local, setups]
         .into_iter()
         .find(|dir| fs::metadata(dir).is_ok_and(|meta| !meta.is_dir()))
 }
@@ -239,8 +241,7 @@ pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, Com
             path: workspace_root.to_path_buf(),
         });
     }
-    let current = workspace_root
-        .join(DX_DIR_NAME)
+    let current = state::local_dir(workspace_root)
         .join(SETUPS_DIR_NAME)
         .join(CURRENT_LINK_NAME);
     let meta = match fs::symlink_metadata(&current) {
@@ -402,7 +403,7 @@ pub fn commit_pair_with_timeout(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
+    let dx_dir = state::local_dir(workspace_root);
     fs::create_dir_all(&dx_dir).map_err(|e| CommitError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;
@@ -429,7 +430,7 @@ pub fn commit_prepared_with_timeout(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
+    let dx_dir = state::local_dir(workspace_root);
     fs::create_dir_all(&dx_dir).map_err(|e| CommitError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;

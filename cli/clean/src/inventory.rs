@@ -2,7 +2,6 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use dx_env::DX_DIR_NAME;
 use dx_setup::{
     GenerationId, CURRENT_LINK_NAME, CURRENT_STAGE_NAME, ENVIRONMENT_LINK_NAME,
     GENERATED_LINK_NAME, SETUPS_DIR_NAME,
@@ -130,7 +129,7 @@ pub fn collect_inventory(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(workspace_root);
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let mut inventory = CollectedInventory {
         active_setup_hexes: active_setup_hexes.to_vec(),
@@ -322,7 +321,7 @@ mod tests {
         };
         let root = scratch.path().to_path_buf();
         let (workspace, stale_hex, current_hex) = two_record_workspace(&root);
-        let dx_dir = workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&workspace);
         fs::create_dir_all(dx_dir.join("environments").join("latest")).expect("unmanaged gen");
         fs::create_dir_all(dx_dir.join("generated").join("not-hex")).expect("unmanaged gen");
         fs::create_dir_all(dx_dir.join("setups").join("scratch")).expect("unmanaged record");

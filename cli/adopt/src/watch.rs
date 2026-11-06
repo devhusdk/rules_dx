@@ -40,7 +40,9 @@ pub fn should_watch_path(relative: &Path) -> bool {
         .map(|component| component.as_os_str().to_string_lossy().into_owned())
         .collect();
     let root_ignored = names.first().is_some_and(|name| name.starts_with("bazel-"))
-        || (names.first().is_some_and(|name| name == ".dx")
+        || (names
+            .first()
+            .is_some_and(|name| name == dx_path::state::DX_DIR)
             && names.get(1).is_none_or(|name| name != "config"));
     let probe = names
         .last()
@@ -444,8 +446,8 @@ mod tests {
         assert!(!should_watch_path(Path::new(
             "bazel-out/k8-fastbuild/bin/a.rs"
         )));
-        assert!(!should_watch_path(Path::new(".dx/current")));
-        assert!(!should_watch_path(Path::new(".dx/bin/dx")));
+        assert!(!should_watch_path(Path::new(".dx/local/current")));
+        assert!(!should_watch_path(Path::new(".dx/local/bin/dx")));
         assert!(!should_watch_path(Path::new(".git/index")));
         assert!(!should_watch_path(Path::new(".git/refs/heads/main")));
         assert!(should_watch_path(Path::new("")));
@@ -469,7 +471,7 @@ mod tests {
         assert!(should_watch_path(Path::new("src/.dx/a.rs")));
         assert!(!should_watch_path(Path::new("tools/.git/index")));
         assert!(!should_watch_path(Path::new("bazel-out/x")));
-        assert!(!should_watch_path(Path::new(".dx/current")));
+        assert!(!should_watch_path(Path::new(".dx/local/current")));
         assert!(should_watch_path(Path::new(".dx/config/ruff/strict.toml")));
     }
 
@@ -479,7 +481,7 @@ mod tests {
             &[Path::new("/tmp/ws")],
             vec![
                 PathBuf::from("/tmp/ws/bazel-bin/a.rs"),
-                PathBuf::from("/tmp/ws/.dx/current"),
+                PathBuf::from("/tmp/ws/.dx/local/current"),
                 PathBuf::from("/tmp/ws/.git/index"),
                 PathBuf::from("/tmp/ws/src/main.rs"),
             ],
@@ -509,7 +511,7 @@ mod tests {
             &[root],
             vec![
                 PathBuf::from("/home/u/.dx/ws/BUILD.bazel"),
-                PathBuf::from("/home/u/.dx/ws/.dx/current"),
+                PathBuf::from("/home/u/.dx/ws/.dx/local/current"),
             ],
         );
         assert_eq!(trigger, vec![PathBuf::from("/home/u/.dx/ws/BUILD.bazel")]);
@@ -726,10 +728,10 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-watch-ignored-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("bazel-bin")).expect("generated dir");
-        std::fs::create_dir_all(root.join(".dx")).expect("state dir");
+        std::fs::create_dir_all(root.join(".dx/local")).expect("state dir");
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("bazel-bin/output.rs"), "generated").expect("generated write");
-        std::fs::write(root.join(".dx/current"), "state").expect("state write");
+        std::fs::write(root.join(".dx/local/current"), "state").expect("state write");
         std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
         let seen = wait_for(&session, "sentinel.txt");
         assert!(

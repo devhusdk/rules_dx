@@ -526,7 +526,7 @@ rust_test(
         "//:licenses.toml",
         "//:pnpm-workspace.yaml",
         "//:ruff.toml",
-        "//cli/env:src/lib.rs",
+        "//cli/path:src/state.rs",
         "//deploy/offline/bootstrap:src/lib.rs",
         "//deploy/rules:config.bzl",
         "//docs:github-ci.md",

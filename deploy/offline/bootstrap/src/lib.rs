@@ -270,9 +270,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         .filter(|name| name.ends_with(".meta.json"))
         .collect();
     identities.sort();
-    let populated = PathBuf::from(&options.workspace)
-        .join(".dx")
-        .join("advisory");
+    let populated = dx_path::state::dx_dir(Path::new(&options.workspace)).join("advisory");
     if let Err(error) = std::fs::create_dir_all(&populated) {
         return format!("cannot create {}: {error}", populated.display());
     }

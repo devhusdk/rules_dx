@@ -12,6 +12,7 @@ exports_files([
     "src/proto_validate.rs",
     "src/runfiles.rs",
     "src/spelling.rs",
+    "src/state.rs",
     "src/uri.rs",
     "src/workspace.rs",
 ])
@@ -27,6 +28,7 @@ dx_rust_crate(
         "src/proto_validate.rs",
         "src/runfiles.rs",
         "src/spelling.rs",
+    "src/state.rs",
         "src/uri.rs",
         "src/workspace.rs",
     ],

@@ -33,7 +33,7 @@ message EnvIdentity {
 }
 
 // Proof of provenance stored as `.rules_dx_managed` inside the installed
-// `.dx/bin` directory, so it swaps atomically with the tree it describes.
+// `.dx/local/bin` directory, so it swaps atomically with the tree it describes.
 message EnvMarker {
   // Exactly 32 bytes: BLAKE3-256 over the canonical `EnvIdentity`.
   bytes identity = 2;

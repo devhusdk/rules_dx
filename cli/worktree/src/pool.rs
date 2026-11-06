@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use dx_path::state;
 use serde::{Deserialize, Serialize};
 
 use super::git;
@@ -347,7 +348,7 @@ fn toplevel(dir: &Path) -> Option<PathBuf> {
 
 fn pool_marker(dir: &Path) -> Option<PathBuf> {
     let (slot, _) = lease_for_workspace(&host::resolved(dir))?;
-    let marker = slot.parent()?.join(".dx").join("repo");
+    let marker = state::dx_dir(slot.parent()?).join("repo");
     let text = std::fs::read_to_string(marker).ok()?;
     let main = text.trim();
     (!main.is_empty()).then(|| PathBuf::from(main))
@@ -386,7 +387,7 @@ impl Pool {
                 format!("{name}-{}", suffix + 1)
             };
             let base = cache_base.join(&candidate);
-            let marker = base.join(".dx").join("repo");
+            let marker = state::dx_dir(&base).join("repo");
             let claimed = std::fs::read(&marker).ok();
             match claimed {
                 Some(bytes) if marker_matches(&bytes, &main) => {
@@ -399,7 +400,7 @@ impl Pool {
                 Some(_) => continue,
                 None if !create => return Ok(None),
                 None => {
-                    std::fs::create_dir_all(base.join(".dx")).map_err(WorktreeError::io)?;
+                    std::fs::create_dir_all(state::dx_dir(&base)).map_err(WorktreeError::io)?;
                     let ours = claim_marker(&marker, &marker_bytes(&main))
                         .map_err(WorktreeError::io)?
                         || std::fs::read(&marker)
@@ -432,7 +433,7 @@ impl Pool {
     }
 
     fn meta_dir(&self) -> PathBuf {
-        self.base.join(".dx")
+        state::dx_dir(&self.base)
     }
 
     fn record_path(&self, slot: u32) -> PathBuf {
@@ -550,7 +551,7 @@ impl Pool {
 }
 
 fn busy_file(base: &Path, slot: u32) -> PathBuf {
-    base.join(".dx").join(format!("{slot}.busy"))
+    state::dx_dir(base).join(format!("{slot}.busy"))
 }
 
 /// Holds the busy lock of the slot `workspace` is in; `None` outside a slot.
@@ -588,7 +589,7 @@ pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
             .and_then(|name| name.to_str())
             .and_then(|name| name.parse::<u32>().ok());
         if let Some(slot) = slot {
-            let record = parent.join(".dx").join(format!("{slot}.json"));
+            let record = state::dx_dir(parent).join(format!("{slot}.json"));
             if let Some(found) = std::fs::read(&record)
                 .ok()
                 .and_then(|bytes| serde_json::from_slice::<Record>(&bytes).ok())

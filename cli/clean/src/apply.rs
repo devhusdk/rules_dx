@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use dx_atomic_fs::commit::{acquire_commit_lock, LockError, ManagedRoot};
 use dx_atomic_fs::lease::{self, GenerationUse};
-use dx_env::DX_DIR_NAME;
 use dx_setup::{read_current_pair, GenerationId, SETUPS_DIR_NAME};
 
 use super::inventory::collect_inventory;
@@ -42,7 +41,7 @@ pub fn apply_plan_with_timeout(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(workspace_root);
     fs::create_dir_all(&dx_dir).map_err(|e| CleanError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;
@@ -109,7 +108,7 @@ pub fn apply_plan_with_timeout(
             Err(error) => {
                 return Err(CleanError::Install {
                     reason: format!(
-                        "cannot probe the lease for .dx/{}/{}: {error}",
+                        "cannot probe the lease for .dx/local/{}/{}: {error}",
                         generation.kind.dir_name(),
                         generation.hex
                     ),
@@ -195,7 +194,9 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
         dx_setup::commit_pair(&workspace, &setup_pair('1', '2')).expect("commit");
-        let current = workspace.join(".dx").join("setups").join("current");
+        let current = dx_path::state::local_dir(&workspace)
+            .join("setups")
+            .join("current");
         dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
         fs::write(&current, "not a symlink").expect("file pointer");
         assert!(matches!(
@@ -240,15 +241,13 @@ mod tests {
         let outcome = apply_plan(&workspace, &plan).expect("apply");
         assert_eq!(outcome.removed_setup_records, vec![stale_hex.clone()]);
         assert_eq!(outcome.removed_generations.len(), 2);
-        let setups = workspace.join(".dx").join("setups");
+        let setups = dx_path::state::local_dir(&workspace).join("setups");
         assert!(setups.join(&current_hex).join("environment").is_symlink());
-        assert!(workspace
-            .join(".dx")
+        assert!(dx_path::state::local_dir(&workspace)
             .join("environments")
             .join(digest('1'))
             .is_dir());
-        assert!(workspace
-            .join(".dx")
+        assert!(dx_path::state::local_dir(&workspace)
             .join("generated")
             .join(digest('2'))
             .is_dir());
@@ -319,8 +318,7 @@ mod tests {
         let outcome = apply_plan(&workspace, &plan).expect("apply");
         assert_eq!(outcome.removed_setup_records, vec![stale_hex]);
         assert!(outcome.removed_generations.is_empty());
-        assert!(workspace
-            .join(".dx")
+        assert!(dx_path::state::local_dir(&workspace)
             .join("environments")
             .join(digest('1'))
             .is_dir());
@@ -346,7 +344,7 @@ mod tests {
             let hex = std::env::var_os("DX_CLEAN_LEASE_HEX")
                 .map(|hex| hex.into_string().expect("child hex"))
                 .expect("child hex");
-            let dx_dir = workspace.join(".dx");
+            let dx_dir = dx_path::state::local_dir(&workspace);
             let _lease = dx_atomic_fs::lease::acquire_shared(
                 &dx_dir,
                 dx_atomic_fs::lease::GenerationUse::Generated,
@@ -366,7 +364,9 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let (workspace, stale_hex, _) = two_record_workspace(&root);
         let stale_gen = digest('4');
-        let stale_dir = workspace.join(".dx").join("generated").join(&stale_gen);
+        let stale_dir = dx_path::state::local_dir(&workspace)
+            .join("generated")
+            .join(&stale_gen);
         assert!(
             stale_dir.is_dir(),
             "the stale generation exists before pruning"
@@ -415,7 +415,7 @@ mod tests {
         };
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
-        let dx_dir = workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&workspace);
         fs::create_dir_all(&dx_dir).expect("dx dir");
         let _held = acquire_commit_lock(&ManagedRoot::new(dx_dir.clone()), Duration::from_secs(10))
             .expect("hold commit lock");
@@ -478,11 +478,11 @@ mod tests {
                 path: PathBuf::from("/ws"),
             },
             CleanError::Busy {
-                path: PathBuf::from("/ws/.dx/.commit.lock"),
+                path: PathBuf::from("/ws/.dx/local/.commit.lock"),
                 holder: None,
             },
             CleanError::LockFailed {
-                path: PathBuf::from("/ws/.dx/.commit.lock"),
+                path: PathBuf::from("/ws/.dx/local/.commit.lock"),
                 reason: "r".to_string(),
             },
             CleanError::CurrentInvalid {

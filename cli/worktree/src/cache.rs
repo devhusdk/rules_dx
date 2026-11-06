@@ -6,37 +6,44 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use dx_path::state;
+
 /// The file that marks a directory as a cache.
 const TAG_NAME: &str = "CACHEDIR.TAG";
 
 /// The first bytes of a valid tag.
 const TAG_SIGNATURE: &[u8] = b"Signature: 8a477f597d28d172789f06886806bc55";
 
-/// Directories under `.dx` that dx manages itself; they are never caches.
-const MANAGED: [&str; 3] = ["setups", "environments", "generated"];
-
-/// The tagged cache directories directly under `<slot>/.dx`, never following a symlink.
+/// The tagged cache directories directly under `<slot>/.dx` and `<slot>/.dx/local`, never
+/// following a symlink. The managed state under `.dx/local` is never a cache.
 pub(crate) fn slot_caches(slot: &Path) -> Vec<PathBuf> {
-    let dx = slot.join(".dx");
-    if !is_real_dir(&dx) {
+    let mut found = tagged_children(&state::dx_dir(slot), &["local"]);
+    found.extend(tagged_children(
+        &state::local_dir(slot),
+        &state::LOCAL_ENTRIES,
+    ));
+    found.sort();
+    found
+}
+
+fn tagged_children(dir: &Path, skip: &[&str]) -> Vec<PathBuf> {
+    if !is_real_dir(dir) {
         return Vec::new();
     }
-    let Ok(entries) = std::fs::read_dir(&dx) else {
+    let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };
-    let mut found: Vec<PathBuf> = entries
+    entries
         .filter_map(Result::ok)
         .filter(|entry| {
             entry
                 .file_name()
                 .to_str()
-                .is_some_and(|name| !MANAGED.contains(&name))
+                .is_some_and(|name| !skip.contains(&name))
         })
         .map(|entry| entry.path())
         .filter(|path| is_real_dir(path) && tagged(path))
-        .collect();
-    found.sort();
-    found
+        .collect()
 }
 
 fn is_real_dir(path: &Path) -> bool {
@@ -91,10 +98,23 @@ mod tests {
     #[test]
     fn ignores_managed_directories() {
         let temp = tempfile::tempdir().unwrap();
-        for name in MANAGED {
-            tag(&temp.path().join(".dx").join(name));
+        tag(&state::local_dir(temp.path()));
+        for name in state::LOCAL_ENTRIES {
+            tag(&state::local_dir(temp.path()).join(name));
         }
         assert!(slot_caches(temp.path()).is_empty());
+    }
+
+    #[test]
+    fn finds_tagged_caches_under_local() {
+        let temp = tempfile::tempdir().unwrap();
+        let local = state::local_dir(temp.path());
+        tag(&local.join("launcher"));
+        tag(&temp.path().join(".dx").join("ruff"));
+        assert_eq!(
+            slot_caches(temp.path()),
+            vec![local.join("launcher"), temp.path().join(".dx").join("ruff")]
+        );
     }
 
     #[test]

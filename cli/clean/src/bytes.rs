@@ -2,7 +2,6 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use dx_env::DX_DIR_NAME;
 use dx_setup::SETUPS_DIR_NAME;
 
 use super::apply::CleanOutcome;
@@ -109,7 +108,7 @@ fn measure(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(workspace_root);
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let mut measured = PruneBytes::default();
     for hex in setup_records {
@@ -159,7 +158,7 @@ pub fn render_prune_listing(plan: &CleanPlan, bytes: &PruneBytes) -> String {
             .map(|(_, size)| *size)
             .unwrap_or(0);
         lines.push(format!(
-            "prune setup record: .dx/setups/{hex} ({size} bytes)"
+            "prune setup record: .dx/local/setups/{hex} ({size} bytes)"
         ));
     }
     for generation in &plan.prune_generations {
@@ -170,23 +169,23 @@ pub fn render_prune_listing(plan: &CleanPlan, bytes: &PruneBytes) -> String {
             .map(|(_, size)| *size)
             .unwrap_or(0);
         lines.push(format!(
-            "prune generation: .dx/{}/{} ({size} bytes)",
+            "prune generation: .dx/local/{}/{} ({size} bytes)",
             generation.kind.dir_name(),
             generation.hex
         ));
     }
     match &plan.preserved_current {
-        Some(current) => lines.push(format!("preserve current: .dx/setups/{current}")),
+        Some(current) => lines.push(format!("preserve current: .dx/local/setups/{current}")),
         None => lines.push("no current selection".to_owned()),
     }
     for hex in &plan.preserved_unobserved_setup_records {
         lines.push(format!(
-            "preserve unobserved setup record: .dx/setups/{hex}"
+            "preserve unobserved setup record: .dx/local/setups/{hex}"
         ));
     }
     for generation in &plan.preserved_unobserved_generations {
         lines.push(format!(
-            "preserve unobserved generation: .dx/{}/{}",
+            "preserve unobserved generation: .dx/local/{}/{}",
             generation.kind.dir_name(),
             generation.hex
         ));
@@ -242,9 +241,9 @@ mod tests {
             unobserved: UnobservedPolicy::Preserve,
         });
         let listing = render_prune_listing(&plan, &PruneBytes::default());
-        assert!(listing.contains(&format!(".dx/setups/{}", stale.hex)));
-        assert!(listing.contains(&format!(".dx/environments/{}", digest('3'))));
-        assert!(listing.contains(&format!(".dx/setups/{}", current.hex)));
+        assert!(listing.contains(&format!(".dx/local/setups/{}", stale.hex)));
+        assert!(listing.contains(&format!(".dx/local/environments/{}", digest('3'))));
+        assert!(listing.contains(&format!(".dx/local/setups/{}", current.hex)));
         assert!(listing.contains("latest"));
         assert!(listing.contains("(0 bytes)"));
         assert!(listing.contains("reclaimable total: 0 bytes"));
@@ -294,7 +293,7 @@ mod tests {
         );
         assert!(
             listing.contains(&format!(
-                "preserve unobserved setup record: .dx/setups/{}",
+                "preserve unobserved setup record: .dx/local/setups/{}",
                 stale.hex
             )),
             "{listing}"
@@ -324,7 +323,10 @@ mod tests {
             "{listing}"
         );
         assert!(
-            listing.contains(&format!("prune setup record: .dx/setups/{}", stale.hex)),
+            listing.contains(&format!(
+                "prune setup record: .dx/local/setups/{}",
+                stale.hex
+            )),
             "{listing}"
         );
         assert!(!listing.contains("is preserved"), "{listing}");
@@ -388,7 +390,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
         dx_setup::commit_pair(&workspace, &setup_pair('1', '2')).expect("commit");
-        let dx_dir = workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&workspace);
         let outside = root.join("fat.bin");
         fs::write(&outside, vec![7u8; 1 << 20]).expect("fat file");
         let stale_gen = dx_dir.join("generated").join(digest('9'));
@@ -424,7 +426,7 @@ mod tests {
         };
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
-        let dx_dir = workspace.join(".dx");
+        let dx_dir = dx_path::state::local_dir(&workspace);
         let kept_gen = dx_dir.join("generated").join(digest('8'));
         fs::create_dir_all(&kept_gen).expect("kept generation");
         fs::write(kept_gen.join("artifact"), b"12345").expect("artifact");
@@ -520,14 +522,14 @@ mod tests {
         let listing = render_prune_listing(&plan, &bytes);
         assert!(
             listing.contains(&format!(
-                "prune setup record: .dx/setups/{} (120 bytes)",
+                "prune setup record: .dx/local/setups/{} (120 bytes)",
                 stale.hex
             )),
             "{listing}"
         );
         assert!(
             listing.contains(&format!(
-                "prune generation: .dx/environments/{} (34 bytes)",
+                "prune generation: .dx/local/environments/{} (34 bytes)",
                 digest('3')
             )),
             "{listing}"

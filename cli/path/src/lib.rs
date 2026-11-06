@@ -16,6 +16,7 @@ pub mod nested_bazel;
 pub mod proto_validate;
 pub mod runfiles;
 pub mod spelling;
+pub mod state;
 pub mod uri;
 pub mod workspace;
 

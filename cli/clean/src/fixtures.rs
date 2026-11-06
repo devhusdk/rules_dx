@@ -3,7 +3,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use dx_env::DX_DIR_NAME;
 use dx_setup::{GenerationId, SetupPair};
 
 use crate::planning::GenerationView;
@@ -53,7 +52,7 @@ pub(crate) fn two_record_workspace(root: &Path) -> (PathBuf, String, String) {
     let current = setup_pair('1', '2');
     dx_setup::commit_pair(&workspace, &stale).expect("commit stale");
     dx_setup::commit_pair(&workspace, &current).expect("commit current");
-    let dx_dir = workspace.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(&workspace);
     for (kind, tag) in [
         (GenerationUse::Environment, '1'),
         (GenerationUse::Generated, '2'),

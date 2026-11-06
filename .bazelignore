@@ -5,9 +5,7 @@ javascript/tests/fixtures/node-app/registry/node_modules
 .opencode/
 .claude/
 .dx/ide
-.dx/setups
-.dx/environments
-.dx/generated
+.dx/local
 .dx/bazelrc
 .dx/docs
 .dx/explain

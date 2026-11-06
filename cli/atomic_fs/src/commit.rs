@@ -7,14 +7,11 @@ use std::time::Duration;
 
 use super::managed::{create_pointer, remove_managed, PointerKind};
 
-/// Name of the managed root every generation domain coordinates under.
-pub const DX_DIR_NAME: &str = ".dx";
-
 /// Lock file inside a managed root that serializes generation commits.
-pub const COMMIT_LOCK_FILE_NAME: &str = ".commit.lock";
+pub const COMMIT_LOCK_FILE_NAME: &str = dx_path::state::COMMIT_LOCK;
 
 /// File beside the lock naming the command that last took it.
-pub const COMMIT_HOLDER_FILE_NAME: &str = ".commit.lock.holder";
+pub const COMMIT_HOLDER_FILE_NAME: &str = dx_path::state::COMMIT_LOCK_HOLDER;
 
 /// Text for a busy workspace; names the holder when known.
 pub fn busy_message(path: &Path, holder: Option<&str>) -> String {
@@ -199,12 +196,12 @@ mod tests {
     #[test]
     fn second_acquire_reports_busy_with_the_lock_path() {
         let scratch = dx_test_scratch::scratch("dx-commit-lock-");
-        let root = root_at(&scratch.path().join(DX_DIR_NAME));
+        let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
-        assert_eq!(root.dir(), scratch.path().join(DX_DIR_NAME));
+        assert_eq!(root.dir(), dx_path::state::local_dir(scratch.path()));
         assert_eq!(
             root.lock_path(),
-            scratch.path().join(DX_DIR_NAME).join(COMMIT_LOCK_FILE_NAME)
+            dx_path::state::local_dir(scratch.path()).join(COMMIT_LOCK_FILE_NAME)
         );
         let _held = acquire_commit_lock(&root, Duration::from_secs(10)).expect("hold commit lock");
         let busy = acquire_commit_lock(&root, Duration::ZERO).expect_err("locked root is busy");
@@ -227,7 +224,7 @@ mod tests {
     #[test]
     fn busy_without_a_holder_file_names_another_dx_command() {
         let scratch = dx_test_scratch::scratch("dx-commit-no-holder-");
-        let root = root_at(&scratch.path().join(DX_DIR_NAME));
+        let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
         let _held = acquire_commit_lock(&root, Duration::from_secs(10)).expect("hold");
         std::fs::remove_file(root.dir().join(COMMIT_HOLDER_FILE_NAME)).expect("remove holder");
@@ -239,7 +236,7 @@ mod tests {
     #[test]
     fn lock_open_failure_reports_the_path_and_keeps_foreign_state() {
         let scratch = dx_test_scratch::scratch("dx-commit-lock-open-");
-        let root = root_at(&scratch.path().join(DX_DIR_NAME));
+        let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
         std::fs::create_dir_all(root.lock_path()).expect("lock is a directory");
         let error = acquire_commit_lock(&root, Duration::from_secs(1)).expect_err("open fails");
@@ -257,7 +254,8 @@ mod tests {
     #[test]
     fn root_ensure_refuses_a_blocking_file() {
         let scratch = dx_test_scratch::scratch("dx-commit-root-");
-        let blocking = scratch.path().join(DX_DIR_NAME);
+        let blocking = dx_path::state::local_dir(scratch.path());
+        std::fs::create_dir_all(dx_path::state::dx_dir(scratch.path())).expect("dx dir");
         std::fs::write(&blocking, "foreign").expect("blocking file");
         let error = root_at(&blocking)
             .ensure_dir()
@@ -273,7 +271,7 @@ mod tests {
     #[test]
     fn handed_off_handles_keep_the_lock() {
         let scratch = dx_test_scratch::scratch("dx-commit-handoff-");
-        let root = root_at(&scratch.path().join(DX_DIR_NAME));
+        let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
         let lock = acquire_commit_lock(&root, Duration::from_secs(10)).expect("acquire");
         let file = lock.into_file();
@@ -499,7 +497,7 @@ mod tests {
     fn commit_errors_display() {
         let errors = [
             CommitError::Foreign {
-                path: PathBuf::from("/ws/.dx/current.next"),
+                path: PathBuf::from("/ws/.dx/local/current.next"),
                 reason: "r".to_string(),
             },
             CommitError::Install {
@@ -510,7 +508,7 @@ mod tests {
             assert!(!format!("{error}").is_empty());
         }
         let busy = LockError::Busy {
-            path: PathBuf::from("/ws/.dx/.commit.lock"),
+            path: PathBuf::from("/ws/.dx/local/.commit.lock"),
             holder: None,
         };
         assert!(!format!("{busy}").is_empty());

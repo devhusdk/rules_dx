@@ -129,7 +129,7 @@ pub fn orphan_candidates(tracked: &[String], ignored_prefixes: &[String]) -> Vec
     let mut out: Vec<String> = tracked
         .iter()
         .filter(|path| is_covered_language(path))
-        .filter(|path| *path != ".dx" && !path.starts_with(".dx/"))
+        .filter(|path| *path != dx_path::state::DX_DIR && !path.starts_with(".dx/"))
         .filter(|path| {
             !ignored_prefixes.iter().any(|prefix| {
                 *path == prefix

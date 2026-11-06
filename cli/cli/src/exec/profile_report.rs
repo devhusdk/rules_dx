@@ -14,7 +14,7 @@ const CRITICAL_SHOWN: usize = 5;
 const SLOWEST_SHOWN: usize = 10;
 
 pub(crate) fn dir(workspace: &Path) -> PathBuf {
-    workspace.join(".dx").join("profile")
+    workspace.join(dx_path::state::DX_DIR).join("profile")
 }
 
 pub(crate) fn profile_path(workspace: &Path, run_id: &str) -> PathBuf {
@@ -486,7 +486,10 @@ mod tests {
         assert!(report.fetches > 0);
         let totals = report.totals.as_ref().expect("totals");
         assert!(totals.critical_path_ms.unwrap_or(0) > 0);
-        assert!(totals.mnemonics.iter().all(|row| row.cpu_ms <= totals.mnemonics[0].cpu_ms));
+        assert!(totals
+            .mnemonics
+            .iter()
+            .all(|row| row.cpu_ms <= totals.mnemonics[0].cpu_ms));
         assert!(totals.mnemonics[0].cpu_ms > 0, "{totals:?}");
         assert!(report.text().contains("critical path"), "{}", report.text());
     }

@@ -189,7 +189,7 @@ fn walk(dir: &Path, ignored: &[PathBuf], found: &mut Vec<String>) {
         };
         if kind.is_dir() {
             let skip = name == ".git"
-                || name == ".dx"
+                || name == dx_path::state::DX_DIR
                 || name.starts_with("bazel-")
                 || ignored.contains(&path);
             if !skip {

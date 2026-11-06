@@ -301,7 +301,7 @@ fn generated_metadata_parses_on_its_platform() {
 
 #[test]
 fn error_display_names_every_variant() {
-    let dir = PathBuf::from("/ws/.dx/bin");
+    let dir = PathBuf::from("/ws/.dx/local/bin");
     let errors = [
         Error::WorkspaceRoot {
             path: PathBuf::from("/ws"),
@@ -346,7 +346,7 @@ fn error_display_names_every_variant() {
 
 #[test]
 fn lock_errors_convert_to_env_errors() {
-    let dir = PathBuf::from("/ws/.dx");
+    let dir = PathBuf::from("/ws/.dx/local");
     let busy = LockError::Busy {
         path: dir.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME),
         holder: None,
@@ -361,12 +361,12 @@ fn lock_errors_convert_to_env_errors() {
     }
     assert!(matches!(
         Error::from(busy),
-        Error::Busy { path, .. } if path == PathBuf::from("/ws/.dx/.commit.lock")
+        Error::Busy { path, .. } if path == PathBuf::from("/ws/.dx/local/.commit.lock")
     ));
     assert!(matches!(
         Error::from(failed),
         Error::LockFailed { path, reason }
-            if path == PathBuf::from("/ws/.dx/.commit.lock") && reason == "r"
+            if path == PathBuf::from("/ws/.dx/local/.commit.lock") && reason == "r"
     ));
 }
 
@@ -432,7 +432,7 @@ fn fresh_install_noop_and_replacement() {
     let (staged_bin, metadata, _) = write_staged(&root, &[("alpha", "//o:alpha", &["alpha", "a"])]);
     let opts = options(&root, staged_bin, metadata);
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
-    let bin = root.join("ws").join(".dx").join("bin");
+    let bin = dx_path::state::local_dir(&root.join("ws")).join("bin");
     assert_eq!(
         installed_target(&bin.join("a")),
         fs::canonicalize(root.join("targets").join("alpha")).expect("canonical target")
@@ -449,7 +449,9 @@ fn fresh_install_noop_and_replacement() {
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
     assert!(!bin.join("a").exists());
     assert!(bin.join("beta").exists());
-    assert!(!root.join("ws").join(".dx").join("bin.prev").exists());
+    assert!(!dx_path::state::local_dir(&root.join("ws"))
+        .join("bin.prev")
+        .exists());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -477,7 +479,9 @@ fn workspace_path_with_spaces_installs() {
     let mut opts = options(&root, staged_bin, metadata);
     opts.os = std::env::consts::OS;
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
-    let link = root.join("ws").join(".dx").join("bin").join(&host);
+    let link = dx_path::state::local_dir(&root.join("ws"))
+        .join("bin")
+        .join(&host);
     assert_eq!(
         installed_target(&link),
         fs::canonicalize(&target).expect("canonical target")
@@ -498,7 +502,7 @@ fn installed_fixture(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf, Refres
         write_staged(&root, &[("a", "//o:a", &["a"]), ("b", "//o:b", &["b"])]);
     let opts = options(&root, staged_bin, metadata);
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
-    let bin = root.join("ws").join(".dx").join("bin");
+    let bin = dx_path::state::local_dir(&root.join("ws")).join("bin");
     (scratch, bin, opts)
 }
 
@@ -596,7 +600,7 @@ fn already_current_cleans_stale_staging() {
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
-    let stage_dir = root.join("ws").join(".dx").join("bin.next");
+    let stage_dir = dx_path::state::local_dir(&root.join("ws")).join("bin.next");
     fs::create_dir_all(&stage_dir).expect("leftover staging");
     fs::write(stage_dir.join("junk"), "junk").expect("junk");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::AlreadyCurrent);
@@ -610,7 +614,7 @@ fn unmanaged_states_refuse_without_mutation() {
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
-    let dx = root.join("ws").join(".dx");
+    let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(&dx).expect("dx dir");
 
     fs::write(dx.join("bin"), "not a directory").expect("file bin");
@@ -666,7 +670,7 @@ fn stale_prev_undeletable_reports_install() {
         refresh(&opts, &probe_symlink),
         Ok(RefreshOutcome::InstalledFresh)
     ));
-    let dx = root.join("ws").join(".dx");
+    let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(dx.join(PREV_DIR_NAME)).expect("stale prev");
     fs::set_permissions(&dx, fs::Permissions::from_mode(0o555)).expect("read-only dx");
     let error = refresh(&opts, &|_: &Path| Ok(())).unwrap_err();
@@ -686,7 +690,7 @@ fn stale_stage_undeletable_reports_install() {
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
-    let dx = root.join("ws").join(".dx");
+    let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(&dx).expect("dx dir");
     fs::write(dx.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME), b"").expect("lock file");
     fs::create_dir_all(dx.join(STAGE_DIR_NAME)).expect("stale stage");
@@ -749,7 +753,7 @@ fn crash_between_renames_restores_then_replaces() {
     let (staged_bin, metadata, _) = write_staged(&root, &[("old", "//o:old", &["old"])]);
     let opts = options(&root, staged_bin, metadata);
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
-    let dx = root.join("ws").join(".dx");
+    let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::rename(dx.join("bin"), dx.join("bin.prev")).expect("simulate crash");
     let (staged_bin, metadata, _) = write_staged(&root, &[("new", "//o:new", &["new"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -766,7 +770,7 @@ fn stale_prev_is_cleared() {
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
-    let prev = root.join("ws").join(".dx").join("bin.prev");
+    let prev = dx_path::state::local_dir(&root.join("ws")).join("bin.prev");
     fs::create_dir_all(&prev).expect("stale prev");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::AlreadyCurrent);
     assert!(!prev.exists());
@@ -777,7 +781,7 @@ fn stale_prev_is_cleared() {
 fn busy_lock_fails_after_deadline() {
     let scratch = dx_test_scratch::scratch("dx-env-test-busy-");
     let root = scratch.path().to_path_buf();
-    let dx = root.join("ws").join(".dx");
+    let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(&dx).expect("dx dir");
     let _held = dx_atomic_fs::commit::acquire_commit_lock(
         &dx_atomic_fs::commit::ManagedRoot::new(dx.clone()),
@@ -796,7 +800,9 @@ fn busy_lock_fails_after_deadline() {
         text.ends_with("wait for it to finish, then retry"),
         "{text}"
     );
-    assert!(!root.join("ws").join(".dx").join("symlink.probe").exists());
+    assert!(!dx_path::state::local_dir(&root.join("ws"))
+        .join("symlink.probe")
+        .exists());
     drop(_held);
     let _ = fs::remove_dir_all(&root);
 }
@@ -807,7 +813,7 @@ fn lock_open_failure_aborts() {
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
-    let dx = root.join("ws").join(".dx");
+    let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(&dx).expect("dx dir");
     fs::create_dir_all(dx.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME))
         .expect("lock is a directory");
@@ -864,9 +870,11 @@ fn probe_failure_reports_before_mutation() {
         error,
         Error::SymlinkUnsupported { detail } if detail.contains("no changes were made")
     ));
-    assert!(!root.join("ws").join(".dx").join("bin").exists());
+    assert!(!dx_path::state::local_dir(&root.join("ws"))
+        .join("bin")
+        .exists());
     dx_atomic_fs::commit::acquire_commit_lock(
-        &dx_atomic_fs::commit::ManagedRoot::new(root.join("ws").join(".dx")),
+        &dx_atomic_fs::commit::ManagedRoot::new(dx_path::state::local_dir(&root.join("ws"))),
         Duration::from_millis(1),
     )
     .expect("lock released after probe failure");
@@ -1039,7 +1047,7 @@ fn refresh_succeeds_with_stale_probe() {
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
-    let dx = root.join("ws").join(".dx");
+    let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(&dx).expect("dx dir");
     fs::write(dx.join("symlink.probe"), "stale").expect("stale probe");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);

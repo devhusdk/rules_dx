@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use dx_adopt::StatusCheck;
-use dx_env::DX_DIR_NAME;
+use dx_path::state::LOCAL_DIR;
 use dx_setup::{CommitError, CURRENT_LINK_NAME, ENVIRONMENTS_DIR_NAME, SETUPS_DIR_NAME};
 
 use crate::exec::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
@@ -27,7 +27,7 @@ fn selection_error(error: &CommitError, workspace: &Path) -> StatusCheck {
     tools(
         "error",
         format!("unavailable: {}", relative(&error.to_string(), workspace)),
-        &format!("remove {DX_DIR_NAME}/{SETUPS_DIR_NAME}/{CURRENT_LINK_NAME}, then run {REFRESH}"),
+        &format!("remove {LOCAL_DIR}/{SETUPS_DIR_NAME}/{CURRENT_LINK_NAME}, then run {REFRESH}"),
     )
 }
 
@@ -49,7 +49,7 @@ pub(crate) fn managed_tools_check(workspace: &Path) -> StatusCheck {
             return tools(
                 "warn",
                 format!(
-                    "unknown: no managed environment is selected in {DX_DIR_NAME}/{SETUPS_DIR_NAME}/{CURRENT_LINK_NAME}"
+                    "unknown: no managed environment is selected in {LOCAL_DIR}/{SETUPS_DIR_NAME}/{CURRENT_LINK_NAME}"
                 ),
                 REFRESH,
             );
@@ -58,14 +58,13 @@ pub(crate) fn managed_tools_check(workspace: &Path) -> StatusCheck {
     };
     let id = pair.environment.as_str();
     let short = id.get(..12).unwrap_or(id);
-    let dir = workspace
-        .join(DX_DIR_NAME)
+    let dir = dx_path::state::local_dir(workspace)
         .join(ENVIRONMENTS_DIR_NAME)
         .join(id);
     if !dir.is_dir() {
         return tools(
             "error",
-            format!("unavailable: selected environment {short} is missing from {DX_DIR_NAME}/{ENVIRONMENTS_DIR_NAME}"),
+            format!("unavailable: selected environment {short} is missing from {LOCAL_DIR}/{ENVIRONMENTS_DIR_NAME}"),
             REFRESH,
         );
     }
@@ -150,10 +149,10 @@ mod tests {
     }
 
     fn select(root: &Path) -> std::path::PathBuf {
-        let env = root.join(".dx/environments").join(ENV);
+        let env = root.join(".dx/local/environments").join(ENV);
         std::fs::create_dir_all(env.join("artifacts")).expect("env");
-        std::fs::create_dir_all(root.join(".dx/generated").join(GEN)).expect("gen");
-        let record = root.join(".dx/setups").join(SETUP);
+        std::fs::create_dir_all(root.join(".dx/local/generated").join(GEN)).expect("gen");
+        let record = root.join(".dx/local/setups").join(SETUP);
         std::fs::create_dir_all(&record).expect("record");
         link_dir(
             Path::new(&format!("../../environments/{ENV}/")),
@@ -163,7 +162,7 @@ mod tests {
             Path::new(&format!("../../generated/{GEN}/")),
             &record.join("generated"),
         );
-        link_dir(Path::new(SETUP), &root.join(".dx/setups/current"));
+        link_dir(Path::new(SETUP), &root.join(".dx/local/setups/current"));
         env
     }
 
@@ -242,7 +241,9 @@ mod tests {
         let pruned = managed_tools_check(root);
         assert_eq!(pruned.status, "error");
         assert!(
-            pruned.detail.contains("is missing from .dx/environments"),
+            pruned
+                .detail
+                .contains("is missing from .dx/local/environments"),
             "{}",
             pruned.detail
         );
@@ -252,7 +253,7 @@ mod tests {
     fn foreign_selection_fails_without_absolute_paths() {
         let scratch = dx_test_scratch::scratch("dx-status-tools-foreign-");
         let root = scratch.path();
-        std::fs::create_dir_all(root.join(".dx/setups/current")).expect("foreign dir");
+        std::fs::create_dir_all(root.join(".dx/local/setups/current")).expect("foreign dir");
         let check = managed_tools_check(root);
         assert_eq!(check.status, "error");
         assert!(check.detail.starts_with("unavailable:"), "{}", check.detail);
@@ -263,7 +264,7 @@ mod tests {
         );
         assert_eq!(
             check.hint,
-            "remove .dx/setups/current, then run dx env --apply"
+            "remove .dx/local/setups/current, then run dx env --apply"
         );
     }
 }

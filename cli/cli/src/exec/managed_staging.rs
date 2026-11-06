@@ -1,6 +1,5 @@
 use super::common::*;
 use dx_atomic_fs::lease::{GenerationUse, SharedLease};
-use dx_env::DX_DIR_NAME;
 use dx_setup::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -32,7 +31,7 @@ pub(crate) fn ensure_generation_dir(
         ));
     }
     let lease = dx_atomic_fs::lease::acquire_shared(
-        &workspace.join(DX_DIR_NAME),
+        &dx_path::state::local_dir(workspace),
         generation_use(dir_name)?,
         hex,
         std::time::Duration::from_secs(10),
@@ -43,7 +42,9 @@ pub(crate) fn ensure_generation_dir(
             format!("cannot lease generation {hex}: {error}"),
         )
     })?;
-    let dir = workspace.join(DX_DIR_NAME).join(dir_name).join(hex);
+    let dir = dx_path::state::local_dir(workspace)
+        .join(dir_name)
+        .join(hex);
     match std::fs::symlink_metadata(&dir) {
         Ok(meta) => {
             if !meta.file_type().is_dir() || meta.file_type().is_symlink() {
@@ -98,7 +99,9 @@ mod tests {
         assert_eq!(first, second);
         let other = "0".repeat(64);
         std::fs::write(
-            workspace.join(".dx").join(GENERATED_DIR_NAME).join(&other),
+            dx_path::state::local_dir(&workspace)
+                .join(GENERATED_DIR_NAME)
+                .join(&other),
             "foreign",
         )
         .expect("foreign file");
@@ -121,8 +124,12 @@ mod tests {
     fn managed_generation_dir_create_failure_surfaces() {
         let workspace = temp_dir("managed-gendir-create-ws");
         let workspace = workspace.path();
-        std::fs::create_dir_all(workspace.join(".dx")).expect("dx dir");
-        std::fs::write(workspace.join(".dx").join(GENERATED_DIR_NAME), "file").expect("blocker");
+        std::fs::create_dir_all(dx_path::state::local_dir(&workspace)).expect("dx dir");
+        std::fs::write(
+            dx_path::state::local_dir(&workspace).join(GENERATED_DIR_NAME),
+            "file",
+        )
+        .expect("blocker");
         let (code, message) = ensure_generation_dir(workspace, GENERATED_DIR_NAME, &"1".repeat(64))
             .expect_err("create fails");
         assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);

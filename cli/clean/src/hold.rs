@@ -14,7 +14,6 @@ use std::time::Duration;
 
 use dx_atomic_fs::commit::{acquire_commit_lock, ManagedRoot};
 use dx_atomic_fs::lease::{self, GenerationUse, SharedLease};
-use dx_env::DX_DIR_NAME;
 use dx_setup::{read_current_pair, SetupPair};
 
 use super::apply::map_lock_error;
@@ -25,9 +24,9 @@ use super::CleanError;
 pub enum HoldError {
     #[error(transparent)]
     Clean(#[from] CleanError),
-    #[error("generation .dx/{kind}/{hex} is being removed; retry after cleanup finishes")]
+    #[error("generation .dx/local/{kind}/{hex} is being removed; retry after cleanup finishes")]
     Removing { kind: &'static str, hex: String },
-    #[error("cannot lease .dx/{kind}/{hex}: {reason}")]
+    #[error("cannot lease .dx/local/{kind}/{hex}: {reason}")]
     Lease {
         kind: &'static str,
         hex: String,
@@ -86,7 +85,7 @@ pub fn hold_current(
         }
         .into());
     }
-    let dx_dir = workspace_root.join(DX_DIR_NAME);
+    let dx_dir = dx_path::state::local_dir(workspace_root);
     if !dx_dir.is_dir() {
         return Ok(None);
     }

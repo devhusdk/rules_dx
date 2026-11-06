@@ -193,7 +193,7 @@ mod tests {
             stage_env_generation(&workspace, &id, &[env_entry("k", "v", &first)]).expect("stage");
         assert!(
             dx_atomic_fs::lease::shared_held(
-                &workspace.join(".dx"),
+                &dx_path::state::local_dir(&workspace),
                 dx_atomic_fs::lease::GenerationUse::Environment,
                 id.as_str(),
             )
@@ -203,7 +203,7 @@ mod tests {
         drop(lease);
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while dx_atomic_fs::lease::shared_held(
-            &workspace.join(".dx"),
+            &dx_path::state::local_dir(&workspace),
             dx_atomic_fs::lease::GenerationUse::Environment,
             id.as_str(),
         )
@@ -229,8 +229,7 @@ mod tests {
             env_entry("k1", "v1", &first),
         ];
         stage_env_generation(&workspace, &id, &projection).expect("stage");
-        let dir = workspace
-            .join(".dx")
+        let dir = dx_path::state::local_dir(&workspace)
             .join(ENVIRONMENTS_DIR_NAME)
             .join(id.as_str());
         assert_eq!(
@@ -344,8 +343,7 @@ mod tests {
         let second = fixture.second.clone();
         let id = empty_env_id();
         stage_env_generation(&workspace, &id, &[env_entry("k", "v", &first)]).expect("stage");
-        let dir = workspace
-            .join(".dx")
+        let dir = dx_path::state::local_dir(&workspace)
             .join(ENVIRONMENTS_DIR_NAME)
             .join(id.as_str());
         set_mode(&dir.join("artifacts"), 0o555);

@@ -289,6 +289,8 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(
                     r#"(?m)^\s*use\s+(?:parent|base)\s+(?:-norequire\s*,\s*)?(?:qw\s*[(/\[{{]\s*(?:[\w:]+\s+)*|['"](?:[\w:]+['"]\s*,\s*['"])*){module}\b"#
                 ),
+            ]
+        }
         Ecosystem::Dart => {
             let dep = regex_escape(dep);
             vec![

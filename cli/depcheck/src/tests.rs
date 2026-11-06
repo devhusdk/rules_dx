@@ -2643,6 +2643,9 @@ fn julia_usage_covers_using_import_and_lists() {
     }
     assert!(!hits["E"].src);
     assert!(hits["T"].test && !hits["T"].src);
+}
+
+#[test]
 fn dart_fixture_reports_the_unused_and_the_missing_package() {
     let app = testdata_root().join("dart/app");
     let manifest = app.join("pubspec.yaml");

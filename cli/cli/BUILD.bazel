@@ -1,10 +1,12 @@
 # gazelle:ignore
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//deploy/rules:github.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:pdb.bzl", "REPRODUCIBLE_PDB_LINK_FLAGS")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
@@ -156,9 +158,23 @@ rust_library(
 
 # rustc always passes /DEBUG on MSVC, and the PDB GUID it embeds hashes the
 # execroot, so release builds drop debug info to stay reproducible (#6950).
+# --//cli/cli:reproducible_pdb keeps the PDB with the execroot remapped instead,
+# until evidence shows it matches across checkouts (#8410).
+bool_flag(
+    name = "reproducible_pdb",
+    build_setting_default = False,
+)
+
 config_setting(
     name = "windows_opt",
     constraint_values = ["@platforms//os:windows"],
+    values = {"compilation_mode": "opt"},
+)
+
+config_setting(
+    name = "windows_opt_pdb",
+    constraint_values = ["@platforms//os:windows"],
+    flag_values = {":reproducible_pdb": "true"},
     values = {"compilation_mode": "opt"},
 )
 
@@ -174,6 +190,7 @@ rust_binary(
     data = ["//cli/prebuilt:pins.bzl"],
     edition = "2021",
     rustc_flags = select({
+        ":windows_opt_pdb": REPRODUCIBLE_PDB_LINK_FLAGS,
         ":windows_opt": ["-Clink-arg=/DEBUG:NONE"],
         "//conditions:default": [],
     }),
@@ -191,6 +208,12 @@ rust_binary(
         "//quality/notebook:quality_notebook_lib",
         "//quality/runner:quality_runner_lib",
     ],
+)
+
+filegroup(
+    name = "dx_pdb",
+    srcs = [":dx"],
+    output_group = "pdb_file",
 )
 
 github_deploy(

@@ -721,6 +721,53 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("UNKNOWN"), "{out}");
         assert!(!out.contains("failed to assess"), "{out}");
     }
+    const PUB_MODULE: &str = "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"dart_deps\", lock = \"//apps/dart:pubspec.lock\")\n";
+
+    const PUB_ADVISORY: &str = r#"[{
+        "id": "GHSA-pub-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "Pub", "name": "http"},
+            "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "0.13.3"}]}]
+        }]
+    }]"#;
+
+    fn pub_harness(name: &str, version: &str) -> Harness {
+        let harness = consumer_harness(name, PUB_MODULE, false);
+        harness.write_source(
+            "apps/dart/pubspec.yaml",
+            "name: app\ndependencies:\n  http: ^0.13.0\n",
+        );
+        harness.write_source(
+            "apps/dart/pubspec.lock",
+            &format!(
+                "packages:\n  http:\n    dependency: \"direct main\"\n    description:\n      name: http\n      url: \"https://pub.dev\"\n    source: hosted\n    version: \"{version}\"\n"
+            ),
+        );
+        harness
+    }
+
+    #[test]
+    fn consumer_pub_set_reports_a_vulnerable_lock_and_passes_the_fixed_one() {
+        let harness = pub_harness("pub-vuln", "0.13.2");
+        write_advisory(&harness, "pub", PUB_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "dart_deps"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/GHSA-pub-0001"), "{out}");
+        assert!(out.contains("apps/dart/pubspec.lock"), "{out}");
+        let fixed = pub_harness("pub-fixed", "0.13.3");
+        write_advisory(&fixed, "pub", PUB_ADVISORY);
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "dart_deps"], &runner, &fixed);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/GHSA"), "{out}");
+    }
+
     const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = \"//third_party:maven_install.json\")\nuse_repo(maven, \"maven\")\n";
 
     const MAVEN_ADVISORY: &str = r#"[{

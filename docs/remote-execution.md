@@ -14,11 +14,11 @@ common:remote --jobs=200
 common:remote --remote_download_minimal
 ```
 
-Put credentials in `~/.bazelrc` or `user.bazelrc`, as in
+Authenticate with a credential helper that reads the key from the environment, as in
 [Use a remote cache](remote-cache.md).
 
 ```text
-common:remote --remote_header=x-api-key=<token>
+common:remote --credential_helper=remote.example.com=%workspace%/tools/remote-helper.sh
 ```
 
 Pass the config after `--`.

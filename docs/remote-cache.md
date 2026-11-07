@@ -11,11 +11,26 @@ common:cache --remote_cache=grpcs://cache.example.com
 common:cache --remote_upload_local_results=true
 ```
 
-Put secrets in `~/.bazelrc` or `user.bazelrc`. Never commit them. `dx` reads `~/.bazelrc`.
+Keep the key out of rc files. Point Bazel at a credential helper that reads the key from the environment. Commit the helper, not the key.
+
+```sh
+#!/bin/sh
+printf '{"headers":{"x-api-key":["%s"]}}\n' "$CACHE_API_KEY"
+```
+
+On Windows, use a `.bat` helper.
+
+```bat
+@echo {"headers":{"x-api-key":["%CACHE_API_KEY%"]}}
+```
+
+Register it for the cache host in the `cache` config.
 
 ```text
-common:cache --remote_header=x-api-key=<token>
+common:cache --credential_helper=cache.example.com=%workspace%/tools/cache-helper.sh
 ```
+
+`--remote_header=name=value` in `~/.bazelrc` or `user.bazelrc` also works on a machine only you use. Do not use it in CI or with `--announce_rc`, which print the value into logs.
 
 Pass the config after `--`.
 
@@ -27,21 +42,23 @@ dx build //... -- --config=cache
 
 ## Backends
 
-bazel-remote, with basic auth:
+bazel-remote, with basic auth. The helper prints `Authorization: Basic <base64 user:password>`:
 
 ```text
 common:cache --remote_cache=grpc://cache.example.com:9092
-common:cache --remote_header=Authorization=Basic <base64 user:password>
+common:cache --credential_helper=cache.example.com=%workspace%/tools/cache-helper.sh
 ```
 
 BuildBuddy:
 
 ```text
 common:cache --remote_cache=grpcs://remote.buildbuddy.io
-common:cache --remote_header=x-buildbuddy-api-key=<key>
+common:cache --credential_helper=remote.buildbuddy.io=%workspace%/tools/buildbuddy-credential-helper.sh
 ```
 
-Any other REAPI cache takes its URL in `--remote_cache`. Authenticate with `--remote_header`, or with `--credential_helper` for a helper program.
+The helper prints `x-buildbuddy-api-key` from `BUILDBUDDY_API_KEY`.
+
+Any other REAPI cache takes its URL in `--remote_cache`. Authenticate with `--credential_helper`.
 
 ## CI
 

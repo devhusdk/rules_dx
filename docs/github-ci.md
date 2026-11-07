@@ -97,6 +97,8 @@ Common failures:
 
 ## Caches
 
+The reusable workflows write a credential helper that reads the key from the environment and pass it to Bazel. Callers only pass the secret. Do not put the key in `--remote_header` or any rc file.
+
 1. For BuildBuddy, set the `BUILDBUDDY_API_KEY` secret:
 
    ```yaml

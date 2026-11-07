@@ -368,7 +368,7 @@ Plain `bazel` skips layers that do not exist.
   ```sh
   echo 'common --disk_cache=~/.cache/bazel-disk' >> user.bazelrc
   echo 'common --remote_cache=grpcs://cache.example.com' >> user.bazelrc
-  echo 'common --remote_header=x-api-key=<key>' >> user.bazelrc
+  echo 'common --credential_helper=cache.example.com=%workspace%/tools/cache-helper.sh' >> user.bazelrc
   echo 'build --jobs=8' >> user.bazelrc
   ```
 

@@ -392,13 +392,6 @@ fn holding_forwards_every_runner_call() {
 fn tool_version_returns_the_first_line() {
     let scratch = dx_test_scratch::scratch("dx-runner-version");
     let tool = scratch.path().join("tool");
-    let status = std::process::Command::new("/bin/sh")
-        .arg("-c")
-        .arg("printf '#!/bin/sh\\necho \"tool 1.2.3\"\\n' > \"$1\" && chmod 755 \"$1\"")
-        .arg("sh")
-        .arg(&tool)
-        .status()
-        .expect("spawn sh");
-    assert!(status.success(), "write tool: {status}");
+    dx_testing::executable_script(&tool, "#!/bin/sh\necho 'tool 1.2.3'\n");
     assert_eq!(runner().tool_version(&tool).as_deref(), Some("tool 1.2.3"));
 }

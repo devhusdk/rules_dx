@@ -1,5 +1,4 @@
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -53,8 +52,7 @@ fn run_with(verb: &str, flags: &[&str]) -> (Option<i32>, String, String, Option<
     })
     .to_string();
     let bazel = bin.join("bazel");
-    fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
-    fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+    dx_testing::executable_script(&bazel, FAKE_BAZEL);
     let output = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"))
         .arg(verb)
         .args(flags)
@@ -157,8 +155,7 @@ fn the_launcher_reports_a_bazel_killed_by_its_own_signal() {
     fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
     let bazel = bin.join("bazel");
-    fs::write(&bazel, SIGNALLED_BAZEL).expect("fake bazel");
-    fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+    dx_testing::executable_script(&bazel, SIGNALLED_BAZEL);
     let output = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"))
         .args(["build", "--output=json", "//..."])
         .current_dir(&workspace)

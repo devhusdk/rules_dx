@@ -1,5 +1,4 @@
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::process::{Command, Stdio};
 
 const MODULE: &str = "module(name = \"acme\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
@@ -61,8 +60,7 @@ fn build_lines_with_env(
     fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
     let bazel = bin.join("bazel");
-    fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
-    fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+    dx_testing::executable_script(&bazel, FAKE_BAZEL);
     let log = base.join("argv.log");
     let output = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"))
         .arg("build")

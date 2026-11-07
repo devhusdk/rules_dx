@@ -2,7 +2,6 @@ use super::super::test_support::{Harness, hang_up};
 use quality_result::proto::FileSnapshot;
 use std::fs;
 use std::io::{BufRead, BufReader};
-use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
@@ -112,8 +111,7 @@ impl Consumer {
         fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
         fs::write(workspace.join("src/main.rs"), "fn main() {}\n").expect("source");
         let bazel = base.join("bin/bazel");
-        fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
-        fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&bazel, FAKE_BAZEL);
         Consumer {
             base,
             _scratch: scratch,

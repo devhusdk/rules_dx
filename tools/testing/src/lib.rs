@@ -424,6 +424,30 @@ pub fn holding() -> std::sync::RwLockReadGuard<'static, ()> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// Writes `body` to `path` and marks it executable, without the test process
+/// ever opening the file for writing. A thread that forks meanwhile cannot
+/// inherit a write fd, so exec-ing the file never fails with ETXTBSY.
+#[cfg(unix)]
+pub fn executable_script(path: &Path, body: &str) {
+    use std::io::Write;
+    let mut child = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg("cat > \"$1\" && chmod 755 \"$1\"")
+        .arg("sh")
+        .arg(path)
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn sh");
+    child
+        .stdin
+        .take()
+        .expect("stdin")
+        .write_all(body.as_bytes())
+        .expect("write script body");
+    let status = child.wait().expect("wait sh");
+    assert!(status.success(), "write {}: {status}", path.display());
+}
+
 /// Waits up to 10s for the process holding the alive lock at `lock` to die.
 pub fn assert_alive_lock_released(lock: &Path) {
     assert!(lock.exists(), "the probe never armed: {}", lock.display());
@@ -704,6 +728,16 @@ mod tests {
         let mut handle = std::fs::File::create(&path).expect("create");
         handle.write_all(text.as_bytes()).expect("write");
         path
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn executable_script_writes_a_runnable_file() {
+        let dir = scratch("dx-exec-script");
+        let path = dir.path().join("tool");
+        executable_script(&path, "#!/bin/sh\necho hi\n");
+        let out = std::process::Command::new(&path).output().expect("run");
+        assert_eq!(String::from_utf8_lossy(&out.stdout), "hi\n");
     }
 
     #[test]

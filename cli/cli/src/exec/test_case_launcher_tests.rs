@@ -1,5 +1,4 @@
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -74,8 +73,7 @@ fn run(
         .collect::<Vec<_>>()
         .join("\n");
     let bazel = bin.join("bazel");
-    fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
-    fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+    dx_testing::executable_script(&bazel, FAKE_BAZEL);
     let output = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"))
         .args([
             "test",

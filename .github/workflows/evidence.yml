@@ -139,8 +139,6 @@ jobs:
           {
             echo "common --config=ci"
             echo "common $BB_ARGS"
-            echo "startup --experimental_remote_repo_contents_cache"
-            echo "build --jobs=64"
           } >> user.bazelrc
           [ "$DX_PLATFORM" != linux_x86_64 ] || echo "common --config=rbe" >> user.bazelrc
       - name: Enable KVM

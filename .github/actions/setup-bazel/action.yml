@@ -90,6 +90,7 @@ runs:
         fi
         if [ -n "$args" ]; then
           echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+          echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
         fi
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:

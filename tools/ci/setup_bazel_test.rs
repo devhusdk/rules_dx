@@ -156,6 +156,7 @@ fn setup_bazel_documents() -> Vec<(String, serde_json::Value)> {
 
 const LOCATE: &str = "Locate the Bazel repository cache";
 const RESOLVE: &str = "Resolve the setup inputs";
+const CREDENTIALS: &str = "Configure the remote cache credential helper";
 const ACTION_FILE: &str = ".github/actions/setup-bazel/action.yml";
 
 fn steps_named(steps: &[serde_json::Value], name: &str) -> Vec<usize> {
@@ -353,4 +354,20 @@ fn windows_jobs_put_the_output_root_on_d_before_the_first_bazel_call() {
             "{name} links C:\\bz to D:, which restarts the Bazel server"
         );
     }
+}
+
+#[test]
+fn a_configured_remote_cache_turns_on_the_remote_repo_contents_cache() {
+    let action = action_document();
+    let steps = action["runs"]["steps"].as_array().expect("action steps");
+    let step = &steps[action_index(steps, CREDENTIALS)];
+    let run = step["run"].as_str().unwrap();
+    let gate = run
+        .find("if [ -n \"$args\" ]; then")
+        .expect("the credential step no longer checks $args");
+    let line = "echo \"startup --experimental_remote_repo_contents_cache\" >> user.bazelrc";
+    assert!(
+        run[gate..].contains(line),
+        "{ACTION_FILE} must turn on the remote repo contents cache when a remote cache is set"
+    );
 }

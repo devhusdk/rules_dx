@@ -960,16 +960,23 @@ fn ci_config_leaves_remote_downloads_to_dx() {
 }
 
 #[test]
-// Bazel 9.3 only accepts the remote repo contents cache as a startup option.
-fn evidence_uses_remote_repo_contents_cache() {
-    let flags = ["startup --experimental_remote_repo_contents_cache", "build --jobs=64"];
+// setup-bazel turns the cache on, since --config=ci cannot set startup options.
+fn remote_repo_contents_cache_comes_from_setup_bazel() {
     let evidence = read_runfiles(".github/workflows/evidence.yml");
-    let bazelrc = read_runfiles(".bazelrc");
-    for flag in flags {
-        assert!(evidence.contains(flag), "evidence.yml does not pass {flag}");
-        // Promoting these to common:ci is #8933.
-        assert!(!bazelrc.contains(flag), ".bazelrc sets {flag}; evidence.yml owns it for now");
+    for flag in [
+        "startup --experimental_remote_repo_contents_cache",
+        "build --jobs=64",
+    ] {
+        assert!(!evidence.contains(flag), "evidence.yml passes {flag} again");
     }
+    assert!(
+        read_runfiles(".bazelrc").contains("common:ci --loading_phase_threads=32"),
+        ".bazelrc must let CI look up more repos at once"
+    );
+    assert!(
+        read_runfiles("tools/bazelrc/performance.bazelrc").contains("common:ci --jobs=64"),
+        "the preset no longer sets common:ci --jobs=64"
+    );
 }
 
 #[test]

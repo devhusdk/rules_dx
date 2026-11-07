@@ -74,6 +74,7 @@ common:ci --experimental_remote_downloader=grpcs://remote.buildbuddy.io
 common:ci --experimental_remote_downloader_local_fallback
 common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true
+common:ci --loading_phase_threads=32
 
 common:rbe --remote_executor=grpcs://remote.buildbuddy.io
 common:rbe --remote_default_exec_properties=OSFamily=Linux

@@ -1,7 +1,7 @@
 # gazelle:dx_corpus false
 
 load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
-load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test", "erlc_werror_test")
+load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test", "erlc_warnings_as_errors_test")
 
 erlang_app(
     app_name = "needs_dep",
@@ -10,7 +10,7 @@ erlang_app(
     deps = ["//erlang/tests/negative/base_dep:erlang_app"],
 )
 
-erlc_werror_test(
+erlc_warnings_as_errors_test(
     name = "erlc_fails_on_warnings_test",
     target = ":beam_files",
 )

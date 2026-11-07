@@ -9,5 +9,5 @@ scala_library(
     name = "unused",
     srcs = ["Unused.scala"],
     scala_version = "3.3.9",
-    treat_warnings_as_errors = False,
+    warnings_as_errors = False,
 )

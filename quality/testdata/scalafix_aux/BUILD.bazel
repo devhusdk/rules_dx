@@ -59,7 +59,7 @@ scala_library(
     aspect_hints = [":unused"],
     scala_version = "3.3.9",
     tags = ["manual"],
-    treat_warnings_as_errors = False,
+    warnings_as_errors = False,
 )
 
 scala_library(

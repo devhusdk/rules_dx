@@ -24,7 +24,7 @@ def jmh_benchmark(name, library, srcs, deps, jmh, jmh_processor, tags, kwargs, l
         plugins = [processor],
         testonly = True,
         visibility = ["//visibility:private"],
-        treat_warnings_as_errors = False,
+        warnings_as_errors = False,
         **library_kwargs
     )
     _java_library(

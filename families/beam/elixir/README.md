@@ -62,7 +62,7 @@ escript_archive(
   `manual`, so `//...` builds only the app.
 - `app_module` names the Elixir module that starts the application.
 - `elixirc_opts` is kept and `--warnings-as-errors` is added. Set
-  `treat_warnings_as_errors = False` on a target, or
+  `warnings_as_errors = False` on a target, or
   `--@rules_dx//config:warnings_as_errors=false`, to turn it off.
 - `escript_headers("Mod")` starts `Mod.main/1` with UTF-8 file names and
   stdio.

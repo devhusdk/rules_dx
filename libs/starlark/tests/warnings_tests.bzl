@@ -41,8 +41,8 @@ def warnings_tests(name):
       name: suite name and prefix of the declared targets.
     """
     _probe_macro(name = name + "_unset")
-    _probe_macro(name = name + "_true", treat_warnings_as_errors = True)
-    _probe_macro(name = name + "_false", treat_warnings_as_errors = False)
+    _probe_macro(name = name + "_true", warnings_as_errors = True)
+    _probe_macro(name = name + "_false", warnings_as_errors = False)
     _flag_on_test(name = name + "_flag_on", target_under_test = ":" + name + "_unset", expected = ["-Werror"])
     _flag_off_test(name = name + "_flag_off", target_under_test = ":" + name + "_unset", expected = ["-w"])
     _flag_off_test(name = name + "_attr_true_flag_off", target_under_test = ":" + name + "_true", expected = ["-Werror"])

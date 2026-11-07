@@ -27,7 +27,7 @@ DEFAULT_GHCOPTS = select({
     "//conditions:default": STANDARD_GHCOPTS,
 })
 
-WERROR_GHCOPTS = ["-Werror"]
+_WARNINGS_AS_ERRORS_GHCOPTS = ["-Werror"]
 
 GMP = Label("@dx_haskell_toolchains//:gmp")
 
@@ -77,9 +77,9 @@ _haskell_forward_test = dx_executable_forward_rule(
 
 def upstream_kwargs(kwargs):
     """Returns the rules_haskell kwargs with ghcopts plus the warnings-as-errors flag."""
-    upstream, werror = dx_warnings_as_errors(kwargs, WERROR_GHCOPTS)
+    upstream, warning_flags = dx_warnings_as_errors(kwargs, _WARNINGS_AS_ERRORS_GHCOPTS)
     ghcopts = upstream.get("ghcopts")
-    upstream["ghcopts"] = (DEFAULT_GHCOPTS if ghcopts == None else ghcopts) + werror
+    upstream["ghcopts"] = (DEFAULT_GHCOPTS if ghcopts == None else ghcopts) + warning_flags
     return upstream
 
 def with_gmp(deps, gmp = GMP):

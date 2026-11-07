@@ -31,7 +31,7 @@ def _credo_checks():
         expect_equal("the version is pinned to the literal", credo_rewrites("bunt", "lib/bunt.ex", "@version Mix.Project.config()[:version]", "1.0.0"), '@version "1.0.0"'),
         expect_equal("other files pass through", credo_rewrites("credo", "lib/other.ex", "Mix.env()", "1"), "Mix.env()"),
         expect_contains("credo builds with the dependency chain", credo_build("credo"), '"//file_system:erlang_app"'),
-        expect_contains("vendored apps do not fail on warnings", credo_build("jason"), "treat_warnings_as_errors = False"),
+        expect_contains("vendored apps do not fail on warnings", credo_build("jason"), "warnings_as_errors = False"),
         expect_contains("launcher locks the home down", preamble, "export HOME='/nonexistent/dx_mix_format'"),
         expect_equal("launcher env keeps its name", MIX_FORMAT_ENV["HEX_OFFLINE"], "1"),
     ]

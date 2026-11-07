@@ -51,19 +51,19 @@ _scala_forward_test = dx_executable_forward_rule(
     quiet_providers = [SemanticdbInfo],
 )
 
-def scala_scalacopts_with_werror(kwargs):
+def scala_scalacopts_with_warnings_as_errors(kwargs):
     """Returns kwargs with -Xfatal-warnings on scalacopts unless turned off."""
-    out, werror = dx_warnings_as_errors(kwargs, ["-Xfatal-warnings"])
-    return dx_append_flags(out, "scalacopts", werror)
+    out, warning_flags = dx_warnings_as_errors(kwargs, ["-Xfatal-warnings"])
+    return dx_append_flags(out, "scalacopts", warning_flags)
 
 def scala_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_library."""
-    dx_wrap(name, _scala_library, _scala_library_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **dx_without_warnings_attr(kwargs))
+    dx_wrap(name, _scala_library, _scala_library_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_warnings_as_errors(kwargs), **dx_without_warnings_attr(kwargs))
 
 def scala_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_binary."""
-    dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **dx_without_warnings_attr(kwargs))
+    dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_warnings_as_errors(kwargs), **dx_without_warnings_attr(kwargs))
 
 def scala_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_test."""
-    dx_wrap_test(name, _scala_test, _scala_forward_test, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **dx_without_warnings_attr(kwargs))
+    dx_wrap_test(name, _scala_test, _scala_forward_test, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_warnings_as_errors(kwargs), **dx_without_warnings_attr(kwargs))

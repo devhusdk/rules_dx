@@ -362,7 +362,7 @@ Plain `bazel` skips layers that do not exist.
   prints a note and adds no imports.
 - Warnings are errors by default in the rules_dx wrappers. Add
   `common --@rules_dx//config:warnings_as_errors=false` to the root `.bazelrc` to
-  turn that off repo-wide; a target can override it with `treat_warnings_as_errors`.
+  turn that off repo-wide; a target can override it with `warnings_as_errors`.
 - Machine-specific flags go in `user.bazelrc`:
 
   ```sh

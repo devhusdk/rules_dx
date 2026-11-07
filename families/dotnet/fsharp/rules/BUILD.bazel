@@ -31,7 +31,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "explicit warnings setting wins",
-            fsharp_tfm_with_defaults({"treat_warnings_as_errors": False})["treat_warnings_as_errors"],
+            fsharp_tfm_with_defaults({"warnings_as_errors": False})["treat_warnings_as_errors"],
             False,
         ),
         expect_equal(

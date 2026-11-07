@@ -503,12 +503,12 @@ def dx_append_flags(kwargs, key, flags):
     return out
 
 def dx_warnings_as_errors(kwargs, on, off = []):
-    """Returns kwargs without treat_warnings_as_errors and the value to use.
+    """Returns kwargs without warnings_as_errors and the value to use.
 
     True picks on, False picks off, and unset follows //config:warnings_as_errors.
     """
     out = dict(kwargs)
-    setting = out.pop("treat_warnings_as_errors", None)
+    setting = out.pop("warnings_as_errors", None)
     if setting == None:
         return out, select({
             Label("//config:warnings_as_errors_on"): on,
@@ -517,8 +517,8 @@ def dx_warnings_as_errors(kwargs, on, off = []):
     return out, (on if setting else off)
 
 def dx_without_warnings_attr(kwargs):
-    """Returns kwargs without treat_warnings_as_errors."""
-    return {key: value for key, value in kwargs.items() if key != "treat_warnings_as_errors"}
+    """Returns kwargs without warnings_as_errors."""
+    return {key: value for key, value in kwargs.items() if key != "warnings_as_errors"}
 
 def dx_setdefaults(kwargs, defaults):
     """Returns a copy of kwargs with each absent default key set."""

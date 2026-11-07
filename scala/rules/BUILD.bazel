@@ -1,11 +1,11 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "scala_scalacopts_with_werror")
+load(":defs.bzl", "scala_scalacopts_with_warnings_as_errors")
 
 package(default_visibility = ["//visibility:public"])
 
-_ON = {"treat_warnings_as_errors": True}
+_ON = {"warnings_as_errors": True}
 
 exports_files([
     "defs.bzl",
@@ -16,12 +16,12 @@ dx_wrapper_contract_tests(
     extra_checks = [
         expect_equal(
             "empty gains fatal warnings",
-            scala_scalacopts_with_werror(_ON)["scalacopts"],
+            scala_scalacopts_with_warnings_as_errors(_ON)["scalacopts"],
             ["-Xfatal-warnings"],
         ),
         expect_equal(
             "existing flag is kept without duplication",
-            scala_scalacopts_with_werror(dict(
+            scala_scalacopts_with_warnings_as_errors(dict(
                 _ON,
                 scalacopts = ["-Xfatal-warnings"],
             ))["scalacopts"],
@@ -29,7 +29,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "other flags are kept",
-            scala_scalacopts_with_werror(dict(
+            scala_scalacopts_with_warnings_as_errors(dict(
                 _ON,
                 scalacopts = ["-deprecation"],
             ))["scalacopts"],
@@ -40,12 +40,12 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "turned off adds no flag",
-            scala_scalacopts_with_werror({"treat_warnings_as_errors": False})["scalacopts"],
+            scala_scalacopts_with_warnings_as_errors({"warnings_as_errors": False})["scalacopts"],
             [],
         ),
         expect_equal(
             "other kwargs survive",
-            scala_scalacopts_with_werror(dict(
+            scala_scalacopts_with_warnings_as_errors(dict(
                 _ON,
                 deps = [":hello_lib"],
             ))["deps"],

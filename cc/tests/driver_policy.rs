@@ -7,7 +7,7 @@ struct Driver {
     include: &'static str,
     output: &'static str,
     warnings: &'static str,
-    werror: &'static str,
+    warnings_as_errors: &'static str,
     c_std: &'static str,
 }
 
@@ -18,7 +18,7 @@ const DRIVERS: &[Driver] = &[
         include: "-I",
         output: "-o{object}",
         warnings: "-Wall",
-        werror: "-Werror",
+        warnings_as_errors: "-Werror",
         c_std: "-std=c17",
     },
     Driver {
@@ -27,7 +27,7 @@ const DRIVERS: &[Driver] = &[
         include: "/I",
         output: "/Fo{object}",
         warnings: "/W4",
-        werror: "/WX",
+        warnings_as_errors: "/WX",
         c_std: "/std:c17",
     },
 ];
@@ -134,7 +134,7 @@ fn clean_c_compiles_under_each_qualified_driver_policy() {
             driver,
             &format!("clean-{}", driver.name),
             CLEAN_C,
-            &[driver.warnings, driver.werror, driver.c_std],
+            &[driver.warnings, driver.warnings_as_errors, driver.c_std],
         );
         assert!(
             got.succeeded(),
@@ -152,7 +152,7 @@ fn a_warning_fails_the_compile_under_each_qualified_driver() {
             driver,
             &format!("warn-{}", driver.name),
             WARNING_C,
-            &[driver.warnings, driver.werror],
+            &[driver.warnings, driver.warnings_as_errors],
         );
         assert!(
             !got.succeeded(),
@@ -176,7 +176,7 @@ fn an_existing_warning_flag_alone_carries_no_policy() {
             driver,
             &format!("flag-{}", driver.name),
             WARNING_C,
-            &[driver.werror],
+            &[driver.warnings_as_errors],
         );
         assert!(
             got.succeeded(),

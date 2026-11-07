@@ -227,12 +227,12 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "warnings_as_errors true picks on",
-                dx_warnings_as_errors({"treat_warnings_as_errors": True, "deps": [":a"]}, ["-Werror"], ["-w"]),
+                dx_warnings_as_errors({"warnings_as_errors": True, "deps": [":a"]}, ["-Werror"], ["-w"]),
                 ({"deps": [":a"]}, ["-Werror"]),
             ),
             expect_equal(
                 "warnings_as_errors false picks off",
-                dx_warnings_as_errors({"treat_warnings_as_errors": False}, ["-Werror"], ["-w"]),
+                dx_warnings_as_errors({"warnings_as_errors": False}, ["-Werror"], ["-w"]),
                 ({}, ["-w"]),
             ),
             expect_equal(
@@ -242,12 +242,12 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "warnings_as_errors none follows the flag",
-                type(dx_warnings_as_errors({"treat_warnings_as_errors": None}, ["-Werror"])[1]),
+                type(dx_warnings_as_errors({"warnings_as_errors": None}, ["-Werror"])[1]),
                 "select",
             ),
             expect_equal(
                 "warnings_as_errors removes the key when unset",
-                dx_warnings_as_errors({"treat_warnings_as_errors": None}, ["-Werror"])[0],
+                dx_warnings_as_errors({"warnings_as_errors": None}, ["-Werror"])[0],
                 {},
             ),
             expect_equal(

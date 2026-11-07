@@ -52,7 +52,7 @@ csharp_test(
 | `csharp_benchmark` | `csharp_test` that runs `[Benchmark]` classes with BenchmarkDotNet and writes `dx-bench.json` for `dx bench`; add `nuget BenchmarkDotNet` to your `paket.dependencies` |
 
 - `target_frameworks` defaults to `["net10.0"]`. Set it to change it.
-- `treat_warnings_as_errors` follows `//config:warnings_as_errors`, which is on by
+- `warnings_as_errors` follows `//config:warnings_as_errors`, which is on by
   default. Set the attribute to `True` or `False` to override the flag for one
   target. `common --@rules_dx//config:warnings_as_errors=false` turns it off
   everywhere.

@@ -45,7 +45,7 @@ haskell_binary(
 | `haskell_test` | Test executable; a non-zero exit fails the test |
 
 - A warning fails the build: `-Werror` is added to `ghcopts`, which defaults to
-  `["-Wall"]`. Set `treat_warnings_as_errors = False` on a target, or
+  `["-Wall"]`. Set `warnings_as_errors = False` on a target, or
   `--@rules_dx//config:warnings_as_errors=false`, to turn it off.
 - Library `tags` reach the library; the generated upstream target is
   `manual`, so `//...` builds only the library.

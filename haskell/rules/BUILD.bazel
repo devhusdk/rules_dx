@@ -42,7 +42,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "-Werror can be forced on",
-            upstream_kwargs({"ghcopts": ["-Wall"], "treat_warnings_as_errors": True})["ghcopts"],
+            upstream_kwargs({"ghcopts": ["-Wall"], "warnings_as_errors": True})["ghcopts"],
             [
                 "-Wall",
                 "-Werror",
@@ -50,14 +50,14 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "-Werror can be forced off",
-            upstream_kwargs({"ghcopts": ["-Wall"], "treat_warnings_as_errors": False})["ghcopts"],
+            upstream_kwargs({"ghcopts": ["-Wall"], "warnings_as_errors": False})["ghcopts"],
             ["-Wall"],
         ),
         expect_equal(
             "user ghcopts keep -Werror",
             upstream_kwargs({
                 "ghcopts": ["-O2"],
-                "treat_warnings_as_errors": True,
+                "warnings_as_errors": True,
             })["ghcopts"],
             [
                 "-O2",
@@ -66,7 +66,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "the attribute is not passed upstream",
-            "treat_warnings_as_errors" in upstream_kwargs({"treat_warnings_as_errors": False}),
+            "warnings_as_errors" in upstream_kwargs({"warnings_as_errors": False}),
             False,
         ),
         expect_equal(

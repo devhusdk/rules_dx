@@ -32,7 +32,7 @@ STANDARD_WARNING_OPTS = ["-w", "+a-4-40-42-44-70"]
 
 STRICT_WARNING_OPTS = ["-w", "+a-4-70", "-alert", "-deprecated"]
 
-WERROR_OPTS = ["-warn-error", "+a-3"]
+WARNINGS_AS_ERRORS_OPTS = ["-warn-error", "+a-3"]
 
 PROFILE_WARNING_OPTS = select({
     Label("//config:config_profile_strict"): STRICT_WARNING_OPTS,

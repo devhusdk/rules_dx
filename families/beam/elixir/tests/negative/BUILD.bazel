@@ -38,7 +38,7 @@ elixir_app(
     app_version = "1.0.0",
     tags = ["manual"],
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
-    treat_warnings_as_errors = True,
+    warnings_as_errors = True,
 )
 
 elixir_compile_test(

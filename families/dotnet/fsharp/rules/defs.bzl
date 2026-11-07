@@ -68,9 +68,9 @@ _fsharp_forward_test = dx_executable_forward_rule(
 )
 
 def fsharp_tfm_with_defaults(kwargs):
-    """Returns kwargs defaulting target_frameworks and treat_warnings_as_errors, which follows //config:warnings_as_errors when unset."""
-    rest, werror = dx_warnings_as_errors(kwargs, True, False)
-    return dx_setdefaults(rest, {"target_frameworks": ["net10.0"], "treat_warnings_as_errors": werror})
+    """Returns kwargs defaulting target_frameworks and the upstream treat_warnings_as_errors, which follows //config:warnings_as_errors when unset."""
+    rest, warning_flags = dx_warnings_as_errors(kwargs, True, False)
+    return dx_setdefaults(rest, {"target_frameworks": ["net10.0"], "treat_warnings_as_errors": warning_flags})
 
 def _fsharp_context(kwargs):
     return {

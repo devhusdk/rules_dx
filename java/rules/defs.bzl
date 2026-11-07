@@ -49,11 +49,11 @@ _java_forward_test = dx_executable_forward_rule(
     optional_providers = [JavaInfo],
 )
 
-def java_javacopts_with_werror(kwargs):
+def java_javacopts_with_warnings_as_errors(kwargs):
     """Returns kwargs with -Xlint:all and, unless turned off, -Werror on javacopts."""
-    out, werror = dx_warnings_as_errors(kwargs, ["-Werror"])
+    out, warning_flags = dx_warnings_as_errors(kwargs, ["-Werror"])
     out = dx_append_flags(out, "javacopts", ["-Xlint:all"])
-    return dx_append_flags(out, "javacopts", werror)
+    return dx_append_flags(out, "javacopts", warning_flags)
 
 def java_entry_class(name, srcs, package):
     """Returns the class java_* infers for the wrapper name, or None without a Java root."""
@@ -114,17 +114,17 @@ def _java_entry_kwargs_or_fail(name, srcs, kwargs, attr):
 
 def java_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_library."""
-    upstream_kwargs = java_javacopts_with_werror(kwargs)
+    upstream_kwargs = java_javacopts_with_warnings_as_errors(kwargs)
     dx_wrap(name, _java_library, _java_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
 def java_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_binary."""
-    upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_werror(kwargs), "main_class")
+    upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "main_class")
     dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
 def java_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_test."""
-    upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_werror(kwargs), "test_class")
+    upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "test_class")
     dx_wrap_test(name, _java_test, _java_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
 def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, tags = None, deps = None, **kwargs):

@@ -55,7 +55,7 @@ This is tested on Linux x86_64 with LLVM and GCC, with LLVM cross-compiling to L
 
 ## Warnings
 
-Each wrapper adds the upstream `treat_warnings_as_errors` feature to `features`. Set `treat_warnings_as_errors = False` on a target to leave it out, or `True` to keep it whatever the flag says. Without the attribute, the target follows `//config:warnings_as_errors`, which is on by default. To turn it off for the whole repository:
+Each wrapper adds the upstream `treat_warnings_as_errors` feature to `features`. Set `warnings_as_errors = False` on a target to leave it out, or `True` to keep it whatever the flag says. Without the attribute, the target follows `//config:warnings_as_errors`, which is on by default. To turn it off for the whole repository:
 
 ```sh
 common --@rules_dx//config:warnings_as_errors=false

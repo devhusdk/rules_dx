@@ -49,7 +49,7 @@ fsharp_test(
 | `fsharp_test` | Test executable run with `bazel test` |
 
 - `target_frameworks` defaults to `["net10.0"]`. Set it to change it.
-- `treat_warnings_as_errors` follows `//config:warnings_as_errors`, which is on by
+- `warnings_as_errors` follows `//config:warnings_as_errors`, which is on by
   default. Set the attribute to `True` or `False` to override the flag for one
   target. `common --@rules_dx//config:warnings_as_errors=false` turns it off
   everywhere.

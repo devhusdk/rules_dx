@@ -10,7 +10,7 @@ def _inputs(env, mnemonic):
     asserts.equals(env, 1, len(actions), "expected one " + mnemonic + " action")
     return actions[0], [f.short_path for f in actions[0].inputs.to_list()]
 
-def _werror_impl(ctx):
+def _warnings_as_errors_impl(ctx):
     env = analysistest.begin(ctx)
     action, _ = _inputs(env, "ERLC")
     asserts.true(env, "-Werror" in " ".join(action.argv), "ERLC does not fail on warnings")
@@ -30,7 +30,7 @@ def _header_impl(ctx):
     asserts.equals(env, ctx.attr.present, len(found) > 0, "headers: " + str(headers))
     return analysistest.end(env)
 
-_werror_test = analysistest.make(_werror_impl)
+_warnings_as_errors_test = analysistest.make(_warnings_as_errors_impl)
 _has_attrs = {
     "file": attr.string(),
     "present": attr.bool(),
@@ -38,8 +38,8 @@ _has_attrs = {
 _has_test = analysistest.make(_has_impl, attrs = _has_attrs)
 _header_test = analysistest.make(_header_impl, attrs = _has_attrs)
 
-def erlc_werror_test(name, target):
-    _werror_test(name = name, size = "small", target_under_test = target, target_compatible_with = _LINUX)
+def erlc_warnings_as_errors_test(name, target):
+    _warnings_as_errors_test(name = name, size = "small", target_under_test = target, target_compatible_with = _LINUX)
 
 def erlc_input_test(name, target, file, present):
     _has_test(name = name, size = "small", target_under_test = target, file = file, present = present, target_compatible_with = _LINUX)

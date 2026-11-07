@@ -140,7 +140,7 @@ _cc_forward_test = dx_executable_forward_rule(
     toolchains = dx_native_coverage_toolchains(),
 )
 
-def _cc_werror(kwargs):
+def _cc_warnings_as_errors(kwargs):
     rest, flag = dx_warnings_as_errors(kwargs, ["treat_warnings_as_errors"])
     return dx_append_flags(rest, "features", flag)
 
@@ -163,7 +163,7 @@ def cc_param_file_features(kwargs, srcs, hdrs):
     return []
 
 def _cc_kwargs(kwargs, srcs, hdrs = None):
-    kwargs = _cc_werror(kwargs)
+    kwargs = _cc_warnings_as_errors(kwargs)
     features = cc_param_file_features(kwargs, srcs, hdrs)
     return dx_append_flags(kwargs, "features", features) if features else kwargs
 

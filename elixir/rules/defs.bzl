@@ -22,7 +22,7 @@ ELIXIR_DIALYZER_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ELIXIR_C
 
 ELIXIR_SOURCE_GLOBS = ["lib/**/*.ex"]
 
-WERROR_ELIXIRC_OPTS = ["--warnings-as-errors"]
+_WARNINGS_AS_ERRORS_ELIXIRC_OPTS = ["--warnings-as-errors"]
 
 # Re-exported unchanged: BUILD files need it to build escripts.
 escript_archive = _escript_archive
@@ -135,9 +135,9 @@ def app_mod_entry(module):
 
 def app_kwargs(kwargs, srcs):
     """Returns the upstream elixir_app kwargs with dx defaults filled in."""
-    upstream, werror = dx_warnings_as_errors(kwargs, WERROR_ELIXIRC_OPTS)
+    upstream, warning_flags = dx_warnings_as_errors(kwargs, _WARNINGS_AS_ERRORS_ELIXIRC_OPTS)
     upstream["srcs"] = srcs
-    upstream["elixirc_opts"] = list(upstream.get("elixirc_opts") or []) + werror
+    upstream["elixirc_opts"] = list(upstream.get("elixirc_opts") or []) + warning_flags
     module = upstream.pop("app_module", None)
     if module != None:
         extra = upstream.get("app_extra_keys")

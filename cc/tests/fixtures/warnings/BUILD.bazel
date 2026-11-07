@@ -18,8 +18,8 @@ cc_library(
 )
 
 cc_library(
-    name = "warn_existing_werror",
-    srcs = ["warn_existing_werror.cc"],
+    name = "warn_existing_warnings_as_errors",
+    srcs = ["warn_existing_warnings_as_errors.cc"],
     copts = select({
         ":select_macos": [
             "-std=c++23",

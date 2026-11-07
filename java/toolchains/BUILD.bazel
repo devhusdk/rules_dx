@@ -8,7 +8,7 @@ package_group(
 )
 
 java_package_configuration(
-    name = "werror",
+    name = "warnings_as_errors",
     javacopts = ["-Werror"],
     packages = [":own"],
 )
@@ -16,7 +16,7 @@ java_package_configuration(
 [
     default_java_toolchain(
         name = "toolchain_jdk_%s" % version,
-        package_configuration = [":werror"],
+        package_configuration = [":warnings_as_errors"],
         source_version = version,
         target_version = version,
     )

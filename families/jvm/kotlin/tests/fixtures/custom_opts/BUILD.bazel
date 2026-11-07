@@ -1,7 +1,7 @@
 load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
 load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load(":kotlinc_opts_tests.bzl", "default_werror_test", "flag_off_test", "werror_test")
+load(":kotlinc_opts_tests.bzl", "default_warnings_as_errors_test", "flag_off_test", "warnings_as_errors_test")
 
 package(
     default_testonly = True,
@@ -16,8 +16,8 @@ kt_kotlinc_options(
     x_no_param_assertions = True,
 )
 
-werror_test(
-    name = "werror_test",
+warnings_as_errors_test(
+    name = "warnings_as_errors_test",
     target_under_test = ":custom_opts_kotlinc_opts",
 )
 
@@ -26,8 +26,8 @@ flag_off_test(
     target_under_test = "@rules_dx//kotlin/rules:warnings_as_errors",
 )
 
-default_werror_test(
-    name = "default_werror_test",
+default_warnings_as_errors_test(
+    name = "default_warnings_as_errors_test",
     target_under_test = "@rules_dx//kotlin/rules:warnings_as_errors",
 )
 

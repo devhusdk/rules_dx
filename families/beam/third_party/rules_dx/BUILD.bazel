@@ -27,6 +27,7 @@ exports_files([
     "rules_py.venv_bin_files.patch",
     "rules_python.single_import_lib.patch",
     "rules_rust.clippy_metadata_inputs.patch",
+    "rules_rust.crate_universe_lazy_host_tools.patch",
     "rules_rust.crate_universe_root_lookup.patch",
     "rules_rust.exec_cc_toolchain_env.patch",
     "rules_rust.msvc_pdb_output.patch",

@@ -397,14 +397,6 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2046
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_windows_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
-      - name: Verify the evidence
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          while read -r label; do
-            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
-            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$(cygpath -m "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json")" --commit "$(git rev-parse HEAD)" --manifest "$(cygpath -m "$PWD/bazel-bin/$pkg/${name}_manifest.json")"
-          done < "$RUNNER_TEMP/hermetic-targets"
       - name: Collect the evidence
         if: always()
         run: |
@@ -413,6 +405,15 @@ jobs:
             pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
             mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
             cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
+          done < "$RUNNER_TEMP/hermetic-targets"
+      # The test copies its manifest into its outputs; bazel-bin on Windows does not hold it.
+      - name: Verify the evidence
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          while read -r label; do
+            dir="$(cygpath -m "$RUNNER_TEMP/hermetic-evidence/${label##*:}")"
+            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$dir/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$dir/manifest.json"
           done < "$RUNNER_TEMP/hermetic-targets"
       - name: Check the upload holds no secret
         id: scan-hermetic-evidence

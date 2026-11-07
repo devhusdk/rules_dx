@@ -24,6 +24,7 @@ fn consumer_qualifies_without_installs_or_network() {
         .unwrap_or_else(|_| tmp.join("outputs"));
     hermetic::remove_root(&root);
     std::fs::create_dir_all(&out).expect("outputs dir");
+    std::fs::write(out.join("manifest.json"), &text).expect("manifest copied to the outputs");
     let evidence = hermetic::qualify(manifest, &root, &out);
     dx_testing::write_json(&out.join("evidence.json"), &evidence).expect("evidence written");
     println!("{evidence:#}");

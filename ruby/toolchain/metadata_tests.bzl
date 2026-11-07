@@ -30,6 +30,7 @@ def ruby_crlf_tests(name):
     starlark_test(
         name = name,
         mode = "execution",
+        file_line_endings = {"@rules_ruby//ruby/private/binary:binary.cmd.tpl": "crlf"},
         file_blocks = {
             "@rules_ruby//ruby/private/binary:binary.cmd.tpl": [
                 'if "%COVERAGE%" == "1" (\r\n  call :rlocation {coverage_helper} _coverage_helper_path\r\n',

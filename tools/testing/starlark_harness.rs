@@ -226,7 +226,23 @@ fn first_missing_line<'a>(haystack: &[u8], needle: &'a str) -> (usize, &'a str) 
     (index, needle.split('\n').nth(index).unwrap_or(needle))
 }
 
-/// Evaluates one staged file against every required substring.
+/// Returns the 1-based line of the first line ending that is not the wanted kind.
+fn first_bad_line_ending(bytes: &[u8], crlf: bool) -> Option<usize> {
+    let mut line = 1;
+    for (index, &byte) in bytes.iter().enumerate() {
+        if byte != b'\n' {
+            continue;
+        }
+        let after_cr = index > 0 && bytes[index - 1] == b'\r';
+        if after_cr != crlf {
+            return Some(line);
+        }
+        line += 1;
+    }
+    None
+}
+
+/// Evaluates one staged file against its line endings and required substrings.
 fn evaluate_file(
     entry: &serde_json::Value,
     resolver: &Resolver,
@@ -235,7 +251,16 @@ fn evaluate_file(
     let label = field(entry, "file", "label")?;
     let key = field(entry, "file", "key")?;
     let needles = string_list(entry, "file", "needles")?;
-    if needles.is_empty() {
+    let endings = match entry.get("line_endings") {
+        None => None,
+        Some(value) => match value.as_str() {
+            Some(kind @ ("crlf" | "lf")) => Some(kind),
+            _ => {
+                return Err(bad(format!("file {label} line_endings must be crlf or lf")));
+            }
+        },
+    };
+    if needles.is_empty() && endings.is_none() {
         return Err(bad(format!("file {label} names no substrings")));
     }
     let path = resolver
@@ -244,6 +269,20 @@ fn evaluate_file(
     let bytes = std::fs::read(&path)
         .map_err(|error| bad(format!("cannot read {}: {error}", path.display())))?;
     let shown = path.to_string_lossy().into_owned();
+    if let Some(kind) = endings {
+        match first_bad_line_ending(&bytes, kind == "crlf") {
+            None => pass(
+                report,
+                format!("PASS: file {label} uses only {kind} line endings"),
+            ),
+            Some(line) => fail(
+                report,
+                format!(
+                    "FAIL: file {label} has a non-{kind} line ending\n  line: {line}\n  file: {shown}"
+                ),
+            ),
+        }
+    }
     for (index, needle) in needles.iter().enumerate() {
         let ordinal = format!("{}/{}", index + 1, needles.len());
         if contains_bytes(&bytes, needle.as_bytes()) {
@@ -890,6 +929,62 @@ mod tests {
         let error =
             evaluate_file(&value["files"][0], &resolver, &mut report).expect_err("missing runfile");
         assert!(error.to_string().contains("_main/pkg/ghost.txt"), "{error}");
+    }
+
+    fn endings_report(bytes: &[u8], kind: &str) -> Report {
+        let dir = scratch();
+        write(&dir, "_main/pkg/t.txt", bytes);
+        let value = manifest(
+            serde_json::json!([]),
+            serde_json::json!([
+                {"label": "//pkg:t", "key": "_main/pkg/t.txt", "needles": [], "line_endings": kind},
+            ]),
+        );
+        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let mut report = empty_report();
+        evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
+        report
+    }
+
+    #[test]
+    fn crlf_endings_pass_the_crlf_check() {
+        let report = endings_report(b"a\r\nb\r\n", "crlf");
+        assert_eq!(
+            report.lines,
+            ["PASS: file //pkg:t uses only crlf line endings"]
+        );
+        assert!(report.ok());
+    }
+
+    #[test]
+    fn a_bare_lf_fails_the_crlf_check_with_its_line() {
+        let report = endings_report(b"a\r\nb\r\nc\nd\r\n", "crlf");
+        assert!(!report.ok());
+        assert!(report.lines[0].contains("line: 3"), "{:?}", report.lines);
+    }
+
+    #[test]
+    fn lf_endings_pass_the_lf_check_and_crlf_fails_it() {
+        assert!(endings_report(b"a\nb\n", "lf").ok());
+        let report = endings_report(b"a\nb\r\n", "lf");
+        assert!(!report.ok());
+        assert!(report.lines[0].contains("line: 2"), "{:?}", report.lines);
+    }
+
+    #[test]
+    fn an_unknown_line_ending_kind_is_an_error() {
+        let dir = scratch();
+        write(&dir, "_main/pkg/t.txt", b"a\n");
+        let value = manifest(
+            serde_json::json!([]),
+            serde_json::json!([
+                {"label": "//pkg:t", "key": "_main/pkg/t.txt", "needles": [], "line_endings": "cr"},
+            ]),
+        );
+        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let mut report = empty_report();
+        let error = evaluate_files(&value, &resolver, &mut report).expect_err("kind");
+        assert!(error.to_string().contains("line_endings"), "{error}");
     }
 
     #[test]

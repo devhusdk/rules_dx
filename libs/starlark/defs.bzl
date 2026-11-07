@@ -184,9 +184,9 @@ def _target_is_windows(ctx):
 def _validate_common(mode, ctx):
     """Fails analysis when a test declares no evidence in any channel."""
     attr = ctx.attr
-    if len(attr.checks) == 0 and len(attr.subjects) == 0 and len(attr.file_checks) == 0 and len(attr.file_blocks) == 0:
+    if len(attr.checks) == 0 and len(attr.subjects) == 0 and len(attr.file_checks) == 0 and len(attr.file_blocks) == 0 and len(attr.file_line_endings) == 0:
         fail("starlark_test (" + mode + " mode): no evidence: " +
-             "provide checks, subjects, file_checks, or file_blocks")
+             "provide checks, subjects, file_checks, file_blocks, or file_line_endings")
 
 _HARNESS_MANIFEST_VERSION = 2
 
@@ -240,6 +240,18 @@ def _harness_file_entries(ctx):
                 "needles": blocks,
             })
             staged.append(f)
+    for target in sorted(ctx.attr.file_line_endings.keys(), key = lambda t: str(t.label)):
+        kind = ctx.attr.file_line_endings[target]
+        if kind not in ("crlf", "lf"):
+            fail("starlark_test: file_line_endings value must be crlf or lf for " + str(target.label))
+        for f in _file_check_files(target):
+            entries.append({
+                "key": _harness_runfiles_key(ctx, f),
+                "label": _display_label(target.label),
+                "line_endings": kind,
+                "needles": [],
+            })
+            staged.append(f)
     return (entries, staged)
 
 def _write_harness(ctx, records, observations):
@@ -263,7 +275,7 @@ def _write_harness(ctx, records, observations):
         executable = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.symlink(output = executable, target_file = harness, is_executable = True)
     transitive = []
-    for target in ctx.attr.file_checks.keys() + ctx.attr.file_blocks.keys():
+    for target in ctx.attr.file_checks.keys() + ctx.attr.file_blocks.keys() + ctx.attr.file_line_endings.keys():
         transitive.append(target[DefaultInfo].default_runfiles.files)
     runfiles = ctx.runfiles(
         files = staged + [manifest],
@@ -347,8 +359,8 @@ def _analysis_test_impl(ctx):
 
 def _execution_test_impl(ctx):
     _validate_common("execution", ctx)
-    if len(ctx.attr.file_checks) == 0 and len(ctx.attr.file_blocks) == 0:
-        fail("starlark_test (execution mode): file_checks or file_blocks must be non-empty: " +
+    if len(ctx.attr.file_checks) == 0 and len(ctx.attr.file_blocks) == 0 and len(ctx.attr.file_line_endings) == 0:
+        fail("starlark_test (execution mode): file_checks, file_blocks, or file_line_endings must be non-empty: " +
              "execution tests assert on files read while the test runs")
     if len(ctx.attr.subjects) != 0:
         fail("starlark_test (execution mode): subjects must be empty: " +
@@ -375,6 +387,10 @@ _common_attrs = {
     ),
     "file_blocks": attr.label_keyed_string_dict(
         doc = "Map from file targets to JSON lists of multi-line blocks each file must contain.",
+        allow_files = True,
+    ),
+    "file_line_endings": attr.label_keyed_string_dict(
+        doc = "Map from file targets to crlf or lf, the only line ending each file may use.",
         allow_files = True,
     ),
     "file_checks": attr.label_keyed_string_dict(
@@ -418,7 +434,7 @@ _MODES = {
     "unit": _starlark_unit_test,
 }
 
-def starlark_test(name, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, file_blocks = {}, **kwargs):
+def starlark_test(name, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, file_blocks = {}, file_line_endings = {}, **kwargs):
     """Instantiates one test target in the given mode."""
     if mode not in _MODES:
         fail("starlark_test: unknown mode '" + mode + "': want one of " +
@@ -431,6 +447,7 @@ def starlark_test(name, mode, checks = [], subjects = [], expected_observations 
         expected_observations = expected_observations,
         windows_expected_observations = windows_expected_observations,
         file_checks = file_checks,
+        file_line_endings = file_line_endings,
         file_blocks = {label: json.encode(blocks) for label, blocks in file_blocks.items()},
         **kwargs
     )

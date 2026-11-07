@@ -1204,6 +1204,8 @@ command_args! {
         no_api_compat: NoApiCompatFlag,
         own: ToFlag,
     };
+    /// The flags `dx config` accepts.
+    Config => 25, NoPassthroughTail, { output: OutputFlag, };
 }
 
 #[derive(Parser)]

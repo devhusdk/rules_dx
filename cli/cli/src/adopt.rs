@@ -1,6 +1,7 @@
 pub(crate) mod agents;
 pub(crate) mod claude_md;
 mod completion;
+mod config;
 mod copilot_md;
 mod init;
 mod init_files;
@@ -45,6 +46,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
             upgrade::execute_upgrade(invocation, workspace, runner, query_runner, out, err)
         }
         Command::Status => status::execute_status(invocation, workspace, out, err),
+        Command::Config => config::execute_config(invocation, workspace, out, err),
         Command::Completion => completion::execute_completion(invocation, out, err),
         _ => pre_exec(invocation.output, out, err, "not an adoption command"),
     }

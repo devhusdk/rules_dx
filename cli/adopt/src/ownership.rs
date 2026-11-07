@@ -64,6 +64,26 @@ impl Ownership {
     }
 }
 
+const OVERRIDE_MARKER: &str = "dx: override of base ";
+
+/// The base blob sha in a `dx: override of base <sha>` header, read from the leading comment
+/// lines of a root config file.
+pub fn override_base(text: &str) -> Option<&str> {
+    text.trim_start_matches('\u{feff}')
+        .lines()
+        .take_while(|line| {
+            let line = line.trim_start();
+            line.is_empty()
+                || ["#", "//", "REM", ";", "--"]
+                    .iter()
+                    .any(|p| line.starts_with(p))
+        })
+        .find_map(|line| {
+            let (_, rest) = line.split_once(OVERRIDE_MARKER)?;
+            rest.split_whitespace().next()
+        })
+}
+
 fn comment_prefix(path: &str) -> Option<&'static str> {
     let name = path.rsplit('/').next().unwrap_or(path);
     let extension = name.rsplit_once('.').map(|(_, extension)| extension);
@@ -127,6 +147,23 @@ mod tests {
             Ownership::Once.header(".envrc", None).as_deref(),
             Some("# dx: written once, yours to edit")
         );
+    }
+
+    #[test]
+    fn override_header_gives_the_base_sha() {
+        assert_eq!(
+            super::override_base("# dx: override of base abc123\nkey = 1\n"),
+            Some("abc123")
+        );
+        assert_eq!(
+            super::override_base("// dx: override of base f00 extra\n{}\n"),
+            Some("f00")
+        );
+        assert_eq!(
+            super::override_base("key = 1\n# dx: override of base abc\n"),
+            None
+        );
+        assert_eq!(super::override_base("# yours\n"), None);
     }
 
     #[test]

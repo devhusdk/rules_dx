@@ -34,6 +34,7 @@ Commands:
   worktree    lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)
   fuzz        run dx-fuzz targets for a time budget and store crashes under .dx/local/fuzz
   release     derive the next version from conventional commits, list the manifests that carry it, and with --apply bump them, commit and tag
+  config      list each tool root config file, the base it extends and whether you edited it; diff shows the change (non-mutating)
 
 Options:
   -h, --help

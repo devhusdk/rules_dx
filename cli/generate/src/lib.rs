@@ -127,14 +127,31 @@ impl Tool {
 
     /// The root file a `<tool>_config` target binds, when the workspace has one.
     fn root_file<'a>(&self, root_files: &'a BTreeSet<String>) -> Option<&'a str> {
-        let config = self.config;
-        config
-            .files
-            .iter()
-            .filter(|name| config.suffixes.iter().any(|suffix| name.ends_with(suffix)))
-            .find_map(|name| root_files.get(*name))
-            .map(String::as_str)
+        root_file(self.config, root_files)
     }
+}
+
+/// The root file of `config` that the workspace has, when it binds one.
+pub fn root_file<'a>(config: &ToolConfig, root_files: &'a BTreeSet<String>) -> Option<&'a str> {
+    config
+        .files
+        .iter()
+        .filter(|name| config.suffixes.iter().any(|suffix| name.ends_with(suffix)))
+        .find_map(|name| root_files.get(*name))
+        .map(String::as_str)
+}
+
+/// The tools selected for the detected families, in `TOOL_CONFIGS` order.
+pub fn selected_configs(
+    config: Option<&DxConfig>,
+    families: &BTreeSet<String>,
+) -> Result<Vec<&'static ToolConfig>, GenerateError> {
+    let selection = dx_config::effective(config)?;
+    let profiles = selected_profiles(&selection, families);
+    Ok(TOOL_CONFIGS
+        .iter()
+        .filter(|config| profiles.contains_key(config.id))
+        .collect())
 }
 
 /// The tier of every tool selected for a detected family.

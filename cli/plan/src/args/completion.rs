@@ -676,6 +676,7 @@ mod tests {
                 | Command::Init
                 | Command::Upgrade
                 | Command::Status
+                | Command::Config
                 | Command::Worktree
                 | Command::Release => {
                     assert!(fixed.is_empty(), "{command:?} takes no candidates");

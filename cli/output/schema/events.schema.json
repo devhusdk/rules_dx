@@ -22,6 +22,9 @@
       "$ref": "#/$defs/command_started"
     },
     {
+      "$ref": "#/$defs/config_file"
+    },
+    {
       "$ref": "#/$defs/coverage"
     },
     {
@@ -81,7 +84,7 @@
           "const": 3
         },
         "minor": {
-          "const": 7
+          "const": 8
         }
       },
       "required": [
@@ -673,6 +676,47 @@
         "event",
         "command",
         "mode"
+      ],
+      "additionalProperties": false
+    },
+    "config_file": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "event": {
+          "const": "config_file"
+        },
+        "correlation": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "root",
+            "base"
+          ]
+        },
+        "base": {
+          "type": "string"
+        },
+        "edited": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema",
+        "event",
+        "tool",
+        "file",
+        "role",
+        "edited"
       ],
       "additionalProperties": false
     },

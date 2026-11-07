@@ -9,6 +9,34 @@ base that ships with dx; the top-level `tier` in `dx.toml` picks it:
 In every table, a key without a default is required. Dates are `YYYY-MM-DD`.
 `versions` uses the range syntax of the `set` ecosystem.
 
+## `dx config`
+
+Reads only. Shows which config file each tool reads and how it relates to the base dx renders under `.dx/config/`.
+
+```sh
+tools/dx config
+tools/dx config hlint
+tools/dx config diff hlint
+tools/dx config --output json
+```
+
+```text
+dx config [<tool> | diff <tool>] [--output text|json]
+```
+
+| Form | What it prints |
+| --- | --- |
+| `dx config` | One line per selected tool: the tool, its root file (`-` when the workspace has none), then `extends <base>`, `override of <base>` or `tier base <base>` when the tool runs on the base itself. `edited` follows when the root file starts with a `dx: override of base <sha>` comment. |
+| `dx config <tool>` | Every file the tool reads, in order: the root file when there is one, then the base. |
+| `dx config diff <tool>` | A unified diff from the current base to the root file. Fails when the tool has no root file. |
+
+```text
+ruff  ruff.toml  extends .dx/config/ruff/base.toml  edited
+taplo  -  tier base .dx/config/taplo/base.toml
+```
+
+`--output json` emits one `config_file` event per file (`tool`, `file`, `role` as `root` or `base`, `base`, `edited`). The list form emits the root file of each tool, or the base when the tool has no root file. An unknown tool fails with `config_failed`.
+
 ## dx.toml `[large_files]`
 
 | Key | Type | Default | Meaning |

@@ -325,6 +325,14 @@ fn samples() -> Vec<Value> {
             file: "ruff.toml".to_owned(),
         })
         .expect("tool config"),
+        config_file_event(&ConfigFileEvent {
+            tool: "hlint".to_owned(),
+            file: ".hlint.yaml".to_owned(),
+            role: "root".to_owned(),
+            base: Some(".dx/config/hlint/base.yaml".to_owned()),
+            edited: true,
+        })
+        .expect("config file"),
         with_correlation(started(), "c1").expect("correlation"),
     ]
 }

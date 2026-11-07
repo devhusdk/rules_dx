@@ -2,7 +2,7 @@ use crate::validation::{OutputError, check_correlation, check_path, parse_digest
 use serde_json::{Value, json};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 7;
+pub const SCHEMA_MINOR: u64 = 8;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -11,6 +11,7 @@ pub const EVENTS: &[&str] = &[
     "changed_line_coverage",
     "command_finished",
     "command_started",
+    "config_file",
     "coverage",
     "diagnostic",
     "error",
@@ -277,6 +278,34 @@ pub fn tool_config_event(config: &ToolConfigEvent) -> Result<Value, OutputError>
     let mut map = base("tool_config");
     map.insert("tool".to_owned(), Value::String(config.tool.clone()));
     map.insert("file".to_owned(), Value::String(config.file.clone()));
+    Ok(Value::Object(map))
+}
+
+/// One file a tool reads, from `dx config`. `base` and `edited` are set on the root file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigFileEvent {
+    pub tool: String,
+    pub file: String,
+    /// `root` or `base`.
+    pub role: String,
+    /// The base the root file extends, or `tier base` when the tool runs on the base itself.
+    pub base: Option<String>,
+    pub edited: bool,
+}
+
+pub fn config_file_event(file: &ConfigFileEvent) -> Result<Value, OutputError> {
+    nonempty("tool", &file.tool)?;
+    nonempty("file", &file.file)?;
+    nonempty("role", &file.role)?;
+    let mut map = base("config_file");
+    map.insert("tool".to_owned(), Value::String(file.tool.clone()));
+    map.insert("file".to_owned(), Value::String(file.file.clone()));
+    map.insert("role".to_owned(), Value::String(file.role.clone()));
+    if let Some(base) = &file.base {
+        nonempty("base", base)?;
+        map.insert("base".to_owned(), Value::String(base.clone()));
+    }
+    map.insert("edited".to_owned(), Value::Bool(file.edited));
     Ok(Value::Object(map))
 }
 
@@ -1681,8 +1710,8 @@ mod tests {
     #[test]
     fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 7);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 7}));
+        assert_eq!(SCHEMA_MINOR, 8);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 8}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -1712,7 +1741,7 @@ mod tests {
             read_event(&line).expect("current")["event"],
             "command_started"
         );
-        let newer = r#"{"schema":{"major":3,"minor":7},"event":"future","added":1}"#;
+        let newer = r#"{"schema":{"major":3,"minor":9},"event":"future","added":1}"#;
         assert_eq!(read_event(newer).expect("newer minor")["added"], 1);
         assert_eq!(
             read_event(r#"{"schema":{"major":1,"minor":1},"event":"command_started"}"#)
@@ -2175,7 +2204,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 7},
+                "schema": {"major": 3, "minor": 8},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -2214,7 +2243,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 7},
+                "schema": {"major": 3, "minor": 8},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

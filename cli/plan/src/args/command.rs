@@ -25,6 +25,7 @@ pub enum Command {
     Worktree,
     Fuzz,
     Release,
+    Config,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,7 +96,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 25] = [
+pub static COMMANDS: [CommandMeta; 26] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -446,6 +447,20 @@ pub static COMMANDS: [CommandMeta; 25] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
     },
+    CommandMeta {
+        command: Command::Config,
+        name: "config",
+        scope_policy: "reject",
+        describe: "list each tool root config file, the base it extends and whether you edited it; diff shows the change (non-mutating)",
+        usage: "Usage: dx config [<tool> | diff <tool>] [--output=json]",
+        scopes: "Scopes: none (config takes a tool name, not scopes). Without a tool it lists every tool; with one it lists every file the tool reads, in order.",
+        is_managed: false,
+        is_adoption: true,
+        default_release: false,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+    },
 ];
 
 impl Command {
@@ -720,6 +735,7 @@ mod tests {
             Command::Worktree,
             Command::Fuzz,
             Command::Release,
+            Command::Config,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -808,7 +824,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|release",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|release|config",
             "pipe_list order must match declaration order"
         );
     }
@@ -848,7 +864,7 @@ mod tests {
             if command.is_adoption()
                 && matches!(
                     command,
-                    Command::Status | Command::Upgrade | Command::Completion
+                    Command::Status | Command::Upgrade | Command::Completion | Command::Config
                 )
             {
                 assert!(

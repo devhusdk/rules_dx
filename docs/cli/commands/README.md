@@ -32,6 +32,7 @@ tools/dx lint //... -- --jobs=4
 - [`dx upgrade`](upgrade.md): move the dx pin.
 - [`dx watch`](watch.md): rebuild on changes.
 - [`dx worktree`](worktree.md): lease warm checkout slots for agents.
+- [`dx config`](config.md#dx-config): list each tool's root config file, its base and override state.
 
 Scope rules: [Scope Defaults](scope-defaults.md). Airgapped hosts:
 [Offline Bundle](offline-bundle.md).

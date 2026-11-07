@@ -203,6 +203,21 @@ pub fn parse_with<S: AsRef<OsStr>>(
     parse_with_ci(args, env_get, false)
 }
 
+fn validate_config(command: Command, targets: &[String]) -> Result<(), ArgsError> {
+    let max = if targets.first().is_some_and(|word| word == "diff") {
+        2
+    } else {
+        1
+    };
+    if max == 2 && targets.len() < 2 {
+        return Err(missing_positional(command));
+    }
+    match targets.get(max) {
+        Some(extra) => Err(extra_positional(command, extra)),
+        None => Ok(()),
+    }
+}
+
 fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
     let command = Command::Worktree;
     let Some(sub) = targets.first() else {
@@ -669,6 +684,7 @@ fn parse_inner<S: AsRef<OsStr>>(
                     return Err(extra_positional(command, &targets[0]));
                 }
             }
+            Command::Config => validate_config(command, &targets)?,
             Command::Completion => {
                 if targets.len() > 1 {
                     return Err(extra_positional(command, &targets[1]));

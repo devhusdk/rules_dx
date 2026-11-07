@@ -284,6 +284,10 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         &["fuzz //pkg:parser", "fuzz --time 5m //pkg/..."],
     ),
     (Command::Release, &["release", "release --to 2.0.0"]),
+    (
+        Command::Config,
+        &["config", "config hlint", "config diff hlint"],
+    ),
 ];
 
 fn examples_text(command: Command) -> String {
@@ -494,10 +498,9 @@ mod tests {
     #[test]
     fn reject_scope_commands_do_not_render_a_targets_positional() {
         use super::super::command::COMMANDS;
-        for entry in COMMANDS
-            .iter()
-            .filter(|entry| entry.scope_policy == "reject" && entry.name != "worktree")
-        {
+        for entry in COMMANDS.iter().filter(|entry| {
+            entry.scope_policy == "reject" && !["worktree", "config"].contains(&entry.name)
+        }) {
             let text = render_command_help(entry.command);
             assert!(
                 !text.contains("[TARGETS]"),

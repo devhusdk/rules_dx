@@ -294,6 +294,7 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Fuzz
         | Command::Release
         | Command::Status
+        | Command::Config
         | Command::Watch
         | Command::Completion => CommandSpec {
             command,

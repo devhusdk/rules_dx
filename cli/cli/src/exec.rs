@@ -239,7 +239,11 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         return affected::execute_affected(invocation, env);
     }
     match invocation.command {
-        Command::Init | Command::Upgrade | Command::Status | Command::Completion => {
+        Command::Init
+        | Command::Upgrade
+        | Command::Status
+        | Command::Completion
+        | Command::Config => {
             let Env {
                 workspace,
                 runner,
@@ -350,7 +354,7 @@ mod tests {
         (Command::Check, &["check"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 9] = [
+    const NO_BAZEL_BUILD: [Command; 10] = [
         Command::Init,
         Command::Security,
         Command::License,
@@ -360,6 +364,7 @@ mod tests {
         Command::Status,
         Command::Watch,
         Command::Worktree,
+        Command::Config,
     ];
 
     fn bazel_build_argvs(words: &[&str], agent: bool, output: &str) -> Vec<Vec<String>> {

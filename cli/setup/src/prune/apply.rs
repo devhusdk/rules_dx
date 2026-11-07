@@ -355,6 +355,7 @@ mod tests {
             wait_for(&workspace.join("child-release"), "release");
             return;
         }
+        let _fork = dx_testing::spawning();
         let scratch = {
             let __scratch = dx_test_scratch::scratch("dx-prune-test-lease-race-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");

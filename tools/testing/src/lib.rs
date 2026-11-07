@@ -406,6 +406,24 @@ pub fn alive_lock_held(lock: &Path) -> bool {
     }
 }
 
+static FORK_GUARD: std::sync::RwLock<()> = std::sync::RwLock::new(());
+
+/// Taken by a test that starts a child process. A fork copies every open lock
+/// handle until exec, so no test may be holding a lock it expects to free.
+pub fn spawning() -> std::sync::RwLockWriteGuard<'static, ()> {
+    FORK_GUARD
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Taken for the whole of a test that holds a lock and then expects it free.
+/// Such tests still run alongside each other, just never during a spawn.
+pub fn holding() -> std::sync::RwLockReadGuard<'static, ()> {
+    FORK_GUARD
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 /// Waits up to 10s for the process holding the alive lock at `lock` to die.
 pub fn assert_alive_lock_released(lock: &Path) {
     assert!(lock.exists(), "the probe never armed: {}", lock.display());
@@ -686,6 +704,16 @@ mod tests {
         let mut handle = std::fs::File::create(&path).expect("create");
         handle.write_all(text.as_bytes()).expect("write");
         path
+    }
+
+    #[test]
+    fn holding_guards_share_and_spawning_waits_for_them() {
+        let first = holding();
+        let second = holding();
+        assert!(FORK_GUARD.try_write().is_err());
+        drop((first, second));
+        let _spawn = spawning();
+        assert!(FORK_GUARD.try_read().is_err());
     }
 
     #[test]

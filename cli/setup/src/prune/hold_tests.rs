@@ -54,6 +54,7 @@ fn prune(workspace: &Path) -> crate::prune::PruneOutcome {
 
 #[test]
 fn hold_current_leases_both_sides() {
+    let _fork = dx_testing::holding();
     let (_scratch, workspace) = workspace("dx-prune-hold-both-");
     let pair = setup_pair('1', '2');
     select(&workspace, &pair);
@@ -97,6 +98,7 @@ fn hold_current_leases_both_sides() {
 
 #[test]
 fn hold_current_without_selection_is_none() {
+    let _fork = dx_testing::holding();
     let (_scratch, workspace) = workspace("dx-prune-hold-none-");
     assert!(hold_current(&workspace, WAIT).expect("hold").is_none());
     assert!(
@@ -123,6 +125,7 @@ fn link_dir(target: &Path, link: &Path) {
 
 #[test]
 fn hold_current_waits_for_commit_lock_then_reads_new_current() {
+    let _fork = dx_testing::holding();
     let (_scratch, workspace) = workspace("dx-prune-hold-wait-");
     let first = setup_pair('1', '2');
     let second = setup_pair('3', '4');
@@ -156,6 +159,7 @@ fn hold_current_waits_for_commit_lock_then_reads_new_current() {
 
 #[test]
 fn hold_current_refuses_missing_or_foreign_generation_dir() {
+    let _fork = dx_testing::holding();
     let (_scratch, workspace) = workspace("dx-prune-hold-foreign-");
     let pair = setup_pair('1', '2');
     crate::commit_pair(&workspace, &pair).expect("commit");
@@ -185,6 +189,7 @@ fn hold_current_refuses_missing_or_foreign_generation_dir() {
 
 #[test]
 fn hold_current_fails_closed_while_cleanup_holds_exclusive() {
+    let _fork = dx_testing::holding();
     let (_scratch, workspace) = workspace("dx-prune-hold-removing-");
     select(&workspace, &setup_pair('1', '2'));
     let _exclusive = lease::try_acquire_exclusive(
@@ -212,6 +217,7 @@ fn hold_current_fails_closed_while_cleanup_holds_exclusive() {
 
 #[test]
 fn apply_preserves_held_generation_after_selection_change() {
+    let _fork = dx_testing::holding();
     let (_scratch, workspace) = workspace("dx-prune-hold-apply-");
     select(&workspace, &setup_pair('1', '2'));
     let held = hold_current(&workspace, WAIT)
@@ -252,6 +258,7 @@ fn iteration_pair(i: u64) -> SetupPair {
 
 #[test]
 fn hold_vs_apply_race_never_sees_partial_generation() {
+    let _fork = dx_testing::holding();
     const ROUNDS: u64 = 25;
     let (_scratch, workspace) = workspace("dx-prune-hold-race-");
     select(&workspace, &iteration_pair(0));
@@ -321,6 +328,7 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
 
 #[test]
 fn a_streamed_child_keeps_its_selection_through_cleanup() {
+    let _fork = dx_testing::spawning();
     use dx_process::lifecycle::{
         CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
         StreamStdin, run_streamed,

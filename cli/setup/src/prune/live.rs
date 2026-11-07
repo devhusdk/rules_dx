@@ -667,6 +667,7 @@ mod tests {
 
     #[test]
     fn leased_generations_are_active_without_a_proc_sighting() {
+        let _fork = dx_testing::holding();
         let scratch = {
             let __scratch = dx_test_scratch::scratch("dx-prune-test-leased-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");

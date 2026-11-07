@@ -44,6 +44,7 @@ single_version_override(
     patches = ["//patches/avro-cpp:iterator.patch"],
     version = "1.12.0.bcr.1",
 )
+
 single_version_override(
     module_name = "fmt",
     version = "12.2.0.bcr.1",
@@ -315,7 +316,7 @@ go_repository(
     urls = ["https://github.com/TrapsterDK/gotreesitter/archive/a8d5183f93260b8c3743375f70f4dee5b1778569.tar.gz"],
 )
 
-use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_oapi_codegen_oapi_codegen_v2", "com_github_oapi_codegen_runtime", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_google_grpc", "org_golang_google_protobuf", "org_golang_x_exp", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_oapi_codegen_oapi_codegen_v2", "com_github_oapi_codegen_runtime", "com_github_odvcencio_gotreesitter", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_google_grpc", "org_golang_google_protobuf", "org_golang_x_exp", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(
@@ -380,6 +381,7 @@ single_version_override(
 
 # floor: equals tested
 bazel_dep(name = "grpc", version = "1.85.1", dev_dependency = True)
+
 single_version_override(
     module_name = "envoy_api",
     version = "0.0.0-20260901-005c18a.bcr.1",
@@ -592,6 +594,7 @@ maven.install(
         "https://repo1.maven.org/maven2",
     ],
 )
+
 # Bumping rules_android or rules_flutter needs a new lock: run pin-android-maven.yml.
 # The Scala 3 compiler for scalac_check_test only; 3.3 is the LTS line rules_scala defaults to.
 maven.install(
@@ -810,13 +813,6 @@ apt.index_integrity(
         architectures = [arch],
         glob_excludes = ["usr/share/man/**"],
         lockfile = "//swift/toolchain:ubuntu22.04_%s_sysroot.lock.json" % arch,
-        post_install_cmd = {
-            "host_libs": [
-                "sh",
-                "-c",
-                "mkdir host_libs link_libs && cp -L lib/{t}/libncurses.so.6 lib/{t}/libtinfo.so.6 usr/lib/{t}/libedit.so.2 usr/lib/{t}/libsqlite3.so.0 usr/lib/{t}/libuuid.so.1 host_libs/ && cp -L usr/lib/{t}/libcurl.so.4 link_libs/libcurl.so && cp -L usr/lib/{t}/libxml2.so.2 link_libs/libxml2.so && cp -L usr/lib/gcc/{t}/11/libstdc++.a usr/lib/gcc/{t}/11/libgcc_eh.a link_libs/".format(t = triple),
-            ],
-        },
         packages = [
             "libc6-dev",
             "libcurl4-openssl-dev",
@@ -830,6 +826,13 @@ apt.index_integrity(
             "linux-libc-dev",
             "zlib1g-dev",
         ],
+        post_install_cmd = {
+            "host_libs": [
+                "sh",
+                "-c",
+                "mkdir host_libs link_libs && cp -L lib/{t}/libncurses.so.6 lib/{t}/libtinfo.so.6 usr/lib/{t}/libedit.so.2 usr/lib/{t}/libsqlite3.so.0 usr/lib/{t}/libuuid.so.1 host_libs/ && cp -L usr/lib/{t}/libcurl.so.4 link_libs/libcurl.so && cp -L usr/lib/{t}/libxml2.so.2 link_libs/libxml2.so && cp -L usr/lib/gcc/{t}/11/libstdc++.a usr/lib/gcc/{t}/11/libgcc_eh.a link_libs/".format(t = triple),
+            ],
+        },
         suites = ["jammy"],
         uri = "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z",
     )
@@ -914,6 +917,7 @@ use_repo(flutter_dev, "dx_flutter_app_deps", "dx_flutter_deps", "flutter_android
 
 # floor: equals tested
 bazel_dep(name = "tar.bzl", version = "0.10.9")
+
 # needed: @dx_rules_dart_pub (root dart_tools extension) loads @yaml.bzl
 bazel_dep(name = "yaml.bzl", version = "0.1.2")
 
@@ -1061,8 +1065,21 @@ use_repo(perl_tools_cpan, "dx_perl_cpan")
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain", dev_dependency = True)
 cuda.redist_json(
     name = "cuda_redist",
-    components = ["cccl", "crt", "cublas", "cudart", "cufft", "curand", "nvcc", "nvvm"],
-    platforms = ["linux-x86_64", "linux-sbsa", "windows-x86_64"],
+    components = [
+        "cccl",
+        "crt",
+        "cublas",
+        "cudart",
+        "cufft",
+        "curand",
+        "nvcc",
+        "nvvm",
+    ],
+    platforms = [
+        "linux-x86_64",
+        "linux-sbsa",
+        "windows-x86_64",
+    ],
     sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
     version = "13.4.2",
 )
@@ -1100,8 +1117,8 @@ ocaml.packages(
     lock = "//ocaml/tests/fixtures/ocaml-app:ocaml_app.opam.locked",
 )
 ocaml.annotation(
-    package = "astring",
     build_file = "//ocaml/tests/fixtures/ocaml-app:astring.BUILD.bazel",
+    package = "astring",
     strip_prefix = "astring-0.8.5",
 )
 use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "rules_ocaml")
@@ -1619,6 +1636,7 @@ crate.annotation_select(
     repositories = ["dx_crates"],
     triples = ["x86_64-pc-windows-msvc"],
 )
+
 # ring's build.rs only accepts plain clang on windows_arm64; the hermetic
 # toolchain uses clang-cl (#6337, briansmith/ring#2673). cl.exe opens the
 # fiat includes without collapsing `..`, which overflows MAX_PATH under the
@@ -1633,6 +1651,7 @@ crate.annotation(
     repositories = ["dx_crates"],
     version = "0.17.14",
 )
+
 # cc-rs archives objects under absolute paths; msvc_lib makes them relative.
 crate.annotation_select(
     build_script_env = {
@@ -1671,6 +1690,7 @@ crate.annotation_select(
     ],
     version = "0.17.14",
 )
+
 # gomod-parser 0.5.3 reads `v1.2.3// indirect` as one version (#4008,
 # baz-scm/gomod-parser#52). Drop once a release after 0.6.0 carries the fix.
 crate.annotation(
@@ -1950,7 +1970,11 @@ _android_sdk_extension = use_extension("@rules_android//rules/android_sdk_reposi
 
 android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk", dev_dependency = True)
 use_repo(android_sdk, "dx_android_sdk", "dx_androidsdk")
-override_repo(_android_sdk_extension, androidsdk = "dx_androidsdk")
+
+override_repo(
+    _android_sdk_extension,
+    androidsdk = "dx_androidsdk",
+)
 
 rules_java_toolchains = use_extension("@rules_java//java:extensions.bzl", "toolchains")
 use_repo(
@@ -2369,14 +2393,14 @@ use_repo(
     "dx_latexindent_linux_x86_64",
     "dx_latexindent_macos_arm64",
     "dx_latexindent_windows_x86_64",
-    "dx_mdbook_linux_arm64",
-    "dx_mdbook_linux_x86_64",
-    "dx_mdbook_macos_arm64",
-    "dx_mdbook_windows_x86_64",
     "dx_lychee_linux_arm64",
     "dx_lychee_linux_x86_64",
     "dx_lychee_macos_arm64",
     "dx_lychee_windows_x86_64",
+    "dx_mdbook_linux_arm64",
+    "dx_mdbook_linux_x86_64",
+    "dx_mdbook_macos_arm64",
+    "dx_mdbook_windows_x86_64",
     "dx_nixfmt_linux_x86_64",
     "dx_ocaml_tools_duniverse",
     "dx_opa_linux_arm64",
@@ -2559,7 +2583,6 @@ use_repo(windows_msvc_runtime, "msvc_runtime")
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")
 
-
 msvc = use_extension("//cc/toolchains/msvc:repos.bzl", "msvc")
 use_repo(msvc, "dx_msvc")
 
@@ -2577,4 +2600,4 @@ qt_sdk.configure(modules = [
 use_repo(qt_sdk, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")
-use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")
+use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")

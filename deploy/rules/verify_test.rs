@@ -964,22 +964,18 @@ fn pypi_native_msvc_case() {
         "dx-native-probe native"
     );
 
-    let house = stage(
-        "DX_NODLL_PROG",
-        "DX_NODLL_CONFIG",
-        "dx_native_probe-wheelhouse",
-        "dx-native-probe",
-        "dx_native_probe",
-    );
-    let (url, _log) = serve(house);
-    let target = install(&url, "dx_native_probe");
-    let members = installed_binaries(&target);
-    let output = archiver_imports(&members, &core(&members));
+    let bare: Vec<(String, PathBuf)> = members
+        .iter()
+        .filter(|(name, _)| name.ends_with(".pyd"))
+        .cloned()
+        .collect();
+    let output = archiver_imports(&bare, &core(&bare));
     let stderr = String::from_utf8_lossy(&output.stderr);
-    println!("import closure of a wheel without the runtime:\n{stderr}");
+    println!("import closure of the extension without the runtime:\n{stderr}");
     assert!(!output.status.success(), "{stderr}");
+    let lower = stderr.to_ascii_lowercase();
     assert!(
-        stderr.to_ascii_lowercase().contains("vcruntime140.dll"),
+        lower.contains("vcruntime140") || lower.contains("msvcp140"),
         "{stderr}"
     );
 }

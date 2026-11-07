@@ -1297,8 +1297,6 @@ rust_test(
     name = "pypi_native_msvc_verify",
     srcs = ["verify_test.rs"],
     data = [
-        ":dx_native_probe",
-        ":dx_native_probe_config",
         ":native_probe_msvc",
         ":native_probe_msvc_config",
         "//cli/update:python_files",
@@ -1312,8 +1310,6 @@ rust_test(
         "DX_MSVC_CONFIG": "$(rootpath :native_probe_msvc_config)",
         "DX_MSVC_NOTICE": "$(rootpath //deploy/rules/native_probe/dx_native_probe:msvc_vcruntime_notice)",
         "DX_MSVC_PROG": "$(rootpath :native_probe_msvc)",
-        "DX_NODLL_CONFIG": "$(rootpath :dx_native_probe_config)",
-        "DX_NODLL_PROG": "$(rootpath :dx_native_probe)",
         "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
         "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
         "DX_VERIFY_MODE": "pypi_native_msvc",

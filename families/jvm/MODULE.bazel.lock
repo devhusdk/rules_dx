@@ -541,7 +541,7 @@
     },
     "@@gcc_toolchain+//:internal.bzl%non_bazel_dependencies": {
       "general": {
-        "bzlTransitiveDigest": "+Apqu8ijCyC4sUtKiEjhDaK0VpjiQ9qQH00h4vk4YPY=",
+        "bzlTransitiveDigest": "2lJ032c8fOuugvP5l8O9QCbfJ0bax+IIqOgaFwlNDec=",
         "usagesDigest": "sKYmx+ooOsbnANJqjmba+8IeuYjA9CbwKfQETYhyNuU=",
         "recordedInputs": [
           "REPO_MAPPING:gcc_toolchain+,bazel_tools bazel_tools",
@@ -10760,7 +10760,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "qsq8Sx0eg9nK7874ZKpsvVm3DBhjEINaLkwmyjWqMC4=",
+        "bzlTransitiveDigest": "kgoLaUjnUQ3hs/LwpvDZ6c4zmoC/slawem6CE3z3jKk=",
         "usagesDigest": "/bGmDj4Nr856OGWTjcSOPnxG0gSTFtYse380wG1a98A=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",
@@ -11112,7 +11112,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%msvc_runtime": {
       "general": {
-        "bzlTransitiveDigest": "3vgvnf2m6HSNysQ6erXNtBlYKYbgsbBQ3Di7IMLQS3Q=",
+        "bzlTransitiveDigest": "c6RAFlG2fRAySUZlIBNDe1ttLY3K5TQeJ4jY0yz2Lkg=",
         "usagesDigest": "BAR49evfl9Kh5y6AJQAIyvwxAmQkd8wtezBRueJ6obw=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
@@ -11147,7 +11147,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%windows_sdk": {
       "general": {
-        "bzlTransitiveDigest": "3vgvnf2m6HSNysQ6erXNtBlYKYbgsbBQ3Di7IMLQS3Q=",
+        "bzlTransitiveDigest": "c6RAFlG2fRAySUZlIBNDe1ttLY3K5TQeJ4jY0yz2Lkg=",
         "usagesDigest": "tria5D4zJJiL9pskVxylqEESVauLMZ4ude7BCg82YLw=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
@@ -11274,6 +11274,22 @@
   "facts": {
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "notice_version": "3"
+    },
+    "@@rules_dx+//ocaml/toolchain:repos.bzl%ocaml": {
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/astring.0.8.5": {
+        "needs": [
+          "ocamlfind",
+          "ocamlbuild",
+          "topkg"
+        ],
+        "sha256": "865692630c07c3ab87c66cdfc2734c0fdfc9c34a57f8e89ffec7c7d15e7a70fa",
+        "src": "https://erratique.ch/software/astring/releases/astring-0.8.5.tbz"
+      },
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/either.1.0.0": {
+        "needs": [],
+        "sha256": "bf674de3312dee7b7215f07df1e8a96eb3d679164b8a918cdd95b8d97e505884",
+        "src": "https://github.com/mirage/either/releases/download/1.0.0/either-1.0.0.tbz"
+      }
     },
     "@@rules_go+//go:extensions.bzl%go_sdk": {
       "1.22.4": {

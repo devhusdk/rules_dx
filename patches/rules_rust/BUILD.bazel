@@ -1,6 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "cargo_toml_env_vars_flag.patch",
     "clippy_metadata_inputs.patch",
     "crate_universe_lazy_host_tools.patch",
     "crate_universe_root_lookup.patch",

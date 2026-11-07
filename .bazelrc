@@ -53,6 +53,9 @@ build --test_env=PYTHONWARNINGS=error
 
 build --@rules_rust//cargo/settings:use_default_shell_env=False
 
+# Skip the cargo_toml_variable_extractor and the crates it is built from (#8898).
+build --@rules_rust//cargo/settings:cargo_toml_env_vars=False
+
 # Apple Clang's C++ profiles cannot merge with the hermetic LLVM in Rust test wrappers.
 coverage:macos --copt=-fno-profile-instr-generate
 coverage:macos --copt=-fno-coverage-mapping

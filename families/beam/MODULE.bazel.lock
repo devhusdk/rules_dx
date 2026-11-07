@@ -21,6 +21,7 @@
     "https://bcr.bazel.build/modules/apple_support/2.11.0/MODULE.bazel": "0f1e56d2d03842cef48348321fa90768e239138956d605a8d2615cdcd2fc0732",
     "https://bcr.bazel.build/modules/apple_support/2.11.0/source.json": "2f0c765c28dbb7f6485ad3fb7c0a365ea5a041948b5fe2fc600ab655f514c990",
     "https://bcr.bazel.build/modules/apple_support/2.3.0/MODULE.bazel": "d48f824ae8eeea5f837eb3038cef3615075d996d3e82eb9187192c2820605a81",
+    "https://bcr.bazel.build/modules/apple_support/2.5.2/MODULE.bazel": "bb1b7081e390a8d3885f642cb0073dfcf8e7a36525e079fa8f5835af7079c0fe",
     "https://bcr.bazel.build/modules/apple_support/2.5.4/MODULE.bazel": "964e9268b37edb64e9a0fa525e5b5e535ba56bf63cadc68375f92e69fcb734f6",
     "https://bcr.bazel.build/modules/apple_support/2.8.0/MODULE.bazel": "c45f5176057092afba0be6c48a9ea02101666802f8be536947e099e94757f8ed",
     "https://bcr.bazel.build/modules/apple_support/2.8.3/MODULE.bazel": "4afffdeb3a37825fdae637efb14ead4de27fe6310dbae96d071059e4e7b2e431",
@@ -540,7 +541,7 @@
     },
     "@@gcc_toolchain+//:internal.bzl%non_bazel_dependencies": {
       "general": {
-        "bzlTransitiveDigest": "+Apqu8ijCyC4sUtKiEjhDaK0VpjiQ9qQH00h4vk4YPY=",
+        "bzlTransitiveDigest": "2lJ032c8fOuugvP5l8O9QCbfJ0bax+IIqOgaFwlNDec=",
         "usagesDigest": "sKYmx+ooOsbnANJqjmba+8IeuYjA9CbwKfQETYhyNuU=",
         "recordedInputs": [
           "REPO_MAPPING:gcc_toolchain+,bazel_tools bazel_tools",
@@ -597,7 +598,7 @@
     },
     "@@rules_cuda+//cuda:extensions.bzl%toolchain": {
       "general": {
-        "bzlTransitiveDigest": "Q6vCSam+HZAK3FvqwwPyto3c/PMuW4FnWAQbNOzZPDs=",
+        "bzlTransitiveDigest": "pEc6sbAsi959Be97YB+0BV1+oWptpHR7AB6EPPdUOOM=",
         "usagesDigest": "qZ7DRgNbd0BaVoooL2o5NoGAthKizOb9L75uAwzDKvk=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
@@ -10729,7 +10730,7 @@
     },
     "@@rules_python+//python/uv:uv.bzl%uv": {
       "general": {
-        "bzlTransitiveDigest": "xszxE4Kia64No+JCB5eL3haL4zKdB+zbBhYX1UmZ7Bo=",
+        "bzlTransitiveDigest": "RH0xYDM+3D/BJrY901xKB9oHbAVDI7DBo6UhvEjliCw=",
         "usagesDigest": "XRZOpOa3Ptb82+J12oqlM1gHuCL7k4dID6s0jzgPGVM=",
         "recordedInputs": [
           "REPO_MAPPING:rules_python+,bazel_tools bazel_tools",
@@ -10759,7 +10760,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "qsq8Sx0eg9nK7874ZKpsvVm3DBhjEINaLkwmyjWqMC4=",
+        "bzlTransitiveDigest": "kgoLaUjnUQ3hs/LwpvDZ6c4zmoC/slawem6CE3z3jKk=",
         "usagesDigest": "/bGmDj4Nr856OGWTjcSOPnxG0gSTFtYse380wG1a98A=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",
@@ -10862,7 +10863,7 @@
     },
     "@@rules_zig+//zig:extensions.bzl%zig": {
       "general": {
-        "bzlTransitiveDigest": "8E8c6wjQpII8BlqmFJDak9wmxG+0LIn8BNzJs69Fez8=",
+        "bzlTransitiveDigest": "vTeQKV6Xl5RuIpCwuarKlx1FwNYsPvKFOklJop5h/mI=",
         "usagesDigest": "wbVXTaIKBf7g3e5qCNbn0MxEyRFJdnOR+xjO2nz4Pkw=",
         "recordedInputs": [
           "REPO_MAPPING:rules_zig+,bazel_skylib bazel_skylib+",
@@ -11088,7 +11089,7 @@
     },
     "@@rules_zig+//zig/zls:extensions.bzl%zls": {
       "general": {
-        "bzlTransitiveDigest": "eQUCowuh3A1sne3rXIfP4c/zG6G3oEkvOeweLxDSlKY=",
+        "bzlTransitiveDigest": "DYqd0XnCD3+Pk9qY95prwBE2Em4NkpZQLOjd72W2Lh0=",
         "usagesDigest": "kOrP52crJGijpHNzo4S7msXvbGpfmzvkE4tuhpRWTsI=",
         "recordedInputs": [
           "REPO_MAPPING:rules_zig+,bazel_skylib bazel_skylib+",
@@ -11111,7 +11112,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%msvc_runtime": {
       "general": {
-        "bzlTransitiveDigest": "ktvH849i3RCAkUgLGjn9MEZzEiAFSEvyonJAqFj2Uy0=",
+        "bzlTransitiveDigest": "c6RAFlG2fRAySUZlIBNDe1ttLY3K5TQeJ4jY0yz2Lkg=",
         "usagesDigest": "BAR49evfl9Kh5y6AJQAIyvwxAmQkd8wtezBRueJ6obw=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
@@ -11146,7 +11147,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%windows_sdk": {
       "general": {
-        "bzlTransitiveDigest": "ktvH849i3RCAkUgLGjn9MEZzEiAFSEvyonJAqFj2Uy0=",
+        "bzlTransitiveDigest": "c6RAFlG2fRAySUZlIBNDe1ttLY3K5TQeJ4jY0yz2Lkg=",
         "usagesDigest": "tria5D4zJJiL9pskVxylqEESVauLMZ4ude7BCg82YLw=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
@@ -11273,6 +11274,22 @@
   "facts": {
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "notice_version": "3"
+    },
+    "@@rules_dx+//ocaml/toolchain:repos.bzl%ocaml": {
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/astring.0.8.5": {
+        "needs": [
+          "ocamlfind",
+          "ocamlbuild",
+          "topkg"
+        ],
+        "sha256": "865692630c07c3ab87c66cdfc2734c0fdfc9c34a57f8e89ffec7c7d15e7a70fa",
+        "src": "https://erratique.ch/software/astring/releases/astring-0.8.5.tbz"
+      },
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/either.1.0.0": {
+        "needs": [],
+        "sha256": "bf674de3312dee7b7215f07df1e8a96eb3d679164b8a918cdd95b8d97e505884",
+        "src": "https://github.com/mirage/either/releases/download/1.0.0/either-1.0.0.tbz"
+      }
     },
     "@@rules_go+//go:extensions.bzl%go_sdk": {
       "1.22.4": {

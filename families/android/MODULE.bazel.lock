@@ -10760,7 +10760,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "qsq8Sx0eg9nK7874ZKpsvVm3DBhjEINaLkwmyjWqMC4=",
+        "bzlTransitiveDigest": "kgoLaUjnUQ3hs/LwpvDZ6c4zmoC/slawem6CE3z3jKk=",
         "usagesDigest": "/bGmDj4Nr856OGWTjcSOPnxG0gSTFtYse380wG1a98A=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",
@@ -11112,7 +11112,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%msvc_runtime": {
       "general": {
-        "bzlTransitiveDigest": "PaAdv/+gxd3QHRtGO/fNmeO86Vn16qlo/6olXSjQHRc=",
+        "bzlTransitiveDigest": "c6RAFlG2fRAySUZlIBNDe1ttLY3K5TQeJ4jY0yz2Lkg=",
         "usagesDigest": "BAR49evfl9Kh5y6AJQAIyvwxAmQkd8wtezBRueJ6obw=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
@@ -11147,7 +11147,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%windows_sdk": {
       "general": {
-        "bzlTransitiveDigest": "PaAdv/+gxd3QHRtGO/fNmeO86Vn16qlo/6olXSjQHRc=",
+        "bzlTransitiveDigest": "c6RAFlG2fRAySUZlIBNDe1ttLY3K5TQeJ4jY0yz2Lkg=",
         "usagesDigest": "tria5D4zJJiL9pskVxylqEESVauLMZ4ude7BCg82YLw=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"

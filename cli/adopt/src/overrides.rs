@@ -89,6 +89,10 @@ pub const OVERRIDES: &[Override] = &[
                     "../../../patches/rules_rust/crate_universe_lazy_host_tools.patch"
                 ),
             },
+            OverridePatch {
+                file: "cargo_toml_env_vars_flag.patch",
+                content: include_str!("../../../patches/rules_rust/cargo_toml_env_vars_flag.patch"),
+            },
         ],
     },
     Override {
@@ -970,7 +974,7 @@ mod tests {
             "\nsingle_version_override(\n    module_name = \"aspect_rules_ts\",\n    patch_strip = 1,\n    patches = [\"//third_party/rules_dx:aspect_rules_ts.typecheck_root_dir.patch\"],\n    version = \"3.10.1\",\n)\n"
         ));
         assert!(rendered.contains(
-            "    patches = [\n        \"//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch\",\n        \"//third_party/rules_dx:rules_rust.pipelined_rmeta_path.patch\",\n        \"//third_party/rules_dx:rules_rust.crate_universe_root_lookup.patch\",\n        \"//third_party/rules_dx:rules_rust.exec_cc_toolchain_env.patch\",\n        \"//third_party/rules_dx:rules_rust.msvc_pdb_output.patch\",\n        \"//third_party/rules_dx:rules_rust.rust_lld_msvc_libpath.patch\",\n        \"//third_party/rules_dx:rules_rust.crate_universe_lazy_host_tools.patch\",\n    ],\n"
+            "    patches = [\n        \"//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch\",\n        \"//third_party/rules_dx:rules_rust.pipelined_rmeta_path.patch\",\n        \"//third_party/rules_dx:rules_rust.crate_universe_root_lookup.patch\",\n        \"//third_party/rules_dx:rules_rust.exec_cc_toolchain_env.patch\",\n        \"//third_party/rules_dx:rules_rust.msvc_pdb_output.patch\",\n        \"//third_party/rules_dx:rules_rust.rust_lld_msvc_libpath.patch\",\n        \"//third_party/rules_dx:rules_rust.crate_universe_lazy_host_tools.patch\",\n        \"//third_party/rules_dx:rules_rust.cargo_toml_env_vars_flag.patch\",\n    ],\n"
         ));
         assert!(rendered.contains(
             r#"

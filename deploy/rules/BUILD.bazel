@@ -12,7 +12,7 @@ load(":archive_tests.bzl", "archive_unit_tests", "consumer_archive_unit_tests")
 load(":cloudflare.bzl", "cloudflare_config", "cloudflare_pages_deploy")
 load(":cloudflare_tests.bzl", "cloudflare_program_closure_tests", "cloudflare_unit_tests", "site_dir")
 load(":crates.bzl", "crates_deploy")
-load(":crates_tests.bzl", "crates_unit_tests")
+load(":crates_tests.bzl", "crates_config_content_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
 load(":github.bzl", "github_config", "github_deploy")
@@ -814,6 +814,7 @@ test_suite(
         ":config_runfiles",
         ":consumer_archive_unit",
         ":crates_analysis",
+        ":crates_config_content",
         ":crates_unit",
         ":deploy_analysis",
         ":deploy_app_analysis",
@@ -1589,6 +1590,14 @@ crates_deploy(
     version = "0.0.0",
 )
 
+crates_deploy(
+    name = "crates_warn",
+    api_compat = "warn",
+    crate = ":crates_demo_crate",
+    tags = ["manual"],
+    version = "0.0.0",
+)
+
 failure_test(
     name = "crates_git_generated_manifest_fails",
     expected_failure_substring = "needs a checked-in Cargo.toml",
@@ -1631,6 +1640,8 @@ deploy_analysis_test(
 )
 
 crates_unit_tests(name = "crates_unit")
+
+crates_config_content_tests(name = "crates_config_content")
 
 rubygems_deploy(
     name = "rubygems_demo",

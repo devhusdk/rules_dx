@@ -40,7 +40,7 @@ def _crates_config_impl(ctx):
     semver_rloc = rlocation_path(ctx, semver_files[0]) if semver_files else ""
 
     crate_dir = ""
-    if ctx.attr.api_baseline == "git" and ctx.attr.api_compat:
+    if ctx.attr.api_baseline == "git" and ctx.attr.api_compat != "off":
         manifests = [f for f in crate_files if f.basename == "Cargo.toml"]
         if len(manifests) == 0:
             fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a Cargo.toml in crate " +
@@ -61,7 +61,7 @@ def _crates_config_impl(ctx):
             "crate_dir": crate_dir,
             "crate_name": ctx.attr.crate_name,
             "api_baseline": ctx.attr.api_baseline,
-            "api_compat": ctx.attr.api_compat_mode if ctx.attr.api_compat else "off",
+            "api_compat": ctx.attr.api_compat,
             "crate_rlocs": rlocs,
             "semver_checks_rloc": semver_rloc,
             "version": ctx.attr.version,
@@ -72,11 +72,7 @@ def _crates_config_impl(ctx):
 _crates_config = rule(
     implementation = _crates_config_impl,
     doc = "Writes the deploy config for one crates.io deployment.",
-    attrs = {
-        "api_baseline": API_COMPAT_ATTRS["api_baseline"],
-        # dx release finds these targets by querying api_compat = 1.
-        "api_compat": attr.bool(doc = "Whether the API check runs."),
-        "api_compat_mode": attr.string(doc = "warn or fail.", values = ["warn", "fail"], default = "fail"),
+    attrs = API_COMPAT_ATTRS | {
         "crate": attr.label(
             doc = "Crate target whose files are published by the deployment.",
             allow_files = True,
@@ -120,8 +116,7 @@ def crates_deploy(name, crate, version = "0.0.0", build_mode = "release", api_co
         crate = crate,
         crate_name = name,
         version = version,
-        api_compat = api_compat_mode(api_compat) != "off",
-        api_compat_mode = "warn" if api_compat_mode(api_compat) == "warn" else "fail",
+        api_compat = api_compat_mode(api_compat),
         api_baseline = api_baseline,
         tags = tags,
     )

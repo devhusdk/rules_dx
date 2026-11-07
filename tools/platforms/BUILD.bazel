@@ -11,6 +11,12 @@ platform(
     required_settings = ["@llvm//toolchain:runtimes_all"],
 )
 
+# The plain host, under a label consumers can name without a platforms bazel_dep.
+platform(
+    name = "host",
+    parents = ["@platforms//host"],
+)
+
 toolchain(
     name = "protoc_windows_arm64",
     exec_compatible_with = [

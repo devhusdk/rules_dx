@@ -116,7 +116,7 @@ const WINDOWS_FLAGS: [Flag; 4] = [
         "On Windows, build host tools on the MSVC-ABI host so rustc and clang-cl agree on the ABI.",
     ),
     (
-        "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host",
+        "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
         "On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.",
     ),
 ];
@@ -362,7 +362,7 @@ pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bo
         out.push_str("# ");
         out.push_str(comment);
         out.push('\n');
-        out.push_str(&flag.replacen("@rules_dx//", &format!("@{repo}//"), 1));
+        out.push_str(&flag.replace("@rules_dx//", &format!("@{repo}//")));
         out.push('\n');
     }
     if let (Layer::Correctness, Some(on)) = (layer, warnings_as_errors) {
@@ -730,7 +730,7 @@ mod tests {
             "common:windows --host_platform=@my_dx//tools/platforms:windows_msvc_host\n"
         ));
         assert!(text.contains(
-            "common:windows --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@platforms//host\n"
+            "common:windows --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@my_dx//tools/platforms:host\n"
         ));
         assert!(!text.contains("@rules_dx//"));
         assert!(layer_is_current(&text, Layer::Correctness, "my_dx"));
@@ -760,7 +760,7 @@ mod tests {
                 "build:windows --enable_runfiles",
                 "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
-                "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host",
+                "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
                 "build --java_runtime_version=remotejdk_21",
                 "build --tool_java_runtime_version=remotejdk_21",
                 "build --tool_java_language_version=17",

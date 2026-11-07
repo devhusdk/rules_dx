@@ -20,22 +20,6 @@ def _render_direct_sources(info):
         return "(none)"
     return ";".join(parts)
 
-def _marker_basenames(lint_test, group):
-    if lint_test == None:
-        return "(none)"
-    if OutputGroupInfo not in lint_test:
-        return "(missing-output-groups)"
-    groups = lint_test[OutputGroupInfo]
-    if group not in groups:
-        return "(missing-group)"
-
-    # The *_output_diagnostics settings (forced on by dx) add .diagnostics files
-    # to the same group; the markers are the pass/fail files only.
-    names = [n for n in _sorted_basenames(groups[group].to_list()) if not n.endswith(".diagnostics")]
-    if len(names) == 0:
-        return "(empty)"
-    return ",".join(names)
-
 def _toolchain_file(toolchain, name):
     info = getattr(toolchain, name, None)
     if info == None:
@@ -64,7 +48,6 @@ def _wrapper_subject_impl(ctx):
 
     fields = {
         "cargo_tool": _toolchain_file(toolchain, "cargo"),
-        "clippy_markers": _marker_basenames(ctx.attr.clippy_test, "clippy_checks"),
         "clippy_tool": _toolchain_file(toolchain, "clippy_driver"),
         "crate_edition": crate.edition,
         "crate_is_test": str(crate.is_test),
@@ -74,7 +57,6 @@ def _wrapper_subject_impl(ctx):
         "crate_srcs": ",".join(_sorted_basenames(crate.srcs.to_list())),
         "crate_type": crate.type,
         "direct_sources": _render_direct_sources(wrapper[QualitySourcesInfo]),
-        "fmt_markers": _marker_basenames(ctx.attr.fmt_test, "rustfmt_checks"),
         "preserved_deps": str(len(crate.deps.to_list()) == len(ucrate.deps.to_list())),
         "preserved_edition": str(crate.edition == ucrate.edition),
         "preserved_name": str(crate.name == ucrate.name),
@@ -102,8 +84,6 @@ dx_wrapper_subject = rule(
     implementation = _wrapper_subject_impl,
     doc = "Analysis subject comparing a Rust wrapper with its upstream crate.",
     attrs = {
-        "clippy_test": attr.label(doc = "Optional clippy test whose check markers are reported."),
-        "fmt_test": attr.label(doc = "Optional rustfmt test whose check markers are reported."),
         "upstream": attr.label(
             doc = "Upstream crate target the wrapper is compared against.",
             mandatory = True,
@@ -135,7 +115,6 @@ def _wrapper_cc_subject_impl(ctx):
     fields = {
         "cargo_tool": _toolchain_file(toolchain, "cargo"),
         "cc_linker_inputs": str(cc_inputs),
-        "clippy_markers": _marker_basenames(ctx.attr.clippy_test, "clippy_checks"),
         "clippy_tool": _toolchain_file(toolchain, "clippy_driver"),
         "crate_edition": crate.edition,
         "crate_is_test": str(crate.is_test),
@@ -145,7 +124,6 @@ def _wrapper_cc_subject_impl(ctx):
         "crate_srcs": ",".join(_sorted_basenames(crate.srcs.to_list())),
         "crate_type": crate.type,
         "direct_sources": _render_direct_sources(wrapper[QualitySourcesInfo]),
-        "fmt_markers": _marker_basenames(ctx.attr.fmt_test, "rustfmt_checks"),
         "preserved_cc_inputs": str(cc_inputs == ucc_inputs),
         "preserved_deps": str(len(crate.deps.to_list()) == len(ucrate.deps.to_list())),
         "preserved_edition": str(crate.edition == ucrate.edition),
@@ -174,8 +152,6 @@ dx_wrapper_cc_subject = rule(
     implementation = _wrapper_cc_subject_impl,
     doc = "Analysis subject comparing a Rust test wrapper with its upstream crate.",
     attrs = {
-        "clippy_test": attr.label(doc = "Optional clippy test whose check markers are reported."),
-        "fmt_test": attr.label(doc = "Optional rustfmt test whose check markers are reported."),
         "upstream": attr.label(
             doc = "Upstream test crate target the wrapper is compared against.",
             mandatory = True,

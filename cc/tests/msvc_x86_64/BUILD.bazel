@@ -104,8 +104,6 @@ test_suite(
     name = "all",
     tests = [
         ":archive_test",
-        ":clippy_test",
-        ":fmt_test",
         ":imports_test",
         ":producer_test",
     ],

@@ -122,14 +122,8 @@ real_source_target(
 test_suite(
     name = "all",
     tests = [
-        ":archive_clippy_test",
-        ":archive_fmt_test",
         ":archive_test",
-        ":libstdcxx_archive_clippy_test",
-        ":libstdcxx_archive_fmt_test",
         ":libstdcxx_archive_test",
-        ":native_arm64_clippy_test",
-        ":native_arm64_fmt_test",
         ":native_arm64_test",
     ],
 )

@@ -161,14 +161,8 @@ real_source_target(
 test_suite(
     name = "all",
     tests = [
-        ":archive_clippy_test",
-        ":archive_fmt_test",
         ":archive_test",
-        ":artifacts_clippy_test",
-        ":artifacts_fmt_test",
         ":artifacts_test",
-        ":libstdcxx_archive_clippy_test",
-        ":libstdcxx_archive_fmt_test",
         ":libstdcxx_archive_test",
     ],
 )

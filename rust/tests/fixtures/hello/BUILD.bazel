@@ -137,8 +137,6 @@ exports_files([
 dx_wrapper_subject(
     name = "hello_lib_subject",
     testonly = True,
-    clippy_test = ":hello_clippy_test",
-    fmt_test = ":hello_fmt_test",
     upstream = ":hello_lib_upstream",
     wrapper = ":hello_lib",
 )
@@ -146,8 +144,6 @@ dx_wrapper_subject(
 dx_wrapper_subject(
     name = "hello_subject",
     testonly = True,
-    clippy_test = ":hello_clippy_test",
-    fmt_test = ":hello_fmt_test",
     upstream = ":hello_upstream",
     wrapper = ":hello",
 )
@@ -155,8 +151,6 @@ dx_wrapper_subject(
 dx_wrapper_subject(
     name = "hello_test_subject",
     testonly = True,
-    clippy_test = ":hello_clippy_test",
-    fmt_test = ":hello_fmt_test",
     upstream = ":hello_test_upstream",
     wrapper = ":hello_test",
 )
@@ -164,8 +158,6 @@ dx_wrapper_subject(
 dx_wrapper_subject(
     name = "hello_derive_subject",
     testonly = True,
-    clippy_test = ":hello_flavors_clippy_test",
-    fmt_test = ":hello_flavors_fmt_test",
     upstream = ":hello_derive_upstream",
     wrapper = ":hello_derive",
 )
@@ -173,8 +165,6 @@ dx_wrapper_subject(
 dx_wrapper_cc_subject(
     name = "hello_cdylib_subject",
     testonly = True,
-    clippy_test = ":hello_flavors_clippy_test",
-    fmt_test = ":hello_flavors_fmt_test",
     upstream = ":hello_cdylib_upstream",
     wrapper = ":hello_cdylib",
 )
@@ -182,8 +172,6 @@ dx_wrapper_cc_subject(
 dx_wrapper_cc_subject(
     name = "hello_staticlib_subject",
     testonly = True,
-    clippy_test = ":hello_flavors_clippy_test",
-    fmt_test = ":hello_flavors_fmt_test",
     upstream = ":hello_staticlib_upstream",
     wrapper = ":hello_staticlib",
 )

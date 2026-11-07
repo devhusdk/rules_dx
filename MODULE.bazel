@@ -1650,7 +1650,8 @@ crate.annotation_select(
 # ring's build.rs only accepts plain clang on windows_arm64; the hermetic
 # toolchain uses clang-cl (#6337, briansmith/ring#2673). cl.exe opens the
 # fiat includes without collapsing `..`, which overflows MAX_PATH under the
-# build script runfiles (#8290).
+# build script runfiles (#8290). The MSVC compiler has no clang, so ring's
+# aarch64 build script gets the hermetic clang-cl as CC (#9224).
 crate.annotation(
     crate = "ring",
     patch_args = ["-p1"],
@@ -1689,15 +1690,25 @@ crate.annotation_select(
 crate.annotation_select(
     build_script_env = {
         "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "CC_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:clang_cl)",
+    },
+    build_script_tools = [
+        "@@//rust/tools/msvc_paths:clang_cl",
+        "@@//rust/tools/msvc_paths:msvc_lib",
+    ],
+    crate = "ring",
+    repositories = ["dx_crates"],
+    triples = ["aarch64-pc-windows-msvc"],
+    version = "0.17.14",
+)
+crate.annotation_select(
+    build_script_env = {
         "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
     },
     build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
     crate = "ring",
     repositories = ["dx_crates"],
-    triples = [
-        "aarch64-pc-windows-msvc",
-        "x86_64-pc-windows-msvc",
-    ],
+    triples = ["x86_64-pc-windows-msvc"],
     version = "0.17.14",
 )
 

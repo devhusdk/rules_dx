@@ -22,6 +22,7 @@ pub(crate) fn block() -> String {
          - One file: `{dx} {test} <file>`.\n\
          - One test: `{dx} {test} <label> -- --test_filter=<name>`.\n\
          - Read the `--output=json` result.\n\
+         - Lint config: edit the tool's own root file; the tier is `tier` in dx.toml; never edit `.dx/` (generated, drift-checked).\n\
          {END}\n"
     )
 }

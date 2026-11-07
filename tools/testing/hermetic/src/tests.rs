@@ -20,7 +20,6 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         families: Vec::new(),
         compiler: None,
         platform: String::new(),
-        profile: String::new(),
         lint_findings: Vec::new(),
         dx: PathBuf::from("d"),
         module_file: PathBuf::from("MODULE.bazel"),

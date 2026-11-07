@@ -15,13 +15,6 @@ pub enum Agent {
     Copilot,
 }
 
-/// A config profile `dx init --profile` picks.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
-pub enum ProfileArg {
-    Standard,
-    Strict,
-}
-
 impl Agent {
     /// Every agent.
     pub const ALL: [Self; 4] = [Self::Claude, Self::Codex, Self::Gemini, Self::Copilot];
@@ -134,7 +127,6 @@ pub(crate) struct Flags {
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) agents: Vec<Agent>,
-    pub(crate) profile: Option<ProfileArg>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
@@ -487,14 +479,6 @@ flag_group! {
     AgentsFlag, {
         #[arg(long, value_enum, value_delimiter = ',', value_name = "LIST", require_equals = true)]
         agents: Vec<Agent>,
-    }
-}
-
-flag_group! {
-    /// Config profile whose root files init writes.
-    ProfileFlag, {
-        #[arg(long, value_enum, overrides_with = "profile", value_name = "PROFILE")]
-        profile: Option<ProfileArg>,
     }
 }
 
@@ -1170,7 +1154,6 @@ command_args! {
         output: OutputFlag,
         apply: ApplyFlag,
         agents: AgentsFlag,
-        profile: ProfileFlag,
     };
     /// The flags `dx upgrade` accepts.
     Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };
@@ -1665,7 +1648,7 @@ mod tests {
                         command.get_name()
                     );
                 }
-                if let Some(long) = arg.get_long().filter(|long| *long != "profile") {
+                if let Some(long) = arg.get_long() {
                     assert_eq!(
                         value_options().contains(format!("--{long}").as_str()),
                         expected,
@@ -1677,14 +1660,7 @@ mod tests {
             stack.extend(command.get_subcommands());
         }
         assert!(seen > 0);
-        // `--profile` takes a value in init and is a switch in build, so no global set can match both.
-        for option in [
-            "--output",
-            "-o",
-            "--workspace",
-            "--bazel-option",
-            "--profile",
-        ] {
+        for option in ["--output", "-o", "--workspace", "--bazel-option"] {
             assert!(value_options().contains(option), "{option} takes a value");
         }
         for flag in ["-q", "-v", "--verbose"] {

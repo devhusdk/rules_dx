@@ -406,9 +406,6 @@ fn strict_non_utf8_argv_fails_as_invalid_scope() {
 }
 
 #[test]
-fn init_takes_a_known_config_profile_only() {
-    let invocation = parse(&strings(&["init", "--profile=strict"])).expect("strict is accepted");
-    assert_eq!(invocation.command, Command::Init);
-    assert_eq!(invocation.profile, Some(crate::args::ProfileArg::Strict));
-    assert!(parse(&strings(&["init", "--profile=loose"])).is_err());
+fn init_rejects_profile() {
+    assert!(parse(&strings(&["init", "--profile=strict"])).is_err());
 }

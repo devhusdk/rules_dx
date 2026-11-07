@@ -1,5 +1,5 @@
 {
-  "checksum": "bbc937abfa41c13348347a15dedba5a7c119aaf1e2083c7f7ca678badb8ccc19",
+  "checksum": "ede07325f90b3d3660f4069f2d09e76209d232d995e5c7750d1ccbc2501f3d69",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6905,10 +6905,6 @@
           {
             "id": "toml 1.1.6+spec-1.1.0",
             "target": "toml"
-          },
-          {
-            "id": "toml_edit 0.25.15+spec-1.1.0",
-            "target": "toml_edit"
           }
         ],
         "deps_dev": [

@@ -23,7 +23,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--agents=<list>] [--profile=standard|strict] [dir]
+dx init [--apply] [--agents=<list>] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -47,7 +47,7 @@ before any file is written.
 It writes every path in the [fixed file set](#fixed-file-set). Re-running
 `dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
 
-`--profile=standard|strict` sets the top-level `tier` key in `dx.toml`, creating the file with `schema_version = 1` when it is missing. Without `--apply` it changes nothing. Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml` for the languages found.
+Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `licenses.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"` (see the [config reference](config.md)). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages found.
 
 Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini,copilot` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents=<tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
 
@@ -248,6 +248,7 @@ stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
 - One file: `tools/dx test <file>`.
 - One test: `tools/dx test <label> -- --test_filter=<name>`.
 - Read the `--output=json` result.
+- Lint config: edit the tool's own root file; the tier is `tier` in dx.toml; never edit `.dx/` (generated, drift-checked).
 <!-- dx:end -->
 ```
 

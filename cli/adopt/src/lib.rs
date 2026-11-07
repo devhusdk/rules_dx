@@ -11,7 +11,6 @@
 pub mod build_output;
 pub mod defaults;
 pub mod dependency_sets;
-pub mod dx_toml;
 pub mod error;
 pub mod families;
 pub mod git_changes;
@@ -26,7 +25,6 @@ pub mod ownership;
 pub mod preflight;
 pub mod preset;
 pub mod preset_fragment;
-pub mod profiles;
 pub mod scaffold;
 pub mod status;
 pub mod upgrade;
@@ -66,7 +64,6 @@ pub use preset::{
     PresetDrift, PresetState, inspect_preset, preflight_preset, preset_drift, preset_files,
     preset_paths, write_preset,
 };
-pub use profiles::{Profile, infer_profile, kept_config_notes, profile_notes};
 pub use scaffold::{
     Applied, CONSUMER_WORKFLOW_PIN, FileKind, bazelignore_covers_dx, bazelignore_has_bare_dx,
     owned_file_drift, plan_init_files, plan_init_files_at, preflight_destinations,

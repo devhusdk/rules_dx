@@ -263,8 +263,6 @@ pub struct Invocation {
     pub(super) app_args: Vec<String>,
     /// `dx init --agents`: agent tools whose files init adds, without repeats.
     pub agents: Vec<crate::args::Agent>,
-    /// `dx init --profile`: the config profile the root files pick.
-    pub profile: Option<crate::args::ProfileArg>,
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
@@ -699,7 +697,6 @@ mod tests {
             bazel_options: Vec::new(),
             app_args: Vec::new(),
             agents: Vec::new(),
-            profile: None,
             to: None,
             here: true,
             affected: false,

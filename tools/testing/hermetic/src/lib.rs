@@ -412,7 +412,6 @@ pub struct Manifest {
     pub families: Vec<String>,
     pub compiler: Option<(String, String)>,
     pub platform: String,
-    pub profile: String,
     pub lint_findings: Vec<(String, u64)>,
     pub dx: PathBuf,
     pub module_file: PathBuf,
@@ -551,16 +550,6 @@ fn parse_lint_findings(value: &Value) -> Result<Vec<(String, u64)>, String> {
     Ok(findings)
 }
 
-fn parse_profile(value: &Value) -> Result<String, String> {
-    let profile = value["profile"].as_str().unwrap_or("");
-    if !["", "standard", "strict"].contains(&profile) {
-        return Err(format!(
-            "manifest profile {profile} must be standard or strict"
-        ));
-    }
-    Ok(profile.to_owned())
-}
-
 /// Parses the manifest a qualification target writes, resolving paths against `base`.
 pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let value: Value =
@@ -631,7 +620,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         families,
         compiler,
         platform: value["platform"].as_str().unwrap_or("").to_owned(),
-        profile: parse_profile(&value)?,
         lint_findings: parse_lint_findings(&value)?,
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
@@ -2055,19 +2043,14 @@ fn executable(path: &Path) -> Result<(), String> {
         .map_err(|err| format!("cannot mark {} executable: {err}", path.display()))
 }
 
-/// Builds the dx init arguments, adding the profile only when the manifest names one.
-pub fn init_args<'a>(manifest: &'a Manifest, workspace: &'a str) -> Vec<&'a str> {
-    let mut args = vec!["init", "--apply", "--workspace", workspace];
-    if !manifest.profile.is_empty() {
-        args.extend(["--profile", manifest.profile.as_str()]);
-    }
-    args
-}
-
 fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
-    let init = dx_testing::run(&manifest.dx, &init_args(manifest, &workspace_text), &[])
-        .map_err(|err| format!("cannot run dx init: {err}"))?;
+    let init = dx_testing::run(
+        &manifest.dx,
+        &["init", "--apply", "--workspace", &workspace_text],
+        &[],
+    )
+    .map_err(|err| format!("cannot run dx init: {err}"))?;
     if !init.status.success() {
         return Err(format!("dx init failed: {}", init.combined()));
     }

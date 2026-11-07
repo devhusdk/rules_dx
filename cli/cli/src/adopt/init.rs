@@ -6,7 +6,7 @@ use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, PlanFindingEvent, command_finished, command_started,
     init_plan_event, notice_event,
 };
-use dx_plan::args::{Agent, Invocation, ProfileArg};
+use dx_plan::args::{Agent, Invocation};
 
 use super::{operational, summaries_suppressed};
 
@@ -39,7 +39,6 @@ struct Target {
     /// The entry that makes the directory an existing tree; `None` when it is fresh.
     blocker: Option<String>,
     agents: Vec<Agent>,
-    profile: Option<dx_adopt::Profile>,
 }
 
 impl Target {
@@ -75,10 +74,6 @@ impl Target {
             module,
             blocker,
             agents: invocation.agents.clone(),
-            profile: invocation.profile.map(|profile| match profile {
-                ProfileArg::Standard => dx_adopt::Profile::Standard,
-                ProfileArg::Strict => dx_adopt::Profile::Strict,
-            }),
         })
     }
 
@@ -100,9 +95,6 @@ impl Target {
             command.push_str(&self.dir);
         }
         command.push_str(" --apply");
-        if let Some(profile) = self.profile {
-            command.push_str(&format!(" --profile={}", profile.name()));
-        }
         if !self.agents.is_empty() {
             let names: Vec<&str> = self.agents.iter().map(|agent| agent.name()).collect();
             command.push_str(&format!(" --agents={}", names.join(",")));
@@ -137,11 +129,6 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, &target, out, err);
     }
-    if let Some(profile) = target.profile
-        && let Err(error) = dx_adopt::dx_toml::set_tier(root, profile.name())
-    {
-        return invalid_module_code(invocation, out, err, &error);
-    }
     let planned = match target.plan() {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
@@ -150,11 +137,6 @@ pub(crate) fn execute_init(
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
     let mut notes = Vec::new();
-    notes.extend(
-        dx_adopt::kept_config_notes(root)
-            .into_iter()
-            .map(|note| format!("{}{note}", target.prefix)),
-    );
     if let Some(plan) = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
         .ok()
         .map(|setup| dx_adopt::preflight(root, &setup))

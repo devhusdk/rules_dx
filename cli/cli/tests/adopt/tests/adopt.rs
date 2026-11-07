@@ -91,12 +91,31 @@ fn init_in_an_empty_dir() {
     ] {
         assert!(root.join(file).is_file(), "missing {file}");
     }
-    assert!(!root.join("dx.toml").exists(), "init wrote dx.toml");
+    for file in [
+        "dx.toml",
+        "security.toml",
+        "licenses.toml",
+        "ruff.toml",
+        "biome.json",
+        "rustfmt.toml",
+        "eslint.config.js",
+    ] {
+        assert!(!root.join(file).exists(), "init wrote {file}");
+    }
     let check = dx(&root, &home, &["init"]);
     assert_eq!(check.code, 0, "{}", check.stderr);
     let before = snapshot(&root);
     init(&root, &home);
     assert_eq!(before, snapshot(&root));
+}
+
+#[test]
+fn init_rejects_profile() {
+    let (_guard, root, home) = setup("adopt-profile");
+    let out = dx(&root, &home, &["init", "--apply", "--profile=strict"]);
+    assert_eq!(out.code, 2, "{}", out.stderr);
+    assert!(out.stderr.contains("--profile"), "{}", out.stderr);
+    assert!(!root.join("MODULE.bazel").exists());
 }
 
 #[test]

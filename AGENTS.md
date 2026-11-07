@@ -22,4 +22,5 @@ This repository uses Bazel.
 - One file: `tools/dx test <file>`.
 - One test: `tools/dx test <label> -- --test_filter=<name>`.
 - Read the `--output=json` result.
+- Lint config: edit the tool's own root file; the tier is `tier` in dx.toml; never edit `.dx/` (generated, drift-checked).
 <!-- dx:end -->

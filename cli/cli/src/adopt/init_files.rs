@@ -708,11 +708,9 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-audit-");
         let root = scratch.path();
         std::fs::write(root.join("licenses.toml"), "[policy]\nblocked = []\n").expect("licenses");
-        let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--profile", "strict"]),
-            root,
-        );
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
+        assert!(!root.join("dx.toml").exists());
         assert!(!root.join("security.toml").exists());
         assert!(!root.join(".dx/config/licenses").exists());
         assert!(!root.join(".dx/config/security").exists());

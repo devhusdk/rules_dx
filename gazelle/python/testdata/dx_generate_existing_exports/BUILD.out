@@ -1,0 +1,8 @@
+exports_files(["ruff.toml"])
+
+# dx:begin exports
+exports_files(
+    [".yamlfmt"],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

@@ -1,0 +1,8 @@
+exports_files(["README.md"])
+
+# dx:begin exports
+exports_files(
+    ["ruff.toml"],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

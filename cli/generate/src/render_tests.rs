@@ -607,6 +607,40 @@ fn the_root_block_is_a_fixpoint() {
 }
 
 #[test]
+fn gazelle_leaves_generated_files_alone() {
+    for (name, env, root) in [
+        ("standard", "DX_FIXPOINT_STANDARD", "BUILD.bazel"),
+        ("existing_exports", "DX_FIXPOINT_EXISTING_EXPORTS", "BUILD"),
+    ] {
+        let workspace = std::env::var(env).unwrap_or_else(|_| panic!("{env} names the fixture"));
+        let fixture = std::path::Path::new(&workspace)
+            .parent()
+            .expect("fixture dir");
+        let read = |path: &str| std::fs::read_to_string(fixture.join(path)).expect("fixture file");
+        let mut case = case(name);
+        let out = rendered(&case);
+        for (rendered_path, fixture_path) in [(root, "BUILD"), (".dx/BUILD.bazel", ".dx/BUILD")] {
+            let before = read(&format!("{fixture_path}.in"));
+            assert_eq!(
+                text(&out, rendered_path),
+                before,
+                "{name}: {fixture_path}.in"
+            );
+            assert_eq!(
+                read(&format!("{fixture_path}.out")),
+                before,
+                "{name}: gazelle changed {fixture_path}"
+            );
+        }
+        case.root_build = Some(RootBuild {
+            name: root.to_owned(),
+            text: read("BUILD.out"),
+        });
+        assert_eq!(rendered(&case), out, "{name}: generate after gazelle");
+    }
+}
+
+#[test]
 fn unused_families_are_left_out() {
     let out = rendered(&inputs(None, &[], &["ruff.toml"]));
     let paths: BTreeSet<&str> = out.keys().map(String::as_str).collect();

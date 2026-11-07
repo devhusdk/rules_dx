@@ -26,11 +26,16 @@ dx_rust_crate(
         "//tools/bazelrc:dx_preset",
     ],
     test_data = [
+        "//gazelle/python:dx_generate_fixpoint_testdata",
+        "//gazelle/python:testdata/dx_generate_existing_exports/WORKSPACE",
+        "//gazelle/python:testdata/dx_generate_standard/WORKSPACE",
         "//quality/tests/fixtures/generated_policy:BUILD.bazel",
         "@dx_tools//:buildifier",
     ],
     test_env = {
         "DX_BUILDIFIER": "$(rootpath @dx_tools//:buildifier)",
+        "DX_FIXPOINT_EXISTING_EXPORTS": "$(rootpath //gazelle/python:testdata/dx_generate_existing_exports/WORKSPACE)",
+        "DX_FIXPOINT_STANDARD": "$(rootpath //gazelle/python:testdata/dx_generate_standard/WORKSPACE)",
         "DX_GENERATED_POLICY": "$(rootpath //quality/tests/fixtures/generated_policy:BUILD.bazel)",
     },
     test_srcs = ["src/render_tests.rs"],

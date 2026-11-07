@@ -37,6 +37,20 @@ filegroup(
     srcs = glob(["testdata/**"]),
 )
 
+filegroup(
+    name = "dx_generate_fixpoint_testdata",
+    srcs = glob(["testdata/dx_generate_*/**"]),
+    visibility = ["//cli/generate:__pkg__"],
+)
+
+exports_files(
+    [
+        "testdata/dx_generate_existing_exports/WORKSPACE",
+        "testdata/dx_generate_standard/WORKSPACE",
+    ],
+    visibility = ["//cli/generate:__pkg__"],
+)
+
 gazelle_generation_test(
     name = "generation_test",
     gazelle_binary = "@dx_gazelle//:gazelle",
@@ -69,6 +83,8 @@ go_test(
 real_source_target(
     name = "corpus_markdown",
     markdown_srcs = [
+        "testdata/dx_generate_existing_exports/README.md",
+        "testdata/dx_generate_standard/README.md",
         "testdata/entries/README.md",
         "testdata/proto_import/README.md",
         "testdata/pyproject_no_ruff/README.md",

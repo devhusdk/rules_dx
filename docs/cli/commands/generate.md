@@ -74,7 +74,7 @@ Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They ap
 | `dx_fixture_testonly true\|false` | Mark generated libraries under a `tests/`, `fixtures/` or `testdata/` directory `testonly`. Off by default. Inherited by child packages. |
 | `lang <languages>` | Must list `dx_dispatch`, for example `go,dx_dispatch`. |
 
-When `.dx/config/BUILD.bazel` from `dx init` already has a `ruff_config` for the root ruff file, gazelle writes no root `ruff_config` and no `aspect_hints` for it.
+When `.dx/BUILD.bazel` from `dx generate` or `.dx/config/BUILD.bazel` from `dx init` already has a `ruff_config` for the root ruff file, gazelle writes no root `ruff_config` and no `aspect_hints` for it.
 
 `dx_ignore_import` languages: `astro`, `cc`, `csharp`, `dart`, `elixir`, `erlang`, `fsharp`, `go`, `haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `ocaml`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`, `scala`, `svelte`, `swift`, `typescript`, `vue`, `zig`.
 

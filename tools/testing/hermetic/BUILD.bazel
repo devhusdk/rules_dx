@@ -196,6 +196,7 @@ hermetic_qualification(
         "//java/tests/fixtures/java-app/cli/indirect": "[strict] Using type billing.BuildInfo from an indirect dependency",
         "//kotlin/tests/fixtures/kotlin-app/grades/without_gson": "unresolved reference 'gson'",
     },
+    families = ["jvm"],
     files = {
         "consumers/cpp_rust/config_test.cc": "config_test.cc",
         "consumers/cpp_rust/consumer.bazelrc": ".bazelrc",

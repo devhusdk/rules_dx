@@ -402,11 +402,7 @@ fn msvc_tidy(name: &str, extra: &str) -> (Option<i32>, String) {
     let policy = "Checks: '-*,readability-else-after-return'\n";
     std::fs::write(env.tree.join(".clang-tidy"), policy).expect("policy");
     cc_context::write_bundle(&env.root.join("msvc"), &entries, policy).expect("bundle");
-    let output = Command::new(
-        env_path("DX_CLANG_TIDY")
-            .canonicalize()
-            .expect("clang-tidy"),
-    )
+    let output = Command::new(&env.tidy)
     .arg("-p")
     .arg(env.root.join("msvc"))
     .arg("a.c")

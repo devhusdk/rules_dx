@@ -13,7 +13,6 @@ android_metadata_tests(name = "metadata")
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = [
         "BUILD.bazel",
         "metadata_tests.bzl",
@@ -24,15 +23,15 @@ real_source_target(
 
 build_test(
     name = "androidsdk_build_test",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     targets = [
         "@dx_androidsdk//:sdk",
         "@dx_androidsdk//:sdk-toolchain",
         "@dx_androidsdk//:aapt2_binary",
         "@dx_androidsdk//:d8_jar_import",
         "@dx_androidsdk//:files",
-    ],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
     ],
 )

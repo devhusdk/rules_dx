@@ -1,0 +1,91 @@
+# Vendored Bazel execution preset -- GENERATED, do not edit.
+# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Layer correctness: flags that change what a build or test produces.
+
+# Print the full command line of a failed action.
+build --verbose_failures
+
+# Show the log of a failing test in the console.
+test --test_output=errors
+
+# Apply the linux, macos and windows config lines on matching hosts.
+common --enable_platform_specific_config
+
+# Make LLVM coverage write lcov data.
+coverage --test_env=GENERATE_LLVM_LCOV=1
+
+# Merge the coverage of every test into one lcov report.
+coverage --combined_report=lcov
+
+# Skip tests tagged no-coverage during coverage runs.
+coverage --test_tag_filters=-no-coverage
+
+# Coverage collectors read their inputs from a runfiles tree.
+coverage --enable_runfiles
+
+# Instrument only targets in the main repository.
+coverage --instrumentation_filter=^//
+
+# Instrument test targets so sources a test compiles itself are counted.
+coverage --instrument_test_targets
+
+# On Windows, build runfiles trees only for actions that run.
+build:windows --nobuild_runfile_links
+
+# On Windows, give tests a runfiles directory instead of only a manifest.
+build:windows --enable_runfiles
+
+# On Windows, rustc links with rust-lld; clang-cl cannot drive a Rust link.
+build:windows --@rules_dx//config:toolchain_linker_preference=rust
+
+# On Windows, build host tools on the MSVC-ABI host so rustc and clang-cl agree on the ABI.
+common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host
+
+# On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.
+common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host
+
+# Run Java targets on the downloaded JDK 21, not a host JDK.
+build --java_runtime_version=remotejdk_21
+
+# Run Java build tools on the downloaded JDK 21.
+build --tool_java_runtime_version=remotejdk_21
+
+# Compile Java build tools at language level 17.
+build --tool_java_language_version=17
+
+# Opt out of aspect_tools_telemetry usage reports.
+common --repo_env=DO_NOT_TRACK=1
+
+# Clippy findings are part of the build output, as in dx build.
+build --@rules_dx//config:clippy_output_diagnostics=true
+
+# Rustc diagnostics are part of the build output, as in dx build.
+build --@rules_dx//config:rustc_output_diagnostics=true
+
+# Under --config=ci, fail when MODULE.bazel.lock is out of date.
+common:ci --lockfile_mode=error
+
+# Under --config=ci, skip probing the host JDK for @local_jdk.
+common:ci --repo_env=JAVA_HOME=dx-no-local-jdk
+
+# Under --config=ci, build runfiles trees only for actions that run.
+common:ci --nobuild_runfile_links
+
+# Compiler warnings fail the build under the strict profile.
+common --@rules_dx//config:warnings_as_errors=true
+common --@rules_dx//config:config_profile=strict
+
+# The workspace policy dx generates from dx.toml.
+common --@rules_dx//config:workspace=//.dx:policy
+
+# The clippy tier.
+common --@rules_dx//config:clippy_flag=-Wclippy::all
+common --@rules_dx//config:clippy_flag=-Wclippy::pedantic
+common --@rules_dx//config:clippy_flag=-Wclippy::dbg_macro
+common --@rules_dx//config:clippy_flag=-Wclippy::todo
+common --@rules_dx//config:clippy_flag=-Wclippy::unimplemented
+common --@rules_dx//config:clippy_flag=-Wclippy::allow_attributes_without_reason
+common --@rules_dx//config:clippy_flag=-Wclippy::allow_attributes
+common --@rules_dx//config:clippy_flag=-Wrust_2018_idioms
+common --@rules_dx//config:clippy_flag=-Wunused_qualifications
+common --@rules_dx//config:clippy_flag=-Dwarnings

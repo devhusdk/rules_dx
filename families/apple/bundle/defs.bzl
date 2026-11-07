@@ -1,7 +1,7 @@
 """Shared Apple bundle checks for iOS and macOS rules."""
 
-load("//provisioning:defs.bzl", "version_matches")
 load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//provisioning:defs.bzl", "version_matches")
 
 _ID_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
 

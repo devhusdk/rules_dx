@@ -21,6 +21,10 @@ pub struct FamilyDeps {
     pub notes: Vec<String>,
 }
 
+fn is_rules_dx_module(name: &str) -> bool {
+    name == "rules_dx" || name.starts_with("rules_dx_")
+}
+
 fn refuse(detail: impl std::fmt::Display) -> AdoptError {
     AdoptError::ModulePin {
         path: MODULE_FILE.to_owned(),
@@ -44,7 +48,7 @@ pub fn plan_family_deps(root: &Path, families: &[Family]) -> Result<FamilyDeps, 
     for (_, file) in &loaded {
         for call in file.calls() {
             match call.name.as_str() {
-                "module" if call.str("name") == Some("rules_dx") => {
+                "module" if call.str("name").is_some_and(is_rules_dx_module) => {
                     return Ok(FamilyDeps::default());
                 }
                 "bazel_dep" => {
@@ -404,6 +408,17 @@ mod tests {
     fn rules_dx_itself_plans_nothing() {
         let module =
             "module(name = \"rules_dx\")\nbazel_dep(name = \"rules_dx\", version = \"1\")\n";
+        let dir = workspace(module, &["a.py"], true);
+        assert_eq!(
+            plan_family_deps(dir.path(), &table()).expect("plan"),
+            FamilyDeps::default()
+        );
+    }
+
+    #[test]
+    fn a_rules_dx_family_module_plans_nothing() {
+        let module =
+            "module(name = \"rules_dx_jvm\")\nbazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let dir = workspace(module, &["a.py"], true);
         assert_eq!(
             plan_family_deps(dir.path(), &table()).expect("plan"),

@@ -1,10 +1,10 @@
 # gazelle:ignore
 # gazelle:exclude src
 
-load("@rules_dx_android//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_check", "rust_android_apk")
 load("@rules_dx//java/rules:defs.bzl", "java_library", "java_test")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx_android//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_check", "rust_android_apk")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = [
     "//:__subpackages__",
@@ -84,13 +84,13 @@ sh_test(
         "Java_org_example_adoptandroid_NativeBridge_summarize",
     ],
     data = [
-        "@dx_android_sdk//:aapt",
-        "@dx_android_sdk//:dexdump",
-        "@dx_android_sdk//:apksigner_jar",
-        "@rules_java//toolchains:current_java_runtime",
         "src/main/assets/greeting.txt",
         ":adopt_apk_file",
         "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
+        "@dx_android_sdk//:apksigner_jar",
+        "@dx_android_sdk//:dexdump",
+        "@rules_java//toolchains:current_java_runtime",
     ],
     env = {
         "DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)",
@@ -98,13 +98,15 @@ sh_test(
         "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
         "DX_JAVA": "$(JAVA_ROOTPATH)",
     },
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

@@ -3,10 +3,10 @@
 load("@rules_android//rules:rules.bzl", _android_library = "android_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
-load("//platforms:defs.bzl", "effective_api_level", "platform_label", "triple_for", "tuple_errors", "tuples")
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("@rules_dx//rust/rules:defs.bzl", "rust_static_library")
+load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
+load("//platforms:defs.bzl", "effective_api_level", "platform_label", "triple_for", "tuple_errors", "tuples")
 
 AndroidNativeInfo = provider(
     doc = "One Android native shared library with its target facts.",

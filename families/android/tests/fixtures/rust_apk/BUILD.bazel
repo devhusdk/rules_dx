@@ -1,12 +1,12 @@
 # gazelle:ignore
 
-load("@rules_java//java:java_binary.bzl", "java_binary")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//packaging:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_sign", "rust_android_apk")
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_sign", "rust_android_apk")
 load(":starlark_platforms.bzl", "starlark_platforms")
 
 package(
@@ -57,11 +57,11 @@ rust_android_apk(
 rust_android_apk(
     name = "arm_apk",
     testonly = True,
-    platforms = ["arm64-v8a"],
     app_id = "com.example.dxrustapk",
     assets = glob(["assets/**"]),
     assets_dir = "assets",
     permissions = ["android.permission.INTERNET"],
+    platforms = ["arm64-v8a"],
     resource_files = glob(["res/**"]),
     deps = [":app_jni"],
 )
@@ -120,7 +120,10 @@ android_apk_set(
     name = "app_apk_set",
     aab = ":app_apk_aab_file",
     device_spec = ":device_x86_64.json",
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 android_adb_install(
@@ -143,7 +146,6 @@ android_adb_log(
 rust_android_apk(
     name = "custom_apk",
     testonly = True,
-    platforms = ["x86_64"],
     api_level = 33,
     app_id = "org.example.custom.dxrustapk",
     assets = glob(["assets/**"]),
@@ -152,6 +154,7 @@ rust_android_apk(
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.VIBRATE",
     ],
+    platforms = ["x86_64"],
     resource_files = glob(["res/**"]),
     version_code = 7,
     version_name = "2.3",
@@ -201,7 +204,10 @@ android_check(
 android_check(
     name = "check_app_unsigned_test",
     package = ":app_apk_unsigned_file",
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 sh_test(
@@ -251,7 +257,10 @@ android_check(
         "x86_64",
     ],
     resources = ["string/app_name"],
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 # rules_android 0.8.0 prefers its Starlark android_platforms flag over the native option.
@@ -269,7 +278,10 @@ android_check(
         "arm64-v8a",
         "x86_64",
     ],
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 sh_test(
@@ -288,7 +300,10 @@ sh_test(
         "//packaging:bundletool",
         "//packaging:check_package.sh",
     ],
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 sh_test(
@@ -307,7 +322,10 @@ sh_test(
         "//packaging:bundletool",
         "//packaging:check_package.sh",
     ],
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 sh_test(
@@ -329,7 +347,10 @@ sh_test(
         "//packaging:bundletool",
         "@android_ndk_toolchain//:llvm_readelf",
     ],
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 sh_test(
@@ -351,7 +372,10 @@ sh_test(
         "//packaging:bundletool",
         "@android_ndk_toolchain//:llvm_readelf",
     ],
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 sh_test(
@@ -397,7 +421,10 @@ sh_test(
         "@dx_android_sdk//:zipalign",
         "@rules_java//toolchains:current_java_runtime",
     ],
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
@@ -472,7 +499,10 @@ sh_test(
         "//packaging:bundletool",
         "@rules_java//toolchains:current_java_runtime",
     ],
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
@@ -502,7 +532,10 @@ sh_test(
         "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
         "DX_JAVA": "$(JAVA_ROOTPATH)",
     },
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
@@ -533,7 +566,10 @@ sh_test(
         "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
         "DX_JAVA": "$(JAVA_ROOTPATH)",
     },
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
@@ -741,7 +777,6 @@ sh_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = [
         "BUILD.bazel",
         "starlark_platforms.bzl",
@@ -775,7 +810,10 @@ sh_test(
         "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
         "DX_JAVA": "$(JAVA_ROOTPATH)",
     },
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 

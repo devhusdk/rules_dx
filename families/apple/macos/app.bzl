@@ -7,6 +7,8 @@ load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("@rules_dx//libs/starlark:rlocation.bzl", "rlocation_path")
 load(
     "//bundle:defs.bzl",
     "TOOL_PATH",
@@ -28,8 +30,6 @@ load(
     "deployment_floor",
     "version_below",
 )
-load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
-load("@rules_dx//libs/starlark:rlocation.bzl", "rlocation_path")
 
 _CELL = "macos/arm64"
 
@@ -251,7 +251,6 @@ _macos_cell = rule(
     },
     fragments = ["apple"],
 )
-
 
 def _lines(names):
     return "\n".join(names)

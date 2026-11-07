@@ -1,6 +1,6 @@
-load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 
 package(
     default_testonly = True,
@@ -42,10 +42,10 @@ rust_test(
         "//kotlin/tests/fixtures/kotlin-app/grades:GradeReader.kt",
         "//kotlin/tests/fixtures/kotlin-app/grades:Stats.kt",
         "//kotlin/tests/fixtures/kotlin-app/grades:Student.kt",
-        "@rules_dx//quality/tools/jvm:ktfmt",
         "@com_github_jetbrains_kotlin//:kotlin-stdlib",
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_guava_guava",
+        "@rules_dx//quality/tools/jvm:ktfmt",
     ],
     env = {
         "DX_APP_SRCS": " ".join([
@@ -105,7 +105,6 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [

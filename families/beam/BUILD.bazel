@@ -4,7 +4,6 @@ package(default_visibility = ["//visibility:public"])
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
@@ -19,3 +18,10 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+# dx:begin exports
+exports_files(
+    [".buildifier.json"],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

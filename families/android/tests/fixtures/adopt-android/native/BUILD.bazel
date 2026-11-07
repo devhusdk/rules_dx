@@ -1,8 +1,8 @@
 # gazelle:ignore
 
 load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
-load("@rules_dx//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
 
 package(default_visibility = [
     "//:__subpackages__",
@@ -57,7 +57,6 @@ cc_library(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

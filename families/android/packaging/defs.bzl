@@ -3,12 +3,12 @@
 load("@rules_android//providers:providers.bzl", "AndroidBundleInfo", "ApkInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
+load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//platforms:defs.bzl", "api_floor")
 load("//sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
-load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
 load(":repos.bzl", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")

@@ -1,7 +1,7 @@
-load("//csharp/rules:defs.bzl", "csharp_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//quality:native_config.bzl", "roslyn_config")
 load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//csharp/rules:defs.bzl", "csharp_library")
 load(":sarif.bzl", "roslyn_sarif", "sdk_recommended")
 
 package(
@@ -12,7 +12,6 @@ package(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = [
         "BUILD.bazel",
         "sarif.bzl",

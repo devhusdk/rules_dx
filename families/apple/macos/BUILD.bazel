@@ -1,10 +1,10 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_apple//apple:macos.bzl", "macos_bundle", "macos_framework")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
-load("//bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
-load("//signing:defs.bzl", "apple_macos_sign")
 load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
+load("//signing:defs.bzl", "apple_macos_sign")
 load(":app.bzl", "apple_macos_app")
 load(":app_tests.bzl", "apple_macos_app_tests")
 
@@ -333,7 +333,6 @@ build_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = [
         "BUILD.bazel",
         "app.bzl",

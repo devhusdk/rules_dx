@@ -44,6 +44,15 @@ common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host
 # On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.
 common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@platforms//host
 
+# Run Java targets on the downloaded JDK 21, not a host JDK.
+build --java_runtime_version=remotejdk_21
+
+# Run Java build tools on the downloaded JDK 21.
+build --tool_java_runtime_version=remotejdk_21
+
+# Compile Java build tools at language level 17.
+build --tool_java_language_version=17
+
 # Opt out of aspect_tools_telemetry usage reports.
 common --repo_env=DO_NOT_TRACK=1
 
@@ -63,5 +72,20 @@ common:ci --repo_env=JAVA_HOME=dx-no-local-jdk
 common:ci --nobuild_runfile_links
 
 # Compiler warnings fail the build under the strict profile.
-common --@rules_dx//config:warnings_as_errors=false
-common --@rules_dx//config:config_profile=standard
+common --@rules_dx//config:warnings_as_errors=true
+common --@rules_dx//config:config_profile=strict
+
+# The workspace policy dx generates from dx.toml.
+common --@rules_dx//config:workspace=//.dx:policy
+
+# The clippy tier.
+common --@rules_dx//config:clippy_flag=-Wclippy::all
+common --@rules_dx//config:clippy_flag=-Wclippy::pedantic
+common --@rules_dx//config:clippy_flag=-Wclippy::dbg_macro
+common --@rules_dx//config:clippy_flag=-Wclippy::todo
+common --@rules_dx//config:clippy_flag=-Wclippy::unimplemented
+common --@rules_dx//config:clippy_flag=-Wclippy::allow_attributes_without_reason
+common --@rules_dx//config:clippy_flag=-Wclippy::allow_attributes
+common --@rules_dx//config:clippy_flag=-Wrust_2018_idioms
+common --@rules_dx//config:clippy_flag=-Wunused_qualifications
+common --@rules_dx//config:clippy_flag=-Dwarnings

@@ -13,7 +13,7 @@ AGENTS.local.md
 !.claude/settings.json
 
 # dx managed state.
-/.dx/local/
+**/.dx/local/
 
 # dx local-only preferences.
 

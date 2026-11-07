@@ -1,6 +1,6 @@
-load("@rules_java//java:defs.bzl", "java_binary")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("@rules_java//java:defs.bzl", "java_binary")
 
 package(default_visibility = ["//java/tests/fixtures/java-app:__subpackages__"])
 
@@ -27,12 +27,12 @@ rust_test(
         "//java/tests/fixtures/java-app/billing:InvoiceReader.java",
         "//java/tests/fixtures/java-app/billing:LineItem.java",
         "//java/tests/fixtures/java-app/billing:Totals.java",
-        "@rules_dx//quality:corpus_checkstyle.xml",
-        "@rules_dx//quality/tools/jvm:checkstyle",
-        "@rules_dx//quality/tools/jvm:google_java_format",
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_errorprone_error_prone_annotations",
         "@maven//:com_google_guava_guava",
+        "@rules_dx//quality:corpus_checkstyle.xml",
+        "@rules_dx//quality/tools/jvm:checkstyle",
+        "@rules_dx//quality/tools/jvm:google_java_format",
     ],
     env = {
         "DX_APP_SRCS": " ".join([
@@ -97,7 +97,6 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [

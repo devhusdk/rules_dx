@@ -1,7 +1,7 @@
 """Rust iOS library pin and selection coverage."""
 
-load("//bundle:defs.bzl", "platform_errors")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//bundle:defs.bzl", "platform_errors")
 load(
     ":defs.bzl",
     "CELL_SETTINGS",

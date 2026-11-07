@@ -1,7 +1,7 @@
 """macOS application selection coverage."""
 
-load("//bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors", "platform_errors")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors", "platform_errors")
 load(":app.bzl", "default_macos_app", "macos_app_errors", "owner_relative_path", "plugin_errors")
 
 def _app(**kwargs):

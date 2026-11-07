@@ -7,7 +7,6 @@ exports_files(["README.md"])
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
@@ -47,3 +46,10 @@ sh_test(
     ],
     env = {"RUSTFMT_COVERAGE_PACKAGES": "tests/fixtures/adopt-android/native,tests/fixtures/native_lib,tests/fixtures/rust_apk"},
 )
+
+# dx:begin exports
+exports_files(
+    [".buildifier.json"],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

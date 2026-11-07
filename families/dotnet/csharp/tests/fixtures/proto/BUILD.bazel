@@ -1,6 +1,6 @@
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("//csharp/rules:defs.bzl", "csharp_proto_library", "csharp_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//csharp/rules:defs.bzl", "csharp_proto_library", "csharp_test")
 
 package(
     default_testonly = True,
@@ -53,7 +53,6 @@ csharp_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

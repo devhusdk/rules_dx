@@ -1,5 +1,5 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(
     default_testonly = True,
@@ -21,7 +21,6 @@ kotlin_library(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

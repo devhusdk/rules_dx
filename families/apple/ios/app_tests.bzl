@@ -1,7 +1,7 @@
 """Simulator application, app test, and XCFramework selection coverage."""
 
-load("//bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors")
 load(
     ":app.bzl",
     "app_errors",

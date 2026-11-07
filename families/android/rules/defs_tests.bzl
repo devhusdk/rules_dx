@@ -1,8 +1,8 @@
 """Tests for android_native_library attribute forwarding and API level selection."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//toolchain:cc_toolchain_config.bzl", "NdkToolchainLevelInfo")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//toolchain:cc_toolchain_config.bzl", "NdkToolchainLevelInfo")
 load(":defs.bzl", "split_native_kwargs")
 
 def _split_checks():

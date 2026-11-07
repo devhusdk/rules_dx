@@ -1,11 +1,11 @@
 # gazelle:ignore
 
-load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//rules:defs.bzl", "android_native_library")
 load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//rules:defs.bzl", "android_native_library")
 
 package(
     default_testonly = True,
@@ -88,9 +88,9 @@ sh_test(
         "$(location :api34_device)",
     ],
     data = [
+        ":api34_device",
         ":native_lib_device",
         ":native_lib_emulator",
-        ":api34_device",
         "@android_ndk_toolchain//:llvm_readelf",
     ],
     tags = ["manual"],
@@ -99,7 +99,6 @@ sh_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

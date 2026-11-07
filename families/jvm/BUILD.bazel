@@ -5,7 +5,6 @@ package(default_visibility = ["//visibility:public"])
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
@@ -35,3 +34,13 @@ sh_test(
     ],
     env = {"RUSTFMT_COVERAGE_PACKAGES": "java/tests/fixtures/java-app/cli,java/tests/fixtures/java-app/diagnostics,kotlin/tests/fixtures/kotlin-app/cli,kotlin/tests/fixtures/kotlin-app/diagnostics"},
 )
+
+# dx:begin exports
+exports_files(
+    [
+        ".buildifier.json",
+        ".scalafmt.conf",
+    ],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

@@ -150,11 +150,6 @@ impl Probe {
         self.until("the iteration to finish", |probe| {
             probe.count("end ") >= ends && probe.stdout().contains("watching (Ctrl-C")
         });
-        std::thread::sleep(Duration::from_millis(400));
-    }
-
-    fn settle(&self) {
-        std::thread::sleep(Duration::from_millis(1200));
     }
 
     fn signal(&mut self, signo: i32, group: bool) {
@@ -275,7 +270,8 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
         fs::write(probe.workspace.join("src").join(name), "edit").expect("burst edit");
     }
     probe.idle(2);
-    probe.settle();
+    let status = probe.stop();
+    assert_eq!(status.code(), Some(130), "{}", probe.stderr());
     let log = probe.log();
     assert_eq!(probe.count("start "), 2, "one pending iteration:\n{log}");
     assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
@@ -302,8 +298,6 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
             "the -- payload reaches Bazel unchanged: {line}"
         );
     }
-    let status = probe.stop();
-    assert_eq!(status.code(), Some(130), "{}", probe.stderr());
     let stdout = probe.stdout();
     assert_eq!(
         stdout.matches("changed ").count(),
@@ -319,9 +313,8 @@ fn reruns_once_after(prefix: &str, step: impl Fn(&Path)) {
     step(&probe.workspace);
     probe.until("the rerun", |probe| probe.count("end ") >= 2);
     probe.idle(2);
-    probe.settle();
-    assert_eq!(probe.count("start "), 2, "{}", probe.log());
     assert_interrupted(probe.stop());
+    assert_eq!(probe.count("start "), 2, "{}", probe.log());
 }
 
 #[test]
@@ -360,10 +353,9 @@ fn generated_outputs_written_by_the_command_never_loop() {
         &[("FAKE_BAZEL_TOUCH", "bazel-out/k8/bin/app .dx/local/state")],
     );
     probe.idle(1);
-    probe.settle();
-    assert_eq!(probe.count("start "), 1, "{}", probe.log());
     assert!(probe.workspace.join("bazel-out/k8/bin/app").is_file());
     assert_interrupted(probe.stop());
+    assert_eq!(probe.count("start "), 1, "{}", probe.log());
 }
 
 #[test]
@@ -448,7 +440,6 @@ fn ctrl_c_during_a_command_stops_it_its_descendants_and_the_watch() {
             "group={group}: descendant {descendant} survived dx exit\nlog:\n{}",
             probe.log()
         );
-        std::thread::sleep(Duration::from_millis(400));
         assert_eq!(probe.count("start "), 1, "no launch after the signal");
     }
 }
@@ -463,7 +454,6 @@ fn json_watch_keeps_every_stdout_line_an_event() {
     probe.until("the first iteration", |probe| {
         probe.count("end ") == 1 && probe.stderr().contains("watching (Ctrl-C")
     });
-    std::thread::sleep(Duration::from_millis(400));
     fs::write(probe.workspace.join("src/main.rs"), "edit").expect("edit");
     probe.until("the second iteration", |probe| {
         probe.stdout().matches("\"command_finished\"").count() == 2
@@ -578,7 +568,6 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         "last app {current} survived dx exit\nlog:\n{}",
         probe.log()
     );
-    std::thread::sleep(Duration::from_millis(400));
     assert_eq!(probe.count("start "), 6, "no launch after the signal");
 }
 
@@ -590,7 +579,6 @@ fn watch_run_relaunches_a_finished_app_only_after_a_change() {
         &[("FAKE_BAZEL_CODES", "0 4")],
     );
     probe.idle(2);
-    probe.settle();
     assert_eq!(probe.count("start "), 2, "{}", probe.log());
     fs::write(probe.workspace.join("src/main.rs"), "edit").expect("edit");
     probe.idle(4);

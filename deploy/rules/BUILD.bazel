@@ -2,6 +2,7 @@ load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//java/rules:defs.bzl", "java_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -861,6 +862,7 @@ test_suite(
         ":pub_unit",
         ":pypi_analysis",
         ":pypi_native_linked_verify",
+        ":pypi_native_msvc_ci_verify",
         ":pypi_native_verify",
         ":pypi_probe_verify",
         ":pypi_unit",
@@ -1292,11 +1294,13 @@ pypi_deploy(
     wheel = ":native_probe_msvc_wheel",
 )
 
-# Run with --//cc/toolchains:compiler=msvc and the dx_msvc license accepted.
+# CI runs this through pypi_native_msvc_ci_verify, which selects the MSVC toolchain.
 rust_test(
     name = "pypi_native_msvc_verify",
     srcs = ["verify_test.rs"],
     data = [
+        ":dx_native_probe",
+        ":dx_native_probe_config",
         ":native_probe_msvc",
         ":native_probe_msvc_config",
         "//cli/update:python_files",
@@ -1310,6 +1314,8 @@ rust_test(
         "DX_MSVC_CONFIG": "$(rootpath :native_probe_msvc_config)",
         "DX_MSVC_NOTICE": "$(rootpath //deploy/rules/native_probe/dx_native_probe:msvc_vcruntime_notice)",
         "DX_MSVC_PROG": "$(rootpath :native_probe_msvc)",
+        "DX_NODLL_CONFIG": "$(rootpath :dx_native_probe_config)",
+        "DX_NODLL_PROG": "$(rootpath :dx_native_probe)",
         "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
         "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
         "DX_VERIFY_MODE": "pypi_native_msvc",
@@ -1321,6 +1327,18 @@ rust_test(
     ],
     target_compatible_with = _WINDOWS_X64,
     deps = ["//tools/testing:dx_testing"],
+)
+
+cc_toolchain_test(
+    name = "pypi_native_msvc_ci_verify",
+    compiler = "msvc",
+    tags = [
+        "block-network",
+        "no-coverage",
+        "no-remote-exec",
+    ],
+    target_compatible_with = _WINDOWS_X64,
+    test = ":pypi_native_msvc_verify",
 )
 
 py_wheel_rule(

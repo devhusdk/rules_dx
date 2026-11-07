@@ -48,7 +48,7 @@ fn run(argv: &[String]) -> i32 {
         let dst = Path::new(&argv[2]);
         // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         return match dx_deploy_tools::check_imports(&argv[3..]) {
-            Ok(()) => match std::fs::write(dst, b"") {
+            Ok(listing) => match std::fs::write(dst, listing) {
                 Ok(()) => 0,
                 Err(error) => dx_deploy_tools::bin_cannot("archiver", "write", dst, error),
             },

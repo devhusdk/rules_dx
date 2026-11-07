@@ -135,7 +135,8 @@ pub fn missing_imports(
 
 /// Runs `[--check <member>]... [--provides <name>]... <member=path>...`: every checked member
 /// (all members when none is named) must import only shipped, system or provided libraries.
-pub fn check_imports(args: &[String]) -> Result<(), String> {
+/// Returns one `<member>: <imports>` line per checked member.
+pub fn check_imports(args: &[String]) -> Result<String, String> {
     let mut checks: Vec<&str> = Vec::new();
     let mut provides: Vec<String> = Vec::new();
     let mut rest = args;
@@ -162,11 +163,16 @@ pub fn check_imports(args: &[String]) -> Result<(), String> {
         .map(|(name, _)| name.rsplit('/').next().unwrap_or_default().to_owned())
         .collect();
     let mut problems = Vec::new();
+    let mut listing = String::new();
     for (name, path) in &members {
         if !checks.is_empty() && !checks.contains(name) {
             continue;
         }
         let bytes = std::fs::read(path).map_err(|error| format!("cannot read {path}: {error}"))?;
+        let needed: Vec<String> = dx_binfmt::inspect(&bytes)
+            .map(|images| images.into_iter().flat_map(|image| image.needed).collect())
+            .unwrap_or_default();
+        listing.push_str(&format!("{name}: {}\n", needed.join(" ")));
         let missing = missing_imports(&bytes, &shipped, &provides)?;
         if !missing.is_empty() {
             problems.push(format!(
@@ -175,7 +181,7 @@ pub fn check_imports(args: &[String]) -> Result<(), String> {
         }
     }
     if problems.is_empty() {
-        Ok(())
+        Ok(listing)
     } else {
         Err(problems.join("\n"))
     }
@@ -356,6 +362,28 @@ mod tests {
         assert!(missing_imports(&app, &shipped, &[]).unwrap().is_empty());
         let ucrt = pe_importing("api-ms-win-crt-runtime-l1-1-0.dll");
         assert!(missing_imports(&ucrt, &[], &[]).unwrap().is_empty());
+    }
+
+    #[test]
+    fn check_imports_lists_each_checked_member() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let core = dir.path().join("_core.pyd");
+        std::fs::write(&core, pe_importing("VCRUNTIME140.dll")).expect("write core");
+        let runtime = dir.path().join("vcruntime140.dll");
+        std::fs::write(&runtime, b"runtime").expect("write runtime");
+        let member = |name: &str, path: &std::path::Path| format!("{name}={}", path.display());
+        let args = vec![
+            "--check".to_owned(),
+            "_core.pyd".to_owned(),
+            member("_core.pyd", &core),
+            member("vcruntime140.dll", &runtime),
+        ];
+        assert_eq!(
+            check_imports(&args).unwrap(),
+            "_core.pyd: VCRUNTIME140.dll\n"
+        );
+        let error = check_imports(&args[..3]).unwrap_err();
+        assert!(error.contains("VCRUNTIME140.dll"), "{error}");
     }
 
     #[test]

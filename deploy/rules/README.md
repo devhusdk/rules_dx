@@ -1015,6 +1015,36 @@ Exit codes:
 - `1`: invalid file names or mismatched sdist, a refused live run, or a
   failed `twine` upload.
 
+## Native wheels
+
+Build native wheels with the upstream `py_wheel` rule and a `py_extension`.
+rules_dx adds no wheel rule. Set `python_tag`, `abi` and `platform` to match
+the interpreter the extension is built for. A default run checks each
+extension in the wheel against those tags. A pure `none-any` wheel with an
+extension fails, and so does a `cp311` wheel with a `cp312` extension.
+
+Windows wheels ship the MSVC runtime they import (`vcruntime140.dll`,
+`msvcp140.dll`) next to the extension. Its notice goes into the wheel's
+`.dist-info/licenses/`. The CRT stays `/MD`, as CPython expects. Users need
+no Visual C++ Redistributable installer.
+
+`//deploy/rules:pypi_native_verify` (Linux and Windows) and
+`//deploy/rules:pypi_native_msvc_ci_verify` (Windows, MSVC) stage the probe
+wheel. They install it offline with `uv pip install --target` into a fresh
+directory, with no compiler on `PATH`, then import it and call it. They rename
+the install directory and import it again. They also check these failures:
+
+- a wheel without its extension fails to import
+- a wheel tagged for the wrong ABI is refused
+- a Windows wheel without the runtime fails the import closure check, which
+  names `vcruntime140.dll`
+
+The tests print each wheel's sha256 and the imports of each extension. The
+Windows evidence runs on GitHub's `windows_x86_64` runners.
+
+Not covered: building a wheel again from an sdist (`py_wheel` has no sdist
+step), `windows_arm64` and macOS wheels.
+
 # helm_chart_deploy
 
 Packages a `helm_chart` with the pinned `helm` and pushes it to an OCI registry.

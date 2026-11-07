@@ -892,12 +892,18 @@ fn archiver_imports(members: &[(String, PathBuf)], check: &str) -> std::process:
     let mut command = std::process::Command::new(data("DX_ARCHIVER"));
     command
         .arg("--imports")
-        .arg(out)
+        .arg(&out)
         .args(["--check", check, "--provides", "python3*"]);
     for (name, path) in members {
         command.arg(format!("{name}={}", path.display()));
     }
-    command.output().expect("archiver must execute")
+    let output = command.output().expect("archiver must execute");
+    if output.status.success() {
+        let listing =
+            std::fs::read_to_string(&out).expect("archiver must write the import listing");
+        println!("import closure:\n{listing}");
+    }
+    output
 }
 
 fn installed_binaries(target: &Path) -> Vec<(String, PathBuf)> {
@@ -914,6 +920,11 @@ fn installed_binaries(target: &Path) -> Vec<(String, PathBuf)> {
 }
 
 fn pypi_native_msvc_case() {
+    let python = data("DX_PYPI_PYTHON");
+    let suffix = probe(
+        &python,
+        "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))",
+    );
     let core = |members: &[(String, PathBuf)]| {
         members
             .iter()
@@ -928,12 +939,22 @@ fn pypi_native_msvc_case() {
         "dx-native-probe",
         "native_probe_msvc",
     );
+    let wheel = house.join("dx_native_probe-1.4-cp312-cp312-win_amd64.whl");
+    let digest = dx_testing::sha256_file(&wheel).expect("hash wheel");
+    println!("wheel {} sha256 {digest}", wheel.display());
     let (url, _log) = serve(house);
     let target = install(&url, "dx_native_probe");
     let members = installed_binaries(&target);
     println!("wheel binaries:");
     for (name, path) in &members {
         println!("  {name} {}", path.display());
+    }
+    assert_eq!(core(&members), format!("_core{suffix}"));
+    for typed in ["py.typed", "__init__.pyi"] {
+        assert!(
+            target.join("dx_native_probe").join(typed).is_file(),
+            "{typed} missing from {members:?}"
+        );
     }
     for dll in ["vcruntime140.dll", "msvcp140.dll"] {
         assert!(
@@ -962,6 +983,43 @@ fn pypi_native_msvc_case() {
     assert_eq!(
         String::from_utf8_lossy(&output.stdout).trim(),
         "dx-native-probe native"
+    );
+    let moved = target.with_file_name(format!(
+        "{}-moved",
+        target
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("t")
+    ));
+    std::fs::rename(&target, &moved).expect("rename install dir");
+    let output = import_from(&moved, &cwd);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "dx-native-probe native"
+    );
+
+    let house = stage(
+        "DX_NODLL_PROG",
+        "DX_NODLL_CONFIG",
+        "dx_native_probe-wheelhouse",
+        "dx-native-probe",
+        "dx_native_probe",
+    );
+    let (url, _log) = serve(house);
+    let target = install(&url, "dx_native_probe");
+    let members = installed_binaries(&target);
+    let output = archiver_imports(&members, &core(&members));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    println!("import closure of a wheel without the runtime:\n{stderr}");
+    assert!(!output.status.success(), "{stderr}");
+    assert!(
+        stderr.to_ascii_lowercase().contains("vcruntime140.dll"),
+        "{stderr}"
     );
 }
 

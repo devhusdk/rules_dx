@@ -119,12 +119,108 @@ diff --git a/windows/private/extensions/windows_sdk.BUILD.bazel b/windows/privat
  directory(
      name = "winsdk_ucrt_lib_arm64_files",
      srcs = glob(
+@@ -94,11 +139,22 @@ directory(
+ )
+ 
+ subdirectory(
+-    name = "winsdk_ucrt_lib_arm64",
++    name = "winsdk_ucrt_lib_arm64_directory",
+     parent = ":winsdk_ucrt_lib_arm64_files",
+     path = "__WINSDK_DIR__/arm64/c/ucrt/arm64",
+ )
+ 
++filegroup(
++    name = "winsdk_ucrt_lib_arm64_source_directory",
++    srcs = ["__WINSDK_DIR__/arm64/c/ucrt/arm64"],
++)
++
++source_directory_headers(
++    name = "winsdk_ucrt_lib_arm64",
++    directory = ":winsdk_ucrt_lib_arm64_directory",
++    source_directory = ":winsdk_ucrt_lib_arm64_source_directory",
++)
++
+ directory(
+     name = "winsdk_ucrt_lib_x64_files",
+     srcs = glob(
+@@ -108,11 +164,22 @@ directory(
+ )
+ 
+ subdirectory(
+-    name = "winsdk_ucrt_lib_x64",
++    name = "winsdk_ucrt_lib_x64_directory",
+     parent = ":winsdk_ucrt_lib_x64_files",
+     path = "__WINSDK_DIR__/x64/c/ucrt/x64",
+ )
+ 
++filegroup(
++    name = "winsdk_ucrt_lib_x64_source_directory",
++    srcs = ["__WINSDK_DIR__/x64/c/ucrt/x64"],
++)
++
++source_directory_headers(
++    name = "winsdk_ucrt_lib_x64",
++    directory = ":winsdk_ucrt_lib_x64_directory",
++    source_directory = ":winsdk_ucrt_lib_x64_source_directory",
++)
++
+ directory(
+     name = "winsdk_um_lib_arm64_files",
+     srcs = glob(
+@@ -122,11 +189,22 @@ directory(
+ )
+ 
+ subdirectory(
+-    name = "winsdk_um_lib_arm64",
++    name = "winsdk_um_lib_arm64_directory",
+     parent = ":winsdk_um_lib_arm64_files",
+     path = "__WINSDK_DIR__/arm64/c/um/arm64",
+ )
+ 
++filegroup(
++    name = "winsdk_um_lib_arm64_source_directory",
++    srcs = ["__WINSDK_DIR__/arm64/c/um/arm64"],
++)
++
++source_directory_headers(
++    name = "winsdk_um_lib_arm64",
++    directory = ":winsdk_um_lib_arm64_directory",
++    source_directory = ":winsdk_um_lib_arm64_source_directory",
++)
++
+ directory(
+     name = "winsdk_um_lib_x64_files",
+     srcs = glob(
+@@ -136,11 +214,22 @@ directory(
+ )
+ 
+ subdirectory(
+-    name = "winsdk_um_lib_x64",
++    name = "winsdk_um_lib_x64_directory",
+     parent = ":winsdk_um_lib_x64_files",
+     path = "__WINSDK_DIR__/x64/c/um/x64",
+ )
+ 
++filegroup(
++    name = "winsdk_um_lib_x64_source_directory",
++    srcs = ["__WINSDK_DIR__/x64/c/um/x64"],
++)
++
++source_directory_headers(
++    name = "winsdk_um_lib_x64",
++    directory = ":winsdk_um_lib_x64_directory",
++    source_directory = ":winsdk_um_lib_x64_source_directory",
++)
++
+ alias(
+     name = "winsdk_ucrt_lib",
+     actual = select({
 diff --git a/windows/source_directory_headers.bzl b/windows/source_directory_headers.bzl
 new file mode 100644
 --- /dev/null
 +++ b/windows/source_directory_headers.bzl
 @@ -0,0 +1,20 @@
-+"""Headers exposed as one source directory with their DirectoryInfo."""
++"""A directory exposed as one source directory with its DirectoryInfo."""
 +
 +load("@bazel_skylib//rules/directory:providers.bzl", "DirectoryInfo")
 +

@@ -99,7 +99,7 @@ fn cancellation_reports_through_on_stop() {
         .run_withdrawable(&argv, &cwd(), &[], &|| false)
         .expect("withdrawable");
     assert_eq!(withdrawable, Some(ChildStatus::signalled(None)));
-    let spec = stream_spec(&argv, &cwd(), &[], false, false, Vec::new());
+    let spec = stream_spec(&argv, &cwd(), &[], false, false, Vec::new(), true);
     assert_eq!(
         cancelling().stream(spec).expect("stream"),
         Some(ChildStatus::signalled(None))
@@ -109,14 +109,17 @@ fn cancellation_reports_through_on_stop() {
 #[test]
 fn stream_spec_follows_flags() {
     let argv = probe_argv(&[]);
-    let hermetic = stream_spec(&argv, &cwd(), &[("A", "b")], true, true, Vec::new());
+    let hermetic = stream_spec(&argv, &cwd(), &[("A", "b")], true, true, Vec::new(), true);
     assert!(matches!(hermetic.env, EnvPolicy::Controlled { .. }));
     assert!(matches!(hermetic.stdout, StreamOutput::Inherit));
     assert!(matches!(hermetic.stdin, StreamStdin::Inherit));
     assert!(matches!(hermetic.stderr, StreamOutput::Inherit));
-    let plain = stream_spec(&argv, &cwd(), &[], false, false, Vec::new());
+    let plain = stream_spec(&argv, &cwd(), &[], false, false, Vec::new(), true);
     assert!(matches!(plain.env, EnvPolicy::Inherited { .. }));
     assert!(matches!(plain.stdout, StreamOutput::Forward(_)));
+    let bazel = ["bazel".to_owned(), "run".to_owned()];
+    let app = stream_spec(&bazel, &cwd(), &[], false, false, Vec::new(), false);
+    assert!(matches!(app.stderr, StreamOutput::Inherit));
 }
 
 #[test]

@@ -153,6 +153,12 @@ mod tests {
     }
 
     #[test]
+    fn colored_curses_output_is_still_classified() {
+        let stderr = "\u{1b}[32mLoading:\u{1b}[0m \r\u{1b}[1A\u{1b}[K\u{1b}[31m\u{1b}[1mERROR: \u{1b}[0m/w/MODULE.bazel:3:1: module foo@1.0 not found in registries: x\n";
+        assert_eq!(code(stderr), Some(CODE_MODULE_NOT_FOUND));
+    }
+
+    #[test]
     fn lockfile_drift_points_at_dx_update() {
         let hint = classify(
             "ERROR: MODULE.bazel.lock is no longer up-to-date because: the root module file changed. Please run `bazel mod deps --lockfile_mode=update`",

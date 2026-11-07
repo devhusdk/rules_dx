@@ -18,7 +18,7 @@ pub fn last_bazel_stderr() -> String {
     String::from_utf8_lossy(&tail).into_owned()
 }
 
-/// Whether stderr of this run should be copied: only for Bazel.
+/// Whether the program is Bazel.
 pub(crate) fn wanted(program: &std::ffi::OsStr) -> bool {
     let name = std::path::Path::new(program)
         .file_stem()
@@ -27,31 +27,64 @@ pub(crate) fn wanted(program: &std::ffi::OsStr) -> bool {
     name.starts_with("bazel")
 }
 
-/// Bazel turns colors and curses progress off when stderr is a pipe. When dx copies
-/// stderr on a terminal, this puts them back right after the command word, unless
-/// the user already chose.
-pub(crate) fn keep_terminal_ui(argv: &[String]) -> Vec<String> {
-    keep_ui(argv, io::stderr().is_terminal())
+/// Whether stderr of this run should be copied. On a terminal that needs Bazel's
+/// escape codes to reach the console, which only Unix terminals are known to handle.
+pub(crate) fn copy_wanted(program: &std::ffi::OsStr) -> bool {
+    wanted(program) && (cfg!(unix) || !io::stderr().is_terminal())
 }
 
-fn keep_ui(argv: &[String], terminal: bool) -> Vec<String> {
+/// Bazel turns colors and curses progress off when stderr is a pipe. When dx copies
+/// stderr on a terminal, this tells Bazel it is on one, with the real width, right
+/// after the command word. Colors and curses then resolve as they would on the
+/// terminal, so a user's own flags and rc choices still win.
+pub(crate) fn keep_terminal_ui(argv: &[String]) -> Vec<String> {
+    let columns = terminal_columns();
+    let no_color = std::env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty());
+    keep_ui(argv, columns, no_color)
+}
+
+fn keep_ui(argv: &[String], columns: Option<u16>, no_color: bool) -> Vec<String> {
     let command = argv.iter().skip(1).position(|arg| !arg.starts_with('-'));
     let chosen = |flag: &str| argv.iter().any(|arg| arg.starts_with(flag));
-    let Some(command) = command.map(|at| at + 1) else {
+    let (Some(command), Some(columns)) = (command.map(|at| at + 1), columns) else {
         return argv.to_vec();
     };
-    if !terminal || !wanted(argv[0].as_ref()) {
+    if !wanted(argv[0].as_ref()) {
         return argv.to_vec();
     }
     let mut out = argv[..=command].to_vec();
-    if !chosen("--color") {
-        out.push("--color=yes".to_owned());
+    if !chosen("--isatty") {
+        out.push("--isatty=1".to_owned());
     }
-    if !chosen("--curses") {
-        out.push("--curses=yes".to_owned());
+    if !chosen("--terminal_columns") {
+        out.push(format!("--terminal_columns={columns}"));
+    }
+    if no_color && !chosen("--color") {
+        out.push("--color=no".to_owned());
     }
     out.extend_from_slice(&argv[command + 1..]);
     out
+}
+
+#[cfg(unix)]
+fn terminal_columns() -> Option<u16> {
+    use std::os::fd::AsRawFd;
+    if !io::stderr().is_terminal() {
+        return None;
+    }
+    let mut size: libc::winsize = unsafe { std::mem::zeroed() };
+    // SAFETY: TIOCGWINSZ fills the winsize we own for a valid open descriptor.
+    let ok = unsafe { libc::ioctl(io::stderr().as_raw_fd(), libc::TIOCGWINSZ, &mut size) } == 0;
+    Some(if ok && size.ws_col > 0 {
+        size.ws_col
+    } else {
+        80
+    })
+}
+
+#[cfg(not(unix))]
+fn terminal_columns() -> Option<u16> {
+    None
 }
 
 /// Writes to stderr and keeps the last `KEEP_BYTES` written.
@@ -101,35 +134,49 @@ mod tests {
         tee.flush().expect("flush");
     }
 
+    fn argv(words: &[&str]) -> Vec<String> {
+        words.iter().map(|word| (*word).to_owned()).collect()
+    }
+
     #[test]
     fn terminal_ui_is_kept_after_the_command_word() {
-        let argv: Vec<String> = ["bazel", "--output_base=/o", "build", "//a", "--", "x"]
-            .map(String::from)
-            .to_vec();
+        let args = argv(&["bazel", "--output_base=/o", "build", "//a", "--", "x"]);
         assert_eq!(
-            keep_ui(&argv, true),
+            keep_ui(&args, Some(120), false),
             [
                 "bazel",
                 "--output_base=/o",
                 "build",
-                "--color=yes",
-                "--curses=yes",
+                "--isatty=1",
+                "--terminal_columns=120",
                 "//a",
                 "--",
                 "x"
             ]
         );
-        assert_eq!(keep_ui(&argv, false), argv);
+        assert_eq!(keep_ui(&args, None, false), args);
     }
 
     #[test]
-    fn the_users_ui_choice_and_other_programs_are_left_alone() {
-        let argv: Vec<String> = ["bazel", "build", "--color=no", "--curses=no", "//a"]
-            .map(String::from)
-            .to_vec();
-        assert_eq!(keep_ui(&argv, true), argv);
-        let git: Vec<String> = ["git", "status"].map(String::from).to_vec();
-        assert_eq!(keep_ui(&git, true), git);
+    fn no_color_is_passed_on_unless_chosen() {
+        let args = argv(&["bazel", "build", "//a"]);
+        assert!(keep_ui(&args, Some(80), true).contains(&"--color=no".to_owned()));
+        let chosen = argv(&["bazel", "build", "//a", "--color=yes"]);
+        assert!(!keep_ui(&chosen, Some(80), true).contains(&"--color=no".to_owned()));
+    }
+
+    #[test]
+    fn the_users_choice_and_other_programs_are_left_alone() {
+        let args = argv(&[
+            "bazel",
+            "build",
+            "//a",
+            "--isatty=0",
+            "--terminal_columns=50",
+        ]);
+        assert_eq!(keep_ui(&args, Some(120), false), args);
+        let git = argv(&["git", "status"]);
+        assert_eq!(keep_ui(&git, Some(120), false), git);
     }
 
     #[test]

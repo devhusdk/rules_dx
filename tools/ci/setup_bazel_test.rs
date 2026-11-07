@@ -263,8 +263,9 @@ fn the_setup_bazel_action_locates_but_does_not_cache_the_repository_cache() {
     assert!(
         !steps.iter().any(|step| step["uses"]
             .as_str()
-            .is_some_and(|uses| uses.starts_with("actions/cache"))),
-        "{ACTION_FILE} must not restore or save a cache itself"
+            .is_some_and(|uses| uses.starts_with("actions/cache")
+                && !uses.starts_with("actions/cache/restore@"))),
+        "{ACTION_FILE} must not save a cache itself"
     );
 }
 

@@ -2,6 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "clippy_metadata_inputs.patch",
+    "crate_universe_lazy_host_tools.patch",
     "crate_universe_root_lookup.patch",
     "exec_cc_toolchain_env.patch",
     "msvc_pdb_output.patch",

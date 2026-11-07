@@ -16,6 +16,7 @@ single_version_override(
         "//patches/rules_rust:exec_cc_toolchain_env.patch",
         "//patches/rules_rust:msvc_pdb_output.patch",
         "//patches/rules_rust:rust_lld_msvc_libpath.patch",
+        "//patches/rules_rust:crate_universe_lazy_host_tools.patch",
     ],
     version = "0.75.0",
 )

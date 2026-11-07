@@ -59,5 +59,8 @@ go_test(
     name = "dx_govet_test",
     srcs = ["main_test.go"],
     embed = [":dx_govet_lib"],
-    deps = ["@org_golang_x_tools//go/analysis"],
+    deps = [
+        "//go/tools/analysis/unit",
+        "@org_golang_x_tools//go/analysis",
+    ],
 )

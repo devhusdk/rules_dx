@@ -46,7 +46,7 @@ def native_config_unit_tests(name):
                     [tool in tier_base_dirs() for tool in ["actionlint", "clippy", "prettier", "kubeconform", "bicep", "ruff"]],
                     len(tier_base_dirs()),
                 ],
-                [[False, False, False, False, False, True], 58],
+                [[False, False, False, False, False, True], 60],
             ),
             expect_equal(
                 "native_config_scratch_rel keeps in-repo paths and remaps external ones",

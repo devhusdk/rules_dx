@@ -155,18 +155,6 @@ label_flag(
     build_setting_default = "//go/tools/analysis/cmd/dx_govet",
 )
 
-string_list_flag(
-    name = "govet_analyzers",
-    build_setting_default = [],
-    visibility = ["//visibility:public"],
-)
-
-string_list_flag(
-    name = "errcheck_flags",
-    build_setting_default = [],
-    visibility = ["//visibility:public"],
-)
-
 label_flag(
     name = "tool_errcheck",
     build_setting_default = "//go/tools/analysis/cmd/dx_errcheck",

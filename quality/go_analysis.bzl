@@ -77,29 +77,25 @@ def _importpath(attrs, ctx):
         return declared
     return "test/" + ctx.label.package + "/" + ctx.label.name
 
-def _staticcheck_config(target, ctx):
-    """Returns the staticcheck.conf bound to the target, or None."""
+def _bound_config(target, ctx, tool):
+    """Returns the native config of one tool bound to the target, or None."""
     targets = bound_config_targets(ctx.rule.attr, ctx.attr._policy[QualityPolicyInfo].configs, str(target.label))
-    bound = collect_native_configs([], ["staticcheck"], str(target.label), {tool: t[DxNativeConfigInfo] for tool, t in targets.items()})
-    if "staticcheck" not in bound:
-        return None
-    info = bound["staticcheck"]
-    return info
+    bound = collect_native_configs([], [tool], str(target.label), {name: t[DxNativeConfigInfo] for name, t in targets.items()})
+    return bound.get(tool)
 
 def _tool_arguments(target, ctx, tool):
     """Returns the driver arguments and extra inputs for one tool."""
+    profile = ctx.attr._config_profile[BuildSettingInfo].value
+    info = _bound_config(target, ctx, tool)
     if tool == "staticcheck":
-        info = _staticcheck_config(target, ctx)
         if info != None:
             return (["-config", info.config.path], info.closure)
-    elif tool == "govet":
-        names = ctx.attr._govet_analyzers[BuildSettingInfo].value
-        if names:
-            return ["-analyzers=" + ",".join(names)], depset()
-    elif tool == "errcheck":
-        names = ctx.attr._errcheck_flags[BuildSettingInfo].value
-        if names:
-            return ["-flags=" + ",".join(names)], depset()
+    elif tool == "govet" or tool == "errcheck":
+        args = ["-profile=" + profile]
+        if info != None:
+            args.append(("-exclude=" if tool == "errcheck" else "-config=") + info.config.path)
+            return (args, info.closure)
+        return (args, depset())
     return [], depset()
 
 def _go_analysis_impl(target, ctx):
@@ -176,8 +172,7 @@ go_analysis_aspect = aspect(
             default = "//config:workspace",
             providers = [QualityPolicyInfo],
         ),
-        "_govet_analyzers": attr.label(default = "//config:govet_analyzers"),
-        "_errcheck_flags": attr.label(default = "//config:errcheck_flags"),
+        "_config_profile": attr.label(default = "//config:config_profile"),
         "_errcheck": attr.label(
             default = "//config:tool_errcheck",
             cfg = "exec",

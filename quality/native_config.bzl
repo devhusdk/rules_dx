@@ -134,6 +134,10 @@ roslyn_config = _make_native_config_rule("roslyn")
 
 staticcheck_config = _make_native_config_rule("staticcheck")
 
+errcheck_config = _make_native_config_rule("errcheck")
+
+govet_config = _make_native_config_rule("govet")
+
 fsharplint_config = _make_native_config_rule("fsharplint")
 
 checkstyle_config = _make_native_config_rule("checkstyle")

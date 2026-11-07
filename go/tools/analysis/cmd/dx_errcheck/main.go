@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"rules_dx/go/tools/analysis/unit"
 
@@ -12,40 +11,31 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-var boolFlags = []string{"assert", "blank"}
-
-// applyFlags turns on the named bool flags of the errcheck analyzer.
-func applyFlags(names []string) error {
-	for _, name := range names {
-		if !contains(boolFlags, name) {
-			return fmt.Errorf("unknown errcheck flag %q, valid names: %s", name, strings.Join(boolFlags, ", "))
-		}
-		if err := errcheck.Analyzer.Flags.Set(name, "true"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func contains(list []string, want string) bool {
-	for _, s := range list {
-		if s == want {
-			return true
-		}
-	}
-	return false
-}
+// strictFlags are the errcheck bool flags the strict profile turns on.
+var strictFlags = []string{"blank", "assert"}
 
 func configure(extra []string) error {
 	flags := flag.NewFlagSet("errcheck", flag.ContinueOnError)
-	names := flags.String("flags", "", "comma separated errcheck bool flags to turn on")
+	profile := flags.String("profile", "standard", "standard or strict")
+	exclude := flags.String("exclude", "", "errcheck exclude file")
 	if err := flags.Parse(extra); err != nil {
 		return err
 	}
-	if *names == "" {
+	switch *profile {
+	case "standard":
+	case "strict":
+		for _, name := range strictFlags {
+			if err := errcheck.Analyzer.Flags.Set(name, "true"); err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("unknown profile %q, want standard or strict", *profile)
+	}
+	if *exclude == "" {
 		return nil
 	}
-	return applyFlags(strings.Split(*names, ","))
+	return errcheck.Analyzer.Flags.Set("exclude", *exclude)
 }
 
 func main() {

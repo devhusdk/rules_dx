@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	"rules_dx/go/tools/analysis/unit"
 )
 
 func has(list []*analysis.Analyzer, name string) bool {
@@ -16,51 +20,89 @@ func has(list []*analysis.Analyzer, name string) bool {
 	return false
 }
 
-func TestDefaults(t *testing.T) {
-	got, err := selectNamed(nil)
-	if err != nil {
+func TestStandardRunsTheDefaults(t *testing.T) {
+	if err := configure([]string{"-profile=standard"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"printf", "nilness", "unusedwrite"} {
-		if !has(got, name) {
-			t.Errorf("%s should run by default", name)
-		}
+	if !has(active, "printf") {
+		t.Error("printf should run")
 	}
-	if has(got, "shadow") {
-		t.Error("shadow must be off unless named")
-	}
-}
-
-func TestAddAndRemove(t *testing.T) {
-	got, err := selectNamed([]string{"shadow", "-nilness"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !has(got, "shadow") || has(got, "nilness") || !has(got, "printf") {
-		t.Errorf("unexpected set %v", got)
-	}
-}
-
-func TestUnknownName(t *testing.T) {
-	for _, name := range []string{"nosuch", "-nosuch", "fieldalignment"} {
-		_, err := selectNamed([]string{name})
-		if err == nil || !strings.Contains(err.Error(), "valid names:") || !strings.Contains(err.Error(), "shadow") {
-			t.Errorf("%s: err = %v", name, err)
+	for _, name := range []string{"shadow", "nilness", "unusedwrite"} {
+		if has(active, name) {
+			t.Errorf("%s must be off under standard", name)
 		}
 	}
 }
 
-func TestConfigureFlag(t *testing.T) {
-	if err := configure([]string{"-analyzers=shadow"}); err != nil {
+func TestStrictAddsShadowNilnessUnusedwrite(t *testing.T) {
+	if err := configure([]string{"-profile=strict"}); err != nil {
 		t.Fatal(err)
 	}
-	if !has(active, "shadow") {
-		t.Error("shadow not active")
+	for _, name := range []string{"printf", "shadow", "nilness", "unusedwrite"} {
+		if !has(active, name) {
+			t.Errorf("%s should run under strict", name)
+		}
 	}
-	if err := configure([]string{"-analyzers=nosuch"}); err == nil {
-		t.Error("want an error")
+	if has(active, "fieldalignment") {
+		t.Error("fieldalignment stays off")
 	}
-	if err := configure(nil); err != nil || has(active, "shadow") {
-		t.Errorf("configure(nil) must restore defaults, err = %v", err)
+}
+
+func TestUnknownProfile(t *testing.T) {
+	err := configure([]string{"-profile=loose"})
+	if err == nil || !strings.Contains(err.Error(), "standard or strict") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func writeConfig(t *testing.T, body string) string {
+	path := filepath.Join(t.TempDir(), "govet.json")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestConfigExcludesFindingsPerAnalyzer(t *testing.T) {
+	path := writeConfig(t, `{"shadow": {"exclude_files": {"gen_.*\\.go$": "generated"}}}`)
+	if err := configure([]string{"-profile=strict", "-config=" + path}); err != nil {
+		t.Fatal(err)
+	}
+	finding := func(file string) json.RawMessage {
+		return json.RawMessage(`[{"posn":"` + file + `:3:4","message":"declaration of x"}]`)
+	}
+	tree := unit.Tree{"p": {
+		"shadow":   finding("pkg/gen_a.go"),
+		"nilness":  finding("pkg/gen_a.go"),
+		"shadow2":  finding("pkg/gen_a.go"),
+		"copylock": finding("pkg/b.go"),
+	}}
+	got := filter(nil, tree)["p"]
+	if _, ok := got["shadow"]; ok {
+		t.Error("shadow finding in gen_a.go should be dropped")
+	}
+	for _, name := range []string{"nilness", "shadow2", "copylock"} {
+		if _, ok := got[name]; !ok {
+			t.Errorf("%s finding was dropped", name)
+		}
+	}
+}
+
+func TestShadowKeptOutsideExcludedFiles(t *testing.T) {
+	path := writeConfig(t, `{"shadow": {"exclude_files": {"gen_.*": "generated"}}}`)
+	if err := configure([]string{"-profile=strict", "-config=" + path}); err != nil {
+		t.Fatal(err)
+	}
+	tree := unit.Tree{"p": {"shadow": json.RawMessage(`[{"posn":"pkg/b.go:3:4","message":"m"}]`)}}
+	if _, ok := filter(nil, tree)["p"]["shadow"]; !ok {
+		t.Error("shadow finding in b.go must stay")
+	}
+}
+
+func TestConfigRejectsUnknownAnalyzer(t *testing.T) {
+	path := writeConfig(t, `{"nosuch": {}}`)
+	err := configure([]string{"-profile=strict", "-config=" + path})
+	if err == nil || !strings.Contains(err.Error(), "valid names:") {
+		t.Errorf("err = %v", err)
 	}
 }

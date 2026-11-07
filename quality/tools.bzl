@@ -1066,7 +1066,7 @@ TOOLS = [
         id = "errcheck",
         adapters = {"lint": ["go"]},
         concerns = {"lint": "unchecked_errors"},
-        config = config(suffixes = [".txt"], tier_active = True, tier_base = False),
+        config = config(suffixes = [".txt"], tier_active = True),
         severity = severity(default = "warning"),
         support = [
             row(
@@ -1364,7 +1364,7 @@ TOOLS = [
         id = "govet",
         adapters = {"lint": ["go"]},
         concerns = {"lint": "vet"},
-        config = config(suffixes = [".json"], tier_active = True, tier_base = False),
+        config = config(suffixes = [".json"], tier_active = True),
         severity = severity(default = "warning"),
         support = [
             row(

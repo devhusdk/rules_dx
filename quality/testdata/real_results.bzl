@@ -14,8 +14,6 @@ def _policy_transition_impl(settings, attr):
         _COMPILER: attr.compiler or settings[_COMPILER],
         _PROFILE: attr.config_profile or settings[_PROFILE],
         "@rules_rust//rust/settings:clippy_flag": attr.clippy_flags,
-        "//config:errcheck_flags": attr.errcheck_flags,
-        "//config:govet_analyzers": attr.govet_analyzers,
         "//config:tool_dialyzer": str(attr.tool_dialyzer),
         "//config:tool_govet": str(attr.tool_govet),
         "//config:workspace": attr.policy,
@@ -32,8 +30,6 @@ _policy_transition = transition(
         _COMPILER,
         _PROFILE,
         "@rules_rust//rust/settings:clippy_flag",
-        "//config:errcheck_flags",
-        "//config:govet_analyzers",
         "//config:tool_dialyzer",
         "//config:tool_govet",
         "//config:workspace",
@@ -54,8 +50,6 @@ _results = rule(
         "clippy_flags": attr.string_list(),
         "compiler": attr.string(),
         "config_profile": attr.string(),
-        "errcheck_flags": attr.string_list(),
-        "govet_analyzers": attr.string_list(),
         "policy": attr.string(mandatory = True),
         "rustc_flags": attr.string_list(),
         "tool_dialyzer": attr.label(default = "//erlang/tools:dialyzer"),
@@ -71,7 +65,7 @@ def check_args(contains, absent):
     """Returns real_result_check.sh args; quoted because Bazel shell-tokenizes args."""
     return [_quote("+" + s) for s in contains] + [_quote("-" + s) for s in absent]
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, govet_analyzers = [], errcheck_flags = [], compiler = "", typecheck_subject = False, rustc_flags = [], clippy_flags = [], config_profile = "", target_compatible_with = None, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, rustc_flags = [], clippy_flags = [], config_profile = "", target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
@@ -80,8 +74,6 @@ def real_result_test(name, target, policy, contains = [], absent = [], tool_dial
         clippy_flags = clippy_flags,
         compiler = compiler,
         config_profile = config_profile,
-        errcheck_flags = errcheck_flags,
-        govet_analyzers = govet_analyzers,
         rustc_flags = rustc_flags,
         policy = str(native.package_relative_label(policy)),
         tool_dialyzer = tool_dialyzer or "//erlang/tools:dialyzer",

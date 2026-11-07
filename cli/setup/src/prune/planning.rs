@@ -15,8 +15,9 @@ pub struct PruneInputs<'a> {
     pub active_generation_hexes: &'a [String],
     pub unmanaged_names: &'a [String],
     pub observation_unknown: bool,
-    /// The setup a sync just replaced. Without process observation, it is the
-    /// only one kept besides the current setup.
+    /// The setup a sync just replaced. When processes cannot be listed at
+    /// all, it is the only one kept besides the current setup. Callers leave
+    /// it `None` when only some processes were unreadable, so all is kept.
     pub previous_hex: Option<&'a str>,
 }
 

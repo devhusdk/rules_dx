@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -19,6 +20,7 @@ pub struct LiveHexes {
 pub enum LiveObservation {
     Known(LiveHexes),
     Unknown { partial: LiveHexes, reason: String },
+    Unavailable { reason: String },
 }
 
 fn classify_managed_path(
@@ -71,41 +73,86 @@ fn denied(error: &io::Error) -> bool {
     error.kind() == io::ErrorKind::PermissionDenied
 }
 
-fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<(), String> {
-    let mut targets: Vec<PathBuf> = Vec::new();
-    let cwd_path = dir.join("cwd");
-    match fs::read_link(&cwd_path) {
-        Ok(cwd) => targets.push(cwd),
-        Err(error) if gone(&error) => {}
-        Err(error) if denied(&error) => return Ok(()),
-        Err(error) => return Err(format!("cannot read {}: {error}", cwd_path.display())),
+trait ProcFs {
+    fn list_names(&self, dir: &Path) -> io::Result<Vec<io::Result<OsString>>>;
+    fn read_link(&self, path: &Path) -> io::Result<PathBuf>;
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
+}
+
+struct RealProcFs;
+
+impl ProcFs for RealProcFs {
+    fn list_names(&self, dir: &Path) -> io::Result<Vec<io::Result<OsString>>> {
+        Ok(fs::read_dir(dir)?
+            .map(|entry| entry.map(|entry| entry.file_name()))
+            .collect())
+    }
+
+    fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+        fs::read_link(path)
+    }
+
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
+        fs::read(path)
+    }
+}
+
+enum Stop {
+    Denied,
+    Failed(String),
+}
+
+fn checked<T>(path: &Path, result: io::Result<T>) -> Result<Option<T>, Stop> {
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(error) if gone(&error) => Ok(None),
+        Err(error) if denied(&error) => Err(Stop::Denied),
+        Err(error) => Err(Stop::Failed(format!(
+            "cannot read {}: {error}",
+            path.display()
+        ))),
+    }
+}
+
+fn read_targets(
+    proc: &dyn ProcFs,
+    dir: &Path,
+    dx_dir: &Path,
+    targets: &mut Vec<PathBuf>,
+) -> Result<(), Stop> {
+    for name in ["cwd", "exe"] {
+        let path = dir.join(name);
+        targets.extend(checked(&path, proc.read_link(&path))?);
     }
     let fd_dir = dir.join("fd");
-    match fs::read_dir(&fd_dir) {
-        Ok(fds) => {
-            for fd in fds {
-                let fd = match fd {
-                    Ok(fd) => fd,
-                    Err(error) if gone(&error) => continue,
-                    Err(error) if denied(&error) => return Ok(()),
-                    Err(error) => {
-                        return Err(format!("cannot read {}: {error}", fd_dir.display()));
-                    }
-                };
-                match fs::read_link(fd.path()) {
-                    Ok(target) => targets.push(target),
-                    Err(error) if gone(&error) => {}
-                    Err(error) if denied(&error) => return Ok(()),
-                    Err(error) => {
-                        return Err(format!("cannot read {}: {error}", fd.path().display()));
-                    }
-                }
+    for fd in checked(&fd_dir, proc.list_names(&fd_dir))?.unwrap_or_default() {
+        let Some(fd) = checked(&fd_dir, fd)? else {
+            continue;
+        };
+        let path = fd_dir.join(fd);
+        targets.extend(checked(&path, proc.read_link(&path))?);
+    }
+    let maps_path = dir.join("maps");
+    let maps = checked(&maps_path, proc.read(&maps_path))?.unwrap_or_default();
+    for line in String::from_utf8_lossy(&maps).lines() {
+        if let Some(start) = line.find('/') {
+            let mapped = Path::new(&line[start..]);
+            if mapped.starts_with(dx_dir) {
+                targets.push(mapped.to_path_buf());
             }
         }
-        Err(error) if gone(&error) => {}
-        Err(error) if denied(&error) => return Ok(()),
-        Err(error) => return Err(format!("cannot read {}: {error}", fd_dir.display())),
     }
+    Ok(())
+}
+
+fn observe_process(
+    proc: &dyn ProcFs,
+    dir: &Path,
+    dx_dir: &Path,
+    live: &mut LiveHexes,
+) -> Result<(), String> {
+    let mut targets: Vec<PathBuf> = Vec::new();
+    let outcome = read_targets(proc, dir, dx_dir, &mut targets);
     for target in &targets {
         let text = target.to_string_lossy();
         let trimmed: &str = text.trim_end_matches(" (deleted)");
@@ -117,40 +164,46 @@ fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<()
             live.generations.push(generation);
         }
     }
-    Ok(())
+    match outcome {
+        Ok(()) | Err(Stop::Denied) => Ok(()),
+        Err(Stop::Failed(reason)) => Err(reason),
+    }
 }
 
-/// Scans `proc_root` for processes whose cwd or open files sit in `dx_dir`.
+/// Scans `proc_root` for processes whose cwd, executable, open files or
+/// mapped files sit in `dx_dir`.
 ///
-/// Processes the kernel refuses to show (another uid, or non-dumpable) are
-/// skipped: they cannot be using this user's `.dx/local`. A root-owned
-/// process working in someone's `.dx/local` is therefore not seen.
+/// Reading stops at the first file the kernel refuses to show (another uid,
+/// or non-dumpable): such a process cannot be using this user's `.dx/local`.
+/// A root-owned process working in someone's `.dx/local` is therefore not seen.
 pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation {
-    let entries = match fs::read_dir(proc_root) {
-        Ok(entries) => entries,
+    scan_with(&RealProcFs, proc_root, dx_dir)
+}
+
+fn scan_with(proc: &dyn ProcFs, proc_root: &Path, dx_dir: &Path) -> LiveObservation {
+    let names = match proc.list_names(proc_root) {
+        Ok(names) => names,
         Err(error) => {
-            return LiveObservation::Unknown {
-                partial: LiveHexes::default(),
+            return LiveObservation::Unavailable {
                 reason: format!("cannot list {}: {error}", proc_root.display()),
             };
         }
     };
     let mut live = LiveHexes::default();
     let mut unreadable: Vec<String> = Vec::new();
-    for entry in entries {
-        let entry = match entry {
-            Ok(entry) => entry,
+    for name in names {
+        let name = match name {
+            Ok(name) => name,
             Err(error) if gone(&error) => continue,
             Err(error) => {
                 unreadable.push(format!("cannot list {}: {error}", proc_root.display()));
                 continue;
             }
         };
-        let name = entry.file_name();
         let pid = name.to_string_lossy();
         if !pid.is_empty()
             && pid.bytes().all(|byte| byte.is_ascii_digit())
-            && let Err(reason) = observe_process(&entry.path(), dx_dir, &mut live)
+            && let Err(reason) = observe_process(proc, &proc_root.join(&name), dx_dir, &mut live)
         {
             unreadable.push(format!("process {pid}: {reason}"));
         }
@@ -208,17 +261,28 @@ fn leased_generation_hexes(
 
 /// Collects the inventory with live processes from `proc_root`.
 ///
-/// `previous` is the setup the caller just replaced, if any. When process
-/// observation is unavailable, only it and the current setup are kept.
+/// `previous` is the setup the caller just replaced, if any. When processes
+/// cannot be listed at all, only it and the current setup are kept. When some
+/// process could not be read, everything is kept.
 pub fn collect_inventory_with_scan_from(
     workspace_root: &Path,
     proc_root: &Path,
     previous: Option<&str>,
 ) -> Result<CollectedInventory, PruneError> {
+    collect_inventory_with(&RealProcFs, workspace_root, proc_root, previous)
+}
+
+fn collect_inventory_with(
+    proc: &dyn ProcFs,
+    workspace_root: &Path,
+    proc_root: &Path,
+    previous: Option<&str>,
+) -> Result<CollectedInventory, PruneError> {
     let dx_dir = dx_path::state::local_dir(workspace_root);
-    let (live, observation_unknown) = match scan_live_observation(proc_root, &dx_dir) {
-        LiveObservation::Known(live) => (live, false),
-        LiveObservation::Unknown { partial, .. } => (partial, true),
+    let (live, observation_unknown, previous) = match scan_with(proc, proc_root, &dx_dir) {
+        LiveObservation::Known(live) => (live, false, previous),
+        LiveObservation::Unavailable { .. } => (LiveHexes::default(), true, previous),
+        LiveObservation::Unknown { partial, .. } => (partial, true, None),
     };
     let mut inventory = collect_inventory(workspace_root, &[], &[])?;
     let leased = leased_generation_hexes(workspace_root, &inventory.generations)?;
@@ -241,6 +305,7 @@ pub fn collect_inventory_with_scan_from(
 mod tests {
     use super::*;
     use crate::prune::fixtures::*;
+    use std::collections::HashMap;
 
     fn stage_process(proc_root: &Path, pid: &str, cwd: Option<&Path>, fds: &[&Path]) {
         let dir = proc_root.join(pid);
@@ -254,7 +319,7 @@ mod tests {
     }
 
     #[test]
-    fn scan_missing_proc_root_reports_unknown_not_idle() {
+    fn scan_missing_proc_root_reports_unavailable_not_idle() {
         let scratch = {
             let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-missing-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
@@ -263,17 +328,14 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         match scan_live_observation(&root.join("no-such-proc"), &dx_dir) {
-            LiveObservation::Unknown { partial, reason } => {
-                assert!(!reason.is_empty());
-                assert_eq!(partial, LiveHexes::default());
-            }
-            LiveObservation::Known(_) => panic!("a missing proc root is unknown, never idle"),
+            LiveObservation::Unavailable { reason } => assert!(!reason.is_empty()),
+            other => panic!("a missing proc root is unavailable, never idle: {other:?}"),
         }
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn scan_file_proc_root_reports_unknown() {
+    fn scan_file_proc_root_reports_unavailable() {
         let scratch = {
             let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-file-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
@@ -284,8 +346,8 @@ mod tests {
         let blocker = root.join("proc");
         fs::write(&blocker, "not a directory").expect("blocker file");
         match scan_live_observation(&blocker, &dx_dir) {
-            LiveObservation::Unknown { .. } => {}
-            LiveObservation::Known(_) => panic!("a file proc root is unknown, never idle"),
+            LiveObservation::Unavailable { .. } => {}
+            other => panic!("a file proc root is unavailable, never idle: {other:?}"),
         }
         let _ = fs::remove_dir_all(&root);
     }
@@ -311,7 +373,7 @@ mod tests {
         );
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => assert_eq!(live, LiveHexes::default()),
-            LiveObservation::Unknown { .. } => panic!("a listed proc root is known"),
+            other => panic!("a listed proc root is known: {other:?}"),
         }
         let _ = fs::remove_dir_all(&root);
     }
@@ -344,7 +406,7 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            LiveObservation::Unknown { .. } => panic!("a listed proc root is known"),
+            other => panic!("a listed proc root is known: {other:?}"),
         };
         assert_eq!(live.setup, vec![setup_hex_value]);
         assert_eq!(
@@ -395,7 +457,7 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            LiveObservation::Unknown { .. } => panic!("a listed proc root is known"),
+            other => panic!("a listed proc root is known: {other:?}"),
         };
         assert!(live.setup.is_empty());
         assert_eq!(
@@ -436,7 +498,7 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            LiveObservation::Unknown { .. } => panic!("a listed proc root is known"),
+            other => panic!("a listed proc root is known: {other:?}"),
         };
         assert!(live.setup.is_empty());
         assert_eq!(
@@ -517,7 +579,7 @@ mod tests {
                 assert_eq!(partial.setup, vec![hex]);
                 assert!(reason.contains("11"), "{reason}");
             }
-            LiveObservation::Known(_) => panic!("an unreadable process is unknown"),
+            other => panic!("an unreadable process is unknown: {other:?}"),
         }
     }
 
@@ -531,7 +593,7 @@ mod tests {
         fs::write(proc_root.join("12").join("fd"), "not a dir").expect("fd file");
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Unknown { reason, .. } => assert!(reason.contains("12"), "{reason}"),
-            LiveObservation::Known(_) => panic!("an unreadable fd dir is unknown"),
+            other => panic!("an unreadable fd dir is unknown: {other:?}"),
         }
     }
 
@@ -544,7 +606,7 @@ mod tests {
         fs::create_dir_all(proc_root.join("13")).expect("pid dir");
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => assert_eq!(live, LiveHexes::default()),
-            LiveObservation::Unknown { reason, .. } => panic!("gone process is skipped: {reason}"),
+            other => panic!("gone process is skipped: {other:?}"),
         }
     }
 
@@ -572,36 +634,6 @@ mod tests {
         assert!(plan.prune_generations.is_empty());
     }
 
-    #[cfg(unix)]
-    #[test]
-    fn foreign_process_that_cannot_be_read_does_not_block_pruning() {
-        use std::os::unix::fs::PermissionsExt;
-        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-denied-");
-        std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
-        let root = scratch.path().to_path_buf();
-        let (workspace, stale_hex, _) = two_record_workspace(&root);
-        let dx_dir = dx_path::state::local_dir(&workspace);
-        let proc_root = root.join("proc");
-        fs::create_dir_all(&proc_root).expect("proc root");
-        stage_process(
-            &proc_root,
-            "1",
-            Some(&dx_dir.join("setups").join(&stale_hex)),
-            &[],
-        );
-        let pid_dir = proc_root.join("1");
-        fs::set_permissions(&pid_dir, fs::Permissions::from_mode(0o000)).expect("lock pid dir");
-        if fs::read_link(pid_dir.join("cwd")).is_ok() {
-            fs::set_permissions(&pid_dir, fs::Permissions::from_mode(0o755)).expect("unlock");
-            return;
-        }
-        let scanned = collect_inventory_with_scan_from(&workspace, &proc_root, None);
-        fs::set_permissions(&pid_dir, fs::Permissions::from_mode(0o755)).expect("unlock");
-        let scanned = scanned.expect("scan");
-        assert!(!scanned.observation_unknown);
-        assert_eq!(scanned.plan().prune_setup_records, vec![stale_hex]);
-    }
-
     #[cfg(target_os = "linux")]
     #[test]
     fn real_proc_is_observable() {
@@ -609,12 +641,12 @@ mod tests {
         let dx_dir = dx_path::state::local_dir(&workspace_of(scratch.path()));
         match scan_live_observation(Path::new("/proc"), &dx_dir) {
             LiveObservation::Known(_) => {}
-            LiveObservation::Unknown { reason, .. } => panic!("/proc is observable: {reason}"),
+            other => panic!("/proc is observable: {other:?}"),
         }
     }
 
     #[test]
-    fn unknown_observation_keeps_only_current_and_previous() {
+    fn unavailable_observation_keeps_only_current_and_previous() {
         let scratch = dx_test_scratch::scratch("dx-prune-test-unknown-previous-");
         std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
         let root = scratch.path().to_path_buf();
@@ -676,5 +708,199 @@ mod tests {
             "releasing the lease makes the generation prunable again"
         );
         let _ = fs::remove_dir_all(&root);
+    }
+
+    const EPERM: i32 = 1;
+    const EIO: i32 = 5;
+    const EACCES: i32 = 13;
+    const EINVAL: i32 = 22;
+
+    fn staged_root(scratch: &dx_test_scratch::TempDir) -> PathBuf {
+        fs::create_dir_all(workspace_of(scratch.path())).expect("create workspace");
+        scratch.path().to_path_buf()
+    }
+
+    #[derive(Default)]
+    struct FakeProc {
+        dirs: HashMap<PathBuf, Vec<OsString>>,
+        links: HashMap<PathBuf, PathBuf>,
+        files: HashMap<PathBuf, Vec<u8>>,
+        errors: HashMap<PathBuf, i32>,
+    }
+
+    impl FakeProc {
+        fn root() -> PathBuf {
+            PathBuf::from("/fake-proc")
+        }
+
+        fn process(&mut self, pid: &str) -> PathBuf {
+            self.dirs.entry(Self::root()).or_default().push(pid.into());
+            Self::root().join(pid)
+        }
+
+        fn fd(&mut self, pid_dir: &Path, fd: &str, target: &Path) {
+            let fd_dir = pid_dir.join("fd");
+            self.dirs.entry(fd_dir.clone()).or_default().push(fd.into());
+            self.links.insert(fd_dir.join(fd), target.to_path_buf());
+        }
+
+        fn fail(&mut self, path: PathBuf, code: i32) {
+            self.errors.insert(path, code);
+        }
+
+        fn error(&self, path: &Path) -> io::Result<()> {
+            match self.errors.get(path) {
+                Some(code) => Err(io::Error::from_raw_os_error(*code)),
+                None => Ok(()),
+            }
+        }
+    }
+
+    impl ProcFs for FakeProc {
+        fn list_names(&self, dir: &Path) -> io::Result<Vec<io::Result<OsString>>> {
+            self.error(dir)?;
+            let names = self.dirs.get(dir).ok_or(io::ErrorKind::NotFound)?;
+            Ok(names.iter().cloned().map(Ok).collect())
+        }
+
+        fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+            self.error(path)?;
+            Ok(self.links.get(path).ok_or(io::ErrorKind::NotFound)?.clone())
+        }
+
+        fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
+            self.error(path)?;
+            Ok(self.files.get(path).ok_or(io::ErrorKind::NotFound)?.clone())
+        }
+    }
+
+    #[test]
+    fn denied_foreign_process_does_not_block_pruning() {
+        for code in [EACCES, EPERM] {
+            let scratch = dx_test_scratch::scratch("dx-prune-test-scan-denied-");
+            let (workspace, stale_hex, _) = two_record_workspace(&staged_root(&scratch));
+            let dx_dir = dx_path::state::local_dir(&workspace);
+            let mut proc = FakeProc::default();
+            let pid = proc.process("1");
+            proc.links
+                .insert(pid.join("exe"), dx_dir.join("setups").join(&stale_hex));
+            proc.fail(pid.join("cwd"), code);
+            let scanned =
+                collect_inventory_with(&proc, &workspace, &FakeProc::root(), None).expect("scan");
+            assert!(!scanned.observation_unknown, "errno {code}");
+            assert_eq!(scanned.plan().prune_setup_records, vec![stale_hex]);
+        }
+    }
+
+    #[test]
+    fn unreadable_same_user_process_keeps_everything_despite_previous() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-einval-");
+        let (workspace, older_hex, _) = two_record_workspace(&staged_root(&scratch));
+        let previous = setup_pair('5', '6');
+        crate::commit_pair(&workspace, &previous).expect("commit previous");
+        crate::commit_pair(&workspace, &setup_pair('1', '2')).expect("commit current");
+        let previous_hex = crate::setup_hex(&previous);
+        let mut proc = FakeProc::default();
+        let pid = proc.process("30");
+        proc.fail(pid.join("cwd"), EINVAL);
+        let scanned =
+            collect_inventory_with(&proc, &workspace, &FakeProc::root(), Some(&previous_hex))
+                .expect("scan");
+        assert!(scanned.observation_unknown);
+        let plan = scanned.plan();
+        assert!(plan.prune_setup_records.is_empty());
+        assert!(plan.prune_generations.is_empty());
+        let mut kept = vec![older_hex, previous_hex];
+        kept.sort();
+        assert_eq!(plan.preserved_unobserved_setup_records, kept);
+        assert_eq!(plan.preserved_unobserved_generations.len(), 2);
+    }
+
+    #[test]
+    fn denied_fd_keeps_the_cwd_already_read() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-denied-fd-");
+        let (workspace, stale_hex, _) = two_record_workspace(&staged_root(&scratch));
+        let dx_dir = dx_path::state::local_dir(&workspace);
+        let mut proc = FakeProc::default();
+        let pid = proc.process("31");
+        proc.links
+            .insert(pid.join("cwd"), dx_dir.join("setups").join(&stale_hex));
+        proc.fail(pid.join("fd"), EACCES);
+        let scanned =
+            collect_inventory_with(&proc, &workspace, &FakeProc::root(), None).expect("scan");
+        assert!(!scanned.observation_unknown);
+        assert_eq!(scanned.active_setup_hexes, vec![stale_hex]);
+        assert!(scanned.plan().prune_setup_records.is_empty());
+    }
+
+    #[test]
+    fn exe_and_mapped_files_keep_their_generations() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-exe-maps-");
+        let (workspace, _, _) = two_record_workspace(&staged_root(&scratch));
+        let dx_dir = dx_path::state::local_dir(&workspace);
+        let old_env = digest('3');
+        let old_gen = digest('4');
+        let mut proc = FakeProc::default();
+        let pid = proc.process("32");
+        proc.links.insert(pid.join("cwd"), PathBuf::from("/home"));
+        proc.links.insert(
+            pid.join("exe"),
+            dx_dir.join("environments").join(&old_env).join("bin/tool"),
+        );
+        proc.fd(&pid, "0", Path::new("/dev/null"));
+        let library = dx_dir.join("generated").join(&old_gen).join("lib.so");
+        let maps = format!(
+            "55d0-55d1 r--p 00000000 08:01 7 /usr/bin/tool\n\
+             55d2-55d3 rw-p 00000000 00:00 0 [heap]\n\
+             7f00-7f01 r-xp 00000000 08:01 9 {} (deleted)\n",
+            library.display()
+        );
+        proc.files.insert(pid.join("maps"), maps.into_bytes());
+        let live = match scan_with(&proc, &FakeProc::root(), &dx_dir) {
+            LiveObservation::Known(live) => live,
+            other => panic!("a readable process is known: {other:?}"),
+        };
+        assert_eq!(
+            live.generations,
+            vec![
+                GenerationView {
+                    kind: GenerationUse::Environment,
+                    hex: old_env.clone(),
+                },
+                GenerationView {
+                    kind: GenerationUse::Generated,
+                    hex: old_gen.clone(),
+                },
+            ]
+        );
+        let plan = collect_inventory_with(&proc, &workspace, &FakeProc::root(), None)
+            .expect("scan")
+            .plan();
+        assert!(
+            !plan
+                .prune_generations
+                .iter()
+                .any(|generation| generation.hex == old_env || generation.hex == old_gen),
+            "{plan:?}"
+        );
+    }
+
+    #[test]
+    fn unreadable_maps_reports_unknown_with_partial_hexes() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-maps-eio-");
+        let dx_dir = dx_path::state::local_dir(&workspace_of(scratch.path()));
+        let hex = digest('7');
+        let mut proc = FakeProc::default();
+        let pid = proc.process("33");
+        proc.links
+            .insert(pid.join("cwd"), dx_dir.join("setups").join(&hex));
+        proc.fail(pid.join("maps"), EIO);
+        match scan_with(&proc, &FakeProc::root(), &dx_dir) {
+            LiveObservation::Unknown { partial, reason } => {
+                assert_eq!(partial.setup, vec![hex]);
+                assert!(reason.contains("maps"), "{reason}");
+            }
+            other => panic!("an unreadable maps file is unknown: {other:?}"),
+        }
     }
 }

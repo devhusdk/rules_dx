@@ -696,7 +696,6 @@ jobs:
       - name: Check the crate lockfiles are current (#8915)
         if: ${{ matrix.platform == 'linux_x86_64' }}
         run: |
-          # Builds trust cargo-bazel-lock.json without fetching cargo and rustc; this is the digest check.
           # shellcheck disable=SC2086
           bazel mod show_repo --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --repo_env=CARGO_BAZEL_DIGEST_CHECK=1 @crates @dx_quality_crates @dx_thrift_crates >/dev/null
       - name: Record the Windows rmeta diagnostics (#4850)

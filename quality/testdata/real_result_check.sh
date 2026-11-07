@@ -10,6 +10,6 @@ for want in "$@"; do
   done
   case $want in
     +*) [ "$found" = 1 ] || { echo "missing: $text"; for f in $files; do echo "== $f"; head -c 4000 "$f"; echo; done; exit 1; } ;;
-    -*) [ "$found" = 0 ] || { echo "unexpected: $text"; exit 1; } ;;
+    -*) [ "$found" = 0 ] || { echo "unexpected: $text"; for f in $files; do echo "== $f"; grep -an -- "$text" "$f" | head -20; done; exit 1; } ;;
   esac
 done

@@ -154,10 +154,10 @@ def _msvc_tidy_argv(tidy, argv, src, identity, config):
             dropped_src = True
             continue
         flags.append(arg)
-    extra = ["--extra-arg-before=--driver-mode=cl"]
-    if identity.target:
-        extra.append("--extra-arg-before=--target=" + identity.target)
-    return struct(argv = [tidy] + _config_flag(config) + extra + [src, "--"] + flags, error = "")
+    target = ["--target=" + identity.target] if identity.target else []
+
+    # driver mode must follow `--`; clang-tidy strips /-flags otherwise (LLVM #66553, CMake #25708).
+    return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + flags, error = "")
 
 def clang_tidy_argv(tidy, argv, src, identity, config = ""):
     """Projects a compile command line into a clang-tidy command line.

@@ -5,6 +5,7 @@ load(
     "//libs/starlark:plan_shard.bzl",
     "plan_shard_aspect_inputs",
     "plan_shard_conflict_error",
+    "plan_shard_edge_targets",
     "plan_shard_emit",
     "plan_shard_exec_matches",
     "plan_shard_fingerprint",
@@ -30,7 +31,16 @@ DxCodegenPlanCollectedInfo = provider(
     },
 )
 
+DxCodegenSourcesInfo = provider(
+    doc = "Workspace-relative sources and BUILD files the traversed closure reads.",
+    fields = {
+        "paths": "Depset of workspace-relative paths.",
+    },
+)
+
 DX_CODEGEN_PLAN_OUTPUT_GROUP = "dx_codegen_plans"
+
+DX_CODEGEN_SOURCES_SUFFIX = ".dxcodegen.src"
 
 DX_CODEGEN_SHARD_SUFFIX = ".dxcodegen.pb"
 
@@ -274,9 +284,25 @@ def _dx_codegen_plan_aspect_impl(target, ctx):
     conflict = codegen_conflict_error(inputs.merged_records.to_list())
     if conflict != "":
         fail("dx_codegen_plan_aspect on " + display_label(target.label) + ": " + conflict)
+    own = []
+    if ctx.label.workspace_name == "":
+        own.append(ctx.label.package + "/BUILD.bazel" if ctx.label.package else "BUILD.bazel")
+        own.extend([f.path for f in getattr(ctx.rule.files, "srcs", []) if f.is_source and not f.path.startswith("external/")])
+    transitive_paths = []
+    for name in _CODEGEN_ASPECT_ATTRS:
+        for dep in plan_shard_edge_targets(ctx.rule.attr, name):
+            if DxCodegenSourcesInfo in dep:
+                transitive_paths.append(dep[DxCodegenSourcesInfo].paths)
+    paths = depset(own, transitive = transitive_paths)
+    files = list(inputs.direct_files)
+    if DxCodegenPlanInfo in target and target[DxCodegenPlanInfo].direct:
+        sources = ctx.actions.declare_file(ctx.label.name + DX_CODEGEN_SOURCES_SUFFIX)
+        ctx.actions.write(sources, "".join([path + "\n" for path in sorted(paths.to_list())]))
+        files.append(sources)
     return [
         DxCodegenPlanCollectedInfo(records = inputs.merged_records),
-        OutputGroupInfo(dx_codegen_plans = depset(inputs.direct_files, transitive = inputs.transitive_files)),
+        DxCodegenSourcesInfo(paths = paths),
+        OutputGroupInfo(dx_codegen_plans = depset(files, transitive = inputs.transitive_files)),
     ]
 
 dx_codegen_plan_aspect = aspect(

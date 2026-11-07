@@ -1,15 +1,17 @@
 //! What the last `dx sync` of `.dx/local` saw, so a build knows without Bazel whether to sync again.
 //!
 //! The record is one file: `v1 <digest>`, then `ok` or `error <message>`, then `targets` and the
-//! sync's targets, then one generated artifact path per line. The digest covers the selected setup,
-//! the stats of the workspace files that steer the sync and the stats of every artifact the
-//! selected generation links to, so a build that regenerates one of them changes it.
+//! sync's targets, then one `artifact <path>` or `source <path>` line per generated artifact and per
+//! workspace-relative codegen source or BUILD file. The digest covers the selected setup, the stats
+//! of the workspace files that steer the sync, of every artifact the selected generation links to,
+//! and of every recorded source with its directory, so a build that regenerates an artifact, an
+//! edited or added source and a new package under a recorded directory all change it.
 
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 /// Bump when the record layout or the digest inputs change.
-const VERSION: &str = "v1";
+const VERSION: &str = "v2";
 
 /// Workspace files whose stats the digest covers.
 const INPUTS: [&str; 6] = [
@@ -26,6 +28,8 @@ pub(crate) struct Record {
     /// The targets the sync ran with; empty for the whole repository.
     pub(crate) targets: Vec<String>,
     pub(crate) artifacts: Vec<PathBuf>,
+    /// Workspace-relative codegen sources and BUILD files.
+    pub(crate) sources: Vec<PathBuf>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -57,8 +61,10 @@ pub(crate) fn record(
     }
     text.push('\n');
     for artifact in &record.artifacts {
-        text.push_str(&artifact.to_string_lossy());
-        text.push('\n');
+        text.push_str(&format!("artifact {}\n", artifact.to_string_lossy()));
+    }
+    for source in &record.sources {
+        text.push_str(&format!("source {}\n", source.to_string_lossy()));
     }
     dx_atomic_fs::write_atomic(
         &dx_path::state::sync_fingerprint_path(workspace),
@@ -84,10 +90,18 @@ pub(crate) fn check(workspace: &Path) -> Check {
     let Some(targets) = targets.strip_prefix("targets") else {
         return Check::Missing;
     };
-    let record = Record {
+    let mut record = Record {
         targets: targets.split_whitespace().map(str::to_owned).collect(),
-        artifacts: lines.map(PathBuf::from).collect(),
+        artifacts: Vec::new(),
+        sources: Vec::new(),
     };
+    for line in lines {
+        if let Some(path) = line.strip_prefix("artifact ") {
+            record.artifacts.push(PathBuf::from(path));
+        } else if let Some(path) = line.strip_prefix("source ") {
+            record.sources.push(PathBuf::from(path));
+        }
+    }
     if stored != digest(workspace, &record) {
         return Check::Changed(record);
     }
@@ -111,7 +125,16 @@ fn digest(workspace: &Path, record: &Record) -> String {
     }
     field(record.targets.join(" ").as_bytes());
     let inputs = INPUTS.iter().map(|rel| workspace.join(rel));
-    for path in inputs.chain(record.artifacts.iter().cloned()) {
+    let sources = record.sources.iter().flat_map(|rel| {
+        let rel = workspace.join(rel);
+        let parent = rel.parent().map(Path::to_path_buf);
+        [Some(rel), parent]
+    });
+    let mut paths: Vec<PathBuf> = inputs.chain(record.artifacts.iter().cloned()).collect();
+    paths.extend(sources.flatten());
+    paths.sort();
+    paths.dedup();
+    for path in paths {
         field(path.to_string_lossy().as_bytes());
         match stat(&path) {
             Some((len, mtime)) => {
@@ -151,6 +174,7 @@ mod tests {
         Record {
             targets: Vec::new(),
             artifacts: vec![path],
+            sources: Vec::new(),
         }
     }
 
@@ -203,6 +227,55 @@ mod tests {
             Check::SameFailed("codegen broke".to_owned())
         );
         std::fs::remove_file(&record.artifacts[0]).expect("remove");
+        assert_eq!(check(temp.path()), Check::Changed(record));
+    }
+
+    fn with_sources(temp: &tempfile::TempDir) -> Record {
+        let package = temp.path().join("api");
+        std::fs::create_dir_all(&package).expect("package");
+        std::fs::write(package.join("BUILD.bazel"), "").expect("build");
+        std::fs::write(package.join("a.proto"), "syntax = \"proto3\";\n").expect("proto");
+        Record {
+            sources: vec![
+                PathBuf::from("api/BUILD.bazel"),
+                PathBuf::from("api/a.proto"),
+            ],
+            ..artifact(temp)
+        }
+    }
+
+    #[test]
+    fn records_round_trip_artifacts_and_sources() {
+        let temp = workspace();
+        let record = with_sources(&temp);
+        super::record(temp.path(), &record, None).expect("record");
+        assert_eq!(check(temp.path()), Check::Same);
+    }
+
+    #[test]
+    fn changed_when_a_source_is_edited() {
+        let temp = workspace();
+        let record = with_sources(&temp);
+        super::record(temp.path(), &record, None).expect("record");
+        std::fs::write(temp.path().join("api/a.proto"), "syntax = \"proto2\";\n").expect("edit");
+        assert_eq!(check(temp.path()), Check::Changed(record));
+    }
+
+    #[test]
+    fn changed_when_a_file_is_added_next_to_a_source() {
+        let temp = workspace();
+        let record = with_sources(&temp);
+        super::record(temp.path(), &record, None).expect("record");
+        std::fs::write(temp.path().join("api/b.proto"), "").expect("add");
+        assert_eq!(check(temp.path()), Check::Changed(record));
+    }
+
+    #[test]
+    fn changed_when_a_package_appears_under_a_recorded_directory() {
+        let temp = workspace();
+        let record = with_sources(&temp);
+        super::record(temp.path(), &record, None).expect("record");
+        std::fs::create_dir(temp.path().join("api/v2")).expect("new package");
         assert_eq!(check(temp.path()), Check::Changed(record));
     }
 }

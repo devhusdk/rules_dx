@@ -36,6 +36,7 @@ pub(crate) fn after_success(invocation: &Invocation, env: Env<'_>) {
         Check::Missing => Record {
             targets: Vec::new(),
             artifacts: Vec::new(),
+            sources: Vec::new(),
         },
         Check::Changed(record) => record,
     };
@@ -130,6 +131,7 @@ mod tests {
         let record = Record {
             targets: Vec::new(),
             artifacts: vec![artifact.clone()],
+            sources: Vec::new(),
         };
         sync_fingerprint::record(&harness.workspace, &record, None).expect("record");
         std::fs::write(&artifact, "pub fn a() {}\npub fn b() {}\n").expect("rebuild");

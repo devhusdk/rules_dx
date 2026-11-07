@@ -134,6 +134,7 @@ fn collect_records(outputs: &[TargetOutput]) -> Result<Vec<CodegenRecord>, Colle
 fn frozen_identities_match_starlark() {
     assert_eq!(OUTPUT_GROUP, "dx_codegen_plans");
     assert_eq!(SHARD_SUFFIX, ".dxcodegen.pb");
+    assert_eq!(SOURCES_SUFFIX, ".dxcodegen.src");
     assert_eq!(
         CODEGEN_ASPECT,
         "generation:codegen.bzl%dx_codegen_plan_aspect"
@@ -969,4 +970,29 @@ fn renamed_repo_qualifies_labels() {
             format!("--output_groups={OUTPUT_GROUP}"),
         ]
     );
+}
+
+#[test]
+fn sources_sidecars_merge_sorted_and_stay_out_of_the_generated_artifacts() {
+    let sidecar = |path: &str, text: &str| CollectedArtifact {
+        exec_path: PathBuf::from(path),
+        bytes: text.as_bytes().to_vec(),
+    };
+    let outputs = vec![TargetOutput {
+        label: "//api:codegen".to_owned(),
+        aspect: None,
+        configuration: None,
+        success: true,
+        declared: true,
+        incomplete: false,
+        artifacts: vec![
+            sidecar("bazel-out/api/a.dxcodegen.src", "api/b.proto\napi/BUILD.bazel\n"),
+            sidecar("bazel-out/api/b.dxcodegen.src", "api/b.proto\n\napi/a.proto\n"),
+        ],
+    }];
+    assert_eq!(
+        decode_sources(&outputs),
+        ["api/BUILD.bazel", "api/a.proto", "api/b.proto"]
+    );
+    assert!(generated_artifact_paths(&outputs).is_empty());
 }

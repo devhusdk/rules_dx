@@ -168,6 +168,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     let record = super::sync_fingerprint::Record {
         targets: invocation.targets.clone(),
         artifacts: prepared.artifacts,
+        sources: prepared.sources,
     };
     let _ = super::sync_fingerprint::record(workspace, &record, None);
     let previous = before.filter(|hex| *hex != dx_setup::setup_hex(&pair));

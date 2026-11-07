@@ -380,7 +380,7 @@ _PROST_FINGERPRINT = (
 )
 
 EXPECTED_CODEGEN_PLAN_OBSERVATIONS = """subject //generation:codegen_plan_chain_subject
-field files=codegen_shard_alpha.dxcodegen.pb,codegen_shard_beta.dxcodegen.pb
+field files=codegen_shard_alpha.dxcodegen.pb,codegen_shard_alpha.dxcodegen.src,codegen_shard_beta.dxcodegen.pb,codegen_shard_beta.dxcodegen.src
 field fingerprint=%s
 field label=//generation:codegen_shard_beta
 field record_count=2
@@ -390,7 +390,7 @@ aspect_field has_subject=True
 aspect_field subject_label=//generation:codegen_plan_chain_subject
 aspect_field transitive_count=0
 subject //generation:codegen_plan_prost_subject
-field files=codegen_prost_fixture.dxcodegen.pb,result_proto.lib.rs
+field files=codegen_prost_fixture.dxcodegen.pb,codegen_prost_fixture.dxcodegen.src,result_proto.lib.rs
 field fingerprint=%s
 field label=//generation:codegen_prost_fixture
 field record_count=1

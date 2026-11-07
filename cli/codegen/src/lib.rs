@@ -24,6 +24,9 @@ pub const OUTPUT_GROUP: &str = "dx_codegen_plans";
 
 pub const SHARD_SUFFIX: &str = ".dxcodegen.pb";
 
+/// Sidecar listing the workspace-relative sources and BUILD files behind a shard, one per line.
+pub const SOURCES_SUFFIX: &str = ".dxcodegen.src";
+
 /// Repo-relative label; qualify it with [`aspect_label`].
 pub const CODEGEN_ASPECT: &str = "generation:codegen.bzl%dx_codegen_plan_aspect";
 
@@ -200,7 +203,23 @@ pub fn decode_shards(outputs: &[TargetOutput]) -> Result<Vec<CodegenRecord>, Col
 }
 
 fn generated_artifact_paths(outputs: &[TargetOutput]) -> Vec<String> {
-    dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX)
+    let mut paths = dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX);
+    paths.retain(|path| !path.ends_with(SOURCES_SUFFIX));
+    paths
+}
+
+/// The workspace-relative sources and BUILD files the shards were derived from, sorted and unique.
+pub fn decode_sources(outputs: &[TargetOutput]) -> Vec<String> {
+    let mut sources = std::collections::BTreeSet::new();
+    for output in outputs {
+        for artifact in &output.artifacts {
+            if dx_bep::is_shard_artifact(&artifact.exec_path, SOURCES_SUFFIX) {
+                let text = String::from_utf8_lossy(&artifact.bytes);
+                sources.extend(text.lines().filter(|l| !l.is_empty()).map(str::to_owned));
+            }
+        }
+    }
+    sources.into_iter().collect()
 }
 
 type Bound<'a> = [(&'a CodegenRecord, &'a CodegenEntry)];
@@ -381,6 +400,7 @@ pub struct CollectedPlan {
     pub fingerprint: String,
     pub digest: [u8; 32],
     pub projection: Vec<ProjectionEntry>,
+    pub sources: Vec<String>,
 }
 
 pub fn collect_plan(outputs: &[TargetOutput]) -> Result<CollectedPlan, CollectError> {
@@ -398,6 +418,7 @@ pub fn collect_plan(outputs: &[TargetOutput]) -> Result<CollectedPlan, CollectEr
         fingerprint: rendered,
         digest,
         projection,
+        sources: decode_sources(outputs),
     })
 }
 

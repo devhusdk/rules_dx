@@ -19,6 +19,7 @@ pub(crate) struct PreparedSync {
     pub(crate) sides: dx_setup::PreparedSides,
     pub(crate) leases: Vec<dx_atomic_fs::lease::SharedLease>,
     pub(crate) artifacts: Vec<PathBuf>,
+    pub(crate) sources: Vec<PathBuf>,
 }
 
 pub(crate) fn prepare_managed_sides(
@@ -43,6 +44,7 @@ pub(crate) fn prepare_managed_sides(
             .iter()
             .map(|entry| PathBuf::from(&entry.artifact))
             .collect(),
+        sources: codegen_plan.sources.iter().map(PathBuf::from).collect(),
     })
 }
 

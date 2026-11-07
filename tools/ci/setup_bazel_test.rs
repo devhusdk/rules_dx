@@ -186,18 +186,27 @@ fn caches_the_repository_cache(step: &serde_json::Value) -> bool {
 #[test]
 fn the_setup_bazel_action_inputs_default_to_what_any_repository_can_use() {
     let action = action_document();
-    for input in ["bazelisk-version", "bazelrc"] {
-        assert_eq!(
-            action["inputs"][input]["default"].as_str(),
-            Some(""),
-            "{ACTION_FILE} input {input}"
-        );
-    }
+    let mut inputs: Vec<&str> = action["inputs"]
+        .as_object()
+        .expect("action inputs")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    inputs.sort_unstable();
+    assert_eq!(inputs, ["cache-save"], "{ACTION_FILE} inputs");
+    assert_eq!(
+        action["inputs"]["cache-save"]["default"].as_str(),
+        Some("false")
+    );
     let steps = action["runs"]["steps"].as_array().expect("action steps");
     let run = steps[action_index(steps, RESOLVE)]["run"].as_str().unwrap();
     assert!(
         run.contains(&format!("[ -f {PIN_ENV} ]")),
         "{ACTION_FILE} must read {PIN_ENV} only when it exists"
+    );
+    assert!(
+        run.contains("test -n \"$version\""),
+        "{ACTION_FILE} must fail when {PIN_ENV} sets no version"
     );
     assert!(run.contains("BAZEL_SH=$(cygpath -m /usr/bin/bash.exe)"));
     let upstream = steps
@@ -213,7 +222,12 @@ fn the_setup_bazel_action_inputs_default_to_what_any_repository_can_use() {
         "{ACTION_FILE} must export BAZEL_SH before the first bazel call"
     );
     let with = &steps[upstream]["with"];
-    assert_eq!(with["bazelrc"].as_str(), Some("${{ inputs.bazelrc }}"));
+    assert_eq!(
+        with["bazelisk-version"].as_str(),
+        Some("${{ steps.pin.outputs.version }}")
+    );
+    assert_eq!(with["cache-save"].as_str(), Some("${{ inputs.cache-save }}"));
+    assert!(with.get("bazelrc").is_none());
     assert_eq!(with["bazelisk-cache"].as_bool(), Some(false));
 }
 

@@ -959,8 +959,9 @@ fn ci_config_leaves_remote_downloads_to_dx() {
 }
 
 #[test]
+// Bazel 9.3 only accepts the remote repo contents cache as a startup option.
 fn evidence_uses_remote_repo_contents_cache() {
-    let flags = ["--experimental_remote_repo_contents_cache", "--jobs=64"];
+    let flags = ["startup --experimental_remote_repo_contents_cache", "build --jobs=64"];
     let evidence = read_runfiles(".github/workflows/evidence.yml");
     let bazelrc = read_runfiles(".bazelrc");
     for flag in flags {

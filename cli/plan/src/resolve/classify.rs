@@ -712,11 +712,15 @@ mod tests {
 
     #[test]
     fn non_file_entries_fail() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-special-");
-        let workspace = scratch.path().to_path_buf();
         #[cfg(unix)]
         {
             use std::os::unix::net::UnixListener;
+            // sun_path holds about 108 bytes, so the socket cannot live under a long output base.
+            let short = tempfile::Builder::new()
+                .prefix("dx-sock-")
+                .tempdir_in("/tmp")
+                .expect("short scratch");
+            let workspace = short.path().to_path_buf();
             let path = workspace.join("sock");
             let _listener = UnixListener::bind(&path).expect("bind socket");
             let query = NeverQuery;
@@ -729,6 +733,8 @@ mod tests {
         }
         #[cfg(not(unix))]
         {
+            let scratch = dx_test_scratch::scratch("dx-resolve-test-special-");
+            let workspace = scratch.path().to_path_buf();
             write(&workspace, "pkg/BUILD.bazel", "");
             write(&workspace, "pkg/regular.py", "x = 1\n");
             let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(

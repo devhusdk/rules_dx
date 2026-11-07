@@ -6,7 +6,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files(["deps_resolve.py"])
 
 py_unittest_test(
-    name = "deps_resolve_test",
+    name = "deps_resolve_unit_test",
     srcs = [
         "deps_resolve.py",
         "deps_resolve_test.py",

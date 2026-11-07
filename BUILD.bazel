@@ -68,6 +68,8 @@ load("//quality/private:generated_policy.bzl", "dx_generated_policy")
 # gazelle:exclude go/tools/modfmt
 # gazelle:exclude tools/docs/components/fixture
 # gazelle:exclude d/tests/fixtures
+# gazelle:exclude quality/tiers
+# gazelle:exclude java/rules/jmh
 # gazelle:exclude flutter/tests/fixtures
 # gazelle:exclude go/tests/fixtures
 # gazelle:exclude javascript/tests/fixtures

@@ -1,3 +1,6 @@
+# gazelle:dx_ignore_import python pytest
+# gazelle:dx_ignore_import python grpc_tools
+
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")

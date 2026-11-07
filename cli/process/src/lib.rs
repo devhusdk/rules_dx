@@ -22,6 +22,9 @@ pub mod procs;
 #[cfg(windows)]
 #[path = "procs_windows.rs"]
 pub mod procs;
+#[cfg(test)]
+#[path = "procs_tests.rs"]
+mod procs_tests;
 pub mod rc;
 mod runner;
 pub mod slot_pool;

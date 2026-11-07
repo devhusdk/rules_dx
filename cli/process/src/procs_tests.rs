@@ -1,4 +1,4 @@
-use super::*;
+use crate::procs::*;
 use std::process::Command;
 
 #[test]

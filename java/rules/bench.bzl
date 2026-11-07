@@ -29,7 +29,7 @@ def jmh_benchmark(name, library, srcs, deps, jmh, jmh_processor, tags, kwargs, l
     )
     _java_library(
         name = name + "_runner",
-        srcs = [Label("//java/rules:JmhRunner.java")],
+        srcs = [Label("//java/rules/jmh:JmhRunner.java")],
         deps = [jmh],
         testonly = True,
         visibility = ["//visibility:private"],

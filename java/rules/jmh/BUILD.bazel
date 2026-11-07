@@ -1,0 +1,4 @@
+exports_files(
+    ["JmhRunner.java"],
+    visibility = ["//visibility:public"],
+)

@@ -832,8 +832,11 @@ mod unix_backend;
 #[path = "lifecycle_windows.rs"]
 mod windows_backend;
 
-#[cfg(all(windows, test))]
-pub(crate) use windows_backend::console_stop;
+#[cfg(test)]
+pub(crate) mod test_exports {
+    #[cfg(windows)]
+    pub(crate) use super::windows_backend::console_stop;
+}
 
 mod backend {
     /// Which process group a streamed child joins.

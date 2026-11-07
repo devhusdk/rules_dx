@@ -57,7 +57,3 @@ pub fn boot_id() -> Option<String> {
 pub fn boot_id() -> Option<String> {
     None
 }
-
-#[cfg(test)]
-#[path = "procs_tests.rs"]
-mod procs_tests;

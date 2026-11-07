@@ -8,7 +8,6 @@ package(default_visibility = ["//visibility:public"])
 _ON = {"treat_warnings_as_errors": True}
 
 exports_files([
-    "JmhRunner.java",
     "bench.bzl",
     "defs.bzl",
     "fuzz_run.sh",

@@ -1025,9 +1025,10 @@ fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
     assert_eq!(interrupted(), None);
     #[cfg(windows)]
     {
-        assert_eq!(unsafe { crate::lifecycle::console_stop(2) }, 0);
+        use crate::lifecycle::test_exports::console_stop;
+        assert_eq!(unsafe { console_stop(2) }, 0);
         assert_eq!(interrupted(), None);
-        assert_eq!(unsafe { crate::lifecycle::console_stop(0) }, 1);
+        assert_eq!(unsafe { console_stop(0) }, 1);
         assert_eq!(interrupted(), Some(2));
     }
     record_interrupt(2);

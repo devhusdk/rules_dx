@@ -39,7 +39,7 @@ ocaml_module(
 )
 
 ocaml_test(
-    name = "greet_dune_test",
+    name = "greet_dune_run_test",
     main = ":greet_dune_test_main",
     tags = ["manual"],
 )
@@ -47,7 +47,7 @@ ocaml_test(
 sys_cell_test(
     name = "greet_dune_native_test",
     size = "small",
-    target = ":greet_dune_test",
+    target = ":greet_dune_run_test",
 )
 
 real_source_target(

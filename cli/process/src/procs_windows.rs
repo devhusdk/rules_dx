@@ -259,7 +259,3 @@ pub struct ProcessInfo {
     pub rss_bytes: u64,
     pub command_line: String,
 }
-
-#[cfg(test)]
-#[path = "procs_tests.rs"]
-mod procs_tests;

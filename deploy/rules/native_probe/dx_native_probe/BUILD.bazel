@@ -1,4 +1,3 @@
-load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("//deploy/rules:native_runtime.bzl", "native_runtime")
@@ -9,44 +8,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//deploy/rules:__pkg__"])
 
 py_extension(
-    name = "_core_linux",
-    module_name = "_core",
-    srcs = ["_core.cc"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-# py_extension passes both CPython import libraries as one linker argument on
-# Windows, so the module is linked directly there.
-cc_library(
-    name = "_core_windows_impl",
-    srcs = ["_core.cc"],
-    target_compatible_with = ["@platforms//os:windows"],
-    deps = [
-        "@rules_python//python/cc:current_py_cc_headers",
-        "@rules_python//python/cc:current_py_cc_libs",
-    ],
-)
-
-cc_shared_library(
-    name = "_core_windows_dll",
-    shared_lib_name = "_core.dll",
-    target_compatible_with = ["@platforms//os:windows"],
-    deps = [":_core_windows_impl"],
-)
-
-copy_file(
-    name = "_core_windows",
-    src = ":_core_windows_dll",
-    out = "_core.cp312-win_amd64.pyd",
-    target_compatible_with = ["@platforms//os:windows"],
-)
-
-filegroup(
     name = "_core",
-    srcs = select({
-        "@platforms//os:windows": [":_core_windows"],
-        "//conditions:default": [":_core_linux"],
-    }),
+    srcs = ["_core.cc"],
     target_compatible_with = NATIVE_PROBE_COMPATIBLE,
 )
 

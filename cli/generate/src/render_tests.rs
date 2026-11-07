@@ -50,7 +50,7 @@ fn summary(out: &BTreeMap<String, Vec<u8>>) -> String {
                 .filter(|candidate| candidate.file_name() == layer)
                 .flat_map(|candidate| {
                     [false, true].map(|strict| {
-                        dx_preset::render_layer_pinned(candidate, "rules_dx", Some(strict), false)
+                        dx_preset::render_layer_with(candidate, "rules_dx", Some(strict))
                     })
                 })
                 .find(|preset| text.starts_with(preset.as_str()))

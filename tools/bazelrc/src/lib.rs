@@ -349,20 +349,6 @@ const WARNINGS_COMMENT: &str = "Compiler warnings fail the build under the stric
 
 /// Like [`render_layer`]; the correctness layer also pins `warnings_as_errors` when it is `Some`.
 pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bool>) -> String {
-    render_layer_pinned(layer, repo, warnings_as_errors, false)
-}
-
-/// The label of the workspace policy `dx init` generates.
-pub const WORKSPACE_POLICY_LABEL: &str = "//.dx/config:policy";
-
-/// Like [`render_layer_with`]; the correctness layer also selects the generated workspace policy
-/// when `generated_policy` is set.
-pub fn render_layer_pinned(
-    layer: Layer,
-    repo: &str,
-    warnings_as_errors: Option<bool>,
-    generated_policy: bool,
-) -> String {
     let mut out = format!(
         "{HEADER_MARKER}, do not edit.\n\
          # Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.\n\
@@ -383,11 +369,6 @@ pub fn render_layer_pinned(
             "\n# {WARNINGS_COMMENT}\n{}\n{}\n",
             warnings_flag(repo, on),
             config_profile_flag(repo, on)
-        ));
-    }
-    if layer == Layer::Correctness && generated_policy {
-        out.push_str(&format!(
-            "\n# The native configs `dx init` generated apply to every target.\ncommon --@{repo}//config:workspace={WORKSPACE_POLICY_LABEL}\n"
         ));
     }
     out
@@ -451,11 +432,9 @@ pub fn is_generated(text: &str) -> bool {
 /// Whether `text` is what dx renders for `layer`, ignoring a BOM and CRLF line endings.
 /// A correctness layer that pins `warnings_as_errors` either way counts as current.
 pub fn layer_is_current(text: &str, layer: Layer, repo: &str) -> bool {
-    [None, Some(false), Some(true)].into_iter().any(|pin| {
-        [false, true]
-            .into_iter()
-            .any(|policy| layer_is_current_pinned(text, layer, repo, pin, policy))
-    })
+    [None, Some(false), Some(true)]
+        .into_iter()
+        .any(|pin| layer_is_current_with(text, layer, repo, pin))
 }
 
 /// Whether `text` is what dx renders for `layer` with the given `warnings_as_errors` pin.
@@ -465,18 +444,7 @@ pub fn layer_is_current_with(
     repo: &str,
     warnings_as_errors: Option<bool>,
 ) -> bool {
-    layer_is_current_pinned(text, layer, repo, warnings_as_errors, false)
-}
-
-/// Whether `text` is what dx renders for `layer` with the given pins.
-pub fn layer_is_current_pinned(
-    text: &str,
-    layer: Layer,
-    repo: &str,
-    warnings_as_errors: Option<bool>,
-    generated_policy: bool,
-) -> bool {
-    normalized(text) == render_layer_pinned(layer, repo, warnings_as_errors, generated_policy)
+    normalized(text) == render_layer_with(layer, repo, warnings_as_errors)
 }
 
 /// Puts the import block for `layers` from `dir` at the top of `text`, after any BOM.

@@ -1788,7 +1788,7 @@ fn markers_follow_the_host_os() {
     );
     assert_eq!(
         markers("windows"),
-        (WINDOWS_AMBIENT_MARKER, WINDOWS_DENIED_MARKER, HOME_MARKER)
+        (AMBIENT_MARKER, WINDOWS_DENIED_MARKER, HOME_MARKER)
     );
     assert_eq!(
         probe_expectation("network", "macos").1,

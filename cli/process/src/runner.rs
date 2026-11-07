@@ -32,12 +32,17 @@ fn stream_spec(
     clear_env: bool,
     inherit_stdout: bool,
     held: Vec<File>,
+    capture: bool,
 ) -> StreamSpec {
     let vars = env
         .iter()
         .map(|(key, value)| ((*key).into(), (*value).into()))
         .collect();
-    let argv = stderr_tail::keep_terminal_ui(argv);
+    let argv = if capture {
+        stderr_tail::keep_terminal_ui(argv)
+    } else {
+        argv.to_vec()
+    };
     StreamSpec {
         argv: argv.iter().map(Into::into).collect(),
         cwd: cwd.to_path_buf(),
@@ -52,7 +57,11 @@ fn stream_spec(
         } else {
             StreamOutput::Forward(Box::new(io::stderr()))
         },
-        stderr: bazel_stderr(&argv),
+        stderr: if capture {
+            bazel_stderr(&argv)
+        } else {
+            StreamOutput::Inherit
+        },
         group: lifecycle::stream_group(),
         held,
     }
@@ -61,7 +70,7 @@ fn stream_spec(
 fn bazel_stderr(argv: &[String]) -> StreamOutput {
     stderr_tail::clear();
     match argv.first() {
-        Some(program) if stderr_tail::wanted(program.as_ref()) => {
+        Some(program) if stderr_tail::copy_wanted(program.as_ref()) => {
             StreamOutput::Forward(Box::new(stderr_tail::Tee))
         }
         _ => StreamOutput::Inherit,
@@ -102,7 +111,15 @@ impl BinaryRunner {
         env: &[(&str, &str)],
         clear_env: bool,
     ) -> io::Result<ChildStatus> {
-        let spec = stream_spec(argv, cwd, env, clear_env, self.inherit_stdout, Vec::new());
+        let spec = stream_spec(
+            argv,
+            cwd,
+            env,
+            clear_env,
+            self.inherit_stdout,
+            Vec::new(),
+            true,
+        );
         Ok(self.stream(spec)?.unwrap_or(ChildStatus::signalled(None)))
     }
 }
@@ -151,7 +168,7 @@ impl Runner for BinaryRunner {
             .iter()
             .map(|file| file.try_clone())
             .collect::<io::Result<Vec<File>>>()?;
-        let mut spec = stream_spec(argv, cwd, env, false, self.inherit_stdout, held);
+        let mut spec = stream_spec(argv, cwd, env, false, self.inherit_stdout, held, false);
         let Some(withdraw) = withdraw else {
             return self.stream(spec);
         };
@@ -168,7 +185,7 @@ impl Runner for BinaryRunner {
         env: &[(&str, &str)],
         withdraw: &dyn Fn() -> bool,
     ) -> io::Result<Option<ChildStatus>> {
-        let mut spec = stream_spec(argv, cwd, env, false, self.inherit_stdout, Vec::new());
+        let mut spec = stream_spec(argv, cwd, env, false, self.inherit_stdout, Vec::new(), true);
         spec.stdin = StreamStdin::Null;
         spec.group = StreamGroup::Owned;
         let outcome = lifecycle::run_streamed_until(spec, STREAM_CLEANUP, &self.stop, withdraw)?;

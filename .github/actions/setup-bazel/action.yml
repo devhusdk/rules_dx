@@ -92,6 +92,25 @@ runs:
           echo "BB_ARGS=$args" >> "$GITHUB_ENV"
           echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
         fi
+    - name: Point Bazel at a registry file cache
+      shell: bash
+      run: |
+        cache="$RUNNER_TEMP/dx-repository-cache"
+        contents="$RUNNER_TEMP/dx-repo-contents"
+        mkdir -p "$cache" "$contents"
+        if [ "$RUNNER_OS" = Windows ]; then
+          cache="$(cygpath -m "$cache")"
+          contents="$(cygpath -m "$contents")"
+        fi
+        {
+          echo "common --repository_cache=$cache"
+          echo "common --repo_contents_cache=$contents"
+        } >> user.bazelrc
+    - name: Restore the registry file cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/dx-repository-cache/content_addressable
+        key: dx-registry-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel.lock') }}
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}

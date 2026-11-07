@@ -1,0 +1,21 @@
+name: save-registry-cache
+description: Save the Bazel registry file cache after setup-bazel restored it and missed.
+runs:
+  using: composite
+  steps:
+    - name: Check the registry file cache size
+      shell: bash
+      run: |
+        dir="$RUNNER_TEMP/dx-repository-cache/content_addressable"
+        mkdir -p "$dir"
+        kb="$(du -sk "$dir" | cut -f1)"
+        echo "registry file cache: ${kb} KB"
+        if [ "$kb" -gt 51200 ]; then
+          echo "::error::the registry file cache is over 50 MB, so it holds more than registry files"
+          exit 1
+        fi
+    - name: Save the registry file cache
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/dx-repository-cache/content_addressable
+        key: dx-registry-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel.lock') }}

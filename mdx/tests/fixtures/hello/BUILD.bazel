@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript/rules:defs.bzl", "javascript_library")
-load("//mdx/rules:defs.bzl", "mdx_check", "mdx_library")
+load("//mdx/rules:defs.bzl", "mdx_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -18,20 +18,10 @@ javascript_library(
     srcs = ["helper.js"],
 )
 
-mdx_check(
-    name = "hello_check",
-    srcs = [
-        "Hello.mdx",
-        "helper.js",
-    ],
-    node_modules = "//:node_modules",
-)
-
 build_test(
     name = "hello_aggregate_test",
     targets = [
         ":hello_lib",
-        ":hello_check",
     ],
 )
 

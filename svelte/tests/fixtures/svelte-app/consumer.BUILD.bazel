@@ -1,7 +1,7 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_library", "javascript_test")
 load("@rules_dx//quality:native_config.bzl", "biome_config")
-load("@rules_dx//svelte/rules:defs.bzl", "svelte_build", "svelte_check", "svelte_library")
+load("@rules_dx//svelte/rules:defs.bzl", "svelte_build", "svelte_library")
 
 # gazelle:exclude src
 
@@ -40,17 +40,6 @@ svelte_build(
     package_json = "package.json",
     public = glob(["public/**"]),
     ssr_entry = "src/entry-server.ts",
-    deps = [":node_modules/clsx"],
-)
-
-# keep
-svelte_check(
-    name = "check",
-    aspect_hints = [":biome_config"],
-    srcs = glob(["src/**"]),
-    node_modules = ":node_modules",
-    package_json = "package.json",
-    tsconfig = "tsconfig.json",
     deps = [":node_modules/clsx"],
 )
 

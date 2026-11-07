@@ -4,7 +4,6 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript/rules:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_wrap_test")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
@@ -264,21 +263,6 @@ def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibil
         name = name + "_upstream",
         **upstream_kwargs
     )
-    inner_kwargs = typescript_inner_kwargs(None, scoped)
-    native.filegroup(
-        name = name + "_typecheck",
-        srcs = [":" + name + "_upstream"],
-        output_group = "typecheck",
-        visibility = ["//visibility:private"],
-        **dict(inner_kwargs, tags = upstream_kwargs["tags"], **({"testonly": scoped["testonly"]} if scoped.get("testonly", None) != None else {}))
-    )
-    build_test(
-        name = name + "_typecheck_test",
-        targets = [":" + name + "_typecheck"],
-        size = "small",
-        visibility = visibility,
-        **inner_kwargs
-    )
     forward_kwargs = typescript_forward_kwargs(scoped)
     _typescript_project_forward(
         name = name,
@@ -289,7 +273,7 @@ def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibil
     )
 
 def typescript_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags, and <name>_typecheck_test gets the user's tags."""
+    """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags."""
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 def ts_proto_library(name, proto, deps = None, visibility = None, **kwargs):

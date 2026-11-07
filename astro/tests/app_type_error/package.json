@@ -1,8 +1,0 @@
-{
-	"name": "astro-type-error-fixture",
-	"private": true,
-	"type": "module",
-	"dependencies": {
-		"astro": "7.3.8"
-	}
-}

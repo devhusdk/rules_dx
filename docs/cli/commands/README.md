@@ -300,7 +300,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//appimage:defs.bzl` | `name_errors` |
 |  |  | `@rules_dx//asciidoc/rules:defs.bzl` | `asciidoc_library` |
 |  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_build` |
-|  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_check` |
 |  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_library` |
 |  |  | `@rules_dx//avro/rules:defs.bzl` | `avro_library` |
 |  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_module` |
@@ -525,7 +524,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_test` |
 |  |  | `@rules_dx//make/rules:defs.bzl` | `make_library` |
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_build` |
-|  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_check` |
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_library` |
 |  |  | `@rules_dx//msix:defs.bzl` | `alias_errors` |
 |  |  | `@rules_dx//msix:defs.bzl` | `application_errors` |
@@ -605,7 +603,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_scalacopts_with_warnings_as_errors` |
 |  |  | `@rules_dx//sql/rules:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_build` |
-|  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_check` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_library` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_binary` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_library` |
@@ -657,7 +654,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_transpiler` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_upstream_srcs` |
 |  |  | `@rules_dx//vue/rules:defs.bzl` | `vue_build` |
-|  |  | `@rules_dx//vue/rules:defs.bzl` | `vue_check` |
 |  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_import_name` |
 |  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_quality_srcs` |
 

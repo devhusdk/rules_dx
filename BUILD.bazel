@@ -152,14 +152,11 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude gazelle
 # gazelle:exclude astro/tests/fixtures/hello
 # gazelle:exclude astro/tests/app
-# gazelle:exclude astro/tests/app_type_error
 # gazelle:exclude astro/tests/typecheck
 # gazelle:exclude svelte/tests/app
 # gazelle:exclude svelte/tests/app_errors
 # gazelle:exclude vue/tests/app
-# gazelle:exclude vue/tests/app_type_error
 # gazelle:exclude mdx/tests/app
-# gazelle:exclude mdx/tests/app_parse_error
 # gazelle:exclude mdx/tests/typecheck
 # gazelle:exclude vue/tests/typecheck
 # gazelle:exclude examples/shared-rust

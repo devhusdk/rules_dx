@@ -165,10 +165,9 @@ fn bazel(case: &Case, verb: &str, extra: &[&str], targets: &[&str]) -> (Option<i
 }
 
 #[test]
-fn the_app_builds_checks_and_tests_through_a_renamed_rules_dx() {
+fn the_app_builds_and_tests_through_a_renamed_rules_dx() {
     let (case, _) = consumer();
     let targets = [
-        "//:check",
         "//:components",
         "//:site",
         "//:site_ssr_test",

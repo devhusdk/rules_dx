@@ -6,7 +6,6 @@ import { pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 
 const DIAGNOSTICS = 1;
-const CRASH = 3;
 
 process.env.NO_COLOR = "1";
 process.env.FORCE_COLOR = "0";
@@ -14,11 +13,6 @@ process.env.FORCE_COLOR = "0";
 function usage(message) {
 	process.stderr.write(`mdx_tool: ${message}\n`);
 	process.exit(2);
-}
-
-function crash(error) {
-	process.stderr.write(`mdx_tool: crashed: ${error?.stack ?? error}\n`);
-	process.exit(CRASH);
 }
 
 function resolvePath(specifier) {
@@ -105,63 +99,11 @@ async function build(out, config, ssrEntry) {
 	}
 }
 
-async function check(report, prefix, files) {
-	if (!report || prefix === undefined)
-		usage("check requires a report path, a package prefix and files");
-	process.on("uncaughtException", crash);
-	process.on("unhandledRejection", crash);
-	const { compile } = await importPackage("@mdx-js/mdx");
-	const lines = [];
-	let failed = false;
-	for (const file of files.filter((name) => name.endsWith(".mdx")).sort()) {
-		const value = fs.readFileSync(file, "utf8");
-		try {
-			const compiled = await compile(
-				{ path: file, value },
-				{ outputFormat: "program" },
-			);
-			for (const message of compiled.messages) {
-				if (message.fatal) failed = true;
-				lines.push(formatMessage(prefix, file, message));
-			}
-		} catch (error) {
-			if (error?.reason === undefined && error?.place === undefined) {
-				crash(error);
-			}
-			failed = true;
-			lines.push(formatMessage(prefix, file, error));
-		}
-	}
-	const status = failed ? DIAGNOSTICS : 0;
-	const body = lines.map((line) => `${line}\n`).join("");
-	fs.writeFileSync(
-		path.resolve(process.cwd(), report),
-		`exit_code: ${status}\n${body}`,
-	);
-}
-
-function verify(report) {
-	if (!report) usage("verify requires a report path");
-	const text = fs.readFileSync(report, "utf8");
-	const match = /^exit_code: (\d+)\n/.exec(text);
-	if (!match) usage(`${report} is not an mdx_check report`);
-	if (match[1] !== "0") {
-		process.stderr.write(text);
-		process.exit(DIAGNOSTICS);
-	}
-}
-
 const [command, ...rest] = process.argv.slice(2);
 switch (command) {
 	case "build":
 		await build(rest[0], rest[1], rest[2]);
 		break;
-	case "check":
-		await check(rest[0], rest[1], rest.slice(2));
-		break;
-	case "verify":
-		verify(rest[0]);
-		break;
 	default:
-		usage(`unknown command '${command}'; expected build, check or verify`);
+		usage(`unknown command '${command}'; expected build`);
 }

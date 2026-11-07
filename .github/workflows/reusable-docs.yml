@@ -307,12 +307,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: ${{ env.PAGES_STAGE }}
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Upload rendered site as Pages artifact
         if: ${{ always() && steps.scan-site.outcome == 'success' }}
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

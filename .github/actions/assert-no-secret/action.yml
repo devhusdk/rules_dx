@@ -1,5 +1,5 @@
 name: assert-no-secret
-description: Fail when a file or directory about to be uploaded holds the BuildBuddy API key.
+description: Fail when a file or directory about to be uploaded holds the BuildBuddy API key or REMOTE_CACHE_HEADER value.
 inputs:
   path:
     description: File or directory to scan.
@@ -12,9 +12,30 @@ runs:
       env:
         DX_UPLOAD_PATH: ${{ inputs.path }}
       run: |
-        [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-        [ -e "$DX_UPLOAD_PATH" ] || exit 0
-        if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-          echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-          exit 1
+        needles=()
+        if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+          needles+=(-e "$BUILDBUDDY_API_KEY")
         fi
+        if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+          value="${REMOTE_CACHE_HEADER#*=}"
+          if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+            echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+            exit 1
+          fi
+          needles+=(-e "$value")
+        fi
+        [ "${#needles[@]}" -gt 0 ] || exit 0
+        [ -e "$DX_UPLOAD_PATH" ] || exit 0
+        rc=0
+        grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+        case "$rc" in
+          0)
+            echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+            exit 1
+            ;;
+          1) ;;
+          *)
+            echo "::error::scan of $DX_UPLOAD_PATH failed"
+            exit 1
+            ;;
+        esac

@@ -382,12 +382,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/lint
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Upload the lint reports
         if: ${{ always() && steps.scan-lint.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -403,12 +424,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/typecheck
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Upload the typecheck reports
         if: ${{ always() && steps.scan-typecheck.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -424,12 +466,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/test
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Upload the test reports
         if: ${{ always() && steps.scan-test.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -445,12 +508,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/build
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Upload the build reports
         if: ${{ always() && steps.scan-build.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -505,12 +589,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/coverage
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Upload the coverage reports
         if: ${{ always() && steps.scan-coverage.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -756,12 +861,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: .dx/local/advisory
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Publish the advisory snapshots
         if: ${{ always() && steps.scan-advisory.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1096,12 +1222,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: .dx/local/fuzz
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Upload the crashes
         if: ${{ always() && steps.scan-crashes.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1226,12 +1373,33 @@ jobs:
         env:
           DX_UPLOAD_PATH: .dx/local/bench/last.json
         run: |
-          [ -n "${BUILDBUDDY_API_KEY:-}" ] || exit 0
-          [ -e "$DX_UPLOAD_PATH" ] || exit 0
-          if grep -rFl -- "$BUILDBUDDY_API_KEY" "$DX_UPLOAD_PATH"; then
-            echo "::error::$DX_UPLOAD_PATH holds the BuildBuddy API key"
-            exit 1
+          needles=()
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+            needles+=(-e "$BUILDBUDDY_API_KEY")
           fi
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$value" = "$REMOTE_CACHE_HEADER" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER has no value to scan for"
+              exit 1
+            fi
+            needles+=(-e "$value")
+          fi
+          [ "${#needles[@]}" -gt 0 ] || exit 0
+          [ -e "$DX_UPLOAD_PATH" ] || exit 0
+          rc=0
+          grep -rFl "${needles[@]}" -- "$DX_UPLOAD_PATH" || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::$DX_UPLOAD_PATH holds a remote cache secret"
+              exit 1
+              ;;
+            1) ;;
+            *)
+              echo "::error::scan of $DX_UPLOAD_PATH failed"
+              exit 1
+              ;;
+          esac
       - name: Upload the results
         if: ${{ always() && steps.scan-bench.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

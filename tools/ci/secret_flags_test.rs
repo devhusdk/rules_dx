@@ -1,5 +1,8 @@
 //! Keeps the remote cache key out of command lines, rc files and uploads.
 
+use std::path::Path;
+use std::process::Command;
+
 use serde_json::Value;
 
 use dx_testing::read_runfiles;
@@ -252,4 +255,66 @@ fn every_upload_follows_a_matching_scan() {
         }
     }
     assert!(uploads > 0, "no workflow with the key uploads anything");
+}
+
+fn run_script(dir: &Path, script: &str, env: &[(&str, &str)]) -> i32 {
+    let mut command = Command::new("bash");
+    command.arg("-e").arg("-c").arg(script).current_dir(dir);
+    command
+        .env_clear()
+        .env("PATH", std::env::var("PATH").unwrap_or_default());
+    for (key, value) in env {
+        command.env(key, value);
+    }
+    let done = command.output().expect("run bash");
+    done.status.code().unwrap_or(-1)
+}
+
+#[test]
+fn scan_finds_every_cache_secret() {
+    let step = named_step(SCAN_ACTION, SCAN_STEP);
+    let script = step["run"].as_str().expect("scan run");
+    let key = ("BUILDBUDDY_API_KEY", "k3y");
+    let header = ("REMOTE_CACHE_HEADER", "x-t=s3cr3t");
+    let cases: &[(&str, &[(&str, &str)], Option<&str>, i32)] = &[
+        ("nothing set", &[], Some("k3y s3cr3t"), 0),
+        ("key found", &[key], Some("has k3y"), 1),
+        ("key clean", &[key], Some("clean"), 0),
+        ("header value found", &[header], Some("has s3cr3t"), 1),
+        ("header name only", &[header], Some("x-t"), 0),
+        ("header empty value", &[("REMOTE_CACHE_HEADER", "x-t=")], Some("x"), 1),
+        ("header without =", &[("REMOTE_CACHE_HEADER", "novalue")], Some("x"), 1),
+        ("key with header", &[key, header], Some("has k3y"), 1),
+        ("path missing", &[key, header], None, 0),
+    ];
+    for (name, env, content, status) in cases {
+        let dir = dx_test_scratch::scratch("secret-scan");
+        let upload = dir.path().join("upload");
+        if let Some(content) = content {
+            std::fs::create_dir(&upload).expect("create upload dir");
+            std::fs::write(upload.join("report.txt"), content).expect("write upload");
+        }
+        let upload = upload.to_str().expect("utf-8 path");
+        let mut env = env.to_vec();
+        env.push(("DX_UPLOAD_PATH", upload));
+        assert_eq!(run_script(dir.path(), script, &env), *status, "{name}");
+    }
+}
+
+#[test]
+fn blanked_key_keeps_header_visible() {
+    let mut matched = 0;
+    for path in dx_testing::workflow_files() {
+        let document = parse(&path);
+        let key = document["env"]["BUILDBUDDY_API_KEY"].as_str().unwrap_or("");
+        if !key.contains("secrets.REMOTE_CACHE_HEADER") {
+            continue;
+        }
+        matched += 1;
+        assert_eq!(
+            document["env"]["REMOTE_CACHE_HEADER"], "${{ secrets.REMOTE_CACHE_HEADER }}",
+            "{path} blanks the key but does not pass the header to the scan"
+        );
+    }
+    assert!(matched > 0, "no workflow blanks the key for a header");
 }

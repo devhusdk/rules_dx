@@ -294,6 +294,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "lock_extension.patch",
                 content: include_str!("../../../patches/rules_flutter/lock_extension.patch"),
             },
+            OverridePatch {
+                file: "registrant_javacopts.patch",
+                content: include_str!("../../../patches/rules_flutter/registrant_javacopts.patch"),
+            },
         ],
     },
     Override {

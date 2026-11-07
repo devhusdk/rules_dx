@@ -281,12 +281,6 @@ mod tests {
         }
     }
 
-    fn quiet_proc(harness: &Harness) -> std::path::PathBuf {
-        let proc_root = harness.workspace.join("quiet-proc");
-        std::fs::create_dir_all(&proc_root).expect("empty process table");
-        proc_root
-    }
-
     #[test]
     fn sync_prunes_the_superseded_setup() {
         let mut harness = Harness::new("sync-prunes-superseded");
@@ -314,6 +308,12 @@ mod tests {
             .expect("selection committed");
         let current = dx_setup::setup_hex(&pair);
         assert!(dx_dir.join("setups").join(current).exists());
+        for side in [ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME] {
+            let entries = std::fs::read_dir(dx_dir.join(side))
+                .expect("list generations")
+                .count();
+            assert_eq!(entries, 1, "{side} keeps only the current generation");
+        }
     }
 
     #[test]

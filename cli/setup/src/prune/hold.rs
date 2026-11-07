@@ -2,7 +2,7 @@
 //!
 //! [`hold_current`] takes shared leases on both sides of the current
 //! selection under the managed-root commit lock, the same lock cleanup holds
-//! while it prunes (see [`crate::apply`]). A generation it returns therefore
+//! while it prunes (see [`crate::prune::apply`]). A generation it returns therefore
 //! exists in full and cannot be pruned until every holder of the leases is
 //! gone. Pass [`HeldSelection::into_files`] to a launcher (for example
 //! `dx_process` `StreamSpec::held`) to keep the leases for a child tree.
@@ -12,18 +12,18 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use crate::{SetupPair, read_current_pair};
 use dx_atomic_fs::commit::{ManagedRoot, acquire_commit_lock};
 use dx_atomic_fs::lease::{self, GenerationUse, SharedLease};
-use dx_setup::{SetupPair, read_current_pair};
 
-use super::CleanError;
-use super::apply::map_lock_error;
+use crate::prune::PruneError;
+use crate::prune::apply::map_lock_error;
 
 /// Why the current selection could not be held.
 #[derive(Debug, thiserror::Error)]
 pub enum HoldError {
     #[error(transparent)]
-    Clean(#[from] CleanError),
+    Prune(#[from] PruneError),
     #[error("generation .dx/local/{kind}/{hex} is being removed; retry after cleanup finishes")]
     Removing { kind: &'static str, hex: String },
     #[error("cannot lease .dx/local/{kind}/{hex}: {reason}")]
@@ -80,7 +80,7 @@ pub fn hold_current(
     timeout: Duration,
 ) -> Result<Option<HeldSelection>, HoldError> {
     if !workspace_root.is_dir() {
-        return Err(CleanError::WorkspaceRoot {
+        return Err(PruneError::WorkspaceRoot {
             path: workspace_root.to_path_buf(),
         }
         .into());
@@ -91,7 +91,7 @@ pub fn hold_current(
     }
     let _lock =
         acquire_commit_lock(&ManagedRoot::new(dx_dir.clone()), timeout).map_err(map_lock_error)?;
-    let pair = read_current_pair(workspace_root).map_err(|e| CleanError::CurrentInvalid {
+    let pair = read_current_pair(workspace_root).map_err(|e| PruneError::CurrentInvalid {
         reason: e.to_string(),
     })?;
     let Some(pair) = pair else {

@@ -3,46 +3,44 @@ use std::io;
 use std::path::Path;
 use std::time::Duration;
 
+use crate::{GenerationId, SETUPS_DIR_NAME, read_current_pair};
 use dx_atomic_fs::commit::{LockError, ManagedRoot, acquire_commit_lock};
 use dx_atomic_fs::lease::{self, GenerationUse};
-use dx_setup::{GenerationId, SETUPS_DIR_NAME, read_current_pair};
 
-use super::CleanError;
-use super::inventory::collect_inventory;
-use super::planning::{CleanPlan, GenerationView};
+use crate::prune::PruneError;
+use crate::prune::inventory::collect_inventory;
+use crate::prune::planning::{GenerationView, PrunePlan};
 
-pub const CLEAN_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
-
-pub(crate) fn map_lock_error(error: LockError) -> CleanError {
+pub(crate) fn map_lock_error(error: LockError) -> PruneError {
     match error {
-        LockError::Busy { path, holder } => CleanError::Busy { path, holder },
-        LockError::LockFailed { path, reason } => CleanError::LockFailed { path, reason },
+        LockError::Busy { path, holder } => PruneError::Busy { path, holder },
+        LockError::LockFailed { path, reason } => PruneError::LockFailed { path, reason },
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct CleanOutcome {
+pub struct PruneOutcome {
     pub removed_setup_records: Vec<String>,
     pub removed_generations: Vec<GenerationView>,
     pub skipped_leased_generations: Vec<GenerationView>,
 }
 
-pub fn apply_plan(workspace_root: &Path, plan: &CleanPlan) -> Result<CleanOutcome, CleanError> {
-    apply_plan_with_timeout(workspace_root, plan, CLEAN_LOCK_TIMEOUT)
+pub fn apply_plan(workspace_root: &Path, plan: &PrunePlan) -> Result<PruneOutcome, PruneError> {
+    apply_plan_with_timeout(workspace_root, plan, crate::COMMIT_LOCK_TIMEOUT)
 }
 
 pub fn apply_plan_with_timeout(
     workspace_root: &Path,
-    plan: &CleanPlan,
+    plan: &PrunePlan,
     timeout: Duration,
-) -> Result<CleanOutcome, CleanError> {
+) -> Result<PruneOutcome, PruneError> {
     if !workspace_root.is_dir() {
-        return Err(CleanError::WorkspaceRoot {
+        return Err(PruneError::WorkspaceRoot {
             path: workspace_root.to_path_buf(),
         });
     }
     let dx_dir = dx_path::state::local_dir(workspace_root);
-    fs::create_dir_all(&dx_dir).map_err(|e| CleanError::Install {
+    fs::create_dir_all(&dx_dir).map_err(|e| PruneError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;
     let _lock =
@@ -52,12 +50,12 @@ pub fn apply_plan_with_timeout(
     let live_pair = match read_current_pair(workspace_root) {
         Ok(pair) => pair,
         Err(e) => {
-            return Err(CleanError::CurrentInvalid {
+            return Err(PruneError::CurrentInvalid {
                 reason: e.to_string(),
             });
         }
     };
-    let mut outcome = CleanOutcome::default();
+    let mut outcome = PruneOutcome::default();
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     for hex in &plan.prune_setup_records {
         if GenerationId::new(hex).is_err() {
@@ -70,13 +68,13 @@ pub fn apply_plan_with_timeout(
         match fs::symlink_metadata(&record) {
             Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
             Err(e) => {
-                return Err(CleanError::Install {
+                return Err(PruneError::Install {
                     reason: format!("cannot inspect {}: {e}", record.display()),
                 });
             }
             Ok(_) => {}
         }
-        fs::remove_dir_all(&record).map_err(|e| CleanError::Install {
+        fs::remove_dir_all(&record).map_err(|e| PruneError::Install {
             reason: format!("cannot prune {}: {e}", record.display()),
         })?;
         outcome.removed_setup_records.push(hex.clone());
@@ -106,7 +104,7 @@ pub fn apply_plan_with_timeout(
                 continue;
             }
             Err(error) => {
-                return Err(CleanError::Install {
+                return Err(PruneError::Install {
                     reason: format!(
                         "cannot probe the lease for .dx/local/{}/{}: {error}",
                         generation.kind.dir_name(),
@@ -121,13 +119,13 @@ pub fn apply_plan_with_timeout(
         match fs::symlink_metadata(&dir) {
             Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
             Err(e) => {
-                return Err(CleanError::Install {
+                return Err(PruneError::Install {
                     reason: format!("cannot inspect {}: {e}", dir.display()),
                 });
             }
             Ok(_) => {}
         }
-        fs::remove_dir_all(&dir).map_err(|e| CleanError::Install {
+        fs::remove_dir_all(&dir).map_err(|e| PruneError::Install {
             reason: format!("cannot prune {}: {e}", dir.display()),
         })?;
         drop(lease);
@@ -152,20 +150,15 @@ pub fn apply_plan_with_timeout(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixtures::*;
-    use crate::inventory::collect_inventory;
-    use crate::planning::{PruneInputs, UnobservedPolicy, plan_prune};
+    use crate::prune::fixtures::*;
+    use crate::prune::inventory::collect_inventory;
+    use crate::prune::planning::{PruneInputs, plan_prune};
     use std::path::PathBuf;
-
-    #[test]
-    fn clean_lock_deadline_matches_env_owner() {
-        assert_eq!(CLEAN_LOCK_TIMEOUT, dx_env::LOCK_TIMEOUT);
-    }
 
     #[test]
     fn empty_workspace_collects_nothing() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-empty-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-empty-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -180,20 +173,20 @@ mod tests {
         assert!(plan.prune_setup_records.is_empty());
         assert!(plan.prune_generations.is_empty());
         let outcome = apply_plan(&workspace, &plan).expect("apply empty");
-        assert_eq!(outcome, CleanOutcome::default());
+        assert_eq!(outcome, PruneOutcome::default());
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn malformed_current_fails_closed() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-bad-current-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-bad-current-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
-        dx_setup::commit_pair(&workspace, &setup_pair('1', '2')).expect("commit");
+        crate::commit_pair(&workspace, &setup_pair('1', '2')).expect("commit");
         let current = dx_path::state::local_dir(&workspace)
             .join("setups")
             .join("current");
@@ -201,9 +194,9 @@ mod tests {
         fs::write(&current, "not a symlink").expect("file pointer");
         assert!(matches!(
             collect_inventory(&workspace, &[], &[]),
-            Err(CleanError::CurrentInvalid { .. })
+            Err(PruneError::CurrentInvalid { .. })
         ));
-        let plan = CleanPlan {
+        let plan = PrunePlan {
             prune_setup_records: Vec::new(),
             prune_generations: Vec::new(),
             refused_unmanaged: Vec::new(),
@@ -214,7 +207,7 @@ mod tests {
         };
         assert!(matches!(
             apply_plan(&workspace, &plan),
-            Err(CleanError::CurrentInvalid { .. })
+            Err(PruneError::CurrentInvalid { .. })
         ));
         let _ = fs::remove_dir_all(&root);
     }
@@ -222,7 +215,7 @@ mod tests {
     #[test]
     fn apply_removes_prune_set_and_preserves_current() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-apply-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-apply-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -257,20 +250,20 @@ mod tests {
         );
         assert!(!setups.join(&stale_hex).exists());
         assert_eq!(
-            dx_setup::read_current_pair(&workspace)
+            crate::read_current_pair(&workspace)
                 .expect("read")
-                .map(|pair| dx_setup::setup_hex(&pair)),
+                .map(|pair| crate::setup_hex(&pair)),
             Some(current_hex)
         );
         let again = apply_plan(&workspace, &plan).expect("re-apply");
-        assert_eq!(again, CleanOutcome::default());
+        assert_eq!(again, PruneOutcome::default());
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn apply_skips_entries_that_became_current() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-race-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-race-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -278,17 +271,17 @@ mod tests {
         let workspace = workspace_of(&root);
         let first = setup_pair('1', '2');
         let second = setup_pair('3', '4');
-        dx_setup::commit_pair(&workspace, &first).expect("commit first");
-        dx_setup::commit_pair(&workspace, &second).expect("commit second");
+        crate::commit_pair(&workspace, &first).expect("commit first");
+        crate::commit_pair(&workspace, &second).expect("commit second");
         let plan = collect_inventory(&workspace, &[], &[])
             .expect("collect")
             .plan();
-        assert_eq!(plan.prune_setup_records, vec![dx_setup::setup_hex(&first)]);
-        dx_setup::commit_pair(&workspace, &first).expect("reselect first");
+        assert_eq!(plan.prune_setup_records, vec![crate::setup_hex(&first)]);
+        crate::commit_pair(&workspace, &first).expect("reselect first");
         let outcome = apply_plan(&workspace, &plan).expect("apply");
         assert!(outcome.removed_setup_records.is_empty());
         assert_eq!(
-            dx_setup::read_current_pair(&workspace).expect("read"),
+            crate::read_current_pair(&workspace).expect("read"),
             Some(first)
         );
         let _ = fs::remove_dir_all(&root);
@@ -297,7 +290,7 @@ mod tests {
     #[test]
     fn apply_skips_generations_referenced_by_live_current() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-race-gen-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-race-gen-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -315,7 +308,6 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &[],
             observation_unknown: false,
-            unobserved: UnobservedPolicy::Preserve,
         });
         assert_eq!(plan.prune_setup_records, vec![stale_hex.clone()]);
         assert_eq!(plan.prune_generations.len(), 2);
@@ -343,11 +335,11 @@ mod tests {
 
     #[test]
     fn prune_cannot_remove_a_generation_leased_by_another_process() {
-        if std::env::var_os("DX_CLEAN_LEASE_CHILD").is_some() {
-            let workspace = std::env::var_os("DX_CLEAN_LEASE_ROOT")
+        if std::env::var_os("DX_PRUNE_LEASE_CHILD").is_some() {
+            let workspace = std::env::var_os("DX_PRUNE_LEASE_ROOT")
                 .map(PathBuf::from)
                 .expect("child workspace");
-            let hex = std::env::var_os("DX_CLEAN_LEASE_HEX")
+            let hex = std::env::var_os("DX_PRUNE_LEASE_HEX")
                 .map(|hex| hex.into_string().expect("child hex"))
                 .expect("child hex");
             let dx_dir = dx_path::state::local_dir(&workspace);
@@ -363,7 +355,7 @@ mod tests {
             return;
         }
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-lease-race-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-lease-race-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -378,11 +370,11 @@ mod tests {
             "the stale generation exists before pruning"
         );
         let mut child = std::process::Command::new(std::env::current_exe().expect("test binary"))
-            .arg("apply::tests::prune_cannot_remove_a_generation_leased_by_another_process")
+            .arg("prune::apply::tests::prune_cannot_remove_a_generation_leased_by_another_process")
             .arg("--exact")
-            .env("DX_CLEAN_LEASE_CHILD", "1")
-            .env("DX_CLEAN_LEASE_ROOT", &workspace)
-            .env("DX_CLEAN_LEASE_HEX", &stale_gen)
+            .env("DX_PRUNE_LEASE_CHILD", "1")
+            .env("DX_PRUNE_LEASE_ROOT", &workspace)
+            .env("DX_PRUNE_LEASE_HEX", &stale_gen)
             .spawn()
             .expect("spawn the leasing reader");
         wait_for(&workspace.join("child-ready"), "child ready");
@@ -415,7 +407,7 @@ mod tests {
     #[test]
     fn busy_lock_fails_after_deadline() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-busy-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-busy-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -425,7 +417,7 @@ mod tests {
         fs::create_dir_all(&dx_dir).expect("dx dir");
         let _held = acquire_commit_lock(&ManagedRoot::new(dx_dir.clone()), Duration::from_secs(10))
             .expect("hold commit lock");
-        let plan = CleanPlan {
+        let plan = PrunePlan {
             prune_setup_records: Vec::new(),
             prune_generations: Vec::new(),
             refused_unmanaged: Vec::new(),
@@ -436,7 +428,7 @@ mod tests {
         };
         let error =
             apply_plan_with_timeout(&workspace, &plan, Duration::from_millis(1)).unwrap_err();
-        assert!(matches!(error, CleanError::Busy { .. }));
+        assert!(matches!(error, PruneError::Busy { .. }));
         let pid = format!("pid {}", std::process::id());
         let text = error.to_string();
         assert!(text.contains(&pid), "{text}");
@@ -451,7 +443,7 @@ mod tests {
     #[test]
     fn workspace_missing_fails() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-ws-missing-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-ws-missing-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -459,9 +451,9 @@ mod tests {
         let missing = root.join("no-such-dir");
         assert!(matches!(
             collect_inventory(&missing, &[], &[]),
-            Err(CleanError::WorkspaceRoot { .. })
+            Err(PruneError::WorkspaceRoot { .. })
         ));
-        let plan = CleanPlan {
+        let plan = PrunePlan {
             prune_setup_records: Vec::new(),
             prune_generations: Vec::new(),
             refused_unmanaged: Vec::new(),
@@ -472,7 +464,7 @@ mod tests {
         };
         assert!(matches!(
             apply_plan(&missing, &plan),
-            Err(CleanError::WorkspaceRoot { .. })
+            Err(PruneError::WorkspaceRoot { .. })
         ));
         let _ = fs::remove_dir_all(&root);
     }
@@ -480,21 +472,21 @@ mod tests {
     #[test]
     fn clean_errors_display() {
         let errors = [
-            CleanError::WorkspaceRoot {
+            PruneError::WorkspaceRoot {
                 path: PathBuf::from("/ws"),
             },
-            CleanError::Busy {
+            PruneError::Busy {
                 path: PathBuf::from("/ws/.dx/local/.commit.lock"),
                 holder: None,
             },
-            CleanError::LockFailed {
+            PruneError::LockFailed {
                 path: PathBuf::from("/ws/.dx/local/.commit.lock"),
                 reason: "r".to_string(),
             },
-            CleanError::CurrentInvalid {
+            PruneError::CurrentInvalid {
                 reason: "r".to_string(),
             },
-            CleanError::Install {
+            PruneError::Install {
                 reason: "r".to_string(),
             },
         ];

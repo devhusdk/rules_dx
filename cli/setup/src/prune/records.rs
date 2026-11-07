@@ -1,4 +1,4 @@
-use dx_setup::{GenerationId, SetupPair, setup_hex};
+use crate::{GenerationId, SetupPair, setup_hex};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetupRecordView {

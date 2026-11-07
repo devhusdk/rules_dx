@@ -498,17 +498,6 @@ fn inline_flag_values_and_empty_workspace_fail() {
 }
 
 #[test]
-fn clean_parses_prune_unobserved() {
-    let got = parse(&strings(&["clean"])).expect("parse");
-    assert_eq!(got.command, Command::Clean);
-    assert!(!got.prune_unobserved);
-    let got = parse(&strings(&["clean", "--prune-unobserved"])).expect("parse");
-    assert_eq!(got.command, Command::Clean);
-    assert!(got.prune_unobserved);
-    assert_eq!(Command::Clean.name(), "clean");
-}
-
-#[test]
 fn clean_rejects_scopes_and_quality_options() {
     let got = parse(&strings(&["clean", "--apply"])).expect("clean apply parses");
     assert!(got.applies());

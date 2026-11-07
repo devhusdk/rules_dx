@@ -283,7 +283,7 @@ pub static COMMANDS: [CommandMeta; 25] = [
         name: "clean",
         scope_policy: "reject",
         describe: "prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)",
-        usage: "Usage: dx clean [--apply] [--prune-unobserved]",
+        usage: "Usage: dx clean [--apply]",
         scopes: "Scopes: none (clean takes no scopes).",
         is_managed: false,
         is_adoption: false,

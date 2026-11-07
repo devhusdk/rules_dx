@@ -3,16 +3,15 @@
 use std::io::Write;
 use std::path::Path;
 
-use dx_clean::{UnobservedPolicy, apply_plan, collect_inventory_with_scan_from};
 use dx_output::{NoticeEvent, OutputMode, notice_event};
+use dx_setup::prune::{apply_plan, collect_inventory_with_scan_from};
 
 use super::common::{emit_built, flush_out};
 use super::notice_codes::CODE_PRUNE_FAILED;
 
 fn prune(workspace: &Path, proc_root: &Path) -> Result<(), String> {
-    let inventory =
-        collect_inventory_with_scan_from(workspace, proc_root, UnobservedPolicy::Preserve)
-            .map_err(|error| error.to_string())?;
+    let inventory = collect_inventory_with_scan_from(workspace, proc_root)
+        .map_err(|error| error.to_string())?;
     apply_plan(workspace, &inventory.plan()).map_err(|error| error.to_string())?;
     Ok(())
 }

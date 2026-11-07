@@ -71,7 +71,7 @@ The test phase keeps Bazel's code. `3` with complete results means tests failed.
 ## `dx clean`
 
 ```text
-dx clean [--apply] [--prune-unobserved]
+dx clean [--apply]
 ```
 
 Reports unselected managed state under `.dx`. It deletes nothing without `--apply`. It never touches Bazel outputs. Use `bazel clean` for those.
@@ -79,7 +79,6 @@ Reports unselected managed state under `.dx`. It deletes nothing without `--appl
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Prune the state. |
-| `--prune-unobserved` | Also prune state that process observation cannot see. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 

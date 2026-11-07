@@ -23,6 +23,8 @@ use dx_digest::blake3 as digest;
 use dx_path::state;
 use dx_roots::{ExactScopeError, resolve_exact_target};
 
+pub mod prune;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupScope {
     Repository,

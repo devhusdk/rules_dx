@@ -10,6 +10,7 @@ path = "src/lib.rs"
 
 [dependencies]
 thiserror = "2"
+walkdir = "2"
 
 [dev-dependencies]
 # Golden pilot: setup fingerprint golden as an insta snapshot.

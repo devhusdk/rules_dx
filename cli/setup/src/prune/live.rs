@@ -2,12 +2,12 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, GenerationId, SETUPS_DIR_NAME};
 use dx_atomic_fs::lease::{self, GenerationUse};
-use dx_setup::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, GenerationId, SETUPS_DIR_NAME};
 
-use super::CleanError;
-use super::inventory::{CollectedInventory, collect_inventory};
-use super::planning::{GenerationView, UnobservedPolicy};
+use crate::prune::PruneError;
+use crate::prune::inventory::{CollectedInventory, collect_inventory};
+use crate::prune::planning::GenerationView;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LiveHexes {
@@ -249,13 +249,13 @@ fn scan_live_observation_with(
 fn leased_generation_hexes(
     workspace_root: &Path,
     generations: &[GenerationView],
-) -> Result<Vec<String>, CleanError> {
+) -> Result<Vec<String>, PruneError> {
     let dx_dir = dx_path::state::local_dir(workspace_root);
     let mut leased = Vec::new();
     for generation in generations {
         let held =
             lease::shared_held(&dx_dir, generation.kind, &generation.hex).map_err(|error| {
-                CleanError::Install {
+                PruneError::Install {
                     reason: format!(
                         "cannot probe the lease for .dx/local/{}/{}: {error}",
                         generation.kind.dir_name(),
@@ -275,8 +275,7 @@ fn leased_generation_hexes(
 pub fn collect_inventory_with_scan_from(
     workspace_root: &Path,
     proc_root: &Path,
-    unobserved: UnobservedPolicy,
-) -> Result<CollectedInventory, CleanError> {
+) -> Result<CollectedInventory, PruneError> {
     let dx_dir = dx_path::state::local_dir(workspace_root);
     let (live, observation_unknown) = match scan_live_observation(proc_root, &dx_dir) {
         LiveObservation::Known(live) => (live, false),
@@ -295,14 +294,13 @@ pub fn collect_inventory_with_scan_from(
     inventory.active_setup_hexes = live.setup;
     inventory.active_generation_hexes = generations;
     inventory.observation_unknown = observation_unknown;
-    inventory.unobserved = unobserved;
     Ok(inventory)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixtures::*;
+    use crate::prune::fixtures::*;
 
     fn stage_process(proc_root: &Path, pid: &str, cwd: Option<&Path>, fds: &[&Path]) {
         let dir = proc_root.join(pid);
@@ -367,7 +365,7 @@ mod tests {
     #[test]
     fn scan_with_filtered_proc_reports_unknown_and_keeps_partial() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-scan-hidepid-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-hidepid-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -396,7 +394,7 @@ mod tests {
     #[test]
     fn scan_missing_proc_root_reports_unknown_not_idle() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-scan-missing-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-missing-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -415,7 +413,7 @@ mod tests {
     #[test]
     fn scan_file_proc_root_reports_unknown() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-scan-file-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-file-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -433,7 +431,7 @@ mod tests {
     #[test]
     fn scan_ignores_non_numeric_entries() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-scan-nonnumeric-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-nonnumeric-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -459,7 +457,7 @@ mod tests {
     #[test]
     fn scan_reports_cwd_and_fd_targets_under_managed_roots() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-scan-live-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-live-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -506,7 +504,7 @@ mod tests {
     #[test]
     fn scan_trims_deleted_suffix_and_ignores_unmanaged_paths() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-scan-edge-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-edge-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -551,7 +549,7 @@ mod tests {
     #[test]
     fn scan_dedupes_and_sorts_across_processes() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-scan-dedupe-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-dedupe-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -598,7 +596,7 @@ mod tests {
     #[test]
     fn with_scan_matches_plain_inventory_without_live_processes() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-with-scan-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-with-scan-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -606,9 +604,7 @@ mod tests {
         let (workspace, stale_hex, _) = two_record_workspace(&root);
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("empty proc root");
-        let scanned =
-            collect_inventory_with_scan_from(&workspace, &proc_root, UnobservedPolicy::Preserve)
-                .expect("scan");
+        let scanned = collect_inventory_with_scan_from(&workspace, &proc_root).expect("scan");
         assert!(!scanned.observation_unknown);
         let plain = collect_inventory(&workspace, &[], &[]).expect("plain collect");
         assert_eq!(scanned.plan(), plain.plan());
@@ -619,7 +615,7 @@ mod tests {
     #[test]
     fn unknown_observation_preserves_unobserved_state_by_default() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-unknown-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-unknown-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -627,9 +623,7 @@ mod tests {
         let (workspace, stale_hex, _) = two_record_workspace(&root);
         let blocker = root.join("proc");
         fs::write(&blocker, "not a directory").expect("blocker file");
-        let scanned =
-            collect_inventory_with_scan_from(&workspace, &blocker, UnobservedPolicy::Preserve)
-                .expect("scan");
+        let scanned = collect_inventory_with_scan_from(&workspace, &blocker).expect("scan");
         assert!(scanned.observation_unknown);
         let plan = scanned.plan();
         assert!(plan.observation_unknown);
@@ -637,39 +631,6 @@ mod tests {
         assert!(plan.prune_generations.is_empty());
         assert_eq!(plan.preserved_unobserved_setup_records, vec![stale_hex]);
         assert_eq!(plan.preserved_unobserved_generations.len(), 2);
-        let listing = super::super::bytes::render_prune_listing(
-            &plan,
-            &super::super::bytes::PruneBytes::default(),
-        );
-        assert!(listing.contains("observation unavailable"));
-        assert!(!listing.contains("nothing to prune"));
-        let _ = fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn unknown_observation_prunes_only_with_an_explicit_acknowledgement() {
-        let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-unknown-ack-");
-            std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
-            __scratch
-        };
-        let root = scratch.path().to_path_buf();
-        let (workspace, stale_hex, _) = two_record_workspace(&root);
-        let blocker = root.join("proc");
-        fs::write(&blocker, "not a directory").expect("blocker file");
-        let scanned = collect_inventory_with_scan_from(
-            &workspace,
-            &blocker,
-            UnobservedPolicy::PruneAcknowledged,
-        )
-        .expect("scan");
-        assert!(scanned.observation_unknown);
-        let plan = scanned.plan();
-        assert!(plan.observation_unknown);
-        assert_eq!(plan.prune_setup_records, vec![stale_hex]);
-        assert_eq!(plan.prune_generations.len(), 2);
-        assert!(plan.preserved_unobserved_setup_records.is_empty());
-        assert!(plan.preserved_unobserved_generations.is_empty());
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -681,7 +642,7 @@ mod tests {
 
     #[test]
     fn scan_unreadable_cwd_reports_unknown_with_partial_hexes() {
-        let scratch = dx_test_scratch::scratch("dx-clean-test-scan-unreadable-cwd-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-unreadable-cwd-");
         let root = scratch.path().to_path_buf();
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
@@ -700,7 +661,7 @@ mod tests {
 
     #[test]
     fn scan_unreadable_fd_dir_reports_unknown() {
-        let scratch = dx_test_scratch::scratch("dx-clean-test-scan-unreadable-fd-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-unreadable-fd-");
         let root = scratch.path().to_path_buf();
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
@@ -714,7 +675,7 @@ mod tests {
 
     #[test]
     fn scan_skips_processes_that_are_gone() {
-        let scratch = dx_test_scratch::scratch("dx-clean-test-scan-gone-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-gone-");
         let root = scratch.path().to_path_buf();
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
@@ -726,8 +687,8 @@ mod tests {
     }
 
     #[test]
-    fn unreadable_process_keeps_observed_state_under_prune_unobserved() {
-        let scratch = dx_test_scratch::scratch("dx-clean-test-unreadable-prune-");
+    fn unreadable_process_keeps_observed_state() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-unreadable-prune-");
         std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
         let root = scratch.path().to_path_buf();
         let (workspace, stale_hex, _) = two_record_workspace(&root);
@@ -741,29 +702,17 @@ mod tests {
             &[],
         );
         stage_unreadable_cwd(&proc_root, "21");
-        let preserved =
-            collect_inventory_with_scan_from(&workspace, &proc_root, UnobservedPolicy::Preserve)
-                .expect("scan");
+        let preserved = collect_inventory_with_scan_from(&workspace, &proc_root).expect("scan");
         assert!(preserved.observation_unknown);
         let plan = preserved.plan();
         assert!(plan.prune_setup_records.is_empty());
-        assert!(plan.prune_generations.is_empty());
-        let pruned = collect_inventory_with_scan_from(
-            &workspace,
-            &proc_root,
-            UnobservedPolicy::PruneAcknowledged,
-        )
-        .expect("scan");
-        assert!(pruned.observation_unknown);
-        let plan = pruned.plan();
-        assert!(!plan.prune_setup_records.contains(&stale_hex));
         assert!(plan.prune_generations.is_empty());
     }
 
     #[test]
     fn leased_generations_are_active_without_a_proc_sighting() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-leased-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-leased-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -780,9 +729,7 @@ mod tests {
             std::time::Duration::from_secs(10),
         )
         .expect("lease the stale environment");
-        let scanned =
-            collect_inventory_with_scan_from(&workspace, &proc_root, UnobservedPolicy::Preserve)
-                .expect("scan");
+        let scanned = collect_inventory_with_scan_from(&workspace, &proc_root).expect("scan");
         assert!(scanned.active_generation_hexes.contains(&stale_env));
         let plan = scanned.plan();
         assert!(
@@ -793,9 +740,7 @@ mod tests {
             "a leased generation is never planned for pruning"
         );
         drop(lease);
-        let rescanned =
-            collect_inventory_with_scan_from(&workspace, &proc_root, UnobservedPolicy::Preserve)
-                .expect("rescan");
+        let rescanned = collect_inventory_with_scan_from(&workspace, &proc_root).expect("rescan");
         assert!(!rescanned.active_generation_hexes.contains(&stale_env));
         assert!(
             rescanned

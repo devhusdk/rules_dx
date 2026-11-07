@@ -133,7 +133,6 @@ pub(crate) struct Flags {
     pub(crate) breaking_against: Option<String>,
     pub(crate) debug: bool,
     pub(crate) release: bool,
-    pub(crate) prune_unobserved: bool,
     pub(crate) agents: Vec<Agent>,
     pub(crate) profile: Option<ProfileArg>,
     pub(crate) to: Option<String>,
@@ -480,14 +479,6 @@ flag_group! {
     ReleaseFlag, {
         #[arg(long, overrides_with = "release", conflicts_with = "debug")]
         release: bool,
-    }
-}
-
-flag_group! {
-    /// Prune generations process observation cannot see.
-    PruneUnobservedFlag, {
-        #[arg(long = "prune-unobserved", overrides_with = "prune_unobserved")]
-        prune_unobserved: bool,
     }
 }
 
@@ -1150,7 +1141,7 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: OutputFlag,

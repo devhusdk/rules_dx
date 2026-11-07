@@ -1464,3 +1464,10 @@ mod scope_exclude_tests {
         assert!(harness.build_argv.borrow().is_empty());
     }
 }
+
+/// An empty process table, so live observation succeeds and sees no readers.
+pub(crate) fn quiet_proc(harness: &Harness) -> std::path::PathBuf {
+    let proc_root = harness.workspace.join("quiet-proc");
+    std::fs::create_dir_all(&proc_root).expect("empty process table");
+    proc_root
+}

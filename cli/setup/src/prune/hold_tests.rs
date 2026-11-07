@@ -1,9 +1,9 @@
 use super::*;
-use crate::apply::apply_plan;
-use crate::fixtures::*;
-use crate::inventory::collect_inventory;
+use crate::prune::apply::apply_plan;
+use crate::prune::fixtures::*;
+use crate::prune::inventory::collect_inventory;
+use crate::{GenerationId, setup_hex};
 use dx_atomic_fs::lease::GenerationUse;
-use dx_setup::{GenerationId, setup_hex};
 use std::time::Instant;
 
 const WAIT: Duration = Duration::from_secs(10);
@@ -30,7 +30,7 @@ fn materialize(workspace: &Path, pair: &SetupPair) {
 
 fn select(workspace: &Path, pair: &SetupPair) {
     materialize(workspace, pair);
-    dx_setup::commit_pair(workspace, pair).expect("commit");
+    crate::commit_pair(workspace, pair).expect("commit");
 }
 
 fn generation_dir(workspace: &Path, kind: GenerationUse, hex: &str) -> PathBuf {
@@ -45,7 +45,7 @@ fn exclusive_free(workspace: &Path, kind: GenerationUse, hex: &str) -> bool {
         .is_some()
 }
 
-fn prune(workspace: &Path) -> crate::CleanOutcome {
+fn prune(workspace: &Path) -> crate::prune::PruneOutcome {
     let plan = collect_inventory(workspace, &[], &[])
         .expect("collect")
         .plan();
@@ -54,7 +54,7 @@ fn prune(workspace: &Path) -> crate::CleanOutcome {
 
 #[test]
 fn hold_current_leases_both_sides() {
-    let (_scratch, workspace) = workspace("dx-clean-hold-both-");
+    let (_scratch, workspace) = workspace("dx-prune-hold-both-");
     let pair = setup_pair('1', '2');
     select(&workspace, &pair);
     let held = hold_current(&workspace, WAIT)
@@ -97,7 +97,7 @@ fn hold_current_leases_both_sides() {
 
 #[test]
 fn hold_current_without_selection_is_none() {
-    let (_scratch, workspace) = workspace("dx-clean-hold-none-");
+    let (_scratch, workspace) = workspace("dx-prune-hold-none-");
     assert!(hold_current(&workspace, WAIT).expect("hold").is_none());
     assert!(
         !dx_path::state::local_dir(&workspace).exists(),
@@ -107,7 +107,7 @@ fn hold_current_without_selection_is_none() {
     assert!(hold_current(&workspace, WAIT).expect("hold").is_none());
     assert!(matches!(
         hold_current(&workspace.join("missing"), WAIT),
-        Err(HoldError::Clean(CleanError::WorkspaceRoot { .. }))
+        Err(HoldError::Prune(PruneError::WorkspaceRoot { .. }))
     ));
 }
 
@@ -123,7 +123,7 @@ fn link_dir(target: &Path, link: &Path) {
 
 #[test]
 fn hold_current_waits_for_commit_lock_then_reads_new_current() {
-    let (_scratch, workspace) = workspace("dx-clean-hold-wait-");
+    let (_scratch, workspace) = workspace("dx-prune-hold-wait-");
     let first = setup_pair('1', '2');
     let second = setup_pair('3', '4');
     select(&workspace, &second);
@@ -156,9 +156,9 @@ fn hold_current_waits_for_commit_lock_then_reads_new_current() {
 
 #[test]
 fn hold_current_refuses_missing_or_foreign_generation_dir() {
-    let (_scratch, workspace) = workspace("dx-clean-hold-foreign-");
+    let (_scratch, workspace) = workspace("dx-prune-hold-foreign-");
     let pair = setup_pair('1', '2');
-    dx_setup::commit_pair(&workspace, &pair).expect("commit");
+    crate::commit_pair(&workspace, &pair).expect("commit");
     let env_dir = generation_dir(&workspace, GenerationUse::Environment, &digest('1'));
     let gen_dir = generation_dir(&workspace, GenerationUse::Generated, &digest('2'));
     let refused = |what: &str| match hold_current(&workspace, WAIT) {
@@ -185,7 +185,7 @@ fn hold_current_refuses_missing_or_foreign_generation_dir() {
 
 #[test]
 fn hold_current_fails_closed_while_cleanup_holds_exclusive() {
-    let (_scratch, workspace) = workspace("dx-clean-hold-removing-");
+    let (_scratch, workspace) = workspace("dx-prune-hold-removing-");
     select(&workspace, &setup_pair('1', '2'));
     let _exclusive = lease::try_acquire_exclusive(
         &dx_path::state::local_dir(&workspace),
@@ -212,7 +212,7 @@ fn hold_current_fails_closed_while_cleanup_holds_exclusive() {
 
 #[test]
 fn apply_preserves_held_generation_after_selection_change() {
-    let (_scratch, workspace) = workspace("dx-clean-hold-apply-");
+    let (_scratch, workspace) = workspace("dx-prune-hold-apply-");
     select(&workspace, &setup_pair('1', '2'));
     let held = hold_current(&workspace, WAIT)
         .expect("hold")
@@ -253,7 +253,7 @@ fn iteration_pair(i: u64) -> SetupPair {
 #[test]
 fn hold_vs_apply_race_never_sees_partial_generation() {
     const ROUNDS: u64 = 25;
-    let (_scratch, workspace) = workspace("dx-clean-hold-race-");
+    let (_scratch, workspace) = workspace("dx-prune-hold-race-");
     select(&workspace, &iteration_pair(0));
     let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let reader = {
@@ -312,7 +312,7 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
         );
     }
     assert_eq!(
-        dx_setup::read_current_pair(&workspace)
+        crate::read_current_pair(&workspace)
             .expect("read")
             .map(|pair| setup_hex(&pair)),
         Some(setup_hex(&last))
@@ -325,7 +325,7 @@ fn a_streamed_child_keeps_its_selection_through_cleanup() {
         CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
         StreamStdin, run_streamed,
     };
-    let (scratch, workspace) = workspace("dx-clean-hold-streamed-");
+    let (scratch, workspace) = workspace("dx-prune-hold-streamed-");
     select(&workspace, &setup_pair('1', '2'));
     let held = hold_current(&workspace, WAIT)
         .expect("hold")

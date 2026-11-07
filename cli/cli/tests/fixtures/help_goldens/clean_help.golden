@@ -1,6 +1,6 @@
 prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
 
-Usage: dx clean [--apply] [--prune-unobserved]
+Usage: dx clean [--apply]
 
 Options:
       --workspace <WORKSPACE>
@@ -34,9 +34,6 @@ Options:
 
       --apply
           Apply the changes instead of only showing them
-
-      --prune-unobserved
-          Prune generations process observation cannot see
 
   -h, --help
           Print help

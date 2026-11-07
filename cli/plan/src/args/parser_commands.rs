@@ -54,7 +54,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
     ("--breaking-against", &["--breaking-against"], &["lint"]),
     ("--online", &["--online"], &["lint"]),
     (
@@ -72,7 +72,6 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
     ("--port", &["--serve", "--port=8080"], &["docs"]),
     ("--host", &["--serve", "--host=127.0.0.1"], &["docs"]),
     ("--open", &["--serve", "--open"], &["docs"]),
-    ("--prune-unobserved", &["--prune-unobserved"], &["clean"]),
 ];
 
 fn required_words(name: &str) -> &'static [&'static str] {

@@ -5,9 +5,8 @@ use std::path::{Path, PathBuf};
 
 use dx_setup::{GenerationId, SetupPair};
 
-use crate::planning::GenerationView;
-use crate::records::{SetupRecordView, validate_record};
 use dx_atomic_fs::lease::GenerationUse;
+use dx_setup::prune::{GenerationView, SetupRecordView, validate_record};
 
 pub(crate) fn digest(tag: char) -> String {
     tag.to_string().repeat(64)

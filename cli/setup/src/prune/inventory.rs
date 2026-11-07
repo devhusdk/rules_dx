@@ -1,15 +1,15 @@
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use dx_setup::{
+use crate::{
     CURRENT_LINK_NAME, CURRENT_STAGE_NAME, ENVIRONMENT_LINK_NAME, GENERATED_LINK_NAME,
     GenerationId, SETUPS_DIR_NAME,
 };
 
-use super::CleanError;
-use super::planning::{CleanPlan, GenerationView, PruneInputs, UnobservedPolicy, plan_prune};
-use super::records::{SetupRecordView, validate_record};
+use crate::prune::PruneError;
+use crate::prune::planning::{GenerationView, PruneInputs, PrunePlan, plan_prune};
+use crate::prune::records::{SetupRecordView, validate_record};
 use dx_atomic_fs::lease::GenerationUse;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -21,7 +21,6 @@ pub struct CollectedInventory {
     pub active_generation_hexes: Vec<String>,
     pub unmanaged_names: Vec<String>,
     pub observation_unknown: bool,
-    pub unobserved: UnobservedPolicy,
 }
 
 impl CollectedInventory {
@@ -34,21 +33,20 @@ impl CollectedInventory {
             active_generation_hexes: &self.active_generation_hexes,
             unmanaged_names: &self.unmanaged_names,
             observation_unknown: self.observation_unknown,
-            unobserved: self.unobserved,
         }
     }
 
-    pub fn plan(&self) -> CleanPlan {
+    pub fn plan(&self) -> PrunePlan {
         plan_prune(self.prune_inputs())
     }
 }
 
-fn entry_names(dir: &Path) -> Result<Vec<String>, CleanError> {
+fn entry_names(dir: &Path) -> Result<Vec<String>, PruneError> {
     if !dir.exists() {
         match fs::read_dir(dir) {
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
             Err(e) => {
-                return Err(CleanError::Install {
+                return Err(PruneError::Install {
                     reason: format!("cannot list {}: {e}", dir.display()),
                 });
             }
@@ -57,7 +55,7 @@ fn entry_names(dir: &Path) -> Result<Vec<String>, CleanError> {
     }
     let mut names = Vec::new();
     for entry in walkdir::WalkDir::new(dir).max_depth(1).min_depth(1) {
-        let entry = entry.map_err(|e| CleanError::Install {
+        let entry = entry.map_err(|e| PruneError::Install {
             reason: format!("cannot list {}: {e}", dir.display()),
         })?;
         if let Some(name) = entry.file_name().to_str() {
@@ -68,47 +66,6 @@ fn entry_names(dir: &Path) -> Result<Vec<String>, CleanError> {
     }
     names.sort();
     Ok(names)
-}
-
-pub fn walk_filtered(root: &Path, exclude_globs: &[String]) -> Result<Vec<PathBuf>, CleanError> {
-    let mut builder = globset::GlobSetBuilder::new();
-    for pattern in exclude_globs {
-        let glob = globset::Glob::new(pattern).map_err(|e| CleanError::Install {
-            reason: format!("invalid exclude glob {pattern:?}: {e}"),
-        })?;
-        builder.add(glob);
-    }
-    let excludes = builder.build().map_err(|e| CleanError::Install {
-        reason: format!("invalid exclude globs: {e}"),
-    })?;
-    if fs::read_dir(root).is_err_and(|e| e.kind() == io::ErrorKind::NotFound) {
-        return Ok(Vec::new());
-    }
-    let mut paths = Vec::new();
-    let walker = ignore::WalkBuilder::new(root)
-        .hidden(true)
-        .git_ignore(true)
-        .git_global(true)
-        .git_exclude(true)
-        .require_git(false)
-        .parents(true)
-        .build();
-    for entry in walker {
-        let entry = entry.map_err(|e| CleanError::Install {
-            reason: format!("cannot walk {}: {e}", root.display()),
-        })?;
-        let path = entry.path().to_path_buf();
-        if path == root {
-            continue;
-        }
-        let relative = path.strip_prefix(root).unwrap_or(&path);
-        if excludes.is_match(relative) {
-            continue;
-        }
-        paths.push(path);
-    }
-    paths.sort();
-    Ok(paths)
 }
 
 fn generation_hex_from_link_target(target: &Path) -> Option<String> {
@@ -123,9 +80,9 @@ pub fn collect_inventory(
     workspace_root: &Path,
     active_setup_hexes: &[String],
     active_generation_hexes: &[String],
-) -> Result<CollectedInventory, CleanError> {
+) -> Result<CollectedInventory, PruneError> {
     if !workspace_root.is_dir() {
-        return Err(CleanError::WorkspaceRoot {
+        return Err(PruneError::WorkspaceRoot {
             path: workspace_root.to_path_buf(),
         });
     }
@@ -141,20 +98,20 @@ pub fn collect_inventory(
     match fs::symlink_metadata(&current_link) {
         Err(e) if e.kind() == io::ErrorKind::NotFound => {}
         Err(e) => {
-            return Err(CleanError::CurrentInvalid {
+            return Err(PruneError::CurrentInvalid {
                 reason: format!("cannot inspect {}: {e}", current_link.display()),
             });
         }
         Ok(meta) => {
             if !meta.file_type().is_symlink() {
-                return Err(CleanError::CurrentInvalid {
+                return Err(PruneError::CurrentInvalid {
                     reason: format!(
                         "{} is not a symlink; refusing to adopt foreign state",
                         current_link.display()
                     ),
                 });
             }
-            let target = fs::read_link(&current_link).map_err(|e| CleanError::CurrentInvalid {
+            let target = fs::read_link(&current_link).map_err(|e| PruneError::CurrentInvalid {
                 reason: format!("cannot read {}: {e}", current_link.display()),
             })?;
             let hex = target
@@ -163,7 +120,7 @@ pub fn collect_inventory(
                 .unwrap_or_default()
                 .to_owned();
             if GenerationId::new(&hex).is_err() {
-                return Err(CleanError::CurrentInvalid {
+                return Err(PruneError::CurrentInvalid {
                     reason: format!(
                         "{} points at {hex:?}, want a setup digest; refusing digest-spoofed state",
                         current_link.display()
@@ -230,77 +187,7 @@ pub fn collect_inventory(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixtures::*;
-
-    #[test]
-    fn walk_filtered_skips_gitignored_and_glob_excluded_files() {
-        let scratch = dx_test_scratch::scratch("dx-clean-walk-");
-        let root = scratch.path();
-        fs::write(root.join(".gitignore"), "ignored.txt\n").expect("gitignore");
-        fs::write(root.join("ignored.txt"), "skip me").expect("ignored file");
-        fs::write(root.join("kept.txt"), "keep me").expect("kept file");
-        fs::write(root.join("skip.log"), "glob me").expect("glob file");
-        fs::create_dir_all(root.join("sub")).expect("subdir");
-        fs::write(root.join("sub").join("nested.txt"), "nested").expect("nested");
-
-        let walked = walk_filtered(root, &[]).expect("walk");
-        let names: Vec<String> = walked
-            .iter()
-            .filter_map(|path| {
-                path.strip_prefix(root)
-                    .ok()
-                    .and_then(|relative| relative.to_str().map(str::to_owned))
-            })
-            .collect();
-        assert!(
-            names.iter().any(|name| name == "kept.txt"),
-            "kept file must walk: {names:?}"
-        );
-        assert!(
-            names
-                .iter()
-                .any(|name| name == "sub/nested.txt" || name == "sub\\nested.txt"),
-            "nested file must walk: {names:?}"
-        );
-        assert!(
-            !names.iter().any(|name| name == "ignored.txt"),
-            "gitignored file must be skipped: {names:?}"
-        );
-
-        let filtered = walk_filtered(root, &["*.log".to_owned()]).expect("filtered walk");
-        let filtered_names: Vec<String> = filtered
-            .iter()
-            .filter_map(|path| {
-                path.strip_prefix(root)
-                    .ok()
-                    .and_then(|relative| relative.to_str().map(str::to_owned))
-            })
-            .collect();
-        assert!(
-            !filtered_names.iter().any(|name| name == "skip.log"),
-            "glob-excluded file must be skipped: {filtered_names:?}"
-        );
-        assert!(
-            filtered_names.iter().any(|name| name == "kept.txt"),
-            "kept file must survive glob filtering: {filtered_names:?}"
-        );
-        let mut sorted = filtered.clone();
-        sorted.sort();
-        assert_eq!(filtered, sorted, "walks must be sorted");
-    }
-
-    #[test]
-    fn walk_filtered_rejects_invalid_globs_and_walks_missing_empty() {
-        let missing = std::env::temp_dir().join("dx-clean-missing-walk-root");
-        let _ = fs::remove_dir_all(&missing);
-        let empty = walk_filtered(&missing, &[]).expect("missing walks empty");
-        assert!(empty.is_empty());
-        let scratch = dx_test_scratch::scratch("dx-clean-glob-");
-        assert!(matches!(
-            walk_filtered(scratch.path(), &["[invalid".to_owned()]),
-            Err(CleanError::Install { .. })
-        ));
-    }
+    use crate::prune::fixtures::*;
 
     #[cfg(windows)]
     fn symlink_dir(target: &Path, link: &Path) {
@@ -315,7 +202,7 @@ mod tests {
     #[test]
     fn inventory_validates_records_and_flags_unmanaged() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-clean-test-inventory-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-inventory-");
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };

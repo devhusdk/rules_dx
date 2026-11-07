@@ -513,15 +513,8 @@ mod tests {
             Err(ArgsError::Help { text }) => text,
             other => panic!("clean --help: want Help, got {other:?}"),
         };
-        assert!(
-            clean.contains("clean [--apply] [--prune-unobserved]"),
-            "clean usage:\n{clean}"
-        );
+        assert!(clean.contains("clean [--apply]"), "clean usage:\n{clean}");
         assert!(clean.contains("--apply"), "clean flags:\n{clean}");
-        assert!(
-            clean.contains("--prune-unobserved"),
-            "clean flags:\n{clean}"
-        );
         assert!(
             clean.contains("never touches Bazel outputs") || clean.contains("never Bazel outputs"),
             "clean surprise:\n{clean}"

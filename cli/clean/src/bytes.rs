@@ -4,9 +4,7 @@ use std::path::Path;
 
 use dx_setup::SETUPS_DIR_NAME;
 
-use super::CleanError;
-use super::apply::CleanOutcome;
-use super::planning::{CleanPlan, GenerationView};
+use dx_setup::prune::{GenerationView, PruneError, PruneOutcome, PrunePlan};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PruneBytes {
@@ -26,7 +24,7 @@ impl PruneBytes {
         total
     }
 
-    pub fn reclaimed(&self, outcome: &CleanOutcome) -> u64 {
+    pub fn reclaimed(&self, outcome: &PruneOutcome) -> u64 {
         let mut total = 0u64;
         for removed in &outcome.removed_setup_records {
             for (hex, bytes) in &self.setup_record_bytes {
@@ -46,8 +44,8 @@ impl PruneBytes {
     }
 }
 
-fn dir_bytes(dir: &Path) -> Result<u64, CleanError> {
-    let fail = |reason: String| CleanError::Install { reason };
+fn dir_bytes(dir: &Path) -> Result<u64, PruneError> {
+    let fail = |reason: String| PruneError::Install { reason };
     if fs::read_dir(dir).is_err_and(|e| e.kind() == io::ErrorKind::NotFound) {
         return Ok(0);
     }
@@ -78,8 +76,8 @@ fn dir_bytes(dir: &Path) -> Result<u64, CleanError> {
 
 pub fn measure_prune_bytes(
     workspace_root: &Path,
-    plan: &CleanPlan,
-) -> Result<PruneBytes, CleanError> {
+    plan: &PrunePlan,
+) -> Result<PruneBytes, PruneError> {
     measure(
         workspace_root,
         &plan.prune_setup_records,
@@ -89,8 +87,8 @@ pub fn measure_prune_bytes(
 
 pub fn measure_preserved_bytes(
     workspace_root: &Path,
-    plan: &CleanPlan,
-) -> Result<PruneBytes, CleanError> {
+    plan: &PrunePlan,
+) -> Result<PruneBytes, PruneError> {
     measure(
         workspace_root,
         &plan.preserved_unobserved_setup_records,
@@ -102,9 +100,9 @@ fn measure(
     workspace_root: &Path,
     setup_records: &[String],
     generations: &[GenerationView],
-) -> Result<PruneBytes, CleanError> {
+) -> Result<PruneBytes, PruneError> {
     if !workspace_root.is_dir() {
-        return Err(CleanError::WorkspaceRoot {
+        return Err(PruneError::WorkspaceRoot {
             path: workspace_root.to_path_buf(),
         });
     }
@@ -126,7 +124,7 @@ fn measure(
     Ok(measured)
 }
 
-pub fn render_prune_listing(plan: &CleanPlan, bytes: &PruneBytes) -> String {
+pub fn render_prune_listing(plan: &PrunePlan, bytes: &PruneBytes) -> String {
     let mut lines = vec!["dx clean: reclaimable managed state".to_owned()];
     if plan.prune_setup_records.is_empty()
         && plan.prune_generations.is_empty()
@@ -137,16 +135,9 @@ pub fn render_prune_listing(plan: &CleanPlan, bytes: &PruneBytes) -> String {
     }
     let preserved_unobserved = !plan.preserved_unobserved_setup_records.is_empty()
         || !plan.preserved_unobserved_generations.is_empty();
-    let pruned_unobserved =
-        !plan.prune_setup_records.is_empty() || !plan.prune_generations.is_empty();
     if plan.observation_unknown && preserved_unobserved {
         lines.push(
             "process observation unavailable: unobserved state is preserved, never assumed idle"
-                .to_owned(),
-        );
-    } else if plan.observation_unknown && pruned_unobserved {
-        lines.push(
-            "process observation unavailable: unobserved state pruned under --prune-unobserved"
                 .to_owned(),
         );
     }
@@ -201,10 +192,8 @@ pub fn render_prune_listing(plan: &CleanPlan, bytes: &PruneBytes) -> String {
 mod tests {
     use super::*;
     use crate::fixtures::*;
-    use crate::inventory::collect_inventory;
-    use crate::planning::{PruneInputs, UnobservedPolicy, plan_prune};
-    use crate::records::SetupRecordView;
     use dx_atomic_fs::lease::GenerationUse;
+    use dx_setup::prune::{PruneInputs, SetupRecordView, collect_inventory, plan_prune};
 
     fn inputs<'a>(
         records: &'a [SetupRecordView],
@@ -219,7 +208,6 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &[],
             observation_unknown: false,
-            unobserved: UnobservedPolicy::Preserve,
         }
     }
 
@@ -238,7 +226,6 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &unmanaged,
             observation_unknown: false,
-            unobserved: UnobservedPolicy::Preserve,
         });
         let listing = render_prune_listing(&plan, &PruneBytes::default());
         assert!(listing.contains(&format!(".dx/local/setups/{}", stale.hex)));
@@ -298,39 +285,7 @@ mod tests {
             )),
             "{listing}"
         );
-        assert!(
-            !listing.contains("pruned under --prune-unobserved"),
-            "{listing}"
-        );
         assert!(!listing.contains("prune setup record:"), "{listing}");
-    }
-
-    #[test]
-    fn listing_reports_unobserved_state_pruned_when_acknowledged() {
-        let current = record('1', '2');
-        let stale = record('3', '4');
-        let records = vec![current.clone(), stale.clone()];
-        let plan = plan_prune(PruneInputs {
-            observation_unknown: true,
-            unobserved: UnobservedPolicy::PruneAcknowledged,
-            ..inputs(&records, &[], Some(&current.hex))
-        });
-        let listing = render_prune_listing(&plan, &PruneBytes::default());
-        assert!(
-            listing.contains(
-                "process observation unavailable: unobserved state pruned under --prune-unobserved"
-            ),
-            "{listing}"
-        );
-        assert!(
-            listing.contains(&format!(
-                "prune setup record: .dx/local/setups/{}",
-                stale.hex
-            )),
-            "{listing}"
-        );
-        assert!(!listing.contains("is preserved"), "{listing}");
-        assert!(!listing.contains("preserve unobserved"), "{listing}");
     }
 
     #[test]
@@ -363,7 +318,7 @@ mod tests {
             *record_bytes,
             "empty generation dirs add nothing"
         );
-        let ghost = CleanPlan {
+        let ghost = PrunePlan {
             prune_setup_records: vec![digest('a')],
             prune_generations: vec![GenerationView {
                 kind: GenerationUse::Environment,
@@ -396,7 +351,7 @@ mod tests {
         let stale_gen = dx_dir.join("generated").join(digest('9'));
         fs::create_dir_all(&stale_gen).expect("stale generation");
         stage_symlink(&outside, &stale_gen.join("artifact"));
-        let plan = CleanPlan {
+        let plan = PrunePlan {
             prune_setup_records: Vec::new(),
             prune_generations: vec![GenerationView {
                 kind: GenerationUse::Generated,
@@ -434,7 +389,7 @@ mod tests {
             kind: GenerationUse::Generated,
             hex: digest('8'),
         };
-        let plan = CleanPlan {
+        let plan = PrunePlan {
             prune_setup_records: Vec::new(),
             prune_generations: Vec::new(),
             refused_unmanaged: Vec::new(),
@@ -458,7 +413,7 @@ mod tests {
             __scratch
         };
         let root = scratch.path().to_path_buf();
-        let plan = CleanPlan {
+        let plan = PrunePlan {
             prune_setup_records: Vec::new(),
             prune_generations: Vec::new(),
             refused_unmanaged: Vec::new(),
@@ -469,7 +424,7 @@ mod tests {
         };
         assert!(matches!(
             measure_prune_bytes(&root.join("no-such-dir"), &plan),
-            Err(CleanError::WorkspaceRoot { .. })
+            Err(PruneError::WorkspaceRoot { .. })
         ));
         let _ = fs::remove_dir_all(&root);
     }
@@ -495,14 +450,14 @@ mod tests {
             ],
         };
         assert_eq!(bytes.total(), 1000);
-        let outcome = CleanOutcome {
+        let outcome = PruneOutcome {
             removed_setup_records: vec![removed_hex],
             removed_generations: vec![removed_generation],
             skipped_leased_generations: Vec::new(),
         };
         assert_eq!(bytes.reclaimed(&outcome), 400);
         assert_eq!(
-            bytes.reclaimed(&CleanOutcome::default()),
+            bytes.reclaimed(&PruneOutcome::default()),
             0,
             "empty outcome reclaims nothing"
         );

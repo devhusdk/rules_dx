@@ -1,15 +1,14 @@
 use super::common::*;
-use dx_clean::{
-    GenerationView, PRUNE_UNOBSERVED_FLAG, PruneBytes, UnobservedPolicy, apply_plan,
-    collect_inventory_with_scan_from, measure_preserved_bytes, measure_prune_bytes,
-    render_prune_listing,
-};
+use dx_clean::{PruneBytes, measure_preserved_bytes, measure_prune_bytes, render_prune_listing};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, notice_event,
     operation_event,
 };
 use dx_path::state::{LOCAL_DIR, SETUPS};
 use dx_plan::args::Invocation;
+use dx_setup::prune::{
+    GenerationView, PruneOutcome, PrunePlan, apply_plan, collect_inventory_with_scan_from,
+};
 
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
@@ -33,12 +32,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    let unobserved = if invocation.prune_unobserved {
-        UnobservedPolicy::PruneAcknowledged
-    } else {
-        UnobservedPolicy::Preserve
-    };
-    let inventory = match collect_inventory_with_scan_from(workspace, proc_root, unobserved) {
+    let inventory = match collect_inventory_with_scan_from(workspace, proc_root) {
         Ok(inventory) => inventory,
         Err(error) => {
             return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
@@ -76,14 +70,10 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     0
 }
 
-fn prune_unobserved_hint() -> String {
-    format!("run `dx clean --apply {PRUNE_UNOBSERVED_FLAG}` to prune it anyway")
-}
-
 fn report_applied(
     out: &mut dyn std::io::Write,
-    plan: &dx_clean::CleanPlan,
-    outcome: &dx_clean::CleanOutcome,
+    plan: &PrunePlan,
+    outcome: &PruneOutcome,
     bytes: &PruneBytes,
     preserved: &PruneBytes,
     json: bool,
@@ -99,13 +89,12 @@ fn report_applied(
     let removed_nothing =
         outcome.removed_setup_records.is_empty() && outcome.removed_generations.is_empty();
     if removed_nothing && plan.has_preserved_unobserved() {
-        check_stdout_write(writeln!(
+        return check_stdout_write(writeln!(
             out,
             "dx clean: preserved {} unobserved setup records and {} unobserved generations (process observation unavailable)",
             plan.preserved_unobserved_setup_records.len(),
             plan.preserved_unobserved_generations.len(),
-        ))?;
-        return check_stdout_write(writeln!(out, "{}", prune_unobserved_hint()));
+        ));
     }
     if removed_nothing {
         return check_stdout_write(writeln!(out, "dx clean: nothing to prune"));
@@ -129,7 +118,7 @@ fn report_applied(
 
 fn check_clean(
     out: &mut dyn std::io::Write,
-    plan: &dx_clean::CleanPlan,
+    plan: &PrunePlan,
     bytes: &PruneBytes,
     preserved: &PruneBytes,
     json: bool,
@@ -146,15 +135,11 @@ fn check_clean(
             }
             return 0;
         }
-        if verbose {
-            if let Err(exit) =
+        if verbose
+            && let Err(exit) =
                 check_stdout_write(writeln!(out, "{}", render_prune_listing(plan, bytes)))
-            {
-                return exit;
-            }
-            if let Err(exit) = check_stdout_write(writeln!(out, "{}", prune_unobserved_hint())) {
-                return exit;
-            }
+        {
+            return exit;
         }
         return 0;
     }
@@ -196,7 +181,7 @@ fn check_clean(
 
 fn emit_clean_planned(
     out: &mut dyn std::io::Write,
-    plan: &dx_clean::CleanPlan,
+    plan: &PrunePlan,
     bytes: &PruneBytes,
     preserved: &PruneBytes,
 ) -> Result<(), i32> {
@@ -270,7 +255,7 @@ fn emit_prune_notices(
 
 fn emit_preserved_unobserved(
     out: &mut dyn std::io::Write,
-    plan: &dx_clean::CleanPlan,
+    plan: &PrunePlan,
     preserved: &PruneBytes,
 ) -> Result<(), i32> {
     for hex in &plan.preserved_unobserved_setup_records {
@@ -316,7 +301,7 @@ fn emit_preserved_unobserved(
 
 fn emit_clean_pruned(
     out: &mut dyn std::io::Write,
-    outcome: &dx_clean::CleanOutcome,
+    outcome: &PruneOutcome,
     bytes: &PruneBytes,
 ) -> Result<(), i32> {
     emit_prune_notices(
@@ -375,10 +360,11 @@ mod tests {
 
     #[test]
     fn clean_apply_prunes_stale_record_and_orphaned_generations() {
-        let harness = Harness::new("clean-apply");
+        let mut harness = Harness::new("clean-apply");
+        harness.proc_root = quiet_proc(&harness);
         let stale = commit_clean_pair(&harness, '3', '4');
         let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply", "--prune-unobserved"]);
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("pruned 1 setup records and 2 generations"),
@@ -419,10 +405,11 @@ mod tests {
 
     #[test]
     fn clean_apply_preserves_generations_shared_with_current() {
-        let harness = Harness::new("clean-apply-shared");
+        let mut harness = Harness::new("clean-apply-shared");
+        harness.proc_root = quiet_proc(&harness);
         commit_clean_pair(&harness, '3', '2');
         commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply", "--prune-unobserved"]);
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("pruned 1 setup records and 1 generations"),
@@ -441,7 +428,8 @@ mod tests {
 
     #[test]
     fn clean_apply_preserves_leased_stale_generation() {
-        let harness = Harness::new("clean-apply-leased");
+        let mut harness = Harness::new("clean-apply-leased");
+        harness.proc_root = quiet_proc(&harness);
         let stale = commit_clean_pair(&harness, '3', '4');
         let current = commit_clean_pair(&harness, '1', '2');
         let dx_dir = dx_path::state::local_dir(&harness.workspace);
@@ -453,7 +441,7 @@ mod tests {
             std::time::Duration::from_secs(10),
         )
         .expect("hold a reader lease on the stale generation");
-        let (code, out, err) = harness.run(&["clean", "--apply", "--prune-unobserved"]);
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(err, "", "{err}");
         assert!(
@@ -546,11 +534,11 @@ mod tests {
 
     #[test]
     fn clean_live_json_streams_pruned_notices() {
-        let harness = Harness::new("clean-live-json");
+        let mut harness = Harness::new("clean-live-json");
+        harness.proc_root = quiet_proc(&harness);
         let stale = commit_clean_pair(&harness, '3', '4');
         let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) =
-            harness.run(&["clean", "--apply", "--prune-unobserved", "--output=json"]);
+        let (code, out, err) = harness.run(&["clean", "--apply", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
         let pruned = events
@@ -596,10 +584,11 @@ mod tests {
 
     #[test]
     fn clean_default_reports_drift_without_pruning() {
-        let harness = Harness::new("clean-check-drift");
+        let mut harness = Harness::new("clean-check-drift");
+        harness.proc_root = quiet_proc(&harness);
         let stale = commit_clean_pair(&harness, '3', '4');
         let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--prune-unobserved"]);
+        let (code, out, err) = harness.run(&["clean"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             out.contains(&format!("prune setup record: .dx/local/setups/{stale}")),
@@ -640,10 +629,11 @@ mod tests {
 
     #[test]
     fn clean_check_json_emits_planned_notices_with_drift_exit() {
-        let harness = Harness::new("clean-check-json-drift");
+        let mut harness = Harness::new("clean-check-json-drift");
+        harness.proc_root = quiet_proc(&harness);
         let stale = commit_clean_pair(&harness, '3', '4');
         let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--prune-unobserved", "--output=json"]);
+        let (code, out, err) = harness.run(&["clean", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
         let events = json_events(&out);
         let kinds = event_kinds(&events);
@@ -675,15 +665,15 @@ mod tests {
         );
     }
 
-    fn preserved_unobserved_plan() -> dx_clean::CleanPlan {
-        dx_clean::CleanPlan {
+    fn preserved_unobserved_plan() -> dx_setup::prune::PrunePlan {
+        dx_setup::prune::PrunePlan {
             prune_setup_records: Vec::new(),
             prune_generations: Vec::new(),
             refused_unmanaged: Vec::new(),
             preserved_current: Some("1".repeat(64)),
             observation_unknown: true,
             preserved_unobserved_setup_records: vec!["3".repeat(64)],
-            preserved_unobserved_generations: vec![dx_clean::GenerationView {
+            preserved_unobserved_generations: vec![dx_setup::prune::GenerationView {
                 kind: lease::GenerationUse::Environment,
                 hex: "3".repeat(64),
             }],
@@ -694,7 +684,7 @@ mod tests {
         dx_clean::PruneBytes {
             setup_record_bytes: vec![("3".repeat(64), 11)],
             generation_bytes: vec![(
-                dx_clean::GenerationView {
+                dx_setup::prune::GenerationView {
                     kind: lease::GenerationUse::Environment,
                     hex: "3".repeat(64),
                 },
@@ -721,7 +711,7 @@ mod tests {
         super::report_applied(
             &mut out,
             &preserved_unobserved_plan(),
-            &dx_clean::CleanOutcome::default(),
+            &dx_setup::prune::PruneOutcome::default(),
             &dx_clean::PruneBytes::default(),
             &preserved_unobserved_bytes(),
             json,
@@ -749,10 +739,6 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("process observation unavailable"), "{out}");
-        assert!(
-            out.contains("run `dx clean --apply --prune-unobserved` to prune it anyway"),
-            "{out}"
-        );
         assert!(!out.contains("nothing to prune"), "{out}");
         assert!(!out.contains("run `dx clean --apply` to prune it"), "{out}");
     }
@@ -796,11 +782,11 @@ mod tests {
 
     #[test]
     fn clean_apply_json_leased_notice_carries_size() {
-        let leased = dx_clean::GenerationView {
+        let leased = dx_setup::prune::GenerationView {
             kind: lease::GenerationUse::Generated,
             hex: "4".repeat(64),
         };
-        let outcome = dx_clean::CleanOutcome {
+        let outcome = dx_setup::prune::PruneOutcome {
             removed_setup_records: Vec::new(),
             removed_generations: Vec::new(),
             skipped_leased_generations: vec![leased.clone()],
@@ -840,10 +826,6 @@ mod tests {
         let text = run_report(false);
         assert!(
             text.contains("dx clean: preserved 1 unobserved setup records and 1 unobserved generations (process observation unavailable)"),
-            "{text}"
-        );
-        assert!(
-            text.contains("run `dx clean --apply --prune-unobserved` to prune it anyway"),
             "{text}"
         );
         assert!(!text.contains("nothing to prune"), "{text}");

@@ -1057,6 +1057,26 @@ fn startup_flags_pin_the_output_base_only_on_windows() {
     );
 }
 
+#[test]
+fn dx_startup_options_carry_the_windows_roots() {
+    let options = dx_startup_options(Path::new(r"D:\q\abc\cold"), true);
+    assert_eq!(
+        options,
+        [
+            r"--bazel-startup-option=--output_user_root=D:\q\abc\cold",
+            r"--bazel-startup-option=--output_base=D:\q\abc\c",
+        ]
+    );
+    for option in &options {
+        let token = option.strip_prefix("--bazel-startup-option=").unwrap();
+        assert_eq!(
+            dx_process::validate_startup_option(token).as_deref(),
+            Ok(token)
+        );
+    }
+    assert!(dx_startup_options(Path::new("/q/cold"), false).is_empty());
+}
+
 #[cfg(unix)]
 #[test]
 fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {

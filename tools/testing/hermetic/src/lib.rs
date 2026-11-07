@@ -1287,18 +1287,20 @@ impl Session {
     }
 
     // LCOV_EXCL_START - reason: runs only inside the isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
-    /// Writes a `bazel` that runs the resolved bazelisk, so dx finds it on its PATH.
+    /// Puts a `bazel` that runs the resolved bazelisk on dx's PATH. On Windows it is the
+    /// bazelisk binary itself, since dx only finds `.exe` files there; `run_dx` passes the
+    /// startup flags instead.
     fn bazel_bin(&self, output_root: &Path) -> Result<PathBuf, String> {
         let dir = self.root.join("bin").join("path");
         std::fs::create_dir_all(&dir)
             .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
         if cfg!(windows) {
-            let script = format!(
-                "@echo off\r\n\"{}\" {} %*\r\n",
-                self.bazel.display(),
-                startup_flags(output_root).join(" ")
-            );
-            write(&dir.join("bazel.cmd"), &script)?;
+            let dest = dir.join("bazel.exe");
+            if !dest.exists() {
+                std::fs::hard_link(&self.bazel, &dest)
+                    .or_else(|_| std::fs::copy(&self.bazel, &dest).map(drop))
+                    .map_err(|err| format!("cannot link {}: {err}", dest.display()))?;
+            }
             return Ok(dir);
         }
         let flags: Vec<String> = startup_flags(output_root)
@@ -1339,6 +1341,7 @@ impl Session {
         if name == "dx_generate_check" {
             args.push("--diff".to_owned());
         }
+        args.extend(dx_startup_options(output_root, cfg!(windows)));
         args.extend([
             "--".to_owned(),
             format!("--repository_cache={}", repos.display()),
@@ -2269,6 +2272,19 @@ fn startup_flags_for(output_root: &Path, windows: bool) -> Vec<String> {
         flags.push(format!("--output_base={}", &root[..end]));
     }
     flags
+}
+
+/// The Windows startup flags as dx `--bazel-startup-option` arguments. dx rejects
+/// `--nosystem_rc`, so it is left out. Elsewhere the `bazel` script carries the flags.
+pub fn dx_startup_options(output_root: &Path, windows: bool) -> Vec<String> {
+    if !windows {
+        return Vec::new();
+    }
+    startup_flags_for(output_root, true)
+        .into_iter()
+        .filter(|flag| flag != "--nosystem_rc")
+        .map(|flag| format!("--bazel-startup-option={flag}"))
+        .collect()
 }
 
 fn startup_flags(output_root: &Path) -> Vec<String> {

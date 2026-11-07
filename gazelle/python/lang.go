@@ -302,6 +302,13 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			continue
 		}
 		test := IsTestFile(src)
+		kind := libraryKind
+		if test {
+			kind = testKind
+		}
+		if owner := ownerName(args.File, kind, src); owner != "" {
+			name = owner
+		}
 		plans = append(plans, plan{name: name, srcs: srcs, main: src, test: test, entry: entry, plain: test && unittestOnly(content), refs: refs})
 	}
 	if rep.Failed() {
@@ -467,6 +474,20 @@ func servesMain(main string) func(*rule.Rule) bool {
 		}
 		return slices.Contains(r.AttrStrings("srcs"), main)
 	}
+}
+
+// ownerName returns the name of the existing rule of kind that lists src, so
+// a renamed target keeps its label.
+func ownerName(file *rule.File, kind, src string) string {
+	if file == nil {
+		return ""
+	}
+	for _, r := range file.Rules {
+		if r.Kind() == kind && slices.Contains(r.AttrStrings("srcs"), src) {
+			return r.Name()
+		}
+	}
+	return ""
 }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {

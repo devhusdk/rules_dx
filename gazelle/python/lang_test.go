@@ -936,3 +936,22 @@ func TestGenerateKeepsDepsOfIgnoredImport(t *testing.T) {
 		t.Errorf("deps = %q, want :foo", got)
 	}
 }
+
+func TestGenerateKeepsExistingLibraryName(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/foo.py", "x = 1\n")
+	file, err := rule.LoadData(filepath.Join(root, "pkg/demo/BUILD.bazel"), "pkg/demo", []byte(`python_library(name = "bar", srcs = ["foo.py"])`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		File:         file,
+		RegularFiles: []string{"foo.py"},
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Name() != "bar" || len(result.Empty) != 0 {
+		t.Fatalf("gen = %v, empty = %v, want only python_library(bar)", result.Gen, result.Empty)
+	}
+}

@@ -152,25 +152,21 @@ impl Consumer {
         write(&ambient.join("xdg/uv/uv.toml"), HOSTILE_CONFIG);
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
+            std::fs::create_dir_all(ambient.join("bin")).expect("bin dir");
             let fake = ambient.join("bin/uv");
-            write(
+            dx_testing::executable_script(
                 &fake,
                 &format!(
                     "#!/bin/sh\ntouch '{}'\nexit 0\n",
                     ambient.join("ambient-uv-ran").display()
                 ),
             );
-            std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755))
-                .unwrap_or_else(|error| panic!("chmod: {error}"));
             // An unset DX_UV_BIN makes dx ask Bazel; this one fails fast without a server.
             let bazel = ambient.join("bin/bazel");
-            write(
+            dx_testing::executable_script(
                 &bazel,
                 "#!/bin/sh\necho \"ERROR: no such repository '@dx_tools'\" >&2\nexit 2\n",
             );
-            std::fs::set_permissions(&bazel, std::fs::Permissions::from_mode(0o755))
-                .unwrap_or_else(|error| panic!("chmod: {error}"));
         }
         Consumer {
             root,

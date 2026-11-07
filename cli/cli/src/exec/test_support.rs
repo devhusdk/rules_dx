@@ -255,14 +255,14 @@ impl QueryRunner for ScriptQuery {
 }
 
 /// Keeps the build-output guard from finding a repository above the scratch dir.
+/// Writes the few entries git needs to see a repository instead of running
+/// `git init`, which is slow when many tests fork at once.
 fn init_empty_repo(workspace: &Path) {
-    let status = std::process::Command::new("git")
-        .arg("-C")
-        .arg(workspace)
-        .args(["init", "-q", "-b", "main"])
-        .status()
-        .expect("git init");
-    assert!(status.success());
+    let git = workspace.join(".git");
+    for dir in ["objects", "refs"] {
+        std::fs::create_dir_all(git.join(dir)).expect("git dir");
+    }
+    std::fs::write(git.join("HEAD"), "ref: refs/heads/main\n").expect("git HEAD");
 }
 
 impl Harness {

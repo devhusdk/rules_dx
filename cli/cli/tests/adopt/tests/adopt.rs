@@ -1,7 +1,6 @@
 #![cfg(unix)]
 
 use std::collections::BTreeMap;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -150,11 +149,10 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
     let stub_dir = root.parent().expect("base").join("stub");
     std::fs::create_dir_all(&stub_dir).expect("stub dir");
     let stub = stub_dir.join("bazel");
-    write(
+    dx_testing::executable_script(
         &stub,
         "#!/bin/sh\nprintf '%s ' \"$@\" >> \"$STUB_ARGS\"; echo >> \"$STUB_ARGS\"\ncase \" $* \" in *\" mod \"*) exit 0;; esac\nexit 2\n",
     );
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     let stub_args = stub_dir.join("args");
     let path = format!(
         "{}:{}",

@@ -377,12 +377,10 @@ mod sh {
         std::fs::create_dir_all(base.join("home")).expect("home");
         std::fs::write(base.join("payload"), PAYLOAD).expect("payload");
         let stub = base.join("stub/bazel");
-        std::fs::write(
+        dx_testing::executable_script(
             &stub,
             "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 0.1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//:dx)'*) echo //:BUILD.bazel;; esac\n      echo //cli/cli:BUILD.bazel\n      sleep 0.1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
-        )
-        .expect("bazel stub");
-        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        );
         SourceRepo {
             base,
             root,
@@ -398,8 +396,7 @@ mod sh {
         /// Writes an executable script into the stub dir, first on the launcher PATH.
         fn fake(&self, name: &str, body: &str) {
             let path = self.base.join("stub").join(name);
-            std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("fake");
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            dx_testing::executable_script(&path, &format!("#!/bin/sh\n{body}\n"));
         }
 
         fn command(&self) -> Command {
@@ -482,12 +479,10 @@ mod sh {
 
         fn break_build(&self) {
             let stub = self.base.join("stub/bazel");
-            std::fs::write(
+            dx_testing::executable_script(
                 &stub,
                 "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      rm -f bazel-bin/cli/cli/dx\n      exit 1\n      ;;\n  esac\ndone\nexit 2\n",
-            )
-            .expect("failing bazel stub");
-            std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            );
         }
 
         /// Makes the first `times` runs of bazel `op` ("build" or "query") exit with `code`.
@@ -504,26 +499,22 @@ mod sh {
             } else {
                 ""
             };
-            std::fs::write(
+            dx_testing::executable_script(
                 &stub,
-                format!(
+                &format!(
                     "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    {op})\n      n=$(cat '{left}')\n      if [ \"$n\" -gt 0 ]; then\n        echo $((n - 1)) > '{left}'\n        {log}exit {code}\n      fi\n      ;;\n  esac\ndone\nexec '{real}' \"$@\"\n",
                     left = left.display(),
                     real = real.display(),
                 ),
-            )
-            .expect("crashing bazel stub");
-            std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            );
         }
 
         fn repin_gated(&self) {
             let stub = self.base.join("stub/bazel");
-            std::fs::write(
+            dx_testing::executable_script(
                 &stub,
                 "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ \"${CARGO_BAZEL_REPIN-}\" != 1 ]; then rm -f bazel-bin/cli/cli/dx; exit 1; fi\n      echo repin >> \"$STUB_LOG\"\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" bazel-bin/cli/cli/dx.$$\n      chmod +x bazel-bin/cli/cli/dx.$$\n      mv bazel-bin/cli/cli/dx.$$ bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
-            )
-            .expect("gated bazel stub");
-            std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            );
             std::fs::write(
                 self.base.join("payload"),
                 "#!/bin/sh\necho ran \"$@\" ${CARGO_BAZEL_REPIN-unset}\n",
@@ -780,13 +771,11 @@ mod sh {
 
     #[test]
     fn the_copy_follows_a_dx_rebuilt_outside_the_launcher() {
-        use std::os::unix::fs::PermissionsExt;
         let repo = source_repo("dx-launcher-follow-");
         repo.run_ok();
         let bin = repo.root().join("bazel-bin/cli/cli/dx");
         std::fs::remove_file(&bin).expect("remove bin");
-        std::fs::write(&bin, "#!/bin/sh\necho outside \"$@\"\n# longer payload\n").expect("bin");
-        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&bin, "#!/bin/sh\necho outside \"$@\"\n# longer payload\n");
         let (code, out, err) = repo.run();
         assert_eq!((code, out.as_str()), (Some(0), "outside status\n"), "{err}");
         assert_eq!(repo.builds(), 1);

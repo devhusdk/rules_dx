@@ -1,5 +1,4 @@
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -72,8 +71,7 @@ impl Probe {
         fs::create_dir_all(workspace.join("app")).expect("app");
         fs::write(workspace.join("app/BUILD.bazel"), "").expect("app build file");
         let bazel = bin.join("bazel");
-        fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
-        fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&bazel, FAKE_BAZEL);
         let log = base.join("bazel.log");
         fs::write(&log, "").expect("log");
         let stdout = base.join("stdout");

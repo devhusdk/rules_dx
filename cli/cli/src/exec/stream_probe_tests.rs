@@ -5,7 +5,6 @@ use std::io;
 #[cfg(target_os = "linux")]
 use std::io::Write;
 use std::os::fd::{AsRawFd, FromRawFd};
-use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -62,8 +61,7 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
     fs::write(workspace.join("pkg/BUILD.bazel"), "").expect("pkg build file");
     fs::write(workspace.join("pkg/a.py"), "x = 1\n").expect("pkg source");
     let bazel = bin.join("bazel");
-    fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
-    fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+    dx_testing::executable_script(&bazel, FAKE_BAZEL);
     let log = base.join("bazel.log");
     fs::write(&log, "").expect("log");
     let mut command = Command::new(dx_binary());
@@ -887,8 +885,7 @@ fn gated_command(base: &Path, exit: i32) -> (Command, PathBuf) {
 fn gated_words(base: &Path, exit: i32, words: &[&str]) -> (Command, PathBuf) {
     let mut command = dx_command(base, words, "");
     let bazel = base.join("bin/bazel");
-    fs::write(&bazel, GATED_BAZEL).expect("gated bazel");
-    fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+    dx_testing::executable_script(&bazel, GATED_BAZEL);
     let gate = base.join("gate");
     command
         .env("FAKE_GATE", &gate)

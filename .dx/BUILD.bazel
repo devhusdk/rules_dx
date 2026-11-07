@@ -46,8 +46,11 @@ shellcheck_config(
 dx_generated_policy(
     name = "policy",
     bases = {
+        "detekt": "@rules_dx//quality/tiers/detekt:standard",
+        "pmd": "@rules_dx//quality/tiers/pmd:standard",
         "ruff": "@rules_dx//quality/tiers/ruff:standard",
         "rustfmt": "@rules_dx//quality/tiers/rustfmt:standard",
+        "spotbugs": "@rules_dx//quality/tiers/spotbugs:standard",
         "ty": "@rules_dx//quality/tiers/ty:standard",
         "yamllint": "@rules_dx//quality/tiers/yamllint:standard",
     },
@@ -201,6 +204,7 @@ dx_generated_policy(
                 "spotbugs",
                 "typos",
             ],
+            "profile": "standard",
             "typecheck": ["javac"],
         },
         "javascript": {
@@ -240,6 +244,7 @@ dx_generated_policy(
                 "detekt",
                 "typos",
             ],
+            "profile": "standard",
             "typecheck": ["kotlinc"],
         },
         "markdown": {

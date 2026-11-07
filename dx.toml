@@ -11,3 +11,10 @@ tier = "standard"
 # Strict yamllint wants sorted keys and quoted strings across every workflow and config.
 [families.yaml]
 tier = "standard"
+
+# Strict PMD and detekt flag complexity and style rules across the doc tooling.
+[families.java]
+tier = "standard"
+
+[families.kotlin]
+tier = "standard"

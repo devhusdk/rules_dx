@@ -1043,3 +1043,30 @@ fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {
         "scalafmt_default.conf pins {default}, which quality/artifacts/scalafmt.bzl does not ship"
     );
 }
+
+#[test]
+fn host_dependent_extensions_are_locked_for_every_ci_platform() {
+    let lock: serde_json::Value = serde_json::from_str(&read_runfiles("MODULE.bazel.lock"))
+        .expect("MODULE.bazel.lock is JSON");
+    let platforms = [
+        "os:linux,arch:amd64",
+        "os:linux,arch:aarch64",
+        "os:osx,arch:aarch64",
+        "os:windows,arch:amd64",
+        "os:windows,arch:aarch64",
+    ];
+    for extension in [
+        "@@rules_python+//python/extensions:python.bzl%python",
+        "@@rules_go+//go:extensions.bzl%go_sdk",
+    ] {
+        let entries = &lock["moduleExtensions"][extension];
+        let missing: Vec<&str> = platforms
+            .into_iter()
+            .filter(|platform| entries.get(platform).is_none())
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "MODULE.bazel.lock has no {extension} entry for {missing:?}; dispatch lock-refresh.yml and commit its MODULE.bazel.lock artifact"
+        );
+    }
+}

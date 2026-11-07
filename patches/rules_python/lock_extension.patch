@@ -1,0 +1,20 @@
+--- a/python/private/python.bzl
++++ b/python/private/python.bzl
+@@ -464,7 +464,7 @@
+         )
+ 
+     if bazel_features.external_deps.extension_metadata_has_reproducible:
+-        return module_ctx.extension_metadata(reproducible = True)
++        return module_ctx.extension_metadata(reproducible = False)
+     else:
+         return None
+ 
+@@ -1644,6 +1644,8 @@
+         "toolchain": _toolchain,
+     },
+     environ = ["RULES_PYTHON_BZLMOD_DEBUG"],
++    os_dependent = True,
++    arch_dependent = True,
+ )
+ 
+ _DEBUG_BUILD_CONTENT = """

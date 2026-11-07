@@ -1,6 +1,9 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
-exports_files(["single_import_lib.patch"])
+exports_files([
+    "lock_extension.patch",
+    "single_import_lib.patch",
+])
 
 real_source_target(
     name = "corpus_starlark",

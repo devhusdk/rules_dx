@@ -898,6 +898,8 @@ mod tests {
         assert!(!root.join(orphan).exists());
     }
 
+    const REPO_ONLY_PATCHES: &[(&str, &str)] = &[("rules_python", "lock_extension.patch")];
+
     #[test]
     fn table_matches_the_repo_module_bazel() {
         let text = crate::version::repo_text("MODULE.bazel");
@@ -907,15 +909,21 @@ mod tests {
             .calls_named("single_version_override")
             .chain(module.calls_named("archive_override"));
         for call in calls {
-            let patches = call.str_list("patches");
             let name = call.str("module_name").expect("literal module_name");
+            let mut patches = call.str_list("patches");
+            patches.retain(|label| {
+                !REPO_ONLY_PATCHES.iter().any(|(module, file)| {
+                    *module == name && *label == format!("//patches/{module}:{file}")
+                })
+            });
             let in_table = OVERRIDES.iter().any(|row| row.module == name);
             let dev_only = module.bazel_dep(name).is_ok_and(
                 |dep| matches!(dep.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True"),
             );
             // lua only swaps in CI mirrors for rules_dx's own builds; consumers keep the BCR archive.
-            // rules_multitool only locks its extension in rules_dx's own lockfile.
-            let repo_only = name == "lua" || name == "rules_multitool";
+            // These patches only lock extensions in rules_dx's own lockfile; consumers would need
+            // a lock entry per platform for the host-dependent python and go_sdk extensions.
+            let repo_only = name == "lua" || name == "rules_multitool" || name == "rules_go";
             if (dev_only || repo_only) && !in_table {
                 continue;
             }

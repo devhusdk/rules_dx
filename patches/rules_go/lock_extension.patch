@@ -1,0 +1,11 @@
+--- a/go/private/extensions.bzl
++++ b/go/private/extensions.bzl
+@@ -414,7 +414,7 @@
+     )
+ 
+     kwargs = {
+-        "reproducible": True,
++        "reproducible": False,
+     }
+ 
+     # See get_sdks_by_version_cached above for details on these facts.

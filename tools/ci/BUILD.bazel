@@ -544,6 +544,7 @@ rust_test(
         "//:.shellcheckrc",
         "//:.vale.ini",
         "//:MODULE.bazel",
+        "//:MODULE.bazel.lock",
         "//:biome.json",
         "//.devcontainer:Dockerfile.prebuilt",
         "//.github:workflows",
@@ -579,6 +580,7 @@ rust_test(
     deps = [
         ":ci_workflow",
         "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 

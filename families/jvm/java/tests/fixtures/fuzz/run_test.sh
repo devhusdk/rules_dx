@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-run=./java/rules/fuzz_run.sh
-bin="$1"
+run="$TEST_SRCDIR/$1"
+bin="$2"
 target=tests.fixtures.fuzz.ParseFuzz
 
 out="$TEST_TMPDIR/out"

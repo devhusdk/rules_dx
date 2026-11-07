@@ -26,6 +26,7 @@ pub const FUZZ: &str = "fuzz";
 pub const BENCH: &str = "bench";
 pub const ADVISORY: &str = "advisory";
 pub const IDE: &str = "ide";
+pub const PROFILE: &str = "profile";
 pub const LAUNCHER: &str = "launcher";
 pub const FINGERPRINT: &str = "fingerprint";
 pub const SYNC_LOCK: &str = "sync.lock";
@@ -44,6 +45,23 @@ pub const LOCAL_ENTRIES: [&str; 12] = [
     COMMIT_LOCK,
     COMMIT_LOCK_HOLDER,
     SYNC_LOCK,
+];
+
+/// Entries `dx clean` deletes from [`local_dir`]; `leases` only for dead holders.
+/// `fuzz`, `bench`, `advisory` and `launcher` stay.
+pub const CLEAN_ENTRIES: [&str; 12] = [
+    SETUPS,
+    ENVIRONMENTS,
+    GENERATED,
+    BIN,
+    BIN_NEXT,
+    BIN_PREV,
+    IDE,
+    DOCS,
+    PROFILE,
+    RESULTS,
+    LEASES,
+    FINGERPRINT,
 ];
 
 pub fn dx_dir(workspace: &Path) -> PathBuf {
@@ -100,5 +118,12 @@ mod tests {
         assert_eq!(launcher_dir(ws), local_dir(ws).join("launcher"));
         assert!(!LOCAL_ENTRIES.contains(&IDE));
         assert!(!LOCAL_ENTRIES.contains(&LAUNCHER));
+    }
+
+    #[test]
+    fn clean_keeps_user_data_and_the_running_launcher() {
+        for kept in [FUZZ, BENCH, ADVISORY, LAUNCHER, COMMIT_LOCK] {
+            assert!(!CLEAN_ENTRIES.contains(&kept), "{kept}");
+        }
     }
 }

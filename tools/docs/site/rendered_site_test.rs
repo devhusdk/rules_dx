@@ -133,7 +133,8 @@ fn every_command_page_has_its_own_route() {
     for page in [
         "docs/cli/commands/build-test-coverage.html",
         "docs/cli/commands/quality.html",
-        "docs/cli/commands/check-clean.html",
+        "docs/cli/commands/check.html",
+        "docs/cli/commands/clean.html",
         "docs/cli/commands/generate.html",
         "docs/cli/commands/docs.html",
         "docs/cli/commands/init.html",

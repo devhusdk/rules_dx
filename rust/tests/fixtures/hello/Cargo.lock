@@ -1573,13 +1573,6 @@ name = "dx_bootstrap"
 version = "0.0.0"
 
 [[package]]
-name = "dx_clean"
-version = "0.0.0"
-dependencies = [
- "walkdir",
-]
-
-[[package]]
 name = "dx_cli"
 version = "0.0.0"
 dependencies = [

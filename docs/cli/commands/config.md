@@ -19,7 +19,7 @@ In every table, a key without a default is required. Dates are `YYYY-MM-DD`.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `commits` | string | off | `"conventional"` makes `dx check --affected` warn about each commit subject since the merge base that is not a conventional commit. See [Check, Clean](check-clean.md). |
+| `commits` | string | off | `"conventional"` makes `dx check --affected` warn about each commit subject since the merge base that is not a conventional commit. See [Check](check.md). |
 
 ## security.toml
 

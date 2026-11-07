@@ -89,8 +89,8 @@ same repo waits with `Another command is running`; wait for it or stop the
 first. The server holds memory between commands. It exits after idle time, or
 stop it with `bazel shutdown`.
 
-Build outputs and caches grow over time. `dx clean` frees disk; see
-[check, clean](cli/commands/check-clean.md).
+Build outputs and caches grow over time. `dx clean --bazel` frees disk; see
+[check, clean](cli/commands/check.md).
 
 ## Generated targets dx adds
 

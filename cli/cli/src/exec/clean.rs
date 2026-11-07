@@ -1,860 +1,365 @@
 use super::common::*;
-use dx_clean::{PruneBytes, measure_preserved_bytes, measure_prune_bytes, render_prune_listing};
-use dx_output::{
-    FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, notice_event,
-    operation_event,
-};
-use dx_path::state::{LOCAL_DIR, SETUPS};
+use dx_atomic_fs::commit::{DEFAULT_COMMIT_LOCK_TIMEOUT, ManagedRoot, acquire_commit_lock};
+use dx_atomic_fs::lease;
+use dx_atomic_fs::managed::{EntryKind, classify, remove_managed};
+use dx_output::{FinishedCounts, NoticeEvent, command_finished, notice_event};
+use dx_path::state::{CLEAN_ENTRIES, LEASES, LOCAL_DIR, local_dir};
 use dx_plan::args::Invocation;
-use dx_setup::prune::{
-    GenerationView, PruneOutcome, PrunePlan, apply_plan, collect_inventory_with_scan_from,
-};
+use std::fs;
+use std::io;
+use std::path::Path;
+
+struct Removed {
+    path: String,
+    bytes: u64,
+}
 
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
-        proc_root,
+        runner,
         out,
         err,
         ..
     } = env;
-    let json = invocation.output == OutputMode::Json;
-    let apply = invocation.applies();
-    let mode = if apply { "default" } else { "check" };
-    if json {
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
-            return exit;
-        }
-        if let Err(exit) = emit_built(
-            out,
-            operation_event(invocation.command.name(), "collect", None),
-        ) {
-            return exit;
-        }
-    }
-    let inventory = match collect_inventory_with_scan_from(workspace, proc_root, None) {
-        Ok(inventory) => inventory,
-        Err(error) => {
-            return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
-        }
-    };
-    let plan = inventory.plan();
-    let bytes = match measure_prune_bytes(workspace, &plan) {
-        Ok(bytes) => bytes,
-        Err(error) => {
-            return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
-        }
-    };
-    let preserved = match measure_preserved_bytes(workspace, &plan) {
-        Ok(preserved) => preserved,
-        Err(error) => {
-            return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
-        }
-    };
-    let verbose = invocation.chatty();
-    if !apply {
-        return check_clean(out, &plan, &bytes, &preserved, json, verbose);
-    }
-    let outcome = match apply_plan(workspace, &plan) {
-        Ok(outcome) => outcome,
-        Err(error) => {
-            return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
-        }
-    };
-    if let Err(exit) = report_applied(out, &plan, &outcome, &bytes, &preserved, json, verbose) {
+    let json = invocation.output == dx_output::OutputMode::Json;
+    if json && let Err(exit) = emit_started(invocation, out) {
         return exit;
     }
-    if json && let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+    let removed = match remove_local_state(workspace) {
+        Ok(removed) => removed,
+        Err(message) => return operational(invocation, out, err, CODE_CLEAN_FAILED, &message),
+    };
+    let total: u64 = removed.iter().map(|entry| entry.bytes).sum();
+    if json {
+        for entry in &removed {
+            let notice = NoticeEvent {
+                related_command: Some("clean".to_owned()),
+                path: Some(entry.path.clone()),
+                ..NoticeEvent::info(
+                    CODE_CLEAN_REMOVED,
+                    format!("removed {} ({} bytes)", entry.path, entry.bytes),
+                )
+            };
+            if let Err(exit) = emit_built(out, notice_event(&notice)) {
+                return exit;
+            }
+        }
+        let summary = format!("removed {} paths ({total} bytes)", removed.len());
+        let notice = NoticeEvent {
+            related_command: Some("clean".to_owned()),
+            ..NoticeEvent::info(CODE_CLEAN_REMOVED, summary)
+        };
+        if let Err(exit) = emit_built(out, notice_event(&notice)) {
+            return exit;
+        }
+    } else if invocation.chatty() {
+        for entry in &removed {
+            let line = writeln!(out, "removed {} ({} bytes)", entry.path, entry.bytes);
+            if let Err(exit) = check_stdout_write(line) {
+                return exit;
+            }
+        }
+        let line = writeln!(
+            out,
+            "dx clean: removed {} paths ({total} bytes)",
+            removed.len()
+        );
+        if let Err(exit) = check_stdout_write(line) {
+            return exit;
+        }
+    }
+    if invocation.clean_bazel || invocation.expunge {
+        #[allow(clippy::disallowed_methods)] // clean takes no build settings
+        let mut argv = dx_process::startup_argv(&invocation.bazel_startup_options);
+        argv.push("clean".to_owned());
+        if invocation.expunge {
+            argv.push("--expunge".to_owned());
+        }
+        match run_bazel_output(invocation.output, out, err, workspace, runner, &argv, &[]) {
+            Ok(0) => {}
+            Ok(code) => {
+                let message = format!("`bazel clean` exited with {code}");
+                return operational(invocation, out, err, CODE_BAZEL_FAILED, &message);
+            }
+            Err(exit) => return exit,
+        }
+    }
+    if json {
+        return match emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            Ok(()) => 0,
+            Err(exit) => exit,
+        };
+    }
+    if invocation.chatty()
+        && let Err(exit) = check_stdout_write(writeln!(out, "next: dx sync"))
+    {
         return exit;
     }
     0
 }
 
-fn unobserved_hint() -> &'static str {
-    "the next `dx sync` that selects a new setup keeps only the current and previous setup"
-}
-
-fn report_applied(
-    out: &mut dyn std::io::Write,
-    plan: &PrunePlan,
-    outcome: &PruneOutcome,
-    bytes: &PruneBytes,
-    preserved: &PruneBytes,
-    json: bool,
-    verbose: bool,
-) -> Result<(), i32> {
-    if json {
-        emit_clean_pruned(out, outcome, bytes)?;
-        return emit_preserved_unobserved(out, plan, preserved);
+fn remove_local_state(workspace: &Path) -> Result<Vec<Removed>, String> {
+    let local = local_dir(workspace);
+    if !local.is_dir() {
+        return Ok(Vec::new());
     }
-    if !verbose {
-        return Ok(());
-    }
-    let removed_nothing =
-        outcome.removed_setup_records.is_empty() && outcome.removed_generations.is_empty();
-    if removed_nothing && plan.has_preserved_unobserved() {
-        check_stdout_write(writeln!(
-            out,
-            "dx clean: preserved {} unobserved setup records and {} unobserved generations (process observation unavailable)",
-            plan.preserved_unobserved_setup_records.len(),
-            plan.preserved_unobserved_generations.len(),
-        ))?;
-        return check_stdout_write(writeln!(out, "{}", unobserved_hint()));
-    }
-    if removed_nothing {
-        return check_stdout_write(writeln!(out, "dx clean: nothing to prune"));
-    }
-    check_stdout_write(writeln!(
-        out,
-        "dx clean: pruned {} setup records and {} generations ({} bytes reclaimed){}",
-        outcome.removed_setup_records.len(),
-        outcome.removed_generations.len(),
-        bytes.reclaimed(outcome),
-        if outcome.skipped_leased_generations.is_empty() {
-            String::new()
+    let _lock = acquire_commit_lock(
+        &ManagedRoot::new(local.clone()),
+        DEFAULT_COMMIT_LOCK_TIMEOUT,
+    )
+    .map_err(|error| error.to_string())?;
+    let mut removed = Vec::new();
+    for entry in CLEAN_ENTRIES {
+        let path = local.join(entry);
+        let display = format!("{LOCAL_DIR}/{entry}");
+        let result = if entry == LEASES {
+            remove_dead_leases(&path, &display, &mut removed)
         } else {
-            format!(
-                "; preserved {} leased generations",
-                outcome.skipped_leased_generations.len()
-            )
-        }
-    ))
+            remove_entry(&path, &display, &mut removed)
+        };
+        result.map_err(|error| format!("cannot remove {display}: {error}"))?;
+    }
+    Ok(removed)
 }
 
-fn check_clean(
-    out: &mut dyn std::io::Write,
-    plan: &PrunePlan,
-    bytes: &PruneBytes,
-    preserved: &PruneBytes,
-    json: bool,
-    verbose: bool,
-) -> i32 {
-    let drift = plan.has_prune();
-    if !drift && plan.has_preserved_unobserved() {
-        if json {
-            if let Err(exit) = emit_preserved_unobserved(out, plan, preserved) {
-                return exit;
-            }
-            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-                return exit;
-            }
-            return 0;
-        }
-        if verbose
-            && let Err(exit) = check_stdout_write(writeln!(
-                out,
-                "{}\n{}",
-                render_prune_listing(plan, bytes),
-                unobserved_hint()
-            ))
-        {
-            return exit;
-        }
-        return 0;
+fn remove_entry(path: &Path, display: &str, removed: &mut Vec<Removed>) -> io::Result<()> {
+    let kind = classify(path)?;
+    let bytes = match kind {
+        EntryKind::Missing => return Ok(()),
+        EntryKind::Directory => tree_bytes(path),
+        EntryKind::File | EntryKind::Link => fs::symlink_metadata(path)?.len(),
+    };
+    match kind {
+        EntryKind::Directory => fs::remove_dir_all(path)?,
+        _ => remove_managed(path)?,
     }
-    if !drift {
-        if json {
-            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-                return exit;
-            }
-            return 0;
-        }
-        if verbose
-            && let Err(exit) = check_stdout_write(writeln!(out, "dx clean: nothing to prune"))
-        {
-            return exit;
-        }
-        return 0;
-    }
-    if json {
-        if let Err(exit) = emit_clean_planned(out, plan, bytes, preserved) {
-            return exit;
-        }
-        if let Err(exit) = emit_event(out, &command_finished(1, &FinishedCounts::default())) {
-            return exit;
-        }
-        return 1;
-    }
-    if verbose {
-        if let Err(exit) =
-            check_stdout_write(writeln!(out, "{}", render_prune_listing(plan, bytes)))
-        {
-            return exit;
-        }
-        if let Err(exit) = check_stdout_write(writeln!(out, "run `dx clean --apply` to prune it")) {
-            return exit;
-        }
-    }
-    1
-}
-
-fn emit_clean_planned(
-    out: &mut dyn std::io::Write,
-    plan: &PrunePlan,
-    bytes: &PruneBytes,
-    preserved: &PruneBytes,
-) -> Result<(), i32> {
-    emit_prune_notices(
-        out,
-        CODE_CLEAN_PLANNED,
-        "would prune",
-        &plan.prune_setup_records,
-        &plan.prune_generations,
+    removed.push(Removed {
+        path: display.to_owned(),
         bytes,
-    )?;
-    emit_preserved_unobserved(out, plan, preserved)
-}
-
-fn setup_record_size(bytes: &PruneBytes, hex: &str) -> u64 {
-    bytes
-        .setup_record_bytes
-        .iter()
-        .find(|(entry, _)| entry == hex)
-        .map(|(_, size)| *size)
-        .unwrap_or(0)
-}
-
-fn generation_size(bytes: &PruneBytes, generation: &GenerationView) -> u64 {
-    bytes
-        .generation_bytes
-        .iter()
-        .find(|(entry, _)| entry == generation)
-        .map(|(_, size)| *size)
-        .unwrap_or(0)
-}
-
-fn emit_prune_notices(
-    out: &mut dyn std::io::Write,
-    code: &str,
-    verb: &str,
-    setup_records: &[String],
-    generations: &[GenerationView],
-    bytes: &PruneBytes,
-) -> Result<(), i32> {
-    for hex in setup_records {
-        let size = setup_record_size(bytes, hex);
-        let path = format!("{LOCAL_DIR}/{SETUPS}/{hex}");
-        emit_built(
-            out,
-            notice_event(&NoticeEvent {
-                related_command: Some("clean".to_owned()),
-                path: Some(path.clone()),
-                ..NoticeEvent::info(code, format!("{verb} setup record {path} ({size} bytes)"))
-            }),
-        )?;
-    }
-    for generation in generations {
-        let size = generation_size(bytes, generation);
-        let path = format!(
-            "{LOCAL_DIR}/{}/{}",
-            generation.kind.dir_name(),
-            generation.hex
-        );
-        emit_built(
-            out,
-            notice_event(&NoticeEvent {
-                related_command: Some("clean".to_owned()),
-                path: Some(path.clone()),
-                ..NoticeEvent::info(code, format!("{verb} generation {path} ({size} bytes)"))
-            }),
-        )?;
-    }
+    });
     Ok(())
 }
 
-fn emit_preserved_unobserved(
-    out: &mut dyn std::io::Write,
-    plan: &PrunePlan,
-    preserved: &PruneBytes,
-) -> Result<(), i32> {
-    for hex in &plan.preserved_unobserved_setup_records {
-        let size = setup_record_size(preserved, hex);
-        let path = format!("{LOCAL_DIR}/{SETUPS}/{hex}");
-        emit_built(
-            out,
-            notice_event(&NoticeEvent {
-                related_command: Some("clean".to_owned()),
-                path: Some(path.clone()),
-                ..NoticeEvent::info(
-                    CODE_CLEAN_PRESERVED_UNOBSERVED,
-                    format!(
-                        "preserved unobserved setup record {path} (observation unavailable, {size} bytes)"
-                    ),
-                )
-            }),
-        )?;
+fn remove_dead_leases(root: &Path, display: &str, removed: &mut Vec<Removed>) -> io::Result<()> {
+    let Ok(kinds) = fs::read_dir(root) else {
+        return Ok(());
+    };
+    for kind in kinds {
+        let kind = kind?;
+        if !kind.file_type()?.is_dir() {
+            continue;
+        }
+        for file in fs::read_dir(kind.path())? {
+            let file = file?;
+            let path = file.path();
+            let Some(held) = lease::try_lock_file(&path, false)? else {
+                continue;
+            };
+            drop(held);
+            let shown = format!(
+                "{display}/{}/{}",
+                kind.file_name().to_string_lossy(),
+                file.file_name().to_string_lossy()
+            );
+            remove_entry(&path, &shown, removed)?;
+        }
+        let _ = fs::remove_dir(kind.path());
     }
-    for generation in &plan.preserved_unobserved_generations {
-        let size = generation_size(preserved, generation);
-        let path = format!(
-            "{LOCAL_DIR}/{}/{}",
-            generation.kind.dir_name(),
-            generation.hex
-        );
-        emit_built(
-            out,
-            notice_event(&NoticeEvent {
-                related_command: Some("clean".to_owned()),
-                path: Some(path.clone()),
-                ..NoticeEvent::info(
-                    CODE_CLEAN_PRESERVED_UNOBSERVED,
-                    format!(
-                        "preserved unobserved generation {path} (observation unavailable, {size} bytes)"
-                    ),
-                )
-            }),
-        )?;
-    }
+    let _ = fs::remove_dir(root);
     Ok(())
 }
 
-fn emit_clean_pruned(
-    out: &mut dyn std::io::Write,
-    outcome: &PruneOutcome,
-    bytes: &PruneBytes,
-) -> Result<(), i32> {
-    emit_prune_notices(
-        out,
-        CODE_CLEAN_PRUNED,
-        "pruned",
-        &outcome.removed_setup_records,
-        &outcome.removed_generations,
-        bytes,
-    )?;
-    for generation in &outcome.skipped_leased_generations {
-        let size = generation_size(bytes, generation);
-        let path = format!(
-            "{LOCAL_DIR}/{}/{}",
-            generation.kind.dir_name(),
-            generation.hex
-        );
-        emit_built(
-            out,
-            notice_event(&NoticeEvent {
-                related_command: Some("clean".to_owned()),
-                path: Some(path.clone()),
-                ..NoticeEvent::info(
-                    CODE_CLEAN_PRESERVED_LEASED,
-                    format!(
-                        "preserved leased generation {path} (a live reader holds it, {size} bytes)"
-                    ),
-                )
-            }),
-        )?;
-    }
-    Ok(())
+fn tree_bytes(path: &Path) -> u64 {
+    let Ok(entries) = fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .map(|entry| match entry.file_type() {
+            Ok(kind) if kind.is_dir() => tree_bytes(&entry.path()),
+            _ => entry.metadata().map_or(0, |meta| meta.len()),
+        })
+        .sum()
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use dx_atomic_fs::lease;
-    use dx_setup::{read_current_pair, setup_hex};
+    use dx_atomic_fs::commit::{ManagedRoot, acquire_commit_lock};
+    use std::time::Duration;
 
-    #[test]
-    fn clean_apply_preserves_unobserved_records_when_proc_is_unavailable() {
-        let mut harness = Harness::new("clean-apply-unobserved");
-        harness.proc_root = harness.workspace.join("no-such-proc");
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        let dx_dir = dx_path::state::local_dir(&harness.workspace);
-        assert!(
-            dx_dir.join("setups").join(&stale).exists(),
-            "unobserved stale record is preserved: {out}{err}"
-        );
-        assert!(dx_dir.join("setups").join(&current).exists());
+    fn local(harness: &Harness, name: &str) -> std::path::PathBuf {
+        harness.workspace.join(".dx/local").join(name)
+    }
+
+    fn fill(harness: &Harness, name: &str) {
+        let dir = local(harness, name);
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(dir.join("data"), "x").expect("data");
     }
 
     #[test]
-    fn clean_apply_prunes_stale_record_and_orphaned_generations() {
-        let mut harness = Harness::new("clean-apply");
-        harness.proc_root = quiet_proc(&harness);
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(
-            out.contains("pruned 1 setup records and 2 generations"),
-            "{out}"
-        );
-        assert!(out.contains("bytes reclaimed"), "{out}");
-        let dx_dir = dx_path::state::local_dir(&harness.workspace);
-        assert!(!dx_dir.join("setups").join(&stale).exists());
-        assert!(dx_dir.join("setups").join(&current).exists());
-        assert!(
-            !dx_dir
-                .join("environments")
-                .join('3'.to_string().repeat(64))
-                .exists()
-        );
-        assert!(
-            !dx_dir
-                .join("generated")
-                .join('4'.to_string().repeat(64))
-                .exists()
-        );
-        assert!(
-            dx_dir
-                .join("environments")
-                .join('1'.to_string().repeat(64))
-                .exists(),
-            "current generations survive"
-        );
-        assert_eq!(
-            read_current_pair(&harness.workspace).expect("read current"),
-            read_current_pair(&harness.workspace).expect("reread current"),
-            "selection read is stable"
-        );
-        let live = read_current_pair(&harness.workspace).expect("live pair");
-        let live_pair = live.expect("current still selected");
-        assert_eq!(setup_hex(&live_pair), current);
-    }
-
-    #[test]
-    fn clean_apply_preserves_generations_shared_with_current() {
-        let mut harness = Harness::new("clean-apply-shared");
-        harness.proc_root = quiet_proc(&harness);
-        commit_clean_pair(&harness, '3', '2');
+    fn clean_removes_rebuildable_entries_and_keeps_user_data() {
+        let harness = Harness::new("clean-reset");
         commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(
-            out.contains("pruned 1 setup records and 1 generations"),
-            "{out}"
-        );
-        assert!(out.contains("bytes reclaimed"), "{out}");
-        assert!(
-            harness
-                .workspace
-                .join(".dx/local/generated")
-                .join('2'.to_string().repeat(64))
-                .exists(),
-            "generation shared with current survives"
-        );
-    }
-
-    #[test]
-    fn clean_apply_preserves_leased_stale_generation() {
-        let mut harness = Harness::new("clean-apply-leased");
-        harness.proc_root = quiet_proc(&harness);
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let current = commit_clean_pair(&harness, '1', '2');
-        let dx_dir = dx_path::state::local_dir(&harness.workspace);
-        let leased_hex = "4".repeat(64);
-        let _leased = lease::acquire_shared(
-            &dx_dir,
-            lease::GenerationUse::Generated,
-            &leased_hex,
-            std::time::Duration::from_secs(10),
-        )
-        .expect("hold a reader lease on the stale generation");
-        let (code, out, err) = harness.run(&["clean", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(err, "", "{err}");
-        assert!(
-            out.contains("pruned 1 setup records and 1 generations"),
-            "{out}"
-        );
-        assert!(
-            dx_dir.join("generated").join(&leased_hex).exists(),
-            "a leased generation survives apply"
-        );
-        assert!(
-            !dx_dir.join("environments").join("3".repeat(64)).exists(),
-            "the unleased stale generation prunes"
-        );
-        assert!(
-            !dx_dir.join("setups").join(&stale).exists(),
-            "the stale setup record prunes"
-        );
-        assert!(
-            dx_dir.join("setups").join(&current).exists(),
-            "the current record survives"
-        );
-    }
-
-    #[test]
-    fn clean_rejects_bazel_flag_without_launch_or_deletion() {
-        let harness = Harness::new("clean-bazel-rejected");
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let _current = commit_clean_pair(&harness, '1', '2');
-        for words in [
-            &["clean", "--bazel"][..],
-            &["clean", "--apply", "--bazel"][..],
-        ] {
-            let (code, out, err) = harness.run(words);
-            assert_eq!(code, 2, "{out}{err}");
-            assert!(err.contains("--bazel"), "{err}");
+        for name in ["bin", "bin.next", "bin.prev", "ide", "docs", "profile"] {
+            fill(&harness, name);
         }
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "a rejected flag never launches Bazel"
-        );
-        assert!(
-            harness
-                .workspace
-                .join(".dx/local/setups")
-                .join(&stale)
-                .exists(),
-            "a rejected flag prunes nothing"
-        );
-    }
-
-    #[test]
-    fn clean_malformed_current_fails_closed_without_pruning() {
-        let harness = Harness::new("clean-bad-current");
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let pointer = harness.workspace.join(".dx/local/setups/current");
-        dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
-        std::fs::write(&pointer, "not a symlink").expect("file pointer");
-        for args in [&["clean"][..], &["clean", "--apply"][..]] {
-            let (code, out, err) = harness.run(args);
-            assert_eq!(code, 1, "{out}{err}");
-            let combined = format!("{out}{err}");
-            assert!(combined.contains("clean_failed"), "{combined}");
+        for name in ["fuzz", "bench", "advisory", "launcher"] {
+            fill(&harness, name);
         }
-        assert!(
-            harness
-                .workspace
-                .join(".dx/local/setups")
-                .join(&stale)
-                .exists(),
-            "failure prunes nothing"
-        );
-    }
-
-    #[test]
-    fn clean_unmanaged_paths_are_refused_and_preserved() {
-        let harness = Harness::new("clean-unmanaged");
-        let setups = harness.workspace.join(".dx/local/setups");
-        std::fs::create_dir_all(setups.join("notes")).expect("unmanaged record");
-        let environments = harness.workspace.join(".dx/local/environments");
-        std::fs::create_dir_all(&environments).expect("environments dir");
-        std::fs::write(environments.join("README"), "operator notes").expect("unmanaged file");
+        std::fs::write(local(&harness, "results.json"), "{}").expect("results");
+        std::fs::write(local(&harness, "fingerprint"), "f").expect("fingerprint");
         let (code, out, err) = harness.run(&["clean"]);
         assert_eq!(code, 0, "{out}{err}");
-        let (code, out, err) = harness.run(&["clean", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(setups.join("notes").exists(), "unmanaged paths survive");
-        assert!(environments.join("README").exists());
+        for name in [
+            "setups",
+            "environments",
+            "generated",
+            "bin",
+            "bin.next",
+            "bin.prev",
+            "ide",
+            "docs",
+            "profile",
+            "results.json",
+            "fingerprint",
+        ] {
+            assert!(
+                std::fs::symlink_metadata(local(&harness, name)).is_err(),
+                "{name} survived"
+            );
+        }
+        for name in ["fuzz", "bench", "advisory", "launcher"] {
+            assert!(local(&harness, name).join("data").exists(), "{name} lost");
+        }
+        assert!(out.contains("next: dx sync"), "{out}");
+        assert!(out.contains("removed .dx/local/bin ("), "{out}");
+        assert!(harness.build_argv.borrow().is_empty(), "no Bazel launch");
     }
 
     #[test]
-    fn clean_live_json_streams_pruned_notices() {
-        let mut harness = Harness::new("clean-live-json");
-        harness.proc_root = quiet_proc(&harness);
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply", "--output=json"]);
+    fn clean_without_local_state_succeeds() {
+        let harness = Harness::new("clean-empty");
+        let (code, out, err) = harness.run(&["clean"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!local(&harness, "").exists());
+    }
+
+    #[test]
+    fn clean_leaves_the_files_outside_dx_local() {
+        let harness = Harness::new("clean-outside");
+        fill(&harness, "bin");
+        let committed = harness.workspace.join(".dx/advisory.toml");
+        std::fs::write(&committed, "keep").expect("committed file");
+        let (code, out, err) = harness.run(&["clean"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(committed.exists());
+    }
+
+    #[test]
+    fn clean_keeps_a_lease_a_live_holder_has() {
+        let harness = Harness::new("clean-leases");
+        let root = local(&harness, "");
+        let held = "a".repeat(64);
+        let dead = "b".repeat(64);
+        let _lease = dx_atomic_fs::lease::acquire_shared(
+            &root,
+            dx_atomic_fs::lease::GenerationUse::Environment,
+            &held,
+            Duration::ZERO,
+        )
+        .expect("live lease");
+        drop(
+            dx_atomic_fs::lease::try_acquire_exclusive(
+                &root,
+                dx_atomic_fs::lease::GenerationUse::Environment,
+                &dead,
+            )
+            .expect("dead lease"),
+        );
+        let (code, out, err) = harness.run(&["clean"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let dir = local(&harness, "leases/environments");
+        assert!(dir.join(format!("{held}.lock")).exists());
+        assert!(!dir.join(format!("{dead}.lock")).exists());
+    }
+
+    #[test]
+    fn clean_json_emits_one_notice_per_path_and_a_total() {
+        let harness = Harness::new("clean-json");
+        fill(&harness, "bin");
+        fill(&harness, "ide");
+        let (code, out, err) = harness.run(&["clean", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
-        let pruned = events
-            .iter()
-            .find(|event| {
-                event["event"] == serde_json::json!("notice")
-                    && event["code"] == serde_json::json!("clean_pruned")
-            })
-            .expect("clean_pruned notice");
-        let message = pruned["message"].as_str().expect("message");
-        assert!(message.starts_with("pruned "), "{message}");
-        assert!(message.ends_with(" bytes)"), "{message}");
-        assert_eq!(pruned["related_command"], serde_json::json!("clean"));
-        assert!(out.contains(&stale), "{out}");
-        assert_eq!(
-            events.last().expect("finished")["exit_code"],
-            serde_json::json!(0)
-        );
-        assert_eq!(err, "", "{err}");
+        let notices: Vec<_> = events_of_kind(&events, "notice");
+        assert_eq!(notices.len(), 3, "{out}");
+        assert!(notices.iter().all(|n| n["code"] == "clean_removed"));
+        assert_eq!(notices[0]["path"], ".dx/local/bin");
+        assert_eq!(notices[0]["message"], "removed .dx/local/bin (1 bytes)");
+        assert_eq!(notices[2]["message"], "removed 2 paths (2 bytes)");
+        assert_eq!(events.last().expect("finished")["exit_code"], 0);
     }
 
     #[test]
-    fn clean_json_failure_emits_error_and_finished() {
-        let harness = Harness::new("clean-json-fail");
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let pointer = harness.workspace.join(".dx/local/setups/current");
-        dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
-        std::fs::write(&pointer, "not a symlink").expect("file pointer");
+    fn clean_exits_one_naming_the_holder_of_the_commit_lock() {
+        let harness = Harness::new("clean-busy");
+        fill(&harness, "bin");
+        let _held = acquire_commit_lock(
+            &ManagedRoot::new(local(&harness, "")),
+            Duration::from_secs(10),
+        )
+        .expect("hold the lock");
+        std::fs::write(local(&harness, ".commit.lock.holder"), "dx sync (pid 7)").expect("holder");
         let (code, out, err) = harness.run(&["clean", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("clean_failed"), "{out}");
-        assert!(out.contains("command_finished"), "{out}");
-        assert!(err.contains("clean_failed"), "{err}");
+        assert!(out.contains("dx sync (pid 7)"), "{out}");
         assert!(
-            harness
-                .workspace
-                .join(".dx/local/setups")
-                .join(&stale)
-                .exists(),
-            "failure prunes nothing"
+            local(&harness, "bin").exists(),
+            "a busy lock deletes nothing"
         );
     }
 
     #[test]
-    fn clean_default_reports_drift_without_pruning() {
-        let mut harness = Harness::new("clean-check-drift");
-        harness.proc_root = quiet_proc(&harness);
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(
-            out.contains(&format!("prune setup record: .dx/local/setups/{stale}")),
-            "{out}"
-        );
-        assert!(out.contains("run `dx clean --apply` to prune it"), "{out}");
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness
-                .workspace
-                .join(".dx/local/setups")
-                .join(&stale)
-                .exists(),
-            "check prunes nothing"
-        );
-        assert!(
-            harness
-                .workspace
-                .join(".dx/local/setups")
-                .join(&current)
-                .exists(),
-            "check keeps current"
-        );
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "check launches nothing"
-        );
-    }
-
-    #[test]
-    fn clean_default_clean_workspace_succeeds() {
-        let harness = Harness::new("clean-check-clean");
-        let (code, out, err) = harness.run(&["clean"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("nothing to prune"), "{out}");
-        assert_eq!(err, "", "{err}");
-    }
-
-    #[test]
-    fn clean_check_json_emits_planned_notices_with_drift_exit() {
-        let mut harness = Harness::new("clean-check-json-drift");
-        harness.proc_root = quiet_proc(&harness);
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--output=json"]);
-        assert_eq!(code, 1, "{out}{err}");
-        let events = json_events(&out);
-        let kinds = event_kinds(&events);
-        assert_eq!(kinds[0], "command_started");
-        assert!(kinds.contains(&"operation"), "{kinds:?}");
-        assert!(kinds.contains(&"notice"), "{kinds:?}");
-        assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        let started = event(&events, "command_started");
-        assert_eq!(started["mode"], serde_json::json!("check"));
-        let notice = event(&events, "notice");
-        assert_eq!(notice["code"], serde_json::json!("clean_planned"));
-        let message = notice["message"].as_str().expect("message");
-        assert!(message.contains(&stale));
-        assert!(message.starts_with("would prune "), "{message}");
-        assert!(message.ends_with(" bytes)"), "{message}");
-        assert_eq!(notice["related_command"], serde_json::json!("clean"));
-        assert_eq!(
-            events.last().expect("finished")["exit_code"],
-            serde_json::json!(1)
-        );
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness
-                .workspace
-                .join(".dx/local/setups")
-                .join(&stale)
-                .exists(),
-            "json check prunes nothing"
-        );
-    }
-
-    fn preserved_unobserved_plan() -> dx_setup::prune::PrunePlan {
-        dx_setup::prune::PrunePlan {
-            prune_setup_records: Vec::new(),
-            prune_generations: Vec::new(),
-            refused_unmanaged: Vec::new(),
-            preserved_current: Some("1".repeat(64)),
-            observation_unknown: true,
-            preserved_unobserved_setup_records: vec!["3".repeat(64)],
-            preserved_unobserved_generations: vec![dx_setup::prune::GenerationView {
-                kind: lease::GenerationUse::Environment,
-                hex: "3".repeat(64),
-            }],
+    fn clean_bazel_and_expunge_run_bazel_clean_with_the_startup_options() {
+        for (flag, want) in [
+            ("--bazel", vec!["clean"]),
+            ("--expunge", vec!["clean", "--expunge"]),
+        ] {
+            let harness = Harness::new("clean-bazel");
+            let startup = "--bazel-startup-option=--output_base=/slot/ob";
+            let (code, out, err) = harness.run(&["clean", flag, startup]);
+            assert_eq!(code, 0, "{out}{err}");
+            let calls = harness.build_argv.borrow();
+            assert_eq!(calls.len(), 1, "{calls:?}");
+            let argv = &calls[0];
+            assert!(
+                argv.iter().any(|arg| arg == "--output_base=/slot/ob"),
+                "{argv:?}"
+            );
+            let tail: Vec<_> = argv.iter().rev().take(want.len()).rev().collect();
+            assert_eq!(tail, want, "{argv:?}");
         }
     }
 
-    fn preserved_unobserved_bytes() -> dx_clean::PruneBytes {
-        dx_clean::PruneBytes {
-            setup_record_bytes: vec![("3".repeat(64), 11)],
-            generation_bytes: vec![(
-                dx_setup::prune::GenerationView {
-                    kind: lease::GenerationUse::Environment,
-                    hex: "3".repeat(64),
-                },
-                22,
-            )],
+    #[test]
+    fn clean_reports_a_failing_bazel_clean() {
+        let mut harness = Harness::new("clean-bazel-fails");
+        harness.bazel_code = 7;
+        let (code, out, err) = harness.run(&["clean", "--bazel"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("bazel clean"), "{err}");
+    }
+
+    #[test]
+    fn clean_refuses_apply_and_scopes() {
+        let harness = Harness::new("clean-refusals");
+        for words in [&["clean", "--apply"][..], &["clean", "//a:b"][..]] {
+            let (code, out, err) = harness.run(words);
+            assert_eq!(code, 2, "{out}{err}");
         }
-    }
-
-    fn run_check(json: bool, verbose: bool) -> (i32, String) {
-        let mut out = Vec::new();
-        let code = super::check_clean(
-            &mut out,
-            &preserved_unobserved_plan(),
-            &dx_clean::PruneBytes::default(),
-            &preserved_unobserved_bytes(),
-            json,
-            verbose,
-        );
-        (code, String::from_utf8(out).expect("utf8 output"))
-    }
-
-    fn run_report(json: bool) -> String {
-        let mut out = Vec::new();
-        super::report_applied(
-            &mut out,
-            &preserved_unobserved_plan(),
-            &dx_setup::prune::PruneOutcome::default(),
-            &dx_clean::PruneBytes::default(),
-            &preserved_unobserved_bytes(),
-            json,
-            true,
-        )
-        .expect("report");
-        String::from_utf8(out).expect("utf8 output")
-    }
-
-    #[test]
-    fn clean_check_preserved_unobserved_lists_kept_state() {
-        let hex = "3".repeat(64);
-        let (code, out) = run_check(false, true);
-        assert_eq!(code, 0, "{out}");
-        assert!(
-            out.contains(&format!(
-                "preserve unobserved setup record: .dx/local/setups/{hex}"
-            )),
-            "{out}"
-        );
-        assert!(
-            out.contains(&format!(
-                "preserve unobserved generation: .dx/local/environments/{hex}"
-            )),
-            "{out}"
-        );
-        assert!(out.contains(super::unobserved_hint()), "{out}");
-        assert!(out.contains("process observation unavailable"), "{out}");
-        assert!(!out.contains("nothing to prune"), "{out}");
-        assert!(!out.contains("run `dx clean --apply` to prune it"), "{out}");
-    }
-
-    #[test]
-    fn clean_check_preserved_unobserved_json_notices() {
-        let hex = "3".repeat(64);
-        let (code, out) = run_check(true, true);
-        assert_eq!(code, 0, "{out}");
-        let events = json_events(&out);
-        let preserved: Vec<&serde_json::Value> = events
-            .iter()
-            .filter(|event| event["code"] == serde_json::json!("clean_preserved_unobserved"))
-            .collect();
-        assert_eq!(preserved.len(), 2, "{out}");
-        assert_eq!(
-            preserved[0]["path"],
-            serde_json::json!(format!(".dx/local/setups/{hex}"))
-        );
-        assert_eq!(
-            preserved[1]["path"],
-            serde_json::json!(format!(".dx/local/environments/{hex}"))
-        );
-        assert_eq!(
-            preserved[0]["message"],
-            serde_json::json!(format!(
-                "preserved unobserved setup record .dx/local/setups/{hex} (observation unavailable, 11 bytes)"
-            ))
-        );
-        assert_eq!(
-            preserved[1]["message"],
-            serde_json::json!(format!(
-                "preserved unobserved generation .dx/local/environments/{hex} (observation unavailable, 22 bytes)"
-            ))
-        );
-        assert!(!out.contains("clean_planned"), "{out}");
-        let last = events.last().expect("finished");
-        assert_eq!(last["event"], serde_json::json!("command_finished"));
-        assert_eq!(last["exit_code"], serde_json::json!(0));
-    }
-
-    #[test]
-    fn clean_apply_json_leased_notice_carries_size() {
-        let leased = dx_setup::prune::GenerationView {
-            kind: lease::GenerationUse::Generated,
-            hex: "4".repeat(64),
-        };
-        let outcome = dx_setup::prune::PruneOutcome {
-            removed_setup_records: Vec::new(),
-            removed_generations: Vec::new(),
-            skipped_leased_generations: vec![leased.clone()],
-        };
-        let bytes = dx_clean::PruneBytes {
-            setup_record_bytes: Vec::new(),
-            generation_bytes: vec![(leased, 33)],
-        };
-        let mut out = Vec::new();
-        super::emit_clean_pruned(&mut out, &outcome, &bytes).expect("emit");
-        let out = String::from_utf8(out).expect("utf8 output");
-        let events = json_events(&out);
-        assert_eq!(events.len(), 1, "{out}");
-        assert_eq!(
-            events[0]["code"],
-            serde_json::json!("clean_preserved_leased")
-        );
-        assert_eq!(
-            events[0]["message"],
-            serde_json::json!(format!(
-                "preserved leased generation .dx/local/generated/{} (a live reader holds it, 33 bytes)",
-                "4".repeat(64)
-            ))
-        );
-    }
-
-    #[test]
-    fn clean_check_preserved_unobserved_quiet_is_silent() {
-        let (code, out) = run_check(false, false);
-        assert_eq!(code, 0, "{out}");
-        assert_eq!(out, "");
-    }
-
-    #[test]
-    fn clean_apply_reports_preserved_unobserved() {
-        let hex = "3".repeat(64);
-        let text = run_report(false);
-        assert!(
-            text.contains("dx clean: preserved 1 unobserved setup records and 1 unobserved generations (process observation unavailable)"),
-            "{text}"
-        );
-        assert!(!text.contains("nothing to prune"), "{text}");
-        assert!(text.contains(super::unobserved_hint()), "{text}");
-        let json = run_report(true);
-        let events = json_events(&json);
-        let paths: Vec<&serde_json::Value> = events
-            .iter()
-            .filter(|event| event["code"] == serde_json::json!("clean_preserved_unobserved"))
-            .map(|event| &event["path"])
-            .collect();
-        assert_eq!(
-            paths,
-            vec![
-                &serde_json::json!(format!(".dx/local/setups/{hex}")),
-                &serde_json::json!(format!(".dx/local/environments/{hex}")),
-            ],
-            "{json}"
-        );
-        assert!(!json.contains("nothing to prune"), "{json}");
     }
 }

@@ -1,6 +1,6 @@
-prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
+reset the rebuildable state in .dx/local now; --bazel also runs `bazel clean`, --expunge `bazel clean --expunge` (no scopes)
 
-Usage: dx clean [--apply]
+Usage: dx clean [--bazel | --expunge]
 
 Options:
       --workspace <WORKSPACE>
@@ -32,15 +32,18 @@ Options:
           
           [possible values: text, json]
 
-      --apply
-          Apply the changes instead of only showing them
+      --bazel
+          Also run `bazel clean`
+
+      --expunge
+          Also run `bazel clean --expunge`
 
   -h, --help
           Print help
 
 Examples:
   dx clean
-  dx clean --apply
+  dx clean --bazel
 Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures.
 Output: --output text|json; --report has no standard format for this command.

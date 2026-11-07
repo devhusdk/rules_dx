@@ -499,8 +499,17 @@ fn inline_flag_values_and_empty_workspace_fail() {
 
 #[test]
 fn clean_rejects_scopes_and_quality_options() {
-    let got = parse(&strings(&["clean", "--apply"])).expect("clean apply parses");
-    assert!(got.applies());
+    assert_eq!(
+        parse(&strings(&["clean", "--apply"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "clean",
+            option: "--apply".to_owned(),
+        })
+    );
+    let got = parse(&strings(&["clean", "--bazel"])).expect("clean --bazel parses");
+    assert!(got.clean_bazel && !got.expunge);
+    let got = parse(&strings(&["clean", "--expunge"])).expect("clean --expunge parses");
+    assert!(got.expunge && !got.clean_bazel);
     assert_eq!(
         parse(&strings(&["clean", "--fail-on=error"])),
         Err(ArgsError::UnsupportedOption {

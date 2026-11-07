@@ -221,10 +221,7 @@ pub(crate) const CODE_CHANGED_LINE_BELOW_MINIMUM: &str = "changed_line_coverage_
 pub(crate) const CODE_CHANGED_LINE_INCOMPLETE: &str = "changed_line_coverage_incomplete";
 pub(crate) const CODE_CHANGED_LINE_UNAVAILABLE: &str = "changed_line_coverage_unavailable";
 pub(crate) const CODE_CLEAN_FAILED: &str = "clean_failed";
-pub(crate) const CODE_CLEAN_PLANNED: &str = "clean_planned";
-pub(crate) const CODE_CLEAN_PRUNED: &str = "clean_pruned";
-pub(crate) const CODE_CLEAN_PRESERVED_LEASED: &str = "clean_preserved_leased";
-pub(crate) const CODE_CLEAN_PRESERVED_UNOBSERVED: &str = "clean_preserved_unobserved";
+pub(crate) const CODE_CLEAN_REMOVED: &str = "clean_removed";
 pub(crate) const CODE_INVALID_RESULT: &str = "invalid_result";
 pub(crate) const CODE_GENERATION_FAILED: &str = "generation_failed";
 pub(crate) const CODE_MANAGED_COMMIT_FAILED: &str = "managed_commit_failed";
@@ -369,7 +366,7 @@ pub struct Env<'a> {
     pub audit_today: Option<&'a str>,
     /// Bazel action counts summed over the run's builds.
     pub actions: &'a ActionTally,
-    /// The process table `dx clean` observes for live leases; `/proc` in production.
+    /// The process table `dx sync` observes for live leases; `/proc` in production.
     pub proc_root: &'a Path,
     pub edit_commit_json: Option<&'a str>,
 }

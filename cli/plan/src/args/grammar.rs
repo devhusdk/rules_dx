@@ -138,6 +138,8 @@ pub(crate) struct Flags {
     pub(crate) frozen: bool,
     pub(crate) outdated: bool,
     pub(crate) prune: bool,
+    pub(crate) clean_bazel: bool,
+    pub(crate) expunge: bool,
     pub(crate) add_missing: bool,
     pub(crate) pr: bool,
     pub(crate) push: bool,
@@ -564,6 +566,22 @@ flag_group! {
     OutdatedFlag, {
         #[arg(long, overrides_with = "outdated")]
         outdated: bool,
+    }
+}
+
+flag_group! {
+    /// Also run `bazel clean`.
+    CleanBazelFlag, {
+        #[arg(long = "bazel", overrides_with = "clean_bazel")]
+        clean_bazel: bool,
+    }
+}
+
+flag_group! {
+    /// Also run `bazel clean --expunge`.
+    ExpungeFlag, {
+        #[arg(long, overrides_with = "expunge")]
+        expunge: bool,
     }
 }
 
@@ -1125,7 +1143,11 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, };
+    Clean => 13, NoScopeTail, {
+        output: OutputFlag,
+        clean_bazel: CleanBazelFlag,
+        expunge: ExpungeFlag,
+    };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: OutputFlag,

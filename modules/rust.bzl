@@ -14,7 +14,6 @@ RUST_CRATE_MANIFESTS = [
     "//cli/docs_serve:Cargo.toml",
     "//cli/adopt:Cargo.toml",
     "//cli/setup:Cargo.toml",
-    "//cli/clean:Cargo.toml",
     "//cli/audit:Cargo.toml",
     "//cli/advisory_prep:Cargo.toml",
     "//cli/tool_resolve:Cargo.toml",

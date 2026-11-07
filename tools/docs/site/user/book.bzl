@@ -54,9 +54,14 @@ USER_BOOK = [
         "//docs:cli/commands/quality.md",
     ),
     mdbook_page(
-        "Check, Fix, Clean",
-        "docs/cli/commands/check-clean.md",
-        "//docs:cli/commands/check-clean.md",
+        "Check, Fix",
+        "docs/cli/commands/check.md",
+        "//docs:cli/commands/check.md",
+    ),
+    mdbook_page(
+        "Clean",
+        "docs/cli/commands/clean.md",
+        "//docs:cli/commands/clean.md",
     ),
     mdbook_page(
         "Generate",

@@ -279,6 +279,10 @@ pub struct Invocation {
     pub outdated: bool,
     /// `dx update --apply --prune`: remove unused dependencies from the manifests.
     pub prune: bool,
+    /// `dx clean --bazel`: also run `bazel clean`.
+    pub clean_bazel: bool,
+    /// `dx clean --expunge`: also run `bazel clean --expunge`.
+    pub expunge: bool,
     /// `dx update --apply --add-missing`: declare imported but undeclared dependencies.
     pub add_missing: bool,
     /// `dx update --pr`: open or refresh one pull request per group.
@@ -709,6 +713,8 @@ mod tests {
             frozen: false,
             outdated: false,
             prune: false,
+            clean_bazel: false,
+            expunge: false,
             add_missing: false,
             pr: false,
             push: false,

@@ -260,7 +260,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         &["deploy //app:push", "deploy --apply //app:push"],
     ),
     (Command::Check, &["check --affected", "check --apply"]),
-    (Command::Clean, &["clean", "clean --apply"]),
+    (Command::Clean, &["clean", "clean --bazel"]),
     (Command::Update, &["update --outdated", "update --apply"]),
     (Command::Sync, &["sync", "sync //proto:api"]),
     (Command::Init, &["init", "init --apply"]),
@@ -513,12 +513,12 @@ mod tests {
             Err(ArgsError::Help { text }) => text,
             other => panic!("clean --help: want Help, got {other:?}"),
         };
-        assert!(clean.contains("clean [--apply]"), "clean usage:\n{clean}");
-        assert!(clean.contains("--apply"), "clean flags:\n{clean}");
         assert!(
-            clean.contains("never touches Bazel outputs") || clean.contains("never Bazel outputs"),
-            "clean surprise:\n{clean}"
+            clean.contains("clean [--bazel | --expunge]"),
+            "clean usage:\n{clean}"
         );
+        assert!(clean.contains("--expunge"), "clean flags:\n{clean}");
+        assert!(!clean.contains("--apply"), "clean has no apply:\n{clean}");
         let apply_help = |command: Command| {
             super::super::grammar::subcommand_args(command)
                 .get_arguments()
@@ -528,7 +528,6 @@ mod tests {
         };
         for command in [
             Command::Check,
-            Command::Clean,
             Command::Lint,
             Command::Deploy,
             Command::Init,

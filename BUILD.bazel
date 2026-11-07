@@ -13,7 +13,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:resolve rust dx_audit //cli/audit:dx_audit
 # gazelle:resolve rust dx_binfmt //libs/binfmt:dx_binfmt
 # gazelle:resolve rust dx_bep //cli/bep:dx_bep
-# gazelle:resolve rust dx_clean //cli/clean:dx_clean
 # gazelle:resolve rust dx_codegen //cli/codegen:dx_codegen
 # gazelle:resolve rust dx_config //cli/dx_config:dx_config
 # gazelle:resolve rust dx_diff //cli/diff:dx_diff

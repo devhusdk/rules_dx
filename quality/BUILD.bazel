@@ -816,7 +816,6 @@ rust_test(
         "//cli/audit:src/lib.rs",
         "//cli/bep:src/lib.rs",
         "//libs/binfmt:src/lib.rs",
-        "//cli/clean:src/lib.rs",
         "//cli/cli:src/bin_man.rs",
         "//cli/cli:src/lib.rs",
         "//cli/cli:src/main.rs",

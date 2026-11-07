@@ -1,5 +1,5 @@
 {
-  "checksum": "12a141f488656dc05c77a5404f824f20c85a9ddcd3c406cbc7d1a9805054eb51",
+  "checksum": "fa805a30f8c93f75297d2733fadfbd70abff83dc915f3657272f6b2f1b7167e5",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7282,33 +7282,6 @@
         {
           "Library": {
             "crate_name": "dx_bootstrap",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
-    "dx_clean 0.0.0": {
-      "common_attrs": {
-        "deps": [
-          {
-            "id": "walkdir 2.5.0",
-            "target": "walkdir"
-          }
-        ],
-        "edition": "2024"
-      },
-      "library_target_name": "dx_clean",
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "dx_clean",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "dx_clean",
             "crate_root": "src/lib.rs"
           }
         }
@@ -28787,7 +28760,6 @@
     "dx_bep 0.0.0": "cli/dx_bep",
     "dx_binfmt 0.0.0": "libs/dx_binfmt",
     "dx_bootstrap 0.0.0": "deploy/offline/dx_bootstrap",
-    "dx_clean 0.0.0": "cli/dx_clean",
     "dx_cli 0.0.0": "cli/dx_cli",
     "dx_codegen 0.0.0": "cli/dx_codegen",
     "dx_config 0.0.0": "cli/dx_config",

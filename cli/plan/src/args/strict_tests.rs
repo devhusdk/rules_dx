@@ -143,7 +143,7 @@ fn strict_repeated_flags_are_last_wins() {
         (vec!["lint", "--quiet", "--quiet"], Command::Lint),
         (vec!["build", "-vv"], Command::Build),
         (vec!["update", "--offline", "--frozen"], Command::Update),
-        (vec!["clean", "--apply", "--apply"], Command::Clean),
+        (vec!["clean", "--bazel", "--bazel"], Command::Clean),
     ] {
         let got =
             parse(&strings(&words)).unwrap_or_else(|error| panic!("words: {words:?}: {error}"));

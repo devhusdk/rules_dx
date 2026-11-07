@@ -1,11 +1,9 @@
-# `dx check` and `dx clean`
+# `dx check`
 
 ```sh
 dx check --affected
 dx check --apply //pkg/...
 dx check --output json --report sarif=out.sarif //pkg/...
-dx clean
-dx clean --apply
 ```
 
 ## `dx check`
@@ -67,44 +65,3 @@ SARIF results carry `partialFingerprints`, `ruleIndex`, and `fixes`. A phase tha
 | Bazel's code | The phase that stopped the run keeps its code. |
 
 The test phase keeps Bazel's code. `3` with complete results means tests failed. `3` or `1` with incomplete results means the phase is incomplete. `2` and `4` mean the scope selected no runnable tests.
-
-## `dx clean`
-
-```text
-dx clean [--apply]
-```
-
-Reports unselected managed state under `.dx`. It deletes nothing without `--apply`. It never touches Bazel outputs. Use `bazel clean` for those.
-
-| Flag | What it does |
-| --- | --- |
-| `--apply` | Prune the state. |
-| `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
-
-Scopes: none. A scope is a usage error.
-
-A generation a live reader holds is never pruned. When process observation is unavailable, dx keeps unobserved state and says so. Where dx cannot list processes at all, the next `dx sync` that selects a new setup keeps only the current and previous setup.
-
-### Output
-
-Text lists `prune setup record`, `prune generation`, and `preserve ...` lines, then `reclaimable total: <n> bytes`. With `--apply` it prints `dx clean: pruned <n> setup records and <m> generations (<b> bytes reclaimed)`. With nothing to do it prints `dx clean: nothing to prune`.
-
-JSON emits an `operation` event, then one `notice` per path with a code and the byte size in `message`:
-
-| Code | Meaning |
-| --- | --- |
-| `clean_planned` | Would be pruned. |
-| `clean_pruned` | Pruned. |
-| `clean_preserved_leased` | Kept because a live reader holds it. |
-| `clean_preserved_unobserved` | Kept because process observation is unavailable. |
-
-A failure emits a `clean_failed` error.
-
-### Exit codes
-
-| Code | Meaning |
-| --- | --- |
-| `0` | Success, including state kept because process observation is unavailable. |
-| `1` | State to prune in check mode, or a prune failure. |
-| `2` | Usage error, including any scope. |

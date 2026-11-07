@@ -16,8 +16,8 @@ tools/dx lint //... -- --jobs=4
 - [`dx lint`](quality.md): run linters.
 - [`dx typecheck`](quality.md): run type checkers.
 - [`dx format`](quality.md): check or rewrite formatting.
-- [`dx check`](check-clean.md): run generate, format, lint and typecheck.
-- [`dx clean`](check-clean.md): remove build outputs.
+- [`dx check`](check.md): run generate, format, lint and typecheck.
+- [`dx clean`](clean.md): reset the rebuildable state in `.dx/local`.
 - [`dx generate`](generate.md): update BUILD files with Gazelle.
 - [`dx sync`](sync.md): select the pinned tools and generated sources and refresh the IDE files.
 - [`dx security`](audit-update.md): run the security audit.

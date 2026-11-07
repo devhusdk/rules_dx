@@ -282,8 +282,8 @@ pub static COMMANDS: [CommandMeta; 25] = [
         command: Command::Clean,
         name: "clean",
         scope_policy: "reject",
-        describe: "prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)",
-        usage: "Usage: dx clean [--apply]",
+        describe: "reset the rebuildable state in .dx/local now; --bazel also runs `bazel clean`, --expunge `bazel clean --expunge` (no scopes)",
+        usage: "Usage: dx clean [--bazel | --expunge]",
         scopes: "Scopes: none (clean takes no scopes).",
         is_managed: false,
         is_adoption: false,
@@ -569,9 +569,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 13] = [
-        Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Init, Upgrade, Watch,
-        Worktree, Release,
+    pub(crate) const APPLY_COMMANDS: [Command; 12] = [
+        Lint, Typecheck, Format, Generate, Deploy, Check, Update, Init, Upgrade, Watch, Worktree,
+        Release,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
@@ -761,7 +761,6 @@ mod tests {
             Command::Format,
             Command::Generate,
             Command::Check,
-            Command::Clean,
             Command::Update,
             Command::Init,
             Command::Upgrade,

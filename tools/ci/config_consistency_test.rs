@@ -959,6 +959,18 @@ fn ci_config_leaves_remote_downloads_to_dx() {
 }
 
 #[test]
+fn evidence_uses_remote_repo_contents_cache() {
+    let flags = ["--experimental_remote_repo_contents_cache", "--jobs=64"];
+    let evidence = read_runfiles(".github/workflows/evidence.yml");
+    let bazelrc = read_runfiles(".bazelrc");
+    for flag in flags {
+        assert!(evidence.contains(flag), "evidence.yml does not pass {flag}");
+        // Promoting these to common:ci is #8933.
+        assert!(!bazelrc.contains(flag), ".bazelrc sets {flag}; evidence.yml owns it for now");
+    }
+}
+
+#[test]
 fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {
     let version_of = |text: &str| {
         text.lines()

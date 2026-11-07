@@ -390,10 +390,15 @@ fn holding_forwards_every_runner_call() {
 #[cfg(unix)]
 #[test]
 fn tool_version_returns_the_first_line() {
-    use std::os::unix::fs::PermissionsExt;
     let scratch = dx_test_scratch::scratch("dx-runner-version");
     let tool = scratch.path().join("tool");
-    std::fs::write(&tool, "#!/bin/sh\necho 'tool 1.2.3'\n").expect("write");
-    std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    let status = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg("printf '#!/bin/sh\\necho \"tool 1.2.3\"\\n' > \"$1\" && chmod 755 \"$1\"")
+        .arg("sh")
+        .arg(&tool)
+        .status()
+        .expect("spawn sh");
+    assert!(status.success(), "write tool: {status}");
     assert_eq!(runner().tool_version(&tool).as_deref(), Some("tool 1.2.3"));
 }

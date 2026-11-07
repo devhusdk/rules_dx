@@ -371,5 +371,3 @@ Plain `bazel` skips layers that do not exist.
   echo 'common --credential_helper=cache.example.com=%workspace%/tools/cache-helper.sh' >> user.bazelrc
   echo 'build --jobs=8' >> user.bazelrc
   ```
-
-- rules_dx imports its own committed `.dx/bazelrc` like any other workspace.

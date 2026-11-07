@@ -584,6 +584,12 @@ fn the_vendored_preset_suppresses_nothing() {
             "{value}"
         );
     }
+    for flag in [
+        format!("common --experimental_disk_cache_gc_max_age={DISK_CACHE_GC_MAX_AGE}\n"),
+        format!("common --experimental_disk_cache_gc_max_size={DISK_CACHE_GC_MAX_SIZE}\n"),
+    ] {
+        assert!(preset.contains(&flag), "{flag}");
+    }
     for dir in [".dx/bazelrc"] {
         let policy = Machine::local()
             .file(

@@ -65,9 +65,10 @@ pub use preset::{
     preset_paths, write_preset,
 };
 pub use scaffold::{
-    Applied, CONSUMER_WORKFLOW_PIN, FileKind, bazelignore_covers_dx, bazelignore_has_bare_dx,
-    owned_file_drift, plan_init_files, plan_init_files_at, preflight_destinations,
-    refresh_scaffold, render_consumer_caller, render_consumer_module_setup, with_overrides_include,
+    Applied, CONSUMER_WORKFLOW_PIN, CiProvider, FileKind, bazelignore_covers_dx,
+    bazelignore_has_bare_dx, owned_file_drift, plan_init_files, plan_init_files_at,
+    preflight_destinations, refresh_scaffold, render_consumer_caller, render_consumer_module_setup,
+    render_gitlab_caller, with_overrides_include,
 };
 pub use status::{StatusCheck, observed_status_checks, render_status_text};
 pub use upgrade::{

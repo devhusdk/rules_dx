@@ -52,7 +52,7 @@ Not included, compared with the GitHub reusable workflow:
 - Platforms other than Linux x86_64. The GitHub input is `platforms`.
 - The `security-audit` and `license-audit` checks and the advisory snapshots.
   The GitHub inputs are `advisory_pr` and `invocation_id`.
-- A `remote_cache` input. Use `DX_REMOTE_BAZELRC` below.
+- A `remote_cache` input. Set the `DX_REMOTE_CACHE` variable below.
 - A fuzz corpus cache. Each `fuzz` job starts from the checked-in seeds.
 - A fallback cache key. The GitHub workflow has no input for it. It restores
   from a key prefix when the exact key misses.
@@ -120,19 +120,17 @@ every job.
 
 ## Remote cache
 
-Opt in with a GitLab CI/CD variable:
+Opt in with GitLab CI/CD variables:
 
-1. Add a variable named `DX_REMOTE_BAZELRC` of type File. Mark it
-   protected. Put your remote cache flags in it. GitLab cannot mask a
-   multi-line value, so never print the file in a job.
-2. Add this line to the consumer `.bazelrc`:
+1. Add `DX_REMOTE_CACHE` with the cache URL, for example
+   `grpcs://cache.example.com`. Mark it protected.
+2. If the cache needs a header, add `DX_REMOTE_CACHE_HEADER` as `name=value`.
+   Mark it protected and masked.
 
-```text
-try-import %workspace%/.cache/remote.bazelrc
-```
-
-Only protected branches get the file. Merge request pipelines run without
-it.
+The template writes `common --remote_cache=...` and, with a header,
+`common --remote_header=...` to the gitignored `user.bazelrc` before each job.
+Only protected branches get the variables. Merge request pipelines run
+without them.
 
 ## Image and runner
 

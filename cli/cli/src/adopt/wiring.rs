@@ -100,6 +100,23 @@ mod tests {
     }
 
     #[test]
+    fn init_ci_gitlab_writes_a_gitlab_pipeline_and_no_github_workflow() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-gitlab-");
+        let root = scratch.path();
+        let (code, _out, err) = crate::adopt::test_support::run(
+            &invocation(&["init", "--apply", "--ci", "gitlab"]),
+            root,
+        );
+        assert_eq!(code, 0, "{err}");
+        let pipeline = std::fs::read_to_string(root.join(".gitlab-ci.yml")).expect("pipeline");
+        assert!(
+            pipeline.contains("/ci/gitlab/dx.gitlab-ci.yml"),
+            "{pipeline}"
+        );
+        assert!(!root.join(".github/workflows").exists());
+    }
+
+    #[test]
     fn launcher_is_written_when_absent_or_stale() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-");
         let root = scratch.path();

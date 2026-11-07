@@ -23,7 +23,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--agents=<list>] [dir]
+dx init [--apply] [--agents=<list>] [--ci <provider>] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -31,7 +31,7 @@ default; `--apply` scaffolds. Takes an optional directory, relative to the
 workspace and defaulting to the current one. `--apply` creates the directory
 when it is missing. A directory is fresh when it is missing or holds only `.git`,
 `README*`, `LICENSE*`, `.gitignore`, `.gitattributes`, `.editorconfig` or
-`.github/`: init then also writes a `MODULE.bazel` that depends on `rules_dx`
+`.github/` or `.gitlab-ci.yml`: init then also writes a `MODULE.bazel` that depends on `rules_dx`
 and a `.bazelversion`. A tree with other files keeps its own `MODULE.bazel`.
 If such a tree has no `MODULE.bazel`, `--apply` names the entry that made it an
 existing tree, for example `dx: src/ exists, treating this as an existing repo`.
@@ -48,6 +48,8 @@ It writes every path in the [fixed file set](#fixed-file-set). Re-running
 `dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
 
 Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `licenses.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"` (see the [config reference](config.md)). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages found.
+
+`--ci` picks the CI files. `github` writes the three `.github/workflows` files, `gitlab` writes one `.gitlab-ci.yml` that includes the GitLab template at the pinned rules_dx commit, and `none` writes no CI file. Without it init keeps the provider of an existing `.gitlab-ci.yml` or `.github/workflows/ci.yml`, then picks `gitlab` when the `origin` remote URL names GitLab, else `github`.
 
 Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini,copilot` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents=<tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
 
@@ -81,7 +83,7 @@ rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx sync`
 `.dx/local/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/local/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/local/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
-Flags: `--apply`, `--agents=<list>`.
+Flags: `--apply`, `--agents=<list>`, `--ci github|gitlab|none`.
 Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.
@@ -151,6 +153,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.editorconfig`, `.gitattributes` | once | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
 | `.vscode/settings.json` | keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
 | `.github/workflows/ci.yml` | pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
+| `.gitlab-ci.yml` | pin | Written with `--ci gitlab` when missing. Only the commit in the template `remote:` URL is updated. |
 | `.github/workflows/dx-update.yml` | once | Written when missing. Never rewritten. |
 | `.github/workflows/release.yml` | pin | Written when missing. Only the `uses:` pin is updated. Calls `reusable-release.yml` on `v*` tags. |
 | `AGENTS.md` | block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |

@@ -263,6 +263,8 @@ pub struct Invocation {
     pub(super) app_args: Vec<String>,
     /// `dx init --agents`: agent tools whose files init adds, without repeats.
     pub agents: Vec<crate::args::Agent>,
+    /// `dx init --ci`: the CI provider to write a workflow for; `None` detects it.
+    pub ci: Option<crate::args::Ci>,
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
@@ -701,6 +703,7 @@ mod tests {
             bazel_options: Vec::new(),
             app_args: Vec::new(),
             agents: Vec::new(),
+            ci: None,
             to: None,
             here: true,
             affected: false,

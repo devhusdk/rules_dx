@@ -8,7 +8,7 @@ const GITHUB: &str = ".github/workflows/reusable-consumer.yml";
 const GITLAB: &str = "ci/gitlab/dx.gitlab-ci.yml";
 
 /// GitHub inputs the GitLab template has no use for: it runs on one Linux runner,
-/// reads the remote cache from `DX_REMOTE_BAZELRC`, and opens no pull requests.
+/// reads the remote cache from `DX_REMOTE_CACHE`, and opens no pull requests.
 const GITHUB_ONLY: [&str; 4] = ["advisory_pr", "invocation_id", "platforms", "remote_cache"];
 
 fn names(inputs: &Value, path: &str) -> Vec<String> {

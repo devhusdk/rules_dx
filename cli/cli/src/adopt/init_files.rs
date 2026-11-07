@@ -3,7 +3,7 @@ use std::path::Path;
 
 use dx_adopt::scaffold::ScaffoldFile;
 use dx_adopt::{AdoptError, Applied, FileKind, Ownership};
-use dx_plan::args::Agent;
+use dx_plan::args::{Agent, Ci};
 use dx_worktree::setup;
 
 use super::{agents, claude_md, copilot_md};
@@ -56,7 +56,9 @@ impl InitFile {
                 FileKind::WriteOnce => Ownership::Once,
                 FileKind::VscodeKeys => Ownership::Keys,
                 FileKind::VscodeRecommendations | FileKind::Bazelignore => Ownership::Lines,
-                FileKind::CiPin(_) | FileKind::DevcontainerPins => Ownership::Pin,
+                FileKind::CiPin(_) | FileKind::GitlabPin | FileKind::DevcontainerPins => {
+                    Ownership::Pin
+                }
                 FileKind::Generated => Ownership::Whole,
             },
             Kind::Launcher | Kind::Override => Ownership::Whole,
@@ -67,6 +69,14 @@ impl InitFile {
             Kind::AgentsBlock => Ownership::Block,
             Kind::ClaudeImport | Kind::CopilotInstructions => Ownership::Lines,
         }
+    }
+}
+
+fn provider(ci: Ci) -> dx_adopt::CiProvider {
+    match ci {
+        Ci::Github => dx_adopt::CiProvider::Github,
+        Ci::Gitlab => dx_adopt::CiProvider::Gitlab,
+        Ci::None => dx_adopt::CiProvider::None,
     }
 }
 
@@ -87,6 +97,17 @@ pub(super) fn plan(
     fresh: bool,
     agents: &[Agent],
 ) -> Result<Vec<InitFile>, AdoptError> {
+    plan_for(root, module, fresh, agents, None)
+}
+
+/// Like `plan`, with the CI provider picked by `--ci` instead of detected.
+pub(super) fn plan_for(
+    root: &Path,
+    module: &str,
+    fresh: bool,
+    agents: &[Agent],
+    ci: Option<Ci>,
+) -> Result<Vec<InitFile>, AdoptError> {
     let selected: Vec<&str> = agents
         .iter()
         .flat_map(|agent| agent_paths(*agent).iter().copied())
@@ -97,7 +118,11 @@ pub(super) fn plan(
     } else {
         Vec::new()
     };
-    scaffold.extend(dx_adopt::plan_init_files_at(root, module)?);
+    scaffold.extend(dx_adopt::plan_init_files_at(
+        root,
+        module,
+        ci.map(provider),
+    )?);
     let mut entries: Vec<(String, String, Kind)> = generated(root)?
         .into_iter()
         .map(|(path, bytes)| {

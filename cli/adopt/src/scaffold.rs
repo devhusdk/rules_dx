@@ -14,6 +14,8 @@ pub enum FileKind {
     VscodeRecommendations,
     /// Repins the `uses:` ref of the reusable workflow at this path.
     CiPin(&'static str),
+    /// Repins the commit in the `remote:` URL of the GitLab template include.
+    GitlabPin,
     /// Refreshes the devcontainer `image` digest and bazel feature version while they still name
     /// what dx wrote; any other image or feature is left alone.
     DevcontainerPins,
@@ -247,6 +249,45 @@ pub const CONSUMER_WORKFLOW_PIN: &str = "32c4bcd07a0887dfff761a45206c714baf8e6a2
 
 pub const RELEASE_WORKFLOW_PATH: &str = ".github/workflows/reusable-release.yml";
 
+pub const GITLAB_CI_PATH: &str = ".gitlab-ci.yml";
+
+const GITLAB_TEMPLATE_URL: &str = "https://raw.githubusercontent.com/devhusdk/rules_dx/";
+
+const GITLAB_TEMPLATE_PATH: &str = "/ci/gitlab/dx.gitlab-ci.yml";
+
+/// Which CI files `dx init` writes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CiProvider {
+    Github,
+    Gitlab,
+    None,
+}
+
+impl CiProvider {
+    /// The provider for a repo that did not pick one: the CI file it already has, else its remote.
+    pub fn detect(root: &Path) -> Self {
+        if root.join(GITLAB_CI_PATH).exists() {
+            return Self::Gitlab;
+        }
+        if root.join(".github/workflows/ci.yml").exists() {
+            return Self::Github;
+        }
+        let gitlab_remote = std::process::Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(["remote", "get-url", "origin"])
+            .output()
+            .is_ok_and(|out| {
+                out.status.success() && String::from_utf8_lossy(&out.stdout).contains("gitlab")
+            });
+        if gitlab_remote {
+            Self::Gitlab
+        } else {
+            Self::Github
+        }
+    }
+}
+
 pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
 
 /// The repo's default branch: `origin/HEAD`, then `init.defaultBranch`, then `main`.
@@ -293,13 +334,21 @@ pub fn render_consumer_caller() -> String {
 
 pub fn render_consumer_caller_for(branch: &str) -> String {
     let body = format!(
-        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      actions: read\n      contents: write\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      remote_cache: ${{{{ vars.DX_REMOTE_CACHE }}}}\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      actions: read\n      contents: write\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
         pin = CONSUMER_WORKFLOW_PIN,
     );
     with_header(Ownership::Pin, ".github/workflows/ci.yml", &body)
+}
+
+/// The `.gitlab-ci.yml` that includes the GitLab template at the pinned rules_dx commit.
+pub fn render_gitlab_caller() -> String {
+    let body = format!(
+        "include:\n  - remote: {GITLAB_TEMPLATE_URL}{CONSUMER_WORKFLOW_PIN}{GITLAB_TEMPLATE_PATH}\n"
+    );
+    with_header(Ownership::Pin, GITLAB_CI_PATH, &body)
 }
 
 pub fn render_release_caller() -> String {
@@ -585,6 +634,10 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
             }
             Ok(text)
         }
+        FileKind::GitlabPin => Ok(existing
+            .split_inclusive('\n')
+            .map(|line| repin_gitlab_line(line, CONSUMER_WORKFLOW_PIN))
+            .collect()),
         FileKind::CiPin(workflow) => {
             let action = format!("{CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{workflow}");
             let pinned =
@@ -594,6 +647,17 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                 .filter(|line| !line.trim_start().starts_with("rules_dx_version:"))
                 .collect())
         }
+    }
+}
+
+fn repin_gitlab_line(line: &str, pin: &str) -> String {
+    let Some(start) = line.find(GITLAB_TEMPLATE_URL) else {
+        return line.to_owned();
+    };
+    let from = start + GITLAB_TEMPLATE_URL.len();
+    match line[from..].find(GITLAB_TEMPLATE_PATH) {
+        Some(len) => format!("{}{pin}{}", &line[..from], &line[from + len..]),
+        None => line.to_owned(),
     }
 }
 
@@ -628,12 +692,18 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
         DEFAULT_BRANCH_FALLBACK,
         &BTreeSet::new(),
         &EditorTools::default(),
+        CiProvider::Github,
     )
 }
 
 /// Plans the init files for `root`, with the repo's default branch in the caller workflow and
 /// editor recommendations for the languages in the tree.
-pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
+pub fn plan_init_files_at(
+    root: &Path,
+    module_name: &str,
+    ci: Option<CiProvider>,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    let ci = ci.unwrap_or_else(|| CiProvider::detect(root));
     let (branch, extensions, tools) = if root.is_dir() {
         (
             detect_default_branch(root),
@@ -647,7 +717,7 @@ pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<Scaffold
             EditorTools::default(),
         )
     };
-    let mut files = plan_init_files_full(module_name, &branch, &extensions, &tools)?;
+    let mut files = plan_init_files_full(module_name, &branch, &extensions, &tools, ci)?;
     if !root.join("BUILD").exists() && !root.join(ROOT_BUILD).exists() {
         files.push(ScaffoldFile {
             path: ROOT_BUILD.to_owned(),
@@ -665,9 +735,10 @@ fn plan_init_files_full(
     branch: &str,
     extensions: &BTreeSet<String>,
     tools: &EditorTools,
+    ci: CiProvider,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
     validate_init_module(module_name)?;
-    let files = vec![
+    let mut files = vec![
         ScaffoldFile {
             path: ".dx/pins".to_owned(),
             content: release_pins(DX_VERSION)?.to_lines(DX_VERSION),
@@ -708,26 +779,36 @@ fn plan_init_files_full(
             content: render_editor_recommendations(extensions, tools),
             kind: FileKind::VscodeRecommendations,
         },
-        ScaffoldFile {
-            path: ".github/workflows/ci.yml".to_owned(),
-            content: render_consumer_caller_for(branch),
-            kind: FileKind::CiPin(CONSUMER_WORKFLOW_PATH),
-        },
-        ScaffoldFile {
-            path: ".github/workflows/dx-update.yml".to_owned(),
-            content: with_header(
-                Ownership::Once,
-                ".github/workflows/dx-update.yml",
-                DX_UPDATE_WORKFLOW,
-            ),
-            kind: FileKind::WriteOnce,
-        },
-        ScaffoldFile {
-            path: ".github/workflows/release.yml".to_owned(),
-            content: render_release_caller(),
-            kind: FileKind::CiPin(RELEASE_WORKFLOW_PATH),
-        },
     ];
+    match ci {
+        CiProvider::Github => files.extend(vec![
+            ScaffoldFile {
+                path: ".github/workflows/ci.yml".to_owned(),
+                content: render_consumer_caller_for(branch),
+                kind: FileKind::CiPin(CONSUMER_WORKFLOW_PATH),
+            },
+            ScaffoldFile {
+                path: ".github/workflows/dx-update.yml".to_owned(),
+                content: with_header(
+                    Ownership::Once,
+                    ".github/workflows/dx-update.yml",
+                    DX_UPDATE_WORKFLOW,
+                ),
+                kind: FileKind::WriteOnce,
+            },
+            ScaffoldFile {
+                path: ".github/workflows/release.yml".to_owned(),
+                content: render_release_caller(),
+                kind: FileKind::CiPin(RELEASE_WORKFLOW_PATH),
+            },
+        ]),
+        CiProvider::Gitlab => files.push(ScaffoldFile {
+            path: GITLAB_CI_PATH.to_owned(),
+            content: render_gitlab_caller(),
+            kind: FileKind::GitlabPin,
+        }),
+        CiProvider::None => {}
+    }
     Ok(files)
 }
 
@@ -933,7 +1014,7 @@ mod tests {
     ) -> Result<(), super::AdoptError> {
         super::apply_scaffold(
             root,
-            &super::plan_init_files_at(root, module_name)?,
+            &super::plan_init_files_at(root, module_name, None)?,
             applied,
         )
     }
@@ -963,6 +1044,58 @@ mod tests {
         got.sort_unstable();
         assert_eq!(got, want);
     }
+
+    fn paths_for(ci: super::CiProvider) -> Vec<String> {
+        let scratch = dx_test_scratch::scratch("dx-adopt-ci-");
+        let files = super::plan_init_files_at(scratch.path(), "demo", Some(ci)).expect("plans");
+        scratch.close().expect("cleanup");
+        files.into_iter().map(|f| f.path).collect()
+    }
+
+    #[test]
+    fn gitlab_init_writes_one_ci_file_that_includes_the_pinned_template() {
+        let paths = paths_for(super::CiProvider::Gitlab);
+        assert!(paths.contains(&".gitlab-ci.yml".to_owned()));
+        assert!(!paths.iter().any(|p| p.starts_with(".github/")));
+        let caller = super::render_gitlab_caller();
+        assert!(caller.contains(&format!(
+            "- remote: https://raw.githubusercontent.com/devhusdk/rules_dx/{CONSUMER_WORKFLOW_PIN}/ci/gitlab/dx.gitlab-ci.yml\n"
+        )));
+    }
+
+    #[test]
+    fn no_ci_writes_no_ci_file() {
+        let paths = paths_for(super::CiProvider::None);
+        assert!(
+            !paths
+                .iter()
+                .any(|p| p.starts_with(".github/") || p == ".gitlab-ci.yml")
+        );
+    }
+
+    #[test]
+    fn detection_prefers_the_ci_file_the_repo_has() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-detect-");
+        let root = scratch.path();
+        assert_eq!(super::CiProvider::detect(root), super::CiProvider::Github);
+        std::fs::write(root.join(".gitlab-ci.yml"), "").expect("gitlab");
+        assert_eq!(super::CiProvider::detect(root), super::CiProvider::Gitlab);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_gitlab_pin_moves_only_the_commit() {
+        let old = super::render_gitlab_caller().replace(CONSUMER_WORKFLOW_PIN, OLD_SHA_FOR_GITLAB);
+        let merged = super::merge_owned(
+            super::FileKind::GitlabPin,
+            &old,
+            &super::render_gitlab_caller(),
+        )
+        .expect("merge");
+        assert_eq!(merged, super::render_gitlab_caller());
+    }
+
+    const OLD_SHA_FOR_GITLAB: &str = "0123456789abcdef0123456789abcdef01234567";
 
     #[test]
     fn release_workflow_calls_the_pinned_reusable_release() {
@@ -1079,7 +1212,13 @@ mod tests {
     #[test]
     fn init_scaffold_covers_admitted_editors() {
         let files =
-            super::plan_init_files_full("demo", "main", &all_families(), &EditorTools::default())
+            super::plan_init_files_full(
+                "demo",
+                "main",
+                &all_families(),
+                &EditorTools::default(),
+                super::CiProvider::Github,
+            )
                 .expect("init plans");
         let settings = files
             .iter()
@@ -1126,7 +1265,7 @@ mod tests {
             std::fs::create_dir_all(dest.parent().expect("parent")).expect("dir");
             std::fs::write(dest, text).expect("file");
         }
-        let plan = super::plan_init_files_at(&root, "demo").expect("init plans");
+        let plan = super::plan_init_files_at(&root, "demo", None).expect("init plans");
         let extensions = plan
             .iter()
             .find(|f| f.path == ".vscode/extensions.json")
@@ -1147,7 +1286,7 @@ mod tests {
         for (path, text) in files {
             std::fs::write(scratch.path().join(path), text).expect("file");
         }
-        let plan = super::plan_init_files_at(scratch.path(), "demo").expect("init plans");
+        let plan = super::plan_init_files_at(scratch.path(), "demo", None).expect("init plans");
         scratch.close().expect("cleanup");
         plan.into_iter()
             .filter(|f| f.path == "BUILD.bazel")
@@ -1385,7 +1524,7 @@ mod tests {
         let generated = render_consumer_caller();
         let without_defaults: String = starter
             .lines()
-            .filter(|l| l.trim() != "with:" && !l.trim_start().starts_with("platforms:"))
+            .filter(|l| !l.trim_start().starts_with("platforms:"))
             .map(|l| format!("{l}\n"))
             .collect();
         assert_eq!(
@@ -1906,6 +2045,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
             "main",
             &all_families(),
             &EditorTools::default(),
+            super::CiProvider::Github,
         )
         .expect("plan");
         let mut applied = super::Applied::default();
@@ -1961,7 +2101,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         std::fs::write(root.join("a.rs"), "").expect("rs");
         let mine = "{\n  // mine\n  \"recommendations\": [\"me.mine\", \"ms-python.python\"],\n  \"unwantedRecommendations\": [\"rust-lang.rust-analyzer\"]\n}\n";
         std::fs::write(root.join(".vscode/extensions.json"), mine).expect("write");
-        let files = super::plan_init_files_at(root, "refresh").expect("plan");
+        let files = super::plan_init_files_at(root, "refresh", None).expect("plan");
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         let text = std::fs::read_to_string(root.join(".vscode/extensions.json")).expect("read");
@@ -2046,7 +2186,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
             std::fs::read(root.join(".github/workflows/ci.yml")).expect("read"),
             ci
         );
-        let files = super::plan_init_files_at(root, "refresh").expect("plan");
+        let files = super::plan_init_files_at(root, "refresh", None).expect("plan");
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         assert!(applied.wrote.is_empty(), "{:?}", applied.wrote);

@@ -39,6 +39,7 @@ struct Target {
     /// The entry that makes the directory an existing tree; `None` when it is fresh.
     blocker: Option<String>,
     agents: Vec<Agent>,
+    ci: Option<dx_plan::args::Ci>,
 }
 
 impl Target {
@@ -74,16 +75,18 @@ impl Target {
             module,
             blocker,
             agents: invocation.agents.clone(),
+            ci: invocation.ci,
         })
     }
 
     /// The files this run plans, relative to `root`.
     fn plan(&self) -> Result<Vec<super::init_files::InitFile>, dx_adopt::AdoptError> {
-        super::init_files::plan(
+        super::init_files::plan_for(
             &self.root,
             &self.module,
             self.blocker.is_none() || !self.root.join("MODULE.bazel").exists(),
             &self.agents,
+            self.ci,
         )
     }
 
@@ -95,11 +98,22 @@ impl Target {
             command.push_str(&self.dir);
         }
         command.push_str(" --apply");
+        if let Some(ci) = self.ci {
+            command.push_str(&format!(" --ci={}", ci_name(ci)));
+        }
         if !self.agents.is_empty() {
             let names: Vec<&str> = self.agents.iter().map(|agent| agent.name()).collect();
             command.push_str(&format!(" --agents={}", names.join(",")));
         }
         command
+    }
+}
+
+fn ci_name(ci: dx_plan::args::Ci) -> &'static str {
+    match ci {
+        dx_plan::args::Ci::Github => "github",
+        dx_plan::args::Ci::Gitlab => "gitlab",
+        dx_plan::args::Ci::None => "none",
     }
 }
 

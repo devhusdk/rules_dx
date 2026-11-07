@@ -59,7 +59,7 @@ workflow:
     - echo "${BAZELISK_SHA256}  /tmp/bazelisk" | sha256sum -c -
     - install -m755 /tmp/bazelisk /usr/local/bin/bazel
     - mkdir -p reports .cache
-    - if [ -n "${DX_REMOTE_BAZELRC:-}" ]; then cp "$DX_REMOTE_BAZELRC" .cache/remote.bazelrc; fi
+    - if [ -n "${DX_REMOTE_CACHE:-}" ]; then { echo "common --remote_cache=$DX_REMOTE_CACHE"; [ -z "${DX_REMOTE_CACHE_HEADER:-}" ] || echo "common --remote_header=$DX_REMOTE_CACHE_HEADER"; } >> user.bazelrc; fi
     - if [ -n "${CI_MERGE_REQUEST_IID:-}" ]; then git fetch --quiet $([ "$(git rev-parse --is-shallow-repository)" = false ] || echo --unshallow) origin "+refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:refs/remotes/origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" && git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"; fi
     - DX_SCOPE=//... DX_COVERAGE_SCOPE=//...
     - if [ -n "${CI_MERGE_REQUEST_IID:-}" ] && [ "$[[ inputs.affected_on_pr ]]" = true ]; then DX_SCOPE=--affected; [ -n "$[[ inputs.min_coverage ]]$[[ inputs.min_changed_line_coverage ]]" ] || DX_COVERAGE_SCOPE=--affected; fi
@@ -152,7 +152,7 @@ bench:
   script:
     - status=0
     - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || git worktree add --detach .cache/bench-base "$(git merge-base HEAD origin/HEAD)" || status=$?'
-    - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || [ ! -f .cache/remote.bazelrc ] || (mkdir -p .cache/bench-base/.cache && cp .cache/remote.bazelrc .cache/bench-base/.cache/remote.bazelrc) || status=$?'
+    - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || [ ! -f user.bazelrc ] || cp user.bazelrc .cache/bench-base/user.bazelrc || status=$?'
     - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || (cd .cache/bench-base && bazel run @rules_dx//:dx -- bench //... > /dev/null) || status=$?'
     - bazel run @rules_dx//:dx -- bench ${CI_MERGE_REQUEST_IID:+--compare .cache/bench-base/.dx/local/bench/last.json --max-regression=$[[ inputs.bench_max_regression ]]} //... > reports/bench.txt || status=$?
     - cat reports/bench.txt || status=$?

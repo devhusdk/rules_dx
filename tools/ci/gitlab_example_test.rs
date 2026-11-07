@@ -361,3 +361,41 @@ fn the_template_reads_every_input_it_declares_and_no_other() {
     used.dedup();
     assert_eq!(declared, used, "{path}: declared and read inputs differ");
 }
+
+#[cfg(unix)]
+#[test]
+fn setting_only_dx_remote_cache_turns_on_the_remote_cache() {
+    let path = PIPELINES[0];
+    let doc = document(path);
+    let line = strings(path, &hidden(path, &doc, TEMPLATE)["before_script"])
+        .into_iter()
+        .find(|line| line.contains("DX_REMOTE_CACHE"))
+        .unwrap_or_else(|| panic!("{path}: before_script never reads DX_REMOTE_CACHE"));
+    let run = |env: &[(&str, &str)]| -> String {
+        let scratch = dx_test_scratch::scratch("gitlab-remote-cache");
+        let mut command = std::process::Command::new("sh");
+        command
+            .args(["-c", &line])
+            .current_dir(scratch.path())
+            .env_remove("DX_REMOTE_CACHE")
+            .env_remove("DX_REMOTE_CACHE_HEADER");
+        for (name, value) in env {
+            command.env(name, value);
+        }
+        let done = command.status().expect("sh runs");
+        assert!(done.success(), "{path}: {line}");
+        std::fs::read_to_string(scratch.path().join("user.bazelrc")).unwrap_or_default()
+    };
+    assert_eq!(run(&[]), "");
+    assert_eq!(
+        run(&[("DX_REMOTE_CACHE", "grpcs://cache.example.com")]),
+        "common --remote_cache=grpcs://cache.example.com\n"
+    );
+    assert_eq!(
+        run(&[
+            ("DX_REMOTE_CACHE", "grpcs://cache.example.com"),
+            ("DX_REMOTE_CACHE_HEADER", "x-token=abc"),
+        ]),
+        "common --remote_cache=grpcs://cache.example.com\ncommon --remote_header=x-token=abc\n"
+    );
+}

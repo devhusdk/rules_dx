@@ -153,7 +153,7 @@ Bazel downloads and Bazelisk are fetched fresh in each job.
 | `fuzz_time` | Default `300s`. Time budget per fuzz target: `90s`, `5m` or `1h`. |
 | `bench` | Default `false`. Run [`dx bench`](cli/commands/bench.md) on Linux x86_64. Pushes to the default branch upload `.dx/local/bench/last.json` as the `dx-bench-linux_x86_64` artifact for 90 days. Pull requests run `dx bench --compare <base branch> --max-regression=<bench_max_regression>` and add the table to the job summary. |
 | `bench_max_regression` | Default `20`. Percent a benchmark may be slower than the base branch before a pull request fails. |
-| `remote_cache` | REAPI cache URL. |
+| `remote_cache` | REAPI cache URL. `dx init --apply` wires it to the `DX_REMOTE_CACHE` repository variable. |
 | `advisory_pr` | Default `false`. Run `dx update advisory --pr`, which opens or refreshes the `dx-update/advisory` pull request that moves the advisory pins in `.dx/pins` to the newest snapshot release. Call the workflow from a `schedule` trigger with `contents: write` and `pull-requests: write` permissions. |
 | `invocation_id` | 1 to 40 letters, digits, underscores or hyphens. Set one per call when a run has several calls. |
 

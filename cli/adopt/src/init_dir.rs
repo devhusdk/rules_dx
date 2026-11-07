@@ -142,7 +142,7 @@ fn is_repo_file(name: &str) -> bool {
         || name.starts_with("LICENSE")
         || matches!(
             name,
-            ".gitignore" | ".gitattributes" | ".editorconfig" | ".github"
+            ".gitignore" | ".gitattributes" | ".editorconfig" | ".github" | ".gitlab-ci.yml"
         )
 }
 

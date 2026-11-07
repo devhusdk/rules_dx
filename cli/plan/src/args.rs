@@ -125,7 +125,7 @@ pub use command::{Command, WorkflowVerb};
 pub use completion::{
     COMPLETE_VAR, COMPLETION_SHELLS, registers_callback, render_completion, try_complete,
 };
-pub use grammar::{Agent, cli_command, man_page};
+pub use grammar::{Agent, Ci, cli_command, man_page};
 pub use invocation::{
     AGENT_QUIET_FLAGS, AffectedHandoff, CommonOptions, GenerateRequest, HintScope, Invocation,
     OperationMode, QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest, apply_here,

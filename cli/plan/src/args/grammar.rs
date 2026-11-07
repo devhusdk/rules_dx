@@ -30,6 +30,14 @@ impl Agent {
     }
 }
 
+/// A CI provider whose workflow `dx init --ci` writes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum Ci {
+    Github,
+    Gitlab,
+    None,
+}
+
 /// A report request.
 fn report_request(raw: &str) -> Result<ReportRequest, String> {
     match raw.split_once('=') {
@@ -127,6 +135,7 @@ pub(crate) struct Flags {
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) agents: Vec<Agent>,
+    pub(crate) ci: Option<Ci>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
@@ -481,6 +490,14 @@ flag_group! {
     AgentsFlag, {
         #[arg(long, value_enum, value_delimiter = ',', value_name = "LIST", require_equals = true)]
         agents: Vec<Agent>,
+    }
+}
+
+flag_group! {
+    /// CI provider whose workflow init writes.
+    CiFlag, {
+        #[arg(long, value_enum, value_name = "PROVIDER", overrides_with = "ci")]
+        ci: Option<Ci>,
     }
 }
 
@@ -1176,6 +1193,7 @@ command_args! {
         output: OutputFlag,
         apply: ApplyFlag,
         agents: AgentsFlag,
+        ci: CiFlag,
     };
     /// The flags `dx upgrade` accepts.
     Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };

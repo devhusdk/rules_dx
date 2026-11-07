@@ -625,7 +625,6 @@ hermetic_qualification(
         "consumers/scala_scalafix/app.BUILD.bazel": "app/BUILD.bazel",
         "consumers/scala_scalafix/consumer.bazelrc": ".bazelrc",
         "consumers/scala_scalafix/root.BUILD.bazel": "BUILD.bazel",
-        "consumers/scala_scalafix/scalafix.conf": "scalafix.conf",
     },
     languages = ["scala"],
     module_fragment = "consumers/scala_scalafix/module_fragment.bazel",
@@ -952,7 +951,6 @@ hermetic_qualification(
 hermetic_qualification(
     name = "python",
     files = {
-        "//quality/tiers/ruff:standard.toml": ".dx/config/ruff/base.toml",
         "//python/tests/fixtures/python-service/ledger/cli:__init__.py": "ledger/cli/__init__.py",
         "//python/tests/fixtures/python-service/ledger/cli:broken_main.py": "ledger/cli/broken_main.py",
         "//python/tests/fixtures/python-service/ledger/cli:broken_test.py": "ledger/cli/broken_test.py",
@@ -975,7 +973,6 @@ hermetic_qualification(
         "consumers/python/core.BUILD.bazel": "ledger/core/BUILD.bazel",
         "consumers/python/ledger_init.py": "ledger/__init__.py",
         "consumers/python/root.BUILD.bazel": "BUILD.bazel",
-        "consumers/python/ruff.toml": "ruff.toml",
         "consumers/python/service.BUILD.bazel": "ledger/service/BUILD.bazel",
     },
     languages = ["python"],

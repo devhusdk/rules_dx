@@ -6,6 +6,5 @@ file BUILD.bazel
 file app/BUILD.bazel
 file app/Pure.scala
 file app/PureTest.scala
-file scalafix.conf
 bazel_dep rules_scala
 bazel_dep rules_jvm_external

@@ -1,6 +1,5 @@
 language python
 pattern //ledger/...
-file .dx/config/ruff/base.toml
 file BUILD.bazel
 file ledger/__init__.py
 file ledger/cli/BUILD.bazel
@@ -23,7 +22,6 @@ file ledger/service/__init__.py
 file ledger/service/server.py
 file ledger/service/server_test.py
 file pyproject.toml
-file ruff.toml
 file uv.lock
 bazel_dep platforms
 bazel_dep rules_python

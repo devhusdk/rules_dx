@@ -10,7 +10,6 @@ python_library(
         "__init__.py",
         "server.py",
     ],
-    aspect_hints = ["//:ruff_config"],
     imports = ["../.."],
     deps = ["//ledger/core"],
 )
@@ -18,7 +17,6 @@ python_library(
 python_test(
     name = "server_test",
     srcs = ["server_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "ledger",
     imports = ["../.."],
     deps = [

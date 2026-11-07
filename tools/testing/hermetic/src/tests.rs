@@ -680,11 +680,18 @@ fn the_consumer_materializes_from_dx_init() {
         } else {
             original
         };
-        assert_eq!(
-            std::fs::read(workspace.join(dest)).unwrap(),
-            want,
-            "{dest} is derived from its source"
-        );
+        let got = std::fs::read(workspace.join(dest)).unwrap();
+        if dest == ".bazelrc" || dest == "BUILD.bazel" {
+            // The second init adds the preset imports and the exports block around the fixture text.
+            let want = String::from_utf8(want).unwrap();
+            let got = String::from_utf8(got).unwrap();
+            assert!(
+                got.contains(want.trim_end()),
+                "{dest} keeps its source: {got}"
+            );
+        } else {
+            assert_eq!(got, want, "{dest} is derived from its source");
+        }
     }
     assert_eq!(
         std::fs::read_to_string(workspace.join(LEAKS_PACKAGE).join("BUILD.bazel")).unwrap(),

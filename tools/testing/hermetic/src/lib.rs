@@ -2044,7 +2044,7 @@ fn executable(path: &Path) -> Result<(), String> {
         .map_err(|err| format!("cannot mark {} executable: {err}", path.display()))
 }
 
-fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Result<(), String> {
+fn run_init(manifest: &Manifest, workspace: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
     let init = dx_testing::run(
         &manifest.dx,
@@ -2055,6 +2055,11 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
     if !init.status.success() {
         return Err(format!("dx init failed: {}", init.combined()));
     }
+    Ok(())
+}
+
+fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Result<(), String> {
+    run_init(manifest, workspace)?;
     let snippet = std::fs::read_to_string(workspace.join("MODULE.bazel"))
         .map_err(|err| format!("dx init wrote no MODULE.bazel: {err}"))?;
     let fragment_path = manifest
@@ -2079,7 +2084,6 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         _ => module,
     };
     write(&workspace.join("MODULE.bazel"), &module)?;
-    rename_preset(workspace, &manifest.repo_name)?;
     copy(&manifest.bazelversion, &workspace.join(".bazelversion"))
 }
 
@@ -2120,6 +2124,9 @@ pub fn materialize(
             copy(src, &workspace.join(dest))?;
         }
     }
+    // A second init reads the fixture's dx.toml and sources and merges its block into the root BUILD.
+    run_init(manifest, workspace)?;
+    rename_preset(workspace, repo)?;
     write(
         &workspace.join(LEAKS_PACKAGE).join("BUILD.bazel"),
         &leaks_build_host(ambient),

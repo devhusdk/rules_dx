@@ -58,22 +58,27 @@ func PolicyBinds(c *config.Config, tool, label string) bool {
 	return normalizePolicyLabel(want) == normalizePolicyLabel(label)
 }
 
-// InitOwnedConfigs maps each tool to the src of the <tool>_config rule dx init
-// writes in .dx/config/BUILD.bazel, or returns nil when that file is missing
-// or does not parse.
+// InitOwnedConfigs maps each tool to the src of the <tool>_config rule in
+// .dx/config/BUILD.bazel (dx init) or .dx/BUILD.bazel (dx generate), the
+// second winning, and returns nil when neither file parses.
 func InitOwnedConfigs(repoRoot string) map[string]string {
-	f, err := rule.LoadFile(filepath.Join(repoRoot, ".dx", "config", "BUILD.bazel"), ".dx/config")
-	if err != nil {
-		return nil
-	}
-	owned := map[string]string{}
-	for _, r := range f.Rules {
-		tool, ok := strings.CutSuffix(r.Kind(), "_config")
-		if !ok || tool == "" {
+	var owned map[string]string
+	for _, pkg := range []string{".dx/config", ".dx"} {
+		f, err := rule.LoadFile(filepath.Join(repoRoot, filepath.FromSlash(pkg), "BUILD.bazel"), pkg)
+		if err != nil {
 			continue
 		}
-		if src := r.AttrString("src"); src != "" {
-			owned[tool] = src
+		if owned == nil {
+			owned = map[string]string{}
+		}
+		for _, r := range f.Rules {
+			tool, ok := strings.CutSuffix(r.Kind(), "_config")
+			if !ok || tool == "" {
+				continue
+			}
+			if src := r.AttrString("src"); src != "" {
+				owned[tool] = src
+			}
 		}
 	}
 	return owned

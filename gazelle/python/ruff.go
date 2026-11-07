@@ -21,7 +21,8 @@ const (
 type ruffState struct {
 	rel  string
 	file string
-	// initOwned is set when .dx/config/BUILD.bazel already defines the root config.
+	// initOwned is set when .dx/BUILD.bazel or .dx/config/BUILD.bazel already
+	// defines the root config.
 	initOwned bool
 }
 

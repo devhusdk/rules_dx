@@ -2280,7 +2280,14 @@ pub fn materialize(
 }
 
 fn host() -> Value {
-    let kernel = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
+    let kernel = std::fs::read_to_string("/proc/sys/kernel/osrelease")
+        .ok()
+        .filter(|release| !release.trim().is_empty())
+        .or_else(|| {
+            let out = Command::new("uname").arg("-r").output().ok()?;
+            String::from_utf8(out.stdout).ok()
+        })
+        .unwrap_or_default();
     json!({
         "os": std::env::consts::OS,
         "arch": std::env::consts::ARCH,

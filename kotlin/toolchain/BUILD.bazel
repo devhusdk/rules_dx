@@ -1,11 +1,13 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
-define_kt_toolchain(
+# Registered toolchains are loaded on every build, so this package must not load
+# rules_kotlin: that would fetch the Kotlin compiler for builds that never use it.
+toolchain(
     name = "unused_deps",
-    experimental_report_unused_deps = "warn",
+    toolchain = "//kotlin/toolchain/impl:unused_deps_impl",
+    toolchain_type = "@rules_kotlin//kotlin:kt_toolchain_type",
 )
 
 real_source_target(

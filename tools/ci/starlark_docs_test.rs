@@ -1,6 +1,6 @@
 //! Every non-test rule(), aspect() and public attr in rules_dx has a one-line doc.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use dx_testing::runfiles_root;
 use starlark_syntax::syntax::ast::{
@@ -308,6 +308,23 @@ fn owner<'a>(packages: &'a [String], path: &str) -> Option<&'a str> {
         .max_by_key(|pkg| pkg.len())
 }
 
+/// Listed packages with no .bzl file and no BUILD file in the runfiles.
+fn missing_packages(
+    packages: &[String],
+    seen: &std::collections::BTreeSet<&str>,
+    root: &Path,
+) -> Vec<String> {
+    packages
+        .iter()
+        .filter(|pkg| !seen.contains(pkg.as_str()))
+        .filter(|pkg| {
+            let dir = root.join(pkg);
+            !dir.join("BUILD.bazel").is_file() && !dir.join("BUILD").is_file()
+        })
+        .cloned()
+        .collect()
+}
+
 #[test]
 fn every_rule_aspect_and_attr_has_doc() {
     let root = runfiles_root();
@@ -330,10 +347,7 @@ fn every_rule_aspect_and_attr_has_doc() {
         attrs += result.attrs;
         problems.extend(result.findings);
     }
-    let missing: Vec<_> = packages
-        .iter()
-        .filter(|pkg| !seen.contains(pkg.as_str()))
-        .collect();
+    let missing = missing_packages(&packages, &seen, &root);
     assert!(missing.is_empty(), "no .bzl files from {missing:?}");
     if std::env::var(PACKAGES_ENV).is_err() {
         assert!(
@@ -343,6 +357,17 @@ fn every_rule_aspect_and_attr_has_doc() {
         assert!(attrs > MIN_ATTRS, "only {attrs} public attrs were checked");
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn a_package_with_only_a_build_file_is_not_missing() {
+    let root = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR"))
+        .join("missing_packages");
+    std::fs::create_dir_all(root.join("tests")).expect("create tests");
+    std::fs::write(root.join("tests/BUILD.bazel"), "").expect("write BUILD.bazel");
+    let packages = ["tests".to_string(), "absent".to_string()];
+    let seen = std::collections::BTreeSet::new();
+    assert_eq!(missing_packages(&packages, &seen, &root), ["absent"]);
 }
 
 #[test]

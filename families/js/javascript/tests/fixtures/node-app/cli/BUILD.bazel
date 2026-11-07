@@ -76,6 +76,7 @@ rust_test(
     deps = ["@rules_dx//tools/testing:dx_testing"],
 )
 
+# known failure (#9263)
 rust_test(
     name = "coverage_test",
     srcs = ["coverage_test.rs"],

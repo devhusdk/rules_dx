@@ -21,6 +21,7 @@ pub struct CollectedInventory {
     pub active_generation_hexes: Vec<String>,
     pub unmanaged_names: Vec<String>,
     pub observation_unknown: bool,
+    pub previous_hex: Option<String>,
 }
 
 impl CollectedInventory {
@@ -33,6 +34,7 @@ impl CollectedInventory {
             active_generation_hexes: &self.active_generation_hexes,
             unmanaged_names: &self.unmanaged_names,
             observation_unknown: self.observation_unknown,
+            previous_hex: self.previous_hex.as_deref(),
         }
     }
 

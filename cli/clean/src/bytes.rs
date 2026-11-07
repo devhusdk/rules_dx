@@ -208,6 +208,7 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &[],
             observation_unknown: false,
+            previous_hex: None,
         }
     }
 
@@ -226,6 +227,7 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &unmanaged,
             observation_unknown: false,
+            previous_hex: None,
         });
         let listing = render_prune_listing(&plan, &PruneBytes::default());
         assert!(listing.contains(&format!(".dx/local/setups/{}", stale.hex)));

@@ -84,7 +84,7 @@ Reports unselected managed state under `.dx`. It deletes nothing without `--appl
 
 Scopes: none. A scope is a usage error.
 
-A generation a live reader holds is never pruned. When process observation is unavailable, dx keeps unobserved state and says so.
+A generation a live reader holds is never pruned. When process observation is unavailable, dx keeps unobserved state and says so. The next `dx sync` that selects a new setup keeps only the current and previous setup.
 
 ### Output
 

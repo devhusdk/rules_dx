@@ -15,6 +15,9 @@ pub struct PruneInputs<'a> {
     pub active_generation_hexes: &'a [String],
     pub unmanaged_names: &'a [String],
     pub observation_unknown: bool,
+    /// The setup a sync just replaced. Without process observation, it is the
+    /// only one kept besides the current setup.
+    pub previous_hex: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,10 +103,35 @@ pub fn plan_prune(inputs: PruneInputs<'_>) -> PrunePlan {
     let mut preserved_unobserved_setup_records = Vec::new();
     let mut preserved_unobserved_generations = Vec::new();
     if inputs.observation_unknown {
-        preserved_unobserved_setup_records = prune_setup_records;
-        prune_setup_records = Vec::new();
-        preserved_unobserved_generations = prune_generations;
-        prune_generations = Vec::new();
+        match inputs.previous_hex {
+            None => {
+                preserved_unobserved_setup_records = std::mem::take(&mut prune_setup_records);
+                preserved_unobserved_generations = std::mem::take(&mut prune_generations);
+            }
+            Some(previous) => {
+                let sides = inputs
+                    .records
+                    .iter()
+                    .find(|record| record.hex == previous)
+                    .map(|record| {
+                        (
+                            record.environment_hex.as_str(),
+                            record.generated_hex.as_str(),
+                        )
+                    });
+                let of_previous = |generation: &GenerationView| {
+                    sides.is_some_and(|(environment, generated)| match generation.kind {
+                        GenerationUse::Environment => generation.hex == environment,
+                        GenerationUse::Generated => generation.hex == generated,
+                    })
+                };
+                (preserved_unobserved_setup_records, prune_setup_records) = prune_setup_records
+                    .into_iter()
+                    .partition(|hex| hex == previous);
+                (preserved_unobserved_generations, prune_generations) =
+                    prune_generations.into_iter().partition(of_previous);
+            }
+        }
     }
 
     PrunePlan {
@@ -157,6 +185,7 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &[],
             observation_unknown: false,
+            previous_hex: None,
         }
     }
 
@@ -216,6 +245,7 @@ mod tests {
             active_generation_hexes: &active_generations,
             unmanaged_names: &[],
             observation_unknown: false,
+            previous_hex: None,
         });
         assert!(plan.prune_setup_records.is_empty());
         assert!(plan.prune_generations.is_empty());
@@ -233,6 +263,7 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &unmanaged,
             observation_unknown: false,
+            previous_hex: None,
         });
         assert_eq!(plan.refused_unmanaged, unmanaged);
         assert!(
@@ -260,6 +291,7 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &[],
             observation_unknown: true,
+            previous_hex: None,
         });
         assert!(plan.observation_unknown);
         assert!(plan.prune_setup_records.is_empty());
@@ -269,5 +301,51 @@ mod tests {
         assert_eq!(plan.preserved_current, Some(current.hex));
         assert!(!plan.has_prune());
         assert!(plan.has_preserved_unobserved());
+    }
+
+    #[test]
+    fn unknown_observation_keeps_current_and_previous_only() {
+        let current = record('1', '2');
+        let previous = record('3', '2');
+        let older = record('5', '6');
+        let records = vec![current.clone(), previous.clone(), older.clone()];
+        let generations = vec![
+            generation(GenerationUse::Environment, '1'),
+            generation(GenerationUse::Generated, '2'),
+            generation(GenerationUse::Environment, '3'),
+            generation(GenerationUse::Environment, '5'),
+            generation(GenerationUse::Generated, '6'),
+        ];
+        let plan = plan_prune(PruneInputs {
+            observation_unknown: true,
+            previous_hex: Some(&previous.hex),
+            ..inputs(&records, &generations, Some(&current.hex))
+        });
+        assert_eq!(plan.prune_setup_records, vec![older.hex]);
+        assert_eq!(
+            plan.prune_generations,
+            vec![
+                generation(GenerationUse::Environment, '5'),
+                generation(GenerationUse::Generated, '6'),
+            ]
+        );
+        assert_eq!(plan.preserved_unobserved_setup_records, vec![previous.hex]);
+        assert_eq!(
+            plan.preserved_unobserved_generations,
+            vec![generation(GenerationUse::Environment, '3')]
+        );
+    }
+
+    #[test]
+    fn known_observation_ignores_previous() {
+        let current = record('1', '2');
+        let previous = record('3', '4');
+        let records = vec![current.clone(), previous.clone()];
+        let plan = plan_prune(PruneInputs {
+            previous_hex: Some(&previous.hex),
+            ..inputs(&records, &[], Some(&current.hex))
+        });
+        assert_eq!(plan.prune_setup_records, vec![previous.hex]);
+        assert!(!plan.has_preserved_unobserved());
     }
 }

@@ -67,12 +67,17 @@ fn gone(error: &io::Error) -> bool {
     error.kind() == io::ErrorKind::NotFound || error.raw_os_error() == Some(ESRCH)
 }
 
+fn denied(error: &io::Error) -> bool {
+    error.kind() == io::ErrorKind::PermissionDenied
+}
+
 fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<(), String> {
     let mut targets: Vec<PathBuf> = Vec::new();
     let cwd_path = dir.join("cwd");
     match fs::read_link(&cwd_path) {
         Ok(cwd) => targets.push(cwd),
         Err(error) if gone(&error) => {}
+        Err(error) if denied(&error) => return Ok(()),
         Err(error) => return Err(format!("cannot read {}: {error}", cwd_path.display())),
     }
     let fd_dir = dir.join("fd");
@@ -82,6 +87,7 @@ fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<()
                 let fd = match fd {
                     Ok(fd) => fd,
                     Err(error) if gone(&error) => continue,
+                    Err(error) if denied(&error) => return Ok(()),
                     Err(error) => {
                         return Err(format!("cannot read {}: {error}", fd_dir.display()));
                     }
@@ -89,6 +95,7 @@ fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<()
                 match fs::read_link(fd.path()) {
                     Ok(target) => targets.push(target),
                     Err(error) if gone(&error) => {}
+                    Err(error) if denied(&error) => return Ok(()),
                     Err(error) => {
                         return Err(format!("cannot read {}: {error}", fd.path().display()));
                     }
@@ -96,6 +103,7 @@ fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<()
             }
         }
         Err(error) if gone(&error) => {}
+        Err(error) if denied(&error) => return Ok(()),
         Err(error) => return Err(format!("cannot read {}: {error}", fd_dir.display())),
     }
     for target in &targets {
@@ -112,80 +120,12 @@ fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<()
     Ok(())
 }
 
-struct Viewer {
-    uid: u32,
-    gids: Vec<u32>,
-}
-
-fn read_viewer(status: &str) -> Option<Viewer> {
-    let mut uid = None;
-    let mut gids = Vec::new();
-    for line in status.lines() {
-        if let Some(rest) = line.strip_prefix("Uid:") {
-            uid = rest.split_whitespace().nth(1).and_then(|v| v.parse().ok());
-        } else if let Some(rest) = line.strip_prefix("Gid:") {
-            gids.extend(
-                rest.split_whitespace()
-                    .filter_map(|v| v.parse::<u32>().ok()),
-            );
-        } else if let Some(rest) = line.strip_prefix("Groups:") {
-            gids.extend(
-                rest.split_whitespace()
-                    .filter_map(|v| v.parse::<u32>().ok()),
-            );
-        }
-    }
-    Some(Viewer { uid: uid?, gids })
-}
-
-/// Describes how `/proc` hides other users' processes from `viewer`, if it does.
-fn hidepid_reason(mountinfo: &str, viewer: &Viewer) -> Option<String> {
-    let options = mountinfo
-        .lines()
-        .filter_map(|line| {
-            let (before, after) = line.split_once(" - ")?;
-            if before.split_whitespace().nth(4)? != "/proc" {
-                return None;
-            }
-            after.split_whitespace().nth(2)
-        })
-        .next_back()?;
-    let mut hidepid = None;
-    let mut gid = None;
-    for option in options.split(',') {
-        if let Some(value) = option.strip_prefix("hidepid=") {
-            hidepid = Some(value);
-        } else if let Some(value) = option.strip_prefix("gid=") {
-            gid = value.parse::<u32>().ok();
-        }
-    }
-    let hidepid = hidepid.filter(|value| matches!(*value, "1" | "2" | "noaccess" | "invisible"))?;
-    if viewer.uid == 0 || gid.is_some_and(|gid| viewer.gids.contains(&gid)) {
-        return None;
-    }
-    Some(format!(
-        "/proc is mounted with hidepid={hidepid}; other users' processes are not visible"
-    ))
-}
-
-fn proc_hidepid_reason(proc_root: &Path) -> Option<String> {
-    if !cfg!(target_os = "linux") || proc_root != Path::new("/proc") {
-        return None;
-    }
-    let mountinfo = fs::read_to_string("/proc/self/mountinfo").ok()?;
-    let viewer = read_viewer(&fs::read_to_string("/proc/self/status").ok()?)?;
-    hidepid_reason(&mountinfo, &viewer)
-}
-
+/// Scans `proc_root` for processes whose cwd or open files sit in `dx_dir`.
+///
+/// Processes the kernel refuses to show (another uid, or non-dumpable) are
+/// skipped: they cannot be using this user's `.dx/local`. A root-owned
+/// process working in someone's `.dx/local` is therefore not seen.
 pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation {
-    scan_live_observation_with(proc_root, dx_dir, proc_hidepid_reason(proc_root))
-}
-
-fn scan_live_observation_with(
-    proc_root: &Path,
-    dx_dir: &Path,
-    filtered: Option<String>,
-) -> LiveObservation {
     let entries = match fs::read_dir(proc_root) {
         Ok(entries) => entries,
         Err(error) => {
@@ -224,12 +164,6 @@ fn scan_live_observation_with(
             .then_with(|| left.hex.cmp(&right.hex))
     });
     live.generations.dedup();
-    if let Some(reason) = filtered {
-        return LiveObservation::Unknown {
-            partial: live,
-            reason,
-        };
-    }
     let Some(first) = unreadable.first() else {
         return LiveObservation::Known(live);
     };
@@ -272,9 +206,14 @@ fn leased_generation_hexes(
     Ok(leased)
 }
 
+/// Collects the inventory with live processes from `proc_root`.
+///
+/// `previous` is the setup the caller just replaced, if any. When process
+/// observation is unavailable, only it and the current setup are kept.
 pub fn collect_inventory_with_scan_from(
     workspace_root: &Path,
     proc_root: &Path,
+    previous: Option<&str>,
 ) -> Result<CollectedInventory, PruneError> {
     let dx_dir = dx_path::state::local_dir(workspace_root);
     let (live, observation_unknown) = match scan_live_observation(proc_root, &dx_dir) {
@@ -294,6 +233,7 @@ pub fn collect_inventory_with_scan_from(
     inventory.active_setup_hexes = live.setup;
     inventory.active_generation_hexes = generations;
     inventory.observation_unknown = observation_unknown;
+    inventory.previous_hex = previous.map(str::to_owned);
     Ok(inventory)
 }
 
@@ -311,84 +251,6 @@ mod tests {
         for (index, target) in fds.iter().enumerate() {
             stage_symlink(target, &dir.join("fd").join(index.to_string()));
         }
-    }
-
-    fn mountinfo(options: &str) -> String {
-        format!(
-            "22 28 0:21 / /proc rw,nosuid - proc proc {options}\n29 28 0:30 / /tmp rw - tmpfs tmpfs rw\n"
-        )
-    }
-
-    fn user(uid: u32, gids: &[u32]) -> Viewer {
-        Viewer {
-            uid,
-            gids: gids.to_vec(),
-        }
-    }
-
-    #[test]
-    fn hidepid_levels_are_filtered_only_when_they_hide_processes() {
-        let other = user(1000, &[1000]);
-        for (options, filtered) in [
-            ("rw", false),
-            ("rw,hidepid=0", false),
-            ("rw,hidepid=off", false),
-            ("rw,hidepid=1", true),
-            ("rw,hidepid=2", true),
-            ("rw,hidepid=noaccess", true),
-            ("rw,hidepid=invisible", true),
-        ] {
-            let reason = hidepid_reason(&mountinfo(options), &other);
-            assert_eq!(reason.is_some(), filtered, "{options}");
-        }
-        let reason = hidepid_reason(&mountinfo("rw,hidepid=2"), &other).expect("filtered");
-        assert!(reason.contains("hidepid=2"));
-    }
-
-    #[test]
-    fn hidepid_exempts_root_and_the_gid_group() {
-        let options = mountinfo("rw,hidepid=2,gid=999");
-        assert!(hidepid_reason(&options, &user(1000, &[1000])).is_some());
-        assert!(hidepid_reason(&options, &user(1000, &[1000, 999])).is_none());
-        assert!(hidepid_reason(&options, &user(0, &[0])).is_none());
-        assert!(hidepid_reason("29 28 0:30 / /tmp rw - tmpfs tmpfs rw\n", &user(1, &[])).is_none());
-    }
-
-    #[test]
-    fn viewer_is_read_from_proc_status() {
-        let status = "Name:\tdx\nUid:\t1000\t1001\t1000\t1000\nGid:\t1000\t1000\t1000\t1000\nGroups:\t4 999\n";
-        let viewer = read_viewer(status).expect("viewer");
-        assert_eq!(viewer.uid, 1001);
-        assert!(viewer.gids.contains(&999));
-    }
-
-    #[test]
-    fn scan_with_filtered_proc_reports_unknown_and_keeps_partial() {
-        let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-hidepid-");
-            std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
-            __scratch
-        };
-        let root = scratch.path().to_path_buf();
-        let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
-        let proc_root = root.join("proc");
-        fs::create_dir_all(&proc_root).expect("proc root");
-        let setup = digest('3');
-        stage_process(
-            &proc_root,
-            "4242",
-            Some(&dx_dir.join("setups").join(&setup)),
-            &[],
-        );
-        let reason = hidepid_reason(&mountinfo("rw,hidepid=2"), &user(1000, &[1000]));
-        match scan_live_observation_with(&proc_root, &dx_dir, reason) {
-            LiveObservation::Unknown { partial, reason } => {
-                assert_eq!(partial.setup, vec![setup]);
-                assert!(reason.contains("hidepid=2"));
-            }
-            LiveObservation::Known(_) => panic!("a hidepid /proc is unknown, never idle"),
-        }
-        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
@@ -604,7 +466,7 @@ mod tests {
         let (workspace, stale_hex, _) = two_record_workspace(&root);
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("empty proc root");
-        let scanned = collect_inventory_with_scan_from(&workspace, &proc_root).expect("scan");
+        let scanned = collect_inventory_with_scan_from(&workspace, &proc_root, None).expect("scan");
         assert!(!scanned.observation_unknown);
         let plain = collect_inventory(&workspace, &[], &[]).expect("plain collect");
         assert_eq!(scanned.plan(), plain.plan());
@@ -623,7 +485,7 @@ mod tests {
         let (workspace, stale_hex, _) = two_record_workspace(&root);
         let blocker = root.join("proc");
         fs::write(&blocker, "not a directory").expect("blocker file");
-        let scanned = collect_inventory_with_scan_from(&workspace, &blocker).expect("scan");
+        let scanned = collect_inventory_with_scan_from(&workspace, &blocker, None).expect("scan");
         assert!(scanned.observation_unknown);
         let plan = scanned.plan();
         assert!(plan.observation_unknown);
@@ -702,11 +564,73 @@ mod tests {
             &[],
         );
         stage_unreadable_cwd(&proc_root, "21");
-        let preserved = collect_inventory_with_scan_from(&workspace, &proc_root).expect("scan");
+        let preserved =
+            collect_inventory_with_scan_from(&workspace, &proc_root, None).expect("scan");
         assert!(preserved.observation_unknown);
         let plan = preserved.plan();
         assert!(plan.prune_setup_records.is_empty());
         assert!(plan.prune_generations.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn foreign_process_that_cannot_be_read_does_not_block_pruning() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-denied-");
+        std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
+        let root = scratch.path().to_path_buf();
+        let (workspace, stale_hex, _) = two_record_workspace(&root);
+        let dx_dir = dx_path::state::local_dir(&workspace);
+        let proc_root = root.join("proc");
+        fs::create_dir_all(&proc_root).expect("proc root");
+        stage_process(
+            &proc_root,
+            "1",
+            Some(&dx_dir.join("setups").join(&stale_hex)),
+            &[],
+        );
+        let pid_dir = proc_root.join("1");
+        fs::set_permissions(&pid_dir, fs::Permissions::from_mode(0o000)).expect("lock pid dir");
+        if fs::read_link(pid_dir.join("cwd")).is_ok() {
+            fs::set_permissions(&pid_dir, fs::Permissions::from_mode(0o755)).expect("unlock");
+            return;
+        }
+        let scanned = collect_inventory_with_scan_from(&workspace, &proc_root, None);
+        fs::set_permissions(&pid_dir, fs::Permissions::from_mode(0o755)).expect("unlock");
+        let scanned = scanned.expect("scan");
+        assert!(!scanned.observation_unknown);
+        assert_eq!(scanned.plan().prune_setup_records, vec![stale_hex]);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn real_proc_is_observable() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-real-proc-");
+        let dx_dir = dx_path::state::local_dir(&workspace_of(scratch.path()));
+        match scan_live_observation(Path::new("/proc"), &dx_dir) {
+            LiveObservation::Known(_) => {}
+            LiveObservation::Unknown { reason, .. } => panic!("/proc is observable: {reason}"),
+        }
+    }
+
+    #[test]
+    fn unknown_observation_keeps_only_current_and_previous() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-unknown-previous-");
+        std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
+        let root = scratch.path().to_path_buf();
+        let (workspace, older_hex, _) = two_record_workspace(&root);
+        let previous = setup_pair('5', '6');
+        crate::commit_pair(&workspace, &previous).expect("commit previous");
+        crate::commit_pair(&workspace, &setup_pair('1', '2')).expect("commit current");
+        let previous_hex = crate::setup_hex(&previous);
+        let blocker = root.join("proc");
+        fs::write(&blocker, "not a directory").expect("blocker file");
+        let scanned = collect_inventory_with_scan_from(&workspace, &blocker, Some(&previous_hex))
+            .expect("scan");
+        assert!(scanned.observation_unknown);
+        let plan = scanned.plan();
+        assert_eq!(plan.prune_setup_records, vec![older_hex]);
+        assert_eq!(plan.preserved_unobserved_setup_records, vec![previous_hex]);
     }
 
     #[test]
@@ -729,7 +653,7 @@ mod tests {
             std::time::Duration::from_secs(10),
         )
         .expect("lease the stale environment");
-        let scanned = collect_inventory_with_scan_from(&workspace, &proc_root).expect("scan");
+        let scanned = collect_inventory_with_scan_from(&workspace, &proc_root, None).expect("scan");
         assert!(scanned.active_generation_hexes.contains(&stale_env));
         let plan = scanned.plan();
         assert!(
@@ -740,7 +664,8 @@ mod tests {
             "a leased generation is never planned for pruning"
         );
         drop(lease);
-        let rescanned = collect_inventory_with_scan_from(&workspace, &proc_root).expect("rescan");
+        let rescanned =
+            collect_inventory_with_scan_from(&workspace, &proc_root, None).expect("rescan");
         assert!(!rescanned.active_generation_hexes.contains(&stale_env));
         assert!(
             rescanned

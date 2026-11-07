@@ -308,6 +308,7 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &[],
             observation_unknown: false,
+            previous_hex: None,
         });
         assert_eq!(plan.prune_setup_records, vec![stale_hex.clone()]);
         assert_eq!(plan.prune_generations.len(), 2);

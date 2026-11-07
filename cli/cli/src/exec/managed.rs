@@ -151,6 +151,10 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             return operational(invocation, out, err, &code, &message);
         }
     };
+    let before = dx_setup::read_current_pair(workspace)
+        .ok()
+        .flatten()
+        .map(|pair| dx_setup::setup_hex(&pair));
     let (pair, outcome) = match dx_setup::commit_prepared(workspace, sides) {
         Ok(committed) => committed,
         Err(error) => {
@@ -161,7 +165,15 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     drop(staged_leases);
     let _ = std::fs::remove_file(&bep);
-    super::sync_prune::prune_and_warn(workspace, proc_root, invocation.output, out, err);
+    let previous = before.filter(|hex| *hex != dx_setup::setup_hex(&pair));
+    super::sync_prune::prune_and_warn(
+        workspace,
+        proc_root,
+        previous.as_deref(),
+        invocation.output,
+        out,
+        err,
+    );
     super::ide_refresh::refresh_and_warn(
         workspace,
         query_runner,
@@ -342,14 +354,42 @@ mod tests {
     }
 
     #[test]
-    fn sync_keeps_old_setups_when_observation_is_unavailable() {
+    fn sync_keeps_current_and_previous_when_observation_is_unavailable() {
         let mut harness = Harness::new("sync-unobserved");
         harness.proc_root = harness.workspace.join("no-such-proc");
-        let old = commit_clean_pair(&harness, '1', '2');
+        let older = commit_clean_pair(&harness, '1', '2');
+        let previous = commit_clean_pair(&harness, '3', '4');
         let (code, out, err) = harness.run(&["sync"]);
         assert_eq!(code, 0, "{out}{err}");
         let dx_dir = dx_path::state::local_dir(&harness.workspace);
-        assert!(dx_dir.join("setups").join(old).exists());
+        assert!(!dx_dir.join("setups").join(older).exists());
+        assert!(dx_dir.join("setups").join(previous).exists());
+        for (side, gone, kept) in [
+            (ENVIRONMENTS_DIR_NAME, '1', '3'),
+            (GENERATED_DIR_NAME, '2', '4'),
+        ] {
+            let dir = dx_dir.join(side);
+            assert!(!dir.join(gone.to_string().repeat(64)).exists(), "{side}");
+            assert!(dir.join(kept.to_string().repeat(64)).exists(), "{side}");
+            let entries = std::fs::read_dir(&dir).expect("list generations").count();
+            assert_eq!(
+                entries, 2,
+                "{side} keeps the current and previous generation"
+            );
+        }
+    }
+
+    #[test]
+    fn already_current_sync_keeps_everything_when_observation_is_unavailable() {
+        let mut harness = Harness::new("sync-unobserved-current");
+        harness.proc_root = harness.workspace.join("no-such-proc");
+        let older = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["sync"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let (code, out, err) = harness.run(&["sync"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let dx_dir = dx_path::state::local_dir(&harness.workspace);
+        assert!(dx_dir.join("setups").join(older).exists());
     }
 
     #[test]

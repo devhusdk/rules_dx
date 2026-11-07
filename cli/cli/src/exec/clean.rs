@@ -32,7 +32,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    let inventory = match collect_inventory_with_scan_from(workspace, proc_root) {
+    let inventory = match collect_inventory_with_scan_from(workspace, proc_root, None) {
         Ok(inventory) => inventory,
         Err(error) => {
             return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
@@ -70,6 +70,10 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     0
 }
 
+fn unobserved_hint() -> &'static str {
+    "the next `dx sync` that selects a new setup keeps only the current and previous setup"
+}
+
 fn report_applied(
     out: &mut dyn std::io::Write,
     plan: &PrunePlan,
@@ -89,12 +93,13 @@ fn report_applied(
     let removed_nothing =
         outcome.removed_setup_records.is_empty() && outcome.removed_generations.is_empty();
     if removed_nothing && plan.has_preserved_unobserved() {
-        return check_stdout_write(writeln!(
+        check_stdout_write(writeln!(
             out,
             "dx clean: preserved {} unobserved setup records and {} unobserved generations (process observation unavailable)",
             plan.preserved_unobserved_setup_records.len(),
             plan.preserved_unobserved_generations.len(),
-        ));
+        ))?;
+        return check_stdout_write(writeln!(out, "{}", unobserved_hint()));
     }
     if removed_nothing {
         return check_stdout_write(writeln!(out, "dx clean: nothing to prune"));
@@ -136,8 +141,12 @@ fn check_clean(
             return 0;
         }
         if verbose
-            && let Err(exit) =
-                check_stdout_write(writeln!(out, "{}", render_prune_listing(plan, bytes)))
+            && let Err(exit) = check_stdout_write(writeln!(
+                out,
+                "{}\n{}",
+                render_prune_listing(plan, bytes),
+                unobserved_hint()
+            ))
         {
             return exit;
         }
@@ -738,6 +747,7 @@ mod tests {
             )),
             "{out}"
         );
+        assert!(out.contains(super::unobserved_hint()), "{out}");
         assert!(out.contains("process observation unavailable"), "{out}");
         assert!(!out.contains("nothing to prune"), "{out}");
         assert!(!out.contains("run `dx clean --apply` to prune it"), "{out}");
@@ -829,6 +839,7 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("nothing to prune"), "{text}");
+        assert!(text.contains(super::unobserved_hint()), "{text}");
         let json = run_report(true);
         let events = json_events(&json);
         let paths: Vec<&serde_json::Value> = events

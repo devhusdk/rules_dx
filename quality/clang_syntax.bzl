@@ -2,9 +2,11 @@
 
 load("@apple_support//lib:apple_support.bzl", "apple_support")
 load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
-load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity")
+load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity", "cc_toolchain_info")
 load("//quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets")
 load("//quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
 load("//quality:policy.bzl", "QualityPolicyInfo")
@@ -136,6 +138,18 @@ _MSVC_TIDY_UNSUPPORTED = {
     "ZW": "C++/CX",
 }
 
+def _toolchain_compile_env(ctx, action):
+    cc_toolchain = cc_toolchain_info(ctx)
+    config = cc_common.configure_features(ctx = ctx, cc_toolchain = cc_toolchain)
+    name = ACTION_NAMES.c_compile if action.argv[-1].endswith(".c") else ACTION_NAMES.cpp_compile
+    variables = cc_common.create_compile_variables(
+        feature_configuration = config,
+        cc_toolchain = cc_toolchain,
+        source_file = "a.c",
+        output_file = "a.obj",
+    )
+    return cc_common.get_environment_variables(feature_configuration = config, action_name = name, variables = variables)
+
 def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
     rewritten = clang_syntax_argv(argv, src, identity)
     if rewritten.error != "":
@@ -163,9 +177,6 @@ def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
                     imsvc.append("/imsvc" + path.replace("\\", "/"))
         if imsvc:
             imsvc.append("/X")
-
-    if src.endswith("tidy_crt.c"):
-        return struct(argv = [], error = "DEBUG env=" + str(env) + " argv=" + str(argv))
 
     # driver mode must follow `--`; clang-tidy strips /-flags otherwise (LLVM #66553, CMake #25708).
     return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + imsvc + flags, error = "")
@@ -371,7 +382,7 @@ def _clang_syntax_impl(target, ctx):
         all_inputs = depset(transitive = [action.inputs, headers])
         driver = ctx.actions.declare_file("dx_clang_syntax/%s.driver" % stem)
         ctx.actions.write(output = driver, content = identity.driver)
-        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, action.env)
+        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, dict(action.env) | (_toolchain_compile_env(ctx, action) if identity.driver == "msvc" else {}))
         tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
         requirements = {}
         if action.mnemonic == "ObjcCompile":
@@ -424,6 +435,7 @@ clang_syntax_aspect = aspect(
     implementation = _clang_syntax_impl,
     doc = "Replays the compile actions of a C/C++/Objective-C target with -fsyntax-only.",
     attr_aspects = ["upstream"],
+    fragments = ["cpp"],
     toolchains = [config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False)],
     attrs = apple_support.action_required_attrs() | {
         "_policy": attr.label(

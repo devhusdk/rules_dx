@@ -970,8 +970,18 @@ fn remote_repo_contents_cache_comes_from_setup_bazel() {
         assert!(!evidence.contains(flag), "evidence.yml passes {flag} again");
     }
     assert!(
-        read_runfiles(".bazelrc").contains("common:ci --loading_phase_threads=32"),
-        ".bazelrc must let CI look up more repos at once"
+        !read_runfiles(".bazelrc").contains("loading_phase_threads"),
+        ".bazelrc repeats a flag the preset owns"
+    );
+    assert!(
+        read_runfiles("tools/bazelrc/performance.bazelrc")
+            .contains("common:ci --loading_phase_threads=32"),
+        "the preset must let CI look up more repos at once"
+    );
+    let consumer = read_runfiles(".github/workflows/reusable-consumer.yml");
+    assert!(
+        consumer.matches("startup --experimental_remote_repo_contents_cache").count() >= 2,
+        "reusable-consumer.yml must turn on the remote repo contents cache"
     );
     assert!(
         read_runfiles("tools/bazelrc/performance.bazelrc").contains("common:ci --jobs=64"),

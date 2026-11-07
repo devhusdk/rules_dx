@@ -44,5 +44,8 @@ common:ci --remote_retries=5
 # Under --config=ci, rebuild 5 times when the remote cache evicts an input.
 common:ci --experimental_remote_cache_eviction_retries=5
 
+# Under --config=ci, look up 32 repositories at once, since each remote contents cache lookup waits on the network.
+common:ci --loading_phase_threads=32
+
 # Under --config=ci-pr, read the remote cache without writing to it.
 common:ci-pr --noremote_upload_local_results

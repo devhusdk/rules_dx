@@ -88,7 +88,7 @@ env:
   BAZEL_CONFIG: ${{ (inputs.remote_cache != '' || secrets.BUILDBUDDY_API_KEY != '') && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
   DX_REMOTE_CACHE_ARG: ${{ inputs.remote_cache != '' && format('--remote_cache={0}', inputs.remote_cache) || '' }}
   BUILDBUDDY_API_KEY: ${{ secrets.REMOTE_CACHE_HEADER == '' && secrets.BUILDBUDDY_API_KEY || '' }}
-  REMOTE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
+  REMOTE_CACHE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
   # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
   BAZELISK_VERSION: "1.29.0"
@@ -126,8 +126,8 @@ jobs:
         shell: bash
         run: |
           args="${DX_REMOTE_CACHE_ARG:-}"
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            dir="$RUNNER_TEMP/dx-credential-helper"
+          dir="$RUNNER_TEMP/dx-credential-helper"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ] && [ -z "${REMOTE_CACHE_HEADER:-}" ]; then
             mkdir -p "$dir"
             if [ "$RUNNER_OS" = Windows ]; then
               helper="$dir/helper.bat"
@@ -143,6 +143,40 @@ jobs:
               chmod 700 "$helper"
             fi
             args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          elif [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            name="${REMOTE_CACHE_HEADER%%=*}"
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$name" = "$REMOTE_CACHE_HEADER" ] || [ -z "$name" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER must look like name=value"
+              exit 1
+            fi
+            case "$name$value" in
+              *[\"\\%\&\|\<\>\^]*)
+                echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
+                exit 1
+                ;;
+            esac
+            host="${DX_REMOTE_CACHE_ARG#--remote_cache=}"
+            host="${host#*://}"
+            host="${host%%/*}"
+            host="${host##*@}"
+            host="${host%%:*}"
+            host="${host:-remote.buildbuddy.io}"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/header.bat"
+              printf '@for /f "tokens=1* delims==" %%%%a in ("%%REMOTE_CACHE_HEADER%%") do @echo {"headers":{"%%%%a":["%%%%b"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/header.sh"
+              cat > "$helper" <<'HEADER'
+          #!/bin/sh
+          printf '{"headers":{"%s":["%s"]}}\n' "${REMOTE_CACHE_HEADER%%=*}" "${REMOTE_CACHE_HEADER#*=}"
+          HEADER
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=$host=$helper"
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
@@ -171,7 +205,7 @@ jobs:
           DX_BENCH_REGRESSION_PCT: ${{ inputs.bench_regression_pct }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//tools/ci:input_validation_bin
   checks:
     name: checks (${{ matrix.platform }})
@@ -225,8 +259,8 @@ jobs:
         shell: bash
         run: |
           args="${DX_REMOTE_CACHE_ARG:-}"
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            dir="$RUNNER_TEMP/dx-credential-helper"
+          dir="$RUNNER_TEMP/dx-credential-helper"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ] && [ -z "${REMOTE_CACHE_HEADER:-}" ]; then
             mkdir -p "$dir"
             if [ "$RUNNER_OS" = Windows ]; then
               helper="$dir/helper.bat"
@@ -242,6 +276,40 @@ jobs:
               chmod 700 "$helper"
             fi
             args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          elif [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            name="${REMOTE_CACHE_HEADER%%=*}"
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$name" = "$REMOTE_CACHE_HEADER" ] || [ -z "$name" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER must look like name=value"
+              exit 1
+            fi
+            case "$name$value" in
+              *[\"\\%\&\|\<\>\^]*)
+                echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
+                exit 1
+                ;;
+            esac
+            host="${DX_REMOTE_CACHE_ARG#--remote_cache=}"
+            host="${host#*://}"
+            host="${host%%/*}"
+            host="${host##*@}"
+            host="${host%%:*}"
+            host="${host:-remote.buildbuddy.io}"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/header.bat"
+              printf '@for /f "tokens=1* delims==" %%%%a in ("%%REMOTE_CACHE_HEADER%%") do @echo {"headers":{"%%%%a":["%%%%b"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/header.sh"
+              cat > "$helper" <<'HEADER'
+          #!/bin/sh
+          printf '{"headers":{"%s":["%s"]}}\n' "${REMOTE_CACHE_HEADER%%=*}" "${REMOTE_CACHE_HEADER#*=}"
+          HEADER
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=$host=$helper"
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
@@ -263,7 +331,7 @@ jobs:
           DX_CHECK_LINES: ${{ needs.validate.outputs.check_lines }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           failed=0
           while IFS='|' read -r id dx_args dx_reports passthrough; do
             [ -n "$id" ] || continue
@@ -391,7 +459,7 @@ jobs:
         if: ${{ !cancelled() && contains(needs.validate.outputs.checks, '"id":"build"') }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
       - name: Run coverage with optional threshold
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
@@ -402,7 +470,7 @@ jobs:
         run: |
           set +e
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           scope=//...
           if [ "$DX_AFFECTED" = true ] && [ -z "$DX_MIN_COVERAGE" ] && [ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
             scope=--affected
@@ -583,8 +651,8 @@ jobs:
         shell: bash
         run: |
           args="${DX_REMOTE_CACHE_ARG:-}"
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            dir="$RUNNER_TEMP/dx-credential-helper"
+          dir="$RUNNER_TEMP/dx-credential-helper"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ] && [ -z "${REMOTE_CACHE_HEADER:-}" ]; then
             mkdir -p "$dir"
             if [ "$RUNNER_OS" = Windows ]; then
               helper="$dir/helper.bat"
@@ -600,6 +668,40 @@ jobs:
               chmod 700 "$helper"
             fi
             args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          elif [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            name="${REMOTE_CACHE_HEADER%%=*}"
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$name" = "$REMOTE_CACHE_HEADER" ] || [ -z "$name" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER must look like name=value"
+              exit 1
+            fi
+            case "$name$value" in
+              *[\"\\%\&\|\<\>\^]*)
+                echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
+                exit 1
+                ;;
+            esac
+            host="${DX_REMOTE_CACHE_ARG#--remote_cache=}"
+            host="${host#*://}"
+            host="${host%%/*}"
+            host="${host##*@}"
+            host="${host%%:*}"
+            host="${host:-remote.buildbuddy.io}"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/header.bat"
+              printf '@for /f "tokens=1* delims==" %%%%a in ("%%REMOTE_CACHE_HEADER%%") do @echo {"headers":{"%%%%a":["%%%%b"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/header.sh"
+              cat > "$helper" <<'HEADER'
+          #!/bin/sh
+          printf '{"headers":{"%s":["%s"]}}\n' "${REMOTE_CACHE_HEADER%%=*}" "${REMOTE_CACHE_HEADER#*=}"
+          HEADER
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=$host=$helper"
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
@@ -620,7 +722,7 @@ jobs:
         id: prepare
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           retrieved_at="$(date -u +%F)"
           echo "retrieved_at=$retrieved_at" >> "$GITHUB_OUTPUT"
           if grep -q '^advisory ' .dx/pins 2>/dev/null; then
@@ -683,8 +785,8 @@ jobs:
         shell: bash
         run: |
           args="${DX_REMOTE_CACHE_ARG:-}"
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            dir="$RUNNER_TEMP/dx-credential-helper"
+          dir="$RUNNER_TEMP/dx-credential-helper"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ] && [ -z "${REMOTE_CACHE_HEADER:-}" ]; then
             mkdir -p "$dir"
             if [ "$RUNNER_OS" = Windows ]; then
               helper="$dir/helper.bat"
@@ -700,6 +802,40 @@ jobs:
               chmod 700 "$helper"
             fi
             args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          elif [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            name="${REMOTE_CACHE_HEADER%%=*}"
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$name" = "$REMOTE_CACHE_HEADER" ] || [ -z "$name" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER must look like name=value"
+              exit 1
+            fi
+            case "$name$value" in
+              *[\"\\%\&\|\<\>\^]*)
+                echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
+                exit 1
+                ;;
+            esac
+            host="${DX_REMOTE_CACHE_ARG#--remote_cache=}"
+            host="${host#*://}"
+            host="${host%%/*}"
+            host="${host##*@}"
+            host="${host%%:*}"
+            host="${host:-remote.buildbuddy.io}"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/header.bat"
+              printf '@for /f "tokens=1* delims==" %%%%a in ("%%REMOTE_CACHE_HEADER%%") do @echo {"headers":{"%%%%a":["%%%%b"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/header.sh"
+              cat > "$helper" <<'HEADER'
+          #!/bin/sh
+          printf '{"headers":{"%s":["%s"]}}\n' "${REMOTE_CACHE_HEADER%%=*}" "${REMOTE_CACHE_HEADER#*=}"
+          HEADER
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=$host=$helper"
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
@@ -721,7 +857,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           gh auth setup-git
           bazel run "$@" @rules_dx//:dx -- update advisory --pr
   security-audit:
@@ -749,8 +885,8 @@ jobs:
         shell: bash
         run: |
           args="${DX_REMOTE_CACHE_ARG:-}"
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            dir="$RUNNER_TEMP/dx-credential-helper"
+          dir="$RUNNER_TEMP/dx-credential-helper"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ] && [ -z "${REMOTE_CACHE_HEADER:-}" ]; then
             mkdir -p "$dir"
             if [ "$RUNNER_OS" = Windows ]; then
               helper="$dir/helper.bat"
@@ -766,6 +902,40 @@ jobs:
               chmod 700 "$helper"
             fi
             args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          elif [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            name="${REMOTE_CACHE_HEADER%%=*}"
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$name" = "$REMOTE_CACHE_HEADER" ] || [ -z "$name" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER must look like name=value"
+              exit 1
+            fi
+            case "$name$value" in
+              *[\"\\%\&\|\<\>\^]*)
+                echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
+                exit 1
+                ;;
+            esac
+            host="${DX_REMOTE_CACHE_ARG#--remote_cache=}"
+            host="${host#*://}"
+            host="${host%%/*}"
+            host="${host##*@}"
+            host="${host%%:*}"
+            host="${host:-remote.buildbuddy.io}"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/header.bat"
+              printf '@for /f "tokens=1* delims==" %%%%a in ("%%REMOTE_CACHE_HEADER%%") do @echo {"headers":{"%%%%a":["%%%%b"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/header.sh"
+              cat > "$helper" <<'HEADER'
+          #!/bin/sh
+          printf '{"headers":{"%s":["%s"]}}\n' "${REMOTE_CACHE_HEADER%%=*}" "${REMOTE_CACHE_HEADER#*=}"
+          HEADER
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=$host=$helper"
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
@@ -785,7 +955,7 @@ jobs:
       - name: Resolve hermetic Gitleaks
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN -- "$@"
       - name: Cache the pinned advisory snapshots
         if: ${{ hashFiles('.dx/pins') != '' }}
@@ -805,7 +975,7 @@ jobs:
           DX_AUDIT_TODAY: ${{ needs.advisory-snapshots.outputs.retrieved_at }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- security //...
   fuzz:
     name: fuzz
@@ -826,8 +996,8 @@ jobs:
         shell: bash
         run: |
           args="${DX_REMOTE_CACHE_ARG:-}"
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            dir="$RUNNER_TEMP/dx-credential-helper"
+          dir="$RUNNER_TEMP/dx-credential-helper"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ] && [ -z "${REMOTE_CACHE_HEADER:-}" ]; then
             mkdir -p "$dir"
             if [ "$RUNNER_OS" = Windows ]; then
               helper="$dir/helper.bat"
@@ -843,6 +1013,40 @@ jobs:
               chmod 700 "$helper"
             fi
             args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          elif [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            name="${REMOTE_CACHE_HEADER%%=*}"
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$name" = "$REMOTE_CACHE_HEADER" ] || [ -z "$name" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER must look like name=value"
+              exit 1
+            fi
+            case "$name$value" in
+              *[\"\\%\&\|\<\>\^]*)
+                echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
+                exit 1
+                ;;
+            esac
+            host="${DX_REMOTE_CACHE_ARG#--remote_cache=}"
+            host="${host#*://}"
+            host="${host%%/*}"
+            host="${host##*@}"
+            host="${host%%:*}"
+            host="${host:-remote.buildbuddy.io}"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/header.bat"
+              printf '@for /f "tokens=1* delims==" %%%%a in ("%%REMOTE_CACHE_HEADER%%") do @echo {"headers":{"%%%%a":["%%%%b"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/header.sh"
+              cat > "$helper" <<'HEADER'
+          #!/bin/sh
+          printf '{"headers":{"%s":["%s"]}}\n' "${REMOTE_CACHE_HEADER%%=*}" "${REMOTE_CACHE_HEADER#*=}"
+          HEADER
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=$host=$helper"
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
@@ -871,7 +1075,7 @@ jobs:
           FUZZ_TIME: ${{ inputs.fuzz_time }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- fuzz --time "${FUZZ_TIME:-300s}" //...
       - name: Save the fuzz corpus
         if: ${{ !cancelled() }}
@@ -919,8 +1123,8 @@ jobs:
         shell: bash
         run: |
           args="${DX_REMOTE_CACHE_ARG:-}"
-          if [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
-            dir="$RUNNER_TEMP/dx-credential-helper"
+          dir="$RUNNER_TEMP/dx-credential-helper"
+          if [ -n "${BUILDBUDDY_API_KEY:-}" ] && [ -z "${REMOTE_CACHE_HEADER:-}" ]; then
             mkdir -p "$dir"
             if [ "$RUNNER_OS" = Windows ]; then
               helper="$dir/helper.bat"
@@ -936,6 +1140,40 @@ jobs:
               chmod 700 "$helper"
             fi
             args="${args:+$args }--credential_helper=remote.buildbuddy.io=$helper"
+          elif [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            name="${REMOTE_CACHE_HEADER%%=*}"
+            value="${REMOTE_CACHE_HEADER#*=}"
+            if [ "$name" = "$REMOTE_CACHE_HEADER" ] || [ -z "$name" ] || [ -z "$value" ]; then
+              echo "::error::REMOTE_CACHE_HEADER must look like name=value"
+              exit 1
+            fi
+            case "$name$value" in
+              *[\"\\%\&\|\<\>\^]*)
+                echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
+                exit 1
+                ;;
+            esac
+            host="${DX_REMOTE_CACHE_ARG#--remote_cache=}"
+            host="${host#*://}"
+            host="${host%%/*}"
+            host="${host##*@}"
+            host="${host%%:*}"
+            host="${host:-remote.buildbuddy.io}"
+            mkdir -p "$dir"
+            if [ "$RUNNER_OS" = Windows ]; then
+              helper="$dir/header.bat"
+              printf '@for /f "tokens=1* delims==" %%%%a in ("%%REMOTE_CACHE_HEADER%%") do @echo {"headers":{"%%%%a":["%%%%b"]}}\r\n' > "$helper"
+              chmod 700 "$helper"
+              helper="$(cygpath -m "$helper")"
+            else
+              helper="$dir/header.sh"
+              cat > "$helper" <<'HEADER'
+          #!/bin/sh
+          printf '{"headers":{"%s":["%s"]}}\n' "${REMOTE_CACHE_HEADER%%=*}" "${REMOTE_CACHE_HEADER#*=}"
+          HEADER
+              chmod 700 "$helper"
+            fi
+            args="${args:+$args }--credential_helper=$host=$helper"
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
@@ -961,7 +1199,7 @@ jobs:
           REGRESSION_PCT: ${{ inputs.bench_regression_pct }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           if [ "$EVENT" = pull_request ]; then
             status=0
             bazel run "$@" @rules_dx//:dx -- bench --compare "$BASE_REF" "--max-regression=${REGRESSION_PCT:-20}" //... | tee "$RUNNER_TEMP/bench.txt" || status=$?

@@ -1,4 +1,4 @@
-//! Builds the Bazel flags CI passes for a remote cache.
+//! Builds the Bazel flags CI passes for a remote cache. The header goes through the credential helper, never a flag.
 
 /// What the caller configured.
 pub struct Cache<'a> {
@@ -25,7 +25,15 @@ pub fn flags(cache: &Cache) -> Result<Vec<String>, String> {
             Some((name, value)) if !name.is_empty() && !value.is_empty() => {}
             _ => return Err("REMOTE_CACHE_HEADER must look like name=value".to_string()),
         }
-        out.push(format!("--remote_header={}", cache.header));
+        if cache
+            .header
+            .contains(['"', '\\', '%', '&', '|', '<', '>', '^'])
+        {
+            return Err(
+                "REMOTE_CACHE_HEADER has a character the credential helper cannot carry"
+                    .to_string(),
+            );
+        }
     }
     Ok(out)
 }

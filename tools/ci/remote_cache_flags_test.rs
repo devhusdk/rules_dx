@@ -37,11 +37,7 @@ fn url_and_header_become_flags() {
             "push"
         ))
         .unwrap(),
-        [
-            "--config=ci",
-            "--remote_cache=grpc://cache:9092",
-            "--remote_header=Authorization=Basic abc"
-        ]
+        ["--config=ci", "--remote_cache=grpc://cache:9092"]
     );
 }
 
@@ -55,12 +51,22 @@ fn url_without_header_sends_none() {
 #[test]
 fn explicit_header_wins_over_the_shorthand() {
     let list = flags(&cache("", "x-api=1", "KEY", "push")).unwrap();
-    assert_eq!(list, ["--config=ci", "--remote_header=x-api=1"]);
+    assert_eq!(list, ["--config=ci"]);
 }
 
 #[test]
 fn a_header_without_a_value_is_rejected() {
     for bad in ["novalue", "=v", "n="] {
         assert!(flags(&cache("grpc://c", bad, "", "push")).is_err(), "{bad}");
+    }
+}
+
+#[test]
+fn header_with_a_shell_character_is_rejected() {
+    for header in ["a=b\"c", "a=b%c", "a=b&c", "a=b^c", "a\\b=c"] {
+        assert!(
+            flags(&cache("grpc://c", header, "", "push")).is_err(),
+            "{header}"
+        );
     }
 }

@@ -16,9 +16,6 @@ const RC_FILES: &[&str] = &[
     "tools/bazelrc/resources.bazelrc",
 ];
 
-/// The only `--remote_header` value allowed; #8909 moves it to the credential helper.
-const ALLOWED_HEADER: &str = "--remote_header=$REMOTE_HEADER\"";
-
 fn action_files() -> Vec<String> {
     let list = std::env::var("DX_ACTIONS").expect("DX_ACTIONS is unset");
     list.split_whitespace().map(str::to_owned).collect()
@@ -78,12 +75,10 @@ fn no_remote_header_carries_a_secret() {
                 !line.contains("x-buildbuddy-api-key=") && !line.contains("announce_rc"),
                 "{at} can print the cache key"
             );
-            for (offset, _) in line.match_indices("--remote_header=") {
-                assert!(
-                    line[offset..].starts_with(ALLOWED_HEADER),
-                    "{at} sets a --remote_header; use the credential helper"
-                );
-            }
+            assert!(
+                !line.contains("--remote_header="),
+                "{at} sets a --remote_header; use the credential helper"
+            );
         }
     }
 }

@@ -30,8 +30,9 @@ use windows_sys::Win32::System::Threading::{
     ReleaseMutex, ResumeThread, STARTUPINFOEXW, UpdateProcThreadAttribute, WaitForSingleObject,
 };
 
-use crate::args::{Config, ancestors, command_line, environment};
+use crate::args::{Config, ancestors, command_line, environment, path_key};
 
+const SHARED_ACL_LOCK: &str = "Local\\dx-hermetic-acl";
 const ALREADY_EXISTS: i32 = 0x800700B7_u32 as i32;
 const SE_GROUP_ENABLED: u32 = 4;
 const PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES: usize = 0x0002_0009;
@@ -150,7 +151,21 @@ fn profile_sid(name: &str) -> Result<*mut c_void, String> {
 }
 
 /// Adds (or removes) an inheritable full-access entry for the container on one path.
+/// Concurrent qualifications rewrite the same trees, so each path has its own machine-wide lock.
 pub(crate) fn set_access(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
+    with_acl_lock(&path_lock_name(path), || set_access_locked(path, sid, mode))
+}
+
+pub(crate) fn path_lock_name(path: &str) -> String {
+    let hash = path_key(path)
+        .bytes()
+        .fold(0xcbf29ce484222325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3)
+        });
+    format!("Global\\dx-hermetic-acl-{hash:016x}")
+}
+
+fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
     let wpath = wide(path);
     let mut old: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
@@ -209,9 +224,12 @@ pub(crate) fn set_access(path: &str, sid: *mut c_void, mode: i32) -> Result<(), 
     result
 }
 
-/// Holds a machine-wide lock while one ACL is read, changed and written back.
-fn with_acl_lock<T>(work: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
-    let mutex = unsafe { CreateMutexW(null(), 0, wide("Local\\dx-hermetic-acl").as_ptr()) };
+/// Holds the named lock while one ACL is read, changed and written back.
+pub(crate) fn with_acl_lock<T>(
+    name: &str,
+    work: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let mutex = unsafe { CreateMutexW(null(), 0, wide(name).as_ptr()) };
     if mutex.is_null() {
         return Err(format!(
             "cannot create the ACL lock: {}",
@@ -490,11 +508,14 @@ pub fn run(config: &Config) -> Result<i32, String> {
     let sid = profile_sid(&config.name)?;
     let mut listed = Vec::new();
     let mut granted = Vec::new();
-    let mut outcome = with_acl_lock(|| set_mount_manager(sid, GRANT_ACCESS)).map(|()| 1);
+    let mut outcome =
+        with_acl_lock(SHARED_ACL_LOCK, || set_mount_manager(sid, GRANT_ACCESS)).map(|()| 1);
     let mounted = outcome.is_ok();
     if outcome.is_ok() {
         for dir in &above {
-            if let Err(err) = with_acl_lock(|| set_traverse(dir, sid, GRANT_ACCESS)) {
+            if let Err(err) =
+                with_acl_lock(SHARED_ACL_LOCK, || set_traverse(dir, sid, GRANT_ACCESS))
+            {
                 outcome = Err(err);
                 break;
             }
@@ -521,14 +542,14 @@ pub fn run(config: &Config) -> Result<i32, String> {
         let _ = set_access(path, sid, REVOKE_ACCESS);
     }
     for dir in listed.into_iter().rev() {
-        if let Err(err) = with_acl_lock(|| set_traverse(dir, sid, REVOKE_ACCESS)) {
+        if let Err(err) = with_acl_lock(SHARED_ACL_LOCK, || set_traverse(dir, sid, REVOKE_ACCESS)) {
             eprintln!("appcontainer_run: {err}");
         }
     }
-    if mounted {
-        if let Err(err) = with_acl_lock(|| set_mount_manager(sid, REVOKE_ACCESS)) {
-            eprintln!("appcontainer_run: {err}");
-        }
+    if mounted
+        && let Err(err) = with_acl_lock(SHARED_ACL_LOCK, || set_mount_manager(sid, REVOKE_ACCESS))
+    {
+        eprintln!("appcontainer_run: {err}");
     }
     unsafe {
         DeleteAppContainerProfile(wide(&config.name).as_ptr());

@@ -2,7 +2,9 @@
 //! `--name N [--backend appcontainer|user] [--net] [--group G] [--grant P]... [--deny P]... -- cmd args`
 //! runs a command, and `--backend user --setup-group G|--teardown-group G [--grant P]... [--deny P]...`
 //! adds or removes a local group's entries on those paths, so runs that join it with
-//! `--group G` need no ACL changes of their own.
+//! `--group G` need no ACL changes of their own. `--backend user --ensure-host-denies [--deny P]...`
+//! puts the denies on the shared `dxh-host` group once per machine, and `--remove-host-denies`
+//! takes them off again.
 #![cfg_attr(test, allow(dead_code))]
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,7 +18,12 @@ pub enum Mode {
     Run,
     SetupGroup,
     TeardownGroup,
+    EnsureHostDenies,
+    RemoveHostDenies,
 }
+
+/// The group every run account joins, holding the denies that stay on the host between runs.
+pub const HOST_GROUP: &str = "dxh-host";
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Config {
@@ -43,6 +50,7 @@ pub fn parse(args: &[String]) -> Result<Config, String> {
     let mut backend = Backend::AppContainer;
     let mut member_of = None;
     let mut managed = None;
+    let mut host = None;
     let mut grants = Vec::new();
     let mut denies = Vec::new();
     let mut command = None;
@@ -65,6 +73,18 @@ pub fn parse(args: &[String]) -> Result<Config, String> {
                 let group = iter.next().ok_or(format!("{arg} needs a name"))?.clone();
                 managed = Some((mode, group));
             }
+            "--ensure-host-denies" | "--remove-host-denies" => {
+                if host.is_some() {
+                    return Err(
+                        "only one of --ensure-host-denies and --remove-host-denies".to_owned()
+                    );
+                }
+                host = Some(if arg == "--ensure-host-denies" {
+                    Mode::EnsureHostDenies
+                } else {
+                    Mode::RemoveHostDenies
+                });
+            }
             "--backend" => {
                 backend = match iter.next().ok_or("--backend needs a value")?.as_str() {
                     "appcontainer" => Backend::AppContainer,
@@ -79,6 +99,30 @@ pub fn parse(args: &[String]) -> Result<Config, String> {
             }
             other => return Err(format!("unknown argument {other}")),
         }
+    }
+    if let Some(mode) = host {
+        if backend != Backend::User {
+            return Err("host denies need --backend user".to_owned());
+        }
+        if managed.is_some()
+            || member_of.is_some()
+            || command.is_some()
+            || name.is_some()
+            || net
+            || !grants.is_empty()
+        {
+            return Err("host denies take only --deny".to_owned());
+        }
+        return Ok(Config {
+            mode,
+            name: String::new(),
+            backend,
+            net,
+            group: Some(HOST_GROUP.to_owned()),
+            grants,
+            denies,
+            command: Vec::new(),
+        });
     }
     if let Some((mode, group)) = managed {
         if backend != Backend::User {
@@ -205,6 +249,16 @@ pub fn acl_waves(paths: &[&str]) -> Vec<Vec<usize>> {
         waves[wave].push(at);
     }
     waves
+}
+
+/// One spelling per path, so a lock name or a line of the host deny list matches however the
+/// path was written: lower case, backslashes, no `\\?\` prefix and no trailing backslash.
+pub fn path_key(path: &str) -> String {
+    let path = path.replace('/', "\\");
+    path.strip_prefix(r"\\?\")
+        .unwrap_or(&path)
+        .trim_end_matches('\\')
+        .to_lowercase()
 }
 
 /// A local account name of at most 20 characters, stable for one container name.
@@ -473,6 +527,61 @@ mod tests {
     }
 
     #[test]
+    fn host_denies_take_only_denies() {
+        for (flag, mode) in [
+            ("--ensure-host-denies", Mode::EnsureHostDenies),
+            ("--remove-host-denies", Mode::RemoveHostDenies),
+        ] {
+            let config = parse(&strings(&["--backend", "user", flag, "--deny", "C:\\x"])).unwrap();
+            assert_eq!(config.mode, mode);
+            assert_eq!(config.group.as_deref(), Some(HOST_GROUP));
+            assert_eq!(config.denies, ["C:\\x"]);
+            assert!(config.grants.is_empty() && config.command.is_empty());
+        }
+        for args in [
+            vec!["--ensure-host-denies"],
+            vec!["--backend", "appcontainer", "--remove-host-denies"],
+            vec![
+                "--backend",
+                "user",
+                "--ensure-host-denies",
+                "--grant",
+                "C:\\q",
+            ],
+            vec!["--backend", "user", "--ensure-host-denies", "--group", "g"],
+            vec![
+                "--backend",
+                "user",
+                "--ensure-host-denies",
+                "--setup-group",
+                "g",
+            ],
+            vec!["--backend", "user", "--ensure-host-denies", "--name", "n"],
+            vec!["--backend", "user", "--ensure-host-denies", "--net"],
+            vec!["--backend", "user", "--ensure-host-denies", "--", "x"],
+            vec![
+                "--backend",
+                "user",
+                "--ensure-host-denies",
+                "--remove-host-denies",
+            ],
+        ] {
+            assert!(parse(&strings(&args)).is_err(), "{args:?}");
+        }
+    }
+
+    #[test]
+    fn path_keys_ignore_case_slashes_and_prefixes() {
+        let key = path_key(r"C:\Program Files\Microsoft Visual Studio");
+        assert_eq!(key, r"c:\program files\microsoft visual studio");
+        assert_eq!(
+            path_key(r"\\?\c:\PROGRAM FILES\Microsoft Visual Studio\"),
+            key
+        );
+        assert_eq!(path_key("C:/Program Files/Microsoft Visual Studio/"), key);
+    }
+
+    #[test]
     fn group_pid_reads_only_run_group_names() {
         assert_eq!(group_pid("dxh-123"), Some(123));
         assert_eq!(group_pid("dxh-4294967295"), Some(u32::MAX));
@@ -499,6 +608,8 @@ mod tests {
         let alive = |pid| pid == 11;
         assert_eq!(stale_groups(&names, "dxh-12", alive), ["dxh-10"]);
         assert_eq!(stale_groups(&names, "dxh-99", alive), ["dxh-10", "dxh-12"]);
+        let shared = strings(&[HOST_GROUP, "dxh-10"]);
+        assert_eq!(stale_groups(&shared, "dxh-99", |_| false), ["dxh-10"]);
     }
 
     #[test]

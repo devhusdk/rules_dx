@@ -135,7 +135,8 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     let group = AclGroup::setup(&mut scene.isolation, &name, &out).expect("group setup");
     let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
     assert!(timeline.contains("acl deny "), "{timeline}");
-    assert!(icacls(&scene.ungranted).contains(&name));
+    assert!(icacls(&scene.granted).contains(&name));
+    assert!(icacls(&scene.ungranted).contains("dxh-host"));
     let denied = scene.run(Net::Denied, &["read", &text(&secret)]);
     assert_ne!(denied.exit, 0, "{}", denied.stdout);
     let allowed = scene.run(Net::Denied, &["read", &text(&open)]);
@@ -144,7 +145,23 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     drop(group);
     let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
     assert!(timeline.contains("acl revoke "), "{timeline}");
+    assert!(icacls(&scene.ungranted).contains("dxh-host"));
+    let again = AclGroup::setup(&mut scene.isolation, &name, &out).expect("second group setup");
+    let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
+    assert!(
+        timeline.contains(&format!("acl deny {}: present", text(&scene.ungranted))),
+        "{timeline}"
+    );
+    drop(again);
+    remove_host_denies(&scene.isolation);
     assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
+}
+
+/// Takes the scene's denies off `dxh-host`, which keeps them after a group is dropped.
+fn remove_host_denies(isolation: &Isolation) {
+    let removed =
+        capture(isolation.windows_host_command("--remove-host-denies")).expect("launcher runs");
+    assert_eq!(removed.exit, 0, "{}", removed.stderr);
 }
 
 #[test]
@@ -166,9 +183,10 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     std::mem::forget(
         AclGroup::setup(&mut scene.isolation, &stale, &out).expect("stale group setup"),
     );
-    assert!(icacls(&scene.ungranted).contains(&stale));
+    assert!(icacls(&scene.granted).contains(&stale));
     let fresh = format!("dxh-{}-fresh", std::process::id());
     drop(AclGroup::setup(&mut scene.isolation, &fresh, &out).expect("fresh group setup"));
+    remove_host_denies(&scene.isolation);
     assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
     let listed = std::process::Command::new("net")
         .args(["localgroup", stale.as_str()])
@@ -267,7 +285,8 @@ fn a_granted_path_listed_as_a_deny_is_reported_readable() {
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut scene = scene("readable");
     let name = format!("dxh-{}-readable", std::process::id());
-    let _group = AclGroup::setup(&mut scene.isolation, &name).expect("group setup");
+    let out = scene.root.join("out");
+    let group = AclGroup::setup(&mut scene.isolation, &name, &out).expect("group setup");
     let isolation = Isolation {
         denies: vec![scene.granted.clone()],
         ..scene.isolation.clone()
@@ -275,4 +294,6 @@ fn a_granted_path_listed_as_a_deny_is_reported_readable() {
     let err = hermetic::isolation_check(&isolation, None, &scene.granted.join("check.cmd"))
         .expect_err("a granted path stays readable in group mode");
     assert!(err.contains("is still readable"), "{err}");
+    drop(group);
+    remove_host_denies(&scene.isolation);
 }

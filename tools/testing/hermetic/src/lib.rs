@@ -950,28 +950,43 @@ impl Isolation {
             Some(group) => {
                 command.args(["--group", group]);
             }
-            None => self.acl_args(&mut command),
+            None => {
+                self.grant_args(&mut command);
+                self.deny_args(&mut command);
+            }
         }
         command.arg("--");
         command.args(inner);
         command
     }
 
-    /// The launcher command that gives the group its grants and denies (`--setup-group`) or
-    /// takes them away and deletes it (`--teardown-group`).
+    /// The launcher command that gives the group its grants (`--setup-group`) or takes them away
+    /// and deletes it (`--teardown-group`).
     pub fn windows_group_command(&self, mode: &str, group: &str) -> Command {
         let mut command = Command::new(&self.launcher);
         command.args(["--backend", "user", mode, group]);
-        self.acl_args(&mut command);
+        self.grant_args(&mut command);
         command
     }
 
-    fn acl_args(&self, command: &mut Command) {
+    /// The launcher command that puts the denies on the shared `dxh-host` group
+    /// (`--ensure-host-denies`) or takes them off (`--remove-host-denies`).
+    pub fn windows_host_command(&self, mode: &str) -> Command {
+        let mut command = Command::new(&self.launcher);
+        command.args(["--backend", "user", mode]);
+        self.deny_args(&mut command);
+        command
+    }
+
+    fn grant_args(&self, command: &mut Command) {
         for grant in &self.grants {
             let text = grant.to_string_lossy();
             command.arg("--grant");
             command.arg(text.strip_prefix(r"\\?\").unwrap_or(&text));
         }
+    }
+
+    fn deny_args(&self, command: &mut Command) {
         for deny in &self.denies {
             let text = deny.to_string_lossy();
             command.arg("--deny");
@@ -1017,9 +1032,11 @@ impl Isolation {
     }
 }
 
-/// A Windows local group holding the grants and denies for every run of one qualification.
-/// Setting the inherited entries once, while the root is nearly empty, spares each run from
-/// rewriting the ACLs of whole trees. Dropping it removes the entries and the group.
+/// A Windows local group holding the grants for every run of one qualification. Setting the
+/// inherited entries once, while the root is nearly empty, spares each run from rewriting the
+/// ACLs of whole trees. The denies go on the shared `dxh-host` group, which keeps them between
+/// qualifications, so a tree that already has them is not walked again. Dropping it removes the
+/// grants and the group.
 pub struct AclGroup {
     isolation: Isolation,
     name: String,
@@ -1030,16 +1047,24 @@ impl AclGroup {
     /// Creates the group and points `isolation` at it. The time spent on each path, at setup and
     /// at teardown, goes to `out`'s timeline.
     pub fn setup(isolation: &mut Isolation, name: &str, out: &Path) -> Result<Self, String> {
-        let outcome = capture(isolation.windows_group_command("--setup-group", name))?;
-        for line in outcome.stdout.lines() {
-            timeline(out, line);
-        }
-        if outcome.exit != 0 {
-            return Err(format!(
-                "cannot set up the ACL group {name} (exit {}): {}",
-                outcome.exit,
-                outcome.stderr.trim()
-            ));
+        for (command, group) in [
+            (
+                isolation.windows_host_command("--ensure-host-denies"),
+                "dxh-host",
+            ),
+            (isolation.windows_group_command("--setup-group", name), name),
+        ] {
+            let outcome = capture(command)?;
+            for line in outcome.stdout.lines() {
+                timeline(out, line);
+            }
+            if outcome.exit != 0 {
+                return Err(format!(
+                    "cannot set up the ACL group {group} (exit {}): {}",
+                    outcome.exit,
+                    outcome.stderr.trim()
+                ));
+            }
         }
         isolation.group = Some(name.to_owned());
         Ok(Self {

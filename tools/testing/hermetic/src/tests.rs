@@ -1834,7 +1834,7 @@ fn windows_command_runs_the_launcher_with_grants_and_network_flag() {
 }
 
 #[test]
-fn windows_runs_in_a_group_leave_the_acls_to_the_group() {
+fn windows_runs_in_a_group_leave_the_acls_to_the_groups() {
     let isolation = Isolation {
         launcher: PathBuf::from("appcontainer_run.exe"),
         grants: vec![PathBuf::from(r"\\?\C:\q\work")],
@@ -1862,7 +1862,16 @@ fn windows_runs_in_a_group_leave_the_acls_to_the_group() {
             "--setup-group",
             "dxh-7",
             "--grant",
-            "C:\\q\\work",
+            "C:\\q\\work"
+        ]
+    );
+    let host = args(isolation.windows_host_command("--ensure-host-denies"));
+    assert_eq!(
+        host,
+        [
+            "--backend",
+            "user",
+            "--ensure-host-denies",
             "--deny",
             "C:\\q\\secret"
         ]

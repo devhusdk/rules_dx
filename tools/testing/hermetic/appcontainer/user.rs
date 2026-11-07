@@ -7,6 +7,10 @@
 //! `setup_group` removes the `dxh-<pid>` groups of runs that were killed before their teardown,
 //! with their entries on this run's paths.
 //!
+//! The denies go on the shared `dxh-host` group instead, which every run account joins. Its
+//! entries stay between runs: `ensure_host_denies` walks a tree only when the host deny list
+//! does not name it yet, so the big Visual Studio and SDK trees are rewritten once per machine.
+//!
 //! Inside an AppContainer the Mount Manager refuses `GetFinalPathNameByHandleW` with a DOS
 //! volume name, which Bazel's client needs. A normal user token passes.
 use std::ffi::c_void;
@@ -61,12 +65,13 @@ use windows_sys::Win32::UI::Shell::DeleteProfileW;
 use windows_sys::core::GUID;
 
 use crate::args::{
-    Config, acl_waves, environment, logon_command_line, password, stale_groups, user_name,
+    Config, HOST_GROUP, Mode, acl_waves, environment, logon_command_line, password, path_key,
+    stale_groups, user_name,
 };
 use crate::sys::{
     CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
-    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, set_access, trustee_entry,
-    user_defaults, wide,
+    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, path_lock_name, set_access,
+    trustee_entry, user_defaults, wide, with_acl_lock,
 };
 
 const RPC_C_AUTHN_DEFAULT: u32 = 0xFFFF_FFFF;
@@ -87,6 +92,9 @@ const SC_MANAGER_CONNECT: u32 = 1;
 const SERVICE_QUERY_STATUS: u32 = 4;
 const SC_STATUS_PROCESS_INFO: i32 = 0;
 const DNS_PORT_LOCK: &str = "Global\\dx_hermetic_dnsresolver_acl";
+const HOST_DENIES_LOCK: &str = "Global\\dx-hermetic-host-denies";
+const ACCESS_ALLOWED_ACE_TYPE: u8 = 0;
+const ACCESS_DENIED_ACE_TYPE: u8 = 1;
 
 #[repr(C)]
 struct HandleEntry {
@@ -824,12 +832,14 @@ pub fn run(config: &Config) -> Result<i32, String> {
         deny_dns_client(&mut session)?;
     }
     if let Some(group) = &config.group {
-        // Before the logon, so the group is in the account's token.
-        add_member(
-            &session.user,
-            group,
-            &format!("adding the account to {group}"),
-        )?;
+        // Before the logon, so the groups are in the account's token.
+        for group in [group.as_str(), HOST_GROUP] {
+            add_member(
+                &session.user,
+                group,
+                &format!("adding the account to {group}"),
+            )?;
+        }
     } else {
         for (path, mode) in acl_entries(config) {
             set_access(path, session.sid(), mode)?;
@@ -853,21 +863,7 @@ fn acl_entries(config: &Config) -> impl Iterator<Item = (&String, i32)> {
 pub fn setup_group(config: &Config) -> Result<i32, String> {
     let group = config.group.as_deref().ok_or("no group to set up")?;
     remove_stale_groups(config, group);
-    let name = wide(group);
-    let mut info_name = name.clone();
-    let info = LOCALGROUP_INFO_0 {
-        lgrpi0_name: info_name.as_mut_ptr(),
-    };
-    let code = unsafe { NetLocalGroupAdd(null(), 0, &info as *const _ as *const u8, null_mut()) };
-    if code == ERROR_ACCESS_DENIED {
-        return Err(
-            "NetLocalGroupAdd failed with error 5: the user backend must run elevated (as administrator)"
-                .to_owned(),
-        );
-    }
-    if code != ERROR_ALIAS_EXISTS {
-        check(code, &format!("creating the local group {group}"))?;
-    }
+    let name = create_group(group)?;
     let applied = account_sid(&name).and_then(|sid| {
         let mut first = Ok(());
         for (path, mode, millis, result) in in_waves(config, &sid, set_access) {
@@ -887,6 +883,129 @@ pub fn setup_group(config: &Config) -> Result<i32, String> {
         return Err(err);
     }
     Ok(0)
+}
+
+/// Creates the local group unless it exists, and returns its name as UTF-16.
+fn create_group(group: &str) -> Result<Vec<u16>, String> {
+    let name = wide(group);
+    let mut info_name = name.clone();
+    let info = LOCALGROUP_INFO_0 {
+        lgrpi0_name: info_name.as_mut_ptr(),
+    };
+    let code = unsafe { NetLocalGroupAdd(null(), 0, &info as *const _ as *const u8, null_mut()) };
+    if code == ERROR_ACCESS_DENIED {
+        return Err(
+            "NetLocalGroupAdd failed with error 5: the user backend must run elevated (as administrator)"
+                .to_owned(),
+        );
+    }
+    if code != ERROR_ALIAS_EXISTS {
+        check(code, &format!("creating the local group {group}"))?;
+    }
+    Ok(name)
+}
+
+/// Gives `dxh-host` an inherited deny on every path that does not have it yet. A path counts as
+/// done only when the host deny list names it and its ACL still holds the group's own entry, and
+/// it joins the list only after its whole tree is written, so an interrupted walk is redone.
+pub fn ensure_host_denies(config: &Config) -> Result<i32, String> {
+    with_acl_lock(HOST_DENIES_LOCK, || {
+        let sid = account_sid(&create_group(HOST_GROUP)?)?;
+        let list = host_deny_list();
+        let mut listed = read_host_denies(&list);
+        let mut pending = Vec::new();
+        for path in &config.denies {
+            let key = path_key(path);
+            if listed.contains(&key) && has_explicit_deny(path, &sid)? {
+                println!("acl deny {path}: present");
+            } else if !pending.contains(path) {
+                pending.push(path.clone());
+            }
+        }
+        let pending = host_config(pending);
+        let mut first = Ok(0);
+        for (path, _, millis, result) in in_waves(&pending, &sid, set_access) {
+            match result {
+                Ok(()) => {
+                    println!("acl deny {path}: {millis}ms");
+                    let key = path_key(path);
+                    if !listed.contains(&key) {
+                        listed.push(key);
+                    }
+                    write_host_denies(&list, &listed)?;
+                }
+                Err(err) if first.is_ok() => first = Err(err),
+                Err(_) => {}
+            }
+        }
+        first
+    })
+}
+
+/// Takes the `dxh-host` entries off the paths and the paths off the host deny list. The group
+/// stays, since runs on other trees may still use it.
+pub fn remove_host_denies(config: &Config) -> Result<i32, String> {
+    with_acl_lock(HOST_DENIES_LOCK, || {
+        let sid = account_sid(&wide(HOST_GROUP))?;
+        let list = host_deny_list();
+        let mut listed = read_host_denies(&list);
+        let mut failed = Vec::new();
+        for (path, _, millis, result) in in_waves(config, &sid, revoke) {
+            match result {
+                Ok(()) => {
+                    println!("acl revoke {path}: {millis}ms");
+                    let key = path_key(path);
+                    listed.retain(|have| *have != key);
+                }
+                Err(err) => failed.push(err),
+            }
+        }
+        write_host_denies(&list, &listed)?;
+        if failed.is_empty() {
+            Ok(0)
+        } else {
+            Err(failed.join("; "))
+        }
+    })
+}
+
+fn host_config(denies: Vec<String>) -> Config {
+    Config {
+        mode: Mode::EnsureHostDenies,
+        name: String::new(),
+        backend: crate::args::Backend::User,
+        net: false,
+        group: Some(HOST_GROUP.to_owned()),
+        grants: Vec::new(),
+        denies,
+        command: Vec::new(),
+    }
+}
+
+fn host_deny_list() -> std::path::PathBuf {
+    let data = std::env::var_os("ProgramData").unwrap_or_else(|| r"C:\ProgramData".into());
+    std::path::Path::new(&data)
+        .join("dx-hermetic")
+        .join("host-denies.txt")
+}
+
+fn read_host_denies(list: &std::path::Path) -> Vec<String> {
+    std::fs::read_to_string(list)
+        .unwrap_or_default()
+        .lines()
+        .map(path_key)
+        .filter(|key| !key.is_empty())
+        .collect()
+}
+
+fn write_host_denies(list: &std::path::Path, keys: &[String]) -> Result<(), String> {
+    let text: String = keys.iter().map(|key| format!("{key}\n")).collect();
+    let partial = list.with_extension("tmp");
+    list.parent()
+        .map_or(Ok(()), std::fs::create_dir_all)
+        .and_then(|()| std::fs::write(&partial, text))
+        .and_then(|()| std::fs::rename(&partial, list))
+        .map_err(|err| format!("cannot write {}: {err}", list.display()))
 }
 
 /// Removes the group's entries from every path, then the group itself.
@@ -1064,18 +1183,14 @@ fn process_alive(pid: u32) -> bool {
     running
 }
 
-/// Deletes every explicit allow and deny entry for `sid` on one path. `REVOKE_ACCESS` keeps the
-/// deny entries, so it cannot undo a `DENY_ACCESS`.
-fn remove_access(path: &str, sid: *mut c_void) -> Result<(), String> {
-    const ACCESS_ALLOWED_ACE_TYPE: u8 = 0;
-    const ACCESS_DENIED_ACE_TYPE: u8 = 1;
-    let wpath = wide(path);
+/// Reads the DACL of one path. The ACL points into the descriptor, which the caller frees.
+fn read_acl(path: &str) -> Result<(*mut ACL, *mut c_void), String> {
     let mut acl: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
     check(
         unsafe {
             GetNamedSecurityInfoW(
-                wpath.as_ptr(),
+                wide(path).as_ptr(),
                 SE_FILE_OBJECT,
                 DACL_SECURITY_INFORMATION,
                 null_mut(),
@@ -1087,23 +1202,56 @@ fn remove_access(path: &str, sid: *mut c_void) -> Result<(), String> {
         },
         &format!("reading the ACL of {path}"),
     )?;
+    Ok((acl, descriptor))
+}
+
+/// The index and type of every explicit allow and deny entry for `sid`, last first.
+fn own_entries(acl: *mut ACL, sid: *const c_void) -> Vec<(u32, u8)> {
+    let mut found = Vec::new();
+    if acl.is_null() {
+        return found;
+    }
+    for index in (0..unsafe { (*acl).AceCount } as u32).rev() {
+        let mut ace: *mut c_void = null_mut();
+        if unsafe { GetAce(acl, index, &mut ace) } == 0 {
+            continue;
+        }
+        let ace = ace as *mut ACCESS_ALLOWED_ACE;
+        let header = unsafe { (*ace).Header };
+        if matches!(
+            header.AceType,
+            ACCESS_ALLOWED_ACE_TYPE | ACCESS_DENIED_ACE_TYPE
+        ) && u32::from(header.AceFlags) & INHERITED_ACE == 0
+            && unsafe { EqualSid(&raw mut (*ace).SidStart as *mut c_void, sid as *mut c_void) } != 0
+        {
+            found.push((index, header.AceType));
+        }
+    }
+    found
+}
+
+fn has_explicit_deny(path: &str, sid: &[u8]) -> Result<bool, String> {
+    let (acl, descriptor) = read_acl(path)?;
+    let denied = own_entries(acl, sid.as_ptr() as *const c_void)
+        .iter()
+        .any(|(_, kind)| *kind == ACCESS_DENIED_ACE_TYPE);
+    unsafe { LocalFree(descriptor as _) };
+    Ok(denied)
+}
+
+/// Deletes every explicit allow and deny entry for `sid` on one path, under the path's lock.
+/// `REVOKE_ACCESS` keeps the deny entries, so it cannot undo a `DENY_ACCESS`.
+fn remove_access(path: &str, sid: *mut c_void) -> Result<(), String> {
+    with_acl_lock(&path_lock_name(path), || remove_access_locked(path, sid))
+}
+
+fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
+    let wpath = wide(path);
+    let (acl, descriptor) = read_acl(path)?;
     let mut removed = false;
-    if !acl.is_null() {
-        for index in (0..unsafe { (*acl).AceCount } as u32).rev() {
-            let mut ace: *mut c_void = null_mut();
-            if unsafe { GetAce(acl, index, &mut ace) } == 0 {
-                continue;
-            }
-            let ace = ace as *mut ACCESS_ALLOWED_ACE;
-            let header = unsafe { (*ace).Header };
-            let ours = matches!(
-                header.AceType,
-                ACCESS_ALLOWED_ACE_TYPE | ACCESS_DENIED_ACE_TYPE
-            ) && u32::from(header.AceFlags) & INHERITED_ACE == 0
-                && unsafe { EqualSid(&raw mut (*ace).SidStart as *mut c_void, sid) } != 0;
-            if ours && unsafe { DeleteAce(acl, index) } != 0 {
-                removed = true;
-            }
+    for (index, _) in own_entries(acl, sid) {
+        if unsafe { DeleteAce(acl, index) } != 0 {
+            removed = true;
         }
     }
     let result = if removed {

@@ -1253,7 +1253,10 @@ exit 7
     fn main_check_runs_without_a_token() {
         let (code, out, err, uploaded) = run_gated(&[], &SITE);
         assert_eq!(code, 0, "{err}");
-        assert!(out.contains("build_mode: <unset>); nothing uploaded"), "{out}");
+        assert!(
+            out.contains("build_mode: <unset>); nothing uploaded"),
+            "{out}"
+        );
         assert!(!uploaded);
     }
 

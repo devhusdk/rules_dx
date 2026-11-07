@@ -19,7 +19,7 @@ Flags go to the wrapped command and are checked as `dx <command>` checks them. A
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Write on every iteration. Bare `lint`, `typecheck`, `format`, and `check` only report. |
-| `--debug`, `--release` | Pick the build profile. |
+| `--debug`, `--release` | Pick the build mode. |
 | `--here` | Resolve the scope once from the current directory. |
 | `--affected` | Re-resolve the affected targets each iteration. |
 | `--poll` | Poll the tree every second instead of using the platform watcher, on any platform. `DX_WATCH_POLL=1` makes polling the default. |

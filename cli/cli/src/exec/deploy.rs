@@ -76,7 +76,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if !invocation.quiet {
         let summary = if invocation.applies() {
-            format!("Running deploy for {label} (profile {})", profile.name())
+            format!("Running deploy for {label} (build_mode {})", profile.name())
         } else {
             build_plan.summary.clone()
         };
@@ -271,7 +271,7 @@ mod tests {
         let (code, _, err) = harness.run(&["deploy", "--apply", "//app:bin"]);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("Running deploy for //app:bin"), "{err}");
-        assert!(err.contains("profile release"), "{err}");
+        assert!(err.contains("build_mode release"), "{err}");
     }
 
     #[test]

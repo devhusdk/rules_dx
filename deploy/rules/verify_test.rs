@@ -294,10 +294,7 @@ fn cloudflare_case() {
         &prog,
         "DX_CLOUDFLARE_CONFIG",
         &[],
-        &[
-            ("DX_DEPLOY_LIVE", "1"),
-            ("CLOUDFLARE_API_TOKEN", token),
-        ],
+        &[("DX_DEPLOY_LIVE", "1"), ("CLOUDFLARE_API_TOKEN", token)],
     )
     .expect("unapproved run must execute");
     assert!(!unapproved.status.success(), "{}", unapproved.combined());

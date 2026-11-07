@@ -1,6 +1,7 @@
 use super::*;
 
-const OWNER_NOTE: &str = "# dx: yours to edit; `dx security --accept` and `dx license --accept` append here";
+const OWNER_NOTE: &str =
+    "# dx: yours to edit; `dx security --accept` and `dx license --accept` append here";
 const SECURITY_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json";
 const LICENSE_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json";
 

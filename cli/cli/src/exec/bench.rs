@@ -726,7 +726,10 @@ mod tests {
         harness
             .query
             .script_info(&format!("bazel-testlogs: {}\n", testlogs.display()));
-        let dir = testlogs.join("app").join("parse_bench").join("test.outputs");
+        let dir = testlogs
+            .join("app")
+            .join("parse_bench")
+            .join("test.outputs");
         std::fs::create_dir_all(&dir).expect("testlogs dir");
         std::fs::write(
             dir.join("outputs.zip"),

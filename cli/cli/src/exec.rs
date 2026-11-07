@@ -25,7 +25,6 @@ mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
 pub(crate) mod ide_refresh;
-mod sync_prune;
 mod managed;
 mod managed_codegen;
 mod managed_env;
@@ -50,6 +49,7 @@ mod skipped_targets;
 mod staged;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;
+mod sync_prune;
 mod test_filter;
 mod test_reports;
 #[cfg(test)]

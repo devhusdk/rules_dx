@@ -963,7 +963,9 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
     match maven_build_file_repo(&files, outdir, group, artifact, version, signer.as_ref()) {
         Ok(house) => {
             let build_mode = deploy_build_mode();
-            println!("maven_deploy: staged {group}:{artifact}:{version} (build_mode: {build_mode})");
+            println!(
+                "maven_deploy: staged {group}:{artifact}:{version} (build_mode: {build_mode})"
+            );
             println!("  repo: {}", house.display());
             println!("  url: file://{}", house.display());
             println!("  signed: {}", if signer.is_some() { "yes" } else { "no" });

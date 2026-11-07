@@ -94,7 +94,11 @@ fn write_module(
     } else {
         "off"
     };
-    let mut argv = invocation.bazel_head().argv("mod");
+    let head = dx_process::BazelHead {
+        options: Vec::new(),
+        ..invocation.bazel_head()
+    };
+    let mut argv = head.argv("mod");
     argv.extend(["deps".to_owned(), format!("--lockfile_mode={mode}")]);
     let detail = match runner.run(&argv, workspace, &[]) {
         Ok(status) if status.code == Some(0) => return Ok(()),
@@ -797,6 +801,10 @@ mod tests {
         let calls = runner.calls.borrow();
         assert_eq!(calls.len(), 2, "{calls:?}");
         assert!(calls[0].contains(&"mod".to_owned()), "{calls:?}");
+        assert!(
+            !calls[0].iter().any(|arg| arg.starts_with("--config=")),
+            "{calls:?}"
+        );
         assert!(calls[0].ends_with(&["deps".to_owned(), "--lockfile_mode=update".to_owned()]));
         assert!(calls[1].contains(&"run".to_owned()), "{calls:?}");
         assert!(

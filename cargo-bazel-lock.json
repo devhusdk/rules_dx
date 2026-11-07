@@ -1,5 +1,5 @@
 {
-  "checksum": "f91df40a51fbacaf11488885e87772039e8812c2f5d93d2df92e549ab0afba49",
+  "checksum": "fa805cd4d71b3a96937653f34e2e3d601ef3225b2857e1fcd37bdca052d10854",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -19789,7 +19789,8 @@
           "selects": {
             "aarch64-pc-windows-msvc": {
               "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-              "CC_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:clang_cl)"
+              "CC_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:clang_cl)",
+              "CFLAGS_aarch64_pc_windows_msvc": "/WX-"
             },
             "x86_64-pc-windows-msvc": {
               "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)"

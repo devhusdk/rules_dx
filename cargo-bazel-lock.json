@@ -1,5 +1,5 @@
 {
-  "checksum": "fa805cd4d71b3a96937653f34e2e3d601ef3225b2857e1fcd37bdca052d10854",
+  "checksum": "b300d4bb6a2de0ae857e155c8077518c0ed8fdd2eefde9d282ad6d443fb2d562",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -18175,7 +18175,6 @@
           ":build_script_build"
         ]
       },
-      "disable_pipelining": true,
       "library_target_name": "pulldown_cmark",
       "license": "MIT",
       "license_file": "LICENSE",

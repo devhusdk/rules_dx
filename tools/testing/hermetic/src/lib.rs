@@ -1060,6 +1060,20 @@ impl Drop for AclGroup {
     }
 }
 
+/// Appends one line to `logs/timeline.log`, which survives a qualification killed by a timeout.
+fn timeline(out: &Path, line: &str) {
+    use std::io::Write;
+    let logs = out.join("logs");
+    let _ = std::fs::create_dir_all(&logs);
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join("timeline.log"))
+    {
+        let _ = writeln!(file, "{line}");
+    }
+}
+
 /// The real user and group id: /proc/self/status on Linux, `id` elsewhere.
 fn real_ids() -> Result<(u32, u32), String> {
     if cfg!(windows) {
@@ -1455,7 +1469,15 @@ impl Session {
                     capture(command)
                 };
                 let outcome = launch(argv)?;
+                let ran = started.elapsed().as_secs();
                 let _ = launch(&run.shutdown);
+                timeline(
+                    &self.out,
+                    &format!(
+                        "{name}: {ran}s, shutdown {}s",
+                        started.elapsed().as_secs() - ran
+                    ),
+                );
                 outcome
             }
             None => capture(self.isolation.command(net, argv))?,
@@ -2384,6 +2406,7 @@ fn run_all(
     if cfg!(windows) && manifest.is_msvc() {
         isolation.denies.extend(windows_host_msvc_denies());
     }
+    let started = Instant::now();
     let _acl_group = if cfg!(windows) {
         Some(AclGroup::setup(
             &mut isolation,
@@ -2392,6 +2415,7 @@ fn run_all(
     } else {
         None
     };
+    timeline(out, &format!("acl setup: {}s", started.elapsed().as_secs()));
     let ambient = ambient_tools(&host.tool_dirs, AMBIENT_TOOLS)
         .into_iter()
         .find(|(_, path)| {
@@ -2438,8 +2462,13 @@ fn run_all(
         "denied_dirs": isolation.denies,
         "acl_scope": isolation.group.as_ref().map(|_| "group"),
     });
+    let started = Instant::now();
     preflight(&isolation)?;
     deny_check(&isolation)?;
+    timeline(
+        out,
+        &format!("preflight and deny check: {}s", started.elapsed().as_secs()),
+    );
     let workspace = root.join(&manifest.workspace_dir);
     evidence["consumer"] = json!({
         "module": manifest.module,
@@ -2467,6 +2496,7 @@ fn run_all(
     let planted_home = root.join("home-planted");
     std::fs::create_dir_all(&clean_home)
         .map_err(|err| format!("cannot create {}: {err}", clean_home.display()))?;
+    let started = Instant::now();
     materialize(
         &session.manifest,
         &session.workspace,
@@ -2504,6 +2534,10 @@ fn run_all(
         }
         session.bazel = bazel;
     }
+    timeline(
+        out,
+        &format!("materialize: {}s", started.elapsed().as_secs()),
+    );
     write(&planted_home.join(".bazelrc"), HOME_RC)?;
     let repos = root.join("repos");
     let empty_repos = root.join("repos-empty");

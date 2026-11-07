@@ -31,13 +31,14 @@ use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::{
 };
 use windows_sys::Win32::Security::Authentication::Identity::RtlGenRandom;
 use windows_sys::Win32::Security::Authorization::{
-    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo,
-    SDDL_REVISION_1, SE_KERNEL_OBJECT, SetEntriesInAclW, SetSecurityInfo,
+    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW,
+    GetNamedSecurityInfoW, GetSecurityInfo, SDDL_REVISION_1, SE_FILE_OBJECT, SE_KERNEL_OBJECT,
+    SetEntriesInAclW, SetNamedSecurityInfoW, SetSecurityInfo,
 };
 use windows_sys::Win32::Security::{
-    ACL, AdjustTokenPrivileges, DACL_SECURITY_INFORMATION, GetSecurityDescriptorLength,
-    LUID_AND_ATTRIBUTES, LookupAccountNameW, LookupPrivilegeValueW, SE_PRIVILEGE_ENABLED,
-    TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES,
+    ACCESS_ALLOWED_ACE, ACL, AdjustTokenPrivileges, DACL_SECURITY_INFORMATION, DeleteAce, EqualSid,
+    GetAce, GetSecurityDescriptorLength, INHERITED_ACE, LUID_AND_ATTRIBUTES, LookupAccountNameW,
+    LookupPrivilegeValueW, SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES,
 };
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
@@ -142,7 +143,7 @@ impl Drop for Session {
             end_job(self.job);
         }
         for path in &self.acl_paths {
-            let _ = set_access(path, self.sid(), REVOKE_ACCESS);
+            let _ = remove_access(path, self.sid());
         }
         if !self.dns_port.is_null() {
             let _ = set_port_access(self.dns_port, self.sid(), REVOKE_ACCESS);
@@ -814,7 +815,7 @@ pub fn teardown_group(config: &Config) -> Result<i32, String> {
     let mut sid = account_sid(&name)?;
     let mut failed = Vec::new();
     for (path, _) in acl_entries(config) {
-        if let Err(err) = set_access(path, sid.as_mut_ptr() as *mut c_void, REVOKE_ACCESS) {
+        if let Err(err) = remove_access(path, sid.as_mut_ptr() as *mut c_void) {
             failed.push(err);
         }
     }
@@ -827,4 +828,68 @@ pub fn teardown_group(config: &Config) -> Result<i32, String> {
     } else {
         Err(failed.join("; "))
     }
+}
+
+/// Deletes every explicit allow and deny entry for `sid` on one path. `REVOKE_ACCESS` keeps the
+/// deny entries, so it cannot undo a `DENY_ACCESS`.
+fn remove_access(path: &str, sid: *mut c_void) -> Result<(), String> {
+    const ACCESS_ALLOWED_ACE_TYPE: u8 = 0;
+    const ACCESS_DENIED_ACE_TYPE: u8 = 1;
+    let wpath = wide(path);
+    let mut acl: *mut ACL = null_mut();
+    let mut descriptor: *mut c_void = null_mut();
+    check(
+        unsafe {
+            GetNamedSecurityInfoW(
+                wpath.as_ptr(),
+                SE_FILE_OBJECT,
+                DACL_SECURITY_INFORMATION,
+                null_mut(),
+                null_mut(),
+                &mut acl,
+                null_mut(),
+                &mut descriptor,
+            )
+        },
+        &format!("reading the ACL of {path}"),
+    )?;
+    let mut removed = false;
+    if !acl.is_null() {
+        for index in (0..unsafe { (*acl).AceCount } as u32).rev() {
+            let mut ace: *mut c_void = null_mut();
+            if unsafe { GetAce(acl, index, &mut ace) } == 0 {
+                continue;
+            }
+            let ace = ace as *mut ACCESS_ALLOWED_ACE;
+            let header = unsafe { (*ace).Header };
+            let ours = matches!(
+                header.AceType,
+                ACCESS_ALLOWED_ACE_TYPE | ACCESS_DENIED_ACE_TYPE
+            ) && u32::from(header.AceFlags) & INHERITED_ACE == 0
+                && unsafe { EqualSid(&raw mut (*ace).SidStart as *mut c_void, sid) } != 0;
+            if ours && unsafe { DeleteAce(acl, index) } != 0 {
+                removed = true;
+            }
+        }
+    }
+    let result = if removed {
+        check(
+            unsafe {
+                SetNamedSecurityInfoW(
+                    wpath.as_ptr(),
+                    SE_FILE_OBJECT,
+                    DACL_SECURITY_INFORMATION,
+                    null_mut(),
+                    null_mut(),
+                    acl,
+                    null_mut(),
+                )
+            },
+            &format!("setting the ACL of {path}"),
+        )
+    } else {
+        Ok(())
+    };
+    unsafe { LocalFree(descriptor as _) };
+    result
 }

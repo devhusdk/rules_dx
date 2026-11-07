@@ -14,6 +14,7 @@ pub(crate) const CODE_TARGETS_SKIPPED: &str = "targets_skipped";
 pub(crate) const CODE_INIT_PLAN_PARTIAL: &str = "init_plan_partial";
 pub(crate) const CODE_INIT_ABSENT: &str = "init_absent";
 pub(crate) const CODE_IDE_REFRESH_FAILED: &str = "ide_refresh_failed";
+pub(crate) const CODE_PRUNE_FAILED: &str = "prune_failed";
 pub(crate) const CODE_UMBRELLA_PHASE_SKIPPED: &str = "umbrella_phase_skipped";
 pub(crate) const CODE_UMBRELLA_PHASE_FINDINGS: &str = "umbrella_phase_findings";
 pub(crate) const CODE_COMMIT_NOT_CONVENTIONAL: &str = "commit_not_conventional";

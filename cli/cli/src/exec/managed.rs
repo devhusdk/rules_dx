@@ -36,6 +36,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         actions,
+        proc_root,
         ..
     } = env;
     if !invocation.command.is_managed() {
@@ -172,6 +173,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     drop(staged_leases);
     let _ = std::fs::remove_file(&bep);
+    super::sync_prune::prune_and_warn(workspace, proc_root, invocation.output, out, err);
     super::ide_refresh::refresh_and_warn(
         workspace,
         query_runner,
@@ -294,6 +296,77 @@ mod tests {
             assert!(out.contains("already selected setup "), "{out}");
             assert_eq!(err, "", "{err}");
         }
+    }
+
+    fn quiet_proc(harness: &Harness) -> std::path::PathBuf {
+        let proc_root = harness.workspace.join("quiet-proc");
+        std::fs::create_dir_all(&proc_root).expect("empty process table");
+        proc_root
+    }
+
+    #[test]
+    fn sync_prunes_the_superseded_setup() {
+        let mut harness = Harness::new("sync-prunes-superseded");
+        harness.proc_root = quiet_proc(&harness);
+        let old = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["sync"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(err, "", "{err}");
+        let dx_dir = dx_path::state::local_dir(&harness.workspace);
+        assert!(!dx_dir.join("setups").join(&old).exists(), "{out}");
+        assert!(
+            !dx_dir
+                .join(ENVIRONMENTS_DIR_NAME)
+                .join("1".repeat(64))
+                .exists()
+        );
+        assert!(
+            !dx_dir
+                .join(GENERATED_DIR_NAME)
+                .join("2".repeat(64))
+                .exists()
+        );
+        let pair = read_current_pair(&harness.workspace)
+            .expect("read current")
+            .expect("selection committed");
+        let current = dx_setup::setup_hex(&pair);
+        assert!(dx_dir.join("setups").join(current).exists());
+    }
+
+    #[test]
+    fn sync_keeps_a_leased_generation() {
+        let mut harness = Harness::new("sync-keeps-leased");
+        harness.proc_root = quiet_proc(&harness);
+        commit_clean_pair(&harness, '1', '2');
+        let dx_dir = dx_path::state::local_dir(&harness.workspace);
+        let leased_hex = "2".repeat(64);
+        let _lease = dx_atomic_fs::lease::acquire_shared(
+            &dx_dir,
+            dx_atomic_fs::lease::GenerationUse::Generated,
+            &leased_hex,
+            std::time::Duration::from_secs(10),
+        )
+        .expect("hold a reader lease");
+        let (code, out, err) = harness.run(&["sync"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(dx_dir.join(GENERATED_DIR_NAME).join(&leased_hex).exists());
+        assert!(
+            !dx_dir
+                .join(ENVIRONMENTS_DIR_NAME)
+                .join("1".repeat(64))
+                .exists()
+        );
+    }
+
+    #[test]
+    fn sync_keeps_old_setups_when_observation_is_unavailable() {
+        let mut harness = Harness::new("sync-unobserved");
+        harness.proc_root = harness.workspace.join("no-such-proc");
+        let old = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["sync"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let dx_dir = dx_path::state::local_dir(&harness.workspace);
+        assert!(dx_dir.join("setups").join(old).exists());
     }
 
     #[test]

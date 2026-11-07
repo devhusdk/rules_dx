@@ -1651,7 +1651,8 @@ crate.annotation_select(
 # toolchain uses clang-cl (#6337, briansmith/ring#2673). cl.exe opens the
 # fiat includes without collapsing `..`, which overflows MAX_PATH under the
 # build script runfiles (#8290). The MSVC compiler has no clang, so ring's
-# aarch64 build script gets the hermetic clang-cl as CC (#9224).
+# aarch64 build script gets the hermetic clang-cl as CC (#9224). ring's /Wall
+# is -Weverything in clang-cl, so the MSVC toolchain's /WX is turned off.
 crate.annotation(
     crate = "ring",
     patch_args = ["-p1"],
@@ -1691,6 +1692,7 @@ crate.annotation_select(
     build_script_env = {
         "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
         "CC_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:clang_cl)",
+        "CFLAGS_aarch64_pc_windows_msvc": "/WX-",
     },
     build_script_tools = [
         "@@//rust/tools/msvc_paths:clang_cl",

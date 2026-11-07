@@ -3880,7 +3880,7 @@
     },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "/ZDwbFUeZ0J7ONlB1ohgWQuBgqLz1G/T6pczHciF91Y=",
+        "bzlTransitiveDigest": "8dwUyohHvtsr4aXy5bl18RzOF26+7Prl0pqk04z6Y+g=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -15313,7 +15313,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%msvc_runtime": {
       "general": {
-        "bzlTransitiveDigest": "PaAdv/+gxd3QHRtGO/fNmeO86Vn16qlo/6olXSjQHRc=",
+        "bzlTransitiveDigest": "c6RAFlG2fRAySUZlIBNDe1ttLY3K5TQeJ4jY0yz2Lkg=",
         "usagesDigest": "0BOTD+RFF/F8wEwkEkeUKp8CTf/m/XNqplFokg6LSlU=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
@@ -15348,7 +15348,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%windows_sdk": {
       "general": {
-        "bzlTransitiveDigest": "PaAdv/+gxd3QHRtGO/fNmeO86Vn16qlo/6olXSjQHRc=",
+        "bzlTransitiveDigest": "c6RAFlG2fRAySUZlIBNDe1ttLY3K5TQeJ4jY0yz2Lkg=",
         "usagesDigest": "U8WtU/CzfAY/DN9XIVa8809rYlinZcZBZMnzXjXnUQo=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"

@@ -139,10 +139,14 @@ const JVM_FLAGS: [Flag; 3] = [
     ),
 ];
 
-const CI_CORRECTNESS_FLAGS: [Flag; 2] = [
+const CI_CORRECTNESS_FLAGS: [Flag; 3] = [
     (
         "common:ci --lockfile_mode=error",
         "Under --config=ci, fail when MODULE.bazel.lock is out of date.",
+    ),
+    (
+        "common:ci --repo_env=JAVA_HOME=dx-no-local-jdk",
+        "Under --config=ci, skip probing the host JDK for @local_jdk.",
     ),
     (
         "common:ci --nobuild_runfile_links",
@@ -919,6 +923,7 @@ mod tests {
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",
                 "common:ci --lockfile_mode=error",
+                "common:ci --repo_env=JAVA_HOME=dx-no-local-jdk",
                 "common:ci --nobuild_runfile_links",
             ]
         );
@@ -1028,8 +1033,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 51);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 51);
+        assert_eq!(total, 52);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 52);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1139,7 +1144,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 51);
+        assert_eq!(flags.len(), 52);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

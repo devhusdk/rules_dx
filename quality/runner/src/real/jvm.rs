@@ -331,8 +331,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     &tool.binary,
                     &targets,
                     &aux_refs,
-                    tool.edition.as_deref().unwrap_or("default"),
-                    tool.dialect.as_deref().unwrap_or("medium"),
+                    tool.args.first().map_or("default", String::as_str),
+                    call.config,
                 )
                 .map_err(|err| execution(tool_id, err.to_string()))?;
                 let out = backend.run(tool_id, tool, &invocation, scratch)?;

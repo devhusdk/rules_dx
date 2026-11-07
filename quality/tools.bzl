@@ -2548,7 +2548,7 @@ TOOLS = [
     tool(
         id = "spotbugs",
         adapters = {"lint": ["java"]},
-        config = config(suffixes = [".xml"], tier_active = True, tier_base = False),
+        config = config(suffixes = [".xml"], tier_active = True),
         severity = severity(
             default = "warning",
             categories = {

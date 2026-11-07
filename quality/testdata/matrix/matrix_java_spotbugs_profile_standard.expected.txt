@@ -4,8 +4,6 @@ stages 1
 stage spotbugs classes=java sources=quality/testdata/profiles/java/Strict.java
 completed_rounds 1
 convergence STABLE
-initial 1
-initial INFO spotbugs DCN_NULLPOINTER_EXCEPTION quality/testdata/profiles/java/Strict.java 564 564 fixable=false "NullPointerException caught"
-terminal 1
-terminal INFO spotbugs DCN_NULLPOINTER_EXCEPTION quality/testdata/profiles/java/Strict.java 564 564 fixable=false "NullPointerException caught"
+initial 0
+terminal 0
 replacements 0

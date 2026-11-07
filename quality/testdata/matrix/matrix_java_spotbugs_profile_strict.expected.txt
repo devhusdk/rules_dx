@@ -5,9 +5,9 @@ stage spotbugs classes=java sources=quality/testdata/profiles/java/Strict.java
 completed_rounds 1
 convergence STABLE
 initial 2
-initial INFO spotbugs DCN_NULLPOINTER_EXCEPTION quality/testdata/profiles/java/Strict.java 564 564 fixable=false "NullPointerException caught"
-initial INFO spotbugs DM_CONVERT_CASE quality/testdata/profiles/java/Strict.java 816 816 fixable=false "Consider using Locale parameterized version of invoked method"
+initial WARNING spotbugs DCN_NULLPOINTER_EXCEPTION quality/testdata/profiles/java/Strict.java 564 564 fixable=false "NullPointerException caught"
+initial WARNING spotbugs DM_CONVERT_CASE quality/testdata/profiles/java/Strict.java 816 816 fixable=false "Consider using Locale parameterized version of invoked method"
 terminal 2
-terminal INFO spotbugs DCN_NULLPOINTER_EXCEPTION quality/testdata/profiles/java/Strict.java 564 564 fixable=false "NullPointerException caught"
-terminal INFO spotbugs DM_CONVERT_CASE quality/testdata/profiles/java/Strict.java 816 816 fixable=false "Consider using Locale parameterized version of invoked method"
+terminal WARNING spotbugs DCN_NULLPOINTER_EXCEPTION quality/testdata/profiles/java/Strict.java 564 564 fixable=false "NullPointerException caught"
+terminal WARNING spotbugs DM_CONVERT_CASE quality/testdata/profiles/java/Strict.java 816 816 fixable=false "Consider using Locale parameterized version of invoked method"
 replacements 0

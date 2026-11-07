@@ -84,6 +84,8 @@ TOOLS = {
     },
 }
 
+_SPOTBUGS_EFFORT = {"standard": "default", "strict": "max"}
+
 SHARD_SPECS = {
     "real_jvm_format": {
         "capability": "format",
@@ -100,8 +102,7 @@ SHARD_SPECS = {
                 providers = [JavaInfo],
                 doc = "JaCoCo runtime SpotBugs needs to resolve coverage-instrumented classes.",
             ),
-            "_spotbugs_effort": attr.label(default = "//config:spotbugs_effort"),
-            "_spotbugs_threshold": attr.label(default = "//config:spotbugs_threshold"),
+            "_config_profile": attr.label(default = "//config:config_profile"),
         },
         "shard": "jvm",
         "suffix": "-jvm",
@@ -205,13 +206,8 @@ def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
         stage(tool_files, inputs, "dx-spotbugs/owned/" + jar.short_path, jar)
     for index, jar in enumerate(sorted(auxiliary.values(), key = lambda f: f.short_path)):
         stage(tool_files, inputs, "dx-spotbugs/aux/%d-%s" % (index, jar.basename), jar)
-    # The runner request has no spotbugs fields: effort travels as the edition, threshold as the dialect.
-    options = {}
-    if hasattr(ctx.attr, "_spotbugs_effort"):
-        options = {
-            "dialect": ctx.attr._spotbugs_threshold[BuildSettingInfo].value,
-            "edition": ctx.attr._spotbugs_effort[BuildSettingInfo].value,
-        }
+    effort = _SPOTBUGS_EFFORT[ctx.attr._config_profile[BuildSettingInfo].value]
+    options = {"args": [effort]}
     return real_context(tool_files = tool_files, inputs = inputs, options = options)
 
 def _scalafix_hook(target, _ctx, _resolved, _capability, what, _shared):

@@ -1,4 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//quality:native_config.bzl", "spotbugs_config")
 
 exports_files(
     glob(
@@ -14,6 +15,18 @@ filegroup(
         ["**"],
         exclude = ["BUILD.bazel"],
     ),
+    visibility = ["//visibility:public"],
+)
+
+spotbugs_config(
+    name = "standard",
+    src = "standard.xml",
+    visibility = ["//visibility:public"],
+)
+
+spotbugs_config(
+    name = "strict",
+    src = "strict.xml",
     visibility = ["//visibility:public"],
 )
 

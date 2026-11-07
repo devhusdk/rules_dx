@@ -1117,13 +1117,15 @@ pub fn spotbugs_check(
     files: &[&Path],
     auxiliary: &[&Path],
     effort: &str,
-    threshold: &str,
+    exclude_filter: Option<&Path>,
 ) -> Result<Invocation, std::env::JoinPathsError> {
     let mut argv = vec![binary.as_os_str().to_owned()];
     argv.push(OsString::from("-textui"));
     argv.push(OsString::from(format!("-effort:{effort}")));
-    if threshold != "medium" {
-        argv.push(OsString::from(format!("-{threshold}")));
+    if let Some(filter) = exclude_filter {
+        argv.push(OsString::from("-low"));
+        argv.push(OsString::from("-exclude"));
+        argv.push(filter.as_os_str().to_owned());
     }
     argv.push(OsString::from("-sarif"));
     if !auxiliary.is_empty() {

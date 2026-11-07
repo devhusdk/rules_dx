@@ -289,6 +289,8 @@ checkstyle_config = _make_native_config_rule("checkstyle")
 
 pmd_config = _make_native_config_rule("pmd")
 
+spotbugs_config = _make_native_config_rule("spotbugs")
+
 buf_config = _make_native_config_rule("buf")
 
 qmlformat_config = _make_native_config_rule("qmlformat")

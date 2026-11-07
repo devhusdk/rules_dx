@@ -463,6 +463,7 @@
         "flutter"
       ],
       "extensions": [
+        "//dart:extensions.bzl%pub",
         "//dart:repos.bzl%dart_tools",
         "@rules_dart//dart:extensions.bzl%dart",
         "@rules_flutter//flutter:extensions.bzl%flutter"

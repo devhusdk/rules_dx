@@ -599,6 +599,8 @@ pub_deploy(
   have a heading in `CHANGELOG.md`.
 - `hosted_url`: defaults to `https://pub.dev`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
+- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
+  Flutter packages skip the check.
 
 Default run checks `pubspec.yaml` and `CHANGELOG.md`, runs
 `dart pub publish --dry-run` on a copy, and stages `<name>-package/`. A package
@@ -1164,8 +1166,8 @@ request, or an upload, so the last step is manual:
 
 # Public API compatibility
 
-`crates_deploy`, `maven_deploy`, `npm_deploy`, `pypi_deploy`, `nuget_deploy` and
-`github_deploy` check the public API the same way. Every run compares the version being
+`crates_deploy`, `maven_deploy`, `npm_deploy`, `pypi_deploy`, `nuget_deploy`,
+`pub_deploy` and `github_deploy` check the public API the same way. Every run compares the version being
 deployed with the highest earlier release and lists the breaking changes.
 
 - `api_compat`: `fail` (default), `warn` or `off`. With `fail`, breaking
@@ -1185,6 +1187,7 @@ prints why and is skipped. The tools are pinned and come with the rule.
 | `npm_deploy` | api-extractor | the npm packument and tarball | the tarball of the tag's version |
 | `pypi_deploy` | griffe | the PyPI JSON and its wheel | `api_src` at the tag |
 | `nuget_deploy` | Microsoft.DotNet.ApiCompat | the feed's package versions and `.nupkg` | the `.nupkg` of the tag's version from the feed |
+| `pub_deploy` | dart_apitool | the server's `api/packages/<name>` versions | the package directory at the tag |
 | `github_deploy` (Go) | apidiff | proxy.golang.org | `go_modules` at the tag |
 
 # Common behavior

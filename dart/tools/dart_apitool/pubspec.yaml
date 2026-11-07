@@ -1,0 +1,9 @@
+name: dx_dart_apitool
+publish_to: none
+environment:
+  sdk: ^3.0.0
+dependencies:
+  args: any
+  colorize_lumberdash: any
+  dart_apitool: 0.23.2
+  lumberdash: any

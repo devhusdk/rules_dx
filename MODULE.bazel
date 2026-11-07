@@ -954,6 +954,15 @@ pub.from_lock(
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
 
+# pub_deploy's api_compat check runs this pinned dart_apitool.
+pub_tools = use_extension("//dart:extensions.bzl", "pub")
+pub_tools.from_lock(
+    name = "dart_apitool_deps",
+    lock = "//dart/tools/dart_apitool:pubspec.lock",
+    on_version_conflict = "upgrade",
+)
+use_repo(pub_tools, "dart_apitool_deps")
+
 # floor: equals tested; patched, consumers are pinned by the dx include (#5006)
 bazel_dep(name = "rules_julia", version = "0.8.0")
 single_version_override(

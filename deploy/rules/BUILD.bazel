@@ -44,7 +44,7 @@ load(":octopus_tests.bzl", "octopus_unit_tests")
 load(":promotion.bzl", "promotion_deploy")
 load(":promotion_tests.bzl", "promotion_unit_tests")
 load(":pub.bzl", "pub_deploy")
-load(":pub_tests.bzl", "pub_unit_tests")
+load(":pub_tests.bzl", "pub_config_content_tests", "pub_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_unit_tests")
 load(":resources.bzl", "dx_resources")
@@ -278,6 +278,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    compile_data = ["testdata/pub/apitool_report.json"],
     crate = ":dx_deploy_tools",
     data = [
         "testdata/maven/gnupg/payload.txt",
@@ -856,6 +857,7 @@ test_suite(
         ":promotion_analysis",
         ":promotion_unit",
         ":pub_analysis",
+        ":pub_config_content",
         ":pub_unit",
         ":pypi_analysis",
         ":pypi_native_linked_verify",
@@ -1625,6 +1627,8 @@ pub_deploy(
 )
 
 pub_unit_tests(name = "pub_unit")
+
+pub_config_content_tests(name = "pub_config_content")
 
 deploy_analysis_test(
     name = "pub_analysis",

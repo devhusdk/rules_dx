@@ -5,6 +5,40 @@ use std::path::Path;
 
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+/// Serves the files `files(origin)` lists by path on a loopback port; anything else is 404.
+pub(crate) fn static_registry(files: impl FnOnce(&str) -> Vec<(String, Vec<u8>)>) -> String {
+    use std::io::{Read as _, Write as _};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let origin = format!("http://{}", listener.local_addr().expect("addr"));
+    let files = files(&origin);
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { return };
+            let mut seen = Vec::new();
+            let mut buf = [0u8; 4096];
+            while !seen.windows(4).any(|w| w == b"\r\n\r\n") {
+                match stream.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => seen.extend_from_slice(&buf[..n]),
+                }
+            }
+            let head = String::from_utf8_lossy(&seen).into_owned();
+            let path = head.split(' ').nth(1).unwrap_or("").to_owned();
+            let (status, body) = match files.iter().find(|(p, _)| *p == path) {
+                Some((_, body)) => ("200 OK", body.clone()),
+                None => ("404 Not Found", b"not found".to_vec()),
+            };
+            let reply = format!(
+                "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            let _ = stream.write_all(reply.as_bytes());
+            let _ = stream.write_all(&body);
+        }
+    });
+    origin
+}
+
 pub(crate) fn scratch_dir() -> tempfile::TempDir {
     tempfile::TempDir::new().expect("scratch")
 }

@@ -298,7 +298,7 @@ fn crates_api_check(
         };
         let dest = tempfile_stage_dir("crates-api-base-")
             .map_err(|error| format!("crates_deploy: {error}"))?;
-        match export_git_dir(&workspace_dir(), crate_dir, &tag, &dest) {
+        match export_git_dir(&workspace_dir(), crate_dir, &tag, &dest, "Cargo.toml") {
             Ok(true) => {}
             Ok(false) => {
                 let _ = std::fs::remove_dir_all(&dest);

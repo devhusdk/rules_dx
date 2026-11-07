@@ -1,5 +1,9 @@
 //! pub.dev publisher: package staging, pubspec checks and the dart or flutter publish.
 
+use crate::api_compat::{
+    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir, fetch_with,
+    highest_below, previous_git_tag, workspace_dir,
+};
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
     placeholder_refusal, scrubbed_command,
@@ -210,12 +214,194 @@ fn pub_build_package(
     Ok(house)
 }
 
-/// Runs the pub deploy tool.
+/// Public API check settings of one pub deployment.
+pub struct PubApiCheck<'a> {
+    pub mode: &'a str,
+    pub baseline: &'a str,
+    pub dart_rloc: &'a str,
+    pub apitool_rloc: &'a str,
+    pub package_dir: &'a str,
+}
+
+/// Returns one line per breaking change in a dart_apitool JSON report.
+fn apitool_changes(report: &str) -> Option<Vec<String>> {
+    fn walk(node: &serde_json::Value, path: &mut Vec<String>, out: &mut Vec<String>) {
+        for child in node["children"].as_array().into_iter().flatten() {
+            if let Some(description) = child["changeDescription"].as_str() {
+                let code = child["changeCode"].as_str().unwrap_or("?");
+                let at = if path.is_empty() {
+                    String::new()
+                } else {
+                    format!("{}: ", path.join(" > "))
+                };
+                out.push(format!("{at}{description} ({code})"));
+            } else {
+                path.push(child["label"].as_str().unwrap_or("?").to_owned());
+                walk(child, path, out);
+                path.pop();
+            }
+        }
+    }
+    let json: serde_json::Value = serde_json::from_str(report).ok()?;
+    let mut out = Vec::new();
+    walk(
+        &json["report"]["breakingChanges"],
+        &mut Vec::new(),
+        &mut out,
+    );
+    Some(out)
+}
+
+/// Returns the highest non-retracted version below `next` in a pub `api/packages` body.
+fn pub_previous_version(body: &[u8], next: &str) -> Option<String> {
+    let json: serde_json::Value = serde_json::from_slice(body).ok()?;
+    let versions = json["versions"]
+        .as_array()?
+        .iter()
+        .filter(|entry| !entry["retracted"].as_bool().unwrap_or(false));
+    highest_below(versions.filter_map(|entry| entry["version"].as_str()), next)
+}
+
+/// Compares the staged package with the earlier version `api_baseline` picks.
+fn pub_api_check(
+    agent: &ureq::Agent,
+    (dart, apitool): (&Path, &Path),
+    (package_name, version): (&str, &str),
+    (staging, hosted_url): (&Path, &str),
+    (baseline, package_dir): (&str, &str),
+    workspace: &Path,
+) -> Result<Outcome, String> {
+    let baseline = Baseline::parse(baseline)
+        .ok_or_else(|| format!("pub_deploy: invalid api_baseline '{baseline}'"))?;
+    let pubspec = std::fs::read_to_string(staging.join("pubspec.yaml")).unwrap_or_default();
+    if pubspec_is_flutter(&pubspec) || pubspec.lines().any(|line| line.trim() == "sdk: flutter") {
+        return Ok(Outcome::Skipped(
+            "flutter packages need the flutter SDK".to_owned(),
+        ));
+    }
+    let work = tempfile_stage_dir("pub-api-").map_err(|error| format!("pub_deploy: {error}"))?;
+    let result = pub_api_compare(
+        agent,
+        (dart, apitool),
+        (package_name, version),
+        (staging, hosted_url),
+        (baseline, package_dir),
+        workspace,
+        &work,
+    );
+    let _ = std::fs::remove_dir_all(&work);
+    result
+}
+
+fn pub_api_compare(
+    agent: &ureq::Agent,
+    (dart, apitool): (&Path, &Path),
+    (package_name, version): (&str, &str),
+    (staging, hosted_url): (&Path, &str),
+    (baseline, package_dir): (Baseline, &str),
+    workspace: &Path,
+    work: &Path,
+) -> Result<Outcome, String> {
+    let (previous, old) = if baseline == Baseline::Git {
+        let tag = match previous_git_tag(workspace, version) {
+            Ok(Some(tag)) => tag,
+            Ok(None) => return Ok(Outcome::FirstRelease),
+            Err(error) => return Ok(Outcome::Skipped(error)),
+        };
+        let dest = work.join("old");
+        match export_git_dir(workspace, package_dir, &tag, &dest, "pubspec.yaml") {
+            Ok(true) => {}
+            Ok(false) => {
+                return Ok(Outcome::Skipped(format!(
+                    "no pubspec.yaml at {package_dir} in {tag}"
+                )));
+            }
+            Err(error) => return Err(format!("pub_deploy: api compat: {error}")),
+        }
+        (tag, dest.display().to_string())
+    } else {
+        let url = format!(
+            "{}/api/packages/{package_name}",
+            hosted_url.trim_end_matches('/')
+        );
+        let body = match fetch_with(agent, &url, 16 << 20) {
+            Ok(Some(body)) => body,
+            Ok(None) => return Ok(Outcome::FirstRelease),
+            Err(error) => return Ok(Outcome::Skipped(error)),
+        };
+        match pub_previous_version(&body, version) {
+            Some(previous) => {
+                let old = format!("pub://{package_name}/{previous}");
+                (previous, old)
+            }
+            None => return Ok(Outcome::FirstRelease),
+        }
+    };
+    let cache = work.join("pub-cache");
+    let report = work.join("report.json");
+    std::fs::create_dir_all(&cache).map_err(|error| format!("pub_deploy: {error}"))?;
+    let mut dirs: Vec<std::path::PathBuf> =
+        dart.parent().map(Path::to_path_buf).into_iter().collect();
+    dirs.extend(std::env::split_paths(&env_or_empty("PATH")));
+    let path = std::env::join_paths(dirs).map_err(|error| format!("pub_deploy: {error}"))?;
+    let output = scrubbed_command(
+        dart,
+        &[PUBLISH_CHILD_ENV_KEEP],
+        &[
+            ("PATH", path.to_str().unwrap_or("")),
+            ("PUB_CACHE", cache.to_str().unwrap_or("")),
+            ("PUB_HOSTED_URL", hosted_url),
+        ],
+    )
+    .current_dir(work)
+    .arg(apitool)
+    .args(["diff", "--old", &old, "--new"])
+    .arg(staging)
+    .args(["--version-check-mode", "none", "--report-format", "json"])
+    .arg("--report-file-path")
+    .arg(&report)
+    .output()
+    .map_err(|error| format!("pub_deploy: dart_apitool: {error}"))?;
+    let text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let parsed = std::fs::read_to_string(&report)
+        .ok()
+        .and_then(|report| apitool_changes(&report));
+    let success = output.status.success() && parsed.is_some();
+    Ok(Outcome::Compared {
+        previous,
+        changes: changes_or_failure(parsed.unwrap_or_default(), success, "dart_apitool", &text),
+    })
+}
+
+/// Runs the pub deploy tool without an API compatibility check.
 pub fn pub_main(
     package_rlocs: &[String],
     package_name: &str,
     version: &str,
     hosted_url: &str,
+    argv: &[String],
+) -> i32 {
+    let off = PubApiCheck {
+        mode: "off",
+        baseline: "registry",
+        dart_rloc: "",
+        apitool_rloc: "",
+        package_dir: "",
+    };
+    pub_main_checked(package_rlocs, package_name, version, hosted_url, &off, argv)
+}
+
+/// Runs the pub deploy tool.
+pub fn pub_main_checked(
+    package_rlocs: &[String],
+    package_name: &str,
+    version: &str,
+    hosted_url: &str,
+    api: &PubApiCheck,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -238,6 +424,37 @@ pub fn pub_main(
             eprintln!("pub_deploy: {error}");
             return 1;
         }
+    };
+    let Some(mode) = ApiCompatMode::parse(if api.mode.is_empty() { "off" } else { api.mode })
+    else {
+        eprintln!("pub_deploy: invalid api_compat '{}'", api.mode);
+        return 1;
+    };
+    let tools =
+        if mode == ApiCompatMode::Off || api.dart_rloc.is_empty() || api.apitool_rloc.is_empty() {
+            None
+        } else {
+            run.resolve(api.dart_rloc)
+                .zip(run.resolve(api.apitool_rloc))
+        };
+    let api_check = |staging: &Path| -> Result<(), String> {
+        if mode == ApiCompatMode::Off {
+            return Ok(());
+        }
+        let outcome = match &tools {
+            Some((dart, apitool)) => pub_api_check(
+                &crate::http::publish_agent(),
+                (dart, apitool),
+                (package_name, version),
+                (staging, hosted_url),
+                (api.baseline, api.package_dir),
+                &workspace_dir(),
+            ),
+            None => Ok(Outcome::Skipped(
+                "the Dart SDK or dart_apitool is not available".to_owned(),
+            )),
+        };
+        outcome.and_then(|outcome| conclude("pub_deploy", mode, version, outcome))
     };
     let live = PUB_GATE.requested(env_or_empty);
     let secrets = if live {
@@ -269,6 +486,7 @@ pub fn pub_main(
         version,
         hosted_url,
         secrets,
+        &api_check,
     );
     let _ = std::fs::remove_dir_all(&staging);
     if let Err(message) = result {
@@ -302,8 +520,10 @@ fn pub_run_checked(
     version: &str,
     hosted_url: &str,
     secrets: Option<crate::run::Secrets>,
+    api_check: &dyn Fn(&Path) -> Result<(), String>,
 ) -> Result<(), String> {
     let flutter = pub_checked_stage(mapped, staging, package_name, version)?;
+    api_check(staging)?;
     let tool = tool_name(flutter);
     let Some(program) = which_on_path(tool) else {
         if secrets.is_some() {
@@ -488,6 +708,110 @@ mod tests {
                     1
                 );
             },
+        );
+    }
+
+    const APITOOL_REPORT: &str = include_str!("../testdata/pub/apitool_report.json");
+
+    #[test]
+    fn apitool_report_lists_each_breaking_change() {
+        assert_eq!(
+            apitool_changes(APITOOL_REPORT),
+            Some(vec![
+                "Class Greeter: Field \"count\" removed (CF01)".to_owned(),
+                "Class Greeter > Method hello: Parameter \"times\" added (CE02)".to_owned(),
+            ])
+        );
+        assert_eq!(apitool_changes(r#"{"report":{}}"#), Some(vec![]));
+        assert_eq!(apitool_changes("not json"), None);
+    }
+
+    #[test]
+    fn previous_version_skips_retracted_and_prerelease() {
+        let body = br#"{"versions":[{"version":"1.0.0"},{"version":"1.2.0","retracted":true},{"version":"2.0.0-dev.1"}]}"#;
+        assert_eq!(
+            pub_previous_version(body, "3.0.0").as_deref(),
+            Some("1.0.0")
+        );
+        assert_eq!(pub_previous_version(body, "1.0.0"), None);
+        assert_eq!(pub_previous_version(b"<html>", "1.0.0"), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn api_check_fails_a_breaking_minor_and_passes_a_major_against_the_registry() {
+        let scratch = scratch_dir();
+        let registry = static_registry(|_| {
+            vec![(
+                "/api/packages/pub_demo".to_owned(),
+                br#"{"versions":[{"version":"0.9.0"},{"version":"1.0.0"},{"version":"1.0.5","retracted":true},{"version":"2.0.0-beta.1"}]}"#.to_vec(),
+            )]
+        });
+        let report = scratch.path().join("captured.json");
+        std::fs::write(&report, APITOOL_REPORT).expect("report");
+        let (args_log, env_log) = (scratch.path().join("args"), scratch.path().join("env"));
+        let fake = scratch.path().join("bin/dart");
+        std::fs::create_dir_all(scratch.path().join("bin")).expect("bin");
+        dx_testing::executable_script(
+            &fake,
+            &format!(
+                "#!/bin/sh\necho \"$@\" > '{}'\nenv > '{}'\nwhile [ $# -gt 0 ]; do\n  [ \"$1\" = --report-file-path ] && cp '{}' \"$2\"\n  shift\ndone\nexit 0\n",
+                args_log.display(),
+                env_log.display(),
+                report.display()
+            ),
+        );
+        let staging = scratch.path().join("stage");
+        write_crate_file(&staging, "pubspec.yaml", PUBSPEC);
+        let agent = crate::http::publish_agent_with_proxy(None);
+        let run = |name: &str, version: &str, staging: &Path| {
+            with_env(&[("PUB_TOKEN", Some("sekret"))], || {
+                pub_api_check(
+                    &agent,
+                    (&fake, Path::new("dart_apitool.dill")),
+                    (name, version),
+                    (staging, &registry),
+                    ("registry", ""),
+                    scratch.path(),
+                )
+                .expect("ran")
+            })
+        };
+        let outcome = run("pub_demo", "1.1.0", &staging);
+        assert_eq!(
+            outcome,
+            Outcome::Compared {
+                previous: "1.0.0".to_owned(),
+                changes: apitool_changes(APITOOL_REPORT).expect("report"),
+            }
+        );
+        let logged = std::fs::read_to_string(&args_log).expect("args");
+        assert!(
+            logged.starts_with("dart_apitool.dill diff --old pub://pub_demo/1.0.0 --new ")
+                && logged.contains("--version-check-mode none --report-format json"),
+            "{logged}"
+        );
+        let env = std::fs::read_to_string(&env_log).expect("env");
+        assert!(env.contains(&format!("PUB_HOSTED_URL={registry}")), "{env}");
+        assert!(env.contains("PUB_CACHE="), "{env}");
+        assert!(
+            env.contains(&format!("PATH={}", scratch.path().join("bin").display())),
+            "{env}"
+        );
+        assert!(!env.contains("sekret"), "{env}");
+        assert!(conclude("pub_deploy", ApiCompatMode::Fail, "1.1.0", outcome).is_err());
+        let major = run("pub_demo", "2.0.0", &staging);
+        assert!(conclude("pub_deploy", ApiCompatMode::Fail, "2.0.0", major).is_ok());
+        assert_eq!(run("missing", "1.0.0", &staging), Outcome::FirstRelease);
+        let flutter = scratch.path().join("flutter");
+        write_crate_file(
+            &flutter,
+            "pubspec.yaml",
+            "name: pub_demo\ndependencies:\n  flutter:\n    sdk: flutter\n",
+        );
+        assert_eq!(
+            run("pub_demo", "1.1.0", &flutter),
+            Outcome::Skipped("flutter packages need the flutter SDK".to_owned())
         );
     }
 

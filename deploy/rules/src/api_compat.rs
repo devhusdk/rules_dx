@@ -256,13 +256,14 @@ pub fn fetch_with(agent: &ureq::Agent, url: &str, limit: u64) -> Result<Option<V
     }
 }
 
-/// Writes the files under `rel_dir` at `rev` into `dest`; false when that directory has no `Cargo.toml`.
+/// Writes the files under `rel_dir` at `rev` into `dest`; false when that directory has no `marker` file.
 /// Symlinks and submodules are skipped. The index and working tree are not touched.
 pub fn export_git_dir(
     workspace: &std::path::Path,
     rel_dir: &str,
     rev: &str,
     dest: &std::path::Path,
+    marker: &str,
 ) -> Result<bool, String> {
     let git = |args: &[&str]| -> Result<Vec<u8>, String> {
         let output = std::process::Command::new("git")
@@ -312,7 +313,7 @@ pub fn export_git_dir(
                 .map_err(|error| format!("{}: {error}", parent.display()))?;
         }
         std::fs::write(&target, blob).map_err(|error| format!("{}: {error}", target.display()))?;
-        found |= rel == "Cargo.toml";
+        found |= rel == marker;
     }
     Ok(found)
 }
@@ -494,12 +495,16 @@ mod tests {
         std::fs::write(repo.join("pkg/Cargo.toml"), "[package]\n").expect("write");
         std::fs::write(repo.join("pkg/src/lib.rs"), "pub fn a() {}\n").expect("write");
         std::fs::write(repo.join("other/x.txt"), "x").expect("write");
+        std::fs::write(repo.join("other/pubspec.yaml"), "name: x\n").expect("write");
         git_in(&repo, &["init", "-q"]);
         git_in(&repo, &["add", "."]);
         git_in(&repo, &["commit", "-q", "-m", "x"]);
         git_in(&repo, &["tag", "v1.0.0"]);
         let dest = root.join("dest");
-        assert_eq!(export_git_dir(&repo, "pkg", "v1.0.0", &dest), Ok(true));
+        assert_eq!(
+            export_git_dir(&repo, "pkg", "v1.0.0", &dest, "Cargo.toml"),
+            Ok(true)
+        );
         assert_eq!(
             std::fs::read_to_string(dest.join("src/lib.rs")).expect("lib"),
             "pub fn a() {}\n"
@@ -508,10 +513,17 @@ mod tests {
         assert!(!dest.join("other").exists() && !dest.join("x.txt").exists());
         let missing = root.join("missing");
         assert_eq!(
-            export_git_dir(&repo, "other", "v1.0.0", &missing),
+            export_git_dir(&repo, "other", "v1.0.0", &missing, "Cargo.toml"),
             Ok(false)
         );
-        assert_eq!(export_git_dir(&repo, "nope", "v1.0.0", &missing), Ok(false));
+        assert_eq!(
+            export_git_dir(&repo, "other", "v1.0.0", &root.join("pub"), "pubspec.yaml"),
+            Ok(true)
+        );
+        assert_eq!(
+            export_git_dir(&repo, "nope", "v1.0.0", &missing, "Cargo.toml"),
+            Ok(false)
+        );
         let status = std::process::Command::new("git")
             .args(["status", "--porcelain"])
             .current_dir(&repo)

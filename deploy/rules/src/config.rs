@@ -168,6 +168,16 @@ pub struct PubConfig {
     pub package_name: String,
     pub version: String,
     pub hosted_url: String,
+    #[serde(default)]
+    pub api_compat: String,
+    #[serde(default)]
+    pub api_baseline: String,
+    #[serde(default)]
+    pub dart_rloc: String,
+    #[serde(default)]
+    pub apitool_rloc: String,
+    #[serde(default)]
+    pub package_dir: String,
 }
 
 /// Pins one crates.io publish: the crate files, name and version.
@@ -489,11 +499,18 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             },
             argv,
         ),
-        DeployConfig::Pub(pub_config) => crate::pub_main(
+        DeployConfig::Pub(pub_config) => crate::pub_main_checked(
             &pub_config.package_rlocs,
             &pub_config.package_name,
             &pub_config.version,
             &pub_config.hosted_url,
+            &crate::PubApiCheck {
+                mode: &pub_config.api_compat,
+                baseline: &pub_config.api_baseline,
+                dart_rloc: &pub_config.dart_rloc,
+                apitool_rloc: &pub_config.apitool_rloc,
+                package_dir: &pub_config.package_dir,
+            },
             argv,
         ),
         DeployConfig::Hex(hex) => crate::hex_main(

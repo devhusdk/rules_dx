@@ -140,7 +140,7 @@ API_COMPAT_TOOLS = {
     "maven_deploy": "japicmp",
     "npm_deploy": "api-extractor",
     "nuget_deploy": "Microsoft.DotNet.ApiCompat",
-    "pub_deploy": "not available",
+    "pub_deploy": "dart_apitool",
     "pypi_deploy": "griffe",
     "rubygems_deploy": "not available",
 }

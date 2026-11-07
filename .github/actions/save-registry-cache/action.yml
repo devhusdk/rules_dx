@@ -12,7 +12,9 @@ runs:
         ls "$dir/sha256" | sort | comm -23 - "$RUNNER_TEMP/dx-registry-hashes" | while read -r hash; do
           rm -rf "${dir:?}/sha256/$hash"
         done
-        find "$dir/sha256" -mindepth 2 -maxdepth 2 -type f -size +1024k -printf '%h\0' | xargs -0 -r rm -rf
+        find "$dir/sha256" -mindepth 2 -maxdepth 2 -type f -size +1024k | while read -r big; do
+          rm -rf "$(dirname "$big")"
+        done
         echo "registry file cache: $(du -sk "$dir" | cut -f1) KB"
     - name: Save the registry file cache
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

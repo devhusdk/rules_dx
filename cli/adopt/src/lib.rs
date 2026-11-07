@@ -71,8 +71,8 @@ pub use scaffold::{
 };
 pub use status::{StatusCheck, observed_status_checks, render_status_text};
 pub use upgrade::{
-    Selections, UpgradeIntent, base_changes, tool_swaps, upgrade_recovery_message,
-    upgrade_retry_command,
+    Selections, UpgradeIntent, base_changes, merge_override, override_conflict_message,
+    override_missing_base_message, tool_swaps, upgrade_recovery_message, upgrade_retry_command,
 };
 pub use version::{
     DX_VERSION, MODULE_VERSION, local_path_overrides, module_dependency_status,

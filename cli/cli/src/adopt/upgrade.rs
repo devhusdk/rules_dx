@@ -324,10 +324,20 @@ pub(crate) fn execute_upgrade(
     for warning in swaps {
         let _ = writeln!(err, "{warning}");
     }
+    let conflicts = merge_overrides(workspace, &before, &mut wrote, err);
+    let conflicted = |out: &mut dyn Write, err: &mut dyn Write| {
+        let message = format!(
+            "pinned {to} but {conflicts} override(s) have merge conflicts; resolve the markers"
+        );
+        fail(invocation, out, err, CODE_UPGRADE_FAILED, &message)
+    };
     let ide_warning = query_runner.and_then(|runner| {
         crate::exec::ide_refresh::refresh(workspace, runner, &invocation.bazel_startup_options)
     });
     if is_json {
+        if conflicts > 0 {
+            return conflicted(out, err);
+        }
         return json_pin(invocation, out, "default", to, ide_warning.as_deref())
             .map_or_else(|exit| exit, |()| 0);
     }
@@ -362,6 +372,9 @@ pub(crate) fn execute_upgrade(
             }
         }
     }
+    if conflicts > 0 {
+        return conflicted(out, err);
+    }
     0
 }
 
@@ -391,6 +404,106 @@ fn dx_snapshot(workspace: &Path) -> BTreeMap<String, Vec<u8>> {
         }
     }
     files
+}
+
+fn git(workspace: &Path, args: &[&str], input: Option<&[u8]>) -> Option<Vec<u8>> {
+    let mut child = std::process::Command::new("git")
+        .arg("-C")
+        .arg(workspace)
+        .args(args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+    let mut stdin = child.stdin.take()?;
+    if let Some(bytes) = input {
+        stdin.write_all(bytes).ok()?;
+    }
+    drop(stdin);
+    let output = child.wait_with_output().ok()?;
+    output.status.success().then_some(output.stdout)
+}
+
+/// The old base an override copy was taken from: the pre-upgrade base when its blob sha
+/// matches, else the blob from git history.
+fn old_base(workspace: &Path, base: &str, before: Option<&Vec<u8>>, sha: &str) -> Option<String> {
+    let snapshot = before.filter(|bytes| {
+        git(
+            workspace,
+            &["hash-object", "--stdin", "--path", base],
+            Some(bytes),
+        )
+        .is_some_and(|out| String::from_utf8_lossy(&out).trim() == sha)
+    });
+    let bytes = match snapshot {
+        Some(bytes) => bytes.clone(),
+        None if matches!(sha.len(), 40 | 64) && sha.bytes().all(|b| b.is_ascii_hexdigit()) => {
+            git(workspace, &["cat-file", "blob", sha], None)?
+        }
+        None => return None,
+    };
+    String::from_utf8(bytes).ok()
+}
+
+/// Three-way merges base changes into every `dx config override` copy and returns how many
+/// were left with conflict markers.
+fn merge_overrides(
+    workspace: &Path,
+    before: &BTreeMap<String, Vec<u8>>,
+    wrote: &mut Vec<String>,
+    err: &mut dyn Write,
+) -> usize {
+    let roots = super::config::root_names(workspace);
+    let mut done = std::collections::BTreeSet::new();
+    let mut conflicts = 0;
+    for config in dx_generate::tools_gen::TOOL_CONFIGS {
+        let Some(base) = dx_generate::base_path(config) else {
+            continue;
+        };
+        let Some(root) = dx_generate::root_file(config, &roots) else {
+            continue;
+        };
+        if !done.insert(root.to_owned()) {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(workspace.join(root)) else {
+            continue;
+        };
+        let Some(sha) = dx_adopt::ownership::override_base(&text) else {
+            continue;
+        };
+        let Ok(new_sha) = super::config::blob_sha(workspace, &base) else {
+            continue;
+        };
+        let Ok(new_base) = std::fs::read_to_string(workspace.join(&base)) else {
+            continue;
+        };
+        if sha == new_sha {
+            continue;
+        }
+        let Some(ancestor) = old_base(workspace, &base, before.get(&base), sha) else {
+            let note = dx_adopt::override_missing_base_message(root, sha, config.id);
+            let _ = writeln!(err, "{note}");
+            continue;
+        };
+        let merged = dx_adopt::merge_override(&text, &ancestor, &new_base, sha, &new_sha);
+        let (merged, conflict) = match merged {
+            dx_merge::merge3::Merge3::Merged(merged) => (merged, false),
+            dx_merge::merge3::Merge3::Conflicts { text, .. } => (text, true),
+        };
+        if let Err(error) = std::fs::write(workspace.join(root), merged) {
+            let _ = writeln!(err, "{root}: cannot write the merge: {error}");
+            conflicts += 1;
+            continue;
+        }
+        wrote.push(root.to_owned());
+        if conflict {
+            let _ = writeln!(err, "{}", dx_adopt::override_conflict_message(root));
+            conflicts += 1;
+        }
+    }
+    conflicts
 }
 
 /// The base lines and tool-swap warnings between two `.dx` snapshots.
@@ -616,6 +729,86 @@ mod tests {
         assert!(
             err.contains("dx: warning: javascript lint: eslint replaced by biome; rule IDs eslint/<code> become biome/<code>, migrate native inline suppressions\n"),
             "{err}"
+        );
+    }
+
+    const TYPOS_BASE: &str = ".dx/config/typos/base.toml";
+
+    fn blob(root: &Path, path: &str) -> String {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(["hash-object", "--", path])
+            .output()
+            .expect("git");
+        String::from_utf8(out.stdout)
+            .expect("utf8")
+            .trim()
+            .to_owned()
+    }
+
+    /// A synced workspace whose typos base gained a line after the override was
+    /// taken; returns the fresh base text and the stale one.
+    fn stale_typos(prefix: &str) -> (impl Sized, PathBuf, String, String) {
+        let (scratch, root) = synced(prefix, "b.hs");
+        let fresh = std::fs::read_to_string(root.join(TYPOS_BASE)).expect("base");
+        let stale = format!("{fresh}# old\n");
+        std::fs::write(root.join(TYPOS_BASE), &stale).expect("stale base");
+        (scratch, root, fresh, stale)
+    }
+
+    #[test]
+    fn upgrade_merges_a_base_change_into_an_override_copy() {
+        let (_scratch, root, fresh, stale) = stale_typos("dx-adopt-upgrade-merge-");
+        let old = blob(&root, TYPOS_BASE);
+        let mine = "# mine\n";
+        let text = format!("# dx: override of base {old}\n{mine}{stale}");
+        std::fs::write(root.join("typos.toml"), text).expect("root");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        let new = blob(&root, TYPOS_BASE);
+        assert_eq!(
+            std::fs::read_to_string(root.join("typos.toml")).expect("root"),
+            format!("# dx: override of base {new}\n{mine}{fresh}")
+        );
+        assert!(out.contains("wrote typos.toml\n"), "{out}");
+    }
+
+    #[test]
+    fn upgrade_leaves_markers_and_fails_on_an_override_conflict() {
+        let (_scratch, root, _fresh, stale) = stale_typos("dx-adopt-upgrade-conflict-");
+        let old = blob(&root, TYPOS_BASE);
+        let edited = stale.replace("# old\n", "# edited\n");
+        let text = format!("# dx: override of base {old}\n{edited}");
+        std::fs::write(root.join("typos.toml"), text).expect("root");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_ne!(code, 0, "{out}{err}");
+        let merged = std::fs::read_to_string(root.join("typos.toml")).expect("root");
+        assert!(merged.contains("<<<<<<< your file\n"), "{merged}");
+        assert!(
+            err.contains("typos.toml: merge conflict, resolve the markers\n"),
+            "{err}"
+        );
+        assert!(err.contains("1 override(s) have merge conflicts"), "{err}");
+    }
+
+    #[test]
+    fn upgrade_notes_an_override_whose_base_is_not_in_history() {
+        let (_scratch, root, _fresh, stale) = stale_typos("dx-adopt-upgrade-missing-");
+        let sha = "d".repeat(40);
+        let text = format!("# dx: override of base {sha}\n{stale}");
+        std::fs::write(root.join("typos.toml"), &text).expect("root");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            err.contains(&format!(
+                "typos.toml: base {sha} not in history; compare with dx config diff typos\n"
+            )),
+            "{err}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join("typos.toml")).expect("root"),
+            text
         );
     }
 

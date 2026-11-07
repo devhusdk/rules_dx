@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use dx_generate::base_path;
 use dx_generate::tools_gen::TOOL_CONFIGS;
+use dx_merge::merge3::{Labels, Merge3, merge3};
 
 /// What the caller asked for: whether it applies and which workspace it named.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -96,6 +97,51 @@ pub fn tool_swaps(old: &Selections, new: &Selections) -> Vec<String> {
     warnings
 }
 
+/// Merges the change from the old base to `new_base` into an override copy. The
+/// `dx: override of base <old_sha>` header line stays out of the merge and comes back
+/// pointing at `new_sha`.
+pub fn merge_override(
+    root: &str,
+    ancestor: &str,
+    new_base: &str,
+    old_sha: &str,
+    new_sha: &str,
+) -> Merge3 {
+    let marker = format!("dx: override of base {old_sha}");
+    let mut cut = 0;
+    for line in root.split_inclusive('\n') {
+        cut += line.len();
+        if line.contains(&marker) {
+            break;
+        }
+    }
+    let (header, body) = root.split_at(cut);
+    let header = header.replacen(&marker, &format!("dx: override of base {new_sha}"), 1);
+    let old = format!("old base {old_sha}");
+    let labels = Labels {
+        ours: "your file",
+        base: &old,
+        theirs: "new base",
+    };
+    match merge3(ancestor, body, new_base, labels) {
+        Merge3::Merged(text) => Merge3::Merged(header + &text),
+        Merge3::Conflicts { text, hunks } => Merge3::Conflicts {
+            text: header + &text,
+            hunks,
+        },
+    }
+}
+
+/// The line for an override copy left with conflict markers.
+pub fn override_conflict_message(file: &str) -> String {
+    format!("{file}: merge conflict, resolve the markers")
+}
+
+/// The note for an override copy whose old base cannot be found.
+pub fn override_missing_base_message(file: &str, sha: &str, tool: &str) -> String {
+    format!("{file}: base {sha} not in history; compare with dx config diff {tool}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,6 +200,56 @@ mod tests {
         let dropped = selections("javascript", "lint", &["typos"]);
         assert!(tool_swaps(&old, &dropped).is_empty());
         assert!(tool_swaps(&old, &Selections::new()).is_empty());
+    }
+
+    #[test]
+    fn merge_override_keeps_your_edit_and_takes_the_base_change() {
+        let root = "# dx: override of base aaa\n- warn: {name: mine}\n- warn: {name: x}\n";
+        let merged = merge_override(
+            root,
+            "- warn: {name: x}\n",
+            "- warn: {name: x}\n- warn: {name: new}\n",
+            "aaa",
+            "bbb",
+        );
+        assert_eq!(
+            merged,
+            Merge3::Merged(
+                "# dx: override of base bbb\n- warn: {name: mine}\n- warn: {name: x}\n- warn: {name: new}\n"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn merge_override_leaves_markers_on_a_conflict() {
+        let root = "// dx: override of base aaa\nkey = 2\n";
+        let Merge3::Conflicts { text, hunks } =
+            merge_override(root, "key = 1\n", "key = 3\n", "aaa", "bbb")
+        else {
+            panic!("expected a conflict");
+        };
+        assert_eq!(hunks, 1);
+        assert!(text.starts_with("// dx: override of base bbb\n<<<<<<< your file\nkey = 2\n"));
+        assert!(text.contains("||||||| old base aaa\nkey = 1\n"), "{text}");
+        assert!(text.contains(">>>>>>> new base\n"), "{text}");
+    }
+
+    #[test]
+    fn merge_override_rewrites_only_the_header_sha() {
+        let root = "# dx: override of base aaa (keep)\nx: aaa\n";
+        assert_eq!(
+            merge_override(root, "x: aaa\n", "x: aaa\n", "aaa", "bbb"),
+            Merge3::Merged("# dx: override of base bbb (keep)\nx: aaa\n".to_owned())
+        );
+        assert_eq!(
+            override_conflict_message(".hlint.yaml"),
+            ".hlint.yaml: merge conflict, resolve the markers"
+        );
+        assert_eq!(
+            override_missing_base_message(".hlint.yaml", "abc", "hlint"),
+            ".hlint.yaml: base abc not in history; compare with dx config diff hlint"
+        );
     }
 
     #[test]

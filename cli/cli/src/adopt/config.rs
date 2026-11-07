@@ -49,7 +49,7 @@ impl Entry {
     }
 }
 
-fn root_names(workspace: &Path) -> BTreeSet<String> {
+pub(super) fn root_names(workspace: &Path) -> BTreeSet<String> {
     std::fs::read_dir(workspace)
         .map(|entries| {
             entries
@@ -147,7 +147,7 @@ fn tool_config(tool: &str) -> Result<&'static ToolConfig, String> {
         .ok_or_else(|| format!("unknown tool {tool:?}: it has no dx-owned base to override"))
 }
 
-fn blob_sha(workspace: &Path, base: &str) -> Result<String, String> {
+pub(super) fn blob_sha(workspace: &Path, base: &str) -> Result<String, String> {
     let output = std::process::Command::new("git")
         .arg("-C")
         .arg(workspace)
@@ -185,7 +185,9 @@ fn override_tool(workspace: &Path, tool: &str) -> Result<String, String> {
         .find(|name| !name.contains('*'))
         .ok_or_else(|| format!("{tool} has no root file name to write"))?;
     if config.comment.is_empty() {
-        return Err(format!("{tool} files take no comment, so no header can be written"));
+        return Err(format!(
+            "{tool} files take no comment, so no header can be written"
+        ));
     }
     let text = std::fs::read_to_string(workspace.join(&base))
         .map_err(|error| format!("cannot read {base}: {error}; run dx sync"))?;
@@ -394,12 +396,12 @@ mod tests {
         let text = std::fs::read_to_string(scratch.path().join(".hlint.yaml")).expect("root");
         assert_eq!(
             text,
-            format!("# dx: override of base {}\n- warn: {{name: x}}\n", sha.trim())
+            format!(
+                "# dx: override of base {}\n- warn: {{name: x}}\n",
+                sha.trim()
+            )
         );
-        assert_eq!(
-            dx_adopt::ownership::override_base(&text),
-            Some(sha.trim())
-        );
+        assert_eq!(dx_adopt::ownership::override_base(&text), Some(sha.trim()));
         assert_ne!(run(scratch.path(), &["config", "override", "hlint"]).0, 0);
     }
 

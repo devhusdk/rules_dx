@@ -48,7 +48,7 @@ pub(crate) fn after_success(invocation: &Invocation, env: Env<'_>) {
     sync.quiet = true;
     sync.verbose = false;
     sync.output = OutputMode::Text { quiet: true };
-    sync.build_profile = false;
+    sync.timings = false;
     let actions = ActionTally::default();
     let mut captured = Vec::new();
     let code = super::managed::execute_managed(

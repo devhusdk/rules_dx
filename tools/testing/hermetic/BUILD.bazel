@@ -1030,7 +1030,7 @@ hermetic_qualification(
 hermetic_qualification(
     name = "c_fixture_msvc",
     compiler = "msvc",
-    failures = {"//probe:cxx_in_c": "fatal error C1083: Cannot open include file: 'string'"},
+    failures = {"//probe:cxx_in_c": "error STL1003: Unexpected compiler, expected C++ compiler"},
     files = {
         "consumers/cc_fixture/msvc.bazelrc": ".bazelrc",
         "//tools/testing/starters/fixtures:c/BUILD.bazel.fixture": "BUILD.bazel",

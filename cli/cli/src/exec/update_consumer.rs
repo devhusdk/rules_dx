@@ -1640,8 +1640,18 @@ source = { registry = "https://pypi.org/simple" }
                 ("CARGO_BAZEL_REPIN".to_owned(), "false".to_owned()),
                 ("CARGO_BAZEL_REPIN_ONLY".to_owned(), "crates".to_owned()),
                 ("REPIN".to_owned(), "false".to_owned()),
+                ("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned()),
             ]
         );
+    }
+
+    #[test]
+    fn consumer_cargo_check_env_checks_the_lock_digest_but_apply_does_not() {
+        let has =
+            |env: Vec<(String, String)>| env.iter().any(|(k, _)| k == "CARGO_BAZEL_DIGEST_CHECK");
+        assert!(has(cargo_env("false", "crates")));
+        assert!(!has(cargo_env("workspace", "crates")));
+        assert!(!has(cargo_env("serde", "crates")));
     }
 
     #[test]

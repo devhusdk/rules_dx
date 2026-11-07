@@ -354,14 +354,19 @@ fn npm_env() -> Vec<(String, String)> {
 
 /// The env crate_universe reads to decide whether to repin; `repin` may also be one crate name,
 /// which crate_universe turns into `cargo update --package <name>`. Both triggers are forced so a host
-/// `REPIN` or `CARGO_BAZEL_REPIN` cannot turn a check into a write.
+/// `REPIN` or `CARGO_BAZEL_REPIN` cannot turn a check into a write. A check (`repin == "false"`) also
+/// sets `CARGO_BAZEL_DIGEST_CHECK`, because crate_universe otherwise renders from a stale lock unchecked.
 pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
-    vec![
+    let mut env = vec![
         ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
         ("CARGO_BAZEL_REPIN".to_owned(), repin.to_owned()),
         ("CARGO_BAZEL_REPIN_ONLY".to_owned(), repository.to_owned()),
         ("REPIN".to_owned(), repin.to_owned()),
-    ]
+    ];
+    if repin == "false" {
+        env.push(("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned()));
+    }
+    env
 }
 
 /// The env rules_jvm_external's pin script reads. Only the maven-specific variable is set: `REPIN`
@@ -3241,12 +3246,16 @@ mod tests {
     }
 
     fn cargo_env_expected(repin: &str, repository: &str) -> Vec<(String, String)> {
-        vec![
+        let mut env = vec![
             ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
             ("CARGO_BAZEL_REPIN".to_owned(), repin.to_owned()),
             ("CARGO_BAZEL_REPIN_ONLY".to_owned(), repository.to_owned()),
             ("REPIN".to_owned(), repin.to_owned()),
-        ]
+        ];
+        if repin == "false" {
+            env.push(("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned()));
+        }
+        env
     }
 
     fn cargo_fetch(head: &dx_process::BazelHead, args: &[&str]) -> Vec<String> {

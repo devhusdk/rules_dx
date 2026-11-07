@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
+      actions: write
       contents: write
       pull-requests: write
     env:
@@ -40,3 +41,22 @@ jobs:
           set -euo pipefail
           gh auth setup-git
           tools/dx update --pr --group=set --automerge=patch --min-age=3 --max-prs=5
+      - name: Refresh per-platform lock entries
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+        run: |
+          set -euo pipefail
+          [ -f .github/workflows/lock-refresh.yml ] || exit 0
+          git fetch --quiet origin '+refs/heads/dx-update/*:refs/remotes/origin/dx-update/*'
+          keys='["rules_python+//python/extensions:python.bzl%python", "rules_go+//go:extensions.bzl%go_sdk"]'
+          gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("dx-update/")) | "\(.number) \(.headRefName)"' |
+            while read -r number branch; do
+              changed="$(
+                for ref in "origin/main" "origin/$branch"; do
+                  git show "$ref:MODULE.bazel.lock" | jq -c --argjson keys "$keys" '.moduleExtensions | [$keys[] as $k | .[$k]]'
+                done | uniq | wc -l
+              )"
+              if [ "$changed" -gt 1 ]; then
+                gh workflow run lock-refresh.yml --ref "$branch" -f pr="$number"
+              fi
+            done

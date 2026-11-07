@@ -1,7 +1,12 @@
 name: lock-refresh
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number whose branch gets the merged MODULE.bazel.lock pushed. Dispatch with --ref set to that branch.
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -56,7 +61,15 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+    env:
+      HAS_APP: ${{ secrets.DX_UPDATE_APP_ID != '' && secrets.DX_UPDATE_APP_PRIVATE_KEY != '' }}
     steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app
+        if: inputs.pr != '' && env.HAS_APP == 'true'
+        with:
+          app-id: ${{ secrets.DX_UPDATE_APP_ID }}
+          private-key: ${{ secrets.DX_UPDATE_APP_PRIVATE_KEY }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
@@ -80,3 +93,24 @@ jobs:
           name: MODULE.bazel.lock
           path: MODULE.bazel.lock
           if-no-files-found: error
+      - name: Push to the pull request
+        if: inputs.pr != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          PR: ${{ inputs.pr }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- MODULE.bazel.lock; then
+            echo "MODULE.bazel.lock is unchanged"
+            exit 0
+          fi
+          head="$(gh pr view "$PR" --json headRefName --jq .headRefName)"
+          if [ "$head" != "$GITHUB_REF_NAME" ]; then
+            echo "pull request $PR is on $head, not $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "lock: refresh the per-platform extension entries" -- MODULE.bazel.lock
+          git push origin "HEAD:refs/heads/$head"

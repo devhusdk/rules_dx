@@ -1,6 +1,7 @@
 #![cfg(unix)]
 
 use std::collections::BTreeMap;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -146,6 +147,25 @@ fn init_in_an_existing_module() {
 fn upgrade_moves_an_older_pin_to_this_dx() {
     let (_guard, root, home) = setup("adopt-upgrade");
     init(&root, &home);
+    let stub_dir = root.parent().expect("base").join("stub");
+    std::fs::create_dir_all(&stub_dir).expect("stub dir");
+    let stub = stub_dir.join("bazel");
+    write(
+        &stub,
+        "#!/bin/sh\nprintf '%s ' \"$@\" >> \"$STUB_ARGS\"; echo >> \"$STUB_ARGS\"\ncase \" $* \" in *\" mod \"*) exit 0;; esac\nexit 2\n",
+    );
+    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    let stub_args = stub_dir.join("args");
+    let path = format!(
+        "{}:{}",
+        stub_dir.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let stub_args_text = stub_args.display().to_string();
+    let env = [
+        ("PATH", path.as_str()),
+        ("STUB_ARGS", stub_args_text.as_str()),
+    ];
     let version_file = root.join(".dx/pins");
     let built = read(&version_file).trim().to_string();
     let launchers = [root.join("tools/dx"), root.join("tools/dx.cmd")];
@@ -156,7 +176,7 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
     for (path, text) in launchers.iter().zip(&fresh) {
         write(path, &text.replace(&built, "0.0.1"));
     }
-    let check = dx(&root, &home, &["upgrade", "--to", &built]);
+    let check = dx_with_env(&root, &home, &["upgrade", "--to", &built], &env);
     assert_eq!(check.code, 1, "{}", check.stderr);
     assert!(check.stderr.contains("upgrade_pending"), "{}", check.stderr);
     let kept = || {
@@ -172,13 +192,16 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
     };
     let before = kept();
     assert!(before.len() >= 5, "{:?}", before.keys());
-    let apply = dx(&root, &home, &["upgrade", "--to", &built, "--apply"]);
+    let apply = dx_with_env(&root, &home, &["upgrade", "--to", &built, "--apply"], &env);
     assert_eq!(apply.code, 0, "{}", apply.stderr);
     assert_eq!(read(&version_file).trim(), built);
     assert_eq!(before, kept());
     for (path, text) in launchers.iter().zip(&fresh) {
         assert_eq!(&read(path), text);
     }
+    let calls = read(&stub_args);
+    assert!(calls.contains("mod deps --lockfile_mode="), "{calls}");
+    assert!(!calls.contains(" run "), "{calls}");
 }
 
 #[test]

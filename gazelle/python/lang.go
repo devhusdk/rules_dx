@@ -352,6 +352,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		if IsConftest(p.main) {
 			r.SetAttr("testonly", true)
 		}
+		keepIgnoredDeps(args, r, refs)
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(mergeRefs(refs)))
 		if p.entry && !common.CoveredBinary(args.File, binaryKind, common.BinaryName(p.name), servesMain(p.main)) {
@@ -375,6 +376,26 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 	}
 	return mergeStale(args.File, result)
+}
+
+// keepIgnoredDeps keeps the existing deps of a rule that imports an ignored
+// module, since resolution cannot rebuild the dep that provides it.
+func keepIgnoredDeps(args language.GenerateArgs, r *rule.Rule, refs []common.ImportRef) {
+	if !slices.ContainsFunc(refs, func(ref common.ImportRef) bool {
+		return common.MatchingIgnore(args.Config, languageName, ref.Root) != nil
+	}) {
+		return
+	}
+	old := existingRule(args.File, r.Kind(), r.Name())
+	if old == nil || old.Attr("deps") == nil {
+		return
+	}
+	expr := old.Attr("deps")
+	if len(r.AttrStrings("deps")) == 0 {
+		r.SetAttr("deps", expr)
+		return
+	}
+	r.SetAttr("deps", common.UnionStrings(r.AttrStrings("deps"), old.AttrStrings("deps")))
 }
 
 var bareTestFunc = regexp.MustCompile(`(?m)^(?:async\s+)?def\s+test`)

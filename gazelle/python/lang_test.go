@@ -911,3 +911,28 @@ func TestGenerateUnittestFileUsesPlainRunner(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateKeepsDepsOfIgnoredImport(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/foo_test.py", "import foo\n")
+	file, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte("# gazelle:dx_ignore_import python foo\npython_test(\n    name = \"foo_test\",\n    srcs = [\"foo_test.py\"],\n    deps = [\":foo\"],\n)\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := newLang()
+	cfg := &config.Config{RepoRoot: root, Exts: map[string]interface{}{}}
+	l.Configure(cfg, "pkg/demo", file)
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       cfg,
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"foo_test.py"},
+		File:         file,
+	})
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated = %v", result.Gen)
+	}
+	if got := strings.Join(result.Gen[0].AttrStrings("deps"), ","); got != ":foo" {
+		t.Errorf("deps = %q, want :foo", got)
+	}
+}

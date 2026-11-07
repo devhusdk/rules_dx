@@ -788,7 +788,10 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 		labels = append(labels, dep)
 	}
 	sort.Strings(labels)
-	r.SetAttr(spec.Attr, UnionStrings(r.AttrStrings(spec.Attr), labels))
+	have := r.AttrStrings(spec.Attr)
+	if union := UnionStrings(have, labels); !slices.Equal(union, have) {
+		r.SetAttr(spec.Attr, union)
+	}
 }
 
 // lookupOwn resolves ref against overrides, the own rule index, Lookups and

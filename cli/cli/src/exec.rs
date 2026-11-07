@@ -1,5 +1,6 @@
 mod affected;
 mod audit;
+mod auto_sync;
 mod bazel_hint;
 mod bench;
 mod breaking_base;
@@ -21,6 +22,7 @@ mod failure_reports;
 pub mod first_run;
 mod fuzz;
 mod generate;
+mod generated_drift;
 mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
@@ -40,7 +42,6 @@ mod quality_emit;
 mod quality_patch;
 mod quality_reconcile;
 mod quality_reports;
-mod generated_drift;
 mod quality_security;
 mod release;
 mod results;
@@ -50,6 +51,7 @@ mod skipped_targets;
 mod staged;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;
+mod sync_fingerprint;
 mod sync_prune;
 mod test_filter;
 mod test_reports;
@@ -234,7 +236,23 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
 }
 
+/// Runs one command, then brings `.dx/local` up to date when a build changed what it links to.
 fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let code = dispatch_inner(
+        invocation,
+        Env {
+            out: &mut *env.out,
+            err: &mut *env.err,
+            ..env
+        },
+    );
+    if code == 0 {
+        auto_sync::after_success(invocation, env);
+    }
+    code
+}
+
+fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.affected && invocation.command != Command::Watch {
         return affected::execute_affected(invocation, env);
     }

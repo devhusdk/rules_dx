@@ -30,9 +30,10 @@ pub const PROFILE: &str = "profile";
 pub const LAUNCHER: &str = "launcher";
 pub const FINGERPRINT: &str = "fingerprint";
 pub const SYNC_LOCK: &str = "sync.lock";
+pub const SYNC_FINGERPRINT: &str = "sync.fingerprint";
 
 /// Entries that live under [`local_dir`].
-pub const LOCAL_ENTRIES: [&str; 12] = [
+pub const LOCAL_ENTRIES: [&str; 13] = [
     SETUPS,
     CURRENT,
     CURRENT_NEXT,
@@ -45,11 +46,12 @@ pub const LOCAL_ENTRIES: [&str; 12] = [
     COMMIT_LOCK,
     COMMIT_LOCK_HOLDER,
     SYNC_LOCK,
+    SYNC_FINGERPRINT,
 ];
 
 /// Entries `dx clean` deletes from [`local_dir`]; `leases` only for dead holders.
 /// `fuzz`, `bench`, `advisory` and `launcher` stay.
-pub const CLEAN_ENTRIES: [&str; 12] = [
+pub const CLEAN_ENTRIES: [&str; 13] = [
     SETUPS,
     ENVIRONMENTS,
     GENERATED,
@@ -62,6 +64,7 @@ pub const CLEAN_ENTRIES: [&str; 12] = [
     RESULTS,
     LEASES,
     FINGERPRINT,
+    SYNC_FINGERPRINT,
 ];
 
 pub fn dx_dir(workspace: &Path) -> PathBuf {
@@ -75,6 +78,11 @@ pub fn local_dir(workspace: &Path) -> PathBuf {
 /// The inputs and outputs hash from the last `.dx` sync.
 pub fn fingerprint_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(FINGERPRINT)
+}
+
+/// What the last `dx sync` of `.dx/local` saw, so build commands know when to sync again.
+pub fn sync_fingerprint_path(workspace: &Path) -> PathBuf {
+    local_dir(workspace).join(SYNC_FINGERPRINT)
 }
 
 /// Held while a `.dx` sync renders and cleans up.
@@ -118,6 +126,18 @@ mod tests {
         assert_eq!(launcher_dir(ws), local_dir(ws).join("launcher"));
         assert!(!LOCAL_ENTRIES.contains(&IDE));
         assert!(!LOCAL_ENTRIES.contains(&LAUNCHER));
+    }
+
+    #[test]
+    fn sync_fingerprint_is_managed_and_cleaned() {
+        let ws = Path::new("ws");
+        assert_eq!(
+            sync_fingerprint_path(ws),
+            local_dir(ws).join(SYNC_FINGERPRINT)
+        );
+        assert_ne!(SYNC_FINGERPRINT, FINGERPRINT);
+        assert!(LOCAL_ENTRIES.contains(&SYNC_FINGERPRINT));
+        assert!(CLEAN_ENTRIES.contains(&SYNC_FINGERPRINT));
     }
 
     #[test]

@@ -240,7 +240,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         let inner = dx_plan::args::parse(words).map_err(|error| format!("{error:?}"))?;
         let mut step_out = Vec::new();
         let mut step_err = Vec::new();
-        let code = super::dispatch_command(
+        let code = super::dispatch_inner(
             &inner,
             Env {
                 workspace,

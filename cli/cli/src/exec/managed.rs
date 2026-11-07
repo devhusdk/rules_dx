@@ -144,7 +144,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return bazel_code;
     }
-    let (sides, staged_leases) = match prepare_managed_sides(workspace, workspace, &bep) {
+    let prepared = match prepare_managed_sides(workspace, workspace, &bep) {
         Ok(prepared) => prepared,
         Err((code, message)) => {
             let _ = std::fs::remove_file(&bep);
@@ -155,7 +155,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         .ok()
         .flatten()
         .map(|pair| dx_setup::setup_hex(&pair));
-    let (pair, outcome) = match dx_setup::commit_prepared(workspace, sides) {
+    let (pair, outcome) = match dx_setup::commit_prepared(workspace, prepared.sides) {
         Ok(committed) => committed,
         Err(error) => {
             let (code, message) = map_commit_error(error);
@@ -163,8 +163,13 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             return operational(invocation, out, err, &code, &message);
         }
     };
-    drop(staged_leases);
+    drop(prepared.leases);
     let _ = std::fs::remove_file(&bep);
+    let record = super::sync_fingerprint::Record {
+        targets: invocation.targets.clone(),
+        artifacts: prepared.artifacts,
+    };
+    let _ = super::sync_fingerprint::record(workspace, &record, None);
     let previous = before.filter(|hex| *hex != dx_setup::setup_hex(&pair));
     super::sync_prune::prune_and_warn(
         workspace,

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::common::*;
 use super::managed_codegen::{collect_managed_codegen, empty_generated_id, stage_codegen_side};
@@ -14,30 +14,36 @@ pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> (String, String)
     }
 }
 
+/// The staged sides of one sync, the leases that keep them, and the artifacts the codegen side links.
+pub(crate) struct PreparedSync {
+    pub(crate) sides: dx_setup::PreparedSides,
+    pub(crate) leases: Vec<dx_atomic_fs::lease::SharedLease>,
+    pub(crate) artifacts: Vec<PathBuf>,
+}
+
 pub(crate) fn prepare_managed_sides(
     workspace: &Path,
     state_root: &Path,
     bep: &Path,
-) -> Result<
-    (
-        dx_setup::PreparedSides,
-        Vec<dx_atomic_fs::lease::SharedLease>,
-    ),
-    (String, String),
-> {
+) -> Result<PreparedSync, (String, String)> {
     let (_, env_plan) = collect_managed_env(bep, workspace)?;
     let (_, codegen_plan) = collect_managed_codegen(bep, workspace)?;
     let (environment, env_lease) = stage_env_side(state_root, &env_plan)?;
     let (generated, codegen_lease) = stage_codegen_side(state_root, workspace, &codegen_plan)?;
-    Ok((
-        dx_setup::PreparedSides {
+    Ok(PreparedSync {
+        sides: dx_setup::PreparedSides {
             prepared_environment: Some(environment),
             prepared_generated: Some(generated),
             empty_environment: empty_env_id(),
             empty_generated: empty_generated_id(),
         },
-        vec![env_lease, codegen_lease],
-    ))
+        leases: vec![env_lease, codegen_lease],
+        artifacts: codegen_plan
+            .projection
+            .iter()
+            .map(|entry| PathBuf::from(&entry.artifact))
+            .collect(),
+    })
 }
 
 #[cfg(test)]

@@ -79,6 +79,10 @@ Each Bazel failure prints a `dx: build failure:` line with its rustc diagnostics
 
 An agent session defaults to `--output=json`. `--output` and `DX_OUTPUT` win.
 
+## Keeping `.dx/local` in step
+
+After `dx build`, `dx test`, `dx coverage`, `dx run` or `dx check` succeeds in a workspace that `dx sync` has set up, dx checks whether the generated files the selected setup links to, or `MODULE.bazel`, `MODULE.bazel.lock`, `.bazelversion`, `.bazelrc`, `dx.toml` or `.dx/pins`, changed since the last sync. That check makes no Bazel call. When something changed, dx runs `dx sync` with the same scope and prints `dx: synced .dx/local (codegen changed)` on stderr. A failed sync prints one `dx: warning: sync_failed: <reason>; next: dx sync` and keeps the exit code; later runs repeat the warning without Bazel until the inputs change. CI, `--quiet` and `--here` skip it. It cannot see a new codegen target or a generated file the command did not build; run `dx sync` for those.
+
 ## Reports
 
 Relative paths anchor at the workspace root. Parent directories must exist. Two reports with the same path fail before anything runs.

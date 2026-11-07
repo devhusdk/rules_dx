@@ -90,7 +90,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         };
         let mut step_out = Vec::new();
         let mut step_err = Vec::new();
-        super::dispatch_command(
+        super::dispatch_inner(
             &inner,
             Env {
                 workspace,

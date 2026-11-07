@@ -12,7 +12,7 @@ dx clean [--bazel | --expunge]
 
 Resets the state dx can rebuild. It runs at once; there is no check mode and no `--apply`. It never touches anything outside `.dx/local/`, so committed `.dx/` files stay. Do not `rm -rf .dx`.
 
-It deletes these entries of `.dx/local/`: `setups`, `environments`, `generated`, `bin`, `bin.next`, `bin.prev`, `ide`, `docs`, `profile`, `results.json`, `fingerprint`, and the `leases` no live process holds.
+It deletes these entries of `.dx/local/`: `setups`, `environments`, `generated`, `bin`, `bin.next`, `bin.prev`, `ide`, `docs`, `profile`, `results.json`, `fingerprint`, `sync.fingerprint`, and the `leases` no live process holds.
 
 It keeps:
 

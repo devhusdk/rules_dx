@@ -105,6 +105,8 @@ pub(crate) struct Harness {
     pub(crate) probe_metrics: Option<String>,
     /// Every other argv the fake runner saw.
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
+    /// The exit code of each launch in order, the last one repeating; empty means `bazel_code`.
+    pub(crate) launch_codes: Vec<i32>,
 }
 
 /// The audit date every test harness pins.
@@ -321,6 +323,7 @@ impl Harness {
             probe_argv: Rc::new(RefCell::new(Vec::new())),
             probe_metrics: None,
             build_argv: Rc::new(RefCell::new(Vec::new())),
+            launch_codes: Vec::new(),
         }
     }
 
@@ -500,6 +503,7 @@ impl Harness {
                 probe_argv: Rc::clone(&self.probe_argv),
                 probe_metrics: self.probe_metrics.clone(),
                 build_argv: Rc::clone(&self.build_argv),
+                launch_codes: self.launch_codes.clone(),
             };
         }
         let staged = self.staged_artifacts();
@@ -563,6 +567,7 @@ impl Harness {
             probe_argv: Rc::clone(&self.probe_argv),
             probe_metrics: self.probe_metrics.clone(),
             build_argv: Rc::clone(&self.build_argv),
+            launch_codes: self.launch_codes.clone(),
         }
     }
 
@@ -786,6 +791,7 @@ pub(crate) struct FakeRunner {
     /// The buildMetrics line the fake shard probe ends its event file with.
     pub(crate) probe_metrics: Option<String>,
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
+    pub(crate) launch_codes: Vec<i32>,
 }
 
 impl FakeRunner {
@@ -856,6 +862,7 @@ impl Runner for FakeRunner {
         if is_shard_probe(argv) {
             return self.run_shard_probe(argv);
         }
+        let launch = self.build_argv.borrow().len();
         self.build_argv.borrow_mut().push(argv.to_vec());
         self.seen_cwd.borrow_mut().push(cwd.to_path_buf());
         self.seen_env.borrow_mut().push(
@@ -896,10 +903,11 @@ impl Runner for FakeRunner {
                 return Ok(ChildStatus::exited(code));
             }
         }
-        Ok(ChildStatus {
-            code: self.code,
-            signal: None,
-        })
+        let code = match self.launch_codes.last() {
+            Some(last) => Some(*self.launch_codes.get(launch).unwrap_or(last)),
+            None => self.code,
+        };
+        Ok(ChildStatus { code, signal: None })
     }
 }
 

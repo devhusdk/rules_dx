@@ -1,16 +1,9 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
 
 package(default_visibility = VIS_CLI_TOOLS)
-
-dx_rust_crate(
-    name = "dx_gomod",
-    package_name = "libs/dx_gomod",
-    srcs = ["src/lib.rs"],
-    test_srcs = ["src/tests.rs"],
-    deps = ["gomod-parser"],
-)
 
 real_source_target(
     name = "corpus_starlark",
@@ -27,3 +20,45 @@ real_source_target(
 exports_files([
     "src/lib.rs",
 ])
+
+rust_library(
+    name = "dx_gomod",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "libs/dx_gomod",
+        normal = True,
+    ),
+    crate_name = "dx_gomod",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "libs/dx_gomod",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "dx_gomod_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "libs/dx_gomod",
+        normal = True,
+        normal_dev = True,
+    ),
+    coverage_lib = ":dx_gomod",
+    crate_name = "dx_gomod",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "libs/dx_gomod",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)

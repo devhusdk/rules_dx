@@ -22,6 +22,7 @@ failure_test(
 
 dx_generated_policy(
     name = "policy",
+    defaults = False,
     families = {
         "dart": {
             "format": ["dart"],

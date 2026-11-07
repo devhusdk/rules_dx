@@ -16,6 +16,7 @@ exports_files(
 
 dx_generated_policy(
     name = "policy",
+    defaults = False,
     families = {
         "asciidoc": {
             "disabled": [

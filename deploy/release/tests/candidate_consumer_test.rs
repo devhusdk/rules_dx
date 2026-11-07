@@ -27,6 +27,7 @@ rust_test(
 
 dx_generated_policy(
     name = "policy",
+    defaults = False,
     families = {
         "rust": {
             "format": ["rustfmt"],

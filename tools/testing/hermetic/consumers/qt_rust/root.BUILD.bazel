@@ -22,6 +22,7 @@ platform(
 
 dx_generated_policy(
     name = "policy",
+    defaults = False,
     families = {
         "cc": {
             "disabled": [

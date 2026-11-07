@@ -104,7 +104,7 @@ To set it once, add to `.bazelrc`:
 common --@rules_dx//config:workspace=//:policy
 ```
 
-A policy is a `dx_generated_policy`. `families` maps a family ID to the tool IDs it selects per capability (`lint`, `typecheck`, `format`, `audit`), the capabilities it turns off in `disabled`, and an optional tier `profile`. A capability left unset, or a tool with no wired executable, fails analysis. Leave `families` out to keep the curated default families.
+A policy is a `dx_generated_policy`. `families` maps a family ID to the tool IDs it selects per capability (`lint`, `typecheck`, `format`, `audit`), the capabilities it turns off in `disabled`, and an optional tier `profile`. A capability left unset, or a tool with no wired executable, fails analysis. `families` merges onto the curated defaults: a key replaces only that family. Set `defaults = False` to use only the listed families.
 
 ```python
 load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")

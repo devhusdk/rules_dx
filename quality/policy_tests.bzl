@@ -300,6 +300,28 @@ aspect_field field_count=66
 aspect_field has_subject=True
 aspect_field subject_label=//quality:generated_policy_under_test
 aspect_field transitive_count=0
+subject //quality:merged_generated_policy_under_test
+field disabled.python.audit=False
+field disabled.python.format=False
+field disabled.python.lint=False
+field disabled.python.typecheck=False
+field disabled.rust.audit=True
+field disabled.rust.format=False
+field disabled.rust.lint=False
+field disabled.rust.typecheck=False
+field family.python.audit=
+field family.python.format=
+field family.python.lint=ruff
+field family.python.typecheck=
+field family.rust.audit=
+field family.rust.format=rustfmt
+field family.rust.lint=clippy,typos
+field family.rust.typecheck=rustc
+aspect_field aspect_seen=True
+aspect_field field_count=16
+aspect_field has_subject=True
+aspect_field subject_label=//quality:merged_generated_policy_under_test
+aspect_field transitive_count=0
 subject //quality:strict_generated_policy_under_test
 field config.ansible_lint=quality/tiers/ansible_lint/strict.yaml
 field config.biome=quality/tiers/biome/strict.json
@@ -376,6 +398,10 @@ def policy_profile_analysis_tests(name):
     starlark_test(
         name = name,
         mode = "analysis",
-        subjects = [":generated_policy_under_test", ":strict_generated_policy_under_test"],
+        subjects = [
+            ":generated_policy_under_test",
+            ":merged_generated_policy_under_test",
+            ":strict_generated_policy_under_test",
+        ],
         expected_observations = EXPECTED_PROFILE_OBSERVATIONS,
     )

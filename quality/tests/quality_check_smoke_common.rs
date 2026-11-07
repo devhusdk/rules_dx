@@ -39,6 +39,7 @@ load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
 dx_generated_policy(
     name = "policy",
     configs = [":ruff"],
+    defaults = False,
     families = {
         "python": {
             "disabled": ["audit"],

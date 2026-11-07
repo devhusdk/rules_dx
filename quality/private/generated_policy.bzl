@@ -7,12 +7,7 @@ _PROFILES = ["standard", "strict"]
 _SPEC_KEYS = CAPABILITIES + ["disabled", "profile"]
 
 def generated_families_error(name, families):
-    """Returns an error for a family spec with an unknown key, or "".
-
-    Args:
-        name: name of the policy target, used in the message.
-        families: dict from family ID to its spec dict.
-    """
+    """Returns an error for a family spec with an unknown key, or ""."""
     for family_id in sorted(families.keys()):
         for key in sorted(families[family_id].keys()):
             if key not in _SPEC_KEYS:
@@ -24,7 +19,7 @@ def generated_families_error(name, families):
                 )
     return ""
 
-def dx_generated_policy(name, profile, families = None, configs = [], bases = {}, visibility = None):
+def dx_generated_policy(name, profile, families = None, defaults = True, configs = [], bases = {}, visibility = None):
     """Declares a workspace policy whose unbound tier-active tools run on their tier base.
 
     Args:
@@ -32,8 +27,9 @@ def dx_generated_policy(name, profile, families = None, configs = [], bases = {}
         profile: tier profile of the workspace, `standard` or `strict`. Tools shared by several
             families, such as typos and prettier, always use it.
         families: dict from family ID to its spec: capability tool lists (`lint`, `typecheck`,
-            `format`, `audit`), `disabled` capabilities and a `profile`. None keeps the curated
-            default families.
+            `format`, `audit`), `disabled` capabilities and a `profile`. Each key replaces only
+            that family of the curated defaults.
+        defaults: whether the curated default families apply. False uses only `families`.
         configs: native config targets the repo binds; they win over a base.
         bases: tool ID to a base config target, replacing the tier base of `profile` for that
             tool. The generator sets it for a tool whose families use another profile.
@@ -50,11 +46,11 @@ def dx_generated_policy(name, profile, families = None, configs = [], bases = {}
             fail("dx_generated_policy (%s): bases names tool '%s', which has no tier base" % (name, tool))
         tier_bases[tool] = label
 
-    extends = None
+    if not defaults and families == None:
+        fail("dx_generated_policy (%s): defaults = False needs families" % name)
+    extends = Label("//quality:default_workspace_policy") if defaults else None
     family_labels = []
-    if families == None:
-        extends = Label("//quality:default_workspace_policy")
-    else:
+    if families != None:
         error = generated_families_error(name, families)
         if error:
             fail(error)

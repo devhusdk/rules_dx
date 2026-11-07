@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//kubernetes/rules:defs.bzl", "kubernetes_schemas")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -902,9 +903,9 @@ real_source_target(
     python_srcs = ["clean.py"],
 )
 
-real_source_target(
+cc_library(
     name = "policy_bound_c",
-    c_srcs = ["clean.c"],
+    srcs = ["clean.c"],
 )
 
 real_source_target(

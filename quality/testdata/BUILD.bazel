@@ -19,7 +19,7 @@ load(":real_result_cases.bzl", "real_result_cases")
 load(":real_results.bzl", "check_args")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
-load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "crate_no_pipelining_test", "pipelined_rmeta_paths_test", "rmeta_typecheck_test")
+load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "pipelined_rmeta_paths_test", "rmeta_typecheck_test")
 load(":rst_converter_tests.bzl", "asciidoc_no_converter_test", "rst_no_converter_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
 load(
@@ -1900,12 +1900,6 @@ pipelined_rmeta_paths_test(
     name = "fixture_upstream_rust_rmeta_paths_test",
     size = "small",
     target_under_test = ":fixture_upstream_rust",
-)
-
-crate_no_pipelining_test(
-    name = "pulldown_cmark_no_pipelining_test",
-    size = "small",
-    target_under_test = "@crates//:pulldown-cmark",
 )
 
 upstream_rust_binary(

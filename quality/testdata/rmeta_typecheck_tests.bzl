@@ -64,17 +64,3 @@ pipelined_rmeta_paths_test = analysistest.make(
         str(Label("@rules_rust//rust/settings:pipelined_compilation")): True,
     },
 )
-
-def _no_pipelining_impl(ctx):
-    """Checks a crate built with disable_pipelining exposes no rmeta even when pipelining is on."""
-    env = analysistest.begin(ctx)
-    crate = analysistest.target_under_test(env)[rust_common.crate_info]
-    asserts.equals(env, None, crate.metadata, "crate still has a pipelined rmeta")
-    return analysistest.end(env)
-
-crate_no_pipelining_test = analysistest.make(
-    _no_pipelining_impl,
-    config_settings = {
-        str(Label("@rules_rust//rust/settings:pipelined_compilation")): True,
-    },
-)

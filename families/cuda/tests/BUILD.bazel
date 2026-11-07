@@ -1,0 +1,360 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//rules:defs.bzl", "CUDA_TARGET", "cuda_component_library", "cuda_gpu_env", "cuda_library", "cuda_test")
+load("//toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
+load("//toolchain:repos.bzl", "UNACCEPTED")
+load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load(":cell_tests.bzl", "cuda_cell_tests")
+load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "hermetic_toolchain_test", "with_clang_compiler")
+
+package(default_visibility = ["//visibility:private"])
+
+# keep
+rust_test(
+    name = "saxpy_device_code_test",
+    srcs = ["saxpy_device_code_test.rs"],
+    data = [
+        "//tests/fixtures/saxpy",
+        "//tests/fixtures/saxpy:saxpy_app",
+    ],
+    env = {
+        "DX_CUDA_ARCHIVES": "$(rootpaths //tests/fixtures/saxpy)",
+        "DX_CUDA_BINARY": "$(rootpath //tests/fixtures/saxpy:saxpy_app)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+cuda_test(
+    name = "saxpy_gpu_test",
+    srcs = ["saxpy_gpu_test.cu"],
+    platforms = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+    min_compute_capability = "8.9",
+    min_driver = "13.0",
+    tags = ["manual"],
+    deps = ["//tests/fixtures/saxpy"],
+)
+
+rust_test(
+    name = "rdc_device_code_test",
+    srcs = ["rdc_device_code_test.rs"],
+    data = [
+        "//tests/fixtures/rdc:axpy",
+        "//tests/fixtures/rdc:axpy_from_objects",
+        "//tests/fixtures/rdc:rdc_app",
+        "//tests/fixtures/rdc:rdc_objects_app",
+    ],
+    env = {
+        "DX_CUDA_ARCHIVES": "$(rootpaths //tests/fixtures/rdc:axpy) $(rootpaths //tests/fixtures/rdc:axpy_from_objects)",
+        "DX_CUDA_BINARY": "$(rootpath //tests/fixtures/rdc:rdc_app)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+dx_hello_output_test(
+    name = "defines_output_test",
+    binary = "//tests/fixtures/executable:defines_binary",
+    expected = "defines ok",
+    target_compatible_with = CUDA_TARGET,
+)
+
+dx_hello_output_test(
+    name = "rdc_output_test",
+    binary = "//tests/fixtures/rdc:rdc_app",
+    expected = "rdc n=1024 sum=1048576",
+    target_compatible_with = CUDA_TARGET,
+)
+
+dx_hello_output_test(
+    name = "rdc_objects_output_test",
+    binary = "//tests/fixtures/rdc:rdc_objects_app",
+    expected = "rdc n=1024 sum=1048576",
+    target_compatible_with = CUDA_TARGET,
+)
+
+device_link_hermetic_test(
+    name = "rdc_device_link_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//tests/fixtures/rdc:axpy",
+)
+
+device_link_hermetic_test(
+    name = "rdc_objects_device_link_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//tests/fixtures/rdc:axpy_from_objects",
+)
+
+gcc_device_link_hermetic_test(
+    name = "gcc_rdc_device_link_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//tests/fixtures/rdc:axpy",
+)
+
+hermetic_toolchain_test(
+    name = "rdc_objects_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//tests/fixtures/rdc:scale_objects",
+)
+
+cuda_test(
+    name = "rdc_gpu_test",
+    srcs = ["rdc_gpu_test.cu"],
+    platforms = [
+        "sm_89",
+        "sm_120",
+    ],
+    min_compute_capability = "8.9",
+    min_driver = "13.0",
+    rdc = True,
+    tags = ["manual"],
+    deps = ["//tests/fixtures/rdc:axpy"],
+)
+
+rust_test(
+    name = "saxpy_gpu_unavailable_test",
+    srcs = ["saxpy_gpu_unavailable_test.rs"],
+    data = [":saxpy_gpu_test"],
+    env = cuda_gpu_env("8.9", "13.0") | {
+        "DX_GPU_TEST": "$(rootpath :saxpy_gpu_test)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+cuda_gpu_check(
+    name = "gpu_cc_below_platforms",
+    archs = ["sm_89"],
+    min_compute_capability = "7.5",
+    min_driver = "13.0",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "gpu_cc_below_platforms_failure_test",
+    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in platforms (8.9)",
+    target = ":gpu_cc_below_platforms",
+    target_compatible_with = CUDA_TARGET,
+)
+
+rust_test(
+    name = "cublas_device_code_test",
+    srcs = ["cublas_device_code_test.rs"],
+    data = [
+        "//tests/fixtures/cublas",
+        "//tests/fixtures/cublas:cublas_app",
+    ],
+    env = {
+        "DX_CUDA_ARCHIVES": "$(rootpaths //tests/fixtures/cublas)",
+        "DX_CUDA_BINARY": "$(rootpath //tests/fixtures/cublas:cublas_app)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+cuda_test(
+    name = "cublas_gpu_test",
+    srcs = ["cublas_gpu_test.cu"],
+    platforms = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+    min_compute_capability = "8.9",
+    min_driver = "13.0",
+    tags = ["manual"],
+    deps = ["//tests/fixtures/cublas"],
+)
+
+dx_hello_output_test(
+    name = "cublas_output_test",
+    binary = "//tests/fixtures/cublas:cublas_app",
+    expected = "cublas saxpy n=1024 sum=1048576",
+    target_compatible_with = CUDA_TARGET,
+)
+
+component_sources_test(
+    name = "cublas_component_sources_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//components:cublas",
+)
+
+hermetic_toolchain_test(
+    name = "cublas_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//tests/fixtures/cublas",
+)
+
+dx_hello_output_test(
+    name = "saxpy_output_test",
+    binary = "//tests/fixtures/saxpy:saxpy_app",
+    expected = "saxpy n=1024 sum=1048576",
+    target_compatible_with = CUDA_TARGET,
+)
+
+hermetic_toolchain_test(
+    name = "hermetic_toolchain_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//tests/fixtures/saxpy",
+)
+
+gcc_hermetic_toolchain_test(
+    name = "gcc_hermetic_toolchain_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//tests/fixtures/saxpy",
+)
+
+cuda_library(
+    name = "missing_platforms",
+    srcs = ["//tests/fixtures/saxpy:saxpy.cu"],
+    platforms = [],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "missing_platforms_failure_test",
+    expected_failure_substring = "dx_cuda: platforms is empty",
+    target = ":missing_platforms",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_library(
+    name = "unsupported_arch",
+    srcs = ["//tests/fixtures/saxpy:saxpy.cu"],
+    platforms = ["sm_70"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "unsupported_arch_failure_test",
+    expected_failure_substring = "dx_cuda: arch 'sm_70' is not supported by nvcc 13.4",
+    target = ":unsupported_arch",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_check(
+    name = "clang_check",
+    archs = ["sm_89"],
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+with_clang_compiler(
+    name = "clang_compiler",
+    tags = ["manual"],
+    target = ":clang_check",
+    target_compatible_with = CUDA_TARGET,
+)
+
+failure_test(
+    name = "clang_compiler_failure_test",
+    expected_failure_substring = "dx CUDA targets compile with nvcc only",
+    target = ":clang_compiler",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_license(
+    name = "unaccepted_license",
+    error = UNACCEPTED,
+)
+
+cuda_check(
+    name = "license_unaccepted",
+    archs = ["sm_89"],
+    license = ":unaccepted_license",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+failure_test(
+    name = "license_unaccepted_failure_test",
+    expected_failure_substring = UNACCEPTED,
+    target = ":license_unaccepted",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cc_library(
+    name = "local_component",
+    srcs = ["local_component.cc"],
+    tags = ["manual"],
+)
+
+cuda_component_library(
+    name = "component_license_unaccepted",
+    component = ":local_component",
+    component_name = "cublas",
+    license = ":unaccepted_license",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+failure_test(
+    name = "component_license_unaccepted_failure_test",
+    expected_failure_substring = UNACCEPTED,
+    target = ":component_license_unaccepted",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_component_library(
+    name = "component_not_pinned",
+    component = ":local_component",
+    component_name = "cublas",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+failure_test(
+    name = "component_not_pinned_failure_test",
+    expected_failure_substring = "dx_cuda: component 'cublas' is not the pinned redistributable",
+    target = ":component_not_pinned",
+    target_compatible_with = CUDA_TARGET,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cell_tests.bzl",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)
+
+platform(
+    name = "windows_x86_64_platform",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+platform(
+    name = "linux_x86_64_platform",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+cuda_cell_tests(name = "cell_tests")
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
+)
+
+rustfmt_test(
+    name = "tests_linux_x86_64_fmt_test",
+    targets = [
+        ":cublas_device_code_test",
+        ":rdc_device_code_test",
+        ":saxpy_device_code_test",
+        ":saxpy_gpu_unavailable_test",
+    ],
+)

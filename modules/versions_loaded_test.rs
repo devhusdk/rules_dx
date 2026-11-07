@@ -2,7 +2,7 @@
 
 /// Files that load names from modules/*.bzl. Add a new loader here.
 const LOADERS: &[&str] = &[
-    "cuda/toolchain/check.bzl",
+    "../rules_dx_cuda+/toolchain/check.bzl",
     "java/ide/BUILD.bazel",
     "libs/testing/tested_stack.bzl",
     "lua/toolchain/BUILD.bazel",

@@ -1,4 +1,4 @@
-load("@rules_dx//cuda/rules:defs.bzl", "cuda_library")
+load("@rules_dx_cuda//rules:defs.bzl", "cuda_library")
 
 cuda_library(
     name = "keepplatforms_cuda",

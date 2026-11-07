@@ -209,7 +209,7 @@ Language rules:
 - `@rules_dx_apple//macos:app.bzl`: macOS apps.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
 - `@rules_dx_dotnet//csharp/rules:defs.bzl`: C#.
-- `@rules_dx//cuda/rules:defs.bzl`: CUDA.
+- `@rules_dx_cuda//rules:defs.bzl`: CUDA.
 - `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
 - `@rules_dx//make/rules:defs.bzl`: Makefiles.
 - `@rules_dx//cmake/rules:defs.bzl`: CMake files.
@@ -262,7 +262,7 @@ dx rule that wraps it.
 | `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc/rules:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
 | `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc/rules:defs.bzl` | `objc_library` |
 | `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
-| `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx//cuda/rules:defs.bzl` | `cuda_library`, `cuda_objects` |
+| `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx_cuda//rules:defs.bzl` | `cuda_library`, `cuda_objects` |
 | `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d/rules:defs.bzl` | `d_binary`, `d_library`, `d_test` |
 | `@rules_elixir//:elixir_app.bzl` | `elixir_app` | `@rules_dx//elixir/rules:defs.bzl` | `elixir_app` |
 | `@rules_elixir//:ex_unit_test.bzl` | `ex_unit_test` | `@rules_dx//elixir/rules:defs.bzl` | `elixir_test` |
@@ -314,12 +314,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_template` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
-|  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_binary` |
-|  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_gpu_env` |
-|  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_split_srcs` |
-|  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_target_compatible_with` |
-|  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_test` |
-|  |  | `@rules_dx//cuda/tests:defs.bzl` | `with_clang_compiler` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_binary` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_gpu_env` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_split_srcs` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_target_compatible_with` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
+|  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_kwargs` |
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_quality_srcs` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_binary` |
@@ -689,7 +689,7 @@ SDK and toolchain extensions:
 - `@rules_dx_android//sdk:repos.bzl`: Android SDK.
 - `@rules_dx_android//toolchain:repos.bzl`: Android NDK toolchain.
 - `@rules_dx_apple//ios:simulator.bzl`: iOS simulator.
-- `@rules_dx//cuda/toolchain:repos.bzl`: CUDA license acceptance.
+- `@rules_dx_cuda//toolchain:repos.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
 - `@rules_dx//powershell/rules:gallery.bzl`: PowerShell Gallery modules.
 - `@rules_dx//msix:repos.bzl`: MSIX tools.

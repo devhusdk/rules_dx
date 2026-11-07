@@ -1,4 +1,4 @@
-load("//cuda/rules:defs.bzl", "cuda_library")
+load("@rules_dx_cuda//rules:defs.bzl", "cuda_library")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality/testdata:__pkg__"])

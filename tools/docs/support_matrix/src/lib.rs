@@ -142,15 +142,33 @@ struct BuildLoader<'a> {
     computed: &'a BTreeMap<String, Vec<Vec<String>>>,
 }
 
+/// `label` as written in a file of `package`, with a `//` label of a family package given its
+/// family repo, so `//rules:defs.bzl` in `@rules_dx_cuda/tests` reads `@rules_dx_cuda//rules:defs.bzl`.
+fn absolute_label(package: &str, label: &str) -> String {
+    match package
+        .split_once('/')
+        .map(|(repo, _)| repo)
+        .filter(|repo| repo.starts_with('@'))
+    {
+        Some(repo) if label.starts_with("//") => format!("{repo}{label}"),
+        _ => label.to_owned(),
+    }
+}
+
 fn bzl_path(package: &str, label: &str) -> Result<String, String> {
+    let label = absolute_label(package, label);
     let (pkg, file) = if let Some(rest) = label
         .strip_prefix("@rules_dx//")
         .or_else(|| label.strip_prefix("//"))
     {
-        rest.split_once(':')
-            .ok_or_else(|| format!("load label {label} has no `:`"))?
+        let (pkg, file) = rest
+            .split_once(':')
+            .ok_or_else(|| format!("load label {label} has no `:`"))?;
+        (pkg.to_owned(), file)
     } else if let Some(file) = label.strip_prefix(':') {
-        (package, file)
+        (package.to_owned(), file)
+    } else if label.starts_with("@rules_dx_") {
+        split_label(&label)?
     } else {
         return Err(format!("load label {label} is outside the main repository"));
     };
@@ -168,11 +186,14 @@ impl starlark::Loader for BuildLoader<'_> {
     }
 
     fn computed(&self, label: &str, symbol: &str) -> Option<Vec<Vec<String>>> {
-        let label = label
-            .strip_prefix("@rules_dx")
-            .filter(|rest| rest.starts_with("//"))
-            .unwrap_or(label);
-        self.computed.get(&format!("{label}%{symbol}")).cloned()
+        let absolute = absolute_label(&self.package, label);
+        [absolute.as_str(), label].into_iter().find_map(|label| {
+            let label = label
+                .strip_prefix("@rules_dx")
+                .filter(|rest| rest.starts_with("//"))
+                .unwrap_or(label);
+            self.computed.get(&format!("{label}%{symbol}")).cloned()
+        })
     }
 }
 
@@ -181,6 +202,7 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_android",
         "@rules_dx_apple",
         "@rules_dx_beam",
+        "@rules_dx_cuda",
         "@rules_dx_dotnet",
         "@rules_dx_jvm",
     ]
@@ -423,6 +445,14 @@ mod tests {
             "tools/testing/x.bzl"
         );
         assert!(bzl_path("a", "@platforms//os:BUILD").is_err());
+        assert_eq!(
+            bzl_path("@rules_dx_cuda/tests", "//rules:defs.bzl").expect("path"),
+            "@rules_dx_cuda/rules/defs.bzl"
+        );
+        assert_eq!(
+            bzl_path("@rules_dx_cuda/tests", "@rules_dx//rust/rules:defs.bzl").expect("path"),
+            "rust/rules/defs.bzl"
+        );
     }
 
     #[test]

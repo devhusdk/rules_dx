@@ -100,7 +100,6 @@
   "rules_apple": "5.4.0",
   "rules_batch": "0.1.1",
   "rules_cc": "0.2.27",
-  "rules_cuda": "0.4.0-beta1",
   "rules_dart": "0.8.1",
   "rules_flutter": "0.0.8",
   "rules_go": "0.65.0",

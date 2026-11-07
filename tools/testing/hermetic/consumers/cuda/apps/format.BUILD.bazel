@@ -7,13 +7,13 @@ sh_test(
     args = [
         "$(rootpath @llvm//tools:clang-format)",
         "$(rootpath .clang-format)",
-        "$(rootpaths //cuda/tests/fixtures/cuda-app/app:format_srcs)",
-        "$(rootpaths //cuda/tests/fixtures/cuda-app/kernels:format_srcs)",
+        "$(rootpaths //tests/fixtures/cuda-app/app:format_srcs)",
+        "$(rootpaths //tests/fixtures/cuda-app/kernels:format_srcs)",
     ],
     data = [
         ".clang-format",
-        "//cuda/tests/fixtures/cuda-app/app:format_srcs",
-        "//cuda/tests/fixtures/cuda-app/kernels:format_srcs",
+        "//tests/fixtures/cuda-app/app:format_srcs",
+        "//tests/fixtures/cuda-app/kernels:format_srcs",
         "@llvm//tools:clang-format",
     ],
 )

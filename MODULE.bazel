@@ -163,7 +163,7 @@ _foreign_cc_tools.pkgconfig(
 )
 
 # floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975; upstream bazel-contrib/rules_cuda#523, drop in #8365) and to pass the dynamic CRT flag to nvcc -dlink (#4704)
-bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
+bazel_dep(name = "rules_cuda", version = "0.4.0-beta1", dev_dependency = True)
 single_version_override(
     module_name = "rules_cuda",
     patch_strip = 1,
@@ -271,6 +271,12 @@ bazel_dep(name = "rules_dx_jvm", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_jvm",
     path = "families/jvm",
+)
+
+bazel_dep(name = "rules_dx_cuda", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_cuda",
+    path = "families/cuda",
 )
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
@@ -1041,7 +1047,7 @@ perl_tools_cpan.install(
 )
 use_repo(perl_tools_cpan, "dx_perl_cpan")
 
-cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain", dev_dependency = True)
 cuda.redist_json(
     name = "cuda_redist",
     components = ["cccl", "crt", "cublas", "cudart", "cufft", "curand", "nvcc", "nvvm"],
@@ -2556,10 +2562,7 @@ use_repo(msvc, "dx_msvc")
 msvc_dev = use_extension("//cc/toolchains/msvc:repos.bzl", "msvc", dev_dependency = True)
 msvc_dev.license(accept = ["visual-studio-build-tools"])
 
-cuda_license = use_extension("//cuda/toolchain:repos.bzl", "cuda_license")
-use_repo(cuda_license, "dx_cuda_license")
-
-cuda_license_dev = use_extension("//cuda/toolchain:repos.bzl", "cuda_license", dev_dependency = True)
+cuda_license_dev = use_extension("@rules_dx_cuda//toolchain:repos.bzl", "cuda_license", dev_dependency = True)
 cuda_license_dev.license(accept = ["cuda-eula"])
 
 qt_sdk = use_extension("//qt/sdk:repos.bzl", "qt_sdk", dev_dependency = True)

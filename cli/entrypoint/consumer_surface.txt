@@ -5,8 +5,6 @@ bicep/rules:defs.bzl
 cc/rules:defs.bzl
 cloudformation/rules:defs.bzl
 cmake/rules:defs.bzl
-cuda/rules:defs.bzl
-cuda/toolchain:repos.bzl
 deploy/offline:offline.bzl
 deploy/rules:archive.bzl
 deploy/rules:cloudflare.bzl

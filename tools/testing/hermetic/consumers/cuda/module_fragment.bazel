@@ -17,5 +17,5 @@ cuda.toolkit(
 use_repo(cuda, "cuda")
 
 # The CUDA Toolkit is licensed under the NVIDIA EULA: https://docs.nvidia.com/cuda/eula/index.html
-cuda_license = use_extension("@my_dx//cuda/toolchain:repos.bzl", "cuda_license")
+cuda_license = use_extension("@rules_dx_cuda//toolchain:repos.bzl", "cuda_license")
 cuda_license.license(accept = ["cuda-eula"])

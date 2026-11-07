@@ -38,7 +38,7 @@ def _cells(pinned, cells):
 
 COMPUTED_CONSTRAINTS = {
     "@rules_dx_apple//ios:cell.bzl%APPLE_HOSTS": [["@platforms//os:ios"], ["@platforms//os:macos"]],
-    "//cuda/rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
+    "@rules_dx_cuda//rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
@@ -280,7 +280,7 @@ ROWS = [
     },
     {"ci_tests": _hello("csharp", "@rules_dx_dotnet"), "consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": "C#"},
     {
-        "ci_tests": ["//cuda/tests:saxpy_device_code_test", "//cuda/tests:saxpy_gpu_test"],
+        "ci_tests": ["@rules_dx_cuda//tests:saxpy_device_code_test", "@rules_dx_cuda//tests:saxpy_gpu_test"],
         "consumer_tests": _starter_consumers("cuda"),
         "name": "cuda",
         "section": "languages",

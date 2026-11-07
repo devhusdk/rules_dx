@@ -15,7 +15,7 @@ WRAPPER_OWNERS = {
     "csharp": "@rules_dx_dotnet//csharp/rules:defs.bzl",
     "cloudformation": "//cloudformation/rules:defs.bzl",
     "css": "//javascript/rules:defs.bzl",
-    "cuda": "//cuda/rules:defs.bzl",
+    "cuda": "@rules_dx_cuda//rules:defs.bzl",
     "cue": "//quality/rules:defs.bzl",
     "dockerfile": "//dockerfile/rules:defs.bzl",
     "make": "//make/rules:defs.bzl",

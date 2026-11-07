@@ -87,7 +87,6 @@ CONSUMER_BAZEL_DEPS = {
     "rules_rust_wasm_bindgen": struct(floor = RULES_RUST_WASM_BINDGEN_VERSION, tested = RULES_RUST_WASM_BINDGEN_VERSION),
     "rules_cc": struct(floor = RULES_CC_VERSION, tested = RULES_CC_VERSION),
     "llvm": struct(floor = LLVM_VERSION, tested = LLVM_VERSION),
-    "rules_cuda": struct(floor = RULES_CUDA_VERSION, tested = RULES_CUDA_VERSION),
     "rules_python": struct(floor = RULES_PYTHON_VERSION, tested = RULES_PYTHON_VERSION),
     "rules_go": struct(floor = TESTED_RULES_GO, tested = TESTED_RULES_GO),
     "gazelle": struct(floor = GAZELLE_VERSION, tested = GAZELLE_VERSION),

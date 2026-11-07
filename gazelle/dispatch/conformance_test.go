@@ -43,7 +43,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.cc": "#include <string>\n"},
 		kind:  "cc_library", target: "demo", defs: "cc/rules:defs.bzl",
 		symbols:    []string{"cc_library", "cc_test"},
-		extraLoads: map[string][]string{"@rules_dx//cuda/rules:defs.bzl": {"cuda_library"}},
+		extraLoads: map[string][]string{"@rules_dx_cuda//rules:defs.bzl": {"cuda_library"}},
 	},
 	"csharp": {
 		files: map[string]string{"Demo.cs": "namespace Demo;\n\nclass Demo\n"},

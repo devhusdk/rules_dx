@@ -61,7 +61,7 @@ func NewLanguage() language.Language {
 		Kinds:          ccKinds,
 		DefsPackage:    "cc/rules:defs.bzl",
 		ExtraKinds:     []string{CudaKind, TestKind},
-		KindDefs:       map[string]string{CudaKind: "cuda/rules:defs.bzl"},
+		KindDefs:       map[string]string{CudaKind: "@rules_dx_cuda//rules:defs.bzl"},
 		IndexKinds:     []string{CudaKind},
 		Directives:     []string{platformsDirective},
 		ConfigureExt:   configureCuda,

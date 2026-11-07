@@ -60,7 +60,7 @@ Per-language guides in the repository:
 - [Apple](https://github.com/devhusdk/rules_dx/blob/main/families/apple/README.md)
 - [C#](https://github.com/devhusdk/rules_dx/blob/main/families/dotnet/csharp/README.md)
 - [C/C++](https://github.com/devhusdk/rules_dx/blob/main/cc/rules/README.md)
-- [CUDA](https://github.com/devhusdk/rules_dx/blob/main/cuda/README.md)
+- [CUDA](https://github.com/devhusdk/rules_dx/blob/main/families/cuda/README.md)
 - [D](https://github.com/devhusdk/rules_dx/blob/main/d/README.md)
 - [Dart](https://github.com/devhusdk/rules_dx/blob/main/dart/README.md)
 - [Elixir](https://github.com/devhusdk/rules_dx/blob/main/families/beam/elixir/README.md)

@@ -9,7 +9,7 @@ RULES_CUDA_VERSION = _RULES_CUDA_VERSION
 # Newest clang major the pinned nvcc accepts as a host compiler (CUDA 13.4 Linux
 # install guide, supported host compilers: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html).
 # Recheck on every nvcc pin bump; once this reaches the main @llvm major, drop the
-# nvcc_allow_unsupported_compiler feature from cuda/rules/defs.bzl.
+# nvcc_allow_unsupported_compiler feature from @rules_dx_cuda//rules:defs.bzl.
 CUDA_MAX_HOST_CLANG_MAJOR = 22
 
 _REDIST = "https://developer.download.nvidia.com/compute/cuda/redist/"

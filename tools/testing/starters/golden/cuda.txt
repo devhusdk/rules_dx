@@ -9,3 +9,4 @@ scale.h
 scale_test.cc
 bazel_dep rules_dx
 bazel_dep rules_cuda
+bazel_dep rules_dx_cuda

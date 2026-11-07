@@ -591,7 +591,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("csharp_test", Constraint::AsWritten),
     (
         "cuda_test",
-        Constraint::Appended("//cuda/rules:defs.bzl", "CUDA_TARGET"),
+        Constraint::Appended("@rules_dx_cuda//rules:defs.bzl", "CUDA_TARGET"),
     ),
     (
         "d_test",

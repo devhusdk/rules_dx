@@ -412,7 +412,7 @@ fn render_module(rows: &[&Override]) -> String {
 
 /// Whether the consumer wants `row`: its module belongs to no family, or to at least one family
 /// that is core or installed.
-fn wanted(row: &Override, families: &[Family], deps: &BTreeSet<String>) -> bool {
+pub(crate) fn wanted(row: &Override, families: &[Family], deps: &BTreeSet<String>) -> bool {
     let mut listed = families
         .iter()
         .filter(|family| family.bazel_deps.iter().any(|dep| dep == row.module))
@@ -532,10 +532,12 @@ fn observe(root: &Path, text: &str) -> Result<Observed, String> {
     Ok(observed)
 }
 
-/// The `bazel_dep` names of the consumer's `MODULE.bazel`, includes followed. Empty when it
-/// cannot be read.
+/// The `bazel_dep` names of the consumer's `MODULE.bazel`, includes followed, plus its own
+/// module name, so a family module counts as installed in itself. Empty when it cannot be read.
 pub fn module_deps(root: &Path) -> BTreeSet<String> {
-    load_calls(root, "bazel_dep")
+    let mut deps = load_calls(root, "bazel_dep");
+    deps.extend(load_calls(root, "module"));
+    deps
 }
 
 /// Whether the workspace at `root` is the `rules_dx` module itself, which carries every family.
@@ -988,7 +990,8 @@ mod tests {
                 .map(|patch| format!("//patches/{}:{}", row.module, patch.file))
                 .collect();
             assert_eq!(patches, expected, "{name} patches and order");
-            if let Ok(dep) = module.bazel_dep(name) {
+            let core = wanted(row, dx_families::families(), &BTreeSet::new());
+            if let (true, Ok(dep)) = (core, module.bazel_dep(name)) {
                 assert!(
                     !matches!(dep.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True"),
                     "{name} must be a non-dev bazel_dep so consumers have it in their graph"
@@ -1059,10 +1062,21 @@ archive_override(
     }
 
     #[test]
-    fn the_shipped_families_keep_every_row() {
-        let all = render_in(dx_families::families(), &BTreeSet::new());
+    fn the_shipped_families_keep_every_row_once_installed() {
+        let deps = BTreeSet::from(["rules_dx_cuda".to_owned()]);
+        let all = render_in(dx_families::families(), &deps);
         assert_eq!(all, render_in(&[], &BTreeSet::new()));
         assert!(paths(&all).iter().any(|p| p.contains("rules_rust.")));
+    }
+
+    #[test]
+    fn rules_cuda_patches_render_only_for_cuda_consumers() {
+        let without = render_in(dx_families::families(), &BTreeSet::new());
+        assert!(!paths(&without).iter().any(|p| p.contains("rules_cuda.")));
+        assert!(!without[0].1.contains("rules_cuda"));
+        let deps = BTreeSet::from(["rules_dx_cuda".to_owned()]);
+        let with = render_in(dx_families::families(), &deps);
+        assert!(paths(&with).iter().any(|p| p.contains("rules_cuda.")));
     }
 
     #[test]
@@ -1112,6 +1126,20 @@ archive_override(
         let scratch = consumer(&dep_module());
         let deps = module_deps(scratch.path());
         assert!(deps.contains("rules_dx") && deps.contains("rules_cc"));
+    }
+
+    #[test]
+    fn module_deps_count_the_module_itself() {
+        let family = consumer(
+            "module(name = \"rules_dx_cuda\")\nbazel_dep(name = \"rules_cuda\", version = \"1\")\n",
+        );
+        let deps = module_deps(family.path());
+        assert!(deps.contains("rules_dx_cuda") && deps.contains("rules_cuda"));
+        assert!(
+            paths(&render_overrides(&deps))
+                .iter()
+                .any(|p| p.contains("rules_cuda."))
+        );
     }
 
     #[test]

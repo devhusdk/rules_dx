@@ -73,7 +73,7 @@ def homebrew_tap_deploy(
         binary = None,
         desc = None,
         homepage = None,
-        profile = "release",
+        build_mode = "release",
         tags = [],
         sbom = None):
     """Renders a Homebrew formula from a github_deploy release and pushes it to a tap."""
@@ -106,6 +106,6 @@ def homebrew_tap_deploy(
         sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
         tags = tags,
     )

@@ -188,7 +188,7 @@ pub fn resolve_deploy(scopes: &[String]) -> Result<String, ResolveError> {
 pub struct DeployInfo {
     pub label: String,
     pub has_provider: bool,
-    pub profile_raw: String,
+    pub build_mode_raw: String,
     pub app_raw: String,
     pub executable: bool,
     pub size_budget: String,
@@ -200,7 +200,7 @@ fn deploy_starlark_expr() -> String {
     const PROVIDER: &str = "//deploy/rules:defs.bzl%DxDeployInfo";
     format!(
         "(str(providers(target).get('{PROVIDER}', None) != None)) + '|' + \
-         ((str(providers(target).get('{PROVIDER}', None).profile) if providers(target).get('{PROVIDER}', None) != None else 'NONE')) + '|' + \
+         ((str(providers(target).get('{PROVIDER}', None).build_mode) if providers(target).get('{PROVIDER}', None) != None else 'NONE')) + '|' + \
          ((str(providers(target).get('{PROVIDER}', None).app) if providers(target).get('{PROVIDER}', None) != None else 'NONE')) + '|' + \
          str(target.files_to_run.executable != None) + '|' + \
          ((providers(target).get('{PROVIDER}', None).size_budget if providers(target).get('{PROVIDER}', None) != None else '')) + '|' + \
@@ -250,7 +250,7 @@ pub fn check_deployable(
         .find(|line| !line.is_empty())
         .ok_or_else(|| malformed("cquery returned no deploy observation"))?;
     let mut parts = line.split('|');
-    let (has, profile_raw, app_raw, exe) =
+    let (has, build_mode_raw, app_raw, exe) =
         match (parts.next(), parts.next(), parts.next(), parts.next()) {
             (Some(has), Some(profile), Some(app), Some(exe)) => (has, profile, app, exe),
             _ => {
@@ -285,7 +285,7 @@ pub fn check_deployable(
     Ok(DeployInfo {
         label: label.to_owned(),
         has_provider,
-        profile_raw: profile_raw.to_owned(),
+        build_mode_raw: build_mode_raw.to_owned(),
         app_raw: app_raw.to_owned(),
         executable,
         size_budget,

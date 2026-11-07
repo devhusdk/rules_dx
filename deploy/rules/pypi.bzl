@@ -121,7 +121,7 @@ _pypi_config = rule(
     },
 )
 
-def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, profile = "release", sbom = None, api_compat = False, api_package = "", api_src = ""):
+def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, build_mode = "release", sbom = None, api_compat = False, api_package = "", api_src = ""):
     """Publishes one wheel plus an optional sdist as a local-first PyPI deployment.
 
     api_compat runs the pinned griffe library against the previous
@@ -156,5 +156,5 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
         sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
     )

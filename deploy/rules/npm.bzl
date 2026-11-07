@@ -101,7 +101,7 @@ _npm_config = rule(
     },
 )
 
-def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", profile = "release", sbom = None, api_compat = False):
+def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = False):
     """Packs files into a local npm feed with public or restricted access and a provenance policy.
 
     api_compat diffs the api-extractor report of the package types entry with
@@ -153,5 +153,5 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
     )

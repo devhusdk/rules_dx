@@ -136,7 +136,7 @@ _signing_config = rule(
     },
 )
 
-def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile = "release", cosign_version = SIGNING_COSIGN_VERSION):
+def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, build_mode = "release", cosign_version = SIGNING_COSIGN_VERSION):
     """Creates an owner-gated signing deploy target for pinned artifacts."""
     err = signing_identity_error(identity, issuer)
     if err != "":
@@ -159,5 +159,5 @@ def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile =
         name = name,
         config = ":" + config_target,
         deploy = RELEASE_DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
     )

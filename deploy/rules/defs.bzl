@@ -7,14 +7,14 @@ load(":config.bzl", "DxDeployConfigInfo", "rlocation_path")
 load(":validate.bzl", "size_budget_bytes", "size_budget_error")
 
 DxDeployInfo = provider(
-    doc = "Deploy entrypoint identity and default profile for dx deploy dispatch.",
+    doc = "Deploy entrypoint identity and default build mode for dx deploy dispatch.",
     fields = {
         "app": "Label or None: the deployed app target when distinct from the deploy target.",
         "artifacts": "List of Labels: declared app artifact targets staged for the deploy tool.",
         "sbom": "String: exec path of the SPDX document, empty without an sbom.",
         "size_budget": "String: the size_budget attribute, empty when unset.",
         "size_stamp": "String: exec path of the file holding the checked size, empty without a budget.",
-        "profile": "String or None: default profile ('debug', 'dev', 'release'); None means the command default applies.",
+        "build_mode": "String or None: default build mode ('debug', 'dev', 'release'); None means the command default applies.",
     },
 )
 
@@ -97,7 +97,7 @@ def _dx_deployment_impl(ctx):
         DxDeployInfo(
             app = app_label,
             artifacts = [target.label for target in ctx.attr.artifacts],
-            profile = ctx.attr.profile,
+            build_mode = ctx.attr.build_mode,
             sbom = sbom_path,
             size_budget = ctx.attr.size_budget,
             size_stamp = size_stamp,
@@ -105,13 +105,13 @@ def _dx_deployment_impl(ctx):
         DxSubjectInfo(fields = {
             "app": app_text,
             "artifacts": ",".join(artifact_labels),
-            "profile": ctx.attr.profile,
+            "build_mode": ctx.attr.build_mode,
         }),
     ] + extra
 
 dx_deployment = rule(
     implementation = _dx_deployment_impl,
-    doc = "Deployment that dx deploy runs with a declared profile.",
+    doc = "Deployment that dx deploy runs with a declared build mode.",
     executable = True,
     attrs = {
         "app": attr.label(
@@ -158,8 +158,8 @@ dx_deployment = rule(
             default = Label("//deploy/rules:size_checker"),
             executable = True,
         ),
-        "profile": attr.string(
-            doc = "Default deploy profile, one of debug, dev, or release.",
+        "build_mode": attr.string(
+            doc = "Default build mode, one of debug, dev, or release.",
             default = "release",
             values = VALID_DEPLOY_PROFILES,
         ),

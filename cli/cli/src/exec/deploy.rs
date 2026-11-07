@@ -50,10 +50,10 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(info) => info,
         Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
-    let attr = if info.profile_raw == "NONE" || info.profile_raw == "None" {
+    let attr = if info.build_mode_raw == "NONE" || info.build_mode_raw == "None" {
         None
     } else {
-        Profile::parse_attr(&info.profile_raw)
+        Profile::parse_attr(&info.build_mode_raw)
     };
     let profile = resolve_profile(
         invocation.profile_flag(),

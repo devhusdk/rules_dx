@@ -4,12 +4,12 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":defs.bzl", "VALID_DEPLOY_PROFILES")
 
-def deploy_observations(label, app = "", artifacts = [], profile = "release"):
+def deploy_observations(label, app = "", artifacts = [], build_mode = "release"):
     """Renders the expected analysis observations for one dx_deployment subject."""
     fields = {
         "app": app,
         "artifacts": ",".join(artifacts),
-        "profile": profile,
+        "build_mode": build_mode,
     }
     lines = ["subject " + label, "file " + label.split(":")[-1]]
     for key in sorted(fields.keys()):
@@ -21,7 +21,7 @@ def deploy_observations(label, app = "", artifacts = [], profile = "release"):
     lines.append("aspect_field transitive_count=0")
     return "\n".join(lines)
 
-def deploy_analysis_test(name, subject, app = "", artifacts = [], profile = "release"):
+def deploy_analysis_test(name, subject, app = "", artifacts = [], build_mode = "release"):
     """Checks the DxDeployInfo one dx_deployment subject in this package exposes."""
     starlark_test(
         name = name,
@@ -31,18 +31,18 @@ def deploy_analysis_test(name, subject, app = "", artifacts = [], profile = "rel
             "//" + native.package_name() + ":" + subject,
             app = app,
             artifacts = artifacts,
-            profile = profile,
+            build_mode = build_mode,
         ),
     )
 
 def deploy_unit_tests(name):
-    """Checks the deploy profile vocabulary and the observation renderer."""
+    """Checks the build mode vocabulary and the observation renderer."""
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
             expect_equal(
-                "profile vocabulary pins debug, dev, release",
+                "build mode vocabulary pins debug, dev, release",
                 VALID_DEPLOY_PROFILES,
                 ["debug", "dev", "release"],
             ),
@@ -53,7 +53,7 @@ def deploy_unit_tests(name):
 file deploy_default
 field app=
 field artifacts=
-field profile=release
+field build_mode=release
 aspect_field aspect_seen=True
 aspect_field field_count=3
 aspect_field has_subject=True
@@ -66,13 +66,13 @@ aspect_field transitive_count=0""",
                     "//pkg:demo",
                     app = "//pkg:app",
                     artifacts = ["//pkg:z", "//pkg:a"],
-                    profile = "debug",
+                    build_mode = "debug",
                 ),
                 """subject //pkg:demo
 file demo
 field app=//pkg:app
 field artifacts=//pkg:z,//pkg:a
-field profile=debug
+field build_mode=debug
 aspect_field aspect_seen=True
 aspect_field field_count=3
 aspect_field has_subject=True

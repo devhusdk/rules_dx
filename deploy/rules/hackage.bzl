@@ -77,7 +77,7 @@ _hackage_config = rule(
     },
 )
 
-def hackage_deploy(name, sdist, package = "", version = "", profile = "release", sbom = None):
+def hackage_deploy(name, sdist, package = "", version = "", build_mode = "release", sbom = None):
     """Uploads one cabal sdist after checking its .cabal name and version."""
     name_error = hackage_name_error(name)
     if name_error != "":
@@ -105,5 +105,5 @@ def hackage_deploy(name, sdist, package = "", version = "", profile = "release",
         sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
     )

@@ -68,7 +68,7 @@ _bcr_config = rule(
     },
 )
 
-def bcr_check(name, module_name = "rules_dx", version = "0.0.0", inputs = [], profile = "release"):
+def bcr_check(name, module_name = "rules_dx", version = "0.0.0", inputs = [], build_mode = "release"):
     """Creates an owner-gated BCR shape-check deploy target."""
     src_err = bcr_source_error(module_name, version)
     if src_err != "":
@@ -93,5 +93,5 @@ def bcr_check(name, module_name = "rules_dx", version = "0.0.0", inputs = [], pr
         name = name,
         config = ":" + config_target,
         deploy = RELEASE_DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
     )

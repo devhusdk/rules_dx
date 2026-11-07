@@ -40,7 +40,7 @@ maven_deploy(
 - `version`: defaults to `0.0.0`.
 - `repository_url`: defaults to the Central Portal Publisher API below. No
   other host is accepted.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages a local file repository under `<artifact>-repo/`. No
 credentials needed. It writes, next to the jar and the pom:
@@ -128,7 +128,7 @@ npm_deploy(
 - `provenance`: `required` or `none`. Defaults to `required` for `public`
   and `none` for `restricted`. `required` needs `access = "public"` and
   `registry.npmjs.org`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages the tarball and feed locally. No credentials needed. It
 checks that the files include `package.json`. It does not run `npm` or contact the
@@ -248,7 +248,7 @@ archive_deploy(
 ```
 
 - `app`: required. One executable target. It is the only tarball member.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `size_budget`: optional, such as `25MB`. A decimal `B`, `KB`, `MB` or `GB`
   amount. The run fails before copying when the tarball is larger, and
   prints both sizes in bytes. Empty means no budget.
@@ -376,7 +376,7 @@ crates_deploy(
 - `name`: the crate name.
 - `crate`: required. The crate files, including `Cargo.toml`.
 - `version`: defaults to `0.0.0`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-vendor/vendor/<name>/` and
 `<name>-vendor/registry/<name>/<version>/`. No credentials needed.
@@ -414,7 +414,7 @@ hex_deploy(
 - `package`: required. The package files, including `mix.exs` (`rebar.config` for `rebar3`).
 - `tool`: `mix` or `rebar3`. Defaults to `mix`.
 - `version`: defaults to `0.0.0`. It must equal the `version` in `mix.exs`, or the `vsn` in the `.app.src` for `rebar3`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-hex/package/`, checks the version, and runs
 `mix hex.build` (`rebar3 hex build`) when the tool is on `PATH`. Without it the
@@ -454,7 +454,7 @@ rubygems_deploy(
 - `ruby`: optional pinned `ruby` executable, such as `@ruby//:ruby_file`. The
   `gem` next to it is used instead of the one on `PATH`.
 - `ruby_files`: the files that ruby needs, such as `@ruby//:files`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run needs `gem` on `PATH` unless `ruby` is set. It stages the sources, runs
 `gem build`, checks that the gemspec name and version match the target and
@@ -491,7 +491,7 @@ github_deploy(
 
 - `artifacts`: files to attach. An empty list creates a draft with release notes only. Asset names must be unique.
 - `tag`: defaults to `v0.0.0-dryrun`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `tags`: Bazel tags for the generated targets. Defaults to `[]`.
 - `api_compat`: `False` (default; it needs `apidiff`) or `True`. With `go_modules` (workspace-relative module directories; empty means the `go.mod` at the root), the dry run
   checks each module with `apidiff` against the highest earlier `v*` tag and refuses breaking changes
@@ -571,7 +571,7 @@ linux_package_deploy(
 - `formats`: any of `deb`, `rpm`, `apk`. Defaults to `["deb", "rpm"]`.
 - `version`, `arch` (Go names such as `amd64`, `arm64`), `maintainer`, `description`: package metadata.
 - `extra_files`: more files, mapped to absolute install paths, installed as `0644`.
-- `tag`, `profile`, `tags`: as for `github_deploy`.
+- `tag`, `build_mode`, `tags`: as for `github_deploy`.
 
 `bazel build //pkg:demo_deb` writes `demo_<version>_<arch>.deb`; each format
 has its own `<name>_<format>` target. `dx deploy //pkg:demo` stages the
@@ -599,7 +599,7 @@ pub_deploy(
 - `version`: defaults to `0.0.0`. Must equal the `pubspec.yaml` version and
   have a heading in `CHANGELOG.md`.
 - `hosted_url`: defaults to `https://pub.dev`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run checks `pubspec.yaml` and `CHANGELOG.md`, runs
 `dart pub publish --dry-run` on a copy, and stages `<name>-package/`. A package
@@ -634,7 +634,7 @@ nuget_deploy(
 - `package_id`: optional. Must match the nuspec id.
 - `version`: optional. Must match the nuspec version.
 - `source`: defaults to `https://api.nuget.org/v3/index.json`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-feed/` with the nupkg. No credentials needed.
 
@@ -671,7 +671,7 @@ hackage_deploy(
 - `sdist`: required. One `<package>-<version>.tar.gz` made by `cabal sdist`.
 - `package`: optional. Must match the `name` in the `.cabal` file.
 - `version`: optional. Must match the `version` in the `.cabal` file.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Every run checks that the sdist holds `<package>-<version>/<package>.cabal`
 and that the file declares the name and version in the sdist file name. A
@@ -704,7 +704,7 @@ luarocks_deploy(
 - `package`: optional. Must match the rockspec `package`.
 - `version`: optional. Must match the rockspec `version`, with or without the
   `-<revision>` suffix.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Every run checks that the rockspec file name is `<package>-<version>.rockspec`
 for the package and version it declares. A default run stages `<name>-rock/`
@@ -787,7 +787,7 @@ oci_deploy(
 - `registry`: defaults to `ghcr.io`.
 - `repository`: lowercase OCI path segments. Defaults to `name`, so a
   mixed-case target needs `repository` set.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `size_budget`: optional, such as `500MB`. A decimal `B`, `KB`, `MB` or `GB`
   amount. The run fails before staging or pushing when the image (the
   archive file, or the layout directory tree) is larger, and prints both
@@ -846,7 +846,7 @@ octopus_deploy(
 - `space`: defaults to empty, the default space. `OCTOPUS_SPACE` overrides it.
 - `octopus_url`: an https URL. Defaults to `https://octopus.example.invalid`.
   `OCTOPUS_URL` overrides it.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-drop/` with the package and a `would-run.txt`
 holding the `octo push` and `octo create-release` commands. No credentials
@@ -892,7 +892,7 @@ promotion_deploy(
 - `to_environment`: defaults to `production`. Must differ from
   `from_environment`.
 - `version`: defaults to `0.0.0`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-promotion/` with the artifact, a
 `promotion.json` and a `would-run.txt`. No credentials needed. Health and
@@ -954,7 +954,7 @@ Attributes:
   project and version must match the wheel's.
 - `repository_url`: must start with `https://`. Defaults to
   `https://upload.pypi.org/legacy/`.
-- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Project names are PEP 503 normalized: lowercased, with each run of `.`, `_`
 or `-` replaced by one `-`.

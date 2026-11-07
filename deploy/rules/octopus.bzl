@@ -153,7 +153,7 @@ _octopus_config = rule(
     },
 )
 
-def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0", deploy_to = [], space = "", octopus_url = OCTOPUS_DEFAULT_URL, profile = "release", sbom = None):
+def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0", deploy_to = [], space = "", octopus_url = OCTOPUS_DEFAULT_URL, build_mode = "release", sbom = None):
     """Publishes one archive package as a local-first Octopus deployment."""
     project_error = octopus_project_error(project)
     if project_error != "":
@@ -193,5 +193,5 @@ def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0
         sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
     )

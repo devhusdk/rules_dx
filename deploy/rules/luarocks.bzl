@@ -73,7 +73,7 @@ _luarocks_config = rule(
     },
 )
 
-def luarocks_deploy(name, rockspec, package = "", version = "", profile = "release", sbom = None):
+def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "release", sbom = None):
     """Uploads one rockspec after checking its package and version."""
     name_error = luarocks_name_error(name)
     if name_error != "":
@@ -101,5 +101,5 @@ def luarocks_deploy(name, rockspec, package = "", version = "", profile = "relea
         sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
     )

@@ -96,7 +96,7 @@ _nuget_config = rule(
     },
 )
 
-def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFAULT_SOURCE, profile = "release", sbom = None):
+def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFAULT_SOURCE, build_mode = "release", sbom = None):
     """Publishes one nupkg after checking its nuspec id and version."""
     name_error = nuget_id_error(name)
     if name_error != "":
@@ -128,5 +128,5 @@ def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFA
         sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
-        profile = profile,
+        build_mode = build_mode,
     )

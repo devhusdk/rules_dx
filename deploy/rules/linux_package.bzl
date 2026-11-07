@@ -145,7 +145,7 @@ def linux_package_deploy(
         install_path = None,
         extra_files = {},
         tag = "v0.0.0-dryrun",
-        profile = "release",
+        build_mode = "release",
         tags = [],
         sbom = None):
     """Builds Linux packages from one binary and publishes them as a draft GitHub release."""
@@ -180,7 +180,7 @@ def linux_package_deploy(
         name = name,
         artifacts = artifacts,
         tag = tag,
-        profile = profile,
+        build_mode = build_mode,
         tags = tags,
         sbom = sbom,
     )

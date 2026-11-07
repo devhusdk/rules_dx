@@ -21,7 +21,7 @@ def plain_file_sbom_tests(name):
         sbom = "app.rs",
         config = ":app_wheel_config",
         deploy = DEPLOY_TOOL,
-        profile = "release",
+        build_mode = "release",
         tags = ["manual"],
     )
     plain_file_sbom_test(

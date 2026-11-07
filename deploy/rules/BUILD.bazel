@@ -399,7 +399,7 @@ dx_deployment(
 dx_deployment(
     name = "deploy_debug",
     deploy = ":deploy_program",
-    profile = "debug",
+    build_mode = "debug",
 )
 
 dx_deployment(
@@ -417,7 +417,7 @@ deploy_analysis_test(
 
 deploy_analysis_test(
     name = "deploy_debug_analysis",
-    profile = "debug",
+    build_mode = "debug",
     subject = "deploy_debug",
 )
 
@@ -703,7 +703,7 @@ archive_deploy(
 archive_deploy(
     name = "release_demo_debug",
     app = ":deploy_program",
-    profile = "debug",
+    build_mode = "debug",
 )
 
 archive_unit_tests(name = "archive_unit")
@@ -721,7 +721,7 @@ deploy_analysis_test(
 deploy_analysis_test(
     name = "archive_debug_analysis",
     app = "//deploy/rules:deploy_program",
-    profile = "debug",
+    build_mode = "debug",
     subject = "release_demo_debug",
 )
 

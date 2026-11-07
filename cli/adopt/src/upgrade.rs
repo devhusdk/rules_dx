@@ -75,9 +75,32 @@ pub fn base_changes(
 /// Family tool selections keyed by family, then capability.
 pub type Selections = BTreeMap<String, BTreeMap<String, Vec<String>>>;
 
-/// A warning for each tool a family's capability dropped for another one.
-pub fn tool_swaps(old: &Selections, new: &Selections) -> Vec<String> {
-    let mut warnings = Vec::new();
+/// A tool a family's capability dropped for another one.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ToolSwap {
+    pub family: String,
+    pub capability: String,
+    pub gone: String,
+    pub added: String,
+}
+
+impl ToolSwap {
+    pub fn warning(&self) -> String {
+        let Self {
+            family,
+            capability,
+            gone,
+            added,
+        } = self;
+        format!(
+            "dx: warning: {family} {capability}: {gone} replaced by {added}; rule IDs {gone}/<code> become {added}/<code>, migrate native inline suppressions"
+        )
+    }
+}
+
+/// Each tool a family's capability dropped for another one.
+pub fn tool_swaps(old: &Selections, new: &Selections) -> Vec<ToolSwap> {
+    let mut swaps = Vec::new();
     for (family, capabilities) in old {
         let Some(now) = new.get(family) else {
             continue;
@@ -87,14 +110,56 @@ pub fn tool_swaps(old: &Selections, new: &Selections) -> Vec<String> {
             let added: Vec<&String> = after.iter().filter(|tool| !before.contains(tool)).collect();
             for gone in before.iter().filter(|tool| !after.contains(tool)) {
                 for tool in &added {
-                    warnings.push(format!(
-                        "dx: warning: {family} {capability}: {gone} replaced by {tool}; rule IDs {gone}/<code> become {tool}/<code>, migrate native inline suppressions"
-                    ));
+                    swaps.push(ToolSwap {
+                        family: family.clone(),
+                        capability: capability.clone(),
+                        gone: gone.clone(),
+                        added: (*tool).clone(),
+                    });
                 }
             }
         }
     }
-    warnings
+    swaps
+}
+
+const SUPPRESSION_LIMIT: usize = 50;
+
+/// The `path:line` of each inline suppression of `tool` in `files`, capped at 50 with a
+/// closing `... and N more` line.
+pub fn suppression_lines<'a>(
+    tool: &str,
+    files: impl IntoIterator<Item = (&'a str, &'a str)>,
+) -> Vec<String> {
+    let Some(config) = TOOL_CONFIGS.iter().find(|config| config.id == tool) else {
+        return Vec::new();
+    };
+    let mut found = Vec::new();
+    for (path, text) in files {
+        if !config
+            .suppression_extensions
+            .iter()
+            .any(|ext| path.ends_with(ext))
+        {
+            continue;
+        }
+        for (index, line) in text.lines().enumerate() {
+            if config
+                .suppressions
+                .iter()
+                .any(|marker| line.contains(marker))
+            {
+                found.push(format!("{path}:{}", index + 1));
+            }
+        }
+    }
+    let more = found.len().saturating_sub(SUPPRESSION_LIMIT);
+    found.truncate(SUPPRESSION_LIMIT);
+    let mut lines: Vec<String> = found.into_iter().map(|line| format!("  {line}")).collect();
+    if more > 0 {
+        lines.push(format!("  ... and {more} more"));
+    }
+    lines
 }
 
 /// Merges the change from the old base to `new_base` into an override copy. The
@@ -190,16 +255,37 @@ mod tests {
     fn tool_swaps_warns_when_a_family_trades_one_tool_for_another() {
         let old = selections("javascript", "lint", &["eslint", "typos"]);
         let new = selections("javascript", "lint", &["biome", "typos"]);
+        let swaps = tool_swaps(&old, &new);
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(swaps[0].gone, "eslint");
         assert_eq!(
-            tool_swaps(&old, &new),
-            [
-                "dx: warning: javascript lint: eslint replaced by biome; rule IDs eslint/<code> become biome/<code>, migrate native inline suppressions"
-            ]
+            swaps[0].warning(),
+            "dx: warning: javascript lint: eslint replaced by biome; rule IDs eslint/<code> become biome/<code>, migrate native inline suppressions"
         );
         assert!(tool_swaps(&old, &old).is_empty());
         let dropped = selections("javascript", "lint", &["typos"]);
         assert!(tool_swaps(&old, &dropped).is_empty());
         assert!(tool_swaps(&old, &Selections::new()).is_empty());
+    }
+
+    #[test]
+    fn suppression_lines_lists_the_markers_in_the_tools_files() {
+        let js = "a();\n// eslint-disable-next-line no-console\nb();\n/* eslint-disable */\n";
+        let files = [("web/a.js", js), ("README.md", "eslint-disable\n")];
+        assert_eq!(
+            suppression_lines("eslint", files),
+            ["  web/a.js:2", "  web/a.js:4"]
+        );
+        assert!(suppression_lines("eslint", [("web/a.py", js)]).is_empty());
+    }
+
+    #[test]
+    fn suppression_lines_stops_at_fifty() {
+        let text = "x = 1  # noqa\n".repeat(53);
+        let lines = suppression_lines("ruff", [("a.py", text.as_str())]);
+        assert_eq!(lines.len(), 51);
+        assert_eq!(lines[49], "  a.py:50");
+        assert_eq!(lines[50], "  ... and 3 more");
     }
 
     #[test]

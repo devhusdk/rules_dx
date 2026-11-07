@@ -26,7 +26,9 @@ def config(
         tier_source = "dx",
         family = "",
         extensions = [],
-        init_order = 0):
+        init_order = 0,
+        suppressions = [],
+        suppression_extensions = []):
     """Returns a tool's config metadata.
 
     Args:
@@ -53,6 +55,8 @@ def config(
       family: family whose files mean the tool applies.
       extensions: extensions that mean the tool applies, for tools no family owns.
       init_order: position of the tool among the tier tools in the files `dx init` plans; 0 for none.
+      suppressions: markers of the tool's inline suppression comments.
+      suppression_extensions: extensions of the files that can carry those markers.
 
     Returns:
       The config struct.
@@ -76,6 +80,8 @@ def config(
         shared = shared,
         stage_native = stage_native,
         suffixes = suffixes,
+        suppression_extensions = suppression_extensions,
+        suppressions = suppressions,
         tier_active = tier_active,
         tier_base = tier_base,
         tier_dir = tier_dir,
@@ -308,7 +314,13 @@ TOOLS = [
             "format": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
             "lint": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
         },
-        config = config(suffixes = [".json"], files = ["biome.json"], tier_active = True),
+        config = config(
+            suffixes = [".json"],
+            files = ["biome.json"],
+            tier_active = True,
+            suppressions = ["biome-ignore"],
+            suppression_extensions = [".cjs", ".css", ".cts", ".js", ".json", ".jsonc", ".jsx", ".mjs", ".mts", ".ts", ".tsx"],
+        ),
         severity = severity(categories = {
             "lint/a11y": "warning",
             "lint/complexity": "warning",
@@ -1099,6 +1111,8 @@ TOOLS = [
             init_order = 2,
             family = "js",
             tier_active = True,
+            suppressions = ["eslint-disable"],
+            suppression_extensions = [".astro", ".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".svelte", ".ts", ".tsx", ".vue"],
         ),
         severity = severity(default = "warning", categories = {"security/": "error"}),
         support = [
@@ -2322,7 +2336,12 @@ TOOLS = [
     tool(
         id = "rubocop",
         adapters = {"format": ["ruby"], "lint": ["ruby"]},
-        config = config(suffixes = [".yml", ".yaml"], tier_active = True),
+        config = config(
+            suffixes = [".yml", ".yaml"],
+            tier_active = True,
+            suppressions = ["rubocop:disable"],
+            suppression_extensions = [".rake", ".rb"],
+        ),
         severity = severity(default = "warning", categories = {"Security/": "error"}),
         support = [
             row(
@@ -2373,6 +2392,8 @@ TOOLS = [
             init_order = 1,
             family = "python",
             tier_active = True,
+            suppressions = ["noqa"],
+            suppression_extensions = [".py", ".pyi"],
         ),
         severity = severity(
             default = "warning",
@@ -2693,6 +2714,8 @@ TOOLS = [
             init_order = 4,
             extensions = [".css"],
             tier_active = True,
+            suppressions = ["stylelint-disable"],
+            suppression_extensions = [".css", ".less", ".scss"],
         ),
         severity = severity(default = "warning"),
         support = [

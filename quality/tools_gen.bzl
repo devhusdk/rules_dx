@@ -52,6 +52,8 @@ pub struct ToolConfig {
     pub init_order: u8,
     pub standard: &'static str,
     pub strict: &'static str,
+    pub suppressions: &'static [&'static str],
+    pub suppression_extensions: &'static [&'static str],
 }
 
 pub const TOOL_CONFIGS: &[ToolConfig] = &[
@@ -112,6 +114,8 @@ def _config_row(tool):
         ("init_order", str(config.init_order)),
         ("standard", _tier(tool, "standard")),
         ("strict", _tier(tool, "strict")),
+        ("suppressions", _strs(config.suppressions)),
+        ("suppression_extensions", _strs(config.suppression_extensions)),
     ]
     return "    ToolConfig {\n" + "".join([_field(name, value) for name, value in fields]) + "    },\n"
 

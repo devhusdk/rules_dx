@@ -23,6 +23,8 @@ pub struct ToolConfig {
     pub init_order: u8,
     pub standard: &'static str,
     pub strict: &'static str,
+    pub suppressions: &'static [&'static str],
+    pub suppression_extensions: &'static [&'static str],
 }
 
 pub const TOOL_CONFIGS: &[ToolConfig] = &[
@@ -48,6 +50,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 1,
         standard: include_str!("../../../quality/tiers/ruff/standard.toml"),
         strict: include_str!("../../../quality/tiers/ruff/strict.toml"),
+        suppressions: &["noqa"],
+        suppression_extensions: &[".py", ".pyi"],
     },
     ToolConfig {
         id: "eslint",
@@ -77,6 +81,20 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 2,
         standard: include_str!("../../../quality/tiers/eslint/standard.mjs"),
         strict: include_str!("../../../quality/tiers/eslint/strict.mjs"),
+        suppressions: &["eslint-disable"],
+        suppression_extensions: &[
+            ".astro",
+            ".cjs",
+            ".cts",
+            ".js",
+            ".jsx",
+            ".mjs",
+            ".mts",
+            ".svelte",
+            ".ts",
+            ".tsx",
+            ".vue",
+        ],
     },
     ToolConfig {
         id: "tsc",
@@ -100,6 +118,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 3,
         standard: include_str!("../../../quality/tiers/tsconfig/standard.json"),
         strict: include_str!("../../../quality/tiers/tsconfig/strict.json"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "stylelint",
@@ -123,6 +143,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 4,
         standard: include_str!("../../../quality/tiers/stylelint/standard.json"),
         strict: include_str!("../../../quality/tiers/stylelint/strict.json"),
+        suppressions: &["stylelint-disable"],
+        suppression_extensions: &[".css", ".less", ".scss"],
     },
     ToolConfig {
         id: "dart",
@@ -146,6 +168,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 5,
         standard: include_str!("../../../quality/tiers/dart/standard.yaml"),
         strict: include_str!("../../../quality/tiers/dart/strict.yaml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "psscriptanalyzer",
@@ -169,6 +193,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 6,
         standard: include_str!("../../../quality/tiers/psscriptanalyzer/standard.psd1"),
         strict: include_str!("../../../quality/tiers/psscriptanalyzer/strict.psd1"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "hlint",
@@ -192,6 +218,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 7,
         standard: include_str!("../../../quality/tiers/hlint/standard.yaml"),
         strict: include_str!("../../../quality/tiers/hlint/strict.yaml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "ansible_lint",
@@ -215,6 +243,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "bicep",
@@ -238,6 +268,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "biome",
@@ -261,6 +293,20 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &["biome-ignore"],
+        suppression_extensions: &[
+            ".cjs",
+            ".css",
+            ".cts",
+            ".js",
+            ".json",
+            ".jsonc",
+            ".jsx",
+            ".mjs",
+            ".mts",
+            ".ts",
+            ".tsx",
+        ],
     },
     ToolConfig {
         id: "buf",
@@ -284,6 +330,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/buf/standard.yaml"),
         strict: include_str!("../../../quality/tiers/buf/strict.yaml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "buildifier",
@@ -307,6 +355,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/buildifier/standard.json"),
         strict: include_str!("../../../quality/tiers/buildifier/strict.json"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "cfn_lint",
@@ -330,6 +380,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "checkmake",
@@ -353,6 +405,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/checkmake/standard.ini"),
         strict: include_str!("../../../quality/tiers/checkmake/strict.ini"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "checkstyle",
@@ -376,6 +430,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "clang_format",
@@ -399,6 +455,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "clang_tidy",
@@ -422,6 +480,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "clippy",
@@ -445,6 +505,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/clippy/standard.txt"),
         strict: include_str!("../../../quality/tiers/clippy/strict.txt"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "cmakelint",
@@ -468,6 +530,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/cmakelint/standard.cmakelintrc"),
         strict: include_str!("../../../quality/tiers/cmakelint/strict.cmakelintrc"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "cppcheck",
@@ -491,6 +555,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "credo",
@@ -514,6 +580,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "csharpier",
@@ -537,6 +605,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "deadnix",
@@ -560,6 +630,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "detekt",
@@ -583,6 +655,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "djlint",
@@ -606,6 +680,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "elvis",
@@ -629,6 +705,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "errcheck",
@@ -652,6 +730,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "ffmt",
@@ -675,6 +755,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "fortitude",
@@ -698,6 +780,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "fsharplint",
@@ -721,6 +805,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "gersemi",
@@ -744,6 +830,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/gersemi/standard.yaml"),
         strict: include_str!("../../../quality/tiers/gersemi/strict.yaml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "govet",
@@ -767,6 +855,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "gplint",
@@ -790,6 +880,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "graphql_eslint",
@@ -813,6 +905,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "hadolint",
@@ -836,6 +930,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "julialint",
@@ -859,6 +955,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "kubeconform",
@@ -882,6 +980,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "latexindent",
@@ -905,6 +1005,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "luals",
@@ -928,6 +1030,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "lychee",
@@ -951,6 +1055,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/lychee/standard.toml"),
         strict: include_str!("../../../quality/tiers/lychee/strict.toml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "markdown_check",
@@ -974,6 +1080,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "mbake",
@@ -997,6 +1105,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/mbake/standard.toml"),
         strict: include_str!("../../../quality/tiers/mbake/strict.toml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "perlcritic",
@@ -1020,6 +1130,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "perltidy",
@@ -1043,6 +1155,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/perltidy/standard.perltidyrc"),
         strict: include_str!("../../../quality/tiers/perltidy/strict.perltidyrc"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "phpcs",
@@ -1066,6 +1180,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "phpstan",
@@ -1089,6 +1205,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "pmd",
@@ -1112,6 +1230,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "prettier",
@@ -1145,6 +1265,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "pydoclint",
@@ -1168,6 +1290,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/pydoclint/standard.toml"),
         strict: include_str!("../../../quality/tiers/pydoclint/strict.toml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "qmlformat",
@@ -1191,6 +1315,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "qmllint",
@@ -1214,6 +1340,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "redocly",
@@ -1237,6 +1365,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "regal",
@@ -1260,6 +1390,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "remark",
@@ -1283,6 +1415,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "roslyn",
@@ -1306,6 +1440,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "rubocop",
@@ -1329,6 +1465,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &["rubocop:disable"],
+        suppression_extensions: &[".rake", ".rb"],
     },
     ToolConfig {
         id: "rustfmt",
@@ -1352,6 +1490,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "scalafix",
@@ -1375,6 +1515,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "scalafmt",
@@ -1398,6 +1540,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "selene",
@@ -1421,6 +1565,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "shellcheck",
@@ -1444,6 +1590,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "spotbugs",
@@ -1467,6 +1615,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "sqlfluff",
@@ -1490,6 +1640,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/sqlfluff/standard.cfg"),
         strict: include_str!("../../../quality/tiers/sqlfluff/strict.cfg"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "staticcheck",
@@ -1513,6 +1665,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "stylua",
@@ -1536,6 +1690,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "swift_format",
@@ -1559,6 +1715,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "swift_lint",
@@ -1582,6 +1740,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "taplo",
@@ -1605,6 +1765,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/taplo/standard.toml"),
         strict: include_str!("../../../quality/tiers/taplo/strict.toml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "tflint",
@@ -1628,6 +1790,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "trivy_config",
@@ -1651,6 +1815,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "ty",
@@ -1674,6 +1840,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "typos",
@@ -1697,6 +1865,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/typos/standard.toml"),
         strict: include_str!("../../../quality/tiers/typos/strict.toml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "vale",
@@ -1720,6 +1890,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "yamlfmt",
@@ -1743,6 +1915,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/yamlfmt/standard.yaml"),
         strict: include_str!("../../../quality/tiers/yamlfmt/strict.yaml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "yamllint",
@@ -1766,6 +1940,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: include_str!("../../../quality/tiers/yamllint/standard.yaml"),
         strict: include_str!("../../../quality/tiers/yamllint/strict.yaml"),
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "zanuda",
@@ -1789,6 +1965,8 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
     ToolConfig {
         id: "zizmor",
@@ -1812,5 +1990,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         init_order: 0,
         standard: "",
         strict: "",
+        suppressions: &[],
+        suppression_extensions: &[],
     },
 ];

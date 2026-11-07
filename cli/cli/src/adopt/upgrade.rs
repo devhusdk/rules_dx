@@ -321,8 +321,16 @@ pub(crate) fn execute_upgrade(
     }
     wrote.extend(applied.wrote);
     let (bases, swaps) = dx_changes(&before, &dx_snapshot(workspace));
-    for warning in swaps {
-        let _ = writeln!(err, "{warning}");
+    let tracked = (!swaps.is_empty()).then(|| tracked_texts(workspace));
+    for swap in swaps {
+        let _ = writeln!(err, "{}", swap.warning());
+        let files = tracked
+            .iter()
+            .flatten()
+            .map(|(path, text)| (path.as_str(), text.as_str()));
+        for line in dx_adopt::suppression_lines(&swap.gone, files) {
+            let _ = writeln!(err, "{line}");
+        }
     }
     let conflicts = merge_overrides(workspace, &before, &mut wrote, err);
     let conflicted = |out: &mut dyn Write, err: &mut dyn Write| {
@@ -506,11 +514,26 @@ fn merge_overrides(
     conflicts
 }
 
-/// The base lines and tool-swap warnings between two `.dx` snapshots.
+/// The tracked text files of the workspace, as `(path, text)`.
+fn tracked_texts(workspace: &Path) -> Vec<(String, String)> {
+    let Some(listing) = git(workspace, &["ls-files", "-z"], None) else {
+        return Vec::new();
+    };
+    listing
+        .split(|byte| *byte == 0)
+        .filter_map(|path| {
+            let path = String::from_utf8(path.to_vec()).ok()?;
+            let text = std::fs::read_to_string(workspace.join(&path)).ok()?;
+            Some((path, text))
+        })
+        .collect()
+}
+
+/// The base lines and tool swaps between two `.dx` snapshots.
 fn dx_changes(
     before: &BTreeMap<String, Vec<u8>>,
     after: &BTreeMap<String, Vec<u8>>,
-) -> (Vec<String>, Vec<String>) {
+) -> (Vec<String>, Vec<dx_adopt::ToolSwap>) {
     let bases = |files: &BTreeMap<String, Vec<u8>>| {
         files
             .iter()
@@ -722,12 +745,25 @@ mod tests {
     #[test]
     fn upgrade_warns_when_a_family_swaps_its_tool() {
         let (_scratch, root) = synced("dx-adopt-upgrade-swap-", "web/a.js");
+        let js = "a();\n// eslint-disable-next-line no-console\nb();\n// eslint-disable-next-line no-undef\n";
+        std::fs::write(root.join("web/a.js"), js).expect("a.js");
+        let git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(args)
+                .status()
+                .expect("git");
+            assert!(status.success());
+        };
+        git(&["init", "-q"]);
+        git(&["add", "web/a.js"]);
         let old = "dx_generated_policy(\n    name = \"policy\",\n    families = {\n        \"javascript\": {\n            \"lint\": [\n                \"eslint\",\n                \"typos\",\n            ],\n        },\n    },\n)\n";
         std::fs::write(root.join(".dx/BUILD.bazel"), old).expect("old build");
         let (code, out, err) = run(&upgrade(&["--apply"]), &root);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
-            err.contains("dx: warning: javascript lint: eslint replaced by biome; rule IDs eslint/<code> become biome/<code>, migrate native inline suppressions\n"),
+            err.contains("dx: warning: javascript lint: eslint replaced by biome; rule IDs eslint/<code> become biome/<code>, migrate native inline suppressions\n  web/a.js:2\n  web/a.js:4\n"),
             "{err}"
         );
     }

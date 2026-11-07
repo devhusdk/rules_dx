@@ -1,0 +1,183 @@
+diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -1588,7 +1588,9 @@
+     # Ensure the sysroot is set for the target platform. Compute the dirname
+     # from the underlying `sysroot_anchor` `File` via `map_each` so Bazel's
+     # path mapping can rewrite it.
+-    if toolchain._toolchain_generated_sysroot:
++    if toolchain._toolchain_generated_sysroot and toolchain.sysroot_in_repo:
++        rustc_flags.add("--sysroot=" + toolchain.sysroot)
++    elif toolchain._toolchain_generated_sysroot:
+         rustc_flags.add_all(
+             [toolchain.sysroot_anchor],
+             map_each = _get_dirname,
+diff --git a/rust/private/toolchain.bzl b/rust/private/toolchain.bzl
+--- a/rust/private/toolchain.bzl
++++ b/rust/private/toolchain.bzl
+@@ -168,6 +168,31 @@
+ 
+     return depset(tree_files)
+ 
++def _repo_sysroot_root(rustc, bins, trees):
++    """Find the repository directory that already is the sysroot.
++
++    Args:
++        rustc (File): The `rustc` executable.
++        bins (list[File]): The other executables of the sysroot.
++        trees (list[depset]): The files that are copied into the sysroot.
++
++    Returns:
++        str: The directory holding `bin/rustc` when every file lives under it,
++            else None.
++    """
++    suffix = "/bin/" + rustc.basename
++    if not rustc.path.endswith(suffix):
++        return None
++    root = rustc.path[:-len(suffix)] + "/"
++    for file in bins:
++        if not file.path.startswith(root):
++            return None
++    for tree in trees:
++        for file in tree.to_list():
++            if not file.path.startswith(root):
++                return None
++    return root[:-1]
++
+ def _symlink_sysroot_bin(ctx, name, directory, target):
+     """Crete a symlink to a target file.
+ 
+@@ -232,42 +257,59 @@
+     direct_files = []
+     transitive_file_sets = []
+ 
++    # When all inputs come from one repository laid out as a sysroot, use that
++    # directory instead of one symlink action per file.
++    repo_root = None
++    linker_bins = []
++    linker_trees = []
++    if linker:
++        linker_files = linker[DefaultInfo].files.to_list()
++        if len(linker_files) == 1:
++            linker_bins = linker_files
++            linker_trees = [linker[DefaultInfo].default_runfiles.files]
++    trees = [t.files for t in [rustc_lib, llvm_tools, rust_std] if t] + linker_trees
++    if rust_std:
++        trees.append(depset(ctx.files.rust_std))
++    bins = [f for f in [rustdoc, cargo, clippy, cargo_clippy, rust_objcopy] if f] + linker_bins
++    if not linker or linker_bins:
++        repo_root = _repo_sysroot_root(rustc, bins, trees)
++
+     # Rustc
+-    sysroot_rustc = _symlink_sysroot_bin(ctx, name, "bin", rustc)
++    sysroot_rustc = rustc if repo_root else _symlink_sysroot_bin(ctx, name, "bin", rustc)
+     direct_files.append(sysroot_rustc)
+ 
+     # Rustc dependencies
+     sysroot_rustc_lib = None
+     if rustc_lib:
+-        sysroot_rustc_lib = _symlink_sysroot_tree(ctx, name, rustc_lib)
++        sysroot_rustc_lib = rustc_lib.files if repo_root else _symlink_sysroot_tree(ctx, name, rustc_lib)
+         transitive_file_sets.extend([sysroot_rustc_lib])
+ 
+     # Rustdoc
+-    sysroot_rustdoc = _symlink_sysroot_bin(ctx, name, "bin", rustdoc)
++    sysroot_rustdoc = rustdoc if repo_root else _symlink_sysroot_bin(ctx, name, "bin", rustdoc)
+     direct_files.append(sysroot_rustdoc)
+ 
+     # Clippy
+     sysroot_clippy = None
+     if clippy:
+-        sysroot_clippy = _symlink_sysroot_bin(ctx, name, "bin", clippy)
++        sysroot_clippy = clippy if repo_root else _symlink_sysroot_bin(ctx, name, "bin", clippy)
+         direct_files.append(sysroot_clippy)
+ 
+     # Cargo
+     sysroot_cargo = None
+     if cargo:
+-        sysroot_cargo = _symlink_sysroot_bin(ctx, name, "bin", cargo)
++        sysroot_cargo = cargo if repo_root else _symlink_sysroot_bin(ctx, name, "bin", cargo)
+         direct_files.append(sysroot_cargo)
+ 
+     # Cargo-clippy
+     sysroot_cargo_clippy = None
+     if cargo_clippy:
+-        sysroot_cargo_clippy = _symlink_sysroot_bin(ctx, name, "bin", cargo_clippy)
++        sysroot_cargo_clippy = cargo_clippy if repo_root else _symlink_sysroot_bin(ctx, name, "bin", cargo_clippy)
+         direct_files.append(sysroot_cargo_clippy)
+ 
+     # Rustfmt
+     sysroot_rustfmt = None
+     if rustfmt:
+-        sysroot_rustfmt = _symlink_sysroot_bin(ctx, name, "bin", rustfmt)
++        sysroot_rustfmt = rustfmt if repo_root else _symlink_sysroot_bin(ctx, name, "bin", rustfmt)
+         direct_files.append(sysroot_rustfmt)
+ 
+     # Linker
+@@ -289,8 +331,12 @@
+             idx = linker_bin.dirname.find("/lib/rustlib/")
+             dest = linker_bin.dirname[idx + 1:]
+ 
+-        sysroot_linker = _symlink_sysroot_bin(ctx, name, dest, linker_bin)
+-        sysroot_linker_files = _symlink_sysroot_tree(ctx, name, linker, linker[DefaultInfo].default_runfiles.files)
++        if repo_root:
++            sysroot_linker = linker_bin
++            sysroot_linker_files = linker[DefaultInfo].default_runfiles.files
++        else:
++            sysroot_linker = _symlink_sysroot_bin(ctx, name, dest, linker_bin)
++            sysroot_linker_files = _symlink_sysroot_tree(ctx, name, linker, linker[DefaultInfo].default_runfiles.files)
+         direct_files.append(sysroot_linker)
+         transitive_file_sets.append(sysroot_linker_files)
+ 
+@@ -303,19 +349,19 @@
+         if "/lib/rustlib/" in rust_objcopy.dirname:
+             idx = rust_objcopy.dirname.find("/lib/rustlib/")
+             dest = rust_objcopy.dirname[idx + 1:]
+-        sysroot_rust_objcopy = _symlink_sysroot_bin(ctx, name, dest, rust_objcopy)
++        sysroot_rust_objcopy = rust_objcopy if repo_root else _symlink_sysroot_bin(ctx, name, dest, rust_objcopy)
+         direct_files.append(sysroot_rust_objcopy)
+ 
+     # Llvm tools
+     sysroot_llvm_tools = None
+     if llvm_tools:
+-        sysroot_llvm_tools = _symlink_sysroot_tree(ctx, name, llvm_tools)
++        sysroot_llvm_tools = llvm_tools.files if repo_root else _symlink_sysroot_tree(ctx, name, llvm_tools)
+         transitive_file_sets.extend([sysroot_llvm_tools])
+ 
+     # Rust standard library
+     sysroot_rust_std = None
+     if rust_std:
+-        sysroot_rust_std = _symlink_sysroot_tree(ctx, name, rust_std)
++        sysroot_rust_std = rust_std.files if repo_root else _symlink_sysroot_tree(ctx, name, rust_std)
+         transitive_file_sets.extend([sysroot_rust_std])
+ 
+         # Made available to support $(location) expansion in stdlib_linkflags and extra_rustc_flags.
+@@ -348,6 +394,9 @@
+         cargo_clippy = sysroot_cargo_clippy,
+         clippy = sysroot_clippy,
+         linker = sysroot_linker,
++        in_repo = bool(repo_root),
++        path = repo_root if repo_root else sysroot_anchor.dirname,
++        short_path = sysroot_rustc.short_path[:-len("/bin/" + rustc.basename)] if repo_root else sysroot_anchor.short_path.rpartition("/")[0],
+         rust_std = sysroot_rust_std,
+         rustc = sysroot_rustc,
+         rustc_lib = sysroot_rustc_lib,
+@@ -447,8 +496,8 @@
+     )
+ 
+     # Determine the path and short_path of the sysroot
+-    sysroot_path = sysroot.sysroot_anchor.dirname
+-    sysroot_short_path, _, _ = sysroot.sysroot_anchor.short_path.rpartition("/")
++    sysroot_path = sysroot.path
++    sysroot_short_path = sysroot.short_path
+ 
+     # Variables for make variable expansion
+     make_variables = {
+@@ -638,6 +687,7 @@
+         extra_exec_rustc_flags = expanded_extra_exec_rustc_flags,
+         per_crate_rustc_flags = ctx.attr.per_crate_rustc_flags,
+         sysroot = sysroot_path,
++        sysroot_in_repo = sysroot.in_repo,
+         sysroot_anchor = sysroot.sysroot_anchor,
+         sysroot_short_path = sysroot_short_path,
+         target_arch = target_arch,

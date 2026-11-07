@@ -355,8 +355,7 @@ fn dx_build(
 }
 
 fn bazelrc(layer: Layer, repo: &str, root: Profile, tools: &[Tool]) -> String {
-    let mut text =
-        dx_preset::render_layer_pinned(layer, repo, Some(root == Profile::Strict), false);
+    let mut text = dx_preset::render_layer_with(layer, repo, Some(root == Profile::Strict));
     if layer != Layer::Correctness {
         return text;
     }

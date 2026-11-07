@@ -53,8 +53,8 @@ func fileBuildPath(f *rule.File) string {
 	return manifestPath(f.Pkg, name)
 }
 
-// CheckClaims rejects duplicate generated names and names whose existing rule kind, after kindAliases, differs from the claimant's kind.
-func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kindAliases map[string]string) error {
+// CheckClaims rejects duplicate generated names and names whose existing rule kind, differs from the claimant's kind.
+func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
 	byName := make(map[string][]Claimant, len(claimants))
 	order := make([]string, 0, len(claimants))
 	for _, c := range claimants {
@@ -91,11 +91,7 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kind
 			continue
 		}
 		c := claims[0]
-		effective := have
-		if alias, ok := kindAliases[have]; ok {
-			effective = alias
-		}
-		if effective != c.Kind {
+		if have != c.Kind {
 			buildFile := ""
 			if !fromOther[name] && file != nil {
 				buildFile = fileBuildPath(file)
@@ -281,7 +277,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	for _, p := range plans {
 		claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: spec.LibraryKind})
 	}
-	if err := CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
+	if err := CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
@@ -452,7 +448,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	for _, p := range plans {
 		claimants = append(claimants, Claimant{Name: p.name, Source: path.Join(args.Rel, p.src), Kind: spec.Tests.Kind})
 	}
-	if err := CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
+	if err := CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}

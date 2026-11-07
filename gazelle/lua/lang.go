@@ -134,7 +134,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		testNames[src] = name
 		claimants = append(claimants, common.Claimant{Name: name, Source: src, Kind: TestKind})
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
 		return language.GenerateResult{}
 	}

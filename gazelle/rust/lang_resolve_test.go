@@ -631,13 +631,13 @@ func TestOwnershipAndExistingClaimsFail(t *testing.T) {
 	f := rule.EmptyFile("BUILD.bazel", "pkg")
 	f.Rules = append(f.Rules, rule.NewRule("filegroup", "collision"))
 	generated := []*rule.Rule{rule.NewRule(libraryKind, "collision")}
-	if err := common.CheckClaims(f, nil, generatedClaims("pkg", generated), nil); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(f, nil, generatedClaims("pkg", generated)); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("existing collision = %v", err)
 	}
-	if err := common.CheckClaims(nil, []*rule.Rule{rule.NewRule("py_library", "collision")}, generatedClaims("pkg", generated), nil); err == nil {
+	if err := common.CheckClaims(nil, []*rule.Rule{rule.NewRule("py_library", "collision")}, generatedClaims("pkg", generated)); err == nil {
 		t.Error("other-language collision accepted")
 	}
-	if err := common.CheckClaims(nil, nil, generatedClaims("pkg", generated), nil); err != nil {
+	if err := common.CheckClaims(nil, nil, generatedClaims("pkg", generated)); err != nil {
 		t.Errorf("unique generated target rejected: %v", err)
 	}
 }

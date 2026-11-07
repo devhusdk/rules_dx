@@ -434,7 +434,7 @@ func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) erro
 		c.Kind = claimKind(c)
 		filled[i] = c
 	}
-	return common.CheckClaims(file, other, filled, nil)
+	return common.CheckClaims(file, other, filled)
 }
 
 // servesMain reports whether a binary runs main: its main attr names it, or it

@@ -634,22 +634,22 @@ func TestImportsNonProjectKind(t *testing.T) {
 func TestCheckClaimsOtherAndMismatch(t *testing.T) {
 	claimants := []Claimant{{Name: "demo", Source: "demo.ts", Kind: projectKind}}
 	otherSame := []*rule.Rule{rule.NewRule(projectKind, "demo")}
-	if err := common.CheckClaims(nil, otherSame, claimants, nil); err != nil {
+	if err := common.CheckClaims(nil, otherSame, claimants); err != nil {
 		t.Errorf("same-kind other claims = %v", err)
 	}
 	otherWrong := []*rule.Rule{rule.NewRule("filegroup", "demo")}
-	if err := common.CheckClaims(nil, otherWrong, claimants, nil); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(nil, otherWrong, claimants); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("other kind mismatch = %v", err)
 	}
 	wrongKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "demo"))
-	if err := common.CheckClaims(wrongKind, nil, claimants, nil); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(wrongKind, nil, claimants); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("kind mismatch = %v", err)
 	}
 	dupes := []Claimant{{Name: "a_b", Source: "a-b.ts", Kind: projectKind}, {Name: "a_b", Source: "a_b.tsx", Kind: projectKind}}
 	existing := rule.EmptyFile("BUILD.bazel", "pkg")
 	existing.Rules = append(existing.Rules, rule.NewRule("filegroup", "a_b"))
-	if err := common.CheckClaims(existing, nil, dupes, nil); err == nil || !strings.Contains(err.Error(), "handwritten") {
+	if err := common.CheckClaims(existing, nil, dupes); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
 	}
 }
@@ -1114,7 +1114,7 @@ func TestTestSuffixCollision(t *testing.T) {
 		}
 		claimants = append(claimants, Claimant{Name: name, Source: src, Kind: projectKind})
 	}
-	if err := common.CheckClaims(nil, nil, claimants, nil); err == nil {
+	if err := common.CheckClaims(nil, nil, claimants); err == nil {
 		t.Error("a.test.ts and a.spec.ts both claim a_test, want collision error")
 	}
 }

@@ -395,7 +395,7 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 			r.SetAttr("testonly", true)
 		}
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, generatedClaims(args.Rel, result.Gen), nil); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, generatedClaims(args.Rel, result.Gen)); err != nil {
 		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}

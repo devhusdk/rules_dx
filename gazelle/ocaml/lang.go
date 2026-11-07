@@ -73,7 +73,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	for _, f := range impls {
 		claimants = append(claimants, common.Claimant{Name: moduleName(f), Source: path.Join(args.Rel, f), Kind: ModuleKind})
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(common.InPackage(args.Rel), "ocaml: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}

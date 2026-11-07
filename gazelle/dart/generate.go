@@ -294,7 +294,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	for _, e := range entries {
 		claims = append(claims, common.Claimant{Name: e.name, Source: path.Join(args.Rel, e.main), Kind: e.kind})
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, claims, nil); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claims); err != nil {
 		fail("%v", err)
 		return language.GenerateResult{}
 	}

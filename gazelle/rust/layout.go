@@ -111,7 +111,7 @@ func ShapeCrate(roots CrateRoots, libUnitTest, binUnitTest bool) (*CrateShape, e
 		shape.BinUnitTest = true
 		claim(target, roots.BinRoot+" [unit]")
 	}
-	if err := common.CheckClaims(nil, nil, claimants, nil); err != nil {
+	if err := common.CheckClaims(nil, nil, claimants); err != nil {
 		return nil, err
 	}
 	return shape, nil

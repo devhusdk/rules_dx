@@ -292,7 +292,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 }
 
 func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	return common.CheckClaims(file, other, claimants, nil)
+	return common.CheckClaims(file, other, claimants)
 }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {

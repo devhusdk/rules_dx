@@ -43,13 +43,11 @@ func TestCheckClaims(t *testing.T) {
 		return f
 	}
 	one := []Claimant{{Name: "demo", Source: "src", Kind: "k"}}
-	aliases := map[string]string{"plain": "k"}
 	cases := []struct {
 		name      string
 		file      *rule.File
 		other     []*rule.Rule
 		claimants []Claimant
-		aliases   map[string]string
 		want      string
 	}{
 		{name: "unique with nil inputs", claimants: []Claimant{{Name: "a", Source: "a", Kind: "k"}, {Name: "b", Source: "b", Kind: "j"}}},
@@ -58,18 +56,12 @@ func TestCheckClaims(t *testing.T) {
 		{name: "mismatch in file", file: fileWith(rule.NewRule("filegroup", "demo")), claimants: one,
 			want: `target name "demo" is claimed by generated k(src) and existing filegroup`},
 		{name: "other overrides file", file: fileWith(rule.NewRule("filegroup", "demo")), other: []*rule.Rule{rule.NewRule("k", "demo")}, claimants: one},
-		{name: "alias from file", file: fileWith(rule.NewRule("plain", "demo")), claimants: one, aliases: aliases},
-		{name: "alias from other", other: []*rule.Rule{rule.NewRule("plain", "demo")}, claimants: one, aliases: aliases},
-		{name: "alias is one way", file: fileWith(rule.NewRule("k", "demo")), claimants: []Claimant{{Name: "demo", Source: "src", Kind: "plain"}}, aliases: aliases,
-			want: `target name "demo" is claimed by generated plain(src) and existing k`},
-		{name: "alias reports real kind", file: fileWith(rule.NewRule("plain", "demo")), claimants: []Claimant{{Name: "demo", Source: "src", Kind: "j"}}, aliases: aliases,
-			want: `target name "demo" is claimed by generated j(src) and existing plain`},
 		{name: "first seen name wins", file: fileWith(rule.NewRule("filegroup", "b"), rule.NewRule("filegroup", "a")),
 			claimants: []Claimant{{Name: "a", Source: "a.x", Kind: "k"}, {Name: "b", Source: "b.x", Kind: "k"}},
 			want:      `target name "a" is claimed by generated k(a.x) and existing filegroup`},
 	}
 	for _, tc := range cases {
-		err := CheckClaims(tc.file, tc.other, tc.claimants, tc.aliases)
+		err := CheckClaims(tc.file, tc.other, tc.claimants)
 		got := ""
 		if err != nil {
 			got = err.Error()
@@ -82,11 +74,11 @@ func TestCheckClaims(t *testing.T) {
 
 	dupes := []Claimant{{Name: "a_b", Source: "a-b.x", Kind: "k"}, {Name: "a_b", Source: "a_b.x", Kind: "k"}}
 	var ce *CollisionError
-	if err := CheckClaims(nil, nil, dupes, nil); !errors.As(err, &ce) || !reflect.DeepEqual(ce.Claimants, []string{"a-b.x", "a_b.x"}) {
+	if err := CheckClaims(nil, nil, dupes); !errors.As(err, &ce) || !reflect.DeepEqual(ce.Claimants, []string{"a-b.x", "a_b.x"}) {
 		t.Errorf("duplicates: CheckClaims = %v, want CollisionError with both sources in order", err)
 	}
 	ce = nil
-	err := CheckClaims(fileWith(rule.NewRule("filegroup", "a_b")), nil, dupes, map[string]string{"filegroup": "k"})
+	err := CheckClaims(fileWith(rule.NewRule("filegroup", "a_b")), nil, dupes)
 	if !errors.As(err, &ce) || !reflect.DeepEqual(ce.Claimants, []string{"a-b.x", "a_b.x", "handwritten:filegroup:a_b"}) {
 		t.Errorf("handwritten duplicates: CheckClaims = %v, want CollisionError naming handwritten:filegroup:a_b", err)
 	}

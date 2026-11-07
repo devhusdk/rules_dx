@@ -222,7 +222,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if nifName != "" {
 		claimants = append(claimants, common.Claimant{Name: nifName, Source: args.Rel, Kind: NifKind})
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		return fail("%v; rename the handwritten rule or add # gazelle:exclude for this directory", err)
 	}
 	defined := make(map[string]bool)

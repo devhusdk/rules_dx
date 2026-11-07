@@ -211,30 +211,30 @@ func TestGenerateSkipsTestClaimedByOtherPlainRunner(t *testing.T) {
 
 func TestCheckClaims(t *testing.T) {
 	claimants := []Claimant{{Name: "demo", Source: "demo.js", Kind: libraryKind}}
-	if err := common.CheckClaims(nil, nil, claimants, nil); err != nil {
+	if err := common.CheckClaims(nil, nil, claimants); err != nil {
 		t.Errorf("unique claims = %v", err)
 	}
 	sameKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	sameKind.Rules = append(sameKind.Rules, rule.NewRule(libraryKind, "demo"))
-	if err := common.CheckClaims(sameKind, nil, claimants, nil); err != nil {
+	if err := common.CheckClaims(sameKind, nil, claimants); err != nil {
 		t.Errorf("same-kind handwritten claims = %v", err)
 	}
 	otherSame := []*rule.Rule{rule.NewRule(libraryKind, "demo")}
-	if err := common.CheckClaims(nil, otherSame, claimants, nil); err != nil {
+	if err := common.CheckClaims(nil, otherSame, claimants); err != nil {
 		t.Errorf("same-kind other claims = %v", err)
 	}
 	wrongKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "demo"))
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "a_b"))
-	if err := common.CheckClaims(wrongKind, nil, claimants, nil); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(wrongKind, nil, claimants); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("kind mismatch = %v", err)
 	}
 	otherWrong := []*rule.Rule{rule.NewRule(testKind, "demo")}
-	if err := common.CheckClaims(nil, otherWrong, claimants, nil); err == nil || !strings.Contains(err.Error(), "existing javascript_test") {
+	if err := common.CheckClaims(nil, otherWrong, claimants); err == nil || !strings.Contains(err.Error(), "existing javascript_test") {
 		t.Errorf("other kind mismatch = %v", err)
 	}
 	dupes := []Claimant{{Name: "a_b", Source: "a-b.js", Kind: libraryKind}, {Name: "a_b", Source: "a_b.jsx", Kind: libraryKind}}
-	if err := common.CheckClaims(wrongKind, nil, dupes, nil); err == nil || !strings.Contains(err.Error(), "handwritten") {
+	if err := common.CheckClaims(wrongKind, nil, dupes); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
 	}
 }

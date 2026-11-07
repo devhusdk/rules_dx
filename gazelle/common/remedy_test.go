@@ -100,13 +100,13 @@ func TestCheckClaimsRemedyUsesPackageBuildFile(t *testing.T) {
 	file := rule.EmptyFile("/ws/app/BUILD.bazel", "app")
 	file.Rules = append(file.Rules, rule.NewRule("filegroup", "demo"))
 	want := `target name "demo" is claimed by generated k(src) and existing filegroup; rename or delete existing filegroup "demo" in app/BUILD.bazel, or change it to k`
-	if err := CheckClaims(file, nil, claimants, nil); err == nil || err.Error() != want {
+	if err := CheckClaims(file, nil, claimants); err == nil || err.Error() != want {
 		t.Errorf("CheckClaims handwritten =\n%v\nwant\n%s", err, want)
 	}
 
 	other := []*rule.Rule{rule.NewRule("filegroup", "demo")}
 	wantOther := `target name "demo" is claimed by generated k(src) and existing filegroup; rename one of the sources that generate it`
-	if err := CheckClaims(rule.EmptyFile("/ws/app/BUILD.bazel", "app"), other, claimants, nil); err == nil || err.Error() != wantOther {
+	if err := CheckClaims(rule.EmptyFile("/ws/app/BUILD.bazel", "app"), other, claimants); err == nil || err.Error() != wantOther {
 		t.Errorf("CheckClaims generated =\n%v\nwant\n%s", err, wantOther)
 	}
 }

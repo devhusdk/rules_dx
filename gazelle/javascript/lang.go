@@ -218,7 +218,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.src, Kind: binaryKind})
 		}
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(common.InPackage(args.Rel), "javascript: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}

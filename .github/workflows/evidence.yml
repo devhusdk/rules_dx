@@ -428,6 +428,21 @@ jobs:
         run: |
           set -o pipefail
           bazel test --noshow_progress --test_output=all --test_env=PATH --test_env=HOME --test_env=ANDROID_HOME //flutter/tests/fixtures/flutter-app/android:interaction_test 2>&1 | tail -n 80
+      - name: Report the Bazel download
+        if: ${{ always() }}
+        env:
+          DX_PLATFORM: ${{ matrix.platform }}
+        run: |
+          log="$RUNNER_TEMP/evidence/evidence.log"
+          [ -f "$log" ] || exit 0
+          lines=$(grep -E 'Downloading https://releases\.bazel\.build|Extracting Bazel installation' "$log" || true)
+          [ -n "$lines" ] || exit 0
+          echo "$lines"
+          if [ "$DX_PLATFORM" = macos_arm64 ]; then
+            echo "::warning::Bazelisk downloaded or extracted Bazel: the runner image no longer ships the .bazelversion Bazel (see #9103)"
+          else
+            echo "::notice::Bazelisk downloaded or extracted Bazel for .bazelversion"
+          fi
       - uses: ./.github/actions/save-registry-cache
         if: ${{ steps.setup.outputs.registry-cache-hit != 'true' }}
       - name: Collect test logs

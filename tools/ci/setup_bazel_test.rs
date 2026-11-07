@@ -431,6 +431,31 @@ fn evidence_saves_the_registry_cache_only_without_an_exact_hit() {
 }
 
 #[test]
+fn evidence_reports_a_bazel_download_from_the_task_log() {
+    let steps = evidence_steps();
+    let report = steps_named(&steps, "Report the Bazel download");
+    assert_eq!(report.len(), 1, "evidence reports the Bazel download once");
+    let step = &steps[report[0]];
+    assert!(step["if"].as_str().unwrap().contains("always()"));
+    let run = step["run"].as_str().unwrap();
+    for needle in [
+        "evidence.log",
+        "Downloading https://releases\\.bazel\\.build",
+        "Extracting Bazel installation",
+        "|| true",
+        "macos_arm64",
+        "::warning::",
+    ] {
+        assert!(run.contains(needle), "the report step must contain {needle}");
+    }
+    let save = steps
+        .iter()
+        .position(|step| step["uses"].as_str() == Some("./.github/actions/save-registry-cache"))
+        .unwrap();
+    assert!(report[0] < save, "report the download before saving the registry cache");
+}
+
+#[test]
 fn the_apple_executor_probe_does_not_hold_the_step_output_open() {
     let steps = evidence_steps();
     let probe = &steps[steps_named(&steps, "Start recording the Apple executor")[0]];

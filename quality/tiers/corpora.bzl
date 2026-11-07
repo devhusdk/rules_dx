@@ -42,6 +42,8 @@ TIER_JSON = [
 ]
 
 TIER_TOML = [
+    "gitleaks/standard.toml",
+    "gitleaks/strict.toml",
     "ffmt/standard.toml",
     "ffmt/strict.toml",
     "djlint/standard.toml",

@@ -98,7 +98,7 @@ fn removing_a_tool_deletes_its_base() {
         "{report:?}"
     );
     assert!(!dir.path().join(RUFF_BASE).exists());
-    assert!(!dir.path().join(".dx/config").exists());
+    assert!(!dir.path().join(".dx/config/ruff").exists());
 }
 
 #[test]

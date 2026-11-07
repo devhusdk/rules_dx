@@ -1,5 +1,5 @@
 [extend]
-useDefault = true
+path = ".dx/config/gitleaks/base.toml"
 
 [[allowlists]]
 description = "docs SBOM prose is not a secret"

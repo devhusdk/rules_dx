@@ -82,7 +82,7 @@ Secrets are scanned with the pinned `@rules_dx//quality/artifacts:gitleaks`. If 
 export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)"
 ```
 
-A `.gitleaks.toml` in the workspace root is merged into the scan config and reported as a warning. A secret finding has the Gitleaks rule id, for example `gitleaks/aws-key`. Files git ignores are skipped. Outside git, every file is scanned.
+The scan always runs with an explicit config. Without a `.gitleaks.toml`, it uses `.dx/config/gitleaks/base.toml`, which dx generates. A `.gitleaks.toml` in the workspace root must start with `[extend]` and `path = ".dx/config/gitleaks/base.toml"`, every `[[allowlists]]` entry needs a non-empty `description`, and the file is reported as a warning. A `.gitleaksignore` file has no effect. A secret finding has the Gitleaks rule id, for example `gitleaks/aws-key`. Files git ignores are skipped. Outside git, every file is scanned.
 
 `security.toml` in the workspace root exempts findings. Without it nothing is exempted. It needs `schema_version = 1`. Keys are in [Config Reference](config.md). Each advisory has a kind (`vulnerability`, `unsound`, `unmaintained` or `notice`). Only kinds in `fail_on` fail the run; the default is `vulnerability` and `unsound`, so unmaintained and notice advisories are reported as `info` unless `dx.toml` sets `tier = "strict"`. An exception for an advisory that does not fail still counts as a match.
 

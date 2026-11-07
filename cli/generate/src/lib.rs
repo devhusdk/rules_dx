@@ -78,6 +78,12 @@ pub enum GenerateError {
     },
 }
 
+/// Where dx renders the gitleaks base that `.gitleaks.toml` extends.
+pub const GITLEAKS_BASE_PATH: &str = ".dx/config/gitleaks/base.toml";
+
+const GITLEAKS_STANDARD: &str = include_str!("../../../quality/tiers/gitleaks/standard.toml");
+const GITLEAKS_STRICT: &str = include_str!("../../../quality/tiers/gitleaks/strict.toml");
+
 /// The policy the correctness rc selects.
 pub const POLICY_LABEL: &str = "//.dx:policy";
 
@@ -210,6 +216,15 @@ pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateErro
             out.insert(format!(".dx/{base}"), tool.tier().as_bytes().to_vec());
         }
     }
+    out.insert(
+        GITLEAKS_BASE_PATH.to_owned(),
+        match root {
+            Profile::Standard => GITLEAKS_STANDARD,
+            Profile::Strict => GITLEAKS_STRICT,
+        }
+        .as_bytes()
+        .to_vec(),
+    );
     let bound: Vec<(&Tool, &str)> = tools
         .iter()
         .filter(|tool| !tool.config.suffixes.is_empty())

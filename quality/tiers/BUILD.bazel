@@ -45,6 +45,7 @@ filegroup(
         "//quality/tiers/fortitude:files",
         "//quality/tiers/fsharplint:files",
         "//quality/tiers/gersemi:files",
+        "//quality/tiers/gitleaks:files",
         "//quality/tiers/govet:files",
         "//quality/tiers/gplint:files",
         "//quality/tiers/graphql_eslint:files",

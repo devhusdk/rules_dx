@@ -1356,7 +1356,7 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
         if legacy_config {
             harness.write_source(
                 ".gitleaks.toml",
-                "[extend]\nuseDefault = true\n\n[allowlist]\ndescription = \"fixtures\"\nregexes = [\"never-matches-anything\"]\n",
+                "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[allowlist]\ndescription = \"fixtures\"\nregexes = [\"never-matches-anything\"]\n",
             );
         }
         git(root, &["add", ".gitignore"]);

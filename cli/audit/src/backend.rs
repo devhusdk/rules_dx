@@ -1,5 +1,6 @@
 use crate::secrets::{
-    CONFIG_FLAG, EXIT_CODE_FLAG, REDACT_FLAG, REPORT_FORMAT_FLAG, REPORT_PATH_FLAG, SARIF_FORMAT,
+    CONFIG_FLAG, EXIT_CODE_FLAG, IGNORE_PATH_FLAG, REDACT_FLAG, REPORT_FORMAT_FLAG,
+    REPORT_PATH_FLAG, SARIF_FORMAT,
 };
 
 pub const SECRETS_SUBCOMMAND: &str = "detect";
@@ -72,6 +73,13 @@ pub fn plan_secrets(
         argv.push(CONFIG_FLAG.to_owned());
         argv.push(config.to_owned());
     }
+    argv.push(IGNORE_PATH_FLAG.to_owned());
+    argv.push(
+        std::path::Path::new(temp_dir)
+            .join("no-gitleaksignore")
+            .to_string_lossy()
+            .into_owned(),
+    );
     Ok(BackendPlan {
         argv,
         env: vec![("TMPDIR".to_owned(), temp_dir.to_owned())],

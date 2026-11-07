@@ -19,6 +19,11 @@ pub const CONFIG_FLAG: &str = "--config";
 
 pub const CONFIG_FILE_NAME: &str = ".gitleaks.toml";
 
+/// The base dx renders, which `.gitleaks.toml` must extend.
+pub const BASE_CONFIG_PATH: &str = ".dx/config/gitleaks/base.toml";
+
+pub const IGNORE_PATH_FLAG: &str = "--gitleaks-ignore-path";
+
 /// Git arguments that list the workspace paths git ignores, NUL-separated and
 /// relative to the workspace; wholly ignored directories collapse to `dir/`.
 pub const IGNORED_QUERY: [&str; 6] = [
@@ -60,22 +65,38 @@ pub fn ignored_path_patterns(paths: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// Builds the gitleaks config for a scan: the user's config (or the default
-/// rules when there is none) plus one paths-only allowlist for `patterns`.
-/// A legacy `[allowlist]` moves into `[[allowlists]]`, because gitleaks rejects
-/// both at once.
-pub fn scoped_config(user: Option<&str>, patterns: &[String]) -> Result<String, String> {
+/// Builds the gitleaks config for a scan: the user's config (or the dx base
+/// when there is none) plus one paths-only allowlist for `patterns`. The
+/// `[extend] path` becomes `base`, which must be absolute because gitleaks
+/// resolves it from the working directory. A legacy `[allowlist]` moves into
+/// `[[allowlists]]`, because gitleaks rejects both at once. Every allowlist
+/// needs a description.
+pub fn scoped_config(
+    user: Option<&str>,
+    patterns: &[String],
+    base: &str,
+) -> Result<String, String> {
     let mut table = match user {
         Some(text) => toml::from_str::<toml::Table>(text)
             .map_err(|error| format!("invalid {CONFIG_FILE_NAME}: {error}"))?,
-        None => {
-            let mut extend = toml::Table::new();
-            extend.insert("useDefault".to_owned(), toml::Value::Boolean(true));
-            let mut table = toml::Table::new();
-            table.insert("extend".to_owned(), toml::Value::Table(extend));
-            table
-        }
+        None => toml::Table::new(),
     };
+    match table.get("extend") {
+        None if user.is_none() => {}
+        Some(toml::Value::Table(extend))
+            if extend.get("path").and_then(toml::Value::as_str) == Some(BASE_CONFIG_PATH) => {}
+        _ => {
+            return Err(format!(
+                "{CONFIG_FILE_NAME} must start with [extend] path = \"{BASE_CONFIG_PATH}\""
+            ));
+        }
+    }
+    let mut extend = match table.remove("extend") {
+        Some(toml::Value::Table(extend)) => extend,
+        _ => toml::Table::new(),
+    };
+    extend.insert("path".to_owned(), toml::Value::String(base.to_owned()));
+    table.insert("extend".to_owned(), toml::Value::Table(extend));
     let mut allowlists = match table.remove("allowlists") {
         Some(toml::Value::Array(entries)) => entries,
         Some(other) => {
@@ -95,18 +116,47 @@ pub fn scoped_config(user: Option<&str>, patterns: &[String]) -> Result<String, 
             None => Vec::new(),
         },
     };
-    let mut ignored = toml::Table::new();
-    ignored.insert(
-        "description".to_owned(),
-        toml::Value::String(IGNORED_ALLOWLIST_DESCRIPTION.to_owned()),
-    );
-    ignored.insert(
-        "paths".to_owned(),
-        toml::Value::Array(patterns.iter().cloned().map(toml::Value::String).collect()),
-    );
-    allowlists.push(toml::Value::Table(ignored));
-    table.insert("allowlists".to_owned(), toml::Value::Array(allowlists));
+    if let Some(text) = user {
+        require_descriptions(text, &allowlists)?;
+    }
+    if !patterns.is_empty() {
+        let mut ignored = toml::Table::new();
+        ignored.insert(
+            "description".to_owned(),
+            toml::Value::String(IGNORED_ALLOWLIST_DESCRIPTION.to_owned()),
+        );
+        ignored.insert(
+            "paths".to_owned(),
+            toml::Value::Array(patterns.iter().cloned().map(toml::Value::String).collect()),
+        );
+        allowlists.push(toml::Value::Table(ignored));
+    }
+    if !allowlists.is_empty() {
+        table.insert("allowlists".to_owned(), toml::Value::Array(allowlists));
+    }
     toml::to_string(&table).map_err(|error| format!("cannot write gitleaks config: {error}"))
+}
+
+fn require_descriptions(text: &str, allowlists: &[toml::Value]) -> Result<(), String> {
+    let headers: Vec<usize> = text
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| matches!(line.trim(), "[[allowlists]]" | "[allowlist]"))
+        .map(|(index, _)| index + 1)
+        .collect();
+    for (index, entry) in allowlists.iter().enumerate() {
+        let described = entry
+            .get("description")
+            .and_then(toml::Value::as_str)
+            .is_some_and(|description| !description.trim().is_empty());
+        if !described {
+            let line = headers.get(index).copied().unwrap_or(1);
+            return Err(format!(
+                "{CONFIG_FILE_NAME}:{line}: every allowlist needs a non-empty description"
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -153,6 +203,8 @@ pub fn triage_sarif(text: &str) -> Result<Vec<SecretFinding>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const BASE: &str = "/ws/.dx/config/gitleaks/base.toml";
 
     fn table(text: &str) -> toml::Table {
         toml::from_str(text).expect("generated config parses")
@@ -225,9 +277,10 @@ mod tests {
     }
 
     #[test]
-    fn scoped_config_without_user_config_extends_the_defaults() {
-        let config = table(&scoped_config(None, &["^ign(?:/|$)".to_owned()]).expect("config"));
-        assert_eq!(config["extend"]["useDefault"].as_bool(), Some(true));
+    fn scoped_config_without_user_config_extends_the_base() {
+        let config =
+            table(&scoped_config(None, &["^ign(?:/|$)".to_owned()], BASE).expect("config"));
+        assert_eq!(config["extend"]["path"].as_str(), Some(BASE));
         let entries = allowlists(&config);
         assert_eq!(entries.len(), 1);
         assert_eq!(ignored_entry_paths(&entries[0]), vec!["^ign(?:/|$)"]);
@@ -237,13 +290,16 @@ mod tests {
     fn scoped_config_migrates_a_legacy_allowlist() {
         let user = r#"
 title = "mine"
+[extend]
+path = ".dx/config/gitleaks/base.toml"
+
 [allowlist]
 description = "fixtures"
 regexTarget = "line"
 regexes = ['''example''']
 paths = ['''docs/.*\.md''']
 "#;
-        let config = table(&scoped_config(Some(user), &["^x$".to_owned()]).expect("config"));
+        let config = table(&scoped_config(Some(user), &["^x$".to_owned()], BASE).expect("config"));
         assert!(!config.contains_key("allowlist"));
         assert_eq!(config["title"].as_str(), Some("mine"));
         let entries = allowlists(&config);
@@ -259,7 +315,7 @@ paths = ['''docs/.*\.md''']
     fn scoped_config_keeps_user_rules_and_allowlists_and_appends_last() {
         let user = r#"
 [extend]
-useDefault = true
+path = ".dx/config/gitleaks/base.toml"
 disabledRules = ["generic-api-key"]
 
 [[rules]]
@@ -272,10 +328,11 @@ targetRules = ["custom"]
 regexes = ['''custom-0''']
 
 [[allowlists]]
+description = "vendored"
 paths = ['''vendor/.*''']
 "#;
-        let config = table(&scoped_config(Some(user), &["^y$".to_owned()]).expect("config"));
-        assert_eq!(config["extend"]["useDefault"].as_bool(), Some(true));
+        let config = table(&scoped_config(Some(user), &["^y$".to_owned()], BASE).expect("config"));
+        assert_eq!(config["extend"]["path"].as_str(), Some(BASE));
         assert_eq!(
             config["extend"]["disabledRules"][0].as_str(),
             Some("generic-api-key")
@@ -291,9 +348,29 @@ paths = ['''vendor/.*''']
 
     #[test]
     fn scoped_config_rejects_invalid_user_config() {
-        assert!(scoped_config(Some("[allowlist"), &["^x$".to_owned()]).is_err());
-        assert!(scoped_config(Some("allowlists = 3"), &["^x$".to_owned()]).is_err());
-        assert!(scoped_config(Some("allowlist = 3"), &["^x$".to_owned()]).is_err());
+        let extend = "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n";
+        for text in ["[allowlist", "allowlists = 3\n", "allowlist = 3\n"] {
+            let text = format!("{text}\n{extend}");
+            assert!(scoped_config(Some(&text), &["^x$".to_owned()], BASE).is_err());
+        }
+    }
+
+    #[test]
+    fn scoped_config_requires_the_base_extend() {
+        for text in ["title = \"x\"\n", "[extend]\nuseDefault = true\n"] {
+            let error = scoped_config(Some(text), &[], BASE).expect_err("no base");
+            assert!(error.contains(".dx/config/gitleaks/base.toml"), "{error}");
+        }
+    }
+
+    #[test]
+    fn scoped_config_names_the_line_of_an_allowlist_without_a_description() {
+        let user = "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[[allowlists]]\ndescription = \"ok\"\npaths = [\"a\"]\n\n[[allowlists]]\npaths = [\"b\"]\n";
+        let error = scoped_config(Some(user), &[], BASE).expect_err("missing description");
+        assert!(error.starts_with(".gitleaks.toml:8:"), "{error}");
+        let blank = user.replace("paths = [\"b\"]", "description = \" \"");
+        let error = scoped_config(Some(&blank), &[], BASE).expect_err("blank description");
+        assert!(error.starts_with(".gitleaks.toml:8:"), "{error}");
     }
 
     #[test]

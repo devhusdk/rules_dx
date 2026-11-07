@@ -31,6 +31,10 @@ fn summary(out: &BTreeMap<String, Vec<u8>>) -> String {
         lines.push_str(&format!("== {path}\n"));
         if let Some(base) = path.strip_prefix(".dx/config/") {
             let dir = base.split('/').next().expect("tool dir");
+            if dir == "gitleaks" {
+                lines.push_str("<standard and strict tier>\n");
+                continue;
+            }
             let config = crate::tools_gen::TOOL_CONFIGS
                 .iter()
                 .find(|config| {
@@ -145,6 +149,8 @@ fn renders_standard() {
     common --@rules_dx//config:workspace=//.dx:policy
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
+    == .dx/config/gitleaks/base.toml
+    <standard and strict tier>
     == .dx/config/ruff/base.toml
     <standard tier>
     == .dx/config/typos/base.toml
@@ -201,6 +207,8 @@ fn renders_strict() {
     common --@rules_dx//config:workspace=//.dx:policy
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
+    == .dx/config/gitleaks/base.toml
+    <standard and strict tier>
     == .dx/config/ruff/base.toml
     <strict tier>
     == .dx/config/typos/base.toml
@@ -260,6 +268,8 @@ fn renders_no_dx_toml() {
     common --@rules_dx//config:workspace=//.dx:policy
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
+    == .dx/config/gitleaks/base.toml
+    <standard and strict tier>
     == .dx/config/ruff/base.toml
     <standard tier>
     == .dx/config/typos/base.toml
@@ -329,6 +339,8 @@ fn renders_existing_exports() {
     common --@rules_dx//config:workspace=//.dx:policy
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
+    == .dx/config/gitleaks/base.toml
+    <standard and strict tier>
     == .dx/config/ruff/base.toml
     <standard tier>
     == .dx/config/typos/base.toml
@@ -387,6 +399,8 @@ fn renders_no_root_build() {
     common --@rules_dx//config:workspace=//.dx:policy
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
+    == .dx/config/gitleaks/base.toml
+    <standard and strict tier>
     == .dx/config/ruff/base.toml
     <standard tier>
     == .dx/config/typos/base.toml
@@ -446,6 +460,8 @@ fn renders_mixed_profiles() {
     common --@rules_dx//config:workspace=//.dx:policy
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
+    == .dx/config/gitleaks/base.toml
+    <standard and strict tier>
     == .dx/config/ruff/base.toml
     <strict tier>
     == .dx/config/typos/base.toml
@@ -510,6 +526,8 @@ fn renders_rust() {
     common --@rules_dx//config:clippy_flag=-Dwarnings
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
+    == .dx/config/gitleaks/base.toml
+    <standard and strict tier>
     == .dx/config/typos/base.toml
     <standard and strict tier>
     "#);
@@ -647,7 +665,10 @@ fn unused_families_are_left_out() {
     let out = rendered(&inputs(None, &[], &["ruff.toml"]));
     let paths: BTreeSet<&str> = out.keys().map(String::as_str).collect();
     assert!(
-        !paths.iter().any(|path| path.starts_with(".dx/config/")),
+        paths
+            .iter()
+            .filter(|path| path.starts_with(".dx/config/"))
+            .eq([&".dx/config/gitleaks/base.toml"]),
         "{paths:?}"
     );
     assert!(!paths.contains("BUILD.bazel"), "{paths:?}");

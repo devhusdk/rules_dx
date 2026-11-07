@@ -497,7 +497,7 @@ fn ignored_query_argv() -> Vec<String> {
         .collect()
 }
 
-const USER_CONFIG: &str = "[allowlist]\ndescription = \"fixtures\"\nregexes = [\"example\"]\n";
+const USER_CONFIG: &str = "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[allowlist]\ndescription = \"fixtures\"\nregexes = [\"example\"]\n";
 
 #[test]
 fn secrets_scan_skips_git_ignored_paths() {
@@ -515,9 +515,12 @@ fn secrets_scan_skips_git_ignored_paths() {
     assert!(config.is_absolute(), "{config:?}");
     assert!(config.starts_with(&harness.temp), "{config:?}");
     let written = std::fs::read_to_string(&config).expect("config");
+    let base = std::path::absolute(harness.workspace.join(dx_audit::secrets::BASE_CONFIG_PATH))
+        .expect("absolute base");
     let expected = dx_audit::secrets::scoped_config(
         Some(USER_CONFIG),
         &[r"^ign(?:/|$)".to_owned(), r"^local\.env$".to_owned()],
+        &base.to_string_lossy(),
     )
     .expect("expected config");
     assert_eq!(written, expected);
@@ -539,36 +542,79 @@ fn secrets_scan_without_user_config_scopes_the_default_rules() {
     let (argv, diagnostics) = scan_secrets(&harness);
     let config = config_arg(&argv).expect("--config");
     let written = std::fs::read_to_string(config).expect("config");
-    assert!(written.contains("useDefault = true"), "{written}");
+    assert!(written.contains("[extend]"), "{written}");
+    assert!(written.contains("base.toml"), "{written}");
+    assert!(!written.contains("useDefault"), "{written}");
     assert!(diagnostics.is_empty());
 }
 
 #[test]
-fn secrets_scan_keeps_the_plain_config_when_git_gives_nothing() {
-    for case in ["exit-128", "empty", "unscripted", "invalid-user-toml"] {
+fn secrets_scan_always_passes_a_config_and_an_empty_ignore_path() {
+    let harness = Harness::new("audit-secrets-always-config");
+    harness.query.script_git(0, "");
+    harness.write_source(".gitleaksignore", "anything\n");
+    let (argv, _) = scan_secrets(&harness);
+    assert!(config_arg(&argv).is_some(), "{argv:?}");
+    let index = argv
+        .iter()
+        .position(|arg| arg == "--gitleaks-ignore-path")
+        .expect("--gitleaks-ignore-path");
+    assert!(!std::path::Path::new(&argv[index + 1]).exists());
+}
+
+#[test]
+fn secrets_scan_fails_on_an_allowlist_without_a_description() {
+    let harness = Harness::new("audit-secrets-no-description");
+    harness.query.script_git(0, "");
+    harness.write_source(
+        ".gitleaks.toml",
+        "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[[allowlists]]\npaths = [\"a\"]\n",
+    );
+    let runner = AuditRunner::with_sarif(Some(0), CLEAN_SARIF);
+    let bazel = super::QueryBazel {
+        query_runner: &harness.query,
+        workspace: &harness.workspace,
+        startup: &[],
+    };
+    let (_, incomplete, _) = super::run_secrets(
+        &harness.workspace,
+        &runner,
+        &harness.query,
+        &bazel,
+        &harness.temp,
+        7,
+        3,
+        false,
+    );
+    let error = incomplete.expect("config error");
+    assert!(error.contains(".gitleaks.toml:4:"), "{error}");
+    assert!(runner.calls.borrow().is_empty());
+}
+
+#[test]
+fn secrets_scan_writes_the_base_config_when_git_gives_nothing() {
+    for case in ["exit-128", "empty", "unscripted"] {
         for user_config in [true, false] {
-            if case == "invalid-user-toml" && !user_config {
-                continue;
-            }
             let harness = Harness::new(&format!("audit-secrets-fallback-{case}-{user_config}"));
             match case {
                 "exit-128" => harness.query.script_git(128, ""),
                 "empty" => harness.query.script_git(0, ""),
-                "invalid-user-toml" => harness.query.script_git(0, "ign/\0"),
                 _ => {}
             }
-            if case == "invalid-user-toml" {
-                harness.write_source(".gitleaks.toml", "[allowlist\n");
-            } else if user_config {
-                harness.write_source(".gitleaks.toml", "title = \"local\"\n");
+            if user_config {
+                harness.write_source(
+                    ".gitleaks.toml",
+                    "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n",
+                );
             }
             let (argv, _) = scan_secrets(&harness);
-            assert_eq!(
-                *harness.query.git_calls.borrow(),
-                vec![ignored_query_argv()]
+            let config = config_arg(&argv).expect("--config");
+            let written = std::fs::read_to_string(config).expect("config");
+            assert!(
+                written.contains("base.toml"),
+                "{case} {user_config}: {written}"
             );
-            let expected = user_config.then(|| ".gitleaks.toml".to_owned());
-            assert_eq!(config_arg(&argv), expected, "{case} {user_config}");
+            assert!(!written.contains("allowlists"), "{written}");
         }
     }
 }
@@ -583,7 +629,10 @@ fn committed_gitleaks_config_produces_a_trust_warning() {
         );
         let (code, out, err) = run_with(&["security", "--report=sarif=-"], &runner, &|h| {
             clean_workspace_with_advisories(h);
-            h.write_source(config, "title = \"local rules\"\n");
+            h.write_source(
+                config,
+                "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n",
+            );
         });
         assert_eq!(code, 0, "{out}{err}");
         let value: serde_json::Value = serde_json::from_str(&out).expect("sarif");
@@ -593,7 +642,7 @@ fn committed_gitleaks_config_produces_a_trust_warning() {
                 .calls
                 .borrow()
                 .iter()
-                .any(|args| args.iter().any(|arg| arg.ends_with(config)))
+                .any(|args| args.iter().any(|arg| arg == "--config"))
         );
     }
 }

@@ -831,18 +831,19 @@ fn excluded_dirs(excludes: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// Writes a gitleaks config that skips the paths git ignores and the `dx.toml`
-/// excludes, because `gitleaks dir` reads every file under the workspace. Returns
-/// `None` when nothing is skipped or the user config is invalid, so the scan
-/// keeps its plain config and gitleaks reports the invalid file itself.
+/// Writes the gitleaks config for a scan: the workspace `.gitleaks.toml` (or the
+/// dx base) with its base path made absolute, plus the paths git ignores and the
+/// `dx.toml` excludes, because `gitleaks dir` reads every file under the workspace.
 fn scoped_secrets_config(
     workspace: &Path,
     query_runner: &dyn QueryRunner,
     temp_dir: &Path,
     pid: u32,
     nonce: u64,
-) -> Result<Option<String>, String> {
-    use dx_audit::secrets::{IGNORED_QUERY, ignored_path_patterns, parse_ignored, scoped_config};
+) -> Result<String, String> {
+    use dx_audit::secrets::{
+        BASE_CONFIG_PATH, IGNORED_QUERY, ignored_path_patterns, parse_ignored, scoped_config,
+    };
     let mut argv = vec!["git".to_owned()];
     argv.extend(IGNORED_QUERY.iter().map(ToString::to_string));
     let mut ignored = match query_runner.run_query(&argv, workspace) {
@@ -852,26 +853,28 @@ fn scoped_secrets_config(
     let excludes = dx_plan::resolve::exclude::load(workspace).map_err(|error| error.to_string())?;
     ignored.extend(excluded_dirs(&excludes));
     let patterns = ignored_path_patterns(&ignored);
-    if patterns.is_empty() {
-        return Ok(None);
+    let base = workspace.join(BASE_CONFIG_PATH);
+    if !base.is_file() {
+        return Err(format!(
+            "{BASE_CONFIG_PATH} is missing; run `dx generate` to render it"
+        ));
     }
+    let base = std::path::absolute(&base).unwrap_or(base);
     let user_path = workspace.join(CONFIG_FILE_NAME);
     let user = if user_path.is_file() {
-        match std::fs::read_to_string(&user_path) {
-            Ok(text) => Some(text),
-            Err(_) => return Ok(None),
-        }
+        Some(
+            std::fs::read_to_string(&user_path)
+                .map_err(|error| format!("cannot read {CONFIG_FILE_NAME}: {error}"))?,
+        )
     } else {
         None
     };
-    let Ok(text) = scoped_config(user.as_deref(), &patterns) else {
-        return Ok(None);
-    };
+    let text = scoped_config(user.as_deref(), &patterns, &base.to_string_lossy())?;
     let path = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.toml"));
     std::fs::write(&path, text)
         .map_err(|error| format!("failed to write secrets scan config: {error}"))?;
     let path = std::path::absolute(&path).unwrap_or(path);
-    Ok(Some(path.to_string_lossy().into_owned()))
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -891,12 +894,11 @@ fn run_secrets(
 ) {
     let report_file: PathBuf = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.sarif"));
     let report_arg = report_file.to_string_lossy().into_owned();
-    let config = if workspace.join(CONFIG_FILE_NAME).is_file() {
-        Some(CONFIG_FILE_NAME)
-    } else {
-        None
-    };
-    let trust_warning: Vec<DiagnosticEvent> = match &config {
+    let committed = workspace
+        .join(CONFIG_FILE_NAME)
+        .is_file()
+        .then_some(CONFIG_FILE_NAME);
+    let trust_warning: Vec<DiagnosticEvent> = match &committed {
         Some(path) => {
             let message = format!(
                 "using committed config '{path}' without a hash pin; review it before trusting this scan"
@@ -916,7 +918,7 @@ fn run_secrets(
         Ok(scoped) => scoped,
         Err(error) => return (Vec::new(), Some(error), Vec::new()),
     };
-    let config = scoped.as_deref().or(config);
+    let config = Some(scoped.as_str());
     let temp_arg = temp_dir.to_string_lossy().into_owned();
     let plan = match dx_audit::backend::plan_secrets(
         &tool_path,

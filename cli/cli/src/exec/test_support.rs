@@ -273,6 +273,9 @@ impl Harness {
         let temp = temp_guard.path().to_path_buf();
         let cwd = workspace.clone();
         init_empty_repo(&workspace);
+        let base = workspace.join(dx_audit::secrets::BASE_CONFIG_PATH);
+        std::fs::create_dir_all(base.parent().expect("parent")).expect("base dir");
+        std::fs::write(base, "[extend]\nuseDefault = true\n").expect("write gitleaks base");
         Harness {
             workspace,
             temp,

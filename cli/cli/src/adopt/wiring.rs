@@ -211,7 +211,7 @@ mod tests {
         assert_eq!(
             out,
             format!(
-                "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/.github/hooks/dx.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\nwrote demo/.github/copilot-instructions.md\nwrote demo/.dx/BUILD.bazel\nwrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.dx/config/buildifier/base.json\nwrote demo/.dx/config/typos/base.toml\n",
+                "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/.github/hooks/dx.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\nwrote demo/.github/copilot-instructions.md\nwrote demo/.dx/BUILD.bazel\nwrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.dx/config/buildifier/base.json\nwrote demo/.dx/config/gitleaks/base.toml\nwrote demo/.dx/config/typos/base.toml\n",
                 overrides = dx_adopt::render_overrides(&Default::default())
                     .iter()
                     .map(|(path, _)| format!("wrote demo/{path}\n"))

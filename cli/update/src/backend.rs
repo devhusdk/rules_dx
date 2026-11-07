@@ -1653,7 +1653,8 @@ fn opam_env() -> Vec<(String, String)> {
 
 /// A `dart pub` run from the pinned Dart SDK in the set's directory.
 ///
-/// Flutter sets are refused: the pinned Flutter toolchain ships no `flutter` command.
+/// Flutter sets run the Dart SDK inside the pinned Flutter toolchain through
+/// `@rules_flutter//flutter:pub`, which points `FLUTTER_ROOT` at a tree for the pinned version.
 fn pub_argv(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1664,13 +1665,13 @@ fn pub_argv(
         std::fs::read_to_string(workspace.join(manifest))
             .is_ok_and(|text| text.lines().any(|line| line.trim() == "sdk: flutter"))
     });
-    if flutter {
-        return Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "the pinned Flutter toolchain has no flutter command; run `flutter pub get` or `flutter pub upgrade` in the set directory",
-        });
-    }
     let dir = set_dir(workspace, set)?;
+    if flutter {
+        let mut argv = bazel(head, "run", &["@rules_flutter//flutter:pub", "--"]);
+        argv.extend(strings(command));
+        argv.extend(["--directory".to_owned(), dir]);
+        return Ok(argv);
+    }
     let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
     let mut argv = bazel(head, "run", &[&under, "@rules_dx//dart/tools:dart", "--"]);
     argv.extend(strings(command));
@@ -2719,7 +2720,7 @@ mod tests {
     }
 
     #[test]
-    fn pub_update_refuses_frozen_offline_and_flutter() {
+    fn pub_update_refuses_frozen_and_offline() {
         let dir = pub_workspace("name: app\n");
         assert!(matches!(
             pub_plan(dir.path(), &Selection::Full, true, false),
@@ -2729,11 +2730,77 @@ mod tests {
             pub_plan(dir.path(), &Selection::Full, false, true),
             Err(BackendError::FrozenLocked { .. })
         ));
-        let flutter = pub_workspace("dependencies:\n  flutter:\n    sdk: flutter\n");
+        let flutter = pub_workspace(FLUTTER_PUBSPEC);
         assert!(matches!(
-            pub_plan(flutter.path(), &Selection::Full, false, false),
-            Err(BackendError::Unsupported { .. })
+            pub_plan(flutter.path(), &Selection::Full, true, false),
+            Err(BackendError::OfflineRequired { .. })
         ));
+        assert!(matches!(
+            pub_plan(flutter.path(), &Selection::Full, false, true),
+            Err(BackendError::FrozenLocked { .. })
+        ));
+    }
+
+    const FLUTTER_PUBSPEC: &str = "dependencies:\n  flutter:\n    sdk: flutter\n";
+
+    #[test]
+    fn flutter_pub_update_runs_the_rules_flutter_pub_target() {
+        let dir = pub_workspace(FLUTTER_PUBSPEC);
+        let BackendPlan::Run { argv, env } = pub_plan(
+            dir.path(),
+            &Selection::Packages(vec!["http".to_owned()]),
+            false,
+            false,
+        )
+        .expect("plan") else {
+            panic!("expected a run");
+        };
+        let position = argv
+            .iter()
+            .position(|arg| arg == "@rules_flutter//flutter:pub")
+            .expect("flutter pub target");
+        let app = dir.path().join("app").to_string_lossy().into_owned();
+        assert_eq!(
+            argv[position + 1..],
+            ["--", "pub", "upgrade", "http", "--directory", app.as_str()]
+        );
+        assert_eq!(env[0].0, "PUB_CACHE");
+    }
+
+    #[test]
+    fn flutter_pub_check_enforces_the_lockfile() {
+        let dir = pub_workspace(FLUTTER_PUBSPEC);
+        let check = |offline| {
+            check_configured(
+                dir.path(),
+                &pub_set(),
+                &Selection::Full,
+                offline,
+                false,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        let Ok(CheckPlan::Run { argv, .. }) = check(true) else {
+            panic!("expected a run");
+        };
+        let position = argv
+            .iter()
+            .position(|arg| arg == "@rules_flutter//flutter:pub")
+            .expect("flutter pub target");
+        let app = dir.path().join("app").to_string_lossy().into_owned();
+        assert_eq!(
+            argv[position + 1..],
+            [
+                "--",
+                "pub",
+                "get",
+                "--enforce-lockfile",
+                "--offline",
+                "--directory",
+                app.as_str()
+            ]
+        );
     }
 
     #[test]

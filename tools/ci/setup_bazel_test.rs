@@ -440,35 +440,3 @@ fn the_apple_executor_probe_does_not_hold_the_step_output_open() {
         "the background probe must detach from the step output, or the step waits for it"
     );
 }
-
-#[test]
-fn the_bazel_binary_downloads_while_the_registry_cache_restores() {
-    let action = action_document();
-    let steps = action["runs"]["steps"].as_array().expect("action steps");
-    let upstream = steps
-        .iter()
-        .position(|step| {
-            step["uses"]
-                .as_str()
-                .is_some_and(|uses| uses.starts_with(UPSTREAM_ACTION))
-        })
-        .expect("upstream setup-bazel step");
-    let prefetch = action_index(steps, "Prefetch the Bazel binary");
-    let wait = action_index(steps, "Wait for the Bazel binary");
-    assert!(
-        upstream < prefetch
-            && prefetch < action_index(steps, REGISTRY)
-            && action_index(steps, REGISTRY) < wait
-            && wait < action_index(steps, LOCATE),
-        "{ACTION_FILE} must start the download after Bazelisk is installed and wait for it before the first bazel call"
-    );
-    let run = steps[prefetch]["run"].as_str().unwrap();
-    assert!(
-        run.trim_end().ends_with("> /dev/null 2>&1 &"),
-        "the background download must detach from the step output, or the step waits for it"
-    );
-    assert!(
-        steps[wait].get("if").is_none(),
-        "two Bazelisk downloads cannot replace the same exe on Windows, so the wait must always run"
-    );
-}

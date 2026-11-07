@@ -12,6 +12,8 @@ fn inputs(toml: Option<&str>, families: &[&str], root_files: &[&str]) -> Inputs 
             name: "BUILD.bazel".to_owned(),
             text: "exports_files([\"README.md\"])\n".to_owned(),
         }),
+        root_texts: BTreeMap::new(),
+        files: BTreeSet::new(),
         families: families.iter().map(|family| (*family).to_owned()).collect(),
     }
 }
@@ -722,4 +724,74 @@ fn a_positional_visibility_is_read_as_visibility() {
             visibility: "//tools:__pkg__".to_owned(),
         }
     );
+}
+
+fn with_files(mut case: Inputs, texts: &[(&str, &str)], files: &[&str]) -> Inputs {
+    case.root_texts = texts
+        .iter()
+        .map(|(name, text)| ((*name).to_owned(), (*text).to_owned()))
+        .collect();
+    case.files = files.iter().map(|file| (*file).to_owned()).collect();
+    case
+}
+
+#[test]
+fn a_vale_styles_path_is_bound() {
+    let case = with_files(
+        inputs(
+            Some("schema_version = 1\n[families.markdown]\nlint = [\"vale\"]\n"),
+            &["markdown"],
+            &[".vale.ini"],
+        ),
+        &[(
+            ".vale.ini",
+            "StylesPath = quality/corpus_styles\nMinAlertLevel = suggestion\n",
+        )],
+        &[
+            ".vale.ini",
+            "quality/BUILD.bazel",
+            "quality/corpus_styles/Dx/Launcher.yml",
+            "quality/corpus_styles/Dx/Markers.yml",
+        ],
+    );
+    let out = rendered(&case);
+    let build = text(&out, ".dx/BUILD.bazel");
+    assert!(
+        build.contains(
+            "    data = [\n        \"//quality:corpus_styles/Dx/Launcher.yml\",\n        \"//quality:corpus_styles/Dx/Markers.yml\",\n    ],\n"
+        ),
+        "{build}"
+    );
+}
+
+#[test]
+fn a_ruff_extend_in_the_root_package_is_bound_and_exported() {
+    let case = with_files(
+        inputs(None, &["python"], &["ruff.toml"]),
+        &[(
+            "ruff.toml",
+            "extend = \"configs/base.toml\"\n[lint]\nselect = [\"E\"]\n",
+        )],
+        &["ruff.toml", "configs/base.toml"],
+    );
+    let out = rendered(&case);
+    let build = text(&out, ".dx/BUILD.bazel");
+    assert!(build.contains("\"//:configs/base.toml\""), "{build}");
+    assert!(text(&out, "BUILD.bazel").contains("\"configs/base.toml\""));
+}
+
+#[test]
+fn a_reference_that_cannot_be_bound_is_an_error() {
+    for (config, problem) in [
+        ("extend = \"../base.toml\"\n", "outside the repo"),
+        ("extend = \"missing.toml\"\n", "no such file"),
+    ] {
+        let case = with_files(
+            inputs(None, &["python"], &["ruff.toml"]),
+            &[("ruff.toml", config)],
+            &["ruff.toml"],
+        );
+        let error = render(&case).expect_err("unbindable reference").to_string();
+        assert!(error.contains(problem), "{error}");
+    }
 }

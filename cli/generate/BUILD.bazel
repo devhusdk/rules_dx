@@ -15,6 +15,7 @@ dx_rust_crate(
     package_name = "cli/dx_generate",
     srcs = [
         "src/lib.rs",
+        "src/references.rs",
         "src/root_block.rs",
         "src/tools_gen.rs",
     ],

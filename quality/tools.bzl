@@ -18,6 +18,7 @@ def config(
         comment = "",
         pyproject_table = "",
         extras = [],
+        references = [],
         kind = "file",
         tier_active = False,
         tier_base = None,
@@ -40,6 +41,8 @@ def config(
       comment: line comment prefix of the config format; empty when it has none.
       pyproject_table: table in pyproject.toml that also means the tool is configured.
       extras: extra files that belong with the config.
+      references: keys of the root file that name other files the tool reads, as `ini:<key>` or
+        `toml:<key>`; dx generate binds those files next to the config.
       kind: `file` for a native config, `flags` for a tier the generator renders as internal
         flags (clippy), or `none`.
       tier_active: whether the tool has a tier.
@@ -69,6 +72,7 @@ def config(
         init_order = init_order,
         kind = kind,
         pyproject_table = pyproject_table,
+        references = references,
         shared = shared,
         stage_native = stage_native,
         suffixes = suffixes,
@@ -2353,6 +2357,7 @@ TOOLS = [
             extends_syntax = "# Repo settings go here; the extend line picks the profile.\nextend = \"{base}\"\n",
             comment = "#",
             pyproject_table = "ruff",
+            references = ["toml:extend"],
             init_order = 1,
             family = "python",
             tier_active = True,
@@ -3048,7 +3053,12 @@ TOOLS = [
         id = "vale",
         adapters = {"lint": ["asciidoc", "markdown", "rst"]},
         concerns = {"lint": "prose"},
-        config = config(suffixes = [".ini"], tier_active = True),
+        config = config(
+            suffixes = [".ini"],
+            files = [".vale.ini", "_vale.ini"],
+            references = ["ini:StylesPath"],
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "lint",

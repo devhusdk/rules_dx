@@ -43,20 +43,20 @@ pub fn parse_rustfmt(
             pending = Some(trimmed.to_owned());
             continue;
         }
-        if let Some(arrow) = trimmed.strip_prefix("--> ") {
-            if let Some(message) = pending.take() {
-                let (path, line, column) = rustfmt_location(arrow)?;
-                let checked = known_lexical(TOOL, files, path)?;
-                findings.push(finding(
-                    TOOL,
-                    checked,
-                    String::new(),
-                    message,
-                    ToolSeverity::Error,
-                    TextPosition { line, column },
-                    ColumnEncoding::Scalars,
-                ));
-            }
+        if let Some(arrow) = trimmed.strip_prefix("--> ")
+            && let Some(message) = pending.take()
+        {
+            let (path, line, column) = rustfmt_location(arrow)?;
+            let checked = known_lexical(TOOL, files, path)?;
+            findings.push(finding(
+                TOOL,
+                checked,
+                String::new(),
+                message,
+                ToolSeverity::Error,
+                TextPosition { line, column },
+                ColumnEncoding::Scalars,
+            ));
         }
     }
     if findings.is_empty() && code != Some(0) {

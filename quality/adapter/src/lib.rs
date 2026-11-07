@@ -340,12 +340,12 @@ fn place_related<'t>(
         Some(position) => text.line_col_to_byte(position.line, position.column, encoding),
         None => start,
     };
-    if let (Some(start), Some(end)) = (start, end) {
-        if start <= end {
-            placed.path = path;
-            placed.start_byte = Some(start);
-            placed.end_byte = Some(end);
-        }
+    if let (Some(start), Some(end)) = (start, end)
+        && start <= end
+    {
+        placed.path = path;
+        placed.start_byte = Some(start);
+        placed.end_byte = Some(end);
     }
     placed
 }

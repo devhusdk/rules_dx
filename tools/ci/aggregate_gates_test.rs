@@ -386,7 +386,9 @@ fn one_run_per_ref_and_none_cancel() {
 fn pull_request_comments_stay_pull_request_only() {
     let text = read_runfiles(CONSUMER_WORKFLOW);
     assert!(
-        text.contains("github.event_name == 'pull_request' }}\n        env:\n          DX_INVOCATION_ID"),
+        text.contains(
+            "github.event_name == 'pull_request' }}\n        env:\n          DX_INVOCATION_ID"
+        ),
         "the PR comment step must stay gated to pull_request"
     );
 }

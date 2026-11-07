@@ -184,13 +184,13 @@ fn diff_files<'a>(diff: &str, files: &[&'a str]) -> Result<Vec<(&'a str, u64)>, 
                 break;
             }
             let next = lines.next().unwrap_or_default();
-            if first.is_none() {
-                if let Some(hunk) = next.strip_prefix("@@ -") {
-                    let start = hunk.split([',', ' ']).next().unwrap_or("");
-                    first = start.parse::<u64>().ok();
-                    if first.is_none() {
-                        return Err(ParseError::shape(TOOL, format!("bad hunk header: {next}")));
-                    }
+            if first.is_none()
+                && let Some(hunk) = next.strip_prefix("@@ -")
+            {
+                let start = hunk.split([',', ' ']).next().unwrap_or("");
+                first = start.parse::<u64>().ok();
+                if first.is_none() {
+                    return Err(ParseError::shape(TOOL, format!("bad hunk header: {next}")));
                 }
             }
         }

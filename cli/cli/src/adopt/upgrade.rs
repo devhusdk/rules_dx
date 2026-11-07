@@ -89,7 +89,11 @@ fn write_module(
     let lock = workspace.join(LOCKFILE);
     let lock_before = std::fs::read(&lock).ok();
     dx_adopt::write_module_edit(workspace, edit).map_err(|error| error.to_string())?;
-    let mode = if lock_before.is_some() { "update" } else { "off" };
+    let mode = if lock_before.is_some() {
+        "update"
+    } else {
+        "off"
+    };
     let mut argv = invocation.bazel_head().argv("mod");
     argv.extend(["deps".to_owned(), format!("--lockfile_mode={mode}")]);
     let detail = match runner.run(&argv, workspace, &[]) {

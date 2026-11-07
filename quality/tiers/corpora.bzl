@@ -11,8 +11,8 @@ TIER_JAVASCRIPT = [
 ]
 
 TIER_JSON = [
-    "bicep/standard.json",
-    "bicep/strict.json",
+    "bicep/standard.bicepconfig.json",
+    "bicep/strict.bicepconfig.json",
     "biome/standard.json",
     "biome/strict.json",
     "buildifier/standard.json",

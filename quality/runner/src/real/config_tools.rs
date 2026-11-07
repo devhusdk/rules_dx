@@ -294,8 +294,12 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let (_, names) = super::single_run::paths(call);
             let mut findings = Vec::new();
             for name in &names {
-                let invocation =
-                    commands::trivy_config_check(&tool.binary, Path::new(name), &cache, &severities);
+                let invocation = commands::trivy_config_check(
+                    &tool.binary,
+                    Path::new(name),
+                    &cache,
+                    &severities,
+                );
                 let out = backend.run(tool_id, tool, &invocation, scratch)?;
                 // A single-file scan names the target by its file name alone.
                 let base = Path::new(name)

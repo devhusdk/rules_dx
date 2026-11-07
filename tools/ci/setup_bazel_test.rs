@@ -96,7 +96,8 @@ const CACHE_FREE: &[&str] = &[
 
 #[test]
 fn consumer_workflows_cache_only_the_checks_disk_cache_from_the_default_branch() {
-    let main_only = "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}";
+    let main_only =
+        "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}";
     for (name, document) in setup_bazel_documents() {
         if !CACHE_FREE.contains(&name.as_str()) || name.ends_with("upgrade-e2e.yml") {
             continue;
@@ -122,7 +123,10 @@ fn consumer_workflows_cache_only_the_checks_disk_cache_from_the_default_branch()
                     );
                 }
                 if with.get("disk-cache").is_some() {
-                    assert_eq!(job, "checks", "{name} job {job} sets setup-bazel disk-cache");
+                    assert_eq!(
+                        job, "checks",
+                        "{name} job {job} sets setup-bazel disk-cache"
+                    );
                     assert_eq!(
                         with["cache-save"].as_str(),
                         Some(main_only),

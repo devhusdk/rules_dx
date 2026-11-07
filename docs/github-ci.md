@@ -31,7 +31,8 @@
          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
          REMOTE_CACHE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
        permissions:
-         contents: read
+         actions: read
+         contents: write
          pull-requests: write
    ```
 

@@ -256,20 +256,20 @@ fn collect_suggestions(
         for span in &message.spans {
             if let (Some(replacement), Some(applicability)) =
                 (&span.suggested_replacement, &span.suggestion_applicability)
+                && applicability == "MachineApplicable"
+                && span.file_name == file
             {
-                if applicability == "MachineApplicable" && span.file_name == file {
-                    if span.byte_start > span.byte_end {
-                        return Err(ParseError::Shape {
-                            tool,
-                            detail: format!("inverted suggestion span in {}", message.message),
-                        });
-                    }
-                    out.push(Suggestion {
-                        start: span.byte_start,
-                        end: span.byte_end,
-                        replacement: replacement.as_bytes().to_vec(),
+                if span.byte_start > span.byte_end {
+                    return Err(ParseError::Shape {
+                        tool,
+                        detail: format!("inverted suggestion span in {}", message.message),
                     });
                 }
+                out.push(Suggestion {
+                    start: span.byte_start,
+                    end: span.byte_end,
+                    replacement: replacement.as_bytes().to_vec(),
+                });
             }
         }
         collect_suggestions(tool, &lenient_children(&message.children), file, out)?;

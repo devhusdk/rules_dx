@@ -44,32 +44,30 @@ fn locate(line: &str) -> Option<Located<'_>> {
         let Some(severity) = severity(kind) else {
             continue;
         };
-        if let Some(open) = head.rfind('(') {
-            if let Some(inner) = head[open + 1..].strip_suffix(')') {
-                if let Some((row, column)) = inner.split_once(", ") {
-                    if let (Some(row), Some(column)) = (number(row), number(column)) {
-                        return Some(Located {
-                            path: &line[..open],
-                            line: row,
-                            column,
-                            severity,
-                            message,
-                        });
-                    }
-                }
-            }
+        if let Some(open) = head.rfind('(')
+            && let Some(inner) = head[open + 1..].strip_suffix(')')
+            && let Some((row, column)) = inner.split_once(", ")
+            && let (Some(row), Some(column)) = (number(row), number(column))
+        {
+            return Some(Located {
+                path: &line[..open],
+                line: row,
+                column,
+                severity,
+                message,
+            });
         }
         let (rest, column) = head.rsplit_once(": ").unwrap_or((head, ""));
-        if let (Some((path, row)), Some(column)) = (rest.rsplit_once(':'), number(column)) {
-            if let Some(row) = number(row) {
-                return Some(Located {
-                    path,
-                    line: row,
-                    column,
-                    severity,
-                    message,
-                });
-            }
+        if let (Some((path, row)), Some(column)) = (rest.rsplit_once(':'), number(column))
+            && let Some(row) = number(row)
+        {
+            return Some(Located {
+                path,
+                line: row,
+                column,
+                severity,
+                message,
+            });
         }
     }
     None

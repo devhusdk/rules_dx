@@ -280,11 +280,12 @@ mod tests {
         .unwrap();
         let deep = groups.iter().find(|g| g.files == ["a/b/f.sql"]).unwrap();
         assert_eq!(deep.layers, ["a/.sqlfluff", "a/b/.sqlfluff"]);
-        assert!(deep
-            .merged
-            .as_deref()
-            .unwrap()
-            .contains("templater = placeholder"));
+        assert!(
+            deep.merged
+                .as_deref()
+                .unwrap()
+                .contains("templater = placeholder")
+        );
         let near = groups.iter().find(|g| g.files == ["a/bc/g.sql"]).unwrap();
         assert_eq!(near.layers, ["a/.sqlfluff"]);
     }

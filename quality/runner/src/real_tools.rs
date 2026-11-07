@@ -399,7 +399,7 @@ fn ruff_lint_reports_and_fix_rereads_on_exit_one() {
     assert_eq!(findings[0].rule_id, "F401");
     assert_eq!(
         findings[0].severity,
-        quality_result::proto::Severity::Error as i32
+        quality_result::proto::Severity::Warning as i32
     );
     let fixed = backend
         .apply_fix("ruff", "a.py", "import os\n# UNFIXABLE\n", "lint")
@@ -514,7 +514,10 @@ fn ruff_cwd_is_the_config_directory_unless_external() {
         RealBackend::cwd_rel("ruff", Some("services/api/ruff.toml")),
         "services/api"
     );
-    assert_eq!(RealBackend::cwd_rel("ruff", Some("_external/r/ruff.toml")), "");
+    assert_eq!(
+        RealBackend::cwd_rel("ruff", Some("_external/r/ruff.toml")),
+        ""
+    );
     assert_eq!(RealBackend::cwd_rel("ruff", None), "");
 }
 
@@ -5796,7 +5799,7 @@ fn detekt_reports_an_unused_private_function_as_info() {
     assert_eq!(findings[0].rule_id, "UnusedPrivateMember");
     assert_eq!(
         findings[0].severity,
-        quality_result::proto::Severity::Info as i32
+        quality_result::proto::Severity::Warning as i32
     );
     let clean = backend
         .diagnose("detekt", "lint", &single("src/A.kt", "package a\n"))

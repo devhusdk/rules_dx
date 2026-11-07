@@ -84,10 +84,10 @@ pub fn parse_unused_dependencies(stream: &[u8]) -> Result<Vec<UnusedDependency>,
                         tool,
                         detail: format!("malformed diagnostic: {err}"),
                     })?;
-                if diagnostic.code.is_some_and(|code| code.code == RULE_ID) {
-                    if let Some(names) = unused_names(&diagnostic.message) {
-                        unused.push(names);
-                    }
+                if diagnostic.code.is_some_and(|code| code.code == RULE_ID)
+                    && let Some(names) = unused_names(&diagnostic.message)
+                {
+                    unused.push(names);
                 }
             }
             _ => {}

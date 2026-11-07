@@ -45,11 +45,11 @@ fn syntax_finding(stderr: &str, file: &str) -> FileFinding {
         let Some((row, message)) = rest.split_once(": ") else {
             continue;
         };
-        if let Ok(row) = row.parse::<u64>() {
-            if row > 0 {
-                first = Some((row, message.trim().to_owned()));
-                break;
-            }
+        if let Ok(row) = row.parse::<u64>()
+            && row > 0
+        {
+            first = Some((row, message.trim().to_owned()));
+            break;
         }
     }
     let (row, message) =

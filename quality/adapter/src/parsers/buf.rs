@@ -88,14 +88,14 @@ pub fn parse_buf_lint(
                 });
             }
         };
-        if !files.contains(&record.path.as_str()) {
-            if let Some((_, shown)) = context.iter().find(|(path, _)| *path == record.path) {
-                broken.push(format!(
-                    "{shown}:{start_line}:{start_column}: {}",
-                    record.message
-                ));
-                continue;
-            }
+        if !files.contains(&record.path.as_str())
+            && let Some((_, shown)) = context.iter().find(|(path, _)| *path == record.path)
+        {
+            broken.push(format!(
+                "{shown}:{start_line}:{start_column}: {}",
+                record.message
+            ));
+            continue;
         }
         let checked = known(TOOL, files, &record.path)?;
         findings.push(FileFinding {

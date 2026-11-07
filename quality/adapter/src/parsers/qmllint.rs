@@ -177,10 +177,8 @@ fn convert(
             ));
         }
     }
-    if require_all {
-        if let Some(missing) = files.iter().find(|file| !seen.contains(file)) {
-            return Err(ParseError::shape(TOOL, format!("no report for {missing}")));
-        }
+    if require_all && let Some(missing) = files.iter().find(|file| !seen.contains(file)) {
+        return Err(ParseError::shape(TOOL, format!("no report for {missing}")));
     }
     Ok(findings)
 }

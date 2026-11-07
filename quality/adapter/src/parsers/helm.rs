@@ -38,10 +38,10 @@ fn location(message: &str) -> Option<(String, u64, u64)> {
             }
             _ => (head, last, 1),
         };
-        if let Some((_, rel)) = path.split_once('/') {
-            if !rel.is_empty() {
-                return Some((rel.to_owned(), line.max(1), column.max(1)));
-            }
+        if let Some((_, rel)) = path.split_once('/')
+            && !rel.is_empty()
+        {
+            return Some((rel.to_owned(), line.max(1), column.max(1)));
         }
     }
     None

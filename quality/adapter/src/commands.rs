@@ -324,7 +324,13 @@ const REGAL_LINT_PREFIX: &[&str] = &[
     "warning",
 ];
 const ACTIONLINT_PREFIX: &[&str] = &["-no-color", "-format", "{{json .}}", "--"];
-const ZIZMOR_PREFIX: &[&str] = &["--format", "json", "--offline", "--no-progress", "--no-config"];
+const ZIZMOR_PREFIX: &[&str] = &[
+    "--format",
+    "json",
+    "--offline",
+    "--no-progress",
+    "--no-config",
+];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const ELVIS_TAIL: &[&str] = &["--output-format", "parsable", "rock"];
 const TRIVY_CONFIG_PREFIX: &[&str] = &[
@@ -343,7 +349,13 @@ const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const TYPOS_CHECK_ARGS: &[&str] = &["--format", "json", "--"];
-const TYPOS_FIX_ARGS: &[&str] = &["--write-changes", "--no-check-filenames", "--format", "silent", "--"];
+const TYPOS_FIX_ARGS: &[&str] = &[
+    "--write-changes",
+    "--no-check-filenames",
+    "--format",
+    "silent",
+    "--",
+];
 const NOTEBOOK_OUTPUTS_CHECK_ARGS: &[&str] = &["outputs"];
 const NOTEBOOK_OUTPUTS_FIX_ARGS: &[&str] = &["outputs", "--fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
@@ -592,25 +604,45 @@ fn ruff_base(
     argv
 }
 
-pub fn ruff_check(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
+pub fn ruff_check(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    cwd_rel: &str,
+) -> Invocation {
     let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_CHECK_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_fix(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
+pub fn ruff_fix(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    cwd_rel: &str,
+) -> Invocation {
     let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FIX_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_format_check(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
+pub fn ruff_format_check(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    cwd_rel: &str,
+) -> Invocation {
     let mut head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FORMAT_CHECK_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, cwd_rel)
 }
 
-pub fn ruff_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>, cwd_rel: &str) -> Invocation {
+pub fn ruff_format_fix(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    cwd_rel: &str,
+) -> Invocation {
     let head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
     assemble(binary, head, files, cwd_rel)
 }

@@ -36,10 +36,10 @@ pub fn parse_bicep_lint(
                 let Some(region) = region else {
                     continue;
                 };
-                if !region.contains_key("startColumn") {
-                    if let Some(offset) = region.remove("charOffset") {
-                        region.insert("startColumn".to_owned(), offset);
-                    }
+                if !region.contains_key("startColumn")
+                    && let Some(offset) = region.remove("charOffset")
+                {
+                    region.insert("startColumn".to_owned(), offset);
                 }
             }
         }

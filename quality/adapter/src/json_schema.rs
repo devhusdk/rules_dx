@@ -266,10 +266,10 @@ pub fn declared_schema(bytes: &[u8], filetype: Filetype) -> Option<String> {
         Filetype::Toml => {
             for line in text.lines() {
                 let trimmed = line.trim();
-                if let Some(rest) = trimmed.strip_prefix("#:schema") {
-                    if let Some(url) = rest.split_whitespace().next() {
-                        return Some(url.to_owned());
-                    }
+                if let Some(rest) = trimmed.strip_prefix("#:schema")
+                    && let Some(url) = rest.split_whitespace().next()
+                {
+                    return Some(url.to_owned());
                 }
             }
             let doc = toml_edit::Document::parse(text).ok()?;
@@ -397,18 +397,18 @@ impl Walk {
             Value::Object(map) => {
                 let id_key = if self.draft4 { "id" } else { "$id" };
                 let mut here = base.clone();
-                if let Some(id) = map.get(id_key).and_then(Value::as_str) {
-                    if let Some(next) = join(base, id) {
-                        self.ids.push(next.clone());
-                        here = Some(next);
-                    }
+                if let Some(id) = map.get(id_key).and_then(Value::as_str)
+                    && let Some(next) = join(base, id)
+                {
+                    self.ids.push(next.clone());
+                    here = Some(next);
                 }
                 for (key, member) in map {
                     if REF_KEYWORDS.contains(&key.as_str()) {
-                        if let Some(reference) = member.as_str() {
-                            if let Some(target) = join(&here, reference) {
-                                self.refs.push(target);
-                            }
+                        if let Some(reference) = member.as_str()
+                            && let Some(target) = join(&here, reference)
+                        {
+                            self.refs.push(target);
                         }
                         continue;
                     }

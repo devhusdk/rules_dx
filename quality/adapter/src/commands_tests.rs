@@ -302,12 +302,7 @@ fn ruff_fix_and_format_shapes() {
             "/scratch/a.py"
         ]
     );
-    let fix_fmt = ruff_format_fix(
-        Path::new(BIN),
-        &[file],
-        Some(Path::new("/s/r.toml")),
-        "c",
-    );
+    let fix_fmt = ruff_format_fix(Path::new(BIN), &[file], Some(Path::new("/s/r.toml")), "c");
     assert_eq!(fix_fmt.cwd_rel, "c");
     assert!(argv_strings(&fix_fmt).contains(&"format".to_owned()));
     assert!(!argv_strings(&fix_fmt).contains(&"--check".to_owned()));

@@ -93,24 +93,22 @@ fn syntax_error(
         if is_run_error(text) {
             return Err(ParseError::shape(TOOL, format!("run error: {text:?}")));
         }
-        if let Some((line, column)) = parenthesised_position(text) {
-            if let Some(last) = findings.last_mut() {
-                if last.finding.severity == ToolSeverity::Error
-                    && last.finding.message.ends_with(':')
-                {
-                    let relocated = finding(
-                        TOOL,
-                        &last.file,
-                        String::new(),
-                        format!("{} {}", last.finding.message, text),
-                        ToolSeverity::Error,
-                        TextPosition { line, column },
-                        ColumnEncoding::Scalars,
-                    );
-                    *last = relocated;
-                    return Ok(());
-                }
-            }
+        if let Some((line, column)) = parenthesised_position(text)
+            && let Some(last) = findings.last_mut()
+            && last.finding.severity == ToolSeverity::Error
+            && last.finding.message.ends_with(':')
+        {
+            let relocated = finding(
+                TOOL,
+                &last.file,
+                String::new(),
+                format!("{} {}", last.finding.message, text),
+                ToolSeverity::Error,
+                TextPosition { line, column },
+                ColumnEncoding::Scalars,
+            );
+            *last = relocated;
+            return Ok(());
         }
         return match findings.last() {
             Some(last)

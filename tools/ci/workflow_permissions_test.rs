@@ -23,6 +23,7 @@ const MARKERS: &[(&str, &[&str])] = &[
             "gh release ",
             "git push",
             "dx update --pr",
+            "update advisory --pr",
             "deploy --apply",
         ],
     ),
@@ -35,12 +36,18 @@ const MARKERS: &[(&str, &[&str])] = &[
             "deploy --apply",
         ],
     ),
-    ("issues", &["gh issue "]),
+    ("issues", &["gh issue ", "gh pr comment"]),
     ("packages", &["docker push", "deploy --apply"]),
     ("pages", &["actions/deploy-pages@"]),
     (
         "pull-requests",
-        &["gh pr ", "/issues/", "/pulls", "dx update --pr"],
+        &[
+            "gh pr ",
+            "/issues/",
+            "/pulls",
+            "dx update --pr",
+            "update advisory --pr",
+        ],
     ),
 ];
 

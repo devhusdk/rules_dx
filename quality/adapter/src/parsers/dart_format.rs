@@ -31,10 +31,10 @@ pub fn parse_dart_format(
             if !changed.contains(&path) {
                 changed.push(path);
             }
-        } else if let Some(counts) = summary_counts(line) {
-            if summary.replace(counts).is_some() {
-                return Err(shape("more than one summary line"));
-            }
+        } else if let Some(counts) = summary_counts(line)
+            && summary.replace(counts).is_some()
+        {
+            return Err(shape("more than one summary line"));
         }
     }
     let Some((formatted, reported)) = summary else {

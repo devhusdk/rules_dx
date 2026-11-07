@@ -1027,7 +1027,12 @@ impl super::RealBackend {
                     "ruff" => {
                         let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
                         Ok(if format {
-                            commands::ruff_format_fix(&tool.binary, refs, config.as_deref(), &cwd_rel)
+                            commands::ruff_format_fix(
+                                &tool.binary,
+                                refs,
+                                config.as_deref(),
+                                &cwd_rel,
+                            )
                         } else {
                             commands::ruff_fix(&tool.binary, refs, config.as_deref(), &cwd_rel)
                         })

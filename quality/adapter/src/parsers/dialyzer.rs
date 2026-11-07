@@ -41,42 +41,39 @@ pub fn parse_dialyzer(
                 _ => None,
             };
             open = false;
-            if unknown.is_none() {
-                if let Some((file, row, column, message)) = header(line) {
-                    if let Some(file) = resolve(&owned, file) {
-                        open = true;
-                        findings.push(located_finding(file, row, column, message));
-                    }
-                }
+            if unknown.is_none()
+                && let Some((file, row, column, message)) = header(line)
+                && let Some(file) = resolve(&owned, file)
+            {
+                open = true;
+                findings.push(located_finding(file, row, column, message));
             }
             continue;
         }
         if let Some(rule) = unknown {
-            if let Some((name, file, row, column)) = reference(line.trim()) {
-                if let Some(file) = resolve(&owned, file) {
-                    let what = if rule == "unknown_type" {
-                        "type"
-                    } else {
-                        "function"
-                    };
-                    findings.push(finding(
-                        TOOL,
-                        file,
-                        rule.to_owned(),
-                        format!("Unknown {what} {name}"),
-                        ToolSeverity::Warning,
-                        TextPosition { line: row, column },
-                        ColumnEncoding::Scalars,
-                    ));
-                }
+            if let Some((name, file, row, column)) = reference(line.trim())
+                && let Some(file) = resolve(&owned, file)
+            {
+                let what = if rule == "unknown_type" {
+                    "type"
+                } else {
+                    "function"
+                };
+                findings.push(finding(
+                    TOOL,
+                    file,
+                    rule.to_owned(),
+                    format!("Unknown {what} {name}"),
+                    ToolSeverity::Warning,
+                    TextPosition { line: row, column },
+                    ColumnEncoding::Scalars,
+                ));
             }
             continue;
         }
-        if open {
-            if let Some(last) = findings.last_mut() {
-                last.finding.message.push(' ');
-                last.finding.message.push_str(line.trim());
-            }
+        if open && let Some(last) = findings.last_mut() {
+            last.finding.message.push(' ');
+            last.finding.message.push_str(line.trim());
         }
     }
     findings.sort_by(|a, b| {
@@ -143,10 +140,10 @@ fn header(line: &str) -> Option<(&str, u64, u64, &str)> {
     }
     let (row, rest) = rest.split_once(':')?;
     let row: u64 = row.parse().ok()?;
-    if let Some((column, message)) = rest.split_once(": ") {
-        if let Ok(column) = column.parse::<u64>() {
-            return Some((file, row, column.max(1), message.trim()));
-        }
+    if let Some((column, message)) = rest.split_once(": ")
+        && let Ok(column) = column.parse::<u64>()
+    {
+        return Some((file, row, column.max(1), message.trim()));
     }
     let message = rest.strip_prefix(' ')?;
     Some((file, row, 1, message.trim()))

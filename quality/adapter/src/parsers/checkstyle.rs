@@ -55,13 +55,14 @@ pub fn checkstyle_tab_width(config: &[u8]) -> u32 {
                 let is_module = e.name().as_ref() == b"module";
                 let directly_in_checker =
                     stack.iter().filter(|m| **m).count() == 1 && stack.last() == Some(&true);
-                if e.name().as_ref() == b"property" && directly_in_checker {
-                    if let Some(text) = property_value(e, decoder) {
-                        return match text.trim().parse::<u32>() {
-                            Ok(0) | Err(_) => DEFAULT_TAB_WIDTH,
-                            Ok(width) => width,
-                        };
-                    }
+                if e.name().as_ref() == b"property"
+                    && directly_in_checker
+                    && let Some(text) = property_value(e, decoder)
+                {
+                    return match text.trim().parse::<u32>() {
+                        Ok(0) | Err(_) => DEFAULT_TAB_WIDTH,
+                        Ok(width) => width,
+                    };
                 }
                 if matches!(event, Event::Start(_)) {
                     stack.push(is_module);

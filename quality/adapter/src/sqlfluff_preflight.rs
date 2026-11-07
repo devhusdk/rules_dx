@@ -131,13 +131,13 @@ fn check(text: &str, require_dialect: bool) -> Result<(), String> {
         }
         Some(_) => {}
     }
-    if let Some(name) = templater.as_deref() {
-        if !TEMPLATERS.contains(&name) {
-            return Err(format!(
-                "sqlfluff config templater `{name}` is not allowed: dx accepts only {}",
-                TEMPLATERS.join(", ")
-            ));
-        }
+    if let Some(name) = templater.as_deref()
+        && !TEMPLATERS.contains(&name)
+    {
+        return Err(format!(
+            "sqlfluff config templater `{name}` is not allowed: dx accepts only {}",
+            TEMPLATERS.join(", ")
+        ));
     }
     Ok(())
 }

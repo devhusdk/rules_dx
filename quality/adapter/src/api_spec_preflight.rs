@@ -140,17 +140,17 @@ fn scan(text: &str) -> Result<Scanned, Problem> {
                 }
             }
             Event::Alias(_) => {
-                if let Some(key) = take_key(&mut stack) {
-                    if stack.len() == 1 {
-                        out.root_keys.push((key, None));
-                    }
+                if let Some(key) = take_key(&mut stack)
+                    && stack.len() == 1
+                {
+                    out.root_keys.push((key, None));
                 }
             }
             Event::MappingStart(..) | Event::SequenceStart(..) => {
-                if let Some(key) = take_key(&mut stack) {
-                    if stack.len() == 1 {
-                        out.root_keys.push((key, None));
-                    }
+                if let Some(key) = take_key(&mut stack)
+                    && stack.len() == 1
+                {
+                    out.root_keys.push((key, None));
                 }
                 stack.push(if matches!(event, Event::MappingStart(..)) {
                     Frame::Map {
@@ -310,15 +310,13 @@ pub fn check_root(root: &str, docs: &BTreeMap<String, String>) -> Vec<Problem> {
                 continue;
             }
         };
-        if is_root {
-            if let Some(message) = root_problem(&scanned.root_keys) {
-                problems.push(Problem {
-                    rule: RULE_ROOT,
-                    line: 1,
-                    column: 1,
-                    message,
-                });
-            }
+        if is_root && let Some(message) = root_problem(&scanned.root_keys) {
+            problems.push(Problem {
+                rule: RULE_ROOT,
+                line: 1,
+                column: 1,
+                message,
+            });
         }
         for (reference, line, column) in scanned.refs {
             if is_remote(&reference) {

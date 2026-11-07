@@ -448,10 +448,7 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
         .map(|dir| root.join(dir))
         .collect();
     let scan_refs: Vec<&Path> = scan_dirs.iter().map(PathBuf::as_path).collect();
-    let consumer = match config {
-        Some(path) => Some(real_launcher(path)),
-        None => None,
-    };
+    let consumer = config.map(real_launcher);
     let neon = work.join("dx.neon");
     std::fs::write(
         &neon,

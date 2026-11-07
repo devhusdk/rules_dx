@@ -20,13 +20,13 @@ filegroup(
 
 bicep_config(
     name = "standard",
-    src = "standard.json",
+    src = "standard.bicepconfig.json",
     visibility = ["//visibility:public"],
 )
 
 bicep_config(
     name = "strict",
-    src = "strict.json",
+    src = "strict.bicepconfig.json",
     visibility = ["//visibility:public"],
 )
 

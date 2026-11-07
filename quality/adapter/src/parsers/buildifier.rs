@@ -99,20 +99,18 @@ fn buildifier_syntax(stderr: &str, filename: &str) -> (u64, u64, String) {
             let mut parts = rest.splitn(3, ':');
             if let (Some(line_text), Some(column_text), Some(message)) =
                 (parts.next(), parts.next(), parts.next())
-            {
-                if let (Ok(line), Ok(column)) =
+                && let (Ok(line), Ok(column)) =
                     (line_text.parse::<u64>(), column_text.parse::<u64>())
-                {
-                    if line >= 1 && column >= 1 {
-                        let message = message.trim().to_owned();
-                        let message = if message.is_empty() {
-                            "syntax error".to_owned()
-                        } else {
-                            message
-                        };
-                        return (line, column, message);
-                    }
-                }
+                && line >= 1
+                && column >= 1
+            {
+                let message = message.trim().to_owned();
+                let message = if message.is_empty() {
+                    "syntax error".to_owned()
+                } else {
+                    message
+                };
+                return (line, column, message);
             }
         }
     }

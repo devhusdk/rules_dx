@@ -563,10 +563,10 @@ fn diff_paths(text: &str) -> Vec<String> {
             Some(new) => diff_path(new, git, false).or_else(|| diff_path(old, git, !git)),
             None => diff_path(old, git, !git),
         };
-        if let Some(path) = path {
-            if !paths.contains(&path) {
-                paths.push(path);
-            }
+        if let Some(path) = path
+            && !paths.contains(&path)
+        {
+            paths.push(path);
         }
     }
     paths

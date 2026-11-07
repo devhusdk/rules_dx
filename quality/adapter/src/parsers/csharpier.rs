@@ -36,10 +36,10 @@ pub fn parse_csharpier(
                 ));
             }
         } else if line.starts_with(char::is_whitespace) || line.trim().is_empty() {
-            if let Some((file, _)) = syntax {
-                if let Some(found) = syntax_error(file, line.trim()) {
-                    findings.push(found);
-                }
+            if let Some((file, _)) = syntax
+                && let Some(found) = syntax_error(file, line.trim())
+            {
+                findings.push(found);
             }
         } else {
             return Err(ParseError::shape(
@@ -59,18 +59,18 @@ pub fn parse_csharpier(
 }
 
 fn close_syntax(syntax: &mut Option<(&str, usize)>, findings: &mut Vec<FileFinding>) {
-    if let Some((file, before)) = syntax.take() {
-        if findings.len() == before {
-            findings.push(finding(
-                TOOL,
-                file,
-                "syntax".to_owned(),
-                "was not formatted due to syntax errors".to_owned(),
-                ToolSeverity::Error,
-                TextPosition { line: 1, column: 1 },
-                ColumnEncoding::Scalars,
-            ));
-        }
+    if let Some((file, before)) = syntax.take()
+        && findings.len() == before
+    {
+        findings.push(finding(
+            TOOL,
+            file,
+            "syntax".to_owned(),
+            "was not formatted due to syntax errors".to_owned(),
+            ToolSeverity::Error,
+            TextPosition { line: 1, column: 1 },
+            ColumnEncoding::Scalars,
+        ));
     }
 }
 

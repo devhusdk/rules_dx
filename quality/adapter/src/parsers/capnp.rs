@@ -118,13 +118,13 @@ pub fn parse_capnp(
             format!("unexpected exit {}", code_name(code)),
         ));
     }
-    if code == Some(1) {
-        if let Some(message) = crash_message(&err) {
-            let Some(file) = files.first() else {
-                return Err(ParseError::shape(TOOL, "no checked file".to_owned()));
-            };
-            return Ok(vec![finding(file, ToolSeverity::Error, 1, 1, &message)]);
-        }
+    if code == Some(1)
+        && let Some(message) = crash_message(&err)
+    {
+        let Some(file) = files.first() else {
+            return Err(ParseError::shape(TOOL, "no checked file".to_owned()));
+        };
+        return Ok(vec![finding(file, ToolSeverity::Error, 1, 1, &message)]);
     }
     let mut findings = Vec::new();
     let mut errors = 0usize;
@@ -176,17 +176,18 @@ pub fn parse_capnp(
             message,
         ));
     }
-    if code == Some(1) && own_errors == 0 {
-        if let (Some(detail), Some(file)) = (foreign_error, files.first()) {
-            findings.push(finding(
-                file,
-                ToolSeverity::Error,
-                1,
-                1,
-                &format!("blocked by an error in an imported schema: {detail}"),
-            ));
-            return Ok(findings);
-        }
+    if code == Some(1)
+        && own_errors == 0
+        && let (Some(detail), Some(file)) = (foreign_error, files.first())
+    {
+        findings.push(finding(
+            file,
+            ToolSeverity::Error,
+            1,
+            1,
+            &format!("blocked by an error in an imported schema: {detail}"),
+        ));
+        return Ok(findings);
     }
     match code {
         Some(0) if errors > 0 => Err(ParseError::shape(

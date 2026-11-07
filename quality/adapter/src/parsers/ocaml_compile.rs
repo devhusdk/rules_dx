@@ -164,10 +164,10 @@ fn classify(text: &str) -> Option<(ToolSeverity, String, String)> {
 
 /// The bracketed warning name, or `warning-N`, or `alert-name` for `alert name`.
 fn rule_of(what: &str) -> String {
-    if let (Some(open), Some(close)) = (what.find('['), what.rfind(']')) {
-        if open < close {
-            return what[open + 1..close].to_owned();
-        }
+    if let (Some(open), Some(close)) = (what.find('['), what.rfind(']'))
+        && open < close
+    {
+        return what[open + 1..close].to_owned();
     }
     let mut words = what.split_whitespace();
     match (words.next(), words.next()) {

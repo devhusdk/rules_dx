@@ -235,13 +235,13 @@ fn end(
         return Ok(None);
     }
     let line = region.end_line.unwrap_or(start.line as i64);
-    if let Some(column) = region.end_column {
-        if line < 1 || column < 1 {
-            return Err(ParseError::Shape {
-                tool,
-                detail: format!("bad end position {line}:{column}"),
-            });
-        }
+    if let Some(column) = region.end_column
+        && (line < 1 || column < 1)
+    {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("bad end position {line}:{column}"),
+        });
     }
     if line < 1 || (line as u64) < start.line {
         return Err(ParseError::Shape {

@@ -186,19 +186,19 @@ pub fn parse_scalafix(
                 && lint_header(lines[scan]).is_none()
                 && !is_diff_start(&lines, scan)
             {
-                if scan > index {
-                    if let Some(width) = caret_width(lines[scan]) {
-                        end = Some(TextPosition {
-                            line: lint.line,
-                            column: lint.column + width,
-                        });
-                        for extra in &lines[index..scan - 1] {
-                            message.push('\n');
-                            message.push_str(extra.trim());
-                        }
-                        index = scan + 1;
-                        break;
+                if scan > index
+                    && let Some(width) = caret_width(lines[scan])
+                {
+                    end = Some(TextPosition {
+                        line: lint.line,
+                        column: lint.column + width,
+                    });
+                    for extra in &lines[index..scan - 1] {
+                        message.push('\n');
+                        message.push_str(extra.trim());
                     }
+                    index = scan + 1;
+                    break;
                 }
                 scan += 1;
             }
@@ -227,42 +227,41 @@ pub fn parse_scalafix(
             });
             continue;
         }
-        if let (Some(path), Some(next)) = (line.strip_prefix("--- "), lines.get(index)) {
-            if next.starts_with("+++ ") {
-                let file = known(TOOL, files, path.trim())?;
+        if let (Some(path), Some(next)) = (line.strip_prefix("--- "), lines.get(index))
+            && next.starts_with("+++ ")
+        {
+            let file = known(TOOL, files, path.trim())?;
+            index += 1;
+            while index < lines.len() && lines[index].starts_with("@@ ") {
+                let header = lines[index];
+                let (old, new) = hunk_counts(header)
+                    .ok_or_else(|| ParseError::shape(TOOL, format!("malformed hunk: {header}")))?;
                 index += 1;
-                while index < lines.len() && lines[index].starts_with("@@ ") {
-                    let header = lines[index];
-                    let (old, new) = hunk_counts(header).ok_or_else(|| {
-                        ParseError::shape(TOOL, format!("malformed hunk: {header}"))
-                    })?;
-                    index += 1;
-                    let begin = index;
-                    let (mut seen_old, mut seen_new) = (0, 0);
-                    while index < lines.len() && (seen_old < old || seen_new < new) {
-                        match lines[index].chars().next() {
-                            Some('-') => seen_old += 1,
-                            Some('+') => seen_new += 1,
-                            Some('\\') => {}
-                            _ => {
-                                seen_old += 1;
-                                seen_new += 1;
-                            }
+                let begin = index;
+                let (mut seen_old, mut seen_new) = (0, 0);
+                while index < lines.len() && (seen_old < old || seen_new < new) {
+                    match lines[index].chars().next() {
+                        Some('-') => seen_old += 1,
+                        Some('+') => seen_new += 1,
+                        Some('\\') => {}
+                        _ => {
+                            seen_old += 1;
+                            seen_new += 1;
                         }
-                        index += 1;
                     }
-                    if seen_old != old || seen_new != new {
-                        return Err(ParseError::shape(TOOL, format!("truncated hunk: {header}")));
-                    }
-                    while index < lines.len() && lines[index].starts_with('\\') {
-                        index += 1;
-                    }
-                    let hunk = hunk_span(header, &lines[begin..index])?;
-                    findings.push(patch_finding(file, &hunk));
-                    patches += 1;
+                    index += 1;
                 }
-                continue;
+                if seen_old != old || seen_new != new {
+                    return Err(ParseError::shape(TOOL, format!("truncated hunk: {header}")));
+                }
+                while index < lines.len() && lines[index].starts_with('\\') {
+                    index += 1;
+                }
+                let hunk = hunk_span(header, &lines[begin..index])?;
+                findings.push(patch_finding(file, &hunk));
+                patches += 1;
             }
+            continue;
         }
         return Err(ParseError::shape(
             TOOL,

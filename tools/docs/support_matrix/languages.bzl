@@ -148,7 +148,7 @@ DEAD_CODE = {
     "nix": ["deadnix"],
     "ocaml": ["ocamlc warnings 26, 27, 32 to 39"],
     "perl": ["perlcritic ProhibitUnusedVariables"],
-    "php": ["none"],
+    "php": ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
     "powershell": ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
     "python": ["ruff F401, F841"],
     "ruby": ["rubocop Lint/UselessAssignment"],
@@ -157,6 +157,7 @@ DEAD_CODE = {
     "shell": ["shellcheck SC2034"],
     "starlark": ["buildifier unused-variable"],
     "typescript": ["eslint no-unused-vars"],
+    "zig": ["zig ast-check unused local, unused parameter"],
 }
 
 # The coverage collector each row's tests write LCOV with. A row in neither dict has no coverage to report.

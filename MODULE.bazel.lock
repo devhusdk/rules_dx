@@ -3863,7 +3863,7 @@
     },
     "//python/rules:sdist_cargo_vendor.bzl%sdist_cargo_vendor": {
       "general": {
-        "bzlTransitiveDigest": "rSLKHgWHwhMKEhw9mlU6XQPOs1mA7wUHRjjfFNeceyc=",
+        "bzlTransitiveDigest": "FXz5ffBZUBRu/wp/8FthwQ7MBrQBa0JEJwZTuXnoihg=",
         "usagesDigest": "TIXraI114HfuQZww6lrdy/q1QEO4UuLz61LioRLktYg=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

@@ -1004,6 +1004,26 @@ fn remote_repo_contents_cache_comes_from_setup_bazel() {
 }
 
 #[test]
+fn evidence_speeds_up_windows_file_io_before_checkout() {
+    let evidence = read_runfiles(".github/workflows/evidence.yml");
+    let checkout = evidence
+        .find("actions/checkout@")
+        .expect("evidence.yml has no checkout step");
+    for needle in ["checkout.workers 0", "Add-MpPreference"] {
+        let at = evidence
+            .find(needle)
+            .unwrap_or_else(|| panic!("evidence.yml lost {needle}"));
+        assert!(at < checkout, "{needle} must run before actions/checkout");
+    }
+    for root in [r"'C:\bz'", r"'D:\bz'"] {
+        assert!(
+            evidence.contains(root),
+            "evidence.yml must exclude the Bazel output root {root} from Defender"
+        );
+    }
+}
+
+#[test]
 fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {
     let version_of = |text: &str| {
         text.lines()

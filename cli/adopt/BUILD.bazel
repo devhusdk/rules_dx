@@ -112,6 +112,11 @@ dx_rust_crate(
         "//:package.json",
         "//examples:consumer-ci/caller.yml",
         "//modules:cuda.bzl",
+        "//tools:registry/modules/rules_py/2.0.0-alpha.11/patches/native_sdist_toolchain_flags.patch",
+        "//tools:registry/modules/rules_py/2.0.0-alpha.11/patches/pep517_msvc.patch",
+        "//tools:registry/modules/rules_py/2.0.0-alpha.11/patches/py_cc_toolchain_platform.patch",
+        "//tools:registry/modules/rules_py/2.0.0-alpha.11/patches/venv_bin_files.patch",
+        "//tools:registry/modules/rules_py/2.0.0-alpha.11/source.json",
         "@dx_tools//:shellcheck",
     ],
     test_env = {

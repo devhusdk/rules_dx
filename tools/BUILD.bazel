@@ -14,6 +14,15 @@ exports_files(
 
 exports_files(["buildbuddy-credential-helper.sh"])
 
+# The repo-local registry in .bazelrc; tests check it against //patches and MODULE.bazel.
+exports_files(
+    glob(["registry/modules/**"]),
+    visibility = [
+        "//cli/adopt:__pkg__",
+        "//modules:__pkg__",
+    ],
+)
+
 sh_test(
     name = "dx_launcher_test",
     size = "small",

@@ -948,10 +948,9 @@ mod tests {
             let dev_only = module.bazel_dep(name).is_ok_and(
                 |dep| matches!(dep.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True"),
             );
-            // lua only swaps in CI mirrors for rules_dx's own builds; consumers keep the BCR archive.
             // These patches only lock extensions in rules_dx's own lockfile; consumers would need
             // a lock entry per platform for the host-dependent python and go_sdk extensions.
-            let repo_only = name == "lua" || name == "rules_multitool" || name == "rules_go";
+            let repo_only = name == "rules_multitool" || name == "rules_go";
             if (dev_only || repo_only) && !in_table {
                 continue;
             }
@@ -1006,10 +1005,61 @@ mod tests {
             seen.push(name.to_owned());
         }
         for row in OVERRIDES {
-            assert!(
-                seen.iter().any(|name| name == row.module),
-                "OVERRIDES row {} has no override in MODULE.bazel",
+            if seen.iter().any(|name| name == row.module) {
+                continue;
+            }
+            let archive = row.archive.unwrap_or_else(|| {
+                panic!(
+                    "OVERRIDES row {} has no override in MODULE.bazel",
+                    row.module
+                )
+            });
+            let dep = module
+                .bazel_dep(row.module)
+                .expect("archive row has a bazel_dep");
+            assert_eq!(
+                dep.str("version"),
+                Some(row.version),
+                "{} bazel_dep version",
                 row.module
+            );
+            registry_entry_matches(row, archive);
+        }
+    }
+
+    /// An archive row rules_dx serves from `tools/registry` instead of an `archive_override`.
+    fn registry_entry_matches(row: &Override, archive: Archive) {
+        let name = row.module;
+        let dir = format!("tools/registry/modules/{name}/{}", row.version);
+        let text = crate::version::repo_text(&format!("{dir}/source.json"));
+        let source: serde_json::Value = serde_json::from_str(&text).expect("source.json parses");
+        assert_eq!(source["url"], archive.url, "{name} url");
+        assert_eq!(source["integrity"], archive.integrity, "{name} integrity");
+        assert_eq!(
+            source["strip_prefix"], archive.strip_prefix,
+            "{name} strip_prefix"
+        );
+        assert_eq!(source["patch_strip"], row.patch_strip, "{name} patch_strip");
+        let listed = source["patches"].as_object().expect("patches object");
+        assert_eq!(listed.len(), row.patches.len(), "{name} patches");
+        let mut last = 0;
+        for patch in row.patches {
+            assert!(
+                listed.contains_key(patch.file),
+                "{name} lists {}",
+                patch.file
+            );
+            let at = text
+                .find(&format!("\"{}\"", patch.file))
+                .expect("patch named in source.json");
+            assert!(at > last, "{name} patch order at {}", patch.file);
+            last = at;
+            assert!(
+                crate::version::repo_text(&format!("{dir}/patches/{}", patch.file))
+                    == patch.content,
+                "{dir}/patches/{} must equal patches/{name}/{}",
+                patch.file,
+                patch.file
             );
         }
     }

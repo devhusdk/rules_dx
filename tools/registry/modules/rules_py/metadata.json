@@ -1,0 +1,7 @@
+{
+    "homepage": "https://github.com/aspect-build/rules_py",
+    "maintainers": [],
+    "repository": ["github:aspect-build/rules_py"],
+    "versions": ["2.0.0-alpha.11"],
+    "yanked_versions": {}
+}

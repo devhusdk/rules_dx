@@ -1110,20 +1110,6 @@ register_toolchains("@dx_fortran_toolchains//:all")
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.4.6.bcr.1")
 
-# BCR serves lua from www.lua.org, which times out in CI; same tarball and sha256 from mirrors, with the BCR overlay as a patch (#1375)
-archive_override(
-    module_name = "lua",
-    integrity = "sha256-fV6huctqoLWco93hxq3LV++DobqOVDLA7NBr9DmzrYg=",
-    patch_strip = 1,
-    patches = ["//patches/lua:overlay.patch"],
-    strip_prefix = "lua-5.4.6",
-    urls = [
-        "https://distfiles.macports.org/lua/lua-5.4.6.tar.gz",
-        "https://sources.buildroot.net/lua/lua-5.4.6.tar.gz",
-        "https://www.lua.org/ftp/lua-5.4.6.tar.gz",
-    ],
-)
-
 # rules_multitool marks its extension reproducible, so the lockfile drops it and every CI job re-runs it (#8987).
 single_version_override(
     module_name = "rules_multitool",
@@ -1294,19 +1280,6 @@ single_version_override(
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
-archive_override(
-    module_name = "rules_py",
-    integrity = "sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_py:py_cc_toolchain_platform.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1665
-        "//patches/rules_py:native_sdist_toolchain_flags.patch",
-        "//patches/rules_py:pep517_msvc.patch",
-        "//patches/rules_py:venv_bin_files.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1670
-    ],
-    strip_prefix = "rules_py-2.0.0-alpha.11",
-    urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
-)
 
 # floor: equals tested
 bazel_dep(name = "aspect_rules_js", version = "3.5.2")

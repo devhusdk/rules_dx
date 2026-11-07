@@ -1,0 +1,12 @@
+{
+    "url": "https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz",
+    "integrity": "sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=",
+    "strip_prefix": "rules_py-2.0.0-alpha.11",
+    "patch_strip": 1,
+    "patches": {
+        "py_cc_toolchain_platform.patch": "sha256-r2FQUJGjOHwlOzb6WDcxY8Ip9d91WysiEE79nHAFuPQ=",
+        "native_sdist_toolchain_flags.patch": "sha256-nGIAQZSu5vqix/qJOpsvDUONLRVVTRnaK3PboRxdSts=",
+        "pep517_msvc.patch": "sha256-ankrT8spytc+RXocIMKk42N3kcN2Q1XIbp2gNJDPyYU=",
+        "venv_bin_files.patch": "sha256-gXv6W2xCegJlqRnVKyoQli1DG83E8iTZYcxljRRMTHE="
+    }
+}

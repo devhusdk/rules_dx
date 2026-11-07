@@ -28,6 +28,8 @@ rust_test(
         ":consumer_deps_json",
         "//:MODULE.bazel",
         "//third_party/go:go.sum",
+        "//tools:registry/modules/lua/5.4.6.bcr.1/source.json",
+        "//tools:registry/modules/rules_py/2.0.0-alpha.11/source.json",
         "//tools/testing/hermetic:module_fragments",
     ],
     deps = [

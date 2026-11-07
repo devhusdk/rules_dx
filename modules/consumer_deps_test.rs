@@ -34,6 +34,21 @@ fn table(json: &str) -> Table {
         .collect()
 }
 
+/// Whether `tools/registry` serves `name` at `version`, which pins it like an `archive_override`.
+fn registered(name: &str, version: &str) -> bool {
+    let probe =
+        dx_testing::resolve_runfiles("tools/registry/modules/rules_py/2.0.0-alpha.11/source.json");
+    let modules = probe
+        .ancestors()
+        .nth(3)
+        .expect("registry modules directory");
+    modules
+        .join(name)
+        .join(version)
+        .join("source.json")
+        .is_file()
+}
+
 /// Every way `source` disagrees with `table`; empty when they agree.
 fn violations(source: &str, table: &Table) -> Vec<String> {
     let module = match ModuleFile::parse(source) {
@@ -82,7 +97,8 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
         }
         let archived = module
             .calls_named("archive_override")
-            .any(|call| call.str("module_name") == Some(name.as_str()));
+            .any(|call| call.str("module_name") == Some(name.as_str()))
+            || registered(name, floor);
         match module.override_version(name) {
             Err(_) if archived => {}
             Ok(version) if &version.value == tested => {}

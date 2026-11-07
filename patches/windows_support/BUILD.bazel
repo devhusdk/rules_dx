@@ -1,14 +1,21 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load(":source_directory_headers_test.bzl", "source_directory_headers_test")
 
 exports_files([
     "dx_msvc_layout.patch",
     "host_tools.patch",
     "hostarm64_packages.patch",
     "rules_dx_hosts.patch",
+    "source_directory_headers.patch",
 ])
+
+source_directory_headers_test(name = "source_directory_headers_test")
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "source_directory_headers_test.bzl",
+    ],
     tags = ["corpus"],
 )

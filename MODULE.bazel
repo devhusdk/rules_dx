@@ -184,6 +184,7 @@ single_version_override(
         "//patches/windows_support:rules_dx_hosts.patch",
         "//patches/windows_support:hostarm64_packages.patch",
         "//patches/windows_support:dx_msvc_layout.patch",
+        "//patches/windows_support:source_directory_headers.patch",
     ],
     version = "0.4.1",
 )

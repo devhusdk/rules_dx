@@ -358,6 +358,12 @@ pub const OVERRIDES: &[Override] = &[
                 file: "dx_msvc_layout.patch",
                 content: include_str!("../../../patches/windows_support/dx_msvc_layout.patch"),
             },
+            OverridePatch {
+                file: "source_directory_headers.patch",
+                content: include_str!(
+                    "../../../patches/windows_support/source_directory_headers.patch"
+                ),
+            },
         ],
     },
 ];

@@ -219,7 +219,7 @@ jobs:
           DX_HERMETIC_BAZELISK="$(command -v bazel)"
           export DX_HERMETIC_BAZELISK
           startup=()
-          extra=()
+          extra=(--notrack_incremental_state --nokeep_state_after_build)
           downloads=()
           # The determinism check reads outputs from the execution root, so only a plain run leaves them remote.
           [ "$DX_RELOCATE" = true ] || downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")

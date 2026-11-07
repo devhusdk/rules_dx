@@ -3,7 +3,9 @@
 //! a service that queries on its behalf.
 //!
 //! With `--group`, the account joins a local group that `setup_group` gave the grants and
-//! denies once, so a run does not rewrite the inherited ACLs of whole trees twice.
+//! denies once, so a run does not rewrite the inherited ACLs of whole trees twice. Before that,
+//! `setup_group` removes the `dxh-<pid>` groups of runs that were killed before their teardown,
+//! with their entries on this run's paths.
 //!
 //! Inside an AppContainer the Mount Manager refuses `GetFinalPathNameByHandleW` with a DOS
 //! volume name, which Bazel's client needs. A normal user token passes.
@@ -12,13 +14,14 @@ use std::ptr::{null, null_mut};
 use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{
-    CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_NOT_ALL_ASSIGNED, GetLastError,
-    HANDLE, LUID, LocalFree,
+    CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_INVALID_PARAMETER, ERROR_MORE_DATA,
+    ERROR_NOT_ALL_ASSIGNED, GetLastError, HANDLE, LUID, LocalFree, WAIT_TIMEOUT,
 };
 use windows_sys::Win32::NetworkManagement::NetManagement::{
-    LOCALGROUP_INFO_0, LOCALGROUP_MEMBERS_INFO_3, NetLocalGroupAdd, NetLocalGroupAddMembers,
-    NetLocalGroupDel, NetUserAdd, NetUserDel, UF_DONT_EXPIRE_PASSWD, UF_PASSWD_CANT_CHANGE,
-    UF_SCRIPT, USER_INFO_1, USER_PRIV_USER,
+    LOCALGROUP_INFO_0, LOCALGROUP_MEMBERS_INFO_3, MAX_PREFERRED_LENGTH, NetApiBufferFree,
+    NetLocalGroupAdd, NetLocalGroupAddMembers, NetLocalGroupDel, NetLocalGroupEnum, NetUserAdd,
+    NetUserDel, UF_DONT_EXPIRE_PASSWD, UF_PASSWD_CANT_CHANGE, UF_SCRIPT, USER_INFO_1,
+    USER_PRIV_USER,
 };
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::{
     FWP_ACTION_BLOCK, FWP_ACTION_PERMIT, FWP_BYTE_BLOB, FWP_CONDITION_FLAG_IS_LOOPBACK,
@@ -50,12 +53,13 @@ use windows_sys::Win32::System::JobObjects::{
 use windows_sys::Win32::System::Threading::{
     CreateMutexW, CreateProcessWithLogonW, GetCurrentProcess, GetExitCodeProcess,
     LOGON_WITH_PROFILE, OpenProcess, OpenProcessToken, PROCESS_DUP_HANDLE, PROCESS_INFORMATION,
-    ReleaseMutex, ResumeThread, STARTUPINFOW, WaitForSingleObject,
+    PROCESS_QUERY_LIMITED_INFORMATION, ReleaseMutex, ResumeThread, STARTUPINFOW,
+    WaitForSingleObject,
 };
 use windows_sys::Win32::UI::Shell::DeleteProfileW;
 use windows_sys::core::GUID;
 
-use crate::args::{Config, environment, logon_command_line, password, user_name};
+use crate::args::{Config, environment, logon_command_line, password, stale_groups, user_name};
 use crate::sys::{
     CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
     REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, set_access, trustee_entry,
@@ -782,6 +786,7 @@ fn acl_entries(config: &Config) -> impl Iterator<Item = (&String, i32)> {
 /// Undoes all of it if any step fails.
 pub fn setup_group(config: &Config) -> Result<i32, String> {
     let group = config.group.as_deref().ok_or("no group to set up")?;
+    remove_stale_groups(config, group);
     let name = wide(group);
     let mut info_name = name.clone();
     let info = LOCALGROUP_INFO_0 {
@@ -813,12 +818,7 @@ pub fn teardown_group(config: &Config) -> Result<i32, String> {
     let group = config.group.as_deref().ok_or("no group to tear down")?;
     let name = wide(group);
     let mut sid = account_sid(&name)?;
-    let mut failed = Vec::new();
-    for (path, _) in acl_entries(config) {
-        if let Err(err) = remove_access(path, sid.as_mut_ptr() as *mut c_void) {
-            failed.push(err);
-        }
-    }
+    let mut failed = remove_group_entries(config, &mut sid);
     let code = unsafe { NetLocalGroupDel(null(), name.as_ptr()) };
     if let Err(err) = check(code, &format!("deleting the local group {group}")) {
         failed.push(err);
@@ -828,6 +828,104 @@ pub fn teardown_group(config: &Config) -> Result<i32, String> {
     } else {
         Err(failed.join("; "))
     }
+}
+
+/// Removes the entries for `sid` from every grant and deny path, returning the errors.
+fn remove_group_entries(config: &Config, sid: &mut [u8]) -> Vec<String> {
+    acl_entries(config)
+        .filter_map(|(path, _)| remove_access(path, sid.as_mut_ptr() as *mut c_void).err())
+        .collect()
+}
+
+/// Deletes the groups of runs that were killed before their teardown. Only warns on failure, and
+/// keeps a group whose entries could not all be removed so a later run can retry.
+fn remove_stale_groups(config: &Config, own: &str) {
+    let names = match local_groups() {
+        Ok(names) => names,
+        Err(err) => {
+            eprintln!("appcontainer_run: warning: {err}");
+            return;
+        }
+    };
+    for group in stale_groups(&names, own, process_alive) {
+        let name = wide(&group);
+        let mut sid = match account_sid(&name) {
+            Ok(sid) => sid,
+            Err(err) => {
+                eprintln!("appcontainer_run: warning: {err}");
+                continue;
+            }
+        };
+        let failed = remove_group_entries(config, &mut sid);
+        if !failed.is_empty() {
+            eprintln!(
+                "appcontainer_run: warning: keeping the stale group {group}: {}",
+                failed.join("; ")
+            );
+            continue;
+        }
+        let code = unsafe { NetLocalGroupDel(null(), name.as_ptr()) };
+        if let Err(err) = check(code, &format!("deleting the stale local group {group}")) {
+            eprintln!("appcontainer_run: warning: {err}");
+        }
+    }
+}
+
+fn local_groups() -> Result<Vec<String>, String> {
+    let mut names = Vec::new();
+    let mut resume: usize = 0;
+    loop {
+        let mut buffer: *mut u8 = null_mut();
+        let (mut read, mut total) = (0u32, 0u32);
+        let code = unsafe {
+            NetLocalGroupEnum(
+                null(),
+                0,
+                &mut buffer,
+                MAX_PREFERRED_LENGTH,
+                &mut read,
+                &mut total,
+                &mut resume,
+            )
+        };
+        if !buffer.is_null() {
+            if code == 0 || code == ERROR_MORE_DATA {
+                let entries = unsafe {
+                    std::slice::from_raw_parts(buffer as *const LOCALGROUP_INFO_0, read as usize)
+                };
+                for entry in entries {
+                    let name = unsafe { wide_text(entry.lgrpi0_name) };
+                    names.push(name);
+                }
+            }
+            unsafe { NetApiBufferFree(buffer as *const c_void) };
+        }
+        if code != ERROR_MORE_DATA {
+            check(code, "listing the local groups")?;
+            return Ok(names);
+        }
+    }
+}
+
+/// Reads a NUL-terminated UTF-16 string.
+unsafe fn wide_text(text: *const u16) -> String {
+    let mut len = 0;
+    while unsafe { *text.add(len) } != 0 {
+        len += 1;
+    }
+    String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(text, len) })
+}
+
+/// Whether `pid` may still run. Only a pid Windows does not know counts as gone, so a process
+/// we may not open is treated as alive.
+fn process_alive(pid: u32) -> bool {
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if process.is_null() {
+        return unsafe { GetLastError() } != ERROR_INVALID_PARAMETER;
+    }
+    let running = unsafe { WaitForSingleObject(process, 0) } == WAIT_TIMEOUT;
+    unsafe { CloseHandle(process) };
+    running
 }
 
 /// Deletes every explicit allow and deny entry for `sid` on one path. `REVOKE_ACCESS` keeps the

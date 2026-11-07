@@ -186,6 +186,25 @@ pub fn user_name(name: &str) -> String {
     format!("dxh-{hash:016x}")
 }
 
+/// The pid in a run's group name `dxh-<pid>`, or `None` for any other name.
+pub fn group_pid(name: &str) -> Option<u32> {
+    let digits = name.strip_prefix("dxh-")?;
+    if digits.is_empty() || digits.len() > 10 || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
+}
+
+/// The `dxh-<pid>` groups, other than `own`, whose process is gone.
+pub fn stale_groups(names: &[String], own: &str, alive: impl Fn(u32) -> bool) -> Vec<String> {
+    names
+        .iter()
+        .filter(|name| name.as_str() != own)
+        .filter(|name| group_pid(name).is_some_and(|pid| !alive(pid)))
+        .cloned()
+        .collect()
+}
+
 /// A password built from random bytes that has upper case, lower case, digits and symbols.
 pub fn password(bytes: &[u8]) -> String {
     const CLASSES: [&str; 4] = [
@@ -420,6 +439,35 @@ mod tests {
         ] {
             assert!(parse(&strings(&args)).is_err(), "{args:?}");
         }
+    }
+
+    #[test]
+    fn group_pid_reads_only_run_group_names() {
+        assert_eq!(group_pid("dxh-123"), Some(123));
+        assert_eq!(group_pid("dxh-4294967295"), Some(u32::MAX));
+        assert_eq!(group_pid("dxh-123-test"), None);
+        assert_eq!(group_pid(&user_name("dx-hermetic-1-0")), None);
+        assert_eq!(group_pid("dxh-0123456789abcdef"), None);
+        assert_eq!(group_pid("dxh-"), None);
+        assert_eq!(group_pid("dxh-+5"), None);
+        assert_eq!(group_pid("dxh-99999999999"), None);
+        assert_eq!(group_pid("dxh-4294967296"), None);
+        assert_eq!(group_pid("Administrators"), None);
+    }
+
+    #[test]
+    fn stale_groups_keeps_only_dead_pids_and_never_its_own() {
+        let names = strings(&[
+            "Administrators",
+            "dxh-10",
+            "dxh-11",
+            "dxh-12",
+            "dxh-12-test",
+            "dxh-0123456789abcdef",
+        ]);
+        let alive = |pid| pid == 11;
+        assert_eq!(stale_groups(&names, "dxh-12", alive), ["dxh-10"]);
+        assert_eq!(stale_groups(&names, "dxh-99", alive), ["dxh-10", "dxh-12"]);
     }
 
     #[test]

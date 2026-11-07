@@ -129,6 +129,33 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
 }
 
+#[test]
+fn stale_groups_are_removed_when_a_new_group_is_set_up() {
+    // Alone, so no concurrent setup removes the stale group over other paths.
+    let _alone = HOST_ACLS
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut scene = scene("stale group");
+    let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
+    let mut child = std::process::Command::new("cmd")
+        .args(["/c", "exit 0"])
+        .spawn()
+        .expect("cmd starts");
+    let dead = child.id();
+    child.wait().expect("cmd exits");
+    let stale = format!("dxh-{dead}");
+    std::mem::forget(AclGroup::setup(&mut scene.isolation, &stale).expect("stale group setup"));
+    assert!(icacls(&scene.ungranted).contains(&stale));
+    let fresh = format!("dxh-{}-fresh", std::process::id());
+    drop(AclGroup::setup(&mut scene.isolation, &fresh).expect("fresh group setup"));
+    assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
+    let listed = std::process::Command::new("net")
+        .args(["localgroup", stale.as_str()])
+        .output()
+        .expect("net runs");
+    assert!(!listed.status.success(), "{stale} is still a local group");
+}
+
 fn icacls(path: &Path) -> String {
     let out = std::process::Command::new("icacls")
         .arg(path)

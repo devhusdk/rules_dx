@@ -2,6 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "cabal_rules.patch",
+    "cc_toolchain_config_info.patch",
     "coverage_wrapper_no_report.patch",
     "hermetic_haskell.patch",
     "toolchain_type_alias.patch",

@@ -312,7 +312,7 @@ filegroup(
 
 # The bundled mingw clang as a C toolchain. Only the hub's gated toolchain()
 # entries select it. Loads sit at the top of the generated file.
-_MINGW_CC_LOADS = """load("@rules_cc//cc:cc_toolchain.bzl", "cc_toolchain")
+_MINGW_CC_LOADS = """load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
 """
 
@@ -606,6 +606,7 @@ def _haskell_impl(mctx):
             Label("//patches/rules_haskell:hermetic_haskell.patch"),
             Label("//patches/rules_haskell:cabal_rules.patch"),
             Label("//patches/rules_haskell:toolchain_type_alias.patch"),
+            Label("//patches/rules_haskell:cc_toolchain_config_info.patch"),
         ],
         sha256 = RULES_HASKELL_SHA256,
         strip_prefix = "rules_haskell-" + RULES_HASKELL_COMMIT,

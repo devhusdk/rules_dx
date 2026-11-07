@@ -140,7 +140,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "release_artifacts_verify",
     srcs = ["verify_test.rs"],
@@ -173,7 +172,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "bcr_templates_test",
     srcs = ["bcr_templates_test.rs"],
@@ -190,7 +188,7 @@ rust_test(
     ],
 )
 
-# keep
+# keep: Gazelle names this test after candidate_test.rs
 rust_test(
     name = "candidate_identity_test",
     srcs = ["candidate_test.rs"],
@@ -206,7 +204,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "release_host_cell_test",
     srcs = ["host_cell_test.rs"],

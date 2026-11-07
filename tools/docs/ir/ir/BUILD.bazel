@@ -56,7 +56,6 @@ real_docs_shard_files(
     target = "//tools/docs/rust/fixture:docs_fixture_changed",
 )
 
-# keep
 rust_test(
     name = "site_shard_test",
     srcs = ["site_shard_test.rs"],

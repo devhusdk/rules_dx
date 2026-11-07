@@ -48,7 +48,7 @@ rust_test(
     ],
 )
 
-# keep
+# keep: Gazelle drops the pester dep
 powershell_test(
     name = "extract_script_test",
     srcs = ["extract_script.Tests.ps1"],

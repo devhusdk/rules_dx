@@ -3,8 +3,6 @@ load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test
 load("//cc/context:identity.bzl", "cc_context_exec_identity", "cc_context_identity")
 load("//quality:fixtures.bzl", "real_source_target")
 
-# gazelle:resolve rust dx_testing //tools/testing:dx_testing
-
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
@@ -154,7 +152,6 @@ real_source_target(
     tags = ["corpus"],
 )
 
-# keep
 rust_test(
     name = "headless_lsp_clangd_test",
     srcs = ["tests/headless_lsp/clangd.rs"],
@@ -187,7 +184,6 @@ rust_test(
     ],
 )
 
-# keep
 # size: medium, rust-analyzer startup, measured 121s linux_x86_64 2026-11-04
 rust_test(
     name = "headless_lsp_rust_analyzer_test",

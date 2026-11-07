@@ -10,7 +10,7 @@ _DEPS = [
     "@dx_quality_crates//:tree-sitter-ocaml",
 ]
 
-# keep
+# keep: no Cargo.toml here; Gazelle would delete it
 rust_binary(
     name = "dx_topiary",
     srcs = ["main.rs"],
@@ -19,7 +19,7 @@ rust_binary(
     deps = _DEPS,
 )
 
-# keep
+# keep: no Cargo.toml here; Gazelle would delete it
 rust_test(
     name = "dx_topiary_test",
     crate = ":dx_topiary",

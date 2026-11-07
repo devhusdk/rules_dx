@@ -76,7 +76,7 @@ rust_test(
     ),
 )
 
-# keep
+# keep: not in Cargo.toml; Gazelle would delete it
 rust_library(
     name = "dx_nested",
     testonly = True,
@@ -100,7 +100,6 @@ rust_library(
     ),
 )
 
-# keep
 rust_test(
     name = "dx_nested_test",
     crate = ":dx_nested",
@@ -119,7 +118,7 @@ rust_test(
     ),
 )
 
-# keep
+# keep: not in Cargo.toml; Gazelle would delete it
 rust_library(
     name = "dx_lsp",
     testonly = True,
@@ -132,7 +131,7 @@ rust_library(
     ),
 )
 
-# keep
+# keep: tests a library Gazelle does not generate
 rust_test(
     name = "dx_lsp_test",
     crate = ":dx_lsp",
@@ -188,7 +187,7 @@ filegroup(
     target_compatible_with = ["@platforms//:incompatible"],
 )
 
-# keep
+# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "nested_bazel_probe",
     testonly = True,
@@ -196,7 +195,7 @@ rust_binary(
     deps = [":dx_nested"],
 )
 
-# keep
+# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "nested_bazel_shim",
     testonly = True,
@@ -205,7 +204,6 @@ rust_binary(
     deps = [":dx_nested"],
 )
 
-# keep
 rust_test(
     name = "module_srcs_test",
     srcs = ["module_srcs_test.rs"],
@@ -217,7 +215,6 @@ rust_test(
     deps = [":dx_testing"],
 )
 
-# keep
 rust_test(
     name = "consumer_maven_lock_test",
     srcs = ["consumer_maven_lock_test.rs"],
@@ -232,7 +229,6 @@ rust_test(
     ),
 )
 
-# keep
 # size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "nested_bazel_harness_test",
@@ -267,7 +263,7 @@ rust_test(
     ],
 )
 
-# keep
+# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "starlark_harness",
     srcs = ["starlark_harness.rs"],
@@ -284,7 +280,7 @@ rust_binary(
     ) + ["//cli/path:dx_path"],
 )
 
-# keep
+# keep: tests a binary Gazelle does not generate
 rust_test(
     name = "starlark_harness_test",
     aliases = aliases(
@@ -299,7 +295,6 @@ rust_test(
     ) + ["//cli/path:dx_path"],
 )
 
-# keep
 rust_test(
     name = "starlark_harness_exit_test",
     srcs = ["starlark_harness_exit_test.rs"],
@@ -317,7 +312,6 @@ rust_test(
     ) + ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "preflight_smoke_test",
     srcs = ["preflight_smoke_test.rs"],

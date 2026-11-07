@@ -87,7 +87,7 @@ rust_test(
     ],
 )
 
-# keep
+# keep: tests the :env binary; Gazelle would add the dx_env crate deps
 rust_test(
     name = "env_bin_test",
     crate = ":env",
@@ -106,7 +106,6 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 
-# keep
 rust_test(
     name = "bootstrap_test",
     srcs = ["bootstrap_test.rs"],

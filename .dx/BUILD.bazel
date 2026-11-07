@@ -47,6 +47,8 @@ dx_generated_policy(
     name = "policy",
     bases = {
         "detekt": "@rules_dx//quality/tiers/detekt:standard",
+        "ffmt": "@rules_dx//quality/tiers/ffmt:standard",
+        "fortitude": "@rules_dx//quality/tiers/fortitude:standard",
         "pmd": "@rules_dx//quality/tiers/pmd:standard",
         "ruff": "@rules_dx//quality/tiers/ruff:standard",
         "rustfmt": "@rules_dx//quality/tiers/rustfmt:standard",
@@ -142,6 +144,7 @@ dx_generated_policy(
                 "fortitude",
                 "typos",
             ],
+            "profile": "standard",
         },
         "go": {
             "disabled": ["audit"],

@@ -44,6 +44,12 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
+        id: "elixirc",
+        run: |backend, call| {
+            backend.check_elixirc_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
         id: "clang_syntax",
         run: |backend, call| {
             backend.check_clang_syntax_delegated(call.tool_id, call.tool, &call.staged.pairs)
@@ -477,6 +483,22 @@ impl RealBackend {
             compiler: "erlc",
             exit_prefix: "dx-erlc",
             parse: parsers::parse_erlc,
+        };
+        self.check_dotnet_log(tool_id, tool, pairs, &source)
+    }
+
+    pub(super) fn check_elixirc_delegated(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let source = DotnetLog {
+            what: "elixirc output",
+            aspect: "Elixir",
+            compiler: "elixirc",
+            exit_prefix: "dx-elixirc",
+            parse: parsers::parse_elixirc,
         };
         self.check_dotnet_log(tool_id, tool, pairs, &source)
     }

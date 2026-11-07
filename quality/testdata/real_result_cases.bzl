@@ -363,6 +363,18 @@ REAL_RESULT_CASES = [
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
     {
+        "name": "real_result_elixirc_elixir_unused",
+        "target": "//quality/testdata/elixirc:elixir_unused",
+        "policy": "//quality/testdata/elixirc:elixir_policy",
+        "tool": "elixirc",
+        "capability": "typecheck",
+        "class": "elixir",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "contains": ["elixirc/", "variable \"unused\" is unused", "function helper/0 is unused"],
+        "absent": [],
+    },
+    {
         "name": "real_result_erlc_erlang_unused",
         "target": "//quality/testdata/erlc:erlang_unused",
         "policy": "//quality/testdata/erlc:erlang_policy",

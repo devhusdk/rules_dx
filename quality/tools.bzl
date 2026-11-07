@@ -1012,6 +1012,28 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "elixirc",
+        adapters = {"typecheck": ["elixir"]},
+        concerns = {"typecheck": "unused_code"},
+        severity = severity(default = "warning"),
+        support = [
+            row(
+                capability = "typecheck",
+                classes = ["elixir"],
+                context = "target_coupled",
+                family = "elixir",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                state = "supported",
+                transport = "batched",
+                unsupported = {
+                    "windows_arm64": "The elixirc replay needs a POSIX shell",
+                    "windows_x86_64": "The elixirc replay needs a POSIX shell",
+                },
+            ),
+        ],
+    ),
+    tool(
         id = "erlc",
         adapters = {"typecheck": ["erlang"]},
         concerns = {"typecheck": "unused_code"},

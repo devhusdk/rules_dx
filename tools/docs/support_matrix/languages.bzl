@@ -152,6 +152,7 @@ DEAD_CODE = {
     "cuda": ["none"],
     "d": ["none"],
     "dart": ["dart unused_element"],
+    "elixir": ["elixirc unused variable, unused function"],
     "erlang": ["erlc warn_unused_vars, warn_unused_function"],
     "fortran": ["fortitude C191 unreachable-statement"],
     "go": ["staticcheck U1000"],

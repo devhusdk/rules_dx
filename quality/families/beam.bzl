@@ -1,6 +1,7 @@
 """Erlang and Elixir real quality aspects."""
 
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
+load("//quality:elixirc.bzl", "ElixircInfo", "elixirc_aspect")
 load("//quality:erlc.bzl", "ErlcInfo", "erlc_aspect")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
@@ -18,6 +19,11 @@ TOOLS = {
         "fallback": "=@rules_dx//erlang/tools:dialyzer",
         "kind": "setting",
         "resources": "heavy",
+        "shard": "erlang",
+    },
+    "elixirc": {
+        "kind": "upstream",
+        "resources": "medium",
         "shard": "erlang",
     },
     "elvis": {
@@ -63,8 +69,8 @@ SHARD_SPECS = {
     },
     "real_erlang_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive Erlang typecheck family aspect (dialyzer and erlc warnings).",
-        "requires": [erlc_aspect],
+        "doc": "Additive Erlang typecheck family aspect (dialyzer, erlc and elixirc warnings).",
+        "requires": [erlc_aspect, elixirc_aspect],
         "shard": "erlang",
         "suffix": "-erlang",
     },
@@ -131,9 +137,20 @@ def _erlc_hook(target, _ctx, resolved, _capability, _what, _shared):
         stage(tool_files, inputs, "dx-erlc/" + info.names[i] + "/exit", info.statuses[i])
     return real_context(upstream = info.logs, late_tool_files = tool_files, late_inputs = inputs)
 
-HOOK_ORDER = ["dialyzer", "erlc"]
+def _elixirc_hook(target, _ctx, resolved, _capability, _what, _shared):
+    if ElixircInfo not in target:
+        return without(resolved, "elixirc")
+    info = target[ElixircInfo]
+    tool_files = []
+    inputs = []
+    for i in range(len(info.names)):
+        inputs.append(info.logs[i])
+        stage(tool_files, inputs, "dx-elixirc/" + info.names[i] + "/exit", info.statuses[i])
+    return real_context(upstream = info.logs, late_tool_files = tool_files, late_inputs = inputs)
 
-HOOKS = {"dialyzer": _dialyzer_hook, "erlc": _erlc_hook}
+HOOK_ORDER = ["dialyzer", "erlc", "elixirc"]
+
+HOOKS = {"dialyzer": _dialyzer_hook, "erlc": _erlc_hook, "elixirc": _elixirc_hook}
 
 _CFG = real_config(
     tools = TOOLS,

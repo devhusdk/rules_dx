@@ -25,6 +25,7 @@ pub mod deadnix;
 pub mod detekt;
 pub mod dialyzer;
 pub mod djlint;
+pub mod elixirc;
 pub mod elvis;
 pub mod erlc;
 pub mod erlfmt;
@@ -156,6 +157,7 @@ pub use deadnix::parse_deadnix;
 pub use detekt::parse_detekt;
 pub use dialyzer::parse_dialyzer;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
+pub use elixirc::parse_elixirc;
 pub use elvis::parse_elvis;
 pub use erlc::parse_erlc;
 pub use erlfmt::parse_erlfmt;
@@ -2291,6 +2293,14 @@ mod tests {
         super::erlc::parse_erlc(input, code, files)
     }
 
+    fn fuzz_elixirc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::elixirc::parse_elixirc(input, code, files)
+    }
+
     fn fuzz_ldc(
         input: &[u8],
         code: Option<i32>,
@@ -2950,6 +2960,7 @@ mod tests {
         ("ghc", fuzz_ghc),
         ("ldc", fuzz_ldc),
         ("erlc", fuzz_erlc),
+        ("elixirc", fuzz_elixirc),
         ("elvis", fuzz_elvis),
         ("erlfmt", fuzz_erlfmt),
         ("go_analysis", fuzz_go_analysis),
@@ -3093,6 +3104,7 @@ mod tests {
         ("ghc", include_str!("ghc.rs")),
         ("ldc", include_str!("ldc.rs")),
         ("erlc", include_str!("erlc.rs")),
+        ("elixirc", include_str!("elixirc.rs")),
         ("elvis", include_str!("elvis.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("go_analysis", include_str!("go_analysis.rs")),

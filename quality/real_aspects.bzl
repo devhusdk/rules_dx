@@ -89,6 +89,7 @@ _HOOK_ORDER = [
     "csc",
     "fsc",
     "erlc",
+    "elixirc",
     "clang_syntax",
     "clang_tidy",
     "nvcc_syntax",

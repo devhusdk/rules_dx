@@ -237,6 +237,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "elixirc",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
         "elvis",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),

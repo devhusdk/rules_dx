@@ -766,7 +766,7 @@ rust_test(
     name = "clippy_policy_test",
     srcs = ["clippy_policy_test.rs"],
     data = [
-        "//:clippy.toml",
+        "//tools/workspace:clippy.toml",
         "//cc/context:src/lib.rs",
         "//cc/context:src/main.rs",
         "//cli/adopt:src/lib.rs",

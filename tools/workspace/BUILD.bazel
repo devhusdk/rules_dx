@@ -1,0 +1,16 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":clippy_tests.bzl", "clippy_config_test")
+
+# Repo policy files that .bazelrc flags point at. Keep them out of the root
+# package: loading it fetches every npm link repo.
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files(["clippy.toml"])
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["clippy.toml"],
+)
+
+clippy_config_test(name = "clippy_config_test")

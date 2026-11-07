@@ -47,7 +47,7 @@ fn denied_lints(text: &str) -> Option<BTreeSet<String>> {
 }
 
 fn policy_lints() -> BTreeSet<String> {
-    let toml = std::fs::read_to_string(runfiles_root().join("clippy.toml"))
+    let toml = std::fs::read_to_string(runfiles_root().join("tools/workspace/clippy.toml"))
         .expect("clippy.toml must ship as test data");
     let sentence = toml
         .lines()

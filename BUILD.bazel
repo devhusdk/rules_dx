@@ -251,7 +251,6 @@ npm_link_all_packages(name = "node_modules")
 exports_files([
     "LICENSE",
     "RELEASING.md",
-    "clippy.toml",
     ".bazelignore",
     ".bazelrc",
     ".bazelversion",
@@ -440,7 +439,6 @@ real_source_target(
     aspect_hints = [":json_schemas"],  # keep
     tags = ["corpus"],
     toml_srcs = [
-        "clippy.toml",
         "ruff.toml",
         "rustfmt.toml",
         "licenses.toml",

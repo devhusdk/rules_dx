@@ -34,7 +34,7 @@ build:windows --per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 
 build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
-build --@rules_rust//rust/settings:clippy.toml=//:clippy.toml
+build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml
 common:apple_family --extra_toolchains=@local_config_apple_cc_toolchains//:all
 build:linux --@rules_rust//rust/settings:pipelined_compilation=true
 build:linux --linkopt=-Wno-unused-command-line-argument

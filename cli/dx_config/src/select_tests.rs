@@ -54,6 +54,27 @@ fn an_unknown_family_gets_a_hint() {
 }
 
 #[test]
+fn an_opt_in_family_runs_only_the_tools_it_names() {
+    let config = parse(
+        "schema_version = 1\n[families.lua]\nformat = [\"stylua\"]\n[families.flatbuffers]\nlint = [\"flatc\"]\n",
+    )
+    .unwrap();
+    let selection = effective(Some(&config)).unwrap();
+    assert_eq!(selection.families["lua"].format, ["stylua"]);
+    assert!(selection.families["lua"].lint.is_empty());
+    assert_eq!(selection.families["lua"].profile.as_str(), "standard");
+    assert_eq!(selection.families["flatbuffers"].lint, ["flatc"]);
+    let unlisted = effective(None).unwrap();
+    assert!(!unlisted.families.contains_key("lua"));
+}
+
+#[test]
+fn a_misspelled_opt_in_family_gets_a_hint() {
+    let error = problem("schema_version = 1\n[families.luaa]\nformat = [\"stylua\"]\n");
+    assert!(error.to_string().contains("did you mean `lua`?"));
+}
+
+#[test]
 fn an_unknown_tool_gets_a_hint() {
     let error = problem("schema_version = 1\n[families.rust]\nlint = [\"clipy\"]\n");
     assert!(error.to_string().contains("unknown tool `clipy`"));

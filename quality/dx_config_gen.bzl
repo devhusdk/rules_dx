@@ -2,6 +2,7 @@
 
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":curated_defaults.bzl", "CROSS_FAMILY_TOOLS", "CURATED_DEFAULTS")
 load(":overlaps.bzl", "overlap_rows")
 load(":tools.bzl", "TOOLS")
@@ -16,6 +17,16 @@ use crate::select::{CuratedFamily, Overlap};
 def _slice(ids):
     return "&[" + ", ".join(['"%s"' % id for id in ids]) + "]"
 
+def _opt_in_families():
+    families = {}
+    for tool in TOOLS:
+        for classes in tool.adapters.values():
+            for class_id in classes:
+                family = REAL_CLASS_TO_FAMILY[class_id]
+                if family not in CURATED_DEFAULTS:
+                    families[family] = True
+    return sorted(families.keys())
+
 def curated_rust():
     """Returns the full text of cli/dx_config/src/curated_defaults_gen.rs."""
     out = _HEADER + "pub const FAMILIES: &[CuratedFamily] = &[\n"
@@ -25,6 +36,8 @@ def curated_rust():
         for capability in ["lint", "format", "typecheck", "audit"]:
             out += "        %s: %s,\n" % (capability, _slice(entry[capability]))
         out += "    },\n"
+    out += "];\n\npub const OPT_IN_FAMILIES: &[&str] = &[\n"
+    out += "".join(['    "%s",\n' % id for id in _opt_in_families()])
     out += "];\n\npub const CROSS_FAMILY_TOOLS: &[&str] = &[\n"
     out += "".join(['    "%s",\n' % id for id in sorted(CROSS_FAMILY_TOOLS)])
     out += "];\n\npub const TOOLS: &[&str] = &[\n"

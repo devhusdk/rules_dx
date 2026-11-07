@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::config::{DxConfig, FamilyConfig, Profile};
-use crate::curated_defaults_gen::{CROSS_FAMILY_TOOLS, FAMILIES, OVERLAPS, TOOLS};
+use crate::curated_defaults_gen::{CROSS_FAMILY_TOOLS, FAMILIES, OPT_IN_FAMILIES, OVERLAPS, TOOLS};
 
 /// One row of the generated curated table.
+#[derive(Clone, Copy)]
 pub struct CuratedFamily {
     pub id: &'static str,
     pub lint: &'static [&'static str],
@@ -170,19 +171,34 @@ pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProble
     let root = config.and_then(|config| config.profile).unwrap_or_default();
     if let Some(config) = config {
         for id in config.families.keys() {
-            if !FAMILIES.iter().any(|family| family.id == id) {
+            let known = FAMILIES.iter().map(|family| family.id);
+            if !known
+                .clone()
+                .chain(OPT_IN_FAMILIES.iter().copied())
+                .any(|known| known == id)
+            {
                 return Err(SelectionProblem::UnknownFamily {
                     family: id.clone(),
-                    hint: closest(id, FAMILIES.iter().map(|family| family.id)),
+                    hint: closest(id, known.chain(OPT_IN_FAMILIES.iter().copied())),
                 });
             }
         }
     }
     let mut families = BTreeMap::new();
     let mut disabled = BTreeSet::new();
-    for curated in FAMILIES {
+    let opt_in = OPT_IN_FAMILIES
+        .iter()
+        .filter(|id| config.is_some_and(|config| config.families.contains_key(**id)))
+        .map(|id| CuratedFamily {
+            id,
+            lint: &[],
+            format: &[],
+            typecheck: &[],
+            audit: &[],
+        });
+    for curated in FAMILIES.iter().copied().chain(opt_in) {
         let over = config.and_then(|config| config.families.get(curated.id));
-        let selection = apply(curated, root, over)?;
+        let selection = apply(&curated, root, over)?;
         if over.is_some_and(|over| over.disabled) {
             disabled.insert(curated.id.to_owned());
         } else {

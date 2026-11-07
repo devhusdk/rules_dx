@@ -675,6 +675,18 @@ fn unused_families_are_left_out() {
 }
 
 #[test]
+fn an_opt_in_family_reaches_the_build() {
+    let out = rendered(&inputs(
+        Some("schema_version = 1\n[families.lua]\nformat = [\"stylua\"]\n"),
+        &["lua"],
+        &[],
+    ));
+    let build = text(&out, ".dx/BUILD.bazel");
+    assert!(build.contains("\"lua\": {"), "{build}");
+    assert!(build.contains("stylua"), "{build}");
+}
+
+#[test]
 fn a_disabled_family_is_dropped() {
     let out = rendered(&inputs(
         Some("schema_version = 1\n[families.python]\ndisabled = true\n"),

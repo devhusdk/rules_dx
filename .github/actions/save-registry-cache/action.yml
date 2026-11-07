@@ -3,11 +3,15 @@ description: Save the Bazel registry file cache after setup-bazel restored it an
 runs:
   using: composite
   steps:
-    - name: Check the registry file cache size
+    - name: Keep only registry files and check the cache size
       shell: bash
       run: |
         dir="$RUNNER_TEMP/dx-repository-cache/content_addressable"
-        mkdir -p "$dir"
+        mkdir -p "$dir/sha256"
+        git ls-files -z '*MODULE.bazel.lock' | xargs -0 grep -ohE '"[0-9a-f]{64}"' | tr -d '"' | sort -u > "$RUNNER_TEMP/dx-registry-hashes"
+        ls "$dir/sha256" | sort | comm -23 - "$RUNNER_TEMP/dx-registry-hashes" | while read -r hash; do
+          rm -rf "${dir:?}/sha256/$hash"
+        done
         kb="$(du -sk "$dir" | cut -f1)"
         echo "registry file cache: ${kb} KB"
         if [ "$kb" -gt 51200 ]; then

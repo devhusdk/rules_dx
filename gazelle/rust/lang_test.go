@@ -475,7 +475,7 @@ func TestLanguageMetadata(t *testing.T) {
 	if len(l.Kinds()) != 13 {
 		t.Fatalf("invalid kinds")
 	}
-	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus,dx_policy_config" {
+	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus" {
 		t.Fatal("invalid directives")
 	}
 	loads := l.ApparentLoads(func(name string) string {

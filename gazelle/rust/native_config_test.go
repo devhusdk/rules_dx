@@ -731,19 +731,25 @@ func TestValeStylesWalkErrorNamesDirectory(t *testing.T) {
 	}
 }
 
-func policyConfig(t *testing.T, rel, directives string) *config.Config {
+func ownedRoot(t *testing.T, build string) *config.Config {
 	t.Helper()
-	file, err := rule.LoadData("BUILD.bazel", rel, []byte(directives))
-	if err != nil {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".dx"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".dx", "BUILD.bazel"), []byte(build), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
-	(&rustLang{}).Configure(cfg, rel, file)
+	cfg.RepoRoot = root
+	(&rustLang{}).Configure(cfg, "", nil)
 	return cfg
 }
 
-func TestNativePolicyBoundConfigSkipsHint(t *testing.T) {
-	cfg := policyConfig(t, "", "# gazelle:dx_policy_config rustfmt //:rustfmt_config\n")
+const rustfmtBinding = "rustfmt_config(\n    name = \"rustfmt\",\n    src = \"//:rustfmt.toml\",\n)\n"
+
+func TestNativeOwnedConfigSkipsHint(t *testing.T) {
+	cfg := ownedRoot(t, rustfmtBinding)
 	lib := rule.NewRule(libraryKind, "root")
 	plan := &nativePlan{resolved: map[string]string{"rustfmt": "rustfmt_config"}}
 	applyNativeHints(cfg, "", lib, plan)
@@ -752,8 +758,8 @@ func TestNativePolicyBoundConfigSkipsHint(t *testing.T) {
 	}
 }
 
-func TestNativePolicyNestedOverrideKeepsHint(t *testing.T) {
-	cfg := policyConfig(t, "", "# gazelle:dx_policy_config rustfmt //:rustfmt_config\n")
+func TestNativeOwnedNestedOverrideKeepsHint(t *testing.T) {
+	cfg := ownedRoot(t, rustfmtBinding)
 	lib := rule.NewRule(libraryKind, "site")
 	plan := &nativePlan{resolved: map[string]string{"rustfmt": "rustfmt_config"}}
 	applyNativeHints(cfg, "site", lib, plan)
@@ -762,8 +768,8 @@ func TestNativePolicyNestedOverrideKeepsHint(t *testing.T) {
 	}
 }
 
-func TestNativePolicyKeepsHandWrittenHint(t *testing.T) {
-	cfg := policyConfig(t, "", "# gazelle:dx_policy_config rustfmt //:rustfmt_config\n")
+func TestNativeOwnedKeepsHandWrittenHint(t *testing.T) {
+	cfg := ownedRoot(t, rustfmtBinding)
 	existing := rule.NewRule(libraryKind, "root")
 	existing.SetAttr("aspect_hints", []string{"//:rustfmt_config"})
 	lib := rule.NewRule(libraryKind, "root")

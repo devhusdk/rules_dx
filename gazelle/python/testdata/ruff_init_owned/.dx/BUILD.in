@@ -9,8 +9,8 @@ ruff_config(
     name = "ruff",
     src = "//:ruff.toml",
     data = [
-        "ruff/standard.toml",
-        "ruff/strict.toml",
+        "config/ruff/standard.toml",
+        "config/ruff/strict.toml",
     ],
 )
 

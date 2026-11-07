@@ -77,7 +77,6 @@ func newLang() *pythonLang {
 		ExtraKinds:     []string{testKind, binaryKind, ruffKind},
 		KindDefs:       map[string]string{ruffKind: nativeDefs},
 		ConfigureExt:   configureRuff,
-		Directives:     []string{common.PolicyConfigDirective},
 		Kinds:          pythonKinds,
 		DefsPackage:    "python/rules:defs.bzl",
 		ImportAttr:     "srcs",

@@ -246,7 +246,7 @@ func applyNativeHints(c *config.Config, rel string, r *rule.Rule, plan *nativePl
 			continue
 		}
 		name, ok := plan.resolved[tool.id]
-		if !ok || present[name] || common.PolicyBinds(c, tool.id, "//"+rel+":"+name) {
+		if !ok || present[name] || (rel == "" && common.OwnsRootConfig(c, tool.id, tool.file)) {
 			continue
 		}
 		additions = append(additions, ":"+name)

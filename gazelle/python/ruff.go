@@ -21,8 +21,7 @@ const (
 type ruffState struct {
 	rel  string
 	file string
-	// initOwned is set when .dx/BUILD.bazel or .dx/config/BUILD.bazel already
-	// defines the root config.
+	// initOwned is set when .dx/BUILD.bazel already defines the root config.
 	initOwned bool
 }
 
@@ -51,12 +50,10 @@ func ruffFile(dir string) string {
 }
 
 func configureRuff(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
-	for _, msg := range common.ConfigurePolicyConfig(c, f) {
-		rep.Fail(common.InPackage(rel), "%s", msg)
-	}
+	common.ConfigureOwnedConfigs(c, rel)
 	if file := ruffFile(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))); file != "" {
 		state := &ruffState{rel: rel, file: file}
-		state.initOwned = rel == "" && common.InitOwnedConfigs(c.RepoRoot)["ruff"] == "//:"+file
+		state.initOwned = rel == "" && common.OwnsRootConfig(c, "ruff", file)
 		c.Exts[ruffExt] = state
 	}
 }
@@ -93,9 +90,6 @@ func withRuffHint(c *config.Config, existing *rule.Rule, state *ruffState, rel s
 			}
 		}
 		return kept
-	}
-	if common.PolicyBinds(c, "ruff", state.label()) {
-		return hints
 	}
 	label := state.label()
 	if state.rel == rel {

@@ -125,13 +125,11 @@ func (l *rustLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
 func (l *rustLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 
 func (*rustLang) KnownDirectives() []string {
-	return []string{"dx_ignore_import", nativeToolsDirective, corpusDirective, common.PolicyConfigDirective}
+	return []string{"dx_ignore_import", nativeToolsDirective, corpusDirective}
 }
 
 func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
-	for _, msg := range common.ConfigurePolicyConfig(c, file) {
-		l.fail(common.InPackage(rel), "%s", msg)
-	}
+	common.ConfigureOwnedConfigs(c, rel)
 	tools := defaultNativeTools()
 	corpus := false
 	if raw, ok := c.Exts[languageName]; ok {

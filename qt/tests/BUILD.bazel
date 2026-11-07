@@ -204,6 +204,12 @@ rust_test(
     }),
     env = select({
         "@platforms//os:macos": _QT_TEST_ENV,
+        "@dx_qt//:windows_x86_64": dict(
+            _QT_TEST_ENV,
+            DX_QT_CONSOLE_FIXTURE = "$(rootpath :console_fixture_windows_x86_64)",
+            DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
+            DX_QT_VCRUNTIME = "$(rootpaths //cc/toolchains:msvc_vcruntime)",
+        ),
         "@platforms//os:windows": dict(
             _QT_TEST_ENV,
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
@@ -213,9 +219,6 @@ rust_test(
             _QT_TEST_ENV,
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
         ),
-    }) + select({
-        "@dx_qt//:windows_x86_64": {"DX_QT_CONSOLE_FIXTURE": "$(rootpath :console_fixture_windows_x86_64)"},
-        "//conditions:default": {},
     }),
     tags = [
         "block-network",

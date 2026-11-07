@@ -196,14 +196,16 @@ rust_test(
         "@dx_qt//:sbom",
         "@dx_qt//:uic",
     ] + _QT_FONTS + _VCRUNTIME + select({
-        "@platforms//os:windows": _WINDOWS_CHILDREN + [":console_fixture_windows_x86_64"],
+        "@platforms//os:windows": _WINDOWS_CHILDREN,
+        "//conditions:default": [],
+    }) + select({
+        "@dx_qt//:windows_x86_64": [":console_fixture_windows_x86_64"],
         "//conditions:default": [],
     }),
     env = select({
         "@platforms//os:macos": _QT_TEST_ENV,
         "@platforms//os:windows": dict(
             _QT_TEST_ENV,
-            DX_QT_CONSOLE_FIXTURE = "$(rootpath :console_fixture_windows_x86_64)",
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
             DX_QT_VCRUNTIME = "$(rootpaths //cc/toolchains:msvc_vcruntime)",
         ),
@@ -211,6 +213,9 @@ rust_test(
             _QT_TEST_ENV,
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
         ),
+    }) + select({
+        "@dx_qt//:windows_x86_64": {"DX_QT_CONSOLE_FIXTURE": "$(rootpath :console_fixture_windows_x86_64)"},
+        "//conditions:default": {},
     }),
     tags = [
         "block-network",

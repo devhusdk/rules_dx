@@ -473,6 +473,9 @@ fn gui_refuses_a_platform_plugin_it_does_not_pin() {
 #[test]
 fn qt_cc_test_without_a_console_exits_on_a_missing_platform_plugin() {
     use std::os::windows::process::CommandExt;
+    if std::env::var_os("DX_QT_CONSOLE_FIXTURE").is_none() {
+        return;
+    }
     let platforms = directory_of("DX_QT_PLATFORMS", OFFSCREEN);
     let path = runtime_path();
     let envs = [

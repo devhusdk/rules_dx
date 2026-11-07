@@ -8,6 +8,7 @@ exports_files([
     "unwatched_overlay_inputs.patch",
     "msvc_source_directories.patch",
     "lse_atomic_sources.patch",
+    "darwin_aarch64_no_outline_atomics.patch",
 ])
 
 sh_test(
@@ -42,6 +43,21 @@ sh_test(
     args = ["$(rootpath :aarch64_builtins)"],
     data = [":aarch64_builtins"],
     target_compatible_with = ["@platforms//os:linux"],
+)
+
+platform_transition_filegroup(
+    name = "macos_aarch64_builtins",
+    srcs = ["@llvm-project//compiler-rt:clang_rt.builtins.static"],
+    target_platform = "@llvm//platforms:macos_aarch64",
+)
+
+sh_test(
+    name = "darwin_no_lse_test",
+    size = "small",
+    srcs = ["darwin_no_lse_test.sh"],
+    args = ["$(rootpath :macos_aarch64_builtins)"],
+    data = [":macos_aarch64_builtins"],
+    target_compatible_with = ["@platforms//os:macos"],
 )
 
 real_source_target(

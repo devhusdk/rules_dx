@@ -1,0 +1,13 @@
+diff -ruN a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+--- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
++++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+@@ -751,6 +751,9 @@
+         "//conditions:default": [],
+     }),
+     deps = select({
++        # Clang only defaults to outline atomics on Linux-like targets, and
++        # Apple arm64 has LSE in its baseline, so nothing calls these on macOS.
++        "@llvm//platforms/config:macos_aarch64": [],
+         "@platforms//cpu:aarch64": [
+             ":builtins_aarch64_atomic",
+         ],

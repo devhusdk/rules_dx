@@ -16,7 +16,7 @@ The `source` job in `release.yml` compares the first four with the tag, and the 
 
 ## 2. Tag
 
-```
+```sh
 git tag vX.Y.Z <commit>
 git push origin vX.Y.Z
 ```
@@ -25,7 +25,7 @@ The tag must name the commit you want to release. The `source` job fails if it d
 
 ## 3. Create the draft
 
-```
+```sh
 GH_RELEASE_APPROVED=1 tools/dx deploy --apply //cli/cli:github_draft -- vX.Y.Z
 ```
 
@@ -33,7 +33,7 @@ This creates a draft with release notes only. It carries no binaries. It needs `
 
 ## 4. Run the release workflow
 
-```
+```sh
 gh workflow run release.yml --ref vX.Y.Z
 ```
 
@@ -65,7 +65,7 @@ The pull request opens as a draft. The owner reviews it, waits for BCR CI, and m
 
 If the job is skipped or fails, check the entry by hand and open the pull request yourself:
 
-```
+```sh
 BCR_DRY_RUN=1 bazel run //deploy/release:bcr_demo
 ```
 

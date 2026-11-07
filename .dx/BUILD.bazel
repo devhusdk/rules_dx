@@ -51,6 +51,7 @@ dx_generated_policy(
         "ruff": "@rules_dx//quality/tiers/ruff:standard",
         "rustfmt": "@rules_dx//quality/tiers/rustfmt:standard",
         "spotbugs": "@rules_dx//quality/tiers/spotbugs:standard",
+        "staticcheck": "@rules_dx//quality/tiers/staticcheck:standard",
         "ty": "@rules_dx//quality/tiers/ty:standard",
         "yamllint": "@rules_dx//quality/tiers/yamllint:standard",
     },
@@ -151,6 +152,7 @@ dx_generated_policy(
                 "staticcheck",
                 "typos",
             ],
+            "profile": "standard",
             "typecheck": ["gotype"],
         },
         "go_module": {

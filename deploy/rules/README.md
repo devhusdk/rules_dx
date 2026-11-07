@@ -78,7 +78,7 @@ Setup:
 
 Run:
 
-```
+```sh
 MAVEN_PUBLISH_APPROVED=1 \
 MAVEN_USERNAME=... MAVEN_PASSWORD=... \
 MAVEN_GPG_KEY=... MAVEN_GPG_PASSPHRASE=... \
@@ -146,7 +146,7 @@ Setup:
 
 Run:
 
-```
+```sh
 NPM_PUBLISH_APPROVED=1 NPM_TOKEN=... \
 dx deploy --apply //pkg:npm_demo
 ```
@@ -185,14 +185,14 @@ cloudflare_pages_deploy(
 
 Check without uploading:
 
-```
+```sh
 dx deploy //pkg:site_deploy
 ```
 
 This builds the target and validates the site files, the account, the project
 and the branch. Nothing is uploaded and no token is needed. It prints:
 
-```
+```text
 cloudflare_pages_deploy: checked my-site (branch feature/x, preview, build_mode: release); nothing uploaded
   account: 0123456789abcdef0123456789abcdef
   project: my-site
@@ -204,7 +204,7 @@ cloudflare_pages_deploy: checked my-site (branch feature/x, preview, build_mode:
 
 Publish:
 
-```
+```sh
 CLOUDFLARE_PAGES_APPROVED=1 \
 CLOUDFLARE_API_TOKEN=... \
 dx deploy --apply //pkg:site_deploy
@@ -217,7 +217,7 @@ telemetry or project discovery.
 
 Output on success:
 
-```
+```text
 cloudflare_pages_deploy: deployed my-site (branch feature/x, preview, build_mode: release)
   account: 0123456789abcdef0123456789abcdef
   project: my-site
@@ -259,7 +259,7 @@ is a reviewed `os_supplied` runtime that records the pinned glibc floor.
 Outputs: `<name>_archive` builds `<name>.tar.gz` and `<name>_checksum`
 builds `<name>.tar.gz.sha256`.
 
-```
+```sh
 dx deploy --apply //pkg:tasks_deploy
 dx deploy --apply //pkg:tasks_deploy -- /tmp/out
 ```
@@ -383,7 +383,7 @@ Default run stages `<name>-vendor/vendor/<name>/` and
 
 Publish with `cargo` on `PATH`:
 
-```
+```sh
 CRATES_PUBLISH_APPROVED=1 CARGO_REGISTRY_TOKEN=... \
 dx deploy --apply //pkg:crates_demo
 ```
@@ -423,7 +423,7 @@ No credentials needed, nothing is uploaded.
 
 Publish with `mix` or `rebar3` on `PATH`:
 
-```
+```sh
 HEX_PUBLISH_APPROVED=1 HEX_API_KEY=... \
 dx deploy --apply //pkg:hex_demo
 ```
@@ -464,7 +464,7 @@ credentials needed.
 
 Push with `gem` on `PATH` or from `ruby`:
 
-```
+```sh
 RUBYGEMS_PUBLISH_APPROVED=1 RUBYGEMS_API_TOKEN=... \
 dx deploy --apply //pkg:rubygems_demo
 ```
@@ -506,7 +506,7 @@ so a budget can be set from it. Without `gh` or network, it prints why that rele
 
 Create the draft with `gh` on `PATH` and logged in:
 
-```
+```sh
 GH_RELEASE_APPROVED=1 dx deploy --apply //pkg:github_demo
 ```
 
@@ -542,7 +542,7 @@ Default run writes `<name>-tap/Formula/<formula>.rb` and `would-run.txt` into th
 
 Push the formula with `gh` on `PATH`:
 
-```
+```sh
 HOMEBREW_TAP_PUBLISH_APPROVED=1 HOMEBREW_TAP_API_TOKEN=... \
 dx deploy --apply //pkg:tool_tap
 ```
@@ -608,7 +608,7 @@ the tool on `PATH` the run prints a skip line. No credentials needed.
 
 Publish with `dart` (or `flutter`) on `PATH`:
 
-```
+```sh
 PUB_PUBLISH_APPROVED=1 PUB_TOKEN=... \
 dx deploy --apply //pkg:pub_demo
 ```
@@ -640,7 +640,7 @@ Default run stages `<name>-feed/` with the nupkg. No credentials needed.
 
 Push with `dotnet` on `PATH`:
 
-```
+```sh
 NUGET_PUBLISH_APPROVED=1 NUGET_API_KEY=... \
 dx deploy --apply //pkg:nuget_demo
 ```
@@ -679,7 +679,7 @@ default run stages `<name>-sdist/` with the sdist. No credentials needed.
 
 Upload with `cabal` on `PATH`:
 
-```
+```sh
 HACKAGE_PUBLISH_APPROVED=1 HACKAGE_API_TOKEN=... \
 dx deploy --apply //pkg:hackage-demo
 ```
@@ -712,7 +712,7 @@ with the rockspec; it does not run `luarocks`. No credentials needed.
 
 Upload with `luarocks` on `PATH`:
 
-```
+```sh
 LUAROCKS_PUBLISH_APPROVED=1 LUAROCKS_API_KEY=... \
 dx deploy --apply //pkg:luarocks_demo
 ```
@@ -798,7 +798,7 @@ credentials needed.
 
 Push:
 
-```
+```sh
 OCI_PUBLISH_APPROVED=1 \
 OCI_REGISTRY_USER=... OCI_REGISTRY_TOKEN=... \
 dx deploy --apply //pkg:oci_demo
@@ -854,7 +854,7 @@ needed.
 
 Push with `octo` on `PATH`:
 
-```
+```sh
 OCTOPUS_PUBLISH_APPROVED=1 OCTOPUS_API_KEY=... \
 OCTOPUS_URL=https://octopus.example.com \
 dx deploy --apply //pkg:octopus_demo
@@ -903,7 +903,7 @@ registry gates do not run.
 
 Promote:
 
-```
+```sh
 PROMOTION_APPROVED=1 dx deploy --apply //pkg:promotion_demo
 ```
 
@@ -919,7 +919,7 @@ because publishing is not implemented yet. Nothing is pushed.
 
 Roll back:
 
-```
+```sh
 PROMOTION_ROLLBACK=1 PROMOTION_ROLLBACK_TO=<version> \
 dx deploy --apply //pkg:promotion_demo
 ```
@@ -961,7 +961,7 @@ or `-` replaced by one `-`.
 
 A default run writes into the output directory (see Common behavior):
 
-```
+```text
 <name>-wheelhouse/
   <wheel file>
   <sdist file>          only when sdist is set
@@ -973,7 +973,7 @@ A default run writes into the output directory (see Common behavior):
 `index.html` has one link per file, sorted by file name. Each link points to
 `../../<file>#sha256=<digest>`. The run prints:
 
-```
+```text
 pypi_deploy: staged <name> (build_mode: <build_mode>)
   wheelhouse: <path>/<name>-wheelhouse
   index: <path>/<name>-wheelhouse/simple-index/<project>/index.html
@@ -990,7 +990,7 @@ A dry run needs no credentials. `dx deploy --apply` publishes and needs:
 not write `<name>-wheelhouse/` and does not check file names. On success it
 prints:
 
-```
+```text
 pypi_deploy: uploaded <wheel file> to <repository_url>
 ```
 
@@ -1003,7 +1003,7 @@ version` and exits 1.
 `twine` runs with a cleared environment. Only `REQUESTS_CA_BUNDLE` and the
 keep-list in Common behavior pass through.
 
-```
+```sh
 PYPI_PUBLISH_APPROVED=1 PYPI_API_TOKEN=... \
 dx deploy --apply //pkg:pypi_demo
 ```
@@ -1053,7 +1053,7 @@ Exit codes:
 
 Splits the debug info out of a Linux `cc_binary`.
 
-```
+```starlark
 load("@rules_dx//deploy/rules:debug_info.bzl", "dx_split_debug_info")
 
 dx_split_debug_info(
@@ -1065,7 +1065,7 @@ dx_split_debug_info(
 Build it to get the stripped binary. The debug file and the manifest are in the
 `symbols` output group.
 
-```
+```sh
 bazel build --output_groups=symbols //pkg:app_split
 ```
 
@@ -1076,7 +1076,7 @@ the build-id, arch, sha256 of the stripped binary, debug file name and
 Compile with `-g` and do not strip at link time. Look up an address with
 `llvm-symbolizer`:
 
-```
+```sh
 llvm-symbolizer --obj=app_split.debug 0x401136
 ```
 
@@ -1087,7 +1087,7 @@ or arch.
 
 Pairs the dSYM of a macOS `cc_binary` with that binary.
 
-```
+```starlark
 load("@rules_dx//deploy/rules:debug_info.bzl", "dx_dsym")
 
 dx_dsym(
@@ -1100,7 +1100,7 @@ The `binary` is built again with `apple_generate_dsym` set, through a
 transition, so the link writes the dSYM bundle. Build the `symbols` output
 group to get the bundle and the manifest:
 
-```
+```sh
 bazel build --output_groups=symbols //pkg:app_dsym
 ```
 
@@ -1112,7 +1112,7 @@ The target is macOS only.
 
 Look up an address in the bundle with `llvm-symbolizer`:
 
-```
+```sh
 llvm-symbolizer --obj=app_dsym.dSYM/Contents/Resources/DWARF/app 0x100003f40
 ```
 
@@ -1120,7 +1120,7 @@ llvm-symbolizer --obj=app_dsym.dSYM/Contents/Resources/DWARF/app 0x100003f40
 
 Pairs the PDB of a Windows `cc_binary` with that binary.
 
-```
+```starlark
 load("@rules_dx//deploy/rules:debug_info.bzl", "dx_pdb")
 
 dx_pdb(
@@ -1133,7 +1133,7 @@ The `binary` is built again with the `generate_pdb_file` feature added,
 through a transition, so the link writes the PDB. Build the `symbols` output
 group to get the PDB and the manifest:
 
-```
+```sh
 bazel build --output_groups=symbols //pkg:app_pdb
 ```
 
@@ -1144,7 +1144,7 @@ machine differ from the binary. The target is Windows only.
 
 Look up an address (a relative virtual address) with `llvm-symbolizer`:
 
-```
+```sh
 llvm-symbolizer --obj=app.exe --pdb=app.pdb --relative-address 0x1000
 ```
 

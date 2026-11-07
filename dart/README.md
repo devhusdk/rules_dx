@@ -167,7 +167,7 @@ Supported on linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm
 
 ## Cross-compiling
 
-```
+```sh
 bazel build --platforms=//:linux_arm64 //app:cli
 ```
 

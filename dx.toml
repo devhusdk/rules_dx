@@ -18,3 +18,7 @@ tier = "standard"
 
 [families.kotlin]
 tier = "standard"
+
+# Strict staticcheck wants a package comment in every Go package.
+[families.go]
+tier = "standard"

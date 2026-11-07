@@ -1235,11 +1235,7 @@ mod tests {
         let generated = render_consumer_caller();
         let without_defaults: String = starter
             .lines()
-            .filter(|l| {
-                l.trim() != "with:"
-                    && !l.trim_start().starts_with("disabled_checks:")
-                    && !l.trim_start().starts_with("platforms:")
-            })
+            .filter(|l| l.trim() != "with:" && !l.trim_start().starts_with("platforms:"))
             .map(|l| format!("{l}\n"))
             .collect();
         assert_eq!(
@@ -1312,7 +1308,6 @@ mod tests {
     fn caller_leaves_reusable_defaults_out() {
         let caller = render_consumer_caller();
         assert!(!caller.contains("platforms:"), "{caller}");
-        assert!(!caller.contains("disabled_checks:"), "{caller}");
     }
 
     #[test]

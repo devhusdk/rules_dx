@@ -21,19 +21,14 @@ const PLATFORMS_REF: &str = "needs.validate.outputs.platforms";
 
 const RUNNERS_REF: &str = "needs.validate.outputs.runners";
 
-const DISABLED_REF: &str = "needs.validate.outputs.disabled";
-
-const DISABLED: &str = "${{ needs.validate.outputs.disabled }}";
-
 const THRESHOLD: &str = "${{ needs.validate.outputs.min_coverage }}";
 
 const MATRIX: &str = "${{ fromJSON(needs.validate.outputs.platforms) }}";
 
 const RUNNER: &str = "${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
 
-const RAW_INPUTS: [&str; 4] = [
+const RAW_INPUTS: [&str; 3] = [
     "inputs.platforms",
-    "inputs.disabled_checks",
     "inputs.min_coverage",
     "inputs.min_changed_line_coverage",
 ];
@@ -101,22 +96,9 @@ fn every_check_job_waits_for_the_validated_inputs() {
             json!(wanted),
             "{WORKFLOW} job {name} must need the validate job and nothing else it can skip"
         );
-        let gate = text_at(&job(WORKFLOW, name)["if"], &format!("{name} if"));
-        if name == MATRIX_JOB {
-            assert_eq!(
-                gate,
-                "${{ needs.validate.outputs.checks != '[]' || !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}",
-                "{WORKFLOW} job {name} must skip only when no check and no coverage is enabled"
-            );
-            continue;
-        }
         assert!(
-            gate.contains(&format!("contains(format(',{{0}},', {DISABLED_REF})")),
-            "{WORKFLOW} job {name} must gate on {DISABLED_REF}: {gate}"
-        );
-        assert!(
-            gate.contains(&format!(",{name},")),
-            "{WORKFLOW} job {name} must gate on its own check ID: {gate}"
+            job(WORKFLOW, name).get("if").is_none(),
+            "{WORKFLOW} job {name} runs on every call; turn a tool off in dx.toml"
         );
     }
 }
@@ -313,12 +295,7 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     }
 
     let render = coverage_step("Render first-party coverage summary");
-    assert_eq!(
-        render["if"],
-        json!(
-            "${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}"
-        )
-    );
+    assert_eq!(render["if"], json!("${{ always() }}"));
     let render_run = text_at(&render["run"], "render step run");
     for needle in [
         "dx_changed_lines.rc",
@@ -336,9 +313,7 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     let publish = coverage_step("Publish PR summary comment");
     assert_eq!(
         publish["if"],
-        json!(
-            "${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && github.event_name == 'pull_request' }}"
-        ),
+        json!("${{ always() && github.event_name == 'pull_request' }}"),
         "{WORKFLOW} must publish the coverage comment even after a failed gate"
     );
     let publish_run = text_at(&publish["run"], "publish step run");
@@ -354,24 +329,21 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
 }
 
 #[test]
-fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
+fn the_aggregate_fails_a_skipped_check() {
     let aggregate = job(WORKFLOW, AGGREGATE);
     assert_eq!(
         aggregate["needs"],
         json!([VALIDATE, MATRIX_JOB, "security-audit", PREP])
     );
     let step = aggregate["steps"][0].clone();
-    assert_eq!(step["env"]["DISABLED"], json!(DISABLED));
+    assert!(step["env"].get("DISABLED").is_none());
     assert_eq!(step["env"]["CHECKS"], json!(CHECKS_LIST));
     let script = text_at(&step["run"], "aggregate steps.0.run");
     for needle in [
         "required=(checks security-audit advisory-snapshots)",
-        "*,security-audit,*) add_disabled advisory-snapshots",
-        "skipped) is_disabled \"$name\" || lost+=(\"$name\")",
-        "skipped without disabled_checks",
+        "skipped) skipped+=(\"$name\")",
+        "skipped checks",
         "\"$(result VALIDATE)\" != success",
-        "[ \"$CHECKS\" = \"[]\" ] && is_disabled coverage",
-        "add_disabled checks",
     ] {
         assert!(
             script.contains(needle),

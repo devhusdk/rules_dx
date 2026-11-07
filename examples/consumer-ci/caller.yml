@@ -10,7 +10,6 @@ jobs:
   dx:
     uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@32c4bcd07a0887dfff761a45206c714baf8e6a20
     with:
-      disabled_checks: ""
       platforms: '["linux_x86_64"]'
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}

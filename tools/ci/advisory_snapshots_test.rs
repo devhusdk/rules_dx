@@ -43,14 +43,6 @@ fn action_step<'a>(steps: &'a [Value], action: &str) -> &'a Value {
     found[0]
 }
 
-/// Returns the `if` gate of one job.
-fn gate_of(name: &str) -> String {
-    job(WORKFLOW, name)["if"]
-        .as_str()
-        .unwrap_or_default()
-        .to_owned()
-}
-
 #[test]
 fn one_preparation_job_runs_per_run_and_not_per_platform() {
     let prep = job(WORKFLOW, PREP);
@@ -61,15 +53,12 @@ fn one_preparation_job_runs_per_run_and_not_per_platform() {
     );
     assert_eq!(prep["runs-on"], json!("ubuntu-latest"));
     assert_eq!(prep["permissions"], json!({"contents": "read"}));
-    let gate = gate_of(PREP);
-    assert!(
-        gate.contains(&format!(",{AUDIT},")),
-        "{WORKFLOW} job {PREP} must gate on its consumer: {gate}"
-    );
-    assert!(
-        gate.contains("needs.validate.outputs.disabled"),
-        "{WORKFLOW} job {PREP} must gate on the validated disabled checks: {gate}"
-    );
+    for name in [PREP, AUDIT] {
+        assert!(
+            job(WORKFLOW, name).get("if").is_none(),
+            "{WORKFLOW} job {name} runs on every call"
+        );
+    }
 }
 
 /// Returns the one run script of a job that mentions `needle`.
@@ -235,29 +224,12 @@ fn a_failed_preparation_skips_the_audit_and_fails_the_aggregate() {
         "{WORKFLOW} job dx-ci must need {AUDIT}"
     );
     let aggregate = scripts(WORKFLOW, "dx-ci");
-    for needle in [
-        "result == \"skipped\" and name not in disabled",
-        "skipped without disabled_checks",
-    ] {
+    for needle in ["skipped) skipped+=", "skipped checks"] {
         assert!(
             aggregate.contains(needle),
             "{WORKFLOW} job dx-ci must fail a skipped {AUDIT}: {aggregate}"
         );
     }
-}
-
-#[test]
-fn a_disabled_audit_disables_its_preparation_too() {
-    let aggregate = scripts(WORKFLOW, "dx-ci");
-    assert!(
-        aggregate.contains("if \"security-audit\" in disabled:")
-            && aggregate.contains("disabled.add(\"advisory-snapshots\")"),
-        "{WORKFLOW} job dx-ci must read a disabled {AUDIT} as a disabled {PREP}: {aggregate}"
-    );
-    assert!(
-        gate_of(PREP).contains(&format!(",{AUDIT},")),
-        "{WORKFLOW} job {PREP} must be gated by the same input as {AUDIT}"
-    );
 }
 
 #[test]

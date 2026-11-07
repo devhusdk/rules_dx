@@ -156,7 +156,7 @@ fn the_consumer_gate_requires_every_declared_check() {
     );
     for needle in [
         "!= success ]",
-        "skipped without disabled_checks",
+        "skipped checks",
         "missing checks",
         "-eq 0 ]",
         "\\\"aggregate\\\":\\\"dx-ci\\\"",

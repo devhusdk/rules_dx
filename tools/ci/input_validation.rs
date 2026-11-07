@@ -4,12 +4,11 @@ use std::collections::BTreeMap;
 
 pub const PLATFORMS_ENV: &str = "DX_PLATFORMS";
 pub const DEPLOYABLES_ENV: &str = "DX_DEPLOYABLES";
-pub const DISABLED_ENV: &str = "DX_DISABLED_CHECKS";
 pub const MIN_COVERAGE_ENV: &str = "DX_MIN_COVERAGE";
 pub const MIN_CHANGED_ENV: &str = "DX_MIN_CHANGED_LINE_COVERAGE";
 pub const INVOCATION_ENV: &str = "DX_INVOCATION_ID";
 pub const FUZZ_TIME_ENV: &str = "DX_FUZZ_TIME";
-pub const BENCH_PCT_ENV: &str = "DX_BENCH_REGRESSION_PCT";
+pub const BENCH_MAX_REGRESSION_ENV: &str = "DX_BENCH_MAX_REGRESSION";
 
 pub const PLATFORMS: [(&str, &str); 5] = [
     ("linux_x86_64", "ubuntu-latest"),
@@ -20,18 +19,6 @@ pub const PLATFORMS: [(&str, &str); 5] = [
 ];
 
 pub const DEFAULT_PLATFORM: &str = "linux_x86_64";
-
-pub const CHECKS: [&str; 9] = [
-    "lint",
-    "typecheck",
-    "format",
-    "generate",
-    "security-audit",
-    "license-audit",
-    "test",
-    "build",
-    "coverage",
-];
 
 pub struct MatrixCheck {
     pub id: &'static str,
@@ -433,35 +420,6 @@ pub fn validate_deployables(text: &str) -> Result<Vec<String>, String> {
     Ok(labels)
 }
 
-pub fn validate_disabled(text: &str) -> Result<Vec<String>, String> {
-    if text.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-    let mut ids: Vec<String> = Vec::new();
-    for part in text.split(',') {
-        let name = part.trim();
-        if name.is_empty() {
-            return Err(format!(
-                "{DISABLED_ENV} holds an empty check ID in '{text}'. Accepted: {}.",
-                accepted(&CHECKS)
-            ));
-        }
-        if !CHECKS.contains(&name) {
-            return Err(format!(
-                "{DISABLED_ENV} names unknown check '{name}'. Accepted: {}.",
-                accepted(&CHECKS)
-            ));
-        }
-        if ids.iter().any(|id| id == name) {
-            return Err(format!(
-                "{DISABLED_ENV} lists '{name}' twice. List every check ID once."
-            ));
-        }
-        ids.push(name.to_string());
-    }
-    Ok(ids)
-}
-
 pub fn validate_percent(text: &str, name: &str, omitted: &str) -> Result<String, String> {
     if text.is_empty() {
         return Ok(String::new());
@@ -529,7 +487,6 @@ fn or_none(text: &str) -> &str {
 /// Validates every input read through `get` and returns the job outputs, or every diagnostic.
 pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> {
     let platforms = validate_platforms(&get(PLATFORMS_ENV));
-    let disabled = validate_disabled(&get(DISABLED_ENV));
     let coverage = validate_percent(
         &get(MIN_COVERAGE_ENV),
         MIN_COVERAGE_ENV,
@@ -542,44 +499,39 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
     );
     let invocation = validate_invocation(&get(INVOCATION_ENV));
     let fuzz_time = validate_fuzz_time(&get(FUZZ_TIME_ENV));
-    let bench_pct = validate_percent(&get(BENCH_PCT_ENV), BENCH_PCT_ENV, "use 20");
-    let (Ok(platforms), Ok(disabled), Ok(coverage), Ok(changed), Ok(invocation), Ok(_), Ok(_)) = (
+    let bench = validate_percent(
+        &get(BENCH_MAX_REGRESSION_ENV),
+        BENCH_MAX_REGRESSION_ENV,
+        "use 20",
+    );
+    let (Ok(platforms), Ok(coverage), Ok(changed), Ok(invocation), Ok(_), Ok(_)) = (
         &platforms,
-        &disabled,
         &coverage,
         &changed,
         &invocation,
         &fuzz_time,
-        &bench_pct,
+        &bench,
     ) else {
         let errors = [
             platforms.err(),
-            disabled.err(),
             coverage.err(),
             changed.err(),
             invocation.err(),
             fuzz_time.err(),
-            bench_pct.err(),
+            bench.err(),
         ];
         return Err(errors.into_iter().flatten().collect());
     };
-    let enabled: Vec<&MatrixCheck> = MATRIX_CHECKS
-        .iter()
-        .filter(|check| !disabled.iter().any(|id| id == check.id))
-        .collect();
     let runners: Vec<String> = PLATFORMS
         .iter()
         .map(|(name, runner)| format!("\"{name}\":\"{runner}\""))
         .collect();
     let platform_list: Vec<&str> = platforms.iter().map(String::as_str).collect();
-    let coverage_on = !disabled.iter().any(|id| id == "coverage");
-    let mut timeout: u32 = enabled.iter().map(|check| check.timeout).sum();
-    if coverage_on {
-        timeout += COVERAGE_TIMEOUT;
-    }
-    let check_lines = enabled
+    let timeout: u32 =
+        MATRIX_CHECKS.iter().map(|check| check.timeout).sum::<u32>() + COVERAGE_TIMEOUT;
+    let check_lines = MATRIX_CHECKS
         .iter()
-        .map(|check| check_line(check))
+        .map(check_line)
         .collect::<Vec<_>>()
         .join("\n");
     let suffix = if invocation.is_empty() {
@@ -590,14 +542,13 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
     let mut outputs = BTreeMap::new();
     outputs.insert("platforms".to_string(), quoted_list(&platform_list));
     outputs.insert("runners".to_string(), format!("{{{}}}", runners.join(",")));
-    outputs.insert("disabled".to_string(), disabled.join(","));
     outputs.insert(
         "checks".to_string(),
         format!(
             "[{}]",
-            enabled
+            MATRIX_CHECKS
                 .iter()
-                .map(|check| render_check(check))
+                .map(render_check)
                 .collect::<Vec<_>>()
                 .join(",")
         ),
@@ -614,11 +565,10 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
         "snapshot_artifact".to_string(),
         format!("{SNAPSHOT_ARTIFACT}{suffix}"),
     );
-    let ids: Vec<&str> = enabled.iter().map(|check| check.id).collect();
+    let ids: Vec<&str> = MATRIX_CHECKS.iter().map(|check| check.id).collect();
     let summary = vec![
         format!("{PLATFORMS_ENV} {}", outputs["platforms"]),
-        format!("{DISABLED_ENV} {}", or_none(&outputs["disabled"])),
-        format!("checks {}", or_none(&ids.join(","))),
+        format!("checks {}", ids.join(",")),
         format!("{MIN_COVERAGE_ENV} {}", or_none(coverage)),
         format!("{MIN_CHANGED_ENV} {}", or_none(changed)),
         format!("{INVOCATION_ENV} {}", or_none(invocation)),

@@ -25,7 +25,6 @@
      dx:
        uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@<commit>
        with:
-         disabled_checks: ""
          platforms: '["linux_x86_64"]'
        secrets:
          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -65,7 +64,7 @@ Per platform, `checks (<platform>)` runs these in order. A failing check does no
 | `build` | `dx build` | `failures.json` |
 | `coverage` | `dx coverage` | `failures.json`, `results.json` |
 
-`security-audit` runs `dx security //...` in its own job per platform. `validate (inputs)` checks the inputs first. `advisory snapshots (one run, every platform)` prepares the advisory snapshots once for all platforms. With `advisory_pr`, `advisory pin bump` opens the advisory pin pull request. `fuzz` and `bench` run when their inputs are set. `dx-ci (aggregate)` reports the result of the required jobs.
+`security-audit` runs `dx security //...` in its own job per platform. `validate (inputs)` checks the inputs first. `advisory snapshots (one run, every platform)` prepares the advisory snapshots once for all platforms. With `advisory_pr`, `advisory pin bump` opens the advisory pin pull request. `fuzz` and `bench` run when their inputs are set. `dx-ci (aggregate)` reports the result of the required jobs. Every check runs on every call; a skipped required job fails `dx-ci`. To turn a tool off, set it in the quality policy's `families` (see [quality](cli/commands/quality.md)), so CI and local runs agree.
 
 On pull requests, `lint`, `typecheck`, `format`, `test`, `build` and `coverage` run with `--affected`. Other events use `//...`. `coverage` uses `//...` when `min_coverage` or `min_changed_line_coverage` is set. Set `affected_on_pr: false` to use `//...` on pull requests.
 
@@ -144,7 +143,6 @@ Bazel downloads and Bazelisk are fetched fresh in each job.
 
 | Input | Meaning |
 |---|---|
-| `disabled_checks` | Comma-separated checks to skip: `lint`, `typecheck`, `format`, `generate`, `security-audit`, `license-audit`, `test`, `build`, `coverage`. Empty runs all. |
 | `platforms` | JSON array. Default `["linux_x86_64"]`. Values: `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`. |
 | `min_coverage` | Whole number 0 to 100. Fails below it. Empty sets no threshold. |
 | `min_changed_line_coverage` | Whole number 0 to 100. Pull requests only. Fails when fewer of the added executable lines are covered. Empty skips it. |

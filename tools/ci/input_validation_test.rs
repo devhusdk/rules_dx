@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::process::Command;
 
 use dx_testing::{read_runfiles, runfiles_root};
-use input_validation::{CHECKS, MATRIX_CHECKS, PLATFORMS};
+use input_validation::{MATRIX_CHECKS, PLATFORMS};
 use serde_json::Value;
 
 const FIXTURE_DIR: &str = "tools/ci/input_validation_fixtures";
@@ -12,20 +12,18 @@ const CONSUMER_WORKFLOW: &str = ".github/workflows/release-consumer.yml";
 const ACTIONLINT_CONFIG: &str = ".github/actionlint.yaml";
 const DOCS: &str = "docs/github-ci.md";
 const CALLERS: [&str; 2] = ["examples/consumer-ci/caller.yml", CI_WORKFLOW];
-const INPUTS: [&str; 7] = [
+const INPUTS: [&str; 6] = [
     "DX_PLATFORMS",
-    "DX_DISABLED_CHECKS",
     "DX_MIN_COVERAGE",
     "DX_MIN_CHANGED_LINE_COVERAGE",
     "DX_INVOCATION_ID",
     "DX_FUZZ_TIME",
-    "DX_BENCH_REGRESSION_PCT",
+    "DX_BENCH_MAX_REGRESSION",
 ];
-const PLAIN_OUTPUTS: [&str; 7] = [
+const PLAIN_OUTPUTS: [&str; 6] = [
     "artifact_suffix",
     "check_lines",
     "checks_timeout",
-    "disabled",
     "min_changed_line_coverage",
     "min_coverage",
     "snapshot_artifact",
@@ -201,11 +199,10 @@ fn every_input_has_a_rejected_case() {
 }
 
 #[test]
-fn matrix_checks_are_unique_gated_ids() {
+fn matrix_checks_are_unique_ids() {
     let ids: Vec<&str> = MATRIX_CHECKS.iter().map(|row| row.id).collect();
     for (index, id) in ids.iter().enumerate() {
         assert!(!ids[..index].contains(id), "MATRIX_CHECKS repeats {id}");
-        assert!(CHECKS.contains(id), "MATRIX_CHECKS names ungated {id}");
         assert!(
             !["security-audit", "coverage"].contains(id),
             "{id} is not a matrix check"
@@ -389,14 +386,14 @@ fn evidence_runners_match_the_table() {
 }
 
 #[test]
-fn docs_name_every_platform_and_gated_check() {
+fn docs_name_every_platform_and_check() {
     assert_eq!(PLATFORMS.len(), 5);
-    assert_eq!(CHECKS.len(), 9);
     let page = read_runfiles(DOCS);
     let missing: Vec<&str> = PLATFORMS
         .iter()
         .map(|(name, _)| *name)
-        .chain(CHECKS)
+        .chain(MATRIX_CHECKS.iter().map(|check| check.id))
+        .chain(["security-audit", "coverage"])
         .filter(|name| !page.contains(&format!("`{name}`")))
         .collect();
     assert!(missing.is_empty(), "{DOCS} never names {missing:?}");

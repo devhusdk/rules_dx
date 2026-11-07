@@ -1,3 +1,0 @@
-input {"NEEDS": {"validate": {"result": "success"}, "checks": {"result": "success"}, "security-audit": {"result": "success"}, "advisory-snapshots": {"result": "success"}}, "DISABLED": "lint,typecheck,format,generate,license-audit,test,build", "CHECKS": "[]"}
-exit 0
-says "checks":"success"

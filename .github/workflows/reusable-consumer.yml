@@ -3,11 +3,6 @@ name: rules-dx-consumer
 on:
   workflow_call:
     inputs:
-      disabled_checks:
-        description: "Comma-separated check IDs to omit (e.g. coverage,license-audit). Empty enables all nine."
-        required: false
-        default: ""
-        type: string
       platforms:
         description: 'JSON array of platform labels for every check (e.g. ["linux_x86_64"]). Omit it to run Linux x86_64 only; [] fails validation.'
         required: false
@@ -107,7 +102,6 @@ jobs:
     outputs:
       check_lines: ${{ steps.validate.outputs.check_lines }}
       checks_timeout: ${{ steps.validate.outputs.checks_timeout }}
-      disabled: ${{ steps.validate.outputs.disabled }}
       min_changed_line_coverage: ${{ steps.validate.outputs.min_changed_line_coverage }}
       min_coverage: ${{ steps.validate.outputs.min_coverage }}
       platforms: ${{ steps.validate.outputs.platforms }}
@@ -197,12 +191,11 @@ jobs:
         id: validate
         env:
           DX_PLATFORMS: ${{ inputs.platforms }}
-          DX_DISABLED_CHECKS: ${{ inputs.disabled_checks }}
           DX_MIN_COVERAGE: ${{ inputs.min_coverage }}
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ inputs.min_changed_line_coverage }}
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
           DX_FUZZ_TIME: ${{ inputs.fuzz_time }}
-          DX_BENCH_REGRESSION_PCT: ${{ inputs.bench_max_regression }}
+          DX_BENCH_MAX_REGRESSION: ${{ inputs.bench_max_regression }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
@@ -210,7 +203,6 @@ jobs:
   checks:
     name: checks (${{ matrix.platform }})
     needs: [validate]
-    if: ${{ needs.validate.outputs.checks != '[]' || !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
     timeout-minutes: ${{ fromJSON(needs.validate.outputs.checks_timeout) }}
     defaults:
       run:
@@ -550,7 +542,7 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
       - name: Run coverage with optional threshold
-        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        if: ${{ always() }}
         env:
           DX_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
@@ -584,7 +576,7 @@ jobs:
           exit "$rc"
       - name: Check the upload holds no secret
         id: scan-coverage
-        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        if: ${{ always() }}
         shell: bash
         env:
           DX_UPLOAD_PATH: ${{ runner.temp }}/dx-reports/coverage
@@ -625,7 +617,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
       - name: Check changed-line coverage
-        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && needs.validate.outputs.min_changed_line_coverage != '' && github.event_name == 'pull_request' }}
+        if: ${{ always() && needs.validate.outputs.min_changed_line_coverage != '' && github.event_name == 'pull_request' }}
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
@@ -645,7 +637,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Render first-party coverage summary (per-cell, no union)
-        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        if: ${{ always() }}
         env:
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
@@ -701,7 +693,7 @@ jobs:
           } > "${RUNNER_TEMP:-/tmp}"/coverage_comment.md
           cat "${RUNNER_TEMP:-/tmp}"/coverage_comment.md >> "$GITHUB_STEP_SUMMARY"
       - name: Publish PR summary comment (dedup marker, fork-safe)
-        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && github.event_name == 'pull_request' }}
+        if: ${{ always() && github.event_name == 'pull_request' }}
         env:
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
           GH_TOKEN: ${{ github.token }}
@@ -740,7 +732,6 @@ jobs:
   advisory-snapshots:
     name: advisory snapshots (one run, every platform)
     needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',security-audit,') }}
     timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
@@ -994,7 +985,6 @@ jobs:
           bazel run "$@" @rules_dx//:dx -- update advisory --pr
   security-audit:
     needs: [validate, advisory-snapshots]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',security-audit,') }}
     timeout-minutes: 30
     defaults:
       run:
@@ -1423,48 +1413,27 @@ jobs:
           NEEDS_CHECKS: ${{ needs.checks.result }}
           NEEDS_SECURITY_AUDIT: ${{ needs.security-audit.result }}
           NEEDS_ADVISORY_SNAPSHOTS: ${{ needs.advisory-snapshots.result }}
-          DISABLED: ${{ needs.validate.outputs.disabled }}
           CHECKS: ${{ needs.validate.outputs.checks }}
         run: |
           set -eu
           export LC_ALL=C
           required=(checks security-audit advisory-snapshots)
-          disabled=()
           result() {
             local name="NEEDS_${1^^}"
             echo "${!name:-}"
           }
-          is_disabled() {
-            case " ${disabled[*]} " in
-              *" $1 "*) return 0 ;;
-            esac
-            return 1
-          }
-          add_disabled() { is_disabled "$1" || disabled+=("$1"); }
           sorted() { printf '%s\n' "$@" | sort; }
-          json_list() {
-            local out="" item
-            for item in $(sorted "$@"); do out="$out${out:+,}\"$item\""; done
-            echo "[$out]"
-          }
           say() {
             local label=$1
             shift
             [ $# -eq 0 ] || echo "dx-ci: $label: $(sorted "$@" | paste -sd, - | sed 's/,/, /g')"
           }
-          IFS=, read -ra given <<<"$DISABLED"
-          for name in "${given[@]}"; do
-            [ -z "$name" ] || add_disabled "$name"
-          done
-          case ",$DISABLED," in
-            *,security-audit,*) add_disabled advisory-snapshots ;;
-          esac
           needs=""
           for name in validate "${required[@]}"; do
             value=$(result "${name//-/_}")
             [ -z "$value" ] || needs="$needs${needs:+,}\"$name\":\"$value\""
           done
-          echo "{\"aggregate\":\"dx-ci\",\"disabled\":$(json_list "${disabled[@]}"),\"needs\":{$needs}}"
+          echo "{\"aggregate\":\"dx-ci\",\"needs\":{$needs}}"
           if [ "$(result VALIDATE)" != success ]; then
             echo "dx-ci: input validation failed; see the validate job"
             exit 1
@@ -1473,19 +1442,16 @@ jobs:
             echo "dx-ci: validate wrote no checks list; pin the workflow and rules_dx to the same commit"
             exit 1
           fi
-          if [ "$CHECKS" = "[]" ] && is_disabled coverage; then
-            add_disabled checks
-          fi
-          lost=() bad=() missing=()
+          skipped=() bad=() missing=()
           for name in "${required[@]}"; do
             case $(result "${name//-/_}") in
               "") missing+=("$name") ;;
               success) ;;
-              skipped) is_disabled "$name" || lost+=("$name") ;;
+              skipped) skipped+=("$name") ;;
               *) bad+=("$name") ;;
             esac
           done
-          say "skipped without disabled_checks" "${lost[@]}"
+          say "skipped checks" "${skipped[@]}"
           say "failing checks" "${bad[@]}"
           say "missing checks" "${missing[@]}"
-          [ $((${#lost[@]} + ${#bad[@]} + ${#missing[@]})) -eq 0 ]
+          [ $((${#skipped[@]} + ${#bad[@]} + ${#missing[@]})) -eq 0 ]

@@ -1,4 +1,4 @@
-input {"NEEDS": {"validate": {"result": "failure"}, "checks": {"result": "skipped"}, "security-audit": {"result": "skipped"}, "advisory-snapshots": {"result": "skipped"}}, "DISABLED": "", "CHECKS": ""}
+input {"NEEDS": {"validate": {"result": "failure"}, "checks": {"result": "skipped"}, "security-audit": {"result": "skipped"}, "advisory-snapshots": {"result": "skipped"}}, "CHECKS": ""}
 exit 1
 says "validate":"failure"
 says dx-ci: input validation failed; see the validate job

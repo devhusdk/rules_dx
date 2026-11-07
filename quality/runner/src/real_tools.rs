@@ -613,7 +613,7 @@ fn pydoclint_reports_and_is_check_only() {
 }
 
 #[test]
-fn biome_lint_runs_with_the_bound_config_and_is_check_only() {
+fn biome_lint_runs_with_the_bound_config() {
     let backend = backend_for("biome", bound_tool("cfg/biome.json", b"{}"), biome_defaults);
     let findings = backend
         .diagnose(
@@ -631,13 +631,6 @@ fn biome_lint_runs_with_the_bound_config_and_is_check_only() {
             .diagnose("biome", "lint", &single("src/a.js", "const x = 1;\n"))
             .expect("diagnosed")
             .is_empty()
-    );
-    let text = "const unusedVar = 1;\n";
-    assert_eq!(
-        backend
-            .apply_fix("biome", "src/a.js", text, "lint")
-            .expect("check-only"),
-        text
     );
 }
 
@@ -7363,6 +7356,8 @@ fn fix_without_unsafe_flags(
 ) -> io::Result<ChildOutput> {
     assert!(!has_arg(argv, "--unsafe-fixes"), "{argv:?}");
     assert!(!has_arg(argv, "--fix=all"), "{argv:?}");
+    assert!(!has_arg(argv, "--unsafe"), "{argv:?}");
+    assert!(!has_arg(argv, "--autocorrect-all"), "{argv:?}");
     quiet_success()
 }
 
@@ -7382,6 +7377,44 @@ fn ansible_fix_with_all(
 ) -> io::Result<ChildOutput> {
     assert!(has_arg(argv, "--fix=all"), "{argv:?}");
     quiet_success()
+}
+
+fn biome_fix_with_unsafe(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(has_arg(argv, "--write"), "{argv:?}");
+    assert!(has_arg(argv, "--unsafe"), "{argv:?}");
+    quiet_success()
+}
+
+fn rubocop_fix_with_all(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(has_arg(argv, "--autocorrect-all"), "{argv:?}");
+    quiet_success()
+}
+
+#[test]
+fn biome_and_rubocop_lint_fixes_are_unsafe_only_on_request() {
+    let biome = || bound_tool("cfg/biome.json", b"{}");
+    backend_for("biome", biome(), fix_without_unsafe_flags)
+        .apply_fix("biome", "src/a.js", "let a = 1;\n", "lint")
+        .expect("safe biome fix");
+    backend_for("biome", biome(), biome_fix_with_unsafe)
+        .with_unsafe_fixes(true)
+        .apply_fix("biome", "src/a.js", "let a = 1;\n", "lint")
+        .expect("unsafe biome fix");
+    backend_for("rubocop", plain_tool(), fix_without_unsafe_flags)
+        .apply_fix("rubocop", "a.rb", "x = 1\n", "lint")
+        .expect("safe rubocop fix");
+    backend_for("rubocop", plain_tool(), rubocop_fix_with_all)
+        .with_unsafe_fixes(true)
+        .apply_fix("rubocop", "a.rb", "x = 1\n", "lint")
+        .expect("unsafe rubocop fix");
 }
 
 #[test]

@@ -85,6 +85,8 @@ const BIOME_FORMAT_SUBCOMMAND: &[&str] = &["format"];
 const BIOME_BASE_TAIL: &[&str] = &["--reporter=json", "--colors=off", "--config-path"];
 const BIOME_LINT_TAIL: &[&str] = &["--error-on-warnings", "--vcs-enabled=false"];
 const BIOME_FORMAT_FIX_TAIL: &[&str] = &["--write"];
+const BIOME_LINT_FIX_TAIL: &[&str] = &["--write", "--vcs-enabled=false"];
+const BIOME_UNSAFE_FIX_TAIL: &[&str] = &["--unsafe"];
 const ESLINT_MIDDLE: &[&str] = &["-f", "json"];
 const ESLINT_FIX_SUFFIX: &[&str] = &["-f", "json", "--fix"];
 const PRETTIER_NO_EDITORCONFIG: &str = "--no-editorconfig";
@@ -304,6 +306,8 @@ const RUBOCOP_FORMAT_CHECK_ARGS: &[&str] = &[
     "--display-only-correctable",
 ];
 const RUBOCOP_FORMAT_FIX_ARGS: &[&str] = &["--fix-layout", "--cache", "false"];
+const RUBOCOP_SAFE_FIX_ARGS: &[&str] = &["--autocorrect", "--cache", "false"];
+const RUBOCOP_UNSAFE_FIX_ARGS: &[&str] = &["--autocorrect-all", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
@@ -734,6 +738,20 @@ pub fn biome_format_check(binary: &Path, files: &[&Path], config_dir: &Path) -> 
 pub fn biome_format_fix(binary: &Path, files: &[&Path], config_dir: &Path) -> Invocation {
     let mut head = biome_base(binary, BIOME_FORMAT_SUBCOMMAND[0], config_dir);
     head.extend(BIOME_FORMAT_FIX_TAIL.iter().map(OsString::from));
+    assemble(binary, head, files, "")
+}
+
+pub fn biome_lint_fix(
+    binary: &Path,
+    files: &[&Path],
+    config_dir: &Path,
+    unsafe_fixes: bool,
+) -> Invocation {
+    let mut head = biome_base(binary, BIOME_LINT_SUBCOMMAND[0], config_dir);
+    head.extend(BIOME_LINT_FIX_TAIL.iter().map(OsString::from));
+    if unsafe_fixes {
+        head.extend(BIOME_UNSAFE_FIX_TAIL.iter().map(OsString::from));
+    }
     assemble(binary, head, files, "")
 }
 
@@ -2330,6 +2348,21 @@ pub fn rubocop_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>)
         files,
         "",
     )
+}
+
+/// `--autocorrect` applies only the cops rubocop marks safe; `--autocorrect-all` adds the unsafe ones.
+pub fn rubocop_lint_fix(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    unsafe_fixes: bool,
+) -> Invocation {
+    let args = if unsafe_fixes {
+        RUBOCOP_UNSAFE_FIX_ARGS
+    } else {
+        RUBOCOP_SAFE_FIX_ARGS
+    };
+    optional_flag(binary, args, "--config", config, SCALAFMT_EMPTY, files, "")
 }
 
 pub fn psscriptanalyzer_check(

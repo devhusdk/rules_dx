@@ -391,8 +391,8 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
             Some(_) => Ok(Route::Keep),
             None => Err(missing_tier_base(tool_id)),
         },
-        "bicep" | "buf" | "djlint" | "rubocop" | "psscriptanalyzer" | "biome" | "prettier"
-        | "remark" | "opa" => {
+        "rubocop" | "biome" => spec(capability == "format"),
+        "bicep" | "buf" | "djlint" | "psscriptanalyzer" | "prettier" | "remark" | "opa" => {
             if capability == "format" {
                 spec(true)
             } else {
@@ -1015,7 +1015,11 @@ impl super::RealBackend {
             }
             FixConfig::BiomeDir => {
                 let config_dir = Self::biome_config_dir(tool, scratch)?;
-                Ok(commands::biome_format_fix(&tool.binary, refs, &config_dir))
+                Ok(if format {
+                    commands::biome_format_fix(&tool.binary, refs, &config_dir)
+                } else {
+                    commands::biome_lint_fix(&tool.binary, refs, &config_dir, self.unsafe_fixes)
+                })
             }
             FixConfig::Required => {
                 let config = self.config_abs(tool_id, tool, scratch)?;
@@ -1105,11 +1109,16 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
-                    "rubocop" => Ok(commands::rubocop_format_fix(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                    )),
+                    "rubocop" => Ok(if format {
+                        commands::rubocop_format_fix(&tool.binary, refs, config.as_deref())
+                    } else {
+                        commands::rubocop_lint_fix(
+                            &tool.binary,
+                            refs,
+                            config.as_deref(),
+                            self.unsafe_fixes,
+                        )
+                    }),
                     "csharpier" => Ok(commands::csharpier_fix(
                         &tool.binary,
                         refs,

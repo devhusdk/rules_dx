@@ -473,6 +473,14 @@ fn biome_format_check_and_fix_share_config() {
         ]
     );
     assert_eq!(fix.cwd_rel, "");
+    let lint_fix = argv_strings(&biome_lint_fix(Path::new(BIN), &[file], config, false));
+    assert!(lint_fix.contains(&"--write".to_owned()), "{lint_fix:?}");
+    assert!(!lint_fix.contains(&"--unsafe".to_owned()), "{lint_fix:?}");
+    let unsafe_fix = argv_strings(&biome_lint_fix(Path::new(BIN), &[file], config, true));
+    assert!(
+        unsafe_fix.contains(&"--unsafe".to_owned()),
+        "{unsafe_fix:?}"
+    );
 }
 
 #[test]
@@ -1256,6 +1264,10 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/Sample.rb"
         ]
     );
+    let safe = argv_strings(&rubocop_lint_fix(Path::new(BIN), &[rb], None, false));
+    assert!(safe.contains(&"--autocorrect".to_owned()), "{safe:?}");
+    let all = argv_strings(&rubocop_lint_fix(Path::new(BIN), &[rb], None, true));
+    assert!(all.contains(&"--autocorrect-all".to_owned()), "{all:?}");
     assert_eq!(
         argv_strings(&rubocop_format_fix(
             Path::new(BIN),

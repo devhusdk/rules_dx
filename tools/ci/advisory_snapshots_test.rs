@@ -114,7 +114,21 @@ fn the_preparation_runs_the_pinned_native_command_once() {
 
 #[test]
 fn the_preparation_publishes_one_run_artifact() {
+    assert_eq!(
+        job(WORKFLOW, PREP)["outputs"]["trivy"],
+        json!("${{ steps.prepare.outputs.trivy }}")
+    );
     let prep = steps(WORKFLOW, PREP);
+    let scan = prep
+        .iter()
+        .find(|step| step["id"] == json!("scan-advisory"))
+        .expect("the scan-advisory step exists");
+    assert_eq!(
+        scan["if"],
+        json!(
+            "${{ steps.prepare.outputs.status != 'empty' || steps.prepare.outputs.trivy == 'true' }}"
+        )
+    );
     let upload = action_step(&prep, "actions/upload-artifact");
     assert_eq!(upload["with"]["name"], json!(ARTIFACT));
     assert_eq!(upload["with"]["path"], json!(".dx/local/advisory"));

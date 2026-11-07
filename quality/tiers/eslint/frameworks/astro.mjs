@@ -1,10 +1,19 @@
 import astro from "eslint-plugin-astro";
+import tseslint from "typescript-eslint";
 
 export default [
 	...astro.configs.recommended,
 	{
 		files: ["**/*.astro"],
 		languageOptions: { parserOptions: { parser: "@typescript-eslint/parser" } },
+	},
+	{
+		files: ["**/*.astro"],
+		plugins: { "@typescript-eslint": tseslint.plugin },
+		rules: {
+			"no-unused-vars": "off",
+			"@typescript-eslint/no-unused-vars": "error",
+		},
 	},
 ];
 

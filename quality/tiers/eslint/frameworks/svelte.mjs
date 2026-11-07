@@ -1,10 +1,19 @@
 import svelte from "eslint-plugin-svelte";
+import tseslint from "typescript-eslint";
 
 export default [
 	...svelte.configs.recommended,
 	{
 		files: ["**/*.svelte"],
 		languageOptions: { parserOptions: { parser: "@typescript-eslint/parser" } },
+	},
+	{
+		files: ["**/*.svelte"],
+		plugins: { "@typescript-eslint": tseslint.plugin },
+		rules: {
+			"no-unused-vars": "off",
+			"@typescript-eslint/no-unused-vars": "error",
+		},
 	},
 ];
 

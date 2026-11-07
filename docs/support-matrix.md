@@ -78,7 +78,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 
 | Name | Lint | Format | Typecheck | API docs | Coverage | Dead code |
 | --- | --- | --- | --- | --- | --- | --- |
-| Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring | no |
+| Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
 | Avro | `avro_tools`, `typos` | n/a | `avro_tools` | no | n/a | no |
 | C and C++ | `clang_tidy`, `cppcheck`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
@@ -107,9 +107,9 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `rubocop Lint/UselessAssignment` |
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` | `scalac -Wunused` |
-| Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring | no |
+| Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
 | TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
-| Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring | no |
+| Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) | `zig ast-check unused local, unused parameter` |
 | Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | no: no dx coverage wiring in the Apple rules | n/a |
 | CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a | n/a |

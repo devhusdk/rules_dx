@@ -17,8 +17,8 @@ def _cell(arch, os_name, cpu, sha256, flavor = "common", ext = "tar.gz", interpr
     )
 
 PHP_CELLS = {
-    "linux_amd64": _cell("linux-x86_64", "linux", "x86_64", "6ccf92eed2d6c0d1820d51cd0bae3134b8d7c3d66f0a5532505525f8b3350acb", flavor = "gnu-bulk", pcov = True),
-    "linux_arm64": _cell("linux-aarch64", "linux", "aarch64", "bee9b8f9ed82fb9c4c2d48eaf099c500d5463dd70d4decbe033dc3aedc7955fc", flavor = "gnu-bulk", pcov = True),
+    "linux_amd64": _cell("linux-x86_64", "linux", "x86_64", "3c932354edf5b49d70815fb3e6df3c3d30d3a17ecdd7e89778e31aa870c43897", flavor = "gnu-bulk", pcov = True),
+    "linux_arm64": _cell("linux-aarch64", "linux", "aarch64", "ed2ae18b2c278f6559ff902f9126a59509f56ef5600ba7f34bd69cca2b0ae944", flavor = "gnu-bulk", pcov = True),
     "macos_arm64": _cell("macos-aarch64", "macos", "aarch64", "1ece01624e45db20444b8ce1f6ab9bf267979b7c8454058c7761304a23487f9d"),
     "windows_x86_64": _cell("win", "windows", "x86_64", "722b336feb6187b0e42c4e499a4731c877aa6a6f555fb886aeeceb30cf84f326", flavor = "spc-max", ext = "zip", interpreter = "php.exe"),
 }

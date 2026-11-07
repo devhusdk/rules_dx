@@ -135,7 +135,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let cwd_rel = RealBackend::cwd_rel(tool_id, tool.config_rel.as_deref());
             let invocation = match config {
                 Some(ini) => commands::vale_check(&tool.binary, ini, &refs, &cwd_rel),
-                None => return Err(execution(tool_id, "vale requires a config".to_owned())),
+                None => return Err(missing_tier_base(tool_id)),
             };
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
             // Vale prints a runtime error envelope on stderr when stdout is empty.
@@ -205,7 +205,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 Some(cfg) => commands::eslint_check(&launch, &refs, cfg)
                     .map_err(|err| execution(tool_id, err.to_string()))?,
                 None => {
-                    return Err(execution(tool_id, "eslint requires a config".to_owned()));
+                    return Err(missing_tier_base(tool_id));
                 }
             };
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
@@ -223,7 +223,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             // gplint reports realpaths, so lint and match the canonical ones.
             let launch = ResolvedTool::javascript(tool_id, &tool.binary);
             let Some(cfg) = config else {
-                return Err(execution(tool_id, "gplint requires a config".to_owned()));
+                return Err(missing_tier_base(tool_id));
             };
             let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
             for (workspace, absolute) in pairs {
@@ -292,7 +292,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let config = call.config;
             let launch = ResolvedTool::javascript(tool_id, &tool.binary);
             let Some(cfg) = config else {
-                return Err(execution(tool_id, "stylelint requires a config".to_owned()));
+                return Err(missing_tier_base(tool_id));
             };
             let invocation = commands::stylelint_check(&launch, &refs, cfg)
                 .map_err(|err| execution(tool_id, err.to_string()))?;
@@ -324,10 +324,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let config = call.config;
             let launch = ResolvedTool::javascript(tool_id, &tool.binary);
             let Some(cfg) = config else {
-                return Err(execution(
-                    tool_id,
-                    "graphql_eslint requires a config".to_owned(),
-                ));
+                return Err(missing_tier_base(tool_id));
             };
             let invocation = commands::graphql_eslint_check(&launch, &refs, cfg, scratch.root())
                 .map_err(|err| execution(tool_id, err.to_string()))?;

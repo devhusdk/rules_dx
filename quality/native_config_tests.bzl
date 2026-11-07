@@ -33,13 +33,7 @@ def _names(targets):
     return {tool: t[DxNativeConfigInfo].name for tool, t in targets.items()}
 
 # Each entry is pinned to its runner refusal by the file_checks below.
-_RUNNER_CONFIG_REQUIRED_TOOLS = [
-    "checkstyle",
-    "eslint",
-    "graphql_eslint",
-    "sqlfluff",
-    "vale",
-]
+_RUNNER_CONFIG_REQUIRED_TOOLS = ["sqlfluff"]
 
 _RUNNER_CONFIG_REFUSALS = "\n".join(
     ['"' + tool + ' requires a config"' for tool in _RUNNER_CONFIG_REQUIRED_TOOLS],
@@ -56,7 +50,7 @@ def native_config_unit_tests(name):
                     [tool in tier_base_dirs() for tool in ["actionlint", "clippy", "prettier", "kubeconform", "bicep", "ruff"]],
                     len(tier_base_dirs()),
                 ],
-                [[False, False, False, False, False, True], 57],
+                [[False, False, False, False, False, True], 58],
             ),
             expect_equal(
                 "native_config_scratch_rel keeps in-repo paths and remaps external ones",
@@ -360,11 +354,6 @@ def native_config_unit_tests(name):
                 {},
             ),
             expect_equal(
-                "missing_required_config_error names an unbound buildifier lint stage",
-                missing_required_config_error("buildifier", "lint", {}, "//q:t"),
-                "Buildifier needs a config. Declare buildifier_config(name = \"buildifier_config\", src = \".buildifier.json\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":buildifier_config\"], or tag the target no-lint.",
-            ),
-            expect_equal(
                 "missing_required_config_error uses the tool hint for kubeconform",
                 missing_required_config_error("kubeconform", "lint", {}, "//q:t"),
                 "kubeconform needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
@@ -390,46 +379,6 @@ def native_config_unit_tests(name):
                 True,
             ),
             expect_equal(
-                "missing_required_config_error names an unbound checkstyle lint stage",
-                missing_required_config_error("checkstyle", "lint", {}, "//q:t"),
-                "Checkstyle needs a config. Declare checkstyle_config(name = \"checkstyle_config\", src = \"checkstyle.xml\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":checkstyle_config\"], or tag the target no-lint.",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound vale lint stage",
-                missing_required_config_error("vale", "lint", {}, "//q:t"),
-                "Vale needs a config. Declare vale_config(name = \"vale_config\", src = \".vale.ini\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":vale_config\"], or tag the target no-lint.",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound ruff format stage",
-                missing_required_config_error("ruff", "format", {}, "//q:t"),
-                "Ruff needs a config. Declare ruff_config(name = \"ruff_config\", src = \"ruff.toml\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":ruff_config\"], or tag the target no-format.",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound ruff lint stage",
-                missing_required_config_error("ruff", "lint", {}, "//q:t"),
-                "Ruff needs a config. Declare ruff_config(name = \"ruff_config\", src = \"ruff.toml\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":ruff_config\"], or tag the target no-lint.",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound biome format stage",
-                missing_required_config_error("biome", "format", {}, "//q:t"),
-                "",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound biome lint stage",
-                missing_required_config_error("biome", "lint", {}, "//q:t"),
-                "Biome needs a config. Declare biome_config(name = \"biome_config\", src = \"biome.json\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":biome_config\"], or tag the target no-lint.",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound eslint lint stage",
-                missing_required_config_error("eslint", "lint", {}, "//q:t"),
-                "ESLint needs a config. Declare eslint_config(name = \"eslint_config\", src = \"eslint.config.mjs\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":eslint_config\"], or tag the target no-lint.",
-            ),
-            expect_equal(
-                "missing_required_config_error names an unbound scalafmt format stage",
-                missing_required_config_error("scalafmt", "format", {}, "//q:t"),
-                "",
-            ),
-            expect_equal(
                 "every required-config sample src passes native_config_error",
                 [
                     tool
@@ -450,11 +399,6 @@ def native_config_unit_tests(name):
                 [".prettierrc", "", "", "", True],
             ),
             expect_equal(
-                "missing_required_config_error names an unbound graphql_eslint lint stage",
-                missing_required_config_error("graphql_eslint", "lint", {}, "//q:t"),
-                "graphql-eslint needs a config. Declare graphql_eslint_config(name = \"graphql_eslint_config\", src = \"graphql_lint.json\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":graphql_eslint_config\"], or tag the target no-lint.",
-            ),
-            expect_equal(
                 "every tool the runner refuses without a config is required here",
                 sorted([
                     tool
@@ -469,23 +413,15 @@ def native_config_unit_tests(name):
                     native_config_extension(tool)
                     for tool in _RUNNER_CONFIG_REQUIRED_TOOLS
                 ],
-                [".xml", ".js", ".json", ".sqlfluff", ".ini"],
+                [".sqlfluff"],
             ),
             expect_equal(
-                "missing_required_config_error accepts bound and default-only tools",
+                "missing_required_config_error leaves tools with a tier base and bound tools alone",
                 [
-                    missing_required_config_error("buildifier", "lint", {"buildifier": _HINTS[1]}, "//q:t"),
-                    missing_required_config_error("ruff", "lint", {"ruff": _HINTS[3]}, "//q:t"),
-                    missing_required_config_error("biome", "lint", {"biome": _HINTS[0]}, "//q:t"),
-                    missing_required_config_error("eslint", "lint", {"eslint": _HINTS[4]}, "//q:t"),
-                    missing_required_config_error("scalafmt", "lint", {"scalafmt": _HINTS[5]}, "//q:t"),
-                    missing_required_config_error("scalafix", "lint", {}, "//q:t"),
-                    missing_required_config_error("taplo", "lint", {}, "//q:t"),
-                    missing_required_config_error("pmd", "lint", {}, "//q:t"),
-                    missing_required_config_error("prettier", "format", {}, "//q:t"),
-                    missing_required_config_error("remark", "format", {}, "//q:t"),
-                ],
-                ["", "", "", "", "", "", "", "", "", ""],
+                    missing_required_config_error(tool, "lint", {}, "//q:t")
+                    for tool in ["biome", "buildifier", "checkstyle", "eslint", "graphql_eslint", "ruff", "ty", "vale"]
+                ] + [missing_required_config_error("kubeconform", "lint", {"kubeconform": _HINTS[0]}, "//q:t")],
+                ["", "", "", "", "", "", "", "", ""],
             ),
         ],
         file_checks = {

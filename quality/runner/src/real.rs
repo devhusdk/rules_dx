@@ -422,6 +422,15 @@ fn execution(tool_id: &str, detail: String) -> RunnerError {
     }
 }
 
+fn missing_tier_base(tool_id: &str) -> RunnerError {
+    execution(
+        tool_id,
+        format!(
+            "invariant: {tool_id} reached the runner with no bound config; a tier base should be bound (dx bug)"
+        ),
+    )
+}
+
 fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerError> {
     result.map_err(|err| match err {
         // An incomplete analysis means the tool could not do its job, not that

@@ -70,7 +70,7 @@ impl RealBackend {
         staged: &StagedScratch,
     ) -> Result<Vec<FileFinding>, RunnerError> {
         let Some(cfg) = self.config_abs(TOOL_ID, tool, &staged.scratch)? else {
-            return Err(execution(TOOL_ID, "rustfmt requires a config".to_owned()));
+            return Err(missing_tier_base(TOOL_ID));
         };
         let refs: Vec<&Path> = staged
             .pairs
@@ -118,7 +118,7 @@ impl RealBackend {
         scratch: &Scratch,
     ) -> Result<Invocation, RunnerError> {
         let Some(cfg) = self.config_abs(TOOL_ID, tool, scratch)? else {
-            return Err(execution(TOOL_ID, "rustfmt requires a config".to_owned()));
+            return Err(missing_tier_base(TOOL_ID));
         };
         Ok(commands::rustfmt(
             &tool.binary,

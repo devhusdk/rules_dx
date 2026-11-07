@@ -4,6 +4,7 @@ load("//kubernetes/rules:defs.bzl", "kubernetes_schemas")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "clang_tidy_config", "eslint_config", "ruff_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
+load("//quality/private:generated_policy.bzl", "dx_generated_policy")
 
 package(default_visibility = ["//quality:__pkg__"])
 
@@ -901,6 +902,11 @@ workspace_policy(
 real_source_target(
     name = "policy_bound_py",
     python_srcs = ["clean.py"],
+)
+
+dx_generated_policy(
+    name = "strict_generated_policy",
+    profile = "strict",
 )
 
 cc_library(

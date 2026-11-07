@@ -55,7 +55,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 .collect();
             {
                 let Some(cfg) = call.config else {
-                    return Err(execution(tool_id, "scalafix requires a config".to_owned()));
+                    return Err(missing_tier_base(tool_id));
                 };
                 let classpath = RealBackend::scalafix_classpath(tool_id, tool, scratch)?;
                 let jars: Vec<&Path> = classpath.iter().map(PathBuf::as_path).collect();
@@ -260,10 +260,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                         )
                     }
                     None => {
-                        return Err(execution(
-                            tool_id,
-                            "checkstyle requires a config".to_owned(),
-                        ));
+                        return Err(missing_tier_base(tool_id));
                     }
                 };
                 let out = backend.run(tool_id, tool, &invocation, scratch)?;

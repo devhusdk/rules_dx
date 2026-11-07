@@ -1316,5 +1316,5 @@ pub(super) fn vale_without_config_fails_fast() {
         .diagnose("vale", "lint", &single("doc.md", "cotton\n"))
         .expect_err("vale needs a config");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
-    assert!(err.to_string().contains("requires a config"));
+    assert!(err.to_string().contains("invariant"));
 }

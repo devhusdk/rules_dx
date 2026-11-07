@@ -337,8 +337,58 @@ _policy_generated_test = analysistest.make(
     extra_target_under_test_aspects = [real_typecheck_probe_aspect],
 )
 
+def _tier_base_inputs(env):
+    paths = {}
+    for action in analysistest.target_under_test(env).actions:
+        if action.mnemonic.startswith("DxRealQuality"):
+            for f in action.inputs.to_list():
+                if f.short_path.startswith("quality/tiers/ruff/") or f.short_path.startswith("quality/tiers/ty/"):
+                    paths[f.short_path] = True
+    return sorted(paths.keys())
+
+def _tier_base_impl(ctx):
+    env = analysistest.begin(ctx)
+    profile = ctx.attr.expected_profile
+    want = ["quality/tiers/ruff/%s.toml" % profile, "quality/tiers/ty/%s.toml" % profile]
+    asserts.equals(env, want, _tier_base_inputs(env))
+    return analysistest.end(env)
+
+_TIER_BASE_ATTRS = {"expected_profile": attr.string(mandatory = True)}
+_PYTHON_ASPECTS = [real_python_lint_aspect, real_python_typecheck_aspect]
+
+_tier_base_default_test = analysistest.make(
+    _tier_base_impl,
+    attrs = _TIER_BASE_ATTRS,
+    config_settings = {
+        str(Label("//config:config_profile")): "standard",
+        str(Label("//config:workspace")): str(Label("//quality:default_workspace_policy")),
+    },
+    extra_target_under_test_aspects = _PYTHON_ASPECTS,
+)
+
+_tier_base_default_strict_test = analysistest.make(
+    _tier_base_impl,
+    attrs = _TIER_BASE_ATTRS,
+    config_settings = {
+        str(Label("//config:config_profile")): "strict",
+        str(Label("//config:workspace")): str(Label("//quality:default_workspace_policy")),
+    },
+    extra_target_under_test_aspects = _PYTHON_ASPECTS,
+)
+
+# The workspace profile stays standard, so strict bases can only come from the generated policy.
+_tier_base_generated_strict_test = analysistest.make(
+    _tier_base_impl,
+    attrs = _TIER_BASE_ATTRS,
+    config_settings = {
+        str(Label("//config:config_profile")): "standard",
+        str(Label("//config:workspace")): str(Label("//quality/tests/fixtures/consumer_policy:strict_generated_policy")),
+    },
+    extra_target_under_test_aspects = _PYTHON_ASPECTS,
+)
+
 def policy_config_tests(name):
-    """Proves policy configs bind a target, aspect_hints override them and a rendered policy analyzes."""
+    """Proves policy configs bind a target, aspect_hints override them, tier bases follow the profile and a rendered policy analyzes."""
     pkg = "quality/tests/fixtures/consumer_policy/"
     _policy_config_test(
         name = name + "_policy",
@@ -362,7 +412,26 @@ def policy_config_tests(name):
         size = "small",
         target_under_test = "//quality/tests/fixtures/consumer_policy:policy_bound_py",
     )
-    native.test_suite(name = name, tests = [name + "_policy", name + "_hint", name + "_clang_tidy", name + "_generated"])
+    for suffix, test, profile in [
+        ("_tier_base_default", _tier_base_default_test, "standard"),
+        ("_tier_base_default_strict", _tier_base_default_strict_test, "strict"),
+        ("_tier_base_generated_strict", _tier_base_generated_strict_test, "strict"),
+    ]:
+        test(
+            name = name + suffix,
+            size = "small",
+            expected_profile = profile,
+            target_under_test = "//quality/tests/fixtures/consumer_policy:policy_bound_py",
+        )
+    native.test_suite(name = name, tests = [
+        name + "_policy",
+        name + "_hint",
+        name + "_clang_tidy",
+        name + "_generated",
+        name + "_tier_base_default",
+        name + "_tier_base_default_strict",
+        name + "_tier_base_generated_strict",
+    ])
 
 def consumer_policy_tests(name, cases, **kwargs):
     """Instantiates one proof per consumer policy selection."""

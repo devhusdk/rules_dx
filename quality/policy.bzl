@@ -22,7 +22,9 @@ FamilyPolicyInfo = provider(
 QualityPolicyInfo = provider(
     doc = "Canonical aggregate workspace policy: family ID to section.",
     fields = {
-        "configs": "Dict[str, Target]: tool ID to the native config target (carrying DxNativeConfigInfo) every target uses unless its aspect_hints bind one.",
+        "bases": "Dict[str, Target]: tool ID to the tier base config target, own bases over those of `extends`.",
+        "configs": "Dict[str, Target]: tool ID to the native config target (carrying DxNativeConfigInfo) every target uses unless its aspect_hints bind one: `declared` over `bases`.",
+        "declared": "Dict[str, Target]: tool ID to the config target declared in `configs`, own configs over those of `extends`.",
         "families": "Dict[str, FamilyPolicyInfo]: family ID to its section.",
     },
 )
@@ -152,10 +154,13 @@ def merge_configs(base, entries):
 
 def _workspace_policy_impl(ctx):
     base = {}
-    base_configs = {}
+    base_bases = {}
+    base_declared = {}
     if ctx.attr.extends:
-        base = ctx.attr.extends[QualityPolicyInfo].families
-        base_configs = ctx.attr.extends[QualityPolicyInfo].configs
+        info = ctx.attr.extends[QualityPolicyInfo]
+        base = info.families
+        base_bases = info.bases
+        base_declared = info.declared
     sections = []
     for section in ctx.attr.families:
         info = section[FamilyPolicyInfo]
@@ -163,16 +168,17 @@ def _workspace_policy_impl(ctx):
     families, error = merge_policy(base, sections, ctx.attr.disabled, bool(ctx.attr.extends))
     if error:
         fail(error)
-    entries = [(config[DxNativeConfigInfo].tool_id, config) for config in ctx.attr.configs]
     base_entries = [(config[DxNativeConfigInfo].tool_id, config) for config in ctx.attr.bases]
-    below, base_error = merge_configs({}, base_entries)
+    bases, base_error = merge_configs(base_bases, base_entries)
     if base_error:
         fail(base_error)
-    below.update(base_configs)
-    configs, config_error = merge_configs(below, entries)
+    entries = [(config[DxNativeConfigInfo].tool_id, config) for config in ctx.attr.configs]
+    declared, config_error = merge_configs(base_declared, entries)
     if config_error:
         fail(config_error)
-    return [QualityPolicyInfo(families = families, configs = configs)]
+    configs = dict(bases)
+    configs.update(declared)
+    return [QualityPolicyInfo(families = families, configs = configs, bases = bases, declared = declared)]
 
 workspace_policy = rule(
     implementation = _workspace_policy_impl,

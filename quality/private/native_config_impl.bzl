@@ -23,11 +23,6 @@ DxDartConfigInfo = provider(
 )
 
 CONFIG_REQUIRED_TOOLS = {
-    "biome": struct(name = "Biome", src = "biome.json", capabilities = ["lint"]),
-    "buildifier": struct(name = "Buildifier", src = ".buildifier.json"),
-    "checkstyle": struct(name = "Checkstyle", src = "checkstyle.xml"),
-    "eslint": struct(name = "ESLint", src = "eslint.config.mjs"),
-    "graphql_eslint": struct(name = "graphql-eslint", src = "graphql_lint.json"),
     "kubeconform": struct(
         name = "kubeconform",
         src = "kubernetes.kubeconform.json",
@@ -38,14 +33,11 @@ CONFIG_REQUIRED_TOOLS = {
         src = "kubernetes.kubeconform.json",
         hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
     ),
-    "ruff": struct(name = "Ruff", src = "ruff.toml"),
-    "ty": struct(name = "ty", src = "ty.toml"),
     "sqlfluff": struct(
         name = "sqlfluff",
         src = ".sqlfluff",
         hint = "Declare sqlfluff_config(name = \"sqlfluff_config\", src = \".sqlfluff\") from @rules_dx//quality:native_config.bzl and list it in your dx_generated_policy configs or add aspect_hints = [\":sqlfluff_config\"], or tag the target no-lint. The file must set `dialect = ...` under [sqlfluff] using sqlfluff's names (postgres, sparksql, tsql and oracle rather than sql_library's postgresql, spark, transactsql and plsql).",
     ),
-    "vale": struct(name = "Vale", src = ".vale.ini"),
 }
 
 CONFIG_TOOL_ALIASES = {"helm": "kubeconform"}
@@ -154,10 +146,4 @@ def missing_required_config_error(tool, capability, configs_by_tool, what):
     if tool not in CONFIG_REQUIRED_TOOLS or tool in configs_by_tool:
         return ""
     info = CONFIG_REQUIRED_TOOLS[tool]
-    if hasattr(info, "capabilities") and capability not in info.capabilities:
-        return ""
-    if hasattr(info, "hint"):
-        return info.name + " needs a config. " + info.hint
-    return (info.name + " needs a config. Declare " + tool + "_config(name = \"" +
-            tool + "_config\", src = \"" + info.src + "\") from @rules_dx//quality:native_config.bzl" +
-            " and list it in your dx_generated_policy configs or add aspect_hints = [\":" + tool + "_config\"], or tag the target no-" + capability + ".")
+    return info.name + " needs a config. " + info.hint

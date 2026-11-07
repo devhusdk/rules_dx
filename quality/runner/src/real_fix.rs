@@ -388,10 +388,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "trivy_config" | "weeder" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
-            None => Err(execution(
-                tool_id,
-                "graphql_eslint requires a config".to_owned(),
-            )),
+            None => Err(missing_tier_base(tool_id)),
         },
         "bicep" | "buf" | "djlint" | "rubocop" | "psscriptanalyzer" | "biome" | "prettier"
         | "remark" | "opa" => {
@@ -806,7 +803,7 @@ impl super::RealBackend {
             Route::Rustfmt => self.rustfmt_fix_invocation(tool, refs, scratch),
             Route::Scalafix => {
                 let Some(config) = self.config_abs(tool_id, tool, scratch)? else {
-                    return Err(execution(tool_id, "scalafix requires a config".to_owned()));
+                    return Err(missing_tier_base(tool_id));
                 };
                 let classpath = Self::scalafix_classpath(tool_id, tool, scratch)?;
                 let jars: Vec<&Path> = classpath.iter().map(PathBuf::as_path).collect();
@@ -1001,7 +998,7 @@ impl super::RealBackend {
             FixConfig::Required => {
                 let config = self.config_abs(tool_id, tool, scratch)?;
                 let Some(cfg) = config.as_deref() else {
-                    return Err(execution(tool_id, format!("{tool_id} requires a config")));
+                    return Err(missing_tier_base(tool_id));
                 };
                 match tool_id {
                     "eslint" => {

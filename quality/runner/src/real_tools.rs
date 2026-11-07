@@ -736,11 +736,11 @@ fn eslint_without_config_fails_the_action() {
         .diagnose("eslint", "lint", &single("src/a.js", "const x = 1;\n"))
         .expect_err("missing config fails");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
-    assert!(err.to_string().contains("eslint requires a config"));
+    assert!(err.to_string().contains("invariant"));
     let err = backend
         .apply_fix("eslint", "src/a.js", "const x = 1;\n", "lint")
         .expect_err("missing config fails");
-    assert!(err.to_string().contains("eslint requires a config"));
+    assert!(err.to_string().contains("invariant"));
 }
 
 fn graphql_eslint_tool() -> RealTool {
@@ -809,11 +809,11 @@ fn graphql_eslint_without_config_fails_the_action() {
         )
         .expect_err("missing config fails");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
-    assert!(err.to_string().contains("graphql_eslint requires a config"));
+    assert!(err.to_string().contains("invariant"));
     let err = backend
         .apply_fix("graphql_eslint", "api/q.graphql", "{ a }\n", "lint")
         .expect_err("missing config fails");
-    assert!(err.to_string().contains("graphql_eslint requires a config"));
+    assert!(err.to_string().contains("invariant"));
 }
 
 #[test]
@@ -3372,7 +3372,7 @@ fn format_only_tool_outside_format_makes_no_scratch() {
     let err = session
         .fix(0, &spec, &current, &spec.source_paths)
         .expect_err("config is required");
-    assert!(err.to_string().contains("requires a config"), "{err}");
+    assert!(err.to_string().contains("invariant"), "{err}");
 }
 
 fn trivy_config_tool(

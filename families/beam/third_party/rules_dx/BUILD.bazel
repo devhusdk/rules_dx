@@ -12,6 +12,7 @@ exports_files([
     "hermetic_launcher.windows_arm64_toolchains.patch",
     "llvm.clang_cl_crt_default_lib.patch",
     "llvm.libunwind_copy.patch",
+    "llvm.unwatched_overlay_inputs.patch",
     "protobuf.no_crate_universe.patch",
     "rules_android.bundle_keystore_properties.patch",
     "rules_cuda.msvc_dlink_crt.patch",

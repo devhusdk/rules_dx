@@ -51,6 +51,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `gcc_toolchain` | 0.13.0 | `target_identity_extension.patch` | Module extension forwards `target_libc` and the target system name to the repository rule |
 | `llvm` | 0.8.26 | `libunwind_copy.patch` | `libunwind.a` is a real copy of the runtime archive, not a symlink that dangles when the archive is gone from a reused output base (#7781) |
 | `llvm` | 0.8.26 | `clang_cl_crt_default_lib.patch` | clang-cl links name `msvcrt.lib` or `libcmt.lib` as a default library, so a `cc_binary` whose `main` sits in a dependency, like grpc's `protoc`, finds `mainCRTStartup` (#8223) |
+| `llvm` | 0.8.26 | `unwatched_overlay_inputs.patch` | `llvm-project` watches its patch and overlay tree once instead of recording each file, so a warm build reaches the repo contents cache hit in a few steps, not 37 (#8986; upstreaming in #9008) |
 | `windows_support` | 0.4.1 | `host_tools.patch` | Opt-in `host_tools` tag keeps the MSVC compiler tools and Windows SDK `bin` (hermeticbuild/windows_support#19) |
 | `windows_support` | 0.4.1 | `rules_dx_hosts.patch` | `host_tools` is on by default under `rules_dx`, so `@dx_msvc` has `cl.exe`; child names match case-insensitively, since payload directory case differs from `Hostx64` |
 

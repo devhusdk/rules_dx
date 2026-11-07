@@ -72,6 +72,7 @@ dx_rust_crate(
         "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
         "//patches/llvm:libunwind_copy.patch",
         "//patches/llvm:clang_cl_crt_default_lib.patch",
+        "//patches/llvm:unwatched_overlay_inputs.patch",
         "//patches/windows_support:host_tools.patch",
         "//patches/windows_support:rules_dx_hosts.patch",
         "//patches/windows_support:hostarm64_packages.patch",

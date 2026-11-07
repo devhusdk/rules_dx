@@ -304,6 +304,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "clang_cl_crt_default_lib.patch",
                 content: include_str!("../../../patches/llvm/clang_cl_crt_default_lib.patch"),
             },
+            OverridePatch {
+                file: "unwatched_overlay_inputs.patch",
+                content: include_str!("../../../patches/llvm/unwatched_overlay_inputs.patch"),
+            },
         ],
     },
     Override {

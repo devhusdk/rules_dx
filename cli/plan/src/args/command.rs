@@ -24,7 +24,6 @@ pub enum Command {
     Docs,
     Worktree,
     Fuzz,
-    Release,
     Config,
 }
 
@@ -96,7 +95,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 26] = [
+pub static COMMANDS: [CommandMeta; 25] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -434,20 +433,6 @@ pub static COMMANDS: [CommandMeta; 26] = [
         labels: LabelsPolicy::Always,
     },
     CommandMeta {
-        command: Command::Release,
-        name: "release",
-        scope_policy: "reject",
-        describe: "derive the next version from conventional commits, list the manifests that carry it, and with --apply bump them, commit and tag",
-        usage: "Usage: dx release [--apply [--push]] [--to <x.y.z>] [--no-api-compat]",
-        scopes: "Scopes: none; positionals are usage failures. The last tag is the base; the version comes from conventional commits since it, or from --to.",
-        is_managed: false,
-        is_adoption: false,
-        default_release: false,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
-    },
-    CommandMeta {
         command: Command::Config,
         name: "config",
         scope_policy: "reject",
@@ -584,9 +569,8 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 12] = [
+    pub(crate) const APPLY_COMMANDS: [Command; 11] = [
         Lint, Typecheck, Format, Generate, Deploy, Check, Update, Init, Upgrade, Watch, Worktree,
-        Release,
     ];
     pub(crate) const BUILD_MODE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
@@ -608,12 +592,7 @@ mod tests {
         let json: Vec<Command> = all
             .iter()
             .copied()
-            .filter(|c| {
-                !matches!(
-                    c,
-                    Command::Deploy | Command::Completion | Command::Fuzz | Command::Release
-                )
-            })
+            .filter(|c| !matches!(c, Command::Deploy | Command::Completion | Command::Fuzz))
             .collect();
         assert_eq!(set(Command::supports_json), json);
         let in_order = |names: &[Command]| -> Vec<Command> {
@@ -734,7 +713,6 @@ mod tests {
             Command::Docs,
             Command::Worktree,
             Command::Fuzz,
-            Command::Release,
             Command::Config,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
@@ -823,7 +801,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|release|config",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|config",
             "pipe_list order must match declaration order"
         );
     }

@@ -352,8 +352,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         expunge,
         add_missing,
         pr,
-        push,
-        no_api_compat,
         group,
         labels,
         automerge,
@@ -378,7 +376,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         jobs,
         max_regression,
         compare,
-        check,
         bazel_startup_options: startup_tokens,
         bazel_options: option_tokens,
     } = tokenized.flags;
@@ -518,12 +515,6 @@ fn parse_inner<S: AsRef<OsStr>>(
             | dx_setup::ScopeError::NotTargetLabel { value } => scope_error(&value),
         });
     }
-    if command == Command::Release && check && apply {
-        return Err(unsupported(command, "--check with --apply"));
-    }
-    if command == Command::Release && push && !apply {
-        return Err(unsupported(command, "--push without --apply"));
-    }
     if command == Command::Update && outdated {
         let culprit = if apply {
             Some("--apply")
@@ -642,11 +633,6 @@ fn parse_inner<S: AsRef<OsStr>>(
             scope: scope.clone(),
         });
     }
-    if matches!(command, Command::Release)
-        && let Some(scope) = targets.first()
-    {
-        return Err(extra_positional(command, scope));
-    }
     if command == Command::Upgrade
         && let Some(scope) = targets.first()
     {
@@ -762,8 +748,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         expunge,
         add_missing,
         pr,
-        push,
-        no_api_compat,
         group,
         labels,
         automerge,

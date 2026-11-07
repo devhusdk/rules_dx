@@ -99,10 +99,10 @@ pub(crate) fn commit_notes(
         None => tag.to_owned(),
     };
     let log = git_output(workspace, &["log", "--format=%H%x00%s%x00%b%x1e", &range])?;
-    let commits = dx_update::release::conventional::parse(&log);
-    Ok(dx_update::release::conventional::notes(
+    let commits = dx_update::conventional::parse(&log);
+    Ok(dx_update::conventional::notes(
         &commits,
-        dx_update::release::conventional::DEFAULT_GROUPS,
+        dx_update::conventional::DEFAULT_GROUPS,
     ))
 }
 

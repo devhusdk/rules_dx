@@ -151,8 +151,6 @@ pub(crate) struct Flags {
     pub(crate) expunge: bool,
     pub(crate) add_missing: bool,
     pub(crate) pr: bool,
-    pub(crate) push: bool,
-    pub(crate) no_api_compat: bool,
     pub(crate) group: Option<String>,
     pub(crate) labels: Option<String>,
     pub(crate) automerge: Option<String>,
@@ -174,7 +172,6 @@ pub(crate) struct Flags {
     pub(crate) files: bool,
     pub(crate) timings: bool,
     pub(crate) time: Option<String>,
-    pub(crate) check: bool,
     pub(crate) jobs: Option<u16>,
     pub(crate) max_regression: Option<u32>,
     pub(crate) compare: Option<String>,
@@ -502,7 +499,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Version to pin; must equal this binary. For `dx release`, the version to use instead of the derived one.
+    /// Version to pin; must equal this binary.
     ToFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "to", value_parser = non_empty)]
         to: Option<String>,
@@ -615,22 +612,6 @@ flag_group! {
     AddMissingFlag, {
         #[arg(long = "add-missing", overrides_with = "add_missing")]
         add_missing: bool,
-    }
-}
-
-flag_group! {
-    /// Push the release branch and tag after committing.
-    PushFlag, {
-        #[arg(long, overrides_with = "push")]
-        push: bool,
-    }
-}
-
-flag_group! {
-    /// Skip the api_compat step of the deploy targets when deriving the version.
-    NoApiCompatFlag, {
-        #[arg(long = "no-api-compat", overrides_with = "no_api_compat")]
-        no_api_compat: bool,
     }
 }
 
@@ -1237,15 +1218,8 @@ command_args! {
     };
     /// The flags `dx fuzz` accepts.
     Fuzz => 23, NoPassthroughTail, { own: FuzzArgs, here: HereFlag, };
-    /// The flags `dx release` accepts.
-    Release => 24, NoScopeTail, {
-        apply: ApplyFlag,
-        push: PushFlag,
-        no_api_compat: NoApiCompatFlag,
-        own: ToFlag,
-    };
     /// The flags `dx config` accepts.
-    Config => 25, NoPassthroughTail, { output: OutputFlag, };
+    Config => 24, NoPassthroughTail, { output: OutputFlag, };
 }
 
 #[derive(Parser)]
@@ -1494,16 +1468,6 @@ mod tests {
         .map_or(clap::error::ErrorKind::UnknownArgument, |error| {
             error.kind()
         })
-    }
-
-    #[test]
-    fn release_rejects_the_removed_check_flag() {
-        let words = ["dx", "release", "--check"].map(OsString::from);
-        let error = Cli::try_parse_from(words).err().expect("rejected");
-        assert_eq!(error.kind(), clap::error::ErrorKind::UnknownArgument);
-        let words = ["dx", "release", "--commits", "a..b"].map(OsString::from);
-        let error = Cli::try_parse_from(words).err().expect("rejected");
-        assert_eq!(error.kind(), clap::error::ErrorKind::UnknownArgument);
     }
 
     #[test]

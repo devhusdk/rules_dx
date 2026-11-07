@@ -1307,9 +1307,3 @@ fn update_add_missing_needs_apply_and_network() {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }
 }
-
-#[test]
-fn release_push_needs_apply() {
-    assert!(parse(&strings(&["release", "--push"])).is_err());
-    assert!(parse(&strings(&["release", "--apply", "--push"])).is_ok());
-}

@@ -43,7 +43,6 @@ mod quality_patch;
 mod quality_reconcile;
 mod quality_reports;
 mod quality_security;
-mod release;
 mod results;
 mod run;
 mod rustc_stderr;
@@ -308,7 +307,6 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),
-        Command::Release => release::execute_release(invocation, env),
     }
 }
 

@@ -1,6 +1,5 @@
 pub mod add;
 pub mod gha;
-pub mod own_version;
 pub mod request;
 pub mod sets;
 pub mod version;

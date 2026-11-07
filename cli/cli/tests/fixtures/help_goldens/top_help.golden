@@ -33,7 +33,6 @@ Commands:
   docs        build and serve the mdBook documentation site, or an API index of the Rust libraries in scope (non-mutating)
   worktree    lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)
   fuzz        run dx-fuzz targets for a time budget and store crashes under .dx/local/fuzz
-  release     derive the next version from conventional commits, list the manifests that carry it, and with --apply bump them, commit and tag
   config      list each tool root config file, the base it extends and whether you edited it; diff shows the change; override copies a base to the root file
 
 Options:

@@ -1050,6 +1050,68 @@ fn windows_capable_jobs_check_out_in_parallel() {
     }
 }
 
+#[test]
+fn evidence_mounts_a_dev_drive_before_checkout_on_windows() {
+    let evidence = read_runfiles(".github/workflows/evidence.yml");
+    let step = evidence
+        .find("- name: Mount a Dev Drive\n")
+        .expect("evidence.yml has no Dev Drive step");
+    let checkout = evidence
+        .find("- name: Check out files in parallel\n")
+        .expect("evidence.yml has no parallel checkout step");
+    assert!(step < checkout, "the Dev Drive must be mounted before the checkout");
+    let body: String = evidence[step..]
+        .lines()
+        .skip(1)
+        .take_while(|line| !line.trim_start().starts_with("- "))
+        .map(|line| format!("{}\n", line.trim()))
+        .collect();
+    assert!(
+        body.contains("uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0\n"),
+        "setup-dev-drive must be pinned by SHA"
+    );
+    assert!(
+        body.contains("if: ${{ startsWith(matrix.platform, 'windows') }}\n")
+            || body.contains("if: ${{ matrix.platform == 'windows_arm64' }}\n"),
+        "the Dev Drive step must run only on Windows"
+    );
+    assert!(
+        !body.contains("mount-path:"),
+        "a Dev Drive mounted on a folder breaks the local_path_override repos, so it gets a drive letter"
+    );
+    assert!(body.contains("drive-format: ReFS\n"), "only ReFS gets a native Dev Drive");
+    assert!(body.contains("trusted-dev-drive: true\n"), "an untrusted Dev Drive is still scanned");
+}
+
+#[test]
+fn setup_bazel_keeps_the_install_base_off_the_dev_drive() {
+    let action = read_runfiles(".github/actions/setup-bazel/action.yml");
+    let line = action
+        .lines()
+        .find(|line| line.contains("$DEV_DRIVE") && line.contains("--output_user_root="))
+        .expect("setup-bazel must put the output root on $DEV_DRIVE when it is set");
+    assert!(
+        line.contains("--output_user_root=$(cygpath -m \"$DEV_DRIVE\")/bz"),
+        "the output root must go on the Dev Drive"
+    );
+    assert!(
+        line.contains("--install_base=$(cygpath -m \"$RUNNER_TEMP\")/bzi"),
+        "Bazel reports a corrupt install base on ReFS, so it must stay in RUNNER_TEMP"
+    );
+    assert!(
+        action.find("DEV_DRIVE") < action.find("D:/bz"),
+        "the Dev Drive must win over D:/bz"
+    );
+    assert!(
+        action.contains("contents=\"$DEV_DRIVE/rc\""),
+        "the repo contents cache must go on the Dev Drive"
+    );
+    assert!(
+        action.contains("cache=\"$RUNNER_TEMP/dx-repository-cache\""),
+        "the repository cache stays in RUNNER_TEMP, where actions/cache restores it"
+    );
+}
+
 
 #[test]
 fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {

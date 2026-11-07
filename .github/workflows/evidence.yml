@@ -80,6 +80,15 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL
           df -h /
+      - name: Mount a Dev Drive
+        if: ${{ startsWith(matrix.platform, 'windows') }}
+        uses: samypr100/setup-dev-drive@562171fe8df7401fdf582d766cd3b6ab80d5b1a0 # v4.1.0
+        with:
+          drive-size: 30GB
+          drive-format: ReFS
+          drive-type: Dynamic
+          native-dev-drive: true
+          trusted-dev-drive: true
       - name: Check out files in parallel
         run: |
           git init "$GITHUB_WORKSPACE"

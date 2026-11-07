@@ -533,6 +533,7 @@ rust_test(
     name = "config_consistency_test",
     srcs = ["config_consistency_test.rs"],
     data = [
+        "//.github:actions",
         "//:.bazelignore",
         "//:.bazelrc",
         "//:.bazelversion",

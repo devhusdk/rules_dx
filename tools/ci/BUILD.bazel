@@ -556,6 +556,7 @@ rust_test(
         "//quality:corpus_styles/Dx/Markers.yml",
         "//quality:corpus_vale.ini",
         "//quality:native_config.bzl",
+        "//quality/private:native_config_impl.bzl",
         "//quality:native_config_tests.bzl",
         "//quality/artifacts:scalafmt.bzl",
         "//quality/runner:real_sources.txt",

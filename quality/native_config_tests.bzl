@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(
-    ":native_config.bzl",
+    "//quality/private:native_config_impl.bzl",
     "CONFIG_REQUIRED_TOOLS",
     "CONFIG_TOOL_ALIASES",
     "DxNativeConfigInfo",

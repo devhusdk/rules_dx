@@ -2,3 +2,11 @@ exports_files(
     ["generated_policy.bzl"],
     visibility = ["//quality:__subpackages__"],
 )
+
+exports_files(
+    ["native_config_impl.bzl"],
+    visibility = [
+        "//quality:__subpackages__",
+        "//tools/ci:__pkg__",
+    ],
+)

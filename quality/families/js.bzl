@@ -1,7 +1,7 @@
 """JavaScript and TypeScript real quality aspects."""
 
 load("//quality:family_hooks.bzl", "default_files_hook", "without")
-load("//quality:native_config.bzl", "native_config_scratch_rel")
+load("//quality/private:native_config_impl.bzl", "native_config_scratch_rel")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//sql/rules:providers.bzl", "SqlDialectInfo")

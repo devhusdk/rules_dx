@@ -1,6 +1,6 @@
 """The policy macro generated .dx/config/BUILD.bazel files call."""
 
-load("//quality:native_config.bzl", "tier_base_dirs")
+load("//quality/private:native_config_impl.bzl", "tier_base_dirs")
 load("//quality:policy.bzl", "CAPABILITIES", "quality_family", "workspace_policy")
 
 _PROFILES = ["standard", "strict"]

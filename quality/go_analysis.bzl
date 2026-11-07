@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_go//go:def.bzl", "GoArchive", "GoInfo")
 load("@rules_go//go/private:providers.bzl", "GoStdLib")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs")
+load("//quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs")
 load("//quality:policy.bzl", "QualityPolicyInfo")
 
 GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"

@@ -3,7 +3,7 @@
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_merge_packages", "dart_package_entries", "dart_pubspec_stubs")
 load("//quality:family_hooks.bzl", "stage")
-load("//quality:native_config.bzl", "DxDartConfigInfo", "bound_config_targets")
+load("//quality/private:native_config_impl.bzl", "DxDartConfigInfo", "bound_config_targets")
 load("//quality:policy.bzl", "QualityPolicyInfo")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 

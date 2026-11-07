@@ -179,7 +179,7 @@ fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default
          quality/native_config_tests.bzl pins"
     );
     let required = starlark_dict_keys(
-        &read_runfiles("quality/native_config.bzl"),
+        &read_runfiles("quality/private/native_config_impl.bzl"),
         "CONFIG_REQUIRED_TOOLS",
     );
     for tool in &effective {
@@ -508,6 +508,7 @@ fn starlark_docstrings_do_not_end_mid_sentence() {
     for rel in [
         "deploy/rules/config.bzl",
         "quality/native_config.bzl",
+        "quality/private/native_config_impl.bzl",
         "quality/native_config_tests.bzl",
     ] {
         let found = truncated_docstrings(rel, &read_runfiles(rel));

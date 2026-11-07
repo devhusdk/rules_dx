@@ -93,6 +93,8 @@ pub struct RcPolicy {
     pub disk_cache_gc: bool,
     /// The gc idle delay dx adds so cleanup can run before an idle server exits.
     pub gc_idle_delay_secs: Option<u64>,
+    /// Whether an rc file sets `--color`, which then wins over `NO_COLOR`.
+    pub rc_sets_color: bool,
 }
 
 static HERMETIC: RcPolicy = RcPolicy {
@@ -104,6 +106,7 @@ static HERMETIC: RcPolicy = RcPolicy {
     local_memory: VerbMask::ALL,
     disk_cache_gc: false,
     gc_idle_delay_secs: None,
+    rc_sets_color: false,
 };
 
 static CURRENT: OnceLock<RcPolicy> = OnceLock::new();
@@ -247,6 +250,7 @@ impl RcPolicy {
             local_memory: VerbMask::where_rc_leaves_free(&lines, "memory"),
             disk_cache_gc,
             gc_idle_delay_secs,
+            rc_sets_color: sections::any_line_sets(&lines, &["--color"]),
         }
     }
 

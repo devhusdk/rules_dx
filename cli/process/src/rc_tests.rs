@@ -338,6 +338,7 @@ fn local_policy() -> RcPolicy {
         local_memory: VerbMask::ALL,
         disk_cache_gc: true,
         gc_idle_delay_secs: None,
+        rc_sets_color: false,
     }
 }
 
@@ -1151,4 +1152,10 @@ fn the_system_rc_is_under_program_data_on_windows_and_etc_elsewhere() {
         system_rc(&env, false),
         Some(PathBuf::from("/etc/bazel.bazelrc"))
     );
+}
+
+#[test]
+fn an_rc_color_choice_is_noted() {
+    assert!(ws_policy("build --color=yes\n").rc_sets_color);
+    assert!(!ws_policy("").rc_sets_color);
 }

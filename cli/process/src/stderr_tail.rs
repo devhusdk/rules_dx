@@ -7,6 +7,13 @@ const KEEP_BYTES: usize = 256 * 1024;
 
 static TAIL: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 
+/// Serializes tests that clear or read the shared tail.
+#[cfg(test)]
+pub(crate) fn tail_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: Mutex<()> = Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 /// Forgets the previous run's stderr.
 pub(crate) fn clear() {
     TAIL.lock().unwrap_or_else(|e| e.into_inner()).clear();
@@ -43,8 +50,16 @@ pub(crate) fn copy_on(program: &std::ffi::OsStr, terminal: bool, unix: bool) -> 
 /// terminal, so a user's own flags and rc choices still win.
 pub(crate) fn keep_terminal_ui(argv: &[String]) -> Vec<String> {
     let columns = terminal_columns();
-    let no_color = std::env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty());
+    let no_color = no_color(
+        std::env::var_os("NO_COLOR"),
+        crate::rc::current().rc_sets_color,
+    );
     keep_ui(argv, columns, no_color)
+}
+
+/// A non-empty `NO_COLOR` turns colors off unless an rc file chose them.
+fn no_color(env: Option<std::ffi::OsString>, rc_sets_color: bool) -> bool {
+    env.is_some_and(|value| !value.is_empty()) && !rc_sets_color
 }
 
 fn keep_ui(argv: &[String], columns: Option<u16>, no_color: bool) -> Vec<String> {
@@ -106,7 +121,7 @@ impl Write for Tee {
     }
 }
 
-fn push(bytes: &[u8]) {
+pub(crate) fn push(bytes: &[u8]) {
     let mut tail = TAIL.lock().unwrap_or_else(|e| e.into_inner());
     tail.extend_from_slice(bytes);
     if tail.len() > KEEP_BYTES {
@@ -121,6 +136,7 @@ mod tests {
 
     #[test]
     fn keeps_only_the_last_bytes() {
+        let _tail = tail_lock();
         clear();
         push(b"first ");
         push(&vec![b'x'; KEEP_BYTES]);
@@ -133,6 +149,7 @@ mod tests {
 
     #[test]
     fn the_tee_writes_every_byte_through() {
+        let _tail = tail_lock();
         let mut tee = Tee;
         assert_eq!(tee.write(b"tee\n").expect("write"), 4);
         tee.flush().expect("flush");
@@ -172,6 +189,10 @@ mod tests {
         assert!(keep_ui(&args, Some(80), true).contains(&"--color=no".to_owned()));
         let chosen = argv(&["bazel", "build", "//a", "--color=yes"]);
         assert!(!keep_ui(&chosen, Some(80), true).contains(&"--color=no".to_owned()));
+        assert!(no_color(Some("1".into()), false));
+        assert!(!no_color(Some("1".into()), true));
+        assert!(!no_color(Some("".into()), false));
+        assert!(!no_color(None, false));
     }
 
     #[test]

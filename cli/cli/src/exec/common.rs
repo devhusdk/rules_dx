@@ -820,7 +820,7 @@ pub(crate) fn run_bazel_withdrawable(
 ) -> Result<Option<i32>, i32> {
     warn_low_disk(invocation.output, out, err, runner, workspace, argv)?;
     match runner
-        .run_app(argv, workspace, &[], Some(withdraw), &[])
+        .run_withdrawable(argv, workspace, &[], withdraw)
         .transpose()
     {
         None => Ok(None),
@@ -1031,7 +1031,7 @@ pub(crate) fn run_bazel_app_withdrawable(
     withdraw: &dyn Fn() -> bool,
 ) -> Result<Option<AppExit>, i32> {
     match runner
-        .run_app(argv, workspace, &[], Some(withdraw), &[])
+        .run_withdrawable(argv, workspace, &[], withdraw)
         .transpose()
     {
         None => Ok(None),
@@ -1268,6 +1268,71 @@ mod tests {
             vec![("DX_BUILD_MODE".to_owned(), "release".to_owned())]
         );
         assert_eq!(err, Vec::<u8>::new());
+    }
+
+    /// Records which runner method each call came through.
+    #[derive(Default)]
+    struct CallRunner {
+        calls: RefCell<Vec<&'static str>>,
+    }
+
+    impl Runner for CallRunner {
+        fn run(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            _env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            unreachable!("builds go through run_withdrawable") // LCOV_EXCL_LINE - reason: the build never takes this path, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+
+        fn run_withdrawable(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            _env: &[(&str, &str)],
+            withdraw: &dyn Fn() -> bool,
+        ) -> io::Result<Option<dx_process::ChildStatus>> {
+            self.calls.borrow_mut().push("run_withdrawable");
+            Ok((!withdraw()).then_some(dx_process::ChildStatus {
+                code: Some(7),
+                signal: None,
+            }))
+        }
+
+        fn run_app(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+            _env: &[(&str, &str)],
+            _withdraw: Option<&dyn Fn() -> bool>,
+            _held: &[&std::fs::File],
+        ) -> io::Result<Option<dx_process::ChildStatus>> {
+            unreachable!("builds carry no held handle") // LCOV_EXCL_LINE - reason: the build never takes this path, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+    }
+
+    #[test]
+    fn a_withdrawable_build_keeps_its_stderr_and_holds_nothing() {
+        let runner = CallRunner::default();
+        let invocation = bazel_invocation();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let argv = vec!["bazel".to_owned(), "build".to_owned(), "//...".to_owned()];
+        let mut build = |withdraw: &dyn Fn() -> bool| {
+            run_bazel_withdrawable(
+                &invocation,
+                &mut out,
+                &mut err,
+                Path::new("/ws"),
+                &runner,
+                &argv,
+                withdraw,
+            )
+        };
+        assert_eq!(build(&|| false), Ok(Some(7)));
+        assert_eq!(build(&|| true), Ok(None));
+        assert_eq!(*runner.calls.borrow(), ["run_withdrawable"; 2]);
     }
 
     #[test]

@@ -57,23 +57,24 @@ fn stream_spec(
         } else {
             StreamOutput::Forward(Box::new(io::stderr()))
         },
-        stderr: if capture {
-            bazel_stderr(&argv)
-        } else {
-            StreamOutput::Inherit
-        },
+        stderr: bazel_stderr(&argv, capture),
         group: lifecycle::stream_group(),
         held,
     }
 }
 
-fn bazel_stderr(argv: &[String]) -> StreamOutput {
-    stderr_tail::clear();
-    match argv.first() {
-        Some(program) if stderr_tail::copy_wanted(program.as_ref()) => {
-            StreamOutput::Forward(Box::new(stderr_tail::Tee))
-        }
-        _ => StreamOutput::Inherit,
+/// Clears the tail before any Bazel run, and tees its stderr when `capture` allows.
+fn bazel_stderr(argv: &[String], capture: bool) -> StreamOutput {
+    let Some(program) = argv.first().map(|program| program.as_ref()) else {
+        return StreamOutput::Inherit;
+    };
+    if stderr_tail::wanted(program) {
+        stderr_tail::clear();
+    }
+    if capture && stderr_tail::copy_wanted(program) {
+        StreamOutput::Forward(Box::new(stderr_tail::Tee))
+    } else {
+        StreamOutput::Inherit
     }
 }
 

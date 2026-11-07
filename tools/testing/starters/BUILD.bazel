@@ -169,7 +169,7 @@ starter_consumer_test(
     name = "zig",
 )
 
-# keep
+# keep: no Cargo.toml here; Gazelle would delete it
 rust_library(
     name = "starter_scaffold",
     testonly = True,

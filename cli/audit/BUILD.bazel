@@ -195,7 +195,7 @@ rust_test(
     ],
 )
 
-# keep
+# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "config_schemas",
     srcs = ["src/bin_config_schemas.rs"],

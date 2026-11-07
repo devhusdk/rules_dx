@@ -4,7 +4,7 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
-# keep
+# keep: Gazelle would name the crate load
 rust_binary(
     name = "parallel_worktrees",
     srcs = [
@@ -24,7 +24,7 @@ rust_binary(
     ],
 )
 
-# keep
+# keep: crate test; deps come from :parallel_worktrees
 rust_test(
     name = "load_test",
     crate = ":parallel_worktrees",

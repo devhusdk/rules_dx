@@ -24,7 +24,6 @@ filegroup(
     ] + support_matrix_inputs(),
 )
 
-# keep
 rust_library(
     name = "support_matrix",
     srcs = [
@@ -44,7 +43,6 @@ rust_library(
     ],
 )
 
-# keep
 rust_test(
     name = "support_matrix_test",
     crate = ":support_matrix",
@@ -63,7 +61,7 @@ rust_test(
     ],
 )
 
-# keep
+# keep: Gazelle would name the binary crate after the library
 rust_binary(
     name = "update",
     srcs = ["src/main.rs"],

@@ -8,7 +8,7 @@ package(default_visibility = [
     "//tools/testing/hermetic:__pkg__",
 ])
 
-# keep
+# keep: lib.rs and tests.rs are one crate; Gazelle would split them
 rust_library(
     name = "dx_floor",
     testonly = True,
@@ -26,7 +26,7 @@ rust_library(
     ],
 )
 
-# keep
+# keep: lib.rs and tests.rs are one crate; Gazelle would split them
 rust_test(
     name = "dx_floor_test",
     compile_data = ["testdata/graph_bazel_9_2_0.json"],

@@ -190,6 +190,22 @@ fn the_gate_jobs_raise_the_bazel_heap_before_setup_bazel_calls_bazel() {
 }
 
 #[test]
+fn preflight_runs_a_windows_genrule_from_cmd_without_bazel_sh() {
+    let step = steps(CI, "preflight")
+        .into_iter()
+        .find(|step| step["shell"].as_str() == Some("cmd"))
+        .unwrap_or_else(|| panic!("{CI} job preflight must run a genrule from cmd (#3377)"));
+    assert_eq!(step["if"].as_str(), Some("${{ runner.os == 'Windows' }}"));
+    let run = text_at(&step["run"], "the cmd step run");
+    assert!(
+        run.starts_with("set BAZEL_SH=\n")
+            && run.contains("bazel build ")
+            && run.contains(":store_build_h"),
+        "{CI} job preflight must build the store genrule with BAZEL_SH unset: {run}"
+    );
+}
+
+#[test]
 fn the_families_job_runs_every_module_before_it_fails() {
     let all = scripts(CI, "families");
     assert!(

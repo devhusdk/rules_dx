@@ -1,4 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
 exports_files(["pin.env"])
 
@@ -6,4 +7,29 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+rust_binary(
+    name = "fake_bazel",
+    testonly = True,
+    srcs = ["fake_bazel.rs"],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+rust_test(
+    name = "wrapper_test",
+    srcs = ["wrapper_test.rs"],
+    data = [
+        "wrapper/bazel.ps1",
+        ":fake_bazel",
+    ],
+    env = {
+        "DX_FAKE_BAZEL": "$(rlocationpath :fake_bazel)",
+        "DX_BAZEL_WRAPPER": "$(rlocationpath wrapper/bazel.ps1)",
+    },
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )

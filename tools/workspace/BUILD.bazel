@@ -1,3 +1,5 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":clippy_tests.bzl", "clippy_config_test")
 
@@ -14,3 +16,22 @@ real_source_target(
 )
 
 clippy_config_test(name = "clippy_config_test")
+
+genquery(
+    name = "dx_process_root_deps",
+    expression = "filter('^//:', deps(//cli/process:dx_process_test))",
+    scope = ["//cli/process:dx_process_test"],
+)
+
+write_file(
+    name = "no_root_deps",
+    out = "no_root_deps.txt",
+    content = [],
+)
+
+# Rust tests must not depend on a //: label: loading the root package fetches every npm repo.
+diff_test(
+    name = "dx_process_root_deps_test",
+    file1 = ":dx_process_root_deps",
+    file2 = ":no_root_deps",
+)

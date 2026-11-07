@@ -12,9 +12,9 @@ rust_library(
         package_name = "tools/dx_preset",
         normal = True,
     ),
-    compile_data = ["//:.bazelversion"],
     crate_name = "dx_preset",
     crate_root = "src/lib.rs",
+    rustc_env_files = ["@dx_bazel_version//:rustc_env"],
     visibility = VIS_TOOLS_CLI_TEST,
     deps = [],
 )
@@ -63,7 +63,10 @@ test_suite(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
     tags = ["corpus"],
 )
 

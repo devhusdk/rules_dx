@@ -1968,6 +1968,9 @@ use_repo(japicmp, "japicmp_jar")
 cosign = use_extension("//deploy/release:repos.bzl", "cosign", dev_dependency = True)
 use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
 
+bazel_version = use_extension("//tools/bazelrc:repos.bzl", "bazel_version")
+use_repo(bazel_version, "dx_bazel_version")
+
 nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
 

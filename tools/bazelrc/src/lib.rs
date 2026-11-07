@@ -11,7 +11,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-pub const PRESET_BAZEL_VERSION: &str = include_str!("../../../.bazelversion").trim_ascii_end();
+pub const PRESET_BAZEL_VERSION: &str = env!("DX_PRESET_BAZEL_VERSION");
 
 pub const PRESET_DX_VERSION: &str = "0.0.0";
 

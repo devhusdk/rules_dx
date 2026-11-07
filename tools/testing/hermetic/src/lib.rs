@@ -347,7 +347,6 @@ pub fn windows_passthrough(vs_denied: bool) -> Vec<&'static str> {
 /// How a probe starts on Windows, where the environment and directory are set on the process instead of by `env` and `sh`.
 pub struct WindowsRun {
     pub env: Vec<(String, String)>,
-    pub shutdown: Vec<String>,
 }
 
 pub const APPCONTAINER_ENV: &str = "DX_HERMETIC_APPCONTAINER";
@@ -1363,10 +1362,7 @@ impl Session {
             };
             let mut env = self.windows_env(home, &path);
             env.push(xdg_cache_home(output_root));
-            let run = WindowsRun {
-                env,
-                shutdown: self.windows_shutdown(output_root),
-            };
+            let run = WindowsRun { env };
             return self.execute(Exec {
                 name,
                 net,
@@ -1416,10 +1412,7 @@ impl Session {
             let argv = self.bazel_tail(&probe);
             let mut env = self.windows_env(probe.home, &self.action_path());
             env.push(xdg_cache_home(probe.output_root));
-            let run = WindowsRun {
-                env,
-                shutdown: self.windows_shutdown(probe.output_root),
-            };
+            let run = WindowsRun { env };
             return self.execute(Exec {
                 name: &probe.name,
                 net: probe.net,
@@ -1443,13 +1436,6 @@ impl Session {
         })
     }
 
-    fn windows_shutdown(&self, output_root: &Path) -> Vec<String> {
-        let mut argv = vec![self.bazel.to_string_lossy().into_owned()];
-        argv.extend(startup_flags(output_root));
-        argv.push("shutdown".to_owned());
-        argv
-    }
-
     fn execute(&mut self, exec: Exec<'_>) -> Result<Outcome, String> {
         let Exec {
             name,
@@ -1463,23 +1449,16 @@ impl Session {
         let started = Instant::now();
         let outcome = match windows {
             Some(run) => {
-                let launch = |inner: &[String]| {
-                    let mut command = self.isolation.command(net, inner);
-                    command
-                        .env_clear()
-                        .envs(run.env.iter().cloned())
-                        .current_dir(&self.workspace);
-                    capture(command)
-                };
-                let outcome = launch(argv)?;
-                let ran = started.elapsed().as_secs();
-                let _ = launch(&run.shutdown);
+                let mut command = self.isolation.command(net, argv);
+                command
+                    .env_clear()
+                    .envs(run.env)
+                    .current_dir(&self.workspace);
+                // The launcher's kill-on-close job ends the Bazel server, so no shutdown launch.
+                let outcome = capture(command)?;
                 timeline(
                     &self.out,
-                    &format!(
-                        "{name}: {ran}s, shutdown {}s",
-                        started.elapsed().as_secs() - ran
-                    ),
+                    &format!("{name}: {}s", started.elapsed().as_secs()),
                 );
                 outcome
             }

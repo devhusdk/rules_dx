@@ -1180,10 +1180,6 @@ fn probes_run_the_resolved_bazel_when_it_differs_from_bazelisk() {
         session.bazel_tail(&fixture_probe())[0],
         "/q/bazelisk/downloads/bazel.exe"
     );
-    assert_eq!(
-        session.windows_shutdown(Path::new("/q/cold"))[0],
-        "/q/bazelisk/downloads/bazel.exe"
-    );
 }
 
 #[test]

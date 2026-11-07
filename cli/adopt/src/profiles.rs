@@ -8,8 +8,9 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::LazyLock;
 
+use dx_generate::tools_gen::{TOOL_CONFIGS, ToolConfig};
+
 use crate::scaffold::{FileKind, ScaffoldFile};
-use crate::tools_gen::{TOOL_CONFIGS, ToolConfig};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Profile {

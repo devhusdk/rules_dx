@@ -1,0 +1,15 @@
+[package]
+license = "Apache-2.0"
+name = "dx_generate"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "dx_generate"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror = "2"
+
+[dev-dependencies]
+insta = "1"

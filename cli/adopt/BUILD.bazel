@@ -1,14 +1,8 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//quality:tools_gen.bzl", "adopt_tools_gen")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
-load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_QUALITY")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
-
-adopt_tools_gen(
-    name = "update_tools",
-    visibility = VIS_QUALITY,
-)
 
 dx_rust_crate(
     name = "dx_adopt",
@@ -35,7 +29,6 @@ dx_rust_crate(
         "src/profiles.rs",
         "src/scaffold.rs",
         "src/status.rs",
-        "src/tools_gen.rs",
         "src/upgrade.rs",
         "src/version.rs",
         "src/watch.rs",
@@ -86,6 +79,7 @@ dx_rust_crate(
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/generate:dx_generate",
         "//cli/ide:dx_ide",
         "//cli/merge:dx_merge",
         "//cli/path:dx_path",

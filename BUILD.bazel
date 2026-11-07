@@ -23,6 +23,7 @@ load("//quality/private:generated_policy.bzl", "dx_generated_policy")
 # gazelle:resolve rust dx_deploy_tools //deploy/rules:dx_deploy_tools
 # gazelle:resolve rust dx_digest //cli/digest:dx_digest
 # gazelle:resolve rust dx_env //cli/env:dx_env
+# gazelle:resolve rust dx_generate //cli/generate:dx_generate
 # gazelle:resolve rust dx_install_tools //deploy/install:dx_install_tools
 # gazelle:resolve rust dx_ide //cli/ide:dx_ide
 # gazelle:resolve rust dx_env_plan //cli/env_plan:dx_env_plan

@@ -21,6 +21,7 @@ pub use config::{
     CheckConfig, CommitsPolicy, DxConfig, FamilyConfig, LargeFiles, LoadProblem, Profile, Scope,
     load,
 };
+pub use curated_defaults_gen::CROSS_FAMILY_TOOLS;
 pub use select::{FamilySelection, Selection, SelectionProblem, effective};
 
 #[cfg(test)]

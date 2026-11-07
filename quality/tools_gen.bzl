@@ -24,7 +24,7 @@ def tools_gen(name):
     write_source_files(
         name = name,
         files = {"src/real/tools_gen.rs": ":" + name + "_generated"},
-        additional_update_targets = ["//cli/adopt:update_tools", "//quality/adapter:update_severity"],
+        additional_update_targets = ["//cli/generate:update_tools", "//quality/adapter:update_severity"],
     )
 
 _CONFIG_HEADER = """// Generated from quality/tools.bzl. Run `bazel run //quality:update_tools` to refresh it.
@@ -43,6 +43,7 @@ pub struct ToolConfig {
     pub extras: &'static [&'static str],
     pub kind: &'static str,
     pub tier_active: bool,
+    pub tier_base: bool,
     pub stage_native: bool,
     pub tier_source: &'static str,
     pub family: &'static str,
@@ -78,9 +79,12 @@ def _bool(value):
 
 def _tier(tool, name):
     config = tool.config
-    if not config.ext:
+    ext = config.ext
+    if not ext and config.kind == "flags":
+        ext = "txt"
+    if not ext:
         return '""'
-    path = "../../../quality/tiers/%s/%s.%s" % (config.tier_dir or tool.id, name, config.ext)
+    path = "../../../quality/tiers/%s/%s.%s" % (config.tier_dir or tool.id, name, ext)
     return 'include_str!("%s")' % path
 
 def _config_row(tool):
@@ -98,6 +102,7 @@ def _config_row(tool):
         ("extras", _strs(config.extras)),
         ("kind", _str(config.kind)),
         ("tier_active", _bool(config.tier_active)),
+        ("tier_base", _bool(config.tier_base)),
         ("stage_native", _bool(config.stage_native)),
         ("tier_source", _str(config.tier_source)),
         ("family", _str(config.family)),
@@ -108,17 +113,17 @@ def _config_row(tool):
     ]
     return "    ToolConfig {\n" + "".join([_field(name, value) for name, value in fields]) + "    },\n"
 
-def adopt_rust():
-    """Returns the full text of cli/adopt/src/tools_gen.rs."""
+def config_rust():
+    """Returns the full text of cli/generate/src/tools_gen.rs."""
     tools = sorted([tool for tool in TOOLS if tool.config.kind != "none"], key = lambda tool: (tool.config.init_order == 0, tool.config.init_order, tool.id))
     return _CONFIG_HEADER + "".join([_config_row(tool) for tool in tools]) + "];\n"
 
-def adopt_tools_gen(name, visibility):
+def config_tools_gen(name, visibility):
     """Declares the generated dx tool-config table and its update target."""
     write_file(
         name = name + "_generated",
         out = name + ".rs",
-        content = adopt_rust().splitlines() + [""],
+        content = config_rust().splitlines() + [""],
     )
     write_source_files(
         name = name,

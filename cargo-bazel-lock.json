@@ -1,5 +1,5 @@
 {
-  "checksum": "6fee98e42ebec8e998a1a5419e898bb5b2df1b649d195452a31cb99ac5d37a23",
+  "checksum": "e246cad92625d81685cce8b2f7785bc9538a972fcaee0327b2dee1b462c08690",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7889,6 +7889,39 @@
         {
           "Library": {
             "crate_name": "dx_fingerprint",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_generate 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "insta 1.48.0",
+            "target": "insta"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_generate",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_generate",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_generate",
             "crate_root": "src/lib.rs"
           }
         }
@@ -28773,6 +28806,7 @@
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_families 0.0.0": "libs/dx_families",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
+    "dx_generate 0.0.0": "cli/dx_generate",
     "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_ide 0.0.0": "cli/dx_ide",
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",

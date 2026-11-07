@@ -1,0 +1,46 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//quality:tools_gen.bzl", "config_tools_gen")
+load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_QUALITY")
+
+package(default_visibility = VIS_CLI)
+
+config_tools_gen(
+    name = "update_tools",
+    visibility = VIS_QUALITY,
+)
+
+dx_rust_crate(
+    name = "dx_generate",
+    package_name = "cli/dx_generate",
+    srcs = [
+        "src/lib.rs",
+        "src/root_block.rs",
+        "src/tools_gen.rs",
+    ],
+    compile_data = ["//quality/tiers:all"],
+    dev_deps = ["insta"],
+    extra_deps = [
+        "//cli/dx_config",
+        "//cli/merge:dx_merge",
+        "//tools/bazelrc:dx_preset",
+    ],
+    test_data = [
+        "@dx_tools//:buildifier",
+    ],
+    test_env = {"DX_BUILDIFIER": "$(rootpath @dx_tools//:buildifier)"},
+    test_srcs = ["src/render_tests.rs"],
+    deps = ["thiserror"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

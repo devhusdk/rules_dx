@@ -27,7 +27,6 @@ pub mod preset_fragment;
 pub mod profiles;
 pub mod scaffold;
 pub mod status;
-mod tools_gen;
 pub mod upgrade;
 pub mod version;
 pub mod watch;

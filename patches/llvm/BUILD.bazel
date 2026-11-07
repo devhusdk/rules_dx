@@ -8,6 +8,7 @@ exports_files([
     "unwatched_overlay_inputs.patch",
     "msvc_source_directories.patch",
     "lse_atomic_sources.patch",
+    "stage0_runtime_features.patch",
 ])
 
 sh_test(
@@ -42,6 +43,11 @@ sh_test(
     args = ["$(rootpath :aarch64_builtins)"],
     data = [":aarch64_builtins"],
     target_compatible_with = ["@platforms//os:linux"],
+)
+
+test_suite(
+    name = "stage0_features_test",
+    tests = ["@llvm//tests/stage0_features:stage0_features_test"],
 )
 
 real_source_target(

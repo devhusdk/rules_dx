@@ -81,6 +81,7 @@ single_version_override(
         "//patches/llvm:unwatched_overlay_inputs.patch",
         "//patches/llvm:msvc_source_directories.patch",
         "//patches/llvm:lse_atomic_sources.patch",
+        "//patches/llvm:stage0_runtime_features.patch",
     ],
     version = "0.8.26",
 )

@@ -245,6 +245,8 @@ pub fn owned_file_event(file: &OwnedFileEvent) -> Result<Value, OutputError> {
 /// The tier in force and where it was set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TierEvent {
+    /// The family the tier is set for, or `None` for the workspace tier.
+    pub family: Option<String>,
     pub tier: String,
     pub source: String,
 }
@@ -253,6 +255,10 @@ pub fn tier_event(tier: &TierEvent) -> Result<Value, OutputError> {
     nonempty("tier", &tier.tier)?;
     nonempty("source", &tier.source)?;
     let mut map = base("tier");
+    if let Some(family) = &tier.family {
+        nonempty("family", family)?;
+        map.insert("family".to_owned(), Value::String(family.clone()));
+    }
     map.insert("tier".to_owned(), Value::String(tier.tier.clone()));
     map.insert("source".to_owned(), Value::String(tier.source.clone()));
     Ok(Value::Object(map))

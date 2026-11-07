@@ -309,10 +309,17 @@ fn samples() -> Vec<Value> {
         test_outcome_event(&outcome(false)).expect("outcome"),
         test_outcome_event(&outcome(true)).expect("outcome"),
         tier_event(&TierEvent {
+            family: None,
             tier: "strict".to_owned(),
             source: "dx.toml".to_owned(),
         })
         .expect("tier"),
+        tier_event(&TierEvent {
+            family: Some("python".to_owned()),
+            tier: "standard".to_owned(),
+            source: "dx.toml".to_owned(),
+        })
+        .expect("family tier"),
         tool_config_event(&ToolConfigEvent {
             tool: "ruff".to_owned(),
             file: "ruff.toml".to_owned(),

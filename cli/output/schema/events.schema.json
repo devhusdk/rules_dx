@@ -1762,11 +1762,20 @@
         "correlation": {
           "type": "string"
         },
-        "tier": {
+        "family": {
           "type": "string"
         },
+        "tier": {
+          "enum": [
+            "standard",
+            "strict"
+          ]
+        },
         "source": {
-          "type": "string"
+          "enum": [
+            "dx.toml",
+            "default"
+          ]
         }
       },
       "required": [

@@ -58,7 +58,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `windows_support` | 0.4.1 | `host_tools.patch` | Opt-in `host_tools` tag keeps the MSVC compiler tools and Windows SDK `bin` (hermeticbuild/windows_support#19) |
 | `windows_support` | 0.4.1 | `rules_dx_hosts.patch` | `host_tools` is on by default under `rules_dx`, so `@dx_msvc` has `cl.exe`; child names match case-insensitively, since payload directory case differs from `Hostx64` |
 | `windows_support` | 0.4.1 | `dx_msvc_layout.patch` | `@msvc_runtime` writes the MSVC header and library subsets that llvm's clang-cl toolchain searches and exposes them as `subdirectory` targets (#8912; upstream: hermeticbuild/windows_support#20 and PR #21; drop when a windows_support release has it) |
-| `windows_support` | 0.4.1 | `source_directory_headers.patch` | The Windows SDK `ucrt`, `shared`, `um` and `winrt` include targets give compiles one source directory each instead of about 4,000 loose headers, so Bazel caches their Merkle trees (#9135; upstream: hermeticbuild/windows_support#22; drop when a windows_support release has it) |
+| `windows_support` | 0.4.1 | `source_directory_headers.patch` | The Windows SDK `ucrt`, `shared`, `um` and `winrt` include targets give compiles one source directory each instead of about 4,000 loose headers, so Bazel caches their Merkle trees (#9135; upstream: hermeticbuild/windows_support#22 and PR #23; drop when a windows_support release has it) |
 
 The trade-off: a `single_version_override` pins the module for the whole
 graph. If another dependency of yours needs a newer version of one of these

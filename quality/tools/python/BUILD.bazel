@@ -1,5 +1,6 @@
 load("@rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:unavailable_tool.bzl", "dx_unavailable_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -167,6 +168,30 @@ py_binary(
         "@pypi//ansible_core",
         "@pypi//ansible_lint",
     ],
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:windows",
+    ],
+)
+
+# cryptography has no win_arm64 wheel and its sdist needs maturin, Rust and
+# OpenSSL. Remove this alias once a wheel ships or an OpenSSL-backed sdist
+# override exists.
+alias(
+    name = "ansible_lint_tool",
+    actual = select({
+        ":windows_arm64": ":ansible_lint_unsupported",
+        "//conditions:default": ":ansible_lint",
+    }),
+)
+
+dx_unavailable_tool(
+    name = "ansible_lint_unsupported",
+    tool = "ansible_lint",
 )
 
 py_unittest_test(

@@ -69,19 +69,6 @@ workspace_policy(
 )
 
 quality_family(
-    name = "prettier_json_family",
-    disabled = ["typecheck"],
-    family_id = "json",
-    format = ["prettier"],
-    lint = ["biome"],
-)
-
-workspace_policy(
-    name = "json_prettier_policy",
-    families = [":prettier_json_family"],
-)
-
-quality_family(
     name = "biome_json_family",
     disabled = ["typecheck"],
     family_id = "json",

@@ -2,7 +2,6 @@ use std::sync::atomic::{AtomicI32, Ordering};
 
 use super::*;
 #[cfg(unix)]
-use crate::lib_tests::held_spawn;
 use crate::lib_tests::probe_argv;
 use std::path::PathBuf;
 
@@ -234,7 +233,7 @@ fn detached_descendant_argv() -> Vec<String> {
 #[cfg(unix)]
 #[test]
 fn run_app_hands_held_lock_to_detached_descendant() {
-    let _serial = held_spawn();
+    let _serial = dx_testing::spawning();
     let scratch = dx_test_scratch::scratch("dx-run-app-held");
     let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
@@ -257,7 +256,7 @@ fn run_app_hands_held_lock_to_detached_descendant() {
 #[cfg(unix)]
 #[test]
 fn holding_run_does_not_inherit_held() {
-    let _serial = held_spawn();
+    let _serial = dx_testing::spawning();
     let scratch = dx_test_scratch::scratch("dx-holding-run");
     let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)

@@ -595,6 +595,7 @@ mod tests {
             return;
         }
         // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        let _spawning = dx_testing::spawning();
         let scratch = dx_test_scratch::scratch("dx-lease-crash-");
         let root = root(scratch.path());
         let mut child = spawn_child("killed_holder_releases_the_generation", &root, "", "die");
@@ -626,6 +627,7 @@ mod tests {
             return;
         }
         // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        let _spawning = dx_testing::spawning();
         let scratch = dx_test_scratch::scratch("dx-lease-inherit-");
         let root = root(scratch.path());
         let parent = acquire_shared(
@@ -671,6 +673,7 @@ mod tests {
             return;
         }
         // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        let _spawning = dx_testing::spawning();
         let scratch = dx_test_scratch::scratch("dx-lease-contend-");
         let root = root(scratch.path());
         let exclusive = try_acquire_exclusive(&root, GenerationUse::Generated, HEX_B)

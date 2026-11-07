@@ -262,7 +262,11 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	var plans []plan
 	pkgIdx := -1
+	foreign := foreignSources(args.File)
 	for _, src := range sources {
+		if foreign[src] {
+			continue
+		}
 		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
 			rep.Fail(common.InPackage(args.Rel), "python: %s: read %s: %v", args.Rel, src, err)
@@ -454,6 +458,31 @@ func claimKind(c Claimant) string {
 		return testKind
 	}
 	return libraryKind
+}
+
+var foreignKinds = map[string]bool{
+	"py_library": true, "py_binary": true, "py_test": true,
+	"py_unittest_test": true, "py_pytest_main": true, "py_pytest_test": true,
+}
+
+// foreignSources lists the sources named by rules_py and rules_python rules in file.
+func foreignSources(file *rule.File) map[string]bool {
+	owned := make(map[string]bool)
+	if file == nil {
+		return owned
+	}
+	for _, r := range file.Rules {
+		if !foreignKinds[r.Kind()] {
+			continue
+		}
+		for _, s := range r.AttrStrings("srcs") {
+			owned[s] = true
+		}
+		if m := r.AttrString("main"); m != "" {
+			owned[m] = true
+		}
+	}
+	return owned
 }
 
 func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {

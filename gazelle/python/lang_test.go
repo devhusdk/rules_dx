@@ -955,3 +955,27 @@ func TestGenerateKeepsExistingLibraryName(t *testing.T) {
 		t.Fatalf("gen = %v, empty = %v, want only python_library(bar)", result.Gen, result.Empty)
 	}
 }
+
+func TestGenerateSkipsSourcesOwnedByPyUnittest(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/a.py", "x = 1\n")
+	writeFixture(t, root, "pkg/demo/a_test.py", "import unittest\n")
+	writeFixture(t, root, "pkg/demo/b.py", "y = 1\n")
+	file, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte(`load("@rules_py//py:defs.bzl", "py_unittest_test")
+
+py_unittest_test(name = "t", srcs = ["a.py", "a_test.py"])
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		File:         file,
+		RegularFiles: []string{"a.py", "a_test.py", "b.py"},
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Name() != "b" {
+		t.Fatalf("generated %d rules, want only b", len(result.Gen))
+	}
+}

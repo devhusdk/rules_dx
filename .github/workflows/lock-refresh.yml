@@ -1,0 +1,82 @@
+name: lock-refresh
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lock-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  platform:
+    name: lock (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux_x86_64
+            runner: ubuntu-latest
+          - platform: linux_arm64
+            runner: ubuntu-24.04-arm
+          - platform: macos_arm64
+            runner: macos-15
+          - platform: windows_x86_64
+            runner: windows-latest
+          - platform: windows_arm64
+            runner: windows-11-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Lock this platform's extensions
+        run: bazel mod deps --noshow_progress --lockfile_mode=update
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lock-${{ matrix.platform }}
+          path: MODULE.bazel.lock
+          if-no-files-found: error
+
+  merge:
+    name: merge the platform entries
+    needs: platform
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: lock-*
+          path: ${{ runner.temp }}/locks
+      - name: Merge
+        env:
+          LOCKS: ${{ runner.temp }}/locks
+        run: |
+          jq -s 'reduce .[1:][] as $f (.[0]; .moduleExtensions *= $f.moduleExtensions | .facts *= $f.facts)' \
+            "$LOCKS"/lock-*/MODULE.bazel.lock > MODULE.bazel.lock
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Normalise
+        run: bazel mod deps --noshow_progress --lockfile_mode=update
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MODULE.bazel.lock
+          path: MODULE.bazel.lock
+          if-no-files-found: error

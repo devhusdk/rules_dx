@@ -1848,6 +1848,24 @@ fn ruff_large_selection_runs_batched() {
 }
 
 #[test]
+fn ruff_batches_count_the_source_roots_they_add() {
+    let mut files = BTreeMap::new();
+    for index in 0..200 {
+        files.insert(
+            format!("dir_{index:04}_{}/mod.py", "d".repeat(60)),
+            "import os \n".to_owned(),
+        );
+    }
+    RUFF_SPAWNS.reset();
+    let backend = backend_for("ruff", plain_tool(), batched_ruff);
+    let found = backend
+        .diagnose("ruff", "lint", &files)
+        .expect("batched ruff runs");
+    assert!(RUFF_SPAWNS.get() > 1);
+    assert_eq!(found.len(), 200);
+}
+
+#[test]
 fn ruff_batches_match_single_file_results() {
     let files = python_selection(120, 200);
     RUFF_EQUAL_SPAWNS.reset();

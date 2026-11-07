@@ -472,8 +472,13 @@ impl RealBackend {
         let strs: Vec<&str> = names.iter().map(String::as_str).collect();
         let batches = match commands::transport_for(tool_id) {
             commands::ArgTransport::Batched => {
-                let head = spawn_argv(tool_id, &build(&[])?);
-                commands::plan_batches(&head, &refs)
+                commands::plan_invocation_batches(&refs, |batch| {
+                    let invocation = build(batch)?;
+                    Ok(Invocation {
+                        argv: spawn_argv(tool_id, &invocation),
+                        cwd_rel: invocation.cwd_rel,
+                    })
+                })?
             }
             commands::ArgTransport::Single => vec![refs.clone()],
         };

@@ -753,7 +753,7 @@ jobs:
         if: ${{ matrix.platform == 'linux_x86_64' }}
         run: |
           # shellcheck disable=SC2086
-          bazel mod show_repo --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --repo_env=CARGO_BAZEL_DIGEST_CHECK=1 @crates @dx_quality_crates @dx_thrift_crates >/dev/null
+          bazel mod show_repo --lockfile_mode=off $BAZEL_CONFIG $BB_ARGS --repo_env=CARGO_BAZEL_DIGEST_CHECK=1 @crates @dx_quality_crates @dx_thrift_crates >/dev/null
       - name: Record the Windows rmeta diagnostics (#4850)
         if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
         env:

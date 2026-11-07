@@ -451,6 +451,7 @@ pub fn configured_fetch_argv(
     if offline {
         args.push("--repository_disable_download");
     }
+    args.push("--lockfile_mode=off");
     args.push(&repo);
     bazel(head, "fetch", &args)
 }
@@ -3277,7 +3278,7 @@ mod tests {
             assert_eq!(
                 planned,
                 BackendPlan::Run {
-                    argv: cargo_fetch(&head, &["--repo=@crates"]),
+                    argv: cargo_fetch(&head, &["--lockfile_mode=off", "--repo=@crates"]),
                     env: cargo_env_expected("workspace", "crates"),
                 },
                 "{}",
@@ -3312,7 +3313,7 @@ mod tests {
                 )
                 .expect("cargo check"),
                 CheckPlan::Run {
-                    argv: cargo_fetch(&no_head(), &["--repo=@tool_crates"]),
+                    argv: cargo_fetch(&no_head(), &["--lockfile_mode=off", "--repo=@tool_crates"]),
                     env: cargo_env_expected("false", "tool_crates"),
                 },
                 "frozen {frozen}"
@@ -3332,7 +3333,11 @@ mod tests {
             CheckPlan::Run {
                 argv: cargo_fetch(
                     &no_head(),
-                    &["--repository_disable_download", "--repo=@tool_crates"]
+                    &[
+                        "--repository_disable_download",
+                        "--lockfile_mode=off",
+                        "--repo=@tool_crates"
+                    ]
                 ),
                 env: cargo_env_expected("false", "tool_crates"),
             }
@@ -3841,10 +3846,14 @@ mod tests {
     fn configured_maven_check_fetches_without_repin_env() {
         let set = maven_set("tools", "tool_maven");
         for (offline, args) in [
-            (false, vec!["--repo=@tool_maven"]),
+            (false, vec!["--lockfile_mode=off", "--repo=@tool_maven"]),
             (
                 true,
-                vec!["--repository_disable_download", "--repo=@tool_maven"],
+                vec![
+                    "--repository_disable_download",
+                    "--lockfile_mode=off",
+                    "--repo=@tool_maven",
+                ],
             ),
         ] {
             assert_eq!(
@@ -3970,7 +3979,7 @@ mod tests {
             )
             .expect("cargo package plan"),
             BackendPlan::Run {
-                argv: cargo_fetch(&no_head(), &["--repo=@crates"]),
+                argv: cargo_fetch(&no_head(), &["--lockfile_mode=off", "--repo=@crates"]),
                 env: cargo_env_expected("serde", "crates"),
             }
         );

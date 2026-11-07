@@ -66,19 +66,23 @@ index 29208c4..596240c 100644
  def _get_host_cargo_rustc(module_ctx, host_triple, host_tools_repo):
      """A helper function to get the path to the host cargo and rustc binaries.
  
-@@ -1160,7 +1187,10 @@ def _crate_impl(module_ctx):
+@@ -1160,7 +1187,14 @@ def _crate_impl(module_ctx):
              if hasattr(cfg, "manifests"):
                  for m in cfg.manifests:
                      module_ctx.watch(m)
 -            cargo_path, rustc_path = _get_host_cargo_rustc(module_ctx, host_triple, cfg.host_tools)
 +            trust_lockfile = _trust_lockfile(module_ctx, cfg, mod.is_root)
++
++            # Keep root hubs in MODULE.bazel.lock so cold starts skip this extension (#9097).
++            if trust_lockfile and mod.is_root:
++                reproducible = False
 +            cargo_path, rustc_path = None, None
 +            if not trust_lockfile:
 +                cargo_path, rustc_path = _get_host_cargo_rustc(module_ctx, host_triple, cfg.host_tools)
              cargo_bazel_fn = new_cargo_bazel_fn(
                  repository_ctx = module_ctx,
                  cargo_bazel_path = generator,
-@@ -1215,6 +1245,7 @@ def _crate_impl(module_ctx):
+@@ -1215,6 +1249,7 @@ def _crate_impl(module_ctx):
                  skip_cargo_lockfile_overwrite = cfg.skip_cargo_lockfile_overwrite,
                  strip_internal_dependencies_from_cargo_lockfile = cfg.strip_internal_dependencies_from_cargo_lockfile,
                  is_root = mod.is_root,
@@ -86,7 +90,7 @@ index 29208c4..596240c 100644
              )
  
              # Watch cfg.lockfile AFTER generation. The generator may modify it during
-@@ -1666,6 +1697,7 @@ Environment Variables:
+@@ -1666,6 +1701,7 @@ Environment Variables:
  
  | variable | usage |
  | --- | --- |

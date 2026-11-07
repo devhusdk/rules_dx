@@ -1616,6 +1616,7 @@ source = { registry = "https://pypi.org/simple" }
         if offline {
             argv.push("--repository_disable_download".to_owned());
         }
+        argv.push("--lockfile_mode=off".to_owned());
         argv.push(format!("--repo=@{repository}"));
         argv
     }

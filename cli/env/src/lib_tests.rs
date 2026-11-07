@@ -31,7 +31,11 @@ fn write_staged(root: &Path, tools: &[(&str, &str, &[&str])]) -> (PathBuf, PathB
     let mut entries = Vec::new();
     for (bin_name, owner, hosts) in tools {
         let real = targets.join(bin_name);
-        fs::write(&real, format!("#!/bin/sh\necho {bin_name}\n")).expect("write target");
+        let script = format!("#!/bin/sh\necho {bin_name}\n");
+        #[cfg(unix)]
+        dx_testing::executable_script(&real, &script);
+        #[cfg(not(unix))]
+        fs::write(&real, script).expect("write target");
         for host in *hosts {
             let _ = fs::remove_file(staged_bin.join(host));
             test_symlink(&real, &staged_bin.join(host)).expect("stage link");
@@ -464,9 +468,7 @@ fn native_tool(target: &Path) -> &'static [&'static str] {
 }
 
 #[cfg(unix)]
-fn native_tool(target: &Path) -> &'static [&'static str] {
-    use std::os::unix::fs::PermissionsExt;
-    fs::set_permissions(target, fs::Permissions::from_mode(0o755)).expect("chmod target");
+fn native_tool(_target: &Path) -> &'static [&'static str] {
     &[]
 }
 

@@ -287,7 +287,6 @@ fn policy_flags(policy: &RcPolicy) -> Vec<String> {
 mod sh {
     use super::*;
     use dx_test_scratch::{TempDir, scratch};
-    use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
     use std::process::Command;
 
@@ -361,8 +360,8 @@ mod sh {
         std::fs::write(root.join("BUILD.bazel"), "").expect("root build file");
         std::fs::write(root.join(".dx/bazelrc/resources.bazelrc"), "").expect("preset");
         let launcher = root.join("tools/dx");
-        std::fs::copy(launcher_path("DX_LAUNCHER_SH"), &launcher).expect("launcher");
-        std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let text = std::fs::read_to_string(launcher_path("DX_LAUNCHER_SH")).expect("launcher");
+        dx_testing::executable_script(&launcher, &text);
     }
 
     fn source_repo(name: &str) -> SourceRepo {

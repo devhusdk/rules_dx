@@ -738,10 +738,8 @@ mod tests {
     }
 
     fn fake_wrangler(dir: &Path, body: &str) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt as _;
         let path = dir.join("wrangler");
-        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("script");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&path, &format!("#!/bin/sh\n{body}\n"));
         path
     }
 

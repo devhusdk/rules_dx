@@ -495,7 +495,6 @@ end
     #[cfg(unix)]
     #[test]
     fn live_run_pushes_the_formula_through_gh_api() {
-        use std::os::unix::fs::PermissionsExt as _;
         if env_test_in_child("homebrew::tests::live_run_pushes_the_formula_through_gh_api") {
             return;
         }
@@ -512,15 +511,13 @@ end
         std::fs::create_dir_all(&bin).expect("bin");
         let log = scratch.path().join("gh.log");
         let gh = bin.join("gh");
-        std::fs::write(
+        dx_testing::executable_script(
             &gh,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$GH_TOKEN $*\" >> {}\n[ \"$3\" = PUT ] || {{ echo 'HTTP 404' >&2; exit 1; }}\n",
                 log.display()
             ),
-        )
-        .expect("write gh");
-        std::fs::set_permissions(&gh, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        );
         let outdir = scratch.path().join("out");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
         let code = with_env(

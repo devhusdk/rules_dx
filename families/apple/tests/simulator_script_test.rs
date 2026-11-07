@@ -1,4 +1,3 @@
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use dx_testing::{Run, mkscratch, resolve_runfiles, run};
@@ -82,9 +81,7 @@ impl Fake {
     fn new(prefix: &str) -> Fake {
         let root = mkscratch(prefix).unwrap_or_else(|error| panic!("scratch: {error}"));
         let xcrun = root.join("xcrun");
-        std::fs::write(&xcrun, FAKE_XCRUN).unwrap_or_else(|error| panic!("write: {error}"));
-        std::fs::set_permissions(&xcrun, std::fs::Permissions::from_mode(0o755))
-            .unwrap_or_else(|error| panic!("chmod: {error}"));
+        dx_testing::executable_script(&xcrun, FAKE_XCRUN);
         std::fs::write(root.join("devices.txt"), DEVICES)
             .unwrap_or_else(|error| panic!("write: {error}"));
         std::fs::write(root.join("runtimes.txt"), RUNTIMES)

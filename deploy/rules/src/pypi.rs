@@ -878,10 +878,8 @@ mod tests {
 
     #[cfg(unix)]
     fn fake_twine(dir: &Path, body: &str) -> std::path::PathBuf {
-        use std::os::unix::fs::PermissionsExt;
         let path = dir.join("twine");
-        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("twine");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&path, &format!("#!/bin/sh\n{body}\n"));
         path
     }
 

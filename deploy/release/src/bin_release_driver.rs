@@ -446,11 +446,9 @@ mod tests {
 
     #[cfg(unix)]
     fn fake_gh(dir: &Path, body: &str) -> String {
-        use std::os::unix::fs::PermissionsExt as _;
         std::fs::create_dir_all(dir).expect("dir");
         let script = dir.join("gh");
-        std::fs::write(&script, format!("#!/bin/sh\n{body}\n")).expect("write");
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&script, &format!("#!/bin/sh\n{body}\n"));
         script.to_string_lossy().into_owned()
     }
 

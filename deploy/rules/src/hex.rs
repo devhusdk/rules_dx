@@ -375,15 +375,12 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn hex_run_hides_key_and_uses_empty_home() {
-        use std::os::unix::fs::PermissionsExt as _;
         let scratch = scratch_dir();
         let fake = scratch.path().join("mix");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
             "#!/bin/sh\necho \"key $HEX_API_KEY\" >&2\nls -A \"$HOME\" | wc -l >&2\nexit 1\n",
-        )
-        .expect("write fake mix");
-        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        );
         let message = hex_run(&fake, &["hex.publish", "--yes"], scratch.path(), "s3cret")
             .expect_err("publish fails");
         assert!(

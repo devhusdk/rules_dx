@@ -434,14 +434,12 @@ mod tests {
 
     #[cfg(unix)]
     fn fake_octo(dir: &Path, fail_on: &str) -> std::path::PathBuf {
-        use std::os::unix::fs::PermissionsExt as _;
         let path = dir.join("octo");
         let d = dir.display();
         let script = format!(
             "#!/bin/sh\nprintf '%s\\n' \"$@\" '---' >> '{d}/args.txt'\nenv >> '{d}/env.txt'\nif [ \"$1\" = '{fail_on}' ]; then exit 1; fi\nexit 0\n"
         );
-        std::fs::write(&path, script).expect("write octo");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&path, &script);
         path
     }
 

@@ -1,4 +1,3 @@
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use dx_testing::{Run, mkscratch, resolve_runfiles, run};
@@ -171,9 +170,10 @@ fn write(path: &Path, text: &str) {
 
 fn tool(root: &Path, name: &str, body: &str) -> String {
     let path = root.join("bin").join(name);
-    write(&path, body);
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
-        .unwrap_or_else(|error| panic!("chmod: {error}"));
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
+    }
+    dx_testing::executable_script(&path, body);
     path.to_string_lossy().into_owned()
 }
 

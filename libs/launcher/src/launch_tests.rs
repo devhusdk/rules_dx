@@ -187,13 +187,11 @@ fn names_a_missing_runfile() {
 #[cfg(unix)]
 #[test]
 fn runs_the_program_and_passes_the_exit_code() {
-    use std::os::unix::fs::PermissionsExt;
     let dir = scratch("run");
     let main = dir.join("app.runfiles/_main");
     std::fs::create_dir_all(&main).unwrap();
     let script = main.join("prog");
-    std::fs::write(&script, "#!/bin/sh\nexit $(( $# + 4 ))\n").unwrap();
-    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    dx_testing::executable_script(&script, "#!/bin/sh\nexit $(( $# + 4 ))\n");
     std::fs::write(dir.join("app.launch"), "program=_main/prog\narg=one\n").unwrap();
     let code = run(&dir.join("app.exe"), &["two".to_owned()]).unwrap();
     assert_eq!(code, 6);
@@ -234,17 +232,14 @@ fn command_removes_unset_names_and_sets_runfiles() {
 #[cfg(unix)]
 #[test]
 fn run_scrubs_unset_variables() {
-    use std::os::unix::fs::PermissionsExt;
     let dir = scratch("unset");
     let main = dir.join("app.runfiles/_main");
     std::fs::create_dir_all(&main).unwrap();
     let script = main.join("prog");
-    std::fs::write(
+    dx_testing::executable_script(
         &script,
         "#!/bin/sh\nexit ${EXEC_LAUNCHER_UNSET_PROBE:+9}0\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     std::fs::write(
         dir.join("app.launch"),
         "program=_main/prog\nunset=EXEC_LAUNCHER_UNSET_PROBE\n",

@@ -1652,14 +1652,12 @@ mod tests {
 
     #[cfg(unix)]
     fn fake_npm(dir: &Path, exit: i32) -> std::path::PathBuf {
-        use std::os::unix::fs::PermissionsExt as _;
         let path = dir.join("npm");
         let d = dir.display();
         let script = format!(
             "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{d}/args.txt'\nenv > '{d}/env.txt'\nexit {exit}\n"
         );
-        std::fs::write(&path, script).expect("write npm");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&path, &script);
         path
     }
 

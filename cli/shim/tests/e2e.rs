@@ -211,13 +211,11 @@ fn dx_version_env_overrides_module_bazel() {
 #[cfg(unix)]
 impl Fixture {
     fn stub_bazel(&self) -> (tempfile::TempDir, PathBuf) {
-        use std::os::unix::fs::PermissionsExt;
         let bin = tempfile::tempdir().expect("bin");
         let log = bin.path().join("calls");
         let script = format!("#!/bin/sh\necho \"$@\" >> '{}'\n", log.display());
         let path = bin.path().join("bazel");
-        std::fs::write(&path, script).expect("stub");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&path, &script);
         (bin, log)
     }
 

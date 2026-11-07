@@ -619,7 +619,6 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn promotion_live_records_health_and_refuses() {
-        use std::os::unix::fs::PermissionsExt;
         if env_test_in_child("promotion::tests::promotion_live_records_health_and_refuses") {
             return;
         }
@@ -635,8 +634,7 @@ mod tests {
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
         let script = bin.join("dx_fake_health");
-        std::fs::write(&script, "#!/bin/sh\nexit 0\n").expect("write health");
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&script, "#!/bin/sh\nexit 0\n");
         for (require, expected) in [(Some("1"), "passed"), (None, "not-required")] {
             with_env(
                 &[

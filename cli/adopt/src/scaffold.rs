@@ -870,14 +870,12 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn envrc_adds_the_managed_bin_without_running_the_pinned_dx() {
-        use std::os::unix::fs::PermissionsExt;
         let scratch = dx_test_scratch::scratch("dx-adopt-envrc-");
         let root = scratch.path();
         std::fs::create_dir_all(root.join("tools")).expect("tools");
         std::fs::write(root.join(".envrc"), super::ENVRC_CONTENT).expect("envrc");
         let stub = root.join("tools/dx");
-        std::fs::write(&stub, "#!/bin/sh\ntouch dx-ran\n").expect("stub");
-        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&stub, "#!/bin/sh\ntouch dx-ran\n");
         let script = "PATH_add() { PATH=\"$PWD/$1:$PATH\"; export PATH; }\nwatch_file() { :; }\n. ./.envrc\ns=$?\nprintf %s \"$PATH\"\nexit $s";
         let output = std::process::Command::new("sh")
             .arg("-c")

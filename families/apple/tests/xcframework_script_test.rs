@@ -1,4 +1,3 @@
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use dx_testing::{Run, mkscratch, resolve_runfiles, run};
@@ -65,9 +64,10 @@ fn write(path: &Path, text: &str) {
 }
 
 fn executable(path: &Path, text: &str) {
-    write(path, text);
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
-        .unwrap_or_else(|error| panic!("chmod: {error}"));
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
+    }
+    dx_testing::executable_script(path, text);
 }
 
 fn library(tree: &Path, identifier: &str, supported: &str, archs: &[(&str, &str)]) -> PathBuf {

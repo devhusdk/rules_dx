@@ -135,6 +135,7 @@ rust_test(
         "//cli/sbom/schema:dx_sbom_schema",
         "//deploy/rules:dx_deploy_tools",
         "@crates//:serde",
+        "//tools/testing:dx_testing",
     ],
 )
 
@@ -420,6 +421,7 @@ rust_test(
     ) + [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
+        "//tools/testing:dx_testing",
     ],
 )
 

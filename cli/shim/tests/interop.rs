@@ -129,12 +129,14 @@ fn shim_runs_a_binary_in_the_tools_dx_layout() {
     let dir = home.path().join(".cache/dx/bin").join(VERSION);
     std::fs::create_dir_all(&dir).expect("mkdir");
     let bin = dir.join(file);
-    std::fs::write(&bin, &fake).expect("seed");
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-    }
+    std::os::unix::fs::symlink(
+        std::fs::canonicalize(std::env::var("DX_FAKE_BIN").expect("DX_FAKE_BIN")).expect("fake"),
+        &bin,
+    )
+    .expect("seed");
+    #[cfg(not(unix))]
+    std::fs::write(&bin, &fake).expect("seed");
     let ws = workspace(&fake);
     let mut command = Command::new(shim_bin());
     command

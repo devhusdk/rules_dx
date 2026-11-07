@@ -35,9 +35,7 @@ fn trusting_cosign(scratch: &Path) -> PathBuf {
         cosign(),
         fixture("ca.pem").display()
     );
-    std::fs::write(&wrapper, script).expect("write wrapper");
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    dx_testing::executable_script(&wrapper, &script);
     wrapper
 }
 

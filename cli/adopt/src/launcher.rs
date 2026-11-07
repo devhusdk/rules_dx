@@ -1252,9 +1252,7 @@ mod tests {
                 } else {
                     "#!/bin/sh\necho call >> \"$STUB_LOG\"\nexit 6\n"
                 };
-                std::fs::write(&curl, body).expect("curl");
-                std::fs::set_permissions(&curl, std::fs::Permissions::from_mode(0o755))
-                    .expect("chmod");
+                dx_testing::executable_script(&curl, body);
                 write_launcher_files(&root, &mut Applied::default()).expect("launcher");
                 let fx = Self {
                     base: dir.path().to_path_buf(),
@@ -1330,9 +1328,7 @@ mod tests {
 
             fn stub(&self, name: &str, body: &str) {
                 let path = self.base.join("stub").join(name);
-                std::fs::write(&path, body).expect("stub");
-                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
-                    .expect("chmod");
+                dx_testing::executable_script(&path, body);
             }
 
             fn set_pin(&self, text: &str) {
@@ -1343,9 +1339,7 @@ mod tests {
                 let path = self.base.join("repo/tools/dx");
                 let text = std::fs::read_to_string(&path).expect("read launcher");
                 assert!(text.contains(from), "launcher template lost {from:?}");
-                std::fs::write(&path, text.replacen(from, to, 1)).expect("write launcher");
-                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
-                    .expect("chmod");
+                dx_testing::executable_script(&path, &text.replacen(from, to, 1));
             }
 
             fn downloads(&self) -> usize {
@@ -1374,9 +1368,7 @@ mod tests {
                 std::fs::create_dir_all(slot.join("sub")).expect("slot sub");
                 std::fs::write(slot.join(".dx/pins"), "9.9.9\n").expect("slot pin");
                 let launcher = slot.join("tools/dx");
-                std::fs::write(&launcher, "#!/bin/sh\necho slot \"$@\"\n").expect("slot dx");
-                std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755))
-                    .expect("chmod");
+                dx_testing::executable_script(&launcher, "#!/bin/sh\necho slot \"$@\"\n");
                 if with_git {
                     let common = format!("{}/repo/.git", self.base.display());
                     self.stub(
@@ -1559,8 +1551,7 @@ mod tests {
             let dir = fx.base.join("home/.cache/dx/bin/1.2.3");
             std::fs::create_dir_all(&dir).expect("cache dir");
             let bin = dir.join("dx-linux-x86_64");
-            std::fs::write(&bin, PAYLOAD).expect("cached");
-            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            dx_testing::executable_script(&bin, PAYLOAD);
             let (code, out, err) = fx.run(&["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert_eq!(fx.downloads(), 0);

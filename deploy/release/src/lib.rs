@@ -2920,10 +2920,7 @@ mod tests {
     fn write_fake_cosign(dir: &Path, body: &str) -> std::path::PathBuf {
         std::fs::create_dir_all(dir).expect("bin dir");
         let script = dir.join("cosign");
-        std::fs::write(&script, body).expect("write cosign");
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
-            .expect("chmod cosign");
+        dx_testing::executable_script(&script, &body);
         script
     }
 

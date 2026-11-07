@@ -581,7 +581,6 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn github_live_run_calls_gh_with_tag_and_absolute_assets() {
-        use std::os::unix::fs::PermissionsExt as _;
         if env_test_in_child("github::tests::github_live_run_calls_gh_with_tag_and_absolute_assets")
         {
             return;
@@ -595,15 +594,13 @@ mod tests {
         std::fs::create_dir_all(&bin).expect("bin");
         let log = scratch.path().join("gh.log");
         let gh = bin.join("gh");
-        std::fs::write(
+        dx_testing::executable_script(
             &gh,
-            format!(
+            &format!(
                 "#!/bin/sh\nfor a in \"$@\"; do echo \"$a\" >> {}; done\n",
                 log.display()
             ),
-        )
-        .expect("write gh");
-        std::fs::set_permissions(&gh, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        );
         let outdir = scratch.path().join("out");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
         let rlocs = ["b.tar.gz".to_owned(), "a.tar.gz".to_owned()];
@@ -668,7 +665,6 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn github_dry_run_reports_previous_release_asset_sizes() {
-        use std::os::unix::fs::PermissionsExt as _;
         if env_test_in_child("github::tests::github_dry_run_reports_previous_release_asset_sizes") {
             return;
         }
@@ -676,12 +672,10 @@ mod tests {
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
         let gh = bin.join("gh");
-        std::fs::write(
+        dx_testing::executable_script(
             &gh,
             "#!/bin/sh\nprintf 'tag\\tv1.2.2\\nasset\\tapp.tar.gz\\t1234\\n'\n",
-        )
-        .expect("write gh");
-        std::fs::set_permissions(&gh, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        );
         let bases = ["app.tar.gz".to_owned(), "new.tar.gz".to_owned()];
         let lines = with_env(
             &[
@@ -727,7 +721,6 @@ mod tests {
 
     #[cfg(unix)]
     fn fake_git(bin: &Path) {
-        use std::os::unix::fs::PermissionsExt as _;
         std::fs::create_dir_all(bin).expect("bin");
         let git = bin.join("git");
         let script = r#"#!/bin/sh
@@ -737,8 +730,7 @@ case "$1" in
   log) printf 'aaaaaaa1\0feat(cli): add init\0\036bbbbbbb2\0fix: stop crash\0\036ccccccc3\0fix: second\0\036' ;;
 esac
 "#;
-        std::fs::write(&git, script).expect("write git");
-        std::fs::set_permissions(&git, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&git, &script);
     }
 
     #[cfg(unix)]

@@ -327,15 +327,13 @@ mod tests {
 
     /// Writes a fake helm that records its args and writes the package.
     fn fake_helm(dir: &Path, exit: i32) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt as _;
         let path = dir.join("helm");
         let log = dir.join("calls.txt");
         let script = format!(
             "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{log}'\nif [ \"$1\" = package ]; then : > \"$4/demo-1.2.3.tgz\"; fi\nif [ \"$2\" = login ]; then cat >> '{log}'; fi\n[ \"$1\" = lint ] && exit {exit}\nexit 0\n",
             log = log.display()
         );
-        std::fs::write(&path, script).expect("write helm");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&path, &script);
         path
     }
 

@@ -1687,19 +1687,16 @@ pub(crate) mod tests {
     #[cfg(unix)]
     #[test]
     fn maven_api_compare_fails_on_breaking_unless_major() {
-        use std::os::unix::fs::PermissionsExt;
         let scratch = tempfile_stage_dir("maven-api-test-").expect("scratch");
         let java = scratch.join("java");
         let log = scratch.join("args");
-        std::fs::write(
+        dx_testing::executable_script(
             &java,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$@\" > {}\necho '---! REMOVED METHOD: PUBLIC(-) void gone()'\nexit 1\n",
                 log.display()
             ),
-        )
-        .expect("fake java");
-        std::fs::set_permissions(&java, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        );
         let japicmp = scratch.join("japicmp.jar");
         let jar = scratch.join("new.jar");
         let run = |previous: &str, version: &str, mode| {

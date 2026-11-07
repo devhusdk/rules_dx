@@ -835,15 +835,12 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn cargo_publish_shows_cargo_reason() {
-        use std::os::unix::fs::PermissionsExt as _;
         let scratch = scratch_dir();
         let fake = scratch.path().join("cargo");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
             "#!/bin/sh\necho 'error: crate version 0.0.0 is already uploaded' >&2\necho \"token $CARGO_REGISTRY_TOKEN\" >&2\nexit 101\n",
-        )
-        .expect("write fake cargo");
-        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        );
         let message = cargo_publish(&fake, &scratch.path().join("Cargo.toml"), "s3cret")
             .expect_err("publish fails");
         assert!(
@@ -861,17 +858,14 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn package_check_fails_with_cargo_message_and_skips_without_cargo() {
-        use std::os::unix::fs::PermissionsExt as _;
         let scratch = scratch_dir();
         let files = nested_crate(&scratch.path().join("in/pkg"));
         let mapped = crates_package_paths(&files).expect("paths");
         let fake = scratch.path().join("cargo");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
             "#!/bin/sh\necho 'error: no license or license-file' >&2\nexit 101\n",
-        )
-        .expect("write fake cargo");
-        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        );
         let message = crates_package_check(Some(&fake), &mapped).expect_err("rejected");
         assert!(
             message.contains("cargo: error: no license or license-file"),

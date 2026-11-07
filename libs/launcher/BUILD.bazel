@@ -23,7 +23,10 @@ rust_test(
     ],
     crate_name = "launcher",
     crate_root = "src/main.rs",
-    deps = ["//cli/path:dx_path"],
+    deps = [
+        "//cli/path:dx_path",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(

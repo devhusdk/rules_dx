@@ -721,7 +721,6 @@ mod tests {
         assert!(!cwd.join("dist").exists());
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
             let bin = scratch.path().join("bin");
             let workspace = scratch.path().join("ws");
             std::fs::create_dir_all(&bin).expect("bin");
@@ -729,18 +728,15 @@ mod tests {
             let log = scratch.path().join("gh.log");
             let env_log = scratch.path().join("gh.env");
             let script = bin.join("gh");
-            std::fs::write(
+            dx_testing::executable_script(
                 &script,
-                format!(
+                &format!(
                     "#!/bin/sh\npwd -P > '{}'\nprintf '%s\\n' \"$@\" >> '{}'\nenv > '{}'\n",
                     log.display(),
                     log.display(),
                     env_log.display()
                 ),
-            )
-            .expect("script");
-            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
-                .expect("chmod");
+            );
             std::env::set_current_dir(scratch.path()).expect("chdir");
             let path = format!(
                 "{}:{}",

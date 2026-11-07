@@ -424,10 +424,8 @@ mod tests {
 
     #[cfg(unix)]
     fn fake_gem(dir: &Path, body: &str) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt as _;
         let fake = dir.join("gem");
-        std::fs::write(&fake, format!("#!/bin/sh\n{body}\n")).expect("write fake gem");
-        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&fake, &format!("#!/bin/sh\n{body}\n"));
         fake
     }
 

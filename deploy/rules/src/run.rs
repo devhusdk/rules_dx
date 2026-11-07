@@ -330,10 +330,8 @@ mod tests {
 
     /// Writes a fake sh tool that prints its env, one name=value per line.
     fn env_dumper(dir: &Path) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt as _;
         let path = dir.join("dump-env");
-        std::fs::write(&path, "#!/bin/sh\nexec env\n").expect("write dumper");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        dx_testing::executable_script(&path, "#!/bin/sh\nexec env\n");
         path
     }
 

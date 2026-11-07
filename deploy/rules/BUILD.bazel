@@ -315,7 +315,7 @@ rust_test(
         package_name = "deploy/dx_deploy_tools",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//tools/testing:dx_testing"],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 

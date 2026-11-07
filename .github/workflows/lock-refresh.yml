@@ -42,7 +42,7 @@ jobs:
         with:
           cache-save: false
       - name: Lock this platform's extensions
-        run: bazel mod deps --noshow_progress --lockfile_mode=update
+        run: bazel fetch --noshow_progress --lockfile_mode=update --repo=@pythons_hub --repo=@@rules_go++go_sdk+go_toolchains
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lock-${{ matrix.platform }}

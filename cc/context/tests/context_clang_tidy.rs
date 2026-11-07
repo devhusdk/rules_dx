@@ -403,12 +403,12 @@ fn msvc_tidy(name: &str, extra: &str) -> (Option<i32>, String) {
     std::fs::write(env.tree.join(".clang-tidy"), policy).expect("policy");
     cc_context::write_bundle(&env.root.join("msvc"), &entries, policy).expect("bundle");
     let output = Command::new(&env.tidy)
-    .arg("-p")
-    .arg(env.root.join("msvc"))
-    .arg("a.c")
-    .current_dir(&env.tree)
-    .output()
-    .expect("clang-tidy runs");
+        .arg("-p")
+        .arg(env.root.join("msvc"))
+        .arg("a.c")
+        .current_dir(&env.tree)
+        .output()
+        .expect("clang-tidy runs");
     std::fs::remove_dir_all(&env.root).ok();
     (
         output.status.code(),

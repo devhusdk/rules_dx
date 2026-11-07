@@ -155,9 +155,6 @@ jobs:
           if [ ! -e /dev/kvm ]; then
             echo "android: /dev/kvm is missing; this runner cannot run a hardware-accelerated emulator" && exit 1
           fi
-      - name: Allow the generated Flutter registrant to compile with source 8
-        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
-        run: echo 'build --javacopt=-Xlint:-options' >> "$HOME/.bazelrc"
       - name: Install the Android SDK packages
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |

@@ -229,6 +229,13 @@ mod tests {
     use dx_setup::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, read_current_pair};
 
     #[test]
+    fn sync_shell_flag_is_a_usage_error() {
+        let harness = Harness::new("sync-shell-flag");
+        let (code, out, err) = harness.run(&["sync", "--shell=direnv"]);
+        assert_eq!(code, 2, "{out}{err}");
+    }
+
+    #[test]
     fn managed_live_empty_selection_commits_with_empty_counterparts() {
         {
             let command = "sync";

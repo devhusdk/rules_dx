@@ -19,14 +19,14 @@ def proto_package_tests(name):
     """
     py_grpc_library(
         name = name + "_py",
-        proto = "//typescript/tests/fixtures/proto:user_proto",
+        proto = "@rules_dx_js//typescript/tests/fixtures/proto:user_proto",
         py_proto = ":greeter_py_proto",
         tags = ["manual"],
         testonly = True,
     )
     ts_proto_srcs(
         name = name + "_ts_srcs",
-        proto = "//typescript/tests/fixtures/proto:user_proto",
+        proto = "@rules_dx_js//typescript/tests/fixtures/proto:user_proto",
         tags = ["manual"],
         testonly = True,
     )

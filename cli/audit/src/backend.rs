@@ -90,7 +90,7 @@ pub fn vuln_locks(set: &str) -> &'static [&'static str] {
     match set {
         "cargo" => &["rust/tests/fixtures/hello/Cargo.lock"],
         "npm" => &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"],
-        "npm-adopt" => &["javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"],
+        "npm-adopt" => &["families/js/javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"],
         "npm-adopt-polyglot" => &["examples/adopt-polyglot/pnpm-lock.yaml"],
         "npm-tools" => &["quality/tools/javascript/pnpm-lock.yaml"],
         "maven" => &["third_party/jvm/maven_install.json"],
@@ -234,7 +234,7 @@ mod tests {
         );
         assert_eq!(
             vuln_locks("npm-adopt"),
-            &["javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"]
+            &["families/js/javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"]
         );
         assert_eq!(
             vuln_locks("npm-adopt-polyglot"),

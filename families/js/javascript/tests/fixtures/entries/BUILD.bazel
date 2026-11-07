@@ -1,0 +1,41 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+javascript_library(
+    name = "helper",
+    srcs = ["helper.js"],
+)
+
+javascript_library(
+    name = "main",
+    srcs = ["main.js"],
+    deps = [":helper"],
+)
+
+javascript_binary(
+    name = "main_bin",
+    data = [":main"],
+    entry_point = "main.js",
+)
+
+javascript_test(
+    name = "helper_test",
+    srcs = ["helper_test.js"],
+    config = "jest.config.cjs",
+    data = [":helper"],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

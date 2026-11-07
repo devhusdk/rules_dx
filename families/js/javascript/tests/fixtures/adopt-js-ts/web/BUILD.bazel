@@ -1,0 +1,80 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+typescript_project(
+    name = "app",
+    testonly = True,
+    srcs = ["app.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":util"],
+)
+
+typescript_test(
+    name = "app_test",
+    testonly = True,
+    srcs = ["app_test.ts"],
+    config = "jest.config.cjs",
+    declaration = True,
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":app"],
+)
+
+typescript_test(
+    name = "plain_test",
+    srcs = ["plain_test.ts"],
+    declaration = True,
+    entry_point = "plain_test.js",
+    package_json = "//:package_json",
+    runner = "node",
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":app"],
+)
+
+typescript_project(
+    name = "test_setup",
+    testonly = True,
+    srcs = ["test_setup.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":util"],
+)
+
+typescript_project(
+    name = "util",
+    testonly = True,
+    srcs = ["util.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+javascript_library(
+    name = "jest_config",
+    testonly = True,
+    srcs = ["jest.config.cjs"],
+)
+
+typescript_project(
+    name = "types",
+    testonly = True,
+    declaration = True,
+    declaration_srcs = ["types.d.ts"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)

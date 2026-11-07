@@ -13,7 +13,7 @@ _VISIBILITY = [
     "//go/tools/analysis:__subpackages__",
     "//quality/testdata:__subpackages__",
     "//quality/tests/fixtures:__subpackages__",
-    "//typescript/tests:__subpackages__",
+    "@rules_dx_js//typescript/tests:__subpackages__",
     "//tools/testing/hermetic:__subpackages__",
 ]
 

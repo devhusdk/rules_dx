@@ -1,0 +1,28 @@
+diff -ruN a/julia/private/precompile.jl b/julia/private/precompile.jl
+--- a/julia/private/precompile.jl
++++ b/julia/private/precompile.jl
+@@ -11,6 +11,15 @@
+ 
+ include(joinpath(@__DIR__, "rules_julia_common.jl"))
+ 
++# Package images default to the build host's CPU, which a remote worker with a
++# different CPU rejects. Build for the same portable targets as Julia's own
++# images instead.
++function portable_cpu_target()
++    Sys.ARCH === :x86_64 && return "generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)"
++    Sys.ARCH === :aarch64 && return "generic;cortex-a57;thunderx2t99;carmel,clone_all;apple-m1,base(3);neoverse-512tvb,base(3)"
++    return "generic"
++end
++
+ function main()
+     flags = parse_flags(ARGS; scalars = ["--config", "--manifest", "--depot", "--package"])
+     config = require_flag(flags, "--config")
+@@ -25,6 +34,8 @@
+ 
+     # Julia writes new caches to the first depot. The tree and dependency
+     # depots follow, then the bundled depots for stdlib caches.
++    ENV["JULIA_CPU_TARGET"] = portable_cpu_target()
++
+     copy!(DEPOT_PATH, [depot])
+     configure_depots!(tree, depots)
+     append_bundled_depots!(DEPOT_PATH)

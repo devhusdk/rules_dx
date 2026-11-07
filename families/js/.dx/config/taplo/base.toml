@@ -1,0 +1,4 @@
+[formatting]
+column_width = 80
+indent_string = "  "
+reorder_keys = false

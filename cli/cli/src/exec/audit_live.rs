@@ -138,7 +138,7 @@ maven.install(
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(name = "npm", pnpm_lock = "//:pnpm-lock.yaml")
-npm.npm_translate_lock(name = "npm-adopt", pnpm_lock = "//javascript/tests/fixtures/adopt-js-ts:pnpm-lock.yaml")
+npm.npm_translate_lock(name = "npm-adopt", pnpm_lock = "//families/js/javascript/tests/fixtures/adopt-js-ts:pnpm-lock.yaml")
 npm.npm_translate_lock(name = "npm-adopt-polyglot", pnpm_lock = "//examples/adopt-polyglot:pnpm-lock.yaml")
 npm.npm_translate_lock(name = "npm-tools", pnpm_lock = "//quality/tools/javascript:pnpm-lock.yaml")
 
@@ -268,7 +268,7 @@ pub(super) fn write_go_mod(harness: &Harness) {
 const NPM_LOCK: &str = "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
 
 const NPM_FAMILY_LOCKS: [&str; 3] = [
-    "javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml",
+    "families/js/javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml",
     "examples/adopt-polyglot/pnpm-lock.yaml",
     "quality/tools/javascript/pnpm-lock.yaml",
 ];
@@ -696,8 +696,8 @@ pub(super) fn audit_live_vendored_mirror_analyzes_offline_like_upstream() {
 pub(super) fn audit_live_npm_family_locks_are_assessed_against_the_shared_npm_snapshot() {
     for (scope, rel) in [
         (
-            "javascript/tests/fixtures/adopt-js-ts/app",
-            "javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml",
+            "families/js/javascript/tests/fixtures/adopt-js-ts/app",
+            "families/js/javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml",
         ),
         (
             "examples/adopt-polyglot/frontend",

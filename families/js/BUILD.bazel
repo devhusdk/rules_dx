@@ -1,0 +1,62 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@dx_js_npm//:defs.bzl", "npm_link_all_packages")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# gazelle:exclude javascript/tests/fixtures
+# gazelle:exclude typescript/tests/tags
+# gazelle:exclude typescript/tests/fixtures/declarations
+# gazelle:exclude typescript/tests/fixtures/hello
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "README.md",
+    "biome.json",
+    "package.json",
+    "pnpm-lock.yaml",
+])
+
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+)
+
+npm_link_all_packages(name = "node_modules")
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
+    markdown_srcs = [
+        "README.md",
+        "javascript/README.md",
+        "typescript/README.md",
+    ],
+    tags = ["corpus"],
+)
+
+sh_test(
+    name = "starlark_docs_test",
+    srcs = ["starlark_docs_test.sh"],
+    args = ["$(rootpath @rules_dx//tools/ci:starlark_docs_family_test)"],
+    data = [
+        "//javascript/tests/typecheck:corpus_starlark",
+        "//typescript/tests/tags:corpus_starlark",
+        "//typescript/tests/typecheck_profiles:corpus_starlark",
+        "@rules_dx//tools/ci:starlark_docs_family_test",
+    ],
+    env = {"STARLARK_DOCS_PACKAGES": "javascript/tests/typecheck,typescript/tests/tags,typescript/tests/typecheck_profiles"},
+)
+
+# dx:begin exports
+exports_files(
+    [".buildifier.json"],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

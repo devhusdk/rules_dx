@@ -1,0 +1,61 @@
+module(
+    name = "rules_dx_js",
+    version = "0.0.0",
+    bazel_compatibility = [">=9.2.0"],
+)
+
+bazel_dep(name = "rules_dx", version = "0.0.0")
+include("//third_party/rules_dx:rules_dx.MODULE.bazel")
+local_path_override(
+    module_name = "rules_dx",
+    path = "../..",
+)
+
+# floor: equals tested
+bazel_dep(name = "aspect_rules_js", version = "3.5.2")
+bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "protobuf", version = "36.2")
+bazel_dep(name = "rules_rust", version = "0.75.0", dev_dependency = True)
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
+use_repo(typescript, "npm_typescript")
+
+dx_tools = use_extension("@rules_dx//quality/artifacts:extension.bzl", "dx_tools")
+use_repo(
+    dx_tools,
+    "dx_biome_linux_arm64",
+    "dx_biome_linux_x86_64",
+    "dx_biome_macos_arm64",
+    "dx_biome_windows_x86_64",
+)
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(
+    name = "dx_js_npm",
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+npm.npm_translate_lock(
+    name = "dx_js_node_app",
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//javascript/tests/fixtures/node-app:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+use_repo(npm, "dx_js_npm", npm_node_app = "dx_js_node_app")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust", dev_dependency = True)
+rust.toolchain(
+    edition = "2024",
+    rustfmt_version = "1.99.1",
+    versions = ["1.99.1"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains(
+    "@rust_toolchains//:all",
+    dev_dependency = True,
+)

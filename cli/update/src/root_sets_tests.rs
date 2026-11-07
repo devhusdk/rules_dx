@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 38] = [
+const EXPECTED_NAMES: [&str; 37] = [
     "d_app_dub",
     "dub_fixture",
     "dx_crates",
@@ -40,7 +40,6 @@ const EXPECTED_NAMES: [&str; 38] = [
     "haskell_weeder_hackage",
     "julia_app_pkgs",
     "maven",
-    "npm_node_app",
     "nuget",
     "ocaml_app",
     "rules_android_maven",

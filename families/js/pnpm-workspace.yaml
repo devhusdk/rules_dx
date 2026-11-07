@@ -1,0 +1,4 @@
+# Native deps must opt in under allowBuilds.
+packages:
+  - .
+allowBuilds: {}

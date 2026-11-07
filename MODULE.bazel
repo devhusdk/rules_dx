@@ -284,6 +284,12 @@ local_path_override(
     path = "families/cuda",
 )
 
+bazel_dep(name = "rules_dx_js", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_js",
+    path = "families/js",
+)
+
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 
@@ -1369,13 +1375,7 @@ npm_dev.npm_translate_lock(
     pnpm_lock = "//:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
-npm_dev.npm_translate_lock(
-    name = "npm_node_app",
-    npmrc = "//:.npmrc",
-    pnpm_lock = "//javascript/tests/fixtures/node-app:pnpm-lock.yaml",
-    verify_node_modules_ignored = "//:.bazelignore",
-)
-use_repo(npm_dev, "dx_npm", "npm_node_app")
+use_repo(npm_dev, "dx_npm")
 
 # The root package links the dev hub @dx_npm. Consumers load that package
 # through @rules_dx//:dx, so it loads this shim, which only forwards to

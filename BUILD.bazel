@@ -83,7 +83,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude gazelle/protobuf/tests/roundtrip
 # gazelle:exclude examples/adopt-polyglot
 # gazelle:exclude php/tests/negative
-# gazelle:exclude typescript/tests/tags
 # gazelle:exclude quality/tools/lua/testdata
 # gazelle:exclude quality/testdata
 # gazelle:exclude cli/entrypoint
@@ -135,7 +134,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude gazelle/d/testdata
 # gazelle:exclude gazelle/dart/testdata
 # gazelle:exclude rust/tests/fixtures/cxx_identity
-# gazelle:exclude typescript/tests/fixtures/declarations
 # gazelle:exclude rust/tests/fixtures/wasm_bindgen
 # gazelle:exclude fortran/tests/runtime
 # gazelle:exclude ocaml/tests/runtime
@@ -168,7 +166,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude qt/tests/fixtures/qt-app
 # gazelle:exclude svelte/tests/fixtures/svelte-app
 # gazelle:exclude lua/tests/fixtures/lua-app
-# gazelle:exclude javascript/tests/fixtures/node-app
 # gazelle:exclude ocaml/tests/fixtures/ocaml-app
 # gazelle:exclude perl/tests/fixtures/perl-app
 # gazelle:exclude qt/tests/fixtures/qt-rust
@@ -183,10 +180,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude python/tests/fixtures/hello
 # gazelle:exclude go/tests/fixtures/no_srcs
 # gazelle:exclude python/tests/fixtures/no_srcs
-# gazelle:exclude javascript/tests/fixtures/hello
-# gazelle:exclude javascript/tests/fixtures/skip_tags
-# gazelle:exclude typescript/tests/fixtures/hello
-# gazelle:exclude javascript/tests/fixtures/entries
 # gazelle:exclude javascript/tests/fixtures/web_app
 # gazelle:exclude python/tests/fixtures/entries
 # gazelle:exclude mdx/tests/fixtures/hello
@@ -264,7 +257,6 @@ exports_files([
     "d/README.md",
     "fortran/README.md",
     "go/README.md",
-    "javascript/README.md",
     "lua/README.md",
     "ocaml/README.md",
     "perl/README.md",
@@ -273,7 +265,6 @@ exports_files([
     "python/README.md",
     "julia/README.md",
     "swift/README.md",
-    "typescript/README.md",
     "zig/README.md",
     "cargo-bazel-lock.json",
     "package.json",
@@ -338,7 +329,6 @@ real_source_target(
         "d/README.md",
         "fortran/README.md",
         "go/README.md",
-        "javascript/README.md",
         "lua/README.md",
         "ocaml/README.md",
         "perl/README.md",
@@ -348,7 +338,6 @@ real_source_target(
         "python/README.md",
         "julia/README.md",
         "swift/README.md",
-        "typescript/README.md",
         "zig/README.md",
         "CLAUDE.md",
         "RELEASING.md",

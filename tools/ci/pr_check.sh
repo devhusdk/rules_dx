@@ -10,7 +10,7 @@ workflow() {
     //tools/ci:setup_bazel_test //tools/ci:secret_flags_test //tools/ci:workflow_pins_test
 }
 
-PREFLIGHT_TARGETS='//cli/cli:dx //cc/tests/fixtures/hello:hello
+PREFLIGHT_TARGETS='//cli/cli:dx //cc/tests/fixtures/hello:hello //cc/tests/fixtures/c-app/store:store_build_h
     //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test
     //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig-app/... //dart/tests/fixtures/dart-app/...
     //dart/tests/runtime:all //dart/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all
@@ -31,6 +31,7 @@ preflight-windows-arm64() {
   bazel build --nobuild --skip_incompatible_explicit_targets --lockfile_mode=error "$@" \
     --platforms=//msix/platforms:windows_arm64 \
     //cc/tests/fixtures/hello:hello //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test \
+    //cc/tests/fixtures/c-app/store:store_build_h \
     //dart/tests/fixtures/dart-app/... //dart/tests/runtime:all //dart/tools:all \
     //cli/cli:dx //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //deploy/rules:pypi_probe_verify \
     //zig/tests/fixtures/hello:all //zig/tests/fixtures/zig-app/... //julia/tests/fixtures/hello:all \

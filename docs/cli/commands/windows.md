@@ -18,7 +18,9 @@ Genrules need the Git bash. When `BAZEL_SH` is unset and the first `bash.exe` on
 on `PATH`. It exits with an error when only the WSL launcher is found. It never
 replaces a value you set. Inside `bazel run`, `dx` removes a `BAZEL_SH` that the outer Bazel auto-detected. Plain `bazel` is different: when
 `BAZEL_SH` is unset, Bazel takes the first `bash.exe` on `PATH`. With WSL installed, that is `C:\Windows\System32\bash.exe`,
-and genrules fail with `Bash/Service/0x8007274c`. Point Bazel at the Git bash for
+and genrules fail with `Bash/Service/0x8007274c`. In the rules_dx repository
+itself, the Bazelisk wrapper `tools/bazelisk/wrapper/bazel.ps1` sets `BAZEL_SH`
+the same way `dx` does. In other repositories, point Bazel at the Git bash for
 your user:
 
 ```powershell

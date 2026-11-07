@@ -778,6 +778,14 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel build --noshow_progress "$@" //cli/cli:dx //cc/tests/fixtures/hello:hello
+      - name: Genrule from cmd with BAZEL_SH unset (#3377)
+        if: ${{ runner.os == 'Windows' }}
+        shell: cmd
+        run: |
+          set BAZEL_SH=
+          where bash.exe
+          if not exist "%SystemRoot%\System32\bash.exe" echo ::warning::%SystemRoot%\System32\bash.exe is missing, so this step does not meet the WSL launcher.
+          bazel build --noshow_progress --noremote_accept_cached --disk_cache= //cc/tests/fixtures/c-app/store:store_build_h
       - name: Check the crate lockfiles are current (#8915)
         if: ${{ matrix.platform == 'linux_x86_64' }}
         run: |

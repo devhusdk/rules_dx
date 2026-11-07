@@ -5,6 +5,11 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_QUALITY")
 
 package(default_visibility = VIS_CLI)
 
+exports_files(
+    ["src/tools_gen.rs"],
+    visibility = ["//quality/tiers:__pkg__"],
+)
+
 config_tools_gen(
     name = "update_tools",
     visibility = VIS_QUALITY,

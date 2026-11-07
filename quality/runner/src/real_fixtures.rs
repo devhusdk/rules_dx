@@ -50,10 +50,19 @@ pub(super) fn plain_tool() -> RealTool {
     }
 }
 
+/// A tool with its bound config staged as `rel`.
+pub(super) fn bound_tool(rel: &str, bytes: &[u8]) -> RealTool {
+    RealTool {
+        config_rel: Some(rel.to_owned()),
+        tool_files: vec![(rel.to_owned(), bytes.to_vec())],
+        ..plain_tool()
+    }
+}
+
 pub(super) fn rustfmt_tool() -> RealTool {
     RealTool {
         edition: Some("2021".to_owned()),
-        ..plain_tool()
+        ..bound_tool("rustfmt.toml", b"")
     }
 }
 
@@ -726,12 +735,12 @@ pub(super) fn biome_defaults(
 ) -> io::Result<ChildOutput> {
     let config_dir = biome_config_dir_arg(argv);
     assert!(
-        Path::new(config_dir.as_str()).ends_with("dx-biome-default"),
-        "unhinted biome uses the materialized defaults dir"
+        Path::new(config_dir.as_str()).ends_with("cfg"),
+        "biome runs in the bound config dir"
     );
     let staged = std::fs::read(Path::new(config_dir.as_str()).join("biome.json"))
-        .expect("defaults biome.json is staged");
-    assert_eq!(staged, b"{}", "unhinted biome pins empty-object defaults");
+        .expect("bound biome.json is staged");
+    assert_eq!(staged, b"{}");
     roundtrip_biome(argv, cwd, env)
 }
 

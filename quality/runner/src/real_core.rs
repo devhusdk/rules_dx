@@ -86,12 +86,8 @@ pub(super) fn rustfmt_defaults(
         .map(|pair| pair[1].clone())
         .expect("rustfmt passes --config-path");
     assert!(
-        config.to_string_lossy().ends_with(RUSTFMT_DEFAULTS_REL),
-        "unhinted rustfmt gets the materialized defaults"
-    );
-    assert!(
         Path::new(&config).is_file(),
-        "defaults file is materialized"
+        "bound config is materialized"
     );
     Ok(ChildOutput {
         code: Some(0),
@@ -280,7 +276,7 @@ pub(super) fn rustfmt_missing_module_fails_with_rustfmt_stderr() {
     );
     assert!(text.starts_with(&head), "{text}");
     assert!(
-        text[head.len()..].starts_with(": Error writing files"),
+        text[head.len()..].starts_with(" (config rustfmt.toml): Error writing files"),
         "{text}"
     );
 }
@@ -866,16 +862,20 @@ pub(super) fn rustfmt_hinted_config_reaches_the_tool() {
 }
 
 #[test]
-pub(super) fn rustfmt_without_hint_gets_materialized_defaults() {
-    let backend = backend_for("rustfmt", rustfmt_tool(), rustfmt_defaults);
-    let findings = backend
+pub(super) fn rustfmt_without_a_bound_config_fails_the_action() {
+    let tool = RealTool {
+        config_rel: None,
+        ..rustfmt_tool()
+    };
+    let backend = backend_for("rustfmt", tool, rustfmt_defaults);
+    let err = backend
         .diagnose(
             "rustfmt",
             "format",
             &single("src/main.rs", "fn main() {}\n"),
         )
-        .expect("diagnosed");
-    assert!(findings.is_empty());
+        .expect_err("no config fails");
+    assert!(err.to_string().contains("no bound config"));
 }
 
 pub(super) fn rustfmt_edition_passthrough(
@@ -905,7 +905,7 @@ pub(super) fn rustfmt_edition_passthrough(
 pub(super) fn rustfmt_caller_edition_reaches_the_tool() {
     let tool = RealTool {
         edition: Some("2018".to_owned()),
-        ..plain_tool()
+        ..bound_tool("rustfmt.toml", b"")
     };
     let backend = backend_for("rustfmt", tool, rustfmt_edition_passthrough);
     let findings = backend
@@ -920,7 +920,11 @@ pub(super) fn rustfmt_caller_edition_reaches_the_tool() {
 
 #[test]
 pub(super) fn rustfmt_without_edition_fails_the_action() {
-    let backend = backend_for("rustfmt", plain_tool(), rustfmt_defaults);
+    let backend = backend_for(
+        "rustfmt",
+        bound_tool("rustfmt.toml", b""),
+        rustfmt_defaults,
+    );
     let err = backend
         .diagnose(
             "rustfmt",

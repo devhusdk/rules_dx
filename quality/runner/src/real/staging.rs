@@ -5,6 +5,14 @@ use quality_adapter::exec::{MirrorContents, MirrorFile};
 
 use super::*;
 
+/// Tools that never run without a bound config: the runner has no default of its own, so the
+/// tier base the policy binds is the only one.
+pub(super) const TIER_BASE_TOOLS: &[&str] = &[
+    "bicep", "biome", "checkmake", "credo", "detekt", "elvis", "ffmt", "gersemi", "gplint",
+    "hadolint", "hlint", "mbake", "pmd", "redocly", "regal", "rustfmt", "scalafix", "scalafmt",
+    "selene", "stylelint", "tflint",
+];
+
 const FSHARPLINT_CONTEXT_REL: &str = "dx-fsharplint/context.json";
 
 pub(super) struct FsharplintInputs {
@@ -78,7 +86,7 @@ fn pin_bicep_cache(bound: Option<Vec<u8>>, root: &Path) -> Vec<u8> {
         );
     }
     let mut out =
-        serde_json::to_vec_pretty(&config).unwrap_or_else(|_| BICEP_DEFAULTS_BYTES.to_vec());
+        serde_json::to_vec_pretty(&config).unwrap_or_else(|_| b"{}\n".to_vec());
     out.push(b'\n');
     out
 }
@@ -131,141 +139,13 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(pin_bicep_cache(bound, root)),
             });
         }
-        if tool_id == "rustfmt" && tool.config_rel.is_none() {
+        if tool_id == "selene" && !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter())) {
+            // selene checks the cwd (the scratch root) before the config directory, so a
+            // user config can say `std = "lua53+lua54"` without shipping the file.
             mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(RUSTFMT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(Vec::new()),
+                mirror_rel: PathBuf::from(SELENE_STD_FILE),
+                contents: MirrorContents::Bytes(SELENE_STD_BYTES.to_vec()),
             });
-        }
-        if tool_id == "biome" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(BIOME_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(BIOME_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "detekt" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(DETEKT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(DETEKT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "tflint" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(TFLINT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(TFLINT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "credo" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(CREDO_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(CREDO_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "checkmake" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(CHECKMAKE_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(CHECKMAKE_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "gersemi" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(GERSEMI_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(GERSEMI_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "ffmt" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(FFMT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(FFMT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "mbake" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(MBAKE_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(MBAKE_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "hadolint" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(HADOLINT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(HADOLINT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "hlint" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(HLINT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(HLINT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "regal" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(REGAL_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(REGAL_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "elvis" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(ELVIS_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(ELVIS_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "redocly" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(REDOCLY_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(REDOCLY_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "gplint" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(GPLINT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(GPLINT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "scalafix" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(SCALAFIX_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(SCALAFIX_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "scalafmt" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(SCALAFMT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(SCALAFMT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "stylelint" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(STYLELINT_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(STYLELINT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "pmd" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(PMD_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(PMD_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "selene" {
-            if tool.config_rel.is_none() {
-                let dir = Path::new(SELENE_DEFAULTS_REL)
-                    .parent()
-                    .unwrap_or_else(|| Path::new(""));
-                mirrors.push(MirrorFile {
-                    mirror_rel: PathBuf::from(SELENE_DEFAULTS_REL),
-                    contents: MirrorContents::Bytes(SELENE_DEFAULTS_BYTES.to_vec()),
-                });
-                mirrors.push(MirrorFile {
-                    mirror_rel: dir.join(SELENE_STD_FILE),
-                    contents: MirrorContents::Bytes(SELENE_STD_BYTES.to_vec()),
-                });
-            } else if !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter())) {
-                // selene checks the cwd (the scratch root) before the config directory, so a
-                // user config can say `std = "lua53+lua54"` without shipping the file.
-                mirrors.push(MirrorFile {
-                    mirror_rel: PathBuf::from(SELENE_STD_FILE),
-                    contents: MirrorContents::Bytes(SELENE_STD_BYTES.to_vec()),
-                });
-            }
         }
         mirrors.retain(|mirror| {
             !staged
@@ -337,85 +217,10 @@ impl RealBackend {
         tool: &RealTool,
         scratch: &Scratch,
     ) -> Result<Option<PathBuf>, RunnerError> {
-        if tool_id == "rustfmt" {
-            let rel = tool.config_rel.as_deref().unwrap_or(RUSTFMT_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "detekt" {
-            let rel = tool.config_rel.as_deref().unwrap_or(DETEKT_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "tflint" {
-            let rel = tool.config_rel.as_deref().unwrap_or(TFLINT_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "credo" {
-            let rel = tool.config_rel.as_deref().unwrap_or(CREDO_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "checkmake" {
-            let rel = tool.config_rel.as_deref().unwrap_or(CHECKMAKE_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "gersemi" {
-            let rel = tool.config_rel.as_deref().unwrap_or(GERSEMI_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "mbake" {
-            let rel = tool.config_rel.as_deref().unwrap_or(MBAKE_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "hadolint" {
-            let rel = tool.config_rel.as_deref().unwrap_or(HADOLINT_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "hlint" {
-            let rel = tool.config_rel.as_deref().unwrap_or(HLINT_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "regal" {
-            let rel = tool.config_rel.as_deref().unwrap_or(REGAL_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "elvis" {
-            let rel = tool.config_rel.as_deref().unwrap_or(ELVIS_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "redocly" {
-            let rel = tool.config_rel.as_deref().unwrap_or(REDOCLY_DEFAULTS_REL);
+        if TIER_BASE_TOOLS.contains(&tool_id) && tool.upstream_diagnostics.is_empty() {
+            let Some(rel) = tool.config_rel.as_deref() else {
+                return Err(missing_tier_base(tool_id));
+            };
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)
@@ -428,48 +233,6 @@ impl RealBackend {
                     format!("{tool_id} needs a kubernetes_schemas config"),
                 ));
             };
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "gplint" {
-            let rel = tool.config_rel.as_deref().unwrap_or(GPLINT_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "selene" {
-            let rel = tool.config_rel.as_deref().unwrap_or(SELENE_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "scalafix" {
-            let rel = tool.config_rel.as_deref().unwrap_or(SCALAFIX_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "pmd" {
-            let rel = tool.config_rel.as_deref().unwrap_or(PMD_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "scalafmt" {
-            let rel = tool.config_rel.as_deref().unwrap_or(SCALAFMT_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "stylelint" {
-            let rel = tool.config_rel.as_deref().unwrap_or(STYLELINT_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)
@@ -606,7 +369,9 @@ impl RealBackend {
         scratch: &Scratch,
     ) -> Result<PathBuf, RunnerError> {
         const TOOL_ID: &str = "biome";
-        let rel = tool.config_rel.as_deref().unwrap_or(BIOME_DEFAULTS_REL);
+        let Some(rel) = tool.config_rel.as_deref() else {
+            return Err(missing_tier_base(TOOL_ID));
+        };
         let dir_rel = Path::new(rel)
             .parent()
             .and_then(|parent| parent.to_str())
@@ -621,11 +386,11 @@ impl RealBackend {
         Ok(dir)
     }
 
-    /// The directory ffmt runs in: the one that holds its config, user supplied or the staged
-    /// default. ffmt only recognizes two file names, so another name would be ignored silently.
+    /// The directory ffmt runs in: the one that holds its config. ffmt only recognizes two file
+    /// names, so another name would be ignored silently.
     pub(super) fn ffmt_config_dir(tool: &RealTool) -> Result<String, RunnerError> {
         let Some(rel) = tool.config_rel.as_deref() else {
-            return Ok(FFMT_DEFAULTS_DIR.to_owned());
+            return Err(missing_tier_base("ffmt"));
         };
         match Path::new(rel).file_name().and_then(|name| name.to_str()) {
             Some("ffmt.toml" | ".ffmt.toml") => Ok(parent_rel(rel)),

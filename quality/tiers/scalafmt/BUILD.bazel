@@ -1,4 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//quality:native_config.bzl", "scalafmt_config")
 
 exports_files(
     glob(
@@ -14,6 +15,18 @@ filegroup(
         ["**"],
         exclude = ["BUILD.bazel"],
     ),
+    visibility = ["//visibility:public"],
+)
+
+scalafmt_config(
+    name = "standard",
+    src = "standard.conf",
+    visibility = ["//visibility:public"],
+)
+
+scalafmt_config(
+    name = "strict",
+    src = "strict.conf",
     visibility = ["//visibility:public"],
 )
 

@@ -140,8 +140,12 @@ _CORPORA = [
 rust_test(
     name = "tiers_test",
     srcs = ["tiers_test.rs"],
-    data = [":all"] + _CORPORA,
+    data = [
+        ":all",
+        "//cli/generate:src/tools_gen.rs",
+    ] + _CORPORA,
     env = {
+        "DX_TIER_CONFIGS": "$(rootpath //cli/generate:src/tools_gen.rs)",
         "DX_TIER_CORPORA": " ".join(["$(rootpaths %s)" % corpus for corpus in _CORPORA]),
         "DX_TIER_FILES": "$(rootpaths :all)",
     },

@@ -153,32 +153,10 @@ fn runner_config_refusals(source: &str) -> Vec<String> {
     found
 }
 
-/// Tool ids the runner materializes a default config for.
-fn defaulted_config_tools(source: &str) -> Vec<String> {
-    let mut found = Vec::new();
-    let mut rest = source;
-    let marker = "if tool_id == \"";
-    while let Some(at) = rest.find(marker) {
-        let after = at + marker.len();
-        let close = after + rest[after..].find('"').expect("tool id closes");
-        if rest[close..].starts_with("\" && tool.config_rel.is_none()") {
-            found.push(rest[after..close].to_owned());
-        }
-        rest = &rest[close..];
-    }
-    found.sort();
-    found
-}
-
 #[test]
 fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default() {
     let refusals = runner_config_refusals(&read_runfiles("quality/runner/real_sources.txt"));
-    let defaulted = defaulted_config_tools(&read_runfiles("quality/runner/src/real/staging.rs"));
-    let effective: Vec<String> = refusals
-        .iter()
-        .filter(|tool| !defaulted.contains(tool))
-        .cloned()
-        .collect();
+    let effective = refusals;
     assert_eq!(
         effective,
         starlark_list_items(

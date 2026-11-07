@@ -12,43 +12,9 @@ use crate::RunnerError;
 
 pub use tools_gen::REAL_TOOLS;
 
-const RUSTFMT_DEFAULTS_REL: &str = "dx-rustfmt-default.toml";
-
-const DETEKT_DEFAULTS_REL: &str = "dx-detekt-default/detekt.yml";
-/// Only the unused and unreachable rules, reported as info.
-const DETEKT_DEFAULTS_BYTES: &[u8] = b"style:
-  UnusedImports:
-    active: true
-    severity: info
-  UnusedParameter:
-    active: true
-    severity: info
-  UnusedPrivateMember:
-    active: true
-    severity: info
-  UnusedPrivateProperty:
-    active: true
-    severity: info
-potential-bugs:
-  UnreachableCode:
-    active: true
-    severity: info
-";
-const TFLINT_DEFAULTS_REL: &str = "dx-tflint-default/.tflint.hcl";
-/// Only the bundled terraform ruleset, recommended preset; module calls stay off.
-const TFLINT_DEFAULTS_BYTES: &[u8] = b"config {
-  call_module_type = \"none\"
-}
-
-plugin \"terraform\" {
-  enabled = true
-  preset  = \"recommended\"
-}
-";
 /// Bicep reads the nearest `bicepconfig.json` upward from each file; one at the scratch root
-/// (the bound config, else this default) stops the search before it reaches the host.
+/// (the bound config) stops the search before it reaches the host.
 const BICEP_CONFIG_REL: &str = "bicepconfig.json";
-const BICEP_DEFAULTS_BYTES: &[u8] = b"{}\n";
 /// Home of the Bicep child: its module cache is `$HOME/.bicep`, so it starts empty and no `br:`
 /// reference resolves from the host.
 const BICEP_HOME_REL: &str = "dx-bicep/home";
@@ -61,35 +27,6 @@ const TERRAFORM_CLI_CONFIG_REL: &str = "dx-terraform/cli.tfrc";
 const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
 /// Scratch dir holding one launcher shim per `path_tools` helper; the child's whole `PATH`.
 const PATH_TOOLS_DIR_REL: &str = "dx-path-tools";
-const CREDO_DEFAULTS_REL: &str = "dx-credo-default/.credo.exs";
-/// Credo's own default checks over every staged file: Bazel decides which files are owned, so
-/// no excluded path pattern may drop one.
-const CREDO_DEFAULTS_BYTES: &[u8] = b"%{
-  configs: [
-    %{name: \"default\", files: %{included: [\"**/*.{ex,exs}\"], excluded: []}}
-  ]
-}
-";
-const CHECKMAKE_DEFAULTS_REL: &str = "dx-checkmake-default/checkmake.ini";
-/// An empty ini loads and keeps every rule at its default.
-const CHECKMAKE_DEFAULTS_BYTES: &[u8] = b"";
-const REGAL_DEFAULTS_REL: &str = ".regal/config.yaml";
-const REGAL_DEFAULTS_BYTES: &[u8] = b"";
-const GERSEMI_DEFAULTS_REL: &str = "dx-gersemi-default/.gersemirc";
-/// An empty config loads and keeps every option at its default.
-const GERSEMI_DEFAULTS_BYTES: &[u8] = b"";
-/// ffmt reads `ffmt.toml` from its working directory and every parent, with no flag to name one.
-/// The run starts in the directory that holds the config, so nothing above it is ever read; the
-/// default is empty and keeps every option at its upstream default.
-const FFMT_DEFAULTS_DIR: &str = "dx-ffmt-default";
-const FFMT_DEFAULTS_REL: &str = "dx-ffmt-default/ffmt.toml";
-const FFMT_DEFAULTS_BYTES: &[u8] = b"";
-const MBAKE_DEFAULTS_REL: &str = "dx-mbake-default/.bake.toml";
-/// mbake strips the final newline unless told to keep it; everything else stays at its default
-/// (no `.PHONY` insertion, grouping, or variable alignment).
-const MBAKE_DEFAULTS_BYTES: &[u8] = b"[formatter]\nensure_final_newline = true\n";
-const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
-const HADOLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hadolint/standard.yaml");
 const DEADNIX_STANDARD: &str = include_str!("../../tiers/deadnix/standard.txt");
 const ZANUDA_STANDARD: &str = include_str!("../../tiers/zanuda/standard.txt");
 const ZANUDA_STRICT: &str = include_str!("../../tiers/zanuda/strict.txt");
@@ -114,119 +51,10 @@ fn tier_lines(
         .collect())
 }
 
-const HLINT_DEFAULTS_REL: &str = "dx-hlint-default/hlint.yaml";
-/// An empty hint list keeps the built-in hints and stops hlint from searching for `.hlint.yaml`.
-const HLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/hlint/standard.yaml");
-/// The stock rulesets for every staged `.erl` and `.hrl`, at any depth.
-const ELVIS_DEFAULTS_REL: &str = "dx-elvis-default/elvis.config";
-const ELVIS_DEFAULTS_BYTES: &[u8] = b"[{config, [
-    #{files => [\"**/*.erl\"], ruleset => erl_files, allow_no_files => true},
-    #{files => [\"**/*.hrl\"], ruleset => hrl_files, allow_no_files => true}
-]}].
-";
-const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
-const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const CUE_STATE_REL: &str = ".dx-cue-state";
-const REDOCLY_DEFAULTS_REL: &str = "dx-redocly-default/redocly.yaml";
-/// The curated Redocly policy: spec structure plus the correctness rules, all as errors.
-const REDOCLY_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/redocly/standard.yaml");
-/// The curated gplint rules cover meaning only. Layout belongs to prettier, and rules that
-/// compare files (`no-dupe-feature-names`, `no-dupe-scenario-names` in `anywhere` mode) would
-/// make a result depend on which files share a batch, so none of those are listed.
-/// selene's default config and the Lua 5.4 standard library it extends, embedded from the files
-/// `//quality/tools/lua:selene_smoke_test` exercises so the two cannot drift.
-const SELENE_DEFAULTS_REL: &str = "dx-selene-default/selene.toml";
-const SELENE_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tools/lua/selene.toml");
 /// The std file name selene resolves `std = "lua53+lua54"` against.
 const SELENE_STD_FILE: &str = "lua54.yml";
 const SELENE_STD_BYTES: &[u8] = include_bytes!("../../tools/lua/lua54.yml");
-/// pmd's standard tier, used when the consumer sets no `pmd_config`.
-const PMD_DEFAULTS_REL: &str = "dx-pmd-default/pmd_default.xml";
-const PMD_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/pmd/standard.xml");
-
-/// scalafmt's standard tier, the version and dialect it needs and no style, used when the consumer binds none.
-const SCALAFMT_DEFAULTS_REL: &str = "dx-scalafmt-default/.scalafmt.conf";
-const SCALAFMT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/scalafmt/standard.conf");
-
-/// scalafix's default config when the consumer binds none.
-const SCALAFIX_DEFAULTS_REL: &str = "dx-scalafix-default/.scalafix.conf";
-const SCALAFIX_DEFAULTS_BYTES: &[u8] = b"rules = [RemoveUnused]\n";
-
-const GPLINT_DEFAULTS_REL: &str = "dx-gplint-default/gplint.json";
-const GPLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/gplint/standard.json");
-const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
-const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
-  "rules": {
-    "block-no-empty": true,
-    "color-no-invalid-hex": true,
-    "comment-no-empty": true,
-    "declaration-block-no-duplicate-custom-properties": true,
-    "declaration-block-no-duplicate-properties": [
-      true,
-      {
-        "ignore": [
-          "consecutive-duplicates-with-different-values"
-        ]
-      }
-    ],
-    "declaration-block-no-shorthand-property-overrides": true,
-    "font-family-no-duplicate-names": true,
-    "function-calc-no-unspaced-operator": true,
-    "keyframe-block-no-duplicate-selectors": true,
-    "keyframe-declaration-no-important": true,
-    "media-feature-name-no-unknown": true,
-    "media-query-no-invalid": true,
-    "named-grid-areas-no-invalid": true,
-    "no-duplicate-at-import-rules": true,
-    "no-duplicate-selectors": true,
-    "no-empty-source": true,
-    "no-invalid-position-at-import-rule": true,
-    "no-irregular-whitespace": true,
-    "property-no-unknown": [
-      true,
-      {
-        "ignoreProperties": [
-          "composes",
-          "compose-with"
-        ],
-        "ignoreSelectors": [
-          ":export",
-          "/^:import/"
-        ]
-      }
-    ],
-    "selector-pseudo-class-no-unknown": [
-      true,
-      {
-        "ignorePseudoClasses": [
-          "export",
-          "import",
-          "global",
-          "local",
-          "external"
-        ]
-      }
-    ],
-    "selector-pseudo-element-no-unknown": true,
-    "string-no-newline": true,
-    "unit-no-unknown": true
-  },
-  "overrides": [
-    {
-      "files": [
-        "*.scss"
-      ],
-      "customSyntax": "postcss-scss"
-    },
-    {
-      "files": [
-        "*.less"
-      ],
-      "customSyntax": "postcss-less"
-    }
-  ]
-}
-"#;
 
 pub struct RealTool {
     pub binary: PathBuf,
@@ -893,9 +721,8 @@ mod real_weeder;
 #[cfg(test)]
 mod tests {
     use super::{
-        ALWAYS_OWN_MANIFEST, GPLINT_DEFAULTS_BYTES, REAL_TOOLS, STYLELINT_DEFAULTS_BYTES,
-        absolute_argv, javascript_manifest, own_runfiles_manifest, parsed, reads_own_manifest,
-        resolves_launcher, spawn_argv,
+        ALWAYS_OWN_MANIFEST, REAL_TOOLS, absolute_argv, javascript_manifest,
+        own_runfiles_manifest, parsed, reads_own_manifest, resolves_launcher, spawn_argv,
     };
     use crate::RunnerError;
     use quality_adapter::launch::{RunfilesPolicy, policy_for};
@@ -1225,69 +1052,5 @@ mod tests {
     #[test]
     fn keep_sorted_runner_edge_is_present() {
         assert!(REAL_TOOLS.contains(&"keep_sorted"));
-    }
-
-    /// The gplint defaults parse and leave layout to prettier and cross-file checks out.
-    #[test]
-    fn the_gplint_defaults_hold_only_per_file_meaning_rules() {
-        let config: serde_json::Value =
-            serde_json::from_slice(GPLINT_DEFAULTS_BYTES).expect("defaults are JSON");
-        let rules = config.as_object().expect("rules");
-        assert!(!rules.is_empty());
-        for banned in [
-            "indentation",
-            "table-align",
-            "no-trailing-spaces",
-            "new-line-at-eof",
-            "no-multiple-empty-lines",
-            "one-space-between-tags",
-            "no-dupe-feature-names",
-            "file-name",
-        ] {
-            assert!(!rules.contains_key(banned), "{banned}");
-        }
-        assert_eq!(
-            rules["no-dupe-scenario-names"][1], "in-feature",
-            "scenario names compare within one feature"
-        );
-    }
-
-    /// The default stylelint rules accept CSS Modules selectors and `composes`.
-    #[test]
-    fn the_stylelint_defaults_accept_css_modules() {
-        let config: serde_json::Value =
-            serde_json::from_slice(STYLELINT_DEFAULTS_BYTES).expect("defaults are JSON");
-        let rules = &config["rules"];
-        let pseudo = &rules["selector-pseudo-class-no-unknown"];
-        assert_eq!(pseudo[0], true);
-        for name in ["global", "local", "export", "import", "external"] {
-            assert!(
-                pseudo[1]["ignorePseudoClasses"]
-                    .as_array()
-                    .expect("ignorePseudoClasses")
-                    .contains(&serde_json::Value::from(name)),
-                "{name}"
-            );
-        }
-        let property = &rules["property-no-unknown"];
-        assert_eq!(property[0], true);
-        for name in ["composes", "compose-with"] {
-            assert!(
-                property[1]["ignoreProperties"]
-                    .as_array()
-                    .expect("ignoreProperties")
-                    .contains(&serde_json::Value::from(name)),
-                "{name}"
-            );
-        }
-        for name in [":export", "/^:import/"] {
-            assert!(
-                property[1]["ignoreSelectors"]
-                    .as_array()
-                    .expect("ignoreSelectors")
-                    .contains(&serde_json::Value::from(name)),
-                "{name}"
-            );
-        }
     }
 }

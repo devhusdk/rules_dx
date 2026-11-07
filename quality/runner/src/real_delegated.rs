@@ -237,10 +237,13 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "yamlfmt",
         "zig_fmt",
     ] {
-        let tool = if tool_id == "gofumpt" {
-            gofumpt_tool()
-        } else {
-            plain_tool()
+        let tool = match tool_id {
+            "gofumpt" => gofumpt_tool(),
+            "scalafmt" => bound_tool(".scalafmt.conf", b""),
+            "ffmt" => bound_tool("ffmt.toml", b""),
+            "gersemi" => bound_tool(".gersemirc", b""),
+            "mbake" => bound_tool(".bake.toml", b""),
+            _ => plain_tool(),
         };
         let backend = backend_for(tool_id, tool, empty_report);
         let fixed = backend
@@ -530,12 +533,12 @@ fn hlint_behavior(
     assert_eq!(argv[1], OsString::from("--json"));
     let config = argv[2].to_string_lossy().into_owned();
     assert!(
-        config.starts_with("--hint=") && config.ends_with("dx-hlint-default/hlint.yaml"),
+        config.starts_with("--hint=") && config.ends_with("cfg/hlint.yaml"),
         "{config}"
     );
     assert_eq!(argv[3], OsString::from("--"));
     let staged = std::fs::read(config.trim_start_matches("--hint=")).expect("staged config");
-    assert_eq!(staged, include_bytes!("../../tiers/hlint/standard.yaml"));
+    assert_eq!(staged, b"");
     let file = last_file(argv);
     let text = std::fs::read_to_string(&file).expect("read staged file");
     let (code, stdout) = if text.contains("crash") {
@@ -559,7 +562,7 @@ fn hlint_behavior(
 
 #[test]
 pub(super) fn hlint_reports_findings_with_the_staged_default_and_never_trusts_a_failed_run() {
-    let backend = backend_for("hlint", plain_tool(), hlint_behavior);
+    let backend = backend_for("hlint", bound_tool("cfg/hlint.yaml", b""), hlint_behavior);
     let lint = |text: &str| backend.diagnose("hlint", "lint", &single("A.hs", text));
     assert!(lint("main = pure ()\n").expect("check").is_empty());
     let warned = lint("f = redundant\n").expect("check");
@@ -1279,7 +1282,7 @@ fn regal_behavior(
 
 #[test]
 pub(super) fn regal_lint_reports_errors_and_warnings_and_never_counts_noise_as_clean() {
-    let mut tool = plain_tool();
+    let mut tool = bound_tool(".regal/config.yaml", b"");
     tool.extra_env = vec![("REGAL_DISABLE_VERSION_CHECK".to_owned(), "1".to_owned())];
     let backend = backend_for("regal", tool, regal_behavior);
     assert!(

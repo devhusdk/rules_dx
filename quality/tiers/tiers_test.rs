@@ -96,3 +96,32 @@ fn clippy_tiers_end_with_deny_warnings() {
         assert_eq!(text.lines().last(), Some("-Dwarnings"), "{path}");
     }
 }
+
+#[test]
+fn every_tool_with_a_tier_base_has_a_tier_dir() {
+    let configs = std::fs::read_to_string(dx_testing::resolve_runfiles(
+        &std::env::var("DX_TIER_CONFIGS").expect("DX_TIER_CONFIGS must name tools_gen.rs"),
+    ))
+    .expect("read tools_gen.rs");
+    let files = paths("DX_TIER_FILES");
+    let mut id = String::new();
+    let mut dir = String::new();
+    let mut missing = Vec::new();
+    for line in configs.lines().map(str::trim) {
+        if let Some(value) = line.strip_prefix("id: \"") {
+            id = value.trim_end_matches("\",").to_owned();
+        } else if let Some(value) = line.strip_prefix("tier_dir: \"") {
+            dir = value.trim_end_matches("\",").to_owned();
+        } else if line == "tier_base: true," {
+            let dir = if dir.is_empty() { &id } else { &dir };
+            let prefix = format!("quality/tiers/{dir}/");
+            if !files.iter().any(|path| path.starts_with(&prefix)) {
+                missing.push(id.clone());
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "tools with config metadata need a quality/tiers/<tool>/ dir: {missing:?}"
+    );
+}

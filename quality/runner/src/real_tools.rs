@@ -612,8 +612,8 @@ fn pydoclint_reports_and_is_check_only() {
 }
 
 #[test]
-fn biome_lint_uses_pinned_defaults_and_is_check_only() {
-    let backend = backend_for("biome", plain_tool(), biome_defaults);
+fn biome_lint_runs_with_the_bound_config_and_is_check_only() {
+    let backend = backend_for("biome", bound_tool("cfg/biome.json", b"{}"), biome_defaults);
     let findings = backend
         .diagnose(
             "biome",
@@ -664,7 +664,7 @@ fn biome_hinted_config_wins_over_defaults() {
 
 #[test]
 fn biome_format_reports_and_fix_rewrites() {
-    let backend = backend_for("biome", plain_tool(), roundtrip_biome);
+    let backend = backend_for("biome", bound_tool("cfg/biome.json", b"{}"), roundtrip_biome);
     let findings = backend
         .diagnose(
             "biome",
@@ -836,11 +836,11 @@ fn graphql_eslint_usage_errors_are_never_clean() {
 }
 
 fn gplint_tool() -> RealTool {
-    plain_tool()
+    bound_tool("cfg/gplint.json", br#"{"no-unnamed-features": "error"}"#)
 }
 
 #[test]
-fn gplint_reports_findings_with_the_default_config_and_never_fixes() {
+fn gplint_reports_findings_with_the_bound_config_and_never_fixes() {
     let backend = backend_for("gplint", gplint_tool(), roundtrip_gplint);
     let findings = backend
         .diagnose(
@@ -895,37 +895,6 @@ fn gplint_consumer_config_replaces_the_defaults() {
     );
 }
 
-#[test]
-fn scalafix_without_a_config_stages_the_remove_unused_default() {
-    let mirrors = RealBackend::mirror_tool_files("scalafix", &plain_tool(), &[], Path::new("/s"));
-    let default = mirrors
-        .iter()
-        .find(|mirror| mirror.mirror_rel == Path::new("dx-scalafix-default/.scalafix.conf"))
-        .expect("default config is staged");
-    let MirrorContents::Bytes(bytes) = &default.contents else {
-        panic!("default config is written as bytes");
-    };
-    assert_eq!(bytes.as_slice(), b"rules = [RemoveUnused]\n");
-}
-
-#[test]
-fn scalafix_consumer_config_replaces_the_default() {
-    let tool = RealTool {
-        config_rel: Some("cfg/.scalafix.conf".to_owned()),
-        tool_files: vec![(
-            "cfg/.scalafix.conf".to_owned(),
-            b"rules = [ExplicitResultTypes]\n".to_vec(),
-        )],
-        ..plain_tool()
-    };
-    let mirrors = RealBackend::mirror_tool_files("scalafix", &tool, &[], Path::new("/s"));
-    assert!(
-        mirrors
-            .iter()
-            .all(|mirror| mirror.mirror_rel != Path::new("dx-scalafix-default/.scalafix.conf"))
-    );
-}
-
 fn selene_mirrors(tool: &RealTool, staged: &[MirrorFile]) -> Vec<String> {
     RealBackend::mirror_tool_files("selene", tool, staged, Path::new("/s"))
         .iter()
@@ -938,17 +907,6 @@ fn staged_file(rel: &str) -> MirrorFile {
         mirror_rel: PathBuf::from(rel),
         contents: MirrorContents::Bytes(Vec::new()),
     }
-}
-
-#[test]
-fn selene_default_config_and_std_stage_together() {
-    assert_eq!(
-        selene_mirrors(&plain_tool(), &[]),
-        vec![
-            "dx-selene-default/selene.toml",
-            "dx-selene-default/lua54.yml"
-        ]
-    );
 }
 
 #[test]
@@ -991,42 +949,30 @@ fn selene_user_shipped_std_is_not_shadowed() {
 }
 
 #[test]
-fn selene_embedded_defaults_use_the_merged_files() {
-    let config = std::str::from_utf8(SELENE_DEFAULTS_BYTES).expect("utf8");
-    assert!(config.contains("std = \"lua53+lua54\""));
+fn tools_without_a_bound_config_never_get_a_runner_default() {
+    for &tool_id in super::staging::TIER_BASE_TOOLS {
+        let backend = backend_for(tool_id, plain_tool(), missing_spawn);
+        let empty = BTreeMap::new();
+        let staged = backend
+            .stage_scratch(tool_id, &plain_tool(), &empty, &empty, &empty)
+            .expect("scratch");
+        let err = backend
+            .config_abs(tool_id, &plain_tool(), &staged.scratch)
+            .expect_err("no config");
+        assert!(err.to_string().contains("no bound config"), "{tool_id}: {err}");
+    }
+}
+
+#[test]
+fn selene_embedded_std_is_the_merged_file() {
     let std = std::str::from_utf8(SELENE_STD_BYTES).expect("utf8");
     assert!(!std.lines().any(|line| line.starts_with("base:")));
     assert!(std.contains("lua54"));
 }
 
 #[test]
-fn pmd_without_a_ruleset_stages_the_unused_code_default() {
-    let mirrors = RealBackend::mirror_tool_files("pmd", &plain_tool(), &[], Path::new("/s"));
-    assert!(
-        mirrors
-            .iter()
-            .any(|mirror| mirror.mirror_rel == Path::new(PMD_DEFAULTS_REL))
-    );
-}
-
-#[test]
-fn pmd_consumer_ruleset_replaces_the_default() {
-    let tool = RealTool {
-        config_rel: Some("cfg/pmd.xml".to_owned()),
-        tool_files: vec![("cfg/pmd.xml".to_owned(), b"<ruleset/>".to_vec())],
-        ..plain_tool()
-    };
-    let mirrors = RealBackend::mirror_tool_files("pmd", &tool, &[], Path::new("/s"));
-    assert!(
-        mirrors
-            .iter()
-            .all(|mirror| mirror.mirror_rel != Path::new(PMD_DEFAULTS_REL))
-    );
-}
-
-#[test]
 fn pmd_standard_tier_covers_unused_code() {
-    let text = std::str::from_utf8(PMD_DEFAULTS_BYTES).expect("utf8");
+    let text = std::str::from_utf8(include_bytes!("../../tiers/pmd/standard.xml")).expect("utf8");
     for rule in [
         "UnusedPrivateMethod",
         "UnusedPrivateField",
@@ -1260,7 +1206,7 @@ fn prettier_apply_fix_is_format_only() {
 
 #[test]
 fn biome_fix_failure_keeps_original_text() {
-    let backend = backend_for("biome", plain_tool(), failing_fix);
+    let backend = backend_for("biome", bound_tool("cfg/biome.json", b"{}"), failing_fix);
     let text = "const x = BADFMT;\n";
     assert_eq!(
         backend
@@ -2241,11 +2187,11 @@ fn hadolint_defaults(
 ) -> io::Result<ChildOutput> {
     let config = hadolint_config_arg(argv);
     assert!(
-        config.ends_with("dx-hadolint-default/.hadolint.yaml"),
-        "unbound hadolint uses the scratch default, got {config:?}"
+        config.ends_with("cfg/.hadolint.yaml"),
+        "hadolint reads the bound config, got {config:?}"
     );
     let staged = std::fs::read(&config).expect("default hadolint config is staged");
-    assert_eq!(staged, include_bytes!("../../tiers/hadolint/standard.yaml"));
+    assert_eq!(staged, b"");
     hadolint_report(argv, env)
 }
 
@@ -2265,8 +2211,8 @@ const HADOLINT_DIRTY: &str =
     "FROM ubuntu:24.04\nRUN curl -sSL https://example.com/a.tgz | tar xz\n";
 
 #[test]
-fn hadolint_unbound_config_uses_the_scratch_default_and_is_check_only() {
-    let backend = backend_for("hadolint", plain_tool(), hadolint_defaults);
+fn hadolint_check_runs_with_the_bound_config_and_is_check_only() {
+    let backend = backend_for("hadolint", bound_tool("cfg/.hadolint.yaml", b""), hadolint_defaults);
     let findings = backend
         .diagnose(
             "hadolint",
@@ -2375,8 +2321,8 @@ fn checkmake_defaults(
 ) -> io::Result<ChildOutput> {
     let config = checkmake_config_arg(argv);
     assert!(
-        config.ends_with("dx-checkmake-default/checkmake.ini"),
-        "unbound checkmake uses the scratch default, got {config:?}"
+        config.ends_with("cfg/checkmake.ini"),
+        "checkmake reads the bound config, got {config:?}"
     );
     assert_eq!(
         std::fs::read(&config).expect("default config is staged"),
@@ -2410,8 +2356,8 @@ fn checkmake_ignores_config(
 const CHECKMAKE_DIRTY: &str = "all:\n\t@true\n";
 
 #[test]
-fn checkmake_unbound_config_uses_the_scratch_default_and_is_check_only() {
-    let backend = backend_for("checkmake", plain_tool(), checkmake_defaults);
+fn checkmake_check_runs_with_the_bound_config_and_is_check_only() {
+    let backend = backend_for("checkmake", bound_tool("cfg/checkmake.ini", b""), checkmake_defaults);
     let findings = backend
         .diagnose("checkmake", "lint", &single("Makefile", CHECKMAKE_DIRTY))
         .expect("diagnosed");
@@ -2527,7 +2473,7 @@ fn gersemi_defaults(
     _cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    gersemi_run(argv, env, "dx-gersemi-default/.gersemirc", b"")
+    gersemi_run(argv, env, "cfg/.gersemirc", b"")
 }
 
 fn gersemi_bound(
@@ -2541,8 +2487,8 @@ fn gersemi_bound(
 const GERSEMI_DIRTY: &str = "BAD\n";
 
 #[test]
-fn gersemi_unbound_config_uses_the_scratch_default_and_check_never_writes() {
-    let backend = backend_for("gersemi", plain_tool(), gersemi_defaults);
+fn gersemi_check_runs_with_the_bound_config_and_check_never_writes() {
+    let backend = backend_for("gersemi", bound_tool("cfg/.gersemirc", b""), gersemi_defaults);
     let findings = backend
         .diagnose(
             "gersemi",
@@ -2563,7 +2509,7 @@ fn gersemi_unbound_config_uses_the_scratch_default_and_check_never_writes() {
 
 #[test]
 fn gersemi_fix_rewrites_and_a_recheck_is_clean() {
-    let backend = backend_for("gersemi", plain_tool(), gersemi_defaults);
+    let backend = backend_for("gersemi", bound_tool("cfg/.gersemirc", b""), gersemi_defaults);
     let fixed = backend
         .apply_fix("gersemi", "CMakeLists.txt", GERSEMI_DIRTY, "format")
         .expect("fixed");
@@ -2702,7 +2648,7 @@ fn mbake_defaults(
     mbake_run(
         argv,
         env,
-        "dx-mbake-default/.bake.toml",
+        "cfg/.bake.toml",
         b"[formatter]\nensure_final_newline = true\n",
     )
 }
@@ -2721,7 +2667,7 @@ fn mbake_config_error(
 
 #[test]
 fn mbake_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
-    let backend = backend_for("mbake", plain_tool(), mbake_defaults);
+    let backend = backend_for("mbake", bound_tool("cfg/.bake.toml", b"[formatter]\nensure_final_newline = true\n"), mbake_defaults);
     let findings = backend
         .diagnose("mbake", "format", &single("Makefile", "BAD\n"))
         .expect("diagnosed");
@@ -2808,7 +2754,7 @@ fn ffmt_defaults(
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    ffmt_run(argv, cwd, env, "dx-ffmt-default", b"")
+    ffmt_run(argv, cwd, env, "cfg", b"")
 }
 
 fn ffmt_exit_two(
@@ -2832,7 +2778,7 @@ fn ffmt_files(names: &[&str]) -> BTreeMap<String, String> {
 
 #[test]
 fn ffmt_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
-    let backend = backend_for("ffmt", plain_tool(), ffmt_defaults);
+    let backend = backend_for("ffmt", bound_tool("cfg/ffmt.toml", b""), ffmt_defaults);
     let findings = backend
         .diagnose("ffmt", "format", &single("a.f90", "BAD\n"))
         .expect("diagnosed");
@@ -2852,7 +2798,7 @@ fn ffmt_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
 
 #[test]
 fn ffmt_never_receives_fixed_form_or_f08_sources_on_check_or_fix() {
-    let backend = backend_for("ffmt", plain_tool(), ffmt_defaults);
+    let backend = backend_for("ffmt", bound_tool("cfg/ffmt.toml", b""), ffmt_defaults);
     let names = ["a.f", "b.F", "c.f08", "d.F08", "e.f90"];
     let findings = backend
         .diagnose("ffmt", "format", &ffmt_files(&names))
@@ -2939,9 +2885,9 @@ fn elvis_defaults(
         .iter()
         .position(|arg| arg == "--config")
         .expect("config");
-    let staged = std::fs::read_to_string(&argv[at + 1]).expect("default elvis config");
+    let staged = std::fs::read_to_string(&argv[at + 1]).expect("bound elvis config");
     assert!(staged.contains("\"**/*.erl\""), "{staged}");
-    elvis_report(argv, cwd, "dx-elvis-default/elvis.config")
+    elvis_report(argv, cwd, "cfg/elvis.config")
 }
 
 fn elvis_bound(
@@ -2955,8 +2901,11 @@ fn elvis_bound(
 const ELVIS_DIRTY: &str = "-module(a).\nf() -> io:format(\"x\").\n";
 
 #[test]
-fn elvis_unbound_config_uses_the_scratch_default_and_is_check_only() {
-    let backend = backend_for("elvis", plain_tool(), elvis_defaults);
+fn elvis_check_runs_with_the_bound_config_and_is_check_only() {
+    let backend = backend_for("elvis", bound_tool(
+            "cfg/elvis.config",
+            b"[{config, [#{files => [\"**/*.erl\"], ruleset => erl_files}]}].\n",
+        ), elvis_defaults);
     let findings = backend
         .diagnose("elvis", "lint", &single("lib/src/sub/a.erl", ELVIS_DIRTY))
         .expect("diagnosed");
@@ -3004,7 +2953,7 @@ fn redocly_files(root: &str) -> BTreeMap<String, String> {
 
 #[test]
 fn redocly_reports_root_findings_and_never_fixes() {
-    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    let backend = backend_for("redocly", bound_tool("cfg/redocly.yaml", b""), roundtrip_redocly);
     assert!(
         backend
             .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
@@ -3030,7 +2979,7 @@ fn redocly_reports_root_findings_and_never_fixes() {
 
 #[test]
 fn redocly_places_fragment_findings_on_the_root() {
-    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    let backend = backend_for("redocly", bound_tool("cfg/redocly.yaml", b""), roundtrip_redocly);
     let root = format!(
         "{REDOCLY_ROOT}components:\n  schemas:\n    Pet:\n      $ref: schemas/pet.yaml#/Pet\n# fragbad\n"
     );
@@ -3062,7 +3011,7 @@ fn redocly_places_fragment_findings_on_the_root() {
 
 #[test]
 fn redocly_preflight_findings_skip_the_tool() {
-    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    let backend = backend_for("redocly", bound_tool("cfg/redocly.yaml", b""), roundtrip_redocly);
     for (root, rule) in [
         ("swagger: '2.0'\n", "dx/api-spec-root"),
         ("info: {}\n", "dx/api-spec-root"),
@@ -3111,7 +3060,7 @@ fn redocly_rejects_unsafe_configs_before_running() {
 
 #[test]
 fn redocly_config_errors_are_never_clean() {
-    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    let backend = backend_for("redocly", bound_tool("cfg/redocly.yaml", b""), roundtrip_redocly);
     let err = backend
         .diagnose(
             "redocly",
@@ -3122,17 +3071,6 @@ fn redocly_config_errors_are_never_clean() {
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
     assert!(err.to_string().contains("exit 2"), "{err}");
     assert!(err.to_string().contains("Unknown rule"), "{err}");
-}
-
-#[test]
-fn redocly_defaults_are_builtin_and_offline() {
-    let text = std::str::from_utf8(REDOCLY_DEFAULTS_BYTES).expect("utf-8");
-    assert_eq!(
-        quality_adapter::api_spec_preflight::check_config(text),
-        Ok(())
-    );
-    assert!(text.contains("telemetry: off"));
-    assert!(text.contains("no-unresolved-refs: error"));
 }
 
 type SpawnLog = std::sync::Mutex<Vec<(bool, PathBuf, usize)>>;
@@ -4135,7 +4073,7 @@ fn bicep_missing_binary(
 
 #[test]
 fn bicep_lint_reports_located_findings_in_a_scratch_home() {
-    let backend = backend_for("bicep", plain_tool(), bicep_fake);
+    let backend = backend_for("bicep", bound_tool("cfg/bicepconfig.json", b"{}"), bicep_fake);
     let mut files = single("infra/a.bicep", BICEP_UNUSED);
     files.insert("infra/b.bicep".to_owned(), BICEP_CLEAN.to_owned());
     let findings = backend
@@ -4155,7 +4093,7 @@ fn bicep_lint_reports_located_findings_in_a_scratch_home() {
 
 #[test]
 fn bicep_registry_reference_is_an_error_finding_with_a_hint() {
-    let backend = backend_for("bicep", plain_tool(), bicep_fake);
+    let backend = backend_for("bicep", bound_tool("cfg/bicepconfig.json", b"{}"), bicep_fake);
     let findings = backend
         .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_REGISTRY))
         .expect("diagnosed");
@@ -4198,7 +4136,7 @@ fn bicep_staged_registry_file_lands_in_the_home_cache() {
             "dx-bicep/home/.bicep/br/example/m$/main.json".to_owned(),
             b"{}".to_vec(),
         )],
-        ..plain_tool()
+        ..bound_tool("cfg/bicepconfig.json", b"{}")
     };
     let findings = backend_for("bicep", tool, cached)
         .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_CLEAN))
@@ -4227,7 +4165,7 @@ fn bicep_bound_config_is_written_at_the_scratch_root() {
 
 #[test]
 fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
-    let backend = backend_for("bicep", plain_tool(), bicep_fake);
+    let backend = backend_for("bicep", bound_tool("cfg/bicepconfig.json", b"{}"), bicep_fake);
     assert!(
         backend
             .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_CLEAN))
@@ -4249,7 +4187,7 @@ fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
 
 #[test]
 fn bicep_format_fails_on_a_syntax_error_but_not_on_other_lint_errors() {
-    let backend = backend_for("bicep", plain_tool(), bicep_fake);
+    let backend = backend_for("bicep", bound_tool("cfg/bicepconfig.json", b"{}"), bicep_fake);
     let err = backend
         .diagnose(
             "bicep",
@@ -4294,7 +4232,7 @@ fn bicep_failures_are_never_clean() {
 fn bicep_has_no_delegated_mode() {
     let tool = RealTool {
         upstream_diagnostics: vec![PathBuf::from("/fake/up.json")],
-        ..plain_tool()
+        ..bound_tool("cfg/bicepconfig.json", b"{}")
     };
     let err = backend_for("bicep", tool, bicep_fake)
         .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_CLEAN))
@@ -5430,8 +5368,8 @@ fn tflint_fake(
         .expect("tflint always gets --config");
     let config = PathBuf::from(&argv[at + 1]);
     assert!(
-        config.ends_with("dx-tflint-default/.tflint.hcl"),
-        "unbound tflint uses the scratch default, got {config:?}"
+        config.ends_with("cfg/.tflint.hcl"),
+        "tflint reads the bound config, got {config:?}"
     );
     let text = std::fs::read_to_string(&config).expect("default config is staged");
     assert!(text.contains("call_module_type = \"none\""));
@@ -5514,9 +5452,12 @@ fn nixfmt_syntax_error_is_reported_and_a_fix_leaves_it_unchanged() {
 }
 
 #[test]
-fn tflint_runs_once_per_directory_with_scratch_home_and_default_config() {
+fn tflint_runs_once_per_directory_with_scratch_home_and_bound_config() {
     TFLINT_SPAWNS.reset();
-    let backend = backend_for("tflint", plain_tool(), tflint_fake);
+    let backend = backend_for("tflint", bound_tool(
+            "cfg/.tflint.hcl",
+            b"config {\n  call_module_type = \"none\"\n}\n\nplugin \"terraform\" {\n  enabled = true\n  preset  = \"recommended\"\n}\n",
+        ), tflint_fake);
     let mut files = BTreeMap::new();
     files.insert("infra/a/main.tf".to_owned(), "bad\n".to_owned());
     files.insert("infra/a/vars.tf".to_owned(), "ok\n".to_owned());
@@ -5557,7 +5498,7 @@ fn tflint_plugin_failure(
 
 #[test]
 fn tflint_plugin_failure_is_an_error_not_a_clean_run() {
-    let backend = backend_for("tflint", plain_tool(), tflint_plugin_failure);
+    let backend = backend_for("tflint", bound_tool("cfg/.tflint.hcl", b""), tflint_plugin_failure);
     let err = backend
         .diagnose("tflint", "lint", &single("a/main.tf", "ok\n"))
         .expect_err("never clean");
@@ -5849,11 +5790,10 @@ fn detekt_fake(
     };
     let config = value("--config");
     assert!(
-        Path::new(&config).ends_with("dx-detekt-default/detekt.yml"),
-        "unbound detekt uses the scratch default, got {config:?}"
+        Path::new(&config).ends_with("cfg/detekt.yml"),
+        "detekt reads the bound config, got {config:?}"
     );
-    let defaults = std::fs::read_to_string(&config).expect("defaults file is materialized");
-    assert!(defaults.contains("UnusedPrivateMember"));
+    assert!(Path::new(&config).is_file(), "bound config is materialized");
     let report = value("--report");
     let report = report.strip_prefix("xml:").expect("xml report");
     let input = value("--input");
@@ -5878,7 +5818,7 @@ fn detekt_fake(
 
 #[test]
 fn detekt_reports_an_unused_private_function_as_warning() {
-    let backend = backend_for("detekt", plain_tool(), detekt_fake);
+    let backend = backend_for("detekt", bound_tool("cfg/detekt.yml", b""), detekt_fake);
     let findings = backend
         .diagnose(
             "detekt",
@@ -5907,8 +5847,8 @@ fn credo_fake(
     assert_eq!(argv[1], OsString::from("--config-file"));
     let config = PathBuf::from(&argv[2]);
     assert!(
-        config.ends_with("dx-credo-default/.credo.exs"),
-        "unbound credo uses the scratch default, got {config:?}"
+        config.ends_with("cfg/.credo.exs"),
+        "credo reads the bound config, got {config:?}"
     );
     let file = last_file(argv);
     assert!(
@@ -5940,8 +5880,8 @@ fn credo_fake(
 }
 
 #[test]
-fn credo_reports_findings_as_warnings_with_the_default_config() {
-    let backend = backend_for("credo", plain_tool(), credo_fake);
+fn credo_reports_findings_as_warnings_with_the_bound_config() {
+    let backend = backend_for("credo", bound_tool("cfg/.credo.exs", b""), credo_fake);
     let findings = backend
         .diagnose("credo", "lint", &single("lib/a.ex", "x\nIO.inspect(1)\n"))
         .expect("diagnosed");
@@ -5956,7 +5896,7 @@ fn credo_reports_findings_as_warnings_with_the_default_config() {
 
 #[test]
 fn credo_reports_a_file_it_could_not_parse() {
-    let backend = backend_for("credo", plain_tool(), credo_fake);
+    let backend = backend_for("credo", bound_tool("cfg/.credo.exs", b""), credo_fake);
     let findings = backend
         .diagnose("credo", "lint", &single("lib/a.ex", "x\nbroken (\n"))
         .expect("diagnosed");
@@ -7401,33 +7341,3 @@ fn lychee_goes_online_when_the_request_sets_the_env() {
     );
 }
 
-#[test]
-fn scalafmt_uses_pinned_defaults() {
-    let mirrors = RealBackend::mirror_tool_files("scalafmt", &plain_tool(), &[], Path::new("/s"));
-    let staged = mirrors
-        .iter()
-        .find(|mirror| mirror.mirror_rel == Path::new(SCALAFMT_DEFAULTS_REL))
-        .expect("the default is staged");
-    assert!(matches!(
-        &staged.contents,
-        MirrorContents::Bytes(bytes) if bytes == SCALAFMT_DEFAULTS_BYTES
-    ));
-}
-
-#[test]
-fn scalafmt_hinted_config_wins() {
-    let tool = RealTool {
-        config_rel: Some("cfg/.scalafmt.conf".to_owned()),
-        tool_files: vec![(
-            "cfg/.scalafmt.conf".to_owned(),
-            b"version = 3.11.4\n".to_vec(),
-        )],
-        ..plain_tool()
-    };
-    let mirrors = RealBackend::mirror_tool_files("scalafmt", &tool, &[], Path::new("/s"));
-    assert!(
-        mirrors
-            .iter()
-            .all(|mirror| mirror.mirror_rel != Path::new(SCALAFMT_DEFAULTS_REL))
-    );
-}

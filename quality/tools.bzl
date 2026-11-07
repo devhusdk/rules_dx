@@ -280,7 +280,7 @@ TOOLS = [
             "format": ["bicep"],
             "lint": ["bicep"],
         },
-        config = config(suffixes = ["bicepconfig.json"], files = ["bicepconfig.json"], tier_active = True, tier_base = False, stage_native = True),
+        config = config(suffixes = ["bicepconfig.json"], files = ["bicepconfig.json"], tier_active = True, stage_native = True),
         support = [
             row(
                 capability = "format",
@@ -2497,7 +2497,7 @@ TOOLS = [
     tool(
         id = "scalafmt",
         adapters = {"format": ["scala"]},
-        config = config(suffixes = [".conf"], files = [".scalafmt.conf"], tier_active = True, tier_base = False),
+        config = config(suffixes = [".conf"], files = [".scalafmt.conf"], tier_active = True),
         support = [
             row(
                 capability = "format",

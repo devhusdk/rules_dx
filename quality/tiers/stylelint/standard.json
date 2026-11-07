@@ -7,6 +7,7 @@
     "at-rule-no-unknown": true,
     "at-rule-prelude-no-invalid": [true, { "ignoreAtRules": ["media"] }],
     "block-no-empty": true,
+    "color-no-invalid-hex": true,
     "comment-no-empty": true,
     "custom-property-no-missing-var-function": true,
     "declaration-block-no-duplicate-custom-properties": true,
@@ -37,15 +38,31 @@
     "no-invalid-position-declaration": true,
     "no-irregular-whitespace": true,
     "property-no-deprecated": true,
-    "property-no-unknown": true,
+    "property-no-unknown": [
+      true,
+      {
+        "ignoreProperties": ["composes", "compose-with"],
+        "ignoreSelectors": [":export", "/^:import/"]
+      }
+    ],
     "selector-anb-no-unmatchable": true,
-    "selector-pseudo-class-no-unknown": true,
+    "selector-pseudo-class-no-unknown": [
+      true,
+      {
+        "ignorePseudoClasses": ["export", "import", "global", "local", "external"]
+      }
+    ],
     "selector-pseudo-element-no-unknown": true,
     "selector-type-no-unknown": [true, { "ignore": ["custom-elements"] }],
     "string-no-newline": [
       true,
       { "ignore": ["at-rule-preludes", "declaration-values"] }
     ],
-    "syntax-string-no-invalid": true
-  }
+    "syntax-string-no-invalid": true,
+    "unit-no-unknown": true
+  },
+  "overrides": [
+    { "files": ["*.scss"], "customSyntax": "postcss-scss" },
+    { "files": ["*.less"], "customSyntax": "postcss-less" }
+  ]
 }

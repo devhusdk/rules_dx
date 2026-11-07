@@ -1336,6 +1336,61 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     #[test]
+    fn consumer_accept_writes_an_exception_for_an_image_finding() {
+        let accept = [
+            "--accept",
+            "CVE-2022-3602:libssl1.1",
+            "--reason",
+            "reviewed",
+            "--expires",
+            "2999-01-01",
+        ];
+        let (code, out, runner, harness) =
+            audit_image("image-accept", DEBIAN_REPORT, None, &accept);
+        assert_eq!(code, 0, "{out}");
+        let path = harness.workspace.join("security.toml");
+        let written = std::fs::read_to_string(&path).expect("security.toml");
+        assert!(
+            written.contains("advisory = \"CVE-2022-3602\""),
+            "{written}"
+        );
+        assert!(written.contains("set = \"//app:image\""), "{written}");
+        assert!(
+            written.contains("versions = \"1.1.1n-0+deb11u3\""),
+            "{written}"
+        );
+        assert!(!written.contains("CVE-2023-0286"), "{written}");
+
+        let rescript = || {
+            harness.query.script_images("//app:image_config\n");
+            harness
+                .query
+                .script_images("bazel-out/k8-fastbuild/bin/app/image.tar\n");
+        };
+        rescript();
+        let (code, out, err) = run_with(&["security"], &runner, &harness);
+        assert!(
+            !format!("{out}{err}").contains("CVE-2022-3602"),
+            "{out}{err}"
+        );
+        assert!(
+            format!("{out}{err}").contains("CVE-2023-0286"),
+            "{out}{err}"
+        );
+        assert_ne!(code, 0);
+
+        rescript();
+        let mut again = vec!["security"];
+        again.extend_from_slice(&accept);
+        let (code, out, err) = run_with(&again, &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            std::fs::read_to_string(&path).expect("security.toml"),
+            written
+        );
+    }
+
+    #[test]
     fn consumer_without_oci_deploy_builds_nothing() {
         let harness = consumer_harness("no-image", UV_MODULE, true);
         write_advisory(&harness, "pypi", NO_ADVISORIES);

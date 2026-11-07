@@ -1436,6 +1436,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         offline,
     });
     diagnostics.extend(images.diagnostics);
+    candidates.extend(images.candidates);
     if incomplete.is_none() {
         incomplete = images.incomplete;
     }

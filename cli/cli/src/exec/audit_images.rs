@@ -2,8 +2,11 @@
 //! built and scanned with the pinned trivy, one row per image.
 
 use super::super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
+use super::audit_accept::VulnCandidate;
 use dx_audit::exception::{RiskException, SecurityPolicy};
-use dx_audit::image_scan::{ImageFinding, covers, parse_report, severity_list, trivy_args};
+use dx_audit::image_scan::{
+    IMAGE_SET, ImageFinding, covers, parse_report, severity_list, trivy_args,
+};
 use dx_output::{DiagnosticEvent, Severity, Threshold};
 use dx_tool_resolve::Bazel;
 use std::path::Path;
@@ -39,6 +42,7 @@ pub(super) struct ImagesResult {
     pub(super) rows: Vec<String>,
     pub(super) failing: usize,
     pub(super) incomplete: Option<String>,
+    pub(super) candidates: Vec<VulnCandidate>,
 }
 
 pub(super) fn run_images(inputs: &ImagesInputs<'_>) -> ImagesResult {
@@ -199,6 +203,13 @@ fn report_image(
 ) {
     let mut counts = [0_usize; 4];
     for found in findings {
+        result.candidates.push(VulnCandidate {
+            advisory: found.id.clone(),
+            package: found.package.clone(),
+            set: label.to_owned(),
+            lock_set: IMAGE_SET.to_owned(),
+            version: found.installed.clone(),
+        });
         if inputs
             .exceptions
             .iter()

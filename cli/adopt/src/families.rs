@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn dx_directory_files_are_not_sources() {
-        let dir = workspace(MODULE, &["a.py", ".dx/config/ruff/strict.toml"], true);
+        let dir = workspace(MODULE, &["a.py", ".dx/config/ruff/extra.toml"], true);
         let extensions = file_extensions(dir.path());
         assert!(extensions.contains(".py"));
         assert!(!extensions.contains(".toml"));

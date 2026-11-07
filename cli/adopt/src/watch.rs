@@ -474,7 +474,7 @@ mod tests {
         assert!(!should_watch_path(Path::new("tools/.git/index")));
         assert!(!should_watch_path(Path::new("bazel-out/x")));
         assert!(!should_watch_path(Path::new(".dx/local/current")));
-        assert!(should_watch_path(Path::new(".dx/config/ruff/strict.toml")));
+        assert!(should_watch_path(Path::new(".dx/config/ruff/extra.toml")));
     }
 
     #[test]

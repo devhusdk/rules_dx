@@ -168,7 +168,7 @@ mod tests {
         assert!(!super::is_dx_state(".dx/bazelrc/performance.bazelrc"));
         assert!(!super::is_dx_state(".dx/BUILD.bazel"));
         assert!(!super::is_dx_state(".dx/config"));
-        assert!(!super::is_dx_state(".dx/config/ruff/strict.toml"));
+        assert!(!super::is_dx_state(".dx/config/ruff/extra.toml"));
         assert!(super::is_dx_state(
             ".dx/local/leases/process-groups/1-7.lock"
         ));

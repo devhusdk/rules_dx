@@ -40,6 +40,7 @@ py_extension(
 
 python_test(
     name = "native_ext_test",
+    testonly = True,
     srcs = ["native_ext_test.py"],
     data = select({
         "@platforms//os:windows": ["@msvc_runtime//:vc_redist"],
@@ -113,4 +114,5 @@ cc_library(
         "dxlinked.cc",
         "dxnative.cc",
     ],
+    deps = ["@rules_python//python/cc:current_py_cc_headers"],  # keep
 )

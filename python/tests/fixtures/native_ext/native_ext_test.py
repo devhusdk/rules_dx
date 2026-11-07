@@ -1,6 +1,5 @@
 import importlib.machinery
 import os
-import platform
 import shutil
 import subprocess
 import sys
@@ -12,9 +11,6 @@ import dxnative
 
 WINDOWS = sys.platform == "win32"
 CRT_DLLS = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
-EXPECTED_CRT_DLLS = (
-    CRT_DLLS[:2] if platform.machine().lower() in ("arm64", "aarch64") else CRT_DLLS
-)
 
 
 def clean_env():
@@ -65,7 +61,7 @@ class NativeExtTest(unittest.TestCase):
             shutil.copy(src, tmp)
             if WINDOWS:
                 dlls = crt_dlls()
-                self.assertEqual(set(dlls), set(EXPECTED_CRT_DLLS))
+                self.assertEqual(set(dlls), set(CRT_DLLS))
                 for dll in dlls.values():
                     shutil.copy(dll, tmp)
                 code = (

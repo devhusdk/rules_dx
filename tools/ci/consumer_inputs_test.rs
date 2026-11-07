@@ -484,7 +484,7 @@ fn bench_is_off_by_default_and_uploads_the_baseline_for_ninety_days() {
         json!(false),
         "{WORKFLOW} default"
     );
-    assert_eq!(inputs["bench_regression_pct"]["default"], json!("20"));
+    assert_eq!(inputs["bench_max_regression"]["default"], json!("20"));
     let bench = job(WORKFLOW, "bench");
     assert!(scope_text(&bench["if"]).contains("inputs.bench"));
     let steps = bench["steps"].to_string();

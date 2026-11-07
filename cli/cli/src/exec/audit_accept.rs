@@ -1,5 +1,6 @@
 use super::*;
 
+const OWNER_NOTE: &str = "# dx: yours to edit; `dx security --accept` and `dx license --accept` append here";
 const SECURITY_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json";
 const LICENSE_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json";
 
@@ -155,7 +156,8 @@ fn write_entries(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => return Err(format!("could not read {rel}: {error}")),
     };
-    let updated = dx_update::accept::append_entries(text.as_deref(), header, entries)
+    let header = format!("{OWNER_NOTE}\n{header}");
+    let updated = dx_update::accept::append_entries(text.as_deref(), &header, entries)
         .map_err(|error| format!("{rel}: {error}"))?;
     if let Some(updated) = updated {
         std::fs::write(&path, updated)

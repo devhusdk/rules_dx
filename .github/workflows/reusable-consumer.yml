@@ -53,7 +53,7 @@ on:
         required: false
         default: false
         type: boolean
-      bench_regression_pct:
+      bench_max_regression:
         description: "Percent a benchmark may be slower than the base branch on a pull request before the bench job fails, a whole number from 0 to 100."
         required: false
         default: "20"
@@ -202,7 +202,7 @@ jobs:
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ inputs.min_changed_line_coverage }}
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
           DX_FUZZ_TIME: ${{ inputs.fuzz_time }}
-          DX_BENCH_REGRESSION_PCT: ${{ inputs.bench_regression_pct }}
+          DX_BENCH_REGRESSION_PCT: ${{ inputs.bench_max_regression }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
@@ -1350,7 +1350,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
-          REGRESSION_PCT: ${{ inputs.bench_regression_pct }}
+          REGRESSION_PCT: ${{ inputs.bench_max_regression }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS

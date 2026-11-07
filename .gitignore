@@ -9,7 +9,8 @@ AGENTS.local.md
 
 # Agent-local tool state.
 .opencode/
-.claude/
+.claude/*
+!.claude/settings.json
 
 # dx managed state.
 /.dx/local/

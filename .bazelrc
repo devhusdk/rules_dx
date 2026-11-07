@@ -82,6 +82,7 @@ common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true
 # CI pins remotejdk_21; a JAVA_HOME that points nowhere stops @local_jdk from running java on every job.
 common:ci --repo_env=JAVA_HOME=dx-no-local-jdk
+common:x_notrack --notrack_incremental_state --nokeep_state_after_build
 
 common:rbe --remote_executor=grpcs://remote.buildbuddy.io
 common:rbe --remote_default_exec_properties=OSFamily=Linux

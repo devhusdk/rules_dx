@@ -44,6 +44,7 @@ fn unusable_scratch_parent_fails_the_action() {
         spawn: roundtrip_rustfmt,
         argv_limit: quality_adapter::commands::windows_argv_limit,
         shard: String::new(),
+        unsafe_fixes: false,
         last_stderr: Default::default(),
     };
     let err = backend
@@ -3272,6 +3273,7 @@ fn assert_keeps_without_scratch(tool_id: &str, tool: RealTool, capability: &str)
         spawn: never_spawns,
         argv_limit: quality_adapter::commands::windows_argv_limit,
         shard: String::new(),
+        unsafe_fixes: false,
         last_stderr: Default::default(),
     };
     let spec = stage(tool_id, &["any"], &["a.txt", "b.txt"]);
@@ -7341,3 +7343,63 @@ fn lychee_goes_online_when_the_request_sets_the_env() {
     );
 }
 
+
+fn quiet_success() -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn has_arg(argv: &[OsString], flag: &str) -> bool {
+    argv.iter().any(|arg| arg == flag)
+}
+
+fn fix_without_unsafe_flags(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(!has_arg(argv, "--unsafe-fixes"), "{argv:?}");
+    assert!(!has_arg(argv, "--fix=all"), "{argv:?}");
+    quiet_success()
+}
+
+fn ruff_fix_with_unsafe_flag(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(has_arg(argv, "--unsafe-fixes"), "{argv:?}");
+    quiet_success()
+}
+
+fn ansible_fix_with_all(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(has_arg(argv, "--fix=all"), "{argv:?}");
+    quiet_success()
+}
+
+#[test]
+fn unsafe_fixes_reach_the_fixers_only_on_request() {
+    for tool_id in ["ruff", "ansible_lint"] {
+        let backend = backend_for(tool_id, plain_tool(), fix_without_unsafe_flags);
+        backend
+            .apply_fix(tool_id, "a.py", "x = 1\n", "lint")
+            .expect("safe fix");
+    }
+    let backend =
+        backend_for("ruff", plain_tool(), ruff_fix_with_unsafe_flag).with_unsafe_fixes(true);
+    backend
+        .apply_fix("ruff", "a.py", "x = 1\n", "lint")
+        .expect("unsafe ruff fix");
+    let backend =
+        backend_for("ansible_lint", plain_tool(), ansible_fix_with_all).with_unsafe_fixes(true);
+    backend
+        .apply_fix("ansible_lint", "site.yml", "---\n", "lint")
+        .expect("unsafe ansible-lint fix");
+}

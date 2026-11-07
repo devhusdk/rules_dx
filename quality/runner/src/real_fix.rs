@@ -840,7 +840,12 @@ impl super::RealBackend {
                     collections: &collection_refs,
                     project_dir: scratch.root(),
                 };
-                Ok(commands::ansible_lint_fix(&tool.binary, refs, &context))
+                Ok(commands::ansible_lint_fix(
+                    &tool.binary,
+                    refs,
+                    &context,
+                    self.unsafe_fixes,
+                ))
             }
             Route::Sqlfluff => {
                 let Some(config) = self.config_abs(tool_id, tool, scratch)? else {
@@ -1048,7 +1053,13 @@ impl super::RealBackend {
                                 &cwd_rel,
                             )
                         } else {
-                            commands::ruff_fix(&tool.binary, refs, config.as_deref(), &cwd_rel)
+                            commands::ruff_fix(
+                                &tool.binary,
+                                refs,
+                                config.as_deref(),
+                                &cwd_rel,
+                                self.unsafe_fixes,
+                            )
                         })
                     }
                     "typos" => Ok(commands::typos_fix(&tool.binary, refs, config.as_deref())),

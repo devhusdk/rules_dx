@@ -55,6 +55,14 @@ pub struct Suggestion {
     pub start: u64,
     pub end: u64,
     pub replacement: Vec<u8>,
+    pub applicability: FixApplicability,
+}
+
+/// Whether applying a suggestion keeps the program's meaning. Unsafe ones apply only on request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FixApplicability {
+    Safe,
+    Unsafe,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

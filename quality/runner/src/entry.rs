@@ -141,7 +141,9 @@ fn run_request(request_path: &str, output: &str, shard: Option<&str>) -> Result<
         .scratch_parent
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    let backend = RealBackend::new(tools, scratch_parent).with_shard(shard.unwrap_or_default());
+    let backend = RealBackend::new(tools, scratch_parent)
+        .with_shard(shard.unwrap_or_default())
+        .with_unsafe_fixes(request.unsafe_fixes);
     let result = crate::real::run_real_pipeline_with_resolve(
         &request.producer,
         &request.capability,

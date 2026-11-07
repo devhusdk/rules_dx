@@ -2,7 +2,8 @@ use serde::Deserialize;
 
 use super::{FileFinding, ParseError, check_output_size, code_name, known};
 use crate::{
-    ColumnEncoding, Finding, Related, RelatedLocation, Suggestion, TextPosition, ToolSeverity,
+    ColumnEncoding, Finding, FixApplicability, Related, RelatedLocation, Suggestion, TextPosition,
+    ToolSeverity,
 };
 
 const MAX_RELATED: usize = 32;
@@ -246,6 +247,15 @@ fn push_children(children: &[ClippyMessage], out: &mut Vec<Related>) {
     }
 }
 
+/// `MachineApplicable` is safe, `MaybeIncorrect` is unsafe; placeholders and unspecified edits are never applied.
+fn fix_applicability(rustc: &str) -> Option<FixApplicability> {
+    match rustc {
+        "MachineApplicable" => Some(FixApplicability::Safe),
+        "MaybeIncorrect" => Some(FixApplicability::Unsafe),
+        _ => None,
+    }
+}
+
 fn collect_suggestions(
     tool: &'static str,
     messages: &[ClippyMessage],
@@ -256,7 +266,7 @@ fn collect_suggestions(
         for span in &message.spans {
             if let (Some(replacement), Some(applicability)) =
                 (&span.suggested_replacement, &span.suggestion_applicability)
-                && applicability == "MachineApplicable"
+                && let Some(applicability) = fix_applicability(applicability)
                 && span.file_name == file
             {
                 if span.byte_start > span.byte_end {
@@ -269,6 +279,7 @@ fn collect_suggestions(
                     start: span.byte_start,
                     end: span.byte_end,
                     replacement: replacement.as_bytes().to_vec(),
+                    applicability,
                 });
             }
         }
@@ -332,6 +343,7 @@ mod tests {
                 start: 19,
                 end: 33,
                 replacement: b"\"x\".is_empty()".to_vec(),
+                applicability: FixApplicability::Safe,
             }]
         );
 
@@ -425,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    fn clippy_keeps_only_machine_applicable_suggestions() {
+    fn clippy_marks_maybe_incorrect_suggestions_unsafe() {
         let maybe = format!(concat!(
             r#"{{"message": "maybe", "code": null, "level": "help", "spans": ["#,
             r#"{{"file_name": "/s/x.rs", "byte_start": 0, "byte_end": 1, "#,
@@ -458,7 +470,15 @@ mod tests {
                 Some(TextPosition { line: 2, column: 3 })
             )
         );
-        assert!(findings[0].finding.suggestions.is_empty());
+        assert_eq!(
+            findings[0].finding.suggestions,
+            vec![Suggestion {
+                start: 0,
+                end: 1,
+                replacement: b"y".to_vec(),
+                applicability: FixApplicability::Unsafe,
+            }]
+        );
         let inverted = format!(concat!(
             r#"{{"message": "fix", "code": null, "level": "help", "spans": ["#,
             r#"{{"file_name": "/s/x.rs", "byte_start": 5, "byte_end": 2, "#,
@@ -485,7 +505,11 @@ mod tests {
         assert_eq!(findings.len(), 1);
         let finding = &findings[0].finding;
         assert_eq!(finding.message, "mismatched types");
-        assert!(finding.suggestions.is_empty());
+        assert_eq!(finding.suggestions.len(), 1);
+        assert_eq!(
+            finding.suggestions[0].applicability,
+            FixApplicability::Unsafe
+        );
         let roles: Vec<(&str, &str)> = finding
             .related
             .iter()

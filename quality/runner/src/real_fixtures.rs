@@ -110,6 +110,7 @@ pub(super) fn backend_for(tool_id: &str, tool: RealTool, spawn: Spawn) -> RealBa
         spawn,
         argv_limit: quality_adapter::commands::windows_argv_limit,
         shard: String::new(),
+        unsafe_fixes: false,
         last_stderr: Default::default(),
     }
 }

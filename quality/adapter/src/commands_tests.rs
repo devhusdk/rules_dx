@@ -307,10 +307,14 @@ fn ruff_check_is_hermetic_and_config_explicit() {
 #[test]
 fn ruff_fix_and_format_shapes() {
     let file = Path::new("/scratch/a.py");
-    let fix = ruff_fix(Path::new(BIN), &[file], None, "a");
+    let fix = ruff_fix(Path::new(BIN), &[file], None, "a", false);
     assert_eq!(fix.cwd_rel, "a");
     assert!(argv_strings(&fix).contains(&"--fix".to_owned()));
     assert!(!argv_strings(&fix).contains(&"--output-format".to_owned()));
+    assert!(!argv_strings(&fix).contains(&"--unsafe-fixes".to_owned()));
+    let unsafe_fix = ruff_fix(Path::new(BIN), &[file], None, "a", true);
+    assert!(argv_strings(&unsafe_fix).contains(&"--fix".to_owned()));
+    assert!(argv_strings(&unsafe_fix).contains(&"--unsafe-fixes".to_owned()));
     let check = ruff_format_check(Path::new(BIN), &[file], None, "b");
     assert_eq!(check.cwd_rel, "b");
     assert_eq!(
@@ -3287,12 +3291,12 @@ fn ansible_lint_fix_rewrites_in_place_offline() {
         project_dir: Path::new("/scratch"),
     };
     assert_eq!(
-        argv_strings(&ansible_lint_fix(Path::new(BIN), &[file], &context)),
+        argv_strings(&ansible_lint_fix(Path::new(BIN), &[file], &context, false)),
         [
             BIN,
             "--offline",
             "--nocolor",
-            "--fix=all",
+            "--fix=yaml,key-order,jinja",
             "--project-dir",
             "/scratch",
             "-c",
@@ -3300,6 +3304,20 @@ fn ansible_lint_fix_rewrites_in_place_offline() {
             "/scratch/site.yml",
         ]
     );
+}
+
+#[test]
+fn ansible_lint_unsafe_fix_runs_every_transform() {
+    let file = Path::new("/scratch/site.yml");
+    let context = AnsibleLintContext {
+        config: None,
+        collections: &[],
+        project_dir: Path::new("/scratch"),
+    };
+    let safe = argv_strings(&ansible_lint_fix(Path::new(BIN), &[file], &context, false));
+    let all = argv_strings(&ansible_lint_fix(Path::new(BIN), &[file], &context, true));
+    assert!(!safe.contains(&"--fix=all".to_owned()));
+    assert!(all.contains(&"--fix=all".to_owned()));
 }
 
 #[test]

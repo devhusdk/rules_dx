@@ -87,6 +87,8 @@ pub struct RealBackend {
     spawn: SpawnFn,
     argv_limit: fn(&OsStr) -> Option<usize>,
     shard: String,
+    /// `dx <quality> --unsafe`: fixers also apply what their tool marks unsafe.
+    unsafe_fixes: bool,
     last_stderr: std::cell::RefCell<Vec<u8>>,
 }
 
@@ -364,8 +366,16 @@ impl RealBackend {
             spawn: real_spawn,
             argv_limit: commands::native_argv_limit,
             shard: String::new(),
+            unsafe_fixes: false,
             last_stderr: std::cell::RefCell::new(Vec::new()),
         }
+    }
+
+    /// Lets the fixers apply the fixes their tool marks unsafe.
+    #[must_use]
+    pub fn with_unsafe_fixes(mut self, unsafe_fixes: bool) -> Self {
+        self.unsafe_fixes = unsafe_fixes;
+        self
     }
 
     /// Names the shard that runs this backend, for error messages.

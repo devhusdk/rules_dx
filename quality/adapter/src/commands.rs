@@ -44,6 +44,10 @@ const RUFF_FORMAT_SUBCOMMAND: &[&str] = &["format"];
 const RUFF_HERMETIC_TAIL: &[&str] = &["--no-cache", "--no-respect-gitignore"];
 const RUFF_CHECK_TAIL: &[&str] = &["--output-format", "json"];
 const RUFF_FIX_TAIL: &[&str] = &["--fix"];
+/// Ruff marks some fixes unsafe because they can change behavior; they apply only with this flag.
+const RUFF_UNSAFE_FIX_TAIL: &[&str] = &["--unsafe-fixes"];
+const ANSIBLE_LINT_SAFE_FIX: &str = "--fix=yaml,key-order,jinja";
+const ANSIBLE_LINT_UNSAFE_FIX: &str = "--fix=all";
 const RUFF_FORMAT_CHECK_TAIL: &[&str] = &["--check", "--output-format", "json"];
 /// Config discovery, the git ignore rules and the default excludes are all off, and
 /// `--force-exclude` stays off: with it an explicit file under a directory such as `build/` is
@@ -630,9 +634,13 @@ pub fn ruff_fix(
     files: &[&Path],
     config: Option<&Path>,
     cwd_rel: &str,
+    unsafe_fixes: bool,
 ) -> Invocation {
     let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FIX_TAIL.iter().map(OsString::from));
+    if unsafe_fixes {
+        head.extend(RUFF_UNSAFE_FIX_TAIL.iter().map(OsString::from));
+    }
     assemble(binary, head, files, cwd_rel)
 }
 
@@ -2411,11 +2419,13 @@ pub fn ansible_lint_check(
     }
 }
 
-/// `--offline --nocolor --fix=all --project-dir <dir>`, an optional `-c <config>`, and a leading `--dx-collections-path` when collection roots are staged.
+/// `--offline --nocolor --fix=<rules> --project-dir <dir>`, an optional `-c <config>`, and a leading `--dx-collections-path` when collection roots are staged.
+/// The safe rules only reformat YAML, reorder keys and tidy Jinja spacing; `unsafe_fixes` runs every transform.
 pub fn ansible_lint_fix(
     binary: &Path,
     files: &[&Path],
     context: &AnsibleLintContext<'_>,
+    unsafe_fixes: bool,
 ) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     if !context.collections.is_empty() {
@@ -2424,8 +2434,13 @@ pub fn ansible_lint_fix(
         argv.push(OsString::from("--dx-collections-path"));
         argv.push(joined);
     }
+    let fix = if unsafe_fixes {
+        ANSIBLE_LINT_UNSAFE_FIX
+    } else {
+        ANSIBLE_LINT_SAFE_FIX
+    };
     argv.extend(
-        ["--offline", "--nocolor", "--fix=all", "--project-dir"]
+        ["--offline", "--nocolor", fix, "--project-dir"]
             .iter()
             .map(OsString::from),
     );

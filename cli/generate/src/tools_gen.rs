@@ -242,7 +242,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
     ToolConfig {
         id: "biome",
         suffixes: &[".json"],
-        files: &[],
+        files: &["biome.json"],
         ext: "",
         extends_syntax: "",
         shared: false,
@@ -380,7 +380,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
     ToolConfig {
         id: "clang_format",
         suffixes: &[".clang-format"],
-        files: &[],
+        files: &[".clang-format"],
         ext: "",
         extends_syntax: "",
         shared: false,
@@ -1287,7 +1287,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
     ToolConfig {
         id: "rustfmt",
         suffixes: &[".toml"],
-        files: &[],
+        files: &["rustfmt.toml", ".rustfmt.toml"],
         ext: "",
         extends_syntax: "",
         shared: false,
@@ -1333,7 +1333,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
     ToolConfig {
         id: "scalafmt",
         suffixes: &[".conf"],
-        files: &[],
+        files: &[".scalafmt.conf"],
         ext: "",
         extends_syntax: "",
         shared: false,
@@ -1379,7 +1379,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
     ToolConfig {
         id: "shellcheck",
         suffixes: &[".shellcheckrc", "shellcheckrc"],
-        files: &[],
+        files: &[".shellcheckrc"],
         ext: "",
         extends_syntax: "",
         shared: false,

@@ -795,3 +795,23 @@ fn a_reference_that_cannot_be_bound_is_an_error() {
         assert!(error.contains(problem), "{error}");
     }
 }
+
+#[test]
+fn a_root_native_file_is_bound_for_every_formatter_and_linter() {
+    for (family, id, file) in [
+        ("rust", "rustfmt", "rustfmt.toml"),
+        ("rust", "rustfmt", ".rustfmt.toml"),
+        ("scala", "scalafmt", ".scalafmt.conf"),
+        ("javascript", "biome", "biome.json"),
+        ("cc", "clang_format", ".clang-format"),
+        ("shell", "shellcheck", ".shellcheckrc"),
+    ] {
+        let out = rendered(&inputs(None, &[family], &[file]));
+        let build = text(&out, ".dx/BUILD.bazel");
+        assert!(build.contains(&format!("{id}_config(\n")), "{id}: {build}");
+        assert!(
+            build.contains(&format!("src = \"//:{file}\"")),
+            "{id}: {build}"
+        );
+    }
+}

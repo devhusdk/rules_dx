@@ -6,7 +6,7 @@ package(default_visibility = ["//:__subpackages__"])
 scala_test(
     name = "greet_test",
     srcs = ["GreetTest.scala"],
-    aspect_hints = ["@rules_dx//:scalafmt_config"],
+    aspect_hints = ["@rules_dx//.dx:scalafmt"],
     deps = [":greet"],
 )
 
@@ -17,13 +17,13 @@ scala_library(
         "Guava.scala",
         "Helper.scala",
     ],
-    aspect_hints = ["@rules_dx//:scalafmt_config"],
+    aspect_hints = ["@rules_dx//.dx:scalafmt"],
     deps = ["@maven//:com_google_guava_guava"],
 )
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//:buildifier_config"],
+    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

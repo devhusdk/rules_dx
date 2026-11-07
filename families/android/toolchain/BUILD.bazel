@@ -31,7 +31,7 @@ ndk_cc_toolchain_config(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["@rules_dx//:buildifier_config"],
+    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = [
         "BUILD.bazel",
         "cc_toolchain_config.bzl",

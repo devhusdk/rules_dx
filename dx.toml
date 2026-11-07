@@ -1,0 +1,9 @@
+schema_version = 1
+tier = "strict"
+
+# Strict clippy (pedantic) and strict ruff flag thousands of findings in the existing code.
+[families.python]
+tier = "standard"
+
+[families.rust]
+tier = "standard"

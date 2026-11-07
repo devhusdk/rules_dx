@@ -1,6 +1,7 @@
-import %workspace%/tools/bazelrc/correctness.bazelrc
-import %workspace%/tools/bazelrc/performance.bazelrc
-import %workspace%/tools/bazelrc/resources.bazelrc
+# dx Bazel preset; comment out an import to drop that layer.
+try-import %workspace%/.dx/bazelrc/correctness.bazelrc
+try-import %workspace%/.dx/bazelrc/performance.bazelrc
+try-import %workspace%/.dx/bazelrc/resources.bazelrc
 
 # Keep -no-coverage and also skip languages with no coverage collector yet.
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
@@ -105,9 +106,6 @@ build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
 
 # Source builds of Python sdists run without network.
 common --modify_execution_info=PySdist.*=+block-network
-
-# rules_dx binds its own native configs once in this policy.
-common --//config:workspace=//:dx_workspace_policy
 
 try-import %workspace%/user.bazelrc
 

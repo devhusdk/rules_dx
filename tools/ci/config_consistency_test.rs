@@ -17,17 +17,31 @@ fn toml_scalar(text: &str, key: &str) -> String {
 
 fn toml_list(text: &str, key: &str) -> Vec<String> {
     let prefix = format!("{key} = [");
-    let line = text
+    let start = text
         .lines()
-        .map(str::trim)
-        .find(|line| line.starts_with(prefix.as_str()))
+        .position(|line| line.trim().starts_with(prefix.as_str()))
         .unwrap_or_else(|| panic!("{key} is unset"));
-    let mut items: Vec<String> = line[prefix.len()..]
-        .trim_end_matches(']')
-        .split(',')
-        .map(|item| item.trim().trim_matches('"').to_owned())
-        .filter(|item| !item.is_empty())
-        .collect();
+    let mut items = Vec::new();
+    for (index, line) in text.lines().skip(start).enumerate() {
+        let line = line.split('#').next().unwrap_or_default().trim();
+        let line = if index == 0 {
+            &line[prefix.len()..]
+        } else {
+            line
+        };
+        let (body, done) = match line.split_once(']') {
+            Some((body, _)) => (body, true),
+            None => (line, false),
+        };
+        items.extend(
+            body.split(',')
+                .map(|item| item.trim().trim_matches('"').to_owned())
+                .filter(|item| !item.is_empty()),
+        );
+        if done {
+            break;
+        }
+    }
     items.sort();
     items
 }
@@ -224,20 +238,30 @@ fn bazel_compatibility_floor_matches_bazelversion() {
 }
 
 #[test]
+fn toml_list_reads_one_line_and_commented_lists() {
+    assert_eq!(toml_list("select = [\"B\", \"A\"]\n", "select"), ["A", "B"]);
+    assert_eq!(
+        toml_list(
+            "ignore = [\n  \"S101\", # tests assert\n  \"ARG001\",\n]\n",
+            "ignore"
+        ),
+        ["ARG001", "S101"]
+    );
+}
+
+#[test]
 fn ruff_policy_matches_the_hinted_fixture() {
     let workspace = read_runfiles("ruff.toml");
     let fixture = read_runfiles("quality/testdata/ruff.toml");
-    let selected = toml_list(&workspace, "select");
-    assert!(!selected.is_empty(), "ruff.toml selects no lint");
     assert_eq!(
         toml_scalar(&workspace, "target-version"),
         toml_scalar(&fixture, "target-version"),
         "ruff.toml and quality/testdata/ruff.toml disagree on the Python floor"
     );
     assert_eq!(
-        selected,
-        toml_list(&fixture, "select"),
-        "ruff.toml and quality/testdata/ruff.toml disagree on the lint selection"
+        toml_list(&workspace, "ignore"),
+        toml_list(&fixture, "ignore"),
+        "ruff.toml and quality/testdata/ruff.toml disagree on the ignore list"
     );
 }
 
@@ -626,12 +650,14 @@ fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
     let gitignore = read_runfiles(".gitignore");
     let bazelignore = read_runfiles(".bazelignore");
     let biome = read_runfiles("biome.json");
+    let local = format!("{dir}/local");
+    assert!(
+        ignored_dir(&gitignore, &local),
+        ".gitignore never ignores {local}/"
+    );
+    // rules_dx commits its generated .dx/bazelrc, so only Bazel skips it.
     for state in ["local", "bazelrc"] {
         let state = format!("{dir}/{state}");
-        assert!(
-            ignored_dir(&gitignore, &state),
-            ".gitignore never ignores {state}/"
-        );
         assert!(
             bazelignore
                 .lines()
@@ -653,9 +679,10 @@ fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
     let biome = read_runfiles("biome.json");
     let dirs = bazelignored_dirs(&bazelignore);
     assert!(!dirs.is_empty(), ".bazelignore lists no dot dirs");
+    let committed = format!("{}/bazelrc", dx_dir_name());
     for dir in dirs {
         assert!(
-            ignored_dir(&gitignore, &dir),
+            dir == committed || ignored_dir(&gitignore, &dir),
             ".gitignore never ignores {dir}/ listed in .bazelignore"
         );
         let top = dir.split('/').next().unwrap_or(&dir);
@@ -1017,7 +1044,10 @@ fn remote_repo_contents_cache_comes_from_setup_bazel() {
     );
     let consumer = read_runfiles(".github/workflows/reusable-consumer.yml");
     assert!(
-        consumer.matches("startup --experimental_remote_repo_contents_cache").count() >= 2,
+        consumer
+            .matches("startup --experimental_remote_repo_contents_cache")
+            .count()
+            >= 2,
         "reusable-consumer.yml must turn on the remote repo contents cache"
     );
     assert!(

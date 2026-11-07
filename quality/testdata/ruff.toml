@@ -3,3 +3,15 @@ target-version = "py312"
 
 [lint]
 select = ["E4", "E7", "E9", "F", "W", "I", "B"]
+ignore = [
+  "ARG001", # handlers keep the signature their caller passes
+  "ARG002", # http.server overrides keep the base class signature
+  "PERF401", # explicit loops read better in small build scripts
+  "RUF059", # unpacked names document the tuple shape
+  "S101", # tests and fixtures assert
+  "S103", # tool launchers mark their outputs executable
+  "S104", # test servers bind every interface inside the sandbox
+  "S108", # tools run inside the Bazel sandbox tmp
+  "S310", # urls are fixed release or localhost addresses
+  "S603", # subprocess argv comes from Bazel, not user input
+]

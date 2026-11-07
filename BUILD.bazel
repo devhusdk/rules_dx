@@ -2,10 +2,8 @@ load("@aspect_rules_js//js:defs.bzl", "js_library")
 
 # A shim over the dev hub @dx_npm, so consumers that load this package fetch no npm repos.
 load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
-load("@rules_dx//quality:native_config.bzl", "biome_config", "buildifier_config", "clang_format_config", "ruff_config", "rustfmt_config", "scalafmt_config", "vale_config")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:json_schema.bzl", "json_schema", "json_schemas")
-load("//quality/private:generated_policy.bzl", "dx_generated_policy")
 
 # gazelle:dx_fixture_testonly true
 # gazelle:resolve rust dx_adopt //cli/adopt:dx_adopt
@@ -259,6 +257,7 @@ exports_files([
     ".bazelignore",
     ".bazelrc",
     ".bazelversion",
+    ".buildifier.json",
     ".clang-format",
     ".editorconfig",
     ".gitignore",
@@ -289,6 +288,7 @@ exports_files([
     ".vale.ini",
     "biome.json",
     "ruff.toml",
+    "rustfmt.toml",
     "pnpm-workspace.yaml",
     "licenses.toml",
     "security.toml",
@@ -322,36 +322,6 @@ filegroup(
         "README.md",
         "//docs:github-ci.md",
     ],
-)
-
-rustfmt_config(
-    name = "rustfmt_config",
-    src = "rustfmt.toml",
-    visibility = ["//:__subpackages__"],
-)
-
-scalafmt_config(
-    name = "scalafmt_config",
-    src = ".scalafmt.conf",
-    visibility = ["//visibility:public"],
-)
-
-ruff_config(
-    name = "ruff_config",
-    src = "ruff.toml",
-    visibility = ["//:__subpackages__"],
-)
-
-biome_config(
-    name = "biome_config",
-    src = "biome.json",
-    visibility = ["//:__subpackages__"],
-)
-
-clang_format_config(
-    name = "clang_format_config",
-    src = ".clang-format",
-    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(
@@ -451,37 +421,6 @@ real_source_target(
     ],
 )
 
-vale_config(
-    name = "vale_config",
-    src = ".vale.ini",
-    data = [
-        "//quality:corpus_styles/Dx/Launcher.yml",
-        "//quality:corpus_styles/Dx/Markers.yml",
-    ],
-    visibility = ["//:__subpackages__"],
-)
-
-buildifier_config(
-    name = "buildifier_config",
-    src = ".buildifier.json",
-    visibility = ["//visibility:public"],
-)
-
-dx_generated_policy(
-    name = "dx_workspace_policy",
-    configs = [
-        ":biome_config",
-        ":buildifier_config",
-        ":clang_format_config",
-        ":ruff_config",
-        ":rustfmt_config",
-        ":scalafmt_config",
-        ":vale_config",
-        "//quality:corpus_checkstyle_config",
-    ],
-    profile = "standard",
-    visibility = ["//visibility:public"],
-)
 # gazelle:exclude cc/tests/fixtures/compilation_db
 # gazelle:exclude cc/tests/fixtures/copts
 # gazelle:exclude cc/tests/fixtures/warnings

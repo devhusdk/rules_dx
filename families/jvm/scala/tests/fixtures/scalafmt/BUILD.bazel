@@ -14,7 +14,7 @@ exports_files([
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["@rules_dx//:buildifier_config"],
+    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = [
         "BUILD.bazel",
     ],
@@ -25,5 +25,5 @@ scala_library(
     name = "scalafmt",
     testonly = True,
     srcs = ["Sample.scala"],
-    aspect_hints = ["@rules_dx//:scalafmt_config"],
+    aspect_hints = ["@rules_dx//.dx:scalafmt"],
 )

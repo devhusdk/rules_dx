@@ -308,7 +308,7 @@ TOOLS = [
             "format": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
             "lint": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
         },
-        config = config(suffixes = [".json"], tier_active = True),
+        config = config(suffixes = [".json"], files = ["biome.json"], tier_active = True),
         severity = severity(categories = {
             "lint/a11y": "warning",
             "lint/complexity": "warning",
@@ -562,7 +562,7 @@ TOOLS = [
     tool(
         id = "clang_format",
         adapters = {"format": ["c", "cpp", "cuda", "objc", "objcpp"]},
-        config = config(suffixes = [".clang-format"], tier_active = True),
+        config = config(suffixes = [".clang-format"], files = [".clang-format"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2434,7 +2434,7 @@ TOOLS = [
     tool(
         id = "rustfmt",
         adapters = {"format": ["rust"]},
-        config = config(suffixes = [".toml"], tier_active = True),
+        config = config(suffixes = [".toml"], files = ["rustfmt.toml", ".rustfmt.toml"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2485,7 +2485,7 @@ TOOLS = [
     tool(
         id = "scalafmt",
         adapters = {"format": ["scala"]},
-        config = config(suffixes = [".conf"], tier_active = True, tier_base = False),
+        config = config(suffixes = [".conf"], files = [".scalafmt.conf"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "format",
@@ -2519,7 +2519,7 @@ TOOLS = [
     tool(
         id = "shellcheck",
         adapters = {"lint": ["shell"]},
-        config = config(suffixes = [".shellcheckrc", "shellcheckrc"], tier_active = True),
+        config = config(suffixes = [".shellcheckrc", "shellcheckrc"], files = [".shellcheckrc"], tier_active = True),
         support = [
             row(
                 capability = "lint",

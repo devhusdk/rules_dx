@@ -11,7 +11,7 @@ package(
 scala_library(
     name = "hello_lib",
     srcs = ["Hello.scala"],
-    aspect_hints = ["@rules_dx//:scalafmt_config"],
+    aspect_hints = ["@rules_dx//.dx:scalafmt"],
 )
 
 scala_library(
@@ -21,7 +21,7 @@ scala_library(
         "Mixed.scala",
     ],
     aspect_hints = [
-        "@rules_dx//:scalafmt_config",
+        "@rules_dx//.dx:scalafmt",
         "@rules_dx//quality:corpus_checkstyle_config",
     ],
 )
@@ -38,7 +38,7 @@ dx_direct_sources_test(
 scala_binary(
     name = "hello",
     srcs = ["Main.scala"],
-    aspect_hints = ["@rules_dx//:scalafmt_config"],
+    aspect_hints = ["@rules_dx//.dx:scalafmt"],
     main_class = "hello.Main",
     deps = [":hello_lib"],
 )
@@ -46,7 +46,7 @@ scala_binary(
 scala_test(
     name = "hello_test",
     srcs = ["HelloTest.scala"],
-    aspect_hints = ["@rules_dx//:scalafmt_config"],
+    aspect_hints = ["@rules_dx//.dx:scalafmt"],
     deps = [
         ":hello_lib",
         "@maven//:org_scalactic_scalactic_2_13",
@@ -63,7 +63,7 @@ dx_hello_output_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["@rules_dx//:buildifier_config"],
+    aspect_hints = ["@rules_dx//.dx:buildifier"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

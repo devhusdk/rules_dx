@@ -5,7 +5,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//java/rules:defs.bzl", "java_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_unit_tests", "consumer_archive_unit_tests")
 load(":cloudflare.bzl", "cloudflare_config", "cloudflare_pages_deploy")
@@ -317,39 +317,6 @@ rust_test(
         normal_dev = True,
     ) + ["//tools/testing:dx_testing"],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
-)
-
-rustfmt_test(
-    name = "dx_deploy_tools_fmt_test",
-    targets = [
-        ":archiver",
-        ":cloudflare_verify",
-        ":deploy_app",
-        ":deploy_program",
-        ":deploy_tool",
-        ":dx_deploy_tools",
-        ":hasher",
-        ":helm_demo_verify",
-        ":npm_packer",
-        ":pypi_native_linked_verify",
-        ":pypi_native_verify",
-        ":size_checker",
-    ],
-)
-
-rust_clippy_test(
-    name = "dx_deploy_tools_clippy_test",
-    targets = [
-        ":archiver",
-        ":cloudflare_verify",
-        ":deploy_app",
-        ":deploy_program",
-        ":deploy_tool",
-        ":dx_deploy_tools",
-        ":hasher",
-        ":npm_packer",
-        ":size_checker",
-    ],
 )
 
 exports_files(["Cargo.toml"])
@@ -1971,21 +1938,4 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
-)
-
-rustfmt_test(
-    name = "rules_linux_fmt_test",
-    targets = [
-        ":cloudflare_demo_verify",
-        ":github_demo_verify",
-        ":github_sbom_demo_verify",
-        ":homebrew_demo_verify",
-        ":linux_package_demo_verify",
-        ":oci_demo_layout_verify",
-        ":oci_demo_verify",
-        ":release_demo_debug_verify",
-        ":release_demo_verify",
-        ":resources_demo_verify",
-        ":rubygems_verify",
-    ],
 )

@@ -287,7 +287,7 @@ dx rule that wraps it.
 | `@rules_py//py:defs.bzl` | `py_library` | `@rules_dx//python/rules:defs.bzl` | `python_library` |
 | `@rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python/rules:defs.bzl` | `python_test` |
 | `@rules_ruby//ruby:defs.bzl` | `rb_binary`, `rb_library`, `rb_test` | `@rules_dx//ruby/rules:defs.bzl` | `ruby_binary`, `ruby_library`, `ruby_test` |
-| `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_clippy_test`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test`, `rustfmt_test` | `@rules_dx//rust/rules:defs.bzl` | same names |
+| `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test` | `@rules_dx//rust/rules:defs.bzl` | same names |
 | `@rules_scala//scala:scala.bzl` | `scala_binary`, `scala_library`, `scala_test` | `@rules_dx//scala/rules:defs.bzl` | `scala_binary`, `scala_library`, `scala_test` |
 | `@aspect_rules_ts//ts:defs.bzl` | `ts_project` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_project` |
 | `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_test` |
@@ -593,13 +593,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//rst/rules:defs.bzl` | `rst_library` |
 |  |  | `@rules_dx//ruby/rules:defs.bzl` | `ruby_coverage_lib_dirs` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_binary` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_clippy_test` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_proc_macro` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_shared_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_static_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_test` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rustfmt_test` |
 |  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_scalacopts_with_warnings_as_errors` |
 |  |  | `@rules_dx//sql/rules:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_build` |

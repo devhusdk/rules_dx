@@ -1,6 +1,6 @@
 load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
 
 # gazelle:resolve kotlin grades.BuildInfo //kotlin/tests/fixtures/kotlin-app/grades
 
@@ -77,12 +77,5 @@ real_source_target(
     tags = ["corpus"],
     visibility = [
         "//:__pkg__",
-    ],
-)
-
-rustfmt_test(
-    name = "cli_fmt_test",
-    targets = [
-        ":exit_codes_test",
     ],
 )

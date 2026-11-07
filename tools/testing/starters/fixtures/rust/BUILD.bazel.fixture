@@ -1,4 +1,4 @@
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 rust_library(
     name = "demo-app",
@@ -20,22 +20,4 @@ rust_binary(
 rust_test(
     name = "demo-app_test",
     crate = ":demo-app",
-)
-
-rustfmt_test(
-    name = "demo-app_fmt_test",
-    size = "small",
-    targets = [
-        ":demo-app",
-        ":demo-app_bin",
-    ],
-)
-
-rust_clippy_test(
-    name = "demo-app_clippy_test",
-    size = "small",
-    targets = [
-        ":demo-app",
-        ":demo-app_bin",
-    ],
 )

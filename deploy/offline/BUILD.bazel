@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":offline.bzl", "offline_bundle")
 load(":offline_tests.bzl", "offline_file_tests", "offline_unit_tests")
 
@@ -83,11 +83,4 @@ real_source_target(
         "offline_tests.bzl",
     ],
     tags = ["corpus"],
-)
-
-rustfmt_test(
-    name = "offline_fmt_test",
-    targets = [
-        ":bootstrap_test",
-    ],
 )

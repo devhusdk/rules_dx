@@ -6,7 +6,7 @@ load("//cc/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:child_runfiles.bzl", "child_runfiles")
 load(":rules_tests.bzl", "qt_rules_tests")
 
@@ -226,21 +226,6 @@ rust_test(
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "qt_fmt_test",
-    targets = [
-        ":consumer_identity_test_linux_arm64",
-        ":consumer_identity_test_linux_x86_64",
-        ":consumer_identity_test_macos_arm64",
-        ":qt_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "qt_clippy_test",
-    targets = [":qt_test"],
 )
 
 qt_cc_library(

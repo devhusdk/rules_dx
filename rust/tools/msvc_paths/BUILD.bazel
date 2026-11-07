@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "MSVC_LINK_FLAGS")
 
@@ -42,16 +42,6 @@ rust_test(
     crate = ":msvc_paths",
     edition = "2024",
     rustc_flags = _RUSTC_FLAGS,
-)
-
-rustfmt_test(
-    name = "rustfmt",
-    targets = [
-        ":msvc_lib",
-        ":msvc_link",
-        ":msvc_paths",
-        ":msvc_paths_test",
-    ],
 )
 
 real_source_target(

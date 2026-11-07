@@ -7,7 +7,7 @@ load("//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_static_library", "rust_test")
 load(":build_script_tests.bzl", "build_script_absolute_tool_test", "build_script_compiler_tests", "build_script_host_env_test", "build_script_libstdcxx_test", "build_script_msvc_coverage_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_msvc_crt_library_tests", "rust_msvc_crt_tests")
 
 package(
@@ -369,18 +369,4 @@ real_source_target(
     testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
-)
-
-rustfmt_test(
-    name = "native_call_fmt_test",
-    targets = [
-        ":native_call",
-        ":native_call_bin",
-        ":native_call_bin_test",
-        ":native_call_build_script_",
-        ":native_call_test",
-        ":native_cc",
-        ":native_cc_build_script_",
-        ":native_cc_test",
-    ],
 )

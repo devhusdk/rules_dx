@@ -1,6 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 
 package(
     default_testonly = True,
@@ -20,16 +20,6 @@ rust_test(
     name = "consumer_abi_test",
     crate = ":consumer_abi",
     link_deps = ["@consumer_abi//:abi"],
-)
-
-rustfmt_test(
-    name = "consumer_abi_fmt_test",
-    targets = [":consumer_abi"],
-)
-
-rust_clippy_test(
-    name = "consumer_abi_clippy_test",
-    targets = [":consumer_abi"],
 )
 
 cc_test(

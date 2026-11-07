@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 
 package(
     default_testonly = True,
@@ -71,13 +71,4 @@ rust_library(
         [],
         package_name = "rust/tests/fixtures/cc_optout",
     ) + [":cc_optout_build_script"],
-)
-
-rustfmt_test(
-    name = "cc_optout_fmt_test",
-    targets = [
-        ":cc_optout",
-        ":cc_optout_build_script_",
-        ":cc_optout_test",
-    ],
 )

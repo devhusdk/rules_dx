@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -30,19 +30,6 @@ rust_test(
     crate_name = "launcher",
     crate_root = "src/main.rs",
     deps = ["//cli/path:dx_path"],
-)
-
-rustfmt_test(
-    name = "opa_test_launcher_fmt_test",
-    targets = [
-        ":opa_test_launcher",
-        ":opa_test_launcher_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "opa_test_launcher_clippy_test",
-    targets = [":opa_test_launcher"],
 )
 
 real_source_target(

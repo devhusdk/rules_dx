@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//quality:native_config.bzl", "roslyn_config")
-load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
 load("//csharp/rules:defs.bzl", "csharp_library")
 load(":sarif.bzl", "roslyn_sarif", "sdk_recommended")
 
@@ -77,9 +77,4 @@ rust_test(
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["@rules_dx//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "profiles_fmt_test",
-    targets = [":profiles_test"],
 )

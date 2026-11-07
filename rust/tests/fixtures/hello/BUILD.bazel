@@ -3,7 +3,7 @@ load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
 load("@rules_rust//rust:defs.bzl", "rust_lint_config")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_benchmark", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_benchmark", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test")
 load("//rust/rules:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
 load("//rust/rules:wrapper_tests.bzl", "dx_default_crate_name_tests", "dx_lints_forward_tests", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -82,22 +82,6 @@ rust_binary(
     ) + [":hello_lib"],
 )
 
-rustfmt_test(
-    name = "hello_fmt_test",
-    targets = [
-        ":hello_lib",
-        ":hello",
-    ],
-)
-
-rust_clippy_test(
-    name = "hello_clippy_test",
-    targets = [
-        ":hello_lib",
-        ":hello",
-    ],
-)
-
 # keep
 rust_proc_macro(
     name = "hello_derive",
@@ -136,24 +120,6 @@ rust_test(
     crate = ":hello_staticlib",
 )
 
-rustfmt_test(
-    name = "hello_flavors_fmt_test",
-    targets = [
-        ":hello_cdylib",
-        ":hello_derive",
-        ":hello_staticlib",
-    ],
-)
-
-rust_clippy_test(
-    name = "hello_flavors_clippy_test",
-    targets = [
-        ":hello_cdylib",
-        ":hello_derive",
-        ":hello_staticlib",
-    ],
-)
-
 rust_library(
     name = "edition_2015_lib",
     testonly = True,
@@ -161,11 +127,6 @@ rust_library(
     crate_name = "edition_2015",
     crate_root = "edition_2015.rs",
     edition = "2015",
-)
-
-rustfmt_test(
-    name = "edition_fmt_test",
-    targets = [":edition_2015_lib"],
 )
 
 exports_files([
@@ -456,23 +417,4 @@ dx_default_crate_name_tests(
     name = "default_crate_name_staticlib_upstream_test",
     expected = "default_staticlib",
     target = ":default-staticlib_upstream",
-)
-
-rustfmt_test(
-    name = "hello_more_fmt_test",
-    targets = [
-        ":default-cdylib",
-        ":default-derive",
-        ":default-lib",
-        ":default-name-test",
-        ":default-staticlib",
-        ":default_bin",
-    ],
-)
-
-rustfmt_test(
-    name = "hello_linux_fmt_test",
-    targets = [
-        ":release_verify",
-    ],
 )

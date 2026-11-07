@@ -1,7 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//deploy/rules:archive.bzl", "archive_deploy")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":cell_test.bzl", "aarch64_link_test")
 load(":defs.bzl", "cross_deployment")
 
@@ -43,16 +43,6 @@ rust_test(
         "@platforms//os:linux",
     ],
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "cross_archive_fmt_test",
-    targets = [":cross_archive_test"],
-)
-
-rust_clippy_test(
-    name = "cross_archive_clippy_test",
-    targets = [":cross_archive_test"],
 )
 
 real_source_target(

@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load(":bcr.bzl", "bcr_check")
 load(":bcr_tests.bzl", "bcr_unit_tests")
 load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
@@ -247,26 +247,6 @@ _RELEASE_BINS = [
     "release_tool",
     "release_deploy_tool",
 ] + _TESTED_RELEASE_BINS
-
-rustfmt_test(
-    name = "dx_release_tools_fmt_test",
-    targets = [
-        ":dx_release_tools_test",
-        ":bcr_templates_test",
-        ":candidate_identity_test",
-        ":dx_release_tools",
-        ":release_host_cell_test",
-    ] + [":" + b for b in _RELEASE_BINS] + [":" + b + "_bin_test" for b in _TESTED_RELEASE_BINS],
-)
-
-rust_clippy_test(
-    name = "dx_release_tools_clippy_test",
-    targets = [
-        ":candidate_identity_test",
-        ":dx_release_tools",
-        ":release_host_cell_test",
-    ] + [":" + b for b in _RELEASE_BINS],
-)
 
 rust_binary(
     name = "publish_dry_run_check",
@@ -744,13 +724,6 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
-)
-
-rustfmt_test(
-    name = "release_fmt_test",
-    targets = [
-        ":release_artifacts_verify",
-    ],
 )
 
 rust_binary(

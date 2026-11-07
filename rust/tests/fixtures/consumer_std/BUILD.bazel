@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -32,22 +32,6 @@ rust_binary(
 rust_test(
     name = "consumer_std_test",
     crate = ":consumer_std_lib",
-)
-
-rustfmt_test(
-    name = "consumer_std_fmt_test",
-    targets = [
-        ":consumer_std_lib",
-        ":consumer_std",
-    ],
-)
-
-rust_clippy_test(
-    name = "consumer_std_clippy_test",
-    targets = [
-        ":consumer_std_lib",
-        ":consumer_std",
-    ],
 )
 
 dx_hello_output_test(

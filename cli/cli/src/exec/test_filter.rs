@@ -5,8 +5,6 @@ use dx_plan::resolve::{QueryFailure, QueryRunner, ResolveError, SelectionContext
 
 pub(crate) const SUPPORTED_CASE_KINDS: [&str; 2] = ["rust_test", "_rust_forward_test"];
 
-const ARG_TOLERANT_KINDS: [&str; 2] = ["rust_clippy_test", "rustfmt_test"];
-
 pub(crate) fn last_test_filter(options: &[String]) -> Option<String> {
     let mut found = None;
     let mut index = 0;
@@ -71,18 +69,10 @@ pub(crate) fn rust_filter_args(
     let result = ResolveError::run(runner, &argv, workspace, &label)?;
     let kinds = parse_label_kind(&result.stdout).unwrap_or_default();
     let is_rust = |kind: &str| SUPPORTED_CASE_KINDS.contains(&kind);
-    let all_rust = kinds.iter().any(|(kind, _)| is_rust(kind))
-        && kinds
-            .iter()
-            .all(|(kind, _)| is_rust(kind) || ARG_TOLERANT_KINDS.contains(&kind.as_str()));
-    if !all_rust {
+    if kinds.is_empty() || !kinds.iter().all(|(kind, _)| is_rust(kind)) {
         return Ok(Vec::new());
     }
-    let rust_labels: Vec<String> = kinds
-        .into_iter()
-        .filter(|(kind, _)| is_rust(kind))
-        .map(|(_, label)| label)
-        .collect();
+    let rust_labels: Vec<String> = kinds.into_iter().map(|(_, label)| label).collect();
     if !without_libtest_harness(&rust_labels, workspace, runner, selection)?.is_empty() {
         return Ok(Vec::new());
     }

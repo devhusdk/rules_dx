@@ -1,7 +1,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 
 platform(
     name = "linux_arm64",
@@ -25,16 +25,6 @@ rust_test(
     env = {"GREET_ARM64": "$(rootpath :greet_arm64)"},
     target_compatible_with = DART_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "cross_arm64_fmt_test",
-    targets = [":cross_arm64_test"],
-)
-
-rust_clippy_test(
-    name = "cross_arm64_clippy_test",
-    targets = [":cross_arm64_test"],
 )
 
 real_source_target(

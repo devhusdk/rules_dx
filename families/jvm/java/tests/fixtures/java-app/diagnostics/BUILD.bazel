@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
 load("@rules_java//java:defs.bzl", "java_binary")
 
 package(default_visibility = ["//java/tests/fixtures/java-app:__subpackages__"])
@@ -101,13 +101,5 @@ real_source_target(
     tags = ["corpus"],
     visibility = [
         "//:__pkg__",
-    ],
-)
-
-rustfmt_test(
-    name = "diagnostics_fmt_test",
-    targets = [
-        ":diagnostics_test",
-        ":format_test",
     ],
 )

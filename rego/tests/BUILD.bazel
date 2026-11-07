@@ -2,7 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//rego/rules:defs.bzl", "rego_library", "rego_test")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":library_tests.bzl", "owns_rego_class_test", "test_descriptor_test", "test_sources_test", "transitive_context_test")
 
 rego_library(
@@ -123,16 +123,6 @@ rust_test(
         "@platforms//os:windows": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
-)
-
-rustfmt_test(
-    name = "opa_test_run_fmt_test",
-    targets = [":opa_test_run_test"],
-)
-
-rust_clippy_test(
-    name = "opa_test_run_clippy_test",
-    targets = [":opa_test_run_test"],
 )
 
 real_source_target(

@@ -2,7 +2,7 @@ load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH", "julia_binary", "julia_l
 load("//julia/rules:precompile_tests.bzl", "julia_forwarded_info_test", "julia_precompile_test")
 load("//julia/rules:wrapper_tests.bzl", "julia_coverage_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -65,17 +65,6 @@ rust_test(
     env = {"DX_HELLO_BIN": "$(rootpath //julia/tests/fixtures/hello/app:hello_standalone)"},
     target_compatible_with = JULIA_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "relocate_fmt_test",
-    targets = [":relocate_test"],
-)
-
-rust_clippy_test(
-    name = "relocate_clippy_test",
-    target_compatible_with = JULIA_COMPATIBLE_WITH,
-    targets = [":relocate_test"],
 )
 
 real_source_target(

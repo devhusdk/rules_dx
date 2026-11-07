@@ -5,7 +5,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//appimage:defs.bzl", "dx_appimage")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "dedup_action_test", "unsupported_cell_test", "unsupported_cpu_test", "x86_64_action_test")
 load(":transition.bzl", "arm64_files")
 
@@ -300,22 +300,6 @@ rust_test(
     tags = ["block-network"],
     target_compatible_with = _LINUX,
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "appimage_fmt_test",
-    targets = [
-        ":appimage_arm64_test",
-        ":appimage_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "appimage_clippy_test",
-    targets = [
-        ":appimage_arm64_test",
-        ":appimage_test",
-    ],
 )
 
 real_source_target(

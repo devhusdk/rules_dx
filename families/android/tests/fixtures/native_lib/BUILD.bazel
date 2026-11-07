@@ -2,7 +2,7 @@
 
 load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//rules:defs.bzl", "android_native_library")
@@ -73,11 +73,6 @@ rust_test(
     deps = [":native_lib_build_script"],
 )
 
-rustfmt_test(
-    name = "native_lib_fmt_test",
-    targets = [":native_lib_rust"],
-)
-
 sh_test(
     name = "native_lib_arch_test",
     srcs = ["arch_test.sh"],
@@ -101,11 +96,4 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-rustfmt_test(
-    name = "native_lib_more_fmt_test",
-    targets = [
-        ":native_lib_build_script_",
-    ],
 )

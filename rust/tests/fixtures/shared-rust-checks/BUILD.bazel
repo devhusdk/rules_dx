@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -134,14 +134,4 @@ test_suite(
         "@shared_consumer//:consumer_wasi_runtime_test",
         "@shared_consumer//:consumer_wasi_test",
     ],
-)
-
-rustfmt_test(
-    name = "shared_rust_checks_fmt_test",
-    targets = [":consumer_native_test"],
-)
-
-rustfmt_test(
-    name = "shared_rust_checks_linux_fmt_test",
-    targets = [":consumer_browser_test"],
 )

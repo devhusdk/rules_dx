@@ -2,7 +2,7 @@
 
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_static_library", "rust_test")
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -23,11 +23,6 @@ rust_static_library(
 rust_test(
     name = "app_rust_test",
     crate = ":app_rust",
-)
-
-rustfmt_test(
-    name = "app_rust_fmt_test",
-    targets = [":app_rust"],
 )
 
 cc_library(

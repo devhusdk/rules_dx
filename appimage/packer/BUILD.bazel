@@ -1,7 +1,7 @@
 # gazelle:ignore
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//appimage:__subpackages__"])
 
@@ -54,22 +54,6 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
-)
-
-rustfmt_test(
-    name = "appimage_packer_fmt_test",
-    targets = [
-        ":appimage_packer",
-        ":appimage_packer_lib",
-    ],
-)
-
-rust_clippy_test(
-    name = "appimage_packer_clippy_test",
-    targets = [
-        ":appimage_packer",
-        ":appimage_packer_lib",
-    ],
 )
 
 real_source_target(

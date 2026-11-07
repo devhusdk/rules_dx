@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//api_spec/rules:__pkg__"])
 
@@ -19,19 +19,6 @@ rust_test(
     crate_name = "openapi_codegen_preflight",
     crate_root = "preflight_main.rs",
     deps = ["//quality/adapter:quality_adapter"],
-)
-
-rustfmt_test(
-    name = "preflight_fmt_test",
-    targets = [
-        ":preflight",
-        ":preflight_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "preflight_clippy_test",
-    targets = [":preflight"],
 )
 
 exports_files([

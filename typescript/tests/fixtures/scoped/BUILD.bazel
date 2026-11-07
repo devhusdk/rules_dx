@@ -1,6 +1,6 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//typescript/rules:defs.bzl", "typescript_project")
 
 package(
@@ -66,13 +66,6 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-rustfmt_test(
-    name = "scoped_fmt_test",
-    targets = [
-        ":scoped_boundary_test",
-    ],
 )
 
 ts_config(

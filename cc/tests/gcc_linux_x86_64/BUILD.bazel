@@ -2,7 +2,7 @@ load("//cc/rules:defs.bzl", "cc_binary")
 load("//cc/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_files")
 load("//deploy/rules:archive.bzl", "consumer_archive")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_testonly = True)
 
@@ -101,16 +101,6 @@ rust_test(
     ],
 )
 
-rustfmt_test(
-    name = "libstdcxx_archive_fmt_test",
-    targets = [":libstdcxx_archive_test"],
-)
-
-rust_clippy_test(
-    name = "libstdcxx_archive_clippy_test",
-    targets = [":libstdcxx_archive_test"],
-)
-
 rust_test(
     name = "imports_test",
     srcs = ["imports_test.rs"],
@@ -129,16 +119,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-rustfmt_test(
-    name = "imports_fmt_test",
-    targets = [":imports_test"],
-)
-
-rust_clippy_test(
-    name = "imports_clippy_test",
-    targets = [":imports_test"],
-)
-
 rust_test(
     name = "archive_test",
     srcs = ["archive_test.rs"],
@@ -152,16 +132,6 @@ rust_test(
         "//deploy/rules:dx_deploy_tools",
         "//tools/testing:dx_testing",
     ],
-)
-
-rustfmt_test(
-    name = "archive_fmt_test",
-    targets = [":archive_test"],
-)
-
-rust_clippy_test(
-    name = "archive_clippy_test",
-    targets = [":archive_test"],
 )
 
 rust_test(
@@ -180,16 +150,6 @@ rust_test(
         "@platforms//cpu:x86_64",
     ],
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "artifacts_fmt_test",
-    targets = [":artifacts_test"],
-)
-
-rust_clippy_test(
-    name = "artifacts_clippy_test",
-    targets = [":artifacts_test"],
 )
 
 real_source_target(

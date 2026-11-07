@@ -4,7 +4,7 @@ load("@rules_julia//julia/pkg:julia_pkg_resolve.bzl", "julia_pkg_resolve")
 load("@rules_julia//julia/pkg:julia_pkg_resolve_test.bzl", "julia_pkg_resolve_test")
 load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH")
 load("//julia/tools:julia_tool.bzl", "dx_julia_tool")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -54,16 +54,6 @@ rust_test(
     env = {"JULIA_LINT": "$(rootpath :julialint)"},
     target_compatible_with = JULIA_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "lint_cli_fmt_test",
-    targets = [":lint_cli_test"],
-)
-
-rust_clippy_test(
-    name = "lint_cli_clippy_test",
-    targets = [":lint_cli_test"],
 )
 
 real_source_target(

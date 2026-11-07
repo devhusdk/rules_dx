@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_proc_macro", "rust_test")
 load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_wasi_binary_tests")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load(":acquisition.bzl", "consumer_wasi_acquisition_tests")
@@ -82,29 +82,6 @@ dx_wasi_binary_tests(
     target = ":consumer_wasi_module",
 )
 
-rustfmt_test(
-    name = "consumer_wasi_fmt_test",
-    targets = [
-        ":consumer_wasi",
-        ":consumer_wasi_lib",
-        ":consumer_wasi_macros",
-        ":consumer_wasi_module",
-        ":consumer_wasi_run_test",
-        ":custom_runtime",
-        ":guest_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "consumer_wasi_clippy_test",
-    targets = [
-        ":consumer_wasi",
-        ":consumer_wasi_lib",
-        ":consumer_wasi_macros",
-        ":consumer_wasi_run_test",
-    ],
-)
-
 rust_test(
     name = "consumer_wasi_run_test",
     srcs = ["src/run_test.rs"],
@@ -165,11 +142,4 @@ consumer_wasi_acquisition_tests(
     binary = ":consumer_wasi",
     module = ":consumer_wasi_module",
     run = ":guest_test",
-)
-
-rustfmt_test(
-    name = "consumer_wasi_more_fmt_test",
-    targets = [
-        ":consumer_wasi_build_script_",
-    ],
 )

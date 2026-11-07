@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -34,22 +34,6 @@ alias(
 alias(
     name = "cxx_qt_runtime_files",
     actual = "@crates//:cxx_qt_runtime_files",
-)
-
-rustfmt_test(
-    name = "qt_rust_bridge_fmt_test",
-    targets = [
-        ":qt_rust_bridge",
-        ":qt_rust_bridge_bin_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "qt_rust_bridge_clippy_test",
-    targets = [
-        ":qt_rust_bridge",
-        ":qt_rust_bridge_bin_test",
-    ],
 )
 
 real_source_target(

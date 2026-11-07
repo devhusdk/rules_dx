@@ -1,6 +1,6 @@
 load("//deploy/rules:github.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:child_runfiles.bzl", "child_runfiles")
 
 package(
@@ -62,16 +62,6 @@ rust_test(
         "//cli/path:dx_path",
         "//tools/testing:dx_testing",
     ],
-)
-
-rustfmt_test(
-    name = "deploy_runfiles_fmt_test",
-    targets = [":deploy_runfiles_test"],
-)
-
-rust_clippy_test(
-    name = "deploy_runfiles_clippy_test",
-    targets = [":deploy_runfiles_test"],
 )
 
 real_source_target(

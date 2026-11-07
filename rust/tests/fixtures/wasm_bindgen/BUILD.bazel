@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_browser_binary_tests", "dx_browser_cell_tests")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen", "rust_wasm_bindgen_toolchain")
 load("//javascript/rules:defs.bzl", "javascript_library", "javascript_test", "javascript_wasm_bindgen_library")
@@ -41,19 +41,6 @@ rust_binary(
     crate_root = "src/main.rs",
     edition = "2021",
     deps = [":wasm_hello_lib"],
-)
-
-rustfmt_test(
-    name = "wasm_hello_fmt_test",
-    targets = [
-        ":wasm_hello_bin",
-        ":wasm_hello_lib",
-    ],
-)
-
-rust_clippy_test(
-    name = "wasm_hello_clippy_test",
-    targets = [":wasm_hello_lib"],
 )
 
 raw_wasm_proxy(
@@ -347,15 +334,4 @@ real_source_target(
         "repos.bzl",
     ],
     tags = ["corpus"],
-)
-
-rustfmt_test(
-    name = "wasm_bindgen_fmt_test",
-    targets = [
-        ":wasm_hello_bundle_test",
-        ":wasm_hello_browser_test",
-        ":wasm_hello_web",
-        ":wasm_stale_bin",
-        ":wasm_stale_lib",
-    ],
 )

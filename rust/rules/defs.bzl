@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
+load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test")
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
@@ -439,24 +439,6 @@ def rust_static_library(
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
-        **kwargs
-    )
-
-def rustfmt_test(name, targets, size = "small", **kwargs):
-    """Thin wrapper over upstream rustfmt_test."""
-    _rustfmt_test(
-        name = name,
-        targets = targets,
-        size = size,
-        **kwargs
-    )
-
-def rust_clippy_test(name, targets, size = "small", **kwargs):
-    """Thin wrapper over upstream rust_clippy_test."""
-    _rust_clippy_test(
-        name = name,
-        targets = targets,
-        size = size,
         **kwargs
     )
 

@@ -4,7 +4,7 @@ load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test")
 load(":release.bzl", "release_artifact")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -383,32 +383,4 @@ real_source_target(
         "release.bzl",
     ],
     tags = ["corpus"],
-)
-
-rustfmt_test(
-    name = "shared_rust_fmt_test",
-    targets = [
-        ":asset_test",
-            ":native_test",
-        ":tasks",
-        ":tasks_core",
-        ":tasks_core_test",
-        ":tasks_ffi",
-        ":tasks_ffi_test",
-        ":tasks_model",
-        ":tasks_model_test",
-        ":shared_tasks",
-        ":tasks_wasi",
-        ":tasks_web_lib",
-        ":wasi_test",
-    ],
-)
-
-rustfmt_test(
-    name = "shared_rust_linux_fmt_test",
-    targets = [
-        ":browser_test",
-        ":release_test",
-        ":tasks_deploy_verify",
-    ],
 )

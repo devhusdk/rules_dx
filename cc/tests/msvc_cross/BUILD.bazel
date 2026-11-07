@@ -3,7 +3,7 @@ load("//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("//cc/toolchains:action_tests.bzl", "cc_msvc_arm64_action_tests")
 load("//cc/toolchains:select.bzl", "cc_toolchain_files")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_testonly = True)
 
@@ -156,16 +156,6 @@ rust_test(
         "@platforms//cpu:x86_64",
     ],
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "cross_arm64_fmt_test",
-    targets = [":cross_arm64_test", ":cross_x64_test"],
-)
-
-rust_clippy_test(
-    name = "cross_arm64_clippy_test",
-    targets = [":cross_arm64_test", ":cross_x64_test"],
 )
 
 real_source_target(

@@ -1,5 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//cc/context:identity.bzl", "cc_context_exec_identity", "cc_context_identity")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -213,24 +213,5 @@ rust_test(
         "//tools/testing:dx_lsp",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-    ],
-)
-
-rustfmt_test(
-    name = "context_fmt_test",
-    targets = [
-        ":cc_context",
-        ":cc_context_test",
-        ":compile_db",
-        ":qualify",
-    ],
-)
-
-rustfmt_test(
-    name = "context_linux_x86_64_fmt_test",
-    targets = [
-        ":context_clang_tidy_test",
-        ":headless_lsp_clangd_test",
-        ":headless_lsp_rust_analyzer_test",
     ],
 )

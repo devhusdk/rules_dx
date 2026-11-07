@@ -1,7 +1,7 @@
 # gazelle:dx_corpus false
 # gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen
 # gazelle:resolve rust wasm_bindgen_test @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(
     default_testonly = True,
@@ -34,24 +34,6 @@ rust_test(
     name = "consumer_web_test",
     testonly = True,
     crate = ":consumer_web",
-)
-
-rustfmt_test(
-    name = "consumer_web_fmt_test",
-    targets = [
-        ":consumer_web",
-        ":consumer_web_bin",
-        ":consumer_web_browser_test_crate",
-    ],
-)
-
-rust_clippy_test(
-    name = "consumer_web_clippy_test",
-    targets = [
-        ":consumer_web",
-        ":consumer_web_bin",
-        ":consumer_web_browser_test_crate",
-    ],
 )
 
 # keep

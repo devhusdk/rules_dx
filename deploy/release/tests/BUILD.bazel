@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
 package(
@@ -57,26 +57,6 @@ rust_test(
         "//tools/testing/floor:dx_floor",
         "@crates//:serde_json",
     ],
-)
-
-rustfmt_test(
-    name = "quickstart_consumer_fmt_test",
-    targets = [":readme_quickstart_smoke_test"],
-)
-
-rust_clippy_test(
-    name = "quickstart_consumer_clippy_test",
-    targets = [":readme_quickstart_smoke_test"],
-)
-
-rustfmt_test(
-    name = "candidate_consumer_fmt_test",
-    targets = [":release_candidate_smoke_test"],
-)
-
-rust_clippy_test(
-    name = "candidate_consumer_clippy_test",
-    targets = [":release_candidate_smoke_test"],
 )
 
 real_source_target(

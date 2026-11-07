@@ -6,12 +6,19 @@
 namespace {
 
 PyObject *Greet(PyObject *, PyObject *) {
-  // A copy sized at run time keeps a memcpy call, which the Windows runtime
-  // DLL provides, so the import check has something real to find.
+  // A copy sized at run time keeps a memcpy call, and under MSVC a throw
+  // imports the C++ exception runtime, which vcruntime140.dll provides, so the
+  // import check has something real to find.
   static const char kGreeting[] = "dx-native-probe native";
   volatile size_t size = sizeof(kGreeting);
   char buffer[sizeof(kGreeting)];
   std::memcpy(buffer, kGreeting, size);
+#ifdef _MSC_VER
+  try {
+    if (size != 0) throw static_cast<int>(size);
+  } catch (int) {
+  }
+#endif
   return PyUnicode_FromString(buffer);
 }
 

@@ -845,3 +845,22 @@ func TestIncompleteJS(t *testing.T) {
 		}
 	}
 }
+
+func TestExportedFiles(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte(`exports_files(["a.py", "b.txt"])
+
+exports_files(["c.py"], visibility = ["//visibility:public"])
+
+exports_files(FILES)
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"a.py": true, "b.txt": true, "c.py": true}
+	if got := ExportedFiles(file); !reflect.DeepEqual(got, want) {
+		t.Errorf("ExportedFiles = %v, want %v", got, want)
+	}
+	if got := ExportedFiles(nil); len(got) != 0 {
+		t.Errorf("ExportedFiles(nil) = %v, want empty", got)
+	}
+}

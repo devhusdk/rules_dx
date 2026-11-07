@@ -406,7 +406,9 @@ fn removing_the_workspace_is_an_observer_failure() {
 #[test]
 fn idle_terminate_stops_the_watch() {
     let mut probe = Probe::start("dx-watch-probe-term-", &["watch", "build", "//..."], &[]);
-    probe.idle(1);
+    probe.until("the watching line", |probe| {
+        probe.count("end ") >= 1 && probe.stdout().contains("watching (Ctrl-C")
+    });
     probe.signal(libc::SIGTERM, false);
     assert_eq!(probe.exit().code(), Some(143));
     assert_eq!(probe.count("start "), 1);

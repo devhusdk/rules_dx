@@ -246,14 +246,14 @@ fn watch(
         if let Some(signo) = stop() {
             return stopped(progress, out, err, signo);
         }
+        let mut quiet = (!session.polling())
+            .then(|| QuietStretch::begin(query_runner, workspace, Instant::now()));
         if round == 1
             && let Err(exit) = progress.say(&mut *out, &mut *err, "watching (Ctrl-C to stop)")
         {
             return exit;
         }
         let mut change = pending.into_inner();
-        let mut quiet = (!session.polling())
-            .then(|| QuietStretch::begin(query_runner, workspace, Instant::now()));
         loop {
             let paths = match change.take() {
                 Some(change) => change,

@@ -441,74 +441,34 @@ fn the_apple_executor_probe_does_not_hold_the_step_output_open() {
     );
 }
 
-const REGISTRY: &str = "Restore the registry file cache";
-
-fn evidence_steps() -> Vec<serde_json::Value> {
-    let (name, text) = workflows()
-        .into_iter()
-        .find(|(name, _)| name.ends_with("workflows/evidence.yml"))
-        .expect("evidence.yml is in the workflow runfiles");
-    let document: serde_json::Value =
-        yaml_serde::from_str(&text).unwrap_or_else(|err| panic!("{name} is not YAML: {err}"));
-    document["jobs"]
-        .as_object()
-        .expect("evidence jobs")
-        .values()
-        .filter_map(|job| job["steps"].as_array())
-        .find(|steps| {
-            steps
-                .iter()
-                .any(|step| step["uses"].as_str() == Some(LOCAL_ACTION))
-        })
-        .expect("an evidence job runs setup-bazel")
-        .clone()
-}
-
 #[test]
-fn the_registry_cache_falls_back_to_the_newest_cache_for_the_runner() {
+fn the_bazel_binary_downloads_while_the_registry_cache_restores() {
     let action = action_document();
     let steps = action["runs"]["steps"].as_array().expect("action steps");
-    let step = &steps[action_index(steps, REGISTRY)];
-    assert_eq!(step["id"], "registry");
-    let prefix = "dx-registry-${{ runner.os }}-${{ runner.arch }}-";
-    assert_eq!(step["with"]["restore-keys"], prefix);
-    assert!(
-        step["with"]["key"]
-            .as_str()
-            .is_some_and(|key| key.starts_with(prefix)),
-        "the registry cache key must keep the {prefix} prefix"
-    );
-    assert_eq!(
-        action["outputs"]["registry-cache-hit"]["value"],
-        "${{ steps.registry.outputs.cache-hit }}"
-    );
-}
-
-#[test]
-fn evidence_saves_the_registry_cache_only_without_an_exact_hit() {
-    let steps = evidence_steps();
-    let setup = steps
+    let upstream = steps
         .iter()
-        .find(|step| step["uses"].as_str() == Some(LOCAL_ACTION))
-        .unwrap();
-    assert_eq!(setup["id"], "setup");
-    let save = steps
-        .iter()
-        .find(|step| step["uses"].as_str() == Some("./.github/actions/save-registry-cache"))
-        .expect("evidence saves the registry cache");
-    assert_eq!(
-        save["if"],
-        "${{ steps.setup.outputs.registry-cache-hit != 'true' }}"
-    );
-}
-
-#[test]
-fn the_apple_executor_probe_does_not_hold_the_step_output_open() {
-    let steps = evidence_steps();
-    let probe = &steps[steps_named(&steps, "Start recording the Apple executor")[0]];
-    let run = probe["run"].as_str().unwrap();
+        .position(|step| {
+            step["uses"]
+                .as_str()
+                .is_some_and(|uses| uses.starts_with(UPSTREAM_ACTION))
+        })
+        .expect("upstream setup-bazel step");
+    let prefetch = action_index(steps, "Prefetch the Bazel binary");
+    let wait = action_index(steps, "Wait for the Bazel binary");
     assert!(
-        run.trim_end().ends_with("} > /dev/null 2>&1 &"),
-        "the background probe must detach from the step output, or the step waits for it"
+        upstream < prefetch
+            && prefetch < action_index(steps, REGISTRY)
+            && action_index(steps, REGISTRY) < wait
+            && wait < action_index(steps, LOCATE),
+        "{ACTION_FILE} must start the download after Bazelisk is installed and wait for it before the first bazel call"
+    );
+    let run = steps[prefetch]["run"].as_str().unwrap();
+    assert!(
+        run.trim_end().ends_with("> /dev/null 2>&1 &"),
+        "the background download must detach from the step output, or the step waits for it"
+    );
+    assert!(
+        steps[wait].get("if").is_none(),
+        "two Bazelisk downloads cannot replace the same exe on Windows, so the wait must always run"
     );
 }

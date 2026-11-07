@@ -35,6 +35,17 @@ runs:
         if [ "$RUNNER_OS" = Windows ] && [ -d /d ]; then
           echo "startup:windows --output_user_root=D:/bz" >> user.bazelrc
         fi
+        cache="$RUNNER_TEMP/dx-repository-cache"
+        contents="$RUNNER_TEMP/dx-repo-contents"
+        mkdir -p "$cache" "$contents"
+        if [ "$RUNNER_OS" = Windows ]; then
+          cache="$(cygpath -m "$cache")"
+          contents="$(cygpath -m "$contents")"
+        fi
+        {
+          echo "common --repository_cache=$cache"
+          echo "common --repo_contents_cache=$contents"
+        } >> user.bazelrc
     - name: Configure the remote cache credential helper
       shell: bash
       run: |
@@ -94,20 +105,21 @@ runs:
         if [ -n "$args" ]; then
           echo "BB_ARGS=$args" >> "$GITHUB_ENV"
         fi
-    - name: Point Bazel at a registry file cache
+    - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+      with:
+        bazelisk-version: ${{ steps.pin.outputs.version }}
+        bazelisk-cache: false
+        cache-save: ${{ inputs.cache-save }}
+    - name: Prefetch the Bazel binary
       shell: bash
       run: |
-        cache="$RUNNER_TEMP/dx-repository-cache"
-        contents="$RUNNER_TEMP/dx-repo-contents"
-        mkdir -p "$cache" "$contents"
-        if [ "$RUNNER_OS" = Windows ]; then
-          cache="$(cygpath -m "$cache")"
-          contents="$(cygpath -m "$contents")"
-        fi
-        {
-          echo "common --repository_cache=$cache"
-          echo "common --repo_contents_cache=$contents"
-        } >> user.bazelrc
+        dir="$RUNNER_TEMP"
+        (
+          status=0
+          bazel --version > "$dir/dx-bazel-prefetch.log" 2>&1 || status=$?
+          echo "$status" > "$dir/dx-bazel-prefetch.tmp"
+          mv "$dir/dx-bazel-prefetch.tmp" "$dir/dx-bazel-prefetch"
+        ) > /dev/null 2>&1 &
     - name: Restore the registry file cache
       id: registry
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -115,11 +127,23 @@ runs:
         path: ${{ runner.temp }}/dx-repository-cache/content_addressable
         key: dx-registry-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel.lock') }}
         restore-keys: dx-registry-${{ runner.os }}-${{ runner.arch }}-
-    - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
-      with:
-        bazelisk-version: ${{ steps.pin.outputs.version }}
-        bazelisk-cache: false
-        cache-save: ${{ inputs.cache-save }}
+    - name: Wait for the Bazel binary
+      shell: bash
+      run: |
+        for _ in $(seq 1800); do
+          if [ -f "$RUNNER_TEMP/dx-bazel-prefetch" ]; then
+            status="$(cat "$RUNNER_TEMP/dx-bazel-prefetch")"
+            if [ "$status" != 0 ]; then
+              cat "$RUNNER_TEMP/dx-bazel-prefetch.log"
+              echo "::error::bazel --version exited with $status while fetching the Bazel binary"
+              exit 1
+            fi
+            exit 0
+          fi
+          sleep 0.1
+        done
+        echo "::error::the Bazel binary was not fetched within 180s"
+        exit 1
     - name: Locate the Bazel repository cache
       id: repo-cache
       if: ${{ inputs.locate-repository-cache == 'true' }}

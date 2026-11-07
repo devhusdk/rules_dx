@@ -13,6 +13,9 @@ outputs:
   repository-cache-root:
     description: The Bazel repository cache directory, set when locate-repository-cache is "true".
     value: ${{ steps.repo-cache.outputs.path }}
+  registry-cache-hit:
+    description: "\"true\" when the registry file cache was restored under its exact key."
+    value: ${{ steps.registry.outputs.cache-hit }}
 runs:
   using: composite
   steps:
@@ -107,10 +110,12 @@ runs:
           echo "common --repo_contents_cache=$contents"
         } >> user.bazelrc
     - name: Restore the registry file cache
+      id: registry
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ runner.temp }}/dx-repository-cache/content_addressable
         key: dx-registry-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel.lock') }}
+        restore-keys: dx-registry-${{ runner.os }}-${{ runner.arch }}-
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}

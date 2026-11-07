@@ -102,7 +102,8 @@ jobs:
           DX_FLAGS: ${{ inputs.flags }}
           DX_RELOCATE: ${{ inputs.relocate }}
         run: bash tools/ci/evidence_inputs.sh
-      - uses: ./.github/actions/setup-bazel
+      - id: setup
+        uses: ./.github/actions/setup-bazel
       - name: Start recording the Apple executor
         if: ${{ matrix.platform == 'macos_arm64' }}
         run: |
@@ -122,7 +123,7 @@ jobs:
               xcrun --sdk iphoneos --show-sdk-version
             } > "$RUNNER_TEMP/evidence/executor.txt" 2>&1
             touch "$RUNNER_TEMP/executor.done"
-          } &
+          } > /dev/null 2>&1 &
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:
@@ -435,6 +436,7 @@ jobs:
           set -o pipefail
           bazel test --noshow_progress --test_output=all --test_env=PATH --test_env=HOME --test_env=ANDROID_HOME //flutter/tests/fixtures/flutter-app/android:interaction_test 2>&1 | tail -n 80
       - uses: ./.github/actions/save-registry-cache
+        if: ${{ steps.setup.outputs.registry-cache-hit != 'true' }}
       - name: Collect test logs
         if: ${{ always() && steps.inputs.outcome == 'success' }}
         run: |

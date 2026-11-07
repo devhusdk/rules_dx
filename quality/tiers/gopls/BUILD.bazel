@@ -1,6 +1,14 @@
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("//rust/rules:defs.bzl", "rust_binary", "rustfmt_test")
 
+exports_files(
+    [
+        "gopls_standard.json",
+        "gopls_strict.json",
+    ],
+    visibility = ["//cli/adopt:__pkg__"],
+)
+
 rust_binary(
     name = "gen",
     srcs = ["gen.rs"],

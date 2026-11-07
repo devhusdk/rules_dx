@@ -36,6 +36,8 @@ dx_rust_crate(
     # Patches dx copies into consumers through `include_str!` in src/overrides.rs.
     compile_data = [
         "//quality/tiers:all",
+        "//quality/tiers/gopls:gopls_standard.json",
+        "//quality/tiers/gopls:gopls_strict.json",
         "//.github:workflows/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//modules:consumer_graph.json",

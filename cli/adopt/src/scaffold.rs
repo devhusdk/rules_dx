@@ -294,11 +294,51 @@ pub fn render_release_caller() -> String {
     with_header(Ownership::Pin, ".github/workflows/release.yml", &body)
 }
 
-fn editor_settings_value(extensions: &BTreeSet<String>) -> serde_json::Value {
+/// What the editor settings depend on besides the languages in the tree.
+#[derive(Clone, Debug, Default)]
+pub struct EditorTools {
+    /// The strict tier is selected in `dx.toml`.
+    pub strict: bool,
+    /// The ruff config the editor reads; `.dx/config/ruff/base.toml` when empty.
+    pub ruff_config: String,
+}
+
+const GOPLS_STANDARD: &str = include_str!("../../../quality/tiers/gopls/gopls_standard.json");
+const GOPLS_STRICT: &str = include_str!("../../../quality/tiers/gopls/gopls_strict.json");
+
+impl EditorTools {
+    /// Reads the tier from `dx.toml` and the ruff config from the root of `root`.
+    pub fn detect(root: &Path) -> Self {
+        let strict = std::fs::read_to_string(root.join("dx.toml"))
+            .ok()
+            .and_then(|text| text.parse::<toml::Table>().ok())
+            .and_then(|table| {
+                table
+                    .get("tier")
+                    .and_then(|tier| tier.as_str().map(str::to_owned))
+            })
+            .is_some_and(|tier| tier == "strict");
+        let ruff_config = ["ruff.toml", ".ruff.toml"]
+            .into_iter()
+            .find(|name| root.join(name).is_file())
+            .unwrap_or(".dx/config/ruff/base.toml");
+        Self {
+            strict,
+            ruff_config: ruff_config.to_owned(),
+        }
+    }
+}
+
+fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> serde_json::Value {
     let has = |own: &[&str]| own.iter().any(|ext| extensions.contains(*ext));
     let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
     let ide = format!("${{workspaceFolder}}/{}", dx_ide::IDE_DIR);
     let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/local/ide/**": true});
+    let ruff_config = if tools.ruff_config.is_empty() {
+        ".dx/config/ruff/base.toml"
+    } else {
+        tools.ruff_config.as_str()
+    };
     let mut settings = serde_json::json!({
         "files.watcherExclude": excludes,
         "search.exclude": excludes,
@@ -332,16 +372,29 @@ fn editor_settings_value(extensions: &BTreeSet<String>) -> serde_json::Value {
     );
     add(
         &[".py", ".pyi"],
-        serde_json::json!({"python.defaultInterpreterPath": format!("{ide}/python/python")}),
+        serde_json::json!({
+            "python.defaultInterpreterPath": format!("{ide}/python/python"),
+            "ruff.configuration": format!("${{workspaceFolder}}/{}", ruff_config),
+        }),
     );
     add(
         &[".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"],
         serde_json::json!({"typescript.tsdk": format!("{ide}/typescript/lib")}),
     );
-    add(
-        &[".go"],
-        serde_json::json!({"go.toolsManagement.checkForUpdates": "off"}),
-    );
+    // gopls ignores staticcheck.conf (golang/go#36373), so the tier goes in as settings. gopls
+    // has no errcheck analyzer; errcheck only runs under `dx lint`.
+    let mut go = serde_json::json!({"go.toolsManagement.checkForUpdates": "off"});
+    let gopls = if tools.strict {
+        GOPLS_STRICT
+    } else {
+        GOPLS_STANDARD
+    };
+    if let (Some(go), Ok(serde_json::Value::Object(view))) =
+        (go.as_object_mut(), serde_json::from_str(gopls))
+    {
+        go.extend(view);
+    }
+    add(&[".go"], go);
     add(
         &[".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp"],
         serde_json::json!({
@@ -367,14 +420,18 @@ fn editor_settings_value(extensions: &BTreeSet<String>) -> serde_json::Value {
 }
 
 /// The `.vscode/settings.json` text for the languages in `extensions`, pretty-printed.
-pub fn render_editor_settings(extensions: &BTreeSet<String>) -> String {
+pub fn render_editor_settings(extensions: &BTreeSet<String>, tools: &EditorTools) -> String {
     let mut text =
-        serde_json::to_string_pretty(&editor_settings_value(extensions)).unwrap_or_default();
+        serde_json::to_string_pretty(&editor_settings_value(extensions, tools)).unwrap_or_default();
     text.push('\n');
     text
 }
 
-const NESTED_SETTINGS: [&str; 2] = ["files.watcherExclude", "search.exclude"];
+const NESTED_SETTINGS: [&str; 3] = [
+    "files.watcherExclude",
+    "search.exclude",
+    "ui.diagnostic.analyses",
+];
 
 /// The existing text with only the dx-owned values brought up to date.
 fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String, dx_merge::Error> {
@@ -480,21 +537,31 @@ pub fn bazelignore_covers_dx(text: &str) -> bool {
 }
 
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_full(module_name, DEFAULT_BRANCH_FALLBACK, &BTreeSet::new())
+    plan_init_files_full(
+        module_name,
+        DEFAULT_BRANCH_FALLBACK,
+        &BTreeSet::new(),
+        &EditorTools::default(),
+    )
 }
 
 /// Plans the init files for `root`, with the repo's default branch in the caller workflow and
 /// editor recommendations for the languages in the tree.
 pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    let (branch, extensions) = if root.is_dir() {
+    let (branch, extensions, tools) = if root.is_dir() {
         (
             detect_default_branch(root),
             crate::families::file_extensions(root),
+            EditorTools::detect(root),
         )
     } else {
-        (DEFAULT_BRANCH_FALLBACK.to_owned(), BTreeSet::new())
+        (
+            DEFAULT_BRANCH_FALLBACK.to_owned(),
+            BTreeSet::new(),
+            EditorTools::default(),
+        )
     };
-    let mut files = plan_init_files_full(module_name, &branch, &extensions)?;
+    let mut files = plan_init_files_full(module_name, &branch, &extensions, &tools)?;
     if !root.join("BUILD").exists() && !root.join(ROOT_BUILD).exists() {
         files.push(ScaffoldFile {
             path: ROOT_BUILD.to_owned(),
@@ -511,6 +578,7 @@ fn plan_init_files_full(
     module_name: &str,
     branch: &str,
     extensions: &BTreeSet<String>,
+    tools: &EditorTools,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
     validate_init_module(module_name)?;
     let files = vec![
@@ -546,7 +614,7 @@ fn plan_init_files_full(
         },
         ScaffoldFile {
             path: ".vscode/settings.json".to_owned(),
-            content: render_editor_settings(extensions),
+            content: render_editor_settings(extensions, tools),
             kind: FileKind::VscodeKeys,
         },
         ScaffoldFile {
@@ -767,9 +835,9 @@ pub(crate) fn entries(
 mod tests {
     use super::{
         CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
-        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION, editor_settings_value, entries,
-        plan_init_files, render_consumer_caller, render_consumer_caller_for,
-        render_editor_settings,
+        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION, EditorTools, FileKind,
+        editor_settings_value, entries, merge_owned, plan_init_files, render_consumer_caller,
+        render_consumer_caller_for, render_editor_settings,
     };
 
     pub(super) fn apply_init(
@@ -925,7 +993,8 @@ mod tests {
     #[test]
     fn init_scaffold_covers_admitted_editors() {
         let files =
-            super::plan_init_files_full("demo", "main", &all_families()).expect("init plans");
+            super::plan_init_files_full("demo", "main", &all_families(), &EditorTools::default())
+                .expect("init plans");
         let settings = files
             .iter()
             .find(|f| f.path == ".vscode/settings.json")
@@ -1363,7 +1432,7 @@ mod tests {
     #[test]
     fn editor_settings_are_pretty_and_only_for_the_repo_families() {
         let java: std::collections::BTreeSet<String> = [".java".to_owned()].into();
-        let text = render_editor_settings(&java);
+        let text = render_editor_settings(&java, &EditorTools::default());
         assert!(text.lines().count() > 5, "{text}");
         for absent in ["clangd", "python", "rust-analyzer", "typescript", "kotlin"] {
             assert!(!text.contains(absent), "{absent} in {text}");
@@ -1373,8 +1442,61 @@ mod tests {
     }
 
     #[test]
+    fn go_files_get_the_gopls_tier_view() {
+        let go: std::collections::BTreeSet<String> = [".go".to_owned()].into();
+        let standard: serde_json::Value =
+            serde_json::from_str(&render_editor_settings(&go, &EditorTools::default()))
+                .expect("json");
+        let strict_tools = EditorTools {
+            strict: true,
+            ..EditorTools::default()
+        };
+        let strict: serde_json::Value =
+            serde_json::from_str(&render_editor_settings(&go, &strict_tools)).expect("json");
+        assert_eq!(standard["ui.diagnostic.staticcheck"], true);
+        assert_eq!(standard["ui.diagnostic.analyses"]["ST1000"], false);
+        assert_eq!(strict["ui.diagnostic.analyses"]["ST1000"], true);
+        assert!(standard.get("go.vetFlags").is_none());
+        let none = render_editor_settings(&std::collections::BTreeSet::new(), &strict_tools);
+        assert!(!none.contains("ui.diagnostic"), "{none}");
+    }
+
+    #[test]
+    fn ruff_configuration_follows_the_root_file() {
+        let root = dx_test_scratch::scratch("ruff-config");
+        assert_eq!(
+            EditorTools::detect(root.path()).ruff_config,
+            ".dx/config/ruff/base.toml"
+        );
+        std::fs::write(root.path().join("ruff.toml"), "").expect("write");
+        let tools = EditorTools::detect(root.path());
+        assert_eq!(tools.ruff_config, "ruff.toml");
+        let py: std::collections::BTreeSet<String> = [".py".to_owned()].into();
+        let settings: serde_json::Value =
+            serde_json::from_str(&render_editor_settings(&py, &tools)).expect("json");
+        assert_eq!(
+            settings["ruff.configuration"],
+            "${workspaceFolder}/ruff.toml"
+        );
+    }
+
+    #[test]
+    fn gopls_analyses_merge_without_dropping_user_entries() {
+        let existing = "{\"ui.diagnostic.analyses\": {\"mine\": true, \"ST1000\": true}}";
+        let generated = "{\"ui.diagnostic.analyses\": {\"ST1000\": false}}";
+        let merged = merge_owned(FileKind::VscodeKeys, existing, generated).expect("merge");
+        let parsed: serde_json::Value = serde_json::from_str(&merged).expect("json");
+        assert_eq!(parsed["ui.diagnostic.analyses"]["mine"], true);
+        assert_eq!(parsed["ui.diagnostic.analyses"]["ST1000"], false);
+        assert_eq!(
+            merge_owned(FileKind::VscodeKeys, &merged, generated).expect("merge"),
+            merged
+        );
+    }
+
+    #[test]
     fn editor_settings_use_plugin_paths() {
-        let settings = render_editor_settings(&all_families());
+        let settings = render_editor_settings(&all_families(), &EditorTools::default());
         let parsed: serde_json::Value = serde_json::from_str(&settings).expect("valid JSON");
         assert_eq!(
             parsed["python.defaultInterpreterPath"],
@@ -1401,7 +1523,7 @@ mod tests {
 
     #[test]
     fn editor_settings_point_only_at_plugin_outputs() {
-        let value = editor_settings_value(&all_families());
+        let value = editor_settings_value(&all_families(), &EditorTools::default());
         let base = format!("${{workspaceFolder}}/{}/", dx_ide::IDE_DIR);
         for key in [
             "python.defaultInterpreterPath",
@@ -1442,8 +1564,11 @@ mod tests {
             "--saved-file",
             "$saved_file"
         ]);
-        let parsed: serde_json::Value =
-            serde_json::from_str(&render_editor_settings(&all_families())).expect("json");
+        let parsed: serde_json::Value = serde_json::from_str(&render_editor_settings(
+            &all_families(),
+            &EditorTools::default(),
+        ))
+        .expect("json");
         let discover = &parsed["rust-analyzer.workspace.discoverConfig"];
         assert_eq!(discover["command"], discover_argv);
         assert_eq!(discover["progressLabel"], "rules_rust");
@@ -1519,7 +1644,7 @@ mod tests {
             .expect("settings file");
         assert_eq!(
             settings.content,
-            render_editor_settings(&std::collections::BTreeSet::new())
+            render_editor_settings(&std::collections::BTreeSet::new(), &EditorTools::default())
         );
     }
 
@@ -1605,7 +1730,13 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
     }
 
     fn refreshed(root: &std::path::Path) -> Vec<String> {
-        let files = super::plan_init_files_full("refresh", "main", &all_families()).expect("plan");
+        let files = super::plan_init_files_full(
+            "refresh",
+            "main",
+            &all_families(),
+            &EditorTools::default(),
+        )
+        .expect("plan");
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         applied.wrote
@@ -1711,7 +1842,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let parsed: serde_json::Value = serde_json::from_str(&text).expect("json");
         assert_eq!(
             parsed["rust-analyzer.check.overrideCommand"],
-            editor_settings_value(&all_families())["rust-analyzer.check.overrideCommand"]
+            editor_settings_value(&all_families(), &EditorTools::default())["rust-analyzer.check.overrideCommand"]
         );
         scratch.close().expect("cleanup");
     }

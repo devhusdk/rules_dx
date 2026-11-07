@@ -571,6 +571,8 @@ rust_test(
         "//quality/tools/jvm:scalafmt_default.conf",
         "//tools/bazelrc:BUILD.bazel",
         "//tools/bazelrc:preset",
+        "//tools/platforms/no_winsdk:BUILD.bazel",
+        "//tools/platforms/no_winsdk:toolchains.bzl",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [

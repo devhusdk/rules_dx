@@ -943,6 +943,41 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
     assert!(passes > 0, "no workflow passes a Bazel config");
 }
 
+/// Every `--override_repository` in `.bazelrc` that points into the workspace, as a workspace path.
+fn workspace_overrides(rc: &str) -> Vec<(String, String)> {
+    rc.lines()
+        .filter(|line| !is_comment(line))
+        .filter_map(|line| {
+            line.split_once("--override_repository=")
+                .map(|(_, value)| value)
+        })
+        .filter_map(|value| value.split_once("=%workspace%/"))
+        .map(|(repo, dir)| (repo.to_string(), dir.trim().to_string()))
+        .collect()
+}
+
+#[test]
+fn windows_overrides_point_at_tracked_dirs() {
+    let overrides = workspace_overrides(&read_runfiles(".bazelrc"));
+    assert!(
+        overrides
+            .iter()
+            .any(|(repo, _)| repo == "bazel_tools+winsdk_configure+local_config_winsdk"),
+        ".bazelrc no longer replaces local_config_winsdk, so Windows jobs run vcvars again"
+    );
+    for (repo, dir) in overrides {
+        read_runfiles(&format!("{dir}/BUILD.bazel"));
+        if repo.ends_with("local_config_winsdk") {
+            // bazel_tools loads register_local_rc_exe_toolchains from the replacement.
+            let bzl = read_runfiles(&format!("{dir}/toolchains.bzl"));
+            assert!(
+                bzl.contains("def register_local_rc_exe_toolchains("),
+                "{dir}/toolchains.bzl must define register_local_rc_exe_toolchains"
+            );
+        }
+    }
+}
+
 #[test]
 fn ci_config_leaves_remote_downloads_to_dx() {
     for path in [".bazelrc", "docs/github-ci.md"] {

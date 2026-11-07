@@ -30,6 +30,8 @@ common:windows --experimental_override_platform_cpu_name=//tools/platforms:windo
 common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
 common:windows --extra_toolchains=@pythons_hub//:all
 common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1
+# Skip the local Windows SDK probe; builds use the hermetic MSVC and need no rc.exe.
+common:windows --override_repository=bazel_tools+winsdk_configure+local_config_winsdk=%workspace%/tools/platforms/no_winsdk
 build:windows --per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 
@@ -53,7 +55,7 @@ build --test_env=PYTHONWARNINGS=error
 
 build --@rules_rust//cargo/settings:use_default_shell_env=False
 
-# Skip the cargo_toml_variable_extractor and the crates it is built from (#8898).
+# Skip the cargo_toml_variable_extractor and the crates it is built from.
 build --@rules_rust//cargo/settings:cargo_toml_env_vars=False
 
 # Apple Clang's C++ profiles cannot merge with the hermetic LLVM in Rust test wrappers.

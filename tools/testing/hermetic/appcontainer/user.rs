@@ -9,6 +9,7 @@
 //! volume name, which Bazel's client needs. A normal user token passes.
 use std::ffi::c_void;
 use std::ptr::{null, null_mut};
+use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_NOT_ALL_ASSIGNED, GetLastError,
@@ -41,7 +42,10 @@ use windows_sys::Win32::Security::{
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
 };
-use windows_sys::Win32::System::JobObjects::AssignProcessToJobObject;
+use windows_sys::Win32::System::JobObjects::{
+    AssignProcessToJobObject, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
+    JobObjectBasicAccountingInformation, QueryInformationJobObject, TerminateJobObject,
+};
 use windows_sys::Win32::System::Threading::{
     CreateMutexW, CreateProcessWithLogonW, GetCurrentProcess, GetExitCodeProcess,
     LOGON_WITH_PROFILE, OpenProcess, OpenProcessToken, PROCESS_DUP_HANDLE, PROCESS_INFORMATION,
@@ -58,6 +62,7 @@ use crate::sys::{
 };
 
 const RPC_C_AUTHN_DEFAULT: u32 = 0xFFFF_FFFF;
+const ERROR_FILE_NOT_FOUND: u32 = 2;
 const ERROR_ACCESS_DENIED: u32 = 5;
 const ERROR_MEMBER_IN_ALIAS: u32 = 1378;
 const ERROR_ALIAS_EXISTS: u32 = 1379;
@@ -134,7 +139,7 @@ impl Session {
 impl Drop for Session {
     fn drop(&mut self) {
         if !self.job.is_null() {
-            unsafe { CloseHandle(self.job) };
+            end_job(self.job);
         }
         for path in &self.acl_paths {
             let _ = set_access(path, self.sid(), REVOKE_ACCESS);
@@ -145,13 +150,57 @@ impl Drop for Session {
         }
         if self.created {
             if !self.sid_text.is_empty() {
-                unsafe { DeleteProfileW(wide(&self.sid_text).as_ptr(), null(), null()) };
+                delete_profile(&self.sid_text);
             }
             unsafe { NetUserDel(null(), self.user.as_ptr()) };
         }
         if !self.engine.is_null() {
             unsafe { FwpmEngineClose0(self.engine) };
         }
+    }
+}
+
+/// Kills what is left in the job and waits until it is empty, so the profile is no longer in use.
+fn end_job(job: HANDLE) {
+    let mut info: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = unsafe { std::mem::zeroed() };
+    unsafe { TerminateJobObject(job, 1) };
+    for _ in 0..100 {
+        let ok = unsafe {
+            QueryInformationJobObject(
+                job,
+                JobObjectBasicAccountingInformation,
+                &mut info as *mut _ as *mut c_void,
+                std::mem::size_of_val(&info) as u32,
+                null_mut(),
+            )
+        };
+        if ok == 0 || info.ActiveProcesses == 0 {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    unsafe { CloseHandle(job) };
+}
+
+/// Deletes the account's profile. The profile service unloads it a little after the last
+/// process exits and refuses to delete it until then, so a profile left behind on every
+/// run would fill the system disk.
+fn delete_profile(sid: &str) {
+    let sid = wide(sid);
+    let mut err = None;
+    for _ in 0..60 {
+        if unsafe { DeleteProfileW(sid.as_ptr(), null(), null()) } != 0 {
+            return;
+        }
+        let last = std::io::Error::last_os_error();
+        if last.raw_os_error() == Some(ERROR_FILE_NOT_FOUND as i32) {
+            return;
+        }
+        err = Some(last);
+        std::thread::sleep(Duration::from_millis(250));
+    }
+    if let Some(err) = err {
+        eprintln!("appcontainer_run: cannot delete the run account's profile: {err}");
     }
 }
 

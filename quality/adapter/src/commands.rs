@@ -225,15 +225,14 @@ const DART_FORMAT_FIX_ARGS: &[&str] = &["--suppress-analytics", "format", "--out
 const JET_ARGS: &[&str] = &["--config"];
 const JULIA_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const JULIA_FORMAT_FIX_ARGS: &[&str] = &["--apply"];
-/// Always first: it stops perltidy reading `~/.perltidyrc`, `./.perltidyrc` and `$PERLTIDY`.
+const PERLTIDY_NO_PROFILE: &str = "--noprofile";
+const PERLTIDY_PROFILE: &str = "--profile=";
 const PERLTIDY_CHECK_ARGS: &[&str] = &[
-    "--noprofile",
     "--standard-output",
     "--standard-error-output",
     "--output-line-ending=unix",
 ];
 const PERLTIDY_FIX_ARGS: &[&str] = &[
-    "--noprofile",
     "-b",
     "-bext=/",
     "--standard-error-output",
@@ -348,8 +347,9 @@ const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
-const TYPOS_CHECK_ARGS: &[&str] = &["--format", "json", "--"];
+const TYPOS_CHECK_ARGS: &[&str] = &["--isolated", "--format", "json", "--"];
 const TYPOS_FIX_ARGS: &[&str] = &[
+    "--isolated",
     "--write-changes",
     "--no-check-filenames",
     "--format",
@@ -549,8 +549,18 @@ pub fn vale_check(binary: &Path, ini: &Path, files: &[&Path], ini_dir_rel: &str)
 
 /// Offline checks local paths and `#anchors`; online adds external links.
 /// Root-relative links resolve against `root`.
-pub fn lychee_check(binary: &Path, files: &[&Path], root: &Path, online: bool) -> Invocation {
+pub fn lychee_check(
+    binary: &Path,
+    files: &[&Path],
+    root: &Path,
+    online: bool,
+    config: Option<&Path>,
+) -> Invocation {
     let mut head = vec![binary.as_os_str().to_owned()];
+    if let Some(path) = config {
+        head.push(OsString::from("--config"));
+        head.push(path.as_os_str().to_owned());
+    }
     head.extend(
         LYCHEE_FIXED
             .iter()
@@ -667,8 +677,16 @@ pub fn ty_check(
     assemble(binary, head, files, "")
 }
 
-pub fn pydoclint_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, PYDOCLINT_ARGS, files, "")
+pub fn pydoclint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        PYDOCLINT_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
 /// Weeder reads every `.hie` file under the directory and reports unused declarations. Naming the
@@ -1836,13 +1854,25 @@ pub fn julia_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
 }
 
 /// perltidy `--standard-output` takes one file and writes the formatted text to stdout.
-pub fn perltidy_check(binary: &Path, file: &Path) -> Invocation {
-    fixed(binary, PERLTIDY_CHECK_ARGS, &[file], "")
+pub fn perltidy_check(binary: &Path, file: &Path, config: Option<&Path>) -> Invocation {
+    perltidy(binary, PERLTIDY_CHECK_ARGS, &[file], config)
 }
 
 /// `-b -bext=/` rewrites in place without a backup; `-se` keeps `.ERR` files from appearing.
-pub fn perltidy_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, PERLTIDY_FIX_ARGS, files, "")
+pub fn perltidy_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    perltidy(binary, PERLTIDY_FIX_ARGS, files, config)
+}
+
+/// The bound profile, or `--noprofile`, comes first: perltidy otherwise reads `~/.perltidyrc`,
+/// `./.perltidyrc` and `$PERLTIDY`.
+fn perltidy(binary: &Path, args: &[&str], files: &[&Path], config: Option<&Path>) -> Invocation {
+    let profile = match config {
+        Some(path) => OsString::from(format!("{PERLTIDY_PROFILE}{}", path.to_string_lossy())),
+        None => OsString::from(PERLTIDY_NO_PROFILE),
+    };
+    let mut head = vec![binary.as_os_str().to_owned(), profile];
+    head.extend(args.iter().map(OsString::from));
+    assemble(binary, head, files, "")
 }
 
 /// One batched check; Perl::Critic has no autofix. A bound profile replaces the default
@@ -2920,12 +2950,12 @@ pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
 }
 
-pub fn typos_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, TYPOS_CHECK_ARGS, files, "")
+pub fn typos_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(binary, &[], "--config", config, TYPOS_CHECK_ARGS, files, "")
 }
 
-pub fn typos_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, TYPOS_FIX_ARGS, files, "")
+pub fn typos_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(binary, &[], "--config", config, TYPOS_FIX_ARGS, files, "")
 }
 
 pub fn notebook_outputs_check(binary: &Path, files: &[&Path]) -> Invocation {

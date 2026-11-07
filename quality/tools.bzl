@@ -1675,7 +1675,13 @@ TOOLS = [
         id = "lychee",
         adapters = {"lint": ["asciidoc", "html", "markdown", "mdx", "rst"]},
         concerns = {"lint": "links"},
-        config = config(kind = "none", tier_active = True),
+        config = config(
+            suffixes = [".toml"],
+            files = ["lychee.toml"],
+            ext = "toml",
+            comment = "#",
+            tier_active = True,
+        ),
         severity = severity(default = "warning"),
         support = [
             row(
@@ -1916,7 +1922,13 @@ TOOLS = [
     tool(
         id = "perltidy",
         adapters = {"format": ["perl"]},
-        config = config(kind = "none", tier_active = True),
+        config = config(
+            suffixes = [".perltidyrc", "perltidyrc"],
+            files = [".perltidyrc"],
+            ext = "perltidyrc",
+            comment = "#",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",
@@ -2155,7 +2167,7 @@ TOOLS = [
         id = "pydoclint",
         adapters = {"lint": ["python", "python_stub"]},
         concerns = {"lint": "docstrings"},
-        config = config(suffixes = [".toml"], ext = "toml", comment = "#", tier_active = True, tier_base = False),
+        config = config(suffixes = [".toml"], ext = "toml", comment = "#", tier_active = True),
         severity = severity(default = "warning"),
         support = [
             row(
@@ -3014,10 +3026,11 @@ TOOLS = [
         adapters = {"lint": sorted([c for classes in _TYPOS_FAMILY_CLASSES.values() for c in classes])},
         concerns = {"lint": "spelling"},
         config = config(
+            suffixes = [".toml"],
             files = ["typos.toml"],
             ext = "toml",
+            comment = "#",
             tier_active = True,
-            tier_base = False,
         ),
         support = [
             row(

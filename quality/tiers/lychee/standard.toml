@@ -1,0 +1,4 @@
+# Link checks use lychee's defaults, written down so no other config is read.
+timeout = 20
+max_retries = 3
+max_redirects = 10

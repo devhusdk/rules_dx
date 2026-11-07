@@ -317,7 +317,7 @@ const FIX_SPECS: &[FixSpec] = &[
     },
     FixSpec {
         tool: "typos",
-        config: FixConfig::None,
+        config: FixConfig::Optional,
         keep_exit_one: false,
         crash_stderr: None,
     },
@@ -347,6 +347,7 @@ pub(super) enum Route {
     AnsibleLint,
     Sqlfluff,
     SwiftFormat,
+    Perltidy,
     Rewrite(fn(&Path, &[&Path]) -> Invocation),
 }
 
@@ -418,7 +419,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "scalafix" => Ok(Route::Scalafix),
         "ansible_lint" => Ok(Route::AnsibleLint),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
-        "perltidy" => Ok(Route::Rewrite(commands::perltidy_fix)),
+        "perltidy" => Ok(Route::Perltidy),
         "swift_format" => Ok(Route::SwiftFormat),
         "mix_format" => Ok(Route::Rewrite(commands::mix_format_fix)),
         "keep_sorted" => {
@@ -442,6 +443,7 @@ impl Route {
             | Route::AnsibleLint
             | Route::Sqlfluff
             | Route::SwiftFormat
+            | Route::Perltidy
             | Route::Rewrite(_) => &[],
         }
     }
@@ -860,6 +862,14 @@ impl super::RealBackend {
                     config.as_deref(),
                 ))
             }
+            Route::Perltidy => {
+                let config = self.config_abs(tool_id, tool, scratch)?;
+                Ok(commands::perltidy_fix(
+                    &tool.binary,
+                    refs,
+                    config.as_deref(),
+                ))
+            }
             Route::Rewrite(fix) => Ok(fix(&tool.binary, refs)),
         }
     }
@@ -963,7 +973,7 @@ impl super::RealBackend {
                     Outcome::Kept
                 }
             }
-            Route::Rewrite(_) if tool_id == "perltidy" => {
+            Route::Perltidy => {
                 if out.code == Some(0) {
                     Outcome::Fixed
                 } else {
@@ -1041,6 +1051,7 @@ impl super::RealBackend {
                             commands::ruff_fix(&tool.binary, refs, config.as_deref(), &cwd_rel)
                         })
                     }
+                    "typos" => Ok(commands::typos_fix(&tool.binary, refs, config.as_deref())),
                     "scalafmt" => Ok(commands::scalafmt_fix(
                         &tool.binary,
                         refs,
@@ -1162,7 +1173,6 @@ impl super::RealBackend {
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
                 "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
                 "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),
-                "typos" => Ok(commands::typos_fix(&tool.binary, refs)),
                 "deadnix" => Ok(commands::deadnix_fix(&tool.binary, refs)),
                 _ => Err(execution(
                     tool_id,

@@ -52,6 +52,8 @@ TIER_TOML = [
     "fortitude/strict.toml",
     "pydoclint/standard.toml",
     "pydoclint/strict.toml",
+    "lychee/standard.toml",
+    "lychee/strict.toml",
     "mbake/standard.toml",
     "mbake/strict.toml",
     "julialint/standard.toml",

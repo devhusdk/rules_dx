@@ -517,7 +517,7 @@ fn perltidy(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>,
     // One process per file: --standard-output takes a single file.
     let mut findings = Vec::new();
     for (workspace, absolute) in pairs {
-        let invocation = commands::perltidy_check(&tool.binary, absolute.as_path());
+        let invocation = commands::perltidy_check(&tool.binary, absolute.as_path(), call.config);
         let out = backend.run(tool_id, tool, &invocation, scratch)?;
         let input = std::fs::read(absolute)
             .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;

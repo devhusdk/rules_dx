@@ -195,12 +195,38 @@ fn vale_check_never_passes_no_exit() {
 }
 
 #[test]
+fn lychee_check_reads_only_its_bound_config() {
+    let invocation = lychee_check(
+        Path::new(BIN),
+        &[Path::new(FILE)],
+        Path::new("/scratch"),
+        false,
+        Some(Path::new("/scratch/lychee.toml")),
+    );
+    let argv = argv_strings(&invocation);
+    assert_eq!(argv[1..3], ["--config", "/scratch/lychee.toml"]);
+}
+
+#[test]
+fn perltidy_reads_only_its_bound_profile() {
+    let pm = Path::new("/scratch/sample.pm");
+    let profile = Some(Path::new("/scratch/.perltidyrc"));
+    let check = argv_strings(&perltidy_check(Path::new(BIN), pm, profile));
+    assert_eq!(check[1], "--profile=/scratch/.perltidyrc");
+    assert!(!check.iter().any(|arg| arg == "--noprofile"));
+    let fix = argv_strings(&perltidy_fix(Path::new(BIN), &[pm], profile));
+    assert_eq!(fix[1], "--profile=/scratch/.perltidyrc");
+    assert!(!fix.iter().any(|arg| arg == "--noprofile"));
+}
+
+#[test]
 fn lychee_check_online_drops_the_offline_flag() {
     let invocation = lychee_check(
         Path::new(BIN),
         &[Path::new(FILE)],
         Path::new("/scratch"),
         true,
+        None,
     );
     let argv = argv_strings(&invocation);
     assert!(!argv.iter().any(|arg| arg == "--offline"));
@@ -214,6 +240,7 @@ fn lychee_check_is_offline_and_rooted_in_the_scratch() {
         &[Path::new(FILE)],
         Path::new("/scratch"),
         false,
+        None,
     );
     assert_eq!(
         argv_strings(&invocation),
@@ -348,12 +375,23 @@ fn ty_check_passes_a_bound_config() {
 #[test]
 fn pydoclint_check_is_quiet() {
     let file = Path::new("/scratch/a.py");
-    let invocation = pydoclint_check(Path::new(BIN), &[file]);
+    let invocation = pydoclint_check(Path::new(BIN), &[file], None);
     assert_eq!(
         argv_strings(&invocation),
         vec![BIN, "--quiet", "/scratch/a.py"]
     );
     assert_eq!(invocation.cwd_rel, "");
+    let bound = pydoclint_check(Path::new(BIN), &[file], Some(Path::new("/scratch/p.toml")));
+    assert_eq!(
+        argv_strings(&bound),
+        vec![
+            BIN,
+            "--quiet",
+            "--config",
+            "/scratch/p.toml",
+            "/scratch/a.py"
+        ]
+    );
 }
 
 #[test]
@@ -1657,7 +1695,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     let pm = Path::new("/scratch/sample.pm");
     assert_eq!(
-        argv_strings(&perltidy_check(Path::new(BIN), pm)),
+        argv_strings(&perltidy_check(Path::new(BIN), pm, None)),
         vec![
             BIN,
             "--noprofile",
@@ -1668,7 +1706,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         ]
     );
     assert_eq!(
-        argv_strings(&perltidy_fix(Path::new(BIN), &[pm])),
+        argv_strings(&perltidy_fix(Path::new(BIN), &[pm], None)),
         vec![
             BIN,
             "--noprofile",
@@ -2467,13 +2505,37 @@ fn file_family_lint_checks_are_check_only() {
         vec![BIN, "--mode", "fix", "/scratch/notes.txt"]
     );
     assert_eq!(
-        argv_strings(&typos_check(Path::new(BIN), &[txt])),
-        vec![BIN, "--format", "json", "--", "/scratch/notes.txt"]
-    );
-    assert_eq!(
-        argv_strings(&typos_fix(Path::new(BIN), &[txt])),
+        argv_strings(&typos_check(Path::new(BIN), &[txt], None)),
         vec![
             BIN,
+            "--isolated",
+            "--format",
+            "json",
+            "--",
+            "/scratch/notes.txt"
+        ]
+    );
+    let config = Some(Path::new("/scratch/typos.toml"));
+    assert_eq!(
+        argv_strings(&typos_check(Path::new(BIN), &[txt], config)),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/typos.toml",
+            "--isolated",
+            "--format",
+            "json",
+            "--",
+            "/scratch/notes.txt"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&typos_fix(Path::new(BIN), &[txt], config)),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/typos.toml",
+            "--isolated",
             "--write-changes",
             "--no-check-filenames",
             "--format",

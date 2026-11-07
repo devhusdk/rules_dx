@@ -448,7 +448,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 tool,
                 scratch,
                 pairs,
-                |files| Ok(commands::typos_check(&tool.binary, files)),
+                |files| Ok(commands::typos_check(&tool.binary, files, call.config)),
                 |out, names| parsed(tool_id, parsers::parse_typos(&out.stdout, out.code, names)),
             )
         },
@@ -509,7 +509,15 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 tool,
                 scratch,
                 pairs,
-                |files| Ok(commands::lychee_check(&tool.binary, files, root, online)),
+                |files| {
+                    Ok(commands::lychee_check(
+                        &tool.binary,
+                        files,
+                        root,
+                        online,
+                        call.config,
+                    ))
+                },
                 |out, names| {
                     parsed(
                         tool_id,

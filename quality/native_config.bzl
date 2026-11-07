@@ -204,6 +204,14 @@ luals_config = _make_native_config_rule("luals")
 
 perlcritic_config = _make_native_config_rule("perlcritic")
 
+perltidy_config = _make_native_config_rule("perltidy")
+
+lychee_config = _make_native_config_rule("lychee")
+
+typos_config = _make_native_config_rule("typos")
+
+pydoclint_config = _make_native_config_rule("pydoclint")
+
 phpcs_config = _make_native_config_rule("phpcs")
 
 phpstan_config = _make_native_config_rule("phpstan")

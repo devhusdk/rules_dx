@@ -1,0 +1,3 @@
+# perltidy defaults, written down so no other profile is read.
+--indent-columns=4
+--maximum-line-length=80

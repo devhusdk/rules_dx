@@ -15,6 +15,7 @@ const NO_FORMATTER: &[&str] = &[
     "ini",
     "neon",
     "perlcriticrc",
+    "perltidyrc",
     "psd1",
     "shellcheckrc",
     "txt",

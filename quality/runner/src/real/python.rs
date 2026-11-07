@@ -216,7 +216,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 tool,
                 scratch,
                 pairs,
-                |files| Ok(commands::pydoclint_check(&tool.binary, files)),
+                |files| Ok(commands::pydoclint_check(&tool.binary, files, call.config)),
                 |out, names| {
                     parsed(
                         tool_id,

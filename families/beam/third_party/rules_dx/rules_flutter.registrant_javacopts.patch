@@ -1,0 +1,27 @@
+--- a/flutter/android.bzl
++++ b/flutter/android.bzl
+@@ -52,6 +52,7 @@
+ load("@bazel_skylib//rules:write_file.bzl", "write_file")
+ load("@rules_android//android:rules.bzl", _android_binary = "android_binary", _android_library = "android_library")
+ load("@rules_java//java:java_import.bzl", _java_import = "java_import")
++load("@rules_kotlin//kotlin:jvm.bzl", _kt_javac_options = "kt_javac_options")
+ load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
+ load("//flutter/private:constants.bzl", _ANDROID_ABI_FOR_ARCH = "ANDROID_ABI_FOR_ARCH", _ANDROID_MIN_SDK_VERSION = "ANDROID_MIN_SDK_VERSION", _ANDROID_TARGET_SDK_VERSION = "ANDROID_TARGET_SDK_VERSION")
+ load("//flutter/private:flutter_android_application.bzl", _flutter_android_bundle = "flutter_android_bundle")
+@@ -621,10 +622,16 @@
+         registrant_deps.append("@%s//android:all_android_plugin_libs" % pub_hub_name)
+     registrant_deps = registrant_deps + deps
+ 
++    _kt_javac_options(
++        name = "__%s_registrant_javac_opts" % name,
++        x_lint = ["-options"],
++    )
++
+     _kt_android_library(
+         name = "__%s_registrant" % name,
+         srcs = ["__%s_registrant_src" % name],
+         custom_package = "io.flutter.plugins",
++        javac_opts = "__%s_registrant_javac_opts" % name,
+         tags = tags,
+         deps = registrant_deps,
+     )

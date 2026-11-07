@@ -21,6 +21,7 @@ exports_files([
     "rules_dart.coverage.patch",
     "rules_flutter.lock_extension.patch",
     "rules_flutter.missing_font.patch",
+    "rules_flutter.registrant_javacopts.patch",
     "rules_julia.package_annotation_version.patch",
     "rules_julia.package_name.patch",
     "rules_julia.portable_cpu_target.patch",

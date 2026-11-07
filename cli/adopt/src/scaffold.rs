@@ -224,7 +224,7 @@ pub const CONSUMER_WORKFLOW_REPO: &str = "rules_dx";
 
 pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
 
-pub const CONSUMER_WORKFLOW_PIN: &str = "22a32ee1f155440af00146922b996fae7d43a067";
+pub const CONSUMER_WORKFLOW_PIN: &str = "32c4bcd07a0887dfff761a45206c714baf8e6a20";
 
 pub const RELEASE_WORKFLOW_PATH: &str = ".github/workflows/reusable-release.yml";
 

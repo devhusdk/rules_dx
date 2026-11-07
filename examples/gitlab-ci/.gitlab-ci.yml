@@ -1,2 +1,2 @@
 include:
-  - remote: https://raw.githubusercontent.com/devhusdk/rules_dx/5cdae741a3695dcc259ba1429e31f921ec14c472/ci/gitlab/dx.gitlab-ci.yml
+  - remote: https://raw.githubusercontent.com/devhusdk/rules_dx/32c4bcd07a0887dfff761a45206c714baf8e6a20/ci/gitlab/dx.gitlab-ci.yml

@@ -94,6 +94,11 @@ common:rbe --strategy=TestRunner=remote,sandboxed,local
 # Fixture for consumer --config passthrough checks.
 build:dx_consumer_probe --copt=-DDX_CONSUMER_PROBE
 
+# Temporary measurement configs for #8912.
+common:x_notrack --notrack_incremental_state
+common:x_notrack --nokeep_state_after_build
+common:x_async --experimental_async_execution
+
 # Compilation modes for evidence.yml, which only accepts --config flags.
 build:cc_dbg --compilation_mode=dbg
 build:cc_opt --compilation_mode=opt

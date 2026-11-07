@@ -111,6 +111,14 @@ runs:
           echo "common --repository_cache=$cache"
           echo "common --repo_contents_cache=$contents"
         } >> user.bazelrc
+    - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+      with:
+        bazelisk-version: ${{ steps.pin.outputs.version }}
+        bazelisk-cache: false
+        cache-save: ${{ inputs.cache-save }}
+    - name: Start the Bazel server
+      shell: bash
+      run: bazel info output_base >/dev/null 2>&1 &
     - name: Restore the registry file cache
       id: registry
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -118,11 +126,6 @@ runs:
         path: ${{ runner.temp }}/dx-repository-cache/content_addressable
         key: dx-registry-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel.lock') }}
         restore-keys: dx-registry-${{ runner.os }}-${{ runner.arch }}-
-    - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
-      with:
-        bazelisk-version: ${{ steps.pin.outputs.version }}
-        bazelisk-cache: false
-        cache-save: ${{ inputs.cache-save }}
     - name: Locate the Bazel repository cache
       id: repo-cache
       if: ${{ inputs.locate-repository-cache == 'true' }}

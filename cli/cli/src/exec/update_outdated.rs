@@ -144,7 +144,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         }
     };
     let json = invocation.output == OutputMode::Json;
-    if json && let Err(exit) = emit_built(out, command_started("update", "outdated")) {
+    if json && let Err(exit) = emit_built(out, command_started("update", COMMAND_MODE)) {
         return exit;
     }
     let Collected {
@@ -884,6 +884,8 @@ impl Fetch for HttpFetch {
     }
 }
 
+const COMMAND_MODE: &str = "default";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -899,6 +901,12 @@ mod tests {
             stream.write_all(response.as_bytes()).unwrap();
         });
         url
+    }
+
+    #[test]
+    fn the_started_event_passes_the_event_validator() {
+        let started = command_started("update", COMMAND_MODE).expect("valid started event");
+        assert_eq!(started["mode"], "default");
     }
 
     const NOT_FOUND: &str =

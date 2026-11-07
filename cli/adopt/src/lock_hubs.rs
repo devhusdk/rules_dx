@@ -332,6 +332,9 @@ impl Planner<'_> {
         let mut pending = vec![String::new()];
         while let Some(dir) = pending.pop() {
             let path = self.root.join(&dir);
+            if !dir.is_empty() && path.join(MODULE_FILE).is_file() {
+                continue;
+            }
             if path.join(lock).is_file() && path.join(manifest).is_file() {
                 found.push(dir.clone());
             }
@@ -694,6 +697,19 @@ mod tests {
             write(dir.path(), rel, text);
         }
         unlocked_manifests(dir.path())
+    }
+
+    #[test]
+    fn a_nested_module_keeps_its_own_locks() {
+        let hubs = plan(&[
+            ("sub/MODULE.bazel", ""),
+            ("sub/package.json", "{}"),
+            ("sub/pnpm-lock.yaml", ""),
+            ("sub/Cargo.toml", ""),
+            ("sub/Cargo.lock", ""),
+        ]);
+        assert!(hubs.edit.is_none());
+        assert!(hubs.notes.is_empty(), "{:?}", hubs.notes);
     }
 
     #[test]

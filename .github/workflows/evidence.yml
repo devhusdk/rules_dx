@@ -102,22 +102,32 @@ jobs:
         uses: ./.github/actions/setup-bazel
       - name: Start recording the Apple executor
         if: ${{ matrix.platform == 'macos_arm64' }}
+        env:
+          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
         run: |
           mkdir -p "$RUNNER_TEMP/evidence"
+          out="$RUNNER_TEMP/evidence/executor.txt"
+          {
+            sw_vers
+            uname -m
+            xcode-select -p
+            ls -d /Applications/Xcode*.app
+          } > "$out" 2>&1 || true
+          case " $DX_SCOPE " in
+            *apple*|*swift*|*ios*|*macos*|*xcode*|*" //..."*) ;;
+            *) exit 0 ;;
+          esac
+          touch "$RUNNER_TEMP/executor.pending"
           {
             {
-              sw_vers
-              uname -m
-              xcode-select -p
               xcodebuild -version
               xcodebuild -showsdks
-              ls -d /Applications/Xcode*.app
               xcrun simctl list runtimes
               xcrun swift -version
               xcrun --sdk macosx --show-sdk-version
               xcrun --sdk iphonesimulator --show-sdk-version
               xcrun --sdk iphoneos --show-sdk-version
-            } > "$RUNNER_TEMP/evidence/executor.txt" 2>&1
+            } >> "$out" 2>&1
             touch "$RUNNER_TEMP/executor.done"
           } > /dev/null 2>&1 &
       - name: Build and qualify the release cell
@@ -296,10 +306,12 @@ jobs:
       - name: Record the Apple executor
         if: ${{ always() && matrix.platform == 'macos_arm64' }}
         run: |
-          for _ in $(seq 150); do
-            [ -f "$RUNNER_TEMP/executor.done" ] && break
-            sleep 2
-          done
+          if [ -f "$RUNNER_TEMP/executor.pending" ]; then
+            for _ in $(seq 150); do
+              [ -f "$RUNNER_TEMP/executor.done" ] && break
+              sleep 2
+            done
+          fi
           cat "$RUNNER_TEMP/evidence/executor.txt"
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}

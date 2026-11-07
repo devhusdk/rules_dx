@@ -440,3 +440,24 @@ fn the_apple_executor_probe_does_not_hold_the_step_output_open() {
         "the background probe must detach from the step output, or the step waits for it"
     );
 }
+
+#[test]
+fn the_apple_executor_probe_runs_xcode_only_for_apple_scopes() {
+    let steps = evidence_steps();
+    let probe = &steps[steps_named(&steps, "Start recording the Apple executor")[0]];
+    assert_eq!(probe["env"]["DX_SCOPE"], "${{ steps.inputs.outputs.scope }}");
+    let run = probe["run"].as_str().unwrap();
+    let gate = run
+        .find(r#"*apple*|*swift*|*ios*|*macos*|*xcode*|*" //..."*) ;;"#)
+        .expect("the probe must gate the Xcode calls on an Apple scope");
+    let xcodebuild = run.find("xcodebuild").expect("the probe runs xcodebuild");
+    assert!(gate < xcodebuild, "xcodebuild must run only after the scope gate");
+    assert!(run.contains(r#"touch "$RUNNER_TEMP/executor.pending""#));
+
+    let record = &steps[steps_named(&steps, "Record the Apple executor")[0]];
+    let run = record["run"].as_str().unwrap();
+    assert!(
+        run.contains(r#"if [ -f "$RUNNER_TEMP/executor.pending" ]; then"#),
+        "Record must wait for the probe only when it started"
+    );
+}

@@ -4,8 +4,9 @@ use clap::ValueEnum;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event};
 use dx_output::{
-    CapabilityEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent, capability_event,
-    command_finished, command_started, owned_file_event, status_event,
+    CapabilityEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent, TierEvent,
+    ToolConfigEvent, capability_event, command_finished, command_started, owned_file_event,
+    status_event, tier_event, tool_config_event,
 };
 use dx_plan::args::grammar::advertises_passthrough;
 use dx_plan::args::{Command, Invocation};
@@ -195,6 +196,40 @@ fn owned_files(workspace: &std::path::Path) -> Result<Vec<OwnedFileEvent>, Strin
         .collect())
 }
 
+/// The tier in force, where it came from, and the root tool configs bound to `.dx`.
+struct Bindings {
+    tier: TierEvent,
+    configs: Vec<ToolConfigEvent>,
+}
+
+fn bindings(workspace: &std::path::Path) -> Option<Bindings> {
+    let config = dx_config::load(workspace).ok()?;
+    let explicit = config.as_ref().and_then(|config| config.profile);
+    let tier = TierEvent {
+        tier: explicit.unwrap_or_default().as_str().to_owned(),
+        source: if explicit.is_some() {
+            "dx.toml"
+        } else {
+            "default"
+        }
+        .to_owned(),
+    };
+    let root_files: std::collections::BTreeSet<String> = std::fs::read_dir(workspace)
+        .ok()?
+        .filter_map(|entry| Some(entry.ok()?.file_name().to_string_lossy().into_owned()))
+        .collect();
+    let families = dx_adopt::detected_families(workspace);
+    let configs = dx_generate::bound_configs(config.as_ref(), &families, &root_files)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(tool, file)| ToolConfigEvent {
+            tool: tool.to_owned(),
+            file,
+        })
+        .collect();
+    Some(Bindings { tier, configs })
+}
+
 fn lease_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
     let (path, record) = dx_worktree::lease_for_workspace(workspace)?;
     let detail = match (record.holder(true), &record.branch) {
@@ -267,6 +302,7 @@ pub(crate) fn execute_status(
     } else {
         Vec::new()
     };
+    let bound = bindings(workspace);
     let mut checks =
         dx_adopt::observed_status_checks(workspace, dx_adopt::read_version_pin(workspace), tools);
     checks.push(init_check(workspace));
@@ -295,6 +331,28 @@ pub(crate) fn execute_status(
                 }),
             ) {
                 return exit;
+            }
+        }
+        if let Some(bound) = &bound {
+            let events = std::iter::once(tier_event(&bound.tier))
+                .chain(bound.configs.iter().map(tool_config_event));
+            for event in events {
+                match event {
+                    Ok(event) => {
+                        if let Err(exit) = emit_event(out, &event) {
+                            return exit;
+                        }
+                    }
+                    Err(error) => {
+                        return operational(
+                            invocation,
+                            out,
+                            err,
+                            "invalid_result",
+                            &error.to_string(),
+                        );
+                    }
+                }
             }
         }
         for capability in &records {
@@ -334,6 +392,23 @@ pub(crate) fn execute_status(
     {
         return exit;
     }
+    if let Some(bound) = &bound {
+        let mut lines = vec![format!(
+            "tier: {} [source: {}]",
+            bound.tier.tier, bound.tier.source
+        )];
+        lines.extend(
+            bound
+                .configs
+                .iter()
+                .map(|config| format!("config {}: {}", config.tool, config.file)),
+        );
+        for line in lines {
+            if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
+                return exit;
+            }
+        }
+    }
     for capability in &records {
         if let Err(exit) = check_stdout_write(writeln!(out, "{}", capability_line(capability))) {
             return exit;
@@ -357,7 +432,7 @@ pub(crate) fn execute_status(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{event_kinds, invocation, json_events, run};
+    use crate::adopt::test_support::{event, event_kinds, invocation, json_events, run};
     use std::io;
 
     #[test]
@@ -592,6 +667,46 @@ mod tests {
             .expect("pin status event");
         assert_eq!(status["status"], serde_json::json!("ok"));
         assert!(err.is_empty());
+    }
+
+    fn status_with(files: &[(&str, &str)], words: &[&str]) -> String {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-tier-");
+        let root = scratch.path().to_path_buf();
+        write_module(&root);
+        for (name, text) in files {
+            std::fs::write(root.join(name), text).expect("file");
+        }
+        run(&invocation(words), &root).1
+    }
+
+    #[test]
+    fn status_without_dx_toml_is_the_default_standard_tier() {
+        let out = status_with(&[], &["status"]);
+        assert!(out.contains("tier: standard [source: default]\n"), "{out}");
+        assert!(!out.contains("\nconfig "), "{out}");
+    }
+
+    #[test]
+    fn status_reads_the_tier_from_dx_toml() {
+        let out = status_with(
+            &[("dx.toml", "schema_version = 1\ntier = \"strict\"\n")],
+            &["status"],
+        );
+        assert!(out.contains("tier: strict [source: dx.toml]\n"), "{out}");
+    }
+
+    #[test]
+    fn status_lists_the_root_config_of_a_detected_tool() {
+        let files = [("a.py", "x = 1\n"), ("ruff.toml", "")];
+        let out = status_with(&files, &["status"]);
+        assert!(out.contains("config ruff: ruff.toml\n"), "{out}");
+        let json = json_events(&status_with(&files, &["status", "--output=json"]));
+        let tier = event(&json, "tier");
+        assert_eq!(tier["tier"], "standard");
+        assert_eq!(tier["source"], "default");
+        let config = event(&json, "tool_config");
+        assert_eq!(config["tool"], "ruff");
+        assert_eq!(config["file"], "ruff.toml");
     }
 
     fn assert_pin_warns(words: &[&str], root: &std::path::Path) {

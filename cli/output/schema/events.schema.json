@@ -65,6 +65,12 @@
     },
     {
       "$ref": "#/$defs/test_outcome"
+    },
+    {
+      "$ref": "#/$defs/tier"
+    },
+    {
+      "$ref": "#/$defs/tool_config"
     }
   ],
   "$defs": {
@@ -1741,6 +1747,60 @@
         "event",
         "target",
         "outcome"
+      ],
+      "additionalProperties": false
+    },
+    "tier": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "event": {
+          "const": "tier"
+        },
+        "correlation": {
+          "type": "string"
+        },
+        "tier": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "event",
+        "tier",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "tool_config": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "event": {
+          "const": "tool_config"
+        },
+        "correlation": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "event",
+        "tool",
+        "file"
       ],
       "additionalProperties": false
     }

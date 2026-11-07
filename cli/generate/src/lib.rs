@@ -131,6 +131,42 @@ impl Tool {
     }
 }
 
+/// The root tool config each selected tool of a detected family binds, as (tool, file).
+pub fn bound_configs(
+    config: Option<&DxConfig>,
+    families: &BTreeSet<String>,
+    root_files: &BTreeSet<String>,
+) -> Result<Vec<(&'static str, String)>, GenerateError> {
+    let selection = dx_config::effective(config)?;
+    let mut ids: BTreeSet<&str> = BTreeSet::new();
+    for (id, family) in &selection.families {
+        if families.contains(id) {
+            ids.extend(
+                family
+                    .lint
+                    .iter()
+                    .chain(&family.format)
+                    .chain(&family.typecheck)
+                    .chain(&family.audit)
+                    .map(String::as_str),
+            );
+        }
+    }
+    let mut bound: Vec<(&'static str, String)> = TOOL_CONFIGS
+        .iter()
+        .filter(|config| ids.contains(config.id) && !config.suffixes.is_empty())
+        .filter_map(|config| {
+            let tool = Tool {
+                config,
+                profile: Profile::Standard,
+            };
+            Some((config.id, tool.root_file(root_files)?.to_owned()))
+        })
+        .collect();
+    bound.sort();
+    Ok(bound)
+}
+
 /// Every file dx owns, keyed by workspace-relative path.
 pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateError> {
     let selection = dx_config::effective(inputs.config.as_ref())?;

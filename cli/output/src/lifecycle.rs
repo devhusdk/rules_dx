@@ -26,6 +26,8 @@ pub const EVENTS: &[&str] = &[
     "status",
     "summary",
     "test_outcome",
+    "tier",
+    "tool_config",
 ];
 
 pub fn schema() -> Value {
@@ -237,6 +239,38 @@ pub fn owned_file_event(file: &OwnedFileEvent) -> Result<Value, OutputError> {
     map.insert("path".to_owned(), Value::String(file.path.clone()));
     map.insert("owns".to_owned(), Value::String(file.owns.clone()));
     map.insert("state".to_owned(), Value::String(file.state.clone()));
+    Ok(Value::Object(map))
+}
+
+/// The tier in force and where it was set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TierEvent {
+    pub tier: String,
+    pub source: String,
+}
+
+pub fn tier_event(tier: &TierEvent) -> Result<Value, OutputError> {
+    nonempty("tier", &tier.tier)?;
+    nonempty("source", &tier.source)?;
+    let mut map = base("tier");
+    map.insert("tier".to_owned(), Value::String(tier.tier.clone()));
+    map.insert("source".to_owned(), Value::String(tier.source.clone()));
+    Ok(Value::Object(map))
+}
+
+/// A root tool config file that binds a generated `.dx` config.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolConfigEvent {
+    pub tool: String,
+    pub file: String,
+}
+
+pub fn tool_config_event(config: &ToolConfigEvent) -> Result<Value, OutputError> {
+    nonempty("tool", &config.tool)?;
+    nonempty("file", &config.file)?;
+    let mut map = base("tool_config");
+    map.insert("tool".to_owned(), Value::String(config.tool.clone()));
+    map.insert("file".to_owned(), Value::String(config.file.clone()));
     Ok(Value::Object(map))
 }
 

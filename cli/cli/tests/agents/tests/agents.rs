@@ -213,7 +213,10 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         ],
     );
     git(&root, &["init", "--quiet", "--initial-branch=main"]);
-    write(&root.join("MODULE.bazel"), "module(name = \"consumer\")\n");
+    write(
+        &root.join("MODULE.bazel"),
+        "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+    );
     init(&root, &env);
     cache_dx(&env);
     git(&root, &["add", "."]);
@@ -402,7 +405,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
 
     let status = run_with(launcher, &["status"], &root, &env, "");
     assert!(
-        status.stdout.contains("agents: ok"),
+        status.stdout.contains("init: ok"),
         "{}{}",
         status.stdout,
         status.stderr

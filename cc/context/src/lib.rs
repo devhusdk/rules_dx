@@ -445,12 +445,13 @@ pub fn read_identities(paths: &[PathBuf]) -> Result<Vec<CompilerIdentity>, Error
 const MSVC_ARGV_INCLUDE_FLAGS: [&str; 4] = ["/imsvc", "-imsvc", "/winsysroot", "-winsysroot"];
 
 /// Argv0 and arguments of the version probe for a recorded compiler. A relative argv0 is
-/// resolved against the execroot, except `external/` paths, which are read from the output
-/// base because Bazel need not link every repository into the execroot.
+/// resolved against the execroot. An `external/` argv0 is read from the output base when it
+/// is there, because Bazel need not link every repository into the execroot.
 /// `cl` takes no flag and prints its banner on stderr.
 pub fn version_probe(execroot: &Path, output_base: &Path, argv0: &str) -> (PathBuf, Vec<String>) {
-    let path = if argv0.starts_with("external/") {
-        output_base.join(argv0)
+    let in_output_base = output_base.join(argv0);
+    let path = if argv0.starts_with("external/") && in_output_base.exists() {
+        in_output_base
     } else {
         execroot.join(argv0)
     };

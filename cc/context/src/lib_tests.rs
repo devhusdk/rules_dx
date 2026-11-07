@@ -517,16 +517,20 @@ fn an_msvc_action_with_argv_imsvc_needs_no_env() {
 
 #[test]
 fn the_version_probe_resolves_argv0_and_skips_the_flag_for_cl() {
-    let root = Path::new("/exec");
-    let base = Path::new("/base");
-    let (path, args) = version_probe(root, base, "external/llvm/bin/clang-cl.exe");
+    let root = scratch("probe");
+    let exec = root.join("exec");
+    let base = root.join("base");
+    fs::create_dir_all(base.join("external/llvm/bin")).expect("llvm dir");
+    fs::write(base.join("external/llvm/bin/clang-cl.exe"), "").expect("clang-cl");
+    let (path, args) = version_probe(&exec, &base, "external/llvm/bin/clang-cl.exe");
     assert_eq!(path, base.join("external/llvm/bin/clang-cl.exe"));
     assert_eq!(args, strings(&["--version"]));
-    let (path, args) = version_probe(root, base, "external/msvc/bin/Hostx64/x64/CL.exe");
-    assert_eq!(path, base.join("external/msvc/bin/Hostx64/x64/CL.exe"));
+    let (path, args) = version_probe(&exec, &base, "external/msvc/bin/Hostx64/x64/CL.exe");
+    assert_eq!(path, exec.join("external/msvc/bin/Hostx64/x64/CL.exe"));
     assert!(args.is_empty());
-    let (path, _) = version_probe(root, base, "bazel-out/bin/wrapper");
-    assert_eq!(path, root.join("bazel-out/bin/wrapper"));
+    let (path, _) = version_probe(&exec, &base, "bazel-out/bin/wrapper");
+    assert_eq!(path, exec.join("bazel-out/bin/wrapper"));
+    fs::remove_dir_all(&root).ok();
 }
 
 #[test]

@@ -219,13 +219,11 @@ mod tests {
         assert_ne!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
 
-    #[cfg(windows)]
     #[test]
-    fn verbatim_target_climbing_through_a_parent_component_is_rejected() {
+    fn target_climbing_through_a_missing_parent_is_rejected() {
         let dir = tempfile::tempdir().unwrap();
-        let workspace = std::fs::canonicalize(dir.path()).unwrap();
         let error =
-            resolve_target_in_workspace(&workspace, r"missing\deeper\..\uv.lock").unwrap_err();
+            resolve_target_in_workspace(dir.path(), "missing/deeper/../uv.lock").unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
 

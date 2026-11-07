@@ -267,7 +267,7 @@ fn ambient_tools_resolve_links_once() {
     assert_eq!(found, vec![("cc".to_owned(), real)]);
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn isolation_script_masks_before_dropping_to_the_real_user() {
     let isolation = Isolation {
@@ -715,11 +715,11 @@ fn materialize_reports_each_missing_input() {
     let err = materialize(&missing, &dir.path().join("a"), source, "cc").unwrap_err();
     assert!(err.starts_with("cannot run dx init: "), "{err}");
     let mut failing = real.clone();
-    failing.dx = PathBuf::from("/bin/false");
+    failing.dx = PathBuf::from("/usr/bin/false");
     let err = materialize(&failing, &dir.path().join("b"), source, "cc").unwrap_err();
     assert!(err.starts_with("dx init failed: "), "{err}");
     let mut silent = real.clone();
-    silent.dx = PathBuf::from("/bin/true");
+    silent.dx = PathBuf::from("/usr/bin/true");
     let err = materialize(&silent, &dir.path().join("c"), source, "cc").unwrap_err();
     assert!(err.starts_with("dx init wrote no MODULE.bazel: "), "{err}");
     let mut no_fragment = real;
@@ -754,7 +754,7 @@ fn fake_host() -> FakeHost {
     FakeHost { dir, host }
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn plan_with_masks_fake_tools_sdks_and_home_config_but_keeps_needed_paths() {
     let fake = fake_host();
@@ -831,7 +831,7 @@ fn windows_denies_are_empty_when_the_grants_cover_everything() {
     assert!(isolation.windows_denies().is_empty());
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn plan_with_fails_without_ip() {
     let mut fake = fake_host();

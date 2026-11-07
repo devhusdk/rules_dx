@@ -69,6 +69,12 @@ instead, or drop the `include()` and own the override yourself.
 
 No action. `rules_dx` applies these patches in its own repository rules.
 
+The rules_dotnet `toolchain_type_package.patch` moves `toolchain_type` to
+`//dotnet/toolchain`, so registering the .NET toolchains no longer loads
+`//dotnet` and its TFM and RID settings (#9201; upstream:
+bazel-contrib/rules_dotnet#597). Drop it when a rules_dotnet release has it,
+or else rebase it to move `bootstrap_toolchain_type` too.
+
 ## ring (crate annotation)
 
 `MODULE.bazel` patches ring 0.17.14's `build.rs` so it accepts clang-cl on

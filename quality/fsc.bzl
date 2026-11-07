@@ -5,7 +5,7 @@ load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framew
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//quality:roslyn.bzl", "tfm_sort_key")
 
-_TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
+_TOOLCHAIN = "@rules_dotnet//dotnet/toolchain:toolchain_type"
 
 _FSHARP_KINDS = ["fsharp_library", "fsharp_binary", "fsharp_test"]
 

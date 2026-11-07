@@ -67,7 +67,7 @@ ide_python_tool = rule(
 )
 
 def _dotnet_impl(ctx):
-    runtime = ctx.toolchains["@rules_dotnet//dotnet:toolchain_type"].runtime
+    runtime = ctx.toolchains["@rules_dotnet//dotnet/toolchain:toolchain_type"].runtime
     return _tool_info(
         ctx,
         runtime.files_to_run.executable,
@@ -77,7 +77,7 @@ def _dotnet_impl(ctx):
 
 ide_dotnet_tool = rule(
     implementation = _dotnet_impl,
-    toolchains = ["@rules_dotnet//dotnet:toolchain_type"],
+    toolchains = ["@rules_dotnet//dotnet/toolchain:toolchain_type"],
     doc = "The dotnet host from the resolved rules_dotnet toolchain.",
 )
 

@@ -12,6 +12,7 @@ def _dotnet_tools_impl(mctx):
             Label("//patches/rules_dotnet:nuget_group_prefix.patch"),
             Label("//patches/rules_dotnet:sdk_versions.patch"),
             Label("//patches/rules_dotnet:canonical_labels.patch"),
+            Label("//patches/rules_dotnet:toolchain_type_package.patch"),
         ],
         sha256 = "ce35dad18db31cd68323b568dc09c689cc6d75ec16eba1510ccd128bb5f1264e",
         strip_prefix = "rules_dotnet-0.22.2",

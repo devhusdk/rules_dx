@@ -10546,7 +10546,7 @@
     },
     "@@rules_dx+//dotnet:extensions.bzl%dotnet": {
       "general": {
-        "bzlTransitiveDigest": "TY3p2T9O4wQEDjKHmm6jRocuy7/SL/AKyW61FJOC3kE=",
+        "bzlTransitiveDigest": "NzhBQV11B8vd1V4efrWdqYKqX80cSNLI9uEp5i4gUac=",
         "usagesDigest": "hX6eBhzInPB54Xcgi7hN7zCXiq1AxC0VJh2Jh2eMVWk=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dx+,rules_dotnet rules_dx++dotnet_tools+rules_dotnet"

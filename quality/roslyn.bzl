@@ -8,7 +8,7 @@ load("//quality/private:native_config_impl.bzl", "bound_config_targets")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo")
 
-_TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
+_TOOLCHAIN = "@rules_dotnet//dotnet/toolchain:toolchain_type"
 
 RoslynInfo = provider(
     doc = "SARIF logs from compiling one C# target with the SDK analyzers, one per target framework.",

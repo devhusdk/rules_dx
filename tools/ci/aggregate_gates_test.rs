@@ -82,6 +82,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "hermetic",
         "hermetic-arm64",
         "hermetic-macos",
+        "hermetic-windows",
         "msix-install",
         "network",
         "preflight",

@@ -162,14 +162,33 @@ const LANGUAGE_EDITOR_EXTENSIONS: [(&str, &[&str]); 10] = [
     ("ionide.ionide-fsharp", &[".fs", ".fsi", ".fsx"]),
 ];
 
+const JS_FILES: &[&str] = &[".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"];
+const CSS_FILES: &[&str] = &[".css", ".scss", ".less"];
+
+/// Lint and format extensions, each with the dx tool it follows and the files that bring it in.
+const TOOL_EDITOR_EXTENSIONS: [(&str, &str, &[&str]); 4] = [
+    ("ruff", "charliermarsh.ruff", &[".py", ".pyi"]),
+    ("eslint", "dbaeumer.vscode-eslint", JS_FILES),
+    ("biome", "biomejs.biome", JS_FILES),
+    ("stylelint", "stylelint.vscode-stylelint", CSS_FILES),
+];
+
 /// The `.vscode/extensions.json` text: Bazel, then each language whose files are in `extensions`.
-fn render_editor_recommendations(extensions: &BTreeSet<String>) -> String {
+fn render_editor_recommendations(extensions: &BTreeSet<String>, tools: &EditorTools) -> String {
     let mut ids = vec![BAZEL_EDITOR_EXTENSION];
     ids.extend(
         LANGUAGE_EDITOR_EXTENSIONS
             .iter()
             .filter(|(_, own)| own.iter().any(|ext| extensions.contains(*ext)))
             .map(|(id, _)| *id),
+    );
+    ids.extend(
+        TOOL_EDITOR_EXTENSIONS
+            .iter()
+            .filter(|(tool, _, own)| {
+                tools.is_selected(tool) && own.iter().any(|ext| extensions.contains(*ext))
+            })
+            .map(|(_, id, _)| *id),
     );
     format!("{}\n", serde_json::json!({ "recommendations": ids }))
 }
@@ -301,12 +320,24 @@ pub struct EditorTools {
     pub strict: bool,
     /// The ruff config the editor reads; `.dx/config/ruff/base.toml` when empty.
     pub ruff_config: String,
+    /// The root ESLint flat config; `.dx/config/eslint/base.mjs` when empty.
+    pub eslint_config: String,
+    /// The root stylelint config; `.dx/config/stylelint/base.json` when empty.
+    pub stylelint_config: String,
+    /// The root Biome config; no key is written when empty.
+    pub biome_config: String,
+    /// The tool ids `dx.toml` selects for the families in the tree; every tool when `None`.
+    pub selected: Option<BTreeSet<String>>,
 }
 
 const GOPLS_STANDARD: &str = include_str!("../../../quality/tiers/gopls/gopls_standard.json");
 const GOPLS_STRICT: &str = include_str!("../../../quality/tiers/gopls/gopls_strict.json");
 
 impl EditorTools {
+    fn is_selected(&self, tool: &str) -> bool {
+        self.selected.as_ref().is_none_or(|ids| ids.contains(tool))
+    }
+
     /// Reads the tier from `dx.toml` and the ruff config from the root of `root`.
     pub fn detect(root: &Path) -> Self {
         let strict = std::fs::read_to_string(root.join("dx.toml"))
@@ -318,13 +349,35 @@ impl EditorTools {
                     .and_then(|tier| tier.as_str().map(str::to_owned))
             })
             .is_some_and(|tier| tier == "strict");
-        let ruff_config = ["ruff.toml", ".ruff.toml"]
-            .into_iter()
-            .find(|name| root.join(name).is_file())
-            .unwrap_or(".dx/config/ruff/base.toml");
+        let root_file = |names: &[&str]| {
+            names
+                .iter()
+                .find(|name| root.join(name).is_file())
+                .map(|name| (*name).to_owned())
+                .unwrap_or_default()
+        };
+        let config = dx_config::load(root).ok().flatten();
+        let selected =
+            dx_generate::selected_configs(config.as_ref(), &crate::detected_families(root))
+                .ok()
+                .map(|tools| tools.iter().map(|tool| tool.id.to_owned()).collect());
         Self {
             strict,
-            ruff_config: ruff_config.to_owned(),
+            ruff_config: root_file(&["ruff.toml", ".ruff.toml"]),
+            eslint_config: root_file(&[
+                "eslint.config.mjs",
+                "eslint.config.js",
+                "eslint.config.cjs",
+                "eslint.config.ts",
+            ]),
+            stylelint_config: root_file(&[
+                ".stylelintrc.json",
+                "stylelint.config.mjs",
+                "stylelint.config.js",
+                "stylelint.config.cjs",
+            ]),
+            biome_config: root_file(&["biome.json", "biome.jsonc"]),
+            selected,
         }
     }
 }
@@ -334,10 +387,11 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
     let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
     let ide = format!("${{workspaceFolder}}/{}", dx_ide::IDE_DIR);
     let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/local/ide/**": true});
-    let ruff_config = if tools.ruff_config.is_empty() {
-        ".dx/config/ruff/base.toml"
-    } else {
-        tools.ruff_config.as_str()
+    let owned = |root: &str, base: &str| {
+        format!(
+            "${{workspaceFolder}}/{}",
+            if root.is_empty() { base } else { root }
+        )
     };
     let mut settings = serde_json::json!({
         "files.watcherExclude": excludes,
@@ -370,17 +424,33 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
             ],
         }),
     );
-    add(
-        &[".py", ".pyi"],
-        serde_json::json!({
-            "python.defaultInterpreterPath": format!("{ide}/python/python"),
-            "ruff.configuration": format!("${{workspaceFolder}}/{}", ruff_config),
-        }),
-    );
-    add(
-        &[".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"],
-        serde_json::json!({"typescript.tsdk": format!("{ide}/typescript/lib")}),
-    );
+    let mut python = serde_json::json!({
+        "python.defaultInterpreterPath": format!("{ide}/python/python"),
+    });
+    if tools.is_selected("ruff") {
+        python["ruff.configuration"] =
+            owned(&tools.ruff_config, ".dx/config/ruff/base.toml").into();
+    }
+    add(&[".py", ".pyi"], python);
+    let mut js = serde_json::json!({"typescript.tsdk": format!("{ide}/typescript/lib")});
+    if tools.is_selected("eslint") {
+        js["eslint.options"] = serde_json::json!({
+            "overrideConfigFile": owned(&tools.eslint_config, ".dx/config/eslint/base.mjs"),
+        });
+    }
+    if tools.is_selected("biome") && !tools.biome_config.is_empty() {
+        js["biome.configurationPath"] = owned(&tools.biome_config, "").into();
+    }
+    add(JS_FILES, js);
+    if tools.is_selected("stylelint") {
+        add(
+            CSS_FILES,
+            serde_json::json!({
+                "stylelint.configFile":
+                    owned(&tools.stylelint_config, ".dx/config/stylelint/base.json"),
+            }),
+        );
+    }
     // gopls ignores staticcheck.conf (golang/go#36373), so the tier goes in as settings. gopls
     // has no errcheck analyzer; errcheck only runs under `dx lint`.
     let mut go = serde_json::json!({"go.toolsManagement.checkForUpdates": "off"});
@@ -427,10 +497,20 @@ pub fn render_editor_settings(extensions: &BTreeSet<String>, tools: &EditorTools
     text
 }
 
-const NESTED_SETTINGS: [&str; 3] = [
+const NESTED_SETTINGS: [&str; 4] = [
     "files.watcherExclude",
     "search.exclude",
     "ui.diagnostic.analyses",
+    "eslint.options",
+];
+
+/// Settings dx writes only for a selected tool; they go when the tool is no longer selected.
+const TOOL_SETTINGS: [&[&str]; 5] = [
+    &["ruff.configuration"],
+    &["eslint.options", "overrideConfigFile"],
+    &["biome.configurationPath"],
+    &["stylelint.configFile"],
+    &["ui.diagnostic.staticcheck"],
 ];
 
 /// The existing text with only the dx-owned values brought up to date.
@@ -456,7 +536,13 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                 .iter()
                 .map(|(path, leaf)| (path.as_slice(), leaf.clone()))
                 .collect();
-            dx_merge::jsonc::set_keys(existing, &edits)
+            let text = dx_merge::jsonc::set_keys(existing, &edits)?;
+            let stale: Vec<&[&str]> = TOOL_SETTINGS
+                .iter()
+                .copied()
+                .filter(|path| !edits.iter().any(|(edit, _)| *edit == *path))
+                .collect();
+            dx_merge::jsonc::remove_keys(&text, &stale)
         }
         FileKind::VscodeRecommendations => {
             let unwanted = dx_merge::jsonc::parse(existing)?
@@ -619,7 +705,7 @@ fn plan_init_files_full(
         },
         ScaffoldFile {
             path: ".vscode/extensions.json".to_owned(),
-            content: render_editor_recommendations(extensions),
+            content: render_editor_recommendations(extensions, tools),
             kind: FileKind::VscodeRecommendations,
         },
         ScaffoldFile {
@@ -1097,7 +1183,11 @@ mod tests {
     fn python_only_repo_recommends_bazel_and_python() {
         assert_eq!(
             recommendations(&[("app/main.py", "print(1)\n")]),
-            ["bazelbuild.vscode-bazel", "ms-python.python"]
+            [
+                "bazelbuild.vscode-bazel",
+                "ms-python.python",
+                "charliermarsh.ruff"
+            ]
         );
     }
 
@@ -1123,7 +1213,8 @@ mod tests {
             ("i.tsx", ""),
         ];
         let got = recommendations(&files);
-        assert_eq!(got.len(), 10, "{got:?}");
+        assert_eq!(got.len(), 11, "{got:?}");
+        assert!(got.contains(&"biomejs.biome".to_owned()));
         assert_eq!(got[0], "bazelbuild.vscode-bazel");
         assert!(got.contains(&"rust-lang.rust-analyzer".to_owned()));
         assert!(got.contains(&"ionide.ionide-fsharp".to_owned()));
@@ -1464,20 +1555,100 @@ mod tests {
     #[test]
     fn ruff_configuration_follows_the_root_file() {
         let root = dx_test_scratch::scratch("ruff-config");
+        std::fs::write(root.path().join("app.py"), "").expect("write");
+        let none = EditorTools::detect(root.path());
+        assert_eq!(none.ruff_config, "");
+        let py: std::collections::BTreeSet<String> = [".py".to_owned()].into();
+        let settings: serde_json::Value =
+            serde_json::from_str(&render_editor_settings(&py, &none)).expect("json");
         assert_eq!(
-            EditorTools::detect(root.path()).ruff_config,
-            ".dx/config/ruff/base.toml"
+            settings["ruff.configuration"],
+            "${workspaceFolder}/.dx/config/ruff/base.toml"
         );
         std::fs::write(root.path().join("ruff.toml"), "").expect("write");
         let tools = EditorTools::detect(root.path());
         assert_eq!(tools.ruff_config, "ruff.toml");
-        let py: std::collections::BTreeSet<String> = [".py".to_owned()].into();
         let settings: serde_json::Value =
             serde_json::from_str(&render_editor_settings(&py, &tools)).expect("json");
         assert_eq!(
             settings["ruff.configuration"],
             "${workspaceFolder}/ruff.toml"
         );
+    }
+
+    fn tree(extensions: &[&str]) -> std::collections::BTreeSet<String> {
+        extensions.iter().map(|ext| (*ext).to_owned()).collect()
+    }
+
+    fn settings_of(extensions: &[&str], tools: &EditorTools) -> serde_json::Value {
+        serde_json::from_str(&render_editor_settings(&tree(extensions), tools)).expect("json")
+    }
+
+    #[test]
+    fn eslint_stylelint_and_biome_follow_root_files_or_the_base() {
+        let base = settings_of(&[".ts", ".css"], &EditorTools::default());
+        assert_eq!(
+            base["eslint.options"]["overrideConfigFile"],
+            "${workspaceFolder}/.dx/config/eslint/base.mjs"
+        );
+        assert_eq!(
+            base["stylelint.configFile"],
+            "${workspaceFolder}/.dx/config/stylelint/base.json"
+        );
+        assert!(base.get("biome.configurationPath").is_none());
+        let tools = EditorTools {
+            eslint_config: "eslint.config.js".to_owned(),
+            stylelint_config: ".stylelintrc.json".to_owned(),
+            biome_config: "biome.json".to_owned(),
+            ..EditorTools::default()
+        };
+        let root = settings_of(&[".ts", ".css"], &tools);
+        assert_eq!(
+            root["eslint.options"]["overrideConfigFile"],
+            "${workspaceFolder}/eslint.config.js"
+        );
+        assert_eq!(
+            root["stylelint.configFile"],
+            "${workspaceFolder}/.stylelintrc.json"
+        );
+        assert_eq!(
+            root["biome.configurationPath"],
+            "${workspaceFolder}/biome.json"
+        );
+        let ts_only = settings_of(&[".ts"], &tools);
+        assert!(ts_only.get("stylelint.configFile").is_none());
+    }
+
+    #[test]
+    fn deselected_tools_lose_their_keys_and_recommendations() {
+        let all = EditorTools::default();
+        let only_ruff = EditorTools {
+            selected: Some(["ruff".to_owned()].into()),
+            ..EditorTools::default()
+        };
+        let files = tree(&[".py", ".ts", ".css"]);
+        let before = render_editor_settings(&files, &all);
+        let after = render_editor_settings(&files, &only_ruff);
+        assert!(!after.contains("eslint.options") && !after.contains("stylelint.configFile"));
+        let user = before.replacen('{', "{\n  \"mine\": 1,", 1);
+        let merged = merge_owned(FileKind::VscodeKeys, &user, &after).expect("merge");
+        let parsed: serde_json::Value = serde_json::from_str(&merged).expect("json");
+        assert_eq!(parsed["mine"], 1);
+        assert!(parsed.get("stylelint.configFile").is_none());
+        assert!(parsed["eslint.options"].get("overrideConfigFile").is_none());
+        assert!(parsed.get("ruff.configuration").is_some());
+        assert_eq!(
+            merge_owned(FileKind::VscodeKeys, &merged, &after).expect("merge"),
+            merged
+        );
+        let recs = super::render_editor_recommendations(&files, &only_ruff);
+        assert!(recs.contains("charliermarsh.ruff"), "{recs}");
+        assert!(
+            !recs.contains("eslint") && !recs.contains("stylelint"),
+            "{recs}"
+        );
+        let recs = super::render_editor_recommendations(&files, &all);
+        assert!(recs.contains("dbaeumer.vscode-eslint"), "{recs}");
     }
 
     #[test]

@@ -29,6 +29,23 @@ pub fn set_keys(text: &str, edits: &[(&[&str], Value)]) -> Result<String, Error>
     })
 }
 
+/// The text without the keys at each path; paths that are not there are left alone.
+pub fn remove_keys(text: &str, paths: &[&[&str]]) -> Result<String, Error> {
+    edit(text, |root| {
+        for path in paths {
+            let Some((last, parents)) = path.split_last() else {
+                continue;
+            };
+            if let Some(prop) =
+                walk_existing(root.clone(), parents).and_then(|object| object.get(last))
+            {
+                prop.remove();
+            }
+        }
+        Ok(())
+    })
+}
+
 /// The text with `value` added to the array at `path` unless an equal entry is already there.
 pub fn append_missing(text: &str, path: &[&str], value: Value) -> Result<String, Error> {
     edit(text, |root| {

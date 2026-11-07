@@ -90,6 +90,7 @@ dx_rust_crate(
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/dx_config",
         "//cli/generate:dx_generate",
         "//cli/ide:dx_ide",
         "//cli/merge:dx_merge",

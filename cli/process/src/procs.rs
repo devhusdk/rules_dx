@@ -32,7 +32,7 @@ pub fn start_time(pid: u32) -> Option<String> {
 
 /// The `ps` call behind `start_time`; the C locale keeps its text the same for every caller.
 #[cfg(not(target_os = "linux"))]
-fn start_time_command(pid: u32) -> std::process::Command {
+pub(crate) fn start_time_command(pid: u32) -> std::process::Command {
     let mut command = std::process::Command::new("ps");
     command
         .args(["-o", "lstart=", "-p", &pid.to_string()])

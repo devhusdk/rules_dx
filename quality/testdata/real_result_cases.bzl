@@ -370,8 +370,6 @@ REAL_RESULT_CASES = [
         "capability": "typecheck",
         "class": "erlang",
         "tool_dialyzer": _DIALYZER,
-        "windows_x86_64": True,
-        "windows_arm64": True,
         "linux_arm64": True,
         "macos_arm64": True,
         "contains": [],

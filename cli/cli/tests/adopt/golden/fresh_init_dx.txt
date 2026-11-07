@@ -130,6 +130,9 @@ build --@rules_dx//config:rustc_output_diagnostics=true
 # Under --config=ci, fail when MODULE.bazel.lock is out of date.
 common:ci --lockfile_mode=error
 
+# Under --config=ci, skip probing the host JDK for @local_jdk.
+common:ci --repo_env=JAVA_HOME=dx-no-local-jdk
+
 # Under --config=ci, build runfiles trees only for actions that run.
 common:ci --nobuild_runfile_links
 

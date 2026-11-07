@@ -88051,17 +88051,17 @@
     "@@rules_zig+//zig:extensions.bzl%zig": {
       "general": {
         "bzlTransitiveDigest": "vTeQKV6Xl5RuIpCwuarKlx1FwNYsPvKFOklJop5h/mI=",
-        "usagesDigest": "uXFcCrz7uXuisIvs+Hf6N3prTKLV1aYWfSCTMS1w64E=",
+        "usagesDigest": "bF2Sv6TYex7RRDqZDZJEV3F6aMC2HV3YUh9tteoZSMI=",
         "recordedInputs": [
           "REPO_MAPPING:rules_zig+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:rules_zig+,bazel_tools bazel_tools",
           "FILE:@@rules_zig+//zig/private/versions.json 868467564510b7a7f1bae1d36ac90bf8bc6632f22243ab13bf2040e5cce026d2"
         ],
         "generatedRepoSpecs": {
-          "zig_0.16.0_aarch64-linux": {
+          "zig_0.17.0_aarch64-linux": {
             "repoRuleId": "@@rules_zig+//zig/private/repo:zig_repository.bzl%zig_repository",
             "attributes": {
-              "url": "https://ziglang.org/download/0.16.0/zig-aarch64-linux-0.16.0.tar.xz",
+              "url": "https://ziglang.org/download/0.17.0/zig-aarch64-linux-0.17.0.tar.xz",
               "mirrors": [
                 "https://pkg.machengine.org/zig",
                 "https://zigmirror.hryx.net/zig",
@@ -88077,15 +88077,15 @@
                 "https://pkg.earth/zig",
                 "https://fs.liujiacai.net/zigbuilds"
               ],
-              "sha256": "ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17",
-              "zig_version": "0.16.0",
+              "sha256": "9e8d11661d4ae3bd57702a3832781e23ad151dde5798e16a5ccd503f65234ff8",
+              "zig_version": "0.17.0",
               "platform": "aarch64-linux"
             }
           },
-          "zig_0.16.0_aarch64-macos": {
+          "zig_0.17.0_aarch64-macos": {
             "repoRuleId": "@@rules_zig+//zig/private/repo:zig_repository.bzl%zig_repository",
             "attributes": {
-              "url": "https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz",
+              "url": "https://ziglang.org/download/0.17.0/zig-aarch64-macos-0.17.0.tar.xz",
               "mirrors": [
                 "https://pkg.machengine.org/zig",
                 "https://zigmirror.hryx.net/zig",
@@ -88101,15 +88101,15 @@
                 "https://pkg.earth/zig",
                 "https://fs.liujiacai.net/zigbuilds"
               ],
-              "sha256": "b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489",
-              "zig_version": "0.16.0",
+              "sha256": "b607e9b9234790a008116ae5bdb71c6243b84b9fb42a53a9e70fde41c06c536a",
+              "zig_version": "0.17.0",
               "platform": "aarch64-macos"
             }
           },
-          "zig_0.16.0_aarch64-windows": {
+          "zig_0.17.0_aarch64-windows": {
             "repoRuleId": "@@rules_zig+//zig/private/repo:zig_repository.bzl%zig_repository",
             "attributes": {
-              "url": "https://ziglang.org/download/0.16.0/zig-aarch64-windows-0.16.0.zip",
+              "url": "https://ziglang.org/download/0.17.0/zig-aarch64-windows-0.17.0.zip",
               "mirrors": [
                 "https://pkg.machengine.org/zig",
                 "https://zigmirror.hryx.net/zig",
@@ -88125,15 +88125,15 @@
                 "https://pkg.earth/zig",
                 "https://fs.liujiacai.net/zigbuilds"
               ],
-              "sha256": "aee38316ee4111717900f45dd3130145c39289e105541d737eb8c5ed653c78ef",
-              "zig_version": "0.16.0",
+              "sha256": "0a59d91fa1cb40cf068e9b0954434ce973500c7a2ea749f1e01af62cdab52d26",
+              "zig_version": "0.17.0",
               "platform": "aarch64-windows"
             }
           },
-          "zig_0.16.0_x86_64-linux": {
+          "zig_0.17.0_x86_64-linux": {
             "repoRuleId": "@@rules_zig+//zig/private/repo:zig_repository.bzl%zig_repository",
             "attributes": {
-              "url": "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz",
+              "url": "https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz",
               "mirrors": [
                 "https://pkg.machengine.org/zig",
                 "https://zigmirror.hryx.net/zig",
@@ -88149,15 +88149,15 @@
                 "https://pkg.earth/zig",
                 "https://fs.liujiacai.net/zigbuilds"
               ],
-              "sha256": "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00",
-              "zig_version": "0.16.0",
+              "sha256": "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026",
+              "zig_version": "0.17.0",
               "platform": "x86_64-linux"
             }
           },
-          "zig_0.16.0_x86_64-macos": {
+          "zig_0.17.0_x86_64-macos": {
             "repoRuleId": "@@rules_zig+//zig/private/repo:zig_repository.bzl%zig_repository",
             "attributes": {
-              "url": "https://ziglang.org/download/0.16.0/zig-x86_64-macos-0.16.0.tar.xz",
+              "url": "https://ziglang.org/download/0.17.0/zig-x86_64-macos-0.17.0.tar.xz",
               "mirrors": [
                 "https://pkg.machengine.org/zig",
                 "https://zigmirror.hryx.net/zig",
@@ -88173,15 +88173,15 @@
                 "https://pkg.earth/zig",
                 "https://fs.liujiacai.net/zigbuilds"
               ],
-              "sha256": "0387557ed1877bc6a2e1802c8391953baddba76081876301c522f52977b52ba7",
-              "zig_version": "0.16.0",
+              "sha256": "4f9a1c5269aa17ebda5e6d3c2b89d6cbf36f7d2b22a0306e9ab98f25f95529c6",
+              "zig_version": "0.17.0",
               "platform": "x86_64-macos"
             }
           },
-          "zig_0.16.0_x86_64-windows": {
+          "zig_0.17.0_x86_64-windows": {
             "repoRuleId": "@@rules_zig+//zig/private/repo:zig_repository.bzl%zig_repository",
             "attributes": {
-              "url": "https://ziglang.org/download/0.16.0/zig-x86_64-windows-0.16.0.zip",
+              "url": "https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip",
               "mirrors": [
                 "https://pkg.machengine.org/zig",
                 "https://zigmirror.hryx.net/zig",
@@ -88197,8 +88197,8 @@
                 "https://pkg.earth/zig",
                 "https://fs.liujiacai.net/zigbuilds"
               ],
-              "sha256": "68659eb5f1e4eb1437a722f1dd889c5a322c9954607f5edcf337bc3684a75a7e",
-              "zig_version": "0.16.0",
+              "sha256": "b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428",
+              "zig_version": "0.17.0",
               "platform": "x86_64-windows"
             }
           },
@@ -88206,28 +88206,28 @@
             "repoRuleId": "@@rules_zig+//zig/private/repo:toolchains_repo.bzl%toolchains_repo",
             "attributes": {
               "names": [
-                "zig_0.16.0_aarch64-linux",
-                "zig_0.16.0_aarch64-macos",
-                "zig_0.16.0_aarch64-windows",
-                "zig_0.16.0_x86_64-linux",
-                "zig_0.16.0_x86_64-macos",
-                "zig_0.16.0_x86_64-windows"
+                "zig_0.17.0_aarch64-linux",
+                "zig_0.17.0_aarch64-macos",
+                "zig_0.17.0_aarch64-windows",
+                "zig_0.17.0_x86_64-linux",
+                "zig_0.17.0_x86_64-macos",
+                "zig_0.17.0_x86_64-windows"
               ],
               "labels": [
-                "@zig_0.16.0_aarch64-linux//:zig_toolchain",
-                "@zig_0.16.0_aarch64-macos//:zig_toolchain",
-                "@zig_0.16.0_aarch64-windows//:zig_toolchain",
-                "@zig_0.16.0_x86_64-linux//:zig_toolchain",
-                "@zig_0.16.0_x86_64-macos//:zig_toolchain",
-                "@zig_0.16.0_x86_64-windows//:zig_toolchain"
+                "@zig_0.17.0_aarch64-linux//:zig_toolchain",
+                "@zig_0.17.0_aarch64-macos//:zig_toolchain",
+                "@zig_0.17.0_aarch64-windows//:zig_toolchain",
+                "@zig_0.17.0_x86_64-linux//:zig_toolchain",
+                "@zig_0.17.0_x86_64-macos//:zig_toolchain",
+                "@zig_0.17.0_x86_64-windows//:zig_toolchain"
               ],
               "zig_versions": [
-                "0.16.0",
-                "0.16.0",
-                "0.16.0",
-                "0.16.0",
-                "0.16.0",
-                "0.16.0"
+                "0.17.0",
+                "0.17.0",
+                "0.17.0",
+                "0.17.0",
+                "0.17.0",
+                "0.17.0"
               ],
               "exec_lengths": [
                 2,

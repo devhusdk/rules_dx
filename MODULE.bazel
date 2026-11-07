@@ -783,7 +783,7 @@ single_version_override(
 )
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
-zig.toolchain(zig_version = "0.16.0")
+zig.toolchain(zig_version = "0.17.0")
 
 # floor: equals tested
 bazel_dep(name = "rules_swift", version = "4.2.2")

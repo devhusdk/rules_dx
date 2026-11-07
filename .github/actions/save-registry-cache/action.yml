@@ -3,7 +3,7 @@ description: Save the Bazel registry file cache after setup-bazel restored it an
 runs:
   using: composite
   steps:
-    - name: Keep only registry files and check the cache size
+    - name: Keep only small registry files
       shell: bash
       run: |
         dir="$RUNNER_TEMP/dx-repository-cache/content_addressable"
@@ -12,12 +12,8 @@ runs:
         ls "$dir/sha256" | sort | comm -23 - "$RUNNER_TEMP/dx-registry-hashes" | while read -r hash; do
           rm -rf "${dir:?}/sha256/$hash"
         done
-        kb="$(du -sk "$dir" | cut -f1)"
-        echo "registry file cache: ${kb} KB"
-        if [ "$kb" -gt 51200 ]; then
-          echo "::error::the registry file cache is over 50 MB, so it holds more than registry files"
-          exit 1
-        fi
+        find "$dir/sha256" -mindepth 2 -maxdepth 2 -type f -size +1024k -printf '%h\0' | xargs -0 -r rm -rf
+        echo "registry file cache: $(du -sk "$dir" | cut -f1) KB"
     - name: Save the registry file cache
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:

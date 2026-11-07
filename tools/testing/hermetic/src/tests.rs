@@ -1078,6 +1078,20 @@ fn dx_startup_options_carry_the_windows_roots() {
 }
 
 #[test]
+fn dx_windows_path_puts_bash_ahead_of_system32() {
+    let bin = Path::new(r"D:\q\abc\bin");
+    let bash = Path::new("C:/msys64/usr/bin/bash.exe");
+    assert_eq!(
+        dx_windows_path(bin, Some(bash), r"C:\Windows\System32;C:\Windows"),
+        r"D:\q\abc\bin;C:/msys64/usr/bin;C:\Windows\System32;C:\Windows"
+    );
+    assert_eq!(
+        dx_windows_path(bin, None, r"C:\Windows\System32"),
+        r"D:\q\abc\bin;C:\Windows\System32"
+    );
+}
+
+#[test]
 fn detected_windows_sh_reads_the_rules_shell_build() {
     let dir = tempfile::tempdir().unwrap();
     assert_eq!(detected_windows_sh(dir.path()), None);

@@ -1353,7 +1353,7 @@ impl Session {
         args.extend(self.platform_flag());
         args.extend(self.shell_flag());
         if cfg!(windows) {
-            let path = format!("{};{}", bin.display(), self.action_path());
+            let path = dx_windows_path(&bin, self.bash.as_deref(), &self.action_path());
             let mut argv = vec![self.manifest.dx.to_string_lossy().into_owned()];
             argv.extend(args);
             let expect = if command == "lint" {
@@ -2329,6 +2329,19 @@ pub fn dx_startup_options(output_root: &Path, windows: bool) -> Vec<String> {
         .filter(|flag| flag != "--nosystem_rc")
         .map(|flag| format!("--bazel-startup-option={flag}"))
         .collect()
+}
+
+/// The PATH dx runs with on Windows. The bash dir goes ahead of System32, so a `bash`
+/// looked up on PATH (the sh_binary launcher fallback, `#!/usr/bin/env bash` scripts)
+/// finds MSYS bash and not the WSL stub.
+pub fn dx_windows_path(bin: &Path, bash: Option<&Path>, action_path: &str) -> String {
+    let mut dirs = vec![bin.to_string_lossy().into_owned()];
+    dirs.extend(
+        bash.and_then(Path::parent)
+            .map(|dir| dir.to_string_lossy().into_owned()),
+    );
+    dirs.push(action_path.to_owned());
+    dirs.join(";")
 }
 
 fn startup_flags(output_root: &Path) -> Vec<String> {

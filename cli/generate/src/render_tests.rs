@@ -836,3 +836,31 @@ fn a_root_native_file_is_bound_for_every_formatter_and_linter() {
         );
     }
 }
+
+#[test]
+fn a_dart_only_root_loads_only_dart_config() {
+    let out = rendered(&inputs(None, &["dart"], &["analysis_options.yaml"]));
+    let build = text(&out, ".dx/BUILD.bazel");
+    assert!(
+        build.contains("load(\"@rules_dx//quality:dart_config.bzl\", \"dart_config\")\n"),
+        "{build}"
+    );
+    assert!(!build.contains("native_config.bzl"), "{build}");
+}
+
+#[test]
+fn a_dart_and_ruff_root_loads_both_config_files() {
+    let out = rendered(&inputs(
+        None,
+        &["dart", "python"],
+        &["analysis_options.yaml", "ruff.toml"],
+    ));
+    let build = text(&out, ".dx/BUILD.bazel");
+    assert!(
+        build.contains(
+            "load(\"@rules_dx//quality:dart_config.bzl\", \"dart_config\")\n\
+             load(\"@rules_dx//quality:native_config.bzl\", \"ruff_config\")\n"
+        ),
+        "{build}"
+    );
+}

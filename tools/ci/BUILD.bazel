@@ -557,6 +557,7 @@ rust_test(
         "//docs:github-ci.md",
         "//quality:corpus_styles/Dx/Markers.yml",
         "//quality:corpus_vale.ini",
+        "//quality:dart_config.bzl",
         "//quality:native_config.bzl",
         "//quality/private:native_config_impl.bzl",
         "//quality:native_config_tests.bzl",

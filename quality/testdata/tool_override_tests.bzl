@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
-load("//quality:native_config.bzl", "DxDartConfigInfo")
+load("//quality:dart_config.bzl", "DxDartConfigInfo")
 load(
     "//quality:real_aspects.bzl",
     "real_cc_format_aspect",

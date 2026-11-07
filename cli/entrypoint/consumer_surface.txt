@@ -44,6 +44,7 @@ qt/rules:rust.bzl
 qt/sdk:repos.bzl
 quality/private:generated_policy.bzl
 quality/rules:defs.bzl
+quality:dart_config.bzl
 quality:native_config.bzl
 quality:real_aspects.bzl
 rego/rules:defs.bzl

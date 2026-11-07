@@ -527,6 +527,7 @@ fn truncated_docstrings(name: &str, text: &str) -> Vec<String> {
 fn starlark_docstrings_do_not_end_mid_sentence() {
     for rel in [
         "deploy/rules/config.bzl",
+        "quality/dart_config.bzl",
         "quality/native_config.bzl",
         "quality/private/native_config_impl.bzl",
         "quality/native_config_tests.bzl",

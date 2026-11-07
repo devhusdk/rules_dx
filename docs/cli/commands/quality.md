@@ -398,6 +398,8 @@ Set `root` and `baseline_root` when a library owns more than one schema.
 
 Each tool reads its own native config file at the repo root. The table lists the file, whether dx can extend a tier base from it, and where the tier comes from. Tag a target `no-lint` or `no-format` to skip it.
 
+Each tool's config rule, such as `ruff_config`, comes from `@rules_dx//quality:native_config.bzl`. `dart_config` comes from `@rules_dx//quality:dart_config.bzl`, so loading the other rules does not fetch `rules_dart`.
+
 A bound ruff config runs with its own directory as the project root, the same as ruff's own discovery, so `src`, `exclude` and `per-file-ignores` resolve against that directory.
 
 ### Change a rule

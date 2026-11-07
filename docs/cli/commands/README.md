@@ -703,6 +703,7 @@ API docs:
 
 Quality config:
 
+- `@rules_dx//quality:dart_config.bzl`: `dart_config`, the Dart analyzer config with its packages.
 - `@rules_dx//quality:native_config.bzl`: native linter and formatter configs.
 - `@rules_dx//quality/private:generated_policy.bzl`: `dx_generated_policy`, the workspace quality policy.
 

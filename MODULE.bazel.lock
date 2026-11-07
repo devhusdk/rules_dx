@@ -88299,7 +88299,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%msvc_runtime": {
       "general": {
-        "bzlTransitiveDigest": "AXC/4LYNImvfl5820Q2uW+uHi2Q0SGNT3mcYhB+YgGA=",
+        "bzlTransitiveDigest": "6mqJWBjmLvyxDtmY/r7WAMdAS/rNfTYhHKYqLDavYHk=",
         "usagesDigest": "0BOTD+RFF/F8wEwkEkeUKp8CTf/m/XNqplFokg6LSlU=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"

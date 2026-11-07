@@ -743,20 +743,30 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     check_dns_client(session)?;
     let mut line = wide(&logon_command_line(&config.command)?);
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
-    let created = unsafe {
-        CreateProcessWithLogonW(
-            session.user.as_ptr(),
-            wide(".").as_ptr(),
-            wide(password).as_ptr(),
-            LOGON_WITH_PROFILE,
-            null(),
-            line.as_mut_ptr(),
-            CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
-            environment.as_ptr() as *const c_void,
-            cwd.as_ptr(),
-            &startup,
-            &mut info,
-        )
+    let mut attempts = 0;
+    let created = loop {
+        let created = unsafe {
+            CreateProcessWithLogonW(
+                session.user.as_ptr(),
+                wide(".").as_ptr(),
+                wide(password).as_ptr(),
+                LOGON_WITH_PROFILE,
+                null(),
+                line.as_mut_ptr(),
+                CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+                environment.as_ptr() as *const c_void,
+                cwd.as_ptr(),
+                &startup,
+                &mut info,
+            )
+        };
+        // The secondary logon service answers ERROR_SERVICE_ALREADY_RUNNING while another logon is in flight.
+        let busy = unsafe { GetLastError() } == 1056;
+        attempts += 1;
+        if created != 0 || !busy || attempts >= 20 {
+            break created;
+        }
+        std::thread::sleep(Duration::from_millis(250));
     };
     if created == 0 {
         return Err(format!(

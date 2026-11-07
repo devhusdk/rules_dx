@@ -1,13 +1,13 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//rust/rules:wrapper_tests.bzl", "dx_test_srcs_split_tests")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY_TOOLS")
 
 package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS)
 
-dx_rust_crate(
+rust_library(
     name = "dx_process",
-    package_name = "cli/dx_process",
     srcs = [
         "src/bazel_sh.rs",
         "src/groups.rs",
@@ -18,45 +18,86 @@ dx_rust_crate(
         "src/runner.rs",
         "src/slot_pool.rs",
         "src/stderr_tail.rs",
+    ] + select({
+        "@platforms//os:windows": [
+            "src/lifecycle_windows.rs",
+            "src/procs_windows.rs",
+        ],
+        "//conditions:default": [
+            "src/lifecycle_unix.rs",
+            "src/procs.rs",
+            "src/terminal.rs",
+        ],
+    }),  # keep
+    aliases = aliases(
+        package_name = "cli/dx_process",
+        normal = True,
+    ),
+    crate_name = "dx_process",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_process",
+        normal = True,
+    ) + ["//cli/atomic_fs:dx_atomic_fs"],
+)
+
+rust_test(
+    name = "dx_process_test",
+    size = "small",
+    srcs = [
+        "src/bazel_sh.rs",
+        "src/bazel_sh_tests.rs",
+        "src/groups.rs",
+        "src/groups_tests.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/lifecycle.rs",
+        "src/lifecycle_tests.rs",
+        "src/procs_tests.rs",
+        "src/rc.rs",
+        "src/rc_sections.rs",
+        "src/rc_sections_tests.rs",
+        "src/rc_tests.rs",
+        "src/runner.rs",
+        "src/runner_tests.rs",
+        "src/slot_pool.rs",
+        "src/slot_pool_tests.rs",
+        "src/stderr_tail.rs",
+        "src/terminal_tests.rs",
+    ] + select({
+        "@platforms//os:windows": [
+            "src/lifecycle_windows.rs",
+            "src/procs_windows.rs",
+        ],
+        "//conditions:default": [
+            "src/lifecycle_unix.rs",
+            "src/procs.rs",
+            "src/terminal.rs",
+        ],
+    }),  # keep
+    aliases = aliases(
+        package_name = "cli/dx_process",
+        normal = True,
+        normal_dev = True,
+    ),
+    coverage_lib = ":dx_process",
+    crate_name = "dx_process",
+    crate_root = "src/lib.rs",
+    data = [
+        "//tools/testing/process_probe",
     ],
-    extra_deps = [
+    env = {
+        "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
+    },
+    deps = all_crate_deps(
+        package_name = "cli/dx_process",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//cli/atomic_fs:dx_atomic_fs",
-    ],
-    extra_test_deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
-    ],
-    test_data = [
-        "//tools/testing/process_probe",
-    ],
-    test_env = {
-        "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
-    },
-    test_srcs = [
-        "src/bazel_sh_tests.rs",
-        "src/groups_tests.rs",
-        "src/lib_tests.rs",
-        "src/lifecycle_tests.rs",
-        "src/procs_tests.rs",
-        "src/rc_sections_tests.rs",
-        "src/rc_tests.rs",
-        "src/runner_tests.rs",
-        "src/slot_pool_tests.rs",
-        "src/terminal_tests.rs",
-    ],
-    unix_srcs = [
-        "src/lifecycle_unix.rs",
-        "src/procs.rs",
-        "src/terminal.rs",
-    ],
-    windows_srcs = [
-        "src/lifecycle_windows.rs",
-        "src/procs_windows.rs",
-    ],
-    deps = [
-        "libc",
-        "thiserror",
     ],
 )
 
@@ -84,3 +125,8 @@ real_source_target(
 exports_files([
     "src/lib.rs",
 ])
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)

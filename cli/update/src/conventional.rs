@@ -44,24 +44,8 @@ pub struct Commit {
     pub subject: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Bump {
-    None,
-    Patch,
-    Minor,
-    Major,
-}
-
-impl Bump {
-    pub fn name(self) -> &'static str {
-        match self {
-            Bump::None => "none",
-            Bump::Patch => "patch",
-            Bump::Minor => "minor",
-            Bump::Major => "major",
-        }
-    }
-}
+/// The `git log` arguments every read uses: merge commits are never read.
+pub const LOG_ARGS: [&str; 3] = ["log", "--no-merges", "--format=%H%x00%s%x00%b%x1e"];
 
 /// Kinds in the order `notes` lists them, with their headings.
 pub const DEFAULT_GROUPS: &[(Kind, &str)] = &[
@@ -140,22 +124,13 @@ fn parse_subject(subject: &str) -> Option<(Kind, Option<String>, bool, &str)> {
     Some((Kind::from_word(word), scope, bang, rest.trim()))
 }
 
-pub fn bump(commits: &[Commit]) -> Bump {
-    commits
-        .iter()
-        .map(|commit| {
-            if commit.breaking {
-                Bump::Major
-            } else {
-                match commit.kind {
-                    Kind::Feat => Bump::Minor,
-                    Kind::Fix | Kind::Perf => Bump::Patch,
-                    _ => Bump::None,
-                }
-            }
-        })
-        .max()
-        .unwrap_or(Bump::None)
+/// The commits in `log` whose subject is not a conventional commit, as `(hash, subject)`.
+pub fn lint(log: &str) -> Vec<(String, String)> {
+    parse(log)
+        .into_iter()
+        .filter(|commit| commit.kind == Kind::Other)
+        .map(|commit| (commit.hash, commit.subject))
+        .collect()
 }
 
 pub fn notes(commits: &[Commit], groups: &[(Kind, &str)]) -> String {
@@ -190,9 +165,9 @@ fn section(out: &mut String, heading: &str, commits: &[&Commit]) {
 mod tests {
     use super::*;
 
-    const MINOR: &str = include_str!("../../testdata/minor.log");
-    const MAJOR: &str = include_str!("../../testdata/major.log");
-    const QUIET: &str = include_str!("../../testdata/quiet.log");
+    const MINOR: &str = include_str!("../testdata/minor.log");
+    const MAJOR: &str = include_str!("../testdata/major.log");
+    const QUIET: &str = include_str!("../testdata/quiet.log");
 
     #[test]
     fn parses_scope_and_kind() {
@@ -203,7 +178,6 @@ mod tests {
         assert_eq!(commits[0].subject, "add dx init (#10)");
         assert_eq!(commits[1].scope, None);
         assert!(commits.iter().all(|c| !c.breaking));
-        assert_eq!(bump(&commits), Bump::Minor);
     }
 
     #[test]
@@ -215,7 +189,6 @@ mod tests {
         assert!(!commits[1].breaking);
         assert_eq!(commits[2].kind, Kind::Refactor);
         assert!(commits[2].breaking);
-        assert_eq!(bump(&commits), Bump::Major);
     }
 
     #[test]
@@ -232,12 +205,17 @@ mod tests {
     }
 
     #[test]
-    fn only_quiet_kinds_do_not_bump() {
-        let commits = parse(QUIET);
-        assert_eq!(bump(&commits), Bump::None);
-        assert_eq!(bump(&[]), Bump::None);
-        let fix = parse("abc1234\0fix: x\0\x1e");
-        assert_eq!(bump(&fix), Bump::Patch);
+    fn lint_names_non_conventional_subjects() {
+        let log = "aaaa1111\0feat: add a thing\0\x1ebbbb2222\0update stuff\0\x1e";
+        assert_eq!(
+            lint(log),
+            [("bbbb2222".to_owned(), "update stuff".to_owned())]
+        );
+    }
+
+    #[test]
+    fn every_log_read_leaves_out_merge_commits() {
+        assert!(LOG_ARGS.contains(&"--no-merges"));
     }
 
     #[test]

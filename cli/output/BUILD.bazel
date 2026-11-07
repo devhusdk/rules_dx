@@ -1,5 +1,6 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_ENV_GENERATION_QUALITY")
 
 package(default_visibility = VIS_CLI_ENV_GENERATION_QUALITY)
@@ -10,9 +11,8 @@ exports_files([
     "src/lib.rs",
 ])
 
-dx_rust_crate(
+rust_library(
     name = "dx_output",
-    package_name = "cli/dx_output",
     srcs = [
         "src/changes.rs",
         "src/clap_errors.rs",
@@ -24,20 +24,55 @@ dx_rust_crate(
         "src/severity.rs",
         "src/validation.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_output",
+        normal = True,
+    ),
     compile_data = ["schema/events.schema.json"],
-    dev_deps = ["jsonschema"],
-    extra_deps = [
+    crate_name = "dx_output",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_output",
+        normal = True,
+    ) + [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
+        "@crates//:serde_json",
     ],
-    test_srcs = ["src/schema_tests.rs"],
-    deps = [
-        "clap",
-        "console",
-        "serde_json",
-        "thiserror",
-        "tracing",
-        "tracing-subscriber",
+)
+
+rust_test(
+    name = "dx_output_test",
+    size = "small",
+    srcs = [
+        "src/changes.rs",
+        "src/clap_errors.rs",
+        "src/diagnostics.rs",
+        "src/findings.rs",
+        "src/lib.rs",
+        "src/lifecycle.rs",
+        "src/modes.rs",
+        "src/schema_tests.rs",
+        "src/severity.rs",
+        "src/validation.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_output",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = ["schema/events.schema.json"],
+    coverage_lib = ":dx_output",
+    crate_name = "dx_output",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_output",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
+        "@crates//:serde_json",
     ],
 )
 
@@ -51,4 +86,9 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

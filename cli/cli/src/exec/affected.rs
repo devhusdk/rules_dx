@@ -144,8 +144,18 @@ fn git_text(runner: &dyn QueryRunner, workspace: &Path, args: &[&str]) -> Option
     }
 }
 
+fn resolves_to_commit(runner: &dyn QueryRunner, workspace: &Path, name: &str) -> bool {
+    let spec = format!("{name}^{{commit}}");
+    git_text(
+        runner,
+        workspace,
+        &["rev-parse", "--verify", "--quiet", &spec],
+    )
+    .is_some()
+}
+
 fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, PlanError> {
-    if let Some(head) = git_text(
+    let head = git_text(
         runner,
         workspace,
         &[
@@ -154,27 +164,22 @@ fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, 
             "--short",
             "refs/remotes/origin/HEAD",
         ],
-    ) {
-        return Ok(head);
-    }
-    for candidate in DEFAULT_BRANCH_CANDIDATES {
-        let spec = format!("{candidate}^{{commit}}");
-        if git_text(
-            runner,
-            workspace,
-            &["rev-parse", "--verify", "--quiet", &spec],
-        )
-        .is_some()
-        {
-            return Ok(candidate.to_owned());
+    );
+    let candidates = head
+        .into_iter()
+        .chain(DEFAULT_BRANCH_CANDIDATES.iter().map(|c| (*c).to_owned()));
+    for candidate in candidates {
+        if resolves_to_commit(runner, workspace, &candidate) {
+            return Ok(candidate);
         }
     }
     if shallow_clone(workspace) {
         return Err(PlanError::Git(missing_base_shallow_error()));
     }
-    Err(PlanError::Git(
-        "cannot find the default branch: expected origin/HEAD, main, or master".to_owned(),
-    ))
+    Err(PlanError::Git(format!(
+        "cannot find the default branch: tried origin/HEAD, {}",
+        DEFAULT_BRANCH_CANDIDATES.join(", ")
+    )))
 }
 
 fn tests_expression(rules: &[String]) -> String {
@@ -1269,6 +1274,40 @@ mod tests {
             affected_base(dir.path(), &runner),
             Err(PlanError::Git(_))
         ));
+    }
+
+    #[test]
+    fn dangling_origin_head_falls_through_to_origin_main() {
+        let dir = repo();
+        let root = dir.path();
+        git(root, &["update-ref", "refs/remotes/origin/main", "HEAD"]);
+        git(
+            root,
+            &[
+                "symbolic-ref",
+                "refs/remotes/origin/HEAD",
+                "refs/remotes/origin/master",
+            ],
+        );
+        let runner = GitRunner::new(&[]);
+        let Ok((branch, _)) = named_base(root, &runner) else {
+            panic!("expected a base");
+        };
+        assert_eq!(branch, "origin/main");
+    }
+
+    #[test]
+    fn missing_default_branch_error_names_the_refs_tried() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        git(dir.path(), &["init", "--quiet", "--initial-branch=dev"]);
+        write(dir.path(), "x", "x");
+        git(dir.path(), &["add", "."]);
+        git(dir.path(), &["commit", "--quiet", "-m", "x"]);
+        let runner = GitRunner::new(&[]);
+        let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner) else {
+            panic!("expected a git error");
+        };
+        assert!(message.contains("origin/main"), "{message}");
     }
 
     #[test]

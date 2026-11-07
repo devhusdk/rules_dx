@@ -12,4 +12,3 @@ build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__
 build:windows --features=-coverage
 build:windows --features=-gcc_coverage_map_format
 build:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=
-build:macos --dynamic_mode=off

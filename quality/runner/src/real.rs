@@ -731,8 +731,8 @@ mod real_weeder;
 #[cfg(test)]
 mod tests {
     use super::{
-        ALWAYS_OWN_MANIFEST, REAL_TOOLS, absolute_argv, javascript_manifest,
-        own_runfiles_manifest, parsed, reads_own_manifest, resolves_launcher, spawn_argv,
+        ALWAYS_OWN_MANIFEST, REAL_TOOLS, absolute_argv, javascript_manifest, own_runfiles_manifest,
+        parsed, reads_own_manifest, resolves_launcher, spawn_argv,
     };
     use crate::RunnerError;
     use quality_adapter::launch::{RunfilesPolicy, policy_for};

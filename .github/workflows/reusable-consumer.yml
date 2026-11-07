@@ -220,14 +220,20 @@ jobs:
       DX_LINK_CHECK_ONLINE: ${{ github.event_name != 'pull_request' && inputs.link_check_online }}
       DX_BUF_BREAKING: ${{ github.event_name == 'pull_request' && inputs.buf_breaking_on_pr }}
     steps:
-      - name: Check out files in parallel on Windows
-        if: runner.os == 'Windows'
-        shell: bash
-        run: git config --global checkout.workers 0
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || (env.DX_AFFECTED == 'true' || env.DX_BUF_BREAKING == 'true') && '2' || '1' }}
+      - name: Check out files in parallel
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FETCH_DEPTH: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || (env.DX_AFFECTED == 'true' || env.DX_BUF_BREAKING == 'true') && '2' || '1' }}
+        run: |
+          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth"
+          depth=--depth="$FETCH_DEPTH"
+          [ "$FETCH_DEPTH" = 0 ] && depth=
+          git init "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          # shellcheck disable=SC2086
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 -c http.extraheader="AUTHORIZATION: basic $auth" fetch $depth --no-tags origin "$GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - name: Pin the pull request base for --affected
         if: ${{ env.DX_AFFECTED == 'true' || env.DX_BUF_BREAKING == 'true' || (github.event_name == 'pull_request' && needs.validate.outputs.min_changed_line_coverage != '') }}
         env:
@@ -1001,13 +1007,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check out files in parallel on Windows
-        if: runner.os == 'Windows'
-        shell: bash
-        run: git config --global checkout.workers 0
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
+      - name: Check out files in parallel
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth"
+          git init "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 -c http.extraheader="AUTHORIZATION: basic $auth" fetch --depth=1 --no-tags origin "$GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}

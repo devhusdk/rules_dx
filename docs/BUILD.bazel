@@ -55,7 +55,6 @@ real_source_target(
         "cli/commands/sync.md",
         "cli/commands/generate.md",
         "cli/commands/fuzz.md",
-        "cli/commands/release.md",
         "cli/commands/init.md",
         "cli/commands/upgrade.md",
         "cli/commands/offline-bundle.md",

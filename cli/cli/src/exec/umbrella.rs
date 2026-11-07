@@ -1271,15 +1271,15 @@ pub(super) fn lint_commits(
         return Ok(false);
     }
     let range = format!("{base}..HEAD");
-    let args = [&dx_update::release::LOG_ARGS[..], &[range.as_str()]].concat();
-    let Some(log) = super::release::git(workspace, &args) else {
+    let args = [&dx_update::conventional::LOG_ARGS[..], &[range.as_str()]].concat();
+    let Some(log) = git(workspace, &args) else {
         let _ = writeln!(
             err,
             "dx: warning: commits: cannot read the commits in {range}"
         );
         return Ok(false);
     };
-    let bad = dx_update::release::lint(&log);
+    let bad = dx_update::conventional::lint(&log);
     let command = command.name();
     for (hash, subject) in &bad {
         let sha = &hash[..hash.len().min(12)];
@@ -1295,6 +1295,19 @@ pub(super) fn lint_commits(
         }
     }
     Ok(!bad.is_empty())
+}
+
+fn git(workspace: &Path, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(workspace)
+        .args(args)
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 #[cfg(test)]

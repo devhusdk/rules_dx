@@ -1,24 +1,47 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY")
 
 package(default_visibility = VIS_CLI_DEPLOY_QUALITY)
 
-dx_rust_crate(
+rust_library(
     name = "dx_fingerprint",
-    package_name = "cli/dx_fingerprint",
     srcs = [
         "src/finding.rs",
         "src/lib.rs",
     ],
-    extra_deps = [
+    aliases = aliases(
+        package_name = "cli/dx_fingerprint",
+        normal = True,
+    ),
+    crate_name = "dx_fingerprint",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_fingerprint",
+        normal = True,
+    ) + [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
     ],
-    deps = [
-        "serde",
-        "serde_json",
-        "thiserror",
+)
+
+rust_test(
+    name = "dx_fingerprint_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_fingerprint",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_fingerprint",
+    deps = all_crate_deps(
+        package_name = "cli/dx_fingerprint",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
     ],
 )
 
@@ -37,3 +60,8 @@ real_source_target(
 exports_files([
     "src/lib.rs",
 ])
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)

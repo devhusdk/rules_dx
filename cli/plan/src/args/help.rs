@@ -166,7 +166,6 @@ pub fn runs_bazel(command: Command) -> bool {
             | Command::Completion
             | Command::Init
             | Command::Worktree
-            | Command::Release
     )
 }
 
@@ -283,7 +282,6 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         Command::Fuzz,
         &["fuzz //pkg:parser", "fuzz --time 5m //pkg/..."],
     ),
-    (Command::Release, &["release", "release --to 2.0.0"]),
     (
         Command::Config,
         &["config", "config hlint", "config diff hlint"],
@@ -403,6 +401,13 @@ mod tests {
                 "BUILD_WORKSPACE_DIRECTORY",
             ] {
                 assert!(text.contains(needle), "{flag}: missing {needle:?}");
+            }
+            for removed in ["mutate", "explain", "env"] {
+                let prefix = format!("  {removed} ");
+                assert!(
+                    !text.lines().any(|line| line.starts_with(&prefix)),
+                    "{flag}: removed command {removed:?} is listed"
+                );
             }
         }
     }

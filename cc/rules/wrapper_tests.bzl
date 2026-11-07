@@ -250,3 +250,20 @@ def cc_windows_static_link_test(name, target):
         suffixes = [".if.lib"],
         target_compatible_with = ["@platforms//os:windows"],
     )
+
+def _no_link_impl(ctx):
+    env = analysistest.begin(ctx)
+    links = [a.mnemonic for a in analysistest.target_actions(env) if a.mnemonic == "CppLink"]
+    asserts.equals(env, [], links)
+    return analysistest.end(env)
+
+_no_link_test = analysistest.make(_no_link_impl)
+
+def cc_macos_no_dylib_test(name, target):
+    """Asserts a cc_library on macOS has no link action, so it builds no dylib."""
+    _no_link_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        target_compatible_with = ["@platforms//os:macos"],
+    )

@@ -1,25 +1,11 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_ENV_GENERATION_QUALITY")
 
 package(default_visibility = VIS_CLI_ENV_GENERATION_QUALITY)
 
 exports_files(["src/lib.rs"])
-
-dx_rust_crate(
-    name = "dx_shard_writer",
-    package_name = "libs/dx_shard_writer",
-    dev_deps = ["tempfile"],
-    extra_deps = [
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/output:dx_output",
-    ],
-    deps = [
-        "clap",
-        "thiserror",
-        "tracing",
-    ],
-)
 
 real_source_target(
     name = "corpus_starlark",
@@ -31,4 +17,46 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+rust_library(
+    name = "dx_shard_writer",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "libs/dx_shard_writer",
+        normal = True,
+    ),
+    crate_name = "dx_shard_writer",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "libs/dx_shard_writer",
+        normal = True,
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/output:dx_output",
+    ],
+)
+
+rust_test(
+    name = "dx_shard_writer_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "libs/dx_shard_writer",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_shard_writer",
+    deps = all_crate_deps(
+        package_name = "libs/dx_shard_writer",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/output:dx_output",
+    ],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

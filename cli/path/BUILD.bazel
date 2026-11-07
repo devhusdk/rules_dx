@@ -1,5 +1,6 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_PLATFORM")
 
 package(default_visibility = VIS_CLI_PLATFORM)
@@ -17,9 +18,8 @@ exports_files([
     "src/workspace.rs",
 ])
 
-dx_rust_crate(
+rust_library(
     name = "dx_path",
-    package_name = "cli/dx_path",
     srcs = [
         "src/bazel_package.rs",
         "src/host.rs",
@@ -28,22 +28,49 @@ dx_rust_crate(
         "src/proto_validate.rs",
         "src/runfiles.rs",
         "src/spelling.rs",
-    "src/state.rs",
+        "src/state.rs",
         "src/uri.rs",
         "src/workspace.rs",
     ],
-    dev_deps = ["tempfile"],
-    extra_deps = [
-        "@rules_rust//rust/runfiles",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
-    ],
+    aliases = aliases(
+        package_name = "cli/dx_path",
+        normal = True,
+    ),
+    crate_name = "dx_path",
+    crate_root = "src/lib.rs",
     visibility = VIS_CLI_PLATFORM + [
         "//libs/launcher:__pkg__",
         "//rego:__subpackages__",
     ],
-    deps = [
-        "thiserror",
-        "url",
+    deps = all_crate_deps(
+        package_name = "cli/dx_path",
+        normal = True,
+    ) + [
+        "@rules_rust//rust/runfiles",
+        "@rules_rust_prost//private/3rdparty/crates:prost",
+    ],
+)
+
+rust_test(
+    name = "dx_path_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_path",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_path",
+    visibility = VIS_CLI_PLATFORM + [
+        "//libs/launcher:__pkg__",
+        "//rego:__subpackages__",
+    ],
+    deps = all_crate_deps(
+        package_name = "cli/dx_path",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "@rules_rust//rust/runfiles",
+        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 
@@ -57,4 +84,9 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

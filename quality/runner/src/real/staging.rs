@@ -8,9 +8,27 @@ use super::*;
 /// Tools that never run without a bound config: the runner has no default of its own, so the
 /// tier base the policy binds is the only one.
 pub(super) const TIER_BASE_TOOLS: &[&str] = &[
-    "bicep", "biome", "checkmake", "credo", "detekt", "elvis", "ffmt", "gersemi", "gplint",
-    "hadolint", "hlint", "mbake", "pmd", "redocly", "regal", "rustfmt", "scalafix", "scalafmt",
-    "selene", "stylelint", "tflint",
+    "bicep",
+    "biome",
+    "checkmake",
+    "credo",
+    "detekt",
+    "elvis",
+    "ffmt",
+    "gersemi",
+    "gplint",
+    "hadolint",
+    "hlint",
+    "mbake",
+    "pmd",
+    "redocly",
+    "regal",
+    "rustfmt",
+    "scalafix",
+    "scalafmt",
+    "selene",
+    "stylelint",
+    "tflint",
 ];
 
 /// shfmt only reads `.editorconfig`, searching up from each file. The bound config goes in the
@@ -95,8 +113,7 @@ fn pin_bicep_cache(bound: Option<Vec<u8>>, root: &Path) -> Vec<u8> {
             ),
         );
     }
-    let mut out =
-        serde_json::to_vec_pretty(&config).unwrap_or_else(|_| b"{}\n".to_vec());
+    let mut out = serde_json::to_vec_pretty(&config).unwrap_or_else(|_| b"{}\n".to_vec());
     out.push(b'\n');
     out
 }
@@ -162,7 +179,8 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(shfmt_editorconfig(bound)),
             });
         }
-        if tool_id == "selene" && !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter())) {
+        if tool_id == "selene" && !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter()))
+        {
             // selene checks the cwd (the scratch root) before the config directory, so a
             // user config can say `std = "lua53+lua54"` without shipping the file.
             mirrors.push(MirrorFile {

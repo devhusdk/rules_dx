@@ -1,5 +1,6 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY")
 
 package(default_visibility = VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY)
@@ -11,23 +12,43 @@ exports_files([
     "src/managed.rs",
 ])
 
-dx_rust_crate(
+rust_library(
     name = "dx_atomic_fs",
-    package_name = "cli/dx_atomic_fs",
     srcs = [
         "src/commit.rs",
         "src/lease.rs",
         "src/lib.rs",
         "src/managed.rs",
     ],
-    extra_deps = ["//cli/path:dx_path"],
-    extra_test_deps = [
+    aliases = aliases(
+        package_name = "cli/dx_atomic_fs",
+        normal = True,
+    ),
+    crate_name = "dx_atomic_fs",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_atomic_fs",
+        normal = True,
+    ) + ["//cli/path:dx_path"],
+)
+
+rust_test(
+    name = "dx_atomic_fs_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_atomic_fs",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_atomic_fs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_atomic_fs",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
-    ],
-    deps = [
-        "tempfile",
-        "thiserror",
     ],
 )
 
@@ -41,4 +62,9 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

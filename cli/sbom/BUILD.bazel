@@ -1,5 +1,6 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY")
 
 package(default_visibility = VIS_CLI_DEPLOY_QUALITY)
@@ -8,19 +9,45 @@ exports_files([
     "src/lib.rs",
 ])
 
-dx_rust_crate(
+rust_library(
     name = "dx_sbom",
-    package_name = "cli/dx_sbom",
     srcs = [
         "src/cyclonedx.rs",
         "src/lib.rs",
     ],
-    test_srcs = ["src/tests.rs"],
-    deps = [
-        "serde",
-        "serde_json",
-        "spdx",
+    aliases = aliases(
+        package_name = "cli/dx_sbom",
+        normal = True,
+    ),
+    crate_name = "dx_sbom",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_sbom",
+        normal = True,
+    ) + ["@crates//:serde"],
+)
+
+rust_test(
+    name = "dx_sbom_test",
+    size = "small",
+    srcs = [
+        "src/cyclonedx.rs",
+        "src/lib.rs",
+        "src/tests.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_sbom",
+        normal = True,
+        normal_dev = True,
+    ),
+    coverage_lib = ":dx_sbom",
+    crate_name = "dx_sbom",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_sbom",
+        normal = True,
+        normal_dev = True,
+    ) + ["@crates//:serde"],
 )
 
 real_source_target(
@@ -33,4 +60,9 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

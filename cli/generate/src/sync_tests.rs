@@ -132,6 +132,32 @@ fn a_root_ruff_toml_rerenders() {
 }
 
 #[test]
+fn an_override_copy_rebinds_hlint() {
+    let haskell = |root: &Path, count: &mut usize| {
+        sync_with(root, Mode::Fast, &["haskell"], count).expect("sync")
+    };
+    let dir = workspace();
+    write(
+        dir.path(),
+        "dx.toml",
+        "schema_version = 1\n[families.haskell]\nlint = [\"hlint\"]\n",
+    );
+    haskell(dir.path(), &mut 0);
+    assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("hlint_config("));
+    write(
+        dir.path(),
+        ".hlint.yaml",
+        "# dx: override of base abc\n- warn: {name: x}\n",
+    );
+    let mut count = 0;
+    haskell(dir.path(), &mut count);
+    assert_eq!(count, 1);
+    let build = read(dir.path(), ".dx/BUILD.bazel");
+    assert!(build.contains("hlint_config("), "{build}");
+    assert!(build.contains("src = \"//:.hlint.yaml\""), "{build}");
+}
+
+#[test]
 fn a_deleted_output_is_restored() {
     let dir = synced();
     let base = read(dir.path(), RUFF_BASE);

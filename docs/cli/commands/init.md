@@ -251,7 +251,7 @@ stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
 - One file: `tools/dx test <file>`.
 - One test: `tools/dx test <label> -- --test_filter=<name>`.
 - Read the `--output=json` result.
-- Lint config: edit the tool's own root file; the tier is `tier` in dx.toml; never edit `.dx/` (generated, drift-checked).
+- Lint config: edit the tool's own root file; for tools without extends, run `tools/dx config override <tool>`; the tier is `tier` in dx.toml; never edit `.dx/` (generated, drift-checked).
 <!-- dx:end -->
 ```
 

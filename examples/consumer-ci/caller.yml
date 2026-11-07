@@ -8,7 +8,7 @@ on:
   workflow_dispatch: {}
 jobs:
   dx:
-    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@32c4bcd07a0887dfff761a45206c714baf8e6a20
+    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@d0b7fb20347ab37231cc7fdf55a54e93b7a0071e
     with:
       platforms: '["linux_x86_64"]'
       remote_cache: ${{ vars.DX_REMOTE_CACHE }}

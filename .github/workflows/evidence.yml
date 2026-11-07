@@ -211,7 +211,8 @@ jobs:
         run: |
           read -ra flags <<< "$DX_FLAGS"
           denies=()
-          for root in "$(printenv ProgramFiles)" "$(printenv 'ProgramFiles(x86)')"; do
+          # Git Bash upper-cases ProgramFiles but keeps ProgramFiles(x86) as is.
+          for root in "${PROGRAMFILES:-$(printenv ProgramFiles)}" "$(printenv 'ProgramFiles(x86)')"; do
             [ -n "$root" ] || continue
             for name in "Microsoft Visual Studio" "Windows Kits" "Microsoft SDKs"; do
               dir="$root\\$name"
@@ -237,7 +238,7 @@ jobs:
           DX_HERMETIC_BAZELISK="$(command -v bazel)"
           export DX_HERMETIC_BAZELISK
           startup=()
-          extra=()
+          extra=(--notrack_incremental_state --nokeep_state_after_build)
           downloads=()
           # The determinism check reads outputs from the execution root, so only a plain run leaves them remote.
           [ "$DX_RELOCATE" = true ] || downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")

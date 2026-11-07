@@ -132,7 +132,7 @@ DOC_TOOLS = {
 
 # The tool and rule that report unused code per row. A language row missing here has no dead-code tool yet; "none" marks a language where none exists.
 DEAD_CODE = {
-    "cc": ["none"],
+    "cc": ["clang_tidy misc-unused-parameters, misc-unused-using-decls"],
     "csharp": ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
     "cuda": ["none"],
     "d": ["none"],
@@ -140,6 +140,7 @@ DEAD_CODE = {
     "fortran": ["fortitude C191 unreachable-statement"],
     "go": ["staticcheck U1000"],
     "haskell": ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
+    "java": ["pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter"],
     "javascript": ["eslint no-unused-vars"],
     "julia": ["none"],
     "kotlin": ["detekt"],
@@ -147,7 +148,7 @@ DEAD_CODE = {
     "nix": ["deadnix"],
     "ocaml": ["ocamlc warnings 26, 27, 32 to 39"],
     "perl": ["perlcritic ProhibitUnusedVariables"],
-    "php": ["none"],
+    "php": ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
     "powershell": ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
     "python": ["ruff F401, F841"],
     "ruby": ["rubocop Lint/UselessAssignment"],
@@ -156,6 +157,7 @@ DEAD_CODE = {
     "shell": ["shellcheck SC2034"],
     "starlark": ["buildifier unused-variable"],
     "typescript": ["eslint no-unused-vars"],
+    "zig": ["zig ast-check unused local, unused parameter"],
 }
 
 # The coverage collector each row's tests write LCOV with. A row in neither dict has no coverage to report.

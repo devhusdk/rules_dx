@@ -44,6 +44,7 @@ rust_library(
         normal = True,
     ),
     compile_data = [
+        "//quality/tiers/cmakelint:standard.cmakelintrc",
         "//quality/tiers/deadnix:standard.txt",
         "//quality/tiers/julialint:standard.toml",
         "//quality/tiers/markdown_check:standard.txt",
@@ -175,6 +176,7 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
+        "//quality/tiers/cmakelint:standard.cmakelintrc",
         "//quality/tiers/deadnix:standard.txt",
         "//quality/tiers/julialint:standard.toml",
         "//quality/tiers/markdown_check:standard.txt",

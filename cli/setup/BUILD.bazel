@@ -1,5 +1,6 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
@@ -8,9 +9,8 @@ exports_files([
     "src/lib.rs",
 ])
 
-dx_rust_crate(
+rust_library(
     name = "dx_setup",
-    package_name = "cli/dx_setup",
     srcs = [
         "src/lib.rs",
         "src/prune.rs",
@@ -21,30 +21,63 @@ dx_rust_crate(
         "src/prune/planning.rs",
         "src/prune/records.rs",
     ],
-    dev_deps = ["insta"],
-    extra_deps = [
+    aliases = aliases(
+        package_name = "cli/dx_setup",
+        normal = True,
+    ),
+    crate_name = "dx_setup",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_setup",
+        normal = True,
+    ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//cli/roots:dx_roots",
     ],
-    extra_test_deps = [
-        "//cli/process:dx_process",
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
+)
+
+rust_test(
+    name = "dx_setup_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/prune.rs",
+        "src/prune/apply.rs",
+        "src/prune/fixtures.rs",
+        "src/prune/hold.rs",
+        "src/prune/hold_tests.rs",
+        "src/prune/inventory.rs",
+        "src/prune/live.rs",
+        "src/prune/planning.rs",
+        "src/prune/records.rs",
     ],
-    test_data = ["//tools/testing/process_probe"],
-    test_env = {
+    aliases = aliases(
+        package_name = "cli/dx_setup",
+        normal = True,
+        normal_dev = True,
+    ),
+    coverage_lib = ":dx_setup",
+    crate_name = "dx_setup",
+    crate_root = "src/lib.rs",
+    data = ["//tools/testing/process_probe"],
+    env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
-    test_srcs = [
-        "src/lib_tests.rs",
-        "src/prune/fixtures.rs",
-        "src/prune/hold_tests.rs",
-    ],
-    deps = [
-        "thiserror",
-        "walkdir",
+    deps = all_crate_deps(
+        package_name = "cli/dx_setup",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//cli/roots:dx_roots",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
     ],
 )
 
@@ -58,4 +91,9 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

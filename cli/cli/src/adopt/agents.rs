@@ -13,6 +13,7 @@ pub(crate) fn block() -> String {
     let worktree = Command::Worktree.name();
     let check = Command::Check.name();
     let test = Command::Test.name();
+    let config = Command::Config.name();
     format!(
         "{BEGIN}\n\
          - Start: `{dx} {worktree} add <branch>`. Finish: `{dx} {worktree} release`.\n\
@@ -22,7 +23,7 @@ pub(crate) fn block() -> String {
          - One file: `{dx} {test} <file>`.\n\
          - One test: `{dx} {test} <label> -- --test_filter=<name>`.\n\
          - Read the `--output=json` result.\n\
-         - Lint config: edit the tool's own root file; the tier is `tier` in dx.toml; never edit `.dx/` (generated, drift-checked).\n\
+         - Lint config: edit the tool's own root file; for tools without extends, run `{dx} {config} override <tool>`; the tier is `tier` in dx.toml; never edit `.dx/` (generated, drift-checked).\n\
          {END}\n"
     )
 }

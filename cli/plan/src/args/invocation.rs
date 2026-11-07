@@ -289,10 +289,6 @@ pub struct Invocation {
     pub add_missing: bool,
     /// `dx update --pr`: open or refresh one pull request per group.
     pub pr: bool,
-    /// `dx release --apply --push`: push the branch and the tag.
-    pub push: bool,
-    /// `dx release --no-api-compat`: do not run the api_compat step of the deploy targets.
-    pub no_api_compat: bool,
     /// `dx update --group`: `package`, `set` or `all`; `set` when absent.
     pub group: Option<String>,
     /// `dx update --labels`: comma-separated labels for new pull requests.
@@ -720,8 +716,6 @@ mod tests {
             expunge: false,
             add_missing: false,
             pr: false,
-            push: false,
-            no_api_compat: false,
             group: None,
             labels: None,
             automerge: None,

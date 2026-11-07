@@ -1029,27 +1029,30 @@ fn windows_capable_jobs_check_out_in_parallel() {
         let text = read_runfiles(path);
         let mut job = "";
         let mut windows_capable = false;
-        let mut workers_set = false;
-        for line in text.lines() {
+        let mut plain_git = false;
+        for line in text.lines().chain(std::iter::once("  end:")) {
             if line.starts_with("  ") && !line.starts_with("   ") && line.trim_end().ends_with(':') {
+                assert!(
+                    !windows_capable || plain_git,
+                    "{path} {job} can run on Windows but does not check out with plain git and -c checkout.workers=0"
+                );
                 job = line.trim();
                 windows_capable = false;
-                workers_set = false;
+                plain_git = false;
             } else if let Some(runner) = line.strip_prefix("    runs-on:") {
                 let runner = runner.trim();
                 windows_capable = !(runner.starts_with("ubuntu-") || runner.starts_with("macos-"));
-            } else if line.contains("checkout.workers 0") {
-                workers_set = true;
+            } else if line.contains("-c checkout.workers=0 checkout --force FETCH_HEAD") {
+                plain_git = true;
             } else if line.contains("actions/checkout@") {
                 assert!(
-                    !windows_capable || workers_set,
-                    "{path} {job} can run on Windows but does not set checkout.workers 0 before actions/checkout"
+                    !windows_capable,
+                    "{path} {job} can run on Windows but uses actions/checkout"
                 );
             }
         }
     }
 }
-
 
 #[test]
 fn the_scalafmt_tiers_pin_the_version_the_toolchain_downloads() {

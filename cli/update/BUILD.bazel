@@ -1,5 +1,6 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI + ["//deploy/rules:__pkg__"])
@@ -8,13 +9,13 @@ exports_files([
     "src/lib.rs",
 ])
 
-dx_rust_crate(
+rust_library(
     name = "dx_update",
-    package_name = "cli/dx_update",
     srcs = [
         "src/accept.rs",
         "src/advisory.rs",
         "src/backend.rs",
+        "src/conventional.rs",
         "src/discover/bcr.rs",
         "src/discover/cabal.rs",
         "src/discover/cargo.rs",
@@ -39,7 +40,6 @@ dx_rust_crate(
         "src/edit/add_plans.rs",
         "src/edit/gha.rs",
         "src/edit/mod.rs",
-        "src/edit/own_version.rs",
         "src/edit/request.rs",
         "src/edit/request_cargo.rs",
         "src/edit/request_opam.rs",
@@ -52,43 +52,107 @@ dx_rust_crate(
         "src/policy.rs",
         "src/pr.rs",
         "src/recovery.rs",
-        "src/release/conventional.rs",
-        "src/release/mod.rs",
         "src/report.rs",
-        "src/root_sets_tests.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_update",
+        normal = True,
+    ),
     # Root files read through `include_str!` by src/root_sets_tests.rs.
     compile_data = glob(["testdata/*.log"]) + [
         "//:MODULE.bazel",
         "//third_party/dotnet:extension.bzl",
         "//third_party/dotnet:paket.dependencies",
     ],
-    dev_deps = ["toml"],
-    extra_deps = [
+    crate_name = "dx_update",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_update",
+        normal = True,
+    ) + [
         "//cli/adopt:dx_adopt",
         "//cli/digest:dx_digest",
-        "//libs/gomod:dx_gomod",
         "//cli/process:dx_process",
+        "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",
+        "@crates//:serde_json",
     ],
-    extra_test_deps = [
-        "//cli/test_scratch:dx_test_scratch",
-    ],
-    test_srcs = [
+)
+
+rust_test(
+    name = "dx_update_test",
+    size = "small",
+    srcs = [
+        "src/accept.rs",
+        "src/advisory.rs",
+        "src/backend.rs",
+        "src/conventional.rs",
+        "src/discover/bcr.rs",
+        "src/discover/cabal.rs",
+        "src/discover/cargo.rs",
+        "src/discover/composer.rs",
+        "src/discover/containers.rs",
+        "src/discover/cpan.rs",
+        "src/discover/dub.rs",
+        "src/discover/github.rs",
+        "src/discover/go.rs",
+        "src/discover/hex.rs",
+        "src/discover/julia.rs",
+        "src/discover/maven.rs",
+        "src/discover/mod.rs",
+        "src/discover/npm.rs",
+        "src/discover/nuget.rs",
+        "src/discover/opam.rs",
+        "src/discover/pub_dev.rs",
+        "src/discover/pypi.rs",
+        "src/discover/ruby.rs",
+        "src/discover/swiftpm.rs",
+        "src/edit/add.rs",
+        "src/edit/add_plans.rs",
         "src/edit/add_tests.rs",
-        "src/edit/own_version_tests.rs",
+        "src/edit/gha.rs",
+        "src/edit/mod.rs",
+        "src/edit/request.rs",
+        "src/edit/request_cargo.rs",
+        "src/edit/request_opam.rs",
+        "src/edit/request_plans.rs",
+        "src/edit/request_pyproject.rs",
         "src/edit/request_tests.rs",
-        "src/release/tests.rs",
+        "src/edit/sets.rs",
+        "src/edit/version.rs",
+        "src/lib.rs",
+        "src/outcome.rs",
+        "src/policy.rs",
+        "src/pr.rs",
+        "src/recovery.rs",
+        "src/report.rs",
+        "src/root_sets_tests.rs",
     ],
-    deps = [
-        "mvn_version",
-        "nodejs-semver",
-        "pep440_rs",
-        "saphyr-parser",
-        "semver",
-        "serde_json",
-        "thiserror",
-        "toml_edit",
+    aliases = aliases(
+        package_name = "cli/dx_update",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = glob(["testdata/*.log"]) + [
+        "//:MODULE.bazel",
+        "//third_party/dotnet:extension.bzl",
+        "//third_party/dotnet:paket.dependencies",
+    ],
+    coverage_lib = ":dx_update",
+    crate_name = "dx_update",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_update",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/adopt:dx_adopt",
+        "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
+        "//libs/gomod:dx_gomod",
+        "//libs/module_bazel:dx_module_bazel",
+        "@crates//:serde_json",
     ],
 )
 
@@ -113,5 +177,10 @@ alias(
 alias(
     name = "python_files",
     actual = "@python_3_12//:files",
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["Cargo.toml"],
     visibility = ["//visibility:public"],
 )

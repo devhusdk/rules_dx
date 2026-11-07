@@ -677,8 +677,7 @@ mod tests {
                 | Command::Upgrade
                 | Command::Status
                 | Command::Config
-                | Command::Worktree
-                | Command::Release => {
+                | Command::Worktree => {
                     assert!(fixed.is_empty(), "{command:?} takes no candidates");
                     assert!(!labels, "{command:?} takes no labels");
                 }

@@ -1,21 +1,8 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
-
-dx_rust_crate(
-    name = "dx_symbols",
-    package_name = "deploy/dx_symbols",
-    srcs = ["src/lib.rs"],
-    test_srcs = ["src/tests.rs"],
-    deps = [
-        "object",
-        "serde_json",
-        "sha2",
-    ],
-)
 
 rust_binary(
     name = "split",
@@ -163,4 +150,46 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+rust_library(
+    name = "dx_symbols",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_symbols",
+        normal = True,
+    ),
+    crate_name = "dx_symbols",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_symbols",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "dx_symbols_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "deploy/dx_symbols",
+        normal = True,
+        normal_dev = True,
+    ),
+    coverage_lib = ":dx_symbols",
+    crate_name = "dx_symbols",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_symbols",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

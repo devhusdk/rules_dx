@@ -1,12 +1,12 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
 
-dx_rust_crate(
+rust_library(
     name = "dx_adopt",
-    package_name = "cli/dx_adopt",
     srcs = [
         "src/build_output.rs",
         "src/defaults.rs",
@@ -19,7 +19,6 @@ dx_rust_crate(
         "src/legacy_layout.rs",
         "src/lib.rs",
         "src/load_graph.rs",
-        "src/local_paths_tests.rs",
         "src/lock_hubs.rs",
         "src/module_pin.rs",
         "src/overrides.rs",
@@ -27,13 +26,17 @@ dx_rust_crate(
         "src/preflight.rs",
         "src/preset.rs",
         "src/preset_fragment.rs",
+        "src/rule_keys.rs",
         "src/scaffold.rs",
         "src/status.rs",
-        "src/rule_keys.rs",
         "src/upgrade.rs",
         "src/version.rs",
         "src/watch.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_adopt",
+        normal = True,
+    ),
     # Patches dx copies into consumers through `include_str!` in src/overrides.rs.
     compile_data = [
         "//quality/tiers:all",
@@ -87,10 +90,17 @@ dx_rust_crate(
         "//patches/windows_support:dx_msvc_layout.patch",
         "//patches/windows_support:source_directory_headers.patch",
     ],
-    dev_deps = [
-        "insta",
+    crate_name = "dx_adopt",
+    crate_root = "src/lib.rs",
+    visibility = VIS_CLI + [
+        "//modules:__pkg__",
+        "//tools/ci:__pkg__",
+        "//tools/docs/support_matrix:__pkg__",
     ],
-    extra_deps = [
+    deps = all_crate_deps(
+        package_name = "cli/dx_adopt",
+        normal = True,
+    ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/dx_config",
         "//cli/generate:dx_generate",
@@ -103,11 +113,99 @@ dx_rust_crate(
         "//modules:dx_versions",
         "//tools/bazelrc:dx_preset",
     ],
-    extra_test_deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
+)
+
+rust_test(
+    name = "dx_adopt_test",
+    size = "small",
+    srcs = [
+        "src/build_output.rs",
+        "src/defaults.rs",
+        "src/dependency_sets.rs",
+        "src/error.rs",
+        "src/families.rs",
+        "src/git_changes.rs",
+        "src/init_dir.rs",
+        "src/launcher.rs",
+        "src/legacy_layout.rs",
+        "src/lib.rs",
+        "src/load_graph.rs",
+        "src/local_paths_tests.rs",
+        "src/lock_hubs.rs",
+        "src/module_pin.rs",
+        "src/overrides.rs",
+        "src/ownership.rs",
+        "src/preflight.rs",
+        "src/preset.rs",
+        "src/preset_fragment.rs",
+        "src/rule_keys.rs",
+        "src/scaffold.rs",
+        "src/status.rs",
+        "src/upgrade.rs",
+        "src/version.rs",
+        "src/watch.rs",
     ],
-    test_data = glob(["src/*.rs"]) + [
+    aliases = aliases(
+        package_name = "cli/dx_adopt",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = [
+        "//quality/tiers:all",
+        "//quality/tiers/gopls:gopls_standard.json",
+        "//quality/tiers/gopls:gopls_strict.json",
+        "//.github:workflows/dx-update.yml",
+        "//cli/prebuilt:pins.bzl",
+        "//modules:consumer_graph.json",
+        "//patches/rules_dart:coverage.patch",
+        "//patches/rules_python:single_import_lib.patch",
+        "//patches/rules_py:py_cc_toolchain_platform.patch",
+        "//patches/rules_py:native_sdist_toolchain_flags.patch",
+        "//patches/rules_py:pep517_msvc.patch",
+        "//patches/rules_py:venv_bin_files.patch",
+        "//patches/aspect_rules_ts:typecheck_root_dir.patch",
+        "//patches/avro-cpp:iterator.patch",
+        "//patches/gcc_toolchain:runtime_libs.patch",
+        "//patches/gcc_toolchain:sanitizer_spec.patch",
+        "//patches/gcc_toolchain:target_identity_config.patch",
+        "//patches/gcc_toolchain:target_identity_defs.patch",
+        "//patches/gcc_toolchain:target_identity_extension.patch",
+        "//patches/gcc_toolchain:native_include_layout.patch",
+        "//patches/protobuf:no_crate_universe.patch",
+        "//patches/rules_android:bundle_keystore_properties.patch",
+        "//patches/rules_kotlin:windows_coverage_test_suite.patch",
+        "//patches/hermetic_launcher:windows_arm64_toolchains.patch",
+        "//patches/rules_cuda:msvc_dlink_crt.patch",
+        "//patches/rules_cuda:redist_cccl_key.patch",
+        "//patches/rules_flutter:lock_extension.patch",
+        "//patches/rules_flutter:missing_font.patch",
+        "//patches/rules_flutter:registrant_javacopts.patch",
+        "//patches/rules_julia:package_annotation_version.patch",
+        "//patches/rules_julia:package_name.patch",
+        "//patches/rules_julia:portable_cpu_target.patch",
+        "//patches/rules_rust:clippy_metadata_inputs.patch",
+        "//patches/rules_rust:pipelined_rmeta_path.patch",
+        "//patches/rules_rust:crate_universe_root_lookup.patch",
+        "//patches/rules_rust:exec_cc_toolchain_env.patch",
+        "//patches/rules_rust:msvc_pdb_output.patch",
+        "//patches/rules_rust:rust_lld_msvc_libpath.patch",
+        "//patches/rules_rust:crate_universe_lazy_host_tools.patch",
+        "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
+        "//patches/llvm:libunwind_copy.patch",
+        "//patches/llvm:clang_cl_crt_default_lib.patch",
+        "//patches/llvm:unwatched_overlay_inputs.patch",
+        "//patches/llvm:msvc_source_directories.patch",
+        "//patches/llvm:lse_atomic_sources.patch",
+        "//patches/windows_support:host_tools.patch",
+        "//patches/windows_support:rules_dx_hosts.patch",
+        "//patches/windows_support:hostarm64_packages.patch",
+        "//patches/windows_support:dx_msvc_layout.patch",
+        "//patches/windows_support:source_directory_headers.patch",
+    ],
+    coverage_lib = ":dx_adopt",
+    crate_name = "dx_adopt",
+    crate_root = "src/lib.rs",
+    data = glob(["src/*.rs"]) + [
         ":python_files",
         ":python_interpreter",
         "//:.bazelversion",
@@ -117,7 +215,7 @@ dx_rust_crate(
         "//modules:cuda.bzl",
         "@dx_tools//:shellcheck",
     ],
-    test_env = {
+    env = {
         "DX_PYTHON": "$(rootpath :python_interpreter)",
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
     },
@@ -126,14 +224,24 @@ dx_rust_crate(
         "//tools/ci:__pkg__",
         "//tools/docs/support_matrix:__pkg__",
     ],
-    deps = [
-        "notify",
-        "notify-debouncer-mini",
-        "semver",
-        "serde",
-        "serde_json",
-        "thiserror",
-        "toml",
+    deps = all_crate_deps(
+        package_name = "cli/dx_adopt",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/dx_config",
+        "//cli/generate:dx_generate",
+        "//cli/ide:dx_ide",
+        "//cli/merge:dx_merge",
+        "//cli/path:dx_path",
+        "//cli/test_scratch:dx_test_scratch",
+        "//libs/families:dx_families",
+        "//libs/gomod:dx_gomod",
+        "//libs/module_bazel:dx_module_bazel",
+        "//modules:dx_versions",
+        "//tools/bazelrc:dx_preset",
+        "//tools/testing:dx_testing",
     ],
 )
 
@@ -163,4 +271,9 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

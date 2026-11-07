@@ -85,10 +85,7 @@ pub(super) fn rustfmt_defaults(
         .find(|pair| pair[0] == "--config-path")
         .map(|pair| pair[1].clone())
         .expect("rustfmt passes --config-path");
-    assert!(
-        Path::new(&config).is_file(),
-        "bound config is materialized"
-    );
+    assert!(Path::new(&config).is_file(), "bound config is materialized");
     Ok(ChildOutput {
         code: Some(0),
         stdout: Vec::new(),
@@ -920,11 +917,7 @@ pub(super) fn rustfmt_caller_edition_reaches_the_tool() {
 
 #[test]
 pub(super) fn rustfmt_without_edition_fails_the_action() {
-    let backend = backend_for(
-        "rustfmt",
-        bound_tool("rustfmt.toml", b""),
-        rustfmt_defaults,
-    );
+    let backend = backend_for("rustfmt", bound_tool("rustfmt.toml", b""), rustfmt_defaults);
     let err = backend
         .diagnose(
             "rustfmt",

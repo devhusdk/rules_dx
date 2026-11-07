@@ -1,6 +1,7 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//quality:tools_gen.bzl", "config_tools_gen")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_QUALITY")
 
 package(default_visibility = VIS_CLI)
@@ -18,9 +19,8 @@ config_tools_gen(
     visibility = VIS_QUALITY,
 )
 
-dx_rust_crate(
+rust_library(
     name = "dx_generate",
-    package_name = "cli/dx_generate",
     srcs = [
         "src/lib.rs",
         "src/references.rs",
@@ -28,9 +28,17 @@ dx_rust_crate(
         "src/sync.rs",
         "src/tools_gen.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_generate",
+        normal = True,
+    ),
     compile_data = ["//quality/tiers:all"],
-    dev_deps = ["insta"],
-    extra_deps = [
+    crate_name = "dx_generate",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_generate",
+        normal = True,
+    ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
@@ -39,27 +47,55 @@ dx_rust_crate(
         "//libs/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],
-    extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
-    test_data = [
+)
+
+rust_test(
+    name = "dx_generate_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/references.rs",
+        "src/render_tests.rs",
+        "src/root_block.rs",
+        "src/sync.rs",
+        "src/sync_tests.rs",
+        "src/tools_gen.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_generate",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = ["//quality/tiers:all"],
+    coverage_lib = ":dx_generate",
+    crate_name = "dx_generate",
+    crate_root = "src/lib.rs",
+    data = [
         "//gazelle/python:dx_generate_fixpoint_testdata",
         "//gazelle/python:testdata/dx_generate_existing_exports/WORKSPACE",
         "//gazelle/python:testdata/dx_generate_standard/WORKSPACE",
         "//quality/tests/fixtures/generated_policy:BUILD.bazel",
         "@dx_tools//:buildifier",
     ],
-    test_env = {
+    env = {
         "DX_BUILDIFIER": "$(rootpath @dx_tools//:buildifier)",
         "DX_FIXPOINT_EXISTING_EXPORTS": "$(rootpath //gazelle/python:testdata/dx_generate_existing_exports/WORKSPACE)",
         "DX_FIXPOINT_STANDARD": "$(rootpath //gazelle/python:testdata/dx_generate_standard/WORKSPACE)",
         "DX_GENERATED_POLICY": "$(rootpath //quality/tests/fixtures/generated_policy:BUILD.bazel)",
     },
-    test_srcs = [
-        "src/render_tests.rs",
-        "src/sync_tests.rs",
-    ],
-    deps = [
-        "ignore",
-        "thiserror",
+    deps = all_crate_deps(
+        package_name = "cli/dx_generate",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+        "//cli/dx_config",
+        "//cli/merge:dx_merge",
+        "//cli/path:dx_path",
+        "//cli/test_scratch:dx_test_scratch",
+        "//libs/module_bazel:dx_module_bazel",
+        "//tools/bazelrc:dx_preset",
     ],
 )
 
@@ -73,4 +109,9 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
 )

@@ -1,13 +1,14 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//quality:dx_config_gen.bzl", "dx_config_gen")
-load("//rust/rules:crate.bzl", "dx_rust_crate")
-load("//rust/rules:defs.bzl", "rust_binary")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
 
 exports_files(
     [
+        "Cargo.toml",
         "schema/dx.schema.json",
         "src/lib.rs",
     ],
@@ -16,9 +17,8 @@ exports_files(
 
 dx_config_gen(name = "update_curated_defaults")
 
-dx_rust_crate(
+rust_library(
     name = "dx_config",
-    package_name = "cli/dx_config",
     srcs = [
         "src/config.rs",
         "src/conventions.rs",
@@ -27,24 +27,48 @@ dx_rust_crate(
         "src/schema.rs",
         "src/select.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_config",
+        normal = True,
+    ),
     compile_data = ["schema/dx.schema.json"],
-    dev_deps = [
-        "jsonschema",
-        "serde_json",
-    ],
-    test_srcs = [
+    crate_name = "dx_config",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_config",
+        normal = True,
+    ) + ["@crates//:serde"],
+)
+
+rust_test(
+    name = "dx_config_test",
+    size = "small",
+    srcs = [
+        "src/config.rs",
         "src/config_tests.rs",
+        "src/conventions.rs",
         "src/conventions_tests.rs",
+        "src/curated_defaults_gen.rs",
+        "src/lib.rs",
+        "src/schema.rs",
         "src/schema_tests.rs",
+        "src/select.rs",
         "src/select_tests.rs",
     ],
-    deps = [
-        "chrono",
-        "schemars",
-        "serde",
-        "thiserror",
-        "toml",
-    ],
+    aliases = aliases(
+        package_name = "cli/dx_config",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = ["schema/dx.schema.json"],
+    coverage_lib = ":dx_config",
+    crate_name = "dx_config",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_config",
+        normal = True,
+        normal_dev = True,
+    ) + ["@crates//:serde"],
 )
 
 # keep

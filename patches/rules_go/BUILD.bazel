@@ -3,6 +3,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 exports_files([
     "lazy_nogo.patch",
     "lock_extension.patch",
+    "root_sdks_only.patch",
 ])
 
 real_source_target(

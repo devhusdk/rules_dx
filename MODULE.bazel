@@ -217,12 +217,14 @@ bazel_dep(name = "rules_go", version = "0.65.0")
 
 # lock_extension.patch locks the host-dependent go_sdk extension per platform; lock-refresh.yml refreshes it.
 # lazy_nogo.patch keeps toolchain resolution from fetching @io_bazel_rules_nogo in builds without Go targets.
+# root_sdks_only.patch skips registering other modules' Go SDK toolchains when the root declares its own (#9203).
 single_version_override(
     module_name = "rules_go",
     patch_strip = 1,
     patches = [
         "//patches/rules_go:lazy_nogo.patch",
         "//patches/rules_go:lock_extension.patch",
+        "//patches/rules_go:root_sdks_only.patch",  # upstream: https://github.com/bazel-contrib/rules_go/issues/4779
     ],
     version = "0.65.0",
 )
@@ -1326,6 +1328,7 @@ archive_override(
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:venv_bin_files.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1670
+        "//patches/rules_py:platform_flags_package.patch",  # upstream: https://github.com/aspect-build/rules_py/issues/1675
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],

@@ -1,0 +1,58 @@
+diff --git a/go/private/extensions.bzl b/go/private/extensions.bzl
+index 6670626..d7b865f 100644
+--- a/go/private/extensions.bzl
++++ b/go/private/extensions.bzl
+@@ -228,7 +228,17 @@ def _go_sdk_impl(ctx):
+         used_sdks_by_version[version] = sdks
+         return sdks
+ 
++    # Toolchains declared by the root module are registered first and always win, so skip
++    # registering the ones other modules declare. Their SDK repos are still created.
++    root_has_sdk = any([
++        module.tags.download or module.tags.from_file or module.tags.wrap or module.tags.host
++        for module in ctx.modules
++        if module.is_root
++    ])
++
+     for module in ctx.modules:
++        module_toolchains = toolchains if module.is_root or not root_has_sdk else []
++
+         # Apply wrapped toolchains first to override specific platforms from the
+         # default toolchain or any downloads.
+         for index, wrap_tag in enumerate(module.tags.wrap):
+@@ -245,7 +255,7 @@ def _go_sdk_impl(ctx):
+                 version = wrap_tag.version,
+                 experiments = wrap_tag.experiments,
+             )
+-            toolchains.append(struct(
++            module_toolchains.append(struct(
+                 goos = wrap_tag.goos,
+                 goarch = wrap_tag.goarch,
+                 sdk_repo = name,
+@@ -318,7 +328,7 @@ def _go_sdk_impl(ctx):
+             if (not download_tag.goos or download_tag.goos == host_detected_goos) and (not download_tag.goarch or download_tag.goarch == host_detected_goarch):
+                 first_host_compatible_toolchain = first_host_compatible_toolchain or "@{}//:host_compatible_root_file".format(name)
+ 
+-            toolchains.append(struct(
++            module_toolchains.append(struct(
+                 goos = download_tag.goos,
+                 goarch = download_tag.goarch,
+                 sdk_repo = name,
+@@ -355,7 +365,7 @@ def _go_sdk_impl(ctx):
+                         download_tag = download_tag,
+                     )
+ 
+-                    toolchains.append(struct(
++                    module_toolchains.append(struct(
+                         goos = goos,
+                         goarch = goarch,
+                         sdk_repo = default_name,
+@@ -382,7 +392,7 @@ def _go_sdk_impl(ctx):
+                 experiments = host_tag.experiments,
+             )
+ 
+-            toolchains.append(struct(
++            module_toolchains.append(struct(
+                 goos = "",
+                 goarch = "",
+                 sdk_repo = name,

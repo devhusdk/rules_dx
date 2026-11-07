@@ -1,0 +1,230 @@
+diff --git a/py/private/interpreter/repository.bzl b/py/private/interpreter/repository.bzl
+index 4f115d8..decf48e 100644
+--- a/py/private/interpreter/repository.bzl
++++ b/py/private/interpreter/repository.bzl
+@@ -347,7 +347,7 @@ def _platform_setting_name(flag, value):
+     """Generate a unique config_setting name for a flag/value pair."""
+ 
+     # Extract the last path component of the flag label as a readable prefix,
+-    # e.g. "@rules_py//uv/private/constraints/platform:platform_libc"
++    # e.g. "@rules_py//uv/private/constraints/platform/flags:platform_libc"
+     # -> "platform_libc_glibc"
+     name = flag.split(":")[-1] if ":" in flag else flag.split("/")[-1]
+     return "{}_is_{}".format(name, value)
+diff --git a/uv/private/constraints/platform/BUILD.bazel b/uv/private/constraints/platform/BUILD.bazel
+index 374b24f..a52f14e 100644
+--- a/uv/private/constraints/platform/BUILD.bazel
++++ b/uv/private/constraints/platform/BUILD.bazel
+@@ -1,7 +1,5 @@
+ load("@bazel_lib//:bzl_library.bzl", "bzl_library")
+ load("@bazel_skylib//lib:selects.bzl", "selects")
+-load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+-load("@rules_py_uv_host//:defs.bzl", "CURRENT_PLATFORM_LIBC", "CURRENT_PLATFORM_VERSION")
+ load(":macro.bzl", "generate")
+ 
+ package(default_visibility = ["//visibility:public"])
+@@ -40,23 +38,22 @@ alias(
+     visibility = ["//visibility:public"],
+ )
+ 
+-# The flags we transition and select on
+-string_flag(
++alias(
+     name = "platform_libc",
+-    build_setting_default = CURRENT_PLATFORM_LIBC,
++    actual = "//uv/private/constraints/platform/flags:platform_libc",
+     visibility = ["//visibility:public"],
+ )
+ 
+-string_flag(
++alias(
+     name = "platform_version",
+-    build_setting_default = CURRENT_PLATFORM_VERSION,
++    actual = "//uv/private/constraints/platform/flags:platform_version",
+     visibility = ["//visibility:public"],
+ )
+ 
+ config_setting(
+     name = "is_glibc",
+     flag_values = {
+-        ":platform_libc": "glibc",
++        "//uv/private/constraints/platform/flags:platform_libc": "glibc",
+     },
+     visibility = ["//visibility:public"],
+ )
+@@ -64,7 +61,7 @@ config_setting(
+ config_setting(
+     name = "is_musl",
+     flag_values = {
+-        ":platform_libc": "musl",
++        "//uv/private/constraints/platform/flags:platform_libc": "musl",
+     },
+     visibility = ["//visibility:public"],
+ )
+@@ -72,7 +69,7 @@ config_setting(
+ config_setting(
+     name = "is_libsystem",
+     flag_values = {
+-        ":platform_libc": "libsystem",
++        "//uv/private/constraints/platform/flags:platform_libc": "libsystem",
+     },
+     visibility = ["//visibility:public"],
+ )
+@@ -80,7 +77,7 @@ config_setting(
+ config_setting(
+     name = "is_msvc",
+     flag_values = {
+-        ":platform_libc": "msvc",
++        "//uv/private/constraints/platform/flags:platform_libc": "msvc",
+     },
+     visibility = ["//visibility:public"],
+ )
+diff --git a/uv/private/constraints/platform/defs.bzl b/uv/private/constraints/platform/defs.bzl
+index ec0768e..1061933 100644
+--- a/uv/private/constraints/platform/defs.bzl
++++ b/uv/private/constraints/platform/defs.bzl
+@@ -116,10 +116,10 @@ def supported_platform(platform_tag):
+     return platform_tag in WINDOWS_PLATFORMS
+ 
+ # Adapted from rules_python's config_settings.bzl
+-MAJOR_MINOR_FLAG = Label("//uv/private/constraints/platform:platform_version")
++MAJOR_MINOR_FLAG = Label("//uv/private/constraints/platform/flags:platform_version")
+ 
+ # String label of the platform_libc string_flag (string not Label so it can be a dict key).
+-PLATFORM_LIBC_FLAG = "@rules_py//uv/private/constraints/platform:platform_libc"
++PLATFORM_LIBC_FLAG = "@rules_py//uv/private/constraints/platform/flags:platform_libc"
+ 
+ def _platform_version_at_least_impl(ctx):
+     flag_value = ctx.attr._major_minor[BuildSettingInfo].value
+diff --git a/uv/private/constraints/platform/flags/BUILD.bazel b/uv/private/constraints/platform/flags/BUILD.bazel
+new file mode 100644
+index 0000000..9f27ad9
+--- /dev/null
++++ b/uv/private/constraints/platform/flags/BUILD.bazel
+@@ -0,0 +1,16 @@
++load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
++load("@rules_py_uv_host//:defs.bzl", "CURRENT_PLATFORM_LIBC", "CURRENT_PLATFORM_VERSION")
++
++# The flags we transition and select on. They live in their own package so that
++# toolchains selecting on them do not load the large //uv/private/constraints/platform package.
++string_flag(
++    name = "platform_libc",
++    build_setting_default = CURRENT_PLATFORM_LIBC,
++    visibility = ["//visibility:public"],
++)
++
++string_flag(
++    name = "platform_version",
++    build_setting_default = CURRENT_PLATFORM_VERSION,
++    visibility = ["//visibility:public"],
++)
+diff --git a/uv/private/constraints/platform/macro.bzl b/uv/private/constraints/platform/macro.bzl
+index ffe6fa6..79391b4 100644
+--- a/uv/private/constraints/platform/macro.bzl
++++ b/uv/private/constraints/platform/macro.bzl
+@@ -69,7 +69,7 @@ def generate_macos(visibility):
+                     name = "macosx_%s_%s_%s" % (major, minor, arch),
+                     flag_values = {
+                         version_flag: "true",
+-                        ":platform_libc": "libsystem",
++                        "//uv/private/constraints/platform/flags:platform_libc": "libsystem",
+                     },
+                     constraint_values = [
+                         "@platforms//os:osx",
+@@ -112,7 +112,7 @@ def generate_manylinux(visibility):
+                     name = "manylinux_{}_{}_{}".format(major, minor, arch),
+                     flag_values = {
+                         version_flag: "true",
+-                        ":platform_libc": "glibc",
++                        "//uv/private/constraints/platform/flags:platform_libc": "glibc",
+                     },
+                     constraint_values = [
+                         "@platforms//os:linux",
+@@ -144,7 +144,7 @@ def generate_musllinux(visibility):
+                 name = "musllinux_{}_{}_{}".format(major, minor, arch),
+                 flag_values = {
+                     version_flag: "true",
+-                    ":platform_libc": "musl",
++                    "//uv/private/constraints/platform/flags:platform_libc": "musl",
+                 },
+                 constraint_values = [
+                     "@platforms//os:linux",
+@@ -173,7 +173,7 @@ def generate_windows(visibility):
+         native.config_setting(
+             name = name,
+             flag_values = {
+-                ":platform_libc": "msvc",
++                "//uv/private/constraints/platform/flags:platform_libc": "msvc",
+             },
+             constraint_values = [
+                 "@platforms//os:windows",
+diff --git a/uv/private/pep517_whl/frontend.bzl b/uv/private/pep517_whl/frontend.bzl
+index 7f1effc..1b6a824 100644
+--- a/uv/private/pep517_whl/frontend.bzl
++++ b/uv/private/pep517_whl/frontend.bzl
+@@ -35,8 +35,8 @@ inheriting the client's.
+ 
+ load("@rules_py_uv_host//:defs.bzl", "CURRENT_PLATFORM_LIBC", "CURRENT_PLATFORM_VERSION")
+ 
+-_PLATFORM_LIBC_FLAG = str(Label("//uv/private/constraints/platform:platform_libc"))
+-_PLATFORM_VERSION_FLAG = str(Label("//uv/private/constraints/platform:platform_version"))
++_PLATFORM_LIBC_FLAG = str(Label("//uv/private/constraints/platform/flags:platform_libc"))
++_PLATFORM_VERSION_FLAG = str(Label("//uv/private/constraints/platform/flags:platform_version"))
+ 
+ def _reset_platform_flags_impl(settings, attr):
+     if settings[_PLATFORM_LIBC_FLAG] == attr.libc and \
+diff --git a/uv/private/pep517_whl/pep517_native_whl.bzl b/uv/private/pep517_whl/pep517_native_whl.bzl
+index 23d664e..259bdbd 100644
+--- a/uv/private/pep517_whl/pep517_native_whl.bzl
++++ b/uv/private/pep517_whl/pep517_native_whl.bzl
+@@ -479,7 +479,7 @@ constraints of the target platform.
+                   "the toolchain's compile and link flags are passed too.",
+         ),
+         "_platform_libc": attr.label(
+-            default = "//uv/private/constraints/platform:platform_libc",
++            default = "//uv/private/constraints/platform/flags:platform_libc",
+             doc = "Read in cross mode to pick the rust target triple (gnu vs musl).",
+         ),
+     } | CC_LAYER_ATTRS,
+diff --git a/uv/private/pep517_whl/tests/frontend_config_test.bzl b/uv/private/pep517_whl/tests/frontend_config_test.bzl
+index 1753c95..fe1fc72 100644
+--- a/uv/private/pep517_whl/tests/frontend_config_test.bzl
++++ b/uv/private/pep517_whl/tests/frontend_config_test.bzl
+@@ -27,7 +27,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+ load("@rules_py_uv_host//:defs.bzl", "CURRENT_PLATFORM_LIBC")
+ 
+-_PLATFORM_LIBC_FLAG = "//uv/private/constraints/platform:platform_libc"
++_PLATFORM_LIBC_FLAG = "//uv/private/constraints/platform/flags:platform_libc"
+ 
+ def _flag_probe_impl(ctx):
+     # Tool runfiles reach the action as an opaque middleman, so the only
+@@ -89,7 +89,7 @@ def _frontend_libc_leak_test_impl(ctx):
+ frontend_libc_leak_test = analysistest.make(
+     _frontend_libc_leak_test_impl,
+     config_settings = {
+-        "@@//uv/private/constraints/platform:platform_libc": "musl",
++        "@@//uv/private/constraints/platform/flags:platform_libc": "musl",
+     },
+ )
+ 
+diff --git a/uv/private/uv_hub/snapshots/python_interpreters.BUILD.bazel b/uv/private/uv_hub/snapshots/python_interpreters.BUILD.bazel
+index be01551..d5225a0 100644
+--- a/uv/private/uv_hub/snapshots/python_interpreters.BUILD.bazel
++++ b/uv/private/uv_hub/snapshots/python_interpreters.BUILD.bazel
+@@ -65,13 +65,13 @@ config_setting(
+ 
+ config_setting(
+     name = "platform_libc_is_glibc",
+-    flag_values = {"@rules_py//uv/private/constraints/platform:platform_libc": "glibc"},
++    flag_values = {"@rules_py//uv/private/constraints/platform/flags:platform_libc": "glibc"},
+ )
+ 
+ 
+ config_setting(
+     name = "platform_libc_is_musl",
+-    flag_values = {"@rules_py//uv/private/constraints/platform:platform_libc": "musl"},
++    flag_values = {"@rules_py//uv/private/constraints/platform/flags:platform_libc": "musl"},
+ )
+ 
+ 

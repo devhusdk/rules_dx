@@ -7,7 +7,8 @@ cp .gitlab-ci.yml <your-repo>/.gitlab-ci.yml
 Starter pipeline for GitLab. It includes the rules_dx template
 `ci/gitlab/dx.gitlab-ci.yml` at a pinned commit. To update, change the commit
 in the `include:` URL. The template runs four jobs on Linux runners: `check`,
-`build`, `test` and `coverage`. Each job runs one `dx` line:
+`build`, `test` and `coverage`, plus `fuzz` and `bench` when their inputs are
+set. Each of the four runs one `dx` line:
 
 ```sh
 bazel run @rules_dx//:dx -- check --report sarif=reports/dx.sarif //...
@@ -16,17 +17,47 @@ bazel run @rules_dx//:dx -- test --report junit=reports/junit.xml //...
 bazel run @rules_dx//:dx -- coverage --report lcov=reports/coverage.lcov //...
 ```
 
-Not included, compared with the GitHub reusable workflow
-(`.github/workflows/reusable-consumer.yml`):
+## Inputs
 
-- `--affected` on merge requests. The GitHub input is `affected_on_pr`.
+The template takes the inputs of the GitHub reusable workflow
+(`.github/workflows/reusable-consumer.yml`) under the same names. Pass them
+in the `include:` entry:
+
+```yaml
+include:
+  - remote: https://raw.githubusercontent.com/devhusdk/rules_dx/<commit>/ci/gitlab/dx.gitlab-ci.yml
+    inputs:
+      min_coverage: "80"
+      fuzz: true
+```
+
+| Input | Meaning |
+|---|---|
+| `affected_on_pr` | Default `true`. On merge requests, `check`, `build`, `test` and, without a coverage threshold, `coverage` use `--affected`. |
+| `buf_breaking_on_pr` | Default `false`. On merge requests, `check` also runs `dx lint --breaking-against`. |
+| `link_check_online` | Default `false`. Outside merge requests, `check` also runs `dx lint --online //...`. |
+| `min_coverage` | Whole number 0 to 100. Fails below it. Empty sets no threshold. |
+| `min_changed_line_coverage` | Whole number 0 to 100. Merge requests only. Empty skips it. |
+| `fuzz` | Default `false`. Adds a `fuzz` job that runs `dx fuzz` on `dx-fuzz` targets. The log is `reports/fuzz.log`; a crash fails the job and keeps `.dx/local/fuzz` under `reports/`. |
+| `fuzz_time` | Default `300s`. Time budget per fuzz target: `90s`, `5m` or `1h`. |
+| `bench` | Default `false`. Adds a `bench` job that runs `dx bench`. On merge requests it first benchmarks the merge base in a worktree under `.cache/`, then runs `dx bench --compare` against it. The table is `reports/bench.txt` and the results are `reports/last.json`. |
+| `bench_max_regression` | Default `20`. Percent a benchmark may be slower than the merge base before the `bench` job fails. |
+
+On merge requests the template fetches the target branch and points
+`origin/HEAD` at it, so `--affected`, `--breaking-against` and changed-line
+coverage find the merge base.
+
+Not included, compared with the GitHub reusable workflow:
+
 - Platforms other than Linux x86_64. The GitHub input is `platforms`.
-- Coverage gates. The GitHub inputs are `min_coverage` and
-  `min_changed_line_coverage`.
 - The `security-audit` and `license-audit` checks and the advisory snapshots.
-  The GitHub inputs are `disabled_checks` and `invocation_id`.
+  The GitHub inputs are `advisory_pr` and `invocation_id`.
+- A `remote_cache` input. Use `DX_REMOTE_BAZELRC` below.
+- A fuzz corpus cache. Each `fuzz` job starts from the checked-in seeds.
 - A fallback cache key. The GitHub workflow has no input for it. It restores
   from a key prefix when the exact key misses.
+
+## Other CI providers
 
 To run the same steps on another CI provider:
 

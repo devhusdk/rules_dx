@@ -14,12 +14,25 @@ const TEMPLATE: &str = ".dx";
 
 const FINISH: &str = ".dx_finish";
 
-/// Returns the parsed pipeline, which must be valid YAML.
+/// Returns the `spec` header, if any, and the pipeline, each of which must be a YAML mapping.
+fn documents(path: &str) -> (Option<Value>, Value) {
+    let text = read_runfiles(path);
+    let (header, body) = match text.split_once("\n---\n") {
+        Some((header, body)) => (Some(header), body),
+        None => (None, text.as_str()),
+    };
+    let parse = |part: &str| -> Value {
+        let doc: Value = yaml_serde::from_str(part)
+            .unwrap_or_else(|error| panic!("{path} is not valid YAML: {error}"));
+        assert!(doc.is_mapping(), "{path} is not a YAML mapping");
+        doc
+    };
+    (header.map(parse), parse(body))
+}
+
+/// Returns the parsed pipeline after any `spec` header.
 fn document(path: &str) -> Value {
-    let doc: Value = yaml_serde::from_str(&read_runfiles(path))
-        .unwrap_or_else(|error| panic!("{path} is not valid YAML: {error}"));
-    assert!(doc.is_mapping(), "{path} is not a YAML mapping");
-    doc
+    documents(path).1
 }
 
 /// Returns the key of one mapping entry as a string.
@@ -63,7 +76,7 @@ fn strings(path: &str, value: &Value) -> Vec<String> {
         .collect()
 }
 
-/// Returns the single dx report destination a job script writes.
+/// Returns the single report a job script writes, with `--report` or by redirecting dx.
 fn report_destination(path: &str, job: &str, body: &Value) -> String {
     let lines = strings(path, &body["script"]);
     let mut reports = Vec::new();
@@ -71,16 +84,17 @@ fn report_destination(path: &str, job: &str, body: &Value) -> String {
         let words: Vec<&str> = line.split_whitespace().collect();
         for pair in words.windows(2) {
             if pair[0] == "--report" {
+                let (_, file) = pair[1]
+                    .split_once('=')
+                    .unwrap_or_else(|| panic!("{path}: job {job} report has no destination"));
+                reports.push(file.to_owned());
+            } else if pair[0] == ">" && pair[1].starts_with("reports/") {
                 reports.push(pair[1].to_owned());
             }
         }
     }
     assert_eq!(reports.len(), 1, "{path}: job {job} must write one report");
-    reports[0]
-        .split_once('=')
-        .unwrap_or_else(|| panic!("{path}: job {job} report has no destination"))
-        .1
-        .to_owned()
+    reports.remove(0)
 }
 
 #[test]
@@ -317,4 +331,33 @@ fn strings_of_remotes(doc: &Value) -> Vec<String> {
         .filter_map(|item| item["remote"].as_str())
         .map(ToOwned::to_owned)
         .collect()
+}
+
+#[test]
+fn the_template_reads_every_input_it_declares_and_no_other() {
+    let path = PIPELINES[0];
+    let (Some(header), _) = documents(path) else {
+        panic!("{path} has no spec header");
+    };
+    let mut declared: Vec<String> = header["spec"]["inputs"]
+        .as_mapping()
+        .unwrap_or_else(|| panic!("{path} declares no spec.inputs"))
+        .keys()
+        .map(|name| key(path, name))
+        .collect();
+    declared.sort();
+    let text = read_runfiles(path);
+    let mut used: Vec<String> = text
+        .split("$[[ inputs.")
+        .skip(1)
+        .map(|rest| {
+            rest.split_once(" ]]")
+                .unwrap_or_else(|| panic!("{path}: unclosed input reference"))
+                .0
+                .to_owned()
+        })
+        .collect();
+    used.sort();
+    used.dedup();
+    assert_eq!(declared, used, "{path}: declared and read inputs differ");
 }

@@ -914,6 +914,22 @@ rust_test(
 
 # keep
 rust_test(
+    name = "gitlab_inputs_parity_test",
+    srcs = ["gitlab_inputs_parity_test.rs"],
+    data = [
+        "//.github:workflows/reusable-consumer.yml",
+        "//ci/gitlab:dx.gitlab-ci.yml",
+    ],
+    deps = [
+        ":ci_workflow",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "reusable_callers_test",
     srcs = ["reusable_callers_test.rs"],
     data = [
@@ -1002,6 +1018,7 @@ rustfmt_test(
         ":docs_deploy_test",
         ":evidence_inputs_test",
         ":gitlab_example_test",
+        ":gitlab_inputs_parity_test",
         ":release_assets_test",
         ":release_cells_runners_test",
         ":reusable_callers_test",

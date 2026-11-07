@@ -1,3 +1,42 @@
+spec:
+  inputs:
+    min_coverage:
+      description: "Required line-coverage percent, a whole number from 0 to 100. Empty collects without a threshold."
+      default: ""
+      regex: ^(100|[1-9]?[0-9])?$
+    min_changed_line_coverage:
+      description: "Required percent of the lines a merge request adds that tests cover, a whole number from 0 to 100. Empty skips the check."
+      default: ""
+      regex: ^(100|[1-9]?[0-9])?$
+    affected_on_pr:
+      description: "On merge requests, run check, build, test and (without a coverage threshold) coverage with --affected."
+      type: boolean
+      default: true
+    buf_breaking_on_pr:
+      description: "On merge requests, also run dx lint --breaking-against so buf breaking compares the proto files with the target branch."
+      type: boolean
+      default: false
+    link_check_online:
+      description: "Outside merge requests, also run dx lint --online so lychee checks external links."
+      type: boolean
+      default: false
+    fuzz:
+      description: "Run dx fuzz on targets tagged dx-fuzz. A crash fails the job and keeps .dx/local/fuzz under reports/."
+      type: boolean
+      default: false
+    fuzz_time:
+      description: "Time budget per fuzz target, such as 90s, 5m or 1h."
+      default: "300s"
+      regex: ^[0-9]{1,6}[smh]?$
+    bench:
+      description: "Run dx bench. Merge requests compare against the merge base and fail on a regression."
+      type: boolean
+      default: false
+    bench_max_regression:
+      description: "Percent a benchmark may be slower than the merge base before the bench job fails."
+      type: number
+      default: 20
+---
 default:
   image: buildpack-deps:noble-scm@sha256:59d4f4d8581d741bb2c31f4bfd00a557ca94d182d082c81bd56d32afbad8dfc9
   interruptible: true
@@ -21,6 +60,9 @@ workflow:
     - install -m755 /tmp/bazelisk /usr/local/bin/bazel
     - mkdir -p reports .cache
     - if [ -n "${DX_REMOTE_BAZELRC:-}" ]; then cp "$DX_REMOTE_BAZELRC" .cache/remote.bazelrc; fi
+    - if [ -n "${CI_MERGE_REQUEST_IID:-}" ]; then git fetch --quiet $([ "$(git rev-parse --is-shallow-repository)" = false ] || echo --unshallow) origin "+refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:refs/remotes/origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" && git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"; fi
+    - DX_SCOPE=//... DX_COVERAGE_SCOPE=//...
+    - if [ -n "${CI_MERGE_REQUEST_IID:-}" ] && [ "$[[ inputs.affected_on_pr ]]" = true ]; then DX_SCOPE=--affected; [ -n "$[[ inputs.min_coverage ]]$[[ inputs.min_changed_line_coverage ]]" ] || DX_COVERAGE_SCOPE=--affected; fi
   cache:
     key:
       prefix: $CI_JOB_NAME
@@ -47,7 +89,9 @@ check:
     DX_REPORT: reports/dx.sarif
   script:
     - status=0
-    - bazel run @rules_dx//:dx -- check --report sarif=reports/dx.sarif //... || status=$?
+    - bazel run @rules_dx//:dx -- check --report sarif=reports/dx.sarif $DX_SCOPE || status=$?
+    - '[ "$[[ inputs.buf_breaking_on_pr ]]" != true ] || [ -z "${CI_MERGE_REQUEST_IID:-}" ] || bazel run @rules_dx//:dx -- lint --breaking-against $DX_SCOPE || status=$?'
+    - '[ "$[[ inputs.link_check_online ]]" != true ] || [ -n "${CI_MERGE_REQUEST_IID:-}" ] || bazel run @rules_dx//:dx -- lint --online //... || status=$?'
     - !reference [.dx_finish, script]
 
 build:
@@ -56,7 +100,7 @@ build:
     DX_REPORT: reports/failures.json
   script:
     - status=0
-    - bazel run @rules_dx//:dx -- build --report failures=reports/failures.json //... || status=$?
+    - bazel run @rules_dx//:dx -- build --report failures=reports/failures.json $DX_SCOPE || status=$?
     - !reference [.dx_finish, script]
 
 test:
@@ -65,7 +109,7 @@ test:
     DX_REPORT: reports/junit.xml
   script:
     - status=0
-    - bazel run @rules_dx//:dx -- test --report junit=reports/junit.xml //... || status=$?
+    - bazel run @rules_dx//:dx -- test --report junit=reports/junit.xml $DX_SCOPE || status=$?
     - !reference [.dx_finish, script]
   artifacts:
     reports:
@@ -75,7 +119,41 @@ coverage:
   extends: .dx
   variables:
     DX_REPORT: reports/coverage.lcov
+    DX_MIN_COVERAGE: "$[[ inputs.min_coverage ]]"
+    DX_MIN_CHANGED_LINE_COVERAGE: "$[[ inputs.min_changed_line_coverage ]]"
   script:
     - status=0
-    - bazel run @rules_dx//:dx -- coverage --report lcov=reports/coverage.lcov //... || status=$?
+    - bazel run @rules_dx//:dx -- coverage --report lcov=reports/coverage.lcov ${DX_MIN_COVERAGE:+--min-coverage "$DX_MIN_COVERAGE"} ${CI_MERGE_REQUEST_IID:+${DX_MIN_CHANGED_LINE_COVERAGE:+--min-changed-line-coverage "$DX_MIN_CHANGED_LINE_COVERAGE"}} $DX_COVERAGE_SCOPE || status=$?
+    - !reference [.dx_finish, script]
+
+fuzz:
+  extends: .dx
+  timeout: 2h
+  rules:
+    - if: $DX_FUZZ == "true"
+  variables:
+    DX_FUZZ: "$[[ inputs.fuzz ]]"
+    DX_REPORT: reports/fuzz.log
+  script:
+    - status=0
+    - bazel run @rules_dx//:dx -- fuzz --time "$[[ inputs.fuzz_time ]]" //... > reports/fuzz.log 2>&1 || status=$?
+    - cat reports/fuzz.log || status=$?
+    - '[ "$status" -eq 0 ] || [ ! -d .dx/local/fuzz ] || cp -R .dx/local/fuzz reports/ || status=$?'
+    - !reference [.dx_finish, script]
+
+bench:
+  extends: .dx
+  timeout: 1h
+  rules:
+    - if: $DX_BENCH == "true"
+  variables:
+    DX_BENCH: "$[[ inputs.bench ]]"
+    DX_REPORT: reports/bench.txt
+  script:
+    - status=0
+    - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || git worktree add --detach .cache/bench-base "$(git merge-base HEAD origin/HEAD)" || status=$?'
+    - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || (cd .cache/bench-base && bazel run @rules_dx//:dx -- bench //... > /dev/null) || status=$?'
+    - bazel run @rules_dx//:dx -- bench ${CI_MERGE_REQUEST_IID:+--compare .cache/bench-base/.dx/local/bench/last.json --max-regression=$[[ inputs.bench_max_regression ]]} //... > reports/bench.txt || status=$?
+    - cat reports/bench.txt || status=$?
+    - '[ ! -f .dx/local/bench/last.json ] || cp .dx/local/bench/last.json reports/ || status=$?'
     - !reference [.dx_finish, script]

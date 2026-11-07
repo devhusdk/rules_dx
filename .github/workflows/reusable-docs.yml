@@ -150,7 +150,6 @@ jobs:
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
-            echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
           fi
       - name: Lint the docs scope
         env:
@@ -266,7 +265,6 @@ jobs:
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
-            echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
           fi
       - name: Build rendered site
         run: |

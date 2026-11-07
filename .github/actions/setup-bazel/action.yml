@@ -93,7 +93,6 @@ runs:
         fi
         if [ -n "$args" ]; then
           echo "BB_ARGS=$args" >> "$GITHUB_ENV"
-          echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
         fi
     - name: Point Bazel at a registry file cache
       shell: bash

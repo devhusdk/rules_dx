@@ -971,34 +971,31 @@ fn ci_config_leaves_remote_downloads_to_dx() {
 }
 
 #[test]
-// setup-bazel turns the cache on, since --config=ci cannot set startup options.
-fn remote_repo_contents_cache_comes_from_setup_bazel() {
-    let evidence = read_runfiles(".github/workflows/evidence.yml");
-    for flag in [
-        "startup --experimental_remote_repo_contents_cache",
-        "build --jobs=64",
+// The preset turns the cache on, so local runs and consumers get it without a CI echo.
+fn remote_repo_contents_cache_comes_from_the_preset() {
+    let flag = "startup --experimental_remote_repo_contents_cache";
+    let performance = preset_layer(dx_preset::Layer::Performance);
+    assert!(performance.contains(flag), "the preset no longer sets {flag}");
+    for path in [
+        ".github/workflows/evidence.yml",
+        ".github/workflows/reusable-consumer.yml",
     ] {
-        assert!(!evidence.contains(flag), "evidence.yml passes {flag} again");
+        assert!(!read_runfiles(path).contains(flag), "{path} echoes {flag} again");
     }
+    assert!(
+        !read_runfiles(".github/workflows/evidence.yml").contains("build --jobs=64"),
+        "evidence.yml passes build --jobs=64 again"
+    );
     assert!(
         !read_runfiles(".bazelrc").contains("loading_phase_threads"),
         ".bazelrc repeats a flag the preset owns"
     );
     assert!(
-        preset_layer(dx_preset::Layer::Performance)
-            .contains("common:ci --loading_phase_threads=32"),
+        performance.contains("common:ci --loading_phase_threads=32"),
         "the preset must let CI look up more repos at once"
     );
-    let consumer = read_runfiles(".github/workflows/reusable-consumer.yml");
     assert!(
-        consumer
-            .matches("startup --experimental_remote_repo_contents_cache")
-            .count()
-            >= 2,
-        "reusable-consumer.yml must turn on the remote repo contents cache"
-    );
-    assert!(
-        preset_layer(dx_preset::Layer::Performance).contains("common:ci --jobs=64"),
+        performance.contains("common:ci --jobs=64"),
         "the preset no longer sets common:ci --jobs=64"
     );
 }

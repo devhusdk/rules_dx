@@ -23,7 +23,7 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Lint => CommandSpec {
             command,
             aspects: &[
-                "quality:families/cc.bzl%real_cc_lint_aspect",
+                "quality:real_aspects.bzl%real_cc_lint_aspect",
                 "quality:real_aspects.bzl%real_dockerfile_lint_aspect",
                 "quality:real_aspects.bzl%real_make_lint_aspect",
                 "quality:real_aspects.bzl%real_cmake_lint_aspect",
@@ -77,7 +77,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_lint_probe_aspect",
                 "quality:families/core_probe.bzl%real_core_lint_probe_aspect",
                 "quality:families/beam.bzl%real_beam_lint_probe_aspect",
-                "quality:families/cc.bzl%real_cc_lint_probe_aspect",
+                "quality:real_aspects.bzl%real_cc_lint_probe_aspect",
                 "quality:families/d.bzl%real_d_lint_probe_aspect",
                 "quality:families/dart.bzl%real_dart_lint_probe_aspect",
                 "quality:families/dotnet.bzl%real_dotnet_lint_probe_aspect",
@@ -120,7 +120,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:families/generation.bzl%real_thrift_typecheck_aspect",
                 "quality:families/generation.bzl%real_avro_typecheck_aspect",
                 "quality:real_aspects.bzl%real_cue_typecheck_aspect",
-                "quality:families/cc.bzl%real_cc_typecheck_aspect",
+                "quality:real_aspects.bzl%real_cc_typecheck_aspect",
                 "quality:real_aspects.bzl%real_pkl_typecheck_aspect",
                 "quality:real_aspects.bzl%real_terraform_typecheck_aspect",
                 "quality:families/beam.bzl%real_erlang_typecheck_aspect",
@@ -135,7 +135,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_typecheck_probe_aspect",
                 "quality:families/core_probe.bzl%real_core_typecheck_probe_aspect",
                 "quality:families/beam.bzl%real_beam_typecheck_probe_aspect",
-                "quality:families/cc.bzl%real_cc_typecheck_probe_aspect",
+                "quality:real_aspects.bzl%real_cc_typecheck_probe_aspect",
                 "quality:families/d.bzl%real_d_typecheck_probe_aspect",
                 "quality:families/dart.bzl%real_dart_typecheck_probe_aspect",
                 "quality:families/dotnet.bzl%real_dotnet_typecheck_probe_aspect",
@@ -158,7 +158,7 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Format => CommandSpec {
             command,
             aspects: &[
-                "quality:families/cc.bzl%real_cc_format_aspect",
+                "quality:real_aspects.bzl%real_cc_format_aspect",
                 "quality:real_aspects.bzl%real_cue_format_aspect",
                 "quality:families/dotnet.bzl%real_dotnet_format_aspect",
                 "quality:real_aspects.bzl%real_format_aspect",
@@ -202,7 +202,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_format_probe_aspect",
                 "quality:families/core_probe.bzl%real_core_format_probe_aspect",
                 "quality:families/beam.bzl%real_beam_format_probe_aspect",
-                "quality:families/cc.bzl%real_cc_format_probe_aspect",
+                "quality:real_aspects.bzl%real_cc_format_probe_aspect",
                 "quality:families/d.bzl%real_d_format_probe_aspect",
                 "quality:families/dart.bzl%real_dart_format_probe_aspect",
                 "quality:families/dotnet.bzl%real_dotnet_format_probe_aspect",
@@ -564,7 +564,7 @@ mod tests {
         assert_eq!(
             lint.aspects,
             &[
-                "quality:families/cc.bzl%real_cc_lint_aspect",
+                "quality:real_aspects.bzl%real_cc_lint_aspect",
                 "quality:real_aspects.bzl%real_dockerfile_lint_aspect",
                 "quality:real_aspects.bzl%real_make_lint_aspect",
                 "quality:real_aspects.bzl%real_cmake_lint_aspect",
@@ -637,7 +637,7 @@ mod tests {
                 "quality:families/generation.bzl%real_thrift_typecheck_aspect",
                 "quality:families/generation.bzl%real_avro_typecheck_aspect",
                 "quality:real_aspects.bzl%real_cue_typecheck_aspect",
-                "quality:families/cc.bzl%real_cc_typecheck_aspect",
+                "quality:real_aspects.bzl%real_cc_typecheck_aspect",
                 "quality:real_aspects.bzl%real_pkl_typecheck_aspect",
                 "quality:real_aspects.bzl%real_terraform_typecheck_aspect",
                 "quality:families/beam.bzl%real_erlang_typecheck_aspect",
@@ -654,7 +654,7 @@ mod tests {
         assert_eq!(
             format.aspects,
             &[
-                "quality:families/cc.bzl%real_cc_format_aspect",
+                "quality:real_aspects.bzl%real_cc_format_aspect",
                 "quality:real_aspects.bzl%real_cue_format_aspect",
                 "quality:families/dotnet.bzl%real_dotnet_format_aspect",
                 "quality:real_aspects.bzl%real_format_aspect",

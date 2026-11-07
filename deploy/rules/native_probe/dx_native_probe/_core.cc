@@ -1,10 +1,18 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#include <cstring>
+
 namespace {
 
 PyObject *Greet(PyObject *, PyObject *) {
-  return PyUnicode_FromString("dx-native-probe native");
+  // A copy sized at run time keeps a memcpy call, which the Windows runtime
+  // DLL provides, so the import check has something real to find.
+  static const char kGreeting[] = "dx-native-probe native";
+  volatile size_t size = sizeof(kGreeting);
+  char buffer[sizeof(kGreeting)];
+  std::memcpy(buffer, kGreeting, size);
+  return PyUnicode_FromString(buffer);
 }
 
 PyMethodDef kMethods[] = {

@@ -1,5 +1,6 @@
 """Local-first NuGet publisher for dx deploy."""
 
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
@@ -64,23 +65,38 @@ def _nuget_config_impl(ctx):
         fail(nupkg_error + " (in " + str(ctx.label) + ")")
     nupkg_rloc = rlocation_path(ctx, nupkg_file)
 
-    return deploy_config(
-        ctx,
-        "nuget",
-        {
-            "deploy_name": ctx.attr.deploy_name,
-            "nupkg_rloc": nupkg_rloc,
-            "package_id": ctx.attr.package_id,
-            "source": ctx.attr.source,
-            "version": ctx.attr.version,
-        },
-        ctx.runfiles(files = [nupkg_file]),
-    )
+    values = {
+        "deploy_name": ctx.attr.deploy_name,
+        "nupkg_rloc": nupkg_rloc,
+        "package_id": ctx.attr.package_id,
+        "source": ctx.attr.source,
+        "version": ctx.attr.version,
+    }
+    runfiles = ctx.runfiles(files = [nupkg_file])
+    if ctx.attr.api_compat != "off":
+        values["api_compat"] = ctx.attr.api_compat
+        values["api_baseline"] = ctx.attr.api_baseline
+        dll = [f for f in ctx.files._apicompat if f.basename == "Microsoft.DotNet.ApiCompat.Tool.dll"]
+        values["apicompat_rloc"] = rlocation_path(ctx, dll[0]) if dll else ""
+        toolchain = ctx.toolchains[_DOTNET_TOOLCHAIN]
+        values["dotnet_rloc"] = ""
+        if toolchain:
+            runtime = toolchain.runtime
+            values["dotnet_rloc"] = rlocation_path(ctx, runtime.files_to_run.executable)
+            runfiles = runfiles.merge(ctx.runfiles(
+                files = ctx.files._apicompat + [runtime.files_to_run.executable],
+                transitive_files = runtime.default_runfiles.files,
+            ))
+    return deploy_config(ctx, "nuget", values, runfiles)
+
+_DOTNET_TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 
 _nuget_config = rule(
     implementation = _nuget_config_impl,
     doc = "Writes the deploy config for one NuGet deployment.",
-    attrs = {
+    toolchains = [config_common.toolchain_type(_DOTNET_TOOLCHAIN, mandatory = False)],
+    attrs = API_COMPAT_ATTRS | {
+        "_apicompat": attr.label(default = Label("//deploy/rules/pins:apicompat")),
         "deploy_name": attr.string(doc = "Deploy target name.", mandatory = True),
         "nupkg": attr.label(
             doc = "Single NuGet package file that is published.",
@@ -96,11 +112,18 @@ _nuget_config = rule(
     },
 )
 
-def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFAULT_SOURCE, build_mode = "release", sbom = None):
-    """Publishes one nupkg after checking its nuspec id and version."""
+def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFAULT_SOURCE, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+    """Publishes one nupkg after checking its nuspec id and version.
+
+    api_compat and api_baseline work as described under "Public API
+    compatibility" in the README; the tool is Microsoft.DotNet.ApiCompat.
+    """
     name_error = nuget_id_error(name)
     if name_error != "":
         fail(name_error + " (in " + native.package_name() + ":" + name + ")")
+    api_error = api_compat_error("nuget_deploy", api_compat, api_baseline)
+    if api_error != "":
+        fail(api_error + " (in " + native.package_name() + ":" + name + ")")
     if package_id != "":
         id_error = nuget_id_error(package_id)
         if id_error != "":
@@ -116,6 +139,8 @@ def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFA
     config_target = name + "_config"
     _nuget_config(
         name = config_target,
+        api_baseline = api_baseline,
+        api_compat = api_compat_mode(api_compat),
         deploy_name = name,
         nupkg = nupkg,
         package_id = package_id,

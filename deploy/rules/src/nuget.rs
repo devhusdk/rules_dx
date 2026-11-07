@@ -1,5 +1,9 @@
 //! NuGet publisher: feed staging, nuspec identity checks and the dotnet push.
 
+use crate::api_compat::{
+    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch_with, highest_below,
+    previous_git_tag, workspace_dir,
+};
 use crate::archive::*;
 use crate::run::{
     DOTNET_CHILD_ENV_EXTRA, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode,
@@ -341,13 +345,175 @@ pub fn nuget_live_push(
     }
 }
 
-/// Runs the NuGet deploy tool.
+/// Public API check settings of one NuGet deployment.
+pub struct NugetApiCheck<'a> {
+    pub mode: &'a str,
+    pub baseline: &'a str,
+    pub dotnet_rloc: &'a str,
+    pub apicompat_rloc: &'a str,
+}
+
+/// Returns the package base URL a NuGet v3 service index lists, ending in `/`.
+fn nuget_package_base(service_index: &str) -> Option<String> {
+    let json: serde_json::Value = serde_json::from_str(service_index).ok()?;
+    let id = json["resources"].as_array()?.iter().find(|resource| {
+        resource["@type"]
+            .as_str()
+            .is_some_and(|kind| kind.starts_with("PackageBaseAddress/3.0.0"))
+    })?["@id"]
+        .as_str()?;
+    Some(format!("{}/", id.trim_end_matches('/')))
+}
+
+/// Returns each ApiCompat `CPnnnn:` diagnostic; indented lines continue the one before.
+fn apicompat_changes(output: &str) -> Vec<String> {
+    let mut changes: Vec<String> = Vec::new();
+    let mut open = false;
+    for line in output.lines() {
+        let code = line.trim_start();
+        let is_diagnostic = code.len() > 7
+            && code.starts_with("CP")
+            && code[2..6].bytes().all(|b| b.is_ascii_digit())
+            && code.as_bytes()[6] == b':';
+        if is_diagnostic {
+            changes.push(code.trim_end().to_owned());
+            open = true;
+        } else if open && line.starts_with(char::is_whitespace) && !code.is_empty() {
+            if let Some(last) = changes.last_mut() {
+                last.push(' ');
+                last.push_str(code.trim_end());
+            }
+        } else {
+            open = false;
+        }
+    }
+    changes
+}
+
+/// Compares the nupkg with the earlier release `api_baseline` picks from the feed at `source`.
+fn nuget_api_check(
+    agent: &ureq::Agent,
+    (dotnet, apicompat): (&Path, &Path),
+    (package_id, version): (&str, &str),
+    (nupkg, source): (&Path, &str),
+    baseline: &str,
+    workspace: &Path,
+) -> Result<Outcome, String> {
+    let baseline = Baseline::parse(baseline)
+        .ok_or_else(|| format!("nuget_deploy: invalid api_baseline '{baseline}'"))?;
+    let index = match fetch_with(agent, source, 16 << 20) {
+        Ok(Some(body)) => body,
+        Ok(None) => return Ok(Outcome::Skipped(format!("{source} not found"))),
+        Err(error) => return Ok(Outcome::Skipped(error)),
+    };
+    let Some(base) = nuget_package_base(&String::from_utf8_lossy(&index)) else {
+        return Ok(Outcome::Skipped(format!(
+            "{source} lists no PackageBaseAddress/3.0.0"
+        )));
+    };
+    let id = package_id.to_ascii_lowercase();
+    let previous = if baseline == Baseline::Git {
+        match previous_git_tag(workspace, version) {
+            Ok(Some(tag)) => tag.trim_start_matches('v').to_owned(),
+            Ok(None) => return Ok(Outcome::FirstRelease),
+            Err(error) => return Ok(Outcome::Skipped(error)),
+        }
+    } else {
+        let url = format!("{base}{id}/index.json");
+        let body = match fetch_with(agent, &url, 16 << 20) {
+            Ok(Some(body)) => body,
+            Ok(None) => return Ok(Outcome::FirstRelease),
+            Err(error) => return Ok(Outcome::Skipped(error)),
+        };
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+        let versions = json["versions"].as_array().into_iter().flatten();
+        match highest_below(versions.filter_map(|v| v.as_str()), version) {
+            Some(previous) => previous,
+            None => return Ok(Outcome::FirstRelease),
+        }
+    };
+    let lower = previous.to_ascii_lowercase();
+    let url = format!("{base}{id}/{lower}/{id}.{lower}.nupkg");
+    let old = match fetch_with(agent, &url, 512 << 20) {
+        Ok(Some(bytes)) => bytes,
+        Ok(None) => return Ok(Outcome::Skipped(format!("{url} not found"))),
+        Err(error) => return Ok(Outcome::Skipped(error)),
+    };
+    let work =
+        tempfile_stage_dir("nuget-api-").map_err(|error| format!("nuget_deploy: {error}"))?;
+    let old_nupkg = work.join(format!("{id}.{lower}.nupkg"));
+    let home = work.join("home");
+    let output = std::fs::write(&old_nupkg, old)
+        .and_then(|()| std::fs::create_dir_all(&home))
+        .and_then(|()| {
+            let home = home.display().to_string();
+            scrubbed_command(
+                dotnet,
+                &[PUBLISH_CHILD_ENV_KEEP],
+                &[
+                    ("DOTNET_ROLL_FORWARD", "Major"),
+                    ("DOTNET_CLI_HOME", &home),
+                    ("DOTNET_NOLOGO", "1"),
+                    ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
+                    ("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1"),
+                ],
+            )
+            .arg("exec")
+            .arg(apicompat)
+            .arg("package")
+            .arg(nupkg)
+            .arg("--baseline-package")
+            .arg(&old_nupkg)
+            .output()
+        });
+    let _ = std::fs::remove_dir_all(&work);
+    let output = output.map_err(|error| format!("nuget_deploy: ApiCompat: {error}"))?;
+    let text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let success = output.status.success();
+    Ok(Outcome::Compared {
+        previous,
+        changes: changes_or_failure(apicompat_changes(&text), success, "ApiCompat", &text),
+    })
+}
+
+/// Runs the NuGet deploy tool without an API compatibility check.
 pub fn nuget_main(
     nupkg_rloc: &str,
     target_name: &str,
     expected_id: &str,
     expected_version: &str,
     package_source: &str,
+    argv: &[String],
+) -> i32 {
+    let off = NugetApiCheck {
+        mode: "off",
+        baseline: "registry",
+        dotnet_rloc: "",
+        apicompat_rloc: "",
+    };
+    nuget_main_checked(
+        nupkg_rloc,
+        target_name,
+        expected_id,
+        expected_version,
+        package_source,
+        &off,
+        argv,
+    )
+}
+
+/// Runs the NuGet deploy tool.
+pub fn nuget_main_checked(
+    nupkg_rloc: &str,
+    target_name: &str,
+    expected_id: &str,
+    expected_version: &str,
+    package_source: &str,
+    api: &NugetApiCheck,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -371,6 +537,38 @@ pub fn nuget_main(
         }
     };
     let (package_id, package_version) = (identity.0.as_str(), identity.1.as_str());
+    let Some(mode) = ApiCompatMode::parse(if api.mode.is_empty() { "off" } else { api.mode })
+    else {
+        eprintln!("nuget_deploy: invalid api_compat '{}'", api.mode);
+        return 1;
+    };
+    if mode != ApiCompatMode::Off {
+        let tools = if api.dotnet_rloc.is_empty() || api.apicompat_rloc.is_empty() {
+            None
+        } else {
+            run.resolve(api.dotnet_rloc)
+                .zip(run.resolve(api.apicompat_rloc))
+        };
+        let outcome = match tools {
+            Some((dotnet, apicompat)) => nuget_api_check(
+                &crate::http::publish_agent(),
+                (&dotnet, &apicompat),
+                (package_id, package_version),
+                (&nupkg, package_source),
+                api.baseline,
+                &workspace_dir(),
+            ),
+            None => Ok(Outcome::Skipped(
+                "the .NET toolchain or ApiCompat is not available".to_owned(),
+            )),
+        };
+        if let Err(message) =
+            outcome.and_then(|outcome| conclude("nuget_deploy", mode, package_version, outcome))
+        {
+            eprintln!("{message}");
+            return 1;
+        }
+    }
     if NUGET_GATE.requested(env_or_empty) {
         if package_version == "0.0.0" {
             eprintln!(
@@ -436,6 +634,146 @@ mod tests {
             vars[4] = ("DX_DEPLOY_LIVE", Some("1"));
         }
         with_env(&vars, f)
+    }
+
+    const APICOMPAT_SAMPLE: &str = "\
+API compatibility errors between 'lib/net10.0/Demo.dll' (demo.1.0.0.nupkg) and 'lib/net10.0/Demo.dll' (demo.1.1.0.nupkg):
+CP0002: Member 'void Demo.Api.Hello()' exists on [Baseline] lib/net10.0/Demo.dll but not on lib/net10.0/Demo.dll
+CP0002: Member 'int Demo.Api.Count(string)' exists on [Baseline] lib/net10.0/Demo.dll but not on lib/net10.0/Demo.dll
+CP0006: Cannot add interface member 'void Demo.IThing.Stop()' to lib/net10.0/Demo.dll because it does not exist on [Baseline] lib/net10.0/Demo.dll
+API breaking changes found. If those are intentional, the APICompat suppression file can be updated by specifying the '--generate-suppression-file' parameter.
+";
+
+    #[test]
+    fn apicompat_output_counts_one_change_per_diagnostic() {
+        let changes = apicompat_changes(APICOMPAT_SAMPLE);
+        assert_eq!(changes.len(), 3);
+        assert!(changes[2].starts_with("CP0006: Cannot add interface member"));
+        assert!(changes[2].ends_with("[Baseline] lib/net10.0/Demo.dll"));
+        let wrapped =
+            "CP0002: Member 'A.B()' exists on [Baseline]\n    a.dll but not on a.dll\nnext line\n";
+        assert_eq!(
+            apicompat_changes(wrapped),
+            vec!["CP0002: Member 'A.B()' exists on [Baseline] a.dll but not on a.dll".to_owned()]
+        );
+        assert!(
+            apicompat_changes("APICompat ran successfully without finding any breaking changes.\n")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn package_base_comes_from_the_service_index() {
+        let index = r#"{"version":"3.0.0","resources":[{"@id":"https://x/query","@type":"SearchQueryService"},{"@id":"https://x/flat","@type":"PackageBaseAddress/3.0.0"}]}"#;
+        assert_eq!(
+            nuget_package_base(index).as_deref(),
+            Some("https://x/flat/")
+        );
+        assert_eq!(nuget_package_base(r#"{"resources":[]}"#), None);
+        assert_eq!(nuget_package_base("<html>"), None);
+    }
+
+    /// Serves the files `files(origin)` lists by path on a loopback port; anything else is 404.
+    fn static_registry(files: impl FnOnce(&str) -> Vec<(String, Vec<u8>)>) -> String {
+        use std::io::{Read as _, Write as _};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let origin = format!("http://{}", listener.local_addr().expect("addr"));
+        let files = files(&origin);
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { return };
+                let mut seen = Vec::new();
+                let mut buf = [0u8; 4096];
+                while !seen.windows(4).any(|w| w == b"\r\n\r\n") {
+                    match stream.read(&mut buf) {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => seen.extend_from_slice(&buf[..n]),
+                    }
+                }
+                let head = String::from_utf8_lossy(&seen).into_owned();
+                let path = head.split(' ').nth(1).unwrap_or("").to_owned();
+                let (status, body) = match files.iter().find(|(p, _)| *p == path) {
+                    Some((_, body)) => ("200 OK", body.clone()),
+                    None => ("404 Not Found", b"not found".to_vec()),
+                };
+                let reply = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                let _ = stream.write_all(reply.as_bytes());
+                let _ = stream.write_all(&body);
+            }
+        });
+        origin
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn api_check_fails_a_breaking_minor_and_passes_a_major_against_the_registry() {
+        let scratch = scratch_dir();
+        let registry = static_registry(|origin| {
+            vec![
+                (
+                    "/v3/index.json".to_owned(),
+                    format!(r#"{{"resources":[{{"@id":"{origin}/flat","@type":"PackageBaseAddress/3.0.0"}}]}}"#).into_bytes(),
+                ),
+                (
+                    "/flat/demo/index.json".to_owned(),
+                    br#"{"versions":["0.9.0","1.0.0","2.0.0-beta.1"]}"#.to_vec(),
+                ),
+                (
+                    "/flat/demo/1.0.0/demo.1.0.0.nupkg".to_owned(),
+                    b"old nupkg".to_vec(),
+                ),
+            ]
+        });
+        let args_log = scratch.path().join("args");
+        let env_log = scratch.path().join("env");
+        let fake = scratch.path().join("dotnet");
+        std::fs::write(
+            &fake,
+            format!(
+                "#!/bin/sh\necho \"$@\" > {}\nenv > {}\necho \"CP0002: Member 'void Demo.Api.Hello()' exists on [Baseline] lib/net10.0/Demo.dll but not on lib/net10.0/Demo.dll\"\nexit 1\n",
+                args_log.display(),
+                env_log.display()
+            ),
+        )
+        .expect("fake tool");
+        set_mode(&fake, 0o755);
+        let agent = crate::http::publish_agent_with_proxy(None);
+        let source = format!("{registry}/v3/index.json");
+        let run = |id: &str, version: &str| {
+            nuget_api_check(
+                &agent,
+                (&fake, Path::new("apicompat.dll")),
+                (id, version),
+                (Path::new("new.nupkg"), &source),
+                "registry",
+                scratch.path(),
+            )
+            .expect("ran")
+        };
+        let outcome = run("Demo", "1.1.0");
+        assert_eq!(
+            outcome,
+            Outcome::Compared {
+                previous: "1.0.0".to_owned(),
+                changes: vec!["CP0002: Member 'void Demo.Api.Hello()' exists on [Baseline] lib/net10.0/Demo.dll but not on lib/net10.0/Demo.dll".to_owned()],
+            }
+        );
+        let logged = std::fs::read_to_string(&args_log).expect("args");
+        assert!(
+            logged.starts_with("exec apicompat.dll package new.nupkg --baseline-package ")
+                && logged.trim_end().ends_with("demo.1.0.0.nupkg"),
+            "{logged}"
+        );
+        let env = std::fs::read_to_string(&env_log).expect("env");
+        assert!(env.contains("DOTNET_ROLL_FORWARD=Major"), "{env}");
+        assert!(!env.contains("NUGET_API_KEY"), "{env}");
+        assert!(conclude("nuget_deploy", ApiCompatMode::Fail, "1.1.0", outcome).is_err());
+        let major = run("Demo", "2.0.0");
+        assert!(conclude("nuget_deploy", ApiCompatMode::Fail, "2.0.0", major).is_ok());
+        assert_eq!(run("Missing", "1.0.0"), Outcome::FirstRelease);
     }
 
     #[test]

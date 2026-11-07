@@ -2003,6 +2003,9 @@ use_repo(semver_checks, "cargo_semver_checks_linux_arm64", "cargo_semver_checks_
 japicmp = use_extension("//deploy/rules/pins:repos.bzl", "japicmp")
 use_repo(japicmp, "japicmp_jar")
 
+apicompat = use_extension("//deploy/rules/pins:repos.bzl", "apicompat")
+use_repo(apicompat, "apicompat_tool")
+
 cosign = use_extension("//deploy/release:repos.bzl", "cosign", dev_dependency = True)
 use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
 

@@ -4,7 +4,6 @@ load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_B
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//quality:adapters.bzl", "NOT_APPLICABLE")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
-load(":facts.bzl", "compiler_blocker_problems", "support_matrix_facts_dict", "tool_not_applicable")
 load("//tools/docs/components:defs.bzl", "astro_doc_shard", "mdx_doc_shard", "svelte_doc_shard", "vue_doc_shard")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
@@ -14,6 +13,7 @@ load("//tools/docs/python:defs.bzl", "python_doc_shard")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
 load("//tools/docs/site:site.bzl", "docs_site")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+load(":facts.bzl", "compiler_blocker_problems", "support_matrix_facts_dict", "tool_not_applicable")
 load(":languages.bzl", "DEPENDENCIES", "DOC_TOOLS", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
 
 # Loading each symbol proves the shard rule exists; the names are what DOC_TOOLS may point at.
@@ -168,6 +168,16 @@ def support_matrix_facts_tests(name):
                 "unsupported constraint labels name the row's unsupported value",
                 [name for name, label in facts["unsupported_constraints"].items() if not label.endswith(":unsupported")],
                 [],
+            ),
+            expect_equal(
+                "api compat tools name a publishing rule each",
+                [rule for rule, tool in facts["api_compat_tools"].items() if not rule.endswith("_deploy") or not tool],
+                [],
+            ),
+            expect_equal(
+                "rules without an api compat tool are an explicit snapshot",
+                sorted([rule for rule, tool in facts["api_compat_tools"].items() if tool == "not available"]),
+                ["hackage_deploy", "hex_deploy", "luarocks_deploy", "pub_deploy", "rubygems_deploy"],
             ),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],

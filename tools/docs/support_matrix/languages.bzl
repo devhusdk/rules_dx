@@ -147,6 +147,7 @@ API_COMPAT_TOOLS = {
 
 # The tool and rule that report unused code per row. A language row missing here has no dead-code tool yet; "none" marks a language where none exists.
 DEAD_CODE = {
+    "astro": ["eslint @typescript-eslint/no-unused-vars"],
     "cc": ["clang_tidy misc-unused-parameters, misc-unused-using-decls"],
     "csharp": ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
     "cuda": ["none"],
@@ -174,7 +175,9 @@ DEAD_CODE = {
     "scala": ["scalac -Wunused"],
     "shell": ["shellcheck SC2034"],
     "starlark": ["buildifier unused-variable"],
+    "svelte": ["eslint @typescript-eslint/no-unused-vars"],
     "typescript": ["eslint no-unused-vars"],
+    "vue": ["eslint @typescript-eslint/no-unused-vars"],
     "zig": ["zig ast-check unused local, unused parameter"],
 }
 

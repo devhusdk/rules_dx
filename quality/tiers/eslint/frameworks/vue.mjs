@@ -1,10 +1,19 @@
 import vue from "eslint-plugin-vue";
+import tseslint from "typescript-eslint";
 
 export default [
 	...vue.configs["flat/recommended"],
 	{
 		files: ["**/*.vue"],
 		languageOptions: { parserOptions: { parser: "@typescript-eslint/parser" } },
+	},
+	{
+		files: ["**/*.vue"],
+		plugins: { "@typescript-eslint": tseslint.plugin },
+		rules: {
+			"no-unused-vars": "off",
+			"@typescript-eslint/no-unused-vars": "error",
+		},
 	},
 ];
 

@@ -144,15 +144,28 @@ fn bazel_stderr_is_teed_only_off_a_terminal() {
     ));
 }
 
-/// The probe copied under a Bazel-like name, so the runner treats it as Bazel.
+/// The probe linked (copied on Windows) under a Bazel-like name, so the runner
+/// treats it as Bazel. A link opens no write fd, so a concurrent fork cannot make
+/// exec fail with ETXTBSY (#8979).
 fn bazel_probe(dir: &Path) -> String {
     let probe = PathBuf::from(&probe_argv(&[])[0]);
-    let mut copy = dir.join("bazel-probe");
-    if let Some(extension) = probe.extension() {
-        copy.set_extension(extension);
-    }
-    std::fs::copy(&probe, &copy).expect("copy probe");
-    copy.to_string_lossy().into_owned()
+    #[cfg(unix)]
+    let link = {
+        let link = dir.join("bazel-probe");
+        let target = std::fs::canonicalize(&probe).expect("canonical probe");
+        std::os::unix::fs::symlink(&target, &link).expect("link probe");
+        link
+    };
+    #[cfg(not(unix))]
+    let link = {
+        let mut copy = dir.join("bazel-probe");
+        if let Some(extension) = probe.extension() {
+            copy.set_extension(extension);
+        }
+        std::fs::copy(&probe, &copy).expect("copy probe");
+        copy
+    };
+    link.to_string_lossy().into_owned()
 }
 
 #[test]

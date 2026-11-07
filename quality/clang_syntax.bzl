@@ -384,7 +384,7 @@ def _clang_syntax_impl(target, ctx):
         all_inputs = depset(transitive = [action.inputs, headers])
         driver = ctx.actions.declare_file("dx_clang_syntax/%s.driver" % stem)
         ctx.actions.write(output = driver, content = identity.driver)
-        base_env = dict(action.env) | toolchain_env
+        base_env = toolchain_env | dict(action.env)
         tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, base_env)
         tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
         requirements = {}

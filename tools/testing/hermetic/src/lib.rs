@@ -2125,7 +2125,12 @@ pub fn materialize(
         }
     }
     // A second init reads the fixture's dx.toml and sources and merges its block into the root BUILD.
+    // The composed MODULE.bazel stays: init would add family dependencies the registry does not have.
+    let module_path = workspace.join("MODULE.bazel");
+    let module = std::fs::read_to_string(&module_path)
+        .map_err(|err| format!("cannot read {}: {err}", module_path.display()))?;
     run_init(manifest, workspace)?;
+    write(&module_path, &module)?;
     rename_preset(workspace, repo)?;
     write(
         &workspace.join(LEAKS_PACKAGE).join("BUILD.bazel"),

@@ -82,9 +82,13 @@ jobs:
           df -h /
       - name: Check out files in parallel on Windows
         if: runner.os == 'Windows'
-        shell: bash
-        run: git config --global checkout.workers 0
+        run: |
+          git init "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: runner.os != 'Windows'
         with:
           persist-credentials: false
       - name: Validate workflow inputs

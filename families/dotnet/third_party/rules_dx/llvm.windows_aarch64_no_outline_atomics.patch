@@ -1,0 +1,13 @@
+diff -ruN a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+--- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel	2026-11-07 10:16:32.452157871 +0100
++++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel	2026-11-07 10:16:37.692186487 +0100
+@@ -751,6 +751,9 @@
+         "//conditions:default": [],
+     }),
+     deps = select({
++        # Clang inlines atomics on Windows, and Rust links the outline helpers
++        # from its own compiler_builtins, so nothing calls these there.
++        "@llvm//platforms/config:windows_aarch64": [],
+         "@platforms//cpu:aarch64": [
+             ":builtins_aarch64_atomic",
+         ],

@@ -334,6 +334,12 @@ pub const OVERRIDES: &[Override] = &[
                 file: "lse_atomic_sources.patch",
                 content: include_str!("../../../patches/llvm/lse_atomic_sources.patch"),
             },
+            OverridePatch {
+                file: "windows_aarch64_no_outline_atomics.patch",
+                content: include_str!(
+                    "../../../patches/llvm/windows_aarch64_no_outline_atomics.patch"
+                ),
+            },
         ],
     },
     Override {

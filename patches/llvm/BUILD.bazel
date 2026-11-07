@@ -8,6 +8,7 @@ exports_files([
     "unwatched_overlay_inputs.patch",
     "msvc_source_directories.patch",
     "lse_atomic_sources.patch",
+    "windows_aarch64_no_outline_atomics.patch",
 ])
 
 sh_test(

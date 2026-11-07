@@ -149,6 +149,9 @@ func LoadCrate(root string, read func(string) ([]byte, error), exists func(strin
 			for i := range facts.Externs {
 				facts.Externs[i].CfgTest = true
 			}
+			for i := range facts.PathRefs {
+				facts.PathRefs[i].CfgTest = true
+			}
 		}
 		owned[file] = facts
 		for _, m := range facts.Modules {

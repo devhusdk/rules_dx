@@ -44,6 +44,7 @@ type FileFacts struct {
 	Uses         []UseDecl
 	Externs      []ExternCrate
 	Locals       []LocalName
+	PathRefs     []UseDecl
 	HasTestAttr  bool
 	HasCfgTest   bool
 	InnerCfgTest bool
@@ -253,6 +254,13 @@ func (w *walker) items(parent syntaxNode, testScope, inFn bool, facts *FileFacts
 			if name := child.field("name"); name.valid() {
 				facts.Locals = append(facts.Locals, LocalName{Name: name.text()})
 			}
+		case "scoped_identifier", "scoped_type_identifier":
+			if p := parent.field("path"); !isScopedPath(parent) || !p.valid() || p.start() != child.start() {
+				w.pathRef(child, testScope, facts)
+			}
+			if err := w.items(child, testScope, inFn, facts); err != nil {
+				return err
+			}
 		default:
 			if err := w.items(child, testScope, inFn, facts); err != nil {
 				return err
@@ -316,9 +324,11 @@ func (w *walker) function(fn syntaxNode, attrs []syntaxNode, testScope, inFn boo
 	if err != nil {
 		return err
 	}
-	if body := fn.field("body"); body.valid() {
-		if err := w.items(body, isTest, true, facts); err != nil {
-			return err
+	for _, field := range []string{"parameters", "return_type", "body"} {
+		if n := fn.field(field); n.valid() {
+			if err := w.items(n, isTest, true, facts); err != nil {
+				return err
+			}
 		}
 	}
 	if isTest {
@@ -377,10 +387,14 @@ func (w *walker) mod(m syntaxNode, attrs []syntaxNode, testScope, inFn bool, fac
 	for i := range sub.Locals {
 		sub.Locals[i].Scope = path.Join(name, sub.Locals[i].Scope)
 	}
+	for i := range sub.PathRefs {
+		sub.PathRefs[i].Scope = path.Join(name, sub.PathRefs[i].Scope)
+	}
 	facts.Modules = append(facts.Modules, sub.Modules...)
 	facts.Uses = append(facts.Uses, sub.Uses...)
 	facts.Externs = append(facts.Externs, sub.Externs...)
 	facts.Locals = append(facts.Locals, sub.Locals...)
+	facts.PathRefs = append(facts.PathRefs, sub.PathRefs...)
 	if sub.HasTestAttr {
 		facts.HasTestAttr = true
 	}
@@ -395,6 +409,33 @@ func (w *walker) use(u syntaxNode, cfgTest bool, facts *FileFacts) {
 	for _, p := range w.expandUse(arg, "", facts) {
 		facts.Uses = append(facts.Uses, UseDecl{Path: p, Glob: strings.HasSuffix(p, "::*"), CfgTest: cfgTest})
 	}
+	if cfgTest {
+		facts.HasCfgTest = true
+	}
+}
+
+func isScopedPath(n syntaxNode) bool {
+	k := n.kind()
+	return k == "scoped_identifier" || k == "scoped_type_identifier"
+}
+
+// pathRef records the first segment of a qualified path such as a::b::c.
+func (w *walker) pathRef(n syntaxNode, cfgTest bool, facts *FileFacts) {
+	for {
+		p := n.field("path")
+		if !p.valid() {
+			n = n.field("name")
+			break
+		}
+		n = p
+		if !isScopedPath(p) {
+			break
+		}
+	}
+	if !n.valid() || n.kind() != "identifier" {
+		return
+	}
+	facts.PathRefs = append(facts.PathRefs, UseDecl{Path: n.text(), CfgTest: cfgTest})
 	if cfgTest {
 		facts.HasCfgTest = true
 	}

@@ -98,6 +98,9 @@ type targetImports struct {
 	production  []string
 	test        []string
 	mirrorPaths []string
+	// pathRefs are crate roots of qualified paths; they resolve like mirrorPaths.
+	pathRefs     []string
+	pathRefsTest []string
 	siblingLib  string
 	scriptDep   string
 	renames     map[string]string
@@ -341,7 +344,7 @@ func sourceOnlyTestImports(tree map[string]*FileFacts, selfContained bool) targe
 	if selfContained {
 		return imports
 	}
-	return targetImports{test: imports.test}
+	return targetImports{test: imports.test, pathRefsTest: imports.pathRefsTest}
 }
 
 func (l *rustLang) attachNative(args language.GenerateArgs, result language.GenerateResult, plan *nativePlan) language.GenerateResult {

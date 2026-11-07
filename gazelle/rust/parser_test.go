@@ -758,3 +758,40 @@ func FuzzParseFacts(f *testing.F) {
 		_, _ = ParseFacts("fuzz.rs", src)
 	})
 }
+
+func TestParseQualifiedPathRefs(t *testing.T) {
+	facts := mustParse(t, "src/lib.rs", `
+pub fn f() { other_crate::g() }
+fn lead() -> u8 { ::lead::x::y() }
+fn skipped() {
+    crate::a(); self::b(); super::c(); Self::d(); Vec::new(); <T as X>::e();
+}
+fn param(v: typed::Value) {}
+#[test]
+fn it_works() { dx_testing::script(); }
+mod inner {
+    fn h() { nested::k(); }
+}
+#[cfg(test)]
+mod tests {
+    fn h() { test_only::k(); }
+}
+`)
+	var got []string
+	for _, ref := range facts.PathRefs {
+		got = append(got, fmt.Sprintf("%s:%s:%v", ref.Path, ref.Scope, ref.CfgTest))
+	}
+	want := []string{
+		"other_crate::false",
+		"lead::false",
+		"Self::false",
+		"Vec::false",
+		"typed::false",
+		"dx_testing::true",
+		"nested:inner:false",
+		"test_only:tests:true",
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("path refs = %v, want %v", got, want)
+	}
+}

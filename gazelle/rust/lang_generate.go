@@ -758,6 +758,15 @@ func importsForEdition(tree map[string]*FileFacts, edition, crateRoot string) ta
 			addImport(sets, name, ext.CfgTest)
 		}
 	}
+	refs := [2]map[string]bool{{}, {}}
+	for _, facts := range tree {
+		names := fileNames(facts)
+		for _, ref := range facts.PathRefs {
+			if pathRefCandidate(ref.Path, names) {
+				addImport(refs, ref.Path, ref.CfgTest)
+			}
+		}
+	}
 	result := targetImports{}
 	for imp := range sets[0] {
 		result.production = append(result.production, imp)
@@ -765,9 +774,60 @@ func importsForEdition(tree map[string]*FileFacts, edition, crateRoot string) ta
 	for imp := range sets[1] {
 		result.test = append(result.test, imp)
 	}
+	for imp := range refs[0] {
+		if !sets[0][imp] {
+			result.pathRefs = append(result.pathRefs, imp)
+		}
+	}
+	for imp := range refs[1] {
+		if !sets[0][imp] && !sets[1][imp] && !refs[0][imp] {
+			result.pathRefsTest = append(result.pathRefsTest, imp)
+		}
+	}
 	sort.Strings(result.production)
 	sort.Strings(result.test)
+	sort.Strings(result.pathRefs)
+	sort.Strings(result.pathRefsTest)
 	return result
+}
+
+// fileNames returns the names a file binds itself in any scope: modules,
+// enums, use aliases, extern crate aliases and the last segment of each use.
+func fileNames(facts *FileFacts) map[string]bool {
+	names := make(map[string]bool)
+	for _, module := range facts.Modules {
+		names[module.Name] = true
+	}
+	for _, local := range facts.Locals {
+		names[local.Name] = true
+	}
+	for _, ext := range facts.Externs {
+		if ext.As != "" {
+			names[ext.As] = true
+		}
+	}
+	for _, use := range facts.Uses {
+		parts := strings.Split(use.Path, "::")
+		names[parts[len(parts)-1]] = true
+	}
+	return names
+}
+
+// pathRefCandidate reports whether root, the first segment of a qualified
+// path, may name an external crate.
+func pathRefCandidate(root string, names map[string]bool) bool {
+	if builtinRoot(root) || names[root] || primitiveTypes[root] {
+		return false
+	}
+	c := root[0]
+	return c == '_' || c >= 'a' && c <= 'z'
+}
+
+var primitiveTypes = map[string]bool{
+	"bool": true, "char": true, "str": true,
+	"u8": true, "u16": true, "u32": true, "u64": true, "u128": true, "usize": true,
+	"i8": true, "i16": true, "i32": true, "i64": true, "i128": true, "isize": true,
+	"f32": true, "f64": true,
 }
 
 func useRoot(raw string) string {

@@ -414,7 +414,11 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 			l.fail(common.InPackage(from.Pkg), "%s", common.AmbiguousImport(c, "rust", from, name, formatMatches(matches)))
 		}
 	}
-	for _, name := range imports.mirrorPaths {
+	softRefs := append(append([]string{}, imports.mirrorPaths...), imports.pathRefs...)
+	if r.Kind() == testKind {
+		softRefs = append(softRefs, imports.pathRefsTest...)
+	}
+	for _, name := range softRefs {
 		if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
 			ignore.MarkUsed(from.Pkg)
 			continue

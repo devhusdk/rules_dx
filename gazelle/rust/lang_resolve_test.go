@@ -47,6 +47,26 @@ func TestResolveMirrorPaths(t *testing.T) {
 	}
 }
 
+func TestResolvePathRefs(t *testing.T) {
+	l := &rustLang{}
+	index := resolverIndex(l, struct{ pkg, name string }{"lib/b", "b"}, struct{ pkg, name string }{"lib/t", "t"})
+	cfg := resolverConfig(t, nil)
+	cfg.Exts[languageName] = &rustConfig{}
+	lib := rule.NewRule(libraryKind, "a")
+	l.Resolve(cfg, index, nil, lib, targetImports{pathRefs: []string{"b", "missing"}, pathRefsTest: []string{"t"}}, label.New("", "app", "a"))
+	if got := strings.Join(lib.AttrStrings("deps"), ","); got != "//lib/b" {
+		t.Errorf("library deps = %q, want //lib/b", got)
+	}
+	test := rule.NewRule(testKind, "a_test")
+	l.Resolve(cfg, index, nil, test, targetImports{pathRefsTest: []string{"t", "missing"}}, label.New("", "app", "a_test"))
+	if got := strings.Join(test.AttrStrings("deps"), ","); got != "//lib/t" {
+		t.Errorf("test deps = %q, want //lib/t", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("path ref errors = %v", l.errors)
+	}
+}
+
 func TestGenerateCargoLibraryVisibility(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\n")

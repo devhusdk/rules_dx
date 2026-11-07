@@ -1004,3 +1004,34 @@ func TestRustErrorPackages(t *testing.T) {
 		t.Fatalf("error packages = %+v, want %+v", got, want)
 	}
 }
+
+func TestImportsForQualifiedPathRefs(t *testing.T) {
+	tree := map[string]*FileFacts{
+		"src/lib.rs": mustParse(t, "src/lib.rs", `
+mod util;
+use std::fs;
+use serde;
+pub fn f() -> u32 {
+    fs::read("x");
+    util::f();
+    serde::g();
+    Self::new();
+    Vec::new();
+    other_crate::g();
+    u32::MAX
+}
+#[test]
+fn t() { dx_testing::f(); other_crate::h(); }
+`),
+	}
+	got := importsFor(tree)
+	if strings.Join(got.pathRefs, ",") != "other_crate" {
+		t.Errorf("pathRefs = %v, want [other_crate]", got.pathRefs)
+	}
+	if strings.Join(got.pathRefsTest, ",") != "dx_testing" {
+		t.Errorf("pathRefsTest = %v, want [dx_testing]", got.pathRefsTest)
+	}
+	if strings.Join(got.production, ",") != "serde" {
+		t.Errorf("production = %v, want [serde]", got.production)
+	}
+}

@@ -130,6 +130,14 @@ pub struct NugetConfig {
     pub package_id: String,
     pub version: String,
     pub source: String,
+    #[serde(default)]
+    pub api_compat: String,
+    #[serde(default)]
+    pub api_baseline: String,
+    #[serde(default)]
+    pub dotnet_rloc: String,
+    #[serde(default)]
+    pub apicompat_rloc: String,
 }
 
 /// Pins one Hackage upload: the sdist and its expected package and version.
@@ -441,12 +449,18 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 api_extractor_rloc: &npm.api_extractor_rloc,
             },
         ),
-        DeployConfig::Nuget(nuget) => crate::nuget_main(
+        DeployConfig::Nuget(nuget) => crate::nuget_main_checked(
             &nuget.nupkg_rloc,
             &nuget.deploy_name,
             &nuget.package_id,
             &nuget.version,
             &nuget.source,
+            &crate::NugetApiCheck {
+                mode: &nuget.api_compat,
+                baseline: &nuget.api_baseline,
+                dotnet_rloc: &nuget.dotnet_rloc,
+                apicompat_rloc: &nuget.apicompat_rloc,
+            },
             argv,
         ),
         DeployConfig::Hackage(hackage) => crate::hackage_main(
@@ -735,6 +749,26 @@ mod tests {
                 package_id: String::new(),
                 version: "1.0.0".to_owned(),
                 source: "https://x".to_owned(),
+                api_compat: String::new(),
+                api_baseline: String::new(),
+                dotnet_rloc: String::new(),
+                apicompat_rloc: String::new(),
+            }))
+        );
+        assert_eq!(
+            parse(
+                r#"{"kind":"nuget","config":{"nupkg_rloc":"n","deploy_name":"d","package_id":"","version":"1.0.0","source":"https://x","api_compat":"fail","api_baseline":"git","dotnet_rloc":"dn","apicompat_rloc":"ac"}}"#
+            ),
+            Ok(DeployConfig::Nuget(NugetConfig {
+                nupkg_rloc: "n".to_owned(),
+                deploy_name: "d".to_owned(),
+                package_id: String::new(),
+                version: "1.0.0".to_owned(),
+                source: "https://x".to_owned(),
+                api_compat: "fail".to_owned(),
+                api_baseline: "git".to_owned(),
+                dotnet_rloc: "dn".to_owned(),
+                apicompat_rloc: "ac".to_owned(),
             }))
         );
         assert_eq!(
@@ -1031,6 +1065,10 @@ mod tests {
                 package_id: String::new(),
                 version: String::new(),
                 source: "https://nuget.invalid".to_owned(),
+                api_compat: String::new(),
+                api_baseline: String::new(),
+                dotnet_rloc: String::new(),
+                apicompat_rloc: String::new(),
             }),
             DeployConfig::Hackage(HackageConfig {
                 sdist_rloc: "a".to_owned(),

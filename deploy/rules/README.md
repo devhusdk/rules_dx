@@ -1164,8 +1164,8 @@ request, or an upload, so the last step is manual:
 
 # Public API compatibility
 
-`crates_deploy`, `maven_deploy`, `npm_deploy`, `pypi_deploy` and `github_deploy`
-check the public API the same way. Every run compares the version being
+`crates_deploy`, `maven_deploy`, `npm_deploy`, `pypi_deploy`, `nuget_deploy` and
+`github_deploy` check the public API the same way. Every run compares the version being
 deployed with the highest earlier release and lists the breaking changes.
 
 - `api_compat`: `fail` (default), `warn` or `off`. With `fail`, breaking
@@ -1184,6 +1184,7 @@ prints why and is skipped. The tools are pinned and come with the rule.
 | `maven_deploy` | japicmp | the jar from `maven-metadata.xml` | the jar of the tag's version |
 | `npm_deploy` | api-extractor | the npm packument and tarball | the tarball of the tag's version |
 | `pypi_deploy` | griffe | the PyPI JSON and its wheel | `api_src` at the tag |
+| `nuget_deploy` | Microsoft.DotNet.ApiCompat | the feed's package versions and `.nupkg` | the `.nupkg` of the tag's version from the feed |
 | `github_deploy` (Go) | apidiff | proxy.golang.org | `go_modules` at the tag |
 
 # Common behavior

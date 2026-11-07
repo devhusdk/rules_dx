@@ -4,10 +4,10 @@ load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//d/rules:defs.bzl", "D_CELLS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
-load("//flutter/rules:platforms.bzl", "FLUTTER_PLATFORMS")
 load("//elixir/rules:defs.bzl", "ELIXIR_CELLS")
 load("//erlang/rules:defs.bzl", "ERLANG_CELLS")
 load("//erlang/toolchain:pins.bzl", OTP_CELLS = "CELLS")
+load("//flutter/rules:platforms.bzl", "FLUTTER_PLATFORMS")
 load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
 load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
@@ -128,6 +128,21 @@ DOC_TOOLS = {
     "typescript": {"tool": "typedoc", "shard": "typescript_doc_shard"},
     "vue": {"tool": "vue-component-meta", "shard": "vue_doc_shard"},
     "zig": None,
+}
+
+# The tool api_compat runs per publishing rule; "not available" where no maintained free API diff tool exists.
+API_COMPAT_TOOLS = {
+    "crates_deploy": "cargo-semver-checks",
+    "github_deploy": "apidiff",
+    "hackage_deploy": "not available",
+    "hex_deploy": "not available",
+    "luarocks_deploy": "not available",
+    "maven_deploy": "japicmp",
+    "npm_deploy": "api-extractor",
+    "nuget_deploy": "Microsoft.DotNet.ApiCompat",
+    "pub_deploy": "not available",
+    "pypi_deploy": "griffe",
+    "rubygems_deploy": "not available",
 }
 
 # The tool and rule that report unused code per row. A language row missing here has no dead-code tool yet; "none" marks a language where none exists.

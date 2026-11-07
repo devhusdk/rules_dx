@@ -111,6 +111,9 @@ pub struct Facts {
     /// Language row name to the cell of its dependency sets, or none with the reason.
     #[serde(default)]
     pub dependencies: BTreeMap<String, String>,
+    /// Publishing rule to the tool its api_compat check runs, or "not available".
+    #[serde(default)]
+    pub api_compat_tools: BTreeMap<String, String>,
     pub not_languages: Vec<String>,
     pub computed_constraints: BTreeMap<String, Vec<Vec<String>>>,
 }
@@ -204,6 +207,7 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_beam",
         "@rules_dx_cuda",
         "@rules_dx_dotnet",
+        "@rules_dx_js",
         "@rules_dx_jvm",
     ]
     .into_iter()

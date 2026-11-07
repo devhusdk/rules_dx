@@ -187,3 +187,21 @@ Not applicable for `typecheck`:
 - `typst`: dynamically typed markup; no standalone type checker
 - `xml`: data format; schema validation is not type checking
 - `yaml`: data format; schema validation is not type checking
+
+## API compatibility check
+
+The tool each publishing rule runs for `api_compat`, or `not available` when no maintained free tool exists.
+
+| Rule | Tool |
+| --- | --- |
+| `crates_deploy` | `cargo-semver-checks` |
+| `github_deploy` | `apidiff` |
+| `hackage_deploy` | not available |
+| `hex_deploy` | not available |
+| `luarocks_deploy` | not available |
+| `maven_deploy` | `japicmp` |
+| `npm_deploy` | `api-extractor` |
+| `nuget_deploy` | `Microsoft.DotNet.ApiCompat` |
+| `pub_deploy` | not available |
+| `pypi_deploy` | `griffe` |
+| `rubygems_deploy` | not available |

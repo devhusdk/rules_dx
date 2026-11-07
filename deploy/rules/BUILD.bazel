@@ -36,7 +36,7 @@ load(":native_runtime_tests.bzl", "native_runtime_unit_tests")
 load(":npm.bzl", "npm_deploy")
 load(":npm_tests.bzl", "npm_unit_tests")
 load(":nuget.bzl", "nuget_deploy")
-load(":nuget_tests.bzl", "nuget_unit_tests")
+load(":nuget_tests.bzl", "nuget_config_content_tests", "nuget_unit_tests")
 load(":oci.bzl", "oci_deploy")
 load(":oci_tests.bzl", "oci_layout_fixture", "oci_unit_tests")
 load(":octopus.bzl", "octopus_deploy")
@@ -844,6 +844,7 @@ test_suite(
         ":npm_analysis",
         ":npm_unit",
         ":nuget_analysis",
+        ":nuget_config_content",
         ":nuget_unit",
         ":oci_analysis",
         ":oci_demo_layout_verify",
@@ -1725,6 +1726,8 @@ nuget_deploy(
 )
 
 nuget_unit_tests(name = "nuget_unit")
+
+nuget_config_content_tests(name = "nuget_config_content")
 
 deploy_analysis_test(
     name = "nuget_analysis",

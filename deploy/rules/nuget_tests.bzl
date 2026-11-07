@@ -1,6 +1,8 @@
 """Unit and analysis tests for the NuGet publisher."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load(":api_compat.bzl", "api_compat_error")
 load(":nuget.bzl", "NUGET_DEFAULT_SOURCE", "nuget_id_error", "nuget_nupkg_error", "nuget_source_error", "nuget_version_error")
 
 def nuget_unit_tests(name):
@@ -80,5 +82,35 @@ def nuget_unit_tests(name):
                 "nuget_deploy: invalid source '': want a non-empty https " +
                 "URL (for example '" + NUGET_DEFAULT_SOURCE + "')",
             ),
+            expect_equal(
+                "nuget_deploy rejects an unknown api_compat",
+                api_compat_error("nuget_deploy", "loud", "registry"),
+                "nuget_deploy: invalid api_compat 'loud': want 'off', 'warn' or 'fail'",
+            ),
+            expect_equal(
+                "nuget_deploy rejects an unknown api_baseline",
+                api_compat_error("nuget_deploy", "fail", "tag"),
+                "nuget_deploy: invalid api_baseline 'tag': want 'registry' or 'git'",
+            ),
         ],
+    )
+
+def _config_content_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    writes = [a for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite"]
+    asserts.equals(env, 1, len(writes), "want one FileWrite action")
+    content = writes[0].content if writes else ""
+    asserts.true(env, "\"api_compat\":\"fail\"" in content, "config must default api_compat to fail: " + content)
+    asserts.true(env, "\"api_baseline\":\"registry\"" in content, "config must default api_baseline to registry: " + content)
+    asserts.true(env, "Microsoft.DotNet.ApiCompat.Tool.dll" in content, "config must carry the ApiCompat dll: " + content)
+    return analysistest.end(env)
+
+_config_content_test = analysistest.make(_config_content_test_impl)
+
+def nuget_config_content_tests(name):
+    """Checks that the nuget config defaults api_compat to fail against the registry."""
+    _config_content_test(
+        name = name,
+        size = "small",
+        target_under_test = ":nuget_demo_config",
     )

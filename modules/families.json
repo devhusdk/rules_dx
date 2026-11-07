@@ -288,6 +288,7 @@
         "//cc/toolchains/msvc:repos.bzl%msvc",
         "//cc/toolchains:repos.bzl%gcc",
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
+        "//deploy/rules/pins:repos.bzl%apicompat",
         "//deploy/rules/pins:repos.bzl%japicmp",
         "//deploy/rules/pins:repos.bzl%semver_checks",
         "//dotnet:extensions.bzl%dotnet",

@@ -1,6 +1,7 @@
 """Module extension for the pinned cargo-semver-checks binaries."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load(":apicompat_pins.bzl", "APICOMPAT_SHA256", "APICOMPAT_VERSION")
 load(":japicmp_pins.bzl", "JAPICMP_SHA256", "JAPICMP_VERSION")
 load(":semver_checks_pins.bzl", "SEMVER_CHECKS_PLATFORMS", "SEMVER_CHECKS_VERSION")
 
@@ -33,4 +34,20 @@ def _japicmp_impl(mctx):
 japicmp = module_extension(
     implementation = _japicmp_impl,
     doc = "Creates the pinned japicmp jar.",
+)
+
+def _apicompat_impl(mctx):
+    """Declares the pinned ApiCompat tool package."""
+    http_archive(
+        name = "apicompat_tool",
+        build_file_content = 'filegroup(name = "files", srcs = glob(["tools/net8.0/any/**"]), visibility = ["//visibility:public"])\n',
+        sha256 = APICOMPAT_SHA256,
+        type = "zip",
+        urls = ["https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.apicompat.tool/%s/microsoft.dotnet.apicompat.tool.%s.nupkg" % (APICOMPAT_VERSION, APICOMPAT_VERSION)],
+    )
+    return mctx.extension_metadata(reproducible = True)
+
+apicompat = module_extension(
+    implementation = _apicompat_impl,
+    doc = "Creates the pinned Microsoft.DotNet.ApiCompat.Tool package.",
 )

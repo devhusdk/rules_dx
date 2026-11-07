@@ -328,7 +328,31 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     );
     out.push_str(&quality_table(facts));
     out.push_str(&not_applicable_section(facts));
+    out.push_str(&api_compat_section(facts));
     out
+}
+
+fn api_compat_section(facts: &Facts) -> String {
+    if facts.api_compat_tools.is_empty() {
+        return String::new();
+    }
+    let rows: Vec<Vec<String>> = facts
+        .api_compat_tools
+        .iter()
+        .map(|(rule, tool)| {
+            let cell = if tool == "not available" {
+                tool.clone()
+            } else {
+                format!("`{tool}`")
+            };
+            vec![format!("`{rule}`"), cell]
+        })
+        .collect();
+    format!(
+        "\n## API compatibility check\n\n\
+         The tool each publishing rule runs for `api_compat`, or `not available` when no maintained free tool exists.\n\n{}",
+        table(&["Rule", "Tool"], &rows)
+    )
 }
 
 fn not_applicable_section(facts: &Facts) -> String {
@@ -427,6 +451,24 @@ mod tests {
             "{page}"
         );
         assert!(!page.to_lowercase().contains("experimental"));
+    }
+
+    #[test]
+    fn lists_the_api_compat_tool_per_rule() {
+        let mut facts = parse_facts(FACTS).expect("facts");
+        assert_eq!(api_compat_section(&facts), "");
+        facts.api_compat_tools = BTreeMap::from([
+            ("hex_deploy".to_owned(), "not available".to_owned()),
+            (
+                "nuget_deploy".to_owned(),
+                "Microsoft.DotNet.ApiCompat".to_owned(),
+            ),
+        ]);
+        let out = api_compat_section(&facts);
+        assert!(
+            out.contains("| `hex_deploy` | not available |\n| `nuget_deploy` | `Microsoft.DotNet.ApiCompat` |\n"),
+            "{out}"
+        );
     }
 
     #[test]

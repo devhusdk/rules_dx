@@ -232,9 +232,18 @@ pub fn previous_git_tag(workspace: &std::path::Path, next: &str) -> Result<Optio
     Ok(previous_tag(&String::from_utf8_lossy(&output.stdout), next))
 }
 
-/// Downloads `url` up to `limit` bytes; None when the server answers 404.
+/// Downloads `url` up to `limit` bytes; None when the server answers 404 or 410.
 pub fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
-    match crate::http::publish_agent().get(url).call() {
+    fetch_with(&crate::http::publish_agent(), url, limit)
+}
+
+/// Downloads `url` with `agent` up to `limit` bytes; None when the server answers 404 or 410.
+pub fn fetch_with(agent: &ureq::Agent, url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
+    match agent.get(url).call() {
+        Ok(response) if matches!(response.status().as_u16(), 404 | 410) => Ok(None),
+        Ok(response) if !response.status().is_success() => {
+            Err(format!("cannot query {url}: HTTP {}", response.status()))
+        }
         Ok(mut response) => response
             .body_mut()
             .with_config()

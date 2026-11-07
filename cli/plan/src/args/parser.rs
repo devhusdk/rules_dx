@@ -204,7 +204,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
 }
 
 fn validate_config(command: Command, targets: &[String]) -> Result<(), ArgsError> {
-    let max = if targets.first().is_some_and(|word| word == "diff") {
+    let max = if targets.first().is_some_and(|word| word == "diff" || word == "override") {
         2
     } else {
         1

@@ -351,6 +351,7 @@ pub struct WindowsRun {
     pub output_base: PathBuf,
 }
 
+pub const REPOSITORY_CACHE_ENV: &str = "DX_HERMETIC_REPOSITORY_CACHE";
 pub const APPCONTAINER_ENV: &str = "DX_HERMETIC_APPCONTAINER";
 
 pub const MACOS_DENIED_MARKER: &str = "Operation not permitted";
@@ -2091,6 +2092,37 @@ fn write(path: &Path, text: &str) -> Result<(), String> {
     std::fs::write(path, text).map_err(|err| format!("cannot write {}: {err}", path.display()))
 }
 
+/// Links the downloads in `from` (a Bazel repository cache) into `to`, and returns how many.
+/// Only `content_addressable/sha256` is taken, so no other state leaks in.
+fn seed_repository_cache(from: Option<&Path>, to: &Path) -> Result<usize, String> {
+    let Some(from) = from else {
+        return Ok(0);
+    };
+    let entries = from.join("content_addressable").join("sha256");
+    let Ok(hashes) = std::fs::read_dir(&entries) else {
+        return Ok(0);
+    };
+    let mut seeded = 0;
+    for hash in hashes.flatten() {
+        let name = hash.file_name();
+        let source = hash.path().join("file");
+        if !source.is_file() {
+            continue;
+        }
+        let dest_dir = to.join("content_addressable").join("sha256").join(&name);
+        std::fs::create_dir_all(&dest_dir)
+            .map_err(|err| format!("cannot create {}: {err}", dest_dir.display()))?;
+        let dest = dest_dir.join("file");
+        if std::fs::hard_link(&source, &dest).is_err() {
+            std::fs::copy(&source, &dest).map_err(|err| {
+                format!("cannot copy {} to {}: {err}", source.display(), dest.display())
+            })?;
+        }
+        seeded += 1;
+    }
+    Ok(seeded)
+}
+
 fn copy(from: &Path, to: &Path) -> Result<(), String> {
     if let Some(parent) = to.parent() {
         std::fs::create_dir_all(parent)
@@ -2716,6 +2748,14 @@ fn run_all(
     let empty_repos = root.join("repos-empty");
     std::fs::create_dir_all(&empty_repos)
         .map_err(|err| format!("cannot create {}: {err}", empty_repos.display()))?;
+    let seeded = seed_repository_cache(
+        std::env::var_os(REPOSITORY_CACHE_ENV)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .as_deref(),
+        &repos,
+    )?;
+    evidence["repository_cache_seeded"] = json!(seeded);
     let cold = root.join("cold");
     let warm = root.join("warm");
     let miss = root.join("miss");

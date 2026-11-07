@@ -218,6 +218,7 @@ jobs:
           read -ra flags <<< "$DX_FLAGS"
           DX_HERMETIC_BAZELISK="$(command -v bazel)"
           export DX_HERMETIC_BAZELISK
+          repository_cache="$(bazel info repository_cache | tr -d '\r')"
           startup=()
           extra=()
           downloads=()
@@ -231,7 +232,7 @@ jobs:
             elif [ "$DX_TASK" = "coverage" ]; then
               bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
-              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" --nozip_undeclared_test_outputs --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" --nozip_undeclared_test_outputs --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "--test_env=DX_HERMETIC_REPOSITORY_CACHE=$repository_cache" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             fi
           }
           run_task "$RUNNER_TEMP/evidence/evidence.log"

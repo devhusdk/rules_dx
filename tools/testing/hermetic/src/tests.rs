@@ -2248,3 +2248,23 @@ fn isolation_check_result_reports_the_first_failure() {
         Ok(())
     );
 }
+
+#[test]
+fn repository_cache_seeding_copies_entries_and_ignores_a_missing_source() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("outer");
+    let entry = source.join("content_addressable/sha256/abc");
+    std::fs::create_dir_all(&entry).unwrap();
+    std::fs::write(entry.join("file"), "payload").unwrap();
+    std::fs::create_dir_all(source.join("content_addressable/sha256/empty")).unwrap();
+    let repos = dir.path().join("repos");
+    assert_eq!(seed_repository_cache(Some(&source), &repos), Ok(1));
+    assert_eq!(
+        std::fs::read_to_string(repos.join("content_addressable/sha256/abc/file")).unwrap(),
+        "payload"
+    );
+    let none = dir.path().join("none");
+    assert_eq!(seed_repository_cache(None, &none), Ok(0));
+    assert_eq!(seed_repository_cache(Some(&dir.path().join("gone")), &none), Ok(0));
+    assert!(!none.exists());
+}

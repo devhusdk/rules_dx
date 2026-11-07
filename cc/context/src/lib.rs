@@ -444,10 +444,16 @@ pub fn read_identities(paths: &[PathBuf]) -> Result<Vec<CompilerIdentity>, Error
 /// Argv flags that mean an MSVC action already carries its own CRT and SDK includes.
 const MSVC_ARGV_INCLUDE_FLAGS: [&str; 4] = ["/imsvc", "-imsvc", "/winsysroot", "-winsysroot"];
 
-/// Argv0 and arguments of the version probe for a recorded compiler, with a relative
-/// argv0 resolved against the execroot. `cl` takes no flag and prints its banner on stderr.
-pub fn version_probe(execroot: &Path, argv0: &str) -> (PathBuf, Vec<String>) {
-    let path = execroot.join(argv0);
+/// Argv0 and arguments of the version probe for a recorded compiler. A relative argv0 is
+/// resolved against the execroot, except `external/` paths, which are read from the output
+/// base because Bazel need not link every repository into the execroot.
+/// `cl` takes no flag and prints its banner on stderr.
+pub fn version_probe(execroot: &Path, output_base: &Path, argv0: &str) -> (PathBuf, Vec<String>) {
+    let path = if argv0.starts_with("external/") {
+        output_base.join(argv0)
+    } else {
+        execroot.join(argv0)
+    };
     let is_cl = path
         .file_stem()
         .is_some_and(|stem| stem.eq_ignore_ascii_case("cl"));

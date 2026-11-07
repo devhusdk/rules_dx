@@ -29,6 +29,7 @@ load(
     "REQUIRED_LICENSES",
     "SDK_PACKAGES",
     "SDK_PLATFORM",
+    "app_sdk_hub_build",
     "app_sdk_layout",
     "app_sdk_substitutions",
     "artifact_errors",
@@ -434,6 +435,12 @@ def _android_checks():
         "__default_api_level__": "33",
         "__system_image_dirs__": "",
     }))
+    hub = app_sdk_hub_build("dx_androidsdk_files", 34)
+    checks.append(expect_contains("app sdk hub forwards the sdk", hub, '"@dx_androidsdk_files//:sdk-34"'))
+    checks.append(expect_contains("app sdk hub declares the toolchain", hub, 'name = "sdk-34-toolchain"'))
+    checks.append(expect_contains("app sdk hub gates on its own api level", hub, '":api_34_enabled"'))
+    checks.append(expect_contains("app sdk hub forwards adb", hub, 'name = "platform-tools/adb"'))
+    checks.append(expect_false("app sdk hub globs nothing", "glob(" in hub))
     return checks
 
 def android_metadata_tests(name):

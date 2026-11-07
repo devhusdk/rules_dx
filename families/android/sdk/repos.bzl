@@ -145,6 +145,42 @@ HUB_NAME = "dx_android_sdk"
 
 APP_SDK_HUB_NAME = "dx_androidsdk"
 
+APP_SDK_FILES_NAME = APP_SDK_HUB_NAME + "_files"
+
+# Targets of rules_android's SDK template the light @androidsdk hub forwards to
+# the files repo. Check this list against @androidsdk//: labels on upgrades.
+APP_SDK_FORWARDED = [
+    "sdk",
+    "sdk-%d",
+    "sdk-dummy",
+    "files",
+    "fail",
+    "d8_jar_import",
+    "aapt_binary",
+    "aapt2",
+    "aapt2_binary",
+    "aidl_binary",
+    "zipalign",
+    "zipalign_binary",
+    "apksigner",
+    "core-for-system-modules-jar",
+    "org_apache_http_legacy",
+    "org_apache_http_legacy-%d",
+    "legacy_test-%d",
+    "android_car",
+    "android_car-%d",
+    "adb",
+    "platform-tools/adb",
+    "dexdump",
+    "emulator",
+    "sdk_path",
+    "build_tools_libs",
+    "d8_compat_dx",
+    "dx_binary",
+    "main_dex_list_creator",
+    "generate_main_dex_list",
+]
+
 _NDK_REPOSITORY_PREFIX = "dx_android_ndk_"
 
 _BUILD_TOOLS_REPOSITORY_PREFIX = "dx_android_build_tools_"
@@ -323,6 +359,78 @@ def app_sdk_substitutions(request = None):
         "__default_api_level__": level,
         "__system_image_dirs__": "",
     }
+
+def app_sdk_hub_build(files_repo, level):
+    """Returns the @androidsdk BUILD file that registers toolchains without fetching files_repo."""
+    lines = [
+        'load("@bazel_skylib//rules:common_settings.bzl", "string_flag")',
+        'load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")',
+        "",
+        'package(default_visibility = ["//visibility:public"])',
+        "",
+        'toolchain_type(name = "sdk_toolchain_type")',
+        "",
+        "config_feature_flag(",
+        '    name = "true",',
+        '    allowed_values = ["true", "false"],',
+        '    default_value = "true",',
+        ")",
+        "",
+        "config_setting(",
+        '    name = "always_true",',
+        '    flag_values = {":true": "true"},',
+        ")",
+        "",
+        "config_setting(",
+        '    name = "always_false",',
+        '    flag_values = {":true": "false"},',
+        ")",
+        "",
+        "alias(",
+        '    name = "has_androidsdk",',
+        '    actual = ":always_true",',
+        ")",
+        "",
+        "string_flag(",
+        '    name = "api_level",',
+        '    build_setting_default = "%d",' % level,
+        '    values = ["%d"],' % level,
+        ")",
+        "",
+        "config_setting(",
+        '    name = "api_%d_enabled",' % level,
+        '    flag_values = {":api_level": "%d"},' % level,
+        ")",
+        "",
+        "toolchain(",
+        '    name = "sdk-%d-toolchain",' % level,
+        "    exec_compatible_with = HOST_CONSTRAINTS,",
+        '    target_settings = [":api_%d_enabled"],' % level,
+        '    toolchain = "@%s//:sdk-%d",' % (files_repo, level),
+        '    toolchain_type = ":sdk_toolchain_type",',
+        ")",
+        "",
+        "toolchain(",
+        '    name = "sdk-dummy-toolchain",',
+        '    toolchain = "@%s//:sdk-dummy",' % files_repo,
+        '    toolchain_type = ":sdk_toolchain_type",',
+        ")",
+        "",
+        "alias(",
+        '    name = "sdk-toolchain",',
+        '    actual = ":sdk-%d-toolchain",' % level,
+        ")",
+    ]
+    for name in APP_SDK_FORWARDED:
+        target = name % level if "%d" in name else name
+        lines.extend([
+            "",
+            "alias(",
+            '    name = "%s",' % target,
+            '    actual = "@%s//:%s",' % (files_repo, target),
+            ")",
+        ])
+    return "\n".join(lines) + "\n"
 
 def package_repositories(request):
     """Returns {kind: {host_or_level: repository}} for the packages one request fetches."""
@@ -803,6 +911,21 @@ _android_app_sdk_repo = repository_rule(
     },
 )
 
+def _android_app_sdk_hub_repo_impl(ctx):
+    linux_x86_64 = ctx.os.name == "linux" and ctx.os.arch in ["amd64", "x86_64"]
+    if ctx.attr.build == "" or not linux_x86_64:
+        ctx.template("BUILD.bazel", Label("@rules_android//rules/android_sdk_repository:empty.template.bzl"))
+    else:
+        ctx.file("BUILD.bazel", ctx.attr.build)
+    return ctx.repo_metadata(reproducible = True)
+
+_android_app_sdk_hub_repo = repository_rule(
+    implementation = _android_app_sdk_hub_repo_impl,
+    attrs = {
+        "build": attr.string(doc = "BUILD file of the @androidsdk hub, empty when no SDK is configured."),
+    },
+)
+
 def _configure_tag(request):
     return struct(
         accept_licenses = list(request.accept_licenses),
@@ -837,10 +960,14 @@ def _declare_app_sdk(request):
         url = url_for(entry.artifact, mirror)
         dirs[entry.dest] = [url, entry.artifact.sha256, canonical_id_for(url, entry.kind), entry.artifact.directory]
     _android_app_sdk_repo(
-        name = APP_SDK_HUB_NAME,
+        name = APP_SDK_FILES_NAME,
         dirs = dirs,
         local_path = request.local_path,
         substitutions = app_sdk_substitutions(request),
+    )
+    _android_app_sdk_hub_repo(
+        name = APP_SDK_HUB_NAME,
+        build = app_sdk_hub_build(APP_SDK_FILES_NAME, _level(request)) if request.enabled else "",
     )
 
 def _android_sdk_impl(module_ctx):

@@ -1,6 +1,7 @@
 """Hermetic npm pack feed publisher for dx deploy."""
 
 load("@bazel_skylib//lib:shell.bzl", "shell")
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
@@ -84,30 +85,34 @@ def _npm_config_impl(ctx):
         ctx,
         "npm",
         {
-            "api_compat": "fail" if ctx.attr.api_compat else "off",
+            "api_baseline": ctx.attr.api_baseline,
+            "api_compat": ctx.attr.api_compat,
+            "api_extractor_rloc": rlocation_path(ctx, ctx.executable._api_extractor),
             "feed_rloc": rlocation_path(ctx, ctx.file.feed),
             "tarball_rloc": rlocation_path(ctx, ctx.file.tarball),
         },
-        ctx.runfiles(files = [ctx.file.feed, ctx.file.tarball]),
+        ctx.runfiles(files = [ctx.file.feed, ctx.file.tarball]).merge(ctx.attr._api_extractor[DefaultInfo].default_runfiles),
     )
 
 _npm_config = rule(
     implementation = _npm_config_impl,
     doc = "Writes the deploy config for one npm deployment.",
-    attrs = {
-        "api_compat": attr.bool(doc = "Fail a breaking public API change against the latest published package unless the bump is major.", default = False),
+    attrs = API_COMPAT_ATTRS | {
+        "_api_extractor": attr.label(
+            default = Label("//quality/tools/javascript/bin:api_extractor"),
+            executable = True,
+            cfg = "exec",
+        ),
         "feed": attr.label(allow_single_file = True, mandatory = True, doc = "Packed feed JSON."),
         "tarball": attr.label(allow_single_file = True, mandatory = True, doc = "Packed tarball."),
     },
 )
 
-def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = False):
+def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Packs files into a local npm feed with public or restricted access and a provenance policy.
 
-    api_compat diffs the api-extractor report of the package types entry with
-    the latest published package; a breaking change fails unless the version
-    bump is major. It is off by default because it needs api-extractor and npm
-    on PATH.
+    api_compat and api_baseline work as described under "Public API
+    compatibility" in the README; the tool is api-extractor on the types entry.
     """
     pkg_error = npm_package_error(package)
     if pkg_error != "":
@@ -129,6 +134,9 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         fail("npm_deploy " + native.package_name() + ":" + name +
              ": need at least one src")
 
+    api_error = api_compat_error("npm_deploy", api_compat, api_baseline)
+    if api_error != "":
+        fail(api_error + " (in " + native.package_name() + ":" + name + ")")
     (tarball, feed) = npm_filenames(name)
     pack_target = name + "_pack"
     config_target = name + "_config"
@@ -145,7 +153,8 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         name = config_target,
         feed = ":" + feed,
         tarball = ":" + tarball,
-        api_compat = api_compat,
+        api_compat = api_compat_mode(api_compat),
+        api_baseline = api_baseline,
     )
 
     dx_deployment(

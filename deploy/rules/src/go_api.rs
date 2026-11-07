@@ -1,25 +1,49 @@
 //! Go module API compatibility check for github_deploy, using apidiff.
 
-use crate::api_compat::{ApiCompatMode, breaking_refusal, previous_tag, required_bump};
+use crate::api_compat::{Baseline, Outcome, fetch, highest_below, previous_git_tag};
+use crate::archive::archive_extract;
 use crate::run::{PUBLISH_CHILD_ENV_KEEP, scrubbed_command};
 use crate::stage::tempfile_stage_dir;
 use std::path::Path;
 
-/// Counts the lines under `Incompatible changes:` in apidiff output.
-pub(crate) fn count_incompatible(output: &str) -> usize {
+/// Returns the lines under `Incompatible changes:` in apidiff output.
+pub(crate) fn incompatible_changes(output: &str) -> Vec<String> {
     let mut inside = false;
-    let mut count = 0;
+    let mut changes = Vec::new();
     for line in output.lines() {
         let line = line.trim();
         if line == "Incompatible changes:" {
             inside = true;
         } else if line.is_empty() || line.ends_with("changes:") {
             inside = false;
-        } else if inside && line.starts_with("- ") {
-            count += 1;
+        } else if let Some(change) = line.strip_prefix("- ").filter(|_| inside) {
+            changes.push(change.to_owned());
         }
     }
-    count
+    changes
+}
+
+/// Where module versions and zips are read from.
+const GO_PROXY: &str = "https://proxy.golang.org";
+
+/// Escapes a module path for the module proxy: each capital letter becomes `!` and its lower case.
+fn proxy_escape(path: &str) -> String {
+    let mut out = String::new();
+    for c in path.chars() {
+        if c.is_ascii_uppercase() {
+            out.push('!');
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Returns the highest `v*` version below `tag` in a proxy `@v/list` body.
+fn proxy_previous(list: &str, tag: &str) -> Option<String> {
+    highest_below(list.lines().filter_map(|v| v.trim().strip_prefix('v')), tag)
+        .map(|version| format!("v{version}"))
 }
 
 /// Returns the module path of a go.mod file.
@@ -32,8 +56,17 @@ fn module_path(go_mod: &Path) -> Option<String> {
 }
 
 /// Runs apidiff inside a module directory; apidiff shells out to `go`.
-fn run_apidiff(program: &Path, dir: &Path, args: &[&str]) -> Result<String, String> {
-    let mut cmd = scrubbed_command(program, &[PUBLISH_CHILD_ENV_KEEP, GO_CHILD_ENV_EXTRA], &[]);
+fn run_apidiff(
+    program: &Path,
+    extra: &[(&str, &str)],
+    dir: &Path,
+    args: &[&str],
+) -> Result<String, String> {
+    let mut cmd = scrubbed_command(
+        program,
+        &[PUBLISH_CHILD_ENV_KEEP, GO_CHILD_ENV_EXTRA],
+        extra,
+    );
     cmd.args(args).current_dir(dir);
     let output = cmd
         .output()
@@ -81,93 +114,160 @@ fn git(workspace: &Path, args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-/// Runs apidiff for each module against the highest `v*` tag below `tag`.
-///
-/// A missing tool, a missing earlier tag or a module absent at that tag skips with a note.
+/// Returns the breaking changes of the module in `new` against the module in `old`.
+fn compare_module(
+    apidiff: &Path,
+    extra: &[(&str, &str)],
+    (old, new): (&Path, &Path),
+    path: &str,
+    export: &Path,
+) -> Result<Vec<String>, String> {
+    let export = export.to_string_lossy();
+    run_apidiff(apidiff, extra, old, &["-m", "-w", &export, path])?;
+    let text = run_apidiff(apidiff, extra, new, &["-m", &export, path])?;
+    Ok(incompatible_changes(&text)
+        .into_iter()
+        .map(|change| format!("{path}: {change}"))
+        .collect())
+}
+
+/// Returns the outcome of each module against the earlier version `baseline` picks.
+/// `go` is the pinned go binary apidiff runs; a module absent at the baseline is skipped.
 pub(crate) fn go_api_check(
-    apidiff: Option<&Path>,
+    (apidiff, go): (&Path, Option<&Path>),
     workspace: &Path,
     modules: &[String],
     tag: &str,
-    mode: ApiCompatMode,
-) -> Result<(), String> {
-    if mode == ApiCompatMode::Off {
-        return Ok(());
-    }
+    baseline: Baseline,
+) -> Result<Vec<Outcome>, String> {
     let detected = [String::new()];
     let modules = if modules.is_empty() {
         if !workspace.join("go.mod").is_file() {
-            return Ok(());
+            return Ok(Vec::new());
         }
         &detected[..]
     } else {
         modules
     };
-    let Some(program) = apidiff else {
-        println!("api compat: apidiff or go not found; skipped");
-        return Ok(());
-    };
-    let version = tag.trim_start_matches('v');
-    let tags = git(workspace, &["tag", "--list", "v*"])
+    let path_env = go.and_then(Path::parent).map(|dir| {
+        let mut dirs = vec![dir.to_path_buf()];
+        dirs.extend(std::env::split_paths(
+            &std::env::var_os("PATH").unwrap_or_default(),
+        ));
+        std::env::join_paths(dirs)
+            .map_or_else(|_| String::new(), |p| p.to_string_lossy().into_owned())
+    });
+    let extra: Vec<(&str, &str)> = path_env
+        .iter()
+        .map(|path| ("PATH", path.as_str()))
+        .collect();
+    let work = tempfile_stage_dir("go-api-")
         .map_err(|error| format!("github_deploy: api compat: {error}"))?;
-    let Some(previous) = previous_tag(&tags, version) else {
-        println!("api compat: no earlier v<version> tag; skipped (first release)");
-        return Ok(());
+    let mut outcomes = Vec::new();
+    let mut checked = Ok(());
+    let mut worktree = None;
+    for (index, module) in modules.iter().enumerate() {
+        let rel = module.trim_matches('/');
+        let new = workspace.join(rel);
+        let Some(path) = module_path(&new.join("go.mod")) else {
+            checked = Err(format!("github_deploy: no module line in {module}/go.mod"));
+            break;
+        };
+        let old = if baseline == Baseline::Git {
+            go_git_baseline(workspace, &work, &mut worktree, tag)
+                .map(|found| found.map(|(previous, tree)| (previous, tree.join(rel))))
+        } else {
+            go_proxy_baseline(&path, tag, &work.join(index.to_string()))
+        };
+        let (previous, old) = match old {
+            Ok(Some(found)) => found,
+            Ok(None) => {
+                outcomes.push(Outcome::FirstRelease);
+                continue;
+            }
+            Err(why) => {
+                outcomes.push(Outcome::Skipped(why));
+                continue;
+            }
+        };
+        if !old.join("go.mod").is_file() {
+            outcomes.push(Outcome::Skipped(format!(
+                "no go.mod for {path} at {previous}"
+            )));
+            continue;
+        }
+        let export = work.join(format!("{index}.export"));
+        match compare_module(apidiff, &extra, (&old, &new), &path, &export) {
+            Ok(changes) => outcomes.push(Outcome::Compared { previous, changes }),
+            Err(error) => {
+                checked = Err(error);
+                break;
+            }
+        }
+    }
+    if worktree.is_some() {
+        let tree = work.join("tree");
+        let _ = git(
+            workspace,
+            &["worktree", "remove", "--force", &tree.to_string_lossy()],
+        );
+    }
+    let _ = std::fs::remove_dir_all(&work);
+    checked.map(|()| outcomes)
+}
+
+/// Checks out the highest `v*` tag below `tag` once under `work/tree`.
+fn go_git_baseline(
+    workspace: &Path,
+    work: &Path,
+    worktree: &mut Option<String>,
+    tag: &str,
+) -> Result<Option<(String, std::path::PathBuf)>, String> {
+    let tree = work.join("tree");
+    if let Some(previous) = worktree {
+        return Ok(Some((previous.clone(), tree)));
+    }
+    let Some(previous) = previous_git_tag(workspace, tag)? else {
+        return Ok(None);
     };
-    let old_tree = tempfile_stage_dir("go-api-base-")
-        .map_err(|error| format!("github_deploy: api compat: {error}"))?;
-    let added = git(
+    git(
         workspace,
         &[
             "worktree",
             "add",
             "--detach",
-            &old_tree.to_string_lossy(),
+            &tree.to_string_lossy(),
             &previous,
         ],
-    );
-    let checked = added
-        .map_err(|error| format!("github_deploy: api compat: {error}"))
-        .and_then(|_| {
-            let mut breaking = 0;
-            for module in modules {
-                let rel = module.trim_matches('/');
-                let old = old_tree.join(rel);
-                if !old.join("go.mod").is_file() {
-                    println!("api compat: no go.mod at {module} in {previous}; skipped");
-                    continue;
-                }
-                let new = workspace.join(rel);
-                let Some(path) = module_path(&new.join("go.mod")) else {
-                    return Err(format!("github_deploy: no module line in {module}/go.mod"));
-                };
-                let export = old_tree.join("apidiff.export");
-                run_apidiff(
-                    program,
-                    &old,
-                    &["-m", "-w", &export.to_string_lossy(), &path],
-                )?;
-                let text = run_apidiff(program, &new, &["-m", &export.to_string_lossy(), &path])?;
-                let found = count_incompatible(&text);
-                for line in text.lines().filter(|line| line.starts_with("- ")) {
-                    println!("apidiff: {module}: {line}");
-                }
-                breaking += found;
-            }
-            println!("api compat: {breaking} breaking changes against {previous}");
-            match breaking_refusal(mode, required_bump(&previous[1..], version), breaking) {
-                Some(reason) => Err(format!(
-                    "github_deploy: api compat: {reason} ({previous} -> {tag})"
-                )),
-                None => Ok(()),
-            }
-        });
-    let _ = git(
-        workspace,
-        &["worktree", "remove", "--force", &old_tree.to_string_lossy()],
-    );
-    let _ = std::fs::remove_dir_all(&old_tree);
-    checked
+    )?;
+    *worktree = Some(previous.clone());
+    Ok(Some((previous, tree)))
+}
+
+/// Downloads the highest proxy version of `path` below `tag` and returns its module directory.
+fn go_proxy_baseline(
+    path: &str,
+    tag: &str,
+    dir: &Path,
+) -> Result<Option<(String, std::path::PathBuf)>, String> {
+    let base = format!("{GO_PROXY}/{}/@v", proxy_escape(path));
+    let Some(list) = fetch(&format!("{base}/list"), 1 << 20)? else {
+        return Ok(None);
+    };
+    let Some(previous) = proxy_previous(&String::from_utf8_lossy(&list), tag) else {
+        return Ok(None);
+    };
+    let url = format!("{base}/{previous}.zip");
+    let Some(zip) = fetch(&url, 512 << 20)? else {
+        return Err(format!("{url} not found"));
+    };
+    let archive = dir.with_extension("zip");
+    std::fs::write(&archive, zip).map_err(|error| format!("{}: {error}", archive.display()))?;
+    archive_extract(&archive, dir).map_err(|error| format!("{url}: {error}"))?;
+    Ok(Some((
+        previous.clone(),
+        dir.join(format!("{path}@{previous}")),
+    )))
 }
 
 #[cfg(test)]
@@ -178,8 +278,41 @@ mod tests {
     #[test]
     fn counts_only_incompatible_lines() {
         let text = "Incompatible changes:\n- Gone: removed\n- Other: changed\n\nCompatible changes:\n- New: added\n";
-        assert_eq!(count_incompatible(text), 2);
-        assert_eq!(count_incompatible("Compatible changes:\n- New: added\n"), 0);
+        assert_eq!(
+            incompatible_changes(text),
+            vec!["Gone: removed", "Other: changed"]
+        );
+        assert!(incompatible_changes("Compatible changes:\n- New: added\n").is_empty());
+    }
+
+    #[test]
+    fn proxy_paths_escape_capitals_and_pick_the_version_below() {
+        assert_eq!(
+            proxy_escape("github.com/Azure/SDK"),
+            "github.com/!azure/!s!d!k"
+        );
+        let list = "v1.0.0\nv1.2.0\nv1.3.0-rc.1\nv2.0.0\n";
+        assert_eq!(proxy_previous(list, "v1.3.0").as_deref(), Some("v1.2.0"));
+        assert_eq!(proxy_previous(list, "v1.0.0"), None);
+    }
+
+    #[test]
+    fn proxy_zip_extracts_under_the_module_prefix() {
+        let scratch = scratch_dir();
+        let zip = crate::archive::zip_archive(&[
+            (
+                "example.com/Lib@v1.2.0/go.mod",
+                b"module example.com/Lib\n",
+                0o644,
+            ),
+            ("example.com/Lib@v1.2.0/lib.go", b"package lib\n", 0o644),
+        ])
+        .expect("zip");
+        let archive = scratch.path().join("0.zip");
+        std::fs::write(&archive, zip).expect("write");
+        let dir = scratch.path().join("0");
+        archive_extract(&archive, &dir).expect("extract");
+        assert!(dir.join("example.com/Lib@v1.2.0/go.mod").is_file());
     }
 
     #[cfg(unix)]
@@ -215,7 +348,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn removed_function_needs_a_major_bump() {
+    fn removed_function_is_reported_against_the_tag() {
         let scratch = scratch_dir();
         let repo = git_fixture(scratch.path());
         let args_log = scratch.path().join("args");
@@ -230,19 +363,22 @@ mod tests {
         .expect("fake tool");
         set_mode(&fake, 0o755);
         let modules = vec!["lib".to_owned()];
-        let run =
-            |tag: &str, mode: ApiCompatMode| go_api_check(Some(&fake), &repo, &modules, tag, mode);
-        let refused = run("v1.3.0", ApiCompatMode::Fail).expect_err("minor bump refused");
-        assert!(refused.contains("v1.2.0 -> v1.3.0"), "{refused}");
+        let run = |tag: &str| go_api_check((&fake, None), &repo, &modules, tag, Baseline::Git);
+        assert_eq!(
+            run("v1.3.0"),
+            Ok(vec![Outcome::Compared {
+                previous: "v1.2.0".to_owned(),
+                changes: vec!["example.com/lib: Hello: removed".to_owned()],
+            }])
+        );
         let logged = std::fs::read_to_string(&args_log).expect("args");
         assert!(logged.starts_with("-m -w "), "{logged}");
         assert!(logged.contains("example.com/lib"), "{logged}");
-        assert!(run("v2.0.0", ApiCompatMode::Fail).is_ok());
-        assert!(go_api_check(Some(&fake), &repo, &[], "v1.3.0", ApiCompatMode::Fail).is_ok());
-        assert!(run("v1.3.0", ApiCompatMode::Warn).is_ok());
-        std::fs::remove_file(&args_log).expect("clear log");
-        assert!(run("v1.3.0", ApiCompatMode::Off).is_ok());
-        assert!(!args_log.exists(), "off must not run the tool");
+        assert_eq!(run("v1.0.0"), Ok(vec![Outcome::FirstRelease]));
+        assert_eq!(
+            go_api_check((&fake, None), &repo, &[], "v1.3.0", Baseline::Git),
+            Ok(Vec::new())
+        );
         let listed = git(&repo, &["worktree", "list"]).expect("list");
         assert_eq!(listed.lines().count(), 1, "{listed}");
     }
@@ -274,12 +410,18 @@ mod tests {
             ],
             || {
                 let modules = vec!["lib".to_owned()];
-                let run = |tag: &str| {
-                    go_api_check(Some(&apidiff), &repo, &modules, tag, ApiCompatMode::Fail)
-                };
-                let refused = run("v1.3.0").expect_err("minor bump refused");
-                assert!(refused.contains("v1.2.0 -> v1.3.0"), "{refused}");
-                run("v2.0.0").expect("a major bump allows the removal");
+                let outcomes = go_api_check(
+                    (&apidiff, Some(&go)),
+                    &repo,
+                    &modules,
+                    "v1.3.0",
+                    Baseline::Git,
+                )
+                .expect("apidiff ran");
+                assert!(
+                    matches!(&outcomes[..], [Outcome::Compared { previous, changes }] if previous == "v1.2.0" && changes.len() == 1),
+                    "{outcomes:?}"
+                );
             },
         );
     }

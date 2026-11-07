@@ -1,5 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_test")
 load("@dx_npm_tools//quality/tools/javascript:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
+load("@dx_npm_tools//quality/tools/javascript:@microsoft/api-extractor/package_json.bzl", api_extractor_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:@redocly/cli/package_json.bzl", redocly_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:asciidoctor/package_json.bzl", asciidoctor_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:esbuild/package_json.bzl", esbuild_bin = "bin")
@@ -237,6 +238,11 @@ typedoc_bin.typedoc_binary(
 
 wrangler_bin.wrangler_binary(
     name = "wrangler",
+    visibility = ["//visibility:public"],
+)
+
+api_extractor_bin.api_extractor_binary(
+    name = "api_extractor",
     visibility = ["//visibility:public"],
 )
 

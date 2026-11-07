@@ -1,6 +1,9 @@
 //! npm publisher: deterministic pack, pack verification and the npm publish.
 
-use crate::api_compat::{ApiCompatMode, breaking_refusal, required_bump};
+use crate::api_compat::{
+    ApiCompatMode, Baseline, Outcome, conclude, fetch, highest_below, previous_git_tag,
+    workspace_dir,
+};
 use crate::archive::*;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, print_redacted,
@@ -422,13 +425,14 @@ fn api_report_declarations(report: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Counts the declarations of the published report that the new report no longer has.
-fn count_api_breaking(published: &str, staged: &str) -> usize {
+/// Returns the declarations of the published report that the new report no longer has.
+fn api_breaking(published: &str, staged: &str) -> Vec<String> {
     let staged = api_report_declarations(staged);
     api_report_declarations(published)
         .into_iter()
         .filter(|line| !staged.contains(line))
-        .count()
+        .map(str::to_owned)
+        .collect()
 }
 
 /// Returns the version and the `types` entry of an extracted package.
@@ -495,49 +499,37 @@ fn extract_api_report(
     std::fs::read_to_string(report).map_err(|error| error.to_string())
 }
 
-/// Downloads the latest published tarball of `name` into `dir`; None when the package is unpublished.
-fn npm_pack_latest(npm: &Path, name: &str, dir: &Path) -> Option<std::path::PathBuf> {
-    std::fs::create_dir_all(dir).ok()?;
-    let output = scrubbed_command(npm, &[PUBLISH_CHILD_ENV_KEEP, NPM_CHILD_ENV_EXTRA], &[])
-        .args(["pack", &format!("{name}@latest"), "--pack-destination"])
-        .arg(dir)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    std::fs::read_dir(dir)
-        .ok()?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .find(|path| path.extension().is_some_and(|ext| ext == "tgz"))
-}
-
-/// Tools and settings of the npm API compatibility check.
-pub struct NpmApiTools<'a> {
-    pub mode: &'a str,
-    pub npm: Option<&'a Path>,
-    pub api_extractor: Option<&'a Path>,
-}
-
-/// Diffs the api-extractor report of the staged tarball with the latest published one.
-/// A missing tool, a missing `types` entry or an unpublished package skips with a note.
-fn npm_api_check(staged_tgz: &Path, name: &str, tools: &NpmApiTools) -> Result<(), String> {
-    let mode = ApiCompatMode::parse(if tools.mode.is_empty() {
-        "off"
-    } else {
-        tools.mode
-    })
-    .ok_or_else(|| format!("npm_deploy: invalid api_compat '{}'", tools.mode))?;
-    if mode == ApiCompatMode::Off {
-        return Ok(());
-    }
-    let (Some(npm), Some(api_extractor)) = (tools.npm, tools.api_extractor) else {
-        println!("api compat: npm or api-extractor not found on PATH; skipped");
-        return Ok(());
+/// Returns the versions and their tarball URLs from a registry packument body.
+fn npm_published(body: &str) -> Vec<(String, String)> {
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(body) else {
+        return Vec::new();
     };
+    json["versions"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter_map(|(version, meta)| {
+            let tarball = meta["dist"]["tarball"].as_str()?;
+            Some((version.clone(), tarball.to_owned()))
+        })
+        .collect()
+}
+
+/// Settings of the npm API compatibility check.
+pub struct NpmApiCheck<'a> {
+    pub baseline: Baseline,
+    pub registry: &'a str,
+    pub api_extractor: &'a Path,
+}
+
+/// Diffs the api-extractor report of the staged tarball with the release `baseline` picks.
+fn npm_api_check(
+    staged_tgz: &Path,
+    name: &str,
+    check: &NpmApiCheck,
+) -> Result<(String, Outcome), String> {
     let work = tempfile_stage_dir("npm-api-").map_err(|error| format!("npm_deploy: {error}"))?;
-    let result = npm_api_diff(staged_tgz, name, npm, api_extractor, mode, &work);
+    let result = npm_api_diff(staged_tgz, name, check, &work);
     let _ = std::fs::remove_dir_all(&work);
     result
 }
@@ -545,65 +537,109 @@ fn npm_api_check(staged_tgz: &Path, name: &str, tools: &NpmApiTools) -> Result<(
 fn npm_api_diff(
     staged_tgz: &Path,
     name: &str,
-    npm: &Path,
-    api_extractor: &Path,
-    mode: ApiCompatMode,
+    check: &NpmApiCheck,
     work: &Path,
-) -> Result<(), String> {
+) -> Result<(String, Outcome), String> {
     let staged_dir = work.join("staged");
     archive_extract(staged_tgz, &staged_dir).map_err(|error| format!("npm_deploy: {error}"))?;
     let staged_pkg = staged_dir.join("package");
     let (version, types) =
         package_version_and_types(&staged_pkg).map_err(|error| format!("npm_deploy: {error}"))?;
+    let skipped = |why: String| Ok((version.clone(), Outcome::Skipped(why)));
     let Some(types) = types else {
-        println!("api compat: package has no types entry; skipped");
-        return Ok(());
+        return skipped("package has no types entry".to_owned());
     };
-    let Some(published_tgz) = npm_pack_latest(npm, name, &work.join("download")) else {
-        println!("api compat: {name} is not published; skipped (first release)");
-        return Ok(());
+    let url = format!(
+        "{}/{}",
+        check.registry.trim_end_matches('/'),
+        name.replace('/', "%2f")
+    );
+    let published = match fetch(&url, 256 << 20) {
+        Ok(Some(body)) => npm_published(&String::from_utf8_lossy(&body)),
+        Ok(None) => Vec::new(),
+        Err(error) => return skipped(error),
     };
+    let previous = if check.baseline == Baseline::Git {
+        match previous_git_tag(&workspace_dir(), &version) {
+            Ok(tag) => tag.map(|tag| tag.trim_start_matches('v').to_owned()),
+            Err(error) => return skipped(error),
+        }
+    } else {
+        highest_below(published.iter().map(|(v, _)| v.as_str()), &version)
+    };
+    let Some(previous) = previous else {
+        return Ok((version, Outcome::FirstRelease));
+    };
+    let Some((_, tarball)) = published.iter().find(|(v, _)| *v == previous) else {
+        return skipped(format!("{name} {previous} is not on {}", check.registry));
+    };
+    let bytes = match fetch(tarball, 512 << 20) {
+        Ok(Some(bytes)) => bytes,
+        Ok(None) => return skipped(format!("{tarball} not found")),
+        Err(error) => return skipped(error),
+    };
+    let published_tgz = work.join("published.tgz");
     let published_dir = work.join("published");
+    std::fs::write(&published_tgz, bytes).map_err(|error| format!("npm_deploy: {error}"))?;
     archive_extract(&published_tgz, &published_dir)
         .map_err(|error| format!("npm_deploy: {error}"))?;
     let published_pkg = published_dir.join("package");
-    let (previous, published_types) = package_version_and_types(&published_pkg)
+    let (_, published_types) = package_version_and_types(&published_pkg)
         .map_err(|error| format!("npm_deploy: {error}"))?;
     let Some(published_types) = published_types else {
-        println!("api compat: published {previous} has no types entry; skipped");
-        return Ok(());
+        return skipped(format!("published {previous} has no types entry"));
     };
-    let staged_report = extract_api_report(api_extractor, &staged_dir, &staged_pkg, &types)
+    let staged_report = extract_api_report(check.api_extractor, &staged_dir, &staged_pkg, &types)
         .map_err(|error| format!("npm_deploy: api compat: {error}"))?;
     let published_report = extract_api_report(
-        api_extractor,
+        check.api_extractor,
         &published_dir,
         &published_pkg,
         &published_types,
     )
     .map_err(|error| format!("npm_deploy: api compat: {error}"))?;
-    let breaking = count_api_breaking(&published_report, &staged_report);
-    println!("api compat: {breaking} removed or changed declarations against {previous}");
-    match breaking_refusal(mode, required_bump(&previous, &version), breaking) {
-        Some(reason) => Err(format!(
-            "npm_deploy: api compat: {reason} ({previous} -> {version})"
-        )),
-        None => Ok(()),
-    }
+    let changes = api_breaking(&published_report, &staged_report);
+    Ok((version, Outcome::Compared { previous, changes }))
 }
 
 /// Runs the npm deploy tool.
 pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> i32 {
-    npm_deploy_main_checked(argv, feed_rloc, tarball_rloc, "off")
+    let off = NpmApiSettings {
+        api_compat: "off",
+        api_baseline: "registry",
+        api_extractor_rloc: "",
+    };
+    npm_deploy_main_checked(argv, feed_rloc, tarball_rloc, &off)
 }
 
-/// Runs the npm deploy tool with an API compatibility mode for the dry run.
+/// The `api_compat` attributes a generated npm launcher passes on.
+pub struct NpmApiSettings<'a> {
+    pub api_compat: &'a str,
+    pub api_baseline: &'a str,
+    pub api_extractor_rloc: &'a str,
+}
+
+/// Runs the npm deploy tool with an API compatibility check for the dry run.
 pub fn npm_deploy_main_checked(
     argv: &[String],
     feed_rloc: &str,
     tarball_rloc: &str,
-    api_compat: &str,
+    api: &NpmApiSettings,
 ) -> i32 {
+    let NpmApiSettings {
+        api_compat,
+        api_baseline,
+        api_extractor_rloc,
+    } = *api;
+    let mode = ApiCompatMode::parse(if api_compat.is_empty() {
+        "off"
+    } else {
+        api_compat
+    });
+    let (Some(mode), Some(baseline)) = (mode, Baseline::parse(api_baseline)) else {
+        eprintln!("npm_deploy: invalid api_compat '{api_compat}' or api_baseline '{api_baseline}'");
+        return 1;
+    };
     if std::env::var_os("NPM_PUBLISH_DRY_RUN").is_some() {
         eprintln!(
             "npm_deploy: NPM_PUBLISH_DRY_RUN is not supported; publish with dx deploy --apply"
@@ -632,14 +668,23 @@ pub fn npm_deploy_main_checked(
             return 1;
         }
     };
-    if !NPM_GATE.requested(env_or_empty) {
-        let (npm, api_extractor) = (which_on_path("npm"), which_on_path("api-extractor"));
-        let tools = NpmApiTools {
-            mode: api_compat,
-            npm: npm.as_deref(),
-            api_extractor: api_extractor.as_deref(),
+    if !NPM_GATE.requested(env_or_empty) && mode != ApiCompatMode::Off {
+        let checked = if api_extractor_rloc.is_empty() {
+            let outcome = Outcome::Skipped("api-extractor is not available".to_owned());
+            conclude("npm_deploy", mode, "", outcome)
+        } else {
+            let Some(api_extractor) = run.resolve(api_extractor_rloc) else {
+                return 1;
+            };
+            let check = NpmApiCheck {
+                baseline,
+                registry: &registry,
+                api_extractor: &api_extractor,
+            };
+            npm_api_check(&tgz_path, &name, &check)
+                .and_then(|(version, outcome)| conclude("npm_deploy", mode, &version, outcome))
         };
-        if let Err(message) = npm_api_check(&tgz_path, &name, &tools) {
+        if let Err(message) = checked {
             eprintln!("{message}");
             return 1;
         }
@@ -739,68 +784,58 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn api_check_fails_on_removed_export_unless_major() {
+    fn api_check_without_a_published_baseline_is_a_first_release() {
         let scratch = scratch_dir();
         let dir = scratch.path();
-        let published = dir.join("published.tgz");
-        types_package(
-            "1.2.0",
-            "export declare function a(): void;\nexport declare function b(): void;\n",
-            &published,
-        );
-        let fake_npm = dir.join("npm");
-        std::fs::write(
-            &fake_npm,
-            format!(
-                "#!/bin/sh\ncp {} \"$4/pkg-1.2.0.tgz\"\n",
-                published.display()
-            ),
-        )
-        .expect("fake npm");
-        set_mode(&fake_npm, 0o755);
-        let fake_extractor = dir.join("api-extractor");
-        std::fs::write(
-            &fake_extractor,
-            "#!/bin/sh\nmkdir -p ../report\ncp index.d.ts ../report/pkg.api.md\n",
-        )
-        .expect("fake extractor");
-        set_mode(&fake_extractor, 0o755);
-        let run = |version: &str, mode: &str| {
-            let staged = dir.join(format!("staged-{version}.tgz"));
-            types_package(version, "export declare function a(): void;\n", &staged);
-            npm_api_check(
-                &staged,
-                "pkg",
-                &NpmApiTools {
-                    mode,
-                    npm: Some(&fake_npm),
-                    api_extractor: Some(&fake_extractor),
-                },
-            )
+        let staged = dir.join("staged.tgz");
+        types_package("1.0.0", "export declare function a(): void;\n", &staged);
+        let unused = dir.join("api-extractor");
+        let repo = dir.join("repo");
+        std::fs::create_dir_all(&repo).expect("repo");
+        let status = std::process::Command::new("git")
+            .args(["init", "-q"])
+            .current_dir(&repo)
+            .status()
+            .expect("git");
+        assert!(status.success());
+        let repo_dir = repo.display().to_string();
+        let check = NpmApiCheck {
+            baseline: Baseline::Git,
+            registry: "http://127.0.0.1:9",
+            api_extractor: &unused,
         };
-        let refused = run("1.3.0", "fail").expect_err("minor bump refused");
-        assert!(refused.contains("1.2.0 -> 1.3.0"), "{refused}");
-        assert!(run("2.0.0", "fail").is_ok());
-        assert!(run("1.3.0", "warn").is_ok());
-        assert!(run("1.3.0", "off").is_ok());
+        let outcome = with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
+            npm_api_check(&staged, "pkg", &check)
+        });
+        assert!(
+            matches!(outcome, Ok((ref v, Outcome::Skipped(_))) if v == "1.0.0"),
+            "an unreachable registry skips: {outcome:?}"
+        );
     }
 
     #[test]
-    fn api_check_skips_without_tools() {
-        let tools = NpmApiTools {
-            mode: "fail",
-            npm: None,
-            api_extractor: None,
-        };
-        assert!(npm_api_check(Path::new("missing.tgz"), "pkg", &tools).is_ok());
+    fn npm_published_reads_versions_and_tarballs() {
+        let body = r#"{"name":"pkg","versions":{
+            "1.0.0":{"dist":{"tarball":"https://r/pkg/-/pkg-1.0.0.tgz"}},
+            "1.1.0-beta.1":{"dist":{"tarball":"https://r/pkg/-/pkg-1.1.0-beta.1.tgz"}},
+            "1.2.0":{"dist":{}}}}"#;
+        let published = npm_published(body);
+        assert_eq!(published.len(), 2);
+        assert!(published.contains(&(
+            "1.0.0".to_owned(),
+            "https://r/pkg/-/pkg-1.0.0.tgz".to_owned()
+        )));
+        let previous = highest_below(published.iter().map(|(v, _)| v.as_str()), "2.0.0");
+        assert_eq!(previous.as_deref(), Some("1.0.0"));
+        assert!(npm_published("not json").is_empty());
     }
 
     #[test]
     fn api_report_diff_counts_removed_and_changed_declarations() {
         let old = "## API Report\n\n```ts\n\n// @public\nexport function a(x: string): void;\n\n// @public\nexport function b(): void;\n\n```\n";
         let new = "```ts\n// @public\nexport function a(x: number): void;\n\n// @public\nexport function b(): void;\nexport function c(): void;\n```\n";
-        assert_eq!(count_api_breaking(old, new), 1);
-        assert_eq!(count_api_breaking(new, old), 2);
+        assert_eq!(api_breaking(old, new).len(), 1);
+        assert_eq!(api_breaking(new, old).len(), 2);
     }
 
     #[test]

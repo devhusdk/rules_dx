@@ -493,9 +493,8 @@ github_deploy(
 - `tag`: defaults to `v0.0.0-dryrun`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `tags`: Bazel tags for the generated targets. Defaults to `[]`.
-- `api_compat`: `False` (default; it needs `apidiff`) or `True`. With `go_modules` (workspace-relative module directories; empty means the `go.mod` at the root), the dry run
-  checks each module with `apidiff` against the highest earlier `v*` tag and refuses breaking changes
-  unless the bump is major. It needs `go` on `PATH`; a missing `go`, `apidiff` or earlier tag skips the check.
+- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility). `go_modules` lists
+  the workspace-relative module directories to check; empty means the `go.mod` at the root.
 
 Default run stages `<name>-release/` with the assets (none for a notes-only draft) and a `would-run.txt`
 holding their sha256 and the `gh release create` command. Nothing is
@@ -1162,6 +1161,30 @@ request, or an upload, so the last step is manual:
 - opam: open a pull request to the opam repository that adds
   `packages/<name>/<name>.<version>/opam`.
 - CPAN: upload the tarball to PAUSE.
+
+# Public API compatibility
+
+`crates_deploy`, `maven_deploy`, `npm_deploy`, `pypi_deploy` and `github_deploy`
+check the public API the same way. Every run compares the version being
+deployed with the highest earlier release and lists the breaking changes.
+
+- `api_compat`: `fail` (default), `warn` or `off`. With `fail`, breaking
+  changes refuse the run unless the major version goes up. With `warn` they are
+  only printed.
+- `api_baseline`: `registry` (default) or `git`. `registry` reads the highest
+  published version below the new one from the registry. `git` uses the highest
+  `v*` tag below the new version.
+
+A first release passes. When the earlier release cannot be fetched, the check
+prints why and is skipped. The tools are pinned and come with the rule.
+
+| Rule | Tool | `registry` reads | `git` reads |
+| --- | --- | --- | --- |
+| `crates_deploy` | cargo-semver-checks | crates.io | the crate directory at the tag |
+| `maven_deploy` | japicmp | the jar from `maven-metadata.xml` | the jar of the tag's version |
+| `npm_deploy` | api-extractor | the npm packument and tarball | the tarball of the tag's version |
+| `pypi_deploy` | griffe | the PyPI JSON and its wheel | `api_src` at the tag |
+| `github_deploy` (Go) | apidiff | proxy.golang.org | `go_modules` at the tag |
 
 # Common behavior
 

@@ -1,8 +1,10 @@
 //! PyPI publisher: wheelhouse staging and the twine upload.
 
-use crate::api_compat::{ApiCompatMode, breaking_refusal, required_bump};
+use crate::api_compat::{
+    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch, highest_below,
+    previous_git_tag, workspace_dir,
+};
 use crate::archive::*;
-use crate::crates::previous_git_tag;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, scrubbed_command,
 };
@@ -421,84 +423,142 @@ fn pypi_upload_staged(
 /// Public API check settings of one PyPI deployment.
 pub struct PypiApiCheck<'a> {
     pub mode: &'a str,
+    pub baseline: &'a str,
     pub package: &'a str,
     pub src: &'a str,
     pub griffe_rloc: &'a str,
 }
 
-/// Counts the breaking changes in `griffe check` output: one `path.py:line: ...` line each.
-fn count_griffe_breaking(output: &str) -> usize {
+/// Returns the breaking changes in `griffe check` output: one `path.py:line: ...` line each.
+fn griffe_changes(output: &str) -> Vec<String> {
     output
         .lines()
         .filter(|line| {
             line.split_once(".py:")
                 .is_some_and(|(_, rest)| rest.starts_with(|c: char| c.is_ascii_digit()))
         })
-        .count()
+        .map(str::to_owned)
+        .collect()
 }
 
-/// Compares the public API with the previous v<version> tag; a missing tool or tag skips with a note.
-fn pypi_api_check(
-    griffe: Option<&Path>,
+/// Returns the release below `next` in a PyPI JSON body and the URL of its first wheel.
+fn pypi_previous_wheel(body: &str, next: &str) -> Option<(String, Option<String>)> {
+    let json: serde_json::Value = serde_json::from_str(body).ok()?;
+    let releases = json["releases"].as_object()?;
+    let previous = highest_below(releases.keys().map(String::as_str), next)?;
+    let wheel = releases[&previous]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|file| file["packagetype"] == "bdist_wheel" && file["yanked"] != true)
+        .find_map(|file| file["url"].as_str().map(str::to_owned));
+    Some((previous, wheel))
+}
+
+/// Downloads the previous wheel of `project` and extracts both wheels under `work`.
+/// Returns the release and the griffe arguments, or the outcome when there is nothing to compare.
+fn pypi_registry_baseline(
+    project: &str,
     version: &str,
+    wheel: &Path,
+    work: &Path,
+) -> Result<(String, Vec<String>), Outcome> {
+    let url = format!("https://pypi.org/pypi/{project}/json");
+    let body = match fetch(&url, 64 << 20) {
+        Ok(Some(body)) => body,
+        Ok(None) => return Err(Outcome::FirstRelease),
+        Err(error) => return Err(Outcome::Skipped(error)),
+    };
+    let Some((previous, wheel_url)) = pypi_previous_wheel(&String::from_utf8_lossy(&body), version)
+    else {
+        return Err(Outcome::FirstRelease);
+    };
+    let Some(wheel_url) = wheel_url else {
+        return Err(Outcome::Skipped(format!(
+            "{project} {previous} has no wheel"
+        )));
+    };
+    let old_wheel = match fetch(&wheel_url, 512 << 20) {
+        Ok(Some(bytes)) => bytes,
+        Ok(None) => return Err(Outcome::Skipped(format!("{wheel_url} not found"))),
+        Err(error) => return Err(Outcome::Skipped(error)),
+    };
+    let extracted = std::fs::write(work.join("old.zip"), old_wheel)
+        .and_then(|()| std::fs::copy(wheel, work.join("new.zip")).map(drop))
+        .and_then(|()| archive_extract(&work.join("old.zip"), &work.join("old")).map(drop))
+        .and_then(|()| archive_extract(&work.join("new.zip"), &work.join("new")).map(drop));
+    if let Err(error) = extracted {
+        return Err(Outcome::Skipped(format!(
+            "cannot extract the wheels: {error}"
+        )));
+    }
+    let args = vec![
+        "--old-search".to_owned(),
+        work.join("old").display().to_string(),
+        "--search".to_owned(),
+        work.join("new").display().to_string(),
+    ];
+    Ok((previous, args))
+}
+
+/// Compares the public API with the release `api_baseline` picks below `version`.
+fn pypi_api_check(
+    griffe: &Path,
+    (project, version): (&str, &str),
+    wheel: &Path,
     check: &PypiApiCheck,
     workspace: &Path,
-) -> Result<(), String> {
-    let mode = ApiCompatMode::parse(if check.mode.is_empty() {
-        "off"
-    } else {
-        check.mode
-    })
-    .ok_or_else(|| format!("pypi_deploy: invalid api_compat '{}'", check.mode))?;
-    if mode == ApiCompatMode::Off {
-        return Ok(());
-    }
-    let Some(program) = griffe else {
-        println!("api compat: griffe not found; skipped");
-        return Ok(());
-    };
-    let tag = match previous_git_tag(version) {
-        Ok(Some(tag)) => tag,
-        Ok(None) => {
-            println!("api compat: no earlier v<version> tag; skipped (first release)");
-            return Ok(());
+) -> Result<Outcome, String> {
+    let baseline = Baseline::parse(check.baseline)
+        .ok_or_else(|| format!("pypi_deploy: invalid api_baseline '{}'", check.baseline))?;
+    let work = tempfile_stage_dir("pypi-api-").map_err(|error| format!("pypi_deploy: {error}"))?;
+    let found = if baseline == Baseline::Git {
+        match previous_git_tag(workspace, version) {
+            Ok(Some(tag)) => Ok((
+                tag.trim_start_matches('v').to_owned(),
+                vec![
+                    "--against".to_owned(),
+                    tag,
+                    "--search".to_owned(),
+                    check.src.to_owned(),
+                ],
+            )),
+            Ok(None) => Err(Outcome::FirstRelease),
+            Err(error) => Err(Outcome::Skipped(error)),
         }
-        Err(error) => return Err(format!("pypi_deploy: api compat: {error}")),
-    };
-    let previous = tag.trim_start_matches('v').to_owned();
-    let mut cmd = scrubbed_command(program, &[PUBLISH_CHILD_ENV_KEEP], &[]);
-    cmd.args([
-        "check",
-        check.package,
-        "--against",
-        &tag,
-        "--search",
-        check.src,
-    ])
-    .current_dir(workspace);
-    let output = cmd
-        .output()
-        .map_err(|error| format!("pypi_deploy: {error}"))?;
-    let text = format!(
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let breaking = if output.status.success() {
-        0
     } else {
-        count_griffe_breaking(&text).max(1)
+        pypi_registry_baseline(project, version, wheel, &work)
     };
-    println!("api compat: {breaking} breaking changes against {previous}");
-    for line in text.lines().filter(|line| line.contains(".py:")) {
-        println!("griffe: {line}");
-    }
-    match breaking_refusal(mode, required_bump(&previous, version), breaking) {
-        Some(reason) => Err(format!(
-            "pypi_deploy: api compat: {reason} ({previous} -> {version})"
-        )),
-        None => Ok(()),
-    }
+    let outcome = match found {
+        Ok((previous, args)) => {
+            let mut cmd = scrubbed_command(griffe, &[PUBLISH_CHILD_ENV_KEEP], &[]);
+            cmd.args(["check", check.package])
+                .args(&args)
+                .current_dir(workspace);
+            cmd.output()
+                .map_err(|error| format!("pypi_deploy: {error}"))
+                .map(|output| {
+                    let text = format!(
+                        "{}\n{}",
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                    let success = output.status.success();
+                    let changes = if success {
+                        Vec::new()
+                    } else {
+                        griffe_changes(&text)
+                    };
+                    Outcome::Compared {
+                        previous,
+                        changes: changes_or_failure(changes, success, "griffe", &text),
+                    }
+                })
+        }
+        Err(outcome) => Ok(outcome),
+    };
+    let _ = std::fs::remove_dir_all(&work);
+    outcome
 }
 
 /// Runs the PyPI deploy tool without an API compatibility check.
@@ -511,6 +571,7 @@ pub fn pypi_main(
 ) -> i32 {
     let off = PypiApiCheck {
         mode: "off",
+        baseline: "registry",
         package: "",
         src: "",
         griffe_rloc: "",
@@ -565,17 +626,29 @@ pub fn pypi_main_checked(
             secrets.get("PYPI_API_TOKEN"),
         );
     }
+    let Some(mode) = ApiCompatMode::parse(if api.mode.is_empty() { "off" } else { api.mode })
+    else {
+        eprintln!("pypi_deploy: invalid api_compat '{}'", api.mode);
+        return 1;
+    };
     let checked = pypi_check_pair(&wheel, sdist.as_deref())
         .map_err(|error| error.to_string())
-        .and_then(|(_, version)| {
-            let workspace =
-                std::env::var("BUILD_WORKSPACE_DIRECTORY").unwrap_or_else(|_| ".".to_owned());
+        .and_then(|(project, version)| {
+            if mode == ApiCompatMode::Off {
+                return Ok(());
+            }
             let griffe = if api.griffe_rloc.is_empty() {
-                which_on_path("griffe")
+                None
             } else {
                 run.resolve(api.griffe_rloc)
             };
-            pypi_api_check(griffe.as_deref(), &version, api, Path::new(&workspace))
+            let outcome = match griffe {
+                Some(griffe) => {
+                    pypi_api_check(&griffe, (&project, &version), &wheel, api, &workspace_dir())?
+                }
+                None => Outcome::Skipped("griffe is not available".to_owned()),
+            };
+            conclude("pypi_deploy", mode, &version, outcome)
         });
     if let Err(message) = checked {
         eprintln!("{message}");
@@ -617,7 +690,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn api_check_fails_on_breaking_change_unless_major() {
+    fn api_check_with_a_git_baseline_runs_griffe_against_the_tag() {
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");
@@ -657,35 +730,63 @@ mod tests {
         )
         .expect("fake tool");
         set_mode(&fake, 0o755);
-        let check = |mode: &'static str| PypiApiCheck {
-            mode,
+        let check = PypiApiCheck {
+            mode: "fail",
+            baseline: "git",
             package: "pkg",
             src: "src",
             griffe_rloc: "",
         };
-        let repo_dir = repo.display().to_string();
-        let run = |version: &str, mode: &'static str| {
-            with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
-                pypi_api_check(Some(&fake), version, &check(mode), &repo)
-            })
+        let run = |version: &str| {
+            pypi_api_check(
+                &fake,
+                ("pkg", version),
+                Path::new("unused.whl"),
+                &check,
+                &repo,
+            )
         };
-        let refused = run("1.3.0", "fail").expect_err("minor bump refused");
-        assert!(refused.contains("1.2.0 -> 1.3.0"), "{refused}");
+        let outcome = run("1.3.0").expect("ran");
+        assert_eq!(
+            outcome,
+            Outcome::Compared {
+                previous: "1.2.0".to_owned(),
+                changes: vec![
+                    "src/pkg/__init__.py:1: pkg.hello: Public object was removed".to_owned()
+                ],
+            }
+        );
         let logged = std::fs::read_to_string(&args_log).expect("args");
         assert_eq!(logged.trim(), "check pkg --against v1.2.0 --search src");
-        assert!(run("2.0.0", "fail").is_ok());
-        assert!(run("1.3.0", "warn").is_ok());
-        std::fs::remove_file(&args_log).expect("clear log");
-        assert!(run("1.3.0", "off").is_ok());
-        assert!(run("1.3.0", "").is_ok());
-        assert!(!args_log.exists(), "off must not run the tool");
-        assert!(pypi_api_check(None, "1.3.0", &check("fail"), &repo).is_ok());
+        assert_eq!(run("1.0.0"), Ok(Outcome::FirstRelease));
     }
 
     #[test]
     fn griffe_output_counts_one_breaking_change_per_line() {
         let text = "src/a.py:3: a.f: Parameter was removed\nsrc/b.py:9: b.g: Public object was removed\nnote: x\n";
-        assert_eq!(count_griffe_breaking(text), 2);
+        assert_eq!(griffe_changes(text).len(), 2);
+    }
+
+    #[test]
+    fn pypi_previous_wheel_picks_the_release_below_and_its_wheel() {
+        let body = r#"{"releases":{
+            "1.0.0":[{"packagetype":"sdist","url":"https://f/p-1.0.0.tar.gz"},{"packagetype":"bdist_wheel","url":"https://f/p-1.0.0-py3-none-any.whl"}],
+            "1.1.0":[{"packagetype":"sdist","url":"https://f/p-1.1.0.tar.gz"}],
+            "2.0.0rc1":[],
+            "2.0.0":[]}}"#;
+        assert_eq!(
+            pypi_previous_wheel(body, "1.1.0"),
+            Some((
+                "1.0.0".to_owned(),
+                Some("https://f/p-1.0.0-py3-none-any.whl".to_owned())
+            ))
+        );
+        assert_eq!(
+            pypi_previous_wheel(body, "1.2.0"),
+            Some(("1.1.0".to_owned(), None))
+        );
+        assert_eq!(pypi_previous_wheel(body, "1.0.0"), None);
+        assert_eq!(pypi_previous_wheel("not json", "1.0.0"), None);
     }
 
     fn wheel_bytes(files: &[&str]) -> Vec<u8> {

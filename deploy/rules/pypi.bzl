@@ -1,5 +1,6 @@
 """Local-first PyPI publisher for dx deploy."""
 
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
@@ -53,7 +54,8 @@ def _pypi_config_impl(ctx):
     wheel_rloc = rlocation_path(ctx, wheel_file)
 
     values = {
-        "api_compat": "fail" if ctx.attr.api_compat else "off",
+        "api_baseline": ctx.attr.api_baseline,
+        "api_compat": ctx.attr.api_compat,
         "api_package": ctx.attr.api_package or ctx.attr.dist_name.replace("-", "_"),
         "api_src": ctx.attr.api_src,
         "dist_name": ctx.attr.dist_name,
@@ -61,7 +63,7 @@ def _pypi_config_impl(ctx):
         "wheel_rloc": wheel_rloc,
     }
     griffe = ctx.attr._griffe[DefaultInfo]
-    if ctx.attr.api_compat:
+    if ctx.attr.api_compat != "off":
         values["griffe_rloc"] = rlocation_path(ctx, ctx.executable._griffe)
     files = [wheel_file]
     if ctx.attr.sdist:
@@ -78,23 +80,19 @@ def _pypi_config_impl(ctx):
         files.append(sdist_file)
 
     runfiles = ctx.runfiles(files = files)
-    if ctx.attr.api_compat:
+    if ctx.attr.api_compat != "off":
         runfiles = runfiles.merge(griffe.default_runfiles)
     return deploy_config(ctx, "pypi", values, runfiles)
 
 _pypi_config = rule(
     implementation = _pypi_config_impl,
     doc = "Writes the deploy config for one PyPI deployment.",
-    attrs = {
-        "api_compat": attr.bool(
-            doc = "Fail a breaking public API change against the previous v<version> git tag unless the bump is major.",
-            default = False,
-        ),
+    attrs = API_COMPAT_ATTRS | {
         "api_package": attr.string(
             doc = "Import name of the package griffe checks; defaults to the distribution name.",
         ),
         "api_src": attr.string(
-            doc = "Workspace-relative source directory griffe searches for the package.",
+            doc = "Workspace-relative source directory griffe reads at the git baseline.",
         ),
         "_griffe": attr.label(
             default = Label("//quality/tools/python:griffe_check"),
@@ -121,19 +119,23 @@ _pypi_config = rule(
     },
 )
 
-def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, build_mode = "release", sbom = None, api_compat = False, api_package = "", api_src = ""):
+def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", api_package = "", api_src = ""):
     """Publishes one wheel plus an optional sdist as a local-first PyPI deployment.
 
-    api_compat runs the pinned griffe library against the previous
-    v<version> git tag; a breaking change fails unless the version bump is
-    major. It is off by default because it needs api_src. api_src is the workspace-relative source directory
-    and api_package the import name, which defaults to the distribution name.
+    api_compat and api_baseline work as described under "Public API
+    compatibility" in the README; the tool is griffe. api_package is the import
+    name, which defaults to the distribution name, and api_src the
+    workspace-relative source directory the git baseline needs.
     """
     name_error = pypi_name_error(name)
     if name_error != "":
         fail(name_error + " (in " + native.package_name() + ":" + name + ")")
-    if api_compat and api_src == "":
-        fail("pypi_deploy: api_compat = True needs api_src (in " +
+    api_error = api_compat_error("pypi_deploy", api_compat, api_baseline)
+    if api_error != "":
+        fail(api_error + " (in " + native.package_name() + ":" + name + ")")
+    api_compat = api_compat_mode(api_compat)
+    if api_compat != "off" and api_baseline == "git" and api_src == "":
+        fail("pypi_deploy: api_baseline = \"git\" needs api_src (in " +
              native.package_name() + ":" + name + ")")
     repository_error = pypi_repository_error(repository_url)
     if repository_error != "":
@@ -143,6 +145,7 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
     _pypi_config(
         name = config_target,
         dist_name = name,
+        api_baseline = api_baseline,
         api_compat = api_compat,
         api_package = api_package,
         api_src = api_src,

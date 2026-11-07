@@ -35,8 +35,13 @@ pub struct GithubConfig {
     /// `off`, `warn` or `fail`; empty means off.
     #[serde(default)]
     pub api_compat: String,
+    /// `registry` or `git`; empty means registry.
+    #[serde(default)]
+    pub api_baseline: String,
     #[serde(default)]
     pub apidiff_rloc: String,
+    #[serde(default)]
+    pub go_rloc: String,
     /// Workspace-relative directories of the Go modules to check.
     #[serde(default)]
     pub go_modules: Vec<String>,
@@ -81,6 +86,8 @@ pub struct PypiConfig {
     #[serde(default)]
     pub api_compat: String,
     #[serde(default)]
+    pub api_baseline: String,
+    #[serde(default)]
     pub api_package: String,
     #[serde(default)]
     pub api_src: String,
@@ -108,6 +115,10 @@ pub struct NpmConfig {
     pub tarball_rloc: String,
     #[serde(default)]
     pub api_compat: String,
+    #[serde(default)]
+    pub api_baseline: String,
+    #[serde(default)]
+    pub api_extractor_rloc: String,
 }
 
 /// Pins one NuGet push: the nupkg, its expected id and version, and the feed.
@@ -204,6 +215,8 @@ pub struct MavenConfig {
     pub repository_url: String,
     #[serde(default)]
     pub api_compat: String,
+    #[serde(default)]
+    pub api_baseline: String,
     #[serde(default)]
     pub japicmp_rloc: String,
     #[serde(default)]
@@ -361,7 +374,9 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &crate::github::Notes::from_config(&github.notes, &github.notes_rloc),
             &crate::github::GoApi {
                 mode: &github.api_compat,
+                baseline: &github.api_baseline,
                 apidiff_rloc: &github.apidiff_rloc,
+                go_rloc: &github.go_rloc,
                 modules: &github.go_modules,
             },
             argv,
@@ -398,6 +413,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &pypi.repository_url,
             &crate::PypiApiCheck {
                 mode: &pypi.api_compat,
+                baseline: &pypi.api_baseline,
                 package: &pypi.api_package,
                 src: &pypi.api_src,
                 griffe_rloc: &pypi.griffe_rloc,
@@ -415,9 +431,16 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             },
             argv,
         ),
-        DeployConfig::Npm(npm) => {
-            crate::npm_deploy_main_checked(argv, &npm.feed_rloc, &npm.tarball_rloc, &npm.api_compat)
-        }
+        DeployConfig::Npm(npm) => crate::npm_deploy_main_checked(
+            argv,
+            &npm.feed_rloc,
+            &npm.tarball_rloc,
+            &crate::NpmApiSettings {
+                api_compat: &npm.api_compat,
+                api_baseline: &npm.api_baseline,
+                api_extractor_rloc: &npm.api_extractor_rloc,
+            },
+        ),
         DeployConfig::Nuget(nuget) => crate::nuget_main(
             &nuget.nupkg_rloc,
             &nuget.deploy_name,
@@ -484,6 +507,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 version: &maven.version,
                 repository_url: &maven.repository_url,
                 api_compat: &maven.api_compat,
+                api_baseline: &maven.api_baseline,
                 japicmp_rloc: &maven.japicmp_rloc,
                 java_rloc: &maven.java_rloc,
             },
@@ -644,7 +668,9 @@ mod tests {
                 notes: String::new(),
                 notes_rloc: String::new(),
                 api_compat: String::new(),
+                api_baseline: String::new(),
                 apidiff_rloc: String::new(),
+                go_rloc: String::new(),
                 go_modules: Vec::new(),
             }))
         );
@@ -681,17 +707,22 @@ mod tests {
                 dist_name: "d".to_owned(),
                 repository_url: "https://x".to_owned(),
                 api_compat: String::new(),
+                api_baseline: String::new(),
                 api_package: String::new(),
                 api_src: String::new(),
                 griffe_rloc: String::new(),
             }))
         );
         assert_eq!(
-            parse(r#"{"kind":"npm","config":{"feed_rloc":"f","tarball_rloc":"t"}}"#),
+            parse(
+                r#"{"kind":"npm","config":{"feed_rloc":"f","tarball_rloc":"t","api_compat":"fail","api_baseline":"git","api_extractor_rloc":"x"}}"#
+            ),
             Ok(DeployConfig::Npm(NpmConfig {
                 feed_rloc: "f".to_owned(),
                 tarball_rloc: "t".to_owned(),
-                api_compat: String::new(),
+                api_compat: "fail".to_owned(),
+                api_baseline: "git".to_owned(),
+                api_extractor_rloc: "x".to_owned(),
             }))
         );
         assert_eq!(
@@ -745,6 +776,7 @@ mod tests {
                 version: "1".to_owned(),
                 repository_url: "https://x".to_owned(),
                 api_compat: String::new(),
+                api_baseline: String::new(),
                 japicmp_rloc: String::new(),
                 java_rloc: String::new(),
             }))
@@ -943,7 +975,9 @@ mod tests {
                 notes: String::new(),
                 notes_rloc: String::new(),
                 api_compat: String::new(),
+                api_baseline: String::new(),
                 apidiff_rloc: String::new(),
+                go_rloc: String::new(),
                 go_modules: Vec::new(),
             }),
             DeployConfig::HomebrewTap(HomebrewTapConfig {
@@ -971,6 +1005,7 @@ mod tests {
                 dist_name: "demo".to_owned(),
                 repository_url: "https://pypi.invalid".to_owned(),
                 api_compat: String::new(),
+                api_baseline: String::new(),
                 api_package: String::new(),
                 api_src: String::new(),
                 griffe_rloc: String::new(),
@@ -987,6 +1022,8 @@ mod tests {
                 feed_rloc: "a".to_owned(),
                 tarball_rloc: "b".to_owned(),
                 api_compat: String::new(),
+                api_baseline: String::new(),
+                api_extractor_rloc: String::new(),
             }),
             DeployConfig::Nuget(NugetConfig {
                 nupkg_rloc: "a".to_owned(),
@@ -1032,6 +1069,7 @@ mod tests {
                 version: "1.0.0".to_owned(),
                 repository_url: "https://maven.invalid".to_owned(),
                 api_compat: String::new(),
+                api_baseline: String::new(),
                 japicmp_rloc: String::new(),
                 java_rloc: String::new(),
             }),

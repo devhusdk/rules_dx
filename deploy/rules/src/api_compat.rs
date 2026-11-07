@@ -67,52 +67,184 @@ pub fn breaking_refusal(
     ))
 }
 
-/// Returns the highest non-yanked, non-prerelease version in a sparse index body.
-pub fn latest_published(index_body: &str) -> Option<String> {
-    let mut best: Option<([u64; 3], String)> = None;
-    for line in index_body.lines() {
-        let Ok(entry) = serde_json::from_str::<serde_json::Value>(line) else {
-            continue;
-        };
-        let version = entry["vers"].as_str().unwrap_or("");
-        if entry["yanked"].as_bool().unwrap_or(false) || version.contains('-') {
-            continue;
-        }
-        let Some(parsed) = parse_version(version) else {
-            continue;
-        };
-        if best.as_ref().is_none_or(|(top, _)| parsed > *top) {
-            best = Some((parsed, version.to_owned()));
+/// Where the earlier version an `api_compat` check compares against comes from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Baseline {
+    /// The highest published release below the new version.
+    Registry,
+    /// The highest `v*` git tag below the new version.
+    Git,
+}
+
+impl Baseline {
+    /// Parses the `api_baseline` attribute value; empty means `registry`.
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "" | "registry" => Some(Self::Registry),
+            "git" => Some(Self::Git),
+            _ => None,
         }
     }
-    best.map(|(_, version)| version)
+}
+
+/// Returns the highest non-prerelease version below `next`.
+pub fn highest_below<'a>(
+    versions: impl IntoIterator<Item = &'a str>,
+    next: &str,
+) -> Option<String> {
+    let next = parse_version(next.trim_start_matches('v'))?;
+    versions
+        .into_iter()
+        .map(str::trim)
+        .filter(|version| !version.contains('-'))
+        .filter_map(|version| {
+            let parsed = parse_version(version)?;
+            (parsed < next).then(|| (parsed, version.to_owned()))
+        })
+        .max()
+        .map(|(_, version)| version)
+}
+
+/// Returns the highest non-yanked release below `next` in a sparse index body.
+pub fn latest_published(index_body: &str, next: &str) -> Option<String> {
+    let versions: Vec<String> = index_body
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter(|entry| !entry["yanked"].as_bool().unwrap_or(false))
+        .filter_map(|entry| entry["vers"].as_str().map(str::to_owned))
+        .collect();
+    highest_below(versions.iter().map(String::as_str), next)
 }
 
 /// Returns the highest `v<version>` tag below `next` from `git tag` output.
 pub fn previous_tag(tags: &str, next: &str) -> Option<String> {
-    let next = parse_version(next)?;
-    tags.lines()
-        .filter_map(|tag| {
-            let parsed = parse_version(tag.trim().strip_prefix('v')?)?;
-            (parsed < next).then(|| (parsed, tag.trim().to_owned()))
-        })
-        .max()
-        .map(|(_, tag)| tag)
+    highest_below(
+        tags.lines().filter_map(|tag| tag.trim().strip_prefix('v')),
+        next,
+    )
+    .map(|version| format!("v{version}"))
 }
 
 /// Returns the highest release below `next` listed in a `maven-metadata.xml` body.
 pub fn previous_release(metadata: &str, next: &str) -> Option<String> {
-    let next = parse_version(next)?;
-    metadata
+    let versions = metadata
         .split("<version>")
         .skip(1)
-        .filter_map(|part| {
-            let version = part.split("</version>").next()?.trim();
-            let parsed = parse_version(version)?;
-            (!version.contains('-') && parsed < next).then(|| (parsed, version.to_owned()))
-        })
-        .max()
-        .map(|(_, version)| version)
+        .filter_map(|part| part.split("</version>").next());
+    highest_below(versions, next)
+}
+
+/// What an adapter found when it compared the new API with the baseline.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Outcome {
+    /// There is no earlier version to compare with.
+    FirstRelease,
+    /// The check could not run; the reason is printed and the deploy goes on.
+    Skipped(String),
+    /// The tool ran against `previous`; `changes` lists each breaking change.
+    Compared {
+        previous: String,
+        changes: Vec<String>,
+    },
+}
+
+/// How many breaking changes the report prints.
+const REPORT_LINES: usize = 40;
+
+/// Prints the report of an `api_compat` check and refuses a breaking change without a major bump.
+pub fn conclude(
+    rule: &str,
+    mode: ApiCompatMode,
+    next: &str,
+    outcome: Outcome,
+) -> Result<(), String> {
+    if mode == ApiCompatMode::Off {
+        return Ok(());
+    }
+    let (previous, changes) = match outcome {
+        Outcome::FirstRelease => {
+            println!("api compat: no earlier release; passed (first release)");
+            return Ok(());
+        }
+        Outcome::Skipped(why) => {
+            println!("api compat: skipped: {why}");
+            return Ok(());
+        }
+        Outcome::Compared { previous, changes } => (previous, changes),
+    };
+    let count = changes.len();
+    println!("api compat: {count} breaking change(s) against {previous} ({previous} -> {next})");
+    for change in changes.iter().take(REPORT_LINES) {
+        println!("api compat: - {change}");
+    }
+    if count > REPORT_LINES {
+        println!("api compat: - ... and {} more", count - REPORT_LINES);
+    }
+    let bump = required_bump(
+        previous.trim_start_matches('v'),
+        next.trim_start_matches('v'),
+    );
+    match breaking_refusal(mode, bump, count) {
+        Some(reason) => Err(format!(
+            "{rule}: api compat: {reason} ({previous} -> {next})"
+        )),
+        None => Ok(()),
+    }
+}
+
+/// Returns `changes`, or the last lines of `output` when a failed tool listed none.
+pub fn changes_or_failure(
+    changes: Vec<String>,
+    success: bool,
+    tool: &str,
+    output: &str,
+) -> Vec<String> {
+    if success || !changes.is_empty() {
+        return changes;
+    }
+    let tail: Vec<&str> = output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    let tail = tail[tail.len().saturating_sub(5)..].join(" | ");
+    vec![format!("{tool} failed: {tail}")]
+}
+
+/// The repository a deploy runs from.
+pub fn workspace_dir() -> std::path::PathBuf {
+    std::env::var("BUILD_WORKSPACE_DIRECTORY")
+        .unwrap_or_else(|_| ".".to_owned())
+        .into()
+}
+
+/// Returns the highest `v<version>` tag below `next` in the repository at `workspace`.
+pub fn previous_git_tag(workspace: &std::path::Path, next: &str) -> Result<Option<String>, String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(workspace)
+        .args(["tag", "--list", "v*"])
+        .output()
+        .map_err(|error| format!("git: {error}"))?;
+    if !output.status.success() {
+        return Err("git tag --list failed".to_owned());
+    }
+    Ok(previous_tag(&String::from_utf8_lossy(&output.stdout), next))
+}
+
+/// Downloads `url` up to `limit` bytes; None when the server answers 404.
+pub fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
+    match crate::http::publish_agent().get(url).call() {
+        Ok(mut response) => response
+            .body_mut()
+            .with_config()
+            .limit(limit)
+            .read_to_vec()
+            .map(Some)
+            .map_err(|error| format!("cannot read {url}: {error}")),
+        Err(ureq::Error::StatusCode(404)) => Ok(None),
+        Err(error) => Err(format!("cannot query {url}: {error}")),
+    }
 }
 
 /// Writes the files under `rel_dir` at `rev` into `dest`; false when that directory has no `Cargo.toml`.
@@ -211,14 +343,16 @@ mod tests {
     #[test]
     fn latest_published_skips_yanked_and_prerelease() {
         let body = "{\"vers\":\"1.0.0\",\"yanked\":false}\n{\"vers\":\"1.10.0\",\"yanked\":false}\n{\"vers\":\"1.11.0\",\"yanked\":true}\n{\"vers\":\"2.0.0-rc.1\",\"yanked\":false}\n";
-        assert_eq!(latest_published(body).as_deref(), Some("1.10.0"));
-        assert_eq!(latest_published(""), None);
+        assert_eq!(latest_published(body, "3.0.0").as_deref(), Some("1.10.0"));
+        assert_eq!(latest_published(body, "1.5.0").as_deref(), Some("1.0.0"));
+        assert_eq!(latest_published("", "1.0.0"), None);
     }
 
     #[test]
     fn previous_tag_picks_highest_below_next() {
-        let tags = "v1.2.0\nv1.10.0\nv2.0.0\nnightly\n";
+        let tags = "v1.2.0\nv1.10.0\nv2.0.0\nv1.11.0-rc.1\nnightly\n";
         assert_eq!(previous_tag(tags, "2.0.0").as_deref(), Some("v1.10.0"));
+        assert_eq!(previous_tag(tags, "v2.0.1").as_deref(), Some("v2.0.0"));
         assert_eq!(previous_tag(tags, "1.0.0"), None);
     }
 
@@ -229,6 +363,106 @@ mod tests {
         assert_eq!(previous_release(xml, "3.0.0").as_deref(), Some("2.0.0"));
         assert_eq!(previous_release(xml, "1.0.0"), None);
         assert_eq!(previous_release("", "1.0.0"), None);
+    }
+
+    #[test]
+    fn baseline_parses_registry_and_git() {
+        assert_eq!(Baseline::parse("registry"), Some(Baseline::Registry));
+        assert_eq!(Baseline::parse(""), Some(Baseline::Registry));
+        assert_eq!(Baseline::parse("git"), Some(Baseline::Git));
+        assert_eq!(Baseline::parse("tag"), None);
+    }
+
+    #[test]
+    fn highest_below_skips_prerelease_and_higher() {
+        let versions = ["0.9.0", "1.4.2", "1.10.0", "2.0.0-rc.1", "2.0.0", "junk"];
+        assert_eq!(highest_below(versions, "2.0.0").as_deref(), Some("1.10.0"));
+        assert_eq!(highest_below(versions, "v2.1.0").as_deref(), Some("2.0.0"));
+        assert_eq!(highest_below(versions, "0.9.0"), None);
+        assert_eq!(highest_below(versions, "next"), None);
+    }
+
+    fn compared(previous: &str, changes: &[&str]) -> Outcome {
+        Outcome::Compared {
+            previous: previous.to_owned(),
+            changes: changes.iter().map(|c| (*c).to_owned()).collect(),
+        }
+    }
+
+    #[test]
+    fn conclude_passes_a_first_release_and_a_skip() {
+        let fail = ApiCompatMode::Fail;
+        assert_eq!(
+            conclude("x_deploy", fail, "1.0.0", Outcome::FirstRelease),
+            Ok(())
+        );
+        let skipped = Outcome::Skipped("registry unreachable".to_owned());
+        assert_eq!(conclude("x_deploy", fail, "1.0.0", skipped), Ok(()));
+    }
+
+    #[test]
+    fn conclude_refuses_breaking_changes_without_a_major_bump() {
+        let refused = conclude(
+            "x_deploy",
+            ApiCompatMode::Fail,
+            "1.3.0",
+            compared("1.2.0", &["gone"]),
+        );
+        assert_eq!(
+            refused,
+            Err("x_deploy: api compat: 1 breaking API change(s) need a major version bump (1.2.0 -> 1.3.0)".to_owned())
+        );
+        let tags = conclude(
+            "x_deploy",
+            ApiCompatMode::Fail,
+            "v1.3.0",
+            compared("v1.2.0", &["a", "b"]),
+        );
+        assert!(tags.is_err_and(
+            |e| e.contains("2 breaking API change(s)") && e.contains("(v1.2.0 -> v1.3.0)")
+        ));
+    }
+
+    #[test]
+    fn conclude_allows_a_major_bump_warn_off_and_no_changes() {
+        let gone = || compared("1.2.0", &["gone"]);
+        assert_eq!(
+            conclude("x_deploy", ApiCompatMode::Fail, "2.0.0", gone()),
+            Ok(())
+        );
+        assert_eq!(
+            conclude("x_deploy", ApiCompatMode::Warn, "1.3.0", gone()),
+            Ok(())
+        );
+        assert_eq!(
+            conclude("x_deploy", ApiCompatMode::Off, "1.3.0", gone()),
+            Ok(())
+        );
+        assert_eq!(
+            conclude(
+                "x_deploy",
+                ApiCompatMode::Fail,
+                "1.2.1",
+                compared("1.2.0", &[])
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn changes_or_failure_reports_a_tool_failure_without_changes() {
+        assert_eq!(
+            changes_or_failure(vec![], true, "t", "x"),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            changes_or_failure(vec!["a".to_owned()], false, "t", "x"),
+            vec!["a"]
+        );
+        assert_eq!(
+            changes_or_failure(vec![], false, "t", "\nboom\n"),
+            vec!["t failed: boom"]
+        );
     }
 
     fn git_in(dir: &std::path::Path, args: &[&str]) {

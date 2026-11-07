@@ -1,4 +1,4 @@
-"""The Go toolchain's go binary, for tests that run apidiff."""
+"""The Go toolchain's go binary, for apidiff."""
 
 def _go_binary_impl(ctx):
     sdk = ctx.toolchains["@rules_go//go:toolchain"].sdk

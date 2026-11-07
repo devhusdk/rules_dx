@@ -1,5 +1,6 @@
 """Local-first Maven Central publisher for dx deploy."""
 
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
@@ -136,12 +137,13 @@ def _maven_config_impl(ctx):
     java = ctx.toolchains["@bazel_tools//tools/jdk:runtime_toolchain_type"].java_runtime
     java_exes = [f for f in java.files.to_list() if f.path.endswith("/bin/java") or f.path.endswith("/bin/java.exe")]
     japicmp = ctx.file._japicmp
-    api_checked = ctx.attr.api_compat
+    api_checked = ctx.attr.api_compat != "off"
     if api_checked and len(java_exes) != 1:
         fail("maven_deploy " + str(ctx.label) + ": the Java runtime has " + str(len(java_exes)) + " bin/java files, want exactly one")
 
     values = {
-        "api_compat": "fail" if ctx.attr.api_compat else "off",
+        "api_baseline": ctx.attr.api_baseline,
+        "api_compat": ctx.attr.api_compat,
         "artifact": ctx.attr.artifact,
         "japicmp_rloc": rlocation_path(ctx, japicmp) if api_checked else "",
         "java_rloc": rlocation_path(ctx, java_exes[0]) if api_checked else "",
@@ -184,11 +186,7 @@ _maven_config = rule(
     implementation = _maven_config_impl,
     doc = "Writes the deploy config for one Maven deployment.",
     toolchains = ["@bazel_tools//tools/jdk:runtime_toolchain_type"],
-    attrs = {
-        "api_compat": attr.bool(
-            doc = "Fail a breaking public API change against the latest published release unless the bump is major.",
-            default = True,
-        ),
+    attrs = API_COMPAT_ATTRS | {
         "_japicmp": attr.label(
             default = Label("//deploy/rules/pins:japicmp"),
             allow_single_file = True,
@@ -230,12 +228,11 @@ _maven_config = rule(
     },
 )
 
-def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = True):
+def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment.
 
-    api_compat runs japicmp against the latest release on Maven Central below
-    version; a breaking change fails unless the bump is major. It is on by default
-    because Maven Central releases are permanent.
+    api_compat and api_baseline work as described under "Public API
+    compatibility" in the README; the tool is japicmp on the jar.
     """
     group_error = maven_group_error(group)
     if group_error != "":
@@ -250,10 +247,14 @@ def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_
     if repository_error != "":
         fail(repository_error + " (in " + native.package_name() + ":" + name + ")")
 
+    api_error = api_compat_error("maven_deploy", api_compat, api_baseline)
+    if api_error != "":
+        fail(api_error + " (in " + native.package_name() + ":" + name + ")")
     config_target = name + "_config"
     _maven_config(
         name = config_target,
-        api_compat = api_compat,
+        api_baseline = api_baseline,
+        api_compat = api_compat_mode(api_compat),
         artifact = artifact,
         group = group,
         jar = jar,

@@ -1,5 +1,6 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
@@ -59,18 +60,21 @@ def _github_config_impl(ctx):
         fail("github_deploy " + str(ctx.label) + ": " + collision_error)
 
     apidiff_rloc = ""
+    go_rloc = ""
     apidiff_runfiles = ctx.runfiles()
-    if ctx.attr.api_compat:
-        if ctx.attr.apidiff:
-            apidiff_rloc = rlocation_path(ctx, ctx.executable.apidiff)
-            apidiff_runfiles = ctx.runfiles(files = [ctx.executable.apidiff]).merge(ctx.attr.apidiff[DefaultInfo].default_runfiles)
+    if ctx.attr.api_compat != "off" and ctx.attr.apidiff and ctx.attr.go:
+        apidiff_rloc = rlocation_path(ctx, ctx.executable.apidiff)
+        go_rloc = rlocation_path(ctx, ctx.file.go)
+        apidiff_runfiles = ctx.runfiles(files = [ctx.executable.apidiff]).merge(ctx.attr.apidiff[DefaultInfo].default_runfiles).merge(ctx.attr.go[DefaultInfo].default_runfiles)
 
     return deploy_config(
         ctx,
         "github",
         {
-            "api_compat": "fail" if ctx.attr.api_compat else "off",
+            "api_baseline": ctx.attr.api_baseline,
+            "api_compat": ctx.attr.api_compat,
             "apidiff_rloc": apidiff_rloc,
+            "go_rloc": go_rloc,
             "go_modules": ctx.attr.go_modules,
             "asset_rlocs": asset_rlocs,
             "deploy_name": ctx.attr.deploy_name,
@@ -84,14 +88,15 @@ def _github_config_impl(ctx):
 github_config = rule(
     doc = "Writes the deploy config for one draft release.",
     implementation = _github_config_impl,
-    attrs = {
-        "api_compat": attr.bool(
-            doc = "Fail a breaking Go API change against the previous tag unless the bump is major.",
-            default = False,
-        ),
+    attrs = API_COMPAT_ATTRS | {
         "apidiff": attr.label(
             doc = "The apidiff binary; set when api_compat is on.",
             executable = True,
+            cfg = "exec",
+        ),
+        "go": attr.label(
+            doc = "The go binary apidiff runs; set when api_compat is on.",
+            allow_single_file = True,
             cfg = "exec",
         ),
         "go_modules": attr.string_list(doc = "Workspace-relative directories of the Go modules to check."),
@@ -103,16 +108,16 @@ github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", build_mode = "release", tags = [], sbom = None, notes = "commits", api_compat = False, go_modules = []):
+def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", build_mode = "release", tags = [], sbom = None, notes = "commits", api_compat = "fail", api_baseline = "registry", go_modules = []):
     """Publishes pinned files as a draft-only GitHub Release.
 
     `sbom` is a dx_sbom target uploaded as one more release asset.
     `tag = "current"` uses the tag that points at HEAD.
     `notes` is "commits" (the grouped commit list since the previous tag), "none"
     or a label of a markdown file.
-    `api_compat` runs apidiff on each of `go_modules`
-    (workspace-relative directories; empty means the go.mod at the root) against the previous v<version> tag and
-    refuses breaking changes unless the bump is major. It is off by default because it needs apidiff.
+    `api_compat` and `api_baseline` work as described under "Public API
+    compatibility" in the README; the tool is apidiff on each of `go_modules`
+    (workspace-relative directories; empty means the go.mod at the root).
     """
     tag_error = github_tag_error(tag)
     if tag_error != "":
@@ -123,11 +128,18 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", build_mode = "release"
     notes_mode = notes if notes in ["commits", "none"] else "none"
     notes_file = None if notes in ["commits", "none"] else notes
 
+    api_error = api_compat_error("github_deploy", api_compat, api_baseline)
+    if api_error != "":
+        fail(api_error + " (in " + native.package_name() + ":" + name + ")")
+    api_compat = api_compat_mode(api_compat)
+    checked = api_compat != "off"
     config_target = name + "_config"
     github_config(
         name = config_target,
+        api_baseline = api_baseline,
         api_compat = api_compat,
-        apidiff = "//deploy/rules/pins:apidiff" if api_compat else None,
+        apidiff = Label("//deploy/rules/pins:apidiff") if checked else None,
+        go = Label("//deploy/rules/pins:go") if checked else None,
         artifacts = artifacts + ([sbom] if sbom else []),
         go_modules = go_modules,
         deploy_name = name,

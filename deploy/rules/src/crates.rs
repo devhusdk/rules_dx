@@ -1,7 +1,8 @@
 //! crates.io publisher: vendor staging and the cargo publish.
 
 use crate::api_compat::{
-    ApiCompatMode, breaking_refusal, export_git_dir, latest_published, previous_tag, required_bump,
+    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir, fetch,
+    latest_published, previous_git_tag, workspace_dir,
 };
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
@@ -262,111 +263,68 @@ fn index_path(name: &str) -> String {
     }
 }
 
-/// Returns the newest published version; None when the crate is not on crates.io yet.
-fn published_version(crate_name: &str) -> Result<Option<String>, String> {
+/// Returns the highest published version below `next`; None when there is none.
+fn published_below(crate_name: &str, next: &str) -> Result<Option<String>, String> {
     let url = format!("https://index.crates.io/{}", index_path(crate_name));
-    match crate::http::publish_agent().get(&url).call() {
-        Ok(response) => {
-            let body = response
-                .into_body()
-                .read_to_string()
-                .map_err(|error| format!("cannot read {url}: {error}"))?;
-            Ok(latest_published(&body))
-        }
-        Err(ureq::Error::StatusCode(404)) => Ok(None),
-        Err(error) => Err(format!("cannot query {url}: {error}")),
-    }
+    Ok(fetch(&url, 64 << 20)?
+        .and_then(|body| latest_published(&String::from_utf8_lossy(&body), next)))
 }
 
-/// Returns the highest `v<version>` tag below `version` in the workspace repository.
-pub(crate) fn previous_git_tag(version: &str) -> Result<Option<String>, String> {
-    let mut cmd = std::process::Command::new("git");
-    cmd.args(["tag", "--list", "v*"]);
-    if let Ok(dir) = std::env::var("BUILD_WORKSPACE_DIRECTORY") {
-        cmd.current_dir(dir);
-    }
-    let output = cmd.output().map_err(|error| format!("git: {error}"))?;
-    if !output.status.success() {
-        return Err("git tag --list failed".to_owned());
-    }
-    Ok(previous_tag(
-        &String::from_utf8_lossy(&output.stdout),
-        version,
-    ))
-}
-
-/// Counts the failed checks in cargo-semver-checks output.
-fn count_breaking(output: &str) -> usize {
+/// Returns the `--- failure` lines of cargo-semver-checks output.
+fn semver_changes(output: &str) -> Vec<String> {
     output
         .lines()
-        .filter(|line| line.trim_start().starts_with("--- failure"))
-        .count()
+        .map(str::trim)
+        .filter_map(|line| line.strip_prefix("--- failure "))
+        .map(|line| line.trim_end_matches(" ---").to_owned())
+        .collect()
 }
 
-/// Compares the public API with the last release; a missing tool or baseline skips with a note.
+/// Compares the public API with the release `baseline` picks below `version`.
 fn crates_api_check(
-    semver_checks: Option<&Path>,
+    program: &Path,
     mapped: &[(std::path::PathBuf, String)],
     version: &str,
     crate_name: &str,
-    mode: ApiCompatMode,
-    baseline: &str,
+    baseline: Baseline,
     crate_dir: &str,
-) -> Result<(), String> {
-    if mode == ApiCompatMode::Off {
-        return Ok(());
-    }
-    let Some(program) = semver_checks else {
-        println!("api compat: cargo-semver-checks not found on PATH; skipped");
-        return Ok(());
-    };
+) -> Result<Outcome, String> {
     let mut export_dir = None;
-    let (previous, baseline_args) = if baseline == "git" {
-        match previous_git_tag(version) {
-            Ok(Some(tag)) => {
-                let workspace =
-                    std::env::var("BUILD_WORKSPACE_DIRECTORY").unwrap_or_else(|_| ".".to_owned());
-                let dest = tempfile_stage_dir("crates-api-base-")
-                    .map_err(|error| format!("crates_deploy: {error}"))?;
-                match export_git_dir(Path::new(&workspace), crate_dir, &tag, &dest) {
-                    Ok(true) => {}
-                    Ok(false) => {
-                        let _ = std::fs::remove_dir_all(&dest);
-                        println!("api compat: no Cargo.toml at {crate_dir} in {tag}; skipped");
-                        return Ok(());
-                    }
-                    Err(error) => {
-                        let _ = std::fs::remove_dir_all(&dest);
-                        return Err(format!("crates_deploy: api compat: {error}"));
-                    }
-                }
-                let root = dest.display().to_string();
-                export_dir = Some(dest);
-                (
-                    tag.trim_start_matches('v').to_owned(),
-                    vec!["--baseline-root".to_owned(), root],
-                )
+    let (previous, baseline_args) = if baseline == Baseline::Git {
+        let tag = match previous_git_tag(&workspace_dir(), version) {
+            Ok(Some(tag)) => tag,
+            Ok(None) => return Ok(Outcome::FirstRelease),
+            Err(error) => return Ok(Outcome::Skipped(error)),
+        };
+        let dest = tempfile_stage_dir("crates-api-base-")
+            .map_err(|error| format!("crates_deploy: {error}"))?;
+        match export_git_dir(&workspace_dir(), crate_dir, &tag, &dest) {
+            Ok(true) => {}
+            Ok(false) => {
+                let _ = std::fs::remove_dir_all(&dest);
+                return Ok(Outcome::Skipped(format!(
+                    "no Cargo.toml at {crate_dir} in {tag}"
+                )));
             }
-            Ok(None) => {
-                println!("api compat: no earlier v<version> tag; skipped (first release)");
-                return Ok(());
+            Err(error) => {
+                let _ = std::fs::remove_dir_all(&dest);
+                return Err(format!("crates_deploy: api compat: {error}"));
             }
-            Err(error) => return Err(format!("crates_deploy: api compat: {error}")),
         }
+        let root = dest.display().to_string();
+        export_dir = Some(dest);
+        (
+            tag.trim_start_matches('v').to_owned(),
+            vec!["--baseline-root".to_owned(), root],
+        )
     } else {
-        match published_version(crate_name) {
+        match published_below(crate_name, version) {
             Ok(Some(published)) => (
                 published.clone(),
                 vec!["--baseline-version".to_owned(), published],
             ),
-            Ok(None) => {
-                println!("api compat: {crate_name} is not published yet; skipped (first release)");
-                return Ok(());
-            }
-            Err(error) => {
-                println!("api compat: {error}; skipped");
-                return Ok(());
-            }
+            Ok(None) => return Ok(Outcome::FirstRelease),
+            Err(error) => return Ok(Outcome::Skipped(error)),
         }
     };
     let staging = match tempfile_stage_dir("crates-api-") {
@@ -402,30 +360,32 @@ fn crates_api_check(
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    let breaking = if output.status.success() {
-        0
+    let changes = if output.status.success() {
+        Vec::new()
     } else {
-        count_breaking(&text).max(1)
+        changes_or_failure(semver_changes(&text), false, "cargo-semver-checks", &text)
     };
-    println!("api compat: {breaking} breaking changes against {previous}");
-    if breaking > 0 {
-        for line in text
-            .lines()
-            .rev()
-            .take(CARGO_FAILURE_LINES)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-        {
-            println!("cargo-semver-checks: {line}");
+    Ok(Outcome::Compared { previous, changes })
+}
+
+/// Runs the API check for `version` and prints its report.
+fn crates_api_report(
+    semver_checks: Option<&Path>,
+    mapped: &[(std::path::PathBuf, String)],
+    (crate_name, version): (&str, &str),
+    (mode, baseline): (ApiCompatMode, Baseline),
+    crate_dir: &str,
+) -> Result<(), String> {
+    if mode == ApiCompatMode::Off {
+        return Ok(());
+    }
+    let outcome = match semver_checks {
+        Some(program) => {
+            crates_api_check(program, mapped, version, crate_name, baseline, crate_dir)?
         }
-    }
-    match breaking_refusal(mode, required_bump(&previous, version), breaking) {
-        Some(reason) => Err(format!(
-            "crates_deploy: api compat: {reason} ({previous} -> {version})"
-        )),
-        None => Ok(()),
-    }
+        None => Outcome::Skipped("cargo-semver-checks is not available".to_owned()),
+    };
+    conclude("crates_deploy", mode, version, outcome)
 }
 
 /// Runs the crates deploy tool without an API compatibility check.
@@ -550,12 +510,17 @@ pub fn crates_main_checked(
             }
         }
     }
-    let Some(mode) = ApiCompatMode::parse(api_compat) else {
-        eprintln!("crates_deploy: invalid api_compat '{api_compat}'");
+    let (Some(mode), Some(baseline)) = (
+        ApiCompatMode::parse(api_compat),
+        Baseline::parse(api_baseline),
+    ) else {
+        eprintln!(
+            "crates_deploy: invalid api_compat '{api_compat}' or api_baseline '{api_baseline}'"
+        );
         return 1;
     };
     let semver_checks = if semver_checks_rloc.is_empty() {
-        which_on_path("cargo-semver-checks")
+        None
     } else {
         run.resolve(semver_checks_rloc)
     };
@@ -563,13 +528,11 @@ pub fn crates_main_checked(
         .map_err(|error| format!("crates_deploy: {error}"))
         .and_then(|mapped| {
             crates_package_check(which_on_path("cargo").as_deref(), &mapped)?;
-            crates_api_check(
+            crates_api_report(
                 semver_checks.as_deref(),
                 &mapped,
-                version,
-                crate_name,
-                mode,
-                api_baseline,
+                (crate_name, version),
+                (mode, baseline),
                 crate_dir,
             )
         });
@@ -940,7 +903,7 @@ mod tests {
         std::fs::write(
             &fake,
             format!(
-                "#!/bin/sh\necho \"$@\" > {}\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --baseline-root ]; then cp \"$2/Cargo.toml\" {}; fi; shift; done\necho '--- failure pub_function_missing'\nexit 1\n",
+                "#!/bin/sh\necho \"$@\" > {}\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --baseline-root ]; then cp \"$2/Cargo.toml\" {}; fi; shift; done\necho '--- failure pub_function_missing: pub fn removed or renamed ---'\nexit 1\n",
                 args_log.display(),
                 exported.display()
             ),
@@ -950,7 +913,13 @@ mod tests {
         let repo_dir = repo.display().to_string();
         let run_in = |dir: &str, version: &str, mode: ApiCompatMode| {
             with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
-                crates_api_check(Some(&fake), &mapped, version, "pkg", mode, "git", dir)
+                crates_api_report(
+                    Some(&fake),
+                    &mapped,
+                    ("pkg", version),
+                    (mode, Baseline::Git),
+                    dir,
+                )
             })
         };
         let run = |version: &str, mode: ApiCompatMode| run_in("pkg", version, mode);
@@ -1053,13 +1022,11 @@ mod tests {
         ];
         let run = |version: &str| {
             with_env(&env, || {
-                crates_api_check(
+                crates_api_report(
                     Some(&tool),
                     &mapped,
-                    version,
-                    "pkg",
-                    ApiCompatMode::Fail,
-                    "git",
+                    ("pkg", version),
+                    (ApiCompatMode::Fail, Baseline::Git),
                     "pkg",
                 )
             })
@@ -1067,5 +1034,17 @@ mod tests {
         let refused = run("1.2.1").expect_err("patch bump refused");
         assert!(refused.contains("1.2.0 -> 1.2.1"), "{refused}");
         assert!(run("2.0.0").is_ok());
+    }
+
+    #[test]
+    fn semver_changes_lists_failed_lints() {
+        let out = "--- failure pub_fn_missing: pub fn removed ---\nnote\n  --- failure enum_variant_added: variant added ---\n";
+        assert_eq!(
+            semver_changes(out),
+            vec![
+                "pub_fn_missing: pub fn removed",
+                "enum_variant_added: variant added"
+            ]
+        );
     }
 }

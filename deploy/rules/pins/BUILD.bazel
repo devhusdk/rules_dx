@@ -1,4 +1,5 @@
 load(":semver_checks_pins.bzl", "SEMVER_CHECKS_PLATFORMS")
+load("//deploy/rules:go_sdk.bzl", "go_binary_file")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -49,3 +50,5 @@ alias(
     name = "apidiff",
     actual = "@org_golang_x_exp//cmd/apidiff",
 )
+
+go_binary_file(name = "go")

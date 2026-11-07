@@ -1,6 +1,6 @@
 //! GitHub release publisher: asset staging and the gh release upload.
 
-use crate::api_compat::ApiCompatMode;
+use crate::api_compat::{ApiCompatMode, Baseline, Outcome, conclude};
 use crate::archive::*;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal,
@@ -298,7 +298,9 @@ pub fn github_main_with_notes(
 ) -> i32 {
     let go_api = GoApi {
         mode: "off",
+        baseline: "registry",
         apidiff_rloc: "",
+        go_rloc: "",
         modules: &[],
     };
     github_main_checked(asset_rlocs, deploy_name, tag, notes, &go_api, argv)
@@ -307,7 +309,9 @@ pub fn github_main_with_notes(
 /// The Go API compatibility settings of one github_deploy.
 pub struct GoApi<'a> {
     pub mode: &'a str,
+    pub baseline: &'a str,
     pub apidiff_rloc: &'a str,
+    pub go_rloc: &'a str,
     pub modules: &'a [String],
 }
 
@@ -449,25 +453,44 @@ pub fn github_main_checked(
     } else {
         ApiCompatMode::parse(go_api.mode)
     };
-    let Some(mode) = mode else {
-        eprintln!("github_deploy: invalid api_compat '{}'", go_api.mode);
+    let (Some(mode), Some(baseline)) = (mode, Baseline::parse(go_api.baseline)) else {
+        eprintln!(
+            "github_deploy: invalid api_compat '{}' or api_baseline '{}'",
+            go_api.mode, go_api.baseline
+        );
         return 1;
     };
     if mode != ApiCompatMode::Off {
-        let apidiff = if go_api.apidiff_rloc.is_empty() {
-            which_on_path("apidiff")
-        } else {
-            run.resolve(go_api.apidiff_rloc)
-        };
-        if which_on_path("go").is_none() {
-            println!("api compat: go not found on PATH; skipped");
-        }
         let root = workspace
             .clone()
             .map_or_else(|| std::path::PathBuf::from("."), std::path::PathBuf::from);
-        if let Err(message) =
-            crate::go_api::go_api_check(apidiff.as_deref(), &root, go_api.modules, tag_text, mode)
-        {
+        let outcomes = if go_api.apidiff_rloc.is_empty() || go_api.go_rloc.is_empty() {
+            Ok(vec![Outcome::Skipped(
+                "apidiff or go is not available".to_owned(),
+            )])
+        } else {
+            let (Some(apidiff), Some(go)) = (
+                run.resolve(go_api.apidiff_rloc),
+                run.resolve(go_api.go_rloc),
+            ) else {
+                return 1;
+            };
+            crate::go_api::go_api_check(
+                (&apidiff, Some(&go)),
+                &root,
+                go_api.modules,
+                tag_text,
+                baseline,
+            )
+        };
+        let concluded = outcomes.and_then(|outcomes| {
+            let results: Vec<_> = outcomes
+                .into_iter()
+                .map(|outcome| conclude("github_deploy", mode, tag_text, outcome))
+                .collect();
+            results.into_iter().collect::<Result<(), String>>()
+        });
+        if let Err(message) = concluded {
             eprintln!("{message}");
             return 1;
         }

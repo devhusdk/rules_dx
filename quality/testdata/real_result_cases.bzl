@@ -148,6 +148,7 @@ REAL_RESULT_CASES = [
     _msvc_case("dirty", "dirty", ["C2065", "undeclared_name"], []),
     _msvc_case("clean", "clean", ["clean.c"], ["readability-else-after-return", "file not found", "clang-diagnostic-error"], "clang_tidy", "lint", _CC_TIDY_POLICY),
     _msvc_case("dirty", "tidy_dirty", ["readability-else-after-return"], ["file not found", "clang-diagnostic-error", "TIDY_DEFINE"], "clang_tidy", "lint", _CC_TIDY_POLICY),
+    _msvc_case("crt", "tidy_crt", ["tidy_crt.c"], ["file not found", "clang-diagnostic-error"], "clang_tidy", "lint", _CC_TIDY_POLICY),
     _gcc_case("clang_tidy", "lint", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),
     _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),

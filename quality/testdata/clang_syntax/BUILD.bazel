@@ -89,6 +89,14 @@ cc_library(
 )
 
 cc_library(
+    name = "tidy_crt",
+    srcs = ["tidy_crt.c"],
+    aspect_hints = [":tidy_config"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+cc_library(
     name = "dirty",
     srcs = ["dirty.c"],
     copts = ["-DCLEAN_OFFSET=1"],

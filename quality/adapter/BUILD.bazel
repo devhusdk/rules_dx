@@ -330,6 +330,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    coverage_lib = ":quality_adapter",
     crate_name = "quality_adapter",
     crate_root = "src/lib.rs",
     data = [

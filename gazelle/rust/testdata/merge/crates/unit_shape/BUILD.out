@@ -18,6 +18,7 @@ rust_test(
         "src/tests.rs",
     ],
     compile_data = ["asset.txt"],
+    coverage_lib = ":unit_shape",
     crate_name = "unit_shape",
     crate_root = "src/lib.rs",
     deps = ["//hand/maintained:dep"],

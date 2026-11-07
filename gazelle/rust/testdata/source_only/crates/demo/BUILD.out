@@ -24,6 +24,7 @@ rust_test(
         "src/model.rs",
         "src/tests.rs",
     ],
+    coverage_lib = ":demo",
     crate_name = "demo",
     crate_root = "src/lib.rs",
 )

@@ -60,6 +60,7 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = glob(["testdata/*.json"]),
+    coverage_lib = ":dx_docs_python_extract",
     crate_name = "dx_docs_python_extract",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(

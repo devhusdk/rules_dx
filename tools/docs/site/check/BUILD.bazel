@@ -58,6 +58,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    coverage_lib = ":dx_site_check",
     crate_name = "dx_site_check",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(

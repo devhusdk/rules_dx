@@ -64,6 +64,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    coverage_lib = ":cc_context",
     crate_name = "cc_context",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(

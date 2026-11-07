@@ -86,6 +86,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    coverage_lib = ":quality_markdown_lib",
     crate_name = "quality_markdown",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(

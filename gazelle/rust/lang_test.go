@@ -229,6 +229,9 @@ func TestGenerateMigratesUnitTestShape(t *testing.T) {
 		if test.Name() != "demo_unit" || test.Attr("crate") != nil || test.AttrString("crate_root") != "src/lib.rs" || unitTestOf(test) != "demo_lib" {
 			t.Errorf("unit test = %s crate=%q root=%q of=%q, want demo_unit self-contained", test.Name(), test.AttrString("crate"), test.AttrString("crate_root"), unitTestOf(test))
 		}
+		if got := test.AttrString("coverage_lib"); got != ":demo_lib" {
+			t.Errorf("coverage_lib = %q, want :demo_lib", got)
+		}
 		for _, empty := range result.Empty {
 			t.Errorf("%s(%s) marked stale", empty.Kind(), empty.Name())
 		}
@@ -248,6 +251,9 @@ func TestGenerateMigratesUnitTestShape(t *testing.T) {
 		test := result.Gen[1]
 		if test.Name() != "demo_unit" || test.AttrString("crate") != ":demo_lib" {
 			t.Errorf("unit test = %s crate=%q, want demo_unit crate=:demo_lib", test.Name(), test.AttrString("crate"))
+		}
+		if test.Attr("coverage_lib") != nil {
+			t.Errorf("crate= wrapper got coverage_lib %q", test.AttrString("coverage_lib"))
 		}
 		for _, empty := range result.Empty {
 			t.Errorf("%s(%s) marked stale", empty.Kind(), empty.Name())
@@ -324,6 +330,9 @@ func TestGenerateCargoSplitsTestOnlyModules(t *testing.T) {
 		libTest.AttrString("crate_name") != "app" || libTest.AttrString("edition") != "2021" {
 		t.Errorf("library unit test = crate=%q srcs=%v name=%q edition=%q", libTest.AttrString("crate"), libTest.AttrStrings("srcs"), libTest.AttrString("crate_name"), libTest.AttrString("edition"))
 	}
+	if got := libTest.AttrString("coverage_lib"); got != ":app_lib" {
+		t.Errorf("library unit test coverage_lib = %q, want :app_lib", got)
+	}
 	imports := result.Imports[byName[testKind+":app_test"]].(targetImports)
 	if strings.Join(imports.production, ",") != "local" || strings.Join(imports.test, ",") != "devlocal" || strings.Join(imports.mirrorPaths, ",") != "devlocal,local" {
 		t.Errorf("library unit test imports = %+v", imports)
@@ -345,6 +354,9 @@ func TestGenerateCargoSplitsTestOnlyModules(t *testing.T) {
 	binTest := result.Gen[binTestIndex]
 	if binTest.Attr("crate") != nil || strings.Join(binTest.AttrStrings("srcs"), ",") != "src/main.rs,src/main_tests.rs" {
 		t.Errorf("binary unit test = crate=%q srcs=%v", binTest.AttrString("crate"), binTest.AttrStrings("srcs"))
+	}
+	if binTest.Attr("coverage_lib") != nil {
+		t.Errorf("binary unit test coverage_lib = %q, want none", binTest.AttrString("coverage_lib"))
 	}
 	if got := result.Imports[binTestIndex].(targetImports).siblingLib; got != "app_lib" {
 		t.Errorf("binary unit test sibling = %q, want app_lib", got)
@@ -908,6 +920,38 @@ func TestAdoptedLibraryRenamesSiblingDep(t *testing.T) {
 		if !ok || imports.siblingLib != "handmade" {
 			t.Errorf("bin imports = %+v, want sibling handmade", result.Imports[i])
 		}
+	}
+}
+
+func TestCoverageLibFollowsAdoptedLibrary(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"demo\"\n")
+	writeFixture(t, root, "src/lib.rs", "#[cfg(test)] mod tests;\n")
+	writeFixture(t, root, "src/tests.rs", "#[test]\nfn t() {}\n")
+	generate := func(kindMap map[string]config.MappedKind) *rule.Rule {
+		f := rule.EmptyFile("BUILD.bazel", "")
+		hand := rule.NewRule(libraryKind, "handmade")
+		hand.SetAttr("crate_root", "src/lib.rs")
+		f.Rules = append(f.Rules, hand)
+		l := &rustLang{}
+		result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root, KindMap: kindMap}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f})
+		if len(l.errors) != 0 {
+			t.Fatalf("generation errors = %v", l.errors)
+		}
+		for _, r := range result.Gen {
+			if unitTestOf(r) == "handmade" {
+				return r
+			}
+		}
+		t.Fatalf("no unit test of handmade in %+v", result.Gen)
+		return nil
+	}
+	if got := generate(nil).AttrString("coverage_lib"); got != ":handmade" {
+		t.Errorf("coverage_lib = %q, want :handmade", got)
+	}
+	mapped := map[string]config.MappedKind{testKind: {FromKind: testKind, KindName: "my_rust_test", KindLoad: "//:defs.bzl"}}
+	if got := generate(mapped).Attr("coverage_lib"); got != nil {
+		t.Errorf("map_kind'ed rust_test got coverage_lib")
 	}
 }
 

@@ -6,7 +6,8 @@
 // out of srcs, and the crate's unit test becomes self-contained: srcs are
 // all files, with crate_root, crate_name, edition and production plus dev
 // deps, and no crate=. It carries over compile_data, rustc_env and the other
-// crateInheritedAttrs, plus the deps labels of the existing crate rule.
+// crateInheritedAttrs, plus the deps labels of the existing crate rule, and
+// sets coverage_lib to its library so coverage counts the library's sources.
 // Crates without TestOnly files keep the crate= unit test. Files reached only
 // through an inner #![cfg(test)] stay in srcs. Proc-macro, cdylib, staticlib
 // and example targets keep their test modules in srcs and a crate= test.

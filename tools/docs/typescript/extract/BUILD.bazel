@@ -67,6 +67,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    coverage_lib = ":dx_docs_typescript_extract",
     crate_name = "dx_docs_typescript_extract",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(

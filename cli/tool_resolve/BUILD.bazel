@@ -32,6 +32,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    coverage_lib = ":dx_tool_resolve",
     crate_name = "dx_tool_resolve",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(

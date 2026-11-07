@@ -71,6 +71,7 @@ func kindInfo() rule.KindInfo {
 		MergeableAttrs: map[string]bool{
 			"aliases":      true,
 			"aspect_hints": true,
+			"coverage_lib": true,
 			"crate":        true,
 			"crate_name":   true,
 			"crate_root":   true,
@@ -381,6 +382,7 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 		}
 		result.Imports[i] = current
 	}
+	setCoverageLib(args.Config, result.Gen)
 	for _, r := range result.Gen {
 		applyNativeHints(args.Config, args.Rel, r, plan)
 	}
@@ -410,6 +412,26 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 	merged := mergeStale(args.File, result)
 	merged.Empty = append(merged.Empty, plan.empty...)
 	return merged
+}
+
+// setCoverageLib points a self-contained unit test at its library, so
+// coverage counts the library's sources. A map_kind'ed rust_test may not
+// know the attribute, so it is left alone.
+func setCoverageLib(c *config.Config, gen []*rule.Rule) {
+	if _, mapped := c.KindMap[testKind]; mapped {
+		return
+	}
+	libs := make(map[string]bool)
+	for _, r := range gen {
+		if isLibraryKind(r.Kind()) {
+			libs[r.Name()] = true
+		}
+	}
+	for _, r := range gen {
+		if of := unitTestOf(r); of != "" && r.Attr("crate") == nil && libs[of] {
+			r.SetAttr("coverage_lib", ":"+of)
+		}
+	}
 }
 
 func dxCrateNames(file *rule.File) map[string]bool {

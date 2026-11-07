@@ -1768,6 +1768,7 @@ version = "0.0.0"
 dependencies = [
  "jsonc-parser",
  "serde_json",
+ "similar 3.2.0",
  "thiserror 2.0.20",
 ]
 

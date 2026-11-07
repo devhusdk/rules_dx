@@ -12,6 +12,7 @@
 
 pub mod block;
 pub mod jsonc;
+pub mod merge3;
 pub mod yaml_scalar;
 
 /// Why a merge could not run.

@@ -1,5 +1,5 @@
 {
-  "checksum": "ce5b7a49de94ec483524af6eb1ab82f60c2ff8ec5e0ee920bc4da59dbda9c992",
+  "checksum": "12a141f488656dc05c77a5404f824f20c85a9ddcd3c406cbc7d1a9805054eb51",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8067,6 +8067,10 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
+          },
+          {
+            "id": "similar 3.2.0",
+            "target": "similar"
           },
           {
             "id": "thiserror 2.0.20",

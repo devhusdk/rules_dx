@@ -8,6 +8,7 @@ exports_files([
     "src/block.rs",
     "src/jsonc.rs",
     "src/lib.rs",
+    "src/merge3.rs",
     "src/yaml_scalar.rs",
 ])
 
@@ -18,11 +19,13 @@ dx_rust_crate(
         "src/block.rs",
         "src/jsonc.rs",
         "src/lib.rs",
+        "src/merge3.rs",
         "src/yaml_scalar.rs",
     ],
     deps = [
         "jsonc-parser",
         "serde_json",
+        "similar",
         "thiserror",
     ],
 )

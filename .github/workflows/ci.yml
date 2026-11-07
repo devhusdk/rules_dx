@@ -596,7 +596,7 @@ jobs:
           targets="$(tr '\r\n' '  ' < "$RUNNER_TEMP/starter-targets")"
           # shellcheck disable=SC2086
           bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" $targets && test_status=0 || test_status=$?
-          testlogs="$(bazel info "$@" bazel-testlogs)"
+          testlogs="$PWD/bazel-testlogs"
           ran=0
           : > "$RUNNER_TEMP/starter-ran"
           : > "$RUNNER_TEMP/starter-skipped"
@@ -633,8 +633,8 @@ jobs:
           mkdir -p "$(dirname "$out")"
           : > "$out"
           bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci:producers_bin
-          DX_BIN="$(bazel info "$@" bazel-bin)"
-          DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
+          DX_BIN="$PWD/bazel-bin"
+          DX_TESTLOGS="$PWD/bazel-testlogs"
           DX_PRODUCERS="$DX_BIN/tools/ci/producers_bin"
           [ -f "$DX_PRODUCERS" ] || DX_PRODUCERS="$DX_PRODUCERS.exe"
           export DX_BIN DX_TESTLOGS DX_PRODUCERS

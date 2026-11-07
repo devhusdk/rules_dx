@@ -121,6 +121,16 @@ def clang_syntax_unit_tests(name):
                 ["tidy", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/nologo", "/DX=1", "/I", "inc"],
             ),
             expect_equal(
+                "clang-tidy turns the action INCLUDE into /imsvc for MSVC",
+                clang_tidy_argv("tidy", ["cl.exe", "/c", "a.c"], "a.c", _CL, "", {"INCLUDE": "C:\\crt\\include;C:\\sdk\\ucrt;", "EXTERNAL_INCLUDE": "D:\\ext"}).argv,
+                ["tidy", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/imsvcC:/crt/include", "/imsvcC:/sdk/ucrt", "/imsvcD:/ext", "/X"],
+            ),
+            expect_equal(
+                "clang-tidy keeps argv /imsvc over the action INCLUDE",
+                clang_tidy_argv("tidy", ["cl.exe", "/imsvcx", "/c", "a.c"], "a.c", _CL, "", {"INCLUDE": "C:\\crt"}).argv,
+                ["tidy", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/imsvcx"],
+            ),
+            expect_equal(
                 "clang-tidy projects clang-cl and keeps its flags in order",
                 clang_tidy_argv("tidy", ["clang-cl.exe", "-c", "a.c", "/Foa.obj", "/std:c++17", "-m64"], "a.c", _CLANG_CL, "q/.clang-tidy").argv,
                 ["tidy", "--config-file=q/.clang-tidy", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/std:c++17", "-m64"],

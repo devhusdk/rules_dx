@@ -136,7 +136,7 @@ _MSVC_TIDY_UNSUPPORTED = {
     "ZW": "C++/CX",
 }
 
-def _msvc_tidy_argv(tidy, argv, src, identity, config):
+def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
     rewritten = clang_syntax_argv(argv, src, identity)
     if rewritten.error != "":
         return rewritten
@@ -155,11 +155,19 @@ def _msvc_tidy_argv(tidy, argv, src, identity, config):
             continue
         flags.append(arg)
     target = ["--target=" + identity.target] if identity.target else []
+    imsvc = []
+    if not [a for a in flags if a.startswith(("/imsvc", "-imsvc", "/winsysroot", "-winsysroot"))]:
+        for key in ["INCLUDE", "EXTERNAL_INCLUDE"]:
+            for path in env.get(key, "").split(";"):
+                if path:
+                    imsvc.append("/imsvc" + path.replace("\\", "/"))
+        if imsvc:
+            imsvc.append("/X")
 
     # driver mode must follow `--`; clang-tidy strips /-flags otherwise (LLVM #66553, CMake #25708).
-    return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + flags, error = "")
+    return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + imsvc + flags, error = "")
 
-def clang_tidy_argv(tidy, argv, src, identity, config = ""):
+def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}):
     """Projects a compile command line into a clang-tidy command line.
 
     Args:
@@ -168,13 +176,14 @@ def clang_tidy_argv(tidy, argv, src, identity, config = ""):
       src: string: the source path the action compiles.
       identity: struct: the compiler identity from cc_compiler_identity.
       config: string: the .clang-tidy path, or empty for none.
+      env: dict: the compile action environment; INCLUDE and EXTERNAL_INCLUDE become /imsvc for msvc.
 
     Returns:
       A struct with `argv` (clang-tidy, the source, `--`, then the compile flags) and
       `error` (non-empty when the command line cannot be projected).
     """
     if identity.driver == "msvc":
-        return _msvc_tidy_argv(tidy, argv, src, identity, config)
+        return _msvc_tidy_argv(tidy, argv, src, identity, config, env)
     rewritten = clang_syntax_argv(argv, src, identity)
     if rewritten.error != "":
         return rewritten
@@ -359,7 +368,7 @@ def _clang_syntax_impl(target, ctx):
         all_inputs = depset(transitive = [action.inputs, headers])
         driver = ctx.actions.declare_file("dx_clang_syntax/%s.driver" % stem)
         ctx.actions.write(output = driver, content = identity.driver)
-        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config)
+        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, action.env)
         tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
         requirements = {}
         if action.mnemonic == "ObjcCompile":

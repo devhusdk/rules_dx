@@ -115,10 +115,7 @@ def is_canonical_token(text):
     return True
 
 def tool(id, adapters, support = [], config = _NO_CONFIG, severity = _NO_SEVERITY, concerns = {}):
-    """Returns one tool: its adapter classes per capability, its support records and its concerns.
-
-    `concerns` maps a capability to the concern it owns when that is not the capability name.
-    """
+    """Returns one tool: adapters per capability, support records, and concerns not named after the capability."""
     for capability, concern in concerns.items():
         if capability not in adapters or not is_canonical_token(concern):
             fail("tool %s: concerns %s=%s needs an adapter capability and a canonical concern" % (id, capability, concern))

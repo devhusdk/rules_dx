@@ -816,7 +816,14 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "/scratch/src/Hello.java"
         ]
     );
-    let strict = spotbugs_check(Path::new(BIN), &[java], &[], "max", Some(Path::new("/scratch/filter.xml"))).expect("strict");
+    let strict = spotbugs_check(
+        Path::new(BIN),
+        &[java],
+        &[],
+        "max",
+        Some(Path::new("/scratch/filter.xml")),
+    )
+    .expect("strict");
     assert_eq!(
         argv_strings(&strict),
         vec![
@@ -2807,16 +2814,7 @@ fn spotbugs_check_rejects_aux_jar_that_cannot_be_joined() {
         "/scratch/a:b.jar"
     };
     let java = Path::new("/scratch/src/Hello.java");
-    assert!(
-        spotbugs_check(
-            Path::new(BIN),
-            &[java],
-            &[Path::new(bad)],
-            "default",
-            None
-        )
-        .is_err()
-    );
+    assert!(spotbugs_check(Path::new(BIN), &[java], &[Path::new(bad)], "default", None).is_err());
     let colon_target = Path::new("/scratch/src/He:llo.java");
     assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[], "default", None).is_ok());
 }

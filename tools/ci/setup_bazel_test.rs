@@ -193,7 +193,11 @@ fn the_setup_bazel_action_inputs_default_to_what_any_repository_can_use() {
         .map(String::as_str)
         .collect();
     inputs.sort_unstable();
-    assert_eq!(inputs, ["cache-save"], "{ACTION_FILE} inputs");
+    assert_eq!(
+        inputs,
+        ["cache-save", "locate-repository-cache"],
+        "{ACTION_FILE} inputs"
+    );
     assert_eq!(
         action["inputs"]["cache-save"]["default"].as_str(),
         Some("false")

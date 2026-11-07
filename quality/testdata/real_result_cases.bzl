@@ -364,7 +364,7 @@ REAL_RESULT_CASES = [
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
     {
         "name": "real_result_dialyzer_erlang_clean",
-        "target": "@rules_dx_beam//erlang/tests/runtime:erlang_app",
+        "target": "//quality/testdata/dialyzer_clean:erlang_clean",
         "policy": "//quality/testdata/dialyzer:erlang_policy",
         "tool": "dialyzer",
         "capability": "typecheck",

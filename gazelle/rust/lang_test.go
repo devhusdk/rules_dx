@@ -927,11 +927,12 @@ func TestCoverageLibFollowsAdoptedLibrary(t *testing.T) {
 	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"demo\"\n")
 	writeFixture(t, root, "src/lib.rs", "#[cfg(test)] mod tests;\n")
 	writeFixture(t, root, "src/tests.rs", "#[test]\nfn t() {}\n")
-	generate := func(kindMap map[string]config.MappedKind) *rule.Rule {
+	generate := func(kindMap map[string]config.MappedKind, existing ...*rule.Rule) *rule.Rule {
 		f := rule.EmptyFile("BUILD.bazel", "")
 		hand := rule.NewRule(libraryKind, "handmade")
 		hand.SetAttr("crate_root", "src/lib.rs")
 		f.Rules = append(f.Rules, hand)
+		f.Rules = append(f.Rules, existing...)
 		l := &rustLang{}
 		result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root, KindMap: kindMap}, Dir: root, RegularFiles: []string{"Cargo.toml"}, File: f})
 		if len(l.errors) != 0 {
@@ -945,12 +946,18 @@ func TestCoverageLibFollowsAdoptedLibrary(t *testing.T) {
 		t.Fatalf("no unit test of handmade in %+v", result.Gen)
 		return nil
 	}
-	if got := generate(nil).AttrString("coverage_lib"); got != ":handmade" {
+	unit := generate(nil)
+	if got := unit.AttrString("coverage_lib"); got != ":handmade" {
 		t.Errorf("coverage_lib = %q, want :handmade", got)
 	}
 	mapped := map[string]config.MappedKind{testKind: {FromKind: testKind, KindName: "my_rust_test", KindLoad: "//:defs.bzl"}}
 	if got := generate(mapped).Attr("coverage_lib"); got != nil {
 		t.Errorf("map_kind'ed rust_test got coverage_lib")
+	}
+	kept := rule.NewRule("my_rust_test", unit.Name())
+	kept.SetAttr("coverage_lib", ":custom")
+	if got := generate(mapped, kept).AttrString("coverage_lib"); got != ":custom" {
+		t.Errorf("map_kind'ed coverage_lib = %q, want the existing :custom", got)
 	}
 }
 

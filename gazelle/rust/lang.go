@@ -375,7 +375,7 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 		}
 		result.Imports[i] = current
 	}
-	setCoverageLib(args.Config, result.Gen)
+	setCoverageLib(args.Config, args.File, result.Gen)
 	for _, r := range result.Gen {
 		applyNativeHints(args.Config, args.Rel, r, plan)
 	}
@@ -398,7 +398,7 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 			r.SetAttr("testonly", true)
 		}
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, generatedClaims(args.Rel, result.Gen)); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, generatedClaims(args.Config, args.Rel, result.Gen)); err != nil {
 		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
@@ -409,9 +409,27 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 
 // setCoverageLib points a self-contained unit test at its library, so
 // coverage counts the library's sources. A map_kind'ed rust_test may not
-// know the attribute, so it is left alone.
-func setCoverageLib(c *config.Config, gen []*rule.Rule) {
-	if _, mapped := c.KindMap[testKind]; mapped {
+// know the attribute, so it is never added there. Gazelle still merges it as
+// a rust_test attribute, so an existing coverage_lib is copied from the rule
+// in file to keep the merge from deleting it.
+func setCoverageLib(c *config.Config, file *rule.File, gen []*rule.Rule) {
+	if mapped, ok := c.KindMap[testKind]; ok {
+		if file == nil {
+			return
+		}
+		existing := make(map[string]*rule.Rule)
+		for _, r := range file.Rules {
+			if r.Kind() == mapped.KindName {
+				existing[r.Name()] = r
+			}
+		}
+		for _, r := range gen {
+			if old, ok := existing[r.Name()]; ok && r.Kind() == testKind {
+				if v := old.Attr("coverage_lib"); v != nil {
+					r.SetAttr("coverage_lib", v)
+				}
+			}
+		}
 		return
 	}
 	libs := make(map[string]bool)

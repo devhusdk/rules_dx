@@ -1,0 +1,26 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_library")
+load("//:defs.bzl", "my_rust_test")
+
+# gazelle:map_kind rust_test my_rust_test //:defs.bzl
+
+rust_library(
+    name = "mapped_coverage",
+    srcs = ["src/lib.rs"],
+    compile_data = ["asset.txt"],
+    crate_name = "mapped_coverage",
+    crate_root = "src/lib.rs",
+    visibility = ["//visibility:public"],
+)
+
+my_rust_test(
+    name = "mapped_coverage_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    compile_data = ["asset.txt"],
+    coverage_lib = ":mapped_coverage",
+    crate_name = "mapped_coverage",
+    crate_root = "src/lib.rs",
+)

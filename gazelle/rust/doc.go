@@ -8,6 +8,9 @@
 // deps, and no crate=. It carries over compile_data, rustc_env and the other
 // crateInheritedAttrs, plus the deps labels of the existing crate rule, and
 // sets coverage_lib to its library so coverage counts the library's sources.
+// Under map_kind Gazelle never adds coverage_lib but keeps an existing one; a
+// hand-written coverage_lib on a test Gazelle does not set it on (binary or
+// integration tests) needs # keep.
 // Crates without TestOnly files keep the crate= unit test. Files reached only
 // through an inner #![cfg(test)] stay in srcs. Proc-macro, cdylib, staticlib
 // and example targets keep their test modules in srcs and a crate= test.

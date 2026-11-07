@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	bzl "github.com/bazelbuild/buildtools/build"
 	"github.com/devhusdk/rules_dx/gazelle/common"
@@ -395,10 +396,14 @@ func claimSources(owners map[string]sourceOwner, owner string, shared bool, tree
 }
 
 // generatedClaims turns the generated rules of package rel into claimants for common.CheckClaims.
-func generatedClaims(rel string, gen []*rule.Rule) []common.Claimant {
+func generatedClaims(c *config.Config, rel string, gen []*rule.Rule) []common.Claimant {
 	claimants := make([]common.Claimant, 0, len(gen))
 	for _, r := range gen {
-		claimants = append(claimants, common.Claimant{Name: r.Name(), Source: rel, Kind: r.Kind()})
+		kind := r.Kind()
+		if mapped, ok := c.KindMap[kind]; ok {
+			kind = mapped.KindName
+		}
+		claimants = append(claimants, common.Claimant{Name: r.Name(), Source: rel, Kind: kind})
 	}
 	return claimants
 }

@@ -205,7 +205,12 @@ struct Context<'a> {
 }
 
 impl Context<'_> {
-    fn tested_on(&self, row: &Row, labels: &[String]) -> Result<Vec<String>, String> {
+    fn tested_on(
+        &self,
+        row: &Row,
+        labels: &[String],
+        consumer: bool,
+    ) -> Result<Vec<String>, String> {
         let mut on = BTreeSet::new();
         for label in labels {
             let (package, name) = split_label(label)?;
@@ -222,6 +227,15 @@ impl Context<'_> {
             {
                 return Err(format!(
                     "{label} is filtered out of tag-selected CI jobs, so it cannot be a consumer test"
+                ));
+            }
+            if consumer
+                && row.section == "compilers"
+                && !facts.tags.iter().any(|tag| tag == "hermetic-consumer")
+            {
+                return Err(format!(
+                    "{label} is a consumer test of compiler row {} but lacks the hermetic-consumer tag, so it is not a nested qualification",
+                    row.name
                 ));
             }
             let manual = facts.tags.iter().any(|tag| tag == "manual");
@@ -324,8 +338,8 @@ pub fn row_platforms(
         out.insert(
             row.name.clone(),
             RowPlatforms {
-                build: context.tested_on(row, &row.ci_tests)?,
-                consumer: context.tested_on(row, &row.consumer_tests)?,
+                build: context.tested_on(row, &row.ci_tests, false)?,
+                consumer: context.tested_on(row, &row.consumer_tests, true)?,
             },
         );
     }

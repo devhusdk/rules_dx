@@ -45,3 +45,16 @@ fn committed_unsupported_json_matches_the_source_data() {
         );
     }
 }
+
+#[test]
+fn compiler_consumer_tests_must_be_nested_qualifications() {
+    let source = RunfilesSource::create().expect("runfiles");
+    let facts = source
+        .read("tools/docs/support_matrix/facts.json")
+        .expect("facts");
+    let golden = "//tools/testing/hermetic:c_fixture_msvc";
+    assert!(facts.contains(golden), "the msvc row lists {golden}");
+    let facts = facts.replace(golden, "//tools/testing/hermetic:isolation_probe_test");
+    let error = generate(&facts, &source).expect_err("a non-qualification consumer test");
+    assert!(error.contains("hermetic-consumer"), "{error}");
+}

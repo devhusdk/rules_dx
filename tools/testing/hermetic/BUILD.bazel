@@ -1024,6 +1024,8 @@ hermetic_qualification(
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
+    smoke = True,
+    timeout = "eternal",
 )
 
 hermetic_qualification(
@@ -1046,6 +1048,8 @@ hermetic_qualification(
     module_fragment = "consumers/cc_fixture/msvc_module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
+    smoke = True,
+    timeout = "eternal",
 )
 
 hermetic_qualification(
@@ -1088,6 +1092,8 @@ hermetic_qualification(
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
+    smoke = True,
+    timeout = "eternal",
 )
 
 hermetic_qualification(
@@ -1110,6 +1116,8 @@ hermetic_qualification(
     module_fragment = "consumers/cc_fixture/msvc_module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
+    smoke = True,
+    timeout = "eternal",
 )
 
 rustfmt_test(

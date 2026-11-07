@@ -192,16 +192,12 @@ pub fn merge_override(
     old_sha: &str,
     new_sha: &str,
 ) -> Merge3 {
-    let marker = format!("dx: override of base {old_sha}");
-    let mut cut = 0;
-    for line in root.split_inclusive('\n') {
-        cut += line.len();
-        if line.contains(&marker) {
-            break;
-        }
-    }
-    let (header, body) = root.split_at(cut);
-    let header = header.replacen(&marker, &format!("dx: override of base {new_sha}"), 1);
+    let (header, body) = crate::ownership::split_override_header(root);
+    let header = header.replacen(
+        &format!("dx: override of base {old_sha}"),
+        &format!("dx: override of base {new_sha}"),
+        1,
+    );
     let old = format!("old base {old_sha}");
     let labels = Labels {
         ours: "your file",

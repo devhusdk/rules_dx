@@ -29,7 +29,7 @@ dx config [<tool> | diff <tool> | override <tool>] [--output text|json]
 | --- | --- |
 | `dx config` | One line per selected tool: the tool, its root file (`-` when the workspace has none), then `extends <base>`, `override of <base>` or `tier base <base>` when the tool runs on the base itself. `edited` follows when the root file starts with a `dx: override of base <sha>` comment. |
 | `dx config <tool>` | Every file the tool reads, in order: the root file when there is one, then the base. |
-| `dx config diff <tool>` | A unified diff from the current base to the root file. Fails when the tool has no root file. |
+| `dx config diff <tool>` | A unified diff from the current base to the root file, ignoring its `dx: override of base` header line; empty when the copy is unchanged. Fails when the tool has no root file. |
 | `dx config override <tool>` | Copies the base to the tool's root file and starts it with a `dx: override of base <git blob sha>` comment. Refuses when the tool has an extends line (it prints the line to add instead) or when the root file already exists. The only form that writes. |
 
 ```text

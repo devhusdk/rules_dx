@@ -131,11 +131,15 @@ fn diff(workspace: &Path, entry: &Entry) -> Result<String, String> {
     };
     let base = read(&entry.base)?;
     let current = read(root)?;
+    let (_, body) = dx_adopt::ownership::split_override_header(&current);
+    if body == base {
+        return Ok(String::new());
+    }
     render_patch(&[FilePatch {
         path: root,
         kind: PatchKind::Modify,
         original: &base,
-        candidate: &current,
+        candidate: body,
     }])
     .map_err(|error| error.to_string())
 }
@@ -298,6 +302,15 @@ mod tests {
         (code, String::from_utf8(out).expect("utf8"))
     }
 
+    fn run_err(scratch: &Path, words: &[&str]) -> (i32, String) {
+        let mut err = Vec::new();
+        let code = super::super::execute_adoption(
+            &invocation(words),
+            env(scratch, &mut Vec::new(), &mut err),
+        );
+        (code, String::from_utf8(err).expect("utf8"))
+    }
+
     const FILES: &[(&str, &str)] = &[
         ("MODULE.bazel", ""),
         ("a.py", ""),
@@ -406,10 +419,30 @@ mod tests {
     }
 
     #[test]
+    fn diff_of_a_fresh_override_shows_no_header() {
+        let scratch = workspace(FILES);
+        let init = std::process::Command::new("git")
+            .arg("-C")
+            .arg(scratch.path())
+            .args(["init", "-q"])
+            .status()
+            .expect("git");
+        assert!(init.success());
+        assert_eq!(run(scratch.path(), &["config", "override", "hlint"]).0, 0);
+        let (code, out) = run(scratch.path(), &["config", "diff", "hlint"]);
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(out, "");
+    }
+
+    #[test]
     fn override_refuses_a_tool_that_extends_its_base() {
         let scratch = workspace(FILES);
-        let (code, _) = run(scratch.path(), &["config", "override", "ruff"]);
+        let (code, err) = run_err(scratch.path(), &["config", "override", "ruff"]);
         assert_ne!(code, 0);
+        assert!(
+            err.contains("extend = \".dx/config/ruff/base.toml\""),
+            "{err}"
+        );
         assert_eq!(
             std::fs::read_to_string(scratch.path().join("ruff.toml")).expect("root"),
             "extend = \".dx/config/ruff/base.toml\"\n"

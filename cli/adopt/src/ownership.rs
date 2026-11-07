@@ -69,19 +69,30 @@ const OVERRIDE_MARKER: &str = "dx: override of base ";
 /// The base blob sha in a `dx: override of base <sha>` header, read from the leading comment
 /// lines of a root config file.
 pub fn override_base(text: &str) -> Option<&str> {
-    text.trim_start_matches('\u{feff}')
-        .lines()
-        .take_while(|line| {
-            let line = line.trim_start();
-            line.is_empty()
-                || ["#", "//", "REM", ";", "--"]
-                    .iter()
-                    .any(|p| line.starts_with(p))
-        })
-        .find_map(|line| {
-            let (_, rest) = line.split_once(OVERRIDE_MARKER)?;
-            rest.split_whitespace().next()
-        })
+    let (header, _) = split_override_header(text);
+    let (_, rest) = header.lines().last()?.split_once(OVERRIDE_MARKER)?;
+    rest.split_whitespace().next()
+}
+
+/// Splits a root config file after its `dx: override of base <sha>` line: the leading lines up
+/// to and including that line, then the rest. Without the header it is `("", text)`.
+pub fn split_override_header(text: &str) -> (&str, &str) {
+    let mut cut = 0;
+    for line in text.split_inclusive('\n') {
+        let start = line.trim_start_matches('\u{feff}').trim_start();
+        let comment = start.is_empty()
+            || ["#", "//", "REM", ";", "--"]
+                .iter()
+                .any(|p| start.starts_with(p));
+        if !comment {
+            break;
+        }
+        cut += line.len();
+        if line.contains(OVERRIDE_MARKER) {
+            return text.split_at(cut);
+        }
+    }
+    ("", text)
 }
 
 fn comment_prefix(path: &str) -> Option<&'static str> {
@@ -164,6 +175,26 @@ mod tests {
             None
         );
         assert_eq!(super::override_base("# yours\n"), None);
+        assert_eq!(
+            super::override_base("\u{feff}# dx: override of base abc\r\nkey = 1\r\n"),
+            Some("abc")
+        );
+    }
+
+    #[test]
+    fn split_override_header_cuts_after_the_marker_line() {
+        assert_eq!(
+            super::split_override_header("# yours\n# dx: override of base abc\nkey = 1\n"),
+            ("# yours\n# dx: override of base abc\n", "key = 1\n")
+        );
+        assert_eq!(
+            super::split_override_header("key = 1\n# dx: override of base abc\n"),
+            ("", "key = 1\n# dx: override of base abc\n")
+        );
+        assert_eq!(
+            super::split_override_header("\u{feff}# dx: override of base abc\r\nkey = 1\r\n"),
+            ("\u{feff}# dx: override of base abc\r\n", "key = 1\r\n")
+        );
     }
 
     #[test]

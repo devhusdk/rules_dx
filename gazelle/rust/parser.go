@@ -221,12 +221,16 @@ func (w *walker) items(parent syntaxNode, testScope, inFn bool, facts *FileFacts
 			continue
 		case "token_tree", "macro_definition":
 		case "macro_invocation":
-			if !inFn {
-				for _, c := range child.children() {
-					if c.kind() == "token_tree" {
-						if err := w.tokenItems(c, testScope, facts); err != nil {
-							return err
-						}
+			for _, c := range child.children() {
+				if c.kind() != "token_tree" {
+					continue
+				}
+				if !quotesCode(child) {
+					w.tokenPathRefs(c, testScope, facts)
+				}
+				if !inFn {
+					if err := w.tokenItems(c, testScope, facts); err != nil {
+						return err
 					}
 				}
 			}
@@ -303,6 +307,36 @@ func (w *walker) tokenItems(tt syntaxNode, testScope bool, facts *FileFacts) err
 		}
 	}
 	return nil
+}
+
+// quotesCode reports whether a macro invocation builds code for another crate,
+// as quote! does. Paths in its body are not references of this file.
+func quotesCode(call syntaxNode) bool {
+	name := call.field("macro").text()
+	if i := strings.LastIndex(name, "::"); i >= 0 {
+		name = name[i+2:]
+	}
+	return name == "quote" || name == "quote_spanned"
+}
+
+// tokenPathRefs records the first segment of each qualified path found in the
+// tokens of a macro argument, such as dx_path in assert_eq!(dx_path::f(), 1).
+func (w *walker) tokenPathRefs(tt syntaxNode, cfgTest bool, facts *FileFacts) {
+	leaves := tt.leaves()
+	for i, l := range leaves {
+		if l.kind() != "identifier" || i+1 >= len(leaves) || leaves[i+1].text() != "::" {
+			continue
+		}
+		if i > 0 {
+			if prev := leaves[i-1].text(); prev == "::" || prev == "$" {
+				continue
+			}
+		}
+		facts.PathRefs = append(facts.PathRefs, UseDecl{Path: l.text(), CfgTest: cfgTest})
+		if cfgTest {
+			facts.HasCfgTest = true
+		}
+	}
 }
 
 func (w *walker) scopeTest(what string, attrs []syntaxNode, testScope bool) (bool, error) {

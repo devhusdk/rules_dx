@@ -795,3 +795,29 @@ mod tests {
 		t.Errorf("path refs = %v, want %v", got, want)
 	}
 }
+
+func TestParseMacroArgumentPathRefs(t *testing.T) {
+	facts := mustParse(t, "src/lib.rs", `
+#[test]
+fn it_works() { assert_eq!(dx_path::f(), 1); }
+fn prod() { let v = vec![other::g(), a::b::c()]; }
+fn gen() -> TokenStream { quote! { ::serde::X, hidden::y() } }
+macro_rules! m { () => { defined::f() }; }
+fn nested() { println!("{}", x::y(format!("{}", deep::z()))); }
+fn dollar() { m!($crate::f(), ::lead::g()); }
+`)
+	var got []string
+	for _, ref := range facts.PathRefs {
+		got = append(got, fmt.Sprintf("%s:%v", ref.Path, ref.CfgTest))
+	}
+	want := []string{
+		"dx_path:true",
+		"other:false",
+		"a:false",
+		"x:false",
+		"deep:false",
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("path refs = %v, want %v", got, want)
+	}
+}

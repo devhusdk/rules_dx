@@ -90,51 +90,41 @@ Several targets that fix the same file apply identical fixes once. Fixes that di
 | `1` | Findings at or above `--fail-on`; any proposed change in a check; an incomplete result set; a target that did not converge; a conflicting or unapplied fix; a failed report write; a Bazel failure. |
 | `2` | Usage or scope error. |
 
-## Policy
+## Choose tools and tier
 
-The commands check with the policy named by `--@rules_dx//config:workspace`. Default: `@rules_dx//quality:default_workspace_policy`.
+Pick the tier and the tools in `dx.toml` at the workspace root. dx writes
+`.dx/BUILD.bazel` from it, with the workspace policy and a config target for
+each root tool config. Never write a `dx_generated_policy` yourself, and never
+edit `.dx/`.
 
-```sh
-tools/dx lint -- --@rules_dx//config:workspace=//quality:my_policy
+```toml
+schema_version = 1
+tier = "strict"
+
+[families.toml]
+lint = ["taplo"]
+format = ["taplo"]
+typecheck = []
+
+[families.go]
+disabled = true
+
+[scope]
+exclude = ["//third_party/..."]
 ```
 
-To set it once, add to `.bazelrc`:
+`tier` (`standard` or `strict`) picks the base config each tool runs on. A
+family can set its own `tier`. `[families.<id>]` replaces the tools of one
+capability (`lint`, `format`, `typecheck`, `audit`); a capability left out
+keeps the default tools. `disabled = true` turns the family off. `[scope]
+exclude` lists Bazel label patterns dx leaves out. Without `dx.toml`, every
+family found in the tree runs the default tools at the standard tier. See the
+[config reference](config.md#dxtoml) for every key.
 
-```text
-common --@rules_dx//config:workspace=//:policy
-```
+To change a rule, edit the tool's root config file. See
+[Tool config files](#tool-config-files).
 
-A policy is a `dx_generated_policy`. `families` maps a family ID to the tool IDs it selects per capability (`lint`, `typecheck`, `format`, `audit`), the capabilities it turns off in `disabled`, and an optional `tier`. A capability left unset, or a tool with no wired executable, fails analysis. `families` merges onto the curated defaults: a key replaces only that family. Set `defaults = False` to use only the listed families.
-
-```python
-load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
-
-dx_generated_policy(
-    name = "my_policy",
-    families = {
-        "toml": {
-            "disabled": ["typecheck"],
-            "format": ["taplo"],
-            "lint": ["taplo"],
-        },
-    },
-    tier = "standard",
-)
-```
-
-`tier` (`standard` or `strict`) picks the tier base config each tier-active tool runs on when nothing binds a config for it. `configs` binds native config targets such as `ruff_config` for every target; a config here wins over the tier base, and a tool may be listed once. See [Tool config files](#tool-config-files).
-
-```python
-dx_generated_policy(
-    name = "policy",
-    configs = [":ruff_config"],
-    tier = "strict",
-)
-```
-
-These fail: an unknown key in a family spec, an unknown capability in `disabled`, a capability both disabled and selected, and a tool listed twice in `configs`.
-
-### Default policy
+### Default tools
 
 | Family | Format | Lint | Typecheck |
 | --- | --- | --- | --- |
@@ -163,7 +153,7 @@ These fail: an unknown key in a family spec, an unknown capability in `disabled`
 | `vue` | `prettier` | `typos` | disabled |
 | `yaml` | `yamlfmt` | `yamllint` | disabled |
 
-Families outside this table are opt-in: select their tools in your own policy.
+Families outside this table are opt-in: select their tools in `dx.toml`.
 
 ## Tools
 

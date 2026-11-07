@@ -39,13 +39,68 @@ taplo  -  tier base .dx/config/taplo/base.toml
 
 `--output json` emits one `config_file` event per file (`tool`, `file`, `role` as `root` or `base`, `base`, `edited`). The list form emits the root file of each tool, or the base when the tool has no root file. An unknown tool fails with `config_failed`.
 
-## dx.toml `[large_files]`
+## dx.toml
+
+Picks the tier, the tools of each family, and what dx leaves out. Optional:
+with no `dx.toml`, every family found in the tree runs its curated tools at the
+standard tier. dx writes `.dx/` from it; never edit `.dx/`. The JSON Schema is
+[`dx.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/dx_config/schema/dx.schema.json).
+
+```toml
+schema_version = 1
+tier = "strict"
+
+[families.rust]
+tier = "standard"
+lint = ["clippy", "typos"]
+
+[families.go]
+disabled = true
+
+[scope]
+exclude = ["//third_party/..."]
+```
+
+### dx.toml top level
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `schema_version` | integer | none | Must be `1`. |
+| `tier` | string | `"standard"` | `standard` or `strict`. The tier for every family that does not set its own, and for `security.toml` and `licenses.toml`. |
+| `families` | table | empty | Per-family settings, keyed by family id. An unknown id fails the run. |
+| `scope` | table | empty | What dx leaves out. |
+| `large_files` | table | empty | See below. |
+| `check` | table | empty | See below. |
+
+### dx.toml `[families.<id>]`
+
+Replaces the curated tools of one family. A capability left out keeps the
+curated tools; see [Default tools](quality.md#default-tools).
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `tier` | string | top-level `tier` | `standard` or `strict` for this family. |
+| `lint` | array of strings | curated | Tool ids that lint the family. |
+| `format` | array of strings | curated | Tool ids that format the family. |
+| `typecheck` | array of strings | curated | Tool ids that typecheck the family. |
+| `audit` | array of strings | curated | Tool ids that audit the family. |
+| `disabled` | boolean | `false` | Turns the whole family off. |
+
+An unknown tool id fails the run.
+
+### dx.toml `[scope]`
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `exclude` | array of strings | `[]` | Bazel label patterns, such as `//third_party/...`, that dx leaves out. |
+
+### dx.toml `[large_files]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `allow` | array of strings | `[]` | Paths or `dir/` prefixes the large-file check skips. Lock files are always skipped. |
 
-## dx.toml `[check]`
+### dx.toml `[check]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -54,6 +109,8 @@ taplo  -  tier base .dx/config/taplo/base.toml
 ## security.toml
 
 Used by `dx security`. See [Audit, Update](audit-update.md).
+
+The base comes from the `dx.toml` `tier`.
 
 ### security.toml top level
 
@@ -91,6 +148,8 @@ Two sets are not dependency sets:
 ## licenses.toml
 
 Used by `dx license`. See [Audit, Update](audit-update.md).
+
+The base comes from the `dx.toml` `tier`.
 
 A list this file sets replaces the tier's list; a list it leaves out comes
 from the tier. The strict tier denies what standard only reviews.

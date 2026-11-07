@@ -808,6 +808,7 @@ jobs:
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+            echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
           fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
@@ -964,6 +965,7 @@ jobs:
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+            echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
           fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
@@ -1063,6 +1065,7 @@ jobs:
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+            echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
           fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
@@ -1174,6 +1177,7 @@ jobs:
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+            echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
           fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.
@@ -1323,6 +1327,7 @@ jobs:
           fi
           if [ -n "$args" ]; then
             echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+            echo "startup --experimental_remote_repo_contents_cache" >> user.bazelrc
           fi
       - name: Write the Bazel preset layers
         # dx writes the gitignored .dx/bazelrc; a pinned release runs the cached dx without Bazel.

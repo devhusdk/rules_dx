@@ -3,6 +3,7 @@ package grades
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.Strictness
 import com.google.gson.stream.JsonReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -40,7 +41,7 @@ object GradeReader {
     private fun parse(reader: Reader): JsonElement {
         try {
             JsonReader(reader).use { json ->
-                json.isLenient = false
+                json.strictness = Strictness.STRICT
                 val root = GSON.getAdapter(JsonElement::class.java).read(json)
                 json.peek()
                 return root

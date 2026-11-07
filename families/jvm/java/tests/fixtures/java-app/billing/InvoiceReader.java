@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.Strictness;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import java.io.IOException;
@@ -55,7 +56,7 @@ public final class InvoiceReader {
 
   private static JsonElement parse(Reader reader) throws InvoiceException {
     try (JsonReader json = new JsonReader(reader)) {
-      json.setLenient(false);
+      json.setStrictness(Strictness.STRICT);
       JsonElement root = GSON.getAdapter(JsonElement.class).read(json);
       if (json.peek() != JsonToken.END_DOCUMENT) {
         throw new InvoiceException("invoice file holds data after the array");

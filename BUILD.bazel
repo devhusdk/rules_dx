@@ -128,6 +128,11 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cc/ide
 # gazelle:exclude deploy/symbols/fixture
 # gazelle:exclude lua/runtime
+# gazelle:exclude avro/rules/testdata
+# gazelle:exclude capnproto/rules/testdata
+# gazelle:exclude thrift/rules/testdata
+# gazelle:exclude ocaml/tests/fixtures/dune-lib/src
+# gazelle:exclude php/tools/digests/bin
 # gazelle:exclude gazelle/cc/testdata
 # gazelle:exclude gazelle/d/testdata
 # gazelle:exclude gazelle/dart/testdata

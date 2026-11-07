@@ -235,7 +235,9 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		}
 		splitTests := excludesTestOnly(target) && hasTestOnly(tree)
 		r := crateRule(dxKindFor(target), target.name, target.crate(), root, tree, args.Rel, splitTests)
-		r.SetAttr("edition", manifest.edition)
+		if manifest.edition != rulesDxEdition || r.Kind() == benchmarkKind {
+			r.SetAttr("edition", manifest.edition)
+		}
 		if isLibraryKind(r.Kind()) && publicLibs {
 			r.SetAttr("visibility", []string{"//visibility:public"})
 		}
@@ -278,7 +280,9 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			setCargoAttrs(t, args.Rel, manifest, true)
 			var testImports targetImports
 			if splitTests {
-				t.SetAttr("edition", manifest.edition)
+				if manifest.edition != rulesDxEdition {
+					t.SetAttr("edition", manifest.edition)
+				}
 				testImports = localCargoImports(args.Config, manifest, imports, true)
 				testImports.siblingLib = resultImports.siblingLib
 			} else {

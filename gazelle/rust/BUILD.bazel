@@ -116,6 +116,7 @@ go_test(
         "native_config_test.go",
         "parser_test.go",
     ],
+    data = ["//modules:versions.bzl"],
     embed = [":rust"],
     pure = "on",
 )

@@ -10,7 +10,6 @@ rust_library(
     ),
     crate_name = "cargo_core",
     crate_root = "source/core.rs",
-    edition = "2024",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "crates/cargo-app",
@@ -42,7 +41,6 @@ rust_binary(
     ),
     crate_name = "cargo_tool",
     crate_root = "source/main.rs",
-    edition = "2024",
     deps = all_crate_deps(
         package_name = "crates/cargo-app",
         normal = True,
@@ -59,7 +57,6 @@ rust_test(
     ),
     crate_name = "acceptance",
     crate_root = "spec/acceptance.rs",
-    edition = "2024",
     use_libtest_harness = False,
     deps = all_crate_deps(
         package_name = "crates/cargo-app",

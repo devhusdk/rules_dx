@@ -10,7 +10,6 @@ rust_library(
     ),
     crate_name = "api",
     crate_root = "src/lib.rs",
-    edition = "2024",
     visibility = ["//visibility:public"],
     deps = [],
 )

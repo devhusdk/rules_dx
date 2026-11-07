@@ -549,6 +549,45 @@ func TestConfigureDirectiveForms(t *testing.T) {
 	}
 }
 
+func TestGenerateCargoOmitsDefaultEdition(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\nedition = \"2024\"\n[[test]]\nname = \"it\"\npath = \"tests/it.rs\"\n")
+	writeFixture(t, root, "src/lib.rs", "pub fn f() {}\n")
+	writeFixture(t, root, "src/main.rs", "fn main() {}\n")
+	writeFixture(t, root, "tests/it.rs", "#[test] fn t() {}\n")
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          root,
+		RegularFiles: []string{"Cargo.toml"},
+	})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+	kinds := map[string]bool{}
+	for _, r := range result.Gen {
+		kinds[r.Kind()] = true
+		if r.Attr("edition") != nil {
+			t.Errorf("%s %s has edition %q, want the macro default", r.Kind(), r.Name(), r.AttrString("edition"))
+		}
+	}
+	for _, kind := range []string{libraryKind, binaryKind, testKind} {
+		if !kinds[kind] {
+			t.Errorf("no %s generated in %+v", kind, result.Gen)
+		}
+	}
+}
+
+func TestRulesDxEditionMatchesVersions(t *testing.T) {
+	content, err := os.ReadFile("../../modules/versions.bzl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "RUST_EDITION = \"" + rulesDxEdition + "\"\n"; !strings.Contains(string(content), want) {
+		t.Errorf("modules/versions.bzl does not contain %q", want)
+	}
+}
+
 func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "crates/app/Cargo.toml", "[package]\nname = \"app\"\nedition = \"2021\"\n[dependencies]\nserde_json = \"1\"\n[dev-dependencies]\ntempfile = \"3\"\n[lib]\npath = \"src/lib.rs\"\n")

@@ -136,8 +136,11 @@ def _oci_config_impl(ctx):
         fail(tar_error + " (in " + str(ctx.label) + ")")
 
     files = [tar_file]
+    repo = ("@" + ctx.label.repo_name) if ctx.label.repo_name else ""
+    deploy_name = ctx.label.name[:-len("_config")] if ctx.label.name.endswith("_config") else ctx.label.name
     fields = {
         "image_rloc": rlocation_path(ctx, tar_file),
+        "label": repo + "//" + ctx.label.package + ":" + deploy_name,
         "platform": ctx.attr.platform,
         "registry": ctx.attr.registry,
         "repository": ctx.attr.repository,

@@ -215,6 +215,8 @@ pub struct MavenConfig {
 #[serde(deny_unknown_fields)]
 pub struct OciConfig {
     pub image_rloc: String,
+    #[serde(default)]
+    pub label: String,
     pub registry: String,
     pub repository: String,
     pub tag: String,
@@ -502,6 +504,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                     size_budget: oci.size_budget_bytes,
                     scan,
                     scan_severity: oci.scan_severity.clone(),
+                    label: oci.label.clone(),
                 },
                 argv,
             );
@@ -614,6 +617,7 @@ mod tests {
             config,
             Ok(DeployConfig::Oci(OciConfig {
                 image_rloc: "i".to_owned(),
+                label: String::new(),
                 registry: "r".to_owned(),
                 repository: "p".to_owned(),
                 tag: "t".to_owned(),
@@ -751,6 +755,7 @@ mod tests {
             ),
             Ok(DeployConfig::Oci(OciConfig {
                 image_rloc: "i".to_owned(),
+                label: String::new(),
                 registry: "r".to_owned(),
                 repository: "p".to_owned(),
                 tag: "t".to_owned(),
@@ -1032,6 +1037,7 @@ mod tests {
             }),
             DeployConfig::Oci(OciConfig {
                 image_rloc: "a".to_owned(),
+                label: String::new(),
                 registry: "ghcr.io".to_owned(),
                 repository: "demo".to_owned(),
                 tag: "latest".to_owned(),

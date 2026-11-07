@@ -4,9 +4,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_audit::exception::{live_exceptions_for_set, load_security};
+use dx_audit::exception::{load_security, validate_exception};
 use dx_audit::image_scan::{
-    IMAGE_SET, ImageFinding, covers, parse_report, severity_list, trivy_args, trivy_cache,
+    ImageFinding, covers, parse_report, severity_list, trivy_args, trivy_cache,
 };
 use dx_audit::profile_base::Profile;
 
@@ -35,6 +35,8 @@ pub struct OciChecks {
     pub size_budget: u64,
     pub scan: ScanMode,
     pub scan_severity: String,
+    /// The `oci_deploy` label, matched against label patterns in `security.toml`.
+    pub label: String,
 }
 
 impl From<u64> for OciChecks {
@@ -43,24 +45,32 @@ impl From<u64> for OciChecks {
             size_budget,
             scan: ScanMode::Off,
             scan_severity: "HIGH".to_owned(),
+            label: String::new(),
         }
     }
 }
 
-/// Drops findings covered by an unexpired `[[exception]]` in set `oci` naming the same
-/// advisory and package, with `versions` either `*` or the installed version. Only the
-/// exceptions are used, so the profile does not matter.
+/// Drops findings covered by an unexpired `[[exception]]` naming the same advisory and
+/// package, with `versions` either `*` or the installed version, in set `oci` or in a
+/// label pattern that matches `label`. Only the exceptions are used, so the profile does
+/// not matter.
 pub fn apply_exceptions(
     findings: Vec<ImageFinding>,
+    label: &str,
     security_toml: Option<&str>,
     today: &str,
 ) -> Result<Vec<ImageFinding>, String> {
     let policy =
         load_security(security_toml, Profile::Standard).map_err(|error| error.to_string())?;
-    let live = live_exceptions_for_set(&policy, IMAGE_SET, today);
+    let label = (!label.is_empty()).then_some(label);
+    let live: Vec<_> = policy
+        .exceptions
+        .iter()
+        .filter(|exception| validate_exception(exception, today).is_ok())
+        .collect();
     Ok(findings
         .into_iter()
-        .filter(|found| !live.iter().any(|exception| covers(exception, None, found)))
+        .filter(|found| !live.iter().any(|exception| covers(exception, label, found)))
         .collect())
 }
 
@@ -113,6 +123,7 @@ fn civil_date(days: i64) -> String {
 pub fn scan_layout(
     layout: &Path,
     floor: &str,
+    label: &str,
     workspace: Option<&Path>,
     run: impl Fn(&[OsString]) -> Result<String, String>,
 ) -> Result<Vec<ImageFinding>, String> {
@@ -129,7 +140,7 @@ pub fn scan_layout(
     let report = run(&trivy_args(layout, &severities, cache.as_deref(), None))?;
     let findings = parse_report(&report)?;
     let toml = workspace.and_then(|root| std::fs::read_to_string(root.join("security.toml")).ok());
-    apply_exceptions(findings, toml.as_deref(), &today())
+    apply_exceptions(findings, label, toml.as_deref(), &today())
 }
 
 /// The real trivy: `DX_TRIVY` or `trivy` on the PATH, offline.
@@ -158,7 +169,13 @@ pub fn scan_and_report(
         return 0;
     }
     let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").map(PathBuf::from);
-    match scan_layout(layout, &checks.scan_severity, workspace.as_deref(), run) {
+    match scan_layout(
+        layout,
+        &checks.scan_severity,
+        &checks.label,
+        workspace.as_deref(),
+        run,
+    ) {
         Ok(findings) => {
             for line in summary(&findings, &checks.scan_severity) {
                 println!("oci_deploy: {line}");
@@ -199,7 +216,7 @@ mod tests {
     fn an_exception_covers_one_finding() {
         let found = parse_report(REPORT).expect("report");
         let toml = exception("CVE-2024-0001", "openssl", "2999-01-01");
-        let left = apply_exceptions(found, Some(&toml), "2026-01-01").expect("policy");
+        let left = apply_exceptions(found, "", Some(&toml), "2026-01-01").expect("policy");
         assert_eq!(left.len(), 1);
         assert_eq!(left[0].id, "CVE-2024-0002");
     }
@@ -213,7 +230,7 @@ mod tests {
                 .replace("versions = \"*\"", &format!("versions = \"{versions}\""))
         };
         let run = |toml: String| {
-            apply_exceptions(found.clone(), Some(&toml), "2026-01-01")
+            apply_exceptions(found.clone(), "", Some(&toml), "2026-01-01")
                 .expect("policy")
                 .len()
         };
@@ -223,10 +240,27 @@ mod tests {
     }
 
     #[test]
+    fn a_label_pattern_exception_covers_the_deployment() {
+        let found = parse_report(REPORT).expect("report");
+        let toml = exception("CVE-2024-0001", "openssl", "2999-01-01");
+        let run = |set: &str, label: &str| {
+            let toml = toml.replace("set = \"oci\"", &format!("set = \"{set}\""));
+            apply_exceptions(found.clone(), label, Some(&toml), "2026-01-01")
+                .expect("policy")
+                .len()
+        };
+        assert_eq!(run("//app/...", "//app:image"), 1);
+        assert_eq!(run("//app:image", "//app:image"), 1);
+        assert_eq!(run("//other/...", "//app:image"), 2);
+        assert_eq!(run("//app/...", ""), 2);
+        assert_eq!(run("oci", "//app:image"), 1);
+    }
+
+    #[test]
     fn an_expired_exception_covers_nothing() {
         let found = parse_report(REPORT).expect("report");
         let toml = exception("CVE-2024-0001", "openssl", "2020-01-01");
-        let left = apply_exceptions(found, Some(&toml), "2026-01-01").expect("policy");
+        let left = apply_exceptions(found, "", Some(&toml), "2026-01-01").expect("policy");
         assert_eq!(left.len(), 2);
     }
 
@@ -264,7 +298,7 @@ mod tests {
         if let Some(text) = security {
             std::fs::write(dir.join("security.toml"), text).expect("security.toml");
         }
-        let found = scan_layout(Path::new("layout"), "HIGH", Some(&dir), |args| {
+        let found = scan_layout(Path::new("layout"), "HIGH", "", Some(&dir), |args| {
             let text: Vec<_> = args.iter().map(|arg| arg.to_string_lossy()).collect();
             assert!(text.contains(&"HIGH,CRITICAL".into()));
             Ok(DEBIAN_REPORT.to_owned())

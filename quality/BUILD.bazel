@@ -39,7 +39,6 @@ exports_files([
     "adapters.bzl",
     "applicability.bzl",
     "clang_tidy_run.sh",
-    "default.clang-tidy",
     "compile_check_exec.sh",
     "coverage_sources.bzl",
     "dart_context.bzl",
@@ -648,14 +647,6 @@ diff_test(
 overlap_unit_tests(name = "overlap_tests")
 
 support_unit_tests(name = "support_unit")
-
-alias(
-    name = "roslyn_default_config",
-    actual = select({
-        "//config:config_profile_strict": "//quality/tiers/roslyn:strict.globalconfig",
-        "//conditions:default": "//quality/tiers/roslyn:standard.globalconfig",
-    }),
-)
 
 alias(
     name = "update_tools",

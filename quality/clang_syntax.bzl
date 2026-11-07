@@ -327,12 +327,11 @@ def _clang_syntax_impl(target, ctx):
         context = target[CcInfo].compilation_context
         headers = depset(context.direct_private_headers, transitive = [context.headers])
     tidy = ctx.file._clang_tidy
-    tidy_config = ctx.file._clang_tidy_default.path
-    tidy_closure = depset([ctx.file._clang_tidy_default])
     tidy_target = bound_config_targets(attrs, ctx.attr._policy[QualityPolicyInfo].configs, str(target.label)).get("clang_tidy")
-    if tidy_target:
-        tidy_config = tidy_target[DxNativeConfigInfo].config.path
-        tidy_closure = tidy_target[DxNativeConfigInfo].closure
+    if not tidy_target:
+        fail("clang_syntax: %s has no clang_tidy config; bind a clang_tidy_config or a policy with the tier base" % target.label)
+    tidy_config = tidy_target[DxNativeConfigInfo].config.path
+    tidy_closure = tidy_target[DxNativeConfigInfo].closure
     runner = ctx.file._clang_tidy_run
     argvs = []
     envs = []
@@ -446,7 +445,6 @@ clang_syntax_aspect = aspect(
             providers = [QualityPolicyInfo],
         ),
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
-        "_clang_tidy_default": attr.label(default = "//quality:default.clang-tidy", allow_single_file = True),
         "_clang_tidy_run": attr.label(default = "//quality:clang_tidy_run.sh", allow_single_file = True, cfg = "exec"),
     },
 )

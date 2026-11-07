@@ -1052,7 +1052,7 @@ fn windows_capable_jobs_check_out_in_parallel() {
 
 
 #[test]
-fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {
+fn the_scalafmt_tiers_pin_the_version_the_toolchain_downloads() {
     let version_of = |text: &str| {
         text.lines()
             .find_map(|line| line.strip_prefix("version = "))
@@ -1060,13 +1060,16 @@ fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {
             .trim()
             .to_owned()
     };
-    let default = version_of(&read_runfiles("quality/tools/jvm/scalafmt_default.conf"));
-    assert_eq!(default, version_of(&read_runfiles(".scalafmt.conf")));
     let artifact = read_runfiles("quality/artifacts/scalafmt.bzl");
-    assert!(
-        artifact.contains(&format!("\"upstream_version\": \"{default}\"")),
-        "scalafmt_default.conf pins {default}, which quality/artifacts/scalafmt.bzl does not ship"
-    );
+    for tier in ["standard", "strict"] {
+        let path = format!("quality/tiers/scalafmt/{tier}.conf");
+        let pinned = version_of(&read_runfiles(&path));
+        assert_eq!(pinned, version_of(&read_runfiles(".scalafmt.conf")), "{path}");
+        assert!(
+            artifact.contains(&format!("\"upstream_version\": \"{pinned}\"")),
+            "{path} pins {pinned}, which quality/artifacts/scalafmt.bzl does not ship"
+        );
+    }
 }
 
 #[test]

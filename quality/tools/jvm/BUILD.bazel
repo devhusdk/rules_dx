@@ -7,11 +7,6 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files([
-    "pmd_default.xml",
-    "scalafmt_default.conf",
-])
-
 java_import(
     name = "google_java_format_import",
     jars = ["@jvm_google_java_format//file"],

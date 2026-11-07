@@ -3,6 +3,8 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//quality:native_config.bzl", "DxNativeConfigInfo")
+load("//quality:policy.bzl", "QualityPolicyInfo")
+load("//quality/private:native_config_impl.bzl", "bound_config_targets")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo")
 
@@ -62,12 +64,12 @@ def _analysis_level(csc, tfm):
         return tfm[3:-2]
     return sdk_major
 
-def _bound_config(attrs, default):
-    """Returns the config file and its closure from a roslyn_config in aspect_hints, else the default."""
-    for hint in getattr(attrs, "aspect_hints", []):
-        if DxNativeConfigInfo in hint and hint[DxNativeConfigInfo].tool_id == "roslyn":
-            return hint[DxNativeConfigInfo].config, hint[DxNativeConfigInfo].closure
-    return default, depset([default])
+def _bound_config(attrs, ctx, label):
+    """Returns the roslyn config file and its closure from the hints, else from the policy."""
+    target = bound_config_targets(attrs, ctx.attr._policy[QualityPolicyInfo].configs, str(label)).get("roslyn")
+    if not target:
+        fail("roslyn: %s has no roslyn config; bind a roslyn_config or a policy with the tier base" % label)
+    return target[DxNativeConfigInfo].config, target[DxNativeConfigInfo].closure
 
 def _roslyn_impl(target, ctx):
     attrs = ctx.rule.attr
@@ -156,7 +158,7 @@ def _roslyn_impl(target, ctx):
     args.add(codestyle + "/Microsoft.CodeAnalysis.CSharp.CodeStyle.dll", format = "/analyzer:%s")
     args.add(sdk_analyzers + "/build/config/analysislevel_" + level + "_default.globalconfig", format = "/analyzerconfig:%s")
     args.add_all(trimmer, format_each = "/analyzer:%s")
-    config, config_closure = _bound_config(attrs, ctx.file._default_config)
+    config, config_closure = _bound_config(attrs, ctx, target.label)
     args.add(config, format = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.analyzer_configs, format_each = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.additionalfiles, format_each = "/additionalfile:%s")
@@ -226,10 +228,9 @@ roslyn_aspect = aspect(
             allow_files = True,
             doc = "ReferenceTrimmer analyzer that reports the deps no source uses.",
         ),
-        "_default_config": attr.label(
-            allow_single_file = True,
-            default = "//quality:roslyn_default_config",
-            doc = "Tier config for the config profile. Consumer .editorconfig entries override it.",
+        "_policy": attr.label(
+            default = "//config:workspace",
+            providers = [QualityPolicyInfo],
         ),
     },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],

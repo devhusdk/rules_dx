@@ -1025,7 +1025,7 @@ fn pmd_consumer_ruleset_replaces_the_default() {
 }
 
 #[test]
-fn pmd_default_ruleset_reports_unused_code_as_info() {
+fn pmd_standard_tier_covers_unused_code() {
     let text = std::str::from_utf8(PMD_DEFAULTS_BYTES).expect("utf8");
     for rule in [
         "UnusedPrivateMethod",
@@ -1039,7 +1039,6 @@ fn pmd_default_ruleset_reports_unused_code_as_info() {
             "{rule}"
         );
     }
-    assert_eq!(text.matches("<priority>5</priority>").count(), 5);
 }
 
 #[test]
@@ -3905,7 +3904,7 @@ fn cfn_lint_always_passes_a_config_file() {
     let backend = backend_for("cfn_lint", plain_tool(), cfn_lint_fake);
     let findings = backend
         .diagnose("cfn_lint", "lint", &single("infra/a.yaml", CFN_CLEAN))
-        .expect("an empty dx config is written when none is bound");
+        .expect("the standard tier config is written when none is bound");
     assert!(findings.is_empty());
 }
 
@@ -4421,7 +4420,7 @@ fn cmakelint_lints_every_file_in_one_check_only_run() {
 }
 
 #[test]
-fn cmakelint_unbound_config_uses_the_scratch_default() {
+fn cmakelint_unbound_config_uses_the_standard_tier() {
     let backend = backend_for("cmakelint", plain_tool(), cmakelint_fake);
     let findings = backend
         .diagnose(
@@ -4429,7 +4428,7 @@ fn cmakelint_unbound_config_uses_the_scratch_default() {
             "lint",
             &single("CMakeLists.txt", CMAKELINT_CLEAN),
         )
-        .expect("an empty dx config is written when none is bound");
+        .expect("the standard tier config is written when none is bound");
     assert!(findings.is_empty());
 }
 

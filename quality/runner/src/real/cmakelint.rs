@@ -7,6 +7,7 @@ use super::check::ToolDef;
 use super::*;
 
 const DEFAULT_CONFIG_REL: &str = "dx-cmakelint-default/.cmakelintrc";
+const DEFAULT_CONFIG_BYTES: &[u8] = include_bytes!("../../../tiers/cmakelint/standard.cmakelintrc");
 
 /// The `.cmakelintrc` keys dx accepts. cmakelint silently ignores any other line, so an
 /// allowlist is the only way a typo can fail instead of passing as clean.
@@ -78,7 +79,7 @@ impl RealBackend {
                     std::fs::create_dir_all(parent)
                         .map_err(|err| execution(tool_id, format!("scratch config: {err}")))?;
                 }
-                std::fs::write(&default, b"")
+                std::fs::write(&default, DEFAULT_CONFIG_BYTES)
                     .map_err(|err| execution(tool_id, format!("scratch config: {err}")))?;
                 default
             }

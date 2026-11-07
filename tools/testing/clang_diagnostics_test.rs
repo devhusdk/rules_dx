@@ -80,9 +80,9 @@ fn lint_finding_is_an_error() {
 }
 
 #[test]
-fn default_policy_reports_unused_function_and_parameter() {
+fn standard_tier_reports_unused_function_and_parameter() {
     let tool = file("DX_CLANG_TIDY");
-    let policy = file("DX_TIDY_DEFAULT").to_string_lossy().into_owned();
+    let policy = file("DX_TIDY_STANDARD").to_string_lossy().into_owned();
     let config = format!("--config-file={policy}");
     let std_flag = text("DX_STD");
     let path = file("DX_UNUSED").to_string_lossy().into_owned();

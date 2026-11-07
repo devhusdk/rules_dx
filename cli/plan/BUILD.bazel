@@ -19,7 +19,7 @@ dx_rust_crate(
         "src/args/help.rs",
         "src/args/invocation.rs",
         "src/args/parser.rs",
-        "src/args/profile.rs",
+        "src/args/build_mode.rs",
         "src/args/tokenizer.rs",
         "src/disk.rs",
         "src/finalize.rs",

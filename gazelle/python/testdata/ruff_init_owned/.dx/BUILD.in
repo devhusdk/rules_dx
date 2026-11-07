@@ -19,5 +19,5 @@ dx_generated_policy(
     configs = [
         ":ruff",
     ],
-    profile = "standard",
+    tier = "standard",
 )

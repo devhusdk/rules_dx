@@ -4,7 +4,7 @@ use std::path::Path;
 
 use super::common::*;
 use dx_plan::args::grammar::fuzz_seconds;
-use dx_plan::args::{Invocation, Profile};
+use dx_plan::args::{BuildMode, Invocation};
 use dx_plan::plan::{plan_run, shell_join};
 use dx_plan::resolve::{exclude, resolve, run_label_query_file};
 
@@ -88,7 +88,7 @@ pub(crate) fn execute_fuzz(invocation: &Invocation, env: Env<'_>) -> i32 {
             app_args.extend(["--jobs".to_owned(), jobs.to_string()]);
         }
         let run = runner_label(label);
-        let plan = match plan_run(&run, &[], &app_args, Profile::Dev, startup) {
+        let plan = match plan_run(&run, &[], &app_args, BuildMode::Dev, startup) {
             Ok(plan) => plan,
             Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
         };

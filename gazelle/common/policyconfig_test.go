@@ -35,7 +35,7 @@ dx_generated_policy(
         ":ruff",
         ":eslint",
     ],
-    profile = "standard",
+    tier = "standard",
 )
 `
 	if err := os.WriteFile(filepath.Join(dir, "BUILD.bazel"), []byte(build), 0o644); err != nil {

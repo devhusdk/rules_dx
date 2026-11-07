@@ -14,7 +14,7 @@ FamilyPolicyInfo = provider(
         "family_id": "Str: policy-family ID owning this selection.",
         "format": "List[str]: selected formatter IDs, in policy order.",
         "lint": "List[str]: selected lint tool IDs, in policy order.",
-        "profile": "Str: tier profile (standard or strict) the family's tools run on, empty for the workspace default.",
+        "tier": "Str: tier (standard or strict) the family's tools run on, empty for the workspace default.",
         "typecheck": "List[str]: selected typecheck tool IDs, in policy order.",
     },
 )
@@ -69,7 +69,7 @@ def _quality_family_impl(ctx):
         format = selections["format"],
         audit = selections["audit"],
         disabled = ctx.attr.disabled,
-        profile = ctx.attr.profile,
+        tier = ctx.attr.tier,
     )]
 
 quality_family = rule(
@@ -93,8 +93,8 @@ quality_family = rule(
             doc = "Lint tool ids selected for this quality family.",
             default = [],
         ),
-        "profile": attr.string(
-            doc = "Tier profile the family's tools run on; empty uses the workspace profile.",
+        "tier": attr.string(
+            doc = "Tier tier the family's tools run on; empty uses the workspace tier.",
         ),
         "typecheck": attr.string_list(
             doc = "Typecheck tool ids selected for this quality family.",

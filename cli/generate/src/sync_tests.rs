@@ -116,7 +116,7 @@ fn editing_dx_toml_rerenders() {
         report.written.iter().any(|path| path == ".dx/BUILD.bazel"),
         "{report:?}"
     );
-    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("profile = \"strict\""));
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"strict\""));
 }
 
 #[test]
@@ -307,12 +307,12 @@ fn a_dx_toml_edit_during_a_sync_is_not_marked_synced() {
         BTreeSet::from(["python".to_owned()])
     };
     sync(dir.path(), Mode::Fast, &mut detect).expect("sync");
-    assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("profile = \"strict\""));
+    assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"strict\""));
 
     let mut count = 0;
     run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
-    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("profile = \"strict\""));
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"strict\""));
 }
 
 #[test]

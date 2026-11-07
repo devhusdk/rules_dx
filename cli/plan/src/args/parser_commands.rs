@@ -1,4 +1,4 @@
-use super::super::command::owners::{AFFECTED_OWNERS, PROFILE_OWNERS};
+use super::super::command::owners::{AFFECTED_OWNERS, BUILD_MODE_OWNERS};
 use super::super::scope_error;
 use super::super::{ArgsError, Command, OperationMode, assert_usage};
 use super::parse;
@@ -182,8 +182,12 @@ const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
         &["--fail-on=warning"],
     ),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=error"]),
-    ("--debug", |c| PROFILE_OWNERS.contains(&c), &["--debug"]),
-    ("--release", |c| PROFILE_OWNERS.contains(&c), &["--release"]),
+    ("--debug", |c| BUILD_MODE_OWNERS.contains(&c), &["--debug"]),
+    (
+        "--release",
+        |c| BUILD_MODE_OWNERS.contains(&c),
+        &["--release"],
+    ),
 ];
 
 #[test]
@@ -266,15 +270,15 @@ fn an_output_mode_is_gated_exactly_where_the_registry_declares_it() {
 }
 
 #[test]
-fn a_profile_flag_is_advertised_exactly_for_the_profile_owners() {
-    use super::super::command::owners::PROFILE_OWNERS;
+fn a_build_mode_flag_is_advertised_exactly_for_the_build_mode_owners() {
+    use super::super::command::owners::BUILD_MODE_OWNERS;
     for command in Command::value_variants() {
         let flags = super::super::grammar::advertised_flags(*command);
         for flag in ["debug", "release"] {
             assert_eq!(
                 flags.iter().any(|name| name == flag),
-                PROFILE_OWNERS.contains(command),
-                "dx {} --{flag} help must match the profile owners",
+                BUILD_MODE_OWNERS.contains(command),
+                "dx {} --{flag} help must match the build_mode owners",
                 command.name()
             );
         }
@@ -1100,14 +1104,14 @@ fn init_rejects_with_and_full() {
 }
 
 #[test]
-fn profile_parses_on_build_test_coverage_and_run() {
+fn build_mode_parses_on_build_test_coverage_and_run() {
     for command in ["build", "test", "coverage", "run"] {
         assert!(
             parse(&strings(&[command, "--timings"]))
                 .expect(command)
-                .build_profile
+                .timings
         );
-        assert!(!parse(&strings(&[command])).expect(command).build_profile);
+        assert!(!parse(&strings(&[command])).expect(command).timings);
     }
     assert!(parse(&strings(&["lint", "--timings"])).is_err());
 }

@@ -106,7 +106,7 @@ fn execute_checked(
     }
     let selection = match invocation.command {
         Command::Test => Some(SelectionContext::for_test_execution(
-            invocation.profile(),
+            invocation.build_mode(),
             invocation.raw_bazel_options(),
             &invocation.bazel_startup_options,
         )),
@@ -169,10 +169,10 @@ fn execute_checked(
         );
     };
     let bep_arg = Some(bep_text.as_str());
-    let profile = if verb == WorkflowVerb::Coverage {
+    let build_mode = if verb == WorkflowVerb::Coverage {
         None
     } else {
-        Some(invocation.profile())
+        Some(invocation.build_mode())
     };
     let mut bazel_options = invocation.quiet_bazel_options();
     if let Some(selection) = selection.as_ref().filter(|_| verb != WorkflowVerb::Build) {
@@ -189,7 +189,7 @@ fn execute_checked(
             }
         }
     }
-    let trace = if invocation.build_profile {
+    let trace = if invocation.timings {
         match prepare_trace(workspace, &run_id) {
             Ok(path) => {
                 bazel_options.push(format!("--profile={path}"));
@@ -215,7 +215,7 @@ fn execute_checked(
         &resolved,
         &bazel_options,
         bep_arg,
-        profile,
+        build_mode,
         &invocation.bazel_startup_options,
     ) {
         Ok(plan) => plan,

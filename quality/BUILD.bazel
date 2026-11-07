@@ -154,10 +154,10 @@ dx_generated_policy(
     families = {
         "python": {
             "lint": ["lint-a"],
-            "profile": "strict",
+            "tier": "strict",
         },
     },
-    profile = "standard",
+    tier = "standard",
 )
 
 policy_subject(
@@ -169,7 +169,7 @@ dx_generated_policy(
     name = "fixture_strict_generated_policy",
     defaults = False,
     families = {"python": {"lint": ["lint-a"]}},
-    profile = "strict",
+    tier = "strict",
 )
 
 policy_subject(
@@ -180,7 +180,7 @@ policy_subject(
 dx_generated_policy(
     name = "fixture_merged_generated_policy",
     families = {"python": {"lint": ["ruff"]}},
-    profile = "standard",
+    tier = "standard",
 )
 
 policy_subject(

@@ -1,6 +1,6 @@
 //! Every dx planner starts Bazel with the same startup flags under a local rc policy.
 
-use dx_plan::args::{Command, Profile, WorkflowVerb};
+use dx_plan::args::{BuildMode, Command, WorkflowVerb};
 use dx_plan::plan::{
     plan_build, plan_deploy_build, plan_deploy_run, plan_generate, plan_managed_with_roots,
     plan_run_build, plan_run_targets, plan_workflow,
@@ -104,13 +104,13 @@ fn managed_builds_share_the_startup_prefix() {
 fn run_and_deploy_share_the_startup_prefix() {
     local();
     let targets = vec!["//a:x".to_owned()];
-    let run = plan_run_targets(&targets, &[], &[], Profile::Dev, &startup()).expect("plan");
+    let run = plan_run_targets(&targets, &[], &[], BuildMode::Dev, &startup()).expect("plan");
     assert_prefix(&run.argv, "run");
-    let build = plan_run_build(&targets, &[], Profile::Dev, &startup()).expect("plan");
+    let build = plan_run_build(&targets, &[], BuildMode::Dev, &startup()).expect("plan");
     assert_prefix(&build.argv, "build");
-    let deploy_build = plan_deploy_build("//a:x", Profile::Release, &startup()).expect("plan");
+    let deploy_build = plan_deploy_build("//a:x", BuildMode::Release, &startup()).expect("plan");
     assert_prefix(&deploy_build.argv, "build");
-    let deploy_run = plan_deploy_run("//a:x", &[], Profile::Release, &startup()).expect("plan");
+    let deploy_run = plan_deploy_run("//a:x", &[], BuildMode::Release, &startup()).expect("plan");
     assert_prefix(&deploy_run.argv, "run");
 }
 

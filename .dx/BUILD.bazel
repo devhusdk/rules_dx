@@ -144,7 +144,7 @@ dx_generated_policy(
                 "fortitude",
                 "typos",
             ],
-            "profile": "standard",
+            "tier": "standard",
         },
         "go": {
             "disabled": ["audit"],
@@ -155,7 +155,7 @@ dx_generated_policy(
                 "staticcheck",
                 "typos",
             ],
-            "profile": "standard",
+            "tier": "standard",
             "typecheck": ["gotype"],
         },
         "go_module": {
@@ -209,7 +209,7 @@ dx_generated_policy(
                 "spotbugs",
                 "typos",
             ],
-            "profile": "standard",
+            "tier": "standard",
             "typecheck": ["javac"],
         },
         "javascript": {
@@ -249,7 +249,7 @@ dx_generated_policy(
                 "detekt",
                 "typos",
             ],
-            "profile": "standard",
+            "tier": "standard",
             "typecheck": ["kotlinc"],
         },
         "markdown": {
@@ -307,7 +307,7 @@ dx_generated_policy(
                 "ruff",
                 "typos",
             ],
-            "profile": "standard",
+            "tier": "standard",
             "typecheck": ["ty"],
         },
         "rust": {
@@ -317,7 +317,7 @@ dx_generated_policy(
                 "clippy",
                 "typos",
             ],
-            "profile": "standard",
+            "tier": "standard",
             "typecheck": ["rustc"],
         },
         "scala": {
@@ -406,7 +406,7 @@ dx_generated_policy(
             ],
             "format": ["yamlfmt"],
             "lint": ["yamllint"],
-            "profile": "standard",
+            "tier": "standard",
         },
         "zig": {
             "disabled": [
@@ -420,5 +420,5 @@ dx_generated_policy(
             ],
         },
     },
-    profile = "strict",
+    tier = "strict",
 )

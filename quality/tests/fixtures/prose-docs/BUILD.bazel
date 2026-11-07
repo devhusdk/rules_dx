@@ -45,7 +45,7 @@ dx_generated_policy(
             "format": ["typstyle"],
         },
     },
-    profile = "standard",
+    tier = "standard",
 )
 
 vale_config(

@@ -161,7 +161,7 @@ pub(crate) struct Flags {
     pub(crate) bases: bool,
     pub(crate) capabilities: bool,
     pub(crate) files: bool,
-    pub(crate) build_profile: bool,
+    pub(crate) timings: bool,
     pub(crate) time: Option<String>,
     pub(crate) check: bool,
     pub(crate) jobs: Option<u16>,
@@ -801,8 +801,8 @@ flag_group! {
 }
 
 composite_group! {
-    /// The profile flags the workflow commands share.
-    ProfileArgs, {
+    /// The build mode flags the workflow commands share.
+    BuildModeArgs, {
         debug: DebugFlag,
         release: ReleaseFlag,
     }
@@ -820,9 +820,9 @@ composite_group! {
 
 flag_group! {
     /// Print where build time went.
-    BuildProfileFlag, {
-        #[arg(long = "timings", overrides_with = "build_profile")]
-        build_profile: bool,
+    TimingsFlag, {
+        #[arg(long = "timings", overrides_with = "timings")]
+        timings: bool,
     }
 }
 
@@ -1070,8 +1070,8 @@ command_args! {
     /// The flags `dx build` accepts.
     Build => 6, BazelTail, {
         output: OutputFlag,
-        own: ProfileArgs,
-        build_profile: BuildProfileFlag,
+        own: BuildModeArgs,
+        timings: TimingsFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1079,8 +1079,8 @@ command_args! {
     /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
         output: OutputFlag,
-        own: ProfileArgs,
-        build_profile: BuildProfileFlag,
+        own: BuildModeArgs,
+        timings: TimingsFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1091,7 +1091,7 @@ command_args! {
         fail_on: FailOnFlag,
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
-        build_profile: BuildProfileFlag,
+        timings: TimingsFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1106,12 +1106,12 @@ command_args! {
     /// The flags `dx run` accepts.
     Run => 10, AppTail, {
         output: OutputFlag,
-        own: ProfileArgs,
-        build_profile: BuildProfileFlag,
+        own: BuildModeArgs,
+        timings: TimingsFlag,
         bazel_option: BazelOptionFlag,
     };
     /// The flags `dx deploy` accepts.
-    Deploy => 11, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
+    Deploy => 11, AppTail, { own: BuildModeArgs, apply: ApplyFlag, };
     /// The flags `dx check` accepts.
     Check => 12, BazelTail, {
         output: OutputFlag,
@@ -1175,7 +1175,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         poll: PollFlag,
-        own: ProfileArgs,
+        own: BuildModeArgs,
     };
     /// The flags `dx completion` accepts.
     Completion => 20, NoPassthroughTail, {};

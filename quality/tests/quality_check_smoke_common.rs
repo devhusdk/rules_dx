@@ -48,7 +48,7 @@ dx_generated_policy(
             "typecheck": ["ty"],
         },
     },
-    profile = "standard",
+    tier = "standard",
 )
 
 ruff_config(

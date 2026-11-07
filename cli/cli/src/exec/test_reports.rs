@@ -160,7 +160,7 @@ pub(super) fn output_locations(
     let mut argv = dx_process::startup_argv(&invocation.bazel_startup_options);
     argv.push("info".to_owned());
     if verb != WorkflowVerb::Coverage {
-        argv.push(invocation.profile().config_flag());
+        argv.push(invocation.build_mode().config_flag());
     }
     argv.extend(invocation.raw_bazel_options().iter().cloned());
     argv.push("bazel-testlogs".to_owned());

@@ -141,7 +141,7 @@ fn renders_standard() {
                 "typecheck": ["ty"],
             },
         },
-        profile = "standard",
+        tier = "standard",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -199,7 +199,7 @@ fn renders_strict() {
                 "typecheck": ["ty"],
             },
         },
-        profile = "strict",
+        tier = "strict",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -260,7 +260,7 @@ fn renders_no_dx_toml() {
                 "typecheck": ["ty"],
             },
         },
-        profile = "standard",
+        tier = "standard",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -331,7 +331,7 @@ fn renders_existing_exports() {
                 "typecheck": ["ty"],
             },
         },
-        profile = "standard",
+        tier = "standard",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -391,7 +391,7 @@ fn renders_no_root_build() {
                 "typecheck": ["ty"],
             },
         },
-        profile = "standard",
+        tier = "standard",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -448,11 +448,11 @@ fn renders_mixed_profiles() {
                     "ruff",
                     "typos",
                 ],
-                "profile": "strict",
+                "tier": "strict",
                 "typecheck": ["ty"],
             },
         },
-        profile = "standard",
+        tier = "standard",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -502,11 +502,11 @@ fn renders_rust() {
                     "clippy",
                     "typos",
                 ],
-                "profile": "strict",
+                "tier": "strict",
                 "typecheck": ["rustc"],
             },
         },
-        profile = "standard",
+        tier = "standard",
     )
     == .dx/bazelrc/correctness.bazelrc
 

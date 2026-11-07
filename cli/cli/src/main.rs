@@ -397,7 +397,7 @@ fn run() -> i32 {
         }
     }
     dx_plan::slots::inherit_share(&env_get);
-    let mut slot_options = vec![invocation.profile().config_flag()];
+    let mut slot_options = vec![invocation.build_mode().config_flag()];
     slot_options.extend(invocation.raw_bazel_options().iter().cloned());
     let gate = dx_plan::slots::Gate::from_env(
         &workspace,

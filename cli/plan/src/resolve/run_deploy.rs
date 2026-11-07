@@ -252,7 +252,7 @@ pub fn check_deployable(
     let mut parts = line.split('|');
     let (has, build_mode_raw, app_raw, exe) =
         match (parts.next(), parts.next(), parts.next(), parts.next()) {
-            (Some(has), Some(profile), Some(app), Some(exe)) => (has, profile, app, exe),
+            (Some(has), Some(build_mode), Some(app), Some(exe)) => (has, build_mode, app, exe),
             _ => {
                 return Err(malformed("cquery returned a malformed deploy observation"));
             }

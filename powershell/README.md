@@ -101,7 +101,7 @@ dx_generated_policy(
             "lint": ["psscriptanalyzer"],
         },
     },
-    profile = "standard",
+    tier = "standard",
 )
 ```
 

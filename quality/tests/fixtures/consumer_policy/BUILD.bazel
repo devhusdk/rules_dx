@@ -893,7 +893,7 @@ real_source_target(
 
 dx_generated_policy(
     name = "strict_generated_policy",
-    profile = "strict",
+    tier = "strict",
 )
 
 cc_library(

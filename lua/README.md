@@ -143,7 +143,7 @@ dx_generated_policy(
     families = {
         "lua": {"format": ["stylua"]},
     },
-    profile = "standard",
+    tier = "standard",
 )
 ```
 

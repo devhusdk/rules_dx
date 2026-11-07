@@ -92,7 +92,7 @@ pub(crate) fn group_skipped(
 ) -> Vec<SkipGroup> {
     group_with(skipped, UNSUPPORTED_JSON, |constraint, labels| {
         let selection = SelectionContext::for_test_execution(
-            invocation.profile(),
+            invocation.build_mode(),
             invocation.raw_bazel_options(),
             &invocation.bazel_startup_options,
         );

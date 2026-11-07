@@ -94,7 +94,7 @@ impl Launcher<'_> {
             return Some(super::failure::cancel(invocation.output, out, err, signo));
         }
         let mut options = invocation.quiet_bazel_options();
-        let trace = if invocation.build_profile {
+        let trace = if invocation.timings {
             match super::workflow::prepare_trace(self.workspace, self.run_id) {
                 Ok(path) => {
                     options.push(format!("--profile={path}"));
@@ -111,7 +111,7 @@ impl Launcher<'_> {
         let plan = match plan_run_build(
             targets,
             &options,
-            invocation.profile(),
+            invocation.build_mode(),
             &invocation.bazel_startup_options,
         ) {
             Ok(plan) => plan,
@@ -181,7 +181,7 @@ impl Launcher<'_> {
             target,
             &invocation.quiet_bazel_options(),
             invocation.app_args(),
-            invocation.profile(),
+            invocation.build_mode(),
             &invocation.bazel_startup_options,
         )
         .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))

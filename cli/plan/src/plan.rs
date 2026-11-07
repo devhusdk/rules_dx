@@ -109,14 +109,14 @@ pub fn shared_settings(bazel_command: &str) -> Vec<String> {
     settings_for(rules_dx_repo(), bazel_command)
 }
 
-/// Puts the profile config first so user options can override it.
-pub(crate) fn profile_options(
-    profile: Option<crate::args::Profile>,
+/// Puts the build mode config first so user options can override it.
+pub(crate) fn build_mode_options(
+    build_mode: Option<crate::args::BuildMode>,
     options: &[String],
 ) -> Vec<String> {
     let mut leading = Vec::with_capacity(options.len() + 1);
-    if let Some(profile) = profile {
-        leading.push(profile.config_flag());
+    if let Some(build_mode) = build_mode {
+        leading.push(build_mode.config_flag());
     }
     leading.extend(options.iter().cloned());
     leading

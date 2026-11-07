@@ -35,7 +35,7 @@ dx_generated_policy(
             "typecheck": ["rustc"],
         },
     },
-    profile = "standard",
+    tier = "standard",
 )
 "#;
 

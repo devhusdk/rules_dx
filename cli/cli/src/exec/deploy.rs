@@ -1,5 +1,5 @@
 use super::common::*;
-use dx_plan::args::{Command, DX_BUILD_MODE_ENV, Invocation, Profile, resolve_profile};
+use dx_plan::args::{BuildMode, Command, DX_BUILD_MODE_ENV, Invocation, resolve_build_mode};
 use dx_plan::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{check_deployable, resolve_deploy};
@@ -53,30 +53,34 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     let attr = if info.build_mode_raw == "NONE" || info.build_mode_raw == "None" {
         None
     } else {
-        Profile::parse_attr(&info.build_mode_raw)
+        BuildMode::parse_attr(&info.build_mode_raw)
     };
-    let profile = resolve_profile(
-        invocation.profile_flag(),
+    let build_mode = resolve_build_mode(
+        invocation.build_mode_flag(),
         attr,
-        Profile::default_for(Command::Deploy),
+        BuildMode::default_for(Command::Deploy),
     );
-    let plans =
-        plan_deploy_build(&label, profile, &invocation.bazel_startup_options).and_then(|build| {
+    let plans = plan_deploy_build(&label, build_mode, &invocation.bazel_startup_options).and_then(
+        |build| {
             plan_deploy_run(
                 &label,
                 invocation.app_args(),
-                profile,
+                build_mode,
                 &invocation.bazel_startup_options,
             )
             .map(|run| (build, run))
-        });
+        },
+    );
     let (build_plan, run_plan) = match plans {
         Ok(plans) => plans,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     if !invocation.quiet {
         let summary = if invocation.applies() {
-            format!("Running deploy for {label} (build_mode {})", profile.name())
+            format!(
+                "Running deploy for {label} (build_mode {})",
+                build_mode.name()
+            )
         } else {
             build_plan.summary.clone()
         };
@@ -127,7 +131,10 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         workspace,
         runner,
         &run_plan.argv,
-        &[(DX_BUILD_MODE_ENV, profile.name()), (DEPLOY_LIVE_ENV, live)],
+        &[
+            (DX_BUILD_MODE_ENV, build_mode.name()),
+            (DEPLOY_LIVE_ENV, live),
+        ],
     ) {
         Ok(AppExit {
             code,

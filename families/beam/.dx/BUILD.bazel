@@ -81,5 +81,5 @@ dx_generated_policy(
             ],
         },
     },
-    profile = "strict",
+    tier = "strict",
 )

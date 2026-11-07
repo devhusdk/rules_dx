@@ -6,14 +6,14 @@ pub fn plan_run_targets(
     targets: &[String],
     bazel_options: &[String],
     app_args: &[String],
-    profile: crate::args::Profile,
+    build_mode: crate::args::BuildMode,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     let mut argv = super::bazel_argv(
         "run",
-        &super::profile_options(
-            Some(profile),
-            &crate::args::filter_profile_configs(bazel_options, Some(profile))?,
+        &super::build_mode_options(
+            Some(build_mode),
+            &crate::args::filter_build_mode_configs(bazel_options, Some(build_mode))?,
         ),
         &[],
         &[],
@@ -32,14 +32,14 @@ pub fn plan_run_targets(
 pub fn plan_run_build(
     targets: &[String],
     bazel_options: &[String],
-    profile: crate::args::Profile,
+    build_mode: crate::args::BuildMode,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     let argv = super::bazel_argv(
         "build",
-        &super::profile_options(
-            Some(profile),
-            &crate::args::filter_profile_configs(bazel_options, Some(profile))?,
+        &super::build_mode_options(
+            Some(build_mode),
+            &crate::args::filter_build_mode_configs(bazel_options, Some(build_mode))?,
         ),
         &[],
         &[],
@@ -54,14 +54,14 @@ pub fn plan_run(
     target: &str,
     bazel_options: &[String],
     app_args: &[String],
-    profile: crate::args::Profile,
+    build_mode: crate::args::BuildMode,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     plan_run_targets(
         &[target.to_owned()],
         bazel_options,
         app_args,
-        profile,
+        build_mode,
         startup_options,
     )
 }
@@ -90,10 +90,10 @@ pub fn shell_join(words: &[String]) -> String {
 
 pub fn plan_deploy_build(
     label: &str,
-    profile: crate::args::Profile,
+    build_mode: crate::args::BuildMode,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
-    let plan = plan_run_build(&[label.to_owned()], &[], profile, startup_options)?;
+    let plan = plan_run_build(&[label.to_owned()], &[], build_mode, startup_options)?;
     let summary = format!("Running deploy build for {label}");
     Ok(BuildPlan {
         argv: plan.argv,
@@ -104,10 +104,10 @@ pub fn plan_deploy_build(
 pub fn plan_deploy_run(
     label: &str,
     app_args: &[String],
-    profile: crate::args::Profile,
+    build_mode: crate::args::BuildMode,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
-    let plan = plan_run(label, &[], app_args, profile, startup_options)?;
+    let plan = plan_run(label, &[], app_args, build_mode, startup_options)?;
     let summary = format!("Running deploy run for {label}");
     Ok(BuildPlan {
         argv: plan.argv,
@@ -118,7 +118,7 @@ pub fn plan_deploy_run(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::args::Profile;
+    use crate::args::BuildMode;
     use crate::plan::BAZEL_SETTINGS;
     use dx_testing::cli::strings;
 
@@ -141,7 +141,7 @@ mod tests {
             "//app:bin",
             &[],
             &strings(&["--port=8080"]),
-            Profile::Dev,
+            BuildMode::Dev,
             &[],
         )
         .expect("plan");
@@ -149,7 +149,7 @@ mod tests {
             &strings(&["//app:bin"]),
             &[],
             &strings(&["--port=8080"]),
-            Profile::Dev,
+            BuildMode::Dev,
             &[],
         )
         .expect("plan");
@@ -158,7 +158,7 @@ mod tests {
             &strings(&["//a:one", "//b:two"]),
             &[],
             &[],
-            Profile::Dev,
+            BuildMode::Dev,
             &[],
         )
         .expect("plan");
@@ -176,7 +176,7 @@ mod tests {
             "//app:bin",
             &[],
             &strings(&["--port=8080"]),
-            Profile::Dev,
+            BuildMode::Dev,
             &[],
         )
         .expect("plan");
@@ -188,22 +188,22 @@ mod tests {
             )
         );
         assert!(plan.summary.contains("//app:bin"));
-        let bare = plan_run("//app:bin", &[], &[], Profile::Dev, &[]).expect("plan");
+        let bare = plan_run("//app:bin", &[], &[], BuildMode::Dev, &[]).expect("plan");
         assert!(!bare.argv.contains(&"--".to_owned()));
     }
 
     #[test]
-    fn run_profile_pins_config_flag() {
-        for (profile, flag) in [
-            (Profile::Debug, "--config=dx_build_debug"),
-            (Profile::Dev, "--config=dx_build_dev"),
-            (Profile::Release, "--config=dx_build_release"),
+    fn run_build_mode_pins_config_flag() {
+        for (build_mode, flag) in [
+            (BuildMode::Debug, "--config=dx_build_debug"),
+            (BuildMode::Dev, "--config=dx_build_dev"),
+            (BuildMode::Release, "--config=dx_build_release"),
         ] {
-            let plan = plan_run("//app:bin", &[], &[], profile, &[]).expect("plan");
+            let plan = plan_run("//app:bin", &[], &[], build_mode, &[]).expect("plan");
             assert_eq!(
                 plan.argv,
                 expected("run", &[flag, "//app:bin"]),
-                "{profile:?}: {plan:?}"
+                "{build_mode:?}: {plan:?}"
             );
         }
     }
@@ -214,7 +214,7 @@ mod tests {
             "//app:bin",
             &[],
             &[],
-            Profile::Dev,
+            BuildMode::Dev,
             &["--output_base=/tmp/a".to_owned()],
         )
         .expect("plan");
@@ -238,7 +238,7 @@ mod tests {
             "//app:bin",
             &quiet,
             &strings(&["--app-flag"]),
-            Profile::Dev,
+            BuildMode::Dev,
             &[],
         )
         .expect("plan");
@@ -257,7 +257,7 @@ mod tests {
             )
         );
         let build =
-            plan_run_build(&strings(&["//app:bin"]), &quiet, Profile::Dev, &[]).expect("plan");
+            plan_run_build(&strings(&["//app:bin"]), &quiet, BuildMode::Dev, &[]).expect("plan");
         assert_eq!(
             build.argv,
             expected(
@@ -273,23 +273,23 @@ mod tests {
     }
 
     #[test]
-    fn run_plans_filter_profile_configs_from_user_options() {
+    fn run_plans_filter_build_mode_configs_from_user_options() {
         let conflicting = strings(&["--config=dx_build_release"]);
         assert_eq!(
-            plan_run("//app:bin", &conflicting, &[], Profile::Dev, &[]).expect_err("conflict"),
+            plan_run("//app:bin", &conflicting, &[], BuildMode::Dev, &[]).expect_err("conflict"),
             ForwardError::ConflictingOption {
                 flag: "config".to_owned(),
             }
         );
         assert_eq!(
-            plan_run_build(&strings(&["//app:bin"]), &conflicting, Profile::Dev, &[])
+            plan_run_build(&strings(&["//app:bin"]), &conflicting, BuildMode::Dev, &[])
                 .expect_err("conflict"),
             ForwardError::ConflictingOption {
                 flag: "config".to_owned(),
             }
         );
         let options = strings(&["--noshow_progress", "--config=dx_build_dev", "--jobs=4"]);
-        let run = plan_run("//app:bin", &options, &[], Profile::Dev, &[]).expect("plan");
+        let run = plan_run("//app:bin", &options, &[], BuildMode::Dev, &[]).expect("plan");
         assert_eq!(
             run.argv,
             expected(
@@ -303,7 +303,7 @@ mod tests {
             )
         );
         let build =
-            plan_run_build(&strings(&["//app:bin"]), &options, Profile::Dev, &[]).expect("plan");
+            plan_run_build(&strings(&["//app:bin"]), &options, BuildMode::Dev, &[]).expect("plan");
         assert_eq!(
             build.argv,
             expected(
@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn deploy_plans_build_then_run_with_the_shared_settings() {
-        let build = plan_deploy_build("//deploy:prod", Profile::Release, &[]).expect("plan");
+        let build = plan_deploy_build("//deploy:prod", BuildMode::Release, &[]).expect("plan");
         assert_eq!(
             build.argv,
             expected("build", &["--config=dx_build_release", "//deploy:prod"])
@@ -329,7 +329,7 @@ mod tests {
         let run = plan_deploy_run(
             "//deploy:prod",
             &strings(&["--port=8080"]),
-            Profile::Release,
+            BuildMode::Release,
             &[],
         )
         .expect("plan");
@@ -351,12 +351,12 @@ mod tests {
     #[test]
     fn run_plans_refuse_a_conflicting_shared_setting() {
         let user = strings(&["--@rules_rust//rust/settings:rustc_output_diagnostics=false"]);
-        let run = plan_run("//app:bin", &user, &[], Profile::Dev, &[]);
+        let run = plan_run("//app:bin", &user, &[], BuildMode::Dev, &[]);
         assert!(
             matches!(run, Err(ForwardError::ConflictingOption { .. })),
             "{run:?}"
         );
-        let build = plan_run_build(&strings(&["//app:bin"]), &user, Profile::Dev, &[]);
+        let build = plan_run_build(&strings(&["//app:bin"]), &user, BuildMode::Dev, &[]);
         assert!(
             matches!(build, Err(ForwardError::ConflictingOption { .. })),
             "{build:?}"

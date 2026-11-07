@@ -104,7 +104,7 @@ To set it once, add to `.bazelrc`:
 common --@rules_dx//config:workspace=//:policy
 ```
 
-A policy is a `dx_generated_policy`. `families` maps a family ID to the tool IDs it selects per capability (`lint`, `typecheck`, `format`, `audit`), the capabilities it turns off in `disabled`, and an optional tier `profile`. A capability left unset, or a tool with no wired executable, fails analysis. `families` merges onto the curated defaults: a key replaces only that family. Set `defaults = False` to use only the listed families.
+A policy is a `dx_generated_policy`. `families` maps a family ID to the tool IDs it selects per capability (`lint`, `typecheck`, `format`, `audit`), the capabilities it turns off in `disabled`, and an optional `tier`. A capability left unset, or a tool with no wired executable, fails analysis. `families` merges onto the curated defaults: a key replaces only that family. Set `defaults = False` to use only the listed families.
 
 ```python
 load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
@@ -118,17 +118,17 @@ dx_generated_policy(
             "lint": ["taplo"],
         },
     },
-    profile = "standard",
+    tier = "standard",
 )
 ```
 
-`profile` (`standard` or `strict`) picks the tier base config each tier-active tool runs on when nothing binds a config for it. `configs` binds native config targets such as `ruff_config` for every target; a config here wins over the tier base, and a tool may be listed once. See [Tool config files](#tool-config-files).
+`tier` (`standard` or `strict`) picks the tier base config each tier-active tool runs on when nothing binds a config for it. `configs` binds native config targets such as `ruff_config` for every target; a config here wins over the tier base, and a tool may be listed once. See [Tool config files](#tool-config-files).
 
 ```python
 dx_generated_policy(
     name = "policy",
     configs = [":ruff_config"],
-    profile = "strict",
+    tier = "strict",
 )
 ```
 
@@ -217,7 +217,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `standard` and `strict` clang-tidy tiers live in `quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a tier is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
 
-`cppcheck` enables `warning,performance,portability` in the standard profile and adds `style` in strict. `spotbugs` runs at default effort in standard and max effort in strict, and the profile's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
+`cppcheck` enables `warning,performance,portability` in the standard tier and adds `style` in strict. `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
 ### JVM and .NET
 
@@ -362,7 +362,7 @@ dx_generated_policy(
     families = {
         "flatbuffers": {"lint": ["flatc"]},
     },
-    profile = "standard",
+    tier = "standard",
 )
 
 flatbuffers_library(
@@ -410,7 +410,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 
 | Tool | Level | Native file(s) | Base | Tier source | Shared with |
 | --- | --- | --- | --- | --- | --- |
-| `ansible_lint` | catalog | `*.ansible-lint`, `*.yml`, `*.yaml` | none | ansible-lint moderate and production profiles |  |
+| `ansible_lint` | catalog | `*.ansible-lint`, `*.yml`, `*.yaml` | none | ansible-lint moderate and production levels |  |
 | `bicep` | curated | `bicepconfig.json` | none | dx |  |
 | `biome` | curated | `*.json` | none | dx |  |
 | `buf` | catalog | `buf.yaml` | override copy | dx |  |

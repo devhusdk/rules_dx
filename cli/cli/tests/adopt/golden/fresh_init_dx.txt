@@ -60,7 +60,7 @@ dx_generated_policy(
             "lint": ["yamllint"],
         },
     },
-    profile = "standard",
+    tier = "standard",
 )
 === .dx/bazelrc/correctness.bazelrc
 # Vendored Bazel execution preset -- GENERATED, do not edit.

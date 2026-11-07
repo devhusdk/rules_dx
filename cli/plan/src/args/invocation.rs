@@ -1,7 +1,7 @@
 use dx_output::{ColorMode, OutputMode, Threshold, dx_text_visible};
 
 use super::Command;
-use super::profile::{Profile, resolve_profile};
+use super::build_mode::{BuildMode, resolve_build_mode};
 
 /// Typed marker that an invocation was handed off from an affected plan,
 /// carrying the planned test targets and the merge base the plan started from.
@@ -134,11 +134,11 @@ impl GenerateRequest {
         self.common.chatty()
     }
 
-    /// The startup flags and profile config a generate Bazel call starts with.
+    /// The startup flags and build mode config a generate Bazel call starts with.
     pub fn bazel_head(&self) -> dx_process::BazelHead {
         dx_process::BazelHead {
             startup: self.bazel_startup_options.clone(),
-            options: vec![Profile::default_for(Command::Generate).config_flag()],
+            options: vec![BuildMode::default_for(Command::Generate).config_flag()],
             settings: crate::plan::head_settings(crate::plan::rules_dx_repo()),
         }
     }
@@ -320,8 +320,8 @@ pub struct Invocation {
     pub capabilities: bool,
     /// `dx status --files`: add one record per file dx init writes.
     pub files: bool,
-    /// `build`/`test`/`coverage --profile`: print where build time went.
-    pub build_profile: bool,
+    /// `build`/`test`/`coverage --timings`: print where build time went.
+    pub timings: bool,
     /// `dx fuzz --time`: the budget per target; 60s when absent.
     pub time: Option<String>,
     /// `dx fuzz --jobs`: jobs each fuzz runner may use.
@@ -402,29 +402,29 @@ impl Invocation {
         self.operation() == OperationMode::Apply
     }
 
-    pub fn profile_flag(&self) -> Option<Profile> {
+    pub fn build_mode_flag(&self) -> Option<BuildMode> {
         if self.debug {
-            Some(Profile::Debug)
+            Some(BuildMode::Debug)
         } else if self.release {
-            Some(Profile::Release)
+            Some(BuildMode::Release)
         } else {
             None
         }
     }
 
-    pub fn profile(&self) -> Profile {
-        resolve_profile(
-            self.profile_flag(),
+    pub fn build_mode(&self) -> BuildMode {
+        resolve_build_mode(
+            self.build_mode_flag(),
             None,
-            Profile::default_for(self.command),
+            BuildMode::default_for(self.command),
         )
     }
 
-    /// The startup flags and profile config every update Bazel call starts with.
+    /// The startup flags and build mode config every update Bazel call starts with.
     pub fn bazel_head(&self) -> dx_process::BazelHead {
         dx_process::BazelHead {
             startup: self.bazel_startup_options.clone(),
-            options: vec![self.profile().config_flag()],
+            options: vec![self.build_mode().config_flag()],
             settings: crate::plan::head_settings(crate::plan::rules_dx_repo()),
         }
     }
@@ -663,7 +663,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn update_heads_carry_startup_and_the_default_profile() {
+    fn update_heads_carry_startup_and_the_default_build_mode() {
         let mut invocation = invocation_for(Command::Update, &[]);
         invocation.bazel_startup_options = vec!["--output_base=/ob".to_owned()];
         let head = invocation.bazel_head();
@@ -732,7 +732,7 @@ mod tests {
             bases: false,
             capabilities: false,
             files: false,
-            build_profile: false,
+            timings: false,
             time: None,
             jobs: None,
             bench_regression: None,

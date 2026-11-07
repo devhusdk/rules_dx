@@ -226,7 +226,7 @@ TOOLS = [
     tool(
         id = "ansible_lint",
         adapters = {"lint": ["ansible"]},
-        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"], tier_active = True, tier_source = "ansible-lint moderate and production profiles"),
+        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"], tier_active = True, tier_source = "ansible-lint moderate and production levels"),
         severity = severity(default = "warning", categories = {"internal-error": "error", "load-failure": "error", "syntax-check": "error"}),
         support = [
             row(

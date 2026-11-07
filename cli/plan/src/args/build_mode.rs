@@ -1,26 +1,26 @@
 use super::Command;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Profile {
+pub enum BuildMode {
     Debug,
     Dev,
     Release,
 }
 
-impl Profile {
+impl BuildMode {
     pub fn name(self) -> &'static str {
         match self {
-            Profile::Debug => "debug",
-            Profile::Dev => "dev",
-            Profile::Release => "release",
+            BuildMode::Debug => "debug",
+            BuildMode::Dev => "dev",
+            BuildMode::Release => "release",
         }
     }
 
     pub fn config(self) -> &'static str {
         match self {
-            Profile::Debug => "dx_build_debug",
-            Profile::Dev => "dx_build_dev",
-            Profile::Release => "dx_build_release",
+            BuildMode::Debug => "dx_build_debug",
+            BuildMode::Dev => "dx_build_dev",
+            BuildMode::Release => "dx_build_release",
         }
     }
 
@@ -30,17 +30,17 @@ impl Profile {
 
     pub fn default_for(command: Command) -> Self {
         if command.meta().default_release {
-            Profile::Release
+            BuildMode::Release
         } else {
-            Profile::Dev
+            BuildMode::Dev
         }
     }
 
     pub fn parse_attr(value: &str) -> Option<Self> {
         match value {
-            "debug" => Some(Profile::Debug),
-            "dev" => Some(Profile::Dev),
-            "release" => Some(Profile::Release),
+            "debug" => Some(BuildMode::Debug),
+            "dev" => Some(BuildMode::Dev),
+            "release" => Some(BuildMode::Release),
             _ => None,
         }
     }
@@ -48,24 +48,28 @@ impl Profile {
 
 pub const DX_BUILD_MODE_ENV: &str = "DX_BUILD_MODE";
 
-pub fn resolve_profile(flag: Option<Profile>, attr: Option<Profile>, default: Profile) -> Profile {
+pub fn resolve_build_mode(
+    flag: Option<BuildMode>,
+    attr: Option<BuildMode>,
+    default: BuildMode,
+) -> BuildMode {
     flag.or(attr).unwrap_or(default)
 }
 
-fn is_dx_profile_config(value: &str) -> bool {
-    [Profile::Debug, Profile::Dev, Profile::Release]
+fn is_dx_build_mode_config(value: &str) -> bool {
+    [BuildMode::Debug, BuildMode::Dev, BuildMode::Release]
         .iter()
-        .any(|profile| profile.config() == value)
+        .any(|build_mode| build_mode.config() == value)
 }
 
-pub(crate) fn filter_profile_configs(
+pub(crate) fn filter_build_mode_configs(
     options: &[String],
-    profile: Option<Profile>,
+    build_mode: Option<BuildMode>,
 ) -> Result<Vec<String>, dx_process::ForwardError> {
-    let Some(profile) = profile else {
+    let Some(build_mode) = build_mode else {
         return Ok(options.to_vec());
     };
-    let required = profile.config_flag();
+    let required = build_mode.config_flag();
     let mut kept = Vec::with_capacity(options.len());
     let mut index = 0;
     while index < options.len() {
@@ -86,12 +90,12 @@ pub(crate) fn filter_profile_configs(
             index += 1;
             continue;
         };
-        if consumed == 2 && Some(profile.config()) == value.as_deref() {
+        if consumed == 2 && Some(build_mode.config()) == value.as_deref() {
             index += consumed;
             continue;
         }
         if let Some(value) = value
-            && is_dx_profile_config(&value)
+            && is_dx_build_mode_config(&value)
         {
             return Err(dx_process::ForwardError::ConflictingOption {
                 flag: "config".to_owned(),
@@ -113,83 +117,93 @@ mod tests {
     use dx_testing::cli::strings;
 
     #[test]
-    fn profile_vocabulary_maps_to_shared_configs() {
-        assert_eq!(Profile::Debug.name(), "debug");
-        assert_eq!(Profile::Dev.name(), "dev");
-        assert_eq!(Profile::Release.name(), "release");
-        assert_eq!(Profile::Debug.config(), "dx_build_debug");
-        assert_eq!(Profile::Dev.config(), "dx_build_dev");
-        assert_eq!(Profile::Release.config(), "dx_build_release");
-        assert_eq!(Profile::Debug.config_flag(), "--config=dx_build_debug");
-        assert_eq!(Profile::Dev.config_flag(), "--config=dx_build_dev");
-        assert_eq!(Profile::Release.config_flag(), "--config=dx_build_release");
+    fn build_mode_vocabulary_maps_to_shared_configs() {
+        assert_eq!(BuildMode::Debug.name(), "debug");
+        assert_eq!(BuildMode::Dev.name(), "dev");
+        assert_eq!(BuildMode::Release.name(), "release");
+        assert_eq!(BuildMode::Debug.config(), "dx_build_debug");
+        assert_eq!(BuildMode::Dev.config(), "dx_build_dev");
+        assert_eq!(BuildMode::Release.config(), "dx_build_release");
+        assert_eq!(BuildMode::Debug.config_flag(), "--config=dx_build_debug");
+        assert_eq!(BuildMode::Dev.config_flag(), "--config=dx_build_dev");
+        assert_eq!(
+            BuildMode::Release.config_flag(),
+            "--config=dx_build_release"
+        );
         assert_eq!(DX_BUILD_MODE_ENV, "DX_BUILD_MODE");
     }
 
     #[test]
-    fn profile_attr_parses_deploy_vocabulary() {
-        assert_eq!(Profile::parse_attr("debug"), Some(Profile::Debug));
-        assert_eq!(Profile::parse_attr("dev"), Some(Profile::Dev));
-        assert_eq!(Profile::parse_attr("release"), Some(Profile::Release));
-        assert_eq!(Profile::parse_attr("staging"), None);
-        assert_eq!(Profile::parse_attr(""), None);
+    fn build_mode_attr_parses_deploy_vocabulary() {
+        assert_eq!(BuildMode::parse_attr("debug"), Some(BuildMode::Debug));
+        assert_eq!(BuildMode::parse_attr("dev"), Some(BuildMode::Dev));
+        assert_eq!(BuildMode::parse_attr("release"), Some(BuildMode::Release));
+        assert_eq!(BuildMode::parse_attr("staging"), None);
+        assert_eq!(BuildMode::parse_attr(""), None);
     }
 
     #[test]
-    fn profile_precedence_is_flag_over_attr_over_default() {
+    fn build_mode_precedence_is_flag_over_attr_over_default() {
         assert_eq!(
-            resolve_profile(Some(Profile::Debug), Some(Profile::Release), Profile::Dev),
-            Profile::Debug
+            resolve_build_mode(
+                Some(BuildMode::Debug),
+                Some(BuildMode::Release),
+                BuildMode::Dev
+            ),
+            BuildMode::Debug
         );
         assert_eq!(
-            resolve_profile(None, Some(Profile::Release), Profile::Dev),
-            Profile::Release
+            resolve_build_mode(None, Some(BuildMode::Release), BuildMode::Dev),
+            BuildMode::Release
         );
-        assert_eq!(resolve_profile(None, None, Profile::Dev), Profile::Dev);
         assert_eq!(
-            resolve_profile(None, None, Profile::Release),
-            Profile::Release
+            resolve_build_mode(None, None, BuildMode::Dev),
+            BuildMode::Dev
+        );
+        assert_eq!(
+            resolve_build_mode(None, None, BuildMode::Release),
+            BuildMode::Release
         );
     }
     #[test]
-    fn profile_flags_parse_on_build_run_test() {
+    fn build_mode_flags_parse_on_build_run_test() {
         for command in ["build", "run", "test"] {
             let bare = parse(&strings(&[command])).expect("bare parse");
             assert!(!bare.debug);
             assert!(!bare.release);
-            assert_eq!(bare.profile_flag(), None);
-            assert_eq!(bare.profile(), Profile::Dev);
+            assert_eq!(bare.build_mode_flag(), None);
+            assert_eq!(bare.build_mode(), BuildMode::Dev);
             let debug = parse(&strings(&[command, "--debug"])).expect("debug parse");
             assert!(debug.debug);
             assert!(!debug.release);
-            assert_eq!(debug.profile_flag(), Some(Profile::Debug));
-            assert_eq!(debug.profile(), Profile::Debug);
+            assert_eq!(debug.build_mode_flag(), Some(BuildMode::Debug));
+            assert_eq!(debug.build_mode(), BuildMode::Debug);
             let release = parse(&strings(&[command, "--release"])).expect("release parse");
             assert!(!release.debug);
             assert!(release.release);
-            assert_eq!(release.profile_flag(), Some(Profile::Release));
-            assert_eq!(release.profile(), Profile::Release);
+            assert_eq!(release.build_mode_flag(), Some(BuildMode::Release));
+            assert_eq!(release.build_mode(), BuildMode::Release);
         }
         let bare = parse(&strings(&["deploy"])).expect("bare deploy parse");
-        assert_eq!(bare.profile_flag(), None);
-        assert_eq!(bare.profile(), Profile::Release);
+        assert_eq!(bare.build_mode_flag(), None);
+        assert_eq!(bare.build_mode(), BuildMode::Release);
         let debug = parse(&strings(&["deploy", "--debug"])).expect("deploy debug parse");
-        assert_eq!(debug.profile_flag(), Some(Profile::Debug));
-        assert_eq!(debug.profile(), Profile::Debug);
+        assert_eq!(debug.build_mode_flag(), Some(BuildMode::Debug));
+        assert_eq!(debug.build_mode(), BuildMode::Debug);
         let release = parse(&strings(&["deploy", "--release"])).expect("deploy release parse");
-        assert_eq!(release.profile_flag(), Some(Profile::Release));
-        assert_eq!(release.profile(), Profile::Release);
+        assert_eq!(release.build_mode_flag(), Some(BuildMode::Release));
+        assert_eq!(release.build_mode(), BuildMode::Release);
         let got = parse(&strings(&["build", "--debug"])).expect("parse");
-        assert_eq!(got.profile_flag(), Some(Profile::Debug));
+        assert_eq!(got.build_mode_flag(), Some(BuildMode::Debug));
         let got = parse(&strings(&["test", "--release", "//a:t"])).expect("parse");
-        assert_eq!(got.profile_flag(), Some(Profile::Release));
+        assert_eq!(got.build_mode_flag(), Some(BuildMode::Release));
     }
 
     #[test]
-    fn profile_flags_reject_conflicts_and_foreign_commands() {
+    fn build_mode_flags_reject_conflicts_and_foreign_commands() {
         for command in Command::value_variants() {
             let command = *command;
-            if !crate::args::command::owners::PROFILE_OWNERS.contains(&command) {
+            if !crate::args::command::owners::BUILD_MODE_OWNERS.contains(&command) {
                 continue;
             }
             let words = [command.name(), "--debug", "--release"];
@@ -217,18 +231,18 @@ mod tests {
     }
 
     #[test]
-    fn filter_profile_configs_drops_the_selected_profile_and_rejects_others() {
+    fn filter_build_mode_configs_drops_the_selected_build_mode_and_rejects_others() {
         let options = strings(&[
             "--config=dx_build_dev",
             "--config",
             "dx_build_dev",
             "--keep",
         ]);
-        let kept = filter_profile_configs(&options, Some(Profile::Dev)).expect("kept");
+        let kept = filter_build_mode_configs(&options, Some(BuildMode::Dev)).expect("kept");
         assert_eq!(kept, strings(&["--keep"]));
-        assert!(filter_profile_configs(&options, Some(Profile::Release)).is_err());
+        assert!(filter_build_mode_configs(&options, Some(BuildMode::Release)).is_err());
         assert_eq!(
-            filter_profile_configs(&options, None).expect("all"),
+            filter_build_mode_configs(&options, None).expect("all"),
             options
         );
     }

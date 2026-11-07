@@ -1,8 +1,8 @@
 use dx_process::{ForwardError, ProtectedFlag, describe_scope};
 
 use super::{
-    BuildPlan, SKIP_INCOMPATIBLE_FLAG, bazel_argv, bep_guards, bep_options, download_flag,
-    download_guards, profile_options, workflow_bazel_labels,
+    BuildPlan, SKIP_INCOMPATIBLE_FLAG, bazel_argv, bep_guards, bep_options, build_mode_options,
+    download_flag, download_guards, workflow_bazel_labels,
 };
 use crate::resolve::ResolvedScope;
 
@@ -107,7 +107,7 @@ pub fn plan_workflow(
     resolved: &ResolvedScope,
     bazel_options: &[String],
     bep_path: Option<&str>,
-    profile: Option<crate::args::Profile>,
+    build_mode: Option<crate::args::BuildMode>,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     let required = workflow_options(verb, bazel_options, bep_path);
@@ -116,8 +116,11 @@ pub fn plan_workflow(
         .iter()
         .map(ToString::to_string)
         .collect();
-    options.extend(crate::args::filter_profile_configs(bazel_options, profile)?);
-    let bazel_options = profile_options(profile, &options);
+    options.extend(crate::args::filter_build_mode_configs(
+        bazel_options,
+        build_mode,
+    )?);
+    let bazel_options = build_mode_options(build_mode, &options);
     let (scope, labels) = workflow_bazel_labels(resolved);
     let argv = bazel_argv(
         verb.bazel_command(),
@@ -134,7 +137,7 @@ pub fn plan_workflow(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::args::Profile;
+    use crate::args::BuildMode;
     use dx_process::Scope;
     use dx_testing::cli::strings;
 
@@ -153,12 +156,13 @@ mod tests {
 
     #[test]
     fn workflow_plan_defaults_to_fail_fast_without_forced_keep_going() {
-        for (verb, profile) in [
-            (WorkflowVerb::Build, Some(Profile::Dev)),
-            (WorkflowVerb::Test, Some(Profile::Dev)),
+        for (verb, build_mode) in [
+            (WorkflowVerb::Build, Some(BuildMode::Dev)),
+            (WorkflowVerb::Test, Some(BuildMode::Dev)),
             (WorkflowVerb::Coverage, None),
         ] {
-            let plan = plan_workflow(verb, &resolved(&[]), &[], None, profile, &[]).expect("plan");
+            let plan =
+                plan_workflow(verb, &resolved(&[]), &[], None, build_mode, &[]).expect("plan");
             assert!(
                 !plan.argv.iter().any(|arg| arg == "--keep_going"),
                 "{verb:?} must not force keep_going: {plan:?}"
@@ -169,7 +173,7 @@ mod tests {
             &resolved(&[]),
             &[],
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("plan");
@@ -236,7 +240,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[conflicting]),
                 None,
-                Some(Profile::Dev),
+                Some(BuildMode::Dev),
                 &[],
             )
             .expect_err("conflicting setting must fail");
@@ -251,7 +255,7 @@ mod tests {
             &resolved(&[]),
             &strings(&[same, crate::plan::CLIPPY_DIAGNOSTICS_FLAG]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("matching values pass");
@@ -269,7 +273,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[conflicting]),
                 Some("/tmp/bep.json"),
-                Some(Profile::Dev),
+                Some(BuildMode::Dev),
                 &[],
             )
             .expect_err("path conversion must fail");
@@ -283,7 +287,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--nobuild_event_json_file_path_conversion"]),
             Some("/tmp/bep.json"),
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("local paths pass");
@@ -297,7 +301,7 @@ mod tests {
             &resolved(&[]),
             &[],
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("plan");
@@ -317,7 +321,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--keep_going"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("plan");
@@ -340,7 +344,7 @@ mod tests {
                 if verb == WorkflowVerb::Coverage {
                     None
                 } else {
-                    Some(Profile::Dev)
+                    Some(BuildMode::Dev)
                 },
                 &[],
             )
@@ -366,7 +370,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--test_arg=--exact"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect_err("build still rejects test args");
@@ -377,7 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn workflow_plan_forwards_consumer_configs_after_profile() {
+    fn workflow_plan_forwards_consumer_configs_after_build_mode() {
         for verb in [WorkflowVerb::Build, WorkflowVerb::Test] {
             let plan = plan_workflow(
                 verb,
@@ -389,7 +393,7 @@ mod tests {
                     "--config=sanitizer",
                 ]),
                 None,
-                Some(Profile::Dev),
+                Some(BuildMode::Dev),
                 &[],
             )
             .expect("consumer configs pass");
@@ -397,7 +401,7 @@ mod tests {
             let dev = argv
                 .iter()
                 .position(|arg| *arg == "--config=dx_build_dev")
-                .expect("profile is planned");
+                .expect("build_mode is planned");
             let keep_going = argv
                 .iter()
                 .position(|arg| *arg == "--keep_going")
@@ -423,7 +427,7 @@ mod tests {
     }
 
     #[test]
-    fn workflow_plan_rejects_only_conflicting_dx_profile() {
+    fn workflow_plan_rejects_only_conflicting_dx_build_mode() {
         for options in [
             vec!["--config=dx_build_release"],
             vec!["--config", "dx_build_release"],
@@ -434,10 +438,10 @@ mod tests {
                 &resolved(&[]),
                 &strings(&options),
                 None,
-                Some(Profile::Dev),
+                Some(BuildMode::Dev),
                 &[],
             )
-            .expect_err("conflicting dx profile must fail");
+            .expect_err("conflicting dx build_mode must fail");
             assert!(
                 matches!(err, ForwardError::ConflictingOption { .. }),
                 "got {err:?}"
@@ -448,24 +452,24 @@ mod tests {
             &resolved(&[]),
             &strings(&["--config=dx_build_release"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
-        .expect_err("test keeps the profile conflict");
+        .expect_err("test keeps the build_mode conflict");
         assert!(matches!(err, ForwardError::ConflictingOption { .. }));
     }
 
     #[test]
-    fn workflow_plan_dedupes_repeated_profile_config() {
+    fn workflow_plan_dedupes_repeated_build_mode_config() {
         let plan = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
             &strings(&["--config=dx_build_dev", "--config=sanitizer"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
-        .expect("repeated profile config is accepted");
+        .expect("repeated build_mode config is accepted");
         assert_eq!(
             plan.argv
                 .iter()
@@ -479,10 +483,10 @@ mod tests {
             &resolved(&[]),
             &strings(&["--config", "dx_build_dev", "--config", "sanitizer"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
-        .expect("bare repeated profile config is accepted");
+        .expect("bare repeated build_mode config is accepted");
         assert_eq!(
             plan.argv
                 .iter()
@@ -501,7 +505,7 @@ mod tests {
     }
 
     #[test]
-    fn workflow_plan_forwards_any_config_without_profile() {
+    fn workflow_plan_forwards_any_config_without_build_mode() {
         for options in [
             vec!["--config=sanitizer"],
             vec!["--config=dx_build_release"],
@@ -514,7 +518,7 @@ mod tests {
                 None,
                 &[],
             )
-            .expect("coverage has no profile pin to conflict with");
+            .expect("coverage has no build_mode pin to conflict with");
             assert!(plan.argv.iter().any(|arg| arg == options[0]), "{plan:?}");
         }
     }
@@ -561,7 +565,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--build_event_json_file=/tmp/other.json"]),
             Some("/tmp/bep.json"),
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect_err("BEP override must fail");
@@ -661,7 +665,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--build_tests_only"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("test keeps build_tests_only");
@@ -697,13 +701,13 @@ mod tests {
     }
 
     #[test]
-    fn workflow_profile_config_leads_user_options() {
+    fn workflow_build_mode_config_leads_user_options() {
         let plan = plan_workflow(
             WorkflowVerb::Test,
             &resolved(&[]),
             &strings(&["--config=remote", "--jobs=4"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("plan");
@@ -754,7 +758,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[option]),
                 None,
-                Some(Profile::Dev),
+                Some(BuildMode::Dev),
                 &[],
             )
             .expect("run forces no download mode");
@@ -815,18 +819,18 @@ mod tests {
     }
 
     #[test]
-    fn workflow_profile_pins_config_flag_in_order() {
-        for (profile, flag) in [
-            (Profile::Debug, "--config=dx_build_debug"),
-            (Profile::Dev, "--config=dx_build_dev"),
-            (Profile::Release, "--config=dx_build_release"),
+    fn workflow_build_mode_pins_config_flag_in_order() {
+        for (build_mode, flag) in [
+            (BuildMode::Debug, "--config=dx_build_debug"),
+            (BuildMode::Dev, "--config=dx_build_dev"),
+            (BuildMode::Release, "--config=dx_build_release"),
         ] {
             let plan = plan_workflow(
                 WorkflowVerb::Build,
                 &resolved(&[]),
                 &[],
                 None,
-                Some(profile),
+                Some(build_mode),
                 &[],
             )
             .expect("plan");
@@ -843,7 +847,7 @@ mod tests {
                     crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                     crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 ],
-                "{profile:?}: {plan:?}"
+                "{build_mode:?}: {plan:?}"
             );
         }
         let plan = plan_workflow(WorkflowVerb::Coverage, &resolved(&[]), &[], None, None, &[])
@@ -857,7 +861,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--config=dx_build_dev"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("repeated required config is accepted");
@@ -867,7 +871,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--config=dx_build_release"]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect_err("conflicting config must fail");
@@ -885,7 +889,7 @@ mod tests {
             &resolved(&[]),
             &strings(&[own]),
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("plan");
@@ -906,7 +910,7 @@ mod tests {
             &resolved(&["//app:b"]),
             &[],
             None,
-            Some(Profile::Dev),
+            Some(BuildMode::Dev),
             &[],
         )
         .expect("plan");
@@ -924,7 +928,7 @@ mod tests {
                 &resolved(&["//app:b"]),
                 &strings(&[flag]),
                 None,
-                Some(Profile::Dev),
+                Some(BuildMode::Dev),
                 &[],
             );
             assert!(got.is_err(), "{flag} must conflict");

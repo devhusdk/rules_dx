@@ -163,7 +163,7 @@ fn strict_repeated_flags_are_last_wins() {
     assert!(parse(&strings(&["build", "-vv"])).expect("verbose").verbose);
     assert!(
         parse(&strings(&["build", "--debug", "--release"])).is_err(),
-        "repeatable flags must not weaken the profile conflict"
+        "repeatable flags must not weaken the build_mode conflict"
     );
 }
 
@@ -406,6 +406,6 @@ fn strict_non_utf8_argv_fails_as_invalid_scope() {
 }
 
 #[test]
-fn init_rejects_profile() {
+fn init_rejects_build_mode() {
     assert!(parse(&strings(&["init", "--profile=strict"])).is_err());
 }

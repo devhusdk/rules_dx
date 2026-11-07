@@ -2,12 +2,12 @@ use std::path::Path;
 
 use dx_process::ForwardError;
 
-use crate::args::Profile;
+use crate::args::BuildMode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectionContext {
     configured: bool,
-    profile: Option<Profile>,
+    build_mode: Option<BuildMode>,
     options: Vec<String>,
     startup: Vec<String>,
 }
@@ -83,7 +83,7 @@ impl SelectionContext {
     pub fn unconfigured(startup: &[String]) -> Self {
         SelectionContext {
             configured: false,
-            profile: None,
+            build_mode: None,
             options: Vec::new(),
             startup: startup.to_vec(),
         }
@@ -92,7 +92,7 @@ impl SelectionContext {
     pub fn unconfigured_with_options(bazel_options: &[String], startup: &[String]) -> Self {
         SelectionContext {
             configured: false,
-            profile: None,
+            build_mode: None,
             options: selection_options(bazel_options),
             startup: startup.to_vec(),
         }
@@ -101,20 +101,20 @@ impl SelectionContext {
     pub fn for_tests_configured(bazel_options: &[String], startup: &[String]) -> Self {
         SelectionContext {
             configured: true,
-            profile: None,
+            build_mode: None,
             options: selection_options(bazel_options),
             startup: startup.to_vec(),
         }
     }
 
     pub fn for_test_execution(
-        profile: Profile,
+        build_mode: BuildMode,
         bazel_options: &[String],
         startup: &[String],
     ) -> Self {
         SelectionContext {
             configured: true,
-            profile: Some(profile),
+            build_mode: Some(build_mode),
             options: selection_options(bazel_options),
             startup: startup.to_vec(),
         }
@@ -140,7 +140,7 @@ impl SelectionContext {
     }
 
     pub fn filtered_options(&self) -> Result<Vec<String>, ForwardError> {
-        crate::args::filter_profile_configs(&self.options, self.profile)
+        crate::args::filter_build_mode_configs(&self.options, self.build_mode)
     }
 
     #[cfg(test)]
@@ -153,7 +153,7 @@ impl SelectionContext {
         let options = if verb == "query" {
             query_options(&filtered)
         } else {
-            crate::plan::profile_options(self.profile, &filtered)
+            crate::plan::build_mode_options(self.build_mode, &filtered)
         };
         crate::plan::bazel_argv(verb, &options, required, &[], &[], &self.startup)
     }
@@ -183,8 +183,8 @@ impl SelectionContext {
 
     pub fn redacted_detail(&self) -> String {
         let mut parts = Vec::new();
-        if let Some(profile) = self.profile {
-            parts.push(profile.config_flag());
+        if let Some(build_mode) = self.build_mode {
+            parts.push(build_mode.config_flag());
         }
         let filtered = self.filtered_options().unwrap_or_default();
         let (mut safe, withheld) = crate::plan::quality::partition_provenance_options(&filtered);
@@ -243,7 +243,7 @@ mod tests {
             ])
         );
         let configured = SelectionContext::for_test_execution(
-            Profile::Dev,
+            BuildMode::Dev,
             &strings(&["--test_arg=--exact", "--config=ci"]),
             &[],
         );
@@ -254,7 +254,7 @@ mod tests {
         let dev = argv
             .iter()
             .position(|arg| arg == "--config=dx_build_dev")
-            .expect("profile config");
+            .expect("build_mode config");
         let ci = argv
             .iter()
             .position(|arg| arg == "--config=ci")
@@ -319,16 +319,16 @@ mod tests {
     }
 
     #[test]
-    fn test_execution_selection_pins_profile_config() {
+    fn test_execution_selection_pins_build_mode_config() {
         let selection =
-            SelectionContext::for_test_execution(Profile::Dev, &strings(&["--config=ci"]), &[]);
+            SelectionContext::for_test_execution(BuildMode::Dev, &strings(&["--config=ci"]), &[]);
         let argv = selection
             .selection_argv("cquery", &[], "tests(//...)")
             .expect("argv");
         let dev = argv
             .iter()
             .position(|arg| arg == "--config=dx_build_dev")
-            .expect("profile reaches selection");
+            .expect("build_mode reaches selection");
         let ci = argv
             .iter()
             .position(|arg| arg == "--config=ci")
@@ -350,9 +350,9 @@ mod tests {
     }
 
     #[test]
-    fn selection_rejects_conflicting_profile_config() {
+    fn selection_rejects_conflicting_build_mode_config() {
         let selection = SelectionContext::for_test_execution(
-            Profile::Dev,
+            BuildMode::Dev,
             &strings(&["--config=dx_build_release"]),
             &[],
         );
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn query_verb_keeps_only_repository_options() {
         let selection =
-            SelectionContext::for_test_execution(Profile::Dev, &query_test_options(), &[])
+            SelectionContext::for_test_execution(BuildMode::Dev, &query_test_options(), &[])
                 .unconfigured_view();
         let expected = strings(&[
             "--override_repository=a=/p",
@@ -472,10 +472,13 @@ mod tests {
     }
 
     #[test]
-    fn cquery_verb_keeps_every_option_and_the_profile() {
+    fn cquery_verb_keeps_every_option_and_the_build_mode() {
         let options = query_test_options();
-        let selection =
-            SelectionContext::for_test_execution(Profile::Dev, &options[..options.len() - 1], &[]);
+        let selection = SelectionContext::for_test_execution(
+            BuildMode::Dev,
+            &options[..options.len() - 1],
+            &[],
+        );
         let argv = selection
             .selection_argv("cquery", &[], "tests(//...)")
             .expect("argv");
@@ -489,9 +492,9 @@ mod tests {
     }
 
     #[test]
-    fn query_verb_still_rejects_a_conflicting_profile() {
+    fn query_verb_still_rejects_a_conflicting_build_mode() {
         let selection = SelectionContext::for_test_execution(
-            Profile::Dev,
+            BuildMode::Dev,
             &strings(&["--config=dx_build_release"]),
             &[],
         )

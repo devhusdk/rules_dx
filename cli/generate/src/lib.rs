@@ -388,7 +388,7 @@ fn dx_build(
             }
             if family.profile != root {
                 fields.push(format!(
-                    "            \"profile\": \"{}\",\n",
+                    "            \"tier\": \"{}\",\n",
                     family.profile.as_str()
                 ));
             }
@@ -401,7 +401,7 @@ fn dx_build(
         }
         text.push_str("    },\n");
     }
-    text.push_str(&format!("    profile = \"{}\",\n)\n", root.as_str()));
+    text.push_str(&format!("    tier = \"{}\",\n)\n", root.as_str()));
     text
 }
 

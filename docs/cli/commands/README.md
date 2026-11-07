@@ -713,6 +713,6 @@ Bazel 9.2.0 or later is required.
 
 rules_dx does not provide debugger acquisition, launch or attach integration,
 Debug Adapter Protocol adapters, or generated debugger configurations. These
-are unsupported and not planned. Debug build profiles and editor
+are unsupported and not planned. Debug build modes and editor
 language-server settings do not imply debugger support. You can set up
 external debuggers yourself.

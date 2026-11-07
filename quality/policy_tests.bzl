@@ -62,14 +62,14 @@ def policy_unit_tests(name):
                 [],
             ),
             expect_equal(
-                "generated_families_error accepts capability, disabled and profile keys",
-                generated_families_error("p", {"python": {"disabled": ["audit"], "lint": ["ruff"], "profile": "strict"}}),
+                "generated_families_error accepts capability, disabled and tier keys",
+                generated_families_error("p", {"python": {"disabled": ["audit"], "lint": ["ruff"], "tier": "strict"}}),
                 "",
             ),
             expect_equal(
                 "generated_families_error rejects an unknown spec key",
                 generated_families_error("p", {"python": {"lints": ["ruff"]}}),
-                "dx_generated_policy (p): family 'python' has unknown key 'lints'; use one of lint, typecheck, format, audit, disabled, profile",
+                "dx_generated_policy (p): family 'python' has unknown key 'lints'; use one of lint, typecheck, format, audit, disabled, tier",
             ),
             expect_equal(
                 "merge_policy keeps the base without sections",
@@ -298,7 +298,7 @@ field family.python.audit=
 field family.python.format=
 field family.python.lint=lint-a
 field family.python.typecheck=
-field profile.python=strict
+field tier.python=strict
 aspect_field aspect_seen=True
 aspect_field field_count=70
 aspect_field has_subject=True

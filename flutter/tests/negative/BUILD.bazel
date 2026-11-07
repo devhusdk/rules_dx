@@ -30,5 +30,5 @@ dx_generated_policy(
             "typecheck": ["dart"],
         },
     },
-    profile = "standard",
+    tier = "standard",
 )

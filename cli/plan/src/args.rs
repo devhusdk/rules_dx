@@ -1,10 +1,10 @@
+pub mod build_mode;
 pub mod command;
 pub mod completion;
 pub mod grammar;
 pub mod help;
 pub mod invocation;
 pub mod parser;
-pub mod profile;
 pub mod tokenizer;
 
 /// A failure raised while reading the command line.
@@ -119,6 +119,8 @@ fn unsupported_hint(command: &str, option: &str) -> String {
     format!("run dx {command} --help")
 }
 
+pub(crate) use build_mode::filter_build_mode_configs;
+pub use build_mode::{BuildMode, DX_BUILD_MODE_ENV, resolve_build_mode};
 pub use command::{Command, WorkflowVerb};
 pub use completion::{
     COMPLETE_VAR, COMPLETION_SHELLS, registers_callback, render_completion, try_complete,
@@ -133,8 +135,6 @@ pub use parser::{
     BREAKING_AGAINST_OPTION, ci_ignores_env, early_output_flag, is_discovery_exempt,
     json_output_intent, parse, parse_with, parse_with_ci, startup_workspace,
 };
-pub(crate) use profile::filter_profile_configs;
-pub use profile::{DX_BUILD_MODE_ENV, Profile, resolve_profile};
 
 pub use dx_adopt::defaults::DX_WORKSPACE_ENV;
 

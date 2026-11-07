@@ -1351,29 +1351,29 @@ mod tests {
             &resolved,
             &[],
             Some("/tmp/bep.json"),
-            Some(dx_plan::args::Profile::Dev),
+            Some(dx_plan::args::BuildMode::Dev),
             &[],
         )
         .expect("test plan");
         argvs.push(("test".to_owned(), test.argv));
-        let profile = dx_plan::args::Profile::Dev;
+        let build_mode = dx_plan::args::BuildMode::Dev;
         let label = "//app:bin".to_owned();
         let planned = [
             (
                 "run",
-                dx_plan::plan::plan_run(&label, &[], &[], profile, &[]),
+                dx_plan::plan::plan_run(&label, &[], &[], build_mode, &[]),
             ),
             (
                 "run build",
-                dx_plan::plan::plan_run_build(std::slice::from_ref(&label), &[], profile, &[]),
+                dx_plan::plan::plan_run_build(std::slice::from_ref(&label), &[], build_mode, &[]),
             ),
             (
                 "deploy build",
-                dx_plan::plan::plan_deploy_build(&label, profile, &[]),
+                dx_plan::plan::plan_deploy_build(&label, build_mode, &[]),
             ),
             (
                 "deploy run",
-                dx_plan::plan::plan_deploy_run(&label, &[], profile, &[]),
+                dx_plan::plan::plan_deploy_run(&label, &[], build_mode, &[]),
             ),
         ];
         for (name, plan) in planned {
@@ -1389,7 +1389,7 @@ mod tests {
         .expect("managed plan");
         argvs.push(("sync".to_owned(), plan.argv));
         let selection = dx_plan::resolve::SelectionContext::for_test_execution(
-            dx_plan::args::Profile::Dev,
+            dx_plan::args::BuildMode::Dev,
             &[],
             &[],
         );

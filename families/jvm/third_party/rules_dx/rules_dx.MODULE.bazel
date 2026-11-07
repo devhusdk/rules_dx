@@ -26,6 +26,13 @@ single_version_override(
 )
 
 single_version_override(
+    module_name = "rules_kotlin",
+    patch_strip = 1,
+    patches = ["//third_party/rules_dx:rules_kotlin.windows_coverage_test_suite.patch"],
+    version = "2.4.21",
+)
+
+single_version_override(
     module_name = "rules_dart",
     patch_strip = 1,
     patches = ["//third_party/rules_dx:rules_dart.coverage.patch"],

@@ -4,6 +4,7 @@ load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_library =
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_java//java/common/rules:java_helper.bzl", "helper")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -45,8 +46,12 @@ _java_forward_test = dx_executable_forward_rule(
     what = "java_*",
     allow_files = True,
     upstream_providers = [[JavaInfo]],
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dict(
+        dx_lcov_merger_attr(),
+        main_class = attr.string(default = DX_JVM_TEST_RUNNER),
+    ),
     optional_providers = [JavaInfo],
+    coverage_providers = dx_jvm_test_coverage,
 )
 
 def java_javacopts_with_warnings_as_errors(kwargs):
@@ -125,7 +130,17 @@ def java_binary(name, srcs = None, visibility = None, **kwargs):
 def java_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_test."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "test_class")
-    dx_wrap_test(name, _java_test, _java_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
+    main_class = kwargs.get("main_class") if kwargs.get("use_testrunner") == False else DX_JVM_TEST_RUNNER
+    dx_wrap_test(
+        name,
+        _java_test,
+        _java_forward_test,
+        srcs,
+        visibility = visibility,
+        upstream_kwargs = upstream_kwargs,
+        extra_forward_kwargs = {"main_class": main_class},
+        **dx_without_warnings_attr(kwargs)
+    )
 
 def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, tags = None, deps = None, **kwargs):
     """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.

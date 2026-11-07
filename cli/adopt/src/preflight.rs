@@ -809,9 +809,9 @@ mod tests {
 
     #[test]
     fn override_at_or_above_floor_is_not_a_conflict() {
-        for version in ["2.4.21", "2.4.22"] {
+        for version in ["7.4.1", "7.4.2"] {
             let text = format!(
-                "single_version_override(module_name = \"rules_kotlin\", version = \"{version}\")\n"
+                "single_version_override(module_name = \"rules_scala\", version = \"{version}\")\n"
             );
             let dir = scratch(&[("MODULE.bazel", &text)]);
             assert!(
@@ -823,10 +823,9 @@ mod tests {
 
     #[test]
     fn override_below_floor_or_without_version_is_advisory() {
-        let below =
-            "single_version_override(module_name = \"rules_kotlin\", version = \"2.4.20\")\n";
+        let below = "single_version_override(module_name = \"rules_scala\", version = \"7.4.0\")\n";
         let no_version =
-            "git_override(module_name = \"rules_kotlin\", remote = \"x\", commit = \"y\")\n";
+            "git_override(module_name = \"rules_scala\", remote = \"x\", commit = \"y\")\n";
         for text in [below, no_version] {
             let dir = scratch(&[("MODULE.bazel", text)]);
             let plan = preflight(dir.path(), &snippet());

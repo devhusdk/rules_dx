@@ -1,5 +1,6 @@
+load("@rules_dx//java/rules:coverage_tests.bzl", "jvm_coverage_env_test")
+load("@rules_dx//java/rules:defs.bzl", "java_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_java//java:defs.bzl", "java_test")
 
 package(
     default_testonly = True,
@@ -27,6 +28,12 @@ java_test(
         "@maven//:org_junit_jupiter_junit_jupiter_api",
         "@maven//:org_junit_jupiter_junit_jupiter_params",
     ],
+)
+
+jvm_coverage_env_test(
+    name = "hello_jupiter_coverage_env_test",
+    main_class = "org.junit.platform.console.ConsoleLauncher",
+    target = ":hello_jupiter_test",
 )
 
 real_source_target(

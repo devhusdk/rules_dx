@@ -108,6 +108,18 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
+        module: "rules_kotlin",
+        version: "2.4.21",
+        patch_strip: 1,
+        archive: None,
+        patches: &[OverridePatch {
+            file: "windows_coverage_test_suite.patch",
+            content: include_str!(
+                "../../../patches/rules_kotlin/windows_coverage_test_suite.patch"
+            ),
+        }],
+    },
+    Override {
         module: "rules_dart",
         version: "0.8.1",
         patch_strip: 1,

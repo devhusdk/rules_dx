@@ -1,4 +1,4 @@
-load("@rules_dx//kotlin/rules:coverage_tests.bzl", "kotlin_coverage_env_test")
+load("@rules_dx//java/rules:coverage_tests.bzl", "jvm_coverage_env_test")
 load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 load("@rules_dx//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
@@ -59,7 +59,7 @@ kotlin_test(
     ],
 )
 
-kotlin_coverage_env_test(
+jvm_coverage_env_test(
     name = "hello_test_coverage_env_test",
     target = ":hello_test",
 )

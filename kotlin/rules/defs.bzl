@@ -3,7 +3,8 @@
 load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_library = "kt_jvm_library", _kt_jvm_test = "kt_jvm_test")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forwarded_run_environment", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
@@ -58,18 +59,6 @@ _kotlin_binary_forward = dx_executable_forward_rule(
     toolchains = [_KT_TOOLCHAIN_TYPE],
 )
 
-_KOTLIN_TEST_MAIN_CLASS = "com.google.testing.junit.runner.BazelTestRunner"
-
-def _kotlin_test_coverage(ctx, upstream):
-    """Names the test main class for JacocoCoverageRunner; the Windows launcher does not export it."""
-    if InstrumentedFilesInfo not in upstream:
-        fail("kotlin_*: upstream target has no InstrumentedFilesInfo: " + str(upstream.label))
-    return struct(
-        instrumented = upstream[InstrumentedFilesInfo],
-        env = dx_forwarded_run_environment(upstream, {"JACOCO_MAIN_CLASS": ctx.attr.main_class}),
-        runfiles = None,
-    )
-
 _kotlin_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES,
@@ -80,10 +69,10 @@ _kotlin_forward_test = dx_executable_forward_rule(
     upstream_providers = [[JavaInfo]],
     extra_attrs = dict(
         dx_lcov_merger_attr(),
-        main_class = attr.string(default = _KOTLIN_TEST_MAIN_CLASS),
+        main_class = attr.string(default = DX_JVM_TEST_RUNNER),
     ),
     optional_providers = [JavaInfo],
-    coverage_providers = _kotlin_test_coverage,
+    coverage_providers = dx_jvm_test_coverage,
 )
 
 def _kotlin_warnings_as_errors_opts_impl(ctx):
@@ -179,6 +168,6 @@ def kotlin_test(name, srcs = None, visibility = None, **kwargs):
         srcs,
         visibility = visibility,
         upstream_kwargs = upstream_kwargs,
-        extra_forward_kwargs = {"main_class": upstream_kwargs.get("main_class") or _KOTLIN_TEST_MAIN_CLASS},
+        extra_forward_kwargs = {"main_class": upstream_kwargs.get("main_class") or DX_JVM_TEST_RUNNER},
         **dx_without_warnings_attr(kwargs)
     )

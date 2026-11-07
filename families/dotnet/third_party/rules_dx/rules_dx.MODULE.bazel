@@ -26,6 +26,13 @@ single_version_override(
 )
 
 single_version_override(
+    module_name = "rules_kotlin",
+    patch_strip = 1,
+    patches = ["//third_party/rules_dx:rules_kotlin.windows_coverage_test_suite.patch"],
+    version = "2.4.21",
+)
+
+single_version_override(
     module_name = "rules_dart",
     patch_strip = 1,
     patches = ["//third_party/rules_dx:rules_dart.coverage.patch"],
@@ -134,7 +141,11 @@ single_version_override(
 single_version_override(
     module_name = "llvm",
     patch_strip = 1,
-    patches = ["//third_party/rules_dx:llvm.libunwind_copy.patch"],
+    patches = [
+        "//third_party/rules_dx:llvm.libunwind_copy.patch",
+        "//third_party/rules_dx:llvm.clang_cl_crt_default_lib.patch",
+        "//third_party/rules_dx:llvm.unwatched_overlay_inputs.patch",
+    ],
     version = "0.8.26",
 )
 

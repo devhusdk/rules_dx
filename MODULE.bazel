@@ -405,10 +405,12 @@ single_version_override(
     version = "0.0.8",
 )
 
-# floor: equals tested
+# floor: equals tested; patched for Windows coverage (#8793)
 bazel_dep(name = "rules_kotlin", version = "2.4.21")
 single_version_override(
     module_name = "rules_kotlin",
+    patch_strip = 1,
+    patches = ["//patches/rules_kotlin:windows_coverage_test_suite.patch"],
     version = "2.4.21",
 )
 

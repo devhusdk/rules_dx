@@ -267,7 +267,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  
      return env
  
-@@ -1140,10 +1161,20 @@
+@@ -1140,10 +1161,32 @@
  PARSER.add_argument("--execroot-marker", help="Token in env values to replace with the absolute execroot")
  PARSER.add_argument("--cross", action="store_true", help="Cross-compilation mode: target platform != exec platform")
  PARSER.add_argument("--toolchain-flags", action="store_true", help="CFLAGS/CXXFLAGS/LDFLAGS/LDSHAREDFLAGS carry the C++ toolchain's action flags")
@@ -285,10 +285,22 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
 +    return path.join(os.getcwd(), "_pep517", digest)
 +
 +
++def _shorten_bin_dirs(env: dict[str, str], short_root: str) -> None:
++    # CreateProcess cannot start an executable past MAX_PATH, and the
++    # whl_install bin/ dirs deep in the runfiles tree hold maturin.exe and
++    # friends (WinError 206). Copy them under the short root instead.
++    entries = env.get("PATH", "").split(pathsep)
++    for i, entry in enumerate(entries):
++        if entry.endswith("actual_install.install" + os.sep + "bin") and path.isdir(entry):
++            entries[i] = path.join(short_root, "bin", str(i))
++            shutil.copytree(entry, entries[i])
++    env["PATH"] = pathsep.join(entries)
++
++
  def main() -> None:
      opts, _ = PARSER.parse_known_args()
  
-@@ -1152,6 +1183,11 @@
+@@ -1152,6 +1195,11 @@
      makedirs(tmp_root, exist_ok=False)
  
      t = path.join(tmp_root, "worktree")
@@ -300,15 +312,18 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  
      shutil.unpack_archive(opts.srcarchive, t)
  
-@@ -1197,6 +1233,7 @@
+@@ -1197,7 +1245,10 @@
          target_os=opts.target_os,
          target_cpu=opts.target_cpu,
          toolchain_flags=opts.toolchain_flags,
 +        msvc=opts.msvc,
      )
++    if msvc_root:
++        _shorten_bin_dirs(build_env, msvc_root)
  
      if _legacy_metadata_conflicts_with_pyproject(t):
-@@ -1306,6 +1343,8 @@
+         print(
+@@ -1306,6 +1357,8 @@
          exit(1)
  
      os.replace(path.join(outdir, inventory[0]), path.abspath(opts.output))

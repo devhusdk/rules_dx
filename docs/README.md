@@ -25,6 +25,8 @@ Find your task.
 - [GitHub CI](github-ci.md)
 - [Licenses](licenses.md)
 - [Support matrix](support-matrix.md)
+- [Standard tiers](tiers-standard.md)
+- [Strict tiers](tiers-strict.md)
 - [Command reference](cli/commands/README.md)
 - [Scope defaults](cli/commands/scope-defaults.md)
 - [Build, test, coverage](cli/commands/build-test-coverage.md)

@@ -2,6 +2,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:tool_config_docs.bzl", "tool_config_docs")
 load("//tools/docs/licenses:licenses.bzl", "licenses_docs")
 load("//tools/docs/site:site_tests.bzl", "docs_book_coverage_tests")
+load("//tools/docs/tiers:tiers.bzl", "tier_docs")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -9,6 +10,8 @@ exports_files([
     "cli/commands/README.md",
     "cli/commands/init.md",
     "support-matrix.md",
+    "tiers-standard.md",
+    "tiers-strict.md",
     "tutorial.md",
 ])
 
@@ -69,6 +72,8 @@ real_source_target(
         "remote-cache.md",
         "remote-execution.md",
         "support-matrix.md",
+        "tiers-standard.md",
+        "tiers-strict.md",
         "tutorial.md",
         "proxy-and-ca.md",
     ],
@@ -91,4 +96,10 @@ docs_book_coverage_tests(
 tool_config_docs(
     name = "update_tool_configs",
     page = "cli/commands/quality.md",
+)
+
+tier_docs(
+    name = "update_tiers",
+    standard_page = "tiers-standard.md",
+    strict_page = "tiers-strict.md",
 )

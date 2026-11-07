@@ -404,6 +404,8 @@ A bound ruff config runs with its own directory as the project root, the same as
 
 Edit the tool's own root file. Where the Base column says `extends`, the file extends the dx tier base, so your edit is the only thing you keep. Where it says `override copy`, the root file is a copy of the base, and you edit the copy.
 
+See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-strict.md) for what each tier turns on.
+
 <!-- tool-config-table:begin (generated from quality/tools.bzl; run `bazel run //docs:update_tool_configs`) -->
 
 | Tool | Level | Native file(s) | Base | Tier source | Shared with |

@@ -5,6 +5,7 @@ load(":corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "
 # gazelle:exclude eslint
 # gazelle:exclude vale
 _VISIBILITY = [
+    "//docs:__pkg__",
     "//cli/adopt:__subpackages__",
     "//quality/runner:__subpackages__",
     "//go/tests:__subpackages__",

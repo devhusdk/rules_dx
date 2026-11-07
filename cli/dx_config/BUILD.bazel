@@ -71,7 +71,7 @@ rust_test(
     ) + ["@crates//:serde"],
 )
 
-# keep
+# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "update_schema",
     srcs = ["src/bin_schema.rs"],

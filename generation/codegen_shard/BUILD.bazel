@@ -64,7 +64,7 @@ rust_test(
     ],
 )
 
-# keep
+# keep: Gazelle would add a self dep on //generation/codegen_shard
 rust_test(
     name = "codegen_shard_writer_bin_test",
     aliases = aliases(

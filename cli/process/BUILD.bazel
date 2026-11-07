@@ -28,7 +28,7 @@ rust_library(
             "src/procs.rs",
             "src/terminal.rs",
         ],
-    }),  # keep
+    }),  # keep: Gazelle cannot express the per-OS srcs
     aliases = aliases(
         package_name = "cli/dx_process",
         normal = True,
@@ -74,7 +74,7 @@ rust_test(
             "src/procs.rs",
             "src/terminal.rs",
         ],
-    }),  # keep
+    }),  # keep: Gazelle cannot express the per-OS srcs
     aliases = aliases(
         package_name = "cli/dx_process",
         normal = True,

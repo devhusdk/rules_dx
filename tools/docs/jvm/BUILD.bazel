@@ -19,7 +19,7 @@ filegroup(
     output_group = "api_json",
 )
 
-# keep
+# keep: no Cargo.toml here; Gazelle would delete it
 rust_library(
     name = "jvm_test_support",
     testonly = True,
@@ -30,7 +30,6 @@ rust_library(
     ],
 )
 
-# keep
 rust_test(
     name = "java_extract_test",
     srcs = ["java_extract_test.rs"],
@@ -63,7 +62,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "kotlin_extract_test",
     srcs = ["kotlin_extract_test.rs"],
@@ -94,7 +92,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "scala_extract_test",
     srcs = ["scala_extract_test.rs"],

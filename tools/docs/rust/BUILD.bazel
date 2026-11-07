@@ -24,7 +24,6 @@ real_docs_shard_files(
     target = "//tools/docs/rust/fixture:docs_fixture",
 )
 
-# keep
 rust_test(
     name = "extract_test",
     srcs = ["extract_test.rs"],

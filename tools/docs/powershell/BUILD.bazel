@@ -15,7 +15,6 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-# keep
 rust_test(
     name = "extract_test",
     srcs = ["extract_test.rs"],
@@ -41,7 +40,7 @@ rust_test(
     ],
 )
 
-# keep
+# keep: Gazelle drops the pester dep
 powershell_test(
     name = "extract_script_test",
     srcs = ["extract_script.Tests.ps1"],

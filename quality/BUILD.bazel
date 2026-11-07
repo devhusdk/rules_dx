@@ -1,4 +1,5 @@
 # gazelle:ignore
+# Gazelle would replace the prost targets with proto rules for every language.
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_proto//proto:defs.bzl", "proto_library")

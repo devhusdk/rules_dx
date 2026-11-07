@@ -6,7 +6,6 @@ package(default_visibility = VIS_TOOLS)
 
 exports_files(["tiers.bzl"])
 
-# keep
 rust_library(
     name = "tiers",
     srcs = ["src/lib.rs"],
@@ -15,13 +14,12 @@ rust_library(
     deps = ["//cli/diff:dx_diff"],
 )
 
-# keep
 rust_test(
     name = "tiers_test",
     crate = ":tiers",
 )
 
-# keep
+# keep: Gazelle would name the binary crate after the library
 rust_binary(
     name = "render",
     srcs = ["src/main.rs"],

@@ -1386,7 +1386,6 @@ fn remove_root_clears_read_only_trees_without_following_links() {
     std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o700)).unwrap();
 }
 
-#[cfg(unix)]
 #[test]
 fn host_names_this_machine() {
     let host = host();

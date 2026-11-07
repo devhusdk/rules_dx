@@ -2279,6 +2279,19 @@ pub fn materialize(
     )
 }
 
+fn windows_build() -> Option<String> {
+    if !cfg!(windows) {
+        return None;
+    }
+    let root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_owned());
+    let cmd = Path::new(&root).join("System32").join("cmd.exe");
+    let out = Command::new(cmd).args(["/c", "ver"]).output().ok()?;
+    let text = String::from_utf8(out.stdout).ok()?;
+    let start = text.find("[Version ")? + "[Version ".len();
+    let end = text[start..].find(']')? + start;
+    Some(text[start..end].to_owned())
+}
+
 fn host() -> Value {
     let kernel = std::fs::read_to_string("/proc/sys/kernel/osrelease")
         .ok()
@@ -2287,6 +2300,7 @@ fn host() -> Value {
             let out = Command::new("uname").arg("-r").output().ok()?;
             String::from_utf8(out.stdout).ok()
         })
+        .or_else(windows_build)
         .unwrap_or_default();
     json!({
         "os": std::env::consts::OS,

@@ -94,6 +94,19 @@ fn network_denied_cannot_resolve_names() {
 }
 
 #[test]
+fn network_denied_blocks_a_local_resolver_port() {
+    let _shared = shared();
+    let scene = scene("resolver");
+    let denied = scene.run(Net::Denied, &["connect", "127.0.0.1:53"]);
+    assert_ne!(denied.exit, 0, "{}", denied.stdout);
+    assert!(
+        denied.stderr.contains(WINDOWS_DENIED_MARKER),
+        "{}",
+        denied.stderr
+    );
+}
+
+#[test]
 fn files_are_visible_only_where_granted() {
     let _shared = shared();
     let scene = scene("files");

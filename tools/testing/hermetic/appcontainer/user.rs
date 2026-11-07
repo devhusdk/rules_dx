@@ -26,11 +26,12 @@ use windows_sys::Win32::NetworkManagement::NetManagement::{
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::{
     FWP_ACTION_BLOCK, FWP_ACTION_PERMIT, FWP_BYTE_BLOB, FWP_CONDITION_FLAG_IS_LOOPBACK,
     FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_EQUAL, FWP_MATCH_FLAGS_ALL_SET,
-    FWP_SECURITY_DESCRIPTOR_TYPE, FWP_UINT8, FWP_UINT32, FWP_VALUE0, FWP_VALUE0_0,
-    FWPM_CONDITION_ALE_USER_ID, FWPM_CONDITION_FLAGS, FWPM_FILTER_CONDITION0, FWPM_FILTER0,
-    FWPM_LAYER_ALE_AUTH_CONNECT_V4, FWPM_LAYER_ALE_AUTH_CONNECT_V6,
-    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6,
-    FWPM_SESSION_FLAG_DYNAMIC, FWPM_SESSION0, FwpmEngineClose0, FwpmEngineOpen0, FwpmFilterAdd0,
+    FWP_SECURITY_DESCRIPTOR_TYPE, FWP_UINT8, FWP_UINT16, FWP_UINT32, FWP_VALUE0, FWP_VALUE0_0,
+    FWPM_CONDITION_ALE_USER_ID, FWPM_CONDITION_FLAGS, FWPM_CONDITION_IP_REMOTE_PORT,
+    FWPM_FILTER_CONDITION0, FWPM_FILTER0, FWPM_LAYER_ALE_AUTH_CONNECT_V4,
+    FWPM_LAYER_ALE_AUTH_CONNECT_V6, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4,
+    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, FWPM_SESSION_FLAG_DYNAMIC, FWPM_SESSION0, FwpmEngineClose0,
+    FwpmEngineOpen0, FwpmFilterAdd0,
 };
 use windows_sys::Win32::Security::Authentication::Identity::RtlGenRandom;
 use windows_sys::Win32::Security::Authorization::{
@@ -73,6 +74,8 @@ const ERROR_MEMBER_IN_ALIAS: u32 = 1378;
 const ERROR_ALIAS_EXISTS: u32 = 1379;
 const BLOCK_WEIGHT: u8 = 1;
 const PERMIT_WEIGHT: u8 = 10;
+const DNS_BLOCK_WEIGHT: u8 = 20;
+const DNS_PORT: u16 = 53;
 const PORT_ALL_ACCESS: u32 = 0x001F_0001;
 const SYSTEM_EXTENDED_HANDLE_INFORMATION: u32 = 64;
 const OBJECT_NAME_INFORMATION: u32 = 1;
@@ -133,6 +136,7 @@ struct Session {
     acl_paths: Vec<String>,
     engine: HANDLE,
     dns_port: HANDLE,
+    dns_pid: u32,
 }
 
 impl Session {
@@ -404,7 +408,32 @@ fn block_network(session: &mut Session) -> Result<(), String> {
         };
         condition
     };
+    let dns = || {
+        let mut condition: FWPM_FILTER_CONDITION0 = unsafe { std::mem::zeroed() };
+        condition.fieldKey = FWPM_CONDITION_IP_REMOTE_PORT;
+        condition.matchType = FWP_MATCH_EQUAL;
+        condition.conditionValue = FWP_CONDITION_VALUE0 {
+            r#type: FWP_UINT16,
+            Anonymous: FWP_CONDITION_VALUE0_0 { uint16: DNS_PORT },
+        };
+        condition
+    };
     let mut result = Ok(());
+    // A local resolver must stay out of reach, so port 53 is blocked above the loopback permit.
+    for layer in [
+        FWPM_LAYER_ALE_AUTH_CONNECT_V4,
+        FWPM_LAYER_ALE_AUTH_CONNECT_V6,
+    ] {
+        result = result.and_then(|()| {
+            add_filter(
+                session.engine,
+                layer,
+                FWP_ACTION_BLOCK,
+                DNS_BLOCK_WEIGHT,
+                &mut [for_user(), dns()],
+            )
+        });
+    }
     for layer in [
         FWPM_LAYER_ALE_AUTH_CONNECT_V4,
         FWPM_LAYER_ALE_AUTH_CONNECT_V6,
@@ -671,11 +700,23 @@ fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), Stri
 /// the filters apply.
 fn deny_dns_client(session: &mut Session) -> Result<(), String> {
     enable_debug_privilege()?;
+    let pid = dns_client_pid()?;
     let port = find_dns_port()?;
     set_port_access(port, session.sid(), DENY_ACCESS).inspect_err(|_| unsafe {
         CloseHandle(port);
     })?;
     session.dns_port = port;
+    session.dns_pid = pid;
+    Ok(())
+}
+
+/// A restarted Dnscache recreates its port with the default ACL, which drops the deny entry.
+fn check_dns_client(session: &Session) -> Result<(), String> {
+    if session.dns_pid != 0 && dns_client_pid()? != session.dns_pid {
+        return Err(
+            "the Dnscache service restarted, so the run account's DNS deny is gone".to_owned(),
+        );
+    }
     Ok(())
 }
 
@@ -699,6 +740,7 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     let (environment, _) = environment(&parent, &user_defaults()?);
     let cwd = std::env::current_dir().map_err(|err| format!("cannot read the directory: {err}"))?;
     let cwd = wide(&cwd.to_string_lossy());
+    check_dns_client(session)?;
     let mut line = wide(&logon_command_line(&config.command)?);
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let created = unsafe {
@@ -732,10 +774,21 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     unsafe {
         ResumeThread(info.hThread);
         CloseHandle(info.hThread);
+    }
+    let mut outcome = Ok(());
+    while unsafe { WaitForSingleObject(info.hProcess, 1000) } == WAIT_TIMEOUT {
+        if let Err(err) = check_dns_client(session) {
+            unsafe { TerminateJobObject(session.job, 1) };
+            outcome = Err(err);
+            break;
+        }
+    }
+    unsafe {
         WaitForSingleObject(info.hProcess, INFINITE);
         GetExitCodeProcess(info.hProcess, &mut code);
         CloseHandle(info.hProcess);
     }
+    outcome?;
     Ok(code as i32)
 }
 
@@ -749,6 +802,7 @@ pub fn run(config: &Config) -> Result<i32, String> {
         acl_paths: Vec::new(),
         engine: null_mut(),
         dns_port: null_mut(),
+        dns_pid: 0,
     };
     let password = random_password()?;
     create_user(&mut session, &password)?;

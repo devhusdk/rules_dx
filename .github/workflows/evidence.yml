@@ -223,7 +223,7 @@ jobs:
           downloads=()
           # The determinism check reads outputs from the execution root, so only a plain run leaves them remote.
           [ "$DX_RELOCATE" = true ] || downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")
-          profile=("--profile=$RUNNER_TEMP/evidence/profile.gz" --noslim_profile)
+          profile=("--profile=$RUNNER_TEMP/evidence/profile.gz" --noslim_profile --experimental_profile_include_target_label --experimental_profile_include_primary_output)
           run_task() {
             log="$1"
             if [ "$DX_TASK" = "build" ]; then

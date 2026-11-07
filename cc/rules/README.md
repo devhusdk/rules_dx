@@ -113,4 +113,4 @@ msvc.license(accept = ["visual-studio-build-tools"])
 
 Any other host or target platform fails with a message that names the supported pair. There is no clang-cl fallback.
 
-The hermetic harness denies the preinstalled Visual Studio, Windows Kits and Microsoft SDKs directories when it qualifies an MSVC consumer, so a build that reaches them fails. `c_fixture_msvc` and `cpp_fixture_msvc` passed that way in [run 42260901323](https://github.com/devhusdk/rules_dx/actions/runs/42260901323).
+The hermetic harness denies the preinstalled Visual Studio, Windows Kits and Microsoft SDKs directories when it qualifies an MSVC consumer, so a build that reaches them fails. `c_fixture_msvc` and `cpp_fixture_msvc` passed that way in [run 42356052966](https://github.com/devhusdk/rules_dx/actions/runs/42356052966).

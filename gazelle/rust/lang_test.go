@@ -262,23 +262,23 @@ func TestGenerateMigratesUnitTestShape(t *testing.T) {
 }
 
 func TestSelfContainedUnitTestInheritsCrateAttrs(t *testing.T) {
-	setup := func(testData string) (*rule.File, []*rule.Rule) {
+	setup := func(testData []string) (*rule.File, []*rule.Rule) {
 		f := rule.EmptyFile("BUILD.bazel", "pkg")
 		lib := rule.NewRule(libraryKind, "demo")
 		lib.SetAttr("compile_data", []string{"data.txt"})
 		lib.SetAttr("rustc_env", map[string]string{"K": "v"})
 		lib.SetAttr("deps", []string{"//hand:dep"})
 		f.Rules = append(f.Rules, lib)
-		if testData != "" {
+		if testData != nil {
 			old := rule.NewRule(testKind, "demo_test")
-			old.SetAttr("compile_data", []string{testData})
+			old.SetAttr("compile_data", testData)
 			f.Rules = append(f.Rules, old)
 		}
 		gen := unitTestRule("demo_test", "demo", "demo", "pkg/src/lib.rs", map[string]*FileFacts{"pkg/src/lib.rs": {}}, "pkg", true)
 		wrapper := unitTestRule("demo_test", "demo", "demo", "pkg/src/lib.rs", nil, "pkg", false)
 		return f, []*rule.Rule{gen, wrapper}
 	}
-	f, gen := setup("")
+	f, gen := setup(nil)
 	deps, err := inheritCrateAttrs(f, gen)
 	if err != nil {
 		t.Fatal(err)
@@ -292,11 +292,18 @@ func TestSelfContainedUnitTestInheritsCrateAttrs(t *testing.T) {
 	if gen[1].Attr("compile_data") != nil {
 		t.Errorf("crate= wrapper got compile_data copied")
 	}
-	f, gen = setup("data.txt")
+	f, gen = setup([]string{"data.txt"})
 	if _, err := inheritCrateAttrs(f, gen); err != nil {
 		t.Errorf("equal value rejected: %v", err)
 	}
-	f, gen = setup("other.txt")
+	f, gen = setup([]string{"data.txt", "extra.txt"})
+	if _, err := inheritCrateAttrs(f, gen); err != nil {
+		t.Errorf("superset compile_data rejected: %v", err)
+	}
+	if gen[0].Attr("compile_data") != nil {
+		t.Errorf("superset compile_data overwritten with the crate's")
+	}
+	f, gen = setup([]string{"other.txt"})
 	if _, err := inheritCrateAttrs(f, gen); err == nil || !strings.Contains(err.Error(), "compile_data") {
 		t.Errorf("mismatch error = %v, want a compile_data error", err)
 	}

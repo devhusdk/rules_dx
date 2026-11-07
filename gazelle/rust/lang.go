@@ -582,6 +582,9 @@ func inheritCrateAttrs(file *rule.File, gen []*rule.Rule) (map[*rule.Rule][]stri
 			}
 			if old != nil {
 				if have := old.Attr(attr); have != nil {
+					if attr == "compile_data" && containsAll(have, value) {
+						continue
+					}
 					if bzl.FormatString(have) != bzl.FormatString(value) {
 						return nil, fmt.Errorf("rust: %s: unit test %s sets %s = %s but its crate %s sets %s; a self-contained unit test no longer inherits it, so make them equal",
 							file.Path, t.Name(), attr, bzl.FormatString(have), of, bzl.FormatString(value))
@@ -593,6 +596,41 @@ func inheritCrateAttrs(file *rule.File, gen []*rule.Rule) (map[*rule.Rule][]stri
 		}
 	}
 	return deps, nil
+}
+
+// containsAll reports whether both are plain string lists and have holds every
+// entry of want.
+func containsAll(have, want bzl.Expr) bool {
+	haveSet := map[string]bool{}
+	for _, s := range plainStrings(have) {
+		haveSet[s] = true
+	}
+	wantList := plainStrings(want)
+	if wantList == nil {
+		return false
+	}
+	for _, s := range wantList {
+		if !haveSet[s] {
+			return false
+		}
+	}
+	return true
+}
+
+func plainStrings(e bzl.Expr) []string {
+	list, ok := e.(*bzl.ListExpr)
+	if !ok {
+		return nil
+	}
+	out := []string{}
+	for _, item := range list.List {
+		str, ok := item.(*bzl.StringExpr)
+		if !ok {
+			return nil
+		}
+		out = append(out, str.Value)
+	}
+	return out
 }
 
 func init() { common.RegisterLanguage(NewLanguage) }

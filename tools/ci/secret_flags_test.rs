@@ -320,6 +320,7 @@ fn scan_finds_every_cache_secret() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn scan_follows_symlinks() {
     let step = named_step(SCAN_ACTION, SCAN_STEP);

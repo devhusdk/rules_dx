@@ -2,11 +2,11 @@ load("@aspect_rules_js//js:defs.bzl", "js_library")
 
 # A shim over the dev hub @dx_npm, so consumers that load this package fetch no npm repos.
 load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
-load("@rules_dx//quality:native_config.bzl", "buildifier_config", "rustfmt_config", "vale_config")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 
 # gazelle:dx_fixture_testonly true
+# gazelle:dx_native_tools buildifier taplo rustfmt
 # gazelle:resolve rust dx_adopt //cli/adopt:dx_adopt
 # gazelle:resolve rust dx_apply //cli/apply:dx_apply
 # gazelle:resolve rust dx_atomic_fs //cli/atomic_fs:dx_atomic_fs
@@ -408,22 +408,4 @@ real_source_target(
     name = "dotfile_toml",
     tags = ["corpus"],
     toml_srcs = [".gitleaks.toml"],
-)
-
-buildifier_config(
-    name = "buildifier_config",
-    src = ".buildifier.json",
-    visibility = ["//:__subpackages__"],
-)
-
-vale_config(
-    name = "vale_config",
-    src = ".vale.ini",
-    visibility = ["//:__subpackages__"],
-)
-
-rustfmt_config(
-    name = "rustfmt_config",
-    src = "rustfmt.toml",
-    visibility = ["//:__subpackages__"],
 )

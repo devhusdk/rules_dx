@@ -174,7 +174,7 @@ func planNativeConfig(c *config.Config, args language.GenerateArgs) (*nativePlan
 			plan.resolved[tool.id] = owned[0]
 			continue
 		}
-		if !selected[tool.id] || !present[tool.file] {
+		if !selected[tool.id] || !present[tool.file] || dxOwnsNative(c, args.Rel, tool) {
 			continue
 		}
 		r := rule.NewRule(tool.kind, name)
@@ -199,7 +199,7 @@ func planNativeConfig(c *config.Config, args language.GenerateArgs) (*nativePlan
 		if existing.AttrString("src") != tool.file {
 			continue
 		}
-		if selected[tool.id] && present[tool.file] {
+		if selected[tool.id] && present[tool.file] && !dxOwnsNative(c, args.Rel, tool) {
 			continue
 		}
 		plan.empty = append(plan.empty, rule.NewRule(tool.kind, name))
@@ -209,6 +209,10 @@ func planNativeConfig(c *config.Config, args language.GenerateArgs) (*nativePlan
 		}
 	}
 	return plan, nil
+}
+
+func dxOwnsNative(c *config.Config, rel string, tool nativeTool) bool {
+	return rel == "" && common.OwnsRootConfig(c, tool.id, tool.file)
 }
 
 func nativeVisibility(rel string) string {
@@ -246,7 +250,7 @@ func applyNativeHints(c *config.Config, rel string, r *rule.Rule, plan *nativePl
 			continue
 		}
 		name, ok := plan.resolved[tool.id]
-		if !ok || present[name] || (rel == "" && common.OwnsRootConfig(c, tool.id, tool.file)) {
+		if !ok || present[name] || dxOwnsNative(c, rel, tool) {
 			continue
 		}
 		additions = append(additions, ":"+name)

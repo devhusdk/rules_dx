@@ -782,3 +782,22 @@ func TestNativeOwnedKeepsHandWrittenHint(t *testing.T) {
 		t.Errorf("hints = %q, want hand-written hint kept", got)
 	}
 }
+
+func TestNativeOwnedConfigNotGenerated(t *testing.T) {
+	files := map[string]string{
+		".dx/BUILD.bazel":  rustfmtBinding,
+		"rustfmt.toml":     "edition = \"2021\"\n",
+		".buildifier.json": "{}\n",
+	}
+	_, result := runNativeGenerate(t, "", files, "")
+	if findGenerated(result, "rustfmt_config", "rustfmt_config") != nil {
+		t.Error("root rustfmt_config generated although .dx binds //:rustfmt.toml")
+	}
+	if findGenerated(result, "buildifier_config", "buildifier_config") == nil {
+		t.Error("unbound buildifier_config not generated")
+	}
+	_, stale := runNativeGenerate(t, "", files, "rustfmt_config(\n    name = \"rustfmt_config\",\n    src = \"rustfmt.toml\",\n)\n")
+	if !findEmpty(stale, "rustfmt_config", "rustfmt_config") {
+		t.Error("stale root rustfmt_config not removed although .dx binds //:rustfmt.toml")
+	}
+}

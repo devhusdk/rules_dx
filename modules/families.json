@@ -92,11 +92,9 @@
         "real_beam_typecheck_probe_aspect",
         "real_elixir_format_aspect",
         "real_elixir_lint_aspect",
-        "real_elixir_unused_aspect",
         "real_erlang_format_aspect",
         "real_erlang_lint_aspect",
-        "real_erlang_typecheck_aspect",
-        "real_erlang_unused_aspect"
+        "real_erlang_typecheck_aspect"
       ],
       "bazel_deps": [
         "bazel_skylib",
@@ -160,7 +158,6 @@
         "real_cc_lint_probe_aspect",
         "real_cc_typecheck_aspect",
         "real_cc_typecheck_probe_aspect",
-        "real_cc_unused_aspect",
         "real_cloudformation_lint_aspect",
         "real_cmake_format_aspect",
         "real_cmake_lint_aspect",
@@ -176,7 +173,6 @@
         "real_go_format_aspect",
         "real_go_lint_aspect",
         "real_go_typecheck_aspect",
-        "real_go_unused_aspect",
         "real_html_template_format_aspect",
         "real_html_template_lint_aspect",
         "real_jsonnet_format_aspect",
@@ -283,6 +279,7 @@
         "//cc/toolchains/msvc:repos.bzl%msvc",
         "//cc/toolchains:repos.bzl%gcc",
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
+        "//deploy/rules/pins:repos.bzl%japicmp",
         "//deploy/rules/pins:repos.bzl%semver_checks",
         "//dotnet:extensions.bzl%dotnet",
         "//dotnet:repos.bzl%dotnet_tools",
@@ -291,6 +288,7 @@
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//quality/artifacts:extension.bzl%dx_tools",
         "//third_party/dotnet:extension.bzl%paket",
+        "//tools/bazelrc:repos.bzl%bazel_version",
         "@apple_support//crosstool:setup.bzl%apple_cc_configure_extension",
         "@gazelle//:extensions.bzl%go_deps",
         "@llvm//extensions:osx.bzl%osx",
@@ -369,6 +367,7 @@
       "aspects": [],
       "bazel_deps": [
         "bazel_skylib",
+        "llvm",
         "platforms",
         "rules_cc",
         "rules_cuda",
@@ -609,8 +608,7 @@
         "real_js_lint_aspect",
         "real_js_lint_probe_aspect",
         "real_js_typecheck_aspect",
-        "real_js_typecheck_probe_aspect",
-        "real_js_unused_aspect"
+        "real_js_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "aspect_rules_jest",
@@ -834,8 +832,7 @@
         "real_php_lint_aspect",
         "real_php_lint_probe_aspect",
         "real_php_typecheck_aspect",
-        "real_php_typecheck_probe_aspect",
-        "real_php_unused_aspect"
+        "real_php_typecheck_probe_aspect"
       ],
       "bazel_deps": [],
       "dirs": [
@@ -892,8 +889,7 @@
         "real_python_lint_aspect",
         "real_python_lint_probe_aspect",
         "real_python_typecheck_aspect",
-        "real_python_typecheck_probe_aspect",
-        "real_python_unused_aspect"
+        "real_python_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "hermetic_launcher",
@@ -925,8 +921,7 @@
         "real_ruby_lint_aspect",
         "real_ruby_lint_probe_aspect",
         "real_ruby_typecheck_aspect",
-        "real_ruby_typecheck_probe_aspect",
-        "real_ruby_unused_aspect"
+        "real_ruby_typecheck_probe_aspect"
       ],
       "bazel_deps": [],
       "dirs": [

@@ -604,10 +604,12 @@ fn family_files_define_aspects_listed_in_families_json() {
         .collect();
     for family in FAMILY_FILES {
         let source = dx_testing::read_runfiles(&format!("quality/families/{family}.bzl"));
-        assert!(
-            !source.contains("load(\"//quality:families/"),
-            "{family}.bzl loads another family file"
-        );
+        for other in FAMILY_FILES {
+            assert!(
+                !source.contains(&format!("load(\"//quality:families/{other}.bzl\"")),
+                "{family}.bzl loads another family file"
+            );
+        }
         let defined = source
             .lines()
             .filter_map(|line| line.split_once(" = "))

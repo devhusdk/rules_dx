@@ -137,6 +137,7 @@ single_version_override(
         "//third_party/rules_dx:llvm.unwatched_overlay_inputs.patch",
         "//third_party/rules_dx:llvm.msvc_source_directories.patch",
         "//third_party/rules_dx:llvm.lse_atomic_sources.patch",
+        "//third_party/rules_dx:llvm.stage0_runtime_features.patch",
     ],
     version = "0.8.26",
 )

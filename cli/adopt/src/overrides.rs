@@ -338,6 +338,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "lse_atomic_sources.patch",
                 content: include_str!("../../../patches/llvm/lse_atomic_sources.patch"),
             },
+            OverridePatch {
+                file: "stage0_runtime_features.patch",
+                content: include_str!("../../../patches/llvm/stage0_runtime_features.patch"),
+            },
         ],
     },
     Override {

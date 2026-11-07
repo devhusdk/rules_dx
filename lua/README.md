@@ -137,15 +137,12 @@ calls, found with a Lua parser.
 Lua sources form the `lua` class, so `dx check` sees them. StyLua formats them
 when a `lua` family selects it.
 
-```python
-dx_generated_policy(
-    name = "policy",
-    families = {
-        "lua": {"format": ["stylua"]},
-    },
-    tier = "standard",
-)
+```toml
+[families.lua]
+format = ["stylua"]
 ```
+
+See the [config reference](../docs/cli/commands/config.md#dxtoml).
 
 StyLua never reads a `stylua.toml` or `.editorconfig` next to the sources. Bind
 a `stylua_config` from `@rules_dx//quality:native_config.bzl` to set indent

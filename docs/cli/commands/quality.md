@@ -94,8 +94,7 @@ Several targets that fix the same file apply identical fixes once. Fixes that di
 
 Pick the tier and the tools in `dx.toml` at the workspace root. dx writes
 `.dx/BUILD.bazel` from it, with the workspace policy and a config target for
-each root tool config. Never write a `dx_generated_policy` yourself, and never
-edit `.dx/`.
+each root tool config. Never edit `.dx/`; it is generated.
 
 ```toml
 schema_version = 1
@@ -343,19 +342,15 @@ Schema languages have no formatter, so `--apply` has nothing to fix for them.
 
 ### FlatBuffers
 
-Select `flatc` in a `flatbuffers` family of your policy. The family is opt-in.
+Select `flatc` in a `flatbuffers` family in `dx.toml`. The family is opt-in. See the [config reference](config.md#dxtoml).
+
+```toml
+[families.flatbuffers]
+lint = ["flatc"]
+```
 
 ```python
 load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
-load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
-
-dx_generated_policy(
-    name = "policy",
-    families = {
-        "flatbuffers": {"lint": ["flatc"]},
-    },
-    tier = "standard",
-)
 
 flatbuffers_library(
     name = "order",

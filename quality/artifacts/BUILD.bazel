@@ -88,3 +88,9 @@ alias(
     actual = "@dx_tools//:gitleaks",
     visibility = ["//visibility:public"],
 )
+
+alias(
+    name = "trivy",
+    actual = "@dx_tools//:trivy",
+    visibility = ["//visibility:public"],
+)

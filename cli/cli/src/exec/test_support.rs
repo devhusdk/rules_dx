@@ -125,6 +125,9 @@ pub(crate) struct ScriptQuery {
     /// Answers for the checkout and tracked-file queries of `dx coverage`, kept apart so
     /// they never consume the answers scripted for other git queries. Empty means not a work tree.
     pub(crate) checkout_git_outputs: RefCell<Vec<QueryResult>>,
+    /// Answers for the `dx security` image queries, kept apart so the other audit
+    /// queries keep their answers. Empty means no `oci_deploy` in scope.
+    pub(crate) images_outputs: RefCell<Vec<QueryResult>>,
 }
 
 impl ScriptQuery {
@@ -159,6 +162,14 @@ impl ScriptQuery {
     pub(crate) fn script_checkout_git(&self, code: i32, stdout: &str) {
         self.checkout_git_outputs.borrow_mut().push(QueryResult {
             code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+
+    pub(crate) fn script_images(&self, stdout: &str) {
+        self.images_outputs.borrow_mut().push(QueryResult {
+            code: Some(0),
             stdout: stdout.as_bytes().to_vec(),
             stderr: Vec::new(),
         });
@@ -207,8 +218,21 @@ impl QueryRunner for ScriptQuery {
             Some(path) => std::fs::read_to_string(path)?,
             None => argv.last().cloned().unwrap_or_default(),
         };
-        self.expressions.borrow_mut().push(expression);
+        self.expressions.borrow_mut().push(expression.clone());
         self.calls.borrow_mut().push(argv.to_vec());
+        if expression.contains("\"_oci_config\"")
+            || argv.iter().any(|arg| arg == "--output_groups=dx_oci_image")
+        {
+            let mut outputs = self.images_outputs.borrow_mut();
+            if outputs.is_empty() {
+                return Ok(QueryResult {
+                    code: Some(0),
+                    stdout: Vec::new(),
+                    stderr: Vec::new(),
+                });
+            }
+            return Ok(outputs.remove(0));
+        }
         let mut outputs = self.outputs.borrow_mut();
         if outputs.is_empty() {
             return Err(io::Error::other("unscripted query"));
@@ -278,6 +302,7 @@ impl Harness {
                 git_outputs: RefCell::new(Vec::new()),
                 git_calls: RefCell::new(Vec::new()),
                 checkout_git_outputs: RefCell::new(Vec::new()),
+                images_outputs: RefCell::new(Vec::new()),
             },
             intended: None,
             patch: None,

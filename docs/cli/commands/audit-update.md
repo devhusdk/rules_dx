@@ -103,6 +103,8 @@ expires = "2027-04-24"
 
 An `[[exception]]` needs `advisory`, `package`, `set`, `versions`, `reason` and `expires`. An `[[uncovered]]` entry needs `set`, `reason` and `expires`. An expired entry fails the run. An exception that matches no finding in its set fails the run. `versions` uses the set ecosystem's range syntax. Bad entries print as `<file>:<line>: <entry>: <problem>`.
 
+Images: when the scope holds `oci_deploy` targets, `dx security` builds each image and scans it with the pinned trivy (`DX_TRIVY`, else `@rules_dx//quality/artifacts:trivy`) against the trivy pin described under [Advisory Snapshots](#advisory-snapshots). It adds one line per image, such as `image //app:image: 0 critical, 2 high, 0 medium, 0 low`, and each finding has the rule `trivy/<advisory>`. Critical and high findings are errors, medium findings are warnings and low findings are info; `--fail-on` decides which of them fail the run. An `[[exception]]` covers an image finding when `set` is `oci` or a label pattern that matches the `oci_deploy` target, such as `//app/...`. With no `oci_deploy` in scope nothing is built and the output does not change. Under `--offline`, a trivy pin that is not cached fails the run with `advisory_refresh_failed`.
+
 ### License
 
 `dx license` reads `licenses.toml` from the workspace root. Without it every scope is distributed and only `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC` and `Unlicense` pass. `schema_version` is `1`. An unknown key fails the run.

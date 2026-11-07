@@ -1227,4 +1227,130 @@ source = { registry = "https://pypi.org/simple" }
         assert!(out.contains("vuln/HSEC-2026-0001"), "{out}");
         assert!(out.contains("hs/cabal.project.freeze"), "{out}");
     }
+
+    const DEBIAN_REPORT: &str = r#"{"SchemaVersion":2,"ArtifactType":"container_image","Results":[
+        {"Target":"layout (debian 11.6)","Class":"os-pkgs","Type":"debian","Vulnerabilities":[
+        {"VulnerabilityID":"CVE-2022-3602","PkgName":"libssl1.1","InstalledVersion":"1.1.1n-0+deb11u3","FixedVersion":"1.1.1n-0+deb11u4","Severity":"HIGH"},
+        {"VulnerabilityID":"CVE-2023-0286","PkgName":"libssl1.1","InstalledVersion":"1.1.1n-0+deb11u3","FixedVersion":"1.1.1n-0+deb11u4","Severity":"HIGH"}]}]}"#;
+
+    const MEDIUM_REPORT: &str = r#"{"Results":[{"Vulnerabilities":[
+        {"VulnerabilityID":"CVE-2024-0003","PkgName":"zlib1g","InstalledVersion":"1.2.11","Severity":"MEDIUM"}]}]}"#;
+
+    /// Runs `dx security` on a workspace with one `oci_deploy` image, `//app:image`.
+    fn audit_image(
+        name: &str,
+        report: &str,
+        security: Option<&str>,
+        extra: &[&str],
+    ) -> (i32, String, AuditRunner, Harness) {
+        let harness = consumer_harness(name, UV_MODULE, true);
+        write_advisory(&harness, "pypi", NO_ADVISORIES);
+        if let Some(text) = security {
+            harness.write_source("security.toml", text);
+        }
+        harness.query.script_images("//app:image_config\n");
+        harness
+            .query
+            .script_images("bazel-out/k8-fastbuild/bin/app/image.tar\n");
+        harness
+            .query
+            .script_info(&harness.temp.join("execroot").to_string_lossy());
+        let runner = AuditRunner {
+            trivy_report: Some(report.to_owned()),
+            ..clean_runner()
+        };
+        let mut argv = vec!["security"];
+        argv.extend_from_slice(extra);
+        let (code, out, err) = run_with(&argv, &runner, &harness);
+        (code, format!("{out}{err}"), runner, harness)
+    }
+
+    #[test]
+    fn consumer_security_prints_one_row_per_image_and_fails_on_high() {
+        let (code, out, runner, harness) = audit_image("image-row", DEBIAN_REPORT, None, &[]);
+        assert_eq!(code, 1, "{out}");
+        assert!(
+            out.contains("image //app:image: 0 critical, 2 high, 0 medium, 0 low"),
+            "{out}"
+        );
+        let calls = runner.calls.borrow();
+        let build = calls
+            .iter()
+            .find(|argv| argv.iter().any(|arg| arg == "build"))
+            .expect("build");
+        assert!(
+            build
+                .iter()
+                .any(|arg| arg == "--output_groups=dx_oci_image")
+        );
+        assert!(build.iter().any(|arg| arg == "//app:image_config"));
+        let trivy = calls
+            .iter()
+            .find(|argv| argv[0] == super::super::audit_live::hermetic_trivy())
+            .expect("trivy");
+        let image = trivy.last().expect("image");
+        assert!(
+            image.ends_with("image.tar") && image.contains("execroot"),
+            "{trivy:?}"
+        );
+        let expressions = harness.query.expressions.borrow();
+        assert!(
+            expressions
+                .iter()
+                .any(|expression| expression == "kind(\"_oci_config\", //...)"),
+            "{expressions:?}"
+        );
+    }
+
+    #[test]
+    fn consumer_image_findings_below_fail_on_pass() {
+        let (code, out, _, _) = audit_image("image-medium", MEDIUM_REPORT, None, &[]);
+        assert_eq!(code, 1, "{out}");
+        let (code, out, _, _) =
+            audit_image("image-fail-on", MEDIUM_REPORT, None, &["--fail-on=error"]);
+        assert_eq!(code, 0, "{out}");
+        assert!(
+            out.contains("image //app:image: 0 critical, 0 high, 1 medium, 0 low"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn consumer_a_label_pattern_exception_covers_image_findings() {
+        let entry = |advisory: &str| {
+            format!(
+                "[[exception]]\nadvisory = \"{advisory}\"\npackage = \"libssl1.1\"\nset = \"//app/...\"\nversions = \"*\"\nreason = \"base image\"\nexpires = \"2999-01-01\"\n"
+            )
+        };
+        let security = format!(
+            "schema_version = 1\n{}{}",
+            entry("CVE-2022-3602"),
+            entry("CVE-2023-0286")
+        );
+        let (code, out, _, _) = audit_image("image-excepted", DEBIAN_REPORT, Some(&security), &[]);
+        assert_eq!(code, 0, "{out}");
+        assert!(
+            out.contains("image //app:image: 0 critical, 0 high, 0 medium, 0 low"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn consumer_without_oci_deploy_builds_nothing() {
+        let harness = consumer_harness("no-image", UV_MODULE, true);
+        write_advisory(&harness, "pypi", NO_ADVISORIES);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["security"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("image"), "{out}");
+        assert!(
+            !runner
+                .calls
+                .borrow()
+                .iter()
+                .any(|argv| argv.iter().any(|arg| arg == "build")),
+            "{:?}",
+            runner.calls.borrow()
+        );
+    }
 }

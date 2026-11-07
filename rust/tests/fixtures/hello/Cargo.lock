@@ -1529,6 +1529,7 @@ version = "0.0.0"
 dependencies = [
  "cargo-lock",
  "chrono",
+ "flate2",
  "jsonschema",
  "mvn_version",
  "nodejs-semver",
@@ -1542,6 +1543,7 @@ dependencies = [
  "serde-sarif",
  "serde_json",
  "spdx",
+ "tar",
  "tempfile",
  "thiserror 2.0.20",
  "toml",

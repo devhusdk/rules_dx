@@ -1043,12 +1043,16 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
     assert_eq!(value["version"], serde_json::json!("2.1.0"));
     let runs = value["runs"].as_array().expect("runs");
-    assert_eq!(runs.len(), 2, "{value}");
+    assert_eq!(runs.len(), 3, "{value}");
     assert_eq!(
         runs[0]["tool"]["driver"]["name"],
         serde_json::json!("gitleaks")
     );
-    assert_eq!(runs[1]["tool"]["driver"]["name"], serde_json::json!("vuln"));
+    assert_eq!(
+        runs[1]["tool"]["driver"]["name"],
+        serde_json::json!("trivy")
+    );
+    assert_eq!(runs[2]["tool"]["driver"]["name"], serde_json::json!("vuln"));
     for run in runs {
         assert_eq!(run["results"], serde_json::json!([]), "{value}");
         assert!(run.get("invocations").is_none(), "complete: {value}");
@@ -1080,12 +1084,16 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
     let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
     assert_eq!(value["version"], serde_json::json!("2.1.0"));
     let runs = value["runs"].as_array().expect("runs");
-    assert_eq!(runs.len(), 2, "{value}");
+    assert_eq!(runs.len(), 3, "{value}");
     assert_eq!(
         runs[0]["tool"]["driver"]["name"],
         serde_json::json!("gitleaks")
     );
-    assert_eq!(runs[1]["tool"]["driver"]["name"], serde_json::json!("vuln"));
+    assert_eq!(
+        runs[1]["tool"]["driver"]["name"],
+        serde_json::json!("trivy")
+    );
+    assert_eq!(runs[2]["tool"]["driver"]["name"], serde_json::json!("vuln"));
     let gitleaks_results = runs[0]["results"].as_array().expect("results");
     assert_eq!(gitleaks_results.len(), 1, "{value}");
     assert_eq!(

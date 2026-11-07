@@ -14,12 +14,23 @@ pub(super) fn hermetic_gitleaks() -> String {
     }
 }
 
+/// Returns the pinned trivy path the fakes hand to the image scan.
+pub(super) fn hermetic_trivy() -> String {
+    if cfg!(windows) {
+        r"C:\hermetic\trivy.exe".to_owned()
+    } else {
+        "/hermetic/trivy".to_owned()
+    }
+}
+
 pub(super) struct AuditRunner {
     pub(super) calls: Rc<RefCell<Vec<Vec<String>>>>,
     #[allow(clippy::type_complexity)]
     pub(super) envs: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(super) code: Option<i32>,
     pub(super) sarif: Option<String>,
+    /// The JSON report the fake trivy writes; set, `DX_TRIVY` names the fake.
+    pub(super) trivy_report: Option<String>,
 }
 
 impl AuditRunner {
@@ -29,6 +40,7 @@ impl AuditRunner {
             envs: Rc::new(RefCell::new(Vec::new())),
             code: Some(0),
             sarif: None,
+            trivy_report: None,
         }
     }
 
@@ -38,6 +50,7 @@ impl AuditRunner {
             envs: Rc::new(RefCell::new(Vec::new())),
             code,
             sarif: Some(sarif.to_owned()),
+            trivy_report: None,
         }
     }
 }
@@ -55,6 +68,15 @@ impl Runner for AuditRunner {
                 if arg == "--report-path" {
                     if let Some(path) = argv.get(index + 1) {
                         let _ = std::fs::write(path, sarif.as_bytes());
+                    }
+                }
+            }
+        }
+        if let Some(report) = &self.trivy_report {
+            for (index, arg) in argv.iter().enumerate() {
+                if arg == "--output" {
+                    if let Some(path) = argv.get(index + 1) {
+                        let _ = std::fs::write(path, report.as_bytes());
                     }
                 }
             }
@@ -77,6 +99,8 @@ impl Runner for AuditRunner {
     fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
         if var == dx_audit::secrets::TOOL_ENV_VAR {
             dx_process::PinnedVar::Path(std::path::PathBuf::from(hermetic_gitleaks()))
+        } else if var == "DX_TRIVY" && self.trivy_report.is_some() {
+            dx_process::PinnedVar::Path(std::path::PathBuf::from(hermetic_trivy()))
         } else {
             dx_process::PinnedVar::Unset
         }
@@ -506,7 +530,16 @@ fn run_unpinned(
     write_all_lock_families_with_advisories(&harness);
     setup(&harness);
     let (code, out, err) = harness.execute_with(&invocation, runner);
-    let calls = harness.query.calls.borrow().clone();
+    let expressions = harness.query.expressions.borrow();
+    let calls = harness
+        .query
+        .calls
+        .borrow()
+        .iter()
+        .zip(expressions.iter())
+        .filter(|(_, expression)| !expression.contains("_oci_config"))
+        .map(|(call, _)| call.clone())
+        .collect();
     let info_calls = harness.query.info_calls.borrow().clone();
     (code, out, err, calls, info_calls)
 }

@@ -1045,6 +1045,8 @@ struct SecurityInputs<'a> {
     pid: u32,
     nonce: u64,
     sets: &'a [AuditTarget<'a>],
+    scopes: &'a [String],
+    excludes: &'a [String],
     fail_on: Threshold,
     unowned: &'a [audit_uncovered::UnownedLock],
     today: &'a str,
@@ -1170,6 +1172,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         pid,
         nonce,
         sets,
+        scopes,
+        excludes,
         fail_on,
         unowned,
         today,
@@ -1416,6 +1420,25 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         vuln_findings_all.extend(unexempted);
         unassessed_all.extend(unassessed);
     }
+    let images = audit_images::run_images(&audit_images::ImagesInputs {
+        workspace,
+        runner,
+        bazel: &bazel,
+        temp_dir,
+        pid,
+        nonce,
+        scopes,
+        excludes,
+        policy: &policy,
+        exceptions: &live_exceptions,
+        fail_on,
+        today,
+        offline,
+    });
+    diagnostics.extend(images.diagnostics);
+    if incomplete.is_none() {
+        incomplete = images.incomplete;
+    }
     let mut unowned_count = 0;
     for lock in unowned {
         if accepted_uncovered.contains(&lock.path.as_str()) {
@@ -1431,9 +1454,14 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let failing_unowned =
         dx_output::meets_threshold(Severity::Warning, fail_on) && unowned_count > 0;
     let failing_secrets = !secret_findings.is_empty();
-    let failing_vuln = vuln_findings_all.iter().any(|finding| {
-        policy.fails_on(finding.kind) && meets_audit_threshold(finding.level, fail_on)
-    });
+    let failing_vuln_count = vuln_findings_all
+        .iter()
+        .filter(|finding| {
+            policy.fails_on(finding.kind) && meets_audit_threshold(finding.level, fail_on)
+        })
+        .count()
+        + images.failing;
+    let failing_vuln = failing_vuln_count > 0;
     let has_incomplete = incomplete.is_some() || !unassessed_all.is_empty();
     let status = if has_incomplete {
         dx_audit::outcome::FamilyStatus::Incomplete
@@ -1450,18 +1478,17 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         format!(
             "{} secret findings, {} vulnerability findings, {} lock files without a dependency set",
             secret_findings.len(),
-            vuln_findings_all
-                .iter()
-                .filter(|finding| {
-                    policy.fails_on(finding.kind) && meets_audit_threshold(finding.level, fail_on)
-                })
-                .count(),
+            failing_vuln_count,
             if failing_unowned { unowned_count } else { 0 }
         )
     } else {
         "clean".to_owned()
     };
-    let detail = coverage_detail(base_detail, &uncovered);
+    let mut detail = coverage_detail(base_detail, &uncovered);
+    for row in &images.rows {
+        detail.push_str("; ");
+        detail.push_str(row);
+    }
     SecurityResult {
         status,
         diagnostics,
@@ -1643,6 +1670,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     pid,
                     nonce,
                     sets: &sets,
+                    scopes: &effective,
+                    excludes: &excludes,
                     fail_on: invocation.fail_on,
                     unowned: &unowned,
                     today: &today,
@@ -1664,6 +1693,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     ));
                 }
                 sarif_tools.insert("gitleaks".to_owned());
+                sarif_tools.insert("trivy".to_owned());
                 sarif_tools.insert("vuln".to_owned());
                 diagnostics.extend(result.diagnostics.clone());
                 if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
@@ -1999,6 +2029,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[path = "audit_accept.rs"]
 mod audit_accept;
 use audit_accept::*;
+#[path = "audit_images.rs"]
+mod audit_images;
 #[path = "audit_license.rs"]
 mod audit_license;
 use audit_license::*;

@@ -24,6 +24,7 @@ pub mod backend;
 pub mod config_schema;
 pub mod curator;
 pub mod exception;
+pub mod image_scan;
 pub mod license_expr;
 pub mod license_notice;
 pub mod license_policy;

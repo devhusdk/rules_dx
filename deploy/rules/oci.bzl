@@ -149,7 +149,9 @@ def _oci_config_impl(ctx):
     if ctx.file.sbom:
         files.append(ctx.file.sbom)
         fields["sbom_rloc"] = rlocation_path(ctx, ctx.file.sbom)
-    return deploy_config(ctx, "oci", fields, ctx.runfiles(files = files))
+    return deploy_config(ctx, "oci", fields, ctx.runfiles(files = files)) + [
+        OutputGroupInfo(dx_oci_image = depset([tar_file])),
+    ]
 
 _oci_config = rule(
     implementation = _oci_config_impl,
@@ -196,7 +198,7 @@ _oci_config = rule(
 )
 
 def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release", size_budget = "", sbom = None, scan = "fail", scan_severity = "HIGH"):
-    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push."""
+    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push. `dx security` scans the same image (output group dx_oci_image of the `<name>_config` target) and prints one row per image."""
     effective_repo = repository if repository != "" else name
     budget_error = size_budget_error(size_budget)
     if budget_error != "":

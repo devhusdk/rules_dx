@@ -1,5 +1,5 @@
 {
-  "checksum": "2c8dac1c5d8c7c87cdc60921d3275a46c798e6a12e43975184354aa4e6b49521",
+  "checksum": "6fee98e42ebec8e998a1a5419e898bb5b2df1b649d195452a31cb99ac5d37a23",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7098,6 +7098,10 @@
             "target": "chrono"
           },
           {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
             "id": "mvn_version 0.1.0",
             "target": "mvn_version"
           },
@@ -7144,6 +7148,10 @@
           {
             "id": "spdx 0.13.5",
             "target": "spdx"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
           },
           {
             "id": "thiserror 2.0.20",

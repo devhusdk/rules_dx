@@ -49,6 +49,7 @@ dx_generated_policy(
         "ruff": "@rules_dx//quality/tiers/ruff:standard",
         "rustfmt": "@rules_dx//quality/tiers/rustfmt:standard",
         "ty": "@rules_dx//quality/tiers/ty:standard",
+        "yamllint": "@rules_dx//quality/tiers/yamllint:standard",
     },
     configs = [
         ":biome",
@@ -395,6 +396,7 @@ dx_generated_policy(
             ],
             "format": ["yamlfmt"],
             "lint": ["yamllint"],
+            "profile": "standard",
         },
         "zig": {
             "disabled": [

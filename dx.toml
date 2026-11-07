@@ -7,3 +7,7 @@ tier = "standard"
 
 [families.rust]
 tier = "standard"
+
+# Strict yamllint wants sorted keys and quoted strings across every workflow and config.
+[families.yaml]
+tier = "standard"

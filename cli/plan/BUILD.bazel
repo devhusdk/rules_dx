@@ -13,13 +13,13 @@ rust_library(
     name = "dx_plan",
     srcs = [
         "src/args.rs",
+        "src/args/build_mode.rs",
         "src/args/command.rs",
         "src/args/completion.rs",
         "src/args/grammar.rs",
         "src/args/help.rs",
         "src/args/invocation.rs",
         "src/args/parser.rs",
-        "src/args/build_mode.rs",
         "src/args/tokenizer.rs",
         "src/disk.rs",
         "src/finalize.rs",
@@ -105,9 +105,11 @@ rust_library(
 
 rust_test(
     name = "dx_plan_test",
+    size = "small",
     srcs = [
         "src/args.rs",
         "src/args/affected_tests.rs",
+        "src/args/build_mode.rs",
         "src/args/command.rs",
         "src/args/completion.rs",
         "src/args/defaults_tests.rs",
@@ -117,7 +119,6 @@ rust_test(
         "src/args/parser.rs",
         "src/args/parser_commands.rs",
         "src/args/parser_core.rs",
-        "src/args/profile.rs",
         "src/args/strict_tests.rs",
         "src/args/tokenizer.rs",
         "src/args/tutorial_tests.rs",

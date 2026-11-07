@@ -26,6 +26,7 @@ rust_library(
 
 rust_test(
     name = "dx_diff_test",
+    size = "small",
     aliases = aliases(
         package_name = "cli/dx_diff",
         normal = True,

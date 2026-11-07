@@ -31,6 +31,7 @@ rust_library(
 
 rust_test(
     name = "dx_env_plan_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",

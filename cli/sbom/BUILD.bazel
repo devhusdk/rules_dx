@@ -29,6 +29,7 @@ rust_library(
 
 rust_test(
     name = "dx_sbom_test",
+    size = "small",
     srcs = [
         "src/cyclonedx.rs",
         "src/lib.rs",

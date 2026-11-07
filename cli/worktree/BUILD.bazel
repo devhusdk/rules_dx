@@ -44,6 +44,7 @@ rust_library(
 
 rust_test(
     name = "dx_worktree_test",
+    size = "small",
     srcs = [
         "src/cache.rs",
         "src/disk.rs",

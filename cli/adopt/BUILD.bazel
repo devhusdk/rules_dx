@@ -26,9 +26,9 @@ rust_library(
         "src/preflight.rs",
         "src/preset.rs",
         "src/preset_fragment.rs",
+        "src/rule_keys.rs",
         "src/scaffold.rs",
         "src/status.rs",
-        "src/rule_keys.rs",
         "src/upgrade.rs",
         "src/version.rs",
         "src/watch.rs",
@@ -117,6 +117,7 @@ rust_library(
 
 rust_test(
     name = "dx_adopt_test",
+    size = "small",
     srcs = [
         "src/build_output.rs",
         "src/defaults.rs",
@@ -137,6 +138,7 @@ rust_test(
         "src/preflight.rs",
         "src/preset.rs",
         "src/preset_fragment.rs",
+        "src/rule_keys.rs",
         "src/scaffold.rs",
         "src/status.rs",
         "src/upgrade.rs",
@@ -150,6 +152,8 @@ rust_test(
     ),
     compile_data = [
         "//quality/tiers:all",
+        "//quality/tiers/gopls:gopls_standard.json",
+        "//quality/tiers/gopls:gopls_strict.json",
         "//.github:workflows/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//modules:consumer_graph.json",
@@ -175,6 +179,7 @@ rust_test(
         "//patches/rules_cuda:redist_cccl_key.patch",
         "//patches/rules_flutter:lock_extension.patch",
         "//patches/rules_flutter:missing_font.patch",
+        "//patches/rules_flutter:registrant_javacopts.patch",
         "//patches/rules_julia:package_annotation_version.patch",
         "//patches/rules_julia:package_name.patch",
         "//patches/rules_julia:portable_cpu_target.patch",
@@ -225,6 +230,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/dx_config",
         "//cli/generate:dx_generate",
         "//cli/ide:dx_ide",
         "//cli/merge:dx_merge",

@@ -28,6 +28,7 @@ rust_library(
 
 rust_test(
     name = "dx_fingerprint_test",
+    size = "small",
     aliases = aliases(
         package_name = "cli/dx_fingerprint",
         normal = True,

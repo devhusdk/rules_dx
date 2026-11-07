@@ -36,6 +36,7 @@ rust_library(
 
 rust_test(
     name = "dx_bep_test",
+    size = "small",
     aliases = aliases(
         package_name = "cli/dx_bep",
         normal = True,

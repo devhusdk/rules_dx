@@ -51,6 +51,7 @@ rust_library(
 
 rust_test(
     name = "dx_generate_test",
+    size = "small",
     srcs = [
         "src/lib.rs",
         "src/references.rs",

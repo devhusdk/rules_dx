@@ -43,6 +43,7 @@ rust_library(
 
 rust_test(
     name = "dx_process_test",
+    size = "small",
     srcs = [
         "src/bazel_sh.rs",
         "src/bazel_sh_tests.rs",

@@ -83,6 +83,7 @@ rust_library(
 
 rust_test(
     name = "dx_update_test",
+    size = "small",
     srcs = [
         "src/accept.rs",
         "src/advisory.rs",

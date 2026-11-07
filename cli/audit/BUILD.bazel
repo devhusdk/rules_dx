@@ -101,6 +101,7 @@ rust_library(
 
 rust_test(
     name = "dx_audit_test",
+    size = "small",
     srcs = [
         "src/advisory.rs",
         "src/advisory_prep.rs",

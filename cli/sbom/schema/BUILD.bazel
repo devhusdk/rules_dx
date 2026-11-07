@@ -45,6 +45,7 @@ rust_library(
 
 rust_test(
     name = "dx_sbom_schema_test",
+    size = "small",
     testonly = True,
     srcs = [
         "src/lib.rs",

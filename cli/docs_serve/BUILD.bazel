@@ -21,6 +21,7 @@ rust_library(
 
 rust_test(
     name = "dx_docs_serve_test",
+    size = "small",
     aliases = aliases(
         package_name = "cli/dx_docs_serve",
         normal = True,

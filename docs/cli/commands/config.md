@@ -11,17 +11,18 @@ In every table, a key without a default is required. Dates are `YYYY-MM-DD`.
 
 ## `dx config`
 
-Reads only. Shows which config file each tool reads and how it relates to the base dx renders under `.dx/config/`.
+Shows which config file each tool reads and how it relates to the base dx renders under `.dx/config/`.
 
 ```sh
 tools/dx config
 tools/dx config hlint
 tools/dx config diff hlint
+tools/dx config override hlint
 tools/dx config --output json
 ```
 
 ```text
-dx config [<tool> | diff <tool>] [--output text|json]
+dx config [<tool> | diff <tool> | override <tool>] [--output text|json]
 ```
 
 | Form | What it prints |
@@ -29,6 +30,7 @@ dx config [<tool> | diff <tool>] [--output text|json]
 | `dx config` | One line per selected tool: the tool, its root file (`-` when the workspace has none), then `extends <base>`, `override of <base>` or `tier base <base>` when the tool runs on the base itself. `edited` follows when the root file starts with a `dx: override of base <sha>` comment. |
 | `dx config <tool>` | Every file the tool reads, in order: the root file when there is one, then the base. |
 | `dx config diff <tool>` | A unified diff from the current base to the root file. Fails when the tool has no root file. |
+| `dx config override <tool>` | Copies the base to the tool's root file and starts it with a `dx: override of base <git blob sha>` comment. Refuses when the tool has an extends line (it prints the line to add instead) or when the root file already exists. The only form that writes. |
 
 ```text
 ruff  ruff.toml  extends .dx/config/ruff/base.toml  edited

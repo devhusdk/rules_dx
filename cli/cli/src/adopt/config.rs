@@ -140,6 +140,62 @@ fn diff(workspace: &Path, entry: &Entry) -> Result<String, String> {
     .map_err(|error| error.to_string())
 }
 
+fn tool_config(tool: &str) -> Result<&'static ToolConfig, String> {
+    TOOL_CONFIGS
+        .iter()
+        .find(|config| config.id == tool && dx_generate::base_path(config).is_some())
+        .ok_or_else(|| format!("unknown tool {tool:?}: it has no dx-owned base to override"))
+}
+
+fn blob_sha(workspace: &Path, base: &str) -> Result<String, String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(workspace)
+        .args(["hash-object", "--", base])
+        .output()
+        .map_err(|error| format!("cannot run git hash-object: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "git hash-object {base} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+}
+
+/// Copies the base to the tool's root file behind a `dx: override of base <sha>` comment and
+/// returns the file written.
+fn override_tool(workspace: &Path, tool: &str) -> Result<String, String> {
+    let config = tool_config(tool)?;
+    let base = dx_generate::base_path(config).ok_or("no base")?;
+    if !config.extends_syntax.is_empty() {
+        let line = config.extends_syntax.replace("{base}", &base);
+        return Err(format!(
+            "{tool} extends its base, so add this to its root file instead of copying the base:\n{line}"
+        ));
+    }
+    if let Some(root) = dx_generate::root_file(config, &root_names(workspace)) {
+        return Err(format!(
+            "{root} already exists and {tool} cannot extend the base; remove it first to override again"
+        ));
+    }
+    let name = config
+        .files
+        .iter()
+        .find(|name| !name.contains('*'))
+        .ok_or_else(|| format!("{tool} has no root file name to write"))?;
+    if config.comment.is_empty() {
+        return Err(format!("{tool} files take no comment, so no header can be written"));
+    }
+    let text = std::fs::read_to_string(workspace.join(&base))
+        .map_err(|error| format!("cannot read {base}: {error}; run dx sync"))?;
+    let sha = blob_sha(workspace, &base)?;
+    let header = format!("{} dx: override of base {sha}\n", config.comment);
+    std::fs::write(workspace.join(name), format!("{header}{text}"))
+        .map_err(|error| format!("cannot write {name}: {error}"))?;
+    Ok((*name).to_owned())
+}
+
 fn emit_files(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -175,6 +231,10 @@ pub(super) fn execute_config(
     let result = match words.as_slice() {
         ["diff", tool] => match one(workspace, tool).and_then(|entry| diff(workspace, &entry)) {
             Ok(patch) => check_stdout_write(write!(out, "{patch}")),
+            Err(message) => return fail(out, err, &message),
+        },
+        ["override", tool] => match override_tool(workspace, tool) {
+            Ok(name) => check_stdout_write(writeln!(out, "{name}")),
             Err(message) => return fail(out, err, &message),
         },
         [tool] => match one(workspace, tool) {
@@ -313,6 +373,45 @@ mod tests {
         assert_eq!(code, 0);
         assert!(out.contains("-- warn: {name: x}\n"), "{out}");
         assert!(out.contains("+- warn: {name: y}\n"), "{out}");
+    }
+
+    #[test]
+    fn override_copies_the_base_behind_a_header() {
+        let scratch = workspace(FILES);
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(scratch.path())
+                .args(args)
+                .output()
+                .expect("git")
+        };
+        git(&["init", "-q"]);
+        let (code, out) = run(scratch.path(), &["config", "override", "hlint"]);
+        assert_eq!(code, 0, "{out}");
+        let sha = String::from_utf8(git(&["hash-object", ".dx/config/hlint/base.yaml"]).stdout)
+            .expect("utf8");
+        let text = std::fs::read_to_string(scratch.path().join(".hlint.yaml")).expect("root");
+        assert_eq!(
+            text,
+            format!("# dx: override of base {}\n- warn: {{name: x}}\n", sha.trim())
+        );
+        assert_eq!(
+            dx_adopt::ownership::override_base(&text),
+            Some(sha.trim())
+        );
+        assert_ne!(run(scratch.path(), &["config", "override", "hlint"]).0, 0);
+    }
+
+    #[test]
+    fn override_refuses_a_tool_that_extends_its_base() {
+        let scratch = workspace(FILES);
+        let (code, _) = run(scratch.path(), &["config", "override", "ruff"]);
+        assert_ne!(code, 0);
+        assert_eq!(
+            std::fs::read_to_string(scratch.path().join("ruff.toml")).expect("root"),
+            "extend = \".dx/config/ruff/base.toml\"\n"
+        );
     }
 
     #[test]

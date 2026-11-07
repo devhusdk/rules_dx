@@ -268,7 +268,7 @@ cc_toolchain_test(
         "block-network",
         "no-remote-exec",
     ],
-    target_compatible_with = _WINDOWS_X86_64,
+    target_compatible_with = ["@platforms//os:windows"],
     test = ":qt_test",
 )
 
@@ -276,7 +276,7 @@ cc_toolchain_test(
     name = "gui_test_msvc",
     compiler = "msvc",
     tags = ["no-remote-exec"],
-    target_compatible_with = _WINDOWS_X86_64,
+    target_compatible_with = ["@platforms//os:windows"],
     test = ":gui_test",
 )
 

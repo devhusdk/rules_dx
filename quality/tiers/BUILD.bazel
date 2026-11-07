@@ -112,24 +112,24 @@ real_source_target(
 
 real_source_target(
     name = "corpus_javascript",
-    javascript_srcs = tier_labels(TIER_JAVASCRIPT),  # keep
+    javascript_srcs = tier_labels(TIER_JAVASCRIPT),
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_json",
-    json_srcs = tier_labels(TIER_JSON),  # keep
+    json_srcs = tier_labels(TIER_JSON),
 )
 
 real_source_target(
     name = "corpus_toml",
-    toml_srcs = tier_labels([path for path in TIER_TOML if path not in TYPOS_UNSAFE]),  # keep
+    toml_srcs = tier_labels([path for path in TIER_TOML if path not in TYPOS_UNSAFE]),
 )
 
 real_source_target(
     name = "corpus_yaml",
     tags = ["corpus"],
-    yaml_srcs = tier_labels(TIER_YAML),  # keep
+    yaml_srcs = tier_labels(TIER_YAML),
 )
 
 _CORPORA = [

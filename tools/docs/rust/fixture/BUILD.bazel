@@ -12,7 +12,6 @@ exports_files([
     "src/shapes.rs",
 ], visibility = VIS_TOOLS)
 
-# keep
 cargo_build_script(
     name = "docs_fixture_build_script",
     srcs = ["build.rs"],
@@ -22,7 +21,6 @@ cargo_build_script(
     version = "1.0.0",
 )
 
-# keep
 rust_library(
     name = "docs_fixture",
     srcs = [
@@ -35,7 +33,6 @@ rust_library(
     deps = [":docs_fixture_build_script"],
 )
 
-# keep
 rust_library(
     name = "docs_fixture_changed",
     srcs = [
@@ -48,20 +45,17 @@ rust_library(
     deps = [":docs_fixture_build_script"],
 )
 
-# keep
 rust_test(
     name = "docs_fixture_test",
     crate = ":docs_fixture",
     tags = ["manual"],
 )
 
-# keep
 rust_lint_config(
     name = "docs_fixture_lints",
     rustdoc = {"broken_intra_doc_links": "warn"},
 )
 
-# keep
 upstream_rust_library(
     name = "docs_fixture_lints_upstream",
     srcs = ["src/lib.rs", "src/shapes.rs"],
@@ -70,7 +64,6 @@ upstream_rust_library(
     lint_config = ":docs_fixture_lints",
 )
 
-# keep
 rust_library(
     name = "docs_fixture_lints_dx",
     srcs = ["src/lib.rs", "src/shapes.rs"],

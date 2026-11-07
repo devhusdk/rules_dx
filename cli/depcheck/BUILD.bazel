@@ -119,7 +119,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "depcheck_bin_test",
     crate = ":depcheck",
@@ -138,7 +137,6 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-# keep
 rust_test(
     name = "repo_locks_test",
     srcs = ["repo_locks_test.rs"],
@@ -181,7 +179,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "adopt_locks_test",
     srcs = ["adopt_locks_test.rs"],
@@ -239,7 +236,6 @@ rust_test(
     ],
 )
 
-# keep
 [
     filegroup(
         name = eco + "_testdata",

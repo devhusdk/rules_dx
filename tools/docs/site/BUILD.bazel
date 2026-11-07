@@ -97,7 +97,6 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-# keep
 rust_test(
     name = "browser_test",
     size = "small",
@@ -130,7 +129,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "deploy_smoke_test",
     srcs = [
@@ -162,7 +160,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "serve_test",
     srcs = ["serve_test.rs"],
@@ -176,7 +173,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "rendered_site_test",
     srcs = ["rendered_site_test.rs"],
@@ -204,7 +200,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "site_check_test",
     srcs = ["site_check_test.rs"],
@@ -219,7 +214,6 @@ rust_test(
     ],
 )
 
-# keep
 site_unit_tests(name = "site_unit")
 
 filegroup(

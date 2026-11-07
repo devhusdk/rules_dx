@@ -12,7 +12,6 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-# keep
 rust_test(
     name = "extract_test",
     srcs = ["extract_test.rs"],

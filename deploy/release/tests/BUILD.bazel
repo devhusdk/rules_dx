@@ -7,7 +7,6 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-# keep
 rust_test(
     name = "release_candidate_smoke_test",
     timeout = "moderate",
@@ -31,7 +30,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "readme_quickstart_smoke_test",
     timeout = "moderate",

@@ -29,7 +29,6 @@ filegroup(
     output_group = "yard_json",
 )
 
-# keep
 rust_test(
     name = "extract_test",
     srcs = ["extract_test.rs"],

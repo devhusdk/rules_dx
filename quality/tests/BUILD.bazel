@@ -13,7 +13,6 @@ _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
 ]
 
-# keep
 rust_test(
     name = "qt_adapter_test",
     srcs = ["qt_adapter_test.rs"],
@@ -40,7 +39,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "column_units_test",
     srcs = ["column_units_test.rs"],
@@ -63,7 +61,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "quality_check_smoke_test",
     size = "large",
@@ -93,7 +90,6 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "consumer_maven_guard_test",
     srcs = ["consumer_maven_guard_test.rs"],
@@ -123,7 +119,6 @@ real_source_target(
     visibility = ["//tools/ci:__pkg__"],
 )
 
-# keep
 rust_test(
     name = "powershell_gallery_lock_test",
     srcs = ["powershell_gallery_lock_test.rs"],

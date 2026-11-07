@@ -19,7 +19,6 @@ cc_library(
     copts = ["-std=c++17"],
 )
 
-# keep
 rust_binary(
     name = "consumer_app",
     srcs = ["app.rs"],
@@ -57,7 +56,6 @@ consumer_archive(
     resources = [":consumer_res"],
 )
 
-# keep
 rust_test(
     name = "consumer_release_verify",
     srcs = ["verify.rs"],
@@ -91,7 +89,6 @@ consumer_archive(
     resources = [":consumer_res"],
 )
 
-# keep
 rust_test(
     name = "consumer_release_zip_verify",
     srcs = ["zip_verify.rs"],
@@ -128,7 +125,6 @@ consumer_archive(
     runtime = ["consumer_runtime.txt"],
 )
 
-# keep
 rust_test(
     name = "consumer_runtime_release_verify",
     srcs = ["zip_verify.rs"],
@@ -220,7 +216,6 @@ consumer_archive(
     ],
 )
 
-# keep
 rust_test(
     name = "consumer_native_runtime_release_verify",
     srcs = ["zip_verify.rs"],
@@ -275,7 +270,6 @@ consumer_archive(
     resources = [":external_res"],
 )
 
-# keep
 rust_test(
     name = "external_release_verify",
     srcs = ["verify.rs"],
@@ -295,7 +289,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "repo_release_verify",
     srcs = ["repo_verify.rs"],

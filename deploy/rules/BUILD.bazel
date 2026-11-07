@@ -548,7 +548,6 @@ resources_plain_analysis_tests(name = "resources_plain_analysis")
 
 resources_processed_analysis_tests(name = "resources_processed_analysis")
 
-# keep
 rust_test(
     name = "resources_demo_verify",
     srcs = ["verify_test.rs"],
@@ -698,7 +697,6 @@ deploy_analysis_test(
     subject = "release_demo_debug",
 )
 
-# keep
 rust_test(
     name = "helm_demo_verify",
     srcs = ["verify_test.rs"],
@@ -721,7 +719,6 @@ rust_test(
 
 helm_unit_tests(name = "helm_unit")
 
-# keep
 rust_test(
     name = "oci_demo_verify",
     srcs = ["verify_test.rs"],
@@ -739,7 +736,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "oci_demo_layout_verify",
     srcs = ["verify_test.rs"],
@@ -762,7 +758,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "release_demo_verify",
     srcs = ["verify_test.rs"],
@@ -781,7 +776,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "release_demo_debug_verify",
     srcs = ["verify_test.rs"],
@@ -932,7 +926,6 @@ failure_test(
     target = ":github_dup_config",
 )
 
-# keep
 rust_test(
     name = "github_demo_verify",
     srcs = ["verify_test.rs"],
@@ -1036,7 +1029,6 @@ deploy_analysis_test(
     subject = "homebrew_demo",
 )
 
-# keep
 rust_test(
     name = "homebrew_demo_verify",
     srcs = ["verify_test.rs"],
@@ -1415,7 +1407,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "pypi_probe_verify",
     srcs = ["verify_test.rs"],

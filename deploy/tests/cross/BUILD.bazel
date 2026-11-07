@@ -32,7 +32,6 @@ cross_deployment(
     platform = "//appimage/platforms:linux_arm64",
 )
 
-# keep
 rust_test(
     name = "cross_archive_test",
     srcs = ["cross_archive_test.rs"],

@@ -1844,14 +1844,12 @@ _FAKE_FORMAT_TOOLS = [
     "rubocop",
 ]
 
-# keep
 rust_library(
     name = "fake_format",
     srcs = ["fake_format.rs"],
     crate_name = "fake_format",
 )
 
-# keep
 [
     rust_binary(
         name = "fake_" + tool,

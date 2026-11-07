@@ -31,7 +31,6 @@ child_runfiles(
     binary = ":identity_github",
 )
 
-# keep
 rust_test(
     name = "deploy_runfiles_test",
     srcs = ["deploy_runfiles_test.rs"],

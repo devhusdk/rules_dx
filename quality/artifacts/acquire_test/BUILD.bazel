@@ -14,7 +14,6 @@ filegroup(
     srcs = ["workspace/MODULE.bazel.fixture"],
 )
 
-# keep
 python_test(
     name = "acquire_test",
     srcs = ["acquire_test.py"],

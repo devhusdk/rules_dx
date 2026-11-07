@@ -49,7 +49,6 @@ offline_file_tests(
     bazelisk = ":offline_demo/bazelisk/SHA256SUMS",
 )
 
-# keep
 rust_test(
     name = "bootstrap_test",
     srcs = ["bootstrap_test.rs"],

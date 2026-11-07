@@ -4,7 +4,6 @@ load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 
 package(default_visibility = VIS_QUALITY)
 
-# keep
 python_test(
     name = "update_test",
     srcs = ["update_test.py"],

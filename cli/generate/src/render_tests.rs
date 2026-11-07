@@ -836,3 +836,59 @@ fn a_root_native_file_is_bound_for_every_formatter_and_linter() {
         );
     }
 }
+
+#[test]
+fn policy_families_reads_back_the_rendered_selection() {
+    for name in [
+        "standard",
+        "strict",
+        "no_dx_toml",
+        "existing_exports",
+        "no_root_build",
+        "mixed_profiles",
+        "rust",
+    ] {
+        let case = case(name);
+        let selection = dx_config::effective(case.config.as_ref()).expect("selection");
+        let expected: BTreeMap<String, BTreeMap<String, Vec<String>>> = selection
+            .families
+            .iter()
+            .filter(|(id, _)| case.families.contains(*id))
+            .map(|(id, family)| {
+                let capabilities = [
+                    ("audit", &family.audit),
+                    ("format", &family.format),
+                    ("lint", &family.lint),
+                    ("typecheck", &family.typecheck),
+                ]
+                .into_iter()
+                .filter(|(_, tools)| !tools.is_empty())
+                .map(|(key, tools)| (key.to_owned(), tools.clone()))
+                .collect();
+                (id.clone(), capabilities)
+            })
+            .collect();
+        assert!(!expected.is_empty(), "{name}");
+        let build = text(&rendered(&case), ".dx/BUILD.bazel");
+        assert_eq!(crate::policy_families(&build), expected, "{name}");
+    }
+}
+
+#[test]
+fn policy_families_survives_odd_input() {
+    assert!(crate::policy_families("").is_empty());
+    assert!(crate::policy_families("dx_generated_policy(\n    name = \"policy\",\n)\n").is_empty());
+    assert!(crate::policy_families("    families = {},\n").is_empty());
+    assert!(crate::policy_families("    families = {\"python\": [\n").is_empty());
+    let one_line = "families = {\"javascript\": {\"lint\": [\"eslint\", \"typos\"], \"disabled\": [\"typecheck\"], \"profile\": \"strict\"}},";
+    assert_eq!(
+        crate::policy_families(one_line),
+        BTreeMap::from([(
+            "javascript".to_owned(),
+            BTreeMap::from([(
+                "lint".to_owned(),
+                vec!["eslint".to_owned(), "typos".to_owned()]
+            )])
+        )])
+    );
+}

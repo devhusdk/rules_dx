@@ -63,7 +63,17 @@ Then:
 dx: upgrade_pending: pin <pin> can move to <to> (run `dx upgrade --to <to> --apply`)
 ```
 
-`--apply` prints `pinned <to> (upgrade from <pin>)`, or `pinned <to> (upgrade current)` on a rerun, then `wrote <path>` for each changed file. During a handoff it prints only `wrote <path>` lines.
+`--apply` prints `pinned <to> (upgrade from <pin>)`, or `pinned <to> (upgrade current)` on a rerun, then `wrote <path>` for each changed file. During a handoff it prints only `wrote <path>` lines. Then one line per tool whose base file under `.dx/config/` changed:
+
+```text
+<tool>: base changed|added|removed (.dx/config/<dir>/base.<ext>)
+```
+
+When a family now selects another tool for a capability, stderr gets:
+
+```text
+dx: warning: <family> <capability>: <old> replaced by <new>; rule IDs <old>/<code> become <new>/<code>, migrate native inline suppressions
+```
 
 Refusals write nothing and emit `upgrade_failed`: no single `bazel_dep(name = "rules_dx", ...)` with a literal version, or a launcher that cannot be refreshed. If the lockfile refresh fails, `MODULE.bazel` and `MODULE.bazel.lock` are restored. If the `--to` binary cannot start, the error names the command to finish by hand.
 

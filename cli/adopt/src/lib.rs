@@ -70,7 +70,10 @@ pub use scaffold::{
     refresh_scaffold, render_consumer_caller, render_consumer_module_setup, with_overrides_include,
 };
 pub use status::{StatusCheck, observed_status_checks, render_status_text};
-pub use upgrade::{UpgradeIntent, upgrade_recovery_message, upgrade_retry_command};
+pub use upgrade::{
+    Selections, UpgradeIntent, base_changes, tool_swaps, upgrade_recovery_message,
+    upgrade_retry_command,
+};
 pub use version::{
     DX_VERSION, MODULE_VERSION, local_path_overrides, module_dependency_status,
     module_rules_dx_version, pin_is_valid, pin_rewrite_hint, read_module_dependency,

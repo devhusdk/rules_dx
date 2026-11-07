@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
 
@@ -306,6 +307,7 @@ pub(crate) fn execute_upgrade(
     if let Err(error) = dx_adopt::write_version_pin(workspace, to) {
         return refuse(out, err, &error.to_string());
     }
+    let before = dx_snapshot(workspace);
     let mut applied = dx_adopt::Applied::default();
     if let Err(what) = init_files::apply(
         workspace,
@@ -318,6 +320,10 @@ pub(crate) fn execute_upgrade(
         return landed(out, err, &what);
     }
     wrote.extend(applied.wrote);
+    let (bases, swaps) = dx_changes(&before, &dx_snapshot(workspace));
+    for warning in swaps {
+        let _ = writeln!(err, "{warning}");
+    }
     let ide_warning = query_runner.and_then(|runner| {
         crate::exec::ide_refresh::refresh(workspace, runner, &invocation.bazel_startup_options)
     });
@@ -350,8 +356,65 @@ pub(crate) fn execute_upgrade(
                 return exit;
             }
         }
+        for line in bases {
+            if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
+                return exit;
+            }
+        }
     }
     0
+}
+
+const DX_BUILD: &str = ".dx/BUILD.bazel";
+
+/// The `.dx` files an upgrade compares: `.dx/BUILD.bazel` and every `.dx/config/*/base.*`.
+fn dx_snapshot(workspace: &Path) -> BTreeMap<String, Vec<u8>> {
+    let mut files = BTreeMap::new();
+    if let Ok(bytes) = std::fs::read(workspace.join(DX_BUILD)) {
+        files.insert(DX_BUILD.to_owned(), bytes);
+    }
+    let Ok(dirs) = std::fs::read_dir(workspace.join(".dx/config")) else {
+        return files;
+    };
+    for dir in dirs.flatten() {
+        let Ok(entries) = std::fs::read_dir(dir.path()) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with("base.")
+                && let Ok(bytes) = std::fs::read(entry.path())
+            {
+                let dir = dir.file_name().to_string_lossy().into_owned();
+                files.insert(format!(".dx/config/{dir}/{name}"), bytes);
+            }
+        }
+    }
+    files
+}
+
+/// The base lines and tool-swap warnings between two `.dx` snapshots.
+fn dx_changes(
+    before: &BTreeMap<String, Vec<u8>>,
+    after: &BTreeMap<String, Vec<u8>>,
+) -> (Vec<String>, Vec<String>) {
+    let bases = |files: &BTreeMap<String, Vec<u8>>| {
+        files
+            .iter()
+            .filter(|(path, _)| path.as_str() != DX_BUILD)
+            .map(|(path, bytes)| (path.clone(), bytes.clone()))
+            .collect::<BTreeMap<_, _>>()
+    };
+    let families = |files: &BTreeMap<String, Vec<u8>>| {
+        files
+            .get(DX_BUILD)
+            .map(|bytes| dx_generate::policy_families(&String::from_utf8_lossy(bytes)))
+            .unwrap_or_default()
+    };
+    (
+        dx_adopt::base_changes(&bases(before), &bases(after)),
+        dx_adopt::tool_swaps(&families(before), &families(after)),
+    )
 }
 
 #[cfg(test)]
@@ -507,6 +570,53 @@ mod tests {
         let (code, out, err) = run(&upgrade(&[]), &root);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.starts_with("upgrade current"), "{out}");
+    }
+
+    fn synced(prefix: &str, source: &str) -> (impl Sized, PathBuf) {
+        let (scratch, root) = pinned(prefix, OLD);
+        dx_test_scratch::write(&root, source, "");
+        dx_generate::sync(
+            &root,
+            dx_generate::Mode::Full,
+            &mut dx_adopt::detected_families,
+        )
+        .expect("sync");
+        (scratch, root)
+    }
+
+    #[test]
+    fn upgrade_refreshes_a_stale_base_and_keeps_the_root_ruff_edit() {
+        let (_scratch, root) = synced("dx-adopt-upgrade-ruff-", "pkg/a.py");
+        let base = root.join(".dx/config/ruff/base.toml");
+        let fresh = std::fs::read(&base).expect("base");
+        std::fs::write(&base, "old\n").expect("stale base");
+        let ruff = "extend = \".dx/config/ruff/base.toml\"\n\n[lint]\nignore = [\"E501\"]\n";
+        std::fs::write(root.join("ruff.toml"), ruff).expect("ruff.toml");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            std::fs::read_to_string(root.join("ruff.toml")).expect("ruff.toml"),
+            ruff
+        );
+        assert_eq!(std::fs::read(&base).expect("base"), fresh);
+        assert!(
+            out.contains("\nruff: base changed (.dx/config/ruff/base.toml)\n"),
+            "{out}"
+        );
+        assert!(!err.contains("replaced by"), "{err}");
+    }
+
+    #[test]
+    fn upgrade_warns_when_a_family_swaps_its_tool() {
+        let (_scratch, root) = synced("dx-adopt-upgrade-swap-", "web/a.js");
+        let old = "dx_generated_policy(\n    name = \"policy\",\n    families = {\n        \"javascript\": {\n            \"lint\": [\n                \"eslint\",\n                \"typos\",\n            ],\n        },\n    },\n)\n";
+        std::fs::write(root.join(".dx/BUILD.bazel"), old).expect("old build");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            err.contains("dx: warning: javascript lint: eslint replaced by biome; rule IDs eslint/<code> become biome/<code>, migrate native inline suppressions\n"),
+            "{err}"
+        );
     }
 
     fn included_override_set(prefix: &str) -> (impl Sized, PathBuf, String, String) {

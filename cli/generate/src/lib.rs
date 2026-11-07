@@ -405,6 +405,110 @@ fn dx_build(
     text
 }
 
+/// The tools each family selects per capability, read from the `families` of a `.dx/BUILD.bazel`.
+/// Empty when the block is missing or does not parse.
+pub fn policy_families(text: &str) -> BTreeMap<String, BTreeMap<String, Vec<String>>> {
+    let Some(start) = text.find("families = {") else {
+        return BTreeMap::new();
+    };
+    let mut literal = Literal {
+        rest: &text[start + "families = ".len()..],
+    };
+    let Some(Value::Dict(families)) = literal.value() else {
+        return BTreeMap::new();
+    };
+    families
+        .into_iter()
+        .filter_map(|(family, fields)| {
+            let Value::Dict(fields) = fields else {
+                return None;
+            };
+            let capabilities = fields
+                .into_iter()
+                .filter_map(|(capability, tools)| match tools {
+                    Value::List(tools) if capability != "disabled" => Some((
+                        capability,
+                        tools
+                            .into_iter()
+                            .filter_map(|tool| match tool {
+                                Value::Str(tool) => Some(tool),
+                                _ => None,
+                            })
+                            .collect(),
+                    )),
+                    _ => None,
+                })
+                .collect();
+            Some((family, capabilities))
+        })
+        .collect()
+}
+
+enum Value {
+    Str(String),
+    List(Vec<Value>),
+    Dict(Vec<(String, Value)>),
+}
+
+/// A reader for the string, list and dict literals dx writes into `.dx/BUILD.bazel`.
+struct Literal<'a> {
+    rest: &'a str,
+}
+
+impl Literal<'_> {
+    fn eat(&mut self, token: char) -> bool {
+        loop {
+            self.rest = self.rest.trim_start();
+            let Some(comment) = self.rest.strip_prefix('#') else {
+                break;
+            };
+            self.rest = comment.split_once('\n').map_or("", |(_, rest)| rest);
+        }
+        match self.rest.strip_prefix(token) {
+            Some(rest) => {
+                self.rest = rest;
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn value(&mut self) -> Option<Value> {
+        if self.eat('"') {
+            let (text, rest) = self.rest.split_once('"')?;
+            self.rest = rest;
+            return Some(Value::Str(text.to_owned()));
+        }
+        if self.eat('[') {
+            let mut items = Vec::new();
+            while !self.eat(']') {
+                items.push(self.value()?);
+                if !self.eat(',') {
+                    return self.eat(']').then_some(Value::List(items));
+                }
+            }
+            return Some(Value::List(items));
+        }
+        if self.eat('{') {
+            let mut fields = Vec::new();
+            while !self.eat('}') {
+                let Value::Str(key) = self.value()? else {
+                    return None;
+                };
+                if !self.eat(':') {
+                    return None;
+                }
+                fields.push((key, self.value()?));
+                if !self.eat(',') {
+                    return self.eat('}').then_some(Value::Dict(fields));
+                }
+            }
+            return Some(Value::Dict(fields));
+        }
+        None
+    }
+}
+
 fn bazelrc(layer: Layer, repo: &str, root: Profile, tools: &[Tool]) -> String {
     let mut text = dx_preset::render_layer_with(layer, repo, Some(root == Profile::Strict));
     if layer != Layer::Correctness {

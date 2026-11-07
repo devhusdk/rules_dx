@@ -247,6 +247,14 @@ common:ci --local_resources=cpu=HOST_CPUS
 {
   "warnings": "default"
 }
+=== .dx/config/gitleaks/base.toml
+[extend]
+useDefault = true
+=== .dx/config/lychee/base.toml
+# Link checks use lychee's defaults, written down so no other config is read.
+timeout = 20
+max_retries = 3
+max_redirects = 10
 === .dx/config/typos/base.toml
 [default]
 locale = "en"

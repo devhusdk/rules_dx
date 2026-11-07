@@ -1,0 +1,178 @@
+diff --git a/3rd_party/llvm-project/x.x/compiler-rt/BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/BUILD.bazel
+--- a/3rd_party/llvm-project/x.x/compiler-rt/BUILD.bazel
++++ b/3rd_party/llvm-project/x.x/compiler-rt/BUILD.bazel
+@@ -9,10 +9,13 @@ bzl_library(
+     name = "targets",
+     srcs = ["targets.bzl"],
+     visibility = ["//visibility:public"],
+-    deps = [
+-        "@bazel_lib//lib:copy_file",
+-        "@rules_cc//cc:core_rules",
+-    ],
++    deps = ["@rules_cc//cc:core_rules"],
++)
++
++bzl_library(
++    name = "lse_variants",
++    srcs = ["lse_variants.bzl"],
++    visibility = ["//visibility:public"],
+ )
+ 
+ bzl_library(
+diff --git a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+--- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
++++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+@@ -5,6 +5,7 @@ load("@bazel_skylib//rules/directory:directory.bzl", "directory")
+ load("@bazel_skylib//rules/directory:subdirectory.bzl", "subdirectory")
+ load("@llvm//:sh_script.bzl", "sh_script")
+ load("@llvm//3rd_party/llvm-project/x.x/compiler-rt:filter_builtin_sources.bzl", "filter_builtin_sources")
++load("@llvm//3rd_party/llvm-project/x.x/compiler-rt:lse_variants.bzl", "LSE_ATOMIC_VARIANTS")
+ load("@llvm//3rd_party/llvm-project/x.x/compiler-rt:targets.bzl", "atomic_helper_cc_library")
+ load(
+     "@llvm//3rd_party/llvm-project/x.x/compiler-rt:weak_symbols.bzl",
+@@ -512,29 +513,7 @@ builtins_aarch64_atomic_deps = [
+         model = model,
+         pat = pat,
+     )
+-    for pat in [
+-        "cas",
+-        "swp",
+-        "ldadd",
+-        "ldclr",
+-        "ldeor",
+-        "ldset",
+-    ]
+-    for size in [
+-        1,
+-        2,
+-        4,
+-        8,
+-        16,
+-    ]
+-    for model in [
+-        1,
+-        2,
+-        3,
+-        4,
+-        5,
+-    ]
+-    if pat == "cas" or size != 16
++    for pat, size, model in LSE_ATOMIC_VARIANTS
+ ]
+ 
+ cc_library(
+diff --git a/3rd_party/llvm-project/x.x/compiler-rt/lse_variants.bzl b/3rd_party/llvm-project/x.x/compiler-rt/lse_variants.bzl
+new file mode 100644
+--- /dev/null
++++ b/3rd_party/llvm-project/x.x/compiler-rt/lse_variants.bzl
+@@ -0,0 +1,33 @@
++"""
++The aarch64 outline atomic helpers built from lib/builtins/aarch64/lse.S.
++
++Each (pat, size, model) gets its own lse_<pat>_<size>_<model>.S copy, written
++when llvm-project is fetched, so cc_static_library sees distinct object names.
++"""
++
++LSE_ATOMIC_VARIANTS = [
++    (pat, size, model)
++    for pat in [
++        "cas",
++        "swp",
++        "ldadd",
++        "ldclr",
++        "ldeor",
++        "ldset",
++    ]
++    for size in [
++        1,
++        2,
++        4,
++        8,
++        16,
++    ]
++    for model in [
++        1,
++        2,
++        3,
++        4,
++        5,
++    ]
++    if pat == "cas" or size != 16
++]
+diff --git a/3rd_party/llvm-project/x.x/compiler-rt/targets.bzl b/3rd_party/llvm-project/x.x/compiler-rt/targets.bzl
+--- a/3rd_party/llvm-project/x.x/compiler-rt/targets.bzl
++++ b/3rd_party/llvm-project/x.x/compiler-rt/targets.bzl
+@@ -2,7 +2,6 @@
+ Helper functions for defining targets.
+ """
+ 
+-load("@bazel_lib//lib:copy_file.bzl", "copy_file")
+ load("@rules_cc//cc:cc_library.bzl", "cc_library")
+ 
+ def atomic_helper_cc_library(name, pat, size, model):
+@@ -10,17 +9,11 @@ def atomic_helper_cc_library(name, pat, size, model):
+ 
+     # cc_library will always produce an archive file containing lse.o.
+     # Because those end up in a static library, cc_static_library will complain
+-    # that the archive has lse.o specified multiple times.
+-    copy_file(
+-        name = unique_filename,
+-        src = "lib/builtins/aarch64/lse.S",
+-        out = "{}.S".format(unique_filename),
+-        allow_symlink = True,
+-    )
+-
++    # that the archive has lse.o specified multiple times. The renamed copies
++    # are written when llvm-project is fetched (see lse_variants.bzl).
+     cc_library(
+         name = name,
+-        srcs = [unique_filename],
++        srcs = ["lib/builtins/aarch64/{}.S".format(unique_filename)],
+         copts = select({
+             # The clang-cl hermetic compilation policy already supplies both
+             # options with its required /clang: spelling.
+diff --git a/private/BUILD.bazel b/private/BUILD.bazel
+--- a/private/BUILD.bazel
++++ b/private/BUILD.bazel
+@@ -4,6 +4,7 @@ bzl_library(
+     name = "llvm_project_common",
+     srcs = ["llvm_project_common.bzl"],
+     visibility = ["//:__subpackages__"],
++    deps = ["//3rd_party/llvm-project/x.x/compiler-rt:lse_variants"],
+ )
+ 
+ bzl_library(
+diff --git a/private/llvm_project_common.bzl b/private/llvm_project_common.bzl
+--- a/private/llvm_project_common.bzl
++++ b/private/llvm_project_common.bzl
+@@ -1,3 +1,5 @@
++load("//3rd_party/llvm-project/x.x/compiler-rt:lse_variants.bzl", "LSE_ATOMIC_VARIANTS")
++
+ LLVM_PROJECT_OVERLAY = "utils/bazel/llvm-project-overlay"
+ 
+ _MAX_OVERLAY_DIRECTORIES = 1000000
+@@ -84,8 +86,24 @@ def _expose_third_party_build_files(rctx):
+     rctx.delete("utils/bazel/third_party_build/BUILD.bazel")
+     rctx.file("utils/bazel/third_party_build/BUILD.bazel", """exports_files(["pfm.BUILD"])\n""", executable = False)
+ 
++def _write_lse_atomic_sources(rctx):
++    # One copy of lse.S per atomic helper, so the objects get distinct names
++    # without a copy or symlink action each.
++    lse = rctx.path("compiler-rt/lib/builtins/aarch64/lse.S")
++    if not lse.exists:
++        return
++    content = rctx.read(lse, watch = "no")
++    for pat, size, model in LSE_ATOMIC_VARIANTS:
++        rctx.file(
++            "compiler-rt/lib/builtins/aarch64/lse_{}_{}_{}.S".format(pat, size, model),
++            content,
++            executable = False,
++            legacy_utf8 = False,
++        )
++
+ def write_llvm_project_files(rctx):
+     _expose_third_party_build_files(rctx)
++    _write_lse_atomic_sources(rctx)
+     rctx.file("BUILD.bazel", """\
+ load("@bazel_lib//:bzl_library.bzl", "bzl_library")
+ 

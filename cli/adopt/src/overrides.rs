@@ -330,6 +330,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "msvc_source_directories.patch",
                 content: include_str!("../../../patches/llvm/msvc_source_directories.patch"),
             },
+            OverridePatch {
+                file: "lse_atomic_sources.patch",
+                content: include_str!("../../../patches/llvm/lse_atomic_sources.patch"),
+            },
         ],
     },
     Override {

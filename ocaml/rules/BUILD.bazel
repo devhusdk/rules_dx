@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "fake_file", "label_string")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "binary_forward_kwargs", "coverage_kwargs", "binary_upstream_kwargs", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "run_environment", "runfiles_path", "test_forward_kwargs", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
+load(":defs.bzl", "binary_forward_kwargs", "binary_upstream_kwargs", "coverage_kwargs", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "run_environment", "runfiles_path", "test_forward_kwargs", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
 load(":providers.bzl", "STANDARD_WARNING_OPTS", "STRICT_WARNING_OPTS", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
 
 package(default_visibility = ["//visibility:public"])
@@ -22,17 +22,36 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "coverage leaves a module with its own ppx alone",
-            coverage_kwargs({"ppx": "//x:y"}, "a.ml", "p"),
+            coverage_kwargs(
+                {"ppx": "//x:y"},
+                "a.ml",
+                "p",
+            ),
             {"ppx": "//x:y"},
         ),
         expect_equal(
             "coverage_ppx keeps the module's ppx and adds only the file name, runtime and unused-open waiver",
-            sorted(coverage_kwargs({"ppx": "//x:y"}, "a.ml", "p", True).keys()),
-            ["deps", "opts", "ppx", "ppx_args"],
+            sorted(coverage_kwargs(
+                {"ppx": "//x:y"},
+                "a.ml",
+                "p",
+                True,
+            ).keys()),
+            [
+                "deps",
+                "opts",
+                "ppx",
+                "ppx_args",
+            ],
         ),
         expect_equal(
             "coverage_ppx keeps the module's own ppx",
-            coverage_kwargs({"ppx": "//x:y"}, "a.ml", "p", True)["ppx"],
+            coverage_kwargs(
+                {"ppx": "//x:y"},
+                "a.ml",
+                "p",
+                True,
+            )["ppx"],
             "//x:y",
         ),
         expect_equal(

@@ -79,8 +79,8 @@ rust_test(
         normal_dev = True,
     ) + [
         ":env_shard",
-        "//libs/shard_writer:dx_shard_writer",
         "//env:plan_proto_rs",
+        "//libs/shard_writer:dx_shard_writer",
     ],
 )
 

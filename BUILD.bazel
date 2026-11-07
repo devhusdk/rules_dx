@@ -2,6 +2,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_library")
 
 # A shim over the dev hub @dx_npm, so consumers that load this package fetch no npm repos.
 load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
+load("@rules_dx//quality:native_config.bzl", "buildifier_config", "rustfmt_config", "vale_config")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 
@@ -61,6 +62,10 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:resolve rust quality_result //quality/result:quality_result
 # gazelle:dx_corpus true
 # gazelle:dx_external maven third_party/jvm/maven_install.json maven
+# gazelle:dx_external maven third_party/jvm/rules_android_maven_install.json rules_android_maven
+# gazelle:dx_external maven third_party/jvm/scala3_test_install.json dx_scala3_test
+# gazelle:dx_external maven third_party/jvm/scalafix_install.json dx_scalafix
+# gazelle:dx_external maven third_party/jvm/dokka_install.json dx_dokka
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude go/tests/fixtures/gotype
 # gazelle:exclude go/tools/modfmt
@@ -224,6 +229,7 @@ alias(
 js_library(
     name = "package_json",
     srcs = ["package.json"],
+    visibility = ["//visibility:public"],
 )
 
 npm_link_all_packages(name = "node_modules")
@@ -389,6 +395,7 @@ real_source_target(
         "rustfmt.toml",
         "licenses.toml",
         "security.toml",
+        "dx.toml",
     ],
 )
 
@@ -401,4 +408,22 @@ real_source_target(
     name = "dotfile_toml",
     tags = ["corpus"],
     toml_srcs = [".gitleaks.toml"],
+)
+
+buildifier_config(
+    name = "buildifier_config",
+    src = ".buildifier.json",
+    visibility = ["//:__subpackages__"],
+)
+
+vale_config(
+    name = "vale_config",
+    src = ".vale.ini",
+    visibility = ["//:__subpackages__"],
+)
+
+rustfmt_config(
+    name = "rustfmt_config",
+    src = "rustfmt.toml",
+    visibility = ["//:__subpackages__"],
 )

@@ -1,6 +1,5 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load("//quality:fixtures.bzl", "real_source_target")
 load(
     "//lua/private:lua.bzl",
     "LUA_SOURCE_SPECS",
@@ -11,6 +10,7 @@ load(
     "lua_quality_srcs",
     "module_name",
 )
+load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "LUA_ENTRY_SUFFIX")
 
 package(default_visibility = ["//visibility:public"])

@@ -1,6 +1,17 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
 # Stands in for @local_config_winsdk on Windows, so Bazel never probes for an installed SDK.
 exports_files([
     "BUILD.bazel",
     "REPO.bazel",
     "toolchains.bzl",
 ])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "toolchains.bzl",
+    ],
+    tags = ["corpus"],
+)

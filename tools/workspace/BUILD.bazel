@@ -35,3 +35,12 @@ diff_test(
     file1 = ":dx_process_root_deps",
     file2 = ":no_root_deps",
 )
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "clippy_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -2,8 +2,8 @@ load("//haskell/toolchain:pins.bzl", "qualified_cells")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":profile_tests.bzl", "profile_ghcopts_tests")
 load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "haskell_kwargs", "upstream_kwargs", "with_gmp")
+load(":profile_tests.bzl", "profile_ghcopts_tests")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -42,7 +42,10 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "-Werror can be forced on",
-            upstream_kwargs({"ghcopts": ["-Wall"], "warnings_as_errors": True})["ghcopts"],
+            upstream_kwargs({
+                "ghcopts": ["-Wall"],
+                "warnings_as_errors": True,
+            })["ghcopts"],
             [
                 "-Wall",
                 "-Werror",
@@ -50,7 +53,10 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "-Werror can be forced off",
-            upstream_kwargs({"ghcopts": ["-Wall"], "warnings_as_errors": False})["ghcopts"],
+            upstream_kwargs({
+                "ghcopts": ["-Wall"],
+                "warnings_as_errors": False,
+            })["ghcopts"],
             ["-Wall"],
         ),
         expect_equal(
@@ -134,6 +140,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "profile_tests.bzl",
+        "deps_resolve.bzl",
     ],
     tags = ["corpus"],
 )

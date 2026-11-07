@@ -120,13 +120,13 @@ rust_test(
     srcs = ["versions_loaded_test.rs"],
     data = [
         ":module_srcs",
-        "@rules_dx_cuda//toolchain:check.bzl",
         "//java/ide:BUILD.bazel",
         "//libs/testing:tested_stack.bzl",
         "//lua/toolchain:BUILD.bazel",
         "//python/rules:runtime_tests.bzl",
         "//rust/rules:edition.bzl",
         "//tools/docs/components:defs.bzl",
+        "@rules_dx_cuda//toolchain:check.bzl",
     ],
     deps = ["//tools/testing:dx_testing"],
 )

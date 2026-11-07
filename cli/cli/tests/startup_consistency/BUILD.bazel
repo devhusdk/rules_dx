@@ -22,4 +22,3 @@ rust_test(
         "//cli/process:dx_process",
     ],
 )
-

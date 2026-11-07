@@ -81,8 +81,8 @@ filegroup(
 cc_library(
     name = "windows_test_console",
     srcs = ["windows_test_console.cc"],
-    alwayslink = True,
     linkopts = ["user32.lib"],
     tags = ["manual"],
     target_compatible_with = ["@platforms//os:windows"],
+    alwayslink = True,
 )

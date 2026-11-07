@@ -17,6 +17,7 @@ python_test(
     data = ["@dx_rust_sdist_crates//:.cargo/config.toml"],
     dep_group = "rust_sdist",
     env = {"CARGO_CONFIG": "$(rlocationpath @dx_rust_sdist_crates//:.cargo/config.toml)"},
+    imports = ["."],
     main = "rust_sdist_test.py",
     runner = "plain",
     target_compatible_with = select({

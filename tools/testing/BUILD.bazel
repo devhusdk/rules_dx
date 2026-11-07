@@ -44,8 +44,8 @@ rust_library(
         package_name = "tools/dx_testing",
         normal = True,
     ) + [
-        "//libs/binfmt:dx_binfmt",
         "//cli/path:dx_path",
+        "//libs/binfmt:dx_binfmt",
         "//tools/bazelrc:dx_preset",
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",

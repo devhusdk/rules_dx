@@ -1,8 +1,8 @@
 load("@rules_dx//ocaml/rules:dune.bzl", "dx_dune_build")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("@rules_dx//quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load(":cmt_list.bzl", "ocaml_cmt_list")
 load(":tools_tests.bzl", "ocaml_tools_tests")
 
@@ -18,8 +18,8 @@ exports_files(glob(["patches/*.patch"]) + [
 # licenses of the whole source closure are in :zanuda_licenses.
 dx_dune_build(
     name = "zanuda",
-    dune = "//ocaml/toolchain:dune",
     srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
+    dune = "//ocaml/toolchain:dune",
     target = "zanuda/src/main.exe",
     workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )

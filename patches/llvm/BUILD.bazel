@@ -32,8 +32,8 @@ sh_test(
 platform_transition_filegroup(
     name = "aarch64_builtins",
     srcs = ["@llvm-project//compiler-rt:clang_rt.builtins.static"],
-    target_platform = "@llvm//platforms:linux_aarch64",
     target_compatible_with = ["@platforms//os:linux"],
+    target_platform = "@llvm//platforms:linux_aarch64",
 )
 
 sh_test(

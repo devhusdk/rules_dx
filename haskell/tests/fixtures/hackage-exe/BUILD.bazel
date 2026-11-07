@@ -8,15 +8,23 @@ exports_files(["haskell_deps.json"])
 
 build_test(
     name = "hub_exe_build_test",
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
     targets = [
         "@haskell_exe_hackage//:hspec-discover",
         "@haskell_exe_hackage//:hspec-discover-exe-hspec-discover",
     ],
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    testonly = True,
+    markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )

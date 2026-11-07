@@ -106,6 +106,7 @@ python_test(
     srcs = ["build_helper_msvc_test.py"],
     data = ["@rules_py//uv/private/pep517_whl/tools:build_helper.py"],
     env = {"BUILD_HELPER": "$(rootpath @rules_py//uv/private/pep517_whl/tools:build_helper.py)"},
+    imports = ["."],
     main = "build_helper_msvc_test.py",
     runner = "plain",
 )

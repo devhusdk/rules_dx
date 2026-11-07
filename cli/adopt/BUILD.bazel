@@ -113,6 +113,7 @@ rust_library(
         "//libs/module_bazel:dx_module_bazel",
         "//modules:dx_versions",
         "//tools/bazelrc:dx_preset",
+        "@crates//:serde_json",
     ],
 )
 
@@ -244,6 +245,7 @@ rust_test(
         "//modules:dx_versions",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 

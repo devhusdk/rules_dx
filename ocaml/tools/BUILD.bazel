@@ -1,3 +1,4 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 package(default_visibility = ["//visibility:public"])
@@ -10,8 +11,14 @@ package(default_visibility = ["//visibility:public"])
             "@platforms//cpu:" + cpu,
         ],
     )
-    for os in ["linux", "macos"]
-    for cpu in ["x86_64", "aarch64"]
+    for os in [
+        "linux",
+        "macos",
+    ]
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
 ]
 
 alias(
@@ -35,4 +42,10 @@ sh_binary(
         ":opam_binary",
         "@dx_opam_repository//:repo",
     ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

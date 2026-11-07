@@ -1,3 +1,4 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//dart/rules:defs.bzl", "dart_binary")
 
 # gazelle:dx_external pub dart/tools/dart_apitool/pubspec.lock dart_apitool_deps
@@ -20,4 +21,10 @@ dart_binary(
         "@dart_apitool_deps//:dart_apitool",
         "@dart_apitool_deps//:lumberdash",
     ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

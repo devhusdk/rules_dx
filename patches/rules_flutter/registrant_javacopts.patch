@@ -1,0 +1,10 @@
+--- a/flutter/android.bzl
++++ b/flutter/android.bzl
+@@ -627,6 +627,7 @@
+         name = "__%s_registrant" % name,
+         srcs = ["__%s_registrant_src" % name],
+         custom_package = "io.flutter.plugins",
++        javacopts = ["-Xlint:-options"],
+         tags = tags,
+         deps = registrant_deps,
+     )

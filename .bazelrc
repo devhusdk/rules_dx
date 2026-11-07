@@ -48,8 +48,6 @@ build:windows --@rules_rust//rust/settings:pipelined_compilation=true
 build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+crt-static
 
 build --javacopt=-Xlint:all
-# The generated Flutter registrant compiles with source 8, which -Xlint:all warns about.
-build --javacopt=-Xlint:-options
 build --experimental_strict_java_deps=error
 
 build --features=treat_warnings_as_errors

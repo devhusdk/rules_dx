@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::Ownership;
 
-use super::{AdoptError, DX_VERSION, Profile, plan_profile_files, release_pins};
+use super::{AdoptError, DX_VERSION, release_pins};
 
 /// How a scaffold file is treated when it already exists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -485,11 +485,7 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
 
 /// Plans the init files for `root`, with the repo's default branch in the caller workflow and
 /// editor recommendations for the languages in the tree.
-pub fn plan_init_files_at(
-    root: &Path,
-    module_name: &str,
-    profile: Option<Profile>,
-) -> Result<Vec<ScaffoldFile>, AdoptError> {
+pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let (branch, extensions) = if root.is_dir() {
         (
             detect_default_branch(root),
@@ -499,11 +495,7 @@ pub fn plan_init_files_at(
         (DEFAULT_BRANCH_FALLBACK.to_owned(), BTreeSet::new())
     };
     let mut files = plan_init_files_full(module_name, &branch, &extensions)?;
-    if root.is_dir() {
-        files.extend(plan_profile_files(root, &extensions, profile));
-    }
-    let planned = files.iter().any(|file| file.path == ROOT_BUILD);
-    if !planned && !root.join("BUILD").exists() && !root.join(ROOT_BUILD).exists() {
+    if !root.join("BUILD").exists() && !root.join(ROOT_BUILD).exists() {
         files.push(ScaffoldFile {
             path: ROOT_BUILD.to_owned(),
             content: with_header(Ownership::Once, ROOT_BUILD, ""),
@@ -787,7 +779,7 @@ mod tests {
     ) -> Result<(), super::AdoptError> {
         super::apply_scaffold(
             root,
-            &super::plan_init_files_at(root, module_name, None)?,
+            &super::plan_init_files_at(root, module_name)?,
             applied,
         )
     }
@@ -981,7 +973,7 @@ mod tests {
             std::fs::create_dir_all(dest.parent().expect("parent")).expect("dir");
             std::fs::write(dest, text).expect("file");
         }
-        let plan = super::plan_init_files_at(&root, "demo", None).expect("init plans");
+        let plan = super::plan_init_files_at(&root, "demo").expect("init plans");
         let extensions = plan
             .iter()
             .find(|f| f.path == ".vscode/extensions.json")
@@ -1002,7 +994,7 @@ mod tests {
         for (path, text) in files {
             std::fs::write(scratch.path().join(path), text).expect("file");
         }
-        let plan = super::plan_init_files_at(scratch.path(), "demo", None).expect("init plans");
+        let plan = super::plan_init_files_at(scratch.path(), "demo").expect("init plans");
         scratch.close().expect("cleanup");
         plan.into_iter()
             .filter(|f| f.path == "BUILD.bazel")
@@ -1028,10 +1020,10 @@ mod tests {
     }
 
     #[test]
-    fn init_plans_one_root_build_with_profile_exports() {
+    fn init_plans_one_empty_root_build_next_to_sources() {
         let builds = root_builds(&[("main.py", "print(1)\n")]);
         assert_eq!(builds.len(), 1);
-        assert!(builds[0].0.contains("exports_files(["));
+        assert!(!builds[0].0.contains("exports_files(["));
     }
 
     #[test]
@@ -1669,7 +1661,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         std::fs::write(root.join("a.rs"), "").expect("rs");
         let mine = "{\n  // mine\n  \"recommendations\": [\"me.mine\", \"ms-python.python\"],\n  \"unwantedRecommendations\": [\"rust-lang.rust-analyzer\"]\n}\n";
         std::fs::write(root.join(".vscode/extensions.json"), mine).expect("write");
-        let files = super::plan_init_files_at(root, "refresh", None).expect("plan");
+        let files = super::plan_init_files_at(root, "refresh").expect("plan");
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         let text = std::fs::read_to_string(root.join(".vscode/extensions.json")).expect("read");
@@ -1754,7 +1746,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
             std::fs::read(root.join(".github/workflows/ci.yml")).expect("read"),
             ci
         );
-        let files = super::plan_init_files_at(root, "refresh", None).expect("plan");
+        let files = super::plan_init_files_at(root, "refresh").expect("plan");
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         assert!(applied.wrote.is_empty(), "{:?}", applied.wrote);

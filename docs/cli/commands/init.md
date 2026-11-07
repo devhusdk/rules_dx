@@ -47,7 +47,7 @@ before any file is written.
 It writes every path in the [fixed file set](#fixed-file-set). Re-running
 `dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
 
-`--profile=standard|strict` (default `standard`) picks the config profile. For each language found, init writes both profile files to `.dx/config/<tool>/` (owned by dx, rewritten by `dx upgrade`) and a thin root file that extends the chosen one. For Python that is `.dx/config/ruff/{standard,strict}.toml` and a two-line `ruff.toml` with `extend = ".dx/config/ruff/<profile>.toml"`. For TypeScript and JavaScript it is `.dx/config/eslint/{standard,strict}.mjs` with a one-line `eslint.config.mjs` that re-exports the chosen one, and `.dx/config/tsconfig/{standard,strict}.json` with a one-line `tsconfig.json` that extends it. The profile is recorded nowhere: the root file says which one is in use. The root file is written once. Re-running with another `--profile` leaves it alone and prints one line per file with the change to make.
+`--profile=standard|strict` sets the top-level `tier` key in `dx.toml`, creating the file with `schema_version = 1` when it is missing. Without `--apply` it changes nothing. Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml` for the languages found.
 
 Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini,copilot` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents=<tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
 
@@ -136,7 +136,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.dx/pins` | whole | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
 | `tools/dx`, `tools/dx.cmd` | whole | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
 | `third_party/rules_dx/` | whole | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
-| `.dx/bazelrc/correctness.bazelrc`, `.dx/bazelrc/performance.bazelrc`, `.dx/bazelrc/resources.bazelrc` | whole | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
+| `.dx/bazelrc/correctness.bazelrc`, `.dx/bazelrc/performance.bazelrc`, `.dx/bazelrc/resources.bazelrc` | whole | Generated from `dx.toml`, not committed. Rewritten when they differ, by `dx init --apply`, `dx upgrade --apply` and every other dx command except `status`. |
 | `.bazelrc` | lines | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists, and `try-import %workspace%/user.bazelrc` at the bottom when no line names it. Other lines stay. |
 | `MODULE.bazel` | lines | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
 | `.bazelversion` | once | Written in a fresh directory only. |
@@ -144,10 +144,9 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.bazelignore` | lines | Written when missing. A bare `.dx` line, which dx wrote, becomes the planned lines; every other line stays. |
 | `.envrc` | once | Written when missing. Never rewritten. Holds `PATH_add .dx/local/bin` and `watch_file .dx/local/current`; it never runs dx. |
 | `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added; existing ids stay in order. |
-| `.dx/config/ruff/standard.toml`, `.dx/config/ruff/strict.toml` | whole | Generated. Written when the tree has Python files. Rewritten when it differs. |
-| `ruff.toml` | once | Written when missing and the tree has Python files. Its `extend` line picks the base. Never rewritten. |
-| `.dx/config/BUILD.bazel` | whole | Generated. Written when a tool with a config rule is configured: one `<tool>_config` target for its root file and both bases, and `dx_generated_policy(name = "policy")` that lists them on the chosen profile. The correctness layer selects it with `--@rules_dx//config:workspace=//.dx/config:policy`. A flag in your root `.bazelrc` after the imports wins. |
-| `BUILD.bazel` | once | Written when the root has neither `BUILD` nor `BUILD.bazel`: `exports_files` for the root config files. Never rewritten. |
+| `.dx/BUILD.bazel` | whole | Generated from `dx.toml`: `dx_generated_policy(name = "policy")` for the families found in the tree, and a `<tool>_config` target for each root tool config. The correctness layer selects it with `--@rules_dx//config:workspace=//.dx:policy`. A flag in your root `.bazelrc` after the imports wins. |
+| `.dx/config/` | whole | Generated from `dx.toml`: a `base.<ext>` for each tool of a family found in the tree, on the tier `dx.toml` picks. A file under `.dx` that dx no longer generates is removed. |
+| `BUILD.bazel` | once | Written when the root has neither `BUILD` nor `BUILD.bazel`. When the root has tool configs such as `ruff.toml`, dx keeps a marked `# dx:begin exports` block in it and leaves the rest alone. |
 | `.devcontainer/devcontainer.json` | pin | Written when missing. Only the `image` and the bazel feature version are updated, and only while they still name the image and feature dx wrote. Another image or feature is kept. |
 | `.editorconfig`, `.gitattributes` | once | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
 | `.vscode/settings.json` | keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |

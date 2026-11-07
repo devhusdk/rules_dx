@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use dx_adopt::scaffold::ScaffoldFile;
@@ -23,6 +24,8 @@ pub(super) enum Kind {
     Launcher,
     Override,
     Preset,
+    /// A file `dx generate` renders from `dx.toml`.
+    Generated,
     Hooks,
     AgentsBlock,
     ClaudeImport,
@@ -57,10 +60,9 @@ impl InitFile {
                 FileKind::Generated => Ownership::Whole,
             },
             Kind::Launcher | Kind::Override => Ownership::Whole,
-            Kind::Preset if self.path == ".bazelrc" || self.path == ".gitignore" => {
-                Ownership::Lines
-            }
-            Kind::Preset => Ownership::Whole,
+            Kind::Preset => Ownership::Lines,
+            Kind::Generated if self.path == "BUILD.bazel" => Ownership::Block,
+            Kind::Generated => Ownership::Whole,
             Kind::Hooks => Ownership::Keys,
             Kind::AgentsBlock => Ownership::Block,
             Kind::ClaudeImport | Kind::CopilotInstructions => Ownership::Lines,
@@ -85,18 +87,6 @@ pub(super) fn plan(
     fresh: bool,
     agents: &[Agent],
 ) -> Result<Vec<InitFile>, AdoptError> {
-    plan_with_profile(root, module, fresh, agents, None)
-}
-
-/// `plan` with the config profile the root files pick; without one they keep their current pick.
-pub(super) fn plan_with_profile(
-    root: &Path,
-    module: &str,
-    fresh: bool,
-    agents: &[Agent],
-    profile: Option<dx_adopt::Profile>,
-) -> Result<Vec<InitFile>, AdoptError> {
-    let profile = Some(dx_adopt::resolve_profile(root, profile));
     let selected: Vec<&str> = agents
         .iter()
         .flat_map(|agent| agent_paths(*agent).iter().copied())
@@ -107,11 +97,19 @@ pub(super) fn plan_with_profile(
     } else {
         Vec::new()
     };
-    scaffold.extend(dx_adopt::plan_init_files_at(root, module, profile)?);
-    let mut entries: Vec<(String, String, Kind)> = scaffold
+    scaffold.extend(dx_adopt::plan_init_files_at(root, module)?);
+    let mut entries: Vec<(String, String, Kind)> = generated(root)?
         .into_iter()
-        .map(|file| (file.path, file.content, Kind::Scaffold(file.kind)))
+        .map(|(path, bytes)| {
+            let content = String::from_utf8_lossy(&bytes).into_owned();
+            (path, content, Kind::Generated)
+        })
         .collect();
+    entries.extend(
+        scaffold
+            .into_iter()
+            .map(|file| (file.path, file.content, Kind::Scaffold(file.kind))),
+    );
     entries.push((
         dx_adopt::LAUNCHER_SH_REL.to_owned(),
         dx_adopt::render_launcher_sh(),
@@ -128,7 +126,7 @@ pub(super) fn plan_with_profile(
             .map(|(path, content)| (path, content, Kind::Override)),
     );
     entries.extend(
-        dx_adopt::preset_files(root, profile)
+        dx_adopt::preset_files()
             .into_iter()
             .map(|(path, content)| (path, content, Kind::Preset)),
     );
@@ -176,6 +174,38 @@ pub(super) fn plan_with_profile(
         }
     }
     Ok(files)
+}
+
+/// What `dx generate` renders for `root`; nothing while the directory does not exist yet.
+fn generated(root: &Path) -> Result<BTreeMap<String, Vec<u8>>, AdoptError> {
+    if !root.is_dir() {
+        return Ok(BTreeMap::new());
+    }
+    dx_generate::plan(root, &mut dx_adopt::detected_families).map_err(|error| {
+        AdoptError::Generate {
+            detail: error.to_string(),
+        }
+    })
+}
+
+/// Syncs `.dx` after the other writes, recording what it wrote and deleted.
+fn sync_generated(root: &Path, prefix: &str, applied: &mut Applied) -> Result<(), String> {
+    let report = dx_generate::sync(
+        root,
+        dx_generate::Mode::Full,
+        &mut dx_adopt::detected_families,
+    )
+    .map_err(|error| format!("{prefix}.dx not generated: {error}"))?;
+    applied
+        .wrote
+        .extend(report.written.iter().map(|path| format!("{prefix}{path}")));
+    applied.wrote.extend(
+        report
+            .deleted
+            .iter()
+            .map(|path| format!("removed:{prefix}{path}")),
+    );
+    Ok(())
 }
 
 /// Refuses when `MODULE.bazel` asks for another rules_dx than this dx binary.
@@ -262,6 +292,9 @@ pub(super) fn apply(
     notes: &mut Vec<String>,
 ) -> Result<(), String> {
     check_module_version(root)?;
+    notes.extend(
+        dx_adopt::legacy_layout::migrate(root).map_err(|error| adopt_message(prefix, &error))?,
+    );
     let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
     if mode == Mode::Refresh {
         return refresh(root, prefix, files, applied);
@@ -289,7 +322,7 @@ pub(super) fn apply(
     }
     if dx_adopt::dx_config_git_ignored(root) {
         notes.push(format!(
-            "{prefix}.gitignore hides .dx/config; ignore /.dx/* instead of .dx/ and add !/.dx/config/"
+            "{prefix}.gitignore hides .dx; ignore /.dx/local/ instead of .dx/ so the generated .dx files are committed"
         ));
     }
     applied.wrote.extend(prefixed(own.wrote));
@@ -317,11 +350,7 @@ pub(super) fn apply(
     if has(|kind| *kind == Kind::Preset) {
         let mut preset = Applied::default();
         let mut preset_notes = Vec::new();
-        let profile = files
-            .iter()
-            .find(|file| file.kind == Kind::Preset && file.path.ends_with("correctness.bazelrc"))
-            .map(|file| dx_adopt::layer_profile(&file.content));
-        let written = dx_adopt::write_preset(root, &mut preset, &mut preset_notes, profile);
+        let written = dx_adopt::write_preset(root, &mut preset, &mut preset_notes);
         applied.wrote.extend(prefixed(preset.wrote));
         notes.extend(
             preset_notes
@@ -371,7 +400,7 @@ pub(super) fn apply(
     {
         applied.wrote.push(format!("{prefix}{}", copilot_md::FILE));
     }
-    Ok(())
+    sync_generated(root, prefix, applied)
 }
 
 /// Adds the `MODULE.bazel` stanzas for the root lock files, then the rules_dx family modules,
@@ -440,11 +469,6 @@ fn refresh(
             .map_err(|error| format!("overrides not refreshed: {error}"))?;
         record(applied, wrote);
     }
-    if has(|kind| *kind == Kind::Preset) {
-        let wrote = dx_adopt::refresh_preset(root)
-            .map_err(|error| format!("preset layers not refreshed: {error}"))?;
-        record(applied, wrote);
-    }
     if has(|kind| *kind == Kind::Hooks) {
         let outcome =
             setup::refresh(root).map_err(|error| format!("hooks not refreshed: {error}"))?;
@@ -466,6 +490,11 @@ fn refresh(
             .map_err(|error| format!("{} not refreshed: {error}", copilot_md::FILE))?
     {
         record(applied, vec![copilot_md::FILE.to_owned()]);
+    }
+    if files.iter().any(|file| {
+        file.kind == Kind::Generated && file.path != "BUILD.bazel" && root.join(&file.path).exists()
+    }) {
+        sync_generated(root, prefix, applied)?;
     }
     Ok(())
 }
@@ -533,15 +562,15 @@ pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
                     drift.stale.push(file.path.clone());
                 }
             }
-            Kind::Override => {
-                if std::fs::read(root.join(path))
-                    .is_ok_and(|bytes| bytes != file.content.as_bytes())
-                {
+            Kind::Preset => {
+                if preset.stale.iter().any(|stale| stale == path) {
                     drift.stale.push(file.path.clone());
                 }
             }
-            Kind::Preset => {
-                if preset.stale.iter().any(|stale| stale == path) {
+            Kind::Override | Kind::Generated => {
+                if std::fs::read(root.join(path))
+                    .is_ok_and(|bytes| bytes != file.content.as_bytes())
+                {
                     drift.stale.push(file.path.clone());
                 }
             }
@@ -599,12 +628,13 @@ mod tests {
     fn everything_init_writes_is_owned_and_present() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-");
         let root = scratch.path();
-        let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
+        let mut files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         let (code, out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
+        files.extend(plan(root, "my_project", true, &Agent::ALL).expect("plan"));
         for path in out.lines().filter_map(|line| line.strip_prefix("wrote ")) {
             assert!(files.iter().any(|file| file.path == path), "{path}");
         }
@@ -817,16 +847,21 @@ mod tests {
     fn apply_writes_the_owned_list_and_check_and_status_accept_it() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-equal-");
         let root = scratch.path();
-        let mut owned_paths: Vec<String> = plan(root, "my_project", true, &Agent::ALL)
-            .expect("plan")
-            .into_iter()
-            .map(|file| file.path)
-            .collect();
+        let owned = || {
+            plan(root, "my_project", true, &Agent::ALL)
+                .expect("plan")
+                .into_iter()
+                .map(|file| file.path)
+        };
+        let mut owned_paths: Vec<String> = owned().collect();
         let (code, out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
+        owned_paths.extend(owned());
+        owned_paths.sort();
+        owned_paths.dedup();
         let mut wrote: Vec<String> = out
             .lines()
             .filter_map(|line| line.strip_prefix("wrote "))

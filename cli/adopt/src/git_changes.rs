@@ -85,30 +85,23 @@ pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, String> {
     Ok(changes)
 }
 
-/// True when `path` (relative to a root) is dx's machine-local state: `.dx/local`, or the
-/// generated `.dx/bazelrc` layers.
+/// True when `path` (relative to a root) is dx's machine-local state, `.dx/local`.
 ///
 /// Only the top level of the root counts; a nested `.dx` is an ordinary file.
 pub fn is_dx_state(path: &str) -> bool {
-    [dx_path::state::LOCAL_DIR, ".dx/bazelrc"]
-        .iter()
-        .any(|dir| {
-            path == *dir
-                || path
-                    .strip_prefix(dir)
-                    .is_some_and(|rest| rest.starts_with('/'))
-        })
+    let dir = dx_path::state::LOCAL_DIR;
+    path == dir
+        || path
+            .strip_prefix(dir)
+            .is_some_and(|rest| rest.starts_with('/'))
 }
 
-/// The one `.dx` subdirectory that is checked-in source, not state.
-pub const DX_CONFIG_DIR: &str = ".dx/config";
-
-/// True when git ignores `.dx/config`, so checked-in config would be invisible.
+/// True when git ignores the generated `.dx` files, so they would not be committed.
 pub fn dx_config_git_ignored(root: &Path) -> bool {
     std::process::Command::new("git")
         .arg("-C")
         .arg(root)
-        .args(["check-ignore", "-q", ".dx/config/probe"])
+        .args(["check-ignore", "-q", ".dx/BUILD.bazel"])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -172,7 +165,8 @@ mod tests {
         assert!(!super::is_dx_state(".dx"));
         assert!(!super::is_dx_state(".dx/pins"));
         assert!(super::is_dx_state(".dx/local"));
-        assert!(super::is_dx_state(".dx/bazelrc/performance.bazelrc"));
+        assert!(!super::is_dx_state(".dx/bazelrc/performance.bazelrc"));
+        assert!(!super::is_dx_state(".dx/BUILD.bazel"));
         assert!(!super::is_dx_state(".dx/config"));
         assert!(!super::is_dx_state(".dx/config/ruff/strict.toml"));
         assert!(super::is_dx_state(

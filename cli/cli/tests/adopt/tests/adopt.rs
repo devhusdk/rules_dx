@@ -163,19 +163,36 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
 }
 
 #[test]
-fn fresh_clone_gets_layers_on_first_command() {
+fn fresh_clone_regenerates_dx_on_first_command() {
     let (_guard, root, home) = setup("adopt-fresh-clone");
     init(&root, &home);
-    let layers = root.join(".dx/bazelrc");
-    let mut before = BTreeMap::new();
-    tree(&layers, &root, &mut before);
-    assert!(!before.is_empty());
-    std::fs::remove_dir_all(&layers).expect("remove layers");
+    let dot_dx = root.join(".dx");
+    let generated = || {
+        let mut files = BTreeMap::new();
+        tree(&dot_dx, &root, &mut files);
+        files.retain(|path, _| !path.starts_with(".dx/local") && path != Path::new(".dx/pins"));
+        files
+    };
+    let before = generated();
+    assert!(
+        before.contains_key(Path::new(".dx/BUILD.bazel")),
+        "{:?}",
+        before.keys()
+    );
+    for entry in std::fs::read_dir(&dot_dx).expect("read .dx") {
+        let path = entry.expect("entry").path();
+        if path.file_name().is_some_and(|name| name == "pins") {
+            continue;
+        }
+        if path.is_dir() {
+            std::fs::remove_dir_all(&path).expect("remove dir");
+        } else {
+            std::fs::remove_file(&path).expect("remove file");
+        }
+    }
     let out = dx(&root, &home, &["completion", "bash"]);
     assert_eq!(out.code, 0, "{}", out.stderr);
-    let mut after = BTreeMap::new();
-    tree(&layers, &root, &mut after);
-    assert_eq!(before, after);
+    assert_eq!(before, generated());
 }
 
 #[test]

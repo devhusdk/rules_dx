@@ -308,3 +308,12 @@ fn concurrent_full_syncs_both_succeed() {
     });
     assert!(dir.path().join(RUFF_BASE).exists());
 }
+
+#[test]
+fn plan_writes_nothing() {
+    let dir = workspace();
+    let mut detect = |_: &Path| BTreeSet::from(["python".to_owned()]);
+    let files = plan(dir.path(), &mut detect).expect("plan");
+    assert!(files.contains_key(RUFF_BASE), "{:?}", files.keys());
+    assert!(!dir.path().join(".dx").exists());
+}

@@ -126,12 +126,20 @@ fn record(root: &Path, text: &str) -> Result<(), SyncError> {
     dx_atomic_fs::write_atomic(&path, text.as_bytes()).map_err(io_error(&path))
 }
 
-/// Renders from `snapshot`, writes what differs and removes stale files. Returns the outputs.
-fn render_and_write(
+/// Every file a sync of `root` would leave in place, keyed by workspace-relative path, without
+/// writing anything.
+pub fn plan(
+    root: &Path,
+    detect: &mut dyn FnMut(&Path) -> BTreeSet<String>,
+) -> Result<BTreeMap<String, Vec<u8>>, SyncError> {
+    plan_from(root, &Snapshot::take(root)?, detect)
+}
+
+fn plan_from(
     root: &Path,
     snapshot: &Snapshot,
     detect: &mut dyn FnMut(&Path) -> BTreeSet<String>,
-) -> Result<(SyncReport, Vec<String>), SyncError> {
+) -> Result<BTreeMap<String, Vec<u8>>, SyncError> {
     let config = match &snapshot.config {
         None => None,
         Some(bytes) => {
@@ -154,7 +162,16 @@ fn render_and_write(
             text: build.text.clone(),
         }),
     };
-    let files = render(&inputs)?;
+    Ok(render(&inputs)?)
+}
+
+/// Renders from `snapshot`, writes what differs and removes stale files. Returns the outputs.
+fn render_and_write(
+    root: &Path,
+    snapshot: &Snapshot,
+    detect: &mut dyn FnMut(&Path) -> BTreeSet<String>,
+) -> Result<(SyncReport, Vec<String>), SyncError> {
+    let files = plan_from(root, snapshot, detect)?;
 
     let mut report = SyncReport {
         detected: true,

@@ -84,12 +84,11 @@ impl Target {
 
     /// The files this run plans, relative to `root`.
     fn plan(&self) -> Result<Vec<super::init_files::InitFile>, dx_adopt::AdoptError> {
-        super::init_files::plan_with_profile(
+        super::init_files::plan(
             &self.root,
             &self.module,
             self.blocker.is_none() || !self.root.join("MODULE.bazel").exists(),
             &self.agents,
-            self.profile,
         )
     }
 
@@ -138,6 +137,11 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, &target, out, err);
     }
+    if let Some(profile) = target.profile
+        && let Err(error) = dx_adopt::dx_toml::set_tier(root, profile.name())
+    {
+        return invalid_module_code(invocation, out, err, &error);
+    }
     let planned = match target.plan() {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
@@ -146,13 +150,6 @@ pub(crate) fn execute_init(
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
     let mut notes = Vec::new();
-    if let Some(profile) = target.profile {
-        notes.extend(
-            dx_adopt::profile_notes(root, profile)
-                .into_iter()
-                .map(|note| format!("{}{note}", target.prefix)),
-        );
-    }
     notes.extend(
         dx_adopt::kept_config_notes(root)
             .into_iter()
@@ -479,6 +476,7 @@ mod tests {
     fn a_deleted_agents_md_is_named_as_absent_and_check_exits_zero() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-absent-");
         let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("README.md"), "# Demo\n").expect("readme");
         assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
         std::fs::remove_file(root.join("AGENTS.md")).expect("remove");
         let (code, out, err) = run(&invocation(&["init"]), &root);
@@ -780,7 +778,7 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         assert!(
             err.contains(
-                ".gitignore hides .dx/config; ignore /.dx/* instead of .dx/ and add !/.dx/config/"
+                ".gitignore hides .dx; ignore /.dx/local/ instead of .dx/ so the generated .dx files are committed"
             ),
             "{err}"
         );

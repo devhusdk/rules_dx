@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use dx_config::{CROSS_FAMILY_TOOLS, DxConfig, Profile, SelectionProblem};
 use dx_preset::Layer;
 
-pub use crate::sync::{Mode, SyncError, SyncReport, sync};
+pub use crate::sync::{Mode, SyncError, SyncReport, plan, sync};
 use crate::tools_gen::{TOOL_CONFIGS, ToolConfig};
 
 /// The root BUILD file: its name (`BUILD` or `BUILD.bazel`) and text.
@@ -80,6 +80,21 @@ pub enum GenerateError {
 /// The policy the correctness rc selects.
 pub const POLICY_LABEL: &str = "//.dx:policy";
 
+/// `.dx/config/<dir>/base.<ext>`, the tier file dx renders for a file tool.
+pub fn base_path(config: &ToolConfig) -> Option<String> {
+    (config.kind == "file" && config.tier_active && !config.ext.is_empty())
+        .then(|| format!(".dx/config/{}/base.{}", tier_dir(config), config.ext))
+}
+
+/// The directory a tool's tier files live in, under `.dx/config` and `quality/tiers`.
+pub fn tier_dir(config: &ToolConfig) -> &str {
+    if config.tier_dir.is_empty() {
+        config.id
+    } else {
+        config.tier_dir
+    }
+}
+
 /// One selected tool and the tier profile it runs on.
 struct Tool {
     config: &'static ToolConfig,
@@ -88,11 +103,7 @@ struct Tool {
 
 impl Tool {
     fn dir(&self) -> &'static str {
-        if self.config.tier_dir.is_empty() {
-            self.config.id
-        } else {
-            self.config.tier_dir
-        }
+        tier_dir(self.config)
     }
 
     fn tier(&self) -> &'static str {
@@ -104,9 +115,7 @@ impl Tool {
 
     /// `config/<dir>/base.<ext>` inside `.dx`, for a file tool with a tier.
     fn base(&self) -> Option<String> {
-        let config = self.config;
-        (config.kind == "file" && config.tier_active && !config.ext.is_empty())
-            .then(|| format!("config/{}/base.{}", self.dir(), config.ext))
+        base_path(self.config).map(|path| path.replacen(".dx/", "", 1))
     }
 
     /// The root file a `<tool>_config` target binds, when the workspace has one.

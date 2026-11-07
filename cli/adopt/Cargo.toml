@@ -20,6 +20,7 @@ toml = { version = "1", default-features = false, features = [
   "serde",
   "display",
 ] }
+toml_edit = "0.25"
 
 [dev-dependencies]
 # Golden pilot: status JSON golden as an insta snapshot.

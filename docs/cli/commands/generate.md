@@ -58,6 +58,10 @@ When the root `Cargo.lock`, `uv.lock`, or `pnpm-lock.yaml` has its manifest besi
 
 When files of a language family are in the tree and its `rules_dx_<family>` module is published, `--apply` adds `bazel_dep(name = "rules_dx_<family>")`.
 
+## The `.dx` tree
+
+Every dx command except `init`, `status` and `upgrade` first brings `.dx` in step with `dx.toml`: `.dx/BUILD.bazel` with the workspace policy, the tool bases under `.dx/config/`, the `.dx/bazelrc/` layers, and the marked exports block in the root `BUILD.bazel` when root tool configs exist. Only the families whose files are in the tree are wired. dx removes files under `.dx` it no longer renders and keeps `.dx/local` and `.dx/pins`. When nothing it reads has changed, it skips the work. `dx generate` and `dx check` always look at the tree again, so a language added later is wired by the next `dx generate`. When the sync fails, the command prints `dx: warning: .dx not refreshed: <error>` and runs anyway. On the first sync, and in `dx init`, root files that still point at the old `.dx/config/<tool>/standard.*` or `strict.*` are rewritten to `base.*`, a strict workspace gets `tier = "strict"` in `dx.toml` unless it sets a tier, and each change prints a `dx: migrated` line.
+
 ## Directives
 
 Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They apply to the directory and below.
@@ -74,7 +78,7 @@ Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They ap
 | `dx_fixture_testonly true\|false` | Mark generated libraries under a `tests/`, `fixtures/` or `testdata/` directory `testonly`. Off by default. Inherited by child packages. |
 | `lang <languages>` | Must list `dx_dispatch`, for example `go,dx_dispatch`. |
 
-When `.dx/BUILD.bazel` from `dx generate` or `.dx/config/BUILD.bazel` from `dx init` already has a `ruff_config` for the root ruff file, gazelle writes no root `ruff_config` and no `aspect_hints` for it.
+When `.dx/BUILD.bazel` from `dx generate` already has a `ruff_config` for the root ruff file, gazelle writes no root `ruff_config` and no `aspect_hints` for it.
 
 `dx_ignore_import` languages: `astro`, `cc`, `csharp`, `dart`, `elixir`, `erlang`, `fsharp`, `go`, `haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `ocaml`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`, `scala`, `svelte`, `swift`, `typescript`, `vue`, `zig`.
 

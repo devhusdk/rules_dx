@@ -11,11 +11,13 @@ dx_rust_crate(
         "src/build_output.rs",
         "src/defaults.rs",
         "src/dependency_sets.rs",
+        "src/dx_toml.rs",
         "src/error.rs",
         "src/families.rs",
         "src/git_changes.rs",
         "src/init_dir.rs",
         "src/launcher.rs",
+        "src/legacy_layout.rs",
         "src/lib.rs",
         "src/load_graph.rs",
         "src/local_paths_tests.rs",
@@ -124,6 +126,7 @@ dx_rust_crate(
         "serde_json",
         "thiserror",
         "toml",
+        "toml_edit",
     ],
 )
 

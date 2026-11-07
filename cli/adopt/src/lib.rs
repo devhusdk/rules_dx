@@ -11,11 +11,13 @@
 pub mod build_output;
 pub mod defaults;
 pub mod dependency_sets;
+pub mod dx_toml;
 pub mod error;
 pub mod families;
 pub mod git_changes;
 pub mod init_dir;
 pub mod launcher;
+pub mod legacy_layout;
 pub mod load_graph;
 pub mod lock_hubs;
 pub mod module_pin;
@@ -35,10 +37,10 @@ pub mod watch;
 mod local_paths_tests;
 
 pub use error::AdoptError;
-pub use families::{FamilyDeps, plan_family_deps};
+pub use families::{FamilyDeps, detected_families, plan_family_deps};
 pub use git_changes::{
-    ChangeKind, DEFAULT_BRANCH_CANDIDATES, DX_CONFIG_DIR, GitChange, dedupe_changes,
-    dx_config_git_ignored, is_dx_state, nearest_package_pattern, parse_name_status_nul,
+    ChangeKind, DEFAULT_BRANCH_CANDIDATES, GitChange, dedupe_changes, dx_config_git_ignored,
+    is_dx_state, nearest_package_pattern, parse_name_status_nul,
 };
 pub use init_dir::{
     DEFAULT_INIT_MODULE, FRESH_BAZEL_VERSION, fresh_blocker, init_dir_module, is_fresh_dir,
@@ -61,14 +63,10 @@ pub use overrides::{
 pub use ownership::Ownership;
 pub use preflight::{Finding, Preflight, preflight, render_plan_text};
 pub use preset::{
-    PresetDrift, PresetState, WERROR_NOTE, inspect_preset, inspect_preset_as, layer_profile,
-    preflight_preset, preset_drift, preset_files, preset_paths, read_profile, refresh_preset,
-    resolve_profile, sync_preset, write_preset,
+    PresetDrift, PresetState, inspect_preset, preflight_preset, preset_drift, preset_files,
+    preset_paths, write_preset,
 };
-pub use profiles::{
-    Profile, config_policy_wanted, infer_profile, kept_config_notes, plan_profile_files,
-    profile_notes,
-};
+pub use profiles::{Profile, infer_profile, kept_config_notes, profile_notes};
 pub use scaffold::{
     Applied, CONSUMER_WORKFLOW_PIN, FileKind, bazelignore_covers_dx, bazelignore_has_bare_dx,
     owned_file_drift, plan_init_files, plan_init_files_at, preflight_destinations,

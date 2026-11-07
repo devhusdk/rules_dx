@@ -96,25 +96,109 @@ pub fn plan_family_deps(root: &Path, families: &[Family]) -> Result<FamilyDeps, 
     Ok(FamilyDeps { edit, notes })
 }
 
-/// The lowercased extensions, with their dot, of the files under `root`.
-pub(crate) fn file_extensions(root: &Path) -> BTreeSet<String> {
-    let ignored = bazelignore(root);
-    let paths = git_files(root).unwrap_or_else(|| walk(root));
-    paths
+/// The quality families of `dx.toml` and the files that mean one is present: an extension with
+/// its dot, or an exact file name. Families found only by file content are left out.
+const QUALITY_FAMILIES: &[(&str, &[&str])] = &[
+    ("astro", &[".astro"]),
+    ("bicep", &[".bicep"]),
+    (
+        "cc",
+        &[
+            ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".ipp", ".inl",
+        ],
+    ),
+    ("core", &[".yaml", ".yml"]),
+    ("d", &[".d"]),
+    ("dart", &[".dart"]),
+    ("dockerfile", &["Dockerfile", ".dockerfile"]),
+    ("fortran", &[".f", ".f03", ".f08", ".f90", ".f95"]),
+    ("go", &[".go"]),
+    ("go_module", &["go.mod"]),
+    ("graphql", &[".gql", ".graphql"]),
+    ("haskell", &[".hs"]),
+    ("helm", &["Chart.yaml"]),
+    ("html", &[".htm", ".html"]),
+    ("java", &[".java"]),
+    ("javascript", &[".cjs", ".js", ".jsx", ".mjs"]),
+    ("json", &[".json"]),
+    ("julia", &[".jl"]),
+    ("kotlin", &[".kt", ".kts"]),
+    ("markdown", &[".md"]),
+    ("mdx", &[".mdx"]),
+    ("nix", &[".nix"]),
+    ("ocaml", &[".ml", ".mli"]),
+    ("powershell", &[".ps1", ".psd1", ".psm1"]),
+    ("python", &[".py", ".pyi"]),
+    ("rust", &[".rs"]),
+    ("scala", &[".sc", ".scala"]),
+    ("shell", &[".bash", ".sh"]),
+    (
+        "starlark",
+        &[".bazel", ".bzl", ".star", "BUILD", "WORKSPACE"],
+    ),
+    ("svelte", &[".svelte"]),
+    ("swift", &[".swift"]),
+    ("text", &[".txt"]),
+    ("toml", &[".toml"]),
+    ("typescript", &[".cts", ".mts", ".ts", ".tsx"]),
+    ("vue", &[".vue"]),
+    ("yaml", &[".yaml", ".yml"]),
+    ("zig", &[".zig"]),
+];
+
+/// The `[families.<id>]` ids of `dx.toml` whose files occur under `root`.
+pub fn detected_families(root: &Path) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let mut extensions = BTreeSet::new();
+    for path in source_files(root) {
+        let name = path.rsplit('/').next().unwrap_or_default();
+        if let Some((stem, ext)) = name.rsplit_once('.')
+            && !stem.is_empty()
+        {
+            extensions.insert(format!(".{}", ext.to_ascii_lowercase()));
+        }
+        names.insert(name.to_owned());
+    }
+    QUALITY_FAMILIES
         .iter()
-        .filter(|path| *path != dx_path::state::DX_DIR && !path.starts_with(".dx/"))
-        .filter(|path| {
-            !ignored.iter().any(|dir| {
-                path.strip_prefix(dir.as_str())
-                    .is_some_and(|rest| rest.starts_with('/'))
+        .filter(|(_, marks)| {
+            marks.iter().any(|mark| {
+                if mark.starts_with('.') {
+                    extensions.contains(*mark)
+                } else {
+                    names.contains(*mark)
+                }
             })
         })
+        .map(|(id, _)| (*id).to_owned())
+        .collect()
+}
+
+/// The lowercased extensions, with their dot, of the files under `root`.
+pub(crate) fn file_extensions(root: &Path) -> BTreeSet<String> {
+    source_files(root)
+        .iter()
         .filter_map(|path| {
             let name = path.rsplit('/').next()?;
             let (stem, ext) = name.rsplit_once('.')?;
             (!stem.is_empty()).then(|| format!(".{}", ext.to_ascii_lowercase()))
         })
         .collect()
+}
+
+/// The workspace files outside `.dx` and the `.bazelignore`d directories.
+fn source_files(root: &Path) -> Vec<String> {
+    let ignored = bazelignore(root);
+    let mut paths = git_files(root).unwrap_or_else(|| walk(root));
+    paths.retain(|path| {
+        path != dx_path::state::DX_DIR
+            && !path.starts_with(".dx/")
+            && !ignored.iter().any(|dir| {
+                path.strip_prefix(dir.as_str())
+                    .is_some_and(|rest| rest.starts_with('/'))
+            })
+    });
+    paths
 }
 
 fn bazelignore(root: &Path) -> Vec<String> {
@@ -206,6 +290,19 @@ mod tests {
 
     const MODULE: &str =
         "module(name = \"app\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
+
+    #[test]
+    fn detected_families_are_dx_toml_ids() {
+        let dir = scratch("dx-detected-families-");
+        assert!(detected_families(dir.path()).is_empty());
+        write(dir.path(), "a.py", "");
+        write(dir.path(), "src/b.rs", "");
+        write(dir.path(), "Dockerfile", "");
+        assert_eq!(
+            detected_families(dir.path()),
+            BTreeSet::from(["dockerfile", "python", "rust"].map(str::to_owned))
+        );
+    }
 
     fn table() -> Vec<Family> {
         let family = |name: &str, module: &str, ext: &str| Family {

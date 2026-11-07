@@ -572,6 +572,7 @@ rust_test(
         "//tools/bazelrc:BUILD.bazel",
         "//tools/bazelrc:preset",
         "//tools/platforms/no_winsdk:BUILD.bazel",
+        "//tools/platforms/no_winsdk:REPO.bazel",
         "//tools/platforms/no_winsdk:toolchains.bzl",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},

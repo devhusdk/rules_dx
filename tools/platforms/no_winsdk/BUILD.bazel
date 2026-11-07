@@ -1,5 +1,6 @@
 # Stands in for @local_config_winsdk on Windows, so Bazel never probes for an installed SDK.
 exports_files([
     "BUILD.bazel",
+    "REPO.bazel",
     "toolchains.bzl",
 ])

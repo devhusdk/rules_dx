@@ -283,6 +283,7 @@ mod tests {
     #[test]
     fn shared_blocks_exclusive_until_released() {
         let scratch = dx_test_scratch::scratch("dx-lease-contention-");
+        let _holding = dx_testing::holding();
         let root = root(scratch.path());
         let shared = acquire_shared(
             &root,
@@ -312,6 +313,7 @@ mod tests {
     #[test]
     fn a_locked_path_reports_its_holder() {
         let scratch = dx_test_scratch::scratch("dx-lease-path-");
+        let _holding = dx_testing::holding();
         let path = scratch.path().join("sub").join("one.lock");
         assert!(
             try_lock_file(&path.with_file_name("none.lock"), false).is_err(),
@@ -329,6 +331,7 @@ mod tests {
     #[test]
     fn a_shared_file_lock_blocks_only_exclusive() {
         let scratch = dx_test_scratch::scratch("dx-lease-shared-file-");
+        let _holding = dx_testing::holding();
         let path = scratch.path().join("sub").join("reserve.lock");
         let first = try_lock_file_shared(&path, true)
             .expect("lock")
@@ -354,6 +357,7 @@ mod tests {
     #[test]
     fn a_shared_lease_at_a_path_blocks_exclusive_and_times_out_behind_it() {
         let scratch = dx_test_scratch::scratch("dx-lease-shared-at-");
+        let _holding = dx_testing::holding();
         let path = scratch.path().join("sub").join("one.busy");
         let shared = acquire_shared_at(&path, Duration::ZERO).expect("shared");
         let again = acquire_shared_at(&path, Duration::ZERO).expect("shared holders coexist");
@@ -373,6 +377,7 @@ mod tests {
     #[test]
     fn exclusive_lease_at_a_path_excludes_a_second_holder_until_dropped() {
         let scratch = dx_test_scratch::scratch("dx-lease-at-");
+        let _holding = dx_testing::holding();
         let path = scratch.path().join("nested").join("pool.lock");
         let first = acquire_exclusive_at(&path, Duration::from_millis(100)).expect("first");
         let blocked = acquire_exclusive_at(&path, Duration::from_millis(100));
@@ -389,6 +394,7 @@ mod tests {
     #[test]
     fn exclusive_is_available_when_idle() {
         let scratch = dx_test_scratch::scratch("dx-lease-idle-");
+        let _holding = dx_testing::holding();
         let root = root(scratch.path());
         assert!(
             !shared_held(&root, GenerationUse::Generated, HEX_B).expect("idle probe"),
@@ -411,6 +417,7 @@ mod tests {
     #[test]
     fn shared_handoff_keeps_the_generation_locked() {
         let scratch = dx_test_scratch::scratch("dx-lease-shared-handoff-");
+        let _holding = dx_testing::holding();
         let root = root(scratch.path());
         let shared = acquire_shared(
             &root,

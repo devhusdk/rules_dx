@@ -1,7 +1,6 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use super::*;
-#[cfg(unix)]
 use crate::lib_tests::probe_argv;
 use std::path::PathBuf;
 

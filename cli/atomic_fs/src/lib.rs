@@ -581,6 +581,7 @@ mod tests {
 
     #[test]
     fn lock_exclusive_acquires_uncontended() {
+        let _holding = dx_testing::holding();
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-");
         let path = scratch.path().join(".commit.lock");
         let file = open_lock_file(&path);
@@ -594,6 +595,7 @@ mod tests {
 
     #[test]
     fn lock_exclusive_times_out_while_held() {
+        let _holding = dx_testing::holding();
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-busy-");
         let path = scratch.path().join(".commit.lock");
         let held = open_lock_file(&path);
@@ -610,6 +612,7 @@ mod tests {
 
     #[test]
     fn lock_exclusive_waits_then_acquires() {
+        let _holding = dx_testing::holding();
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-wait-");
         let path = scratch.path().join(".commit.lock");
         let held = open_lock_file(&path);

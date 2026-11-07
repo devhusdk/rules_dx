@@ -196,6 +196,7 @@ mod tests {
     #[test]
     fn second_acquire_reports_busy_with_the_lock_path() {
         let scratch = dx_test_scratch::scratch("dx-commit-lock-");
+        let _holding = dx_testing::holding();
         let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
         assert_eq!(root.dir(), dx_path::state::local_dir(scratch.path()));
@@ -272,6 +273,7 @@ mod tests {
     #[test]
     fn handed_off_handles_keep_the_lock() {
         let scratch = dx_test_scratch::scratch("dx-commit-handoff-");
+        let _holding = dx_testing::holding();
         let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
         let lock = acquire_commit_lock(&root, Duration::from_secs(10)).expect("acquire");

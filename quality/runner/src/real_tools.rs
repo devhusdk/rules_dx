@@ -903,6 +903,48 @@ fn staged_file(rel: &str) -> MirrorFile {
     }
 }
 
+fn shfmt_editorconfig_bytes(tool: &RealTool) -> Vec<u8> {
+    let mirrors = RealBackend::mirror_tool_files("shfmt", tool, &[], Path::new("/s"));
+    let found: Vec<_> = mirrors
+        .iter()
+        .filter(|mirror| mirror.mirror_rel == Path::new(".editorconfig"))
+        .collect();
+    assert_eq!(found.len(), 1, "one .editorconfig");
+    match &found[0].contents {
+        MirrorContents::Bytes(bytes) => bytes.clone(),
+        _ => panic!("bytes"),
+    }
+}
+
+#[test]
+fn shfmt_gets_the_bound_config_as_its_only_root_editorconfig() {
+    let bound = RealTool {
+        config_rel: Some("quality/tiers/shfmt/standard.editorconfig".to_owned()),
+        tool_files: vec![(
+            "quality/tiers/shfmt/standard.editorconfig".to_owned(),
+            b"[*]\nindent_style = tab\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    assert_eq!(
+        shfmt_editorconfig_bytes(&bound),
+        b"root = true\n[*]\nindent_style = tab\n"
+    );
+    let user = RealTool {
+        config_rel: Some(".editorconfig".to_owned()),
+        tool_files: vec![(
+            ".editorconfig".to_owned(),
+            b"[*]\nindent_size = 2\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    assert_eq!(
+        shfmt_editorconfig_bytes(&user),
+        b"root = true\n[*]\nindent_size = 2\n"
+    );
+    assert_eq!(shfmt_editorconfig_bytes(&plain_tool()), b"root = true\n");
+}
+
 #[test]
 fn selene_user_config_gets_the_std_at_the_root() {
     let tool = RealTool {

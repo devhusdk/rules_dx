@@ -206,6 +206,10 @@ perlcritic_config = _make_native_config_rule("perlcritic")
 
 perltidy_config = _make_native_config_rule("perltidy")
 
+shfmt_config = _make_native_config_rule("shfmt")
+
+mix_format_config = _make_native_config_rule("mix_format")
+
 lychee_config = _make_native_config_rule("lychee")
 
 typos_config = _make_native_config_rule("typos")

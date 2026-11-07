@@ -1427,6 +1427,45 @@ fn mix_format_behavior(
     })
 }
 
+fn mix_format_names_bound_config(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--dot-formatter")
+        .expect("mix names its formatter file");
+    let config = Path::new(&argv[at + 1]);
+    assert!(config.ends_with("quality/tiers/mix_format/standard.exs"));
+    assert_eq!(
+        std::fs::read(config).expect("staged"),
+        b"[line_length: 98]\n"
+    );
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn mix_format_reads_only_the_bound_formatter_file() {
+    let tool = RealTool {
+        config_rel: Some("quality/tiers/mix_format/standard.exs".to_owned()),
+        tool_files: vec![(
+            "quality/tiers/mix_format/standard.exs".to_owned(),
+            b"[line_length: 98]\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let backend = backend_for("mix_format", tool, mix_format_names_bound_config);
+    let findings = backend
+        .diagnose("mix_format", "format", &single("lib/a.ex", "x = 1\n"))
+        .expect("clean");
+    assert!(findings.is_empty());
+}
+
 #[test]
 pub(super) fn mix_format_reports_files_relative_to_its_working_directory() {
     let backend = backend_for("mix_format", plain_tool(), mix_format_behavior);

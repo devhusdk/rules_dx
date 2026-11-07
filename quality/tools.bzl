@@ -1762,7 +1762,13 @@ TOOLS = [
     tool(
         id = "mix_format",
         adapters = {"format": ["elixir"]},
-        config = config(kind = "none", tier_active = True),
+        config = config(
+            suffixes = [".exs"],
+            files = [".formatter.exs"],
+            ext = "exs",
+            comment = "#",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",
@@ -2548,7 +2554,13 @@ TOOLS = [
     tool(
         id = "shfmt",
         adapters = {"format": ["shell"]},
-        config = config(kind = "none", tier_active = True),
+        config = config(
+            suffixes = [".editorconfig"],
+            files = [".editorconfig"],
+            ext = "editorconfig",
+            comment = "#",
+            tier_active = True,
+        ),
         support = [
             row(
                 capability = "format",

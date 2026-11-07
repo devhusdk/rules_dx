@@ -1,0 +1,3 @@
+# shfmt defaults, written down so no other .editorconfig is read.
+[*]
+indent_style = tab

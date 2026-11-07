@@ -1806,11 +1806,21 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     let ex = Path::new("/scratch/sample.ex");
     assert_eq!(
-        argv_strings(&mix_format_check(Path::new(BIN), &[ex])),
-        vec![BIN, "--check-formatted", "/scratch/sample.ex"]
+        argv_strings(&mix_format_check(
+            Path::new(BIN),
+            &[ex],
+            Some(Path::new("/scratch/f.exs"))
+        )),
+        vec![
+            BIN,
+            "--check-formatted",
+            "--dot-formatter",
+            "/scratch/f.exs",
+            "/scratch/sample.ex"
+        ]
     );
     assert_eq!(
-        argv_strings(&mix_format_fix(Path::new(BIN), &[ex])),
+        argv_strings(&mix_format_fix(Path::new(BIN), &[ex], None)),
         vec![BIN, "/scratch/sample.ex"]
     );
     let nix = Path::new("/scratch/sample.nix");

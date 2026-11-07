@@ -267,6 +267,7 @@ const SWIFT_CONFIG_FLAG: &str = "--configuration";
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
+const MIX_DOT_FORMATTER: &str = "--dot-formatter";
 const ZIG_FMT_FIX_ARGS: &[&str] = &["fmt", "--color", "off"];
 const MODFMT_CHECK_ARGS: &[&str] = &["-c", "-l"];
 const MODFMT_FIX_ARGS: &[&str] = &["-w"];
@@ -1952,12 +1953,25 @@ pub fn elvis_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
     )
 }
 
-pub fn mix_format_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, MIX_FORMAT_CHECK_ARGS, files, "")
+/// `--dot-formatter` names the bound file, so mix never reads a `.formatter.exs` of its own.
+pub fn mix_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    mix_format(binary, MIX_FORMAT_CHECK_ARGS, files, config)
 }
 
-pub fn mix_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, &[], files, "")
+pub fn mix_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    mix_format(binary, &[], files, config)
+}
+
+fn mix_format(binary: &Path, args: &[&str], files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        args,
+        MIX_DOT_FORMATTER,
+        config,
+        EMPTY_ARGS,
+        files,
+        "",
+    )
 }
 
 /// Explicit owned `.nix` paths only: the default RFC style at width 100, no `--follow-symlinks`
@@ -3199,3 +3213,7 @@ pub fn plan_invocation_batches_with_budget<'a, E>(
 #[path = "commands_tests.rs"]
 #[cfg(test)]
 mod commands_tests;
+
+#[path = "config_discovery_tests.rs"]
+#[cfg(test)]
+mod config_discovery_tests;

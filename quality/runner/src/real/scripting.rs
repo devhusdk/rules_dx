@@ -635,7 +635,8 @@ fn mix_format(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding
     let (refs, names) = paths(call);
     let strs: Vec<&str> = names.iter().map(String::as_str).collect();
     let cwd_rel = RealBackend::cwd_rel(tool_id, tool.config_rel.as_deref());
-    let invocation = commands::mix_format_check(&tool.binary, &refs);
+    let config = backend.config_abs(tool_id, tool, scratch)?;
+    let invocation = commands::mix_format_check(&tool.binary, &refs, config.as_deref());
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
     let cwd = scratch.root().join(&cwd_rel);
     parsed(

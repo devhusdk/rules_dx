@@ -348,6 +348,7 @@ pub(super) enum Route {
     Sqlfluff,
     SwiftFormat,
     Perltidy,
+    MixFormat,
     Rewrite(fn(&Path, &[&Path]) -> Invocation),
 }
 
@@ -421,7 +422,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
         "perltidy" => Ok(Route::Perltidy),
         "swift_format" => Ok(Route::SwiftFormat),
-        "mix_format" => Ok(Route::Rewrite(commands::mix_format_fix)),
+        "mix_format" => Ok(Route::MixFormat),
         "keep_sorted" => {
             if tool.upstream_diagnostics.is_empty() {
                 spec(false)
@@ -444,6 +445,7 @@ impl Route {
             | Route::Sqlfluff
             | Route::SwiftFormat
             | Route::Perltidy
+            | Route::MixFormat
             | Route::Rewrite(_) => &[],
         }
     }
@@ -867,6 +869,14 @@ impl super::RealBackend {
                     config.as_deref(),
                 ))
             }
+            Route::MixFormat => {
+                let config = self.config_abs(tool_id, tool, scratch)?;
+                Ok(commands::mix_format_fix(
+                    &tool.binary,
+                    refs,
+                    config.as_deref(),
+                ))
+            }
             Route::Perltidy => {
                 let config = self.config_abs(tool_id, tool, scratch)?;
                 Ok(commands::perltidy_fix(
@@ -985,7 +995,7 @@ impl super::RealBackend {
                     Outcome::Kept
                 }
             }
-            Route::Rewrite(_) => {
+            Route::Rewrite(_) | Route::MixFormat => {
                 if out.code == Some(0) && out.stderr.is_empty() {
                     Outcome::Fixed
                 } else {

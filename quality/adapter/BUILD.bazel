@@ -183,6 +183,7 @@ rust_test(
         "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/commands_tests.rs",
+        "src/config_discovery_tests.rs",
         "src/exec.rs",
         "src/json_schema.rs",
         "src/kubernetes_preflight.rs",
@@ -334,12 +335,14 @@ rust_test(
     crate_name = "quality_adapter",
     crate_root = "src/lib.rs",
     data = [
+        "//cli/generate:src/tools_gen.rs",
         "//javascript/ide:node_tool",
         "//python/ide:python_tool",
         "//tools/testing/process_probe",
     ],
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
+        "DX_TOOL_CONFIGS": "$(rootpath //cli/generate:src/tools_gen.rs)",
         "DX_TEST_NODE": "$(rootpath //javascript/ide:node_tool)",
         "DX_TEST_PYTHON": "$(rootpath //python/ide:python_tool)",
     },

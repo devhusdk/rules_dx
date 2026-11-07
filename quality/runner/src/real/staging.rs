@@ -13,6 +13,16 @@ pub(super) const TIER_BASE_TOOLS: &[&str] = &[
     "selene", "stylelint", "tflint",
 ];
 
+/// shfmt only reads `.editorconfig`, searching up from each file. The bound config goes in the
+/// scratch root as that file, and `root = true` stops the search there.
+const SHFMT_CONFIG_REL: &str = ".editorconfig";
+
+fn shfmt_editorconfig(bound: Option<&[u8]>) -> Vec<u8> {
+    let mut out = b"root = true\n".to_vec();
+    out.extend_from_slice(bound.unwrap_or_default());
+    out
+}
+
 const FSHARPLINT_CONTEXT_REL: &str = "dx-fsharplint/context.json";
 
 pub(super) struct FsharplintInputs {
@@ -137,6 +147,19 @@ impl RealBackend {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(BICEP_CONFIG_REL),
                 contents: MirrorContents::Bytes(pin_bicep_cache(bound, root)),
+            });
+        }
+        if tool_id == "shfmt" {
+            let bound = tool.config_rel.as_deref().and_then(|rel| {
+                tool.tool_files
+                    .iter()
+                    .find(|(file, _)| file == rel)
+                    .map(|(_, bytes)| bytes.as_slice())
+            });
+            mirrors.retain(|mirror| mirror.mirror_rel != Path::new(SHFMT_CONFIG_REL));
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(SHFMT_CONFIG_REL),
+                contents: MirrorContents::Bytes(shfmt_editorconfig(bound)),
             });
         }
         if tool_id == "selene" && !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter())) {

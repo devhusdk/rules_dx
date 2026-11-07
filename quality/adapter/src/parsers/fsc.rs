@@ -186,6 +186,17 @@ mod tests {
     }
 
     #[test]
+    fn reports_unused_values() {
+        let text = "fs/a.fs(2,9): warning FS1182: The value 'x' is unused\n";
+        let found = parse(text, 0).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].finding.rule_id, "FS1182");
+        assert_eq!(found[0].finding.start.line, 2);
+        assert_eq!(found[0].finding.start.column, 9);
+        assert!(matches!(found[0].finding.severity, ToolSeverity::Warning));
+    }
+
+    #[test]
     fn reads_range_forms() {
         for location in ["(3,5-3,9)", "(3,5-9)", "(3,5)-(3,9)"] {
             let text = format!("fs/a.fs{location}: error FS0001: boom\n");

@@ -138,6 +138,7 @@ DEAD_CODE = {
     "d": ["none"],
     "dart": ["dart unused_element"],
     "fortran": ["fortitude C191 unreachable-statement"],
+    "fsharp": ["fsc FS1182 (--warnon:1182)"],
     "go": ["staticcheck U1000"],
     "haskell": ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
     "java": ["pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter"],

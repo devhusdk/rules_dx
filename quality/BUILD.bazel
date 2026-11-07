@@ -9,6 +9,7 @@ load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests
 load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
+load(":fsc_tests.bzl", "fsc_unit_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":default_policy.bzl", "default_workspace_policy")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
@@ -668,6 +669,8 @@ nvcc_syntax_unit_tests(name = "nvcc_syntax_unit")
 
 compile_check_unit_tests(name = "compile_check_unit")
 
+fsc_unit_tests(name = "fsc_unit")
+
 sh_test(
     name = "compile_check_exec_test",
     srcs = ["compile_check_exec_test.sh"],
@@ -768,6 +771,7 @@ real_source_target(
         "fixtures.bzl",
         "fixtures_tests.bzl",
         "fsc.bzl",
+        "fsc_tests.bzl",
         "native_config.bzl",
         "native_config_tests.bzl",
         "overlap_tests.bzl",

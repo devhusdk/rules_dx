@@ -47,6 +47,18 @@ def _targetprofile(tfm):
         return "--targetprofile:netcore"
     return "--targetprofile:mscorlib"
 
+def fsc_warnon_args(nowarn, compiler_options):
+    """Returns the warnings dx turns on beyond the real build: FS1182, unused values.
+
+    A target that silences 1182 itself through nowarn or compiler_options keeps it off.
+    """
+    if "1182" in nowarn or "FS1182" in nowarn:
+        return []
+    for option in compiler_options:
+        if "1182" in option:
+            return []
+    return ["--warnon:1182"]
+
 def _fsc_impl(target, ctx):
     attrs = ctx.rule.attr
     if ctx.rule.kind not in _FSHARP_KINDS:
@@ -89,6 +101,7 @@ def _fsc_impl(target, ctx):
     # The arguments mirror rules_dotnet 0.22.2 fsharp/actions/fsharp_assembly.bzl
     # _compile, so the diagnostics match the real build. Strong-name keys,
     # resources and the generated InternalsVisibleTo file do not change them.
+    # The one deliberate addition is fsc_warnon_args, which reports unused values.
     debug = ctx.var["COMPILATION_MODE"] in ["dbg", "fastbuild"]
     args = ctx.actions.args()
     args.add("--noframework")
@@ -102,6 +115,7 @@ def _fsc_impl(target, ctx):
     args.add("--warn:%s" % attrs.warning_level)
     if len(attrs.nowarn) > 0:
         args.add("--nowarn:" + ",".join(attrs.nowarn))
+    args.add_all(fsc_warnon_args(attrs.nowarn, attrs.compiler_options))
     args.add("--target:" + ("library" if ctx.rule.kind == "fsharp_library" else "exe"))
     langversion = attrs.langversion if attrs.langversion != "" else toolchain.dotnetinfo.fsharp_default_version
     if langversion:

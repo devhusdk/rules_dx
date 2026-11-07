@@ -40,6 +40,7 @@ mod quality_emit;
 mod quality_patch;
 mod quality_reconcile;
 mod quality_reports;
+mod generated_drift;
 mod quality_security;
 mod release;
 mod results;

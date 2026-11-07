@@ -618,6 +618,13 @@ fn run_quality_request(
         !collected.changes.is_empty(),
     );
     super::quality_security::drop_excepted_findings(workspace, audit_today, &mut status);
+    if request.command == Command::Lint {
+        status.extend(super::generated_drift::findings(
+            workspace,
+            query_runner,
+            &super::preset_sync::rewritten(),
+        ));
+    }
     let mut failed = status
         .iter()
         .any(|diagnostic| meets_threshold(diagnostic.severity, request.fail_on));

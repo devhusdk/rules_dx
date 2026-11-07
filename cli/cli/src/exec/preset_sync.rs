@@ -2,9 +2,17 @@
 
 use std::io::Write;
 use std::path::Path;
+use std::sync::Mutex;
 
 use dx_generate::Mode;
 use dx_plan::args::{Command, Invocation};
+
+static REWRITTEN: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// The `.dx` files the sync in this invocation wrote or deleted.
+pub fn rewritten() -> Vec<String> {
+    REWRITTEN.lock().map(|list| list.clone()).unwrap_or_default()
+}
 
 /// Syncs `.dx`; a failure prints one warning and changes nothing else. A failed migration of
 /// the old layout skips the sync, so the old files stay.
@@ -36,6 +44,9 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
     }
     match dx_generate::sync(workspace, mode, &mut dx_adopt::detected_families) {
         Ok(report) => {
+            if let Ok(mut list) = REWRITTEN.lock() {
+                list.extend(report.written.iter().chain(&report.deleted).cloned());
+            }
             for warning in report.warnings {
                 let _ = writeln!(err, "{warning}");
             }
@@ -47,7 +58,7 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
 }
 
 /// Whether the root `.bazelrc` imports the checked-in preset of rules_dx itself.
-fn keeps_repo_preset(workspace: &Path) -> bool {
+pub(super) fn keeps_repo_preset(workspace: &Path) -> bool {
     let text = std::fs::read_to_string(workspace.join(".bazelrc")).unwrap_or_default();
     let prefix = format!("{}/", dx_adopt::preset_fragment::REPO_DIR);
     dx_adopt::preset_fragment::bazelrc_imports(&text)

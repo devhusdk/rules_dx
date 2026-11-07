@@ -377,7 +377,8 @@ jobs:
       - name: Deny the host MSVC trees to hermetic runs
         run: |
           denies=()
-          for root in "$(printenv ProgramFiles)" "$(printenv 'ProgramFiles(x86)')"; do
+          # Git Bash upper-cases ProgramFiles but keeps ProgramFiles(x86) as is.
+          for root in "${PROGRAMFILES:-$(printenv ProgramFiles)}" "$(printenv 'ProgramFiles(x86)')"; do
             [ -n "$root" ] || continue
             for name in "Microsoft Visual Studio" "Windows Kits" "Microsoft SDKs"; do
               dir="$root\\$name"

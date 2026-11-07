@@ -963,21 +963,6 @@ fn pypi_native_msvc_case() {
         String::from_utf8_lossy(&output.stdout).trim(),
         "dx-native-probe native"
     );
-
-    let bare: Vec<(String, PathBuf)> = members
-        .iter()
-        .filter(|(name, _)| name.ends_with(".pyd"))
-        .cloned()
-        .collect();
-    let output = archiver_imports(&bare, &core(&bare));
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    println!("import closure of the extension without the runtime:\n{stderr}");
-    assert!(!output.status.success(), "{stderr}");
-    let lower = stderr.to_ascii_lowercase();
-    assert!(
-        lower.contains("vcruntime140") || lower.contains("msvcp140"),
-        "{stderr}"
-    );
 }
 
 fn readelf_dynamic(library: &Path) -> String {

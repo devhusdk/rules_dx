@@ -121,7 +121,7 @@ jobs:
               exit 1
             fi
             case "$name$value" in
-              *[\"\\%\&\|\<\>\^]*)
+              *['"\%&|<>^']*)
                 echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
                 exit 1
                 ;;
@@ -236,7 +236,7 @@ jobs:
               exit 1
             fi
             case "$name$value" in
-              *[\"\\%\&\|\<\>\^]*)
+              *['"\%&|<>^']*)
                 echo "::error::REMOTE_CACHE_HEADER has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
                 exit 1
                 ;;

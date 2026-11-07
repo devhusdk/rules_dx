@@ -952,8 +952,7 @@ hermetic_qualification(
 hermetic_qualification(
     name = "python",
     files = {
-        "//quality/tiers/ruff:standard.toml": ".dx/config/ruff/standard.toml",
-        "//quality/tiers/ruff:strict.toml": ".dx/config/ruff/strict.toml",
+        "//quality/tiers/ruff:standard.toml": ".dx/config/ruff/base.toml",
         "//python/tests/fixtures/python-service/ledger/cli:__init__.py": "ledger/cli/__init__.py",
         "//python/tests/fixtures/python-service/ledger/cli:broken_main.py": "ledger/cli/broken_main.py",
         "//python/tests/fixtures/python-service/ledger/cli:broken_test.py": "ledger/cli/broken_test.py",

@@ -1,1 +1,1 @@
-extend = ".dx/config/ruff/standard.toml"
+extend = ".dx/config/ruff/base.toml"

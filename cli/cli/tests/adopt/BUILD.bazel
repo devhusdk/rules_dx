@@ -10,6 +10,7 @@ rust_test(
     crate_name = "adopt",
     crate_root = "tests/adopt.rs",
     data = [
+        "golden/fresh_init_dx.txt",
         "//cli/cli:dx",
         "//examples/adopt-polyglot:Cargo.lock",
         "//examples/adopt-polyglot:Cargo.toml",
@@ -20,6 +21,7 @@ rust_test(
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FRESH_INIT_GOLDEN": "$(rootpath golden/fresh_init_dx.txt)",
         "DX_POLYGLOT_CARGO_LOCK": "$(rootpath //examples/adopt-polyglot:Cargo.lock)",
         "DX_POLYGLOT_CARGO_TOML": "$(rootpath //examples/adopt-polyglot:Cargo.toml)",
         "DX_POLYGLOT_PACKAGE_JSON": "$(rootpath //examples/adopt-polyglot:package.json)",

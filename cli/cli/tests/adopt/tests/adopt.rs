@@ -211,7 +211,20 @@ fn fresh_clone_regenerates_dx_on_first_command() {
     }
     let out = dx(&root, &home, &["completion", "bash"]);
     assert_eq!(out.code, 0, "{}", out.stderr);
-    assert_eq!(before, generated());
+    let after = generated();
+    assert_eq!(before, after);
+    let mut actual = String::new();
+    for (path, bytes) in &after {
+        let text = std::str::from_utf8(bytes).expect("utf-8");
+        actual.push_str(&format!("=== {}\n{text}", path.display()));
+    }
+    let golden = resolve_runfiles(
+        &std::env::var("DX_FRESH_INIT_GOLDEN").expect("DX_FRESH_INIT_GOLDEN must be set"),
+    );
+    assert!(
+        read(&golden) == actual,
+        "update cli/cli/tests/adopt/golden/fresh_init_dx.txt to:\n{actual}"
+    );
 }
 
 #[test]

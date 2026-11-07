@@ -173,13 +173,13 @@ fn values(syntax: &str, key: &str, text: &str) -> Vec<String> {
 mod tests {
     #[test]
     fn dx_paths_finds_each_dx_token_once() {
-        let text = "export { default } from \"./.dx/config/eslint/strict.mjs\";\n\
+        let text = "export { default } from \"./.dx/config/eslint/extra.mjs\";\n\
                     extend = '.dx/config/ruff/base.toml' # .dx/config/ruff/base.toml\n\
                     other.dx/x ../.dx/up é.dx/pins";
         assert_eq!(
             super::dx_paths(text),
             [
-                ".dx/config/eslint/strict.mjs",
+                ".dx/config/eslint/extra.mjs",
                 ".dx/config/ruff/base.toml",
                 ".dx/pins"
             ]

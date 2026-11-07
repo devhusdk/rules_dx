@@ -169,7 +169,7 @@ fn a_referenced_dx_file_dx_does_not_render_is_kept_with_a_warning() {
     let root = dir.path();
     write(
         root,
-        ".dx/config/eslint/strict.mjs",
+        ".dx/config/eslint/extra.mjs",
         "import \"./frameworks.mjs\";\n",
     );
     write(root, ".dx/config/eslint/frameworks.mjs", "x");
@@ -177,7 +177,7 @@ fn a_referenced_dx_file_dx_does_not_render_is_kept_with_a_warning() {
     write(
         root,
         "eslint.config.mjs",
-        "export { default } from \"./.dx/config/eslint/strict.mjs\";\n",
+        "export { default } from \"./.dx/config/eslint/extra.mjs\";\n",
     );
     write(
         root,
@@ -188,12 +188,12 @@ fn a_referenced_dx_file_dx_does_not_render_is_kept_with_a_warning() {
     assert_eq!(
         report.warnings,
         [
-            "dx: warning: eslint.config.mjs references .dx/config/eslint/strict.mjs, which dx does not render; kept it",
+            "dx: warning: eslint.config.mjs references .dx/config/eslint/extra.mjs, which dx does not render; kept it",
             "dx: warning: tsconfig.json references .dx/config/tsconfig/base.json, which does not exist",
         ]
     );
     assert_eq!(report.deleted, Vec::<String>::new());
-    for rel in ["strict.mjs", "frameworks.mjs", "standard.mjs"] {
+    for rel in ["extra.mjs", "frameworks.mjs", "standard.mjs"] {
         assert!(root.join(".dx/config/eslint").join(rel).is_file(), "{rel}");
     }
     assert_eq!(run(root, Mode::Fast, &mut 0), SyncReport::default());

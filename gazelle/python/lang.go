@@ -262,9 +262,9 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	var plans []plan
 	pkgIdx := -1
-	foreign := foreignSources(args.File)
+	owned := ownedSources(args.File)
 	for _, src := range sources {
-		if foreign[src] {
+		if owned[src] {
 			continue
 		}
 		content, err := common.ReadSource(filepath.Join(args.Dir, src))
@@ -382,7 +382,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		if hints := withRuffHint(args.Config, existingRule(args.File, r.Kind(), r.Name()), ruff, args.Rel); len(hints) > 0 {
 			r.SetAttr("aspect_hints", hints)
 		}
-		if common.FixtureTestonly(args.Config, args.Rel) {
+		if r.Kind() != testKind && common.FixtureTestonly(args.Config, args.Rel) {
 			r.SetAttr("testonly", true)
 		}
 	}
@@ -465,21 +465,40 @@ var foreignKinds = map[string]bool{
 	"py_unittest_test": true, "py_pytest_main": true, "py_pytest_test": true,
 }
 
-// foreignSources lists the sources named by rules_py and rules_python rules in file.
-func foreignSources(file *rule.File) map[string]bool {
+// ownedSources lists the sources that rules other than generated ones own:
+// rules_py and rules_python rules, exports_files, binary srcs, and the non-test
+// sources of tests.
+func ownedSources(file *rule.File) map[string]bool {
 	owned := make(map[string]bool)
 	if file == nil {
 		return owned
 	}
+	handwritten := common.ExportedFiles(file)
 	for _, r := range file.Rules {
-		if !foreignKinds[r.Kind()] {
-			continue
-		}
-		for _, s := range r.AttrStrings("srcs") {
-			owned[s] = true
-		}
+		srcs := r.AttrStrings("srcs")
 		if m := r.AttrString("main"); m != "" {
-			owned[m] = true
+			srcs = append(srcs, m)
+		}
+		switch {
+		case foreignKinds[r.Kind()]:
+			for _, s := range srcs {
+				owned[s] = true
+			}
+		case r.Kind() == binaryKind:
+			for _, s := range r.AttrStrings("srcs") {
+				handwritten[s] = true
+			}
+		case r.Kind() == testKind:
+			for _, s := range srcs {
+				if !IsTestFile(s) {
+					handwritten[s] = true
+				}
+			}
+		}
+	}
+	for s := range handwritten {
+		if ownerName(file, libraryKind, s) == "" {
+			owned[s] = true
 		}
 	}
 	return owned

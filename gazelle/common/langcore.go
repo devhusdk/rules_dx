@@ -15,6 +15,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+	"github.com/bazelbuild/buildtools/build"
 )
 
 type Reporter interface {
@@ -184,6 +185,29 @@ func CoveredBinary(file *rule.File, kind, want string, covers func(*rule.Rule) b
 	return slices.ContainsFunc(file.Rules, func(r *rule.Rule) bool {
 		return r.Kind() == kind && r.Name() != want && covers(r)
 	})
+}
+
+// ExportedFiles lists the files named by exports_files calls in file.
+func ExportedFiles(file *rule.File) map[string]bool {
+	files := make(map[string]bool)
+	if file == nil {
+		return files
+	}
+	for _, r := range file.Rules {
+		if r.Kind() != "exports_files" || len(r.Args()) == 0 {
+			continue
+		}
+		list, ok := r.Args()[0].(*build.ListExpr)
+		if !ok {
+			continue
+		}
+		for _, item := range list.List {
+			if s, ok := item.(*build.StringExpr); ok {
+				files[s.Value] = true
+			}
+		}
+	}
+	return files
 }
 
 func FormatMatches(matches []resolve.FindResult) string {

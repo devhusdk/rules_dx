@@ -175,6 +175,30 @@ func TestGenerateFixturePathMarksTestonly(t *testing.T) {
 	}
 }
 
+func TestGenerateFixturePathSkipsTestonlyOnTests(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/fixtures/demo/demo_test.py", "def test_x():\n    pass\n")
+	writeFixture(t, root, "pkg/fixtures/demo/helper.py", "x = 1\n")
+	c := &config.Config{RepoRoot: root}
+	common.SetFixtureTestonly(c, true)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       c,
+		Dir:          filepath.Join(root, "pkg", "fixtures", "demo"),
+		Rel:          "pkg/fixtures/demo",
+		RegularFiles: []string{"demo_test.py", "helper.py"},
+	})
+	kinds := map[string]bool{}
+	for _, r := range result.Gen {
+		kinds[r.Kind()] = true
+		if marked := r.AttrBool("testonly"); marked == (r.Kind() == testKind) {
+			t.Errorf("%s %s: testonly = %v", r.Kind(), r.Name(), marked)
+		}
+	}
+	if !kinds[testKind] || !kinds[libraryKind] {
+		t.Fatalf("generated kinds %v, want a test and a library", kinds)
+	}
+}
+
 func TestCheckClaims(t *testing.T) {
 	claimants := []Claimant{{Name: "demo", Source: "demo.py"}}
 	if err := checkClaims(nil, nil, claimants); err != nil {
@@ -953,6 +977,47 @@ func TestGenerateKeepsExistingLibraryName(t *testing.T) {
 	})
 	if len(result.Gen) != 1 || result.Gen[0].Name() != "bar" || len(result.Empty) != 0 {
 		t.Fatalf("gen = %v, empty = %v, want only python_library(bar)", result.Gen, result.Empty)
+	}
+}
+
+func TestGenerateSkipsSourcesOwnedByHandwrittenRules(t *testing.T) {
+	const build = `python_binary(name = "tool_bin", srcs = ["tool.py"], main = "tool.py")
+
+python_test(name = "tool_test", srcs = ["tool.py"], main = "tool.py", runner = "plain")
+
+exports_files(["proto.py"])
+`
+	for _, tc := range []struct {
+		name  string
+		extra string
+		want  []string
+	}{
+		{name: "owned", want: []string{"b"}},
+		{name: "existing library", extra: `python_library(name = "proto", srcs = ["proto.py"])`, want: []string{"b", "proto"}},
+	} {
+		root := t.TempDir()
+		for _, src := range []string{"tool.py", "proto.py", "b.py"} {
+			writeFixture(t, root, "pkg/demo/"+src, "x = 1\n")
+		}
+		file, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte(build+tc.extra))
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := NewLanguage().GenerateRules(language.GenerateArgs{
+			Config:       &config.Config{RepoRoot: root},
+			Dir:          filepath.Join(root, "pkg", "demo"),
+			Rel:          "pkg/demo",
+			File:         file,
+			RegularFiles: []string{"tool.py", "proto.py", "b.py"},
+		})
+		var got []string
+		for _, r := range result.Gen {
+			got = append(got, r.Name())
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, tc.want) || len(result.Empty) != 0 {
+			t.Errorf("%s: gen = %v, empty = %v, want %v and no empty rules", tc.name, got, result.Empty, tc.want)
+		}
 	}
 }
 

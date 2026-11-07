@@ -1002,20 +1002,11 @@ fn remote_repo_contents_cache_comes_from_the_preset() {
 }
 
 #[test]
-fn evidence_checks_out_in_parallel_without_actions_checkout() {
+fn evidence_uses_actions_checkout_like_ci() {
     let evidence = read_runfiles(".github/workflows/evidence.yml");
-    let step = evidence
-        .find("- name: Check out files in parallel\n")
-        .expect("evidence.yml has no parallel checkout step");
-    let body: String = evidence[step..].lines().skip(1).take_while(|line| !line.trim_start().starts_with("- ")).collect();
-    assert!(!body.contains("if:"), "the parallel checkout must run on every OS");
     assert!(
-        body.contains("-c checkout.workers=0 checkout --force FETCH_HEAD"),
-        "the checkout must run with checkout.workers=0"
-    );
-    assert!(
-        !evidence.contains("actions/checkout@"),
-        "evidence.yml checks out with git, not actions/checkout"
+        evidence.contains("actions/checkout@") && evidence.contains("persist-credentials: false"),
+        "evidence.yml checks out with actions/checkout and persist-credentials: false"
     );
 }
 

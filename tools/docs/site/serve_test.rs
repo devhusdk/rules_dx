@@ -19,7 +19,7 @@ impl Server {
         let port = site.local_addr().expect("local addr").port();
         Server {
             port,
-            _site: site.spawn(),
+            _site: site.spawn().expect("spawn the server"),
         }
     }
 
@@ -146,7 +146,10 @@ fn a_deep_nested_command_page_resolves_its_own_relative_assets() {
         "../../../highlight.js",
         "../../../fonts/fonts.css",
     ] {
-        let target = format!("/rules_dx/docs/cli/commands/{asset}");
+        let target = format!(
+            "/rules_dx/{}",
+            resolve("docs/cli/commands/docs.html", asset)
+        );
         let response = server.get(&target);
         response.expect_ok(&target);
     }

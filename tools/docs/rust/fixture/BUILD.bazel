@@ -64,16 +64,18 @@ rust_lint_config(
 # keep
 upstream_rust_library(
     name = "docs_fixture_lints_upstream",
-    srcs = ["src/lib.rs"],
+    srcs = ["src/lib.rs", "src/shapes.rs"],
     crate_name = "docs_fixture_lints_upstream",
+    deps = [":docs_fixture_build_script"],
     lint_config = ":docs_fixture_lints",
 )
 
 # keep
 rust_library(
     name = "docs_fixture_lints_dx",
-    srcs = ["src/lib.rs"],
+    srcs = ["src/lib.rs", "src/shapes.rs"],
     crate_name = "docs_fixture_lints_dx",
+    deps = [":docs_fixture_build_script"],
     lint_config = ":docs_fixture_lints",
 )
 

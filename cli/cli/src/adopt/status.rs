@@ -203,12 +203,12 @@ struct Bindings {
     problem: Option<dx_adopt::StatusCheck>,
 }
 
-fn dx_toml_problem(detail: String) -> dx_adopt::StatusCheck {
+fn problem_check(name: &str, detail: String) -> dx_adopt::StatusCheck {
     dx_adopt::StatusCheck {
-        name: "dx.toml".to_owned(),
+        name: name.to_owned(),
         status: "warn".to_owned(),
         detail,
-        hint: "fix dx.toml, then run dx status".to_owned(),
+        hint: format!("fix the {name} problem, then run dx status"),
     }
 }
 
@@ -219,7 +219,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
             return Bindings {
                 tiers: Vec::new(),
                 configs: Vec::new(),
-                problem: Some(dx_toml_problem(error.to_string())),
+                problem: Some(problem_check("dx.toml", error.to_string())),
             };
         }
     };
@@ -239,8 +239,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
     if let Some(config) = &config {
         tiers.extend(config.families.iter().filter_map(|(id, family)| {
             let profile = family.profile?;
-            families
-                .contains(id)
+            (!family.disabled && families.contains(id))
                 .then(|| from(Some(profile), Some(id.clone())))
         }));
     }
@@ -255,9 +254,10 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
             );
         }
         Err(error) => {
-            problem = Some(dx_toml_problem(format!(
-                "cannot list the workspace: {error}"
-            )))
+            problem = Some(problem_check(
+                "workspace",
+                format!("cannot list the workspace: {error}"),
+            ))
         }
     }
     let configs = match dx_generate::bound_configs(config.as_ref(), &families, &root_files) {
@@ -269,7 +269,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
             })
             .collect(),
         Err(error) => {
-            problem = Some(dx_toml_problem(error.to_string()));
+            problem = Some(problem_check("dx.toml", error.to_string()));
             Vec::new()
         }
     };
@@ -758,6 +758,19 @@ mod tests {
             .find(|event| event["event"] == "tier" && event["family"] == "python")
             .expect("family tier event");
         assert_eq!(family["tier"], "strict");
+    }
+
+    #[test]
+    fn status_skips_the_tier_of_a_disabled_family() {
+        let files = [
+            ("a.py", "x = 1\n"),
+            (
+                "dx.toml",
+                "schema_version = 1\n[families.python]\ntier = \"strict\"\ndisabled = true\n",
+            ),
+        ];
+        let out = status_with(&files, &["status"]);
+        assert!(!out.contains("tier python"), "{out}");
     }
 
     #[test]

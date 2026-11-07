@@ -168,8 +168,17 @@ def _cc_kwargs(kwargs, srcs, hdrs = None):
     return dx_append_flags(kwargs, "features", features) if features else kwargs
 
 def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
-    """Minimal wrapper over cc_library."""
+    """Minimal wrapper over cc_library. On macOS it builds no dylib unless linkstatic is set.
+
+    ld64 resolves every symbol at link time, so the nodeps dylibs Bazel builds for cc_library fail to
+    link (#8114). hermetic-llvm#906 stops them upstream; drop the default once llvm ships it (#9228).
+    """
     kwargs = _cc_kwargs(kwargs, srcs, hdrs)
+    if "linkstatic" not in kwargs:
+        kwargs["linkstatic"] = select({
+            Label("@platforms//os:macos"): True,
+            "//conditions:default": False,
+        })
     effective_srcs = srcs if srcs != None else []
     effective_hdrs = hdrs if hdrs != None else []
     dx_wrap(name, _cc_library, _cc_library_forward, effective_srcs, visibility = visibility, hdrs = effective_hdrs, extra_forward_kwargs = {"hdrs": effective_hdrs}, **kwargs)

@@ -404,19 +404,19 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | --- | --- | --- | --- | --- | --- |
 | `ansible_lint` | catalog | `*.ansible-lint`, `*.yml`, `*.yaml` | none | ansible-lint moderate and production profiles |  |
 | `bicep` | curated | `bicepconfig.json` | none | dx |  |
-| `biome` | curated | `*.json` | none | dx |  |
+| `biome` | curated | `biome.json` | none | dx |  |
 | `buf` | catalog | `buf.yaml` | override copy | dx |  |
 | `buildifier` | curated | `.buildifier.json` | override copy | dx |  |
 | `cfn_lint` | curated | `*.cfnlintrc`, `*.yaml`, `*.yml` | none | dx |  |
 | `checkmake` | catalog | `checkmake.ini` | override copy | dx |  |
 | `checkstyle` | catalog | `*.xml` | none | dx |  |
-| `clang_format` | curated | `*.clang-format` | none | dx |  |
+| `clang_format` | curated | `.clang-format` | none | dx |  |
 | `clang_tidy` | curated | `*.clang-tidy` | none | dx |  |
 | `clippy` | curated |  | none | dx |  |
 | `cmakelint` | catalog | `.cmakelintrc` | override copy | dx |  |
 | `cppcheck` | catalog | `*.txt` | none | dx |  |
 | `credo` | catalog | `*.exs` | none | dx |  |
-| `csharpier` | catalog | `*.yaml` | none |  |  |
+| `csharpier` | catalog | `*.yaml` | none | dx |  |
 | `dart` | curated | `analysis_options.yaml` | extends | dx |  |
 | `deadnix` | curated | `*.txt` | none | dx |  |
 | `detekt` | curated | `*.yml`, `*.yaml` | none | dx |  |
@@ -426,7 +426,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `eslint` | catalog | `eslint.config.mjs`, `eslint.config.js`, `eslint.config.cjs`, `eslint.config.ts`, `.eslintrc*` | extends | dx |  |
 | `ffmt` | curated | `ffmt.toml` | none | dx |  |
 | `fortitude` | curated | `*.toml` | none | dx |  |
-| `fsharplint` | catalog | `*.json` | none |  |  |
+| `fsharplint` | catalog | `*.json` | none | dx |  |
 | `gersemi` | catalog | `.gersemirc` | override copy | dx |  |
 | `govet` | curated | `*.json` | none | dx |  |
 | `gplint` | catalog | `*.gplintrc`, `*.json` | none | dx |  |
@@ -437,9 +437,12 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `kubeconform` | curated | `kubernetes.kubeconform.json` | none | dx |  |
 | `latexindent` | catalog | `*.yaml`, `*.yml` | none | dx |  |
 | `luals` | catalog | `*.json` | none | dx |  |
+| `lychee` | curated | `lychee.toml` | override copy | dx |  |
 | `markdown_check` | curated | `*.txt` | none | dx |  |
 | `mbake` | catalog | `.bake.toml` | override copy | dx |  |
+| `mix_format` | catalog | `.formatter.exs` | override copy | dx |  |
 | `perlcritic` | catalog | `*.perlcriticrc`, `perlcriticrc` | none | dx |  |
+| `perltidy` | catalog | `.perltidyrc` | override copy | dx |  |
 | `phpcs` | catalog | `*.xml`, `*.xml.dist` | none | dx |  |
 | `phpstan` | catalog | `*.neon`, `*.neon.dist` | none | phpstan level 6 and phpstan-strict-rules |  |
 | `pmd` | curated | `*.xml` | none | dx |  |
@@ -451,14 +454,15 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `redocly` | catalog | `*.yaml`, `*.yml` | none | redocly spec and all rulesets |  |
 | `regal` | catalog | `.regal/config.yaml` | none | dx |  |
 | `remark` | curated | `*.json` | none | dx |  |
-| `roslyn` | catalog | `*.globalconfig` | none |  |  |
+| `roslyn` | catalog | `*.globalconfig` | none | dx |  |
 | `rubocop` | catalog | `*.yml`, `*.yaml` | none | dx |  |
 | `ruff` | curated | `ruff.toml`, `.ruff.toml` | extends | dx |  |
-| `rustfmt` | curated | `*.toml` | none | dx |  |
+| `rustfmt` | curated | `rustfmt.toml`, `.rustfmt.toml` | none | dx |  |
 | `scalafix` | catalog | `*.conf` | none | dx |  |
-| `scalafmt` | curated | `*.conf` | none | dx |  |
+| `scalafmt` | curated | `.scalafmt.conf` | none | dx |  |
 | `selene` | catalog | `*.toml` | none | dx |  |
-| `shellcheck` | curated | `*.shellcheckrc`, `shellcheckrc` | none | dx |  |
+| `shellcheck` | curated | `.shellcheckrc` | none | dx |  |
+| `shfmt` | curated | `.editorconfig` | override copy | dx |  |
 | `spotbugs` | curated | `*.xml` | none | dx |  |
 | `sqlfluff` | catalog | `.sqlfluff` | override copy | dx |  |
 | `staticcheck` | curated | `staticcheck.conf` | none | dx |  |
@@ -472,7 +476,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `tsc` | curated | `tsconfig.json` | extends | dx |  |
 | `ty` | curated | `*.toml` | none | dx |  |
 | `typos` | curated | `typos.toml` | override copy | dx |  |
-| `vale` | catalog | `*.ini` | none | dx |  |
+| `vale` | catalog | `.vale.ini`, `_vale.ini` | none | dx |  |
 | `yamlfmt` | curated | `.yamlfmt` | override copy | dx |  |
 | `yamllint` | curated | `.yamllint` | override copy | dx |  |
 | `zanuda` | catalog | `*.txt` | none | dx |  |

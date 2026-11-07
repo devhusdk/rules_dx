@@ -278,6 +278,24 @@ Source: dx. Native file: `.hlint.yaml`.
 +- group: {name: future, enabled: true}
 ```
 
+## lychee
+
+Source: dx. Native file: `lychee.toml`.
+
+```diff
+--- a/quality/tiers/lychee/strict.toml
++++ b/quality/tiers/lychee/strict.toml
+@@ -1,4 +1,4 @@
+-# Link checks use lychee's defaults, written down so no other config is read.
+-timeout = 20
+-max_retries = 3
+-max_redirects = 10
++# Fail sooner on slow or redirecting links.
++timeout = 10
++max_retries = 1
++max_redirects = 5
+```
+
 ## mbake
 
 Source: dx. Native file: `.bake.toml`.
@@ -305,6 +323,37 @@ Source: dx. Native file: `.bake.toml`.
  remove_trailing_whitespace = true
  space_after_colon = true
  space_around_assignment = true
+```
+
+## mix_format
+
+Source: dx. Native file: `.formatter.exs`.
+
+```diff
+--- a/quality/tiers/mix_format/strict.exs
++++ b/quality/tiers/mix_format/strict.exs
+@@ -1,4 +1,4 @@
+-# mix format defaults, written down so no other .formatter.exs is read.
++# Shorter lines.
+ [
+-  line_length: 98
++  line_length: 80
+ ]
+```
+
+## perltidy
+
+Source: dx. Native file: `.perltidyrc`.
+
+```diff
+--- a/quality/tiers/perltidy/strict.perltidyrc
++++ b/quality/tiers/perltidy/strict.perltidyrc
+@@ -1,3 +1,2 @@
+-# perltidy defaults, written down so no other profile is read.
+---indent-columns=4
+---maximum-line-length=80
++# Perl Best Practices layout.
++--perl-best-practices
 ```
 
 ## psscriptanalyzer
@@ -1285,6 +1334,22 @@ Source: dx. Native file: `ruff.toml, .ruff.toml`.
 +"test_*.py" = ["S101", "PLR2004", "ARG"]
 ```
 
+## shfmt
+
+Source: dx. Native file: `.editorconfig`.
+
+```diff
+--- a/quality/tiers/shfmt/strict.editorconfig
++++ b/quality/tiers/shfmt/strict.editorconfig
+@@ -1,3 +1,4 @@
+-# shfmt defaults, written down so no other .editorconfig is read.
++# Two-space indentation.
+ [*]
+-indent_style = tab
++indent_style = space
++indent_size = 2
+```
+
 ## sqlfluff
 
 Source: dx. Native file: `.sqlfluff`.
@@ -1306,7 +1371,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
 ```diff
 --- a/quality/tiers/stylelint/strict.json
 +++ b/quality/tiers/stylelint/strict.json
-@@ -5,8 +5,11 @@
+@@ -5,8 +5,10 @@
      "at-rule-descriptor-value-no-unknown": true,
      "at-rule-no-deprecated": true,
      "at-rule-no-unknown": true,
@@ -1314,11 +1379,10 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "at-rule-prelude-no-invalid": [true, { "ignoreAtRules": ["media"] }],
      "block-no-empty": true,
 +    "block-no-redundant-nested-style-rules": true,
-+    "color-no-invalid-hex": true,
+     "color-no-invalid-hex": true,
      "comment-no-empty": true,
      "custom-property-no-missing-var-function": true,
-     "declaration-block-no-duplicate-custom-properties": true,
-@@ -14,15 +17,22 @@
+@@ -15,15 +17,22 @@
        true,
        { "ignore": ["consecutive-duplicates-with-different-syntaxes"] }
      ],
@@ -1341,7 +1405,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "media-feature-name-value-no-unknown": true,
      "media-query-no-invalid": true,
      "media-type-no-deprecated": true,
-@@ -36,16 +46,27 @@
+@@ -37,6 +46,9 @@
      "no-invalid-position-at-import-rule": true,
      "no-invalid-position-declaration": true,
      "no-irregular-whitespace": true,
@@ -1349,14 +1413,23 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
 +    "no-unknown-custom-media": true,
 +    "no-unknown-custom-properties": true,
      "property-no-deprecated": true,
-     "property-no-unknown": true,
+     "property-no-unknown": [
+       true,
+@@ -45,7 +57,12 @@
+         "ignoreSelectors": [":export", "/^:import/"]
+       }
+     ],
 +    "property-no-vendor-prefix": true,
      "selector-anb-no-unmatchable": true,
 +    "selector-no-deprecated": true,
 +    "selector-no-invalid": true,
 +    "selector-no-qualifying-type": true,
 +    "selector-no-vendor-prefix": true,
-     "selector-pseudo-class-no-unknown": true,
+     "selector-pseudo-class-no-unknown": [
+       true,
+       {
+@@ -54,12 +71,14 @@
+     ],
      "selector-pseudo-element-no-unknown": true,
      "selector-type-no-unknown": [true, { "ignore": ["custom-elements"] }],
 +    "shorthand-property-no-redundant-values": true,
@@ -1364,12 +1437,13 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
        true,
        { "ignore": ["at-rule-preludes", "declaration-values"] }
      ],
--    "syntax-string-no-invalid": true
-+    "syntax-string-no-invalid": true,
+     "syntax-string-no-invalid": true,
+-    "unit-no-unknown": true
 +    "unit-no-unknown": true,
 +    "value-no-vendor-prefix": true
-   }
- }
+   },
+   "overrides": [
+     { "files": ["*.scss"], "customSyntax": "postcss-scss" },
 ```
 
 ## taplo

@@ -366,6 +366,17 @@ Source: dx. Native file: `.hlint.yaml`.
 - ignore: {name: Move brackets to avoid $}
 ```
 
+## lychee
+
+Source: dx. Native file: `lychee.toml`.
+
+```toml
+# Link checks use lychee's defaults, written down so no other config is read.
+timeout = 20
+max_retries = 3
+max_redirects = 10
+```
+
 ## mbake
 
 Source: dx. Native file: `.bake.toml`.
@@ -388,6 +399,27 @@ space_after_colon = true
 space_around_assignment = true
 space_before_colon = false
 tab_width = 2
+```
+
+## mix_format
+
+Source: dx. Native file: `.formatter.exs`.
+
+```exs
+# mix format defaults, written down so no other .formatter.exs is read.
+[
+  line_length: 98
+]
+```
+
+## perltidy
+
+Source: dx. Native file: `.perltidyrc`.
+
+```perltidyrc
+# perltidy defaults, written down so no other profile is read.
+--indent-columns=4
+--maximum-line-length=80
 ```
 
 ## psscriptanalyzer
@@ -597,6 +629,16 @@ preview = false
 "test_*.py" = ["S101", "ARG"]
 ```
 
+## shfmt
+
+Source: dx. Native file: `.editorconfig`.
+
+```editorconfig
+# shfmt defaults, written down so no other .editorconfig is read.
+[*]
+indent_style = tab
+```
+
 ## sqlfluff
 
 Source: dx. Native file: `.sqlfluff`.
@@ -621,6 +663,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
     "at-rule-no-unknown": true,
     "at-rule-prelude-no-invalid": [true, { "ignoreAtRules": ["media"] }],
     "block-no-empty": true,
+    "color-no-invalid-hex": true,
     "comment-no-empty": true,
     "custom-property-no-missing-var-function": true,
     "declaration-block-no-duplicate-custom-properties": true,
@@ -651,17 +694,33 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
     "no-invalid-position-declaration": true,
     "no-irregular-whitespace": true,
     "property-no-deprecated": true,
-    "property-no-unknown": true,
+    "property-no-unknown": [
+      true,
+      {
+        "ignoreProperties": ["composes", "compose-with"],
+        "ignoreSelectors": [":export", "/^:import/"]
+      }
+    ],
     "selector-anb-no-unmatchable": true,
-    "selector-pseudo-class-no-unknown": true,
+    "selector-pseudo-class-no-unknown": [
+      true,
+      {
+        "ignorePseudoClasses": ["export", "import", "global", "local", "external"]
+      }
+    ],
     "selector-pseudo-element-no-unknown": true,
     "selector-type-no-unknown": [true, { "ignore": ["custom-elements"] }],
     "string-no-newline": [
       true,
       { "ignore": ["at-rule-preludes", "declaration-values"] }
     ],
-    "syntax-string-no-invalid": true
-  }
+    "syntax-string-no-invalid": true,
+    "unit-no-unknown": true
+  },
+  "overrides": [
+    { "files": ["*.scss"], "customSyntax": "postcss-scss" },
+    { "files": ["*.less"], "customSyntax": "postcss-less" }
+  ]
 }
 ```
 

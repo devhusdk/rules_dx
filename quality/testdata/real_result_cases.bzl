@@ -36,6 +36,8 @@ _GO_GOVET_POLICY = "//quality/testdata/go_owned:govet_policy"
 
 _TIER_POLICY = "//quality/testdata/tier_clean:policy"
 
+_TIER_STRICT_POLICY = "//quality/testdata/tier_clean:strict_policy"
+
 _NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
 
 _CC_POLICY = "//quality/testdata/clang_syntax:cc_syntax_policy"
@@ -271,6 +273,19 @@ REAL_RESULT_CASES = [
         "windows_x86_64": True,
     },
     {
+        "name": "real_result_yamllint_tier_strict_clean",
+        "target": "//quality/testdata/tier_clean:yaml",
+        "policy": _TIER_STRICT_POLICY,
+        "tool": "yamllint",
+        "capability": "lint",
+        "class": "yaml",
+        "contains": ["clean.yaml"],
+        "absent": ["Fatal error", "key-duplicates"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
         "name": "real_result_buildifier_tier_standard_clean",
         "target": "//quality/testdata/tier_clean:starlark",
         "policy": _TIER_POLICY,
@@ -284,9 +299,35 @@ REAL_RESULT_CASES = [
         "windows_x86_64": True,
     },
     {
+        "name": "real_result_buildifier_tier_strict_clean",
+        "target": "//quality/testdata/tier_clean:starlark",
+        "policy": _TIER_STRICT_POLICY,
+        "tool": "buildifier",
+        "capability": "lint",
+        "class": "starlark",
+        "contains": ["clean.bzl"],
+        "absent": ["Fatal error", "module-docstring"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
         "name": "real_result_sqlfluff_tier_standard_clean",
         "target": "//quality/testdata/tier_clean:sql",
         "policy": _TIER_POLICY,
+        "tool": "sqlfluff",
+        "capability": "lint",
+        "class": "sql",
+        "contains": ["clean.sql"],
+        "absent": ["Fatal error", "AM04"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "real_result_sqlfluff_tier_strict_clean",
+        "target": "//quality/testdata/tier_clean:sql",
+        "policy": _TIER_STRICT_POLICY,
         "tool": "sqlfluff",
         "capability": "lint",
         "class": "sql",

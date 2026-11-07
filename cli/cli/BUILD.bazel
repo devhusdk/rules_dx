@@ -240,6 +240,7 @@ rust_test(
         "src/exec/audit_consumer.rs",
         "src/exec/audit_accept.rs",
         "src/exec/audit_cyclonedx.rs",
+        "src/exec/audit_images.rs",
         "src/exec/audit_license.rs",
         "src/exec/audit_spdx.rs",
         "src/exec/audit_uncovered.rs",

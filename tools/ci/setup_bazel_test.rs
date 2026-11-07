@@ -431,12 +431,16 @@ fn evidence_saves_the_registry_cache_only_without_an_exact_hit() {
 }
 
 #[test]
-fn the_apple_executor_probe_does_not_hold_the_step_output_open() {
+fn the_apple_executor_comes_from_bazels_xcode_detection() {
     let steps = evidence_steps();
-    let probe = &steps[steps_named(&steps, "Start recording the Apple executor")[0]];
-    let run = probe["run"].as_str().unwrap();
     assert!(
-        run.trim_end().ends_with("} > /dev/null 2>&1 &"),
-        "the background probe must detach from the step output, or the step waits for it"
+        steps_named(&steps, "Start recording the Apple executor").is_empty(),
+        "no background Xcode probe"
     );
+    let record = &steps[steps_named(&steps, "Record the Apple executor")[0]];
+    let run = record["run"].as_str().unwrap();
+    assert!(run.contains("local_config_xcode"));
+    for slow in ["xcodebuild", "simctl", "--show-sdk-version"] {
+        assert!(!run.contains(slow), "{slow} is a slow probe");
+    }
 }

@@ -1220,7 +1220,7 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             local_memory: VerbMask::ALL,
             disk_cache_gc: false,
             gc_idle_delay_secs: None,
-            rc_sets_color: false,
+            rc_color: dx_process::RcColor::NONE,
         };
         assert_eq!(
             bazel_argv(&local),
@@ -1258,7 +1258,7 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
                 local_memory: VerbMask::ALL,
                 disk_cache_gc: true,
                 gc_idle_delay_secs: None,
-                rc_sets_color: false,
+                rc_color: dx_process::RcColor::NONE,
             }
         );
         let ci = rc_policy(
@@ -1279,7 +1279,7 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             local_memory: VerbMask::ALL,
             disk_cache_gc: true,
             gc_idle_delay_secs: None,
-            rc_sets_color: false,
+            rc_color: dx_process::RcColor::NONE,
         };
         let Ok(Mode::Run(options)) = parse_args(&[]) else {
             panic!("expected run");

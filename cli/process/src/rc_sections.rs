@@ -170,6 +170,22 @@ pub(super) fn effective_options(lines: &[Line], command: &str, flags: &[String])
     out
 }
 
+/// The distinct config names the rc lines define, sorted.
+pub(super) fn config_names(lines: &[Line]) -> Vec<String> {
+    let names: std::collections::BTreeSet<&str> = lines
+        .iter()
+        .filter_map(|line| line.config.as_deref())
+        .collect();
+    names.into_iter().map(str::to_owned).collect()
+}
+
+/// The options `--config=<name>` expands to for `command`.
+pub(super) fn config_options(lines: &[Line], command: &str, name: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    expand_config(lines, levels(command), name, &mut Vec::new(), &mut out);
+    out
+}
+
 /// Whether any rc line, in any section or config, names one of `names`.
 pub(super) fn any_line_sets(lines: &[Line], names: &[&str]) -> bool {
     lines.iter().any(|line| {

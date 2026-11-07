@@ -338,7 +338,7 @@ fn local_policy() -> RcPolicy {
         local_memory: VerbMask::ALL,
         disk_cache_gc: true,
         gc_idle_delay_secs: None,
-        rc_sets_color: false,
+        rc_color: RcColor::NONE,
     }
 }
 
@@ -1155,7 +1155,29 @@ fn the_system_rc_is_under_program_data_on_windows_and_etc_elsewhere() {
 }
 
 #[test]
-fn an_rc_color_choice_is_noted() {
-    assert!(ws_policy("build --color=yes\n").rc_sets_color);
-    assert!(!ws_policy("").rc_sets_color);
+fn an_rc_color_choice_counts_only_when_its_section_and_config_are_active() {
+    let chosen = |rc: &str, argv: &[&str]| {
+        let argv: Vec<String> = argv.iter().map(|arg| (*arg).to_owned()).collect();
+        ws_policy(rc).rc_color.chosen(&argv)
+    };
+    assert!(chosen("build --color=yes\n", &["bazel", "build", "//..."]));
+    assert!(!chosen("", &["bazel", "build", "//..."]));
+    let ci = "build:ci --color=yes\n";
+    assert!(!chosen(ci, &["bazel", "build", "//..."]));
+    assert!(chosen(ci, &["bazel", "build", "--config=ci", "//..."]));
+    assert!(chosen(
+        ci,
+        &["bazel", "--nosystem_rc", "build", "--config", "ci"]
+    ));
+    assert!(!chosen(
+        ci,
+        &["bazel", "run", "//:app", "--", "--config=ci"]
+    ));
+    assert!(chosen(
+        "build:ci --color=yes\nbuild --config=ci\n",
+        &["bazel", "build"]
+    ));
+    let nested = "build:inner --color=yes\nbuild:outer --config=inner\n";
+    assert!(chosen(nested, &["bazel", "test", "--config=outer"]));
+    assert!(!chosen("test --color=yes\n", &["bazel", "build", "//..."]));
 }

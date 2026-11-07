@@ -52,14 +52,14 @@ pub(crate) fn keep_terminal_ui(argv: &[String]) -> Vec<String> {
     let columns = terminal_columns();
     let no_color = no_color(
         std::env::var_os("NO_COLOR"),
-        crate::rc::current().rc_sets_color,
+        crate::rc::current().rc_color.chosen(argv),
     );
     keep_ui(argv, columns, no_color)
 }
 
 /// A non-empty `NO_COLOR` turns colors off unless an rc file chose them.
-fn no_color(env: Option<std::ffi::OsString>, rc_sets_color: bool) -> bool {
-    env.is_some_and(|value| !value.is_empty()) && !rc_sets_color
+fn no_color(env: Option<std::ffi::OsString>, rc_chose_color: bool) -> bool {
+    env.is_some_and(|value| !value.is_empty()) && !rc_chose_color
 }
 
 fn keep_ui(argv: &[String], columns: Option<u16>, no_color: bool) -> Vec<String> {

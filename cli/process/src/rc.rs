@@ -62,6 +62,88 @@ impl VerbMask {
             })
             .fold(VerbMask::NONE, |mask, verb| mask.with(verb))
     }
+
+    /// The verbs where the effective rc options, without command-line configs, set `flag`.
+    fn where_rc_sets(lines: &[sections::Line], flag: &str) -> VerbMask {
+        RESOURCE_VERBS
+            .iter()
+            .filter(|verb| {
+                sections::effective_options(lines, verb, &[])
+                    .iter()
+                    .any(|option| sets_flag(option, flag))
+            })
+            .fold(VerbMask::NONE, |mask, verb| mask.with(verb))
+    }
+}
+
+/// Where the rc files set `--color`: plainly per verb, or once a named config is passed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RcColor {
+    /// The verbs whose rc options set `--color` without any command-line `--config`.
+    pub plain: VerbMask,
+    /// Each named config and the verbs where expanding it sets `--color`.
+    pub configs: Vec<(String, VerbMask)>,
+}
+
+impl RcColor {
+    pub const NONE: RcColor = RcColor {
+        plain: VerbMask::NONE,
+        configs: Vec::new(),
+    };
+
+    fn from_lines(lines: &[sections::Line]) -> RcColor {
+        let configs = sections::config_names(lines)
+            .into_iter()
+            .filter_map(|name| {
+                let verbs = RESOURCE_VERBS
+                    .iter()
+                    .filter(|verb| {
+                        sections::config_options(lines, verb, &name)
+                            .iter()
+                            .any(|option| sets_flag(option, "--color"))
+                    })
+                    .fold(VerbMask::NONE, |mask, verb| mask.with(verb));
+                (verbs != VerbMask::NONE).then_some((name, verbs))
+            })
+            .collect();
+        RcColor {
+            plain: VerbMask::where_rc_sets(lines, "--color"),
+            configs,
+        }
+    }
+
+    /// Whether the rc files choose `--color` for the Bazel call `argv`.
+    pub fn chosen(&self, argv: &[String]) -> bool {
+        let Some(at) = argv.iter().skip(1).position(|arg| !arg.starts_with('-')) else {
+            return false;
+        };
+        let verb = argv[at + 1].as_str();
+        let verb = if RESOURCE_VERBS.contains(&verb) {
+            verb
+        } else {
+            "build"
+        };
+        if self.plain.contains(verb) {
+            return true;
+        }
+        let mut flags = argv[at + 2..].iter().take_while(|arg| *arg != "--");
+        while let Some(flag) = flags.next() {
+            let name = match flag.strip_prefix("--config=") {
+                Some(name) => Some(name),
+                None if flag == "--config" => flags.next().map(String::as_str),
+                None => None,
+            };
+            if let Some(name) = name
+                && self
+                    .configs
+                    .iter()
+                    .any(|(config, verbs)| config == name && verbs.contains(verb))
+            {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 /// Whether the last `resource` setting in `options` is not the preset default.
@@ -93,8 +175,8 @@ pub struct RcPolicy {
     pub disk_cache_gc: bool,
     /// The gc idle delay dx adds so cleanup can run before an idle server exits.
     pub gc_idle_delay_secs: Option<u64>,
-    /// Whether an rc file sets `--color`, which then wins over `NO_COLOR`.
-    pub rc_sets_color: bool,
+    /// Where an rc file sets `--color`, which then wins over `NO_COLOR`.
+    pub rc_color: RcColor,
 }
 
 static HERMETIC: RcPolicy = RcPolicy {
@@ -106,7 +188,7 @@ static HERMETIC: RcPolicy = RcPolicy {
     local_memory: VerbMask::ALL,
     disk_cache_gc: false,
     gc_idle_delay_secs: None,
-    rc_sets_color: false,
+    rc_color: RcColor::NONE,
 };
 
 static CURRENT: OnceLock<RcPolicy> = OnceLock::new();
@@ -250,7 +332,7 @@ impl RcPolicy {
             local_memory: VerbMask::where_rc_leaves_free(&lines, "memory"),
             disk_cache_gc,
             gc_idle_delay_secs,
-            rc_sets_color: sections::any_line_sets(&lines, &["--color"]),
+            rc_color: RcColor::from_lines(&lines),
         }
     }
 

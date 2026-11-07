@@ -1031,7 +1031,7 @@ pub(crate) fn run_bazel_app_withdrawable(
     withdraw: &dyn Fn() -> bool,
 ) -> Result<Option<AppExit>, i32> {
     match runner
-        .run_withdrawable(argv, workspace, &[], withdraw)
+        .run_app(argv, workspace, &[], Some(withdraw), &[])
         .transpose()
     {
         None => Ok(None),
@@ -1305,10 +1305,16 @@ mod tests {
             _argv: &[String],
             _cwd: &Path,
             _env: &[(&str, &str)],
-            _withdraw: Option<&dyn Fn() -> bool>,
+            withdraw: Option<&dyn Fn() -> bool>,
             _held: &[&std::fs::File],
         ) -> io::Result<Option<dx_process::ChildStatus>> {
-            unreachable!("builds carry no held handle") // LCOV_EXCL_LINE - reason: the build never takes this path, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            self.calls.borrow_mut().push("run_app");
+            Ok(
+                (!withdraw.is_some_and(|withdraw| withdraw())).then_some(dx_process::ChildStatus {
+                    code: Some(7),
+                    signal: None,
+                }),
+            )
         }
     }
 
@@ -1333,6 +1339,30 @@ mod tests {
         assert_eq!(build(&|| false), Ok(Some(7)));
         assert_eq!(build(&|| true), Ok(None));
         assert_eq!(*runner.calls.borrow(), ["run_withdrawable"; 2]);
+    }
+
+    #[test]
+    fn a_withdrawable_app_keeps_its_tty_and_goes_through_run_app() {
+        let runner = CallRunner::default();
+        let invocation = bazel_invocation();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let argv = vec!["bazel".to_owned(), "run".to_owned(), "//:app".to_owned()];
+        let mut app = |withdraw: &dyn Fn() -> bool| {
+            run_bazel_app_withdrawable(
+                &invocation,
+                &mut out,
+                &mut err,
+                Path::new("/ws"),
+                &runner,
+                &argv,
+                withdraw,
+            )
+            .map(|exit| exit.map(|exit| exit.code))
+        };
+        assert_eq!(app(&|| false), Ok(Some(7)));
+        assert_eq!(app(&|| true), Ok(None));
+        assert_eq!(*runner.calls.borrow(), ["run_app"; 2]);
     }
 
     #[test]

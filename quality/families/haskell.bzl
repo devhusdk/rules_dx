@@ -20,7 +20,8 @@ TOOLS = {
         "shard": "haskell",
     },
     "weeder": {
-        "attr": attr.label(default = "//config:tool_weeder", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_weeder", allow_files = True, cfg = "exec"),
+        "fallback": "=<label of a weeder executable>",
         "kind": "file",
         "resources": "medium",
         "shard": "haskell",
@@ -61,7 +62,7 @@ def _weeder_hook(target, ctx, resolved, _capability, _what, _shared):
     if CompileCheckInfo not in target or target[CompileCheckInfo].tool != "ghc":
         return without(resolved, "weeder")
     tool_files = []
-    inputs = list(ctx.attr._weeder[DefaultInfo].default_runfiles.files.to_list())
+    inputs = list(ctx.attr._weeder[DefaultInfo].default_runfiles.files.to_list()) if ctx.files._weeder else []
     for i, hie in enumerate(target[CompileCheckInfo].scratch):
         stage(tool_files, inputs, "%s/%d" % (HIE_REL, i), hie)
     return real_context(tool_files = tool_files, inputs = inputs)

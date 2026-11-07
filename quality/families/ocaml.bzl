@@ -19,7 +19,7 @@ TOOLS = {
         "shard": "ocaml",
     },
     "topiary": {
-        "attr": attr.label(default = "//quality/tools/rust:topiary", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//quality/tools/rust:topiary_tool", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "shard": "ocaml",

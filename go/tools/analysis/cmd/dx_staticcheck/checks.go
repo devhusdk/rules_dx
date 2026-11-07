@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/token"
 	"os"
 	"strings"
 	"unicode"
@@ -22,7 +23,47 @@ func allAnalyzers() []*lint.Analyzer {
 	for _, set := range [][]*lint.Analyzer{staticcheck.Analyzers, simple.Analyzers, stylecheck.Analyzers} {
 		out = append(out, set...)
 	}
-	return append(out, unused.Analyzer)
+	return append(out, reporting(unused.Analyzer))
+}
+
+// reporting makes the unused analyzer report its findings as diagnostics.
+// Staticcheck's own driver reads them from the analyzer result instead.
+func reporting(base *lint.Analyzer) *lint.Analyzer {
+	wrapped := *base.Analyzer
+	wrapped.Run = func(pass *analysis.Pass) (any, error) {
+		result, err := base.Analyzer.Run(pass)
+		if err != nil {
+			return nil, err
+		}
+		found := result.(unused.Result)
+		used := map[token.Position]bool{}
+		for _, object := range found.Used {
+			used[object.Position] = true
+		}
+		for _, object := range found.Unused {
+			if used[object.Position] {
+				continue
+			}
+			pass.Report(analysis.Diagnostic{
+				Pos:     position(pass.Fset, object.Position),
+				Message: fmt.Sprintf("%s %s is unused", object.Kind, object.Name),
+			})
+		}
+		return result, nil
+	}
+	return &lint.Analyzer{Doc: base.Doc, Analyzer: &wrapped}
+}
+
+func position(fset *token.FileSet, at token.Position) token.Pos {
+	var pos token.Pos
+	fset.Iterate(func(file *token.File) bool {
+		if file.Name() != at.Filename || at.Line > file.LineCount() {
+			return true
+		}
+		pos = file.LineStart(at.Line) + token.Pos(at.Column-1)
+		return false
+	})
+	return pos
 }
 
 // defaultConfig is staticcheck's own default: every check except the ones

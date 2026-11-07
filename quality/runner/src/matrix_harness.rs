@@ -869,17 +869,29 @@ pub fn runner_error_text(stderr: &str) -> Option<String> {
     Some(format!("{}\n", message.trim_end()))
 }
 
-/// Replaces each per-run scratch directory under `scratch_parent` with a stable token.
+/// Replaces each per-run scratch directory under `scratch_parent` with a stable token,
+/// spelling the rest of the path with forward slashes.
 pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
-    let prefix = format!("{scratch_parent}/");
+    let slash = format!("{scratch_parent}/");
+    let backslash = format!("{scratch_parent}\\");
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
-    while let Some(start) = rest.find(&prefix) {
+    loop {
+        let next = [&slash, &backslash]
+            .into_iter()
+            .filter_map(|prefix| rest.find(prefix.as_str()).map(|at| (at, prefix.len())))
+            .min();
+        let Some((start, prefix_len)) = next else {
+            break;
+        };
         out.push_str(&rest[..start]);
         out.push_str(SCRATCH_TOKEN);
-        let after = &rest[start + prefix.len()..];
-        let end = after.find(['/', ' ', ':', '\n']).unwrap_or(after.len());
-        rest = &after[end..];
+        let after = &rest[start + prefix_len..];
+        let end = after.find(['/', '\\', ' ', ':', '\n']).unwrap_or(after.len());
+        let tail = &after[end..];
+        let path_end = tail.find([' ', ':', '\n']).unwrap_or(tail.len());
+        out.push_str(&tail[..path_end].replace('\\', "/"));
+        rest = &tail[path_end..];
     }
     out.push_str(rest);
     out
@@ -1020,6 +1032,13 @@ mod tests {
             "Error reading $SCRATCH/cfg/.clang-format: Unsuitable\n"
         );
         assert_eq!(normalize_scratch("no path\n", "/t/scratch"), "no path\n");
+        assert_eq!(
+            normalize_scratch(
+                "C:\\t\\scratch\\dx-scratch-Ab12\\matrix\\a.go:4:41: bad\n",
+                "C:\\t\\scratch"
+            ),
+            "$SCRATCH/matrix/a.go:4:41: bad\n"
+        );
     }
 
     #[test]

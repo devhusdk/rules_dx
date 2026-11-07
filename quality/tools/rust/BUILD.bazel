@@ -1,6 +1,8 @@
 # gazelle:ignore
 # Quality tools built from Rust source through the dx_quality_crates hub.
 
+load("//quality:unavailable_tool.bzl", "dx_unavailable_tool")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
@@ -33,4 +35,53 @@ alias(
 alias(
     name = "topiary",
     actual = "//quality/tools/rust/topiary:dx_topiary",
+)
+
+# The dx_quality_crates hub has no windows_arm64 cell, so the aspect tool
+# attributes select a marked stub there and the stage is skipped with a note.
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:windows",
+    ],
+)
+
+alias(
+    name = "deadnix_tool",
+    actual = select({
+        ":windows_arm64": ":deadnix_unsupported",
+        "//conditions:default": ":deadnix",
+    }),
+)
+
+dx_unavailable_tool(
+    name = "deadnix_unsupported",
+    tool = "deadnix",
+)
+
+alias(
+    name = "selene_tool",
+    actual = select({
+        ":windows_arm64": ":selene_unsupported",
+        "//conditions:default": ":selene",
+    }),
+)
+
+dx_unavailable_tool(
+    name = "selene_unsupported",
+    tool = "selene",
+)
+
+alias(
+    name = "topiary_tool",
+    actual = select({
+        ":windows_arm64": ":topiary_unsupported",
+        "//conditions:default": ":topiary",
+    }),
+)
+
+dx_unavailable_tool(
+    name = "topiary_unsupported",
+    tool = "topiary",
 )

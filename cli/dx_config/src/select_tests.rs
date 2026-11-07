@@ -82,3 +82,15 @@ fn cross_family_tools_follow_the_root_profile() {
     .unwrap();
     assert!(effective(Some(&config)).is_ok());
 }
+
+#[test]
+fn two_owners_of_one_concern_are_rejected() {
+    let error =
+        problem("schema_version = 1\n[families.javascript]\nlint = [\"eslint\", \"biome\"]\n");
+    let text = error.to_string();
+    assert!(
+        text.contains("`eslint`") && text.contains("`biome`"),
+        "{text}"
+    );
+    assert!(text.contains("`lint`"), "{text}");
+}

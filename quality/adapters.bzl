@@ -1,6 +1,6 @@
 """Deterministic synthetic adapter registry."""
 
-load(":tools.bzl", "TOOLS")
+load(":tools.bzl", "TOOLS", "is_canonical_token")
 
 SYNTHETIC_ADAPTERS = {
     "fmt-a": {"format": ["rust"]},
@@ -175,30 +175,22 @@ def real_supported_classes(tool_id, capability):
              "': not in the real adapter registry")
     return sorted(REAL_ADAPTERS[tool_id].get(capability, []))
 
-def _is_canonical_token(text):
-    if text == "":
-        return False
-    for c in text.elems():
-        if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
-            return False
-    return True
-
 def adapter_registry_schema_error():
     """Validates the adapter-registry schema."""
     for class_id in REAL_CLASS_TO_FAMILY:
-        if not _is_canonical_token(class_id):
+        if not is_canonical_token(class_id):
             return "adapter registry: non-canonical class '" + str(class_id) + "'"
         family = REAL_CLASS_TO_FAMILY[class_id]
-        if not _is_canonical_token(family):
+        if not is_canonical_token(family):
             return "adapter registry: non-canonical family '" + str(family) + "' for class '" + class_id + "'"
     for tool_id in REAL_ADAPTERS:
-        if not _is_canonical_token(tool_id):
+        if not is_canonical_token(tool_id):
             return "adapter registry: non-canonical tool '" + str(tool_id) + "'"
         for capability in REAL_ADAPTERS[tool_id]:
             if capability not in ["audit", "format", "lint", "typecheck"]:
                 return "adapter registry: unknown capability '" + capability + "' for tool '" + tool_id + "'"
             for class_id in REAL_ADAPTERS[tool_id][capability]:
-                if not _is_canonical_token(class_id):
+                if not is_canonical_token(class_id):
                     return "adapter registry: non-canonical class '" + str(class_id) + "' for tool '" + tool_id + "'"
                 if class_id not in REAL_CLASS_TO_FAMILY:
                     return "adapter registry: tool '" + tool_id + "' names unclassified class '" + class_id + "'"

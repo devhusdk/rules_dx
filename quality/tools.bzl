@@ -105,10 +105,26 @@ def severity(default = None, categories = {}):
 
 _NO_SEVERITY = severity()
 
-def tool(id, adapters, support = [], config = _NO_CONFIG, severity = _NO_SEVERITY):
-    """Returns one tool: its adapter classes per capability and its support records."""
+def is_canonical_token(text):
+    """Reports whether a token uses the canonical alphabet."""
+    if text == "":
+        return False
+    for c in text.elems():
+        if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
+            return False
+    return True
+
+def tool(id, adapters, support = [], config = _NO_CONFIG, severity = _NO_SEVERITY, concerns = {}):
+    """Returns one tool: its adapter classes per capability, its support records and its concerns.
+
+    `concerns` maps a capability to the concern it owns when that is not the capability name.
+    """
+    for capability, concern in concerns.items():
+        if capability not in adapters or not is_canonical_token(concern):
+            fail("tool %s: concerns %s=%s needs an adapter capability and a canonical concern" % (id, capability, concern))
     return struct(
         adapters = adapters,
+        concerns = {capability: concerns.get(capability, capability) for capability in adapters},
         config = config,
         id = id,
         severity = severity,
@@ -1048,6 +1064,7 @@ TOOLS = [
     tool(
         id = "errcheck",
         adapters = {"lint": ["go"]},
+        concerns = {"lint": "unchecked_errors"},
         config = config(suffixes = [".txt"], tier_active = True, tier_base = False),
         severity = severity(default = "warning"),
         support = [
@@ -1345,6 +1362,7 @@ TOOLS = [
     tool(
         id = "govet",
         adapters = {"lint": ["go"]},
+        concerns = {"lint": "vet"},
         config = config(suffixes = [".json"], tier_active = True, tier_base = False),
         severity = severity(default = "warning"),
         support = [
@@ -1552,6 +1570,7 @@ TOOLS = [
     tool(
         id = "keep_sorted",
         adapters = {"lint": ["text"]},
+        concerns = {"lint": "sorting"},
         support = [
             row(
                 capability = "lint",
@@ -1602,6 +1621,7 @@ TOOLS = [
     tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
+        concerns = {"lint": "schema"},
         config = config(suffixes = [".kubeconform.json"], files = ["kubernetes.kubeconform.json"], tier_active = True, tier_base = False, stage_native = True),
         severity = severity(default = "error"),
         support = [
@@ -1653,6 +1673,7 @@ TOOLS = [
     tool(
         id = "lychee",
         adapters = {"lint": ["asciidoc", "html", "markdown", "mdx", "rst"]},
+        concerns = {"lint": "links"},
         config = config(kind = "none", tier_active = True),
         severity = severity(default = "warning"),
         support = [
@@ -1788,6 +1809,7 @@ TOOLS = [
     tool(
         id = "notebook_outputs",
         adapters = {"lint": ["jupyter"]},
+        concerns = {"lint": "notebook_outputs"},
         support = [
             row(
                 capability = "lint",
@@ -2131,6 +2153,7 @@ TOOLS = [
     tool(
         id = "pydoclint",
         adapters = {"lint": ["python", "python_stub"]},
+        concerns = {"lint": "docstrings"},
         config = config(suffixes = [".toml"], ext = "toml", comment = "#", tier_active = True, tier_base = False),
         severity = severity(default = "warning"),
         support = [
@@ -2548,6 +2571,7 @@ TOOLS = [
     tool(
         id = "spotbugs",
         adapters = {"lint": ["java"]},
+        concerns = {"lint": "bytecode"},
         config = config(suffixes = [".xml"], tier_active = True),
         severity = severity(
             default = "warning",
@@ -2885,6 +2909,7 @@ TOOLS = [
     tool(
         id = "trivy_config",
         adapters = {"lint": ["bicep", "cloudformation", "helm", "kubernetes", "terraform"]},
+        concerns = {"lint": "security"},
         config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(
@@ -2985,6 +3010,7 @@ TOOLS = [
     tool(
         id = "typos",
         adapters = {"lint": sorted([c for classes in _TYPOS_FAMILY_CLASSES.values() for c in classes])},
+        concerns = {"lint": "spelling"},
         config = config(
             files = ["typos.toml"],
             ext = "toml",
@@ -3024,6 +3050,7 @@ TOOLS = [
     tool(
         id = "vale",
         adapters = {"lint": ["asciidoc", "markdown", "rst"]},
+        concerns = {"lint": "prose"},
         config = config(suffixes = [".ini"], tier_active = True),
         support = [
             row(
@@ -3061,6 +3088,7 @@ TOOLS = [
     tool(
         id = "weeder",
         adapters = {"lint": ["haskell"]},
+        concerns = {"lint": "unused_code"},
         support = [
             row(
                 capability = "lint",
@@ -3201,6 +3229,7 @@ TOOLS = [
     tool(
         id = "zizmor",
         adapters = {"lint": ["github_workflow"]},
+        concerns = {"lint": "security"},
         config = config(suffixes = [".txt"], tier_active = True),
         support = [
             row(

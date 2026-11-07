@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::config::{DxConfig, FamilyConfig, Profile};
-use crate::curated_defaults_gen::{CROSS_FAMILY_TOOLS, FAMILIES, TOOLS};
+use crate::curated_defaults_gen::{CROSS_FAMILY_TOOLS, FAMILIES, OVERLAPS, TOOLS};
 
 /// One row of the generated curated table.
 pub struct CuratedFamily {
@@ -10,6 +10,14 @@ pub struct CuratedFamily {
     pub format: &'static [&'static str],
     pub typecheck: &'static [&'static str],
     pub audit: &'static [&'static str],
+}
+
+/// Two tools that own the same concern for one file class of a family.
+pub struct Overlap {
+    pub family: &'static str,
+    pub class: &'static str,
+    pub concern: &'static str,
+    pub tools: [(&'static str, &'static str); 2],
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -22,6 +30,15 @@ pub struct FamilySelection {
 }
 
 impl FamilySelection {
+    fn capability(&self, name: &str) -> &[String] {
+        match name {
+            "lint" => &self.lint,
+            "format" => &self.format,
+            "typecheck" => &self.typecheck,
+            _ => &self.audit,
+        }
+    }
+
     fn tools(&self) -> impl Iterator<Item = &String> {
         self.lint
             .iter()
@@ -50,6 +67,17 @@ pub enum SelectionProblem {
         family: String,
         tool: String,
         hint: Option<String>,
+    },
+    #[error(
+        "family `{family}` gives class `{class}` two owners for `{concern}`: `{first}` and `{second}`; \
+         select one of them"
+    )]
+    OverlappingTools {
+        family: String,
+        class: String,
+        concern: String,
+        first: String,
+        second: String,
     },
     #[error(
         "tool `{tool}` is selected by family `{first}` ({first_profile}) and family `{second}` \
@@ -157,6 +185,7 @@ pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProble
         }
     }
     check_profiles(&families)?;
+    check_overlaps(&families)?;
     Ok(Selection {
         profile: root,
         families,
@@ -188,6 +217,27 @@ fn check_profiles(families: &BTreeMap<String, FamilySelection>) -> Result<(), Se
                     seen.insert(tool, (id, family.profile));
                 }
             }
+        }
+    }
+    Ok(())
+}
+
+fn check_overlaps(families: &BTreeMap<String, FamilySelection>) -> Result<(), SelectionProblem> {
+    for overlap in OVERLAPS {
+        let Some(family) = families.get(overlap.family) else {
+            continue;
+        };
+        let [(first, first_capability), (second, second_capability)] = overlap.tools;
+        let selected =
+            |tool: &str, capability: &str| family.capability(capability).iter().any(|t| t == tool);
+        if selected(first, first_capability) && selected(second, second_capability) {
+            return Err(SelectionProblem::OverlappingTools {
+                family: overlap.family.to_owned(),
+                class: overlap.class.to_owned(),
+                concern: overlap.concern.to_owned(),
+                first: first.to_owned(),
+                second: second.to_owned(),
+            });
         }
     }
     Ok(())

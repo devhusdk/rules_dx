@@ -1,5 +1,6 @@
 """Curated quality defaults."""
 
+load(":tools.bzl", "is_canonical_token")
 
 # Julia lints with julialint only. Its extra fetch over typos is the dx_julia_lint package set
 # (21 packages, about 4.2 MB); the 1.12.5 runtime (about 288 MB on linux_x86_64) is already
@@ -261,24 +262,16 @@ def curated_families():
     """Returns the sorted curated families in the manifest."""
     return sorted(CURATED_DEFAULTS.keys())
 
-def _is_canonical_token(text):
-    if text == "":
-        return False
-    for c in text.elems():
-        if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
-            return False
-    return True
-
 def curated_schema_error():
     """Validates the curated-defaults schema."""
     for family in CURATED_DEFAULTS:
-        if not _is_canonical_token(family):
+        if not is_canonical_token(family):
             return "curated defaults: non-canonical family '" + str(family) + "'"
         entry = CURATED_DEFAULTS[family]
         if sorted(entry.keys()) != ["audit", "format", "lint", "typecheck"]:
             return "curated defaults: family '" + family + "' must carry exactly audit/format/lint/typecheck"
         for capability in entry:
             for tool in entry[capability]:
-                if not _is_canonical_token(tool):
+                if not is_canonical_token(tool):
                     return "curated defaults: non-canonical tool '" + str(tool) + "' for family '" + family + "'"
     return ""

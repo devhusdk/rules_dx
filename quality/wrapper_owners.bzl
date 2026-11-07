@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
+load(":tools.bzl", "is_canonical_token")
 
 
 WRAPPER_OWNERS = {
@@ -101,14 +102,6 @@ def uncovered_families():
     """Returns the sorted explicitly uncovered families."""
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] == "other"])
 
-def _is_canonical_token(text):
-    if text == "":
-        return False
-    for c in text.elems():
-        if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
-            return False
-    return True
-
 def _is_owner_label(owner):
     if owner.startswith("@rules_dx_"):
         owner = "//" + owner.split("//", 1)[-1]
@@ -117,7 +110,7 @@ def _is_owner_label(owner):
 def wrapper_schema_error():
     """Validates the wrapper-ownership schema."""
     for family in WRAPPER_OWNERS:
-        if not _is_canonical_token(family):
+        if not is_canonical_token(family):
             return "wrapper owners: non-canonical family '" + str(family) + "'"
         owner = WRAPPER_OWNERS[family]
         if owner != "other" and not _is_owner_label(owner):

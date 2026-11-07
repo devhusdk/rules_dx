@@ -1,7 +1,7 @@
 // Generated from quality/curated_defaults.bzl and quality/tools.bzl.
 // Run `bazel run //cli/dx_config:update_curated_defaults` to refresh it.
 
-use crate::select::CuratedFamily;
+use crate::select::{CuratedFamily, Overlap};
 
 pub const FAMILIES: &[CuratedFamily] = &[
     CuratedFamily {
@@ -418,4 +418,49 @@ pub const TOOLS: &[&str] = &[
     "zig_ast_check",
     "zig_fmt",
     "zizmor",
+];
+
+pub const OVERLAPS: &[Overlap] = &[
+    Overlap {
+        family: "cc",
+        class: "c",
+        concern: "lint",
+        tools: [("clang_tidy", "lint"), ("cppcheck", "lint")],
+    },
+    Overlap {
+        family: "cc",
+        class: "cpp",
+        concern: "lint",
+        tools: [("clang_tidy", "lint"), ("cppcheck", "lint")],
+    },
+    Overlap {
+        family: "java",
+        class: "java",
+        concern: "lint",
+        tools: [("checkstyle", "lint"), ("pmd", "lint")],
+    },
+    Overlap {
+        family: "javascript",
+        class: "javascript",
+        concern: "lint",
+        tools: [("biome", "lint"), ("eslint", "lint")],
+    },
+    Overlap {
+        family: "javascript",
+        class: "jsx",
+        concern: "lint",
+        tools: [("biome", "lint"), ("eslint", "lint")],
+    },
+    Overlap {
+        family: "typescript",
+        class: "tsx",
+        concern: "lint",
+        tools: [("biome", "lint"), ("eslint", "lint")],
+    },
+    Overlap {
+        family: "typescript",
+        class: "typescript",
+        concern: "lint",
+        tools: [("biome", "lint"), ("eslint", "lint")],
+    },
 ];

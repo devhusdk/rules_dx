@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
+load(":tools.bzl", "is_canonical_token")
 
 
 PARITY_DEFERRED = {}
@@ -22,18 +23,10 @@ def deferred_classes():
     """Returns the sorted explicitly deferred classes."""
     return sorted(PARITY_DEFERRED.keys())
 
-def _is_canonical_token(text):
-    if text == "":
-        return False
-    for c in text.elems():
-        if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
-            return False
-    return True
-
 def parity_schema_error():
     """Validates the parity-gate schema."""
     for class_id in PARITY_DEFERRED:
-        if not _is_canonical_token(class_id):
+        if not is_canonical_token(class_id):
             return "parity gate: non-canonical deferred class '" + str(class_id) + "'"
         entry = PARITY_DEFERRED[class_id]
         if len(entry) != 2 or entry[0] == "" or entry[1] == "":

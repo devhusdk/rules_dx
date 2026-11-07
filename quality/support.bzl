@@ -3,7 +3,7 @@
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
-load(":tools.bzl", "TOOLS")
+load(":tools.bzl", "TOOLS", "is_canonical_token")
 
 SUPPORT_DEFAULTS = {
     "artifact": "pinned",
@@ -80,15 +80,6 @@ def with_platforms(record):
 
 SUPPORT_RECORDS = [with_platforms(record) for record in _RAW_RECORDS]
 
-def _is_canonical_token(text):
-    """Reports whether a token uses the canonical alphabet."""
-    if text == "":
-        return False
-    for c in text.elems():
-        if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
-            return False
-    return True
-
 def _is_unbuilt(record):
     """Reports whether a record names a tool with no pinned build on any platform.
 
@@ -128,11 +119,11 @@ def support_record_error(record):
     tool = record["tool"]
     capability = record["capability"]
     family = record["family"]
-    if not _is_canonical_token(tool):
+    if not is_canonical_token(tool):
         return "support: non-canonical tool '" + str(tool) + "'"
     if capability not in ["audit", "format", "lint", "typecheck"]:
         return "support: unknown capability '" + str(capability) + "' for tool '" + tool + "'"
-    if not _is_canonical_token(family):
+    if not is_canonical_token(family):
         return "support: non-canonical family '" + str(family) + "'"
     if tool not in REAL_ADAPTERS:
         return "support: unknown tool '" + tool + "': not in the real adapter registry"
@@ -142,7 +133,7 @@ def support_record_error(record):
     if type(classes) != "list" or len(classes) == 0:
         return "support: tool '" + tool + "' needs a non-empty class list"
     for class_id in classes:
-        if not _is_canonical_token(class_id):
+        if not is_canonical_token(class_id):
             return "support: non-canonical class '" + str(class_id) + "' for tool '" + tool + "'"
         if class_id not in REAL_CLASS_TO_FAMILY:
             return "support: tool '" + tool + "' names unclassified class '" + class_id + "'"
@@ -162,7 +153,7 @@ def support_record_error(record):
     if len(platforms) == 0 and not _is_unbuilt(record):
         return "support: tool '" + tool + "' needs a non-empty platform list"
     for platform in platforms:
-        if not _is_canonical_token(platform):
+        if not is_canonical_token(platform):
             return "support: non-canonical platform '" + str(platform) + "' for tool '" + tool + "'"
         if platform not in SUPPORT_PLATFORMS:
             return "support: unknown platform '" + str(platform) + "' for tool '" + tool + "'"

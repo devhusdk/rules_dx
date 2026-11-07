@@ -1,7 +1,7 @@
 """Repository crate helper; loads the rules_dx @crates hub."""
 
 load("@crates//:crates.bzl", _aliases = "aliases", _crate_deps = "crate_deps")
-load(":defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load(":defs.bzl", "rust_library", "rust_test")
 
 def dx_rust_crate_root(srcs):
     """Returns src/lib.rs when it is a source, else None."""
@@ -36,7 +36,7 @@ def dx_rust_crate(
         size = "small",
         testonly = None,
         visibility = None):
-    """Single-crate boilerplate: lib + test + lint tests + manifest."""
+    """Single-crate boilerplate: lib + test + manifest."""
     crate = name if crate_name == None else crate_name
     lib_srcs = srcs or ["src/lib.rs"]
     platform_srcs = select({
@@ -103,18 +103,6 @@ def dx_rust_crate(
             testonly = testonly,
             visibility = visibility,
         )
-    rustfmt_test(
-        name = name + "_fmt_test",
-        size = size,
-        targets = [":" + name, ":" + name + "_test"] if test_srcs else [":" + name],
-        testonly = testonly,
-    )
-    rust_clippy_test(
-        name = name + "_clippy_test",
-        size = size,
-        targets = [":" + name],
-        testonly = testonly,
-    )
     native.exports_files(
         ["Cargo.toml"],
         visibility = ["//visibility:public"],

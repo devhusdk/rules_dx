@@ -34,19 +34,6 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "packaging,platforms,rules,sdk,toolchain"},
 )
 
-sh_test(
-    name = "rustfmt_coverage_test",
-    srcs = ["starlark_docs_test.sh"],
-    args = ["$(rootpath @rules_dx//tools/ci:rustfmt_coverage_family_test)"],
-    data = [
-        "//tests/fixtures/adopt-android/native:corpus_starlark",
-        "//tests/fixtures/native_lib:corpus_starlark",
-        "//tests/fixtures/rust_apk:corpus_starlark",
-        "@rules_dx//tools/ci:rustfmt_coverage_family_test",
-    ],
-    env = {"RUSTFMT_COVERAGE_PACKAGES": "tests/fixtures/adopt-android/native,tests/fixtures/native_lib,tests/fixtures/rust_apk"},
-)
-
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

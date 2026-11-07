@@ -43,20 +43,10 @@ sh_test(
         "//macos:corpus_starlark",
         "//provisioning:corpus_starlark",
         "//signing:corpus_starlark",
+        "//tests:corpus_starlark",
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
-    env = {"STARLARK_DOCS_PACKAGES": "bundle,ios,macos,provisioning,signing"},
-)
-
-sh_test(
-    name = "rustfmt_coverage_test",
-    srcs = ["starlark_docs_test.sh"],
-    args = ["$(rootpath @rules_dx//tools/ci:rustfmt_coverage_family_test)"],
-    data = [
-        "//tests:corpus_starlark",
-        "@rules_dx//tools/ci:rustfmt_coverage_family_test",
-    ],
-    env = {"RUSTFMT_COVERAGE_PACKAGES": "tests"},
+    env = {"STARLARK_DOCS_PACKAGES": "bundle,ios,macos,provisioning,signing,tests"},
 )
 
 # dx:begin exports

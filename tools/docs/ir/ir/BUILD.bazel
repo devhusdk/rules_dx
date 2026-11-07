@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 # gazelle:resolve rust proto //tools/docs/ir:doc_ir_proto_rs
@@ -70,16 +70,6 @@ rust_test(
     ],
 )
 
-rustfmt_test(
-    name = "documentation_ir_fmt_test",
-    targets = [":documentation_ir"],
-)
-
-rust_clippy_test(
-    name = "documentation_ir_clippy_test",
-    targets = [":documentation_ir"],
-)
-
 exports_files(
     [
         "Cargo.toml",
@@ -100,9 +90,3 @@ real_source_target(
     toml_srcs = ["Cargo.toml"],
 )
 
-rustfmt_test(
-    name = "ir_fmt_test",
-    targets = [
-        ":site_shard_test",
-    ],
-)

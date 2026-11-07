@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
 _LINUX = select({
@@ -40,16 +40,6 @@ rust_test(
     ],
 )
 
-rustfmt_test(
-    name = "qt_adapter_fmt_test",
-    targets = [":qt_adapter_test"],
-)
-
-rust_clippy_test(
-    name = "qt_adapter_clippy_test",
-    targets = [":qt_adapter_test"],
-)
-
 # keep
 rust_test(
     name = "column_units_test",
@@ -71,16 +61,6 @@ rust_test(
         "//quality/adapter:quality_adapter",
         "//tools/testing:dx_testing",
     ],
-)
-
-rustfmt_test(
-    name = "column_units_fmt_test",
-    targets = [":column_units_test"],
-)
-
-rust_clippy_test(
-    name = "column_units_clippy_test",
-    targets = [":column_units_test"],
 )
 
 # keep
@@ -113,16 +93,6 @@ rust_test(
     ],
 )
 
-rustfmt_test(
-    name = "quality_check_smoke_fmt_test",
-    targets = [":quality_check_smoke_test"],
-)
-
-rust_clippy_test(
-    name = "quality_check_smoke_clippy_test",
-    targets = [":quality_check_smoke_test"],
-)
-
 # keep
 rust_test(
     name = "consumer_maven_guard_test",
@@ -143,16 +113,6 @@ rust_test(
         ]
     ])},
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "consumer_maven_guard_fmt_test",
-    targets = [":consumer_maven_guard_test"],
-)
-
-rust_clippy_test(
-    name = "consumer_maven_guard_clippy_test",
-    targets = [":consumer_maven_guard_test"],
 )
 
 real_source_target(
@@ -178,16 +138,6 @@ rust_test(
         "DX_MODULE_BAZEL": "$(rootpath //:MODULE.bazel)",
     },
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "powershell_gallery_lock_fmt_test",
-    targets = [":powershell_gallery_lock_test"],
-)
-
-rust_clippy_test(
-    name = "powershell_gallery_lock_clippy_test",
-    targets = [":powershell_gallery_lock_test"],
 )
 
 exports_files(

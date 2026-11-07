@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 
 package(
@@ -29,22 +29,6 @@ rust_test(
     deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "process_probe_fmt_test",
-    targets = [
-        ":process_probe",
-        ":process_probe_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "process_probe_clippy_test",
-    targets = [
-        ":process_probe",
-        ":process_probe_test",
     ],
 )
 

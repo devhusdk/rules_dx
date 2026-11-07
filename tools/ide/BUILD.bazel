@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -76,10 +76,3 @@ real_source_target(
     tags = ["corpus"],
 )
 
-rustfmt_test(
-    name = "ide_linux_x86_64_fmt_test",
-    targets = [
-        ":lsp_headless_clangd_test",
-        ":lsp_headless_rust_analyzer_test",
-    ],
-)

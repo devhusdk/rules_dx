@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
-load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
@@ -923,17 +923,3 @@ filegroup(
     visibility = ["//:__subpackages__"],
 )
 
-rustfmt_test(
-    name = "quality_fmt_test",
-    targets = [
-        ":clippy_policy_test",
-        ":jvm_classpath_policy_test",
-    ],
-)
-
-rustfmt_test(
-    name = "quality_linux_fmt_test",
-    targets = [
-        ":preset_settings_test",
-    ],
-)

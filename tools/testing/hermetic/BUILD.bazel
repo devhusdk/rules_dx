@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 load(":defs.bzl", "MANIFEST_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
 
@@ -1116,71 +1116,6 @@ hermetic_qualification(
     repo_name = "rules_dx",
     smoke = True,
     timeout = "eternal",
-)
-
-rustfmt_test(
-    name = "hermetic_fmt_test",
-    target_compatible_with = LINUX_MACOS,
-    targets = [
-        ":adopt_android",
-        ":cuda_gpu_facts_test",
-        ":appimage",
-        ":c_fixture",
-        ":c_fixture_gcc",
-        ":cpp_rust",
-        ":cpp_fixture",
-        ":cpp_fixture_gcc",
-        ":cuda",
-        ":dart",
-        ":elixir",
-        ":erlang",
-        ":hermetic",
-        ":msix",
-        ":lua",
-        ":perl",
-        ":prose",
-        ":python",
-        ":qt_rust",
-        ":qt_tasks",
-        ":rust_wasi",
-        ":scala_scalafix",
-        ":consumer_repos_test",
-        ":isolation_probe_test",
-        ":verify",
-        ":zig",
-    ],
-)
-
-rust_clippy_test(
-    name = "hermetic_clippy_test",
-    target_compatible_with = LINUX_MACOS,
-    targets = [
-        ":adopt_android",
-        ":appimage",
-        ":c_fixture",
-        ":c_fixture_gcc",
-        ":cpp_rust",
-        ":cpp_fixture",
-        ":cpp_fixture_gcc",
-        ":cuda",
-        ":dart",
-        ":elixir",
-        ":erlang",
-        ":hermetic",
-        ":msix",
-        ":lua",
-        ":perl",
-        ":prose",
-        ":python",
-        ":qt_rust",
-        ":qt_tasks",
-        ":rust_wasi",
-        ":scala_scalafix",
-        ":consumer_repos_test",
-        ":isolation_probe_test",
-        ":verify",
-        ":zig",
-    ],
 )
 
 real_source_target(

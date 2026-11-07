@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:tools_gen.bzl", "tools_gen")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 
 package(default_visibility = VIS_QUALITY)
@@ -104,25 +104,6 @@ rust_binary(
     ) + [
         "//cli/path:dx_path",
         "//quality/result:quality_result",
-    ],
-)
-
-rustfmt_test(
-    name = "quality_runner_fmt_test",
-    targets = [
-        ":quality_runner_test",
-        ":matrix_harness",
-        ":quality_runner_lib",
-        ":quality_runner",
-    ],
-)
-
-rust_clippy_test(
-    name = "quality_runner_clippy_test",
-    targets = [
-        ":matrix_harness",
-        ":quality_runner_lib",
-        ":quality_runner",
     ],
 )
 

@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -27,22 +27,6 @@ rust_binary(
     srcs = ["src/main.rs"],
     crate_root = "src/main.rs",
     deps = [":tiers"],
-)
-
-rustfmt_test(
-    name = "tiers_fmt_test",
-    targets = [
-        ":render",
-        ":tiers",
-    ],
-)
-
-rust_clippy_test(
-    name = "tiers_clippy_test",
-    targets = [
-        ":render",
-        ":tiers",
-    ],
 )
 
 real_source_target(

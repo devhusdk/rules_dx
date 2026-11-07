@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY_ENV")
 
 package(default_visibility = VIS_QUALITY_ENV)
@@ -46,23 +46,6 @@ rust_binary(
     ) + [
         ":quality_markdown_lib",
         "//cli/output:dx_output",
-    ],
-)
-
-rustfmt_test(
-    name = "quality_markdown_fmt_test",
-    targets = [
-        ":quality_markdown_test",
-        ":quality_markdown",
-        ":quality_markdown_lib",
-    ],
-)
-
-rust_clippy_test(
-    name = "quality_markdown_clippy_test",
-    targets = [
-        ":quality_markdown",
-        ":quality_markdown_lib",
     ],
 )
 

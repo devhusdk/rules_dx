@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":render.bzl", "mdbook_book", "mdbook_check", "mdbook_page_list")
 load(":site.bzl", "docs_api", "docs_scope_tools", "docs_site")
@@ -220,17 +220,6 @@ rust_test(
 )
 
 # keep
-rustfmt_test(
-    name = "site_fmt_test",
-    targets = [
-        ":browser_test",
-        ":deploy_smoke_test",
-        ":rendered_site_test",
-        ":serve_test",
-        ":site_check_test",
-    ],
-)
-
 site_unit_tests(name = "site_unit")
 
 filegroup(

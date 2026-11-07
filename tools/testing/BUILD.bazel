@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load(":child_runfiles.bzl", "child_runfiles")
 load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_TAGS")
@@ -264,40 +264,6 @@ rust_test(
         ":dx_nested",
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
-    ],
-)
-
-rustfmt_test(
-    name = "dx_testing_fmt_test",
-    targets = [
-        ":consumer_maven_lock_test",
-        ":dx_lsp",
-        ":dx_nested",
-        ":dx_testing",
-        ":module_srcs_test",
-        ":nested_bazel_harness_test",
-        ":nested_bazel_probe",
-        ":nested_bazel_shim",
-        ":preflight_smoke_test",
-        ":starlark_harness",
-        ":starlark_harness_exit_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "dx_testing_clippy_test",
-    targets = [
-        ":consumer_maven_lock_test",
-        ":dx_lsp",
-        ":dx_nested",
-        ":dx_testing",
-        ":module_srcs_test",
-        ":nested_bazel_harness_test",
-        ":nested_bazel_probe",
-        ":nested_bazel_shim",
-        ":preflight_smoke_test",
-        ":starlark_harness",
-        ":starlark_harness_exit_test",
     ],
 )
 

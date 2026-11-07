@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("//rust/rules:defs.bzl", "rust_binary", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary")
 
 exports_files(
     [
@@ -14,11 +14,6 @@ rust_binary(
     srcs = ["gen.rs"],
     crate_name = "gopls_gen",
     crate_root = "gen.rs",
-)
-
-rustfmt_test(
-    name = "gen_fmt_test",
-    targets = [":gen"],
 )
 
 [

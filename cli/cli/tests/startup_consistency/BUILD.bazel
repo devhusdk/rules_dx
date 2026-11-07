@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
 
 package(default_testonly = True)
 
@@ -23,12 +23,3 @@ rust_test(
     ],
 )
 
-rustfmt_test(
-    name = "startup_consistency_fmt_test",
-    targets = [":startup_consistency_test"],
-)
-
-rust_clippy_test(
-    name = "startup_consistency_clippy_test",
-    targets = [":startup_consistency_test"],
-)

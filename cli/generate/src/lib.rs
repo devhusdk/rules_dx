@@ -157,7 +157,15 @@ pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateErro
         .collect();
     out.insert(
         ".dx/BUILD.bazel".to_owned(),
-        dx_build(&inputs.repo, root, &families, &tools, &bound).into_bytes(),
+        dx_build(
+            &inputs.repo,
+            root,
+            &families,
+            &selection.disabled,
+            &tools,
+            &bound,
+        )
+        .into_bytes(),
     );
     for layer in Layer::ALL {
         out.insert(
@@ -192,6 +200,7 @@ fn dx_build(
     repo: &str,
     root: Profile,
     families: &BTreeMap<&str, &dx_config::FamilySelection>,
+    disabled: &BTreeSet<String>,
     tools: &[Tool],
     bound: &[(&Tool, &str)],
 ) -> String {
@@ -246,6 +255,10 @@ fn dx_build(
     if !configs.is_empty() {
         text.push_str(&format!("    configs = {},\n", list(&configs, 4)));
     }
+    if !disabled.is_empty() {
+        let disabled: Vec<String> = disabled.iter().cloned().collect();
+        text.push_str(&format!("    disabled = {},\n", list(&disabled, 4)));
+    }
     text.push_str("    families = {");
     if families.is_empty() {
         text.push_str("},\n");
@@ -253,16 +266,28 @@ fn dx_build(
         text.push('\n');
         for (id, family) in families {
             text.push_str(&format!("        \"{id}\": {{"));
-            let mut fields: Vec<String> = [
+            let capabilities = [
                 ("audit", &family.audit),
                 ("format", &family.format),
                 ("lint", &family.lint),
                 ("typecheck", &family.typecheck),
-            ]
-            .into_iter()
-            .filter(|(_, tools)| !tools.is_empty())
-            .map(|(key, tools)| format!("            \"{key}\": {},\n", list(tools, 12)))
-            .collect();
+            ];
+            let mut fields: Vec<String> = capabilities
+                .iter()
+                .filter(|(_, tools)| !tools.is_empty())
+                .map(|(key, tools)| format!("            \"{key}\": {},\n", list(tools, 12)))
+                .collect();
+            let disabled: Vec<String> = capabilities
+                .iter()
+                .filter(|(_, tools)| tools.is_empty())
+                .map(|(key, _)| (*key).to_owned())
+                .collect();
+            if !disabled.is_empty() {
+                fields.push(format!(
+                    "            \"disabled\": {},\n",
+                    list(&disabled, 12)
+                ));
+            }
             if family.profile != root {
                 fields.push(format!(
                     "            \"profile\": \"{}\",\n",

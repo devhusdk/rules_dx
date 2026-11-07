@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::config::{DxConfig, FamilyConfig, Profile};
 use crate::curated_defaults_gen::{CROSS_FAMILY_TOOLS, FAMILIES, TOOLS};
@@ -35,6 +35,8 @@ impl FamilySelection {
 pub struct Selection {
     pub profile: Profile,
     pub families: BTreeMap<String, FamilySelection>,
+    /// Families dx.toml turns off.
+    pub disabled: BTreeSet<String>,
     pub exclude: Vec<String>,
 }
 
@@ -149,10 +151,13 @@ pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProble
         }
     }
     let mut families = BTreeMap::new();
+    let mut disabled = BTreeSet::new();
     for curated in FAMILIES {
         let over = config.and_then(|config| config.families.get(curated.id));
         let selection = apply(curated, root, over)?;
-        if !over.is_some_and(|over| over.disabled) {
+        if over.is_some_and(|over| over.disabled) {
+            disabled.insert(curated.id.to_owned());
+        } else {
             families.insert(curated.id.to_owned(), selection);
         }
     }
@@ -160,6 +165,7 @@ pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProble
     Ok(Selection {
         profile: root,
         families,
+        disabled,
         exclude: config
             .map(|config| config.scope.exclude.clone())
             .unwrap_or_default(),

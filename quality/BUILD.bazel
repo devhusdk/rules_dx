@@ -230,6 +230,17 @@ consumer_policy_tests(
     name = "consumer_policy",
     cases = [
         {
+            "case": "generated_no_dx_toml",
+            "expected_dx_results": [
+                "policy_bound_py-real-format-py.pb",
+                "policy_bound_py-real-lint-py.pb",
+                "policy_bound_py-real-lint-text.pb",
+                "policy_bound_py-real-typecheck-py.pb",
+            ],
+            "policy": "//quality/tests/fixtures/generated_policy:policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:policy_bound_py",
+        },
+        {
             "case": "default_d",
             "expected_dx_results": [
                 "greet-real-format-d.pb",

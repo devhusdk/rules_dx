@@ -30,11 +30,12 @@ pub fn render(
     };
     let span = block::span(&build.text, BEGIN, END);
     let outside = match span {
-        Some((start, stop)) => format!("{}{}", &build.text[..start], &build.text[stop..]),
+        Some((start, stop)) => without_block(&build.text, start, stop),
         None => build.text.clone(),
     };
     let mut missing: BTreeSet<&str> = wanted.clone();
-    for export in exports(&build.name, &outside)? {
+    let (exports, non_literal) = exports(&outside);
+    for export in exports {
         let seen = export.visibility.as_ref().is_none_or(|visibility| {
             visibility
                 .iter()
@@ -51,6 +52,12 @@ pub fn render(
             });
         }
     }
+    if let Some(argument) = non_literal.filter(|_| !missing.is_empty()) {
+        return Err(GenerateError::NonLiteralExport {
+            build: build.name.clone(),
+            argument,
+        });
+    }
     let text = if missing.is_empty() {
         match span {
             Some(_) => outside,
@@ -65,6 +72,26 @@ pub fn render(
         })?
     };
     Ok(Some((build.name.clone(), text)))
+}
+
+/// The text without the block at `start..stop`, leaving no extra blank line behind.
+fn without_block(text: &str, start: usize, stop: usize) -> String {
+    let eol = block::eol(text);
+    let (before, after) = (&text[..start], &text[stop..]);
+    if after.is_empty() {
+        let before = before.trim_end_matches(['\r', '\n']);
+        return if before.is_empty() {
+            String::new()
+        } else {
+            format!("{before}{eol}")
+        };
+    }
+    let after = if before.is_empty() || before.ends_with(&eol.repeat(2)) {
+        after.strip_prefix(eol).unwrap_or(after)
+    } else {
+        after
+    };
+    format!("{before}{after}")
 }
 
 fn block_text(files: &BTreeSet<&str>) -> String {
@@ -134,42 +161,53 @@ fn tokens(text: &str) -> Vec<Token> {
     out
 }
 
-fn exports(build: &str, text: &str) -> Result<Vec<Export>, GenerateError> {
+/// The literal `exports_files` calls, and the first argument of a call that is not literal.
+fn exports(text: &str) -> (Vec<Export>, Option<String>) {
     let tokens = tokens(text);
     let mut out = Vec::new();
+    let mut non_literal = None;
     for (at, token) in tokens.iter().enumerate() {
         if *token != Token::Word("exports_files".to_owned())
             || tokens.get(at + 1) != Some(&Token::Punct('('))
         {
             continue;
         }
-        out.push(call(build, &tokens[at + 2..])?);
+        match call(&tokens[at + 2..]) {
+            Ok(export) => out.push(export),
+            Err(argument) => {
+                non_literal.get_or_insert(argument);
+            }
+        }
     }
-    Ok(out)
+    (out, non_literal)
 }
 
-/// Parses the arguments of one call, up to its closing parenthesis.
-fn call(build: &str, tokens: &[Token]) -> Result<Export, GenerateError> {
-    let non_literal = |at: usize| GenerateError::NonLiteralExport {
-        build: build.to_owned(),
-        argument: match tokens.get(at) {
-            Some(Token::Word(word)) => word.clone(),
-            Some(Token::Str(value)) => format!("\"{value}\""),
-            Some(Token::Punct(c)) => c.to_string(),
-            None => "end of file".to_owned(),
-        },
+/// Parses the arguments of one call, up to its closing parenthesis, or names the first
+/// argument that is not literal.
+fn call(tokens: &[Token]) -> Result<Export, String> {
+    let non_literal = |at: usize| match tokens.get(at) {
+        Some(Token::Word(word)) => word.clone(),
+        Some(Token::Str(value)) => format!("\"{value}\""),
+        Some(Token::Punct(c)) => c.to_string(),
+        None => "end of file".to_owned(),
     };
     let mut export = Export {
         files: Vec::new(),
         visibility: None,
     };
+    let mut positional = 0;
     let mut at = 0;
     loop {
         match tokens.get(at) {
             Some(Token::Punct(')')) => return Ok(export),
             Some(Token::Punct('[')) => {
-                let (files, next) = strings(tokens, at).ok_or_else(|| non_literal(at))?;
-                export.files = files;
+                let (values, next) = strings(tokens, at).ok_or_else(|| non_literal(at))?;
+                match positional {
+                    0 => export.files = values,
+                    1 => export.visibility = Some(values),
+                    _ => {}
+                }
+                positional += 1;
                 at = next;
             }
             Some(Token::Word(key)) if tokens.get(at + 1) == Some(&Token::Punct('=')) => {

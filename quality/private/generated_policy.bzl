@@ -19,7 +19,7 @@ def generated_families_error(name, families):
                 )
     return ""
 
-def dx_generated_policy(name, profile, families = None, defaults = True, configs = [], bases = {}, visibility = None):
+def dx_generated_policy(name, profile, families = None, defaults = True, disabled = [], configs = [], bases = {}, visibility = None):
     """Declares a workspace policy whose unbound tier-active tools run on their tier base.
 
     Args:
@@ -30,6 +30,7 @@ def dx_generated_policy(name, profile, families = None, defaults = True, configs
             `format`, `audit`), `disabled` capabilities and a `profile`. Each key replaces only
             that family of the curated defaults.
         defaults: whether the curated default families apply. False uses only `families`.
+        disabled: curated family IDs to drop; needs `defaults`.
         configs: native config targets the repo binds; they win over a base.
         bases: tool ID to a base config target, replacing the tier base of `profile` for that
             tool. The generator sets it for a tool whose families use another profile.
@@ -48,6 +49,8 @@ def dx_generated_policy(name, profile, families = None, defaults = True, configs
 
     if not defaults and families == None:
         fail("dx_generated_policy (%s): defaults = False needs families" % name)
+    if not defaults and disabled:
+        fail("dx_generated_policy (%s): disabled needs defaults = True" % name)
     extends = Label("//quality:default_workspace_policy") if defaults else None
     family_labels = []
     if families != None:
@@ -67,6 +70,7 @@ def dx_generated_policy(name, profile, families = None, defaults = True, configs
         name = name,
         bases = [tier_bases[tool] for tool in sorted(tier_bases.keys())],
         configs = configs,
+        disabled = disabled,
         extends = extends,
         families = family_labels,
         visibility = visibility,

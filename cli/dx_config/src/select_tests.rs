@@ -43,6 +43,7 @@ fn a_family_override_replaces_one_capability() {
     assert_eq!(selection.families["rust"].format, ["rustfmt"]);
     assert_eq!(selection.families["rust"].profile.as_str(), "strict");
     assert!(!selection.families.contains_key("go"));
+    assert_eq!(selection.disabled, ["go".to_owned()].into());
 }
 
 #[test]

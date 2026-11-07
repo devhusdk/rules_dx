@@ -126,6 +126,7 @@ fn renders_standard() {
         configs = [":ruff"],
         families = {
             "python": {
+                "disabled": ["audit"],
                 "format": ["ruff"],
                 "lint": [
                     "ruff",
@@ -181,6 +182,7 @@ fn renders_strict() {
         configs = [":ruff"],
         families = {
             "python": {
+                "disabled": ["audit"],
                 "format": ["ruff"],
                 "lint": [
                     "ruff",
@@ -228,6 +230,10 @@ fn renders_no_dx_toml() {
         name = "policy",
         families = {
             "core": {
+                "disabled": [
+                    "audit",
+                    "typecheck",
+                ],
                 "format": ["yamlfmt"],
                 "lint": [
                     "actionlint",
@@ -235,6 +241,7 @@ fn renders_no_dx_toml() {
                 ],
             },
             "python": {
+                "disabled": ["audit"],
                 "format": ["ruff"],
                 "lint": [
                     "ruff",
@@ -292,6 +299,10 @@ fn renders_existing_exports() {
         ],
         families = {
             "core": {
+                "disabled": [
+                    "audit",
+                    "typecheck",
+                ],
                 "format": ["yamlfmt"],
                 "lint": [
                     "actionlint",
@@ -299,6 +310,7 @@ fn renders_existing_exports() {
                 ],
             },
             "python": {
+                "disabled": ["audit"],
                 "format": ["ruff"],
                 "lint": [
                     "ruff",
@@ -356,6 +368,7 @@ fn renders_no_root_build() {
         configs = [":ruff"],
         families = {
             "python": {
+                "disabled": ["audit"],
                 "format": ["ruff"],
                 "lint": [
                     "ruff",
@@ -413,6 +426,7 @@ fn renders_mixed_profiles() {
         configs = [":ruff"],
         families = {
             "python": {
+                "disabled": ["audit"],
                 "format": ["ruff"],
                 "lint": [
                     "ruff",
@@ -464,6 +478,7 @@ fn renders_rust() {
         },
         families = {
             "rust": {
+                "disabled": ["audit"],
                 "format": ["rustfmt"],
                 "lint": [
                     "clippy",
@@ -600,4 +615,77 @@ fn unused_families_are_left_out() {
         "{paths:?}"
     );
     assert!(!paths.contains("BUILD.bazel"), "{paths:?}");
+}
+
+#[test]
+fn a_disabled_family_is_dropped() {
+    let out = rendered(&inputs(
+        Some("schema_version = 1\n[families.python]\ndisabled = true\n"),
+        &["python", "core"],
+        &["ruff.toml"],
+    ));
+    let build = text(&out, ".dx/BUILD.bazel");
+    assert!(build.contains("    disabled = [\"python\"],\n"), "{build}");
+    assert!(!build.contains("\"python\": {"), "{build}");
+    assert!(
+        !out.keys().any(|path| path.starts_with(".dx/config/ruff/")),
+        "{:?}",
+        out.keys()
+    );
+}
+
+#[test]
+fn the_generated_policy_fixture_is_the_rendered_policy() {
+    let Ok(fixture) = std::env::var("DX_GENERATED_POLICY") else {
+        panic!("DX_GENERATED_POLICY names the analysed generated policy");
+    };
+    let fixture = std::fs::read_to_string(fixture).expect("fixture");
+    let rendered = text(&rendered(&case("no_dx_toml")), ".dx/BUILD.bazel");
+    assert_eq!(fixture, rendered);
+}
+
+#[test]
+fn a_glob_export_needs_nothing() {
+    for build in [
+        "exports_files(glob([\"*.toml\"]))\n",
+        "exports_files([\"README.md\"], visibility = VIS)\n",
+    ] {
+        let mut case = inputs(None, &["python"], &[]);
+        case.root_build = Some(RootBuild {
+            name: "BUILD.bazel".to_owned(),
+            text: build.to_owned(),
+        });
+        let out = render(&case).expect("nothing to export");
+        assert!(!out.contains_key("BUILD.bazel"), "{build}");
+    }
+}
+
+#[test]
+fn a_dropped_block_restores_the_build() {
+    let mut case = inputs(None, &["python"], &["ruff.toml"]);
+    let original = case.root_build.as_ref().expect("root build").text.clone();
+    let out = rendered(&case);
+    case.root_build = Some(RootBuild {
+        name: "BUILD.bazel".to_owned(),
+        text: text(&out, "BUILD.bazel"),
+    });
+    case.root_files.clear();
+    assert_eq!(text(&rendered(&case), "BUILD.bazel"), original);
+}
+
+#[test]
+fn a_positional_visibility_is_read_as_visibility() {
+    let mut case = inputs(None, &["python"], &["ruff.toml"]);
+    case.root_build = Some(RootBuild {
+        name: "BUILD".to_owned(),
+        text: "exports_files([\"ruff.toml\"], [\"//tools:__pkg__\"])\n".to_owned(),
+    });
+    assert_eq!(
+        render(&case).expect_err("narrow visibility"),
+        GenerateError::NarrowExport {
+            build: "BUILD".to_owned(),
+            file: "ruff.toml".to_owned(),
+            visibility: "//tools:__pkg__".to_owned(),
+        }
+    );
 }

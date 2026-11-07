@@ -65,6 +65,7 @@ load(
     "real_protobuf_format_aspect",
     "real_protobuf_lint_aspect",
     "real_python_lint_aspect",
+    "real_typecheck_probe_aspect",
     "real_dart_format_aspect",
     "real_dart_lint_aspect",
     "real_dart_typecheck_aspect",
@@ -326,8 +327,18 @@ _policy_clang_tidy_test = analysistest.make(
     extra_target_under_test_aspects = [clang_syntax_aspect],
 )
 
+def _policy_generated_impl(ctx):
+    env = analysistest.begin(ctx)
+    return analysistest.end(env)
+
+_policy_generated_test = analysistest.make(
+    _policy_generated_impl,
+    config_settings = {str(Label("//config:workspace")): str(Label("//quality/tests/fixtures/generated_policy:policy"))},
+    extra_target_under_test_aspects = [real_typecheck_probe_aspect],
+)
+
 def policy_config_tests(name):
-    """Proves a policy's configs bind a target and an aspect_hints config overrides them."""
+    """Proves policy configs bind a target, aspect_hints override them and a rendered policy analyzes."""
     pkg = "quality/tests/fixtures/consumer_policy/"
     _policy_config_test(
         name = name + "_policy",
@@ -346,7 +357,12 @@ def policy_config_tests(name):
         size = "small",
         target_under_test = "//quality/tests/fixtures/consumer_policy:policy_bound_c",
     )
-    native.test_suite(name = name, tests = [name + "_policy", name + "_hint", name + "_clang_tidy"])
+    _policy_generated_test(
+        name = name + "_generated",
+        size = "small",
+        target_under_test = "//quality/tests/fixtures/consumer_policy:policy_bound_py",
+    )
+    native.test_suite(name = name, tests = [name + "_policy", name + "_hint", name + "_clang_tidy", name + "_generated"])
 
 def consumer_policy_tests(name, cases, **kwargs):
     """Instantiates one proof per consumer policy selection."""

@@ -26,9 +26,13 @@ dx_rust_crate(
         "//tools/bazelrc:dx_preset",
     ],
     test_data = [
+        "//quality/tests/fixtures/generated_policy:BUILD.bazel",
         "@dx_tools//:buildifier",
     ],
-    test_env = {"DX_BUILDIFIER": "$(rootpath @dx_tools//:buildifier)"},
+    test_env = {
+        "DX_BUILDIFIER": "$(rootpath @dx_tools//:buildifier)",
+        "DX_GENERATED_POLICY": "$(rootpath //quality/tests/fixtures/generated_policy:BUILD.bazel)",
+    },
     test_srcs = ["src/render_tests.rs"],
     deps = ["thiserror"],
 )

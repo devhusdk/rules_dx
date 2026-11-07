@@ -28,7 +28,8 @@ def config(
         extensions = [],
         init_order = 0,
         suppressions = [],
-        suppression_extensions = []):
+        suppression_extensions = [],
+        rule_keys = []):
     """Returns a tool's config metadata.
 
     Args:
@@ -57,6 +58,7 @@ def config(
       init_order: position of the tool among the tier tools in the files `dx init` plans; 0 for none.
       suppressions: markers of the tool's inline suppression comments.
       suppression_extensions: extensions of the files that can carry those markers.
+      rule_keys: dotted keys inside the base that hold rule IDs, for `dx upgrade` to report rule changes.
 
     Returns:
       The config struct.
@@ -77,6 +79,7 @@ def config(
         kind = kind,
         pyproject_table = pyproject_table,
         references = references,
+        rule_keys = rule_keys,
         shared = shared,
         stage_native = stage_native,
         suffixes = suffixes,
@@ -320,6 +323,7 @@ TOOLS = [
             tier_active = True,
             suppressions = ["biome-ignore"],
             suppression_extensions = [".cjs", ".css", ".cts", ".js", ".json", ".jsonc", ".jsx", ".mjs", ".mts", ".ts", ".tsx"],
+            rule_keys = ["linter.rules"],
         ),
         severity = severity(categories = {
             "lint/a11y": "warning",
@@ -2395,6 +2399,7 @@ TOOLS = [
             comment = "#",
             pyproject_table = "ruff",
             references = ["toml:extend"],
+            rule_keys = ["lint.select", "lint.ignore", "lint.per-file-ignores"],
             init_order = 1,
             family = "python",
             tier_active = True,
@@ -3236,6 +3241,7 @@ TOOLS = [
             files = [".yamllint"],
             ext = "yaml",
             tier_active = True,
+            rule_keys = ["rules"],
         ),
         severity = severity(
             default = "warning",

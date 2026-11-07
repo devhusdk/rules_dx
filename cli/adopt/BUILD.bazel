@@ -29,6 +29,7 @@ dx_rust_crate(
         "src/preset_fragment.rs",
         "src/scaffold.rs",
         "src/status.rs",
+        "src/rule_keys.rs",
         "src/upgrade.rs",
         "src/version.rs",
         "src/watch.rs",

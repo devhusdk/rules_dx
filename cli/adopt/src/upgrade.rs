@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_generate::base_path;
-use dx_generate::tools_gen::TOOL_CONFIGS;
+use dx_generate::tools_gen::{TOOL_CONFIGS, ToolConfig};
 use dx_merge::merge3::{Labels, Merge3, merge3};
+
+use crate::rule_keys::{rule_report, rule_settings};
 
 /// What the caller asked for: whether it applies and which workspace it named.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -44,7 +46,8 @@ pub fn upgrade_recovery_message(to: &str, intent: &UpgradeIntent) -> String {
     )
 }
 
-/// One line per base file that differs between two `.dx/config` snapshots keyed by path.
+/// The lines that report how the bases differ between two `.dx/config` snapshots keyed by path.
+/// A changed base with rule keys gets a rule summary and one line per rule.
 pub fn base_changes(
     old: &BTreeMap<String, Vec<u8>>,
     new: &BTreeMap<String, Vec<u8>>,
@@ -53,23 +56,40 @@ pub fn base_changes(
         .chain(new.keys())
         .collect::<BTreeSet<_>>()
         .into_iter()
-        .filter_map(|path| {
+        .flat_map(|path| {
             let change = match (old.get(path), new.get(path)) {
                 (Some(before), Some(after)) if before != after => "changed",
                 (None, Some(_)) => "added",
                 (Some(_), None) => "removed",
-                _ => return None,
+                _ => return Vec::new(),
             };
-            let tool = TOOL_CONFIGS
+            let config = TOOL_CONFIGS
                 .iter()
-                .find(|config| base_path(config).as_deref() == Some(path))
-                .map_or_else(
-                    || path.split('/').nth(2).unwrap_or(path).to_owned(),
-                    |config| config.id.to_owned(),
-                );
-            Some(format!("{tool}: base {change} ({path})"))
+                .find(|config| base_path(config).as_deref() == Some(path));
+            let tool = config.map_or_else(
+                || path.split('/').nth(2).unwrap_or(path).to_owned(),
+                |config| config.id.to_owned(),
+            );
+            if change == "changed"
+                && let Some(config) = config
+                && let Some(report) = rule_report_for(config, &old[path], &new[path])
+            {
+                return report;
+            }
+            vec![format!("{tool}: base {change} ({path})")]
         })
         .collect()
+}
+
+fn rule_report_for(config: &ToolConfig, old: &[u8], new: &[u8]) -> Option<Vec<String>> {
+    if config.rule_keys.is_empty() {
+        return None;
+    }
+    let read = |bytes: &[u8]| {
+        rule_settings(config.ext, config.rule_keys, std::str::from_utf8(bytes).ok()?)
+    };
+    let report = rule_report(config.id, &read(old)?, &read(new)?);
+    (!report.is_empty()).then_some(report)
 }
 
 /// Family tool selections keyed by family, then capability.
@@ -239,6 +259,33 @@ mod tests {
             ]
         );
         assert!(base_changes(&old, &old).is_empty());
+    }
+
+    #[test]
+    fn base_changes_reports_rules_a_stale_ruff_base_lacks() {
+        let old = files(&[(
+            ".dx/config/ruff/base.toml",
+            "[lint]\nselect = [\"E\"]\nignore = [\"E501\"]\n",
+        )]);
+        let new = files(&[(
+            ".dx/config/ruff/base.toml",
+            "[lint]\nselect = [\"E\", \"F401\"]\nignore = [\"E501\"]\n",
+        )]);
+        assert_eq!(
+            base_changes(&old, &new),
+            [
+                "ruff: 1 rules enabled, 0 disabled, 0 changed",
+                "  + F401 (select)",
+            ]
+        );
+        let unrelated = files(&[(
+            ".dx/config/ruff/base.toml",
+            "[lint]\nselect = [\"E\"]\nignore = [\"E501\"]\n# note\n",
+        )]);
+        assert_eq!(
+            base_changes(&old, &unrelated),
+            ["ruff: base changed (.dx/config/ruff/base.toml)"]
+        );
     }
 
     fn selections(family: &str, capability: &str, tools: &[&str]) -> Selections {

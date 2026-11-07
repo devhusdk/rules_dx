@@ -75,6 +75,8 @@ When a family now selects another tool for a capability, stderr gets:
 dx: warning: <family> <capability>: <old> replaced by <new>; rule IDs <old>/<code> become <new>/<code>, migrate native inline suppressions
 ```
 
+See [Silence one finding](quality.md#silence-one-finding).
+
 A root file made by `dx config override <tool>` gets the base change through a three-way merge of your file, the old base named in its `dx: override of base <sha>` comment, and the new base. The comment then names the new base. A conflict leaves `<<<<<<< your file` markers, prints `<file>: merge conflict, resolve the markers` and fails with `upgrade_failed` after every other write. When the old base is neither the pre-upgrade base nor in git history, stderr gets `<file>: base <sha> not in history; compare with dx config diff <tool>` and the file is left alone.
 
 Refusals write nothing and emit `upgrade_failed`: no single `bazel_dep(name = "rules_dx", ...)` with a literal version, or a launcher that cannot be refreshed. If the lockfile refresh fails, `MODULE.bazel` and `MODULE.bazel.lock` are restored. If the `--to` binary cannot start, the error names the command to finish by hand.

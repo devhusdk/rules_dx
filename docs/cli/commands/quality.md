@@ -82,6 +82,24 @@ Several targets that fix the same file apply identical fixes once. Fixes that di
 
 `dx lint` without `--apply` also fails with exit `1` when the checkout holds build output or a file over 1 MiB, as `dx check` does.
 
+### Severities and rule IDs
+
+A finding is `info`, `warning` or `error`. `--fail-on` fails the run when any finding is at or above the given severity: `info` fails on everything, `warning` (default) on warnings and errors, `error` only on errors.
+
+The text `[tool/rule]` suffix is the tool name and its rule code, for example `ruff/F401`. JSON diagnostics carry them as separate `tool` and `rule` fields.
+
+### Silence one finding
+
+dx has no suppression of its own. Use the tool's native inline form:
+
+| Tool | Form |
+| --- | --- |
+| ruff | `# noqa: <code>` |
+| clippy | `#[allow(clippy::<lint>)]` |
+| biome | `// biome-ignore <rule>: <reason>` |
+| staticcheck | `//lint:ignore <check> <reason>` |
+| shellcheck | `# shellcheck disable=SC<n>` |
+
 ## Exit codes
 
 | Code | Meaning |

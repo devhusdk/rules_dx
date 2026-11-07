@@ -872,28 +872,21 @@ pub fn runner_error_text(stderr: &str) -> Option<String> {
 /// Replaces each per-run scratch directory under `scratch_parent` with a stable token,
 /// spelling the rest of the path with forward slashes.
 pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
-    let slash = format!("{scratch_parent}/");
-    let backslash = format!("{scratch_parent}\\");
+    let flat = text.replace('\\', "/");
+    let prefix = format!("{}/", scratch_parent.replace('\\', "/").trim_end_matches('/'));
     let mut out = String::with_capacity(text.len());
-    let mut rest = text;
-    loop {
-        let next = [&slash, &backslash]
-            .into_iter()
-            .filter_map(|prefix| rest.find(prefix.as_str()).map(|at| (at, prefix.len())))
-            .min();
-        let Some((start, prefix_len)) = next else {
-            break;
-        };
-        out.push_str(&rest[..start]);
+    let mut at = 0;
+    while let Some(found) = flat[at..].find(&prefix) {
+        let start = at + found;
+        out.push_str(&text[at..start]);
         out.push_str(SCRATCH_TOKEN);
-        let after = &rest[start + prefix_len..];
-        let end = after.find(['/', '\\', ' ', ':', '\n']).unwrap_or(after.len());
-        let tail = &after[end..];
-        let path_end = tail.find([' ', ':', '\n']).unwrap_or(tail.len());
-        out.push_str(&tail[..path_end].replace('\\', "/"));
-        rest = &tail[path_end..];
+        let after = start + prefix.len();
+        let dir_end = flat[after..].find('/').map_or(flat.len(), |i| after + i);
+        let path_end = flat[dir_end..].find([' ', ':', '\n']).map_or(flat.len(), |i| dir_end + i);
+        out.push_str(&flat[dir_end..path_end]);
+        at = path_end;
     }
-    out.push_str(rest);
+    out.push_str(&text[at..]);
     out
 }
 
@@ -1038,6 +1031,13 @@ mod tests {
                 "C:\\t\\scratch"
             ),
             "$SCRATCH/matrix/a.go:4:41: bad\n"
+        );
+        assert_eq!(
+            normalize_scratch(
+                "x C:\\t\\scratch\\dx-scratch-Ab12\\m\\a.go:4: bad \\n\n",
+                "C:/t/scratch"
+            ),
+            "x $SCRATCH/m/a.go:4: bad \\n\n"
         );
     }
 

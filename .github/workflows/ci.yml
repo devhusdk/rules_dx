@@ -768,7 +768,6 @@ jobs:
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: ./.github/actions/setup-bazel
-        id: bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Build the bootstrap closure
@@ -777,18 +776,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel build --noshow_progress "$@" //cli/cli:dx //cc/tests/fixtures/hello:hello
-      - name: Record the extension results for later cold starts (#9105)
-        if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'merge_group' }}
-        run: |
-          # shellcheck disable=SC2086
-          bazel build --noshow_progress --lockfile_mode=update $BAZEL_CONFIG $BB_ARGS //cli/cli:dx //cc/tests/fixtures/hello:hello
-          git diff --exit-code -- '*MODULE.bazel.lock'
-      - name: Save Bazel's hidden extension lockfile
-        if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'merge_group' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.bazel.outputs.output-base }}/MODULE.bazel.lock
-          key: dx-ext-lock-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion') }}-${{ github.sha }}
       - name: Check the crate lockfiles are current (#8915)
         if: ${{ matrix.platform == 'linux_x86_64' }}
         run: |

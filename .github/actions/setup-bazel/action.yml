@@ -13,9 +13,6 @@ outputs:
   repository-cache-root:
     description: The Bazel repository cache directory, set when locate-repository-cache is "true".
     value: ${{ steps.repo-cache.outputs.path }}
-  output-base:
-    description: The Bazel output base, where the hidden extension lockfile lives.
-    value: ${{ steps.output-base.outputs.path }}
   registry-cache-hit:
     description: "\"true\" when the registry file cache was restored under its exact key."
     value: ${{ steps.registry.outputs.cache-hit }}
@@ -133,15 +130,3 @@ runs:
       run: |
         path="$(bazel info repository_cache)"
         echo "path=$path" >> "$GITHUB_OUTPUT"
-    - name: Locate the Bazel output base
-      id: output-base
-      shell: bash
-      run: |
-        path="$(bazel info output_base | tr -d '\r')"
-        echo "path=$path" >> "$GITHUB_OUTPUT"
-    - name: Restore Bazel's hidden extension lockfile
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ${{ steps.output-base.outputs.path }}/MODULE.bazel.lock
-        key: dx-ext-lock-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion') }}-${{ github.sha }}
-        restore-keys: dx-ext-lock-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion') }}-

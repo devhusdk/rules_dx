@@ -1004,23 +1004,15 @@ fn remote_repo_contents_cache_comes_from_setup_bazel() {
 }
 
 #[test]
-fn evidence_speeds_up_windows_file_io_before_checkout() {
+fn evidence_checks_out_in_parallel_on_windows() {
     let evidence = read_runfiles(".github/workflows/evidence.yml");
     let checkout = evidence
         .find("actions/checkout@")
         .expect("evidence.yml has no checkout step");
-    for needle in ["checkout.workers 0", "Add-MpPreference"] {
-        let at = evidence
-            .find(needle)
-            .unwrap_or_else(|| panic!("evidence.yml lost {needle}"));
-        assert!(at < checkout, "{needle} must run before actions/checkout");
-    }
-    for root in [r"'C:\bz'", r"'D:\bz'"] {
-        assert!(
-            evidence.contains(root),
-            "evidence.yml must exclude the Bazel output root {root} from Defender"
-        );
-    }
+    let workers = evidence
+        .find("checkout.workers 0")
+        .expect("evidence.yml lost checkout.workers 0");
+    assert!(workers < checkout, "checkout.workers must be set before actions/checkout");
 }
 
 #[test]

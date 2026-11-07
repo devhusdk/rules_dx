@@ -18,7 +18,7 @@ test --test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE
 test --test_env=BAZELISK_BASE_URL
 test --test_env=BAZELISK_HOME
 # Patched lua (CI mirrors, #1375) and rules_py; resolution reads their MODULE.bazel without fetching the archive (#9153).
-common --registry=file://%workspace%/tools/registry
+common --registry=file:///%workspace%/tools/registry
 common --registry=https://bcr.bazel.build
 common --check_direct_dependencies=error
 common --experimental_repository_downloader_retries=5

@@ -220,6 +220,10 @@ jobs:
       DX_LINK_CHECK_ONLINE: ${{ github.event_name != 'pull_request' && inputs.link_check_online }}
       DX_BUF_BREAKING: ${{ github.event_name == 'pull_request' && inputs.buf_breaking_on_pr }}
     steps:
+      - name: Check out files in parallel on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global checkout.workers 0
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
@@ -997,6 +1001,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Check out files in parallel on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global checkout.workers 0
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false

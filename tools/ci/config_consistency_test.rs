@@ -1019,6 +1019,37 @@ fn evidence_checks_out_in_parallel_without_actions_checkout() {
     );
 }
 
+#[test]
+fn windows_capable_jobs_check_out_in_parallel() {
+    for path in [
+        ".github/workflows/evidence.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/reusable-consumer.yml",
+    ] {
+        let text = read_runfiles(path);
+        let mut job = "";
+        let mut windows_capable = false;
+        let mut workers_set = false;
+        for line in text.lines() {
+            if line.starts_with("  ") && !line.starts_with("   ") && line.trim_end().ends_with(':') {
+                job = line.trim();
+                windows_capable = false;
+                workers_set = false;
+            } else if let Some(runner) = line.strip_prefix("    runs-on:") {
+                let runner = runner.trim();
+                windows_capable = !(runner.starts_with("ubuntu-") || runner.starts_with("macos-"));
+            } else if line.contains("checkout.workers 0") {
+                workers_set = true;
+            } else if line.contains("actions/checkout@") {
+                assert!(
+                    !windows_capable || workers_set,
+                    "{path} {job} can run on Windows but does not set checkout.workers 0 before actions/checkout"
+                );
+            }
+        }
+    }
+}
+
 
 #[test]
 fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {

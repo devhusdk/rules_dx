@@ -1,7 +1,7 @@
 //! Hex publisher: package staging and the mix or rebar3 build and publish.
 
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
     placeholder_refusal, scrubbed_command,
 };
 use crate::stage::*;
@@ -240,8 +240,8 @@ pub fn hex_main(
         None => println!("hex_deploy: {tool} not found on PATH; skipped the hex build"),
     }
     println!(
-        "hex_deploy: staged {package_name} {version} (profile: {})",
-        deploy_profile()
+        "hex_deploy: staged {package_name} {version} (build_mode: {})",
+        deploy_build_mode()
     );
     println!("  package: {}", package_dir.display());
     if tarball.is_file() {

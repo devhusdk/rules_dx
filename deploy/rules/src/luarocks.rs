@@ -2,7 +2,7 @@
 
 use crate::archive::basename;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
     placeholder_refusal, print_redacted, scrubbed_command,
 };
 use crate::stage::*;
@@ -189,8 +189,8 @@ pub fn luarocks_main(
     match staged {
         Ok(dest) => {
             println!(
-                "luarocks_deploy: staged {package} {version} (profile: {})",
-                deploy_profile()
+                "luarocks_deploy: staged {package} {version} (build_mode: {})",
+                deploy_build_mode()
             );
             println!("  rockspec: {}", dest.display());
             0

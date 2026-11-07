@@ -3,7 +3,7 @@
 use crate::api_compat::{ApiCompatMode, breaking_refusal, required_bump};
 use crate::archive::*;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty, print_redacted,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, print_redacted,
     scrubbed_command,
 };
 use crate::stage::*;
@@ -677,8 +677,8 @@ pub fn npm_deploy_main_checked(
             return 1;
         }
     }
-    let profile = deploy_profile();
-    println!("npm_deploy: released {name} (tag {tag}, access {access}, profile: {profile})");
+    let build_mode = deploy_build_mode();
+    println!("npm_deploy: released {name} (tag {tag}, access {access}, build_mode: {build_mode})");
     println!("  registry: {registry}");
     println!("  provenance: {provenance}");
     println!("  tarball: {}", outdir.join(&tgz_base).display());

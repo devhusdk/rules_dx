@@ -4,7 +4,7 @@ use crate::archive::*;
 use crate::oci_scan::{OciChecks, ScanMode, run_trivy, scan_and_report};
 use crate::registry;
 use crate::run::{
-    DeployRun, OwnerGate, check_size_budget, deploy_profile, env_or_empty, placeholder_refusal,
+    DeployRun, OwnerGate, check_size_budget, deploy_build_mode, env_or_empty, placeholder_refusal,
     tree_bytes,
 };
 use std::io::{self, Read, Write};
@@ -1134,8 +1134,8 @@ pub fn oci_main<C: Into<OciChecks>>(
     }
     match oci_build_layout(&image, outdir, registry, repository, tag, platform) {
         Ok(layout) => {
-            let profile = deploy_profile();
-            println!("oci_deploy: staged {registry}/{repository}:{tag} (profile: {profile})");
+            let build_mode = deploy_build_mode();
+            println!("oci_deploy: staged {registry}/{repository}:{tag} (build_mode: {build_mode})");
             println!("  layout: {}", layout.display());
             println!("  index: {}", layout.join("index.json").display());
             println!("{}", size_line(bytes, checks.size_budget));

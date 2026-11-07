@@ -2,7 +2,7 @@
 
 use crate::archive::*;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty, print_redacted,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, print_redacted,
     scrubbed_command,
 };
 use crate::stage::*;
@@ -267,9 +267,9 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     }
     match octopus_build_drop(&package, outdir, &drop_spec) {
         Ok(drop) => {
-            let profile = deploy_profile();
+            let build_mode = deploy_build_mode();
             println!(
-                "octopus_deploy: staged {} {} (profile: {profile})",
+                "octopus_deploy: staged {} {} (build_mode: {build_mode})",
                 spec.project, spec.version
             );
             println!("  drop: {}", drop.display());

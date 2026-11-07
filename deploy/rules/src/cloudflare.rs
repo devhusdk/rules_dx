@@ -43,7 +43,7 @@ pub struct PagesEnv {
     pub token: String,
     pub account_id: Option<String>,
     pub passthrough: Vec<(String, String)>,
-    pub profile: String,
+    pub build_mode: String,
 }
 
 /// Lists one validated site file.
@@ -398,7 +398,7 @@ fn pages_check_run(
     launch: &PagesLaunch<'_>,
     site: &Path,
     account_id: Option<&str>,
-    profile: &str,
+    build_mode: &str,
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
 ) -> i32 {
@@ -409,7 +409,7 @@ fn pages_check_run(
     let bytes: u64 = files.iter().map(|file| file.size).sum();
     let _ = writeln!(
         out,
-        "cloudflare_pages_deploy: checked {} (branch {}, {intent}, profile: {profile}); nothing uploaded",
+        "cloudflare_pages_deploy: checked {} (branch {}, {intent}, build_mode: {build_mode}); nothing uploaded",
         launch.project, launch.branch
     );
     let _ = writeln!(out, "  account: {}", launch.account_id);
@@ -539,8 +539,8 @@ fn pages_deploy_staged(
     let bytes: u64 = files.iter().map(|file| file.size).sum();
     let _ = writeln!(
         out,
-        "cloudflare_pages_deploy: deployed {} (branch {}, {}, profile: {})",
-        launch.project, launch.branch, deployment.environment, env.profile
+        "cloudflare_pages_deploy: deployed {} (branch {}, {}, build_mode: {})",
+        launch.project, launch.branch, deployment.environment, env.build_mode
     );
     let _ = writeln!(out, "  account: {}", launch.account_id);
     let _ = writeln!(out, "  project: {}", launch.project);
@@ -590,7 +590,7 @@ fn pages_main_with(
         );
     }
     let text = |key: &str| vars(key).and_then(|value| value.into_string().ok());
-    let profile = text("DX_BUILD_MODE").unwrap_or_else(|| "<unset>".to_owned());
+    let build_mode = text("DX_BUILD_MODE").unwrap_or_else(|| "<unset>".to_owned());
     let var = |key: &str| text(key).unwrap_or_default();
     if CLOUDFLARE_GATE.requested(var) {
         if let Some(message) = CLOUDFLARE_GATE.refusal(var) {
@@ -602,7 +602,7 @@ fn pages_main_with(
             Err(error) => return pages_fail(err, name, &error.to_string()),
         };
         let account_id = text("CLOUDFLARE_ACCOUNT_ID");
-        return pages_check_run(launch, &site, account_id.as_deref(), &profile, out, err);
+        return pages_check_run(launch, &site, account_id.as_deref(), &build_mode, out, err);
     }
     let (site, wrangler) = match (pages_site(launch, resolve), resolve(launch.wrangler_rloc)) {
         (Ok(site), Ok(wrangler)) => (site, wrangler),
@@ -625,7 +625,7 @@ fn pages_main_with(
         token: text("CLOUDFLARE_API_TOKEN").unwrap_or_default(),
         account_id: text("CLOUDFLARE_ACCOUNT_ID"),
         passthrough,
-        profile,
+        build_mode,
     };
     pages_deploy_run(launch, &site, &wrangler, &env, out, err)
 }
@@ -733,7 +733,7 @@ mod tests {
             token: token.to_owned(),
             account_id: None,
             passthrough: vec![("PATH".to_owned(), "/usr/bin:/bin".to_owned())],
-            profile: "release".to_owned(),
+            build_mode: "release".to_owned(),
         }
     }
 
@@ -816,7 +816,7 @@ printf '%s\n' "{\"type\":\"pages-deploy-detailed\",\"version\":1,\"pages_project
             record.contains("cwd: ") && record.contains("cloudflare-pages-"),
             "{record}"
         );
-        assert!(out.contains("deployed my-site (branch feature/x, preview, profile: release)"));
+        assert!(out.contains("deployed my-site (branch feature/x, preview, build_mode: release)"));
         assert!(out.contains(&format!("  account: {ACCOUNT}")));
         assert!(out.contains("  project: my-site"));
         assert!(out.contains("  intent: preview"));
@@ -858,7 +858,7 @@ printf '%s\n' "{\"type\":\"pages-deploy-detailed\",\"version\":1,\"pages_project
             run_capture("main", &SITE, RECORD_AND_SUCCEED, "production", TOKEN);
         assert_eq!(code, 0, "{err}");
         assert!(
-            out.contains("(branch main, production, profile: release)"),
+            out.contains("(branch main, production, build_mode: release)"),
             "{out}"
         );
         assert!(out.contains("  intent: production"));
@@ -1177,7 +1177,7 @@ exit 7
         assert_eq!(code, 0, "{err}");
         assert!(
             out.starts_with(
-                "cloudflare_pages_deploy: checked my-site (branch feature/x, preview, profile: release); nothing uploaded\n"
+                "cloudflare_pages_deploy: checked my-site (branch feature/x, preview, build_mode: release); nothing uploaded\n"
             ),
             "{out}"
         );
@@ -1253,7 +1253,7 @@ exit 7
     fn main_check_runs_without_a_token() {
         let (code, out, err, uploaded) = run_gated(&[], &SITE);
         assert_eq!(code, 0, "{err}");
-        assert!(out.contains("profile: <unset>); nothing uploaded"), "{out}");
+        assert!(out.contains("build_mode: <unset>); nothing uploaded"), "{out}");
         assert!(!uploaded);
     }
 
@@ -1325,13 +1325,13 @@ exit 7
             &wrangler,
         );
         assert_eq!(code, 0, "{err}");
-        assert!(out.contains("profile: debug)"), "{out}");
+        assert!(out.contains("build_mode: debug)"), "{out}");
         let record = std::fs::read_to_string(&record).expect("record");
         assert!(record.contains("leak: unset"), "{record}");
     }
 
     #[test]
-    fn main_defaults_the_profile_label() {
+    fn main_defaults_the_build_mode_label() {
         let tools = tempfile::TempDir::new().expect("tools");
         let record = tools.path().join("record.txt");
         let script = format!(
@@ -1352,7 +1352,7 @@ exit 7
             &wrangler,
         );
         assert_eq!(code, 0, "{err}");
-        assert!(out.contains("profile: <unset>)"), "{out}");
+        assert!(out.contains("build_mode: <unset>)"), "{out}");
     }
 
     #[test]

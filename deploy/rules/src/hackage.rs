@@ -2,7 +2,7 @@
 
 use crate::archive::basename;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
     placeholder_refusal, print_redacted, scrubbed_command,
 };
 use crate::stage::*;
@@ -198,8 +198,8 @@ fn report_staged(staged: io::Result<std::path::PathBuf>, package: &str, version:
     match staged {
         Ok(dest) => {
             println!(
-                "hackage_deploy: staged {package} {version} (profile: {})",
-                deploy_profile()
+                "hackage_deploy: staged {package} {version} (build_mode: {})",
+                deploy_build_mode()
             );
             println!("  sdist: {}", dest.display());
             0

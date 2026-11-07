@@ -4,7 +4,7 @@ use crate::api_compat::{
     ApiCompatMode, breaking_refusal, export_git_dir, latest_published, previous_tag, required_bump,
 };
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
     placeholder_refusal, scrubbed_command,
 };
 use crate::stage::*;
@@ -607,8 +607,8 @@ pub fn crates_main_checked(
     }
     match crates_build_vendor(&files, outdir, crate_name, version) {
         Ok(house) => {
-            let profile = deploy_profile();
-            println!("crates_deploy: staged {crate_name} {version} (profile: {profile})");
+            let build_mode = deploy_build_mode();
+            println!("crates_deploy: staged {crate_name} {version} (build_mode: {build_mode})");
             println!(
                 "  vendor: {}",
                 house.join("vendor").join(crate_name).display()

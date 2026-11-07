@@ -193,7 +193,7 @@ This builds the target and validates the site files, the account, the project
 and the branch. Nothing is uploaded and no token is needed. It prints:
 
 ```
-cloudflare_pages_deploy: checked my-site (branch feature/x, preview, profile: release); nothing uploaded
+cloudflare_pages_deploy: checked my-site (branch feature/x, preview, build_mode: release); nothing uploaded
   account: 0123456789abcdef0123456789abcdef
   project: my-site
   branch: feature/x
@@ -218,7 +218,7 @@ telemetry or project discovery.
 Output on success:
 
 ```
-cloudflare_pages_deploy: deployed my-site (branch feature/x, preview, profile: release)
+cloudflare_pages_deploy: deployed my-site (branch feature/x, preview, build_mode: release)
   account: 0123456789abcdef0123456789abcdef
   project: my-site
   branch: feature/x
@@ -974,7 +974,7 @@ A default run writes into the output directory (see Common behavior):
 `../../<file>#sha256=<digest>`. The run prints:
 
 ```
-pypi_deploy: staged <name> (profile: <profile>)
+pypi_deploy: staged <name> (build_mode: <build_mode>)
   wheelhouse: <path>/<name>-wheelhouse
   index: <path>/<name>-wheelhouse/simple-index/<project>/index.html
 ```

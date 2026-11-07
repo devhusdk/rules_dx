@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":defs.bzl", "VALID_DEPLOY_PROFILES")
+load(":defs.bzl", "VALID_DEPLOY_BUILD_MODES")
 
 def deploy_observations(label, app = "", artifacts = [], build_mode = "release"):
     """Renders the expected analysis observations for one dx_deployment subject."""
@@ -43,7 +43,7 @@ def deploy_unit_tests(name):
         checks = [
             expect_equal(
                 "build mode vocabulary pins debug, dev, release",
-                VALID_DEPLOY_PROFILES,
+                VALID_DEPLOY_BUILD_MODES,
                 ["debug", "dev", "release"],
             ),
             expect_equal(

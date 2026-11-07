@@ -18,7 +18,7 @@ DxDeployInfo = provider(
     },
 )
 
-VALID_DEPLOY_PROFILES = ["debug", "dev", "release"]
+VALID_DEPLOY_BUILD_MODES = ["debug", "dev", "release"]
 
 def _dx_deployment_impl(ctx):
     deploy_default = ctx.attr.deploy[DefaultInfo]
@@ -161,7 +161,7 @@ dx_deployment = rule(
         "build_mode": attr.string(
             doc = "Default build mode, one of debug, dev, or release.",
             default = "release",
-            values = VALID_DEPLOY_PROFILES,
+            values = VALID_DEPLOY_BUILD_MODES,
         ),
     },
 )

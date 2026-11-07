@@ -2,7 +2,7 @@
 
 use crate::archive::*;
 use crate::run::{
-    DOTNET_CHILD_ENV_EXTRA, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile,
+    DOTNET_CHILD_ENV_EXTRA, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode,
     env_or_empty, print_redacted, scrubbed_command,
 };
 use crate::stage::*;
@@ -400,8 +400,8 @@ pub fn nuget_main(
     }
     match nuget_build_feed(&nupkg, outdir, target_name) {
         Ok(feed) => {
-            let profile = deploy_profile();
-            println!("nuget_deploy: staged {package_id} {package_version} (profile: {profile})");
+            let build_mode = deploy_build_mode();
+            println!("nuget_deploy: staged {package_id} {package_version} (build_mode: {build_mode})");
             println!("  feed: {}", feed.display());
             if let Ok(base) = basename(&nupkg) {
                 println!("  nupkg: {}", feed.join(base).display());

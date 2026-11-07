@@ -4,7 +4,7 @@ use crate::api_compat::{ApiCompatMode, breaking_refusal, required_bump};
 use crate::archive::*;
 use crate::crates::previous_git_tag;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -590,8 +590,8 @@ pub fn pypi_main_checked(
                 })
                 .map(|(project, _)| project)
                 .unwrap_or_default();
-            let profile = deploy_profile();
-            println!("pypi_deploy: staged {dist_name} (profile: {profile})");
+            let build_mode = deploy_build_mode();
+            println!("pypi_deploy: staged {dist_name} (build_mode: {build_mode})");
             println!("  wheelhouse: {}", house.display());
             println!(
                 "  index: {}",

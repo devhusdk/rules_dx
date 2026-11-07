@@ -1,6 +1,6 @@
 //! Deterministic tar, gzip and zip archives, plus the archive publisher.
 
-use crate::run::{DeployRun, check_size_budget, deploy_profile, tree_bytes};
+use crate::run::{DeployRun, check_size_budget, deploy_build_mode, tree_bytes};
 use crate::stage::*;
 use std::io::{self, BufRead, Read, Write};
 use std::path::Path;
@@ -599,8 +599,8 @@ pub fn archive_main(
     })();
     match resolved {
         Ok((app_name, tarball_dest, checksum_dest)) => {
-            let profile = deploy_profile();
-            println!("archive_deploy: released {app_name} (profile: {profile})");
+            let build_mode = deploy_build_mode();
+            println!("archive_deploy: released {app_name} (build_mode: {build_mode})");
             println!("  tarball:  {}", tarball_dest.display());
             println!("  checksum: {}", checksum_dest.display());
             0

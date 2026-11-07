@@ -209,7 +209,7 @@ fn redacted_streams(out: &std::process::Output, secret: &str) -> (String, String
 }
 
 /// Returns the DX_BUILD_MODE the launcher runs under, `<unset>` when unset.
-pub fn deploy_profile() -> String {
+pub fn deploy_build_mode() -> String {
     std::env::var("DX_BUILD_MODE").unwrap_or_else(|_| "<unset>".to_owned())
 }
 
@@ -559,15 +559,15 @@ mod tests {
     }
 
     #[test]
-    fn deploy_profile_reports_unset() {
-        if env_test_in_child("run::tests::deploy_profile_reports_unset") {
+    fn deploy_build_mode_reports_unset() {
+        if env_test_in_child("run::tests::deploy_build_mode_reports_unset") {
             return;
         }
         with_env(&[("DX_BUILD_MODE", None)], || {
-            assert_eq!(deploy_profile(), "<unset>");
+            assert_eq!(deploy_build_mode(), "<unset>");
         });
         with_env(&[("DX_BUILD_MODE", Some("release"))], || {
-            assert_eq!(deploy_profile(), "release");
+            assert_eq!(deploy_build_mode(), "release");
         });
     }
 }

@@ -1,7 +1,7 @@
 //! Helm chart publisher: chart staging, lint, package and the OCI push.
 
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty, pages_redact,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, pages_redact,
     placeholder_refusal, scrubbed_command,
 };
 use crate::stage::copy_verified;
@@ -280,8 +280,8 @@ fn helm_main_with(
     }
     let Some((user, token)) = creds else {
         println!(
-            "helm_chart_deploy: staged {chart}-{version}.tgz (profile: {})",
-            deploy_profile()
+            "helm_chart_deploy: staged {chart}-{version}.tgz (build_mode: {})",
+            deploy_build_mode()
         );
         println!("  package: {}", package.display());
         return 0;

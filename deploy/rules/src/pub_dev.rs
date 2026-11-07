@@ -1,7 +1,7 @@
 //! pub.dev publisher: package staging, pubspec checks and the dart or flutter publish.
 
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
     placeholder_refusal, scrubbed_command,
 };
 use crate::stage::*;
@@ -282,8 +282,8 @@ pub fn pub_main(
     match pub_build_package(&mapped, run.outdir(), package_name) {
         Ok(house) => {
             println!(
-                "pub_deploy: staged {package_name} {version} (profile: {})",
-                deploy_profile()
+                "pub_deploy: staged {package_name} {version} (build_mode: {})",
+                deploy_build_mode()
             );
             println!("  package: {}", house.display());
             0

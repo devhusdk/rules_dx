@@ -1,7 +1,7 @@
 //! Environment promotion: record, health check and rollback.
 
 use crate::archive::*;
-use crate::run::{DeployRun, OwnerGate, deploy_profile, env_or_empty};
+use crate::run::{DeployRun, OwnerGate, deploy_build_mode, env_or_empty};
 use crate::stage::*;
 use std::io;
 use std::path::Path;
@@ -427,9 +427,9 @@ pub fn promotion_main(
         PromotionHealth::SkippedLocal,
     ) {
         Ok(promotion) => {
-            let profile = deploy_profile();
+            let build_mode = deploy_build_mode();
             println!(
-                "promotion_deploy: staged {from_env} -> {to_env} version {version} (profile: {profile})"
+                "promotion_deploy: staged {from_env} -> {to_env} version {version} (build_mode: {build_mode})"
             );
             println!("  promotion: {}", promotion.display());
             println!("  manifest: {}", promotion.join("would-run.txt").display());

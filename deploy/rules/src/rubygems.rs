@@ -1,7 +1,7 @@
 //! RubyGems publisher: gem build from staged sources and the gem push.
 
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_profile, env_or_empty,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
     placeholder_refusal, scrubbed_command,
 };
 use crate::stage::*;
@@ -318,9 +318,9 @@ pub fn rubygems_main(
         None => {
             let dest = run.outdir().join(format!("{gem_name}-{version}.gem"));
             copy_verified(&gem, &dest).map_err(|error| format!("rubygems_deploy: {error}"))?;
-            let profile = deploy_profile();
+            let build_mode = deploy_build_mode();
             Ok(format!(
-                "rubygems_deploy: staged {gem_name} {version} (profile: {profile})\n  gem: {}",
+                "rubygems_deploy: staged {gem_name} {version} (build_mode: {build_mode})\n  gem: {}",
                 dest.display()
             ))
         }

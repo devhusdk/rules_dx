@@ -182,7 +182,7 @@ fn cloudflare_case() {
     let out = preview.combined();
     assert!(preview.status.success(), "preview deploy failed\n{out}");
     for want in [
-        "deployed dx-demo (branch feature/demo, preview, profile: release)",
+        "deployed dx-demo (branch feature/demo, preview, build_mode: release)",
         "  account: 0123456789abcdef0123456789abcdef",
         "  project: dx-demo",
         "  branch: feature/demo",
@@ -283,7 +283,7 @@ fn cloudflare_case() {
     assert!(checked.status.success(), "check run failed\n{out}");
     assert!(
         checked.stdout.contains(
-            "checked dx-demo (branch feature/demo, preview, profile: release); nothing uploaded"
+            "checked dx-demo (branch feature/demo, preview, build_mode: release); nothing uploaded"
         ),
         "{out}"
     );

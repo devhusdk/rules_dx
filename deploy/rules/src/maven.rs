@@ -12,7 +12,7 @@ use crate::http;
 use crate::run::{
     OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal, scrubbed_command,
 };
-use crate::{DeployRun, copy_verified, deploy_profile, tempfile_stage_dir, zip_archive};
+use crate::{DeployRun, copy_verified, deploy_build_mode, tempfile_stage_dir, zip_archive};
 
 const MAVEN_CHECKSUMS: [&str; 4] = ["md5", "sha1", "sha256", "sha512"];
 
@@ -962,8 +962,8 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
     };
     match maven_build_file_repo(&files, outdir, group, artifact, version, signer.as_ref()) {
         Ok(house) => {
-            let profile = deploy_profile();
-            println!("maven_deploy: staged {group}:{artifact}:{version} (profile: {profile})");
+            let build_mode = deploy_build_mode();
+            println!("maven_deploy: staged {group}:{artifact}:{version} (build_mode: {build_mode})");
             println!("  repo: {}", house.display());
             println!("  url: file://{}", house.display());
             println!("  signed: {}", if signer.is_some() { "yes" } else { "no" });

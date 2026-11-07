@@ -1,0 +1,1 @@
+javascript/tests/typecheck/implicit_any.js(1,26): error TS7006: Parameter 'value' implicitly has an 'any' type.

@@ -1,0 +1,2 @@
+vue/tests/typecheck/broken.vue(6,3): error vue/x_missing_end_tag: Element is missing end tag.
+vue/tests/typecheck/broken.vue(5,1): error vue/x_missing_end_tag: Element is missing end tag.

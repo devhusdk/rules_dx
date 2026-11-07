@@ -20,6 +20,12 @@ vue_library(
 )
 
 vue_library(
+    name = "broken",
+    srcs = ["broken.vue"],
+    deps = [":lib", "//:node_modules/vue"],
+)
+
+vue_library(
     name = "clean",
     srcs = ["clean.vue"],
     deps = [":lib", "//:node_modules/vue"],
@@ -31,7 +37,7 @@ vue_library(
         kind = kind,
         target = ":" + case,
     )
-    for case in ["bad", "clean"]
+    for case in ["bad", "broken", "clean"]
     for kind in ["stdout", "exit"]
 ]
 
@@ -41,6 +47,6 @@ vue_library(
         file1 = "%s.%s.expected" % (case, kind),
         file2 = ":%s_%s_report" % (case, kind),
     )
-    for case in ["bad", "clean"]
+    for case in ["bad", "broken", "clean"]
     for kind in ["stdout", "exit"]
 ]

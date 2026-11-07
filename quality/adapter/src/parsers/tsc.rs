@@ -41,6 +41,8 @@ fn diagnostic<'a>(tool: &'static str, line: &'a str) -> Result<Diagnostic<'a>, P
         .strip_prefix("TS")
         .or_else(|| rule.strip_prefix("svelte/"))
         .or_else(|| rule.strip_prefix("astro/"))
+        .or_else(|| rule.strip_prefix("mdx/"))
+        .or_else(|| rule.strip_prefix("vue/"))
         .unwrap_or_default();
     let (Ok(line_no), Ok(column)) = (line_text.parse::<u64>(), column_text.parse::<u64>()) else {
         return Err(malformed(tool, line));
@@ -258,6 +260,20 @@ mod tests {
         let line = "app/App.astro(6,1): error astro/astro: Expected a closing tag\n";
         let found = parse_tsc(line.as_bytes(), Some(2), &["app/App.astro"]).expect("parsed");
         assert_eq!(found[0].finding.rule_id, "astro/astro");
+    }
+
+    #[test]
+    fn an_mdx_parse_error_has_an_mdx_rule() {
+        let line = "app/doc.mdx(1,16): error mdx/unexpected_eof: Unexpected end of file\n";
+        let found = parse_tsc(line.as_bytes(), Some(2), &["app/doc.mdx"]).expect("parsed");
+        assert_eq!(found[0].finding.rule_id, "mdx/unexpected_eof");
+    }
+
+    #[test]
+    fn a_vue_parse_error_has_a_vue_rule() {
+        let line = "app/App.vue(6,3): error vue/x_missing_end_tag: Element is missing end tag.\n";
+        let found = parse_tsc(line.as_bytes(), Some(2), &["app/App.vue"]).expect("parsed");
+        assert_eq!(found[0].finding.rule_id, "vue/x_missing_end_tag");
     }
 
     #[test]

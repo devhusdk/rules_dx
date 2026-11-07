@@ -1,0 +1,1 @@
+mdx/tests/typecheck/broken.mdx(1,18): error mdx/acorn: Could not parse import/exports with acorn

@@ -32,59 +32,67 @@ def _first(value):
 def _is_ts_project(attrs):
     return hasattr(attrs, "tsc") and hasattr(attrs, "_options") and hasattr(attrs, "tsconfig")
 
-def _js_launcher(ctx, has_astro, has_svelte, has_vue, has_mdx):
-    for present, launcher in [
-        (has_astro, ctx.executable._astro_tsc),
-        (has_svelte, ctx.executable._svelte_tsc),
-        (has_vue, ctx.executable._vue_tsc),
-        (has_mdx, ctx.executable._mdx_tsc),
-    ]:
-        if present:
-            return launcher
-    return ctx.executable._tsc
+_FRAMEWORKS = ["astro", "svelte", "vue", "mdx"]
 
-def _tsc_js_impl(target, ctx):
-    """Type-checks a js_library's JavaScript sources with checkJs through a generated tsconfig."""
-    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs", "astro", "mdx", "svelte", "vue")]
-    has_mdx = any([f.extension == "mdx" for f in sources])
-    has_vue = any([f.extension == "vue" for f in sources])
-    has_svelte = any([f.extension == "svelte" for f in sources])
-    has_astro = any([f.extension == "astro" for f in sources])
-    if len(sources) == 0:
-        return []
-    tsconfig = ctx.actions.declare_file("dx_tsc/%s.tsconfig.json" % target.label.name)
-    stdout = ctx.actions.declare_file("dx_tsc/%s.stdout" % target.label.name)
-    status = ctx.actions.declare_file("dx_tsc/%s.exit" % target.label.name)
+_JS_EXTENSIONS = ("js", "jsx", "mjs", "cjs")
 
-    # tsc runs with the bin directory as cwd; the tsconfig lives in <bin>/<pkg>/dx_tsc.
-    depth = len(ctx.bin_dir.path.split("/")) + len(target.label.package.split("/")) + 1
-    if target.label.package == "":
-        depth = len(ctx.bin_dir.path.split("/")) + 1
-    up = "../" * depth
+def _launcher(ctx, framework):
+    return {
+        "astro": ctx.executable._astro_tsc,
+        "mdx": ctx.executable._mdx_tsc,
+        "svelte": ctx.executable._svelte_tsc,
+        "vue": ctx.executable._vue_tsc,
+    }.get(framework, ctx.executable._tsc)
+
+def _project_tsconfig(target):
+    """The deepest tsconfig.json among the target's sources, or None."""
+    found = None
+    for f in target[JsInfo].sources.to_list():
+        if f.basename == "tsconfig.json" and (found == None or len(f.path) > len(found.path)):
+            found = f
+    return found
+
+def _tsc_js_run(ctx, target, name, framework, files, base, up):
+    """Runs one checker over files with a generated tsconfig that extends base."""
+    tsconfig = ctx.actions.declare_file("dx_tsc/%s.tsconfig.json" % name)
+    stdout = ctx.actions.declare_file("dx_tsc/%s.stdout" % name)
+    status = ctx.actions.declare_file("dx_tsc/%s.exit" % name)
+    defaults = ctx.actions.declare_file("dx_tsc/%s.defaults.json" % name)
+    ctx.actions.write(defaults, json.encode({"compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "skipLibCheck": True,
+        "target": "ES2022",
+    }}))
     options = {
         "allowJs": True,
         "checkJs": True,
-        "module": "ESNext",
-        "moduleResolution": "Bundler",
         "noEmit": True,
-        "skipLibCheck": True,
-        "target": "ES2022",
     }
-    if has_mdx:
+    extra = []
+    if framework == "mdx":
         options["jsx"] = "preserve"
+
+        # MDX elements are HTML tags with no React types, so declare them to keep strict mode quiet.
+        jsx = ctx.actions.declare_file("dx_tsc/%s.jsx.d.ts" % name)
+        ctx.actions.write(jsx, "declare namespace JSX { interface IntrinsicElements { [name: string]: any } }\n")
+        extra.append(jsx)
     ctx.actions.write(tsconfig, json.encode({
         "compilerOptions": options,
-        "files": [up + f.path for f in sources],
+        "extends": ["./%s.defaults.json" % name, up + base.path],
+        "files": [up + f.path for f in files + extra],
+        "include": [],
     }))
     args = ctx.actions.args()
     args.add("--project", _bin_relative(ctx, tsconfig))
     args.add("--pretty", "false")
+    npm = [target[JsInfo].npm_sources] if framework != None and framework != "mdx" else []
     js_binary_lib.run_binary_action(
         ctx,
         mnemonic = "TscDiagnostics",
         progress_message = "tsc diagnostics (js) %{label}",
-        executable = _js_launcher(ctx, has_astro, has_svelte, has_vue, has_mdx),
-        inputs = depset([tsconfig], transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources] + ([target[JsInfo].npm_sources] if has_vue or has_svelte or has_astro else [])),
+        executable = _launcher(ctx, framework),
+        inputs = depset([tsconfig, defaults, base] + extra, transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources] + npm),
         outputs = [stdout, status],
         arguments = [args],
         env = {
@@ -92,6 +100,54 @@ def _tsc_js_impl(target, ctx):
             "JS_BINARY__EXIT_CODE_OUTPUT_FILE": _bin_relative(ctx, status),
         },
         resource_set = dx_heavy_resources,
+    )
+    return stdout, status
+
+def _tsc_js_impl(target, ctx):
+    """Type-checks a js_library's sources with one checker per framework, extending the project tsconfig."""
+    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in _JS_EXTENSIONS + tuple(_FRAMEWORKS)]
+    if len(sources) == 0:
+        return []
+    base = _project_tsconfig(target) or ctx.file._tier_tsconfig
+
+    # tsc runs with the bin directory as cwd; the tsconfig lives in <bin>/<pkg>/dx_tsc.
+    depth = len(ctx.bin_dir.path.split("/")) + len(target.label.package.split("/")) + 1
+    if target.label.package == "":
+        depth = len(ctx.bin_dir.path.split("/")) + 1
+    up = "../" * depth
+
+    present = [fw for fw in _FRAMEWORKS if any([f.extension == fw for f in sources])]
+    plain = [f for f in sources if f.extension in _JS_EXTENSIONS]
+    outputs = []
+    if len(present) == 0:
+        outputs.append(_tsc_js_run(ctx, target, target.label.name, None, plain, base, up))
+    for i, fw in enumerate(present):
+        files = [f for f in sources if f.extension == fw] + (plain if i == 0 else [])
+        name = target.label.name if len(present) == 1 else "%s.%s" % (target.label.name, fw)
+        outputs.append(_tsc_js_run(ctx, target, name, fw, files, base, up))
+    if len(outputs) == 1:
+        stdout, status = outputs[0]
+        return [TscInfo(stdout = stdout, status = status, inputs = depset(), tsconfig = None)]
+
+    stdout = ctx.actions.declare_file("dx_tsc/%s.stdout" % target.label.name)
+    status = ctx.actions.declare_file("dx_tsc/%s.exit" % target.label.name)
+    args = ctx.actions.args()
+    args.add(stdout)
+    args.add(status)
+    for out, code in outputs:
+        args.add(out)
+        args.add(code)
+
+    # run_shell: concatenates the checkers' diagnostics and keeps the highest exit code.
+    ctx.actions.run_shell(
+        inputs = [f for pair in outputs for f in pair],
+        outputs = [stdout, status],
+        command = "out=$1; st=$2; shift 2; : > \"$out\"; worst=0; " +
+                  "while [ $# -gt 0 ]; do cat \"$1\" >> \"$out\"; c=$(cat \"$2\"); " +
+                  "if [ \"$c\" -gt \"$worst\" ]; then worst=$c; fi; shift 2; done; printf %s \"$worst\" > \"$st\"",
+        arguments = [args],
+        mnemonic = "TscMerge",
+        progress_message = "merging tsc diagnostics %{label}",
     )
     return [TscInfo(stdout = stdout, status = status, inputs = depset(), tsconfig = None)]
 
@@ -161,6 +217,10 @@ tsc_aspect = aspect(
             default = "//quality/tools/javascript/bin:svelte_tsc",
             executable = True,
             cfg = "exec",
+        ),
+        "_tier_tsconfig": attr.label(
+            default = "//quality/tiers/tsconfig:standard.json",
+            allow_single_file = True,
         ),
         "_tsc": attr.label(
             default = "@npm_typescript//:tsc",

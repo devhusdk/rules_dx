@@ -1,0 +1,5 @@
+javascript/tests/typecheck/bad.vue(2,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+javascript/tests/typecheck/bad.vue(4,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+javascript/tests/typecheck/bad.mdx(1,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+javascript/tests/typecheck/bad.mdx(3,27): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+javascript/tests/typecheck/bad.mdx(7,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.

@@ -188,8 +188,13 @@ fn generated(root: &Path) -> Result<BTreeMap<String, Vec<u8>>, AdoptError> {
     })
 }
 
-/// Syncs `.dx` after the other writes, recording what it wrote and deleted.
-fn sync_generated(root: &Path, prefix: &str, applied: &mut Applied) -> Result<(), String> {
+/// Syncs `.dx` after the other writes, recording what it wrote and deleted and its warnings.
+fn sync_generated(
+    root: &Path,
+    prefix: &str,
+    applied: &mut Applied,
+    notes: &mut Vec<String>,
+) -> Result<(), String> {
     let report = dx_generate::sync(
         root,
         dx_generate::Mode::Full,
@@ -205,6 +210,7 @@ fn sync_generated(root: &Path, prefix: &str, applied: &mut Applied) -> Result<()
             .iter()
             .map(|path| format!("removed:{prefix}{path}")),
     );
+    notes.extend(report.warnings);
     Ok(())
 }
 
@@ -297,7 +303,7 @@ pub(super) fn apply(
     );
     let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
     if mode == Mode::Refresh {
-        return refresh(root, prefix, files, applied);
+        return refresh(root, prefix, files, applied, notes);
     }
     let prefixed = |paths: Vec<String>| paths.into_iter().map(|path| format!("{prefix}{path}"));
     let scaffold: Vec<ScaffoldFile> = files
@@ -400,7 +406,7 @@ pub(super) fn apply(
     {
         applied.wrote.push(format!("{prefix}{}", copilot_md::FILE));
     }
-    sync_generated(root, prefix, applied)
+    sync_generated(root, prefix, applied, notes)
 }
 
 /// Adds the `MODULE.bazel` stanzas for the root lock files, then the rules_dx family modules,
@@ -435,6 +441,7 @@ fn refresh(
     prefix: &str,
     files: &[InitFile],
     applied: &mut Applied,
+    notes: &mut Vec<String>,
 ) -> Result<(), String> {
     let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
     let record = |applied: &mut Applied, paths: Vec<String>| {
@@ -494,7 +501,7 @@ fn refresh(
     if files.iter().any(|file| {
         file.kind == Kind::Generated && file.path != "BUILD.bazel" && root.join(&file.path).exists()
     }) {
-        sync_generated(root, prefix, applied)?;
+        sync_generated(root, prefix, applied, notes)?;
     }
     Ok(())
 }

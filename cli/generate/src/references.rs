@@ -23,6 +23,30 @@ pub fn targets(config: &ToolConfig, text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Every `.dx/` path `text` names, without a leading `./`.
+pub fn dx_paths(text: &str) -> Vec<String> {
+    let is_path = |c: char| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/' | '-');
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(at) = rest.find(".dx/") {
+        let start = rest[..at]
+            .char_indices()
+            .rfind(|(_, c)| !is_path(*c))
+            .map_or(0, |(i, c)| i + c.len_utf8());
+        let end = rest[at..]
+            .find(|c: char| !is_path(c))
+            .map_or(rest.len(), |i| at + i);
+        let token = &rest[start..end];
+        let token = token.strip_prefix("./").unwrap_or(token);
+        let token = token.trim_end_matches(['/', '.']);
+        if token.starts_with(".dx/") && !out.iter().any(|path| path == token) {
+            out.push(token.to_owned());
+        }
+        rest = &rest[end..];
+    }
+    out
+}
+
 pub fn resolve(
     config: &ToolConfig,
     file: &str,
@@ -143,4 +167,22 @@ fn values(syntax: &str, key: &str, text: &str) -> Vec<String> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn dx_paths_finds_each_dx_token_once() {
+        let text = "export { default } from \"./.dx/config/eslint/strict.mjs\";\n\
+                    extend = '.dx/config/ruff/base.toml' # .dx/config/ruff/base.toml\n\
+                    other.dx/x ../.dx/up é.dx/pins";
+        assert_eq!(
+            super::dx_paths(text),
+            [
+                ".dx/config/eslint/strict.mjs",
+                ".dx/config/ruff/base.toml",
+                ".dx/pins"
+            ]
+        );
+    }
 }

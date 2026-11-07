@@ -20,6 +20,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use dx_config::{CROSS_FAMILY_TOOLS, DxConfig, Profile, SelectionProblem};
 use dx_preset::Layer;
 
+pub use crate::references::dx_paths;
 pub use crate::sync::{Mode, SyncError, SyncReport, plan, sync};
 use crate::tools_gen::{TOOL_CONFIGS, ToolConfig};
 

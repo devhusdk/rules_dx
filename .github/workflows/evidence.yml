@@ -270,6 +270,24 @@ jobs:
             bazel "--output_base=$base" shutdown
             exit "$differ"
           fi
+      - name: Runtime configurations (temporary, #9123)
+        if: ${{ always() && runner.os == 'Windows' }}
+        env:
+          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
+        run: |
+          set +eo pipefail
+          out="$RUNNER_TEMP/evidence/configs.txt"
+          query="filter('compiler-rt:builtins\$|libcxx:libcxx\$', deps(${DX_SCOPE// / + }))"
+          for platforms in "@platforms//host" "@rules_dx//tools/platforms:windows_msvc_host"; do
+            echo "== --platforms=$platforms"
+            ids="$(bazel cquery --noshow_progress "--platforms=$platforms" "$query" | tr -d '\r' | tee /dev/stderr | sed -n 's/.*(\([0-9a-f]*\))$/\1/p' | sort -u)"
+            for a in $ids; do
+              for b in $ids; do
+                if [[ "$a" < "$b" ]]; then bazel config "$a" "$b" | tr -d '\r'; fi
+              done
+            done
+            bazel aquery --noshow_progress "--platforms=$platforms" "mnemonic(CppCompile, deps(${DX_SCOPE// / + }))" --output=summary | tr -d '\r' | sed -n '/Mnemonics/,$p'
+          done 2>&1 | tee "$out"
       - name: Record the Apple executor
         if: ${{ always() && matrix.platform == 'macos_arm64' }}
         run: |

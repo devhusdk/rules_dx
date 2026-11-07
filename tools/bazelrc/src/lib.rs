@@ -102,7 +102,7 @@ const RUNFILES_FLAGS: [Flag; 1] = [(
     "On Windows, build runfiles trees only for actions that run.",
 )];
 
-const WINDOWS_FLAGS: [Flag; 4] = [
+const WINDOWS_FLAGS: [Flag; 5] = [
     (
         "build:windows --enable_runfiles",
         "On Windows, give tests a runfiles directory instead of only a manifest.",
@@ -118,6 +118,10 @@ const WINDOWS_FLAGS: [Flag; 4] = [
     (
         "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
         "On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.",
+    ),
+    (
+        "common:windows --platforms=@rules_dx//tools/platforms:windows_msvc_host",
+        "On Windows, target the MSVC-ABI host so target and exec share one runtime build.",
     ),
 ];
 
@@ -737,6 +741,9 @@ mod tests {
         assert!(text.contains(
             "common:windows --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@my_dx//tools/platforms:host\n"
         ));
+        assert!(text.contains(
+            "common:windows --platforms=@my_dx//tools/platforms:windows_msvc_host\n"
+        ));
         assert!(!text.contains("@rules_dx//"));
         assert!(layer_is_current(&text, Layer::Correctness, "my_dx"));
         assert!(!layer_is_current(&text, Layer::Correctness, DEFAULT_REPO));
@@ -766,6 +773,7 @@ mod tests {
                 "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
                 "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
+                "common:windows --platforms=@rules_dx//tools/platforms:windows_msvc_host",
                 "build --java_runtime_version=remotejdk_21",
                 "build --tool_java_runtime_version=remotejdk_21",
                 "build --tool_java_language_version=17",
@@ -879,8 +887,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 53);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 53);
+        assert_eq!(total, 54);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 54);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -972,7 +980,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 53);
+        assert_eq!(flags.len(), 54);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

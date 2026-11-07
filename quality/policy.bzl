@@ -94,7 +94,7 @@ quality_family = rule(
             default = [],
         ),
         "tier": attr.string(
-            doc = "Tier tier the family's tools run on; empty uses the workspace tier.",
+            doc = "Tier the family's tools run on; empty uses the workspace tier.",
         ),
         "typecheck": attr.string_list(
             doc = "Typecheck tool ids selected for this quality family.",

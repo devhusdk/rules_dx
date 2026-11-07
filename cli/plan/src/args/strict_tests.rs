@@ -406,6 +406,6 @@ fn strict_non_utf8_argv_fails_as_invalid_scope() {
 }
 
 #[test]
-fn init_rejects_build_mode() {
+fn init_rejects_profile() {
     assert!(parse(&strings(&["init", "--profile=strict"])).is_err());
 }

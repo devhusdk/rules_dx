@@ -410,7 +410,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 
 | Tool | Level | Native file(s) | Base | Tier source | Shared with |
 | --- | --- | --- | --- | --- | --- |
-| `ansible_lint` | catalog | `*.ansible-lint`, `*.yml`, `*.yaml` | none | ansible-lint moderate and production levels |  |
+| `ansible_lint` | catalog | `*.ansible-lint`, `*.yml`, `*.yaml` | none | ansible-lint moderate and production profiles |  |
 | `bicep` | curated | `bicepconfig.json` | none | dx |  |
 | `biome` | curated | `*.json` | none | dx |  |
 | `buf` | catalog | `buf.yaml` | override copy | dx |  |

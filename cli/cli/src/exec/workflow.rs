@@ -691,7 +691,7 @@ mod tests {
     }
 
     #[test]
-    fn build_profile_flags_reach_bazel_argv() {
+    fn build_mode_flags_reach_bazel_argv() {
         for (words, flag) in [
             (vec!["build"], "--config=dx_build_dev"),
             (vec!["build", "--debug"], "--config=dx_build_debug"),
@@ -711,7 +711,7 @@ mod tests {
     }
 
     #[test]
-    fn build_forwards_consumer_configs_and_rejects_conflicting_dx_profile() {
+    fn build_forwards_consumer_configs_and_rejects_conflicting_dx_build_mode() {
         let harness = Harness::new("build-consumer-config");
         let inv = invocation(&["build", "--", "--config=ci", "--config=sanitizer"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
@@ -882,7 +882,7 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_with_a_conflicting_profile_still_exits_usage() {
+    fn test_filter_with_a_conflicting_build_mode_still_exits_usage() {
         let harness = Harness::new("wf-rust-filter-conflict");
         let inv = invocation(&["test", "--", "--test_filter=x", "--config=dx_build_release"]);
         let mut err = Vec::new();
@@ -1221,7 +1221,7 @@ mod tests {
     }
 
     #[test]
-    fn test_file_scope_conflicting_profile_is_pre_exec() {
+    fn test_file_scope_conflicting_build_mode_is_pre_exec() {
         let harness = Harness::new("wf-test-conflict");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");

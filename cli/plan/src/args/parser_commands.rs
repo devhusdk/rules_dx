@@ -1104,7 +1104,7 @@ fn init_rejects_with_and_full() {
 }
 
 #[test]
-fn build_mode_parses_on_build_test_coverage_and_run() {
+fn timings_parses_on_build_test_coverage_and_run() {
     for command in ["build", "test", "coverage", "run"] {
         assert!(
             parse(&strings(&[command, "--timings"]))

@@ -209,7 +209,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         tier_active: true,
         tier_base: true,
         stage_native: false,
-        tier_source: "ansible-lint moderate and production levels",
+        tier_source: "ansible-lint moderate and production profiles",
         family: "",
         extensions: &[],
         init_order: 0,

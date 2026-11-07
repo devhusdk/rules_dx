@@ -24,7 +24,7 @@ def dx_generated_policy(name, tier, families = None, defaults = True, disabled =
 
     Args:
         name: name of the policy target.
-        tier: tier tier of the workspace, `standard` or `strict`. Tools shared by several
+        tier: tier of the workspace, `standard` or `strict`. Tools shared by several
             families, such as typos and prettier, always use it.
         families: dict from family ID to its spec: capability tool lists (`lint`, `typecheck`,
             `format`, `audit`), `disabled` capabilities and a `tier`. Each key replaces only

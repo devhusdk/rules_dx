@@ -1,0 +1,4 @@
+# Fail sooner on slow or redirecting links.
+timeout = 10
+max_retries = 1
+max_redirects = 5

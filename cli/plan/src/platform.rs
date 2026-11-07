@@ -86,11 +86,7 @@ pub fn effective_arch<'a>(
     let on_apple_silicon = ["hw.optional.arm64", "sysctl.proc_translated"]
         .iter()
         .any(|key| sysctl(key).is_some_and(|value| value.trim() == "1"));
-    if on_apple_silicon {
-        "aarch64"
-    } else {
-        arch
-    }
+    if on_apple_silicon { "aarch64" } else { arch }
 }
 
 fn read_sysctl(key: &str) -> Option<String> {

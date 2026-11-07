@@ -5786,7 +5786,7 @@ fn detekt_fake(
 }
 
 #[test]
-fn detekt_reports_an_unused_private_function_as_info() {
+fn detekt_reports_an_unused_private_function_as_warning() {
     let backend = backend_for("detekt", plain_tool(), detekt_fake);
     let findings = backend
         .diagnose(

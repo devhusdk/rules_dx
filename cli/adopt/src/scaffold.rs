@@ -274,7 +274,7 @@ pub fn render_consumer_caller() -> String {
 
 pub fn render_consumer_caller_for(branch: &str) -> String {
     let body = format!(
-        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      contents: read\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      actions: read\n      contents: write\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
@@ -1357,7 +1357,8 @@ mod tests {
             "merge_group:\n    types: [checks_requested]",
             "secrets:\n      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}",
             "permissions:",
-            "contents: read",
+            "actions: read",
+            "contents: write",
             "pull-requests: write",
         ] {
             assert!(

@@ -309,10 +309,7 @@ mod tests {
                 "cli/adopt/src/scaffold.rs",
                 "pub const CONSUMER_WORKFLOW_PIN: &str = \"e97ab7b550d08e047c35edc5f50c7d242227842f\";\n",
             ),
-            (
-                ".github/workflows/reusable-docs.yml",
-                "name: docs\n",
-            ),
+            (".github/workflows/reusable-docs.yml", "name: docs\n"),
             (
                 "tools/ci/starter_pin.sha256",
                 "0000000000000000000000000000000000000000000000000000000000000000  .github/workflows/reusable-docs.yml\n",

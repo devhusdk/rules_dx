@@ -78,6 +78,8 @@ load("//quality/private:generated_policy.bzl", "dx_generated_policy")
 # gazelle:exclude tools/docs/rust/fixture
 # gazelle:exclude tools/docs/components/tests/fixture
 # gazelle:exclude svelte/tests/consumer
+# gazelle:exclude astro/tests/app_config/configs
+# gazelle:exclude astro/tests/app_config/src
 # gazelle:exclude gazelle/protobuf/tests/roundtrip
 # gazelle:exclude examples/adopt-polyglot
 # gazelle:exclude php/tests/negative

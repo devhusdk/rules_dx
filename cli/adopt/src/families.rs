@@ -130,7 +130,24 @@ fn git_files(root: &Path) -> Option<Vec<String>> {
     if !root.join(".git").exists() {
         return None;
     }
-    let out = std::process::Command::new("git")
+    let mut git = std::process::Command::new("git");
+    for var in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY",
+    ] {
+        git.env_remove(var);
+    }
+    if let Some(parent) = root
+        .canonicalize()
+        .ok()
+        .and_then(|dir| dir.parent().map(Path::to_path_buf))
+    {
+        git.env("GIT_CEILING_DIRECTORIES", parent);
+    }
+    let out = git
         .arg("-C")
         .arg(root)
         .args([
@@ -301,6 +318,21 @@ mod tests {
     fn a_tree_without_git_is_walked() {
         let dir = workspace(MODULE, &["src/a.py", ".git/x.go", "bazel-out/y.go"], false);
         let deps = plan_family_deps(dir.path(), &table()).expect("plan");
+        let text = new_text(&deps);
+        assert!(text.contains("rules_dx_python"), "{text}");
+        assert!(!text.contains("rules_dx_go"), "{text}");
+    }
+
+    #[test]
+    fn a_broken_git_dir_under_a_parent_repo_is_walked() {
+        let outer = scratch("families");
+        git(outer.path());
+        let root = outer.path().join("app");
+        write(&root, MODULE_FILE, MODULE);
+        for file in ["src/a.py", ".git/x.go", "bazel-out/y.go"] {
+            write(&root, file, "");
+        }
+        let deps = plan_family_deps(&root, &table()).expect("plan");
         let text = new_text(&deps);
         assert!(text.contains("rules_dx_python"), "{text}");
         assert!(!text.contains("rules_dx_go"), "{text}");

@@ -96,6 +96,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
+# gazelle:exclude tools/platforms/no_winsdk
 # gazelle:exclude tools/docs/jvm/dokka
 # gazelle:exclude tools/docs/jvm/fixture
 # gazelle:exclude tools/docs/jvm/javadoc

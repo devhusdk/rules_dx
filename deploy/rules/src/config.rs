@@ -177,6 +177,10 @@ pub struct PubConfig {
     #[serde(default)]
     pub apitool_rloc: String,
     #[serde(default)]
+    pub flutter_dart_rloc: String,
+    #[serde(default)]
+    pub flutter_root_rloc: String,
+    #[serde(default)]
     pub package_dir: String,
 }
 
@@ -509,6 +513,8 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 baseline: &pub_config.api_baseline,
                 dart_rloc: &pub_config.dart_rloc,
                 apitool_rloc: &pub_config.apitool_rloc,
+                flutter_dart_rloc: &pub_config.flutter_dart_rloc,
+                flutter_root_rloc: &pub_config.flutter_root_rloc,
                 package_dir: &pub_config.package_dir,
             },
             argv,

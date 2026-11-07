@@ -9,6 +9,8 @@ _VALID_NAME_CHARS = LOWER_ALNUM + "_"
 
 _VALID_VERSION_CHARS = VERSION_CHARS
 
+_FLUTTER_TOOLCHAIN = "@rules_flutter//flutter:toolchain_type"
+
 PUB_DEFAULT_HOSTED_URL = "https://pub.dev"
 
 def pub_name_error(package_name):
@@ -81,12 +83,34 @@ def _pub_config_impl(ctx):
             ctx.runfiles(files = dill),
             ctx.attr._dart[DefaultInfo].default_runfiles,
         ])
+        flutter = ctx.toolchains[_FLUTTER_TOOLCHAIN]
+        if flutter:
+            sdk = flutter.flutter_sdk_info
+            values["flutter_dart_rloc"] = rlocation_path(ctx, sdk.dart)
+            values["flutter_root_rloc"] = rlocation_path(ctx, ctx.file._flutter_version_manifest)
+            runfiles = runfiles.merge(ctx.runfiles(
+                files = [ctx.file._flutter_version_manifest],
+                transitive_files = depset(
+                    ctx.files._flutter_root,
+                    transitive = [sdk.tool_files],
+                ),
+            ))
     return deploy_config(ctx, "pub", values, runfiles)
 
 _pub_config = rule(
     implementation = _pub_config_impl,
     doc = "Writes the deploy config for one pub.dev deployment.",
+    toolchains = [config_common.toolchain_type(_FLUTTER_TOOLCHAIN, mandatory = False)],
     attrs = API_COMPAT_ATTRS | {
+        "_flutter_root": attr.label(
+            default = Label("@flutter_dev_root//:dev_root"),
+            cfg = "exec",
+        ),
+        "_flutter_version_manifest": attr.label(
+            default = Label("@flutter_dev_root//:version_manifest"),
+            cfg = "exec",
+            allow_single_file = True,
+        ),
         "_dart": attr.label(
             default = Label("//dart/tools:dart"),
             cfg = "exec",

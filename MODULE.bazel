@@ -903,7 +903,7 @@ single_version_override(
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
 flutter.toolchain(flutter_version = "3.47.8")
-use_repo(flutter, "flutter_toolchains", "flutter_web_sdk")
+use_repo(flutter, "flutter_dev_root", "flutter_toolchains", "flutter_web_sdk")
 
 flutter_dev = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
 flutter_dev.pub(

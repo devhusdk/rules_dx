@@ -74,6 +74,8 @@ def _config_content_test_impl(ctx):
     asserts.true(env, "\"api_compat\":\"fail\"" in content, "config must default api_compat to fail: " + content)
     asserts.true(env, "\"api_baseline\":\"registry\"" in content, "config must default api_baseline to registry: " + content)
     asserts.true(env, "dart_apitool.dill" in content, "config must carry the dart_apitool kernel: " + content)
+    asserts.true(env, "flutter_dart_rloc" in content, "config must carry the pinned flutter dart: " + content)
+    asserts.true(env, "flutter.version.json" in content, "config must carry the flutter root: " + content)
     return analysistest.end(env)
 
 _config_content_test = analysistest.make(_config_content_test_impl)

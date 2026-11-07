@@ -220,6 +220,8 @@ pub struct PubApiCheck<'a> {
     pub baseline: &'a str,
     pub dart_rloc: &'a str,
     pub apitool_rloc: &'a str,
+    pub flutter_dart_rloc: &'a str,
+    pub flutter_root_rloc: &'a str,
     pub package_dir: &'a str,
 }
 
@@ -266,6 +268,7 @@ fn pub_previous_version(body: &[u8], next: &str) -> Option<String> {
 fn pub_api_check(
     agent: &ureq::Agent,
     (dart, apitool): (&Path, &Path),
+    flutter: Option<(&Path, &Path)>,
     (package_name, version): (&str, &str),
     (staging, hosted_url): (&Path, &str),
     (baseline, package_dir): (&str, &str),
@@ -274,28 +277,87 @@ fn pub_api_check(
     let baseline = Baseline::parse(baseline)
         .ok_or_else(|| format!("pub_deploy: invalid api_baseline '{baseline}'"))?;
     let pubspec = std::fs::read_to_string(staging.join("pubspec.yaml")).unwrap_or_default();
-    if pubspec_is_flutter(&pubspec) || pubspec.lines().any(|line| line.trim() == "sdk: flutter") {
+    let needs_flutter =
+        pubspec_is_flutter(&pubspec) || pubspec.lines().any(|line| line.trim() == "sdk: flutter");
+    if needs_flutter && (cfg!(not(unix)) || flutter.is_none()) {
         return Ok(Outcome::Skipped(
-            "flutter packages need the flutter SDK".to_owned(),
+            "flutter packages need the pinned flutter SDK".to_owned(),
         ));
     }
     let work = tempfile_stage_dir("pub-api-").map_err(|error| format!("pub_deploy: {error}"))?;
-    let result = pub_api_compare(
-        agent,
-        (dart, apitool),
-        (package_name, version),
-        (staging, hosted_url),
-        (baseline, package_dir),
-        workspace,
-        &work,
-    );
+    let tools = if needs_flutter {
+        flutter
+            .map(|(flutter_dart, root)| {
+                flutter_sdk_tree(flutter_dart, &work).map(|dart| (dart, Some(root)))
+            })
+            .transpose()
+    } else {
+        Ok(Some((dart.to_path_buf(), None)))
+    };
+    let result = tools.and_then(|tools| {
+        let (dart, flutter_root) = tools.expect("tools are chosen above");
+        pub_api_compare(
+            agent,
+            (&dart, apitool, flutter_root),
+            (package_name, version),
+            (staging, hosted_url),
+            (baseline, package_dir),
+            workspace,
+            &work,
+        )
+    });
     let _ = std::fs::remove_dir_all(&work);
     result
 }
 
+/// Builds a Flutter SDK shaped tree under `work` whose `bin/flutter` runs `dart pub`.
+///
+/// dart_apitool looks for `flutter` in the `bin` directories above its own dart, so the
+/// pinned dart is copied to `bin/cache/dart-sdk/bin/dart` with the rest of the SDK linked.
+/// Returns the copied dart.
+#[cfg(unix)]
+fn flutter_sdk_tree(flutter_dart: &Path, work: &Path) -> Result<std::path::PathBuf, String> {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let fail = |error: std::io::Error| format!("pub_deploy: flutter SDK: {error}");
+    let sdk = flutter_dart
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| format!("pub_deploy: bad flutter dart {}", flutter_dart.display()))?;
+    let bin = work.join("flutter/bin");
+    let dart_sdk = bin.join("cache/dart-sdk");
+    std::fs::create_dir_all(dart_sdk.join("bin")).map_err(fail)?;
+    for entry in std::fs::read_dir(sdk).map_err(fail)? {
+        let name = entry.map_err(fail)?.file_name();
+        if name != "bin" {
+            symlink(sdk.join(&name), dart_sdk.join(&name)).map_err(fail)?;
+        }
+    }
+    let dart = dart_sdk.join("bin/dart");
+    for entry in std::fs::read_dir(sdk.join("bin")).map_err(fail)? {
+        let name = entry.map_err(fail)?.file_name();
+        let from = sdk.join("bin").join(&name);
+        let to = dart_sdk.join("bin").join(&name);
+        if name == "dart" || name == "dartaotruntime" {
+            std::fs::copy(&from, &to).map_err(fail)?;
+        } else {
+            symlink(&from, &to).map_err(fail)?;
+        }
+    }
+    let shim = bin.join("flutter");
+    let quoted = dart.display().to_string().replace('\'', "'\\''");
+    std::fs::write(&shim, format!("#!/bin/sh\nexec '{quoted}' pub \"$@\"\n")).map_err(fail)?;
+    std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755)).map_err(fail)?;
+    Ok(dart)
+}
+
+#[cfg(not(unix))]
+fn flutter_sdk_tree(_: &Path, _: &Path) -> Result<std::path::PathBuf, String> {
+    Err("pub_deploy: flutter SDK trees are not supported here".to_owned())
+}
+
 fn pub_api_compare(
     agent: &ureq::Agent,
-    (dart, apitool): (&Path, &Path),
+    (dart, apitool, flutter_root): (&Path, &Path, Option<&Path>),
     (package_name, version): (&str, &str),
     (staging, hosted_url): (&Path, &str),
     (baseline, package_dir): (Baseline, &str),
@@ -344,24 +406,24 @@ fn pub_api_compare(
         dart.parent().map(Path::to_path_buf).into_iter().collect();
     dirs.extend(std::env::split_paths(&env_or_empty("PATH")));
     let path = std::env::join_paths(dirs).map_err(|error| format!("pub_deploy: {error}"))?;
-    let output = scrubbed_command(
-        dart,
-        &[PUBLISH_CHILD_ENV_KEEP],
-        &[
-            ("PATH", path.to_str().unwrap_or("")),
-            ("PUB_CACHE", cache.to_str().unwrap_or("")),
-            ("PUB_HOSTED_URL", hosted_url),
-        ],
-    )
-    .current_dir(work)
-    .arg(apitool)
-    .args(["diff", "--old", &old, "--new"])
-    .arg(staging)
-    .args(["--version-check-mode", "none", "--report-format", "json"])
-    .arg("--report-file-path")
-    .arg(&report)
-    .output()
-    .map_err(|error| format!("pub_deploy: dart_apitool: {error}"))?;
+    let mut env = vec![
+        ("PATH", path.to_str().unwrap_or("")),
+        ("PUB_CACHE", cache.to_str().unwrap_or("")),
+        ("PUB_HOSTED_URL", hosted_url),
+    ];
+    if let Some(root) = flutter_root {
+        env.push(("FLUTTER_ROOT", root.to_str().unwrap_or("")));
+    }
+    let output = scrubbed_command(dart, &[PUBLISH_CHILD_ENV_KEEP], &env)
+        .current_dir(work)
+        .arg(apitool)
+        .args(["diff", "--old", &old, "--new"])
+        .arg(staging)
+        .args(["--version-check-mode", "none", "--report-format", "json"])
+        .arg("--report-file-path")
+        .arg(&report)
+        .output()
+        .map_err(|error| format!("pub_deploy: dart_apitool: {error}"))?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
@@ -390,6 +452,8 @@ pub fn pub_main(
         baseline: "registry",
         dart_rloc: "",
         apitool_rloc: "",
+        flutter_dart_rloc: "",
+        flutter_root_rloc: "",
         package_dir: "",
     };
     pub_main_checked(package_rlocs, package_name, version, hosted_url, &off, argv)
@@ -437,6 +501,16 @@ pub fn pub_main_checked(
             run.resolve(api.dart_rloc)
                 .zip(run.resolve(api.apitool_rloc))
         };
+    let flutter = if tools.is_none() || api.flutter_dart_rloc.is_empty() {
+        None
+    } else {
+        run.resolve(api.flutter_dart_rloc)
+            .zip(run.resolve(api.flutter_root_rloc))
+            .and_then(|(dart, manifest)| {
+                let root = manifest.parent()?.parent()?.parent()?.to_path_buf();
+                Some((dart, root))
+            })
+    };
     let api_check = |staging: &Path| -> Result<(), String> {
         if mode == ApiCompatMode::Off {
             return Ok(());
@@ -445,6 +519,9 @@ pub fn pub_main_checked(
             Some((dart, apitool)) => pub_api_check(
                 &crate::http::publish_agent(),
                 (dart, apitool),
+                flutter
+                    .as_ref()
+                    .map(|(dart, root)| (dart.as_path(), root.as_path())),
                 (package_name, version),
                 (staging, hosted_url),
                 (api.baseline, api.package_dir),
@@ -764,19 +841,23 @@ mod tests {
         let staging = scratch.path().join("stage");
         write_crate_file(&staging, "pubspec.yaml", PUBSPEC);
         let agent = crate::http::publish_agent_with_proxy(None);
-        let run = |name: &str, version: &str, staging: &Path| {
-            with_env(&[("PUB_TOKEN", Some("sekret"))], || {
-                pub_api_check(
-                    &agent,
-                    (&fake, Path::new("dart_apitool.dill")),
-                    (name, version),
-                    (staging, &registry),
-                    ("registry", ""),
-                    scratch.path(),
-                )
-                .expect("ran")
-            })
-        };
+        let run_with =
+            |name: &str, version: &str, staging: &Path, flutter_sdk: Option<(&Path, &Path)>| {
+                with_env(&[("PUB_TOKEN", Some("sekret"))], || {
+                    pub_api_check(
+                        &agent,
+                        (&fake, Path::new("dart_apitool.dill")),
+                        flutter_sdk,
+                        (name, version),
+                        (staging, &registry),
+                        ("registry", ""),
+                        scratch.path(),
+                    )
+                    .expect("ran")
+                })
+            };
+        let run =
+            |name: &str, version: &str, staging: &Path| run_with(name, version, staging, None);
         let outcome = run("pub_demo", "1.1.0", &staging);
         assert_eq!(
             outcome,
@@ -811,8 +892,31 @@ mod tests {
         );
         assert_eq!(
             run("pub_demo", "1.1.0", &flutter),
-            Outcome::Skipped("flutter packages need the flutter SDK".to_owned())
+            Outcome::Skipped("flutter packages need the pinned flutter SDK".to_owned())
         );
+        let sdk = scratch.path().join("flutter_sdk/dart-sdk");
+        std::fs::create_dir_all(sdk.join("bin")).expect("sdk");
+        std::fs::create_dir_all(sdk.join("lib")).expect("lib");
+        let seen = scratch.path().join("seen");
+        let pinned = sdk.join("bin/dart");
+        dx_testing::executable_script(
+            &pinned,
+            &format!(
+                "#!/bin/sh\n[ -x \"$(dirname \"$0\")/../../../flutter\" ] && echo \"shim $FLUTTER_ROOT\" > '{}'\nwhile [ $# -gt 0 ]; do\n  [ \"$1\" = --report-file-path ] && cp '{}' \"$2\"\n  shift\ndone\nexit 0\n",
+                seen.display(),
+                report.display()
+            ),
+        );
+        let root = scratch.path().join("flutter_root");
+        let pinned_sdk = Some((pinned.as_path(), root.as_path()));
+        let breaking = run_with("pub_demo", "1.1.0", &flutter, pinned_sdk);
+        assert!(conclude("pub_deploy", ApiCompatMode::Fail, "1.1.0", breaking).is_err());
+        assert_eq!(
+            std::fs::read_to_string(&seen).expect("seen").trim(),
+            format!("shim {}", root.display())
+        );
+        let major = run_with("pub_demo", "2.0.0", &flutter, pinned_sdk);
+        assert!(conclude("pub_deploy", ApiCompatMode::Fail, "2.0.0", major).is_ok());
     }
 
     #[cfg(unix)]

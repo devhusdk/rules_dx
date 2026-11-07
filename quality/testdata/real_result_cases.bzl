@@ -146,6 +146,7 @@ REAL_RESULT_CASES = [
     _gcc_case("clang_syntax", "typecheck", "dirty", "dirty", ["'undeclared_name' undeclared"], []),
     _msvc_case("clean", "clean", ["clean.c"], ["undeclared_name", "C2065"]),
     _msvc_case("dirty", "dirty", ["C2065", "undeclared_name"], []),
+    _msvc_case("crt", "tidy_crt", ["tidy_crt.c"], ["C1083", "Cannot open include file"]),
     _msvc_case("clean", "clean", ["clean.c"], ["readability-else-after-return", "file not found", "clang-diagnostic-error"], "clang_tidy", "lint", _CC_TIDY_POLICY),
     _msvc_case("dirty", "tidy_dirty", ["readability-else-after-return"], ["file not found", "clang-diagnostic-error", "TIDY_DEFINE"], "clang_tidy", "lint", _CC_TIDY_POLICY),
     _msvc_case("crt", "tidy_crt", ["tidy_crt.c"], ["file not found", "clang-diagnostic-error"], "clang_tidy", "lint", _CC_TIDY_POLICY),

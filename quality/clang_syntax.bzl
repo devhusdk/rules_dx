@@ -138,17 +138,18 @@ _MSVC_TIDY_UNSUPPORTED = {
     "ZW": "C++/CX",
 }
 
-def _toolchain_compile_env(ctx, action):
+def _toolchain_compile_env(ctx):
     cc_toolchain = cc_toolchain_info(ctx)
+    if cc_toolchain == None:
+        return {}
     config = cc_common.configure_features(ctx = ctx, cc_toolchain = cc_toolchain)
-    name = ACTION_NAMES.c_compile if action.argv[-1].endswith(".c") else ACTION_NAMES.cpp_compile
     variables = cc_common.create_compile_variables(
         feature_configuration = config,
         cc_toolchain = cc_toolchain,
         source_file = "a.c",
         output_file = "a.obj",
     )
-    return cc_common.get_environment_variables(feature_configuration = config, action_name = name, variables = variables)
+    return cc_common.get_environment_variables(feature_configuration = config, action_name = ACTION_NAMES.cpp_compile, variables = variables)
 
 def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
     rewritten = clang_syntax_argv(argv, src, identity)
@@ -341,6 +342,7 @@ def _clang_syntax_impl(target, ctx):
     statuses = []
     tidy_diagnostics = []
     drivers = []
+    toolchain_env = _toolchain_compile_env(ctx) if identity.driver == "msvc" else {}
     cuda_indices = [i for i in range(len(actions)) if actions[i].mnemonic == "CudaCompile"]
     cuda_keep = [cuda_indices[j] for j in nvcc_syntax_select([actions[i].argv or [] for i in cuda_indices])]
     for i in range(len(actions)):
@@ -382,7 +384,8 @@ def _clang_syntax_impl(target, ctx):
         all_inputs = depset(transitive = [action.inputs, headers])
         driver = ctx.actions.declare_file("dx_clang_syntax/%s.driver" % stem)
         ctx.actions.write(output = driver, content = identity.driver)
-        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, dict(action.env) | (_toolchain_compile_env(ctx, action) if identity.driver == "msvc" else {}))
+        base_env = dict(action.env) | toolchain_env
+        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, base_env)
         tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
         requirements = {}
         if action.mnemonic == "ObjcCompile":
@@ -390,7 +393,7 @@ def _clang_syntax_impl(target, ctx):
         capture = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"'
         if identity.driver == "msvc":
             capture = 'log="$1"; status="$2"; shift 2; "$@" > "$log" 2>&1; echo "$?" > "$status"'
-        syntax_env = clang_action_env(action.env, identity.driver)
+        syntax_env = clang_action_env(base_env, identity.driver)
         # run_shell: The shell redirects output or runs the bash runner script.
         ctx.actions.run_shell(
             mnemonic = "ClangSyntax",
@@ -419,7 +422,7 @@ def _clang_syntax_impl(target, ctx):
                 resource_set = dx_heavy_resources,
             )
         argvs.append(list(argv))
-        envs.append(dict(action.env))
+        envs.append(base_env)
         inputs.append(all_inputs)
         tidy_diagnostics.append(tidy_log)
         sources.append(src)

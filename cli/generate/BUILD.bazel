@@ -17,15 +17,21 @@ dx_rust_crate(
         "src/lib.rs",
         "src/references.rs",
         "src/root_block.rs",
+        "src/sync.rs",
         "src/tools_gen.rs",
     ],
     compile_data = ["//quality/tiers:all"],
     dev_deps = ["insta"],
     extra_deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
         "//cli/dx_config",
         "//cli/merge:dx_merge",
+        "//cli/path:dx_path",
+        "//libs/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],
+    extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
     test_data = [
         "//gazelle/python:dx_generate_fixpoint_testdata",
         "//gazelle/python:testdata/dx_generate_existing_exports/WORKSPACE",
@@ -39,7 +45,10 @@ dx_rust_crate(
         "DX_FIXPOINT_STANDARD": "$(rootpath //gazelle/python:testdata/dx_generate_standard/WORKSPACE)",
         "DX_GENERATED_POLICY": "$(rootpath //quality/tests/fixtures/generated_policy:BUILD.bazel)",
     },
-    test_srcs = ["src/render_tests.rs"],
+    test_srcs = [
+        "src/render_tests.rs",
+        "src/sync_tests.rs",
+    ],
     deps = ["thiserror"],
 )
 

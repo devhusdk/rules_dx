@@ -12,6 +12,7 @@
 
 mod references;
 mod root_block;
+mod sync;
 pub mod tools_gen;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -19,6 +20,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use dx_config::{CROSS_FAMILY_TOOLS, DxConfig, Profile, SelectionProblem};
 use dx_preset::Layer;
 
+pub use crate::sync::{Mode, SyncError, SyncReport, sync};
 use crate::tools_gen::{TOOL_CONFIGS, ToolConfig};
 
 /// The root BUILD file: its name (`BUILD` or `BUILD.bazel`) and text.

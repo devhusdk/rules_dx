@@ -27,6 +27,7 @@ pub const BENCH: &str = "bench";
 pub const ADVISORY: &str = "advisory";
 pub const IDE: &str = "ide";
 pub const LAUNCHER: &str = "launcher";
+pub const FINGERPRINT: &str = "fingerprint";
 
 /// Entries that live under [`local_dir`].
 pub const LOCAL_ENTRIES: [&str; 11] = [
@@ -49,6 +50,11 @@ pub fn dx_dir(workspace: &Path) -> PathBuf {
 
 pub fn local_dir(workspace: &Path) -> PathBuf {
     dx_dir(workspace).join("local")
+}
+
+/// The inputs and outputs hash from the last `.dx` sync.
+pub fn fingerprint_path(workspace: &Path) -> PathBuf {
+    local_dir(workspace).join(FINGERPRINT)
 }
 
 pub fn ide_dir(workspace: &Path) -> PathBuf {

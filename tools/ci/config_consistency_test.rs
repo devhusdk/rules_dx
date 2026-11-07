@@ -998,6 +998,28 @@ fn evidence_checks_out_in_parallel_without_actions_checkout() {
 }
 
 #[test]
+fn ci_windows_jobs_check_out_with_git() {
+    let ci = read_runfiles(".github/workflows/ci.yml");
+    for job in ["hermetic-windows", "starter-consumer", "preflight"] {
+        let start = ci
+            .find(&format!("\n  {job}:\n"))
+            .unwrap_or_else(|| panic!("ci.yml has no {job} job"))
+            + 1;
+        let end = ci[start..]
+            .lines()
+            .skip(1)
+            .find(|line| line.starts_with("  ") && !line.starts_with("   ") && line.trim_end().ends_with(':'))
+            .map_or(ci.len(), |next| start + ci[start..].find(&format!("\n{next}\n")).unwrap());
+        let body = &ci[start..end];
+        assert!(
+            body.contains("-c checkout.workers=0 checkout --force FETCH_HEAD"),
+            "ci.yml {job} must check out with git and checkout.workers=0"
+        );
+        assert!(!body.contains("actions/checkout@"), "ci.yml {job} checks out with git, not actions/checkout");
+    }
+}
+
+#[test]
 fn windows_capable_jobs_check_out_in_parallel() {
     for path in [
         ".github/workflows/evidence.yml",

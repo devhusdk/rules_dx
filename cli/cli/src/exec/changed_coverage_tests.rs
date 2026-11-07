@@ -35,9 +35,10 @@ fn gate_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
     }
 }
 
-/// Scripts the default branch, its merge-base, the diff, and the untracked listing.
+/// Scripts the default branch, its verification, its merge-base, the diff, and the untracked listing.
 fn script_changes(harness: &Harness, diff: &str, untracked: &str) {
     harness.query.script_git(0, "origin/main\n");
+    harness.query.script_git(0, "def456\n");
     harness.query.script_git(0, "abc123\n");
     harness.query.script_git(0, diff);
     harness.query.script_git(0, untracked);
@@ -260,6 +261,7 @@ fn shallow_clone_merge_base_failure_is_unavailable() {
     let harness = gate_harness("changed-shallow", OWNS_A, HALF_LCOV);
     harness.write_source(".git/shallow", "abc\n");
     harness.query.script_git(0, "origin/main\n");
+    harness.query.script_git(0, "def456\n");
     harness.query.script_git(128, "");
     let (code, _, err) = harness.run(&[
         "coverage",
@@ -274,6 +276,7 @@ fn shallow_clone_merge_base_failure_is_unavailable() {
 fn diff_failure_is_unavailable() {
     let harness = gate_harness("changed-diff-fails", OWNS_A, HALF_LCOV);
     harness.query.script_git(0, "origin/main\n");
+    harness.query.script_git(0, "def456\n");
     harness.query.script_git(0, "abc123\n");
     harness.query.script_git(1, "");
     let (code, _, err) = harness.run(&[

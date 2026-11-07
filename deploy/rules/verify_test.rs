@@ -885,6 +885,105 @@ fn pypi_native_case() {
     );
 }
 
+fn archiver_imports(members: &[(String, PathBuf)], check: &str) -> std::process::Output {
+    let out = dx_testing::mkscratch("pypi-imports")
+        .expect("scratch imports")
+        .join("ok");
+    let mut command = std::process::Command::new(data("DX_ARCHIVER"));
+    command
+        .arg("--imports")
+        .arg(out)
+        .args(["--check", check, "--provides", "python3*"]);
+    for (name, path) in members {
+        command.arg(format!("{name}={}", path.display()));
+    }
+    command.output().expect("archiver must execute")
+}
+
+fn installed_binaries(target: &Path) -> Vec<(String, PathBuf)> {
+    let mut found = Vec::new();
+    native_files(&target.join("dx_native_probe"), &mut found);
+    found
+        .into_iter()
+        .filter_map(|path| {
+            let name = path.file_name()?.to_str()?.to_owned();
+            let lower = name.to_ascii_lowercase();
+            (lower.ends_with(".dll") || lower.ends_with(".pyd")).then_some((name, path))
+        })
+        .collect()
+}
+
+fn pypi_native_msvc_case() {
+    let core = |members: &[(String, PathBuf)]| {
+        members
+            .iter()
+            .find(|(name, _)| name.ends_with(".pyd"))
+            .map(|(name, _)| name.clone())
+            .expect("wheel must contain the extension")
+    };
+    let house = stage(
+        "DX_MSVC_PROG",
+        "DX_MSVC_CONFIG",
+        "native_probe_msvc-wheelhouse",
+        "dx-native-probe",
+        "native_probe_msvc",
+    );
+    let (url, _log) = serve(house);
+    let target = install(&url, "dx_native_probe");
+    let members = installed_binaries(&target);
+    println!("wheel binaries:");
+    for (name, path) in &members {
+        println!("  {name} {}", path.display());
+    }
+    for dll in ["vcruntime140.dll", "msvcp140.dll"] {
+        assert!(
+            members.iter().any(|(name, _)| name.eq_ignore_ascii_case(dll)),
+            "{dll} missing from {members:?}"
+        );
+    }
+    let notice = target.join("dx_native_probe-1.4.dist-info/licenses/msvc_vcruntime");
+    assert_eq!(
+        std::fs::read(&notice).expect("wheel must ship the runtime notice"),
+        std::fs::read(data("DX_MSVC_NOTICE")).expect("declared notice must be readable"),
+    );
+    let output = archiver_imports(&members, &core(&members));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let cwd = dx_testing::mkscratch("pypi-native-msvc-cwd").expect("scratch cwd");
+    let output = import_from(&target, &cwd);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "dx-native-probe native"
+    );
+
+    let house = stage(
+        "DX_NODLL_PROG",
+        "DX_NODLL_CONFIG",
+        "dx_native_probe-wheelhouse",
+        "dx-native-probe",
+        "dx_native_probe",
+    );
+    let (url, _log) = serve(house);
+    let target = install(&url, "dx_native_probe");
+    let members = installed_binaries(&target);
+    let output = archiver_imports(&members, &core(&members));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    println!("import closure of a wheel without the runtime:\n{stderr}");
+    assert!(!output.status.success(), "{stderr}");
+    assert!(
+        stderr.to_ascii_lowercase().contains("vcruntime140.dll"),
+        "{stderr}"
+    );
+}
+
 fn readelf_dynamic(library: &Path) -> String {
     readelf_output("-d", library)
 }
@@ -1076,6 +1175,7 @@ fn deploy_verify() {
         "pypi" => pypi_case(),
         "pypi_native" => pypi_native_case(),
         "pypi_native_linked" => pypi_native_linked_case(),
+        "pypi_native_msvc" => pypi_native_msvc_case(),
         "resources" => resources_case(),
         "rubygems" => rubygems_case(),
         other => panic!("unknown DX_VERIFY_MODE: {other}"),

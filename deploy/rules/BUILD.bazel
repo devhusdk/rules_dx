@@ -1264,6 +1264,67 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+_WINDOWS_X64 = [
+    "@platforms//os:windows",
+    "@platforms//cpu:x86_64",
+]
+
+py_wheel_rule(
+    name = "native_probe_msvc_wheel",
+    abi = "cp312",
+    distribution = "dx_native_probe",
+    extra_distinfo_files = {
+        "//deploy/rules/native_probe/dx_native_probe:msvc_vcruntime_notice": "licenses/msvc_vcruntime",
+    },
+    platform = "win_amd64",
+    python_tag = "cp312",
+    strip_path_prefixes = ["deploy/rules/native_probe/"],
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS_X64,
+    version = "1.4",
+    deps = ["//deploy/rules/native_probe/dx_native_probe:msvc_srcs"],
+)
+
+pypi_deploy(
+    name = "native_probe_msvc",
+    wheel = ":native_probe_msvc_wheel",
+)
+
+# Run with --//cc/toolchains:compiler=msvc and the dx_msvc license accepted.
+rust_test(
+    name = "pypi_native_msvc_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":dx_native_probe",
+        ":dx_native_probe_config",
+        ":native_probe_msvc",
+        ":native_probe_msvc_config",
+        "//cli/update:python_files",
+        "//cli/update:python_interpreter",
+        "//deploy/rules:archiver",
+        "//deploy/rules/native_probe/dx_native_probe:msvc_vcruntime_notice",
+        "@dx_tools//:uv",
+    ],
+    env = {
+        "DX_ARCHIVER": "$(rootpath //deploy/rules:archiver)",
+        "DX_MSVC_CONFIG": "$(rootpath :native_probe_msvc_config)",
+        "DX_MSVC_NOTICE": "$(rootpath //deploy/rules/native_probe/dx_native_probe:msvc_vcruntime_notice)",
+        "DX_MSVC_PROG": "$(rootpath :native_probe_msvc)",
+        "DX_NODLL_CONFIG": "$(rootpath :dx_native_probe_config)",
+        "DX_NODLL_PROG": "$(rootpath :dx_native_probe)",
+        "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
+        "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
+        "DX_VERIFY_MODE": "pypi_native_msvc",
+    },
+    tags = [
+        "block-network",
+        "manual",
+        "no-coverage",
+    ],
+    target_compatible_with = _WINDOWS_X64,
+    deps = ["//tools/testing:dx_testing"],
+)
+
 py_wheel_rule(
     name = "native_probe_linked_wheel",
     abi = "cp312",

@@ -3,7 +3,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
-load("//deploy/rules:native_probe.bzl", "NATIVE_PROBE_COMPATIBLE")
+load("//deploy/rules:native_probe.bzl", "NATIVE_PROBE_COMPATIBLE", "native_probe_runtime_files")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//deploy/rules:__pkg__"])
@@ -117,6 +117,40 @@ filegroup(
     srcs = [
         ":_core",
         ":nocore_srcs",
+    ],
+)
+
+native_probe_runtime_files(
+    name = "msvc_runtime_files",
+    runtime = "//cc/toolchains:msvc_vcruntime",
+    tags = ["manual"],
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+filegroup(
+    name = "msvc_vcruntime_notice",
+    srcs = ["//cc/toolchains:msvc_vcruntime"],
+    output_group = "notice",
+    tags = ["manual"],
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+filegroup(
+    name = "msvc_srcs",
+    srcs = [
+        ":msvc_runtime_files",
+        ":srcs",
+    ],
+    tags = ["manual"],
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
     ],
 )
 

@@ -439,8 +439,21 @@ fn resolver_for(exe: &Path) -> std::io::Result<Resolver> {
         return Resolver::for_tree(&tree)
             .map_err(|error| bad(format!("no runfiles tree at {}: {error}", tree.display())));
     }
-    Resolver::for_binary(exe)
-        .map_err(|error| bad(format!("no runfiles beside {}: {error}", exe.display())))
+    Resolver::for_binary(exe).or_else(|error| {
+        // A runner reached through another test's manifest has no tree of its own.
+        inherited_tree()
+            .and_then(|tree| Resolver::for_tree(&tree).ok())
+            .ok_or_else(|| bad(format!("no runfiles beside {}: {error}", exe.display())))
+    })
+}
+
+/// Returns the runfiles tree of the test that launched this runner, when there is one.
+fn inherited_tree() -> Option<PathBuf> {
+    ["RUNFILES_DIR", "TEST_SRCDIR"]
+        .into_iter()
+        .filter_map(std::env::var_os)
+        .map(PathBuf::from)
+        .find(|tree| tree.is_dir())
 }
 
 /// Reads the value of one required environment entry.

@@ -137,7 +137,7 @@ jobs:
           for dir in families/*/; do
             [ -f "$dir/MODULE.bazel" ] || continue
             echo "::group::$dir"
-            (cd "$dir" && ../../tools/dx test //... -- "$@") || failed=1
+            (cd "$dir" && ../../tools/dx test //... -- --keep_going "$@") || failed=1
             echo "::endgroup::"
           done
           exit "$failed"

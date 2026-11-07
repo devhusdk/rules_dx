@@ -506,7 +506,11 @@ pub(crate) fn collect_results_in(
     if let Some(problem) = &account.problem {
         problems.push(format!("build events cut off at {problem}"));
     }
-    for gap in account.gaps.iter().filter(|gap| !gap.is_skipped()) {
+    // `--nobuild` stops after analysis, so no target reports a result and none is missing.
+    let missing = |gap: &&dx_bep::EventGap| {
+        !gap.is_skipped() && gap.aborted.as_deref() != Some("NO_BUILD")
+    };
+    for gap in account.gaps.iter().filter(missing) {
         problems.push(gap.describe());
     }
     if !account.ended {
@@ -921,6 +925,19 @@ mod tests {
         lines.extend(produced(&harness, "//a:one", "0"));
         lines.push(
             serde_json::json!({"id": completion_id("//a:windows_only"), "aborted": {"reason": "SKIPPED"}})
+                .to_string(),
+        );
+        lines.push(LAST_EVENT.to_owned());
+        let collected = collect(&harness, &lines);
+        assert!(collected.complete, "{:?}", collected.problems);
+    }
+
+    #[test]
+    fn nobuild_targets_are_not_missing_results() {
+        let harness = Harness::new("producers-nobuild");
+        let mut lines = vec![configured(&["//a:one"])];
+        lines.push(
+            serde_json::json!({"id": completion_id("//a:one"), "aborted": {"reason": "NO_BUILD"}})
                 .to_string(),
         );
         lines.push(LAST_EVENT.to_owned());

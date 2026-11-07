@@ -310,16 +310,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_features` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_mismatch` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_probe` |
+|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_settings` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_unsupported` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_fuzz_test` |
+|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_param_file_features` |
 |  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_template` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_binary` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_gpu_env` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_split_srcs` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_target_compatible_with` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
-|  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_kwargs` |
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_quality_srcs` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_binary` |
@@ -468,6 +464,13 @@ dx rule that wraps it.
 |  |  | `@rules_dx_apple//signing:defs.bzl` | `apple_macos_notarize` |
 |  |  | `@rules_dx_apple//signing:defs.bzl` | `apple_macos_sign` |
 |  |  | `@rules_dx_apple//signing:defs.bzl` | `macos_bundle_errors` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_binary` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_gpu_env` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_split_srcs` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_target_compatible_with` |
+|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
+|  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
+|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_benchmark` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_forward_kwargs` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_with_defaults` |
@@ -487,13 +490,16 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `library_name` |
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `link_kwargs` |
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `with_defaults` |
+|  |  | `@rules_dx//go/rules:defs.bzl` | `go_benchmark` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_kwargs` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `upstream_kwargs` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |
 |  |  | `@rules_dx//helm/rules:defs.bzl` | `helm_chart` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_entry_class` |
+|  |  | `@rules_dx//java/rules:defs.bzl` | `java_entry_error` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_entry_kwargs` |
+|  |  | `@rules_dx//java/rules:defs.bzl` | `java_fuzz_test` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_javacopts_with_warnings_as_errors` |
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_binary_upstream_data` |
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_test_rejection` |
@@ -506,6 +512,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_warnings_as_errors_opts` |
 |  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_manifests` |
 |  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_schemas` |
+|  |  | `@rules_dx//libs/exec_os:defs.bzl` | `exec_os` |
 |  |  | `@rules_dx//libs/launcher:defs.bzl` | `native_launch_descriptor_path` |
 |  |  | `@rules_dx//libs/launcher:defs.bzl` | `target_is_windows` |
 |  |  | `@rules_dx//libs/launcher:defs.bzl` | `write_native_launcher` |
@@ -519,9 +526,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `label_string` |
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `starlark_test` |
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_binary` |
-|  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_deferred_tags` |
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_library` |
-|  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_quality_srcs` |
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_test` |
 |  |  | `@rules_dx//make/rules:defs.bzl` | `make_library` |
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_build` |
@@ -539,6 +544,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//msix:defs.bzl` | `version_errors` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `binary_forward_kwargs` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `binary_upstream_kwargs` |
+|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `coverage_kwargs` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `default_module_name` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `launcher_script` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `link_kwargs` |
@@ -553,6 +559,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `test_forward_kwargs` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `test_upstream_kwargs` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `toolchain_choice` |
+|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `toolchain_settings` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `upstream_tags` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `with_defaults` |
 |  |  | `@rules_dx//ocaml/tests/native:defs.bzl` | `sys_cell_test` |
@@ -564,6 +571,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_library` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_quality_srcs` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_test` |
+|  |  | `@rules_dx//python/rules:defs.bzl` | `python_benchmark` |
+|  |  | `@rules_dx//python/rules:defs.bzl` | `python_fuzz_test` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_main` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_main_rejection` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_test_rejection` |
@@ -583,6 +592,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_qml_module` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_qmldir` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_qrc` |
+|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_runtime_members` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_cc_library` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_runtime` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_uri_error` |
@@ -593,7 +603,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//rego/rules:defs.bzl` | `rego_test` |
 |  |  | `@rules_dx//rst/rules:defs.bzl` | `rst_library` |
 |  |  | `@rules_dx//ruby/rules:defs.bzl` | `ruby_coverage_lib_dirs` |
+|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_benchmark` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_binary` |
+|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_fuzz_test` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_proc_macro` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_shared_library` |
@@ -630,6 +642,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/docs/ruby:defs.bzl` | `docs_ruby_shard` |
 |  |  | `@rules_dx//tools/docs/ruby:defs.bzl` | `ruby_doc_runtime` |
 |  |  | `@rules_dx//tools/docs/ruby:defs.bzl` | `ruby_doc_shard` |
+|  |  | `@rules_dx//tools/docs/ruby:defs.bzl` | `ruby_shard_action` |
 |  |  | `@rules_dx//tools/docs/rust:defs.bzl` | `rust_shard_action` |
 |  |  | `@rules_dx//tools/docs/typescript:defs.bzl` | `docs_typescript_shard` |
 |  |  | `@rules_dx//tools/docs/typescript:defs.bzl` | `typescript_doc_shard` |
@@ -639,6 +652,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/testing/starters:defs.bzl` | `starter_consumer_test` |
 |  |  | `@rules_dx//tools/testing/starters:defs.bzl` | `starter_goldens_test` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_scoped_tsconfig_out` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_content` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_is_source` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_relpath` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `playwright_test` |

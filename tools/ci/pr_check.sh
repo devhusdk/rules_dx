@@ -5,9 +5,6 @@ set -euo pipefail
 set_name="${1:?usage: pr_check.sh <workflow|preflight|preflight-windows-arm64|starter|hermetic|docs|families|cli|all> [bazel flags...]}"
 shift
 
-# Keep in step with the quality aspects in cli/plan/src/plan/quality.rs.
-ASPECTS="//quality:real_aspects.bzl%real_cc_lint_aspect,//quality:real_aspects.bzl%real_dockerfile_lint_aspect,//quality:real_aspects.bzl%real_make_lint_aspect,//quality:real_aspects.bzl%real_cmake_lint_aspect,//quality:real_aspects.bzl%real_terraform_lint_aspect,//quality:real_aspects.bzl%real_dotnet_lint_aspect,//quality:real_aspects.bzl%real_capnp_lint_aspect,//quality:real_aspects.bzl%real_flatbuffers_lint_aspect,//quality:real_aspects.bzl%real_thrift_lint_aspect,//quality:real_aspects.bzl%real_avro_lint_aspect,//quality:real_aspects.bzl%real_go_lint_aspect,//quality:real_aspects.bzl%real_lint_aspect,//quality:real_aspects.bzl%real_js_lint_aspect,//quality:real_aspects.bzl%real_python_lint_aspect,//quality:real_aspects.bzl%real_protobuf_lint_aspect,//quality:real_aspects.bzl%real_powershell_lint_aspect,//quality:real_aspects.bzl%real_jvm_lint_aspect,//quality:real_aspects.bzl%real_ruby_lint_aspect,//quality:real_aspects.bzl%real_rust_lint_aspect,//quality:real_aspects.bzl%real_scala_lint_aspect,//quality:real_aspects.bzl%real_shell_lint_aspect,//quality:real_aspects.bzl%real_text_lint_aspect,//quality:real_aspects.bzl%real_html_template_lint_aspect,//quality:real_aspects.bzl%real_yaml_lint_aspect,//quality:real_aspects.bzl%real_nix_lint_aspect,//quality:real_aspects.bzl%real_lua_lint_aspect,//quality:real_aspects.bzl%real_ocaml_lint_aspect,//quality:real_aspects.bzl%real_kubernetes_lint_aspect,//quality:real_aspects.bzl%real_ansible_lint_aspect,//quality:real_aspects.bzl%real_cloudformation_lint_aspect,//quality:real_aspects.bzl%real_bicep_lint_aspect,//quality:real_aspects.bzl%real_sql_lint_aspect,//quality:real_aspects.bzl%real_rego_lint_aspect,//quality:real_aspects.bzl%real_jsonnet_lint_aspect,//quality:real_aspects.bzl%real_fortran_lint_aspect,//quality:real_aspects.bzl%real_typst_lint_aspect,//quality:real_aspects.bzl%real_xml_lint_aspect,//quality:real_aspects.bzl%real_haskell_lint_aspect,//quality:real_aspects.bzl%real_latex_lint_aspect,//quality:real_aspects.bzl%real_erlang_lint_aspect,//quality:real_aspects.bzl%real_elixir_lint_aspect,//quality:real_aspects.bzl%real_php_lint_aspect,//quality:real_aspects.bzl%real_dart_lint_aspect,//quality:real_aspects.bzl%real_d_lint_aspect,//quality:real_aspects.bzl%real_perl_lint_aspect,//quality:real_aspects.bzl%real_swift_lint_aspect,//quality:real_aspects.bzl%real_zig_lint_aspect,//quality:real_aspects.bzl%real_julia_lint_aspect"
-
 workflow() {
   bazel test "$@" //tools/ci:actionlint_test //tools/ci:workflow_expressions_test \
     //tools/ci:setup_bazel_test //tools/ci:secret_flags_test //tools/ci:workflow_pins_test
@@ -58,7 +55,7 @@ hermetic() {
 }
 
 docs() {
-  bazel build --nobuild "$@" --keep_going "--aspects=$ASPECTS" --output_groups=dx_results //docs/... //tools/docs/...
+  tools/dx lint //docs/... //tools/docs/... -- --nobuild "$@"
   bazel build "$@" //tools/docs/site:user_api
 }
 
@@ -67,7 +64,7 @@ families() {
   for dir in families/*/; do
     [ -f "$dir/MODULE.bazel" ] || continue
     echo "::group::$dir"
-    (cd "$dir" && bazel build --nobuild "$@" //...)
+    (cd "$dir" && ../../tools/dx build //... -- --nobuild "$@")
     echo "::endgroup::"
   done
 }

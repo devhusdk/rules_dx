@@ -76,6 +76,10 @@ def main():
     root = os.getcwd()
     if "BUILD_WORKSPACE_DIRECTORY" in os.environ:
         root = os.environ["BUILD_WORKSPACE_DIRECTORY"]
+    elif "TEST_SRCDIR" in os.environ:
+        # The test runs unsandboxed, so the README in runfiles is a link into the checkout.
+        linked = os.path.join(os.environ["TEST_SRCDIR"], os.environ["TEST_WORKSPACE"], DOC)
+        root = os.path.realpath(linked)[: -len(DOC)]
     doc = os.path.join(root, DOC)
     with open(doc, encoding="utf-8") as f:
         text = f.read()
@@ -85,7 +89,7 @@ def main():
             f.write(want)
         return 0
     if want != text:
-        print("%s is out of date with the defs.bzl exports; run: python3 tools/docs/rule_names/rule_names.py --write" % DOC, file=sys.stderr)
+        print("%s is out of date with the defs.bzl exports; run: bazel run //tools/docs/rule_names -- --write" % DOC, file=sys.stderr)
         return 1
     print("Rule names table covers every public export")
     return 0

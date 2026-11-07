@@ -137,7 +137,7 @@ jobs:
           for dir in families/*/; do
             [ -f "$dir/MODULE.bazel" ] || continue
             echo "::group::$dir"
-            (cd "$dir" && bazel test --keep_going "$@" //...) || failed=1
+            (cd "$dir" && ../../tools/dx test //... -- "$@") || failed=1
             echo "::endgroup::"
           done
           exit "$failed"
@@ -867,7 +867,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test "$@"
+          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test //tools/docs/rule_names:rule_names_test "$@"
       - name: Fail when bazel mod tidy would change MODULE.bazel
         run: |
           # shellcheck disable=SC2086
@@ -879,8 +879,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           tools/docs/site/public_rust_crates_guard.sh "$@"
-      - name: Fail when the Rule names table misses a rules/defs.bzl export
-        run: python3 tools/docs/rule_names/rule_names.py
       - name: Fail when a nested Bazel test is missing from nested_smoke.txt
         run: |
           # shellcheck disable=SC2086
@@ -934,7 +932,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" //dx:generate_check
+          tools/dx generate -- "$@"
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}

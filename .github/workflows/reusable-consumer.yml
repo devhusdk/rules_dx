@@ -376,6 +376,7 @@ jobs:
           done <<< "$DX_CHECK_LINES"
           exit "$failed"
       - name: Check the upload holds no secret
+        id: scan-lint
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"lint"') }}
         shell: bash
         env:
@@ -388,7 +389,7 @@ jobs:
             exit 1
           fi
       - name: Upload the lint reports
-        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"lint"') }}
+        if: ${{ always() && steps.scan-lint.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-reports-lint-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
@@ -396,6 +397,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
       - name: Check the upload holds no secret
+        id: scan-typecheck
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"typecheck"') }}
         shell: bash
         env:
@@ -408,7 +410,7 @@ jobs:
             exit 1
           fi
       - name: Upload the typecheck reports
-        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"typecheck"') }}
+        if: ${{ always() && steps.scan-typecheck.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-reports-typecheck-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
@@ -416,6 +418,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
       - name: Check the upload holds no secret
+        id: scan-test
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"test"') }}
         shell: bash
         env:
@@ -428,7 +431,7 @@ jobs:
             exit 1
           fi
       - name: Upload the test reports
-        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"test"') }}
+        if: ${{ always() && steps.scan-test.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-reports-test-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
@@ -436,6 +439,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
       - name: Check the upload holds no secret
+        id: scan-build
         if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"build"') }}
         shell: bash
         env:
@@ -448,7 +452,7 @@ jobs:
             exit 1
           fi
       - name: Upload the build reports
-        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"build"') }}
+        if: ${{ always() && steps.scan-build.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-reports-build-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
@@ -495,6 +499,7 @@ jobs:
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"
       - name: Check the upload holds no secret
+        id: scan-coverage
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
         shell: bash
         env:
@@ -507,7 +512,7 @@ jobs:
             exit 1
           fi
       - name: Upload the coverage reports
-        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        if: ${{ always() && steps.scan-coverage.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-reports-coverage-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
@@ -745,6 +750,7 @@ jobs:
             "${trivy_args[@]}" \
             --status-file "$GITHUB_OUTPUT"
       - name: Check the upload holds no secret
+        id: scan-advisory
         if: ${{ steps.prepare.outputs.status != 'empty' || steps.prepare.outputs.trivy == 'true' }}
         shell: bash
         env:
@@ -757,7 +763,7 @@ jobs:
             exit 1
           fi
       - name: Publish the advisory snapshots
-        if: ${{ steps.prepare.outputs.status != 'empty' || steps.prepare.outputs.trivy == 'true' }}
+        if: ${{ always() && steps.scan-advisory.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.validate.outputs.snapshot_artifact }}
@@ -1084,6 +1090,7 @@ jobs:
           path: .dx/local/fuzz
           key: ${{ steps.corpus.outputs.cache-primary-key }}
       - name: Check the upload holds no secret
+        id: scan-crashes
         if: ${{ failure() }}
         shell: bash
         env:
@@ -1096,7 +1103,7 @@ jobs:
             exit 1
           fi
       - name: Upload the crashes
-        if: ${{ failure() }}
+        if: ${{ always() && steps.scan-crashes.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-fuzz-crashes
@@ -1213,6 +1220,7 @@ jobs:
           fi
           bazel run "$@" @rules_dx//:dx -- bench //...
       - name: Check the upload holds no secret
+        id: scan-bench
         if: ${{ github.event_name == 'push' && !cancelled() }}
         shell: bash
         env:
@@ -1225,7 +1233,7 @@ jobs:
             exit 1
           fi
       - name: Upload the results
-        if: ${{ github.event_name == 'push' && !cancelled() }}
+        if: ${{ always() && steps.scan-bench.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-bench-linux_x86_64

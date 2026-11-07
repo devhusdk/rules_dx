@@ -178,6 +178,40 @@ fn every_job_using_bb_args_configures_the_helper_first() {
     }
 }
 
+fn gated(scan: &Value, upload: &Value) -> Result<(), String> {
+    let id = scan["id"]
+        .as_str()
+        .ok_or("scan step has no id for the upload to check")?;
+    if !scan["continue-on-error"].is_null() {
+        return Err("scan step must not continue on error".into());
+    }
+    let expected = format!("${{{{ always() && steps.{id}.outcome == 'success' }}}}");
+    if upload["if"] != expected.as_str() {
+        return Err(format!(
+            "upload must use if: {expected}, not {}",
+            upload["if"]
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn an_upload_runs_only_after_its_scan_passed() {
+    let pair = |yaml: &str| -> Vec<Value> { yaml_serde::from_str(yaml).expect("valid YAML") };
+    let shared = pair("- {name: scan, if: always()}\n- {uses: upload, if: always()}\n");
+    assert!(gated(&shared[0], &shared[1]).is_err());
+    let ignored = pair(
+        "- {name: scan, id: scan-x, continue-on-error: true}\n\
+         - {uses: upload, if: \"${{ always() && steps.scan-x.outcome == 'success' }}\"}\n",
+    );
+    assert!(gated(&ignored[0], &ignored[1]).is_err());
+    let gated_pair = pair(
+        "- {name: scan, id: scan-x, if: always()}\n\
+         - {uses: upload, if: \"${{ always() && steps.scan-x.outcome == 'success' }}\"}\n",
+    );
+    assert_eq!(gated(&gated_pair[0], &gated_pair[1]), Ok(()));
+}
+
 #[test]
 fn every_upload_follows_a_matching_scan() {
     let mut uploads = 0;
@@ -198,10 +232,9 @@ fn every_upload_follows_a_matching_scan() {
                     .map(|before| &steps[before])
                     .filter(|before| before["name"] == SCAN_STEP)
                     .unwrap_or_else(|| panic!("{at} uploads without a {SCAN_STEP:?} step first"));
-                assert_eq!(
-                    scan["if"], step["if"],
-                    "{at} scan and upload conditions differ"
-                );
+                if let Err(error) = gated(scan, step) {
+                    panic!("{at} {error}");
+                }
                 let upload_path = step["with"]["path"].as_str().expect("upload path");
                 let scanned = scan["with"]["path"]
                     .as_str()

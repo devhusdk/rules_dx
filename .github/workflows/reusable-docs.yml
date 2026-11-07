@@ -302,6 +302,7 @@ jobs:
           done <<< "$DX_DOCS_FORBID"
           bazel run "$@" @rules_dx//tools/docs/site/check:site_check -- --rendered "$PAGES_STAGE" "${check[@]}"
       - name: Check the upload holds no secret
+        id: scan-site
         shell: bash
         env:
           DX_UPLOAD_PATH: ${{ env.PAGES_STAGE }}
@@ -313,6 +314,7 @@ jobs:
             exit 1
           fi
       - name: Upload rendered site as Pages artifact
+        if: ${{ always() && steps.scan-site.outcome == 'success' }}
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ${{ env.PAGES_STAGE }}

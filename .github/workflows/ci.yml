@@ -215,23 +215,25 @@ jobs:
             jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.observed_producers | join("; ")) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Check the upload holds no secret
+        id: scan-compiler-evidence
         if: always()
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/compiler-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: ${{ always() && steps.scan-compiler-evidence.outcome == 'success' }}
         with:
           name: compiler-evidence-linux_x86_64
           path: ${{ runner.temp }}/compiler-evidence
           retention-days: 3
       - name: Check the upload holds no secret
+        id: scan-hermetic-evidence
         if: always()
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/hermetic-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: ${{ always() && steps.scan-hermetic-evidence.outcome == 'success' }}
         with:
           name: hermetic-evidence-linux_x86_64
           path: ${{ runner.temp }}/hermetic-evidence
@@ -287,12 +289,13 @@ jobs:
             cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
           done < "$RUNNER_TEMP/hermetic-targets"
       - name: Check the upload holds no secret
+        id: scan-hermetic-evidence
         if: always()
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/hermetic-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: ${{ always() && steps.scan-hermetic-evidence.outcome == 'success' }}
         with:
           name: hermetic-evidence-linux_arm64
           path: ${{ runner.temp }}/hermetic-evidence
@@ -337,12 +340,13 @@ jobs:
             cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
           done < "$RUNNER_TEMP/hermetic-targets"
       - name: Check the upload holds no secret
+        id: scan-hermetic-evidence
         if: always()
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/hermetic-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: ${{ always() && steps.scan-hermetic-evidence.outcome == 'success' }}
         with:
           name: hermetic-evidence-macos_arm64
           path: ${{ runner.temp }}/hermetic-evidence
@@ -372,10 +376,12 @@ jobs:
           find "$RUNNER_TEMP/gcc-arm64" -type f
           test "$(find "$RUNNER_TEMP/gcc-arm64" -type f | wc -l)" -eq 3
       - name: Check the upload holds no secret
+        id: scan-gcc-arm64-fixtures
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/gcc-arm64
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() && steps.scan-gcc-arm64-fixtures.outcome == 'success' }}
         with:
           name: gcc-arm64-fixtures
           path: ${{ runner.temp }}/gcc-arm64
@@ -568,12 +574,13 @@ jobs:
             jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.observed_producers | join("; ")) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Check the upload holds no secret
+        id: scan-compiler-evidence
         if: always() && matrix.shard == 0
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/compiler-evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always() && matrix.shard == 0
+        if: ${{ always() && steps.scan-compiler-evidence.outcome == 'success' }}
         with:
           name: compiler-evidence-starter-${{ matrix.platform }}
           path: ${{ runner.temp }}/compiler-evidence
@@ -707,12 +714,13 @@ jobs:
             echo "read-only exec .rmeta files: $(wc -l < "$out/rmeta-readonly.txt")"
           } >> "$GITHUB_STEP_SUMMARY" || true
       - name: Check the upload holds no secret
+        id: scan-rmeta-diagnostics
         if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/rmeta-diag
       - name: Upload the rmeta diagnostics
-        if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
+        if: ${{ always() && steps.scan-rmeta-diagnostics.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rmeta-diagnostics-${{ matrix.platform }}
@@ -926,12 +934,13 @@ jobs:
             tools/ci/compiler_table.sh "$RUNNER_TEMP/compiler-evidence" "$RUNNER_TEMP/compiler-evidence-all.jsonl" linux_x86_64 linux_arm64 macos_arm64 windows_x86_64 windows_arm64
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Check the upload holds no secret
+        id: scan-compiler-evidence
         if: always()
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/compiler-evidence-all.jsonl
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: ${{ always() && steps.scan-compiler-evidence.outcome == 'success' }}
         continue-on-error: true
         with:
           name: compiler-evidence-all

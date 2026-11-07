@@ -450,12 +450,13 @@ jobs:
             fi
           done
       - name: Check the upload holds no secret
+        id: scan-evidence
         if: ${{ always() && steps.inputs.outcome == 'success' }}
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/evidence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.inputs.outcome == 'success' }}
+        if: ${{ always() && steps.scan-evidence.outcome == 'success' }}
         with:
           name: evidence-${{ matrix.platform }}
           path: ${{ runner.temp }}/evidence

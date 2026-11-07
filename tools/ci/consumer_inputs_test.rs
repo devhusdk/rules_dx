@@ -204,12 +204,24 @@ fn the_checks_job_runs_every_validated_check_in_one_job_per_platform() {
             )),
             "{WORKFLOW} job {MATRIX_JOB} must keep the report artifact names"
         );
+        let scan = job(WORKFLOW, MATRIX_JOB)["steps"]
+            .as_array()
+            .and_then(|steps| steps.iter().find(|step| step["id"] == format!("scan-{id}")))
+            .cloned()
+            .unwrap_or_else(|| panic!("{WORKFLOW} job {MATRIX_JOB} has no scan-{id} step"));
         assert_eq!(
-            upload["if"],
+            scan["if"],
             json!(format!(
                 "${{{{ always() && contains(needs.validate.outputs.checks, '\"id\":\"{id}\"') }}}}"
             )),
-            "{WORKFLOW} upload {id} runs only when the check is enabled"
+            "{WORKFLOW} scan {id} runs only when the check is enabled"
+        );
+        assert_eq!(
+            upload["if"],
+            json!(format!(
+                "${{{{ always() && steps.scan-{id}.outcome == 'success' }}}}"
+            )),
+            "{WORKFLOW} upload {id} runs only after its scan passed"
         );
     }
     assert_eq!(

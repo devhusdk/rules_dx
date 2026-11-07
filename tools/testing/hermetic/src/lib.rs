@@ -2264,14 +2264,58 @@ fn startup_flags_for(output_root: &Path, windows: bool) -> Vec<String> {
         format!("--output_user_root={root}"),
     ];
     if windows {
-        let name = root.rfind(['\\', '/']).map_or(0, |at| at + 1);
-        let end = root[name..]
-            .chars()
-            .next()
-            .map_or(name, |c| name + c.len_utf8());
-        flags.push(format!("--output_base={}", &root[..end]));
+        flags.push(format!(
+            "--output_base={}",
+            windows_output_base(output_root)
+        ));
     }
     flags
+}
+
+/// The Windows output base for `output_root`: its parent plus the first letter of its name.
+fn windows_output_base(output_root: &Path) -> String {
+    let root = output_root.display().to_string();
+    let name = root.rfind(['\\', '/']).map_or(0, |at| at + 1);
+    let end = root[name..]
+        .chars()
+        .next()
+        .map_or(name, |c| name + c.len_utf8());
+    root[..end].to_owned()
+}
+
+/// The Windows bash path rules_shell detected in `output_base`, read from its generated BUILD.
+pub fn detected_windows_sh(output_base: &Path) -> Option<String> {
+    let entries = std::fs::read_dir(output_base.join("external")).ok()?;
+    let repo = entries
+        .filter_map(Result::ok)
+        .find(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .ends_with("local_config_shell")
+        })?
+        .path();
+    let build = std::fs::read_to_string(repo.join("BUILD")).ok()?;
+    let rest = &build[build.find("name = \"windows_sh\"")?..];
+    let rest = &rest[rest.find("path = ")? + "path = ".len()..];
+    let quote = rest.chars().next().filter(|c| *c == '"' || *c == '\'')?;
+    let value = &rest[1..];
+    Some(value[..value.find(quote)?].to_owned())
+}
+
+/// Fails when rules_shell gave the Windows sh toolchain no bash, or System32's bash.exe,
+/// which is the WSL stub.
+pub fn check_windows_sh(detected: &str, system_root: &str) -> Result<(), String> {
+    let normal = |path: &str| path.replace('\\', "/").to_lowercase();
+    if detected.is_empty() {
+        return Err("rules_shell found no bash for the Windows sh toolchain".to_owned());
+    }
+    if normal(detected).starts_with(&normal(system_root)) {
+        return Err(format!(
+            "rules_shell picked {detected}, the WSL stub, for the Windows sh toolchain"
+        ));
+    }
+    Ok(())
 }
 
 /// The Windows startup flags as dx `--bazel-startup-option` arguments. dx rejects
@@ -2344,6 +2388,25 @@ fn windows_host_msvc_denies() -> Vec<PathBuf> {
         Some(PathBuf::from(format!(r"{drive}\Program Files (x86)")))
     });
     windows_msvc_denies(program_files.as_deref(), program_files_x86.as_deref())
+}
+
+/// Confirms the isolated account can run the bash the Windows Bazel is given.
+fn bash_check(isolation: &Isolation, bash: &Path) -> Result<(), String> {
+    let probe = vec![
+        bash.to_string_lossy().into_owned(),
+        "-c".to_owned(),
+        "exit 0".to_owned(),
+    ];
+    let outcome = capture(isolation.command(Net::Denied, &probe))?;
+    if outcome.exit != 0 {
+        return Err(format!(
+            "the isolated account cannot run {} (exit {}): {}",
+            bash.display(),
+            outcome.exit,
+            outcome.stderr.trim()
+        ));
+    }
+    Ok(())
 }
 
 /// Confirms the denied host trees are unreadable inside the isolation.
@@ -2493,6 +2556,9 @@ fn run_all(
     let started = Instant::now();
     preflight(&isolation)?;
     deny_check(&isolation)?;
+    if let Some(bash) = &bash {
+        bash_check(&isolation, bash)?;
+    }
     timeline(
         out,
         &format!("preflight and deny check: {}s", started.elapsed().as_secs()),
@@ -2748,6 +2814,16 @@ fn run_all(
                 .collect::<Vec<_>>(),
         });
         check_coverage(&sources, &session.manifest)?;
+        if cfg!(windows) {
+            let output_base = PathBuf::from(windows_output_base(&cold));
+            let detected = detected_windows_sh(&output_base);
+            evidence["sh_toolchain"] = json!(detected);
+            let system_root =
+                std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_owned());
+            if let Some(detected) = &detected {
+                check_windows_sh(detected, &system_root)?;
+            }
+        }
         let coverage_targets = session.manifest.coverage.clone();
         for (name, command, root) in [
             ("dx_generate_check", "generate", &cold),

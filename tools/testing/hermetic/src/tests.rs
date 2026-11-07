@@ -1077,6 +1077,36 @@ fn dx_startup_options_carry_the_windows_roots() {
     assert!(dx_startup_options(Path::new("/q/cold"), false).is_empty());
 }
 
+#[test]
+fn detected_windows_sh_reads_the_rules_shell_build() {
+    let dir = tempfile::tempdir().unwrap();
+    assert_eq!(detected_windows_sh(dir.path()), None);
+    let repo = dir
+        .path()
+        .join("external")
+        .join("rules_shell++sh_configure+local_config_shell");
+    std::fs::create_dir_all(&repo).unwrap();
+    std::fs::write(
+        repo.join("BUILD"),
+        "sh_toolchain(\n    name = \"linux_sh\",\n    path = \"/bin/bash\",\n)\n\
+         sh_toolchain(\n    name = \"windows_sh\",\n    path = \"C:/Windows/System32/bash.exe\",\n)\n",
+    )
+    .unwrap();
+    assert_eq!(
+        detected_windows_sh(dir.path()).as_deref(),
+        Some("C:/Windows/System32/bash.exe")
+    );
+}
+
+#[test]
+fn check_windows_sh_rejects_the_wsl_stub_and_an_empty_path() {
+    let root = r"C:\Windows";
+    assert!(check_windows_sh("C:/msys64/usr/bin/bash.exe", root).is_ok());
+    let stub = check_windows_sh("c:/windows/system32/bash.exe", root).unwrap_err();
+    assert!(stub.contains("WSL stub"), "{stub}");
+    assert!(check_windows_sh("", root).is_err());
+}
+
 #[cfg(unix)]
 #[test]
 fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {

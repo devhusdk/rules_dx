@@ -64,6 +64,13 @@ _results = rule(
     },
 )
 
+def _quote(s):
+    return "'" + s.replace("'", "'\\''") + "'"
+
+def check_args(contains, absent):
+    """Returns real_result_check.sh args; quoted because Bazel shell-tokenizes args."""
+    return [_quote("+" + s) for s in contains] + [_quote("-" + s) for s in absent]
+
 def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, govet_analyzers = [], errcheck_flags = [], compiler = "", typecheck_subject = False, rustc_flags = [], clippy_flags = [], config_profile = "", target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
@@ -86,7 +93,7 @@ def real_result_test(name, target, policy, contains = [], absent = [], tool_dial
     sh_test(
         name = name,
         srcs = ["//quality/testdata:real_result_check.sh"],
-        args = ["$(rootpaths :" + name + "_results)"] + ["+" + s for s in contains] + ["-" + s for s in absent],
+        args = ["$(rootpaths :" + name + "_results)"] + check_args(contains, absent),
         data = [":" + name + "_results"],
         size = "small",
         tags = ["no-coverage"],

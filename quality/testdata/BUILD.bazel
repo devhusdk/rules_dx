@@ -17,6 +17,7 @@ load(":no_policy_failure_test.bzl", "no_policy_failure_test")
 load(":real_aspect_subject.bzl", "real_aspect_subject", "real_docs_shard_files", "real_docs_subject", "real_family_probe_subject", "real_shard_probe_subject")
 load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_docs_tests", "real_family_probe_tests", "real_shard_probe_tests")
 load(":real_result_cases.bzl", "real_result_cases")
+load(":real_results.bzl", "check_args")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "pipelined_rmeta_paths_test", "rmeta_typecheck_test")
@@ -1904,6 +1905,14 @@ java_library(
 )
 
 real_result_cases()
+
+sh_test(
+    name = "real_result_check_spaces_test",
+    size = "small",
+    srcs = ["real_result_check.sh"],
+    args = ["$(rootpath real_result_check_spaces.txt)"] + check_args(["undeclared identifier 'x'"], ["file not found"]),
+    data = ["real_result_check_spaces.txt"],
+)
 
 runner_matrix_cases(name = "runner_matrix")
 

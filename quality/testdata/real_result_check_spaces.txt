@@ -1,0 +1,2 @@
+unrelated file
+undeclared identifier 'x'

@@ -2,7 +2,7 @@ load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 python_binary(
-    name = "rule_names",
+    name = "rule_names_bin",
     srcs = ["rule_names.py"],
     main = "rule_names.py",
     visibility = ["//visibility:public"],

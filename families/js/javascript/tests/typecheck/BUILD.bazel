@@ -24,9 +24,9 @@ js_library(
 js_library(
     name = "mixed",
     srcs = [
-        "bad.mdx",
         "bad.vue",
         "lib.js",
+        "page.mdx",
     ],
     deps = ["//:node_modules/vue"],
 )

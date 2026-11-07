@@ -89,7 +89,7 @@ def main():
             f.write(want)
         return 0
     if want != text:
-        print("%s is out of date with the defs.bzl exports; run: bazel run //tools/docs/rule_names -- --write" % DOC, file=sys.stderr)
+        print("%s is out of date with the defs.bzl exports; run: bazel run //tools/docs/rule_names:rule_names_bin -- --write" % DOC, file=sys.stderr)
         return 1
     print("Rule names table covers every public export")
     return 0

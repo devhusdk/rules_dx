@@ -1770,6 +1770,7 @@ fn windows_command_runs_the_launcher_with_grants_and_network_flag() {
 fn cache_miss_marker_follows_the_host_os() {
     assert_eq!(miss_marker("linux"), MISS_MARKER);
     assert_eq!(miss_marker("macos"), MACOS_DENIED_MARKER);
+    assert_eq!(miss_marker("windows"), MISS_MARKER);
 }
 
 #[test]

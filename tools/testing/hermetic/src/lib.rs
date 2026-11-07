@@ -359,7 +359,8 @@ pub const WINDOWS_DENIED_MARKER: &str = "os error 10013";
 
 pub const MISS_MARKER: &str = "Unknown host";
 
-/// The sandbox denies the registry connection on macOS before DNS can fail.
+/// The sandbox denies the registry connection on macOS before DNS can fail. Linux and the
+/// Windows run account both fail at DNS.
 pub fn miss_marker(os: &str) -> &'static str {
     if os == "macos" {
         MACOS_DENIED_MARKER

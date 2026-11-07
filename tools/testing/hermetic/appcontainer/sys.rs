@@ -283,7 +283,7 @@ fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
     result
 }
 
-fn trustee_entry(sid: *mut c_void, access: u32, mode: i32) -> EXPLICIT_ACCESS_W {
+pub(crate) fn trustee_entry(sid: *mut c_void, access: u32, mode: i32) -> EXPLICIT_ACCESS_W {
     EXPLICIT_ACCESS_W {
         grfAccessPermissions: access,
         grfAccessMode: mode,

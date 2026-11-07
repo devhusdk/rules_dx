@@ -1336,6 +1336,7 @@ archive_override(
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:venv_bin_files.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1670
+        "//patches/rules_py:host_interpreter_windows_arm64.patch",  # upstream: https://github.com/aspect-build/rules_py/issues/1676
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],

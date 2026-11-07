@@ -26,6 +26,7 @@ exports_files([
     "rules_julia.package_name.patch",
     "rules_julia.portable_cpu_target.patch",
     "rules_kotlin.windows_coverage_test_suite.patch",
+    "rules_py.host_interpreter_windows_arm64.patch",
     "rules_py.native_sdist_toolchain_flags.patch",
     "rules_py.pep517_msvc.patch",
     "rules_py.py_cc_toolchain_platform.patch",

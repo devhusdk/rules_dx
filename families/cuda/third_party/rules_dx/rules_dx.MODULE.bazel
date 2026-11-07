@@ -73,6 +73,7 @@ archive_override(
         "//third_party/rules_dx:rules_py.native_sdist_toolchain_flags.patch",
         "//third_party/rules_dx:rules_py.pep517_msvc.patch",
         "//third_party/rules_dx:rules_py.venv_bin_files.patch",
+        "//third_party/rules_dx:rules_py.host_interpreter_windows_arm64.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],

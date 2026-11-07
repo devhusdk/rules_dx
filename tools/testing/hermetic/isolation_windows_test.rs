@@ -118,7 +118,10 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     std::fs::write(&open, "visible").expect("open");
     let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
     let name = format!("dxh-{}-test", std::process::id());
-    let group = AclGroup::setup(&mut scene.isolation, &name).expect("group setup");
+    let out = scene.root.join("out");
+    let group = AclGroup::setup(&mut scene.isolation, &name, &out).expect("group setup");
+    let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
+    assert!(timeline.contains("acl deny "), "{timeline}");
     assert!(icacls(&scene.ungranted).contains(&name));
     let denied = scene.run(Net::Denied, &["read", &text(&secret)]);
     assert_ne!(denied.exit, 0, "{}", denied.stdout);

@@ -2150,3 +2150,34 @@ fn rename_preset_points_layers_at_the_consumer_repo_name() {
         "common:windows --extra_execution_platforms=@my_dx//tools/platforms:windows_msvc_host,@my_dx//tools/platforms:host\n"
     );
 }
+
+#[test]
+fn copy_latest_profile_takes_the_newest_trace() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().join("base");
+    std::fs::create_dir(&base).unwrap();
+    let now = std::time::SystemTime::now();
+    for (name, age) in [
+        ("command-old.profile.gz", 60),
+        ("command-new.profile.gz", 0),
+    ] {
+        let path = base.join(name);
+        std::fs::write(&path, name).unwrap();
+        let file = std::fs::File::options().write(true).open(&path).unwrap();
+        file.set_modified(now - std::time::Duration::from_secs(age))
+            .unwrap();
+    }
+    std::fs::write(base.join("other.gz"), "other").unwrap();
+    let dest = dir.path().join("probe.profile.gz");
+    copy_latest_profile(&base, &dest);
+    assert_eq!(
+        std::fs::read_to_string(&dest).unwrap(),
+        "command-new.profile.gz"
+    );
+
+    let empty = dir.path().join("empty");
+    std::fs::create_dir(&empty).unwrap();
+    let missing = dir.path().join("none.profile.gz");
+    copy_latest_profile(&empty, &missing);
+    assert!(!missing.exists());
+}

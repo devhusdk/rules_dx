@@ -347,6 +347,8 @@ pub fn windows_passthrough(vs_denied: bool) -> Vec<&'static str> {
 /// How a probe starts on Windows, where the environment and directory are set on the process instead of by `env` and `sh`.
 pub struct WindowsRun {
     pub env: Vec<(String, String)>,
+    /// Where Bazel writes its `command-*.profile.gz` traces.
+    pub output_base: PathBuf,
 }
 
 pub const APPCONTAINER_ENV: &str = "DX_HERMETIC_APPCONTAINER";
@@ -1024,9 +1026,13 @@ pub struct AclGroup {
 }
 
 impl AclGroup {
-    /// Creates the group and points `isolation` at it.
-    pub fn setup(isolation: &mut Isolation, name: &str) -> Result<Self, String> {
+    /// Creates the group and points `isolation` at it. The time spent on each path goes to
+    /// `out`'s timeline.
+    pub fn setup(isolation: &mut Isolation, name: &str, out: &Path) -> Result<Self, String> {
         let outcome = capture(isolation.windows_group_command("--setup-group", name))?;
+        for line in outcome.stdout.lines() {
+            timeline(out, line);
+        }
         if outcome.exit != 0 {
             return Err(format!(
                 "cannot set up the ACL group {name} (exit {}): {}",
@@ -1070,6 +1076,24 @@ fn timeline(out: &Path, line: &str) {
         .open(logs.join("timeline.log"))
     {
         let _ = writeln!(file, "{line}");
+    }
+}
+
+/// Copies Bazel's newest `command-*.profile.gz` trace in `output_base` to `dest`, if any.
+pub fn copy_latest_profile(output_base: &Path, dest: &Path) {
+    let Ok(entries) = std::fs::read_dir(output_base) else {
+        return;
+    };
+    let newest = entries
+        .flatten()
+        .filter(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            name.starts_with("command-") && name.ends_with(".profile.gz")
+        })
+        .filter_map(|entry| Some((entry.metadata().ok()?.modified().ok()?, entry.path())))
+        .max_by_key(|(modified, _)| *modified);
+    if let Some((_, path)) = newest {
+        let _ = std::fs::copy(path, dest);
     }
 }
 
@@ -1362,7 +1386,10 @@ impl Session {
             };
             let mut env = self.windows_env(home, &path);
             env.push(xdg_cache_home(output_root));
-            let run = WindowsRun { env };
+            let run = WindowsRun {
+                env,
+                output_base: PathBuf::from(windows_output_base(output_root)),
+            };
             return self.execute(Exec {
                 name,
                 net,
@@ -1412,7 +1439,10 @@ impl Session {
             let argv = self.bazel_tail(&probe);
             let mut env = self.windows_env(probe.home, &self.action_path());
             env.push(xdg_cache_home(probe.output_root));
-            let run = WindowsRun { env };
+            let run = WindowsRun {
+                env,
+                output_base: PathBuf::from(windows_output_base(probe.output_root)),
+            };
             return self.execute(Exec {
                 name: &probe.name,
                 net: probe.net,
@@ -1459,6 +1489,10 @@ impl Session {
                 timeline(
                     &self.out,
                     &format!("{name}: {}s", started.elapsed().as_secs()),
+                );
+                copy_latest_profile(
+                    &run.output_base,
+                    &self.out.join("logs").join(format!("{name}.profile.gz")),
                 );
                 outcome
             }
@@ -2494,6 +2528,7 @@ fn run_all(
         Some(AclGroup::setup(
             &mut isolation,
             &format!("dxh-{}", std::process::id()),
+            out,
         )?)
     } else {
         None
@@ -2547,14 +2582,25 @@ fn run_all(
     });
     let started = Instant::now();
     preflight(&isolation)?;
+    timeline(out, &format!("preflight: {}s", started.elapsed().as_secs()));
+    let started = Instant::now();
     deny_check(&isolation)?;
-    if let Some(bash) = &bash {
-        bash_check(&isolation, bash)?;
-    }
     timeline(
         out,
-        &format!("preflight and deny check: {}s", started.elapsed().as_secs()),
+        &format!(
+            "deny check ({} paths): {}s",
+            isolation.denies.len(),
+            started.elapsed().as_secs()
+        ),
     );
+    if let Some(bash) = &bash {
+        let started = Instant::now();
+        bash_check(&isolation, bash)?;
+        timeline(
+            out,
+            &format!("bash check: {}s", started.elapsed().as_secs()),
+        );
+    }
     let workspace = root.join(&manifest.workspace_dir);
     evidence["consumer"] = json!({
         "module": manifest.module,

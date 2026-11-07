@@ -9,7 +9,7 @@
 //! volume name, which Bazel's client needs. A normal user token passes.
 use std::ffi::c_void;
 use std::ptr::{null, null_mut};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_NOT_ALL_ASSIGNED, GetLastError,
@@ -798,8 +798,13 @@ pub fn setup_group(config: &Config) -> Result<i32, String> {
         check(code, &format!("creating the local group {group}"))?;
     }
     let applied = account_sid(&name).and_then(|mut sid| {
-        acl_entries(config)
-            .try_for_each(|(path, mode)| set_access(path, sid.as_mut_ptr() as *mut c_void, mode))
+        for (path, mode) in acl_entries(config) {
+            let start = Instant::now();
+            set_access(path, sid.as_mut_ptr() as *mut c_void, mode)?;
+            let kind = if mode == DENY_ACCESS { "deny" } else { "grant" };
+            println!("acl {kind} {path}: {}ms", start.elapsed().as_millis());
+        }
+        Ok(())
     });
     if let Err(err) = applied {
         let _ = teardown_group(config);

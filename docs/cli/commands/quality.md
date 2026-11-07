@@ -153,7 +153,7 @@ To change a rule, edit the tool's root config file. See
 | `vue` | `prettier` | `typos` | disabled |
 | `yaml` | `yamlfmt` | `yamllint` | disabled |
 
-Families outside this table are opt-in: select their tools in `dx.toml`.
+Families outside this table are opt-in.
 
 ## Tools
 

@@ -117,7 +117,10 @@ single_version_override(
 single_version_override(
     module_name = "rules_flutter",
     patch_strip = 1,
-    patches = ["//third_party/rules_dx:rules_flutter.missing_font.patch"],
+    patches = [
+        "//third_party/rules_dx:rules_flutter.missing_font.patch",
+        "//third_party/rules_dx:rules_flutter.lock_extension.patch",
+    ],
     version = "0.0.8",
 )
 

@@ -1,0 +1,11 @@
+--- a/multitool/extension.bzl
++++ b/multitool/extension.bzl
+@@ -32,7 +32,7 @@
+     return module_ctx.extension_metadata(
+         root_module_direct_deps = lockfiles.keys(),
+         root_module_direct_dev_deps = [],
+-        reproducible = True,  # repo state is only a function of the lockfile
++        reproducible = False,
+     )
+ 
+ multitool = module_extension(

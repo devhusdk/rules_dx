@@ -273,10 +273,16 @@ pub const OVERRIDES: &[Override] = &[
         version: "0.0.8",
         patch_strip: 1,
         archive: None,
-        patches: &[OverridePatch {
-            file: "missing_font.patch",
-            content: include_str!("../../../patches/rules_flutter/missing_font.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "missing_font.patch",
+                content: include_str!("../../../patches/rules_flutter/missing_font.patch"),
+            },
+            OverridePatch {
+                file: "lock_extension.patch",
+                content: include_str!("../../../patches/rules_flutter/lock_extension.patch"),
+            },
+        ],
     },
     Override {
         module: "hermetic_launcher",
@@ -908,7 +914,8 @@ mod tests {
                 |dep| matches!(dep.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True"),
             );
             // lua only swaps in CI mirrors for rules_dx's own builds; consumers keep the BCR archive.
-            let repo_only = name == "lua";
+            // rules_multitool only locks its extension in rules_dx's own lockfile.
+            let repo_only = name == "lua" || name == "rules_multitool";
             if (dev_only || repo_only) && !in_table {
                 continue;
             }

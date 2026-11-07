@@ -854,10 +854,14 @@ dart.toolchain(dart_version = "3.13.7")
 bazel_dep(name = "rules_flutter", version = "0.0.8")
 
 # Fail on a fonts_json font that font_files lacks; drop once aran/rules_flutter#5 is released.
+# lock_extension.patch marks the flutter extension non-reproducible so the lockfile keeps its result (#8987).
 single_version_override(
     module_name = "rules_flutter",
     patch_strip = 1,
-    patches = ["//patches/rules_flutter:missing_font.patch"],
+    patches = [
+        "//patches/rules_flutter:missing_font.patch",
+        "//patches/rules_flutter:lock_extension.patch",
+    ],
     version = "0.0.8",
 )
 
@@ -1092,6 +1096,14 @@ archive_override(
         "https://sources.buildroot.net/lua/lua-5.4.6.tar.gz",
         "https://www.lua.org/ftp/lua-5.4.6.tar.gz",
     ],
+)
+
+# rules_multitool marks its extension reproducible, so the lockfile drops it and every CI job re-runs it (#8987).
+single_version_override(
+    module_name = "rules_multitool",
+    patch_strip = 1,
+    patches = ["//patches/rules_multitool:lock_extension.patch"],
+    version = "1.0.0",
 )
 
 register_toolchains("//lua/toolchain:all")

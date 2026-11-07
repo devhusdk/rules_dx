@@ -44,7 +44,7 @@ file hello_cdylib_subject.txt
 field cargo_tool=cargo
 field cc_linker_inputs=2
 field clippy_tool=clippy-driver
-field crate_edition=2021
+field crate_edition=2024
 field crate_is_test=False
 field crate_name=hello_cdylib
 field crate_owner=//rust/tests/fixtures/hello:hello_cdylib_upstream
@@ -77,7 +77,7 @@ subject //rust/tests/fixtures/hello:hello_derive_subject
 file hello_derive_subject.txt
 field cargo_tool=cargo
 field clippy_tool=clippy-driver
-field crate_edition=2021
+field crate_edition=2024
 field crate_is_test=False
 field crate_name=hello_derive
 field crate_owner=//rust/tests/fixtures/hello:hello_derive_upstream
@@ -142,7 +142,7 @@ file hello_staticlib_subject.txt
 field cargo_tool=cargo
 field cc_linker_inputs=2
 field clippy_tool=clippy-driver
-field crate_edition=2021
+field crate_edition=2024
 field crate_is_test=False
 field crate_name=hello_staticlib
 field crate_owner=//rust/tests/fixtures/hello:hello_staticlib_upstream

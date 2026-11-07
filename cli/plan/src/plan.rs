@@ -54,25 +54,22 @@ pub fn set_rules_dx_repo(workspace: &Path) {
 /// Whether the root `.bazelrc` imports a current correctness layer, which sets the diagnostics flags.
 pub fn correctness_layer_imported(workspace: &Path, repo: &str) -> bool {
     let rc_text = std::fs::read_to_string(workspace.join(".bazelrc")).unwrap_or_default();
-    [dx_preset::CONSUMER_DIR, dx_preset::REPO_DIR]
-        .into_iter()
-        .any(|dir| {
-            let imported = dx_preset::layer_import_state(&rc_text, dir)
-                .into_iter()
-                .any(|(layer, state)| {
-                    layer == dx_preset::Layer::Correctness
-                        && state == dx_preset::ImportState::Active
-                });
-            imported
-                && std::fs::read_to_string(
-                    workspace
-                        .join(dir)
-                        .join(dx_preset::Layer::Correctness.file_name()),
-                )
-                .is_ok_and(|text| {
-                    dx_preset::layer_is_current(&text, dx_preset::Layer::Correctness, repo)
-                })
-        })
+    [dx_preset::CONSUMER_DIR].into_iter().any(|dir| {
+        let imported = dx_preset::layer_import_state(&rc_text, dir)
+            .into_iter()
+            .any(|(layer, state)| {
+                layer == dx_preset::Layer::Correctness && state == dx_preset::ImportState::Active
+            });
+        imported
+            && std::fs::read_to_string(
+                workspace
+                    .join(dir)
+                    .join(dx_preset::Layer::Correctness.file_name()),
+            )
+            .is_ok_and(|text| {
+                dx_preset::layer_is_current(&text, dx_preset::Layer::Correctness, repo)
+            })
+    })
 }
 
 /// Returns the recorded name for rules_dx, or `rules_dx`.

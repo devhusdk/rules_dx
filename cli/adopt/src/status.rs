@@ -855,7 +855,7 @@ mod tests {
         )
         .expect("rc");
         assert_eq!(super::exec_tools_check(&dir).status, "ok");
-        for dir_rel in [dx_preset::REPO_DIR, dx_preset::CONSUMER_DIR] {
+        for dir_rel in [dx_preset::CONSUMER_DIR] {
             std::fs::create_dir_all(dir.join(dir_rel)).expect("preset dir");
             std::fs::write(
                 dir.join(dir_rel).join("performance.bazelrc"),

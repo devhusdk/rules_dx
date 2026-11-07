@@ -577,15 +577,14 @@ fn a_user_resource_after_the_separator_suppresses_only_that_resource() {
 
 #[test]
 fn the_vendored_preset_suppresses_nothing() {
-    let path = std::env::var("DX_PRESET").expect("DX_PRESET");
-    let preset = std::fs::read_to_string(&path).expect("preset");
+    let preset = dx_preset::render_layer(dx_preset::Layer::Resources, dx_preset::DEFAULT_REPO);
     for value in PRESET_LOCAL_RESOURCES {
         assert!(
             preset.contains(&format!("common --local_resources={value}\n")),
             "{value}"
         );
     }
-    for dir in ["tools/bazelrc", ".dx/bazelrc"] {
+    for dir in [".dx/bazelrc"] {
         let policy = Machine::local()
             .file(
                 "/ws/.bazelrc",
@@ -1109,8 +1108,8 @@ fn read_file_is_none_for_a_missing_or_unreadable_path() {
 fn import_path_joins_workspace_imports_per_component() {
     let ws = Path::new("/ws");
     assert_eq!(
-        import_path("%workspace%/tools/bazelrc/a.bazelrc", ws),
-        ws.join("tools").join("bazelrc").join("a.bazelrc")
+        import_path("%workspace%/rc/nested/a.bazelrc", ws),
+        ws.join("rc").join("nested").join("a.bazelrc")
     );
     assert_eq!(
         import_path("tools\\b.bazelrc", ws),

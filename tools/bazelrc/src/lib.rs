@@ -15,9 +15,6 @@ pub const PRESET_BAZEL_VERSION: &str = include_str!("../../../.bazelversion").tr
 
 pub const PRESET_DX_VERSION: &str = "0.0.0";
 
-/// Where rules_dx keeps its own copy of the preset layers.
-pub const REPO_DIR: &str = "tools/bazelrc";
-
 /// Where `dx init` writes the preset layers in a consumer workspace.
 pub const CONSUMER_DIR: &str = ".dx/bazelrc";
 
@@ -355,7 +352,7 @@ const WARNINGS_COMMENT: &str = "Compiler warnings fail the build under the stric
 pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bool>) -> String {
     let mut out = format!(
         "{HEADER_MARKER}, do not edit.\n\
-         # Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.\n\
+         # Regenerate: `tools/dx init --apply`.\n\
          # Layer {}: {}\n",
         layer.name(),
         layer.summary()
@@ -397,20 +394,7 @@ pub fn render_all(repo: &str) -> String {
 
 /// The root `.bazelrc` line that imports `layer` from `dir`.
 pub fn import_line(dir: &str, layer: Layer) -> String {
-    format!(
-        "{} %workspace%/{dir}/{}",
-        import_verb(dir),
-        layer.file_name()
-    )
-}
-
-/// The rc keyword that imports layers from `dir`.
-fn import_verb(dir: &str) -> &'static str {
-    if dir == CONSUMER_DIR {
-        "try-import"
-    } else {
-        "import"
-    }
+    format!("try-import %workspace%/{dir}/{}", layer.file_name())
 }
 
 /// The per-user file that holds machine-specific flags.
@@ -545,7 +529,7 @@ pub fn layer_import_state(text: &str, dir: &str) -> [(Layer, ImportState); 3] {
             Some(body) => (body.trim(), &mut commented),
             None => (line, &mut active),
         };
-        if body.split_whitespace().next() != Some(import_verb(dir)) {
+        if body.split_whitespace().next() != Some("try-import") {
             continue;
         }
         if let Some(target) = workspace_import(body) {
@@ -627,34 +611,9 @@ pub fn preset_paths(workspace: &Path, dir: &str) -> Vec<(Layer, PathBuf)> {
         .collect()
 }
 
-pub fn source_dir(workspace: &Path) -> PathBuf {
-    workspace.join(REPO_DIR)
-}
-
-pub fn bin_usage(err: &mut dyn std::io::Write) -> i32 {
-    let _ = writeln!(err, "usage: preset.update [--verify-only]");
-    1
-}
-
-pub fn bin_cannot(err: &mut dyn std::io::Write, error: impl std::fmt::Display) -> i32 {
-    let _ = writeln!(err, "{error}");
-    1
-}
-
-pub fn resolve_workspace() -> std::io::Result<PathBuf> {
-    if let Ok(workspace) = std::env::var("BUILD_WORKSPACE_DIRECTORY")
-        && !workspace.is_empty()
-    {
-        return Ok(PathBuf::from(workspace));
-    }
-    std::env::current_dir()
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PresetError {
     OwnedCollision { lines: String },
-    Stale { detail: String },
-    Unwritable { path: String, detail: String },
 }
 
 impl std::fmt::Display for PresetError {
@@ -664,116 +623,11 @@ impl std::fmt::Display for PresetError {
                 formatter,
                 "preset.update: root .bazelrc duplicates preset lines; reconcile (remove owned duplicates, keep project overrides explicit): {lines}"
             ),
-            Self::Stale { detail } => write!(formatter, "{detail}"),
-            Self::Unwritable { path, detail } => {
-                write!(formatter, "preset.update: cannot write {path}: {detail}")
-            }
         }
     }
 }
 
 impl std::error::Error for PresetError {}
-
-pub fn unified_diff(checked_in: &str, regenerated: &str) -> String {
-    let old: Vec<&str> = checked_in.lines().collect();
-    let new: Vec<&str> = regenerated.lines().collect();
-    let mut out = vec!["--- checked-in".to_owned(), "+++ regenerated".to_owned()];
-    let max = old.len().max(new.len());
-    for i in 0..max {
-        let old_line = old.get(i).copied().unwrap_or("");
-        let new_line = new.get(i).copied().unwrap_or("");
-        if old_line != new_line {
-            if i < old.len() {
-                out.push(format!("-{old_line}"));
-            }
-            if i < new.len() {
-                out.push(format!("+{new_line}"));
-            }
-        }
-    }
-    out.join("\n")
-}
-
-fn read_collisions(root_path: &Path, rendered: &str) -> std::io::Result<Vec<String>> {
-    match std::fs::read_to_string(root_path) {
-        Ok(content) => Ok(owned_collisions_in_content(&content, rendered)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
-        Err(error) => Err(error),
-    }
-}
-
-fn collision_error(collisions: &[String]) -> PresetError {
-    PresetError::OwnedCollision {
-        lines: collisions.join(", "),
-    }
-}
-
-fn require_source_and_no_collisions(workspace: &Path) -> Result<(), PresetError> {
-    let source = source_dir(workspace);
-    if !source.is_dir() {
-        return Err(PresetError::Unwritable {
-            path: source.display().to_string(),
-            detail: "source directory not found".to_owned(),
-        });
-    }
-    let collisions = read_collisions(&workspace.join(".bazelrc"), &render_all(DEFAULT_REPO))
-        .map_err(|error| PresetError::Unwritable {
-            path: ".bazelrc".to_owned(),
-            detail: error.to_string(),
-        })?;
-    if collisions.is_empty() {
-        Ok(())
-    } else {
-        Err(collision_error(&collisions))
-    }
-}
-
-/// rules_dx renders its own layers strict, so warnings stay errors.
-pub fn render_repo_layer(layer: Layer) -> String {
-    render_layer_with(
-        layer,
-        DEFAULT_REPO,
-        (layer == Layer::Correctness).then_some(true),
-    )
-}
-
-pub fn check_preset(workspace: &Path) -> Result<(), PresetError> {
-    require_source_and_no_collisions(workspace)?;
-    let mut stale = Vec::new();
-    for (layer, path) in preset_paths(workspace, REPO_DIR) {
-        let rendered = render_repo_layer(layer);
-        let checked_in = std::fs::read_to_string(&path).unwrap_or_default();
-        if checked_in != rendered {
-            let diff = unified_diff(&checked_in, &rendered);
-            stale.push(format!(
-                "preset.update: {REPO_DIR}/{} is stale; run the regen command\n{diff}",
-                layer.file_name()
-            ));
-        }
-    }
-    if stale.is_empty() {
-        Ok(())
-    } else {
-        Err(PresetError::Stale {
-            detail: stale.join("\n"),
-        })
-    }
-}
-
-pub fn update_preset(workspace: &Path) -> Result<(), PresetError> {
-    require_source_and_no_collisions(workspace)?;
-    for (layer, path) in preset_paths(workspace, REPO_DIR) {
-        let rendered = render_repo_layer(layer);
-        if std::fs::read_to_string(&path).ok().as_deref() == Some(rendered.as_str()) {
-            continue;
-        }
-        std::fs::write(&path, rendered.as_bytes()).map_err(|error| PresetError::Unwritable {
-            path: format!("{REPO_DIR}/{}", layer.file_name()),
-            detail: error.to_string(),
-        })?;
-    }
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {
@@ -864,15 +718,6 @@ mod tests {
             ));
         }
         assert!(!is_generated("build --x\n"));
-    }
-
-    #[test]
-    fn rules_dx_renders_its_correctness_layer_strict_and_the_rest_unchanged() {
-        let text = render_repo_layer(Layer::Correctness);
-        assert_eq!(layer_warnings_as_errors(&text), Some(true));
-        for layer in [Layer::Performance, Layer::Resources] {
-            assert_eq!(render_repo_layer(layer), render_layer(layer, DEFAULT_REPO));
-        }
     }
 
     #[test]
@@ -977,12 +822,7 @@ mod tests {
                 lines.next(),
                 Some("# Vendored Bazel execution preset -- GENERATED, do not edit.")
             );
-            assert_eq!(
-                lines.next(),
-                Some(
-                    "# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx."
-                )
-            );
+            assert_eq!(lines.next(), Some("# Regenerate: `tools/dx init --apply`."));
             assert_eq!(
                 lines.next(),
                 Some(format!("# Layer {}: {}", layer.name(), layer.summary()).as_str())
@@ -1088,10 +928,6 @@ mod tests {
             lines[0],
             "try-import %workspace%/.dx/bazelrc/correctness.bazelrc"
         );
-        assert_eq!(
-            import_line(REPO_DIR, Layer::Correctness),
-            "import %workspace%/tools/bazelrc/correctness.bazelrc"
-        );
         let text = format!(
             "{}\r\n#  {}\nbuild --x\n",
             lines[0]
@@ -1112,24 +948,10 @@ mod tests {
             layer_import_state(continued, CONSUMER_DIR)[2],
             (Layer::Resources, ImportState::Active)
         );
-        assert!(
-            layer_import_state(&lines.join("\n"), REPO_DIR)
-                .iter()
-                .all(|(_, state)| *state == ImportState::Absent)
-        );
         let plain = "import %workspace%/.dx/bazelrc/resources.bazelrc\n";
         assert_eq!(
             layer_import_state(plain, CONSUMER_DIR)[2].1,
             ImportState::Absent
-        );
-        let repo: Vec<String> = Layer::ALL
-            .iter()
-            .map(|layer| import_line(REPO_DIR, *layer))
-            .collect();
-        assert!(
-            layer_import_state(&repo.join("\n"), REPO_DIR)
-                .iter()
-                .all(|(_, state)| *state == ImportState::Active)
         );
         let both = format!("# {}\n{}\n", lines[2], lines[2]);
         assert_eq!(
@@ -1152,10 +974,10 @@ mod tests {
     #[test]
     fn collisions_ignore_imports_comments_and_blanks() {
         let rendered = render_all(DEFAULT_REPO);
-        let root = "# comment\n\nimport %workspace%/tools/bazelrc/correctness.bazelrc\ntry-import %workspace%/user.bazelrc\nbuild --verbose_failures\n";
+        let root = "# comment\n\nimport %workspace%/.dx/bazelrc/correctness.bazelrc\ntry-import %workspace%/user.bazelrc\nbuild --verbose_failures\n";
         let collisions = owned_collisions_in_content(root, &rendered);
         assert_eq!(collisions, vec!["build --verbose_failures".to_owned()]);
-        let clean = "import %workspace%/tools/bazelrc/correctness.bazelrc\nbuild --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings\n";
+        let clean = "import %workspace%/.dx/bazelrc/correctness.bazelrc\nbuild --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings\n";
         assert!(owned_collisions_in_content(clean, &rendered).is_empty());
         let blank = "# only\n\n";
         assert!(owned_collisions_in_content(blank, &rendered).is_empty());
@@ -1245,144 +1067,5 @@ mod tests {
                 "{root:?}"
             );
         }
-    }
-
-    #[test]
-    fn paths_join_workspace() {
-        let workspace = Path::new("/tmp/ws");
-        assert_eq!(
-            preset_paths(workspace, REPO_DIR),
-            vec![
-                (
-                    Layer::Correctness,
-                    PathBuf::from("/tmp/ws/tools/bazelrc/correctness.bazelrc")
-                ),
-                (
-                    Layer::Performance,
-                    PathBuf::from("/tmp/ws/tools/bazelrc/performance.bazelrc")
-                ),
-                (
-                    Layer::Resources,
-                    PathBuf::from("/tmp/ws/tools/bazelrc/resources.bazelrc")
-                ),
-            ]
-        );
-        assert_eq!(
-            preset_paths(workspace, CONSUMER_DIR)[2].1,
-            Path::new("/tmp/ws/.dx/bazelrc/resources.bazelrc")
-        );
-        assert_eq!(source_dir(workspace), Path::new("/tmp/ws/tools/bazelrc"));
-    }
-
-    #[test]
-    fn diff_marks_changed_lines() {
-        let diff = unified_diff("a\nb\n", "a\nc\n");
-        assert!(diff.contains("--- checked-in"));
-        assert!(diff.contains("+++ regenerated"));
-        assert!(diff.contains("-b"));
-        assert!(diff.contains("+c"));
-        let clean = unified_diff("same\n", "same\n");
-        assert!(clean.contains("--- checked-in"));
-        assert!(!clean.contains("-same"));
-    }
-
-    #[test]
-    fn error_display_messages() {
-        let collision = PresetError::OwnedCollision {
-            lines: "build --verbose_failures".to_owned(),
-        };
-        assert!(collision.to_string().contains("duplicates preset lines"));
-        let stale = PresetError::Stale {
-            detail: "preset.update: correctness.bazelrc is stale; run the regen command".to_owned(),
-        };
-        assert!(stale.to_string().contains("is stale"));
-        let unwritable = PresetError::Unwritable {
-            path: "tools/bazelrc/correctness.bazelrc".to_owned(),
-            detail: "denied".to_owned(),
-        };
-        assert!(unwritable.to_string().contains("cannot write"));
-    }
-
-    fn repo_bazelrc() -> String {
-        let mut text: String = Layer::ALL
-            .iter()
-            .map(|layer| format!("{}\n", import_line(REPO_DIR, *layer)))
-            .collect();
-        text.push_str("try-import %workspace%/user.bazelrc\n");
-        text
-    }
-
-    #[test]
-    fn check_and_update_round_trip_in_scratch() {
-        let scratch = tempfile::TempDir::new().expect("scratch");
-        let root = scratch.path();
-        std::fs::create_dir_all(source_dir(root)).expect("source dir");
-        std::fs::write(root.join(".bazelrc"), repo_bazelrc()).expect("bazelrc");
-        assert!(matches!(check_preset(root), Err(PresetError::Stale { .. })));
-        update_preset(root).expect("update creates every layer");
-        assert_eq!(check_preset(root), Ok(()));
-        for (layer, path) in preset_paths(root, REPO_DIR) {
-            assert_eq!(
-                std::fs::read_to_string(&path).expect("read"),
-                render_repo_layer(layer)
-            );
-        }
-        let resources = &preset_paths(root, REPO_DIR)[2].1;
-        std::fs::write(resources, "# dirty\n").expect("dirty");
-        match check_preset(root) {
-            Err(PresetError::Stale { detail }) => {
-                assert!(detail.contains("tools/bazelrc/resources.bazelrc is stale"));
-                assert!(!detail.contains("correctness.bazelrc is stale"));
-                assert!(detail.contains("checked-in"));
-            }
-            other => panic!("want Stale, got {other:?}"),
-        }
-        update_preset(root).expect("update fixes dirty");
-        assert_eq!(check_preset(root), Ok(()));
-    }
-
-    #[test]
-    fn missing_source_dir_fails_closed() {
-        let scratch = tempfile::TempDir::new().expect("scratch");
-        let root = scratch.path();
-        assert!(matches!(
-            check_preset(root),
-            Err(PresetError::Unwritable { .. })
-        ));
-        assert!(matches!(
-            update_preset(root),
-            Err(PresetError::Unwritable { .. })
-        ));
-    }
-
-    #[test]
-    fn duplicates_fail_closed_on_both_paths() {
-        let scratch = tempfile::TempDir::new().expect("scratch");
-        let root = scratch.path();
-        std::fs::create_dir_all(source_dir(root)).expect("source dir");
-        std::fs::write(root.join(".bazelrc"), repo_bazelrc()).expect("clean");
-        update_preset(root).expect("update creates every layer");
-        std::fs::write(
-            root.join(".bazelrc"),
-            format!("{}startup --max_idle_secs=900\n", repo_bazelrc()),
-        )
-        .expect("collision");
-        assert!(matches!(
-            check_preset(root),
-            Err(PresetError::OwnedCollision { .. })
-        ));
-        assert!(matches!(
-            update_preset(root),
-            Err(PresetError::OwnedCollision { .. })
-        ));
-    }
-
-    #[test]
-    fn missing_root_bazelrc_means_no_collisions() {
-        let scratch = tempfile::TempDir::new().expect("scratch");
-        let root = scratch.path();
-        std::fs::create_dir_all(source_dir(root)).expect("source dir");
-        update_preset(root).expect("update without root");
-        assert_eq!(check_preset(root), Ok(()));
     }
 }

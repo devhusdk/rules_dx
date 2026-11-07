@@ -64,7 +64,7 @@ dx_generated_policy(
 )
 === .dx/bazelrc/correctness.bazelrc
 # Vendored Bazel execution preset -- GENERATED, do not edit.
-# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Regenerate: `tools/dx init --apply`.
 # Layer correctness: flags that change what a build or test produces.
 
 # Print the full command line of a failed action.
@@ -144,7 +144,7 @@ common --@rules_dx//config:config_profile=standard
 common --@rules_dx//config:workspace=//.dx:policy
 === .dx/bazelrc/performance.bazelrc
 # Vendored Bazel execution preset -- GENERATED, do not edit.
-# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Regenerate: `tools/dx init --apply`.
 # Layer performance: build speed and the dx compilation configs.
 
 # Build host tools without optimization so builds finish sooner.
@@ -196,7 +196,7 @@ common:ci --loading_phase_threads=32
 common:ci-pr --noremote_upload_local_results
 === .dx/bazelrc/resources.bazelrc
 # Vendored Bazel execution preset -- GENERATED, do not edit.
-# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Regenerate: `tools/dx init --apply`.
 # Layer resources: memory, CPU and cache limits for the host.
 
 # Let the Bazel server return unused heap to the system sooner.

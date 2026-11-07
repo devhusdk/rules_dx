@@ -1825,9 +1825,6 @@ dependencies = [
 [[package]]
 name = "dx_preset"
 version = "0.0.0"
-dependencies = [
- "tempfile",
-]
 
 [[package]]
 name = "dx_process"

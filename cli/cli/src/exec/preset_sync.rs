@@ -11,7 +11,10 @@ static REWRITTEN: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// The `.dx` files the sync in this invocation wrote or deleted.
 pub fn rewritten() -> Vec<String> {
-    REWRITTEN.lock().map(|list| list.clone()).unwrap_or_default()
+    REWRITTEN
+        .lock()
+        .map(|list| list.clone())
+        .unwrap_or_default()
 }
 
 /// Syncs `.dx`; a failure prints one warning and changes nothing else. A failed migration of
@@ -21,7 +24,6 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
         invocation.command,
         Command::Init | Command::Status | Command::Upgrade
     ) || !workspace.join("MODULE.bazel").is_file()
-        || keeps_repo_preset(workspace)
     {
         return;
     }
@@ -55,15 +57,6 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
             let _ = writeln!(err, "dx: warning: .dx not refreshed: {error}");
         }
     }
-}
-
-/// Whether the root `.bazelrc` imports the checked-in preset of rules_dx itself.
-pub(super) fn keeps_repo_preset(workspace: &Path) -> bool {
-    let text = std::fs::read_to_string(workspace.join(".bazelrc")).unwrap_or_default();
-    let prefix = format!("{}/", dx_adopt::preset_fragment::REPO_DIR);
-    dx_adopt::preset_fragment::bazelrc_imports(&text)
-        .iter()
-        .any(|rel| rel.starts_with(&prefix))
 }
 
 #[cfg(test)]
@@ -110,19 +103,6 @@ mod tests {
             run(command, scratch.path());
             assert!(!scratch.path().join(".dx").exists(), "{command}");
         }
-    }
-
-    #[test]
-    fn the_rules_dx_repo_layout_does_not_write() {
-        let scratch = workspace(true);
-        let root = scratch.path();
-        let import = dx_adopt::preset_fragment::import_line(
-            dx_adopt::preset_fragment::REPO_DIR,
-            dx_adopt::preset_fragment::Layer::Correctness,
-        );
-        std::fs::write(root.join(".bazelrc"), format!("{import}\n")).expect("rc");
-        run("build", root);
-        assert!(!root.join(".dx").exists());
     }
 
     #[test]

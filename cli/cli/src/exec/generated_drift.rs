@@ -19,8 +19,7 @@ pub(super) fn findings(
     runner: &dyn QueryRunner,
     rewritten: &[String],
 ) -> Vec<DiagnosticEvent> {
-    if !workspace.join("MODULE.bazel").is_file() || super::preset_sync::keeps_repo_preset(workspace)
-    {
+    if !workspace.join("MODULE.bazel").is_file() {
         return Vec::new();
     }
     let Ok(tracked) = git_output(
@@ -47,13 +46,7 @@ pub(super) fn findings(
             }
             continue;
         };
-        let staged = git_output(
-            runner,
-            workspace,
-            "show",
-            &["show", &format!(":{path}")],
-        )
-        .ok();
+        let staged = git_output(runner, workspace, "show", &["show", &format!(":{path}")]).ok();
         let on_disk = std::fs::read(workspace.join(path)).ok();
         if staged.as_ref() != Some(bytes)
             || on_disk.as_ref() != Some(bytes)
@@ -139,8 +132,12 @@ mod tests {
         dx_test_scratch::write(root, "MODULE.bazel", "");
         dx_test_scratch::write(root, "dx.toml", "schema_version = 1\n");
         dx_test_scratch::write(root, "pkg/a.py", "");
-        dx_generate::sync(root, dx_generate::Mode::Full, &mut dx_adopt::detected_families)
-            .expect("sync");
+        dx_generate::sync(
+            root,
+            dx_generate::Mode::Full,
+            &mut dx_adopt::detected_families,
+        )
+        .expect("sync");
         git(root, &["init", "--quiet"]);
         git(root, &["add", ".dx", "MODULE.bazel", "dx.toml", "pkg"]);
         git(root, &["commit", "--quiet", "-m", "base"]);
@@ -176,8 +173,12 @@ mod tests {
         dx_test_scratch::write(root, BASE, "edited\n");
         git(root, &["add", BASE]);
         git(root, &["commit", "--quiet", "-m", "edit"]);
-        dx_generate::sync(root, dx_generate::Mode::Full, &mut dx_adopt::detected_families)
-            .expect("hook");
+        dx_generate::sync(
+            root,
+            dx_generate::Mode::Full,
+            &mut dx_adopt::detected_families,
+        )
+        .expect("hook");
         let want = vec![(Some(DRIFT_RULE.to_owned()), Some(BASE.to_owned()))];
         assert_eq!(rules(root, &[BASE.to_owned()]), want);
     }

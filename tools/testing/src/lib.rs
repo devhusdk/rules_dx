@@ -375,11 +375,16 @@ pub fn read_text(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
 }
 
-/// The vendored Bazel preset layers of the rules_dx checkout `rules`, joined in import order.
-pub fn preset_rc(rules: &Path) -> String {
-    ["correctness", "performance", "resources"]
-        .iter()
-        .map(|layer| read_text(&rules.join(format!("tools/bazelrc/{layer}.bazelrc"))))
+/// One preset layer as rules_dx renders it for its own tests, with warnings as errors.
+pub fn preset_layer(layer: dx_preset::Layer) -> String {
+    dx_preset::render_layer_with(layer, dx_preset::DEFAULT_REPO, Some(true))
+}
+
+/// The preset layers joined in import order.
+pub fn preset_rc() -> String {
+    dx_preset::Layer::ALL
+        .into_iter()
+        .map(preset_layer)
         .collect()
 }
 

@@ -12,12 +12,17 @@ const SCAN_ACTION: &str = ".github/actions/assert-no-secret/action.yml";
 const LOCAL_HELPER: &str = "tools/buildbuddy-credential-helper.sh";
 const HELPER_STEP: &str = "Configure the remote cache credential helper";
 const SCAN_STEP: &str = "Check the upload holds no secret";
-const RC_FILES: &[&str] = &[
-    ".bazelrc",
-    "tools/bazelrc/correctness.bazelrc",
-    "tools/bazelrc/performance.bazelrc",
-    "tools/bazelrc/resources.bazelrc",
-];
+
+fn rc_files() -> Vec<(String, String)> {
+    let mut files = vec![(".bazelrc".to_owned(), read_runfiles(".bazelrc"))];
+    for layer in dx_preset::Layer::ALL {
+        files.push((
+            format!(".dx/bazelrc/{}", layer.file_name()),
+            dx_preset::render_layer(layer, dx_preset::DEFAULT_REPO),
+        ));
+    }
+    files
+}
 
 fn action_files() -> Vec<String> {
     let list = std::env::var("DX_ACTIONS").expect("DX_ACTIONS is unset");
@@ -88,8 +93,7 @@ fn no_remote_header_carries_a_secret() {
 
 #[test]
 fn no_rc_file_announces_its_lines() {
-    for path in RC_FILES {
-        let text = read_runfiles(path);
+    for (path, text) in rc_files() {
         for (index, line) in text.lines().enumerate() {
             let line = line.trim();
             assert!(

@@ -7,10 +7,3 @@ edition = "2024"
 [lib]
 name = "dx_preset"
 path = "src/lib.rs"
-
-[[bin]]
-name = "preset_update"
-path = "src/bin_preset_update.rs"
-
-[dev-dependencies]
-tempfile = "3"

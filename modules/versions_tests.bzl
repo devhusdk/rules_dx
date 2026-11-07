@@ -111,9 +111,9 @@ def versions_contract_tests(name):
             "//:MODULE.bazel": [manifests_block] + source_archive_pins + [
                 "    sha256 = \"" + _CUDA_REDIST_SHA256 + "\",\n    urls = [\"" + _CUDA_REDIST_URL + "\"],",
             ],
-            "//tools/bazelrc:correctness.bazelrc": [
-                "build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n",
-                "build --tool_java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n",
+            "//tools/bazelrc:src/lib.rs": [
+                "\"build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\",",
+                "\"build --tool_java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\",",
             ],
         },
         file_checks = {

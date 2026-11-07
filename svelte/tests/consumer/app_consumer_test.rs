@@ -132,7 +132,7 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
     nested::seed_rules_dx_lock(&root, &rules);
     write(
         &root.join(".bazelrc"),
-        dx_testing::preset_rc(&rules)
+        dx_testing::preset_rc()
             .replace("@rules_dx//", "@acme_rules//")
             .as_bytes(),
     );

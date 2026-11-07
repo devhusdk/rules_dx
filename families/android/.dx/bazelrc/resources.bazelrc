@@ -1,5 +1,5 @@
 # Vendored Bazel execution preset -- GENERATED, do not edit.
-# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Regenerate: `tools/dx init --apply`.
 # Layer resources: memory, CPU and cache limits for the host.
 
 # Let the Bazel server return unused heap to the system sooner.

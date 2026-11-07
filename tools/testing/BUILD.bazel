@@ -46,6 +46,7 @@ rust_library(
     ) + [
         "//libs/binfmt:dx_binfmt",
         "//cli/path:dx_path",
+        "//tools/bazelrc:dx_preset",
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
     ],
@@ -92,6 +93,7 @@ rust_library(
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/bazelrc:dx_preset",
     ] + all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,

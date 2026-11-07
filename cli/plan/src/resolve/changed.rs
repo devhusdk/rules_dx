@@ -1565,18 +1565,18 @@ mod tests {
         write(
             &workspace,
             ".bazelrc",
-            "import %workspace%/tools/bazelrc/correctness.bazelrc\ntry-import %workspace%/user.bazelrc\n",
+            "import %workspace%/.dx/bazelrc/correctness.bazelrc\ntry-import %workspace%/user.bazelrc\n",
         );
-        write(&workspace, "tools/bazelrc/BUILD.bazel", "");
+        write(&workspace, ".dx/bazelrc/BUILD.bazel", "");
         write(
             &workspace,
-            "tools/bazelrc/correctness.bazelrc",
-            "import \"%workspace%/tools/bazelrc/nested.bazelrc\"\nimport %workspace%/.bazelrc\n",
+            ".dx/bazelrc/correctness.bazelrc",
+            "import \"%workspace%/.dx/bazelrc/nested.bazelrc\"\nimport %workspace%/.bazelrc\n",
         );
-        write(&workspace, "tools/bazelrc/nested.bazelrc", "build --x\n");
+        write(&workspace, ".dx/bazelrc/nested.bazelrc", "build --x\n");
         for changed in [
-            "tools/bazelrc/correctness.bazelrc",
-            "tools/bazelrc/nested.bazelrc",
+            ".dx/bazelrc/correctness.bazelrc",
+            ".dx/bazelrc/nested.bazelrc",
         ] {
             let selection = resolve_affected(
                 &[change(changed, dx_adopt::ChangeKind::Modified)],

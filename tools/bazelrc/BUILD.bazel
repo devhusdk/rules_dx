@@ -1,8 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_CLI_TEST")
-load(":preset_tests.bzl", "preset_update_tests")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -39,8 +38,6 @@ rustfmt_test(
     name = "dx_preset_fmt_test",
     targets = [
         ":dx_preset",
-        ":preset_update",
-        ":preset_update_bin_test",
     ],
 )
 
@@ -48,52 +45,25 @@ rust_clippy_test(
     name = "dx_preset_clippy_test",
     targets = [
         ":dx_preset",
-        ":preset_update",
     ],
 )
 
 exports_files(
     [
         "Cargo.toml",
-        "correctness.bazelrc",
-        "performance.bazelrc",
-        "src/bin_preset_update.rs",
         "src/lib.rs",
     ],
     visibility = VIS_TOOLS,
 )
 
-exports_files(
-    ["resources.bazelrc"],
-    visibility = VIS_TOOLS_CLI_TEST,
-)
-
-# The three generated preset layers, in the order the root .bazelrc imports them.
-filegroup(
-    name = "preset",
-    srcs = [
-        "correctness.bazelrc",
-        "performance.bazelrc",
-        "resources.bazelrc",
-    ],
-)
-
-preset_update_tests(name = "preset_update_test")
-
 test_suite(
     name = "all",
-    tests = [
-        ":preset_update_bin_test",
-        ":preset_update_test",
-    ],
+    tests = [":dx_preset_test"],
 )
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = [
-        "BUILD.bazel",
-        "preset_tests.bzl",
-    ],
+    starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
 
@@ -101,35 +71,4 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
-)
-
-rust_binary(
-    name = "preset_update",
-    srcs = ["src/bin_preset_update.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_preset",
-        normal = True,
-    ),
-    crate_name = "preset_update",
-    crate_root = "src/bin_preset_update.rs",
-    deps = all_crate_deps(
-        package_name = "tools/dx_preset",
-        normal = True,
-    ) + [":dx_preset"],
-)
-
-# keep
-rust_test(
-    name = "preset_update_bin_test",
-    aliases = aliases(
-        package_name = "tools/dx_preset",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":preset_update",
-    deps = all_crate_deps(
-        package_name = "tools/dx_preset",
-        normal = True,
-        normal_dev = True,
-    ) + [":dx_preset"],
 )

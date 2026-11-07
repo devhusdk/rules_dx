@@ -710,83 +710,34 @@ fn label_chars(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '/' | ':' | '_' | '.' | '-')
 }
 
-/// Returns the target names `text` names in `//package:`, sorted and deduplicated.
-fn package_labels(text: &str, package: &str) -> Vec<String> {
-    let needle = format!("//{package}:");
-    let mut found: Vec<String> = Vec::new();
-    let mut rest = text;
-    while let Some(start) = rest.find(&needle) {
-        let tail = &rest[start + needle.len()..];
-        let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
-        if end > 0 {
-            found.push(tail[..end].to_owned());
-        }
-        rest = &tail[end..];
-    }
-    found.sort();
-    found.dedup();
-    found
+/// The three preset layers as the generator renders them for rules_dx, in import order.
+fn preset_layers() -> Vec<(String, String)> {
+    dx_preset::Layer::ALL
+        .iter()
+        .map(|layer| {
+            let strict = (*layer == dx_preset::Layer::Correctness).then_some(true);
+            (
+                layer.file_name().to_owned(),
+                dx_preset::render_layer_with(*layer, "rules_dx", strict),
+            )
+        })
+        .collect()
 }
 
-const PRESET_LAYERS: [&str; 3] = [
-    "tools/bazelrc/correctness.bazelrc",
-    "tools/bazelrc/performance.bazelrc",
-    "tools/bazelrc/resources.bazelrc",
-];
+fn preset_text() -> String {
+    preset_layers().into_iter().map(|(_, text)| text).collect()
+}
 
-/// Returns the three vendored preset layers joined in import order.
-fn preset_layers() -> String {
-    PRESET_LAYERS.iter().map(|rel| read_runfiles(rel)).collect()
+fn preset_layer(layer: dx_preset::Layer) -> String {
+    dx_preset::render_layer_with(layer, "rules_dx", None)
 }
 
 #[test]
 fn preset_comments_are_bare() {
-    for rel in PRESET_LAYERS {
-        let text = read_runfiles(rel);
-        assert!(text.lines().any(is_comment), "{rel} has no comments");
-        assert_comments_bare(rel, &text);
+    for (name, text) in preset_layers() {
+        assert!(text.lines().any(is_comment), "{name} has no comments");
+        assert_comments_bare(&name, &text);
     }
-}
-
-/// Returns the label the vendored preset names as its regeneration command.
-fn preset_regeneration_label() -> String {
-    let fragment = read_runfiles("tools/bazelrc/correctness.bazelrc");
-    let line = fragment
-        .lines()
-        .find(|line| line.starts_with("# Regenerate:"))
-        .expect("the vendored preset names its regeneration command");
-    let start = line
-        .find("//")
-        .expect("the regeneration command names a target");
-    let tail = &line[start..];
-    let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
-    tail[..end].to_owned()
-}
-
-#[test]
-fn workflows_run_the_preset_target_the_vendored_fragment_names() {
-    let expected = preset_regeneration_label();
-    let target = expected
-        .rsplit_once(':')
-        .map(|(_, name)| name)
-        .expect("the regeneration command names a package and a target");
-    let build = read_runfiles("tools/bazelrc/BUILD.bazel");
-    assert!(
-        build.contains(&format!("\"{target}\"")),
-        "{expected} is the label the tools/bazelrc preset layers advertise but its BUILD file never \
-         declares"
-    );
-    let mut runs = 0;
-    for (workflow, text) in workflow_values() {
-        for label in package_labels(&text, "tools/bazelrc") {
-            assert_eq!(
-                label, target,
-                "{workflow} runs //tools/bazelrc:{label}; the vendored fragment advertises {expected}"
-            );
-            runs += 1;
-        }
-    }
-    assert!(runs > 0, "no workflow runs the preset regeneration target");
 }
 
 /// Returns every `--min-coverage` value on a line that names coverage.
@@ -922,7 +873,7 @@ fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool,
         return Ok(true);
     }
     Err(format!(
-        "no .bazelrc or tools/bazelrc preset layer line defines --config={config}"
+        "no .bazelrc or .dx/bazelrc preset layer line defines --config={config}"
     ))
 }
 
@@ -947,7 +898,7 @@ const REPO_ONLY_CONFIGS: &[&str] = &["rbe"];
 #[test]
 fn every_workflow_bazel_config_is_defined_and_documented() {
     let rc = read_runfiles(".bazelrc");
-    let preset = preset_layers();
+    let preset = preset_text();
     let page = read_runfiles("docs/github-ci.md");
     let mut passes = 0;
     for (workflow, text) in workflow_values() {
@@ -1038,7 +989,7 @@ fn remote_repo_contents_cache_comes_from_setup_bazel() {
         ".bazelrc repeats a flag the preset owns"
     );
     assert!(
-        read_runfiles("tools/bazelrc/performance.bazelrc")
+        preset_layer(dx_preset::Layer::Performance)
             .contains("common:ci --loading_phase_threads=32"),
         "the preset must let CI look up more repos at once"
     );
@@ -1051,7 +1002,7 @@ fn remote_repo_contents_cache_comes_from_setup_bazel() {
         "reusable-consumer.yml must turn on the remote repo contents cache"
     );
     assert!(
-        read_runfiles("tools/bazelrc/performance.bazelrc").contains("common:ci --jobs=64"),
+        preset_layer(dx_preset::Layer::Performance).contains("common:ci --jobs=64"),
         "the preset no longer sets common:ci --jobs=64"
     );
 }

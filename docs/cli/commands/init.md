@@ -372,4 +372,4 @@ Plain `bazel` skips layers that do not exist.
   echo 'build --jobs=8' >> user.bazelrc
   ```
 
-- In rules_dx itself the preset stays in `tools/bazelrc` and `dx init` does nothing.
+- rules_dx imports its own committed `.dx/bazelrc` like any other workspace.

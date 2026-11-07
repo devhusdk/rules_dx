@@ -9,8 +9,8 @@ use crate::Ownership;
 use crate::build_output::IGNORE_LINES;
 use crate::error::AdoptError;
 use crate::preset_fragment::{
-    CONSUMER_DIR, ImportState, Layer, REPO_DIR, bazelrc_imports, layer_import_state,
-    owned_collisions_in_content, prepend_imports, render_all,
+    CONSUMER_DIR, ImportState, Layer, layer_import_state, owned_collisions_in_content,
+    prepend_imports, render_all,
 };
 use crate::scaffold::{Applied, scaffold_dest_within_root, with_header};
 
@@ -23,8 +23,6 @@ pub const GITIGNORE: &str = ".gitignore";
 /// A workspace's preset: the root `.bazelrc` imports and the layer files.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PresetState {
-    /// False when the workspace keeps the preset in `tools/bazelrc` (rules_dx itself).
-    pub applicable: bool,
     /// The root `.bazelrc` text, empty when missing.
     pub rc_text: String,
     pub rc_exists: bool,
@@ -47,7 +45,7 @@ impl PresetState {
 
     /// Whether apply would add the import block.
     pub fn will_import(&self) -> bool {
-        self.applicable && self.unwired() && !self.rc_symlink && self.collisions.is_empty()
+        self.unwired() && !self.rc_symlink && self.collisions.is_empty()
     }
 
     /// Some layers are named in the `.bazelrc` and some are not.
@@ -62,9 +60,6 @@ impl PresetState {
     /// Advisories for what apply leaves alone.
     pub fn notes(&self) -> Vec<String> {
         let mut notes = Vec::new();
-        if !self.applicable {
-            return notes;
-        }
         if self.unwired() {
             if self.rc_symlink {
                 notes.push(format!(
@@ -159,15 +154,10 @@ pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
     let text = read_text(&rc_path, BAZELRC)?;
     let rc_exists = text.is_some();
     let rc_text = text.unwrap_or_default();
-    let repo_prefix = format!("{REPO_DIR}/");
-    let applicable = !bazelrc_imports(&rc_text)
-        .iter()
-        .any(|rel| rel.starts_with(&repo_prefix));
     let ignore_text = ignore_with_missing(read_text(&root.join(GITIGNORE), GITIGNORE)?);
     let repo = dx_module_bazel::rules_dx_repo(root);
     let layers = layer_import_state(&rc_text, CONSUMER_DIR);
     Ok(PresetState {
-        applicable,
         collisions: owned_collisions_in_content(&rc_text, &render_all(&repo)),
         rc_text,
         rc_exists,
@@ -263,9 +253,6 @@ pub fn write_preset(
     notes: &mut Vec<String>,
 ) -> Result<(), AdoptError> {
     let state = inspect_preset(root)?;
-    if !state.applicable {
-        return Ok(());
-    }
     notes.extend(state.notes());
     if state.will_import() {
         let pin = std::fs::read_to_string(root.join(".bazelversion")).unwrap_or_default();
@@ -305,9 +292,6 @@ pub fn preset_drift(root: &Path) -> PresetDrift {
             return drift;
         }
     };
-    if !state.applicable {
-        return drift;
-    }
     drift.other.extend(state.notes());
     if state.will_import() {
         if state.rc_exists {
@@ -437,18 +421,6 @@ mod tests {
         let drift = preset_drift(root);
         assert!(drift.other[0].contains("resources.bazelrc"), "{drift:?}");
         assert!(apply(root).0.is_empty());
-    }
-
-    #[test]
-    fn the_repo_layout_is_skipped() {
-        let repo = dx_test_scratch::scratch("dx-preset-repo-");
-        let imports: Vec<_> = Layer::ALL
-            .iter()
-            .map(|layer| dx_preset::import_line(REPO_DIR, *layer))
-            .collect();
-        std::fs::write(repo.path().join(".bazelrc"), imports.join("\n")).expect("rc");
-        assert!(!inspect_preset(repo.path()).expect("inspect").applicable);
-        assert!(apply(repo.path()).0.is_empty());
     }
 
     #[test]

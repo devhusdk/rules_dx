@@ -36,9 +36,3 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run --noshow_progress "$@" //quality/artifacts:update -- --verify-only
-      - name: Verify the bazelrc presets
-        run: |
-          set -euo pipefail
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run --noshow_progress "$@" //tools/bazelrc:preset_update -- --verify-only

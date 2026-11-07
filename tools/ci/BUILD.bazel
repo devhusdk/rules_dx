@@ -335,7 +335,6 @@ rust_test(
         "//.github:actions",
         "//.github:workflows",
         "//tools:buildbuddy-credential-helper.sh",
-        "//tools/bazelrc:preset",
     ],
     env = {
         "DX_ACTIONS": "$(rootpaths //.github:actions)",
@@ -343,6 +342,7 @@ rust_test(
     },
     deps = [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -570,8 +570,6 @@ rust_test(
         "//quality/testdata:vale_test.ini",
         "//quality/tools/dotnet/fsharplint:fsharplint.sh",
         "//quality/tools/jvm:scalafmt_default.conf",
-        "//tools/bazelrc:BUILD.bazel",
-        "//tools/bazelrc:preset",
         "//tools/platforms/no_winsdk:BUILD.bazel",
         "//tools/platforms/no_winsdk:REPO.bazel",
         "//tools/platforms/no_winsdk:toolchains.bzl",
@@ -579,6 +577,7 @@ rust_test(
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
         ":ci_workflow",
+        "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

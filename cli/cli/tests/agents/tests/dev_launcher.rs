@@ -354,11 +354,12 @@ mod sh {
 
     fn checkout(root: &Path) {
         std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
-        std::fs::create_dir_all(root.join("tools/bazelrc")).expect("bazelrc dir");
+        std::fs::create_dir_all(root.join(".dx/bazelrc")).expect("bazelrc dir");
+        std::fs::create_dir_all(root.join("tools")).expect("tools dir");
         std::fs::copy(launcher_path("DX_MODULE"), root.join("MODULE.bazel")).expect("module");
         std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
         std::fs::write(root.join("BUILD.bazel"), "").expect("root build file");
-        std::fs::write(root.join("tools/bazelrc/resources.bazelrc"), "").expect("preset");
+        std::fs::write(root.join(".dx/bazelrc/resources.bazelrc"), "").expect("preset");
         let launcher = root.join("tools/dx");
         std::fs::copy(launcher_path("DX_LAUNCHER_SH"), &launcher).expect("launcher");
         std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -1368,7 +1369,7 @@ mod sh {
     fn source_launcher_rebuilds_after_a_preset_layer_edit() {
         let repo = source_repo("dx-launcher-preset-");
         repo.run_ok();
-        touch_later(&repo.root().join("tools/bazelrc/resources.bazelrc"));
+        touch_later(&repo.root().join(".dx/bazelrc/resources.bazelrc"));
         repo.run_ok();
         assert_eq!(repo.builds(), 2);
     }
@@ -1487,14 +1488,15 @@ mod cmd {
 
     fn checkout(root: &Path) {
         std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
-        std::fs::create_dir_all(root.join("tools/bazelrc")).expect("bazelrc dir");
+        std::fs::create_dir_all(root.join(".dx/bazelrc")).expect("bazelrc dir");
+        std::fs::create_dir_all(root.join("tools")).expect("tools dir");
         std::fs::write(
             root.join("MODULE.bazel"),
             "module(\r\n    name = \"rules_dx\",\r\n)\r\n",
         )
         .expect("module");
         std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
-        std::fs::write(root.join("tools/bazelrc/resources.bazelrc"), "").expect("preset");
+        std::fs::write(root.join(".dx/bazelrc/resources.bazelrc"), "").expect("preset");
         let text = std::fs::read_to_string(launcher_path("DX_LAUNCHER_CMD")).expect("launcher");
         std::fs::write(
             root.join("tools/dx.cmd"),
@@ -1639,7 +1641,7 @@ mod cmd {
         assert_eq!(builds(), 1, "an unchanged tree runs dx without Bazel");
         let preset = std::fs::File::options()
             .write(true)
-            .open(root.join("tools/bazelrc/resources.bazelrc"))
+            .open(root.join(".dx/bazelrc/resources.bazelrc"))
             .expect("open preset");
         preset
             .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
@@ -1695,7 +1697,8 @@ mod cmd {
         let main = ob.join("execroot/_main");
         let bin = main.join("bazel-out/x64_windows-fastbuild/bin/cli");
         std::fs::create_dir_all(&bin).expect("bin");
-        std::fs::create_dir_all(main.join("tools/bazelrc")).expect("tools");
+        std::fs::create_dir_all(main.join(".dx/bazelrc")).expect("bazelrc");
+        std::fs::create_dir_all(main.join("tools")).expect("tools");
         std::fs::create_dir_all(main.join("cli/cli")).expect("cli");
         std::fs::copy(slot.join("MODULE.bazel"), main.join("MODULE.bazel")).expect("module");
         std::fs::copy(
@@ -1779,7 +1782,7 @@ mod cmd {
     fn touch_preset(root: &Path) {
         let preset = std::fs::File::options()
             .write(true)
-            .open(root.join("tools/bazelrc/resources.bazelrc"))
+            .open(root.join(".dx/bazelrc/resources.bazelrc"))
             .expect("open preset");
         preset
             .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
@@ -2270,7 +2273,7 @@ mod cmd {
         .expect("failing bazel stub");
         let preset = std::fs::File::options()
             .write(true)
-            .open(root.join("tools/bazelrc/resources.bazelrc"))
+            .open(root.join(".dx/bazelrc/resources.bazelrc"))
             .expect("open preset");
         preset
             .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
@@ -2366,7 +2369,7 @@ mod cmd {
         .expect("failing bazel stub");
         let preset = std::fs::File::options()
             .write(true)
-            .open(root.join("tools/bazelrc/resources.bazelrc"))
+            .open(root.join(".dx/bazelrc/resources.bazelrc"))
             .expect("open preset");
         preset
             .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))

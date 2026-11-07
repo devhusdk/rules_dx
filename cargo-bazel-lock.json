@@ -1,5 +1,5 @@
 {
-  "checksum": "ede07325f90b3d3660f4069f2d09e76209d232d995e5c7750d1ccbc2501f3d69",
+  "checksum": "ce5b7a49de94ec483524af6eb1ab82f60c2ff8ec5e0ee920bc4da59dbda9c992",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8300,12 +8300,6 @@
     },
     "dx_preset 0.0.0": {
       "common_attrs": {
-        "deps_dev": [
-          {
-            "id": "tempfile 3.27.0",
-            "target": "tempfile"
-          }
-        ],
         "edition": "2024"
       },
       "library_target_name": "dx_preset",

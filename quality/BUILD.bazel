@@ -897,7 +897,6 @@ rust_test(
         "//quality/runner:src/main.rs",
         "//quality/tools/javascript/launcher:src/lib.rs",
         "//quality/tools/javascript/launcher:src/main.rs",
-        "//tools/bazelrc:src/bin_preset_update.rs",
         "//tools/bazelrc:src/lib.rs",
         "//cli/depcheck:src/lib.rs",
         "//cli/depcheck:src/main.rs",
@@ -938,28 +937,6 @@ rust_test(
     ],
 )
 
-rust_test(
-    name = "preset_parity_test",
-    srcs = ["preset_parity_test.rs"],
-    data = [
-        "//tools/bazelrc:correctness.bazelrc",
-        "//tools/bazelrc:preset",
-        "//tools/bazelrc:src/lib.rs",
-    ],
-    env = {
-        "DX_PRESET_EXPECTED": "$(rootpath //tools/bazelrc:correctness.bazelrc)",
-        "DX_PRESET_RS": "$(rootpath //tools/bazelrc:src/lib.rs)",
-    },
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/process:dx_process",
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/bazelrc:dx_preset",
-        "//tools/testing:dx_testing",
-    ],
-)
-
 filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
@@ -977,7 +954,6 @@ rustfmt_test(
 rustfmt_test(
     name = "quality_linux_fmt_test",
     targets = [
-        ":preset_parity_test",
         ":preset_settings_test",
     ],
 )

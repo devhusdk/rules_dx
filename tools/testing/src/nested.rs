@@ -1755,11 +1755,11 @@ impl Case {
         case.write("MODULE.bazel", &consumer_module(&rules, extra_module));
         seed_rules_dx_lock(case.root(), &rules);
         let mut imports = String::new();
-        for layer in ["correctness", "performance", "resources"] {
-            let file = format!("{layer}.bazelrc");
+        for layer in dx_preset::Layer::ALL {
+            let file = layer.file_name();
             case.write(
                 format!(".dx/bazelrc/{file}"),
-                &dx_testing::read_text(&rules.join("tools/bazelrc").join(&file)),
+                &dx_testing::preset_layer(layer),
             );
             imports.push_str(&format!("try-import %workspace%/.dx/bazelrc/{file}\n"));
         }

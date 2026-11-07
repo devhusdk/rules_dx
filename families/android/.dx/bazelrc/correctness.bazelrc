@@ -1,5 +1,5 @@
 # Vendored Bazel execution preset -- GENERATED, do not edit.
-# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Regenerate: `tools/dx init --apply`.
 # Layer correctness: flags that change what a build or test produces.
 
 # Print the full command line of a failed action.

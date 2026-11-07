@@ -766,6 +766,7 @@ real_source_target(
         "family_hooks.bzl",
         "fixtures.bzl",
         "fixtures_tests.bzl",
+        "erlc.bzl",
         "fsc.bzl",
         "native_config.bzl",
         "native_config_tests.bzl",

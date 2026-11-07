@@ -1012,6 +1012,28 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "erlc",
+        adapters = {"typecheck": ["erlang"]},
+        concerns = {"typecheck": "unused_code"},
+        severity = severity(default = "warning"),
+        support = [
+            row(
+                capability = "typecheck",
+                classes = ["erlang"],
+                context = "target_coupled",
+                family = "erlang",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                state = "supported",
+                transport = "batched",
+                unsupported = {
+                    "windows_arm64": "No OTP Windows cell is pinned",
+                    "windows_x86_64": "No OTP Windows cell is pinned",
+                },
+            ),
+        ],
+    ),
+    tool(
         id = "erlfmt",
         adapters = {"format": ["erlang"]},
         config = config(kind = "none", tier_active = True),

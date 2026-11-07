@@ -88,6 +88,7 @@ _HOOK_ORDER = [
     "roslyn",
     "csc",
     "fsc",
+    "erlc",
     "clang_syntax",
     "clang_tidy",
     "nvcc_syntax",

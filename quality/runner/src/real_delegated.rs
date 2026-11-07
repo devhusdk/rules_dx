@@ -1747,6 +1747,39 @@ fn delegated_fsc_merges_frameworks_and_fails_on_a_silent_failure() {
     );
 }
 
+const ERLC_SOURCE: &str = "-module(a).\n\n\n\n    f(X) -> ok.\n";
+const ERLC_LOG: &str = "src/a.erl:5:9: Warning: variable 'X' is unused\n";
+
+#[test]
+fn delegated_erlc_reports_warnings_reanchored_to_the_staged_source() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("beam_files.log");
+    std::fs::write(&log, ERLC_LOG).expect("write erlc log");
+    let mut tool = delegated_tool(log);
+    tool.tool_files.clear();
+    tool.tool_files
+        .push(("dx-erlc/beam_files/exit".to_owned(), b"0".to_vec()));
+    let findings = backend_for("erlc", tool, must_not_spawn)
+        .diagnose("erlc", "typecheck", &single("src/a.erl", ERLC_SOURCE))
+        .expect("compiler findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].message, "variable 'X' is unused");
+    assert!(findings[0].path.ends_with("src/a.erl"), "{:?}", findings[0]);
+}
+
+#[test]
+fn delegated_erlc_requires_the_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("beam_files.log");
+    std::fs::write(&log, ERLC_LOG).expect("write erlc log");
+    let mut tool = delegated_tool(log);
+    tool.tool_files.clear();
+    let error = backend_for("erlc", tool, must_not_spawn)
+        .diagnose("erlc", "typecheck", &single("src/a.erl", ERLC_SOURCE))
+        .expect_err("missing exit");
+    assert!(error.to_string().contains("erlc exit status"), "{error}");
+}
+
 fn clang_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
     clang_syntax_driver_tool(log, exit, Some("gnu"))
 }

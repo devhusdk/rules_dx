@@ -1,6 +1,7 @@
 """Erlang and Elixir real quality aspects."""
 
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
+load("//quality:erlc.bzl", "ErlcInfo", "erlc_aspect")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
@@ -23,6 +24,11 @@ TOOLS = {
         "attr": attr.label(default = "//config:tool_elvis", allow_files = True, cfg = "exec"),
         "fallback": "=@rules_dx//erlang/tools:elvis",
         "kind": "setting",
+        "resources": "medium",
+        "shard": "erlang",
+    },
+    "erlc": {
+        "kind": "upstream",
         "resources": "medium",
         "shard": "erlang",
     },
@@ -57,7 +63,8 @@ SHARD_SPECS = {
     },
     "real_erlang_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive Erlang typecheck family aspect (dialyzer).",
+        "doc": "Additive Erlang typecheck family aspect (dialyzer and erlc warnings).",
+        "requires": [erlc_aspect],
         "shard": "erlang",
         "suffix": "-erlang",
     },
@@ -113,9 +120,20 @@ def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
     _stage_beams(target, "dx-dialyzer", tool_files, inputs)
     return real_context(tool_files = tool_files, inputs = inputs)
 
-HOOK_ORDER = ["dialyzer"]
+def _erlc_hook(target, _ctx, resolved, _capability, _what, _shared):
+    if ErlcInfo not in target:
+        return without(resolved, "erlc")
+    info = target[ErlcInfo]
+    tool_files = []
+    inputs = []
+    for i in range(len(info.names)):
+        inputs.append(info.logs[i])
+        stage(tool_files, inputs, "dx-erlc/" + info.names[i] + "/exit", info.statuses[i])
+    return real_context(upstream = info.logs, late_tool_files = tool_files, late_inputs = inputs)
 
-HOOKS = {"dialyzer": _dialyzer_hook}
+HOOK_ORDER = ["dialyzer", "erlc"]
+
+HOOKS = {"dialyzer": _dialyzer_hook, "erlc": _erlc_hook}
 
 _CFG = real_config(
     tools = TOOLS,

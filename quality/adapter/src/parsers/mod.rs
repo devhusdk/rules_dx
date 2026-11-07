@@ -26,6 +26,7 @@ pub mod detekt;
 pub mod dialyzer;
 pub mod djlint;
 pub mod elvis;
+pub mod erlc;
 pub mod erlfmt;
 pub mod eslint;
 pub mod fantomas;
@@ -156,6 +157,7 @@ pub use detekt::parse_detekt;
 pub use dialyzer::parse_dialyzer;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use elvis::parse_elvis;
+pub use erlc::parse_erlc;
 pub use erlfmt::parse_erlfmt;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
@@ -2281,6 +2283,14 @@ mod tests {
         super::ghc::parse_ghc(input, code, files)
     }
 
+    fn fuzz_erlc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::erlc::parse_erlc(input, code, files)
+    }
+
     fn fuzz_ldc(
         input: &[u8],
         code: Option<i32>,
@@ -2939,6 +2949,7 @@ mod tests {
         ("flang", fuzz_flang),
         ("ghc", fuzz_ghc),
         ("ldc", fuzz_ldc),
+        ("erlc", fuzz_erlc),
         ("elvis", fuzz_elvis),
         ("erlfmt", fuzz_erlfmt),
         ("go_analysis", fuzz_go_analysis),
@@ -3081,6 +3092,7 @@ mod tests {
         ("flang", include_str!("flang.rs")),
         ("ghc", include_str!("ghc.rs")),
         ("ldc", include_str!("ldc.rs")),
+        ("erlc", include_str!("erlc.rs")),
         ("elvis", include_str!("elvis.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("go_analysis", include_str!("go_analysis.rs")),

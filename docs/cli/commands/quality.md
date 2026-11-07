@@ -253,6 +253,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `dialyzer` | Typecheck Erlang and Elixir | `windows_x86_64`, `windows_arm64` |
 | `erlfmt` | Format Erlang | `windows_x86_64`, `windows_arm64` |
 | `elvis` | Lint Erlang | `windows_x86_64`, `windows_arm64` |
+| `erlc` | Typecheck Erlang | `windows_x86_64`, `windows_arm64` |
 | `ormolu` | Format Haskell | `linux_arm64`, `macos_arm64` |
 | `hlint` | Lint Haskell | `linux_arm64`, `macos_arm64` |
 | `ghc` | Typecheck Haskell | |

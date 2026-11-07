@@ -244,6 +244,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "erlc",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
         "errcheck",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),

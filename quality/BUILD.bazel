@@ -163,6 +163,17 @@ policy_subject(
     policy = ":fixture_generated_policy",
 )
 
+dx_generated_policy(
+    name = "fixture_strict_generated_policy",
+    families = {"python": {"lint": ["lint-a"]}},
+    profile = "strict",
+)
+
+policy_subject(
+    name = "strict_generated_policy_under_test",
+    policy = ":fixture_strict_generated_policy",
+)
+
 policy_unit_tests(name = "policy_unit")
 
 policy_profile_analysis_tests(name = "policy_profile_analysis")

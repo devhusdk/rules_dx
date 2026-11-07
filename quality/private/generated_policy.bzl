@@ -1,6 +1,6 @@
 """The policy macro generated .dx/config/BUILD.bazel files call."""
 
-load("//quality:native_config.bzl", "tier_active_dirs")
+load("//quality:native_config.bzl", "tier_base_dirs")
 load("//quality:policy.bzl", "CAPABILITIES", "quality_family", "workspace_policy")
 
 _PROFILES = ["standard", "strict"]
@@ -43,11 +43,11 @@ def dx_generated_policy(name, profile, families = None, configs = [], bases = {}
         fail("dx_generated_policy (%s): profile must be one of %s, got %r" % (name, ", ".join(_PROFILES), profile))
     tier_bases = {
         tool: str(Label("//quality/tiers/%s:%s" % (tier_dir, profile)))
-        for tool, tier_dir in tier_active_dirs().items()
+        for tool, tier_dir in tier_base_dirs().items()
     }
     for tool, label in bases.items():
         if tool not in tier_bases:
-            fail("dx_generated_policy (%s): bases names tool '%s', which is not tier-active" % (name, tool))
+            fail("dx_generated_policy (%s): bases names tool '%s', which has no tier base" % (name, tool))
         tier_bases[tool] = label
 
     extends = None

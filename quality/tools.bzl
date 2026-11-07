@@ -20,6 +20,7 @@ def config(
         extras = [],
         kind = "file",
         tier_active = False,
+        tier_base = None,
         stage_native = False,
         tier_source = "dx",
         family = "",
@@ -41,7 +42,9 @@ def config(
       extras: extra files that belong with the config.
       kind: `file` for a native config, `flags` for a tier the generator renders as internal
         flags (clippy), or `none`.
-      tier_active: whether the tier base is bound for the tool.
+      tier_active: whether the tool has a tier.
+      tier_base: whether dx_generated_policy binds the tier base; defaults to a `file` tool with a tier,
+        and must be False for a tier tool without `standard` and `strict` targets.
       stage_native: whether the engine stages the bound file under files[0].
       tier_source: upstream tier name or `dx`.
       family: family whose files mean the tool applies.
@@ -51,6 +54,10 @@ def config(
     Returns:
       The config struct.
     """
+    if tier_base == None:
+        tier_base = tier_active and kind == "file"
+    if tier_base and (kind != "file" or not tier_active):
+        fail("config: tier_base needs a tier_active tool of kind file")
     return struct(
         comment = comment,
         ext = ext,
@@ -66,6 +73,7 @@ def config(
         stage_native = stage_native,
         suffixes = suffixes,
         tier_active = tier_active,
+        tier_base = tier_base,
         tier_dir = tier_dir,
         tier_source = tier_source,
     )
@@ -255,7 +263,7 @@ TOOLS = [
             "format": ["bicep"],
             "lint": ["bicep"],
         },
-        config = config(suffixes = ["bicepconfig.json"], files = ["bicepconfig.json"], tier_active = True, stage_native = True),
+        config = config(suffixes = ["bicepconfig.json"], files = ["bicepconfig.json"], tier_active = True, tier_base = False, stage_native = True),
         support = [
             row(
                 capability = "format",
@@ -798,7 +806,7 @@ TOOLS = [
     tool(
         id = "csharpier",
         adapters = {"format": ["csharp"]},
-        config = config(suffixes = [".yaml"], tier_active = True),
+        config = config(suffixes = [".yaml"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "format",
@@ -901,7 +909,7 @@ TOOLS = [
     tool(
         id = "deadnix",
         adapters = {"lint": ["nix"]},
-        config = config(suffixes = [".txt"], tier_active = True),
+        config = config(suffixes = [".txt"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "lint",
@@ -970,7 +978,7 @@ TOOLS = [
             "format": ["html_template"],
             "lint": ["html_template"],
         },
-        config = config(suffixes = ["djlint.toml", ".djlintrc"], tier_active = True),
+        config = config(suffixes = ["djlint.toml", ".djlintrc"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "format",
@@ -1040,7 +1048,7 @@ TOOLS = [
     tool(
         id = "errcheck",
         adapters = {"lint": ["go"]},
-        config = config(suffixes = [".txt"], tier_active = True),
+        config = config(suffixes = [".txt"], tier_active = True, tier_base = False),
         severity = severity(default = "warning"),
         support = [
             row(
@@ -1337,7 +1345,7 @@ TOOLS = [
     tool(
         id = "govet",
         adapters = {"lint": ["go"]},
-        config = config(suffixes = [".json"], tier_active = True),
+        config = config(suffixes = [".json"], tier_active = True, tier_base = False),
         severity = severity(default = "warning"),
         support = [
             row(
@@ -1524,7 +1532,7 @@ TOOLS = [
     tool(
         id = "julialint",
         adapters = {"lint": ["julia"]},
-        config = config(suffixes = [".toml"], tier_active = True),
+        config = config(suffixes = [".toml"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "lint",
@@ -1594,7 +1602,7 @@ TOOLS = [
     tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
-        config = config(suffixes = [".kubeconform.json"], files = ["kubernetes.kubeconform.json"], tier_active = True, stage_native = True),
+        config = config(suffixes = [".kubeconform.json"], files = ["kubernetes.kubeconform.json"], tier_active = True, tier_base = False, stage_native = True),
         severity = severity(default = "error"),
         support = [
             row(
@@ -1612,7 +1620,7 @@ TOOLS = [
     tool(
         id = "latexindent",
         adapters = {"format": ["latex"]},
-        config = config(suffixes = [".yaml", ".yml"], tier_active = True),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "format",
@@ -2020,7 +2028,7 @@ TOOLS = [
         adapters = {
             "format": ["api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "json5", "less", "php", "scss", "svelte", "vue", "xml"],
         },
-        config = config(suffixes = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"], tier_active = True),
+        config = config(suffixes = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "format",
@@ -2123,7 +2131,7 @@ TOOLS = [
     tool(
         id = "pydoclint",
         adapters = {"lint": ["python", "python_stub"]},
-        config = config(suffixes = [".toml"], ext = "toml", comment = "#", tier_active = True),
+        config = config(suffixes = [".toml"], ext = "toml", comment = "#", tier_active = True, tier_base = False),
         severity = severity(default = "warning"),
         support = [
             row(
@@ -2235,7 +2243,7 @@ TOOLS = [
     tool(
         id = "remark",
         adapters = {"format": ["mdx"]},
-        config = config(suffixes = [".json"], tier_active = True),
+        config = config(suffixes = [".json"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "format",
@@ -2452,7 +2460,7 @@ TOOLS = [
     tool(
         id = "scalafmt",
         adapters = {"format": ["scala"]},
-        config = config(suffixes = [".conf"], tier_active = True),
+        config = config(suffixes = [".conf"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "format",
@@ -2540,7 +2548,7 @@ TOOLS = [
     tool(
         id = "spotbugs",
         adapters = {"lint": ["java"]},
-        config = config(suffixes = [".xml"], tier_active = True),
+        config = config(suffixes = [".xml"], tier_active = True, tier_base = False),
         severity = severity(
             default = "warning",
             categories = {
@@ -2944,6 +2952,7 @@ TOOLS = [
             init_order = 3,
             family = "js",
             tier_active = True,
+            tier_base = False,
         ),
         severity = severity(default = "error"),
     ),
@@ -2980,6 +2989,7 @@ TOOLS = [
             files = ["typos.toml"],
             ext = "toml",
             tier_active = True,
+            tier_base = False,
         ),
         support = [
             row(
@@ -3168,7 +3178,7 @@ TOOLS = [
     tool(
         id = "zanuda",
         adapters = {"lint": ["ocaml"]},
-        config = config(suffixes = [".txt"], tier_active = True),
+        config = config(suffixes = [".txt"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "lint",

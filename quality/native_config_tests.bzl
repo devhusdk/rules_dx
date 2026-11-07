@@ -13,6 +13,7 @@ load(
     "native_config_extension",
     "native_config_extensions",
     "native_config_scratch_rel",
+    "tier_base_dirs",
 )
 
 _HINTS = [
@@ -49,6 +50,14 @@ def native_config_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "tier_base_dirs binds file tools with tier targets only",
+                [
+                    [tool in tier_base_dirs() for tool in ["actionlint", "clippy", "prettier", "kubeconform", "bicep", "ruff"]],
+                    len(tier_base_dirs()),
+                ],
+                [[False, False, False, False, False, True], 57],
+            ),
             expect_equal(
                 "native_config_scratch_rel keeps in-repo paths and remaps external ones",
                 [
@@ -232,7 +241,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
-                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, deadnix, detekt, djlint, elvis, errcheck, eslint, ffmt, fortitude, fsharplint, gersemi, govet, gplint, graphql_eslint, hadolint, hlint, julialint, kubeconform, latexindent, luals, markdown_check, mbake, perlcritic, phpcs, phpstan, pmd, prettier, psscriptanalyzer, pydoclint, qmlformat, qmllint, redocly, regal, remark, roslyn, rubocop, ruff, rustfmt, scalafix, scalafmt, selene, shellcheck, sqlfluff, staticcheck, stylelint, stylua, swift_format, swift_lint, taplo, tflint, trivy_config, ty, vale, yamlfmt, yamllint, zanuda, zizmor",
+                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, deadnix, detekt, djlint, elvis, errcheck, eslint, ffmt, fortitude, fsharplint, gersemi, govet, gplint, graphql_eslint, hadolint, hlint, julialint, kubeconform, latexindent, luals, markdown_check, mbake, perlcritic, phpcs, phpstan, pmd, prettier, psscriptanalyzer, pydoclint, qmlformat, qmllint, redocly, regal, remark, roslyn, rubocop, ruff, rustfmt, scalafix, scalafmt, selene, shellcheck, spotbugs, sqlfluff, staticcheck, stylelint, stylua, swift_format, swift_lint, taplo, tflint, trivy_config, ty, vale, yamlfmt, yamllint, zanuda, zizmor",
             ),
             expect_equal(
                 "native_config_error requires a config",

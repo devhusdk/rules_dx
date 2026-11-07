@@ -72,11 +72,11 @@ def _native_config_suffix_error(tool_id, config_path, wants):
 
 _STAGED_CONFIG_FILES = {tool.id: tool.config.files[0] for tool in TOOLS if tool.config.stage_native and tool.config.files}
 
-_TIER_ACTIVE_DIRS = {tool.id: tool.config.tier_dir or tool.id for tool in TOOLS if tool.config.tier_active}
+_TIER_BASE_DIRS = {tool.id: tool.config.tier_dir or tool.id for tool in TOOLS if tool.config.tier_base}
 
-def tier_active_dirs():
-    """Returns tool ID to its directory under quality/tiers for every tier-active tool."""
-    return _TIER_ACTIVE_DIRS
+def tier_base_dirs():
+    """Returns tool ID to its directory under quality/tiers for every tool whose tier base is bound."""
+    return _TIER_BASE_DIRS
 
 def staged_config_rel(tool_id, config_rel):
     """Returns where a bound config is staged: files[0] next to it for stage_native tools, else unchanged."""

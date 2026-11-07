@@ -22,7 +22,7 @@ const PUBLIC_RUST_CRATES: [&str; 12] = [
     "dx_site_build",
     "dx_site_check",
     "dx_docs_typescript_extract",
-    "wasi_run",
+    "dx_docs_component_extract",
 ];
 
 struct Run {

@@ -5,6 +5,13 @@ LLVM_CLANG_VERSION = "23.1.2"
 
 GCC_VERSION = "16.2.0"
 
+# The MSVC toolset, Windows SDK and redist versions that llvm's pinned payloads unpack to.
+MSVC_TOOLSET_VERSION = "14.50.35717"
+
+WINDOWS_SDK_INCLUDE_VERSION = "10.0.26100.0"
+
+VC_REDIST_VERSION = "14.50.35710"
+
 # The cl.exe build in the MSVC 14.50.35717 toolset, as the Rich header of its output records it.
 MSVC_CL_BUILD = "35728"
 

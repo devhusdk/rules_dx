@@ -1,13 +1,16 @@
 """Tests for the MSVC layout and the toolchain macro."""
 
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//cc/toolchains:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":layout.bzl", "msvc_layout")
 load(":subject.bzl", "msvc_toolchain_subject")
 load(":toolchains.bzl", "msvc_toolchain_cells")
 
 _ROOT = "cc\\tests\\fixtures\\msvc_layout\\"
-_VC = "VC\\Tools\\MSVC\\14.44.35207\\"
-_SDK = "Windows Kits\\10\\"
+_VC = "sysroot\\Contents\\VC\\Tools\\MSVC\\14.44.35207\\"
+_SDK = "sysroot\\base\\c\\"
 
 def _expected(label, cpu, target_system, machine, tool_dir, bin_dirs, lib_arch):
     """Returns the observations for a toolchain subject.
@@ -25,8 +28,8 @@ def _expected(label, cpu, target_system, machine, tool_dir, bin_dirs, lib_arch):
         The expected observation text.
     """
     sdk_include = _ROOT + _SDK + "Include\\10.0.26100.0\\"
-    sdk_lib = _ROOT + _SDK + "Lib\\10.0.26100.0\\"
-    tool = "cc/tests/fixtures/msvc_layout/VC/Tools/MSVC/14.44.35207/bin/" + tool_dir
+    sdk_lib = _ROOT + "sysroot\\{}\\c\\".format(lib_arch)
+    tool = "cc/tests/fixtures/msvc_layout/sysroot/Contents/VC/Tools/MSVC/14.44.35207/bin/" + tool_dir
     return "\n".join([
         "subject //cc/toolchains/msvc:" + label,
         "field cc.compiler=msvc-cl",
@@ -84,7 +87,9 @@ def msvc_toolchain_tests(name):
         name: Prefix of the declared tests.
     """
     layout = msvc_layout("14.44.35207", "10.0.26100.0")
-    bin_dir = "VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64"
+    vc = "sysroot/Contents/VC/Tools/MSVC/14.44.35207/"
+    sdk = "sysroot/base/c/"
+    bin_dir = vc + "bin/Hostx64/x64"
     starlark_test(
         name = name + "_layout",
         mode = "load",
@@ -94,33 +99,39 @@ def msvc_toolchain_tests(name):
             expect_equal("lib", layout.lib, bin_dir + "/lib.exe"),
             expect_equal("ml", layout.ml, bin_dir + "/ml64.exe"),
             expect_equal("include dirs", layout.include_dirs, [
-                "VC/Tools/MSVC/14.44.35207/include",
-                "Windows Kits/10/Include/10.0.26100.0/ucrt",
-                "Windows Kits/10/Include/10.0.26100.0/shared",
-                "Windows Kits/10/Include/10.0.26100.0/um",
-                "Windows Kits/10/Include/10.0.26100.0/winrt",
+                vc + "include",
+                sdk + "Include/10.0.26100.0/ucrt",
+                sdk + "Include/10.0.26100.0/shared",
+                sdk + "Include/10.0.26100.0/um",
+                sdk + "Include/10.0.26100.0/winrt",
             ]),
             expect_equal("lib dirs", layout.lib_dirs, [
-                "VC/Tools/MSVC/14.44.35207/lib/x64",
-                "Windows Kits/10/Lib/10.0.26100.0/ucrt/x64",
-                "Windows Kits/10/Lib/10.0.26100.0/um/x64",
+                vc + "lib/x64",
+                "sysroot/x64/c/ucrt/x64",
+                "sysroot/x64/c/um/x64",
             ]),
-            expect_equal("bin dirs", layout.bin_dirs, [bin_dir, "Windows Kits/10/bin/10.0.26100.0/x64"]),
+            expect_equal("bin dirs", layout.bin_dirs, [bin_dir, sdk + "bin/10.0.26100.0/x64"]),
+            expect_equal(
+                "repository roots",
+                msvc_layout("14.44.35207", "10.0.26100.0", vc_root = "external/vc/", sdk_root = "external/sdk/").lib_dirs,
+                ["external/vc/" + vc + "lib/x64", "external/sdk/sysroot/x64/c/ucrt/x64", "external/sdk/sysroot/x64/c/um/x64"],
+            ),
         ],
     )
     cross = msvc_layout("14.44.35207", "10.0.26100.0", "x64", "arm64")
     native = msvc_layout("14.44.35207", "10.0.26100.0", "arm64", "arm64")
-    vc = "VC/Tools/MSVC/14.44.35207/bin/"
+    vc = "sysroot/Contents/VC/Tools/MSVC/14.44.35207/bin/"
+    sdk_bin = "sysroot/base/c/bin/10.0.26100.0/"
     starlark_test(
         name = name + "_layout_arm64",
         mode = "load",
         checks = [
             expect_equal("cross cl", cross.cl, vc + "Hostx64/arm64/cl.exe"),
             expect_equal("cross ml", cross.ml, None),
-            expect_equal("cross lib dirs", cross.lib_dirs[0], "VC/Tools/MSVC/14.44.35207/lib/arm64"),
-            expect_equal("cross bin dirs", cross.bin_dirs, [vc + "Hostx64/arm64", vc + "Hostx64/x64", "Windows Kits/10/bin/10.0.26100.0/x64"]),
+            expect_equal("cross lib dirs", cross.lib_dirs[0], "sysroot/Contents/VC/Tools/MSVC/14.44.35207/lib/arm64"),
+            expect_equal("cross bin dirs", cross.bin_dirs, [vc + "Hostx64/arm64", vc + "Hostx64/x64", sdk_bin + "x64"]),
             expect_equal("native cl", native.cl, vc + "Hostarm64/arm64/cl.exe"),
-            expect_equal("native bin dirs", native.bin_dirs, [vc + "Hostarm64/arm64", "Windows Kits/10/bin/10.0.26100.0/arm64"]),
+            expect_equal("native bin dirs", native.bin_dirs, [vc + "Hostarm64/arm64", sdk_bin + "arm64"]),
         ],
     )
     x64 = "@platforms//cpu:x86_64"
@@ -148,3 +159,49 @@ def msvc_toolchain_tests(name):
             subjects = [":" + subject],
             expected_observations = cell.expected,
         )
+
+def _versions_file(kind, values):
+    return ['"""Resolved {} version information.'.format(kind), "", "Generated by windows_support; do not edit.", '"""', ""] + ["{} = {}".format(k, json.encode(v)) for k, v in values] + [""]
+
+def msvc_version_tests(name):
+    """Declares Windows tests that the pinned versions match the fetched msvc_runtime and windows_sdk.
+
+    Args:
+        name: Prefix of the declared tests.
+    """
+    windows = ["@platforms//os:windows"]
+    write_file(
+        name = name + "_msvc_runtime_expected",
+        out = name + "_msvc_runtime_versions.bzl",
+        content = _versions_file("MSVC runtime", [
+            ("MSVC_TOOLSET_VERSION", MSVC_TOOLSET_VERSION),
+            ("MSVC_COMPATIBILITY_VERSION", "19." + MSVC_TOOLSET_VERSION.removeprefix("14.")),
+            ("VC_REDIST_VERSION", VC_REDIST_VERSION),
+        ]),
+        newline = "unix",
+        target_compatible_with = windows,
+    )
+    diff_test(
+        name = name + "_msvc_runtime",
+        size = "small",
+        file1 = ":" + name + "_msvc_runtime_expected",
+        file2 = "@msvc_runtime//:versions.bzl",
+        target_compatible_with = windows,
+    )
+    write_file(
+        name = name + "_windows_sdk_expected",
+        out = name + "_windows_sdk_versions.bzl",
+        content = _versions_file("Windows SDK", [
+            ("WINDOWS_SDK_VERSION", "10.0.26100.7705"),
+            ("WINDOWS_SDK_INCLUDE_VERSION", WINDOWS_SDK_INCLUDE_VERSION),
+        ]),
+        newline = "unix",
+        target_compatible_with = windows,
+    )
+    diff_test(
+        name = name + "_windows_sdk",
+        size = "small",
+        file1 = ":" + name + "_windows_sdk_expected",
+        file2 = "@windows_sdk//:versions.bzl",
+        target_compatible_with = windows,
+    )

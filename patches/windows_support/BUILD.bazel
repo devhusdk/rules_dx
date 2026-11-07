@@ -1,6 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "dx_msvc_layout.patch",
     "host_tools.patch",
     "hostarm64_packages.patch",
     "rules_dx_hosts.patch",

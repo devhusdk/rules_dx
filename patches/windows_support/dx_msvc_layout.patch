@@ -1,0 +1,48 @@
+diff --git a/windows/private/extensions/msvc_runtime.BUILD.bazel b/windows/private/extensions/msvc_runtime.BUILD.bazel
+--- a/windows/private/extensions/msvc_runtime.BUILD.bazel
++++ b/windows/private/extensions/msvc_runtime.BUILD.bazel
+@@ -174,3 +174,28 @@
+         allow_empty = True,
+     ),
+ )
++
++filegroup(
++    name = "msvc_host_tools",
++    srcs = glob(
++        [
++            "__MSVC_RUNTIME_DIR__/Contents/VC/Tools/MSVC/__MSVC_VERSION__/bin/**",
++            "__MSVC_RUNTIME_DIR__/Contents/VC/Auxiliary/Build/*.bat",
++        ],
++        allow_empty = True,
++    ),
++)
++
++[
++    filegroup(
++        name = "vc_runtime_dlls_" + arch,
++        srcs = glob(
++            [
++                "__MSVC_RUNTIME_DIR__/Contents/VC/Redist/MSVC/__VC_REDIST_VERSION__/{}/*/{}.dll".format(arch, dll)
++                for dll in ["vcruntime140", "vcruntime140_1", "msvcp140", "msvcp140_1", "msvcp140_2"]
++            ],
++            allow_empty = True,
++        ),
++    )
++    for arch in ("x64", "arm64")
++]
+diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
+--- a/windows/private/extensions/msvc_runtime.bzl
++++ b/windows/private/extensions/msvc_runtime.bzl
+@@ -389,6 +389,12 @@
+     if redist_architectures and not redist_version:
+         fail("failed to find Contents/VC/Redist/MSVC/<version> in extracted MSVC payloads for architectures {}".format(redist_architectures))
+     _keep_exposed_runtime_files(repository_ctx, sysroot_dir, msvc_version, architectures, redist_version, repository_ctx.attr.host_tools)
++    if repository_ctx.attr.host_tools:
++        for stub in ["vcvarsall.bat", "vcvars64.bat"]:
++            repository_ctx.file(
++                "{}/Contents/VC/Auxiliary/Build/{}".format(sysroot_dir, stub),
++                "@rem Placeholder for tools that probe for vcvars; the environment comes from the toolchain.\n",
++            )
+ 
+     repository_ctx.file(
+         "versions.bzl",

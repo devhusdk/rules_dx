@@ -320,6 +320,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "hostarm64_packages.patch",
                 content: include_str!("../../../patches/windows_support/hostarm64_packages.patch"),
             },
+            OverridePatch {
+                file: "dx_msvc_layout.patch",
+                content: include_str!("../../../patches/windows_support/dx_msvc_layout.patch"),
+            },
         ],
     },
 ];

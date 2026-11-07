@@ -1,5 +1,6 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
+load("//cc/toolchains:pins.bzl", "VC_REDIST_VERSION")
 load("//libs/starlark:repo.bzl", "hub_repo")
 load("//libs/starlark:seven_zip.bzl", "seven_zip_fetch", "seven_zip_host")
 load(
@@ -822,7 +823,7 @@ def _acquire_runtime(ctx, extractor, cells):
 
 def _place_vcruntime(ctx):
     arch = "arm64" if "arm64" in ctx.attr.cell else "x64"
-    redist = ctx.path(Label("@dx_msvc//:BUILD.bazel")).dirname.get_child("redist").get_child(arch)
+    redist = ctx.path(Label("@msvc_runtime//:BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/{}".format(VC_REDIST_VERSION, arch))
     if not redist.exists:
         return
     for directory in redist.readdir():

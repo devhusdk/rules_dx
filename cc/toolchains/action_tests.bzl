@@ -88,22 +88,28 @@ def cc_action_tests(name, compile_target, link_target):
     native.test_suite(name = name, tests = tests, testonly = True)
 
 _MSVC_TOOLS = {"CppCompile": "cl.exe", "CppLink": "link.exe", "CppArchive": "lib.exe"}
+_MSVC_REPO = Label("@msvc_runtime//:BUILD.bazel").repo_name
+_SDK_REPO = Label("@windows_sdk//:BUILD.bazel").repo_name
+
+def _pinned(path):
+    return "external/{}/".format(_MSVC_REPO) in path or "external/{}/".format(_SDK_REPO) in path
 
 def _check_msvc(env, mnemonics, bin_dir, lib_suffix):
     for action in _actions(env, mnemonics):
         tool = action.argv[0].replace("\\", "/")
-        asserts.true(env, "dx_msvc" in tool, "tool outside the pinned MSVC: " + tool)
+        asserts.true(env, "external/{}/".format(_MSVC_REPO) in tool, "tool outside the pinned MSVC: " + tool)
         asserts.true(env, bin_dir in tool, "tool not under %s: %s" % (bin_dir, tool))
         asserts.true(env, tool.endswith("/" + _MSVC_TOOLS[action.mnemonic]), "unexpected tool for %s: %s" % (action.mnemonic, tool))
         for key in ["INCLUDE", "LIB"]:
             for entry in (action.env or {}).get(key, "").split(";"):
                 if entry:
                     entry = entry.replace("\\", "/")
-                    asserts.true(env, "dx_msvc" in entry, "%s entry outside the pinned MSVC: %s" % (key, entry))
+                    asserts.true(env, _pinned(entry), "%s entry outside the pinned MSVC: %s" % (key, entry))
                     if key == "LIB":
                         asserts.true(env, entry.endswith(lib_suffix), "LIB entry not for %s: %s" % (lib_suffix, entry))
         for entry in (action.env or {}).get("PATH", "").split(";"):
-            asserts.false(env, "dx_msvc" not in entry and ("Visual Studio" in entry or "Windows Kits" in entry), "PATH entry from an installed Visual Studio: " + entry)
+            entry = entry.replace("\\", "/")
+            asserts.false(env, not _pinned(entry) and ("Visual Studio" in entry or "Windows Kits" in entry), "PATH entry from an installed Visual Studio: " + entry)
 
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)

@@ -2382,6 +2382,71 @@ pub fn remove_root(root: &Path) {
     dx_process::remove_tree(root);
 }
 
+/// The `.cmd` file that runs every Windows isolation check in one launch. Each deny is a
+/// path and whether it is a directory; a readable one prints `READABLE <path>`, the bash
+/// probe prints `BASH <exit>`, and a finished run prints `DONE`.
+fn isolation_check_script(
+    denies: &[(PathBuf, bool)],
+    bash: Option<&Path>,
+) -> Result<String, String> {
+    let mut lines = vec!["@echo off".to_owned()];
+    for (deny, is_dir) in denies {
+        let path = deny.display().to_string();
+        if path.contains('%') {
+            return Err(format!(
+                "{path} contains % and cannot be checked by cmd.exe"
+            ));
+        }
+        let command = if *is_dir { "dir /b" } else { "type" };
+        let echoed = path.replace('^', "^^").replace('&', "^&");
+        lines.push(format!(
+            "{command} \"{path}\" >nul 2>&1 && echo READABLE {echoed}"
+        ));
+    }
+    if let Some(bash) = bash {
+        let path = bash.display().to_string();
+        if path.contains('%') {
+            return Err(format!("{path} contains % and cannot be run by cmd.exe"));
+        }
+        lines.push(format!("\"{path}\" -c \"exit 0\""));
+        lines.push("echo BASH %ERRORLEVEL%".to_owned());
+    }
+    lines.push("echo DONE".to_owned());
+    lines.push("exit /b 0".to_owned());
+    Ok(lines.join("\r\n") + "\r\n")
+}
+
+/// Turns the output of the isolation check script into the first failure it reports.
+fn isolation_check_result(outcome: &Outcome, bash: Option<&Path>) -> Result<(), String> {
+    let lines: Vec<&str> = outcome.stdout.lines().map(str::trim).collect();
+    if outcome.exit != 0 || !lines.contains(&"DONE") {
+        return Err(preflight_error(outcome));
+    }
+    if let Some(path) = lines.iter().find_map(|line| line.strip_prefix("READABLE ")) {
+        return Err(format!("{path} is still readable inside the isolation"));
+    }
+    let bash_exit = lines
+        .iter()
+        .find_map(|line| line.strip_prefix("BASH "))
+        .map(|exit| exit.parse::<i32>().unwrap_or(-1));
+    match (bash, bash_exit) {
+        (Some(bash), Some(exit)) if exit != 0 => Err(format!(
+            "the isolated account cannot run {} (exit {exit}): {}",
+            bash.display(),
+            outcome.stderr.trim()
+        )),
+        _ => Ok(()),
+    }
+}
+
+fn preflight_error(outcome: &Outcome) -> String {
+    format!(
+        "namespace isolation is unavailable on this host (exit {}): {}; unprivileged user, mount and network namespaces are required, and Ubuntu 24.04 needs kernel.apparmor_restrict_unprivileged_userns=0",
+        outcome.exit,
+        outcome.stderr.trim()
+    )
+}
+
 // LCOV_EXCL_START - reason: runs only inside the isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
 /// Confirms this host can create the namespaces the qualification needs.
 pub fn preflight(isolation: &Isolation) -> Result<(), String> {
@@ -2395,13 +2460,31 @@ pub fn preflight(isolation: &Isolation) -> Result<(), String> {
     let probe: Vec<String> = probe.iter().map(|arg| (*arg).to_owned()).collect();
     let outcome = capture(isolation.command(Net::Denied, &probe))?;
     if outcome.exit != 0 {
-        return Err(format!(
-            "namespace isolation is unavailable on this host (exit {}): {}; unprivileged user, mount and network namespaces are required, and Ubuntu 24.04 needs kernel.apparmor_restrict_unprivileged_userns=0",
-            outcome.exit,
-            outcome.stderr.trim()
-        ));
+        return Err(preflight_error(&outcome));
     }
     Ok(())
+}
+
+/// Runs the Windows preflight, deny and bash checks as one script in one launch, since each
+/// launch logs a fresh account on. `script` must be in a granted directory.
+pub fn isolation_check(
+    isolation: &Isolation,
+    bash: Option<&Path>,
+    script: &Path,
+) -> Result<(), String> {
+    let denies: Vec<(PathBuf, bool)> = isolation
+        .denies
+        .iter()
+        .map(|deny| (deny.clone(), deny.is_dir()))
+        .collect();
+    write(script, &isolation_check_script(&denies, bash)?)?;
+    let probe = vec![
+        "cmd.exe".to_owned(),
+        "/c".to_owned(),
+        script.to_string_lossy().into_owned(),
+    ];
+    let outcome = capture(isolation.command(Net::Denied, &probe))?;
+    isolation_check_result(&outcome, bash)
 }
 
 /// The host's Visual Studio and Windows SDK trees, from the Program Files variables.
@@ -2414,45 +2497,6 @@ fn windows_host_msvc_denies() -> Vec<PathBuf> {
         Some(PathBuf::from(format!(r"{drive}\Program Files (x86)")))
     });
     windows_msvc_denies(program_files.as_deref(), program_files_x86.as_deref())
-}
-
-/// Confirms the isolated account can run the bash the Windows Bazel is given.
-fn bash_check(isolation: &Isolation, bash: &Path) -> Result<(), String> {
-    let probe = vec![
-        bash.to_string_lossy().into_owned(),
-        "-c".to_owned(),
-        "exit 0".to_owned(),
-    ];
-    let outcome = capture(isolation.command(Net::Denied, &probe))?;
-    if outcome.exit != 0 {
-        return Err(format!(
-            "the isolated account cannot run {} (exit {}): {}",
-            bash.display(),
-            outcome.exit,
-            outcome.stderr.trim()
-        ));
-    }
-    Ok(())
-}
-
-/// Confirms the denied host trees are unreadable inside the isolation.
-pub fn deny_check(isolation: &Isolation) -> Result<(), String> {
-    for deny in &isolation.denies {
-        let command = if deny.is_dir() { "dir /b" } else { "type" };
-        let probe = vec![
-            "cmd.exe".to_owned(),
-            "/c".to_owned(),
-            format!("{command} \"{}\"", deny.display()),
-        ];
-        let outcome = capture(isolation.command(Net::Denied, &probe))?;
-        if outcome.exit == 0 {
-            return Err(format!(
-                "{} is still readable inside the isolation",
-                deny.display()
-            ));
-        }
-    }
-    Ok(())
 }
 
 /// Runs every probe of one qualification and returns its evidence.
@@ -2581,26 +2625,23 @@ fn run_all(
         "acl_scope": isolation.group.as_ref().map(|_| "group"),
     });
     let started = Instant::now();
-    preflight(&isolation)?;
-    timeline(out, &format!("preflight: {}s", started.elapsed().as_secs()));
-    let started = Instant::now();
-    deny_check(&isolation)?;
+    if cfg!(windows) {
+        isolation_check(
+            &isolation,
+            bash.as_deref(),
+            &root.join("bin").join("isolation_check.cmd"),
+        )?;
+    } else {
+        preflight(&isolation)?;
+    }
     timeline(
         out,
         &format!(
-            "deny check ({} paths): {}s",
+            "isolation check ({} deny paths): {}s",
             isolation.denies.len(),
             started.elapsed().as_secs()
         ),
     );
-    if let Some(bash) = &bash {
-        let started = Instant::now();
-        bash_check(&isolation, bash)?;
-        timeline(
-            out,
-            &format!("bash check: {}s", started.elapsed().as_secs()),
-        );
-    }
     let workspace = root.join(&manifest.workspace_dir);
     evidence["consumer"] = json!({
         "module": manifest.module,

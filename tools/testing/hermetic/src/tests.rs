@@ -2181,3 +2181,70 @@ fn copy_latest_profile_takes_the_newest_trace() {
     copy_latest_profile(&empty, &missing);
     assert!(!missing.exists());
 }
+
+#[test]
+fn isolation_check_script_probes_each_deny_and_bash_in_one_file() {
+    let denies = [
+        (PathBuf::from(r"C:\Program Files (x86)\Windows Kits"), true),
+        (PathBuf::from(r"C:\a&b\secret.txt"), false),
+    ];
+    let script =
+        isolation_check_script(&denies, Some(Path::new(r"C:\msys64\usr\bin\bash.exe"))).unwrap();
+    assert_eq!(
+        script,
+        "@echo off\r\n\
+         dir /b \"C:\\Program Files (x86)\\Windows Kits\" >nul 2>&1 && echo READABLE C:\\Program Files (x86)\\Windows Kits\r\n\
+         type \"C:\\a&b\\secret.txt\" >nul 2>&1 && echo READABLE C:\\a^&b\\secret.txt\r\n\
+         \"C:\\msys64\\usr\\bin\\bash.exe\" -c \"exit 0\"\r\n\
+         echo BASH %ERRORLEVEL%\r\n\
+         echo DONE\r\n\
+         exit /b 0\r\n"
+    );
+    assert_eq!(
+        isolation_check_script(&[], None).unwrap(),
+        "@echo off\r\necho DONE\r\nexit /b 0\r\n"
+    );
+    let err = isolation_check_script(&[(PathBuf::from(r"C:\100%\x"), true)], None).unwrap_err();
+    assert!(err.contains("contains %"), "{err}");
+}
+
+#[test]
+fn isolation_check_result_reports_the_first_failure() {
+    let outcome = |exit: i32, stdout: &str| Outcome {
+        exit,
+        stdout: stdout.to_owned(),
+        stderr: " why \n".to_owned(),
+    };
+    let bash = Path::new(r"C:\msys64\usr\bin\bash.exe");
+    let launch = isolation_check_result(&outcome(5, ""), Some(bash)).unwrap_err();
+    assert!(
+        launch.starts_with("namespace isolation is unavailable on this host (exit 5): why;"),
+        "{launch}"
+    );
+    let unfinished = isolation_check_result(&outcome(0, "BASH 0\r\n"), Some(bash)).unwrap_err();
+    assert!(
+        unfinished.starts_with("namespace isolation is unavailable"),
+        "{unfinished}"
+    );
+    let readable = isolation_check_result(
+        &outcome(0, "READABLE C:\\VS\r\nBASH 127\r\nDONE\r\n"),
+        Some(bash),
+    );
+    assert_eq!(
+        readable.unwrap_err(),
+        r"C:\VS is still readable inside the isolation"
+    );
+    let no_bash = isolation_check_result(&outcome(0, "BASH 127\r\nDONE\r\n"), Some(bash));
+    assert_eq!(
+        no_bash.unwrap_err(),
+        r"the isolated account cannot run C:\msys64\usr\bin\bash.exe (exit 127): why"
+    );
+    assert_eq!(
+        isolation_check_result(&outcome(0, "BASH 0\r\nDONE\r\n"), Some(bash)),
+        Ok(())
+    );
+    assert_eq!(
+        isolation_check_result(&outcome(0, "DONE\r\n"), None),
+        Ok(())
+    );
+}

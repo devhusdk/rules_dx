@@ -236,7 +236,8 @@ fn the_msvc_denies_hide_visual_studio_and_restore_its_acls() {
         ..scene.isolation.clone()
     };
     let started = std::time::Instant::now();
-    hermetic::deny_check(&isolation).expect("every denied tree is unreadable");
+    hermetic::isolation_check(&isolation, None, &scene.granted.join("check.cmd"))
+        .expect("every denied tree is unreadable");
     eprintln!(
         "denied {} trees in {:?}: {denies:?}",
         denies.len(),
@@ -252,4 +253,21 @@ fn the_msvc_denies_hide_visual_studio_and_restore_its_acls() {
         read.stdout,
         icacls(&scene.root)
     );
+}
+
+#[test]
+fn a_granted_path_listed_as_a_deny_is_reported_readable() {
+    let _alone = HOST_ACLS
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut scene = scene("readable");
+    let name = format!("dxh-{}-readable", std::process::id());
+    let _group = AclGroup::setup(&mut scene.isolation, &name).expect("group setup");
+    let isolation = Isolation {
+        denies: vec![scene.granted.clone()],
+        ..scene.isolation.clone()
+    };
+    let err = hermetic::isolation_check(&isolation, None, &scene.granted.join("check.cmd"))
+        .expect_err("a granted path stays readable in group mode");
+    assert!(err.contains("is still readable"), "{err}");
 }

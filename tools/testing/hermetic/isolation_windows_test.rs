@@ -142,6 +142,8 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     assert_eq!(allowed.exit, 0, "{}", allowed.stderr);
     assert!(allowed.stdout.contains("visible"));
     drop(group);
+    let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
+    assert!(timeline.contains("acl revoke "), "{timeline}");
     assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
 }
 
@@ -160,10 +162,13 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     let dead = child.id();
     child.wait().expect("cmd exits");
     let stale = format!("dxh-{dead}");
-    std::mem::forget(AclGroup::setup(&mut scene.isolation, &stale).expect("stale group setup"));
+    let out = scene.root.join("out");
+    std::mem::forget(
+        AclGroup::setup(&mut scene.isolation, &stale, &out).expect("stale group setup"),
+    );
     assert!(icacls(&scene.ungranted).contains(&stale));
     let fresh = format!("dxh-{}-fresh", std::process::id());
-    drop(AclGroup::setup(&mut scene.isolation, &fresh).expect("fresh group setup"));
+    drop(AclGroup::setup(&mut scene.isolation, &fresh, &out).expect("fresh group setup"));
     assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
     let listed = std::process::Command::new("net")
         .args(["localgroup", stale.as_str()])

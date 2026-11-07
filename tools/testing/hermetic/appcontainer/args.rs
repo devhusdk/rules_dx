@@ -176,6 +176,37 @@ pub fn ancestors(grants: &[String]) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
+/// Groups paths into waves that can be set at the same time. A path goes after every earlier path
+/// it is nested with, so a parent's inherited entries never race a child's own entries.
+pub fn acl_waves(paths: &[&str]) -> Vec<Vec<usize>> {
+    let norm: Vec<String> = paths
+        .iter()
+        .map(|path| {
+            path.replace('/', "\\")
+                .trim_end_matches('\\')
+                .to_lowercase()
+        })
+        .collect();
+    let nested = |a: &str, b: &str| {
+        a == b || a.starts_with(&format!("{b}\\")) || b.starts_with(&format!("{a}\\"))
+    };
+    let mut wave_of: Vec<usize> = Vec::new();
+    let mut waves: Vec<Vec<usize>> = Vec::new();
+    for at in 0..norm.len() {
+        let wave = (0..at)
+            .filter(|&before| nested(&norm[at], &norm[before]))
+            .map(|before| wave_of[before] + 1)
+            .max()
+            .unwrap_or(0);
+        wave_of.push(wave);
+        if waves.len() == wave {
+            waves.push(Vec::new());
+        }
+        waves[wave].push(at);
+    }
+    waves
+}
+
 /// A local account name of at most 20 characters, stable for one container name.
 pub fn user_name(name: &str) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
@@ -588,5 +619,35 @@ mod tests {
         assert!(ancestors(&strings(&["\\\\server\\share\\x"])).is_err());
         assert!(ancestors(&strings(&["relative\\x"])).is_err());
         assert!(ancestors(&strings(&["D:x"])).is_err());
+    }
+
+    #[test]
+    fn disjoint_acl_paths_form_one_wave() {
+        let waves = acl_waves(&[
+            "D:\\q",
+            "C:\\Program Files\\LLVM",
+            "C:\\Program Files (x86)\\Windows Kits",
+        ]);
+        assert_eq!(waves, [vec![0, 1, 2]]);
+    }
+
+    #[test]
+    fn a_parent_then_its_child_form_two_waves() {
+        let waves = acl_waves(&["D:\\a", "C:\\x", "D:\\a\\b", "D:\\a\\b\\c", "D:\\z"]);
+        assert_eq!(waves, [vec![0, 1, 4], vec![2], vec![3]]);
+    }
+
+    #[test]
+    fn acl_waves_ignore_case_and_slashes() {
+        assert_eq!(
+            acl_waves(&["C:/Program Files/", "c:\\PROGRAM FILES\\x"]),
+            [vec![0], vec![1]]
+        );
+        assert_eq!(acl_waves(&["D:\\a", "d:/A"]), [vec![0], vec![1]]);
+    }
+
+    #[test]
+    fn acl_waves_do_not_nest_on_a_shared_prefix() {
+        assert_eq!(acl_waves(&["C:\\a", "C:\\ab"]), [vec![0, 1]]);
     }
 }

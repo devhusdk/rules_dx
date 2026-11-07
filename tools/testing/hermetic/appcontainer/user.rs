@@ -60,7 +60,9 @@ use windows_sys::Win32::System::Threading::{
 use windows_sys::Win32::UI::Shell::DeleteProfileW;
 use windows_sys::core::GUID;
 
-use crate::args::{Config, environment, logon_command_line, password, stale_groups, user_name};
+use crate::args::{
+    Config, acl_waves, environment, logon_command_line, password, stale_groups, user_name,
+};
 use crate::sys::{
     CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
     REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, set_access, trustee_entry,
@@ -866,14 +868,19 @@ pub fn setup_group(config: &Config) -> Result<i32, String> {
     if code != ERROR_ALIAS_EXISTS {
         check(code, &format!("creating the local group {group}"))?;
     }
-    let applied = account_sid(&name).and_then(|mut sid| {
-        for (path, mode) in acl_entries(config) {
-            let start = Instant::now();
-            set_access(path, sid.as_mut_ptr() as *mut c_void, mode)?;
-            let kind = if mode == DENY_ACCESS { "deny" } else { "grant" };
-            println!("acl {kind} {path}: {}ms", start.elapsed().as_millis());
+    let applied = account_sid(&name).and_then(|sid| {
+        let mut first = Ok(());
+        for (path, mode, millis, result) in in_waves(config, &sid, set_access) {
+            match result {
+                Ok(()) => {
+                    let kind = if mode == DENY_ACCESS { "deny" } else { "grant" };
+                    println!("acl {kind} {path}: {millis}ms");
+                }
+                Err(err) if first.is_ok() => first = Err(err),
+                Err(_) => {}
+            }
         }
-        Ok(())
+        first
     });
     if let Err(err) = applied {
         let _ = teardown_group(config);
@@ -886,8 +893,14 @@ pub fn setup_group(config: &Config) -> Result<i32, String> {
 pub fn teardown_group(config: &Config) -> Result<i32, String> {
     let group = config.group.as_deref().ok_or("no group to tear down")?;
     let name = wide(group);
-    let mut sid = account_sid(&name)?;
-    let mut failed = remove_group_entries(config, &mut sid);
+    let sid = account_sid(&name)?;
+    let mut failed = Vec::new();
+    for (path, _, millis, result) in in_waves(config, &sid, revoke) {
+        match result {
+            Ok(()) => println!("acl revoke {path}: {millis}ms"),
+            Err(err) => failed.push(err),
+        }
+    }
     let code = unsafe { NetLocalGroupDel(null(), name.as_ptr()) };
     if let Err(err) = check(code, &format!("deleting the local group {group}")) {
         failed.push(err);
@@ -900,9 +913,63 @@ pub fn teardown_group(config: &Config) -> Result<i32, String> {
 }
 
 /// Removes the entries for `sid` from every grant and deny path, returning the errors.
-fn remove_group_entries(config: &Config, sid: &mut [u8]) -> Vec<String> {
-    acl_entries(config)
-        .filter_map(|(path, _)| remove_access(path, sid.as_mut_ptr() as *mut c_void).err())
+fn remove_group_entries(config: &Config, sid: &[u8]) -> Vec<String> {
+    in_waves(config, sid, revoke)
+        .into_iter()
+        .filter_map(|(_, _, _, result)| result.err())
+        .collect()
+}
+
+fn revoke(path: &str, sid: *mut c_void, _mode: i32) -> Result<(), String> {
+    remove_access(path, sid)
+}
+
+type AclStep = fn(&str, *mut c_void, i32) -> Result<(), String>;
+
+/// Runs `step` on every grant and deny path for `sid`, all paths of one wave at the same time,
+/// and returns each path's mode, milliseconds and result in entry order.
+fn in_waves<'a>(
+    config: &'a Config,
+    sid: &[u8],
+    step: AclStep,
+) -> Vec<(&'a String, i32, u128, Result<(), String>)> {
+    let entries: Vec<(&String, i32)> = acl_entries(config).collect();
+    let paths: Vec<&str> = entries.iter().map(|(path, _)| path.as_str()).collect();
+    let mut done: Vec<Option<(u128, Result<(), String>)>> = entries.iter().map(|_| None).collect();
+    for wave in acl_waves(&paths) {
+        std::thread::scope(|scope| {
+            let threads: Vec<_> = wave
+                .iter()
+                .map(|&at| {
+                    let (path, mode) = entries[at];
+                    // Each thread has its own copy, as raw pointers cannot cross threads.
+                    let mut sid = sid.to_vec();
+                    let thread = scope.spawn(move || {
+                        let start = Instant::now();
+                        let result = step(path, sid.as_mut_ptr() as *mut c_void, mode);
+                        (start.elapsed().as_millis(), result)
+                    });
+                    (at, thread)
+                })
+                .collect();
+            for (at, thread) in threads {
+                let outcome = thread.join().unwrap_or_else(|_| {
+                    (
+                        0,
+                        Err(format!("changing the ACL of {} panicked", paths[at])),
+                    )
+                });
+                done[at] = Some(outcome);
+            }
+        });
+    }
+    entries
+        .into_iter()
+        .zip(done)
+        .map(|((path, mode), outcome)| {
+            let (millis, result) = outcome.expect("every path is in a wave");
+            (path, mode, millis, result)
+        })
         .collect()
 }
 
@@ -918,14 +985,14 @@ fn remove_stale_groups(config: &Config, own: &str) {
     };
     for group in stale_groups(&names, own, process_alive) {
         let name = wide(&group);
-        let mut sid = match account_sid(&name) {
+        let sid = match account_sid(&name) {
             Ok(sid) => sid,
             Err(err) => {
                 eprintln!("appcontainer_run: warning: {err}");
                 continue;
             }
         };
-        let failed = remove_group_entries(config, &mut sid);
+        let failed = remove_group_entries(config, &sid);
         if !failed.is_empty() {
             eprintln!(
                 "appcontainer_run: warning: keeping the stale group {group}: {}",

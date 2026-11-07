@@ -1023,11 +1023,12 @@ impl Isolation {
 pub struct AclGroup {
     isolation: Isolation,
     name: String,
+    out: PathBuf,
 }
 
 impl AclGroup {
-    /// Creates the group and points `isolation` at it. The time spent on each path goes to
-    /// `out`'s timeline.
+    /// Creates the group and points `isolation` at it. The time spent on each path, at setup and
+    /// at teardown, goes to `out`'s timeline.
     pub fn setup(isolation: &mut Isolation, name: &str, out: &Path) -> Result<Self, String> {
         let outcome = capture(isolation.windows_group_command("--setup-group", name))?;
         for line in outcome.stdout.lines() {
@@ -1044,16 +1045,28 @@ impl AclGroup {
         Ok(Self {
             isolation: isolation.clone(),
             name: name.to_owned(),
+            out: out.to_owned(),
         })
     }
 }
 
 impl Drop for AclGroup {
     fn drop(&mut self) {
+        let started = Instant::now();
         let command = self
             .isolation
             .windows_group_command("--teardown-group", &self.name);
-        match capture(command) {
+        let outcome = capture(command);
+        if let Ok(outcome) = &outcome {
+            for line in outcome.stdout.lines() {
+                timeline(&self.out, line);
+            }
+        }
+        timeline(
+            &self.out,
+            &format!("acl teardown: {}s", started.elapsed().as_secs()),
+        );
+        match outcome {
             Ok(outcome) if outcome.exit == 0 => {}
             Ok(outcome) => eprintln!(
                 "cannot remove the ACL group {}: {}",

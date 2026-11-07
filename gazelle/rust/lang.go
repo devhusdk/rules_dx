@@ -29,7 +29,6 @@ const (
 	sharedKind    = "rust_shared_library"
 	staticKind    = "rust_static_library"
 	scriptKind    = "cargo_build_script"
-	dxCrateKind   = "dx_rust_crate"
 )
 
 var rustKinds = map[string]rule.KindInfo{
@@ -215,7 +214,6 @@ func (l *rustLang) ApparentLoads(moduleToApparentName func(string) string) []rul
 func rustLoads(rulesRepo, cratesRepo, rulesRustRepo string) []rule.LoadInfo {
 	return []rule.LoadInfo{
 		{Name: "@" + rulesRepo + "//rust/rules:defs.bzl", Symbols: []string{binaryKind, libraryKind, testKind, benchmarkKind, procMacroKind, sharedKind, staticKind}},
-		{Name: "@" + rulesRepo + "//rust/rules:crate.bzl", Symbols: []string{dxCrateKind}},
 		{Name: "@" + rulesRustRepo + "//cargo:defs.bzl", Symbols: []string{scriptKind}},
 		{Name: "@" + cratesRepo + "//:crates.bzl", Symbols: []string{"aliases", "all_crate_deps"}},
 		nativeConfigLoads(rulesRepo),
@@ -224,13 +222,6 @@ func rustLoads(rulesRepo, cratesRepo, rulesRustRepo string) []rule.LoadInfo {
 }
 
 func (*rustLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
-	if r.Kind() == dxCrateKind {
-		crateName := r.AttrString("crate_name")
-		if crateName == "" {
-			crateName = r.Name()
-		}
-		return []resolve.ImportSpec{{Lang: languageName, Imp: crateName}}
-	}
 	if r.Kind() != libraryKind && r.Kind() != procMacroKind {
 		return nil
 	}
@@ -354,7 +345,6 @@ func sourceOnlyTestImports(tree map[string]*FileFacts, selfContained bool) targe
 }
 
 func (l *rustLang) attachNative(args language.GenerateArgs, result language.GenerateResult, plan *nativePlan) language.GenerateResult {
-	result = filterDxCrateCovered(args.File, result)
 	renamed := adoptExistingNames(args.File, result.Gen)
 	inherited, err := inheritCrateAttrs(args.File, result.Gen)
 	if err != nil {
@@ -405,7 +395,7 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 			r.SetAttr("testonly", true)
 		}
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, generatedClaims(args.Rel, result.Gen), rustClaimAliases); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, generatedClaims(args.Rel, result.Gen), nil); err != nil {
 		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
@@ -432,59 +422,6 @@ func setCoverageLib(c *config.Config, gen []*rule.Rule) {
 			r.SetAttr("coverage_lib", ":"+of)
 		}
 	}
-}
-
-func dxCrateNames(file *rule.File) map[string]bool {
-	names := make(map[string]bool)
-	if file == nil {
-		return names
-	}
-	for _, existing := range file.Rules {
-		if existing.Kind() == dxCrateKind {
-			names[existing.Name()] = true
-		}
-	}
-	return names
-}
-
-func filterDxCrateCovered(file *rule.File, result language.GenerateResult) language.GenerateResult {
-	covered := dxCrateNames(file)
-	if len(covered) == 0 || len(result.Gen) == 0 {
-		return result
-	}
-	keptGen := result.Gen[:0]
-	keptImports := result.Imports[:0]
-	for i, r := range result.Gen {
-		if r.Kind() == libraryKind && covered[r.Name()] {
-			continue
-		}
-		if of := unitTestOf(r); of != "" && covered[of] && r.Name() == common.UnitTestName(of) {
-			continue
-		}
-		if r.Kind() == testKind && r.Attr("crate") != nil {
-			if crate := r.AttrString("crate"); len(crate) > 1 && crate[0] == ':' {
-				if covered[crate[1:]] && r.Name() == crate[1:]+"_test" {
-					continue
-				}
-			}
-		}
-		keptGen = append(keptGen, r)
-		if i < len(result.Imports) {
-			keptImports = append(keptImports, result.Imports[i])
-		}
-	}
-	result.Gen = keptGen
-	if len(result.Gen) == 0 {
-		if len(keptImports) > len(keptGen) {
-			keptImports = keptImports[:len(keptGen)]
-		}
-		result.Imports = keptImports
-	} else {
-		if len(result.Imports) != len(keptImports) {
-			result.Imports = keptImports
-		}
-	}
-	return result
 }
 
 func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {

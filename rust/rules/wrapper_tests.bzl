@@ -7,7 +7,6 @@ load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
-load(":crate.bzl", "dx_rust_crate_root")
 load(":defs.bzl", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS", "RUST_FUZZ_LIBFUZZER_SYS")
 
 def dx_wrapper_registry_tests(name):
@@ -23,8 +22,6 @@ def dx_wrapper_registry_tests(name):
         extra_checks = [
             expect_equal("RUST class id", RUST, "rust"),
             expect_equal("rust is a known class", RUST in KNOWN_SEMANTIC_FILE_CLASSES, True),
-            expect_equal("crate root default", dx_rust_crate_root(None), "src/lib.rs"),
-            expect_equal("crate root multi-file", dx_rust_crate_root(["src/a.rs", "src/lib.rs"]), "src/lib.rs"),
             expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]),
             expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, [
                 "-Clinker=$(execpath {})".format(Label("//rust/tools/msvc_paths:msvc_link")),
@@ -35,7 +32,6 @@ def dx_wrapper_registry_tests(name):
             ]),
             expect_equal("fuzz libfuzzer-sys hub", RUST_FUZZ_LIBFUZZER_SYS.repo_name.endswith("dx_crates"), True),
             expect_equal("fuzz libfuzzer-sys name", RUST_FUZZ_LIBFUZZER_SYS.name, "libfuzzer-sys"),
-            expect_equal("crate root missing", dx_rust_crate_root(["lib.rs"]), None),
         ],
     )
 
@@ -352,7 +348,7 @@ _test_srcs_split_test = analysistest.make(
 )
 
 def dx_test_srcs_split_tests(name, lib, test, test_src):
-    """Asserts a dx_rust_crate test_srcs file builds only into the unit test."""
+    """Asserts a test_srcs-only file builds only into the unit test."""
     _test_srcs_split_test(
         name = name,
         size = "small",

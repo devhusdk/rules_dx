@@ -50,11 +50,6 @@ cc_import(
     static_library = "@llvm//runtimes/libunwind:libunwind.static",
 )
 
-exports_files(
-    ["crate.bzl"],
-    visibility = ["//:__subpackages__"],
-)
-
 exports_files([
     "README.md",
     "defs.bzl",
@@ -81,7 +76,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
-        "crate.bzl",
         "defs.bzl",
         "edition.bzl",
         "msvc_crt.bzl",

@@ -215,7 +215,6 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "rust_library", target: "demo", defs: "rust/rules:defs.bzl",
 		symbols: []string{"rust_binary", "rust_library", "rust_test", "rust_benchmark", "rust_proc_macro", "rust_shared_library", "rust_static_library"},
 		extraLoads: map[string][]string{
-			"@rules_dx//rust/rules:crate.bzl":      {"dx_rust_crate"},
 			"@rules_rust//cargo:defs.bzl":          {"cargo_build_script"},
 			"@crates//:crates.bzl":                 {"aliases", "all_crate_deps"},
 			"@rules_dx//quality:native_config.bzl": {"buildifier_config", "taplo_config", "vale_config", "rustfmt_config"},

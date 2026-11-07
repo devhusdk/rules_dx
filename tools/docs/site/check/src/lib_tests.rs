@@ -57,7 +57,7 @@ fn an_anchor_matches_mdbook_ids() {
     assert_eq!(anchor_name("# A/B and C"), "ab-and-c");
     assert_eq!(anchor_name("### Spaced -- Out"), "spaced----out");
     assert_eq!(anchor_name("#  Trim  Me  "), "trim--me");
-    assert_eq!(anchor_name("## dx_rust_crate"), "dx_rust_crate");
+    assert_eq!(anchor_name("## rust_library"), "rust_library");
     assert_eq!(anchor_name("## `--affected`"), "--affected");
     assert_eq!(anchor_name("## 中文 Straße"), "中文-straße");
     assert_eq!(anchor_name("## Ünïcode"), "Ünïcode");
@@ -176,7 +176,7 @@ fn anchor_site(name: &str, guide_links: &str) -> String {
     write(
         dir,
         "api.md",
-        "# API Reference\n\n## dx_rust_crate\n\n- [`demo::T`](api/rust/demo/T.md)\n",
+        "# API Reference\n\n## rust_library\n\n- [`demo::T`](api/rust/demo/T.md)\n",
     );
     write_shard(dir, &["rust:demo:T"]);
     write(
@@ -190,7 +190,7 @@ fn anchor_site(name: &str, guide_links: &str) -> String {
 #[test]
 fn an_anchor_with_underscores_or_dashes_resolves() {
     assert_eq!(
-        anchor_site("anchor-ok", "[a](api.md#dx_rust_crate) [b](#--affected)"),
+        anchor_site("anchor-ok", "[a](api.md#rust_library) [b](#--affected)"),
         ""
     );
 }

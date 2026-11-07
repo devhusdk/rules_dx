@@ -394,9 +394,6 @@ func claimSources(owners map[string]sourceOwner, owner string, shared bool, tree
 	return nil
 }
 
-// rustClaimAliases lets a handwritten dx crate stand in for the generated rust_library of the same name.
-var rustClaimAliases = map[string]string{dxCrateKind: libraryKind}
-
 // generatedClaims turns the generated rules of package rel into claimants for common.CheckClaims.
 func generatedClaims(rel string, gen []*rule.Rule) []common.Claimant {
 	claimants := make([]common.Claimant, 0, len(gen))

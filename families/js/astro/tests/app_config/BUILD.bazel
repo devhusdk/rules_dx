@@ -1,0 +1,50 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
+load("@rules_dx//astro/rules:defs.bzl", "astro_build")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_SRCS = glob(["src/**"]) + ["astro.config.mjs"]
+
+astro_build(
+    name = "site",
+    srcs = _SRCS,
+    config = "configs/astro.site.mjs",
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+)
+
+javascript_test(
+    name = "config_file_test",
+    testonly = True,
+    srcs = ["config_file.test.js"],
+    data = [":site"],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+javascript_library(
+    name = "astro_config",
+    testonly = True,
+    srcs = ["astro.config.mjs"],
+    deps = ["//:node_modules/astro"],
+)
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)

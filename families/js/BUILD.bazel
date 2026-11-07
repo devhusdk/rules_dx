@@ -4,6 +4,21 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 # gazelle:exclude javascript/tests/fixtures
+# gazelle:exclude astro/tests/app
+# gazelle:exclude astro/tests/app_config/configs
+# gazelle:exclude astro/tests/app_config/src
+# gazelle:exclude astro/tests/fixtures/hello
+# gazelle:exclude astro/tests/typecheck
+# gazelle:exclude mdx/tests/app
+# gazelle:exclude mdx/tests/fixtures/hello
+# gazelle:exclude mdx/tests/typecheck
+# gazelle:exclude svelte/tests/app
+# gazelle:exclude svelte/tests/app_errors
+# gazelle:exclude svelte/tests/fixtures/hello
+# gazelle:exclude svelte/tests/typecheck
+# gazelle:exclude vue/tests/app
+# gazelle:exclude vue/tests/fixtures/hello
+# gazelle:exclude vue/tests/typecheck
 # gazelle:exclude typescript/tests/tags
 # gazelle:exclude typescript/tests/fixtures/declarations
 # gazelle:exclude typescript/tests/fixtures/hello
@@ -46,12 +61,23 @@ sh_test(
     srcs = ["starlark_docs_test.sh"],
     args = ["$(rootpath @rules_dx//tools/ci:starlark_docs_family_test)"],
     data = [
+        "//astro/tests/app:corpus_starlark",
+        "//astro/tests/app_config:corpus_starlark",
+        "//astro/tests/typecheck:corpus_starlark",
         "//javascript/tests/typecheck:corpus_starlark",
+        "//mdx/tests/app:corpus_starlark",
+        "//mdx/tests/typecheck:corpus_starlark",
+        "//svelte/tests/app:corpus_starlark",
+        "//svelte/tests/app_errors:corpus_starlark",
+        "//svelte/tests/app_errors/throwing:corpus_starlark",
+        "//svelte/tests/typecheck:corpus_starlark",
         "//typescript/tests/tags:corpus_starlark",
         "//typescript/tests/typecheck_profiles:corpus_starlark",
+        "//vue/tests/app:corpus_starlark",
+        "//vue/tests/typecheck:corpus_starlark",
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
-    env = {"STARLARK_DOCS_PACKAGES": "javascript/tests/typecheck,typescript/tests/tags,typescript/tests/typecheck_profiles"},
+    env = {"STARLARK_DOCS_PACKAGES": "astro/tests/app,astro/tests/app_config,astro/tests/typecheck,javascript/tests/typecheck,mdx/tests/app,mdx/tests/typecheck,svelte/tests/app,svelte/tests/app_errors,svelte/tests/app_errors/throwing,svelte/tests/typecheck,typescript/tests/tags,typescript/tests/typecheck_profiles,vue/tests/app,vue/tests/typecheck"},
 )
 
 # dx:begin exports

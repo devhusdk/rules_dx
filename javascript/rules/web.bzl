@@ -310,7 +310,7 @@ def javascript_web_server(
     )
     binary_kwargs = dict(kwargs)
     binary_kwargs["data"] = list(kwargs.get("data", [])) + [app, "@rules_dx//javascript/rules:web_server"]
-    binary_kwargs["deps"] = list(kwargs.get("deps", [])) + ["@rules_python//python/runfiles:runfiles"]
+    binary_kwargs["deps"] = list(kwargs.get("deps", [])) + [Label("@rules_python//python/runfiles:runfiles")]
     launcher = ":" + name + "_launcher"
     binary_kwargs.setdefault("main", launcher)
     python_binary(

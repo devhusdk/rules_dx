@@ -1,0 +1,60 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_dx//astro/rules:defs.bzl", "astro_library")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//quality:tsc_report.bzl", "tsc_report")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:private"],
+)
+
+javascript_library(
+    name = "lib",
+    srcs = ["lib.js"],
+)
+
+astro_library(
+    name = "bad",
+    srcs = ["bad.astro"],
+    deps = [":lib", "//:node_modules/astro"],
+)
+
+astro_library(
+    name = "broken",
+    srcs = ["broken.astro"],
+    deps = ["//:node_modules/astro"],
+)
+
+astro_library(
+    name = "clean",
+    srcs = ["clean.astro"],
+    deps = [":lib", "//:node_modules/astro"],
+)
+
+[
+    tsc_report(
+        name = "%s_%s_report" % (case, kind),
+        kind = kind,
+        target = ":" + case,
+    )
+    for case in ["bad", "broken", "clean"]
+    for kind in ["stdout", "exit"]
+]
+
+[
+    diff_test(
+        name = "%s_%s_test" % (case, kind),
+        file1 = "%s.%s.expected" % (case, kind),
+        file2 = ":%s_%s_report" % (case, kind),
+    )
+    for case in ["bad", "broken", "clean"]
+    for kind in ["stdout", "exit"]
+]
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

@@ -1,0 +1,33 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
+load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+mdx_library(
+    name = "hello_lib",
+    srcs = ["Hello.mdx"],
+)
+
+javascript_library(
+    name = "helper_lib",
+    srcs = ["helper.js"],
+)
+
+build_test(
+    name = "hello_aggregate_test",
+    targets = [
+        ":hello_lib",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -7,14 +7,32 @@
     "node": "22"
   },
   "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@astrojs/compiler": "4.0.0",
+    "@astrojs/preact": "6.1.1",
     "@bufbuild/protobuf": "2.17.0",
+    "@mdx-js/mdx": "3.1.1",
+    "@mdx-js/rollup": "3.1.1",
     "@playwright/test": "1.64.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@vitejs/plugin-vue": "6.0.10",
+    "@vue/compiler-sfc": "3.5.44",
+    "@vue/devtools-api": "8.2.1",
+    "astro": "7.4.5",
+    "clsx": "2.1.1",
     "jest": "30.5.2",
     "jest-cli": "30.5.2",
     "jest-environment-jsdom": "30.5.2",
     "jest-junit": "16.0.0",
+    "pinia": "4.1.0",
+    "preact": "10.29.8",
+    "preact-render-to-string": "6.8.2",
+    "svelte": "5.57.3",
+    "svelte-check": "4.7.8",
     "typescript": "6.0.3",
-    "vue": "3.5.44"
+    "vite": "8.3.6",
+    "vue": "3.5.44",
+    "vue-tsc": "3.3.14"
   },
   "pnpm": {
     "overrides": {

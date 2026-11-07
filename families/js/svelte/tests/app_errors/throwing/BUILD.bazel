@@ -1,0 +1,23 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//svelte/rules:defs.bzl", "svelte_build")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//svelte/tests/app_errors:__pkg__"],
+)
+
+svelte_build(
+    name = "site",
+    srcs = glob(["src/**"]) + ["index.html"],
+    config = "vite.config.mjs",
+    node_modules = "//:node_modules",
+    ssr_entry = "src/entry-server.js",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

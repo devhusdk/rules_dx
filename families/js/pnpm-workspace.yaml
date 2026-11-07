@@ -2,3 +2,9 @@
 packages:
   - .
 allowBuilds: {}
+# @mdx-js/rollup runs under Vite, so rollup stays an optional peer.
+packageExtensions:
+  "@mdx-js/rollup":
+    peerDependenciesMeta:
+      rollup:
+        optional: true

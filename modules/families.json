@@ -641,10 +641,14 @@
         "rules_shell"
       ],
       "dirs": [
+        "astro",
         "bcr_test_module",
         "javascript",
+        "mdx",
+        "svelte",
         "third_party",
-        "typescript"
+        "typescript",
+        "vue"
       ],
       "extensions": [
         "@aspect_rules_js//npm:extensions.bzl%npm",

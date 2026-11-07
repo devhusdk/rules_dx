@@ -8,7 +8,7 @@ Starter pipeline for GitLab. It includes the rules_dx template
 `ci/gitlab/dx.gitlab-ci.yml` at a pinned commit. To update, change the commit
 in the `include:` URL. The template runs four jobs on Linux runners: `check`,
 `build`, `test` and `coverage`, plus `fuzz` and `bench` when their inputs are
-set. Each of the four runs one `dx` line:
+set. Each of the four runs one `dx` line. On merge requests, `check`, `build`, `test` and `coverage` use `--affected` instead of `//...`:
 
 ```sh
 bazel run @rules_dx//:dx -- check --report sarif=reports/dx.sarif //...

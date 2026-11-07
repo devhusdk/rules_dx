@@ -33,9 +33,9 @@ spec:
       type: boolean
       default: false
     bench_max_regression:
-      description: "Percent a benchmark may be slower than the merge base before the bench job fails."
-      type: number
-      default: 20
+      description: "Percent a benchmark may be slower than the merge base before the bench job fails, a whole number from 0 to 100."
+      default: "20"
+      regex: ^(100|[0-9]{1,2})$
 ---
 default:
   image: buildpack-deps:noble-scm@sha256:59d4f4d8581d741bb2c31f4bfd00a557ca94d182d082c81bd56d32afbad8dfc9
@@ -152,6 +152,7 @@ bench:
   script:
     - status=0
     - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || git worktree add --detach .cache/bench-base "$(git merge-base HEAD origin/HEAD)" || status=$?'
+    - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || [ ! -f .cache/remote.bazelrc ] || (mkdir -p .cache/bench-base/.cache && cp .cache/remote.bazelrc .cache/bench-base/.cache/remote.bazelrc) || status=$?'
     - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || (cd .cache/bench-base && bazel run @rules_dx//:dx -- bench //... > /dev/null) || status=$?'
     - bazel run @rules_dx//:dx -- bench ${CI_MERGE_REQUEST_IID:+--compare .cache/bench-base/.dx/local/bench/last.json --max-regression=$[[ inputs.bench_max_regression ]]} //... > reports/bench.txt || status=$?
     - cat reports/bench.txt || status=$?

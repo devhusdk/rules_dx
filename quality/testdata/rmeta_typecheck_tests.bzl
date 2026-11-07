@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect")
+load("@rules_rust//rust:rust_common.bzl", "rust_common")
 
 def _rmeta_impl(ctx):
     """Checks the rustc_rmeta_output group holds one .rmeta.rustc-output file."""
@@ -59,6 +60,20 @@ def _rmeta_paths_impl(ctx):
 
 pipelined_rmeta_paths_test = analysistest.make(
     _rmeta_paths_impl,
+    config_settings = {
+        str(Label("@rules_rust//rust/settings:pipelined_compilation")): True,
+    },
+)
+
+def _no_pipelining_impl(ctx):
+    """Checks a crate built with disable_pipelining exposes no rmeta even when pipelining is on."""
+    env = analysistest.begin(ctx)
+    crate = analysistest.target_under_test(env)[rust_common.crate_info]
+    asserts.equals(env, None, crate.metadata, "crate still has a pipelined rmeta")
+    return analysistest.end(env)
+
+crate_no_pipelining_test = analysistest.make(
+    _no_pipelining_impl,
     config_settings = {
         str(Label("@rules_rust//rust/settings:pipelined_compilation")): True,
     },

@@ -326,6 +326,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "unwatched_overlay_inputs.patch",
                 content: include_str!("../../../patches/llvm/unwatched_overlay_inputs.patch"),
             },
+            OverridePatch {
+                file: "msvc_source_directories.patch",
+                content: include_str!("../../../patches/llvm/msvc_source_directories.patch"),
+            },
         ],
     },
     Override {

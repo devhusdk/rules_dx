@@ -5,6 +5,7 @@ exports_files([
     "libunwind_copy.patch",
     "clang_cl_crt_default_lib.patch",
     "unwatched_overlay_inputs.patch",
+    "msvc_source_directories.patch",
 ])
 
 sh_test(
@@ -13,6 +14,15 @@ sh_test(
     srcs = ["libunwind_copy_test.sh"],
     args = ["$(rootpath @llvm-project//libunwind:libunwind.static.gnu_link_name)"],
     data = ["@llvm-project//libunwind:libunwind.static.gnu_link_name"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+sh_test(
+    name = "msvc_source_directories_test",
+    size = "small",
+    srcs = ["msvc_source_directories_test.sh"],
+    args = ["$(rootpath @llvm//runtimes/msvc:BUILD.bazel)"],
+    data = ["@llvm//runtimes/msvc:BUILD.bazel"],
     target_compatible_with = ["@platforms//os:linux"],
 )
 

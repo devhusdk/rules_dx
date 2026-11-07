@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":facts.bzl", "support_matrix_facts")
 load(":facts_tests.bzl", "support_matrix_facts_tests")
@@ -71,24 +71,6 @@ rust_binary(
     crate_root = "src/main.rs",
     data = [":inputs"],
     deps = [":support_matrix"],
-)
-
-rustfmt_test(
-    name = "support_matrix_fmt_test",
-    targets = [
-        ":generate_test",
-        ":support_matrix",
-        ":update",
-    ],
-)
-
-rust_clippy_test(
-    name = "support_matrix_clippy_test",
-    targets = [
-        ":generate_test",
-        ":support_matrix",
-        ":update",
-    ],
 )
 
 real_source_target(

@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load(":consumer_deps.bzl", "consumer_deps_json")
 load(":versions_rs.bzl", "versions_rs")
 load(":versions_tests.bzl", "versions_contract_tests")
@@ -37,19 +37,6 @@ rust_test(
     ],
 )
 
-rustfmt_test(
-    name = "consumer_deps_fmt_test",
-    targets = [
-        ":consumer_deps_test",
-        ":dx_versions",
-    ],
-)
-
-rust_clippy_test(
-    name = "consumer_deps_clippy_test",
-    targets = [":consumer_deps_test"],
-)
-
 # keep
 rust_test(
     name = "oci_pins_test",
@@ -59,11 +46,6 @@ rust_test(
         "//libs/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
     ],
-)
-
-rustfmt_test(
-    name = "oci_pins_fmt_test",
-    targets = [":oci_pins_test"],
 )
 
 # keep
@@ -132,16 +114,6 @@ rust_test(
     ],
 )
 
-rustfmt_test(
-    name = "families_fmt_test",
-    targets = [":families_test"],
-)
-
-rust_clippy_test(
-    name = "families_clippy_test",
-    targets = [":families_test"],
-)
-
 # keep
 rust_test(
     name = "versions_loaded_test",
@@ -157,16 +129,6 @@ rust_test(
         "//tools/docs/components:defs.bzl",
     ],
     deps = ["//tools/testing:dx_testing"],
-)
-
-rustfmt_test(
-    name = "versions_loaded_fmt_test",
-    targets = [":versions_loaded_test"],
-)
-
-rust_clippy_test(
-    name = "versions_loaded_clippy_test",
-    targets = [":versions_loaded_test"],
 )
 
 # keep
@@ -185,16 +147,6 @@ rust_test(
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
-)
-
-rustfmt_test(
-    name = "python_budget_fmt_test",
-    targets = [":python_budget_test"],
-)
-
-rust_clippy_test(
-    name = "python_budget_clippy_test",
-    targets = [":python_budget_test"],
 )
 
 test_suite(

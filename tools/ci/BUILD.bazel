@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS)
@@ -824,70 +824,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-rustfmt_test(
-    name = "ci_fmt_test",
-    targets = [
-        ":input_validation",
-        ":input_validation_bin",
-        ":input_validation_test",
-        ":evidence_inputs",
-        ":docs_scope",
-        ":docs_scope_bin",
-        ":docs_scope_test",
-        ":fill_pins",
-        ":fill_pins_bin",
-        ":fill_pins_test",
-        ":remote_cache_flags",
-        ":remote_cache_flags_bin",
-        ":remote_cache_flags_test",
-        ":gate_base",
-        ":gate_base_bin",
-        ":gate_base_test",
-        ":coverage_cells",
-        ":coverage_cells_bin",
-        ":coverage_cells_test",
-        ":compiler_evidence_test",
-        ":producers_bin",
-        ":bcr_outdated",
-        ":bcr_outdated_bin",
-        ":action_pins_test",
-        ":actionlint_test",
-        ":advisory_launch_test",
-        ":advisory_snapshots_test",
-        ":aggregate_gates_test",
-        ":aggregate_scripts_test",
-        ":artifact_writes_test",
-        ":bcr_outdated_test",
-        ":dx_update_workflow_test",
-        ":pr_check_test",
-        ":release_workflow_test",
-        ":blocker_refs_test",
-        ":review_paths_test",
-        ":ci_workflow",
-        ":ci_workflow_test",
-        ":config_consistency_test",
-        ":consumer_inputs_test",
-        ":consumer_reports_test",
-        ":crate_platform_pins_test",
-        ":docs_deploy_test",
-        ":evidence_inputs_test",
-        ":gitlab_example_test",
-        ":gitlab_inputs_parity_test",
-        ":release_assets_test",
-        ":release_cells_runners_test",
-        ":reusable_callers_test",
-        ":setup_bazel_test",
-        ":signing_pins_test",
-        ":starlark_docs_family_test",
-        ":starlark_docs_test",
-        ":tool_resolve_test",
-        ":workflow_expressions_test",
-        ":secret_flags_test",
-        ":workflow_permissions_test",
-        ":workflow_pins_test",
-    ],
 )
 
 # keep

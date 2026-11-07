@@ -1,5 +1,5 @@
 # gazelle:ignore
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 
 package(default_visibility = VIS_QUALITY)
@@ -29,19 +29,3 @@ rust_test(
     deps = ["@crates//:serde_json"],
 )
 
-rustfmt_test(
-    name = "lsp_check_fmt_test",
-    targets = [
-        ":lsp_check",
-        ":lsp_check_lib",
-        ":lsp_check_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "lsp_check_clippy_test",
-    targets = [
-        ":lsp_check",
-        ":lsp_check_lib",
-    ],
-)

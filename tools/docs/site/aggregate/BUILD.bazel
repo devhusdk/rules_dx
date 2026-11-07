@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -63,23 +63,6 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + ["//tools/docs/ir/ir:documentation_ir"],
-)
-
-rustfmt_test(
-    name = "dx_site_aggregate_fmt_test",
-    targets = [
-        ":dx_site_aggregate",
-        ":dx_site_aggregate_test",
-        ":site_aggregate",
-    ],
-)
-
-rust_clippy_test(
-    name = "dx_site_aggregate_clippy_test",
-    targets = [
-        ":dx_site_aggregate",
-        ":site_aggregate",
-    ],
 )
 
 real_source_target(

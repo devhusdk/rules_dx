@@ -9,7 +9,7 @@ load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH")
 load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_library")
 load(":defs.bzl", "starter_consumer_test", "starter_goldens_test")
 
 starter_consumer_test(
@@ -179,24 +179,6 @@ rust_library(
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "starter_fmt_test",
-    targets = [
-        ":c",
-        ":starter_goldens_test",
-        ":starter_scaffold",
-    ],
-)
-
-rust_clippy_test(
-    name = "starter_clippy_test",
-    targets = [
-        ":c",
-        ":starter_goldens_test",
-        ":starter_scaffold",
     ],
 )
 

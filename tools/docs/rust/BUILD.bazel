@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
-load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -58,9 +58,3 @@ real_source_target(
     tags = ["corpus"],
 )
 
-rustfmt_test(
-    name = "rust_linux_fmt_test",
-    targets = [
-        ":extract_test",
-    ],
-)

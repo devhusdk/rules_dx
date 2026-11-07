@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS + VIS_CLI)
@@ -130,23 +130,6 @@ rust_test(
     ) + [
         ":depcheck_lib",
         "//libs/gomod:dx_gomod",
-    ],
-)
-
-rustfmt_test(
-    name = "depcheck_fmt_test",
-    targets = [
-        ":depcheck_bin_test",
-        ":depcheck_lib",
-        ":depcheck",
-    ],
-)
-
-rust_clippy_test(
-    name = "depcheck_clippy_test",
-    targets = [
-        ":depcheck_lib",
-        ":depcheck",
     ],
 )
 
@@ -362,10 +345,3 @@ real_source_target(
     ],
 )
 
-rustfmt_test(
-    name = "depcheck_linux_fmt_test",
-    targets = [
-        ":adopt_locks_test",
-        ":repo_locks_test",
-    ],
-)

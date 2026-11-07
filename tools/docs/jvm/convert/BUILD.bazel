@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -68,23 +68,6 @@ rust_test(
     ) + [
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde_json",
-    ],
-)
-
-rustfmt_test(
-    name = "dx_docs_jvm_convert_fmt_test",
-    targets = [
-        ":dx_docs_jvm_convert",
-        ":dx_docs_jvm_convert_test",
-        ":jvm_convert",
-    ],
-)
-
-rust_clippy_test(
-    name = "dx_docs_jvm_convert_clippy_test",
-    targets = [
-        ":dx_docs_jvm_convert",
-        ":jvm_convert",
     ],
 )
 

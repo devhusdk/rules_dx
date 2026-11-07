@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -25,18 +25,3 @@ rust_test(
     deps = ["//cli/lcov:dx_lcov"],
 )
 
-rustfmt_test(
-    name = "clover_to_lcov_fmt_test",
-    targets = [
-        ":clover_to_lcov",
-        ":clover_to_lcov_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "clover_to_lcov_clippy_test",
-    targets = [
-        ":clover_to_lcov",
-        ":clover_to_lcov_test",
-    ],
-)

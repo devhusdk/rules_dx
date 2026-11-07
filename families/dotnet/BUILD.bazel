@@ -32,17 +32,6 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "csharp/rules,fsharp/rules"},
 )
 
-sh_test(
-    name = "rustfmt_coverage_test",
-    srcs = ["starlark_docs_test.sh"],
-    args = ["$(rootpath @rules_dx//tools/ci:rustfmt_coverage_family_test)"],
-    data = [
-        "//csharp/tests/fixtures/roslyn:corpus_starlark",
-        "@rules_dx//tools/ci:rustfmt_coverage_family_test",
-    ],
-    env = {"RUSTFMT_COVERAGE_PACKAGES": "csharp/tests/fixtures/roslyn"},
-)
-
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

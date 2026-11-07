@@ -16,7 +16,6 @@ rust_binary(
     srcs = ["main.rs"],
     crate_name = "dx_topiary",
     crate_root = "main.rs",
-    edition = "2021",
     deps = _DEPS,
 )
 

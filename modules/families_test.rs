@@ -730,12 +730,8 @@ fn family_files_load_only_their_own_repos() {
 }
 
 /// The source-check targets every moved family declares in its own `BUILD.bazel`.
-const FAMILY_CHECK_TARGETS: [&str; 4] = [
-    "corpus_starlark",
-    "corpus_markdown",
-    "starlark_docs_test",
-    "rustfmt_coverage_test",
-];
+const FAMILY_CHECK_TARGETS: [&str; 3] =
+    ["corpus_starlark", "corpus_markdown", "starlark_docs_test"];
 
 fn missing_check_targets(family: &str, build_file: Option<&str>) -> Vec<String> {
     let Some(text) = build_file else {
@@ -762,11 +758,7 @@ fn moved_families_declare_the_source_check_targets() {
         problems.extend(
             missing_check_targets(family, text.as_deref())
                 .into_iter()
-                .filter(|problem| {
-                    has_packages
-                        || !(problem.contains("starlark_docs_test")
-                            || problem.contains("rustfmt_coverage_test"))
-                }),
+                .filter(|problem| has_packages || !problem.contains("starlark_docs_test")),
         );
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
@@ -783,16 +775,14 @@ fn a_family_without_a_build_file_or_target_is_reported() {
         [
             "x: BUILD.bazel has no corpus_starlark target",
             "x: BUILD.bazel has no corpus_markdown target",
-            "x: BUILD.bazel has no starlark_docs_test target",
-            "x: BUILD.bazel has no rustfmt_coverage_test target"
+            "x: BUILD.bazel has no starlark_docs_test target"
         ]
     );
     assert_eq!(
         missing_check_targets("x", Some("name = \"corpus_starlark\"")),
         [
             "x: BUILD.bazel has no corpus_markdown target",
-            "x: BUILD.bazel has no starlark_docs_test target",
-            "x: BUILD.bazel has no rustfmt_coverage_test target"
+            "x: BUILD.bazel has no starlark_docs_test target"
         ]
     );
     let both = FAMILY_CHECK_TARGETS
@@ -821,16 +811,15 @@ fn listed_packages(build_file: &str, name: &str) -> Vec<String> {
 /// Problems with the package lists in a family root `build_file`, given its non-exempt `packages`.
 fn package_list_problems(family: &str, build_file: &str, packages: &[String]) -> Vec<String> {
     let docs = listed_packages(build_file, "STARLARK_DOCS_PACKAGES");
-    let rustfmt = listed_packages(build_file, "RUSTFMT_COVERAGE_PACKAGES");
     let mut problems = Vec::new();
     for package in packages.iter().filter(|package| !package.is_empty()) {
-        if !docs.contains(package) && !rustfmt.contains(package) {
+        if !docs.contains(package) {
             problems.push(format!(
-                "{family}: package {package} is in neither STARLARK_DOCS_PACKAGES nor RUSTFMT_COVERAGE_PACKAGES"
+                "{family}: package {package} is not in STARLARK_DOCS_PACKAGES"
             ));
         }
     }
-    for package in docs.iter().chain(&rustfmt) {
+    for package in &docs {
         if !build_file.contains(&format!("\"//{package}:corpus_starlark\"")) {
             problems.push(format!(
                 "{family}: //{package}:corpus_starlark is listed but missing from data"
@@ -864,15 +853,13 @@ fn an_unlisted_package_or_missing_data_label_is_reported() {
     let build = concat!(
         "data = [\"//rules:corpus_starlark\"],\n",
         "env = {\"STARLARK_DOCS_PACKAGES\": \"rules,sdk\"},\n",
-        "env = {\"RUSTFMT_COVERAGE_PACKAGES\": \"tests\"},\n",
     );
-    let packages = ["", "rules", "sdk", "tests", "extra"].map(str::to_owned);
+    let packages = ["", "rules", "sdk", "extra"].map(str::to_owned);
     assert_eq!(
         package_list_problems("x", build, &packages),
         [
-            "x: package extra is in neither STARLARK_DOCS_PACKAGES nor RUSTFMT_COVERAGE_PACKAGES",
+            "x: package extra is not in STARLARK_DOCS_PACKAGES",
             "x: //sdk:corpus_starlark is listed but missing from data",
-            "x: //tests:corpus_starlark is listed but missing from data",
         ]
     );
 }

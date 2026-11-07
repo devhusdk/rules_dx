@@ -17,7 +17,6 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 
-# keep
 rust_test(
     name = "lsp_headless_clangd_test",
     srcs = ["lsp_headless_clangd_test.rs"],
@@ -43,7 +42,6 @@ rust_test(
     ],
 )
 
-# keep
 # size: medium, rust-analyzer startup, measured 60s linux_x86_64 2026-11-04
 rust_test(
     name = "lsp_headless_rust_analyzer_test",

@@ -374,6 +374,22 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Deny the host MSVC trees to hermetic runs
+        run: |
+          denies=()
+          for root in "$(printenv ProgramFiles)" "$(printenv 'ProgramFiles(x86)')"; do
+            [ -n "$root" ] || continue
+            for name in "Microsoft Visual Studio" "Windows Kits" "Microsoft SDKs"; do
+              dir="$root\\$name"
+              if [ -d "$(cygpath -u "$dir")" ]; then
+                denies+=(--deny "$dir")
+              fi
+            done
+          done
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel run --noshow_progress "$@" --//cc/toolchains:compiler=msvc //tools/testing/hermetic:appcontainer_run -- \
+            --backend user --ensure-host-denies "${denies[@]}"
       - name: Qualify the MSVC consumers without Visual Studio or network
         run: |
           printf '%s\n' //tools/testing/hermetic:c_fixture_msvc //tools/testing/hermetic:cpp_fixture_msvc > "$RUNNER_TEMP/hermetic-targets"

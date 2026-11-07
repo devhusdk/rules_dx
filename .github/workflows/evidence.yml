@@ -80,17 +80,23 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL
           df -h /
-      - name: Check out files in parallel on Windows
-        if: runner.os == 'Windows'
+      - name: Exclude the workspace and Bazel roots from Defender
+        if: ${{ matrix.platform == 'windows_arm64' }}
+        run: |
+          date +%s.%N > "$RUNNER_TEMP/defender.start"
+          powershell.exe -NoProfile -NonInteractive -Command '
+            try {
+              Add-MpPreference -ErrorAction Stop -ExclusionPath $env:GITHUB_WORKSPACE, $env:RUNNER_TEMP, "C:\bz", "D:\bz", "$env:LOCALAPPDATA\bazelisk"
+              [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000 | Out-File -Encoding ascii "$env:RUNNER_TEMP\defender.done"
+            } catch {
+              "failed: $_" | Out-File -Encoding ascii "$env:RUNNER_TEMP\defender.done"
+            }' < /dev/null > /dev/null 2>&1 &
+      - name: Check out files in parallel
         run: |
           git init "$GITHUB_WORKSPACE"
           git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        if: runner.os != 'Windows'
-        with:
-          persist-credentials: false
       - name: Validate workflow inputs
         id: inputs
         env:
@@ -101,6 +107,7 @@ jobs:
           DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
           DX_FLAGS: ${{ inputs.flags }}
           DX_RELOCATE: ${{ inputs.relocate }}
+          DX_EVIDENCE_NO_JQ: ${{ runner.os == 'Windows' && '1' || '' }}
         run: bash tools/ci/evidence_inputs.sh
       - id: setup
         uses: ./.github/actions/setup-bazel
@@ -500,6 +507,9 @@ jobs:
               printf '\n%s: ' "$(basename "$log")"
               tail -n 1 "$log"
             done
+            if [ -f "$RUNNER_TEMP/defender.start" ]; then
+              printf '\nDefender exclusions: started %s, done %s\n' "$(cat "$RUNNER_TEMP/defender.start")" "$(cat "$RUNNER_TEMP/defender.done" 2>/dev/null || echo never)"
+            fi
             if [ -f "$RUNNER_TEMP/evidence/android-versions.txt" ]; then
               printf '\n```\n'
               cat "$RUNNER_TEMP/evidence/android-versions.txt"

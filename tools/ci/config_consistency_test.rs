@@ -1002,21 +1002,23 @@ fn remote_repo_contents_cache_comes_from_the_preset() {
 }
 
 #[test]
-fn evidence_checks_out_in_parallel_on_windows() {
+fn evidence_checks_out_in_parallel_without_actions_checkout() {
     let evidence = read_runfiles(".github/workflows/evidence.yml");
+    let step = evidence
+        .find("- name: Check out files in parallel\n")
+        .expect("evidence.yml has no parallel checkout step");
+    let body: String = evidence[step..].lines().skip(1).take_while(|line| !line.trim_start().starts_with("- ")).collect();
+    assert!(!body.contains("if:"), "the parallel checkout must run on every OS");
     assert!(
-        evidence.contains("-c checkout.workers=0 checkout --force FETCH_HEAD"),
-        "the Windows checkout must run with checkout.workers=0"
+        body.contains("-c checkout.workers=0 checkout --force FETCH_HEAD"),
+        "the checkout must run with checkout.workers=0"
     );
-    let action = evidence
-        .find("actions/checkout@")
-        .expect("evidence.yml has no checkout step");
-    let guard = evidence[action..]
-        .lines()
-        .find(|line| line.trim_start().starts_with("if:"))
-        .expect("actions/checkout has no if");
-    assert!(guard.contains("runner.os != 'Windows'"), "guard: {guard}");
+    assert!(
+        !evidence.contains("actions/checkout@"),
+        "evidence.yml checks out with git, not actions/checkout"
+    );
 }
+
 
 #[test]
 fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {

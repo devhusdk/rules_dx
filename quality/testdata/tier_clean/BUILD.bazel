@@ -1,5 +1,4 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:native_config.bzl", "sqlfluff_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 load("//sql/rules:defs.bzl", "sql_library")
 
@@ -23,36 +22,10 @@ package(default_visibility = ["//quality/testdata:__pkg__"])
     ]
 ]
 
-genrule(
-    name = "sqlfluff_standard_cfg",
-    srcs = ["//quality/tiers/sqlfluff:standard.cfg"],
-    outs = ["sqlfluff/.sqlfluff"],
-    cmd = "awk '{ print } /^\\[sqlfluff\\]$$/ { print \"dialect = sqlite\" }' $< > $@",
-)
-
-sqlfluff_config(
-    name = "sqlfluff_standard",
-    src = ":sqlfluff_standard_cfg",
-    allow_generated = True,
-)
-
-genrule(
-    name = "sqlfluff_strict_cfg",
-    srcs = ["//quality/tiers/sqlfluff:strict.cfg"],
-    outs = ["sqlfluff_strict/.sqlfluff"],
-    cmd = "awk '{ print } /^\\[sqlfluff\\]$$/ { print \"dialect = sqlite\" }' $< > $@",
-)
-
-sqlfluff_config(
-    name = "sqlfluff_strict",
-    src = ":sqlfluff_strict_cfg",
-    allow_generated = True,
-)
-
 workspace_policy(
     name = "policy",
     configs = [
-        ":sqlfluff_standard",
+        "//quality/tiers/sqlfluff:standard",
         "//quality/tiers/buildifier:standard",
         "//quality/tiers/yamllint:standard",
     ],
@@ -66,7 +39,7 @@ workspace_policy(
 workspace_policy(
     name = "strict_policy",
     configs = [
-        ":sqlfluff_strict",
+        "//quality/tiers/sqlfluff:strict",
         "//quality/tiers/buildifier:strict",
         "//quality/tiers/yamllint:strict",
     ],

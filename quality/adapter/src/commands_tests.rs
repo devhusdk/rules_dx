@@ -2096,6 +2096,7 @@ fn sqlfluff_check_always_passes_the_config_and_ignores_ambient_config() {
         Path::new(BIN),
         &[a, b],
         Path::new("/scratch/.sqlfluff"),
+        "postgres",
     ));
     assert_eq!(
         argv,
@@ -2106,6 +2107,8 @@ fn sqlfluff_check_always_passes_the_config_and_ignores_ambient_config() {
             "json",
             "--config",
             "/scratch/.sqlfluff",
+            "--dialect",
+            "postgres",
             "--ignore-local-config",
             "--disregard-sqlfluffignores",
             "--nocolor",
@@ -2117,7 +2120,7 @@ fn sqlfluff_check_always_passes_the_config_and_ignores_ambient_config() {
             "/scratch/b.sql"
         ]
     );
-    for banned in ["--dialect", "fix", "format", "--templater"] {
+    for banned in ["fix", "format", "--templater"] {
         assert!(!argv.iter().any(|arg| arg == banned), "{banned}");
     }
 }
@@ -2129,6 +2132,8 @@ fn sqlfluff_format_invocations_share_the_bound_config_and_flags() {
     let tail = [
         "--config",
         "/scratch/.sqlfluff",
+        "--dialect",
+        "tsql",
         "--ignore-local-config",
         "--disregard-sqlfluffignores",
         "--nocolor",
@@ -2138,7 +2143,7 @@ fn sqlfluff_format_invocations_share_the_bound_config_and_flags() {
         "--",
         "/scratch/a.sql",
     ];
-    let check = argv_strings(&sqlfluff_format_check(Path::new(BIN), &[a], config));
+    let check = argv_strings(&sqlfluff_format_check(Path::new(BIN), &[a], config, "tsql"));
     let mut want = vec![
         BIN,
         "lint",
@@ -2149,7 +2154,7 @@ fn sqlfluff_format_invocations_share_the_bound_config_and_flags() {
     ];
     want.extend(tail);
     assert_eq!(check, want);
-    let fix = argv_strings(&sqlfluff_format_fix(Path::new(BIN), &[a], config));
+    let fix = argv_strings(&sqlfluff_format_fix(Path::new(BIN), &[a], config, "tsql"));
     let mut want = vec![BIN, "format"];
     want.extend(tail);
     assert_eq!(fix, want);

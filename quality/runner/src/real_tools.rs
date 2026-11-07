@@ -4522,7 +4522,7 @@ fn sqlfluff_tool(config: &str) -> RealTool {
     }
 }
 
-const SQLFLUFF_CONFIG: &str = "[sqlfluff]\ndialect = ansi\n";
+const SQLFLUFF_CONFIG: &str = "[sqlfluff]\ntemplater = raw\n";
 
 fn sqlfluff_fake(
     argv: &[OsString],
@@ -4546,7 +4546,8 @@ fn sqlfluff_fake(
         Path::new(&args[config_at + 1]).is_file(),
         "config file exists"
     );
-    assert_eq!(args[config_at + 2], "--ignore-local-config");
+    assert_eq!(args[config_at + 2], "--dialect");
+    assert_eq!(args[config_at + 4], "--ignore-local-config");
     let separator = args.iter().position(|arg| arg == "--").expect("separator");
     let mut entries = Vec::new();
     let mut dirty = false;
@@ -4634,7 +4635,8 @@ fn sqlfluff_without_a_config_is_refused() {
         .diagnose("sqlfluff", "lint", &single("db/a.sql", SQL_CLEAN))
         .expect_err("needs a config");
     assert!(
-        err.to_string().contains("sqlfluff requires a config"),
+        err.to_string()
+            .contains("invariant: sqlfluff reached the runner with no bound config"),
         "{err}"
     );
     assert_eq!(SQLFLUFF_SPAWNS.get(), before);
@@ -4643,10 +4645,9 @@ fn sqlfluff_without_a_config_is_refused() {
 #[test]
 fn sqlfluff_refuses_a_config_the_preflight_rejects() {
     for config in [
-        "[sqlfluff]\ntemplater = raw\n",
-        "[sqlfluff]\ndialect = postgresql\n",
-        "[sqlfluff]\ndialect = ansi\ntemplater = dbt\n",
-        "[sqlfluff]\ndialect = ansi\n[sqlfluff:templater:jinja]\nload_macros_from_path = m\n",
+        "[sqlfluff]\ndialect = postgres\n",
+        "[sqlfluff]\ntemplater = dbt\n",
+        "[sqlfluff]\n[sqlfluff:templater:jinja]\nload_macros_from_path = m\n",
     ] {
         let err = backend_for("sqlfluff", sqlfluff_tool(config), sqlfluff_fake)
             .diagnose("sqlfluff", "lint", &single("db/a.sql", SQL_CLEAN))
@@ -4716,7 +4717,8 @@ fn sqlfluff_format_fake(
         return sqlfluff_fake(argv, cwd, env);
     }
     assert_eq!(args[1], "--config");
-    assert_eq!(args[3], "--ignore-local-config");
+    assert_eq!(args[3], "--dialect");
+    assert_eq!(args[5], "--ignore-local-config");
     let separator = args.iter().position(|arg| arg == "--").expect("separator");
     for name in &args[separator + 1..] {
         let text = std::fs::read_to_string(name)?;
@@ -4733,7 +4735,7 @@ fn sqlfluff_format_fake(
 fn sqlfluff_format_check_lints_with_only_the_format_rules() {
     let backend = backend_for(
         "sqlfluff",
-        sqlfluff_tool("[sqlfluff]\ndialect = ansi\nexclude_rules = LT01\n"),
+        sqlfluff_tool("[sqlfluff]\nexclude_rules = LT01\n"),
         sqlfluff_format_fake,
     );
     SQLFLUFF_FORMAT_ARGV.lock().expect("lock").clear();
@@ -4757,11 +4759,101 @@ fn sqlfluff_format_check_lints_with_only_the_format_rules() {
     assert!(clean.is_empty());
 }
 
+static SQLFLUFF_DIALECT_RUNS: std::sync::Mutex<Vec<(String, Vec<String>)>> =
+    std::sync::Mutex::new(Vec::new());
+
+/// Records each run's `--dialect` and file names, and reports every file clean.
+fn sqlfluff_dialect_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let args: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let at = args
+        .iter()
+        .position(|arg| arg == "--dialect")
+        .expect("--dialect");
+    let separator = args.iter().position(|arg| arg == "--").expect("separator");
+    let names: Vec<String> = args[separator + 1..].to_vec();
+    let entries: Vec<String> = names
+        .iter()
+        .map(|name| {
+            format!(r#"{{"filepath":"{name}","violations":[],"statistics":{{}},"timings":{{}}}}"#)
+        })
+        .collect();
+    let files = names
+        .iter()
+        .map(|name| name.rsplit('/').next().unwrap_or(name).to_owned())
+        .collect();
+    SQLFLUFF_DIALECT_RUNS
+        .lock()
+        .expect("lock")
+        .push((args[at + 1].clone(), files));
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: format!("[{}]", entries.join(",")).into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn sqlfluff_dialect_comes_from_the_tool_or_the_file_suffix() {
+    let mut files = single("db/a.sql", SQL_CLEAN);
+    files.insert("db/b.postgresql.sql".to_owned(), SQL_CLEAN.to_owned());
+    files.insert("db/c.transactsql.sql".to_owned(), SQL_CLEAN.to_owned());
+    SQLFLUFF_DIALECT_RUNS.lock().expect("lock").clear();
+    backend_for(
+        "sqlfluff",
+        sqlfluff_tool(SQLFLUFF_CONFIG),
+        sqlfluff_dialect_fake,
+    )
+    .diagnose("sqlfluff", "lint", &files)
+    .expect("diagnosed");
+    let mut runs = SQLFLUFF_DIALECT_RUNS.lock().expect("lock").clone();
+    runs.sort();
+    let want = |dialect: &str, file: &str| (dialect.to_owned(), vec![file.to_owned()]);
+    assert_eq!(
+        runs,
+        [
+            want("ansi", "a.sql"),
+            want("postgres", "b.postgresql.sql"),
+            want("tsql", "c.transactsql.sql"),
+        ]
+    );
+    SQLFLUFF_DIALECT_RUNS.lock().expect("lock").clear();
+    let tool = RealTool {
+        dialect: Some("sparksql".to_owned()),
+        ..sqlfluff_tool(SQLFLUFF_CONFIG)
+    };
+    backend_for("sqlfluff", tool, sqlfluff_dialect_fake)
+        .diagnose("sqlfluff", "lint", &files)
+        .expect("diagnosed");
+    let runs = SQLFLUFF_DIALECT_RUNS.lock().expect("lock").clone();
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].0, "sparksql");
+    assert_eq!(runs[0].1.len(), 3);
+}
+
+#[test]
+fn sqlfluff_refuses_a_dialect_it_does_not_know() {
+    let tool = RealTool {
+        dialect: Some("n1ql".to_owned()),
+        ..sqlfluff_tool(SQLFLUFF_CONFIG)
+    };
+    let err = backend_for("sqlfluff", tool, sqlfluff_dialect_fake)
+        .diagnose("sqlfluff", "lint", &single("db/a.sql", SQL_CLEAN))
+        .expect_err("unknown dialect");
+    assert!(err.to_string().contains("`n1ql` dialect"), "{err}");
+}
+
 #[test]
 fn sqlfluff_format_refuses_a_config_the_preflight_rejects() {
     for config in [
-        "[sqlfluff]\ndialect = ansi\ntemplater = dbt\n",
-        "[sqlfluff]\ntemplater = raw\n",
+        "[sqlfluff]\ntemplater = dbt\n",
+        "[sqlfluff]\ndialect = ansi\n",
     ] {
         let backend = backend_for("sqlfluff", sqlfluff_tool(config), sqlfluff_format_fake);
         let check = backend

@@ -7,14 +7,40 @@ use quality_adapter::{commands, parsers, sqlfluff_config, sqlfluff_preflight};
 use super::check::ToolDef;
 use super::*;
 
-/// One sqlfluff run: a config and the files it applies to.
+/// One sqlfluff run: a config, a dialect and the files they apply to.
+struct ConfigRun {
+    config: PathBuf,
+    files: Vec<PathBuf>,
+}
+
 pub(super) struct SqlfluffRun {
     pub config: PathBuf,
+    pub dialect: &'static str,
     pub files: Vec<PathBuf>,
 }
 
-/// Preflights the bound config and every nested `.sqlfluff`, then groups `files` by the chain of
-/// nested configs above them. Without nested configs every file runs under the bound config.
+/// The dialect of one file: the tool's, else its `name.<dialect>.sql` suffix, else ansi.
+fn file_dialect(tool_id: &str, tool: &RealTool, file: &Path) -> Result<&'static str, RunnerError> {
+    if let Some(name) = tool.dialect.as_deref() {
+        return sqlfluff_preflight::DIALECTS
+            .iter()
+            .find(|known| **known == name)
+            .copied()
+            .ok_or_else(|| execution(tool_id, format!("sqlfluff has no `{name}` dialect")));
+    }
+    let basename = file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
+    match sqlfluff_preflight::suffix_dialect(basename) {
+        Some(suffix) => sqlfluff_preflight::dialect_from_sql_library(suffix)
+            .map_err(|err| execution(tool_id, err)),
+        None => Ok("ansi"),
+    }
+}
+
+/// Preflights the bound config and every nested `.sqlfluff`, groups `files` by the chain of
+/// nested configs above them, then splits each group by dialect.
 pub(super) fn plan_sqlfluff(
     tool_id: &str,
     tool: &RealTool,
@@ -22,6 +48,34 @@ pub(super) fn plan_sqlfluff(
     bound: &Path,
     files: &[&Path],
 ) -> Result<Vec<SqlfluffRun>, RunnerError> {
+    let runs = plan_configs(tool_id, tool, scratch, bound, files)?;
+    let mut split = Vec::new();
+    for run in runs {
+        let mut by_dialect: BTreeMap<&'static str, Vec<PathBuf>> = BTreeMap::new();
+        for file in run.files {
+            by_dialect
+                .entry(file_dialect(tool_id, tool, &file)?)
+                .or_default()
+                .push(file);
+        }
+        for (dialect, files) in by_dialect {
+            split.push(SqlfluffRun {
+                config: run.config.clone(),
+                dialect,
+                files,
+            });
+        }
+    }
+    Ok(split)
+}
+
+fn plan_configs(
+    tool_id: &str,
+    tool: &RealTool,
+    scratch: &Scratch,
+    bound: &Path,
+    files: &[&Path],
+) -> Result<Vec<ConfigRun>, RunnerError> {
     let text = std::fs::read_to_string(bound)
         .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
     sqlfluff_preflight::check_config(&text).map_err(|err| execution(tool_id, err))?;
@@ -33,7 +87,7 @@ pub(super) fn plan_sqlfluff(
         }
         let nested_text = String::from_utf8(bytes.clone())
             .map_err(|err| execution(tool_id, format!("{rel}: not UTF-8: {err}")))?;
-        sqlfluff_preflight::check_nested_config(&nested_text)
+        sqlfluff_preflight::check_config(&nested_text)
             .map_err(|err| execution(tool_id, format!("{rel}: {err}")))?;
         nested.push((rel.replace('\\', "/"), nested_text));
     }
@@ -41,7 +95,7 @@ pub(super) fn plan_sqlfluff(
         if files.is_empty() {
             return Ok(Vec::new());
         }
-        return Ok(vec![SqlfluffRun {
+        return Ok(vec![ConfigRun {
             config: bound.to_path_buf(),
             files: files.iter().map(|file| file.to_path_buf()).collect(),
         }]);
@@ -84,7 +138,7 @@ pub(super) fn plan_sqlfluff(
                 path
             }
         };
-        runs.push(SqlfluffRun {
+        runs.push(ConfigRun {
             config,
             files: group
                 .files
@@ -106,10 +160,7 @@ pub(super) const TOOL: ToolDef = ToolDef {
             bound,
             call.capability == "format",
         ),
-        None => Err(execution(
-            call.tool_id,
-            "sqlfluff requires a config".to_owned(),
-        )),
+        None => Err(missing_tier_base(call.tool_id)),
     },
 };
 
@@ -148,9 +199,9 @@ impl RealBackend {
         for run in &runs {
             let run_files: Vec<&Path> = run.files.iter().map(PathBuf::as_path).collect();
             let invocation = if format {
-                commands::sqlfluff_format_check(&tool.binary, &run_files, &run.config)
+                commands::sqlfluff_format_check(&tool.binary, &run_files, &run.config, run.dialect)
             } else {
-                commands::sqlfluff_check(&tool.binary, &run_files, &run.config)
+                commands::sqlfluff_check(&tool.binary, &run_files, &run.config, run.dialect)
             };
             let out = self.run(tool_id, tool, &invocation, &staged.scratch)?;
             let names: Vec<String> = run_files

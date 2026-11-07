@@ -842,9 +842,15 @@ impl super::RealBackend {
             }
             Route::Sqlfluff => {
                 let Some(config) = self.config_abs(tool_id, tool, scratch)? else {
-                    return Err(execution(tool_id, "sqlfluff requires a config".to_owned()));
+                    return Err(missing_tier_base(tool_id));
                 };
-                Ok(commands::sqlfluff_format_fix(&tool.binary, refs, &config))
+                // Only sizes the batches; spawn_sqlfluff_fix picks each run's dialect.
+                Ok(commands::sqlfluff_format_fix(
+                    &tool.binary,
+                    refs,
+                    &config,
+                    "ansi",
+                ))
             }
             Route::SwiftFormat => {
                 let config = self.config_abs(tool_id, tool, scratch)?;
@@ -867,7 +873,7 @@ impl super::RealBackend {
         scratch: &Scratch,
     ) -> Result<Outcome, RunnerError> {
         let Some(config) = self.config_abs(tool_id, tool, scratch)? else {
-            return Err(execution(tool_id, "sqlfluff requires a config".to_owned()));
+            return Err(missing_tier_base(tool_id));
         };
         let runs = super::sqlfluff::plan_sqlfluff(tool_id, tool, scratch, &config, refs)?;
         for file in refs {
@@ -879,7 +885,8 @@ impl super::RealBackend {
         let mut fixed = true;
         for run in &runs {
             let files: Vec<&Path> = run.files.iter().map(PathBuf::as_path).collect();
-            let invocation = commands::sqlfluff_format_fix(&tool.binary, &files, &run.config);
+            let invocation =
+                commands::sqlfluff_format_fix(&tool.binary, &files, &run.config, run.dialect);
             let out = self.run(tool_id, tool, &invocation, scratch)?;
             fixed &= matches!(out.code, Some(0) | Some(1));
         }

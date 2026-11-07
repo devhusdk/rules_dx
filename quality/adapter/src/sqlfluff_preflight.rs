@@ -1,7 +1,7 @@
 //! Offline check dx runs on a sqlfluff config before sqlfluff sees it.
 //!
-//! The config is the only place the SQL dialect comes from, so it must name one sqlfluff knows.
-//! Templaters that run project code or reach outside the config are refused.
+//! The dialect comes from the sql_library or the file suffix and reaches sqlfluff as `--dialect`,
+//! so a config must not set one. Templaters that run project code or reach outside the config are refused.
 
 /// The dialects sqlfluff 4.4.0 lists in `sqlfluff dialects`; update with the pin.
 pub const DIALECTS: &[&str] = &[
@@ -48,20 +48,51 @@ const BANNED_KEYS: &[&str] = &[
 /// Sections of templaters that run project code.
 const BANNED_SECTIONS: &[&str] = &["sqlfluff:templater:dbt", "sqlfluff:templater:python"];
 
-/// Refuses a sqlfluff config without a known dialect, or with a templater dx does not allow.
+/// The sqlfluff dialect for a `sql_library` dialect name or file suffix, or the reason it has none.
+pub fn dialect_from_sql_library(name: &str) -> Result<&'static str, String> {
+    let dialect = match name {
+        "bigquery" => "bigquery",
+        "clickhouse" => "clickhouse",
+        "db2" => "db2",
+        "hive" => "hive",
+        "mariadb" => "mariadb",
+        "mysql" => "mysql",
+        "plsql" => "oracle",
+        "postgresql" => "postgres",
+        "redshift" => "redshift",
+        "snowflake" => "snowflake",
+        "spark" => "sparksql",
+        "sqlite" => "sqlite",
+        "transactsql" => "tsql",
+        "trino" => "trino",
+        _ => {
+            return Err(format!(
+                "sqlfluff has no `{name}` dialect; use another dialect or tag the target no-lint"
+            ));
+        }
+    };
+    Ok(dialect)
+}
+
+/// The `sql_library` dialect a file name carries as `name.<dialect>.sql`, if any.
+pub fn suffix_dialect(basename: &str) -> Option<&str> {
+    let mut parts = basename.rsplit('.');
+    if parts.next()? != "sql" {
+        return None;
+    }
+    let suffix = parts.next()?;
+    parts.next()?;
+    dialect_from_sql_library(suffix).is_ok().then_some(suffix)
+}
+
+/// Refuses a sqlfluff config that sets a dialect or a templater dx does not allow.
 pub fn check_config(text: &str) -> Result<(), String> {
-    check(text, true)
+    check(text)
 }
 
-/// Like `check_config` for a nested config, which inherits the dialect and may omit it.
-pub fn check_nested_config(text: &str) -> Result<(), String> {
-    check(text, false)
-}
-
-fn check(text: &str, require_dialect: bool) -> Result<(), String> {
+fn check(text: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut section = String::new();
-    let mut dialect: Option<String> = None;
     let mut templater: Option<String> = None;
     // Mirrors Python's configparser: a line is a continuation only when the section already has
     // a key and the line is indented more than that key.
@@ -109,27 +140,15 @@ fn check(text: &str, require_dialect: bool) -> Result<(), String> {
         }
         if section == "sqlfluff" {
             match key.as_str() {
-                "dialect" => dialect = Some(value.to_ascii_lowercase()),
+                "dialect" => {
+                    return Err(format!(
+                        "sqlfluff config line {number}: `dialect` is not allowed: dx passes the dialect of the sql_library or the file suffix"
+                    ));
+                }
                 "templater" => templater = Some(value.to_ascii_lowercase()),
                 _ => {}
             }
         }
-    }
-    match dialect.as_deref() {
-        None | Some("") if !require_dialect => {}
-        None | Some("") => {
-            return Err(format!(
-                "sqlfluff config must set `dialect` under [sqlfluff]; one of {}",
-                DIALECTS.join(", ")
-            ));
-        }
-        Some(name) if !DIALECTS.contains(&name) => {
-            return Err(format!(
-                "sqlfluff config dialect `{name}` is unknown to sqlfluff 4.4.0; use one of {}",
-                DIALECTS.join(", ")
-            ));
-        }
-        Some(_) => {}
     }
     if let Some(name) = templater.as_deref()
         && !TEMPLATERS.contains(&name)
@@ -173,36 +192,73 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_known_dialect_passes() {
-        assert!(check_config("[sqlfluff]\ndialect = postgres\n").is_ok());
-        assert!(check_config("\u{feff}[sqlfluff]\r\ndialect: ANSI\r\ntemplater = raw\r\n").is_ok());
+    fn a_config_without_a_dialect_passes() {
+        assert!(check_config("").is_ok());
+        assert!(check_config("\u{feff}[sqlfluff]\r\ntemplater = raw\r\n").is_ok());
         assert!(check_config(
-            "# c\n[sqlfluff]\ntemplater = jinja\ndialect = tsql\nexclude_rules =\n    LT01,\n    LT02\n[sqlfluff:rules:capitalisation.keywords]\ncapitalisation_policy = lower\n"
+            "# c\n[sqlfluff]\ntemplater = jinja\nexclude_rules =\n    LT01,\n    LT02\n[sqlfluff:rules:capitalisation.keywords]\ncapitalisation_policy = lower\n"
         )
         .is_ok());
+        // A dialect under another section is not the one sqlfluff reads.
+        assert!(check_config("[sqlfluff:core]\n").is_ok());
     }
 
     #[test]
-    fn a_missing_or_unknown_dialect_is_refused() {
-        let err = check_config("[sqlfluff]\ntemplater = raw\n").expect_err("no dialect");
-        assert!(err.contains("must set `dialect`"), "{err}");
-        assert!(check_config("").is_err());
-        assert!(check_config("[sqlfluff]\ndialect =\n").is_err());
-        // The sql_library spelling is not sqlfluff's.
-        let err = check_config("[sqlfluff]\ndialect = postgresql\n").expect_err("unknown");
-        assert!(err.contains("unknown"), "{err}");
-        // A dialect under another section does not count.
-        assert!(check_config("[sqlfluff:core]\ndialect = ansi\n").is_err());
+    fn a_dialect_in_the_config_is_refused() {
+        for text in [
+            "[sqlfluff]\ndialect = ansi\n",
+            "[sqlfluff]\nDialect: postgres\n",
+            "[sqlfluff]\ndialect = \n",
+        ] {
+            let err = check_config(text).expect_err(text);
+            assert!(err.contains("`dialect` is not allowed"), "{err}");
+        }
+    }
+
+    #[test]
+    fn sql_library_dialects_map_to_sqlfluff_names() {
+        for (name, want) in [
+            ("postgresql", "postgres"),
+            ("spark", "sparksql"),
+            ("transactsql", "tsql"),
+            ("plsql", "oracle"),
+            ("mysql", "mysql"),
+        ] {
+            assert_eq!(dialect_from_sql_library(name), Ok(want));
+        }
+        for name in ["n1ql", "singlestoredb", "db2i"] {
+            let err = dialect_from_sql_library(name).expect_err(name);
+            assert!(err.contains(name), "{err}");
+        }
+        for name in [
+            "bigquery",
+            "clickhouse",
+            "db2",
+            "hive",
+            "mariadb",
+            "redshift",
+        ] {
+            assert!(DIALECTS.contains(&dialect_from_sql_library(name).unwrap()));
+        }
+    }
+
+    #[test]
+    fn the_dialect_suffix_is_read_from_the_file_name() {
+        assert_eq!(suffix_dialect("a.postgresql.sql"), Some("postgresql"));
+        assert_eq!(suffix_dialect("a.sql"), None);
+        assert_eq!(suffix_dialect("postgresql.sql"), None);
+        assert_eq!(suffix_dialect("a.n1ql.sql"), None);
+        assert_eq!(suffix_dialect("a.postgresql.txt"), None);
     }
 
     #[test]
     fn project_code_templaters_and_file_system_loaders_are_refused() {
         for templater in ["dbt", "python", "other"] {
-            let text = format!("[sqlfluff]\ndialect = ansi\ntemplater = {templater}\n");
+            let text = format!("[sqlfluff]\ntemplater = {templater}\n");
             assert!(check_config(&text).is_err(), "{templater}");
         }
         for section in ["sqlfluff:templater:dbt", "sqlfluff:templater:python"] {
-            let text = format!("[sqlfluff]\ndialect = ansi\n[{section}]\nproject_dir = .\n");
+            let text = format!("[sqlfluff]\n[{section}]\nproject_dir = .\n");
             assert!(check_config(&text).is_err(), "{section}");
         }
         for key in [
@@ -210,8 +266,7 @@ mod tests {
             "load_macros_from_path",
             "loader_search_path",
         ] {
-            let text =
-                format!("[sqlfluff]\ndialect = ansi\n[sqlfluff:templater:jinja]\n{key} = macros\n");
+            let text = format!("[sqlfluff]\n[sqlfluff:templater:jinja]\n{key} = macros\n");
             let err = check_config(&text).expect_err(key);
             assert!(err.contains(key), "{err}");
         }
@@ -220,21 +275,15 @@ mod tests {
     #[test]
     fn indented_lines_without_a_key_above_are_keys() {
         // configparser reads an indented first line of a section as a key.
-        let err = check_config(
-            "[sqlfluff]\ndialect = ansi\n[sqlfluff:templater:jinja]\n  library_path = /x\n",
-        )
-        .expect_err("library_path");
+        let err = check_config("[sqlfluff]\n[sqlfluff:templater:jinja]\n  library_path = /x\n")
+            .expect_err("library_path");
         assert!(err.contains("library_path"), "{err}");
-        let err = check_config("[sqlfluff]\n  templater = python\ndialect = ansi\n")
-            .expect_err("templater");
+        let err = check_config("[sqlfluff]\n  templater = python\n").expect_err("templater");
         assert!(err.contains("python"), "{err}");
         // Same indent as the key above is a new key, not a continuation.
-        assert!(check_config("[sqlfluff]\n  dialect = ansi\n  templater = python\n").is_err());
+        assert!(check_config("[sqlfluff]\n  exclude_rules = x\n  templater = python\n").is_err());
         // Deeper indent after a key stays a continuation.
-        assert!(
-            check_config("[sqlfluff]\ndialect = ansi\nexclude_rules =\n  library_path = x\n")
-                .is_ok()
-        );
+        assert!(check_config("[sqlfluff]\nexclude_rules =\n  library_path = x\n").is_ok());
     }
 
     #[test]
@@ -256,20 +305,7 @@ mod tests {
 
     #[test]
     fn malformed_lines_are_refused() {
-        assert!(check_config("[sqlfluff\ndialect = ansi\n").is_err());
+        assert!(check_config("[sqlfluff\n").is_err());
         assert!(check_config("[sqlfluff]\ndialect ansi\n").is_err());
-    }
-
-    #[test]
-    fn nested_config_may_omit_the_dialect() {
-        assert!(check_nested_config("[sqlfluff]\ntemplater = placeholder\n").is_ok());
-        assert!(check_config("[sqlfluff]\ntemplater = placeholder\n").is_err());
-    }
-
-    #[test]
-    fn nested_config_keeps_the_bans() {
-        assert!(check_nested_config("[sqlfluff]\ntemplater = python\n").is_err());
-        assert!(check_nested_config("[sqlfluff:templater:jinja]\nlibrary_path = x\n").is_err());
-        assert!(check_nested_config("[sqlfluff]\ndialect = nope\n").is_err());
     }
 }

@@ -116,13 +116,12 @@ exports_files(
     for profile in ["standard", "strict"]
 ]
 
-# The tier names no dialect; sql_library supplies it, so the profile cases add one.
 [
     genrule(
         name = "sqlfluff_profile_%s" % profile,
         srcs = ["//quality/tiers/sqlfluff:%s.cfg" % profile],
         outs = ["sqlfluff_profile/%s/.sqlfluff" % profile],
-        cmd = "awk '{ print } /^\\[sqlfluff\\]$$/ { print \"dialect = ansi\" }' $< > $@",
+        cmd = "cp $< $@",
     )
     for profile in ["standard", "strict"]
 ]

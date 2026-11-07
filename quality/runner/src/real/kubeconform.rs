@@ -109,6 +109,7 @@ impl RealBackend {
             .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
         let config = commands::kubeconform_config(config_path, &config_bytes)
             .map_err(|err| execution(tool_id, err))?;
+        let strict = tool.args.iter().any(|arg| arg == "strict");
         let docs_dir = scratch
             .resolve(Path::new(DOCS_REL))
             .map_err(|err| execution(tool_id, format!("scratch docs: {err}")))?;
@@ -141,7 +142,7 @@ impl RealBackend {
             .iter()
             .map(|(reported, _, _)| Path::new(reported.as_str()))
             .collect();
-        let invocation = commands::kubeconform_check(&tool.binary, &config, &refs)
+        let invocation = commands::kubeconform_check(&tool.binary, &config, strict, &refs)
             .map_err(|err| execution(tool_id, err))?;
         let out = self.run(tool_id, tool, &invocation, scratch)?;
         parsed(

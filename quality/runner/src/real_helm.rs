@@ -4,7 +4,7 @@ use super::real_fixtures::*;
 use super::*;
 
 const CONFIG_REL: &str = "charts/schemas.kubeconform.json";
-const CONFIG: &str = r#"{"kubernetes_version":"1.31.0","strict":true,"skip_kinds":[],"core_dir":"schemas.kubeconform/core","crd_dir":"schemas.kubeconform/crd"}"#;
+const CONFIG: &str = r#"{"kubernetes_version":"1.31.0","skip_kinds":[],"core_dir":"schemas.kubeconform/core","crd_dir":"schemas.kubeconform/crd"}"#;
 const CONTEXT: &str = r#"{"schema_version":1,"chart_root":"charts/app","values":["charts/app/values.yaml"],"release":"rel","namespace":"ns"}"#;
 const DEPLOY: &str = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  replicas: {{ .Values.replicas }}\n";
 

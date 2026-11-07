@@ -2956,7 +2956,7 @@ fn invocation_batches_respect_launcher_budget() {
     }
 }
 
-const KUBECONFORM_CONFIG: &str = r#"{"kubernetes_version":"1.31.0","strict":true,"skip_kinds":["CustomThing","Other"],"core_dir":"k.kubeconform/core","crd_dir":"k.kubeconform/crd"}"#;
+const KUBECONFORM_CONFIG: &str = r#"{"kubernetes_version":"1.31.0","skip_kinds":["CustomThing","Other"],"core_dir":"k.kubeconform/core","crd_dir":"k.kubeconform/crd"}"#;
 
 #[test]
 fn kubeconform_pins_local_schema_locations() {
@@ -2968,7 +2968,7 @@ fn kubeconform_pins_local_schema_locations() {
         Path::new("/scratch/cfg").join("k.kubeconform").join("core")
     );
     let doc = Path::new("/scratch/dx-kubeconform/docs/0.yaml");
-    let invocation = kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv");
+    let invocation = kubeconform_check(Path::new(BIN), &config, true, &[doc]).expect("argv");
     let core = format!(
         "{}/{{{{.ResourceKind}}}}{{{{.KindSuffix}}}}.json",
         config.core_dir.display()
@@ -3003,7 +3003,8 @@ fn kubeconform_pins_local_schema_locations() {
     );
     let loose = r#"{"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
     let config = kubeconform_config(config_path, loose.as_bytes()).expect("defaults");
-    let argv = argv_strings(&kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv"));
+    let argv =
+        argv_strings(&kubeconform_check(Path::new(BIN), &config, false, &[doc]).expect("argv"));
     assert!(!argv.contains(&"-strict".to_owned()));
     assert!(!argv.contains(&"-skip".to_owned()));
     assert_eq!(
@@ -3044,12 +3045,11 @@ fn kubeconform_config_refuses_remote_or_escaping_locations() {
     assert!(kubeconform_config(Path::new("/scratch/cfg/k.json"), ok.as_bytes()).is_err());
     let remote = KubeconformConfig {
         kubernetes_version: "1.31.0".to_owned(),
-        strict: false,
         skip_kinds: Vec::new(),
         core_dir: PathBuf::from("https://example.com"),
         crd_dir: PathBuf::from("/d"),
     };
-    assert!(kubeconform_check(Path::new(BIN), &remote, &[]).is_err());
+    assert!(kubeconform_check(Path::new(BIN), &remote, false, &[]).is_err());
 }
 
 #[test]

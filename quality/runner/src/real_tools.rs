@@ -3539,7 +3539,7 @@ fn kubeconform_tool(config: &str) -> RealTool {
 
 fn kubeconform_bound() -> RealTool {
     kubeconform_tool(
-        r#"{"kubernetes_version":"1.31.0","strict":true,"skip_kinds":[],"core_dir":"schemas.kubeconform/core","crd_dir":"schemas.kubeconform/crd"}"#,
+        r#"{"kubernetes_version":"1.31.0","skip_kinds":[],"core_dir":"schemas.kubeconform/core","crd_dir":"schemas.kubeconform/crd"}"#,
     )
 }
 

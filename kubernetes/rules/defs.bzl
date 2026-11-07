@@ -81,7 +81,6 @@ def _kubernetes_schemas_impl(ctx):
         "crd_dir": root + "/crd",
         "kubernetes_version": ctx.attr.kubernetes_version,
         "skip_kinds": sorted(ctx.attr.skip_kinds),
-        "strict": ctx.attr.strict,
     }) + "\n")
     closure = depset([config] + links)
     return [
@@ -112,6 +111,5 @@ kubernetes_schemas = rule(
             default = [],
         ),
         "skip_kinds": attr.string_list(doc = "Resource kinds kubeconform skips.", default = []),
-        "strict": attr.bool(doc = "Rejects duplicate keys; unknown fields need strict schema files.", default = True),
     },
 )

@@ -239,7 +239,7 @@ impl RealBackend {
             config_rel: None,
             edition: None,
             dialect: None,
-            args: Vec::new(),
+            args: tool.args.clone(),
             tool_files: Vec::new(),
             upstream_diagnostics: Vec::new(),
             search_paths: Vec::new(),

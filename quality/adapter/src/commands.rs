@@ -2767,8 +2767,6 @@ const KUBECONFORM_CRD_TEMPLATE: &str = "{{.Group}}/{{.ResourceKind}}_{{.Resource
 struct KubeconformConfigFile {
     kubernetes_version: String,
     #[serde(default)]
-    strict: bool,
-    #[serde(default)]
     skip_kinds: Vec<String>,
     core_dir: String,
     crd_dir: String,
@@ -2778,7 +2776,6 @@ struct KubeconformConfigFile {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KubeconformConfig {
     pub kubernetes_version: String,
-    pub strict: bool,
     pub skip_kinds: Vec<String>,
     pub core_dir: PathBuf,
     pub crd_dir: PathBuf,
@@ -2847,7 +2844,6 @@ pub fn kubeconform_config(config: &Path, bytes: &[u8]) -> Result<KubeconformConf
         core_dir: schema_dir(base, "core_dir", &raw.core_dir)?,
         crd_dir: schema_dir(base, "crd_dir", &raw.crd_dir)?,
         kubernetes_version: raw.kubernetes_version,
-        strict: raw.strict,
         skip_kinds: raw.skip_kinds,
     })
 }
@@ -2865,10 +2861,11 @@ fn schema_location(dir: &Path, template: &str) -> Result<String, String> {
     Ok(location)
 }
 
-/// Exactly two local schema locations; never `-ignore-missing-schemas`.
+/// Exactly two local schema locations; never `-ignore-missing-schemas`. `strict` is the strict tier.
 pub fn kubeconform_check(
     binary: &Path,
     config: &KubeconformConfig,
+    strict: bool,
     files: &[&Path],
 ) -> Result<Invocation, String> {
     let mut head = vec![
@@ -2879,7 +2876,7 @@ pub fn kubeconform_check(
         OsString::from("-kubernetes-version"),
         OsString::from(&config.kubernetes_version),
     ];
-    if config.strict {
+    if strict {
         head.push(OsString::from("-strict"));
     }
     if !config.skip_kinds.is_empty() {

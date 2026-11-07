@@ -217,6 +217,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `standard` and `strict` clang-tidy tiers live in `quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a tier is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
 
+`kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
+
 `cppcheck` enables `warning,performance,portability` in the standard tier and adds `style` in strict. `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
 ### JVM and .NET

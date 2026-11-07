@@ -27,7 +27,8 @@ javascript_library(
 svelte_library(
     name = "components",
     aspect_hints = [":biome_config"],
-    srcs = glob(["src/**/*.svelte"]),
+    srcs = glob(["src/**/*.svelte"]) + ["src/env.d.ts"],
+    deps = [":node_modules/clsx"],
 )
 
 # keep

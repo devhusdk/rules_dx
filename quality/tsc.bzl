@@ -116,8 +116,9 @@ def _tsc_js_impl(target, ctx):
         depth = len(ctx.bin_dir.path.split("/")) + 1
     up = "../" * depth
 
+    declarations = [f for f in target[JsInfo].sources.to_list() if f.path.endswith(".d.ts")]
     present = [fw for fw in _FRAMEWORKS if any([f.extension == fw for f in sources])]
-    plain = [f for f in sources if f.extension in _JS_EXTENSIONS]
+    plain = [f for f in sources if f.extension in _JS_EXTENSIONS] + declarations
     outputs = []
     if len(present) == 0:
         outputs.append(_tsc_js_run(ctx, target, target.label.name, None, plain, base, up))

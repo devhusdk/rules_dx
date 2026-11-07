@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-pub use shared_tasks_model::{ParseError, Task, TitleError, format_board, parse_board};
+pub use shared_tasks_model::{format_board, parse_board, ParseError, Task, TitleError};
 
 pub const CORE_VERSION: &str = "2.0.0";
 

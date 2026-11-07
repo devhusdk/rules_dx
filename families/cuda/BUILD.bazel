@@ -28,9 +28,10 @@ sh_test(
     data = [
         "//rules:corpus_starlark",
         "//toolchain:corpus_starlark",
+        "//tests:corpus_starlark",
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
-    env = {"STARLARK_DOCS_PACKAGES": "rules,toolchain"},
+    env = {"STARLARK_DOCS_PACKAGES": "rules,toolchain,tests"},
 )
 
 # dx:begin exports

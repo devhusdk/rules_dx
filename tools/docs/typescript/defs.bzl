@@ -41,12 +41,7 @@ def _check_options(where, options):
             fail(where + ": option '" + option + "' is set by the rule and cannot be overridden")
 
 def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs):
-    """Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.
-
-    TypeDoc runs through an isolated launcher. Only the compiler options of the given
-    tsconfig are read; `typedocOptions` (also inherited ones), `typedoc.json` and
-    `package.json` are ignored, and plugins are never loaded. Extra flags go in `options`.
-    """
+    """Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard."""
     where = "typescript_doc_shard " + native.package_name() + ":" + name
     if len(entry_points) == 0:
         fail(where + ": need at least one entry point")

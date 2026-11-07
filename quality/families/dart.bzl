@@ -48,14 +48,7 @@ def _dart_info(target, what):
     fail(what + ": dart needs a dart_library, dart_binary or dart_test target")
 
 def _dart_context(target, ctx, what, capability, config_packages = []):
-    """Writes the package config that gives each Dart file the language version Dart itself would use.
-
-    The version is the one of the in-repo package whose root holds the file (`test/` and `bin/`
-    included); a package that states none is listed without one, so it formats at the newest
-    version like a file in no package. The analyzer view (lint and typecheck) also resolves the
-    external packages under `_external/` and gets one stub `pubspec.yaml` per in-repo package
-    root. Returns (package_config, empty_options, stubs) where stubs are (scratch path, File).
-    """
+    """Writes the package config that gives each Dart file the language version Dart itself would use."""
     info = _dart_info(target, what)
     mode = DART_FORMAT if capability == "format" else DART_ANALYZE
     packages = info.transitive_packages.to_list()

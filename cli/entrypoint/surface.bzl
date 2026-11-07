@@ -54,5 +54,5 @@ def _consumer_surface_repo_impl(ctx):
 
 consumer_surface_repo = repository_rule(
     implementation = _consumer_surface_repo_impl,
-    attrs = {"surface": attr.label(allow_single_file = True, default = Label("//cli/entrypoint:consumer_surface.txt"))},
+    attrs = {"surface": attr.label(doc = "File listing the consumer surface.", allow_single_file = True, default = Label("//cli/entrypoint:consumer_surface.txt"))},
 )

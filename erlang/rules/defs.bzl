@@ -327,13 +327,7 @@ def nif_priv_path(name, windows = False):
     return "priv/" + name + (".dll" if windows else ".so")
 
 def nif_linkopt_cases(version_script):
-    """Returns the select cases for the link options a NIF shared library needs.
-
-    Only `nif_init` is exported, so a statically linked C++ runtime stays private to the library.
-
-    Args:
-        version_script: Label string of the Linux version script, as used in `$(execpath)`.
-    """
+    """Returns the select cases for the link options a NIF shared library needs."""
     return {
         str(Label("@platforms//os:linux")): ["-Wl,--version-script=$(execpath " + version_script + ")"],
         str(Label("@platforms//os:macos")): ["-Wl,-undefined,dynamic_lookup", "-Wl,-exported_symbol,_nif_init"],
@@ -361,7 +355,7 @@ def _nif_x64_lib_impl(ctx):
 _nif_x64_lib = rule(
     implementation = _nif_x64_lib_impl,
     doc = "Builds a NIF library for x64 Windows, the architecture of the OTP that windows_arm64 runs under emulation.",
-    attrs = {"lib": attr.label(mandatory = True, cfg = _x64_windows)},
+    attrs = {"lib": attr.label(doc = "Shared library target to rebuild for x64 Windows.", mandatory = True, cfg = _x64_windows)},
 )
 
 def _erlang_nif_impl(ctx):
@@ -395,10 +389,7 @@ _erlang_nif = rule(
 )
 
 def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, tags = None, target_compatible_with = None):
-    """Builds a NIF shared library from declared C or C++ sources and places it at priv/<name>.so (.dll on Windows).
-
-    Declare the NIF in the package of the erlang_app that loads it and pass it through `nifs`.
-    """
+    """Builds a NIF shared library from declared C or C++ sources and places it at priv/<name>.so (.dll on Windows)."""
     if "/" in name:
         fail("erlang_nif " + name + ": the name is a file name, not a path")
     compatible = target_compatible_with if target_compatible_with != None else ERLANG_NIF_COMPATIBLE_WITH

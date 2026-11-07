@@ -108,7 +108,7 @@ CcCoverageProbeInfo = provider(doc = "Whether LLVM coverage maps are enabled in 
 def _cc_coverage_probe_impl(ctx):
     return [CcCoverageProbeInfo(llvm = "llvm_coverage_map_format" in ctx.features)]
 
-cc_coverage_probe = rule(implementation = _cc_coverage_probe_impl)
+cc_coverage_probe = rule(implementation = _cc_coverage_probe_impl, doc = "Reports whether LLVM coverage maps are enabled in the test configuration.")
 
 def _cc_test_coverage(ctx, upstream):
     toolchain = find_cc_toolchain(ctx, mandatory = False)
@@ -150,12 +150,7 @@ def _needs_quoting(value):
     return type(value) == "string" and any([c in value for c in [" ", "\t", "\"", "'"]])
 
 def cc_param_file_features(kwargs, srcs, hdrs):
-    """Returns ["-compiler_param_file"] when the target's own sources or flags hold a space, quote or tab, else [].
-
-    Bazel 9 writes compile params files in GCC quoting, which cl.exe splits at each escaped space (D9027).
-    Without the params file the Windows launcher quotes each argument. Flags inherited from deps are not
-    checked. Remove this with Bazel 10 (#8317).
-    """
+    """Returns ["-compiler_param_file"] when the target's own sources or flags hold a space, quote or tab, else []."""
     values = [srcs, hdrs] + [kwargs.get(attr) for attr in _PARAM_FILE_ATTRS]
     for value in values:
         if type(value) in ("list", "tuple") and any([_needs_quoting(v) for v in value]):
@@ -168,11 +163,7 @@ def _cc_kwargs(kwargs, srcs, hdrs = None):
     return dx_append_flags(kwargs, "features", features) if features else kwargs
 
 def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
-    """Minimal wrapper over cc_library. On macOS it builds no dylib unless linkstatic is set.
-
-    ld64 resolves every symbol at link time, so the nodeps dylibs Bazel builds for cc_library fail to
-    link (#8114). hermetic-llvm#906 stops them upstream; drop the default once llvm ships it (#9228).
-    """
+    """Minimal wrapper over cc_library. On macOS it builds no dylib unless linkstatic is set."""
     kwargs = _cc_kwargs(kwargs, srcs, hdrs)
     if "linkstatic" not in kwargs:
         kwargs["linkstatic"] = select({
@@ -235,7 +226,7 @@ def _cc_fuzz_binary_impl(ctx):
 _cc_fuzz_binary = rule(
     implementation = _cc_fuzz_binary_impl,
     attrs = {
-        "binary": attr.label(executable = True, cfg = "target", mandatory = True),
+        "binary": attr.label(doc = "Binary the runner executes.", executable = True, cfg = "target", mandatory = True),
     },
     cfg = _cc_fuzz_transition,
     executable = True,

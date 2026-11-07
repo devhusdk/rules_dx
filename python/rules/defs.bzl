@@ -131,10 +131,7 @@ def python_fuzz_test(name, srcs = None, visibility = None, tags = None, **kwargs
     )
 
 def python_benchmark(name, srcs = None, args = None, tags = None, deps = None, **kwargs):
-    """python_test run by dx bench: pytest-benchmark numbers land in dx-bench.json.
-
-    Add pytest-benchmark to the project's dependencies next to pytest.
-    """
+    """python_test run by dx bench: pytest-benchmark numbers land in dx-bench.json."""
     python_test(
         name = name,
         srcs = srcs,

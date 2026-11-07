@@ -191,10 +191,7 @@ def helper_first(srcs):
 COVER_LOAD = "if path = System.get_env(~s(DX_ELIXIR_COVER_SCRIPT)), do: Code.require_file(path, System.fetch_env!(~s(TEST_SRCDIR)))"
 
 def cover_opts(opts):
-    """Returns the elixir options that load the coverage script when a coverage run names one.
-
-    The Windows launcher passes options unquoted, so there the code is wrapped in double quotes.
-    """
+    """Returns the elixir options that load the coverage script when a coverage run names one."""
     load_script = select({
         "@platforms//os:windows": ["-e", '"' + COVER_LOAD + '"'],
         "//conditions:default": ["-e", COVER_LOAD],

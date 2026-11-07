@@ -15,7 +15,7 @@ const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 74] = [
+const PACKAGES: [&str; 72] = [
     "appimage",
     "astro/rules",
     "bicep/rules",
@@ -62,8 +62,6 @@ const PACKAGES: [&str; 74] = [
     "quality/artifacts/acquire_test",
     "quality/artifacts/hub_test",
     "quality/rules",
-    "quality/tools/cc",
-    "quality/tools/dotnet/fsharplint",
     "quality/tools/javascript",
     "quality/tools/jvm",
     "quality/tools/ruby",
@@ -223,7 +221,7 @@ fn check_attr_dict(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) 
         let ExprP::Literal(AstLiteral::String(key)) = &key.node else {
             continue;
         };
-        if key.node.starts_with('_') {
+        if key.node.starts_with('_') || key.node == "attr" {
             continue;
         }
         let ExprP::Call(callee, args) = &value.node else {

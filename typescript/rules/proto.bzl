@@ -59,7 +59,7 @@ def _path(file):
 ts_proto_srcs = rule(
     implementation = _ts_proto_srcs_impl,
     attrs = {
-        "proto": attr.label(mandatory = True, providers = [ProtoInfo]),
+        "proto": attr.label(doc = "Proto library to generate from.", mandatory = True, providers = [ProtoInfo]),
         "_exec_os": attr.label(
             default = "//libs/exec_os",
             cfg = "exec",

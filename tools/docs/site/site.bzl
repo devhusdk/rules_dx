@@ -219,8 +219,8 @@ docs_scope_tools = rule(
     doc = "Builds the tools that turn API shards into one index and names their paths in dx_docs_tools.",
     implementation = _docs_scope_tools_impl,
     attrs = {
-        "aggregate": attr.label(cfg = "exec", default = Label("//tools/docs/site/aggregate:site_aggregate"), executable = True),
-        "mdbook": attr.label(cfg = "exec", default = Label("//tools/docs/site/mdbook:mdbook"), allow_single_file = True, executable = True),
-        "site_build": attr.label(cfg = "exec", default = Label("//tools/docs/site/build:site_build"), executable = True),
+        "aggregate": attr.label(doc = "Site aggregator binary.", cfg = "exec", default = Label("//tools/docs/site/aggregate:site_aggregate"), executable = True),
+        "mdbook": attr.label(doc = "mdBook binary.", cfg = "exec", default = Label("//tools/docs/site/mdbook:mdbook"), allow_single_file = True, executable = True),
+        "site_build": attr.label(doc = "Site build binary.", cfg = "exec", default = Label("//tools/docs/site/build:site_build"), executable = True),
     },
 )

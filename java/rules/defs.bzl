@@ -143,10 +143,7 @@ def java_test(name, srcs = None, visibility = None, **kwargs):
     )
 
 def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, tags = None, deps = None, **kwargs):
-    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.
-
-    `target_class` defaults to the class `java_binary` would infer for `name`.
-    """
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""
     target_class = target_class or java_entry_class(name, srcs, native.package_name())
     if target_class == None:
         fail("java_fuzz_test %s needs target_class" % name)

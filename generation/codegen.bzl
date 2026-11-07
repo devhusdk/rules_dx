@@ -312,10 +312,7 @@ dx_codegen_plan_aspect = aspect(
 )
 
 def codegen_bind_generated(rule_kind, producer, upstream_label, group, generated, entries):
-    """Fails unless every generated artifact is claimed once by an EXEC_PATH entry.
-
-    Shared by the codegen shard rules that bind plan entries to generated files.
-    """
+    """Fails unless every generated artifact is claimed once by an EXEC_PATH entry."""
     for entry in entries:
         if entry.exec_path == "":
             fail(
@@ -353,12 +350,7 @@ def codegen_bind_generated(rule_kind, producer, upstream_label, group, generated
             )
 
 def codegen_bound_shard_providers(ctx, rule_kind, schema_kind, upstream_label, group, generated):
-    """Builds the providers of a shard rule whose entries bind to generated files.
-
-    The rule needs `entries`, `language` and `_writer` attributes.
-    The generated files ride in the shard's plan output group so they are built
-    with the plan.
-    """
+    """Builds the providers of a shard rule whose entries bind to generated files."""
     producer = display_label(ctx.label)
     pair_error = codegen_pair_error(schema_kind, ctx.attr.language)
     if pair_error != "":

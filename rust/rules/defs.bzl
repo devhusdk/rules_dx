@@ -686,7 +686,7 @@ def _rust_fuzz_binary_impl(ctx):
 _rust_fuzz_binary = rule(
     implementation = _rust_fuzz_binary_impl,
     attrs = {
-        "binary": attr.label(executable = True, cfg = "target", mandatory = True),
+        "binary": attr.label(doc = "Binary the runner executes.", executable = True, cfg = "target", mandatory = True),
     },
     cfg = _rust_fuzz_transition,
     executable = True,
@@ -694,11 +694,7 @@ _rust_fuzz_binary = rule(
 )
 
 def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys = None, **kwargs):
-    """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`.
-
-    Needs a toolchain that accepts `-Z` flags; the build sets RUSTC_BOOTSTRAP=1 for it.
-    `libfuzzer_sys` overrides the default libfuzzer-sys from rules_dx's hub.
-    """
+    """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     rust_binary(
         name = name + "_binary",
         srcs = srcs,

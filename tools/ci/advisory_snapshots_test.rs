@@ -272,7 +272,7 @@ fn an_empty_preparation_skips_the_upload_and_the_download() {
     let upload = action_step(&prep, "actions/upload-artifact");
     assert_eq!(
         upload["if"],
-        json!("${{ steps.prepare.outputs.status != 'empty' }}")
+        json!("${{ always() && steps.scan-advisory.outcome == 'success' }}")
     );
     let script = script_running(PREP, PREP_TARGET);
     assert!(
@@ -283,7 +283,9 @@ fn an_empty_preparation_skips_the_upload_and_the_download() {
     let download = action_step(&audit, "actions/download-artifact");
     assert_eq!(
         download["if"],
-        json!("${{ needs.advisory-snapshots.outputs.status != 'empty' }}")
+        json!(
+            "${{ needs.advisory-snapshots.outputs.status != 'empty' || needs.advisory-snapshots.outputs.trivy == 'true' }}"
+        )
     );
 }
 
@@ -335,7 +337,7 @@ fn names_an_advisory_database(job: &str) -> bool {
 fn only_the_preparation_job_names_an_advisory_database() {
     let prep = serde_json::to_string(&job(WORKFLOW, PREP)).expect("serialize job");
     assert_eq!(
-        prep.matches(PREP_TARGET).count(),
+        prep.matches(&format!("{PREP_TARGET} -- ")).count(),
         1,
         "the {PREP} job runs {PREP_TARGET} exactly once, so one run prepares one snapshot set"
     );

@@ -45,14 +45,7 @@ def _first(value):
     return value[0] if type(value) == "list" else value
 
 def javac_options(tokens):
-    """Drops the toolchain flags that plain javac cannot take.
-
-    Args:
-        tokens: [str] tokenized javacopts.
-
-    Returns:
-        [str] the options javac itself accepts.
-    """
+    """Drops the toolchain flags that plain javac cannot take."""
     return [t for t in tokens if not any([t.startswith(p) for p in _JAVABUILDER_ONLY_PREFIXES])]
 
 def _indirect_jars(target, direct):
@@ -64,10 +57,7 @@ def _indirect_jars(target, direct):
     return indirect
 
 def _unused_deps_map(target, ctx, attrs, implicit = []):
-    """Writes the direct dependencies with their compile jars and the transitive ones the rule does not list.
-
-    `implicit` holds jar paths the compiler may use without a dep, such as the Scala library.
-    """
+    """Writes the direct dependencies with their compile jars and the transitive ones the rule does not list."""
     deps = []
     direct = {}
     for dep in getattr(attrs, "deps", []):
@@ -101,10 +91,7 @@ def _plugin_param(values):
     return ";".join([v.replace(";", "\\;") for v in values])
 
 def _analyzer(target, ctx, attrs, implicit):
-    """The rules_scala dependency analyzer jars and options for a scala target, or None.
-
-    `implicit` holds the jar paths of the Scala library, which a target may use without listing it.
-    """
+    """The rules_scala dependency analyzer jars and options for a scala target, or None."""
     plugin = ctx.attr._dependency_analyzer
     if JavaInfo not in plugin:
         return None
@@ -255,16 +242,7 @@ def _deps_info(toolchain, deps_id):
     return None
 
 def scalac_toolchain_jars(toolchain):
-    """The jars the scalac driver needs from a rules_scala toolchain.
-
-    Args:
-        toolchain: the resolved `@rules_scala//scala:toolchain_type` ToolchainInfo, or None.
-
-    Returns:
-        None when the toolchain is absent, not Scala 2.13 or 3.3+, or lacks a classpath; otherwise a
-        struct with `compiler` (runtime jars of the compiler, never ijars), `library` (compile jars)
-        and `scala3` (whether the toolchain is Scala 3).
-    """
+    """The jars the scalac driver needs from a rules_scala toolchain."""
     if toolchain == None:
         return None
     scala3 = _is_scala3(toolchain.scala_version)

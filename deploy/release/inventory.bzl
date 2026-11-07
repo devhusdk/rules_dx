@@ -172,7 +172,7 @@ _shipped_inventory = rule(
     implementation = _shipped_inventory_impl,
     doc = "Writes the NOTICE manifest and per-crate texts for one Rust binary.",
     attrs = {
-        "app": attr.label(mandatory = True, aspects = [shipped_crates_aspect]),
+        "app": attr.label(doc = "Rust binary to inventory.", mandatory = True, aspects = [shipped_crates_aspect]),
         "runtimes": attr.label_list(
             doc = "native_runtime targets the archive ships next to the app.",
             providers = [NativeRuntimeInfo],
@@ -188,10 +188,7 @@ _shipped_inventory = rule(
 )
 
 def shipped_inventory(name, app, runtimes = [], **kwargs):
-    """Declares `name` (the NOTICE manifest) and `name_texts` (the per-crate texts) for one Rust binary.
-
-    With `runtimes`, also declares `name_runtimes`: the runtime records with file hashes.
-    """
+    """Declares `name` (the NOTICE manifest) and `name_texts` (the per-crate texts) for one Rust binary."""
     _shipped_inventory(name = name, app = app, runtimes = runtimes, **kwargs)
     if runtimes:
         native.filegroup(

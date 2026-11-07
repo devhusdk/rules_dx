@@ -188,16 +188,7 @@ def real_context(
         run_tools = [],
         options = {},
         delegated = False):
-    """Builds what one tool's context hook hands the core.
-
-    resolved is the pruned pipeline, or None to keep it. early_inputs are staged before the
-    resolve files. resolve_pairs are (workspace path, File, strict) entries, deduplicated
-    against the sources and siblings. reserved are (workspace path, error) pairs that must
-    stay unstaged. tool_files are (relative path, File) pairs, upstream the Files whose results the tool reads,
-    and inputs the Files the action needs besides them; the late_ lists come after the native config. with_config is called
-    with the tool's native config hint (or None) and its relative path, and returns a struct of
-    tool_files and inputs. options may hold edition, dialect, args, search_paths and path_tools.
-    """
+    """Builds what one tool's context hook hands the core."""
     return struct(
         resolved = resolved,
         early_inputs = early_inputs,
@@ -220,7 +211,7 @@ def _shard_tools(tools, shard, capability):
     return sorted([tool for tool in tools if tools[tool]["shard"] == shard and (capability == None or capability in tools[tool]["capabilities"])])
 
 # `dx <quality> --unsafe` sets this through --aspects_parameters; only those runs key on it.
-_UNSAFE_FIXES_ATTR = {"unsafe_fixes": attr.string(values = ["false", "true"], default = "false")}
+_UNSAFE_FIXES_ATTR = {"unsafe_fixes": attr.string(doc = "Whether the run applies unsafe fixes.", values = ["false", "true"], default = "false")}
 
 def _expand_shard(tools_table, spec):
     """Expands one shard spec into its tools, attrs and toolchain flag."""
@@ -233,18 +224,7 @@ def _expand_shard(tools_table, spec):
     }
 
 def real_config(tools, shard_specs, hook_order, context_hooks, source_recognizers, harness_sources, toolchain, check_policy = True):
-    """Bundles the tool table and the family hooks the engine runs.
-
-    context_hooks maps a tool name to f(target, ctx, resolved, capability, what, shared) that
-    returns real_context(...). The core calls them in hook_order only, for the tools a target
-    still resolves to. source_recognizers are f(target, ctx) returning None or
-    struct(files, error). harness_sources is f(target, capability, direct_sources) returning
-    the direct sources with any test-harness sources added. toolchain is
-    struct(type, file) where file(ctx, name) returns one toolchain file.
-    A tool spec without capabilities runs every capability tools.bzl lists for it.
-    check_policy is False for a family file whose table lacks the other families' tools; the
-    combined config validates the workspace policy.
-    """
+    """Bundles the tool table and the family hooks the engine runs."""
     tools = {
         tool: spec if "capabilities" in spec else spec | {"capabilities": sorted(REAL_ADAPTERS[tool].keys())}
         for tool, spec in tools.items()
@@ -660,11 +640,7 @@ def _probe_shards(cfg, resolved, capability):
     return shards
 
 def real_make_probe_aspect(cfg, capability, family = "", info = RealShardProbeInfo):
-    """Builds the tool-free shard probe aspect for one capability.
-
-    A family probe passes its name and the provider its file declares, so two
-    probes on one target neither share an output file nor a provider.
-    """
+    """Builds the tool-free shard probe aspect for one capability."""
 
     def _impl(target, ctx):
         what = "real_aspect (" + str(target.label) + ")"

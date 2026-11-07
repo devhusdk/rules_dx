@@ -18,7 +18,7 @@ _DX_GO_LIBRARY_PROVIDES = [
 
 _DX_GO_SOURCE_SPECS = [("go", "go")] + [(k, UPSTREAM_CC_CLASS_EXTENSIONS[k]) for k in ("c", "cpp")]
 
-_CGO_ATTRS = {"cgo": attr.bool()}
+_CGO_ATTRS = {"cgo": attr.bool(doc = "Whether the target uses cgo.")}
 _CGO_TOOLCHAINS = [config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False)]
 
 def _validate_cgo(ctx):

@@ -41,10 +41,7 @@ elixir="$(cd "$runfiles/{elixir}" && pwd)"
 """
 
 def launcher_preamble(otp, elixir, inherit_env = False):
-    """Returns the launcher text up to the exec line for runfiles-relative OTP and Elixir roots.
-
-    With `inherit_env` the mix and hex variables come from the caller instead of the no-home defaults.
-    """
+    """Returns the launcher text up to the exec line for runfiles-relative OTP and Elixir roots."""
     env = "" if inherit_env else "\n".join(["export {}='{}'".format(key, value) for key, value in sorted(MIX_FORMAT_ENV.items())])
     return _PREAMBLE.format(otp = otp, elixir = elixir, env = env)
 
@@ -53,11 +50,7 @@ def launcher_root(ctx, version_file):
     return runfiles_path(ctx.workspace_name, version_file.short_path).rpartition("/")[0]
 
 def windows_descriptor(otp, elixir, ebins, script, script_args = [], inherit_env = False):
-    """Returns the native launcher descriptor that runs `script` on the pinned Elixir with erl.exe.
-
-    `ebins` are extra runfiles-relative code paths; `script_args` follow the script.
-    With `inherit_env` the mix and hex variables come from the caller.
-    """
+    """Returns the native launcher descriptor that runs `script` on the pinned Elixir with erl.exe."""
     lines = [
         "program=" + otp + "/bin/erl.exe",
         "arg=-noshell",

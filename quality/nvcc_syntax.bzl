@@ -24,24 +24,7 @@ _DROP = ["-MD", "-MMD", "-keep", "--keep", "-save-temps", "--save-temps", "--gen
 _DROP_WITH_VALUE = ["-MF", "-MT", "-keep-dir", "--keep-dir", "--dependency-output"]
 
 def nvcc_syntax_argv(argv, src):
-    """Rewrites an nvcc compile command line so it stops after the front end (-cuda).
-
-    The only changes are -c -> -cuda, the output redirected to /dev/null and the removal
-    of flags that write dependency files or keep temporary files. Nothing else is
-    translated (no -gencode or -Xcompiler rewriting). -fdevice-syntax-only is deliberately
-    never added: nvcc still exits 0 with it on a __global__ call to a __host__ function
-    and on bad inline asm, so it is not a faithful typecheck.
-
-    Pure function so other projections (editor databases) can share it.
-
-    Args:
-      argv: list of string: the compile action command line, nvcc first.
-      src: string: the source path the action compiles.
-
-    Returns:
-      A struct with `argv` (the rewritten list) and `error` (non-empty when the
-      command line cannot be replayed faithfully).
-    """
+    """Rewrites an nvcc compile command line so it stops after the front end (-cuda)."""
     if len(argv) == 0:
         return struct(argv = [], error = "the compile action has an empty command line")
     if argv[0].rpartition("/")[2] != "nvcc":
@@ -98,12 +81,7 @@ def _is_pic(argv):
     return False
 
 def nvcc_syntax_select(argvs):
-    """Returns the indices of one command line per translation unit, in first-seen order.
-
-    rules_cuda compiles each source several times (pic/non-pic, rdc/non-rdc). The variants
-    only differ in code generation flags, so one front-end replay per source is enough.
-    The non-pic variant wins over a pic one.
-    """
+    """Returns the indices of one command line per translation unit, in first-seen order."""
     chosen = {}
     order = []
     for i in range(len(argvs)):

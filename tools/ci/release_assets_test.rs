@@ -76,7 +76,7 @@ fn the_launchers_download_the_names_the_workflow_uploads() {
         "{LAUNCHER} cmd URL scheme changed"
     );
     assert!(
-        launcher.contains("*\"  dx-$os-$arch\") want=${line%%  *} ;;"),
+        launcher.contains("[ \"$asset\" = \"dx-$os-$arch\" ]"),
         "{LAUNCHER} shell launcher does not pick the pin by asset name"
     );
     assert!(launcher.contains("os=linux") && launcher.contains("os=macos"));

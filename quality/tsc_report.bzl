@@ -21,7 +21,7 @@ tsc_report = rule(
     implementation = _tsc_report_impl,
     doc = "Exposes the tsc stdout, with CRs removed and backslashes turned into slashes, or the exit status file of a target.",
     attrs = {
-        "kind": attr.string(values = ["stdout", "exit"], mandatory = True),
-        "target": attr.label(mandatory = True, aspects = [tsc_aspect]),
+        "kind": attr.string(doc = "Which tsc output to expose.", values = ["stdout", "exit"], mandatory = True),
+        "target": attr.label(doc = "Target the tsc aspect runs on.", mandatory = True, aspects = [tsc_aspect]),
     },
 )

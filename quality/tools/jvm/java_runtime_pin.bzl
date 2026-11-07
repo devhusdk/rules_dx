@@ -28,10 +28,7 @@ def _impl(ctx):
 
 pinned_java_runtime = rule(
     implementation = _impl,
-    doc = """Provides the JDK of `version` regardless of the repo-wide runtime.
-
-    Only for tools that need a newer class file version than the repo JDK, such
-    as pkl-lsp (Java 23). Remove the target once the repo-wide JDK reaches 23.""",
+    doc = "Provides the JDK of `version` regardless of the repo-wide runtime.",
     attrs = {
         "version": attr.string(mandatory = True, doc = "Major JDK version, for example 25."),
         "_runtime": attr.label(

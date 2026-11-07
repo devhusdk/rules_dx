@@ -1,10 +1,9 @@
 use dx_testing::read_runfiles;
 
-/// Binaries whose whole job is to encode one validated artifact to an output path.
-const WRITERS: [&str; 3] = [
-    "env/env_shard/src/main.rs",
-    "generation/codegen_shard/src/main.rs",
-    "quality/runner/src/main.rs",
+/// Sources whose whole job is to encode one validated artifact to an output path.
+const WRITERS: [&str; 2] = [
+    "libs/shard_writer/src/lib.rs",
+    "quality/runner/src/entry.rs",
 ];
 
 const ATOMIC: &str = "dx_atomic_fs::write_atomic(";

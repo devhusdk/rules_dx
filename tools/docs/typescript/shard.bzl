@@ -5,19 +5,7 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 TYPEDOC_JSON_SCHEMA = "2.0"
 
 def typedoc_arguments(tsconfig, package, json, entry_points, options, base_path = "."):
-    """Returns the TypeDoc command line for one project.
-
-    Args:
-        tsconfig: Path of the tsconfig, relative to the TypeDoc working directory.
-        package: Project name passed to TypeDoc.
-        json: Path of the TypeDoc JSON output.
-        entry_points: Entry point paths, relative to the working directory.
-        options: Extra TypeDoc flags.
-        base_path: The project directory, relative to the working directory.
-
-    Returns:
-        The argument list.
-    """
+    """Returns the TypeDoc command line for one project."""
     arguments = [
         "--tsconfig",
         tsconfig,
@@ -39,20 +27,7 @@ def typedoc_arguments(tsconfig, package, json, entry_points, options, base_path 
     return arguments + options
 
 def typescript_shard_action(ctx, typedoc_json, package, source_prefix, config, stem, extract_tool):
-    """Converts one project's TypeDoc JSON into a DocIr shard.
-
-    Args:
-        ctx: The rule or aspect context.
-        typedoc_json: The TypeDoc JSON file.
-        package: Package segment of the symbol ids.
-        source_prefix: Repo-relative directory of the TypeScript project.
-        config: Configuration identity recorded on every symbol.
-        stem: Output name prefix.
-        extract_tool: The DocIr extractor executable.
-
-    Returns:
-        The DocIr shard file.
-    """
+    """Converts one project's TypeDoc JSON into a DocIr shard."""
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
     args.add("--typedoc", typedoc_json)

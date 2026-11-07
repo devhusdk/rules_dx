@@ -16,10 +16,7 @@ def sbom_builder_error(builder_id):
             "': want '" + SBOM_BUILDER_RELEASE + "'")
 
 def sbom_release(name, artifact, package_name = "dx", supplier = "rules_dx", builder_id = SBOM_BUILDER_RELEASE, inventory = None, runtimes = None, **kwargs):
-    """Generates SPDX 2.3 JSON + SLSA provenance for one release artifact.
-
-    `runtimes` is a shipped_inventory `_runtimes` target; each runtime becomes an SPDX package.
-    """
+    """Generates SPDX 2.3 JSON + SLSA provenance for one release artifact."""
     builder_err = sbom_builder_error(builder_id)
     if builder_err != "":
         fail(builder_err + " (in " + native.package_name() + ":" + name + ")")

@@ -8,16 +8,7 @@ def _beams(info):
     return [f for f in info.beam if f.is_directory or f.extension == "beam"]
 
 def beam_info(upstream, plts, code = []):
-    """Returns the BeamInfo of an ErlangAppInfo target.
-
-    Args:
-      upstream: The target carrying ErlangAppInfo.
-      plts: .plt files the language needs beyond the dialyzer tool's PLTs.
-      code: .beam files dialyzer needs on its code path to read the language's beams.
-
-    Returns:
-      A BeamInfo.
-    """
+    """Returns the BeamInfo of an ErlangAppInfo target."""
     info = upstream[ErlangAppInfo]
     return BeamInfo(
         app_name = info.app_name,

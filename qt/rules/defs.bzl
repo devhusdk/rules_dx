@@ -1136,11 +1136,7 @@ def qt_runtime_members(members):
     return [member for member in members if member.startswith("bin/") and member.endswith(".dll")]
 
 def qt_bundle_members(runfiles, licenses, modules, needs):
-    """Returns the sorted (member, short path) pairs one bundle stages.
-
-    Windows DLLs go under bin/. A DLL counts as linked when Bazel copied it
-    next to the binary, so its path does not start with ../.
-    """
+    """Returns the sorted (member, short path) pairs one bundle stages."""
     roots = [path.rpartition("/")[0] for path in runfiles if path.rpartition("/")[2] == "builtins.qmltypes"]
     if len(roots) > 1:
         fail("qt_bundle: the binary carries " + str(len(roots)) + " QML import trees")
@@ -1270,10 +1266,7 @@ _qt_bundle = rule(
 )
 
 def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plugins = [], qt = QT_REPOSITORY, **kwargs):
-    """Stages a qt_cc_binary runtime for consumer_archive resources.
-
-    <name>_runtime holds the Windows DLLs and qt.conf for consumer_archive runtime.
-    """
+    """Stages a qt_cc_binary runtime for consumer_archive resources."""
     for platform in display:
         if platform not in ["wayland", "xcb"]:
             fail("qt_bundle: display '" + platform + "' is not one of wayland, xcb")

@@ -220,12 +220,7 @@ def dx_toolchain_tool(cc_toolchain, basename):
     return None
 
 def dx_native_coverage_attrs():
-    """Returns the attributes native (C/C++/LLVM) coverage collection needs.
-
-    llvm-cov and llvm-profdata come from the resolved cc toolchain when it ships
-    them, so the raw profile version matches its clang. The @llvm tools are the
-    fallback for toolchains that do not.
-    """
+    """Returns the attributes native (C/C++/LLVM) coverage collection needs."""
     return dx_collect_cc_coverage_attr(Label("//tools/coverage/collect:collect_native")) | {
         "_llvm_cov": attr.label(
             default = Label("@llvm//tools:llvm-cov"),
@@ -383,11 +378,7 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
 
 def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, quality_tools = None, instrument_srcs = False, extra_providers = None, toolchains = None, validate = None, upstream_aspects = None):
-    """Creates the public forwarding rule for one library wrapper.
-
-    `extra_providers`, when set, is `fn(ctx, upstream) -> list` of providers the wrapper adds.
-    `validate`, when set, is `fn(ctx)` called first and may fail the analysis.
-    """
+    """Creates the public forwarding rule for one library wrapper."""
 
     def _impl(ctx):
         if validate:
@@ -503,10 +494,7 @@ def dx_append_flags(kwargs, key, flags):
     return out
 
 def dx_warnings_as_errors(kwargs, on, off = []):
-    """Returns kwargs without warnings_as_errors and the value to use.
-
-    True picks on, False picks off, and unset follows //config:warnings_as_errors.
-    """
+    """Returns kwargs without warnings_as_errors and the value to use."""
     out = dict(kwargs)
     setting = out.pop("warnings_as_errors", None)
     if setting == None:
@@ -546,18 +534,7 @@ def dx_strip_none(kwargs):
     return {key: value for key, value in kwargs.items() if value != None}
 
 def dx_wrapper_macro_attrs(nonconfigurable_lists = [], nonconfigurable_labels = [], allow_files = True, mandatory = []):
-    """Returns macro() attr overrides that make inspected attributes non-configurable.
-
-    The wrapper hooks call list(), `in` and string operations on these
-    attributes, which a select() would break; a non-configurable attribute
-    fails at load time with a clear error instead.
-
-    Args:
-        nonconfigurable_lists: Names of label_list attributes.
-        nonconfigurable_labels: Names of single label attributes.
-        allow_files: The allow_files value the upstream rule uses.
-        mandatory: Names, among the two lists above, that are mandatory.
-    """
+    """Returns macro() attr overrides that make inspected attributes non-configurable."""
     out = {}
     for key in nonconfigurable_lists:
         out[key] = attr.label_list(allow_files = allow_files, configurable = False, mandatory = key in mandatory)
@@ -566,12 +543,7 @@ def dx_wrapper_macro_attrs(nonconfigurable_lists = [], nonconfigurable_labels = 
     return out
 
 def dx_macro_upstream_visibility():
-    """Returns the visibility of a `<name>_upstream` target declared in a macro.
-
-    Private visibility inside a macro means the package of the .bzl file that
-    defines the macro, not the caller; the caller's package is needed so
-    `:<name>_upstream` stays referenceable there.
-    """
+    """Returns the visibility of a `<name>_upstream` target declared in a macro."""
     return [native.package_relative_label(":__pkg__")]
 
 def dx_binary_run_kwargs(kwargs):

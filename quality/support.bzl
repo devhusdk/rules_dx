@@ -81,11 +81,7 @@ def with_platforms(record):
 SUPPORT_RECORDS = [with_platforms(record) for record in _RAW_RECORDS]
 
 def _is_unbuilt(record):
-    """Reports whether a record names a tool with no pinned build on any platform.
-
-    Only a known record with a missing artifact may leave `platforms` empty, and it must list
-    every platform as unsupported.
-    """
+    """Reports whether a record names a tool with no pinned build on any platform."""
     unsupported = record.get("unsupported", {})
     return (
         record["artifact"] == "missing" and

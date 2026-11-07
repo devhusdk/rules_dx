@@ -335,11 +335,6 @@ _dx_dune_library = rule(
 )
 
 def dx_dune_library(name, **kwargs):
-    """Builds a dune library package; compatible with the OCaml cells by default.
-
-    Args:
-      name: The target name. The findlib tree is name_ocamlpath/<package>.
-      **kwargs: Attributes of the rule.
-    """
+    """Builds a dune library package; compatible with the OCaml cells by default."""
     kwargs.setdefault("target_compatible_with", OCAML_COMPATIBLE_WITH)
     _dx_dune_library(name = name, **kwargs)

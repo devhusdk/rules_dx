@@ -104,17 +104,7 @@ quality_family = rule(
 )
 
 def merge_policy(base, sections, disabled, has_base):
-    """Merges family sections over a base policy.
-
-    Args:
-        base: dict from family ID to value, empty without `extends`.
-        sections: list of (family_id, value) pairs from `families`.
-        disabled: family IDs to drop from the base.
-        has_base: whether `extends` is set.
-
-    Returns:
-        (families, error): the merged dict, and an error string or "".
-    """
+    """Merges family sections over a base policy."""
     if disabled and not has_base:
         return {}, "workspace_policy: 'disabled' needs 'extends'"
     seen = {}
@@ -133,15 +123,7 @@ def merge_policy(base, sections, disabled, has_base):
     return families, ""
 
 def merge_configs(base, entries):
-    """Merges native configs over a base policy's configs.
-
-    Args:
-        base: dict from tool ID to config, empty without `extends`.
-        entries: list of (tool_id, config) pairs from `configs`.
-
-    Returns:
-        (configs, error): the merged dict, and an error string or "".
-    """
+    """Merges native configs over a base policy's configs."""
     seen = {}
     for tool_id, _ in entries:
         if tool_id in seen:

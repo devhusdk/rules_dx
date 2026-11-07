@@ -110,6 +110,7 @@ rust_binary(
 
 exports_files([
     "Cargo.toml",
+    "src/entry.rs",
     "src/lib.rs",
     "src/main.rs",
     "src/matrix_harness.rs",

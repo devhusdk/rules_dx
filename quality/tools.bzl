@@ -30,39 +30,7 @@ def config(
         suppressions = [],
         suppression_extensions = [],
         rule_keys = []):
-    """Returns a tool's config metadata.
-
-    Args:
-      suffixes: accepted suffixes of the native config file; the first is canonical.
-      files: root files that mean the repo configures the tool, the first being the one dx writes;
-        a trailing `*` matches a prefix.
-      ext: extension of the tier files under quality/tiers/<tier_dir>/.
-      extends_syntax: root file that extends a tier base, with `{base}` for its path; empty when
-        the root file is a copy of the base.
-      shared: whether several tools read the same config file.
-      tier_dir: directory under quality/tiers when it differs from the tool id.
-      comment: line comment prefix of the config format; empty when it has none.
-      pyproject_table: table in pyproject.toml that also means the tool is configured.
-      extras: extra files that belong with the config.
-      references: keys of the root file that name other files the tool reads, as `ini:<key>` or
-        `toml:<key>`; dx generate binds those files next to the config.
-      kind: `file` for a native config, `flags` for a tier the generator renders as internal
-        flags (clippy), or `none`.
-      tier_active: whether the tool has a tier.
-      tier_base: whether dx_generated_policy binds the tier base; defaults to a `file` tool with a tier,
-        and must be False for a tier tool without `standard` and `strict` targets.
-      stage_native: whether the engine stages the bound file under files[0].
-      tier_source: upstream tier name or `dx`.
-      family: family whose files mean the tool applies.
-      extensions: extensions that mean the tool applies, for tools no family owns.
-      init_order: position of the tool among the tier tools in the files `dx init` plans; 0 for none.
-      suppressions: markers of the tool's inline suppression comments.
-      suppression_extensions: extensions of the files that can carry those markers.
-      rule_keys: dotted keys inside the base that hold rule IDs, for `dx upgrade` to report rule changes.
-
-    Returns:
-      The config struct.
-    """
+    """Returns a tool's config metadata."""
     if tier_base == None:
         tier_base = tier_active and kind == "file"
     if tier_base and (kind != "file" or not tier_active):
@@ -96,21 +64,7 @@ _NO_CONFIG = config(kind = "none")
 _LEVELS = ["error", "warning", "info"]
 
 def severity(default = None, categories = {}):
-    """Returns a tool's severity map, applied once after its parser has run.
-
-    Severity follows the rule's category, not the parser. Style categories (style, naming,
-    readability, pedantic, codestyle) map to `warning`, so strict-only style rules fail under the
-    default `--fail-on warning`. `info` is only for what the tool itself labels a suggestion or
-    hint (hlint `Suggestion`, staticcheck `QF`, vale `suggestion`).
-
-    Args:
-      default: level for a rule that matches no key; None keeps the parser's severity.
-      categories: rule code prefix or category to `error`, `warning` or `info`. The longest
-        matching prefix of the rule code the parser emits wins.
-
-    Returns:
-      The severity struct.
-    """
+    """Returns a tool's severity map, applied once after its parser has run."""
     for level in [default] + categories.values():
         if level != None and level not in _LEVELS:
             fail("severity level %r is not one of %s" % (level, _LEVELS))

@@ -182,7 +182,7 @@ cc_gcov_fixture = rule(
     implementation = _gcov_fixture_impl,
     doc = "Builds tests with GCC coverage instrumentation and hands over the binaries, their .gcno files and the toolchain gcov.",
     attrs = {
-        "instrumentation_filter": attr.string(default = "^//cc/tests/fixtures/(gcc_coverage|gcc_shared)[/:]"),
+        "instrumentation_filter": attr.string(doc = "Regex of the labels to instrument.", default = "^//cc/tests/fixtures/(gcc_coverage|gcc_shared)[/:]"),
         "libraries": attr.label_list(doc = "Libraries a test loads dynamically, so their .gcno files are handed over too.", cfg = _gcov_transition),
         "tests": attr.label_list(doc = "Tests to instrument.", cfg = _gcov_transition, mandatory = True),
         "_gcov": attr.label(default = Label(":gcov_tool"), cfg = _gcov_transition),

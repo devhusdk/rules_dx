@@ -32,13 +32,11 @@ def _impl(ctx):
 
 jar_lsp_tool = rule(
     implementation = _impl,
-    doc = """Runs `driver` with a pinned JDK and a language server jar in its runfiles.
-
-    Aspects read the java launcher and the jar through `PklLspToolInfo`.""",
+    doc = "Runs `driver` with a pinned JDK and a language server jar in its runfiles.",
     attrs = {
-        "driver": attr.label(mandatory = True, executable = True, cfg = "exec"),
-        "jar": attr.label(mandatory = True, allow_single_file = True),
-        "runtime": attr.label(mandatory = True, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
+        "driver": attr.label(doc = "Executable that starts the language server.", mandatory = True, executable = True, cfg = "exec"),
+        "jar": attr.label(doc = "Language server jar.", mandatory = True, allow_single_file = True),
+        "runtime": attr.label(doc = "Java runtime that runs the jar.", mandatory = True, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
     },
     executable = True,
 )

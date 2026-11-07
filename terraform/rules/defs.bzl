@@ -4,16 +4,7 @@ load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "TerraformModuleInfo", "TerraformProviderInfo")
 
 def collect_providers(label, own, deps):
-    """Merges providers and fails when one source appears at two versions.
-
-    Args:
-      label: Label used in error messages.
-      own: list of TerraformProviderInfo declared directly.
-      deps: list of TerraformModuleInfo of dependencies.
-
-    Returns:
-      A TerraformModuleInfo.
-    """
+    """Merges providers and fails when one source appears at two versions."""
     transitive = depset(own, transitive = [d.transitive_providers for d in deps])
     seen = {}
     for p in transitive.to_list():

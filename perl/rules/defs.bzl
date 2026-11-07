@@ -80,7 +80,7 @@ _perl_forward_test = dx_executable_forward_rule(
     allow_files = PERL_SOURCE_EXTS,
     upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr() | {
-        "deps": attr.label_list(providers = [_PerlInfo]),
+        "deps": attr.label_list(doc = "Perl libraries the target depends on.", providers = [_PerlInfo]),
         "_perl_coverage": attr.label(default = Label("//perl/coverage:collector")),
         "_perl_windows": attr.label(default = Label("@platforms//os:windows"), providers = [platform_common.ConstraintValueInfo]),
     },

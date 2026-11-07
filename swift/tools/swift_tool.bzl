@@ -32,7 +32,7 @@ def _swift_format_impl(ctx):
 
 swift_format_tool = rule(
     implementation = _swift_format_impl,
-    attrs = {"srcs": attr.label_list(allow_files = True, mandatory = True)},
+    attrs = {"srcs": attr.label_list(doc = "Swift sources to check.", allow_files = True, mandatory = True)},
     executable = True,
     doc = "A copy of swift-format beside links to the libraries it loads.",
 )

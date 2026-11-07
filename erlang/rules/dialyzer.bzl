@@ -22,22 +22,7 @@ def _dirs(files):
     return list(seen)
 
 def dialyzer_plt_action(ctx, dialyzer, escript, driver, apps, plts, beams, code, out):
-    """Builds one PLT of OTP `apps` and `beams`, layered over `plts`.
-
-    Dialyzer exits 2 when it only emitted warnings, which a PLT build does for
-    unresolved calls; only exit 1 is a failure, and then its output is printed.
-
-    Args:
-      ctx: The rule context.
-      dialyzer: The dialyzer launcher's FilesToRunProvider.
-      escript: The escript launcher's FilesToRunProvider.
-      driver: The plt_build.escript file.
-      apps: OTP application names to include.
-      plts: PLT files the new PLT builds on.
-      beams: .beam files to include.
-      code: .beam files whose directories go on dialyzer's code path (the compiler that wrote the debug info of `beams`).
-      out: The declared output PLT.
-    """
+    """Builds one PLT of OTP `apps` and `beams`, layered over `plts`."""
     args = ctx.actions.args()
     args.add(driver)
     args.add(dialyzer.executable)
@@ -94,15 +79,7 @@ dialyzer_plt = rule(
 )
 
 def tool_launcher(ctx, binary_target):
-    """Links an otp_tool_binary as this rule's executable.
-
-    Args:
-      ctx: The rule context.
-      binary_target: The otp_tool_binary target.
-
-    Returns:
-      The launcher file and the runfiles it needs.
-    """
+    """Links an otp_tool_binary as this rule's executable."""
     binary = binary_target[DefaultInfo]
     exe = binary.files_to_run.executable
     runfiles = binary.default_runfiles

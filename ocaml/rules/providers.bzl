@@ -8,13 +8,7 @@ OCamlCmtInfo = provider(
 )
 
 def cmt_entries(srcs, cmts, cmtis):
-    """Returns the OCamlCmtInfo.owned entries for one target.
-
-    Args:
-      srcs: The target's hand-written .ml and .mli files.
-      cmts: The .cmt files the compile produced.
-      cmtis: The .cmti files the compile produced; only listed with a hand-written .mli in srcs, so a module that takes its signature from an ocaml_signature target does not repeat that target's .cmti.
-    """
+    """Returns the OCamlCmtInfo.owned entries for one target."""
     impl = [f for f in srcs if f.basename.endswith(".ml")]
     sig = [f for f in srcs if f.basename.endswith(".mli")]
     cmt = cmts[0] if len(cmts) == 1 else None
@@ -40,21 +34,13 @@ PROFILE_WARNING_OPTS = select({
 })
 
 def profile_warning_opts(opts):
-    """Returns opts with the warning set of the config profile added unless the target sets its own -w.
-
-    Args:
-      opts: The target's opts, a list or a select.
-    """
+    """Returns opts with the warning set of the config profile added unless the target sets its own -w."""
     if type(opts) == "list" and "-w" in opts:
         return opts
     return opts + PROFILE_WARNING_OPTS
 
 def bin_annot_opts(opts):
-    """Returns opts with -bin-annot added unless the target sets -no-bin-annot or already has -bin-annot.
-
-    Args:
-      opts: The target's opts, a list or a select, or None.
-    """
+    """Returns opts with -bin-annot added unless the target sets -no-bin-annot or already has -bin-annot."""
     if opts == None:
         return ["-bin-annot"]
     if type(opts) == "list":

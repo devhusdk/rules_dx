@@ -88,17 +88,7 @@ def _rustdoc_json(ctx, crate_info, lints_info, output_dir, features):
     )
 
 def rust_shard_action(ctx, target, package, stem = None):
-    """Runs stable rustdoc JSON and the extractor for one Rust crate target.
-
-    Args:
-        ctx: The rule or aspect context; it needs the rustdoc_compile_action attributes and `_extract`.
-        target: The documented target, which carries a CrateInfo.
-        package: Package segment of the symbol ids; empty means the crate name.
-        stem: Output name prefix; defaults to the label name.
-
-    Returns:
-        A struct with the DocIr `shard` file and the `outputs` OutputGroupInfo fields.
-    """
+    """Runs stable rustdoc JSON and the extractor for one Rust crate target."""
     crate_info = target[rust_common.crate_info]
     package = package or crate_info.name
     stem = stem or ctx.label.name

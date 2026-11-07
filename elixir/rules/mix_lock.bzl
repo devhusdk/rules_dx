@@ -58,10 +58,7 @@ def _dependency(dep):
     return None if optional else package
 
 def mix_lock_packages(text):
-    """Returns one struct-like dict per Hex entry: package, version, sha256 and deps.
-
-    Entries from git or a path fail, so a lock never half-resolves.
-    """
+    """Returns one struct-like dict per Hex entry: package, version, sha256 and deps."""
     terms = parse_terms(text)
     if len(terms) != 1:
         fail("mix.lock must hold one map")

@@ -22,12 +22,7 @@ def dart_merge_packages(packages, extra):
     return packages + [pkg for pkg in extra if pkg.lib_root not in known]
 
 def dart_package_entries(packages, mode):
-    """Returns the `package_config.json` package entries, sorted by root.
-
-    Format mode lists in-repo packages only (the byte-identical layout `dart format` always had).
-    Analyze mode adds external packages under `_external/` and fails closed when one package
-    name points at two roots or two names share a root.
-    """
+    """Returns the `package_config.json` package entries, sorted by root."""
     roots = {}
     for pkg in packages:
         if _is_external(pkg.lib_root) and mode != DART_ANALYZE:
@@ -56,11 +51,7 @@ def dart_package_entries(packages, mode):
     return entries
 
 def dart_pubspec_stub(packages, name, sdk_version = ""):
-    """Returns a valid stub `pubspec.yaml` for the in-repo package `name`.
-
-    Package-root lints read it; every closure package is listed as `any` so that
-    `depend_on_referenced_packages` does not blame the staging harness.
-    """
+    """Returns a valid stub `pubspec.yaml` for the in-repo package `name`."""
     sdk = ">=3.0.0 <4.0.0"
     parts = sdk_version.split(".")
     if len(parts) >= 2:

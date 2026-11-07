@@ -30,16 +30,7 @@ def _fail(message):
     return struct(argv = [], steps = [], error = message, source = "", staged = [])
 
 def flang_check_argv(argv, scratch):
-    """Rewrites a flang compile command line into its -fsyntax-only form.
-
-    Args:
-      argv: list of string: the compile action command line, compiler first.
-      scratch: string: a directory the replay may write module files to.
-
-    Returns:
-      A struct with `argv`, `error` (non-empty when the command cannot be replayed
-      faithfully) and `source` (the translation unit).
-    """
+    """Rewrites a flang compile command line into its -fsyntax-only form."""
     if len(argv) == 0:
         return _fail("the compile action has an empty command line")
     out = []
@@ -78,15 +69,7 @@ def flang_check_argv(argv, scratch):
     return struct(argv = out, error = "", source = source)
 
 def ldc_check_argv(argv, scratch):
-    """Rewrites an ldc/ldmd2 compile command line so it type-checks and writes nothing.
-
-    Args:
-      argv: list of string: the compile action command line, compiler first.
-      scratch: string: unused; kept so every family rewrite has one signature.
-
-    Returns:
-      A struct with `argv`, `error` and `source` (the first D source).
-    """
+    """Rewrites an ldc/ldmd2 compile command line so it type-checks and writes nothing."""
     _ = scratch
     if len(argv) == 0:
         return _fail("the compile action has an empty command line")
@@ -107,18 +90,7 @@ def ldc_check_argv(argv, scratch):
     return struct(argv = out + ["-o-", "-verror-style=gnu", "-vcolumns"], error = "", source = source)
 
 def zig_check_argv(argv, scratch):
-    """Rewrites a zig build-exe/build-lib/test command line so it type-checks and emits nothing.
-
-    Every `-femit-*` flag is dropped and `-fno-emit-bin` is appended. Zig analyzes lazily, so only
-    declarations reachable from the root module are checked.
-
-    Args:
-      argv: list of string: the compile action command line, compiler first.
-      scratch: string: unused; kept so every family rewrite has one signature.
-
-    Returns:
-      A struct with `argv`, `error` and `source` (the root module source: the first module listed).
-    """
+    """Rewrites a zig build-exe/build-lib/test command line so it type-checks and emits nothing."""
     _ = scratch
     if len(argv) < 2:
         return _fail("the compile action has no zig subcommand")
@@ -149,18 +121,7 @@ _GHC_FLAGS = ["-fno-code", "-fdiagnostics-as-json", "-fwrite-ide-info"]
 _GHC_DIRS = ["-odir", "-hidir", "-stubdir", "-hiedir", "-dumpdir"]
 
 def ghc_check_argv(argv, scratch):
-    """Rewrites a rules_haskell ghc_wrapper command line into a check-only replay.
-
-    The wrapper reads its flags from a params file. The replay copies the extra-args
-    file into scratch with the check-only flags added at the end, where ghc takes the last flag.
-
-    Args:
-      argv: list of string: the wrapper, the compile flags file and the extra args file.
-      scratch: string: a directory the replay may write to.
-
-    Returns:
-      A struct with `argv`, `options` (the compile_check_exec.sh options), `error` and an empty `source`.
-    """
+    """Rewrites a rules_haskell ghc_wrapper command line into a check-only replay."""
     if len(argv) != 3:
         return _fail("expected the ghc wrapper with two flag files, found %d arguments" % len(argv))
     if argv[2].startswith("@"):
@@ -185,21 +146,7 @@ def _stem(path):
     return _basename(path).rpartition(".")[0]
 
 def ocaml_check_argv(argv, scratch):
-    """Rewrites an ocamlc or ocamlopt compile command line into check-only steps.
-
-    The compile stops after typing, writes only into `scratch` and prints short-style
-    errors. A hand-written signature compiled together with its implementation
-    (`-c m.mli m.ml`, no `-o`) becomes an `-intf` step followed by an `-impl` step.
-
-    Args:
-      argv: list of string: the compile action command line, compiler first.
-      scratch: string: a directory the replay may write compiled interfaces to.
-
-    Returns:
-      A struct with `argv` (the first step), `steps`, `error` (non-empty when the command
-      cannot be replayed faithfully), `source` (the first source) and `staged` (the
-      sources in the order they were given).
-    """
+    """Rewrites an ocamlc or ocamlopt compile command line into check-only steps."""
     if len(argv) == 0:
         return _fail("the compile action has an empty command line")
     common = []
@@ -261,15 +208,7 @@ def ocaml_check_argv(argv, scratch):
     return struct(argv = steps[0], steps = steps, error = "", source = staged[-1], staged = staged)
 
 def ocaml_aliases(staged, owned):
-    """Maps staged source paths in compiler messages back to the files a target owns.
-
-    Args:
-      staged: list of string: the sources of the replayed compile, as the compiler prints them.
-      owned: list of string: the target's own hand-written source paths.
-
-    Returns:
-      A list of (staged path, owned path) pairs for the staged sources that are not owned.
-    """
+    """Maps staged source paths in compiler messages back to the files a target owns."""
     out = []
     for path in staged:
         if path in owned:

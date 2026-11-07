@@ -19,17 +19,7 @@ TerraformModuleInfo = provider(
 )
 
 def provider_mirror_root(path, source, version, target):
-    """Strips the mirror layout suffix from the path of a provider executable.
-
-    Args:
-      path: Path of the provider executable.
-      source: Provider source address (HOST/NS/TYPE).
-      version: Provider version.
-      target: Terraform target platform.
-
-    Returns:
-      The mirror root, or None when the path does not follow the layout.
-    """
+    """Strips the mirror layout suffix from the path of a provider executable."""
     marker = "/%s/%s/%s/" % (source, version, target)
     index = path.find(marker)
     if index < 0:

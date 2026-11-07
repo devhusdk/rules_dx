@@ -1,18 +1,7 @@
 """Stages a declared schema closure under a private root for codegen actions."""
 
 def stage_closure(ctx, prefix, entries, kind):
-    """Symlinks schema files under a private root.
-
-    Args:
-      ctx: the rule or aspect context.
-      prefix: package-relative directory to stage under; must be unique per target.
-      entries: list of struct(path, file) to stage.
-      kind: schema language name, used in failure messages.
-
-    Returns:
-      A struct(root, files, staged): root is the exec path of the staging root, files
-      the staged symlinks, and staged maps each path to its symlink.
-    """
+    """Symlinks schema files under a private root."""
     staged = {}
     sources = {}
     for entry in entries:

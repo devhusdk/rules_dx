@@ -76,19 +76,7 @@ def _msvc_syntax_argv(argv, src, identity):
     return struct(argv = out + ["/diagnostics:column"], error = "")
 
 def clang_syntax_argv(argv, src, identity):
-    """Rewrites a compile command line into its -fsyntax-only form.
-
-    Pure function so other projections (clang-tidy, editor databases) can share it.
-
-    Args:
-      argv: list of string: the compile action command line, compiler first.
-      src: string: the source path the action compiles.
-      identity: struct: the compiler identity from cc_compiler_identity.
-
-    Returns:
-      A struct with `argv` (the rewritten list) and `error` (non-empty when the
-      command line cannot be replayed faithfully).
-    """
+    """Rewrites a compile command line into its -fsyntax-only form."""
     if len(argv) == 0:
         return struct(argv = [], error = "the compile action has an empty command line")
     if identity.driver == "msvc":
@@ -183,20 +171,7 @@ def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
     return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + imsvc + flags, error = "")
 
 def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}):
-    """Projects a compile command line into a clang-tidy command line.
-
-    Args:
-      tidy: string: the clang-tidy executable path.
-      argv: list of string: the compile action command line, compiler first.
-      src: string: the source path the action compiles.
-      identity: struct: the compiler identity from cc_compiler_identity.
-      config: string: the .clang-tidy path, or empty for none.
-      env: dict: the compile action environment; INCLUDE and EXTERNAL_INCLUDE become /imsvc for msvc.
-
-    Returns:
-      A struct with `argv` (clang-tidy, the source, `--`, then the compile flags) and
-      `error` (non-empty when the command line cannot be projected).
-    """
+    """Projects a compile command line into a clang-tidy command line."""
     if identity.driver == "msvc":
         return _msvc_tidy_argv(tidy, argv, src, identity, config, env)
     rewritten = clang_syntax_argv(argv, src, identity)
@@ -216,21 +191,7 @@ def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}):
     return struct(argv = [tidy] + _config_flag(config) + [src, "--"] + flags, error = "")
 
 def cuda_tidy_argv(tidy, argv, src, config = ""):
-    """Projects an nvcc compile command line into a clang-tidy command line (`-x cuda`).
-
-    Only the flags clang understands the same way are carried over (include paths,
-    defines, -std, -include); nvcc-only flags (-gencode, -arch, -Xcompiler wrappers,
-    -rdc, ...) are dropped. --cuda-path is the toolkit root derived from the nvcc path.
-
-    Args:
-      tidy: string: the clang-tidy executable path.
-      argv: list of string: the nvcc compile action command line, nvcc first.
-      src: string: the source path the action compiles.
-      config: string: the .clang-tidy path, or empty for none.
-
-    Returns:
-      A struct with `argv` and `error` (non-empty when the command line cannot be projected).
-    """
+    """Projects an nvcc compile command line into a clang-tidy command line (`-x cuda`)."""
     if len(argv) == 0 or argv[0].replace("\\", "/").rpartition("/")[2] not in ["nvcc", "nvcc.exe"]:
         return struct(argv = [], error = "only nvcc compile commands can be projected into clang-tidy")
     if src == "" or src not in argv:
@@ -289,12 +250,7 @@ def _compile_actions(target):
     return [action for action in actions if action.mnemonic in _MNEMONICS]
 
 def clang_syntax_source(argv):
-    """Returns the translation unit of a compile command line, or "" when there is none.
-
-    A normal compile names it after -c. A header-parsing action (parse_headers) has no
-    -c: it already carries -fsyntax-only and ends with the header, so the last argument
-    with a C-family extension is taken.
-    """
+    """Returns the translation unit of a compile command line, or "" when there is none."""
     for i in range(len(argv) - 1):
         if argv[i] in ["-c", "/c"]:
             return argv[i + 1]

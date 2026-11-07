@@ -127,9 +127,9 @@ def _repo_impl(rctx):
 sdist_cargo_vendor_repo = repository_rule(
     implementation = _repo_impl,
     attrs = {
-        "cargo_lock_path": attr.string(default = "Cargo.lock"),
-        "lock": attr.label(mandatory = True, allow_single_file = True),
-        "package": attr.string(mandatory = True),
+        "cargo_lock_path": attr.string(doc = "Cargo.lock path inside the sdist.", default = "Cargo.lock"),
+        "lock": attr.label(doc = "Lock file the vendored crates come from.", mandatory = True, allow_single_file = True),
+        "package": attr.string(doc = "Name of the sdist package.", mandatory = True),
     },
 )
 

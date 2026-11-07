@@ -20,10 +20,7 @@ def notice_manifest_error(manifest):
     return ""
 
 def notice_bundle(name, root, inventory, texts, runtimes = None, target_compatible_with = None):
-    """Bundles one aggregated NOTICE; texts are matched by manifest path suffix.
-
-    `runtimes` is a shipped_inventory `_runtimes` target; its runtimes are appended by name.
-    """
+    """Bundles one aggregated NOTICE; texts are matched by manifest path suffix."""
     root_err = notice_root_error(root)
     if root_err != "":
         fail(root_err + " (in " + native.package_name() + ":" + name + ")")

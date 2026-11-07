@@ -19,7 +19,7 @@ def _dx_unavailable_tool_impl(ctx):
 
 dx_unavailable_tool = rule(
     implementation = _dx_unavailable_tool_impl,
-    attrs = {"tool": attr.string(mandatory = True)},
+    attrs = {"tool": attr.string(doc = "Name of the tool that is unavailable.", mandatory = True)},
     executable = True,
     doc = "An executable that refuses to run, selected where a tool has no build.",
 )

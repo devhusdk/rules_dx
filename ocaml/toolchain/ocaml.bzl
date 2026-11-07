@@ -41,16 +41,7 @@ def toolchain_fields(info, extra):
     return fields
 
 def native_cc_env(cc, assembler, linker, archiver, dist_bin, macos = False, ar_wrapper = None, link_env = {}):
-    """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools.
-
-    The conda wrappers fall back to host as and cc when a variable is unset, so
-    every tool ocamlopt runs is named here. The dist bin directory comes first on
-    PATH so the wrappers themselves resolve; /usr/bin and /bin are the accepted
-    host baseline (bash, dirname). link_env holds the C toolchain's link
-    variables. On macOS, plugins resolve runtime symbols from the host
-    executable, and a libtool archiver is reached through ar_wrapper, which
-    takes ar's arguments.
-    """
+    """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools."""
     env = dict(link_env)
     env.update({
         "CONDA_OCAML_AR": archiver,

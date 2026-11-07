@@ -119,7 +119,7 @@ def _library_forward_rule(provider, name, extra_providers = None, extra_attrs = 
         upstream_cfg = _toolchain,
     )
 
-_module_forward = _library_forward_rule(_OCamlModuleProvider, "OCamlModuleProvider", _cmt_providers, {"instrument_coverage": attr.bool(default = True)})
+_module_forward = _library_forward_rule(_OCamlModuleProvider, "OCamlModuleProvider", _cmt_providers, {"instrument_coverage": attr.bool(doc = "Whether to instrument the module for coverage.", default = True)})
 
 _signature_forward = _library_forward_rule(_OCamlSignatureProvider, "OCamlSignatureProvider", _cmt_providers)
 
@@ -364,10 +364,7 @@ def _library_shape(name, upstream_rule, forward_rule, srcs, visibility, kwargs, 
     forward_rule(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **dict(dx_wrap_forward_kwargs(kwargs), **forward_extra))
 
 def coverage_kwargs(kwargs, struct, package, coverage_ppx = False):
-    """Returns kwargs that run the bisect_ppx instrumenter over struct when `bazel coverage` runs on Linux x86_64.
-
-    A module with its own ppx is left alone unless coverage_ppx says that ppx already links bisect_ppx; then only the file name and the runtime are added.
-    """
+    """Returns kwargs that run the bisect_ppx instrumenter over struct when `bazel coverage` runs on Linux x86_64."""
     if type(struct) != "string" or not struct.endswith(".ml"):
         return kwargs
     own_ppx = kwargs.get("ppx") != None

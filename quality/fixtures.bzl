@@ -194,10 +194,12 @@ _real_source_target = rule(
             default = [],
         ),
         "make_srcs": attr.label_list(
+            doc = "Makefile sources to check.",
             allow_files = True,
             default = [],
         ),
         "cmake_srcs": attr.label_list(
+            doc = "CMake sources to check.",
             allow_files = True,
             default = [],
         ),
@@ -292,18 +294,22 @@ _real_source_target = rule(
             default = [],
         ),
         "nix_srcs": attr.label_list(
+            doc = "Nix sources to check.",
             allow_files = [".nix"],
             default = [],
         ),
         "ansible_srcs": attr.label_list(
+            doc = "Ansible sources to check.",
             allow_files = [".yaml", ".yml"],
             default = [],
         ),
         "kubernetes_srcs": attr.label_list(
+            doc = "Kubernetes manifests to check.",
             allow_files = [".yaml", ".yml", ".json"],
             default = [],
         ),
         "cloudformation_srcs": attr.label_list(
+            doc = "CloudFormation templates to check.",
             allow_files = [".yaml", ".yml", ".json", ".template"],
             default = [],
         ),
@@ -313,10 +319,12 @@ _real_source_target = rule(
             default = [],
         ),
         "typst_srcs": attr.label_list(
+            doc = "Typst sources to check.",
             allow_files = [".typ"],
             default = [],
         ),
         "latex_srcs": attr.label_list(
+            doc = "LaTeX sources to check.",
             allow_files = [".tex", ".sty", ".cls"],
             default = [],
         ),
@@ -331,10 +339,12 @@ _real_source_target = rule(
             executable = True,
         ),
         "asciidoc_srcs": attr.label_list(
+            doc = "AsciiDoc sources to check.",
             allow_files = [".adoc", ".asciidoc", ".asc"],
             default = [],
         ),
         "rst_srcs": attr.label_list(
+            doc = "reStructuredText sources to check.",
             allow_files = [".rst", ".rest"],
             default = [],
         ),
@@ -349,6 +359,7 @@ _real_source_target = rule(
             default = [],
         ),
         "haskell_srcs": attr.label_list(
+            doc = "Haskell sources to check.",
             allow_files = [".hs"],
             default = [],
         ),
@@ -396,11 +407,7 @@ _CONVERTERS = [
 ]
 
 def converter_attrs(kwargs):
-    """Returns the converter labels a real_source_target with these arguments needs.
-
-    A target only depends on a converter when it has the matching sources, so
-    targets without rst or asciidoc never fetch Python or Node.
-    """
+    """Returns the converter labels a real_source_target with these arguments needs."""
     attrs = {}
     for srcs_attr, flag, attr, label in _CONVERTERS:
         srcs = kwargs.get(srcs_attr, [])
@@ -410,13 +417,6 @@ def converter_attrs(kwargs):
     return attrs
 
 def real_source_target(name, rst_converter = True, asciidoc_converter = True, **kwargs):
-    """Sources by language for real quality aspects.
-
-    Args:
-        name: Target name.
-        rst_converter: Whether rst_srcs carry the rst2html converter, as rst_library does.
-        asciidoc_converter: Whether asciidoc_srcs carry the asciidoctor converter, as asciidoc_library does.
-        **kwargs: Attributes of the underlying rule, such as rust_srcs or markdown_srcs.
-    """
+    """Sources by language for real quality aspects."""
     flags = dict(kwargs, rst_converter = rst_converter, asciidoc_converter = asciidoc_converter)
     _real_source_target(name = name, **dict(converter_attrs(flags), **kwargs))

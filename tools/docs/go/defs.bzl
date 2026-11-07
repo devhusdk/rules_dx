@@ -4,22 +4,7 @@ load("@rules_go//go:def.bzl", "GoInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
 def go_shard_action(ctx, info, package, stem, driver_tool, extract_tool, goos = "linux", goarch = "amd64", tags = []):
-    """Runs the go/doc driver and the extractor for one Go library.
-
-    Args:
-        ctx: The rule or aspect context.
-        info: The GoInfo of the documented library.
-        package: Package segment of the symbol ids; empty means the importpath.
-        stem: Output name prefix.
-        driver_tool: The go/doc driver executable.
-        extract_tool: The DocIr extractor executable.
-        goos: GOOS the build constraints are evaluated for.
-        goarch: GOARCH the build constraints are evaluated for.
-        tags: Go build tags the build constraints are evaluated with.
-
-    Returns:
-        A struct with the DocIr `shard`, the `json` and `manifest` files and the resolved `package`.
-    """
+    """Runs the go/doc driver and the extractor for one Go library."""
     importpath = package or info.importpath
     if not importpath:
         fail("go docs " + str(ctx.label) + ": the library has no importpath; set package")

@@ -1,5 +1,5 @@
 {
-  "checksum": "c5de507e199c649d236213eab73066288c5152695537682d6ecc136f7040b3c0",
+  "checksum": "ede07325f90b3d3660f4069f2d09e76209d232d995e5c7750d1ccbc2501f3d69",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7887,6 +7887,10 @@
       "common_attrs": {
         "deps": [
           {
+            "id": "ignore 0.4.34",
+            "target": "ignore"
+          },
+          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
           }
@@ -12328,6 +12332,75 @@
         }
       ],
       "version": "1.2.2"
+    },
+    "ignore 0.4.34": {
+      "common_attrs": {
+        "deps": {
+          "common": [
+            {
+              "id": "crossbeam-deque 0.8.8",
+              "target": "crossbeam_deque"
+            },
+            {
+              "id": "globset 0.4.20",
+              "target": "globset"
+            },
+            {
+              "id": "log 0.4.34",
+              "target": "log"
+            },
+            {
+              "id": "memchr 2.8.3",
+              "target": "memchr"
+            },
+            {
+              "id": "regex-automata 0.4.18",
+              "target": "regex_automata"
+            },
+            {
+              "id": "same-file 1.0.6",
+              "target": "same_file"
+            },
+            {
+              "id": "walkdir 2.5.0",
+              "target": "walkdir"
+            }
+          ],
+          "selects": {
+            "cfg(windows)": [
+              {
+                "id": "winapi-util 0.1.11",
+                "target": "winapi_util"
+              }
+            ]
+          }
+        },
+        "edition": "2024"
+      },
+      "library_target_name": "ignore",
+      "license": "Unlicense OR MIT",
+      "license_file": "LICENSE-MIT",
+      "license_ids": [
+        "MIT",
+        "Unlicense"
+      ],
+      "name": "ignore",
+      "package_url": "https://github.com/BurntSushi/ripgrep/tree/master/crates/ignore",
+      "repository": {
+        "Http": {
+          "sha256": "484be5657551d7868d67587df967fb4fcbe9d266a761cc855aaa148fda0b3cc7",
+          "url": "https://static.crates.io/crates/ignore/0.4.34/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "ignore",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.4.34"
     },
     "indexmap 2.14.2": {
       "common_attrs": {
@@ -28636,6 +28709,7 @@
     "globset 0.4.20",
     "gomod-parser 0.5.3",
     "hex 0.4.3",
+    "ignore 0.4.34",
     "jsonc-parser 0.34.0",
     "jsonschema 0.60.2",
     "lcov 0.8.2",

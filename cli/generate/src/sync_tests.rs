@@ -8,13 +8,26 @@ use super::*;
 const DX_TOML: &str = "schema_version = 1\n";
 const RUFF_BASE: &str = ".dx/config/ruff/base.toml";
 
-/// Runs a sync with a detector that finds python and counts its calls.
-fn run(root: &Path, mode: Mode, count: &mut usize) -> SyncReport {
+/// Runs a sync with a detector that finds `families` and counts its calls.
+fn sync_with(
+    root: &Path,
+    mode: Mode,
+    families: &[&str],
+    count: &mut usize,
+) -> Result<SyncReport, SyncError> {
     let mut detect = |_: &Path| {
         *count += 1;
-        BTreeSet::from(["python".to_owned()])
+        families.iter().map(|family| (*family).to_owned()).collect()
     };
-    sync(root, mode, &mut detect).expect("sync")
+    sync(root, mode, &mut detect)
+}
+
+fn try_run(root: &Path, mode: Mode, count: &mut usize) -> Result<SyncReport, SyncError> {
+    sync_with(root, mode, &["python"], count)
+}
+
+fn run(root: &Path, mode: Mode, count: &mut usize) -> SyncReport {
+    try_run(root, mode, count).expect("sync")
 }
 
 fn workspace() -> TempDir {
@@ -148,4 +161,150 @@ fn local_and_pins_survive_and_strays_go() {
     assert!(dir.path().join(".dx/local/setups/keep").exists());
     assert!(!dir.path().join(".dx/stray").exists());
     assert!(dir.path().join("notes.txt").exists());
+}
+
+#[test]
+fn reference_files_cover_the_targets_and_the_build_files_above_them() {
+    let dir = scratch("references");
+    let root = dir.path();
+    for rel in [
+        "configs/BUILD.bazel",
+        "configs/base.toml",
+        "configs/other.toml",
+        "styles/a.yml",
+        "styles/old.bak",
+        "styles/sub/b.yml",
+        "unrelated/c.txt",
+    ] {
+        write(root, rel, "x");
+    }
+    write(root, ".gitignore", "*.bak\n");
+    let targets = BTreeSet::from(["configs/base.toml".to_owned(), "styles".to_owned()]);
+    let expected: BTreeSet<String> = [
+        "configs/BUILD.bazel",
+        "configs/base.toml",
+        "styles/a.yml",
+        "styles/sub/b.yml",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
+    assert_eq!(reference_files(root, &targets), expected);
+}
+
+#[test]
+fn a_new_file_under_the_vale_styles_rerenders() {
+    let markdown = |root: &Path, count: &mut usize| {
+        sync_with(root, Mode::Fast, &["markdown"], count).expect("sync")
+    };
+    let dir = workspace();
+    write(
+        dir.path(),
+        "dx.toml",
+        "schema_version = 1\n[families.markdown]\nlint = [\"vale\"]\n",
+    );
+    write(dir.path(), ".vale.ini", "StylesPath = styles\n");
+    write(dir.path(), "styles/a.yml", "x");
+    markdown(dir.path(), &mut 0);
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("\"//:styles/a.yml\""));
+    let mut count = 0;
+    markdown(dir.path(), &mut count);
+    assert_eq!(
+        count, 0,
+        "the root BUILD this sync wrote must not cause a miss"
+    );
+
+    write(dir.path(), "styles/b.yml", "x");
+    markdown(dir.path(), &mut count);
+    assert_eq!(count, 1);
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("\"//:styles/b.yml\""));
+}
+
+#[test]
+fn a_build_file_above_a_ruff_extend_target_rerenders() {
+    let dir = synced();
+    write(dir.path(), "ruff.toml", "extend = \"configs/base.toml\"\n");
+    write(dir.path(), "configs/base.toml", "line-length = 100\n");
+    run(dir.path(), Mode::Fast, &mut 0);
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("\"//:configs/base.toml\""));
+
+    write(dir.path(), "configs/BUILD.bazel", "");
+    let mut count = 0;
+    run(dir.path(), Mode::Fast, &mut count);
+    assert_eq!(count, 1);
+    let build = read(dir.path(), ".dx/BUILD.bazel");
+    assert!(build.contains("\"//configs:base.toml\""), "{build}");
+    assert!(!read(dir.path(), "BUILD.bazel").contains("configs/base.toml"));
+}
+
+#[test]
+fn removing_a_user_export_rerenders() {
+    let dir = synced();
+    write(dir.path(), "ruff.toml", "line-length = 100\n");
+    write(
+        dir.path(),
+        "BUILD.bazel",
+        "exports_files([\"ruff.toml\"])\n",
+    );
+    let report = run(dir.path(), Mode::Fast, &mut 0);
+    assert!(
+        !report.written.iter().any(|path| path == "BUILD.bazel"),
+        "{report:?}"
+    );
+
+    write(dir.path(), "BUILD.bazel", "");
+    let mut count = 0;
+    run(dir.path(), Mode::Fast, &mut count);
+    assert_eq!(count, 1);
+    assert!(read(dir.path(), "BUILD.bazel").contains("ruff.toml"));
+}
+
+#[test]
+fn a_dx_toml_edit_during_a_sync_is_not_marked_synced() {
+    let dir = workspace();
+    let mut detect = |root: &Path| {
+        write(root, "dx.toml", "schema_version = 1\ntier = \"strict\"\n");
+        BTreeSet::from(["python".to_owned()])
+    };
+    sync(dir.path(), Mode::Fast, &mut detect).expect("sync");
+    assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("profile = \"strict\""));
+
+    let mut count = 0;
+    run(dir.path(), Mode::Fast, &mut count);
+    assert_eq!(count, 1);
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("profile = \"strict\""));
+}
+
+#[test]
+fn a_failing_sync_is_not_retried_until_an_input_changes() {
+    let dir = synced();
+    write(dir.path(), "ruff.toml", "extend = \"configs/base.toml\"\n");
+    let mut count = 0;
+    let first = try_run(dir.path(), Mode::Fast, &mut count).expect_err("missing target");
+    assert!(matches!(first, SyncError::Generate(_)), "{first:?}");
+    assert_eq!(count, 1);
+
+    let second = try_run(dir.path(), Mode::Fast, &mut count).expect_err("still missing");
+    assert!(matches!(second, SyncError::Unchanged(_)), "{second:?}");
+    assert_eq!(second.to_string(), first.to_string());
+    assert_eq!(count, 1);
+
+    write(dir.path(), "configs/base.toml", "line-length = 100\n");
+    run(dir.path(), Mode::Fast, &mut count);
+    assert_eq!(count, 2);
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("\"//:configs/base.toml\""));
+}
+
+#[test]
+fn concurrent_full_syncs_both_succeed() {
+    let dir = workspace();
+    std::thread::scope(|scope| {
+        let runs: Vec<_> = (0..2)
+            .map(|_| scope.spawn(|| try_run(dir.path(), Mode::Full, &mut 0)))
+            .collect();
+        for handle in runs {
+            handle.join().expect("thread").expect("sync");
+        }
+    });
+    assert!(dir.path().join(RUFF_BASE).exists());
 }

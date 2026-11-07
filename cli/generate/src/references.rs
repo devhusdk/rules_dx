@@ -11,6 +11,18 @@ pub struct Reference {
     pub export: Option<String>,
 }
 
+/// The workspace paths `text` names that `resolve` would look up.
+pub fn targets(config: &ToolConfig, text: &str) -> Vec<String> {
+    config
+        .references
+        .iter()
+        .filter_map(|spec| spec.split_once(':'))
+        .flat_map(|(syntax, key)| values(syntax, key, text))
+        .filter_map(|value| normalize(&value))
+        .filter(|path| !path.starts_with(".dx/"))
+        .collect()
+}
+
 pub fn resolve(
     config: &ToolConfig,
     file: &str,

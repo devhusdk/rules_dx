@@ -9,6 +9,7 @@ name = "dx_generate"
 path = "src/lib.rs"
 
 [dependencies]
+ignore = "0.4"
 thiserror = "2"
 
 [dev-dependencies]

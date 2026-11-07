@@ -28,9 +28,10 @@ pub const ADVISORY: &str = "advisory";
 pub const IDE: &str = "ide";
 pub const LAUNCHER: &str = "launcher";
 pub const FINGERPRINT: &str = "fingerprint";
+pub const SYNC_LOCK: &str = "sync.lock";
 
 /// Entries that live under [`local_dir`].
-pub const LOCAL_ENTRIES: [&str; 11] = [
+pub const LOCAL_ENTRIES: [&str; 12] = [
     SETUPS,
     CURRENT,
     CURRENT_NEXT,
@@ -42,6 +43,7 @@ pub const LOCAL_ENTRIES: [&str; 11] = [
     LEASES,
     COMMIT_LOCK,
     COMMIT_LOCK_HOLDER,
+    SYNC_LOCK,
 ];
 
 pub fn dx_dir(workspace: &Path) -> PathBuf {
@@ -55,6 +57,11 @@ pub fn local_dir(workspace: &Path) -> PathBuf {
 /// The inputs and outputs hash from the last `.dx` sync.
 pub fn fingerprint_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(FINGERPRINT)
+}
+
+/// Held while a `.dx` sync renders and cleans up.
+pub fn sync_lock_path(workspace: &Path) -> PathBuf {
+    local_dir(workspace).join(SYNC_LOCK)
 }
 
 pub fn ide_dir(workspace: &Path) -> PathBuf {

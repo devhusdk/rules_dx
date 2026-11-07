@@ -223,7 +223,7 @@ const REMOTE_CACHE_FLAGS: [Flag; 1] = [(
     "With a remote cache set, also store fetched repositories there; without one this does nothing. Only use a remote cache you trust.",
 )];
 
-const CI_PERFORMANCE_FLAGS: [Flag; 9] = [
+const CI_PERFORMANCE_FLAGS: [Flag; 10] = [
     (
         "common:ci --jobs=64",
         "Under --config=ci, run 64 actions at once, since remote cache hits hold job slots.",
@@ -255,6 +255,10 @@ const CI_PERFORMANCE_FLAGS: [Flag; 9] = [
     (
         "common:ci --loading_phase_threads=32",
         "Under --config=ci, look up 32 repositories at once, since each remote contents cache lookup waits on the network.",
+    ),
+    (
+        "common:ci --remote_max_connections=200",
+        "Under --config=ci, open up to 200 remote connections, since cache checks queue behind the default 100.",
     ),
     (
         "common:ci-pr --noremote_upload_local_results",
@@ -796,6 +800,7 @@ mod tests {
                 "common:ci --remote_retries=5",
                 "common:ci --experimental_remote_cache_eviction_retries=5",
                 "common:ci --loading_phase_threads=32",
+                "common:ci --remote_max_connections=200",
                 "common:ci-pr --noremote_upload_local_results",
             ]
         );
@@ -879,8 +884,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 53);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 53);
+        assert_eq!(total, 54);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 54);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -972,7 +977,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 53);
+        assert_eq!(flags.len(), 54);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

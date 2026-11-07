@@ -132,7 +132,7 @@ DOC_TOOLS = {
 
 # The tool and rule that report unused code per row. A language row missing here has no dead-code tool yet; "none" marks a language where none exists.
 DEAD_CODE = {
-    "cc": ["none"],
+    "cc": ["clang_tidy misc-unused-parameters, misc-unused-using-decls"],
     "csharp": ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
     "cuda": ["none"],
     "d": ["none"],
@@ -140,6 +140,7 @@ DEAD_CODE = {
     "fortran": ["fortitude C191 unreachable-statement"],
     "go": ["staticcheck U1000"],
     "haskell": ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
+    "java": ["pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter"],
     "javascript": ["eslint no-unused-vars"],
     "julia": ["none"],
     "kotlin": ["detekt"],

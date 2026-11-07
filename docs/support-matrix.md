@@ -80,7 +80,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | --- | --- | --- | --- | --- | --- | --- |
 | Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring | no |
 | Avro | `avro_tools`, `typos` | n/a | `avro_tools` | no | n/a | no |
-| C and C++ | `clang_tidy`, `cppcheck`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | none |
+| C and C++ | `clang_tidy`, `cppcheck`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | no | no: cuda_test has no dx coverage wiring | none |
 | D | `typos` | no | `ldc` | no | `ldc --coverage` | none |
@@ -92,7 +92,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` | no |
 | Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` | `staticcheck U1000` |
 | Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists), `typos`, `weeder` (not on `linux_arm64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `macos_arm64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_x86_64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_arm64`: weeder is built from Hackage and only the linux_x86_64 build is verified) | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` | no | `hpc` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
-| Java | `checkstyle`, `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` | no |
+| Java | `checkstyle`, `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` | `pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter` |
 | JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | no | `jest` | `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | `CoverageTools` | none |
 | Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |

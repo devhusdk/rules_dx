@@ -1,6 +1,7 @@
-//! Runs inside the isolated account: `connect ADDR`, `loopback`, `serve`, `parent`, `read PATH` or `canon PATH`.
+//! Runs inside the isolated account: `connect ADDR`, `resolve HOST`, `loopback`, `serve`, `parent`,
+//! `read PATH` or `canon PATH`.
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
@@ -9,6 +10,15 @@ fn connect(addr: &str) -> Result<(), String> {
     TcpStream::connect_timeout(&addr, Duration::from_secs(15))
         .map(|_| ())
         .map_err(|err| err.to_string())
+}
+
+fn resolve(host: &str) -> Result<(), String> {
+    let addrs: Vec<SocketAddr> = (host, 443)
+        .to_socket_addrs()
+        .map_err(|err| err.to_string())?
+        .collect();
+    println!("{addrs:?}");
+    Ok(())
 }
 
 fn loopback() -> Result<(), String> {
@@ -69,6 +79,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         ["connect", addr] => connect(addr),
+        ["resolve", host] => resolve(host),
         ["loopback"] => loopback(),
         ["serve"] => serve(),
         ["parent"] => parent(),
@@ -79,7 +90,8 @@ fn main() {
             .map(|real| println!("{}", real.display()))
             .map_err(|err| err.to_string()),
         _ => Err(
-            "usage: connect ADDR | loopback | serve | parent | read PATH | canon PATH".to_owned(),
+            "usage: connect ADDR | resolve HOST | loopback | serve | parent | read PATH | canon PATH"
+                .to_owned(),
         ),
     };
     match result {

@@ -84,6 +84,16 @@ fn network_denied_blocks_outbound_but_keeps_loopback() {
 }
 
 #[test]
+fn network_denied_cannot_resolve_names() {
+    let _shared = shared();
+    let scene = scene("resolve");
+    let denied = scene.run(Net::Denied, &["resolve", "example.com"]);
+    assert_ne!(denied.exit, 0, "{}", denied.stdout);
+    let allowed = scene.run(Net::Allowed, &["resolve", "example.com"]);
+    assert_eq!(allowed.exit, 0, "{}", allowed.stderr);
+}
+
+#[test]
 fn files_are_visible_only_where_granted() {
     let _shared = shared();
     let scene = scene("files");

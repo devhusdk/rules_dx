@@ -1,4 +1,5 @@
-//! The user backend: a new local account per run, its network blocked by WFP filters.
+//! The user backend: a new local account per run, its network blocked by WFP filters. An RPC
+//! filter also turns the account away from the DNS Client service, so name lookups fail too.
 //!
 //! Inside an AppContainer the Mount Manager refuses `GetFinalPathNameByHandleW` with a DOS
 //! volume name, which Bazel's client needs. A normal user token passes.
@@ -11,12 +12,13 @@ use windows_sys::Win32::NetworkManagement::NetManagement::{
     UF_DONT_EXPIRE_PASSWD, UF_PASSWD_CANT_CHANGE, UF_SCRIPT, USER_INFO_1, USER_PRIV_USER,
 };
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::{
-    FWP_ACTION_BLOCK, FWP_ACTION_PERMIT, FWP_BYTE_BLOB, FWP_CONDITION_FLAG_IS_LOOPBACK,
-    FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_EQUAL, FWP_MATCH_FLAGS_ALL_SET,
-    FWP_SECURITY_DESCRIPTOR_TYPE, FWP_UINT8, FWP_UINT32, FWP_VALUE0, FWP_VALUE0_0,
-    FWPM_CONDITION_ALE_USER_ID, FWPM_CONDITION_FLAGS, FWPM_FILTER_CONDITION0, FWPM_FILTER0,
-    FWPM_LAYER_ALE_AUTH_CONNECT_V4, FWPM_LAYER_ALE_AUTH_CONNECT_V6,
-    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6,
+    FWP_ACTION_BLOCK, FWP_ACTION_PERMIT, FWP_BYTE_ARRAY16, FWP_BYTE_ARRAY16_TYPE, FWP_BYTE_BLOB,
+    FWP_CONDITION_FLAG_IS_LOOPBACK, FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0, FWP_MATCH_EQUAL,
+    FWP_MATCH_FLAGS_ALL_SET, FWP_SECURITY_DESCRIPTOR_TYPE, FWP_UINT8, FWP_UINT32, FWP_VALUE0,
+    FWP_VALUE0_0, FWPM_CONDITION_ALE_USER_ID, FWPM_CONDITION_FLAGS,
+    FWPM_CONDITION_REMOTE_USER_TOKEN, FWPM_CONDITION_RPC_IF_UUID, FWPM_FILTER_CONDITION0,
+    FWPM_FILTER0, FWPM_LAYER_ALE_AUTH_CONNECT_V4, FWPM_LAYER_ALE_AUTH_CONNECT_V6,
+    FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4, FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, FWPM_LAYER_RPC_UM,
     FWPM_SESSION_FLAG_DYNAMIC, FWPM_SESSION0, FwpmEngineClose0, FwpmEngineOpen0, FwpmFilterAdd0,
 };
 use windows_sys::Win32::Security::Authentication::Identity::RtlGenRandom;
@@ -46,6 +48,17 @@ const ERROR_ACCESS_DENIED: u32 = 5;
 const ERROR_MEMBER_IN_ALIAS: u32 = 1378;
 const BLOCK_WEIGHT: u8 = 1;
 const PERMIT_WEIGHT: u8 = 10;
+/// The DNS Client service's RPC interface (DnsResolver in dnsrslvr.idl).
+const DNS_RESOLVER_IF: GUID = GUID::from_u128(0x45776b01_5956_4485_9f80_f428f7d60129);
+
+fn guid_bytes(guid: &GUID) -> [u8; 16] {
+    let mut bytes = [0u8; 16];
+    bytes[..4].copy_from_slice(&guid.data1.to_le_bytes());
+    bytes[4..6].copy_from_slice(&guid.data2.to_le_bytes());
+    bytes[6..8].copy_from_slice(&guid.data3.to_le_bytes());
+    bytes[8..].copy_from_slice(&guid.data4);
+    bytes
+}
 
 /// Everything a run creates. Dropping it undoes whatever exists, in a fixed order.
 struct Session {
@@ -211,7 +224,8 @@ fn add_filter(
     )
 }
 
-/// Blocks every connect and accept of the account except loopback, until the engine closes.
+/// Blocks every connect and accept of the account except loopback, and its calls to the DNS
+/// Client service, until the engine closes.
 fn block_network(session: &mut Session) -> Result<(), String> {
     let mut wfp: FWPM_SESSION0 = unsafe { std::mem::zeroed() };
     let mut label = wide("dx hermetic");
@@ -297,6 +311,30 @@ fn block_network(session: &mut Session) -> Result<(), String> {
                 )
             });
     }
+    // Dnscache resolves under its own account, so the connect block alone leaves lookups open.
+    let mut resolver = FWP_BYTE_ARRAY16 {
+        byteArray16: guid_bytes(&DNS_RESOLVER_IF),
+    };
+    let mut interface: FWPM_FILTER_CONDITION0 = unsafe { std::mem::zeroed() };
+    interface.fieldKey = FWPM_CONDITION_RPC_IF_UUID;
+    interface.matchType = FWP_MATCH_EQUAL;
+    interface.conditionValue = FWP_CONDITION_VALUE0 {
+        r#type: FWP_BYTE_ARRAY16_TYPE,
+        Anonymous: FWP_CONDITION_VALUE0_0 {
+            byteArray16: &mut resolver,
+        },
+    };
+    let mut caller = for_user();
+    caller.fieldKey = FWPM_CONDITION_REMOTE_USER_TOKEN;
+    result = result.and_then(|()| {
+        add_filter(
+            session.engine,
+            FWPM_LAYER_RPC_UM,
+            FWP_ACTION_BLOCK,
+            BLOCK_WEIGHT,
+            &mut [interface, caller],
+        )
+    });
     unsafe { LocalFree(descriptor as _) };
     result
 }

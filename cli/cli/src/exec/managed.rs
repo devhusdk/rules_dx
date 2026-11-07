@@ -9,18 +9,6 @@ use dx_plan::plan::{bep_path, plan_managed, plan_managed_with_roots};
 use dx_plan::resolve::expand_codegen_roots;
 use dx_process::ForwardError;
 
-/// Prints the direnv lines. `.dx/local/bin` joins the path once it exists; the selected setup
-/// is watched either way so direnv reloads after `dx sync`. Runs no Bazel.
-pub(crate) fn execute_env_shell(env: Env<'_>) -> i32 {
-    let Env { workspace, out, .. } = env;
-    let local = dx_path::state::local_dir(workspace);
-    if local.join(dx_path::state::BIN).is_dir() {
-        let _ = writeln!(out, "PATH_add .dx/local/bin\nwatch_file .dx/local/bin");
-    }
-    let _ = writeln!(out, "watch_file .dx/local/{}", dx_path::state::CURRENT);
-    0
-}
-
 pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.command.is_managed(),
@@ -239,18 +227,6 @@ mod tests {
     use super::super::managed_env::{empty_env_id, stage_env_side};
     use super::super::test_support::*;
     use dx_setup::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, read_current_pair};
-
-    #[test]
-    fn env_shell_succeeds_before_any_bin_exists() {
-        let harness = Harness::new("env-shell-no-bin");
-        let (code, out, err) = harness.run(&["sync", "--shell=direnv"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(out, "watch_file .dx/local/current\n");
-        std::fs::create_dir_all(harness.workspace.join(".dx/local/bin")).expect("bin");
-        let (code, out, err) = harness.run(&["sync", "--shell=direnv"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.starts_with("PATH_add .dx/local/bin\n"), "{out}");
-    }
 
     #[test]
     fn managed_live_empty_selection_commits_with_empty_counterparts() {

@@ -142,7 +142,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.bazelversion` | once | Written in a fresh directory only. |
 | `.gitignore` | lines | Written when missing. An existing file gets each line of the list above that no line covers appended. |
 | `.bazelignore` | lines | Written when missing. A bare `.dx` line, which dx wrote, becomes the planned lines; every other line stays. |
-| `.envrc` | once | Written when missing. Never rewritten. |
+| `.envrc` | once | Written when missing. Never rewritten. Holds `PATH_add .dx/local/bin` and `watch_file .dx/local/current`; it never runs dx. |
 | `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added; existing ids stay in order. |
 | `.dx/config/ruff/standard.toml`, `.dx/config/ruff/strict.toml` | whole | Generated. Written when the tree has Python files. Rewritten when it differs. |
 | `ruff.toml` | once | Written when missing and the tree has Python files. Its `extend` line picks the base. Never rewritten. |

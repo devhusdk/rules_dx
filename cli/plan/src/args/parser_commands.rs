@@ -583,11 +583,8 @@ fn version_flags_stay_with_their_commands() {
 }
 
 #[test]
-fn env_shell_flag_takes_direnv_only() {
-    let got = parse(&strings(&["sync", "--shell=direnv"])).expect("shell parses");
-    assert_eq!(got.shell.as_deref(), Some("direnv"));
-    assert!(parse(&strings(&["sync", "--shell=fish"])).is_err());
-    assert!(parse(&strings(&["lint", "--shell=direnv"])).is_err());
+fn sync_rejects_the_removed_shell_flag() {
+    assert!(parse(&strings(&["sync", "--shell=direnv"])).is_err());
 }
 
 #[test]

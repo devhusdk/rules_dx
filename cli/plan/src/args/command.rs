@@ -311,7 +311,7 @@ pub static COMMANDS: [CommandMeta; 25] = [
         name: "sync",
         scope_policy: "default-repo|exact-label",
         describe: "select the managed tools and generated source and refresh the IDE files",
-        usage: "Usage: dx sync [--shell=direnv] [<label>] [-- bazel-options ...]",
+        usage: "Usage: dx sync [<label>] [-- bazel-options ...]",
         scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/sync.md).",
         is_managed: true,
         is_adoption: false,

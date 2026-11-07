@@ -5,17 +5,15 @@ Selects the managed tools for `.dx/local/bin`, the env values, and the declared 
 ```sh
 dx sync
 dx sync //proto:api
-dx sync --shell=direnv
 dx sync --output json
 ```
 
 ```text
-dx sync [--shell=direnv] [<label>] [-- bazel-options...]
+dx sync [<label>] [-- bazel-options...]
 ```
 
 | Flag | What it does |
 | --- | --- |
-| `--shell=direnv` | Print `PATH_add .dx/local/bin` and `watch_file .dx/local/bin` when that directory exists, and always `watch_file .dx/local/current`. Runs no Bazel and writes nothing. Ignores the label and `--output`. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 

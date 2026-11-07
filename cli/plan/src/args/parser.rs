@@ -308,7 +308,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         diff,
         poll,
         path_only,
-        shell,
         report,
         fail_on,
         build_slots,
@@ -772,7 +771,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         bench_regression: max_regression,
         bench_compare: compare,
         path_only,
-        shell,
         agent,
         bazel_startup_options,
     })

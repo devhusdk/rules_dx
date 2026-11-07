@@ -334,7 +334,6 @@ pub struct Invocation {
     /// `dx bench --compare`: a `dx-bench/v1` file path or a git ref.
     pub bench_compare: Option<String>,
     pub path_only: bool,
-    pub shell: Option<String>,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
 }
@@ -744,7 +743,6 @@ mod tests {
             bench_regression: None,
             bench_compare: None,
             path_only: false,
-            shell: None,
             agent: false,
             bazel_startup_options: Vec::new(),
         }

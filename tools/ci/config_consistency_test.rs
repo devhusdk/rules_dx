@@ -622,7 +622,8 @@ fn ignored_dir(text: &str, dir: &str) -> bool {
     text.lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with(['#', '!']))
-        .map(|line| line.trim_start_matches('/').trim_end_matches('*'))
+        .map(|line| line.trim_start_matches("**/").trim_start_matches('/'))
+        .map(|line| line.trim_end_matches('*'))
         .filter(|line| line.ends_with('/'))
         .any(|line| wanted.starts_with(line))
 }

@@ -72,6 +72,23 @@ fn starter_set_runs_the_golden_presence_test() {
 }
 
 #[test]
+fn workflow_set_runs_the_action_and_workflow_tests() {
+    let script = read_runfiles(SCRIPT);
+    let body = script
+        .split("workflow() {")
+        .nth(1)
+        .and_then(|rest| rest.split("\n}\n").next())
+        .expect("workflow set");
+    for label in [
+        "//tools/ci:setup_bazel_test",
+        "//tools/ci:secret_flags_test",
+        "//tools/ci:workflow_pins_test",
+    ] {
+        assert!(body.contains(label), "workflow set does not run {label}");
+    }
+}
+
+#[test]
 fn windows_arm64_set_targets_the_platform() {
     let script = read_runfiles(SCRIPT);
     let start = script

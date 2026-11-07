@@ -282,6 +282,7 @@ fn isolation_script_masks_before_dropping_to_the_real_user() {
         launcher: PathBuf::new(),
         grants: Vec::new(),
         denies: Vec::new(),
+        group: None,
     };
     assert_eq!(
         isolation.script(Net::Denied),
@@ -1763,6 +1764,42 @@ fn windows_command_runs_the_launcher_with_grants_and_network_flag() {
     let allowed = args(Net::Allowed);
     assert_eq!(allowed[4], "--net");
     assert_ne!(allowed[1], denied[1]);
+}
+
+#[test]
+fn windows_runs_in_a_group_leave_the_acls_to_the_group() {
+    let isolation = Isolation {
+        launcher: PathBuf::from("appcontainer_run.exe"),
+        grants: vec![PathBuf::from(r"\\?\C:\q\work")],
+        denies: vec![PathBuf::from("C:\\q\\secret")],
+        group: Some("dxh-7".to_owned()),
+        ..Isolation::default()
+    };
+    let args = |command: Command| -> Vec<String> {
+        command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect()
+    };
+    let run = args(isolation.windows_command(Net::Denied, &["cmd.exe".to_owned()]));
+    assert_eq!(
+        run[2..],
+        ["--backend", "user", "--group", "dxh-7", "--", "cmd.exe"]
+    );
+    let setup = args(isolation.windows_group_command("--setup-group", "dxh-7"));
+    assert_eq!(
+        setup,
+        [
+            "--backend",
+            "user",
+            "--setup-group",
+            "dxh-7",
+            "--grant",
+            "C:\\q\\work",
+            "--deny",
+            "C:\\q\\secret"
+        ]
+    );
 }
 
 #[test]

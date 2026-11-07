@@ -2,6 +2,9 @@
 //! account is also denied the DNS Client service's RPC port, so it cannot resolve names through
 //! a service that queries on its behalf.
 //!
+//! With `--group`, the account joins a local group that `setup_group` gave the grants and
+//! denies once, so a run does not rewrite the inherited ACLs of whole trees twice.
+//!
 //! Inside an AppContainer the Mount Manager refuses `GetFinalPathNameByHandleW` with a DOS
 //! volume name, which Bazel's client needs. A normal user token passes.
 use std::ffi::c_void;
@@ -12,8 +15,9 @@ use windows_sys::Win32::Foundation::{
     HANDLE, LUID, LocalFree,
 };
 use windows_sys::Win32::NetworkManagement::NetManagement::{
-    LOCALGROUP_MEMBERS_INFO_3, NetLocalGroupAddMembers, NetUserAdd, NetUserDel,
-    UF_DONT_EXPIRE_PASSWD, UF_PASSWD_CANT_CHANGE, UF_SCRIPT, USER_INFO_1, USER_PRIV_USER,
+    LOCALGROUP_INFO_0, LOCALGROUP_MEMBERS_INFO_3, NetLocalGroupAdd, NetLocalGroupAddMembers,
+    NetLocalGroupDel, NetUserAdd, NetUserDel, UF_DONT_EXPIRE_PASSWD, UF_PASSWD_CANT_CHANGE,
+    UF_SCRIPT, USER_INFO_1, USER_PRIV_USER,
 };
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::{
     FWP_ACTION_BLOCK, FWP_ACTION_PERMIT, FWP_BYTE_BLOB, FWP_CONDITION_FLAG_IS_LOOPBACK,
@@ -56,6 +60,7 @@ use crate::sys::{
 const RPC_C_AUTHN_DEFAULT: u32 = 0xFFFF_FFFF;
 const ERROR_ACCESS_DENIED: u32 = 5;
 const ERROR_MEMBER_IN_ALIAS: u32 = 1378;
+const ERROR_ALIAS_EXISTS: u32 = 1379;
 const BLOCK_WEIGHT: u8 = 1;
 const PERMIT_WEIGHT: u8 = 10;
 const PORT_ALL_ACCESS: u32 = 0x001F_0001;
@@ -181,35 +186,39 @@ fn create_user(session: &mut Session, password: &str) -> Result<(), String> {
     }
     check(code, "creating the local account")?;
     session.created = true;
+    add_member(
+        &session.user,
+        "Users",
+        "adding the account to the Users group (it needs the local logon right)",
+    )
+}
 
-    let mut member = session.user.clone();
-    let group = LOCALGROUP_MEMBERS_INFO_3 {
+fn add_member(user: &[u16], group: &str, what: &str) -> Result<(), String> {
+    let mut member = user.to_vec();
+    let info = LOCALGROUP_MEMBERS_INFO_3 {
         lgrmi3_domainandname: member.as_mut_ptr(),
     };
     let code = unsafe {
         NetLocalGroupAddMembers(
             null(),
-            wide("Users").as_ptr(),
+            wide(group).as_ptr(),
             3,
-            &group as *const _ as *const u8,
+            &info as *const _ as *const u8,
             1,
         )
     };
-    if code != ERROR_MEMBER_IN_ALIAS {
-        check(
-            code,
-            "adding the account to the Users group (it needs the local logon right)",
-        )?;
+    if code == ERROR_MEMBER_IN_ALIAS {
+        return Ok(());
     }
-    Ok(())
+    check(code, what)
 }
 
-fn look_up_sid(session: &mut Session) -> Result<(), String> {
+fn account_sid(name: &[u16]) -> Result<Vec<u8>, String> {
     let (mut sid_len, mut domain_len, mut kind) = (0u32, 0u32, 0i32);
     unsafe {
         LookupAccountNameW(
             null(),
-            session.user.as_ptr(),
+            name.as_ptr(),
             null_mut(),
             &mut sid_len,
             null_mut(),
@@ -222,7 +231,7 @@ fn look_up_sid(session: &mut Session) -> Result<(), String> {
     let found = unsafe {
         LookupAccountNameW(
             null(),
-            session.user.as_ptr(),
+            name.as_ptr(),
             sid.as_mut_ptr() as *mut c_void,
             &mut sid_len,
             domain.as_mut_ptr(),
@@ -232,11 +241,16 @@ fn look_up_sid(session: &mut Session) -> Result<(), String> {
     };
     if found == 0 {
         return Err(format!(
-            "cannot look up the account SID: {}",
+            "cannot look up the SID of {}: {}",
+            String::from_utf16_lossy(&name[..name.len() - 1]),
             std::io::Error::last_os_error()
         ));
     }
-    session.sid = sid;
+    Ok(sid)
+}
+
+fn look_up_sid(session: &mut Session) -> Result<(), String> {
+    session.sid = account_sid(&session.user)?;
     let mut text: *mut u16 = null_mut();
     if unsafe { ConvertSidToStringSidW(session.sid(), &mut text) } == 0 {
         return Err("cannot print the account SID".to_owned());
@@ -689,15 +703,79 @@ pub fn run(config: &Config) -> Result<i32, String> {
         block_network(&mut session)?;
         deny_dns_client(&mut session)?;
     }
-    for (path, mode) in config
+    if let Some(group) = &config.group {
+        // Before the logon, so the group is in the account's token.
+        add_member(
+            &session.user,
+            group,
+            &format!("adding the account to {group}"),
+        )?;
+    } else {
+        for (path, mode) in acl_entries(config) {
+            set_access(path, session.sid(), mode)?;
+            session.acl_paths.push(path.clone());
+        }
+    }
+    session.job = kill_on_close_job()?;
+    spawn(config, &session, &password)
+}
+
+fn acl_entries(config: &Config) -> impl Iterator<Item = (&String, i32)> {
+    config
         .grants
         .iter()
         .map(|path| (path, GRANT_ACCESS))
         .chain(config.denies.iter().map(|path| (path, DENY_ACCESS)))
-    {
-        set_access(path, session.sid(), mode)?;
-        session.acl_paths.push(path.clone());
+}
+
+/// Creates the local group and gives it the grants and denies, inherited by everything below.
+/// Undoes all of it if any step fails.
+pub fn setup_group(config: &Config) -> Result<i32, String> {
+    let group = config.group.as_deref().ok_or("no group to set up")?;
+    let name = wide(group);
+    let mut info_name = name.clone();
+    let info = LOCALGROUP_INFO_0 {
+        lgrpi0_name: info_name.as_mut_ptr(),
+    };
+    let code = unsafe { NetLocalGroupAdd(null(), 0, &info as *const _ as *const u8, null_mut()) };
+    if code == ERROR_ACCESS_DENIED {
+        return Err(
+            "NetLocalGroupAdd failed with error 5: the user backend must run elevated (as administrator)"
+                .to_owned(),
+        );
     }
-    session.job = kill_on_close_job()?;
-    spawn(config, &session, &password)
+    if code != ERROR_ALIAS_EXISTS {
+        check(code, &format!("creating the local group {group}"))?;
+    }
+    let applied = account_sid(&name).and_then(|mut sid| {
+        acl_entries(config)
+            .try_for_each(|(path, mode)| set_access(path, sid.as_mut_ptr() as *mut c_void, mode))
+    });
+    if let Err(err) = applied {
+        let _ = teardown_group(config);
+        return Err(err);
+    }
+    Ok(0)
+}
+
+/// Removes the group's entries from every path, then the group itself.
+pub fn teardown_group(config: &Config) -> Result<i32, String> {
+    let group = config.group.as_deref().ok_or("no group to tear down")?;
+    let name = wide(group);
+    let mut sid = account_sid(&name)?;
+    let mut failed = Vec::new();
+    for (path, _) in acl_entries(config) {
+        if let Err(err) = set_access(path, sid.as_mut_ptr() as *mut c_void, REVOKE_ACCESS) {
+            failed.push(err);
+        }
+    }
+    let code = unsafe { NetLocalGroupDel(null(), name.as_ptr()) };
+    if let Err(err) = check(code, &format!("deleting the local group {group}")) {
+        failed.push(err);
+    }
+    if failed.is_empty() {
+        Ok(0)
+    } else {
+        Err(failed.join("; "))
+    }
 }

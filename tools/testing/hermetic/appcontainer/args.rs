@@ -1,5 +1,8 @@
 //! Command line of the Windows launcher:
-//! `--name N [--backend appcontainer|user] [--net] [--grant P]... [--deny P]... -- cmd args`.
+//! `--name N [--backend appcontainer|user] [--net] [--group G] [--grant P]... [--deny P]... -- cmd args`
+//! runs a command, and `--backend user --setup-group G|--teardown-group G [--grant P]... [--deny P]...`
+//! adds or removes a local group's entries on those paths, so runs that join it with
+//! `--group G` need no ACL changes of their own.
 #![cfg_attr(test, allow(dead_code))]
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,28 +11,60 @@ pub enum Backend {
     User,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    Run,
+    SetupGroup,
+    TeardownGroup,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Config {
+    pub mode: Mode,
     pub name: String,
     pub backend: Backend,
     pub net: bool,
+    pub group: Option<String>,
     pub grants: Vec<String>,
     pub denies: Vec<String>,
     pub command: Vec<String>,
+}
+
+fn valid_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_')
 }
 
 pub fn parse(args: &[String]) -> Result<Config, String> {
     let mut name = None;
     let mut net = false;
     let mut backend = Backend::AppContainer;
+    let mut member_of = None;
+    let mut managed = None;
     let mut grants = Vec::new();
     let mut denies = Vec::new();
+    let mut command = None;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--name" => name = Some(iter.next().ok_or("--name needs a value")?.clone()),
             "--grant" => grants.push(iter.next().ok_or("--grant needs a path")?.clone()),
             "--deny" => denies.push(iter.next().ok_or("--deny needs a path")?.clone()),
+            "--group" => member_of = Some(iter.next().ok_or("--group needs a name")?.clone()),
+            "--setup-group" | "--teardown-group" => {
+                if managed.is_some() {
+                    return Err("only one of --setup-group and --teardown-group".to_owned());
+                }
+                let mode = if arg == "--setup-group" {
+                    Mode::SetupGroup
+                } else {
+                    Mode::TeardownGroup
+                };
+                let group = iter.next().ok_or(format!("{arg} needs a name"))?.clone();
+                managed = Some((mode, group));
+            }
             "--backend" => {
                 backend = match iter.next().ok_or("--backend needs a value")?.as_str() {
                     "appcontainer" => Backend::AppContainer,
@@ -39,31 +74,59 @@ pub fn parse(args: &[String]) -> Result<Config, String> {
             }
             "--net" => net = true,
             "--" => {
-                let command: Vec<String> = iter.cloned().collect();
-                if command.is_empty() {
-                    return Err("no command after --".to_owned());
-                }
-                let name = name.ok_or("--name is required")?;
-                if name.is_empty()
-                    || !name
-                        .chars()
-                        .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_')
-                {
-                    return Err(format!("invalid container name {name:?}"));
-                }
-                return Ok(Config {
-                    name,
-                    backend,
-                    net,
-                    grants,
-                    denies,
-                    command,
-                });
+                command = Some(iter.by_ref().cloned().collect::<Vec<String>>());
+                break;
             }
             other => return Err(format!("unknown argument {other}")),
         }
     }
-    Err("missing -- before the command".to_owned())
+    if let Some((mode, group)) = managed {
+        if backend != Backend::User {
+            return Err("group setup and teardown need --backend user".to_owned());
+        }
+        if member_of.is_some() || command.is_some() || name.is_some() || net {
+            return Err("group setup and teardown take only --grant and --deny".to_owned());
+        }
+        if !valid_name(&group) {
+            return Err(format!("invalid group name {group:?}"));
+        }
+        return Ok(Config {
+            mode,
+            name: String::new(),
+            backend,
+            net,
+            group: Some(group),
+            grants,
+            denies,
+            command: Vec::new(),
+        });
+    }
+    let command = command.ok_or("missing -- before the command")?;
+    if command.is_empty() {
+        return Err("no command after --".to_owned());
+    }
+    let name = name.ok_or("--name is required")?;
+    if !valid_name(&name) {
+        return Err(format!("invalid container name {name:?}"));
+    }
+    if let Some(group) = &member_of {
+        if backend != Backend::User {
+            return Err("--group needs --backend user".to_owned());
+        }
+        if !valid_name(group) {
+            return Err(format!("invalid group name {group:?}"));
+        }
+    }
+    Ok(Config {
+        mode: Mode::Run,
+        name,
+        backend,
+        net,
+        group: member_of,
+        grants,
+        denies,
+        command,
+    })
 }
 
 /// Directories above the grants, from the drive root down, that are not granted themselves.
@@ -273,6 +336,90 @@ mod tests {
         let default = parse(&strings(&["--name", "n", "--", "y"])).unwrap();
         assert_eq!(default.backend, Backend::AppContainer);
         assert!(parse(&strings(&["--name", "n", "--backend", "x", "--", "y"])).is_err());
+    }
+
+    #[test]
+    fn a_run_can_join_a_group() {
+        let config = parse(&strings(&[
+            "--name",
+            "n",
+            "--backend",
+            "user",
+            "--group",
+            "dxh-7",
+            "--",
+            "y",
+        ]))
+        .unwrap();
+        assert_eq!(config.mode, Mode::Run);
+        assert_eq!(config.group.as_deref(), Some("dxh-7"));
+        assert!(parse(&strings(&["--name", "n", "--group", "dxh-7", "--", "y"])).is_err());
+        assert!(
+            parse(&strings(&[
+                "--name",
+                "n",
+                "--backend",
+                "user",
+                "--group",
+                "a b",
+                "--",
+                "y"
+            ]))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn group_setup_and_teardown_take_paths_and_no_command() {
+        let setup = parse(&strings(&[
+            "--backend",
+            "user",
+            "--setup-group",
+            "dxh-7",
+            "--grant",
+            "C:\\q",
+            "--deny",
+            "C:\\x",
+        ]))
+        .unwrap();
+        assert_eq!(setup.mode, Mode::SetupGroup);
+        assert_eq!(setup.group.as_deref(), Some("dxh-7"));
+        assert_eq!(setup.grants, ["C:\\q"]);
+        assert_eq!(setup.denies, ["C:\\x"]);
+        assert!(setup.command.is_empty());
+        let teardown = parse(&strings(&[
+            "--backend",
+            "user",
+            "--teardown-group",
+            "dxh-7",
+            "--grant",
+            "C:\\q",
+        ]))
+        .unwrap();
+        assert_eq!(teardown.mode, Mode::TeardownGroup);
+    }
+
+    #[test]
+    fn group_setup_rejects_other_backends_and_run_flags() {
+        for args in [
+            vec!["--setup-group", "g"],
+            vec!["--backend", "appcontainer", "--teardown-group", "g"],
+            vec!["--backend", "user", "--setup-group", "g", "--group", "g"],
+            vec!["--backend", "user", "--setup-group", "g", "--", "x"],
+            vec!["--backend", "user", "--setup-group", "g", "--name", "n"],
+            vec!["--backend", "user", "--setup-group", "g", "--net"],
+            vec![
+                "--backend",
+                "user",
+                "--setup-group",
+                "g",
+                "--teardown-group",
+                "g",
+            ],
+            vec!["--backend", "user", "--setup-group", ""],
+        ] {
+            assert!(parse(&strings(&args)).is_err(), "{args:?}");
+        }
     }
 
     #[test]

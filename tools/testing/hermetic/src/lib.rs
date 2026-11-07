@@ -764,6 +764,8 @@ pub struct Isolation {
     pub grants: Vec<PathBuf>,
     /// Paths the Windows user backend must not read, even where the account could.
     pub denies: Vec<PathBuf>,
+    /// The local group that holds the grants and denies on Windows, set up once by `AclGroup`.
+    pub group: Option<String>,
 }
 
 impl Isolation {
@@ -834,6 +836,7 @@ impl Isolation {
                 .unwrap_or_default(),
             grants: keep.to_vec(),
             denies: Vec::new(),
+            group: None,
         };
         if cfg!(windows) {
             isolation.denies = isolation.windows_denies();
@@ -942,6 +945,27 @@ impl Isolation {
         if net == Net::Allowed {
             command.arg("--net");
         }
+        match &self.group {
+            Some(group) => {
+                command.args(["--group", group]);
+            }
+            None => self.acl_args(&mut command),
+        }
+        command.arg("--");
+        command.args(inner);
+        command
+    }
+
+    /// The launcher command that gives the group its grants and denies (`--setup-group`) or
+    /// takes them away and deletes it (`--teardown-group`).
+    pub fn windows_group_command(&self, mode: &str, group: &str) -> Command {
+        let mut command = Command::new(&self.launcher);
+        command.args(["--backend", "user", mode, group]);
+        self.acl_args(&mut command);
+        command
+    }
+
+    fn acl_args(&self, command: &mut Command) {
         for grant in &self.grants {
             let text = grant.to_string_lossy();
             command.arg("--grant");
@@ -952,9 +976,6 @@ impl Isolation {
             command.arg("--deny");
             command.arg(text.strip_prefix(r"\\?\").unwrap_or(&text));
         }
-        command.arg("--");
-        command.args(inner);
-        command
     }
 
     /// The macOS sandbox profile: network denied except loopback when asked, planned paths hidden.
@@ -992,6 +1013,50 @@ impl Isolation {
         command.args(["-p", &self.macos_profile(net), "--"]);
         command.args(inner);
         command
+    }
+}
+
+/// A Windows local group holding the grants and denies for every run of one qualification.
+/// Setting the inherited entries once, while the root is nearly empty, spares each run from
+/// rewriting the ACLs of whole trees. Dropping it removes the entries and the group.
+pub struct AclGroup {
+    isolation: Isolation,
+    name: String,
+}
+
+impl AclGroup {
+    /// Creates the group and points `isolation` at it.
+    pub fn setup(isolation: &mut Isolation, name: &str) -> Result<Self, String> {
+        let outcome = capture(isolation.windows_group_command("--setup-group", name))?;
+        if outcome.exit != 0 {
+            return Err(format!(
+                "cannot set up the ACL group {name} (exit {}): {}",
+                outcome.exit,
+                outcome.stderr.trim()
+            ));
+        }
+        isolation.group = Some(name.to_owned());
+        Ok(Self {
+            isolation: isolation.clone(),
+            name: name.to_owned(),
+        })
+    }
+}
+
+impl Drop for AclGroup {
+    fn drop(&mut self) {
+        let command = self
+            .isolation
+            .windows_group_command("--teardown-group", &self.name);
+        match capture(command) {
+            Ok(outcome) if outcome.exit == 0 => {}
+            Ok(outcome) => eprintln!(
+                "cannot remove the ACL group {}: {}",
+                self.name,
+                outcome.stderr.trim()
+            ),
+            Err(err) => eprintln!("cannot remove the ACL group {}: {err}", self.name),
+        }
     }
 }
 
@@ -2319,6 +2384,14 @@ fn run_all(
     if cfg!(windows) && manifest.is_msvc() {
         isolation.denies.extend(windows_host_msvc_denies());
     }
+    let _acl_group = if cfg!(windows) {
+        Some(AclGroup::setup(
+            &mut isolation,
+            &format!("dxh-{}", std::process::id()),
+        )?)
+    } else {
+        None
+    };
     let ambient = ambient_tools(&host.tool_dirs, AMBIENT_TOOLS)
         .into_iter()
         .find(|(_, path)| {
@@ -2363,6 +2436,7 @@ fn run_all(
         "ambient_probe_tool": ambient,
         "bash": bash,
         "denied_dirs": isolation.denies,
+        "acl_scope": isolation.group.as_ref().map(|_| "group"),
     });
     preflight(&isolation)?;
     deny_check(&isolation)?;

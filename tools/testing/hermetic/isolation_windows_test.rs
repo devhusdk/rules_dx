@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{RwLock, RwLockReadGuard};
 
-use hermetic::{Isolation, Net, Outcome, WINDOWS_DENIED_MARKER, capture};
+use hermetic::{AclGroup, Isolation, Net, Outcome, WINDOWS_DENIED_MARKER, capture};
 
 const OUTSIDE: &str = "1.1.1.1:443";
 
@@ -106,6 +106,27 @@ fn files_are_visible_only_where_granted() {
     let allowed = scene.run(Net::Denied, &["read", &text(&open)]);
     assert_eq!(allowed.exit, 0, "{}", allowed.stderr);
     assert!(allowed.stdout.contains("visible"));
+}
+
+#[test]
+fn a_group_set_up_once_denies_its_members_until_teardown() {
+    let _shared = shared();
+    let mut scene = scene("group");
+    let secret = scene.ungranted.join("secret.txt");
+    std::fs::write(&secret, "hidden").expect("secret");
+    let open = scene.granted.join("open.txt");
+    std::fs::write(&open, "visible").expect("open");
+    let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
+    let name = format!("dxh-{}-test", std::process::id());
+    let group = AclGroup::setup(&mut scene.isolation, &name).expect("group setup");
+    assert!(icacls(&scene.ungranted).contains(&name));
+    let denied = scene.run(Net::Denied, &["read", &text(&secret)]);
+    assert_ne!(denied.exit, 0, "{}", denied.stdout);
+    let allowed = scene.run(Net::Denied, &["read", &text(&open)]);
+    assert_eq!(allowed.exit, 0, "{}", allowed.stderr);
+    assert!(allowed.stdout.contains("visible"));
+    drop(group);
+    assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
 }
 
 fn icacls(path: &Path) -> String {

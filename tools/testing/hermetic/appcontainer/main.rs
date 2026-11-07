@@ -10,9 +10,11 @@ mod user;
 #[cfg(windows)]
 fn main() {
     let argv: Vec<String> = std::env::args().skip(1).collect();
-    let outcome = args::parse(&argv).and_then(|config| match config.backend {
-        args::Backend::AppContainer => sys::run(&config),
-        args::Backend::User => user::run(&config),
+    let outcome = args::parse(&argv).and_then(|config| match (config.mode, config.backend) {
+        (args::Mode::SetupGroup, _) => user::setup_group(&config),
+        (args::Mode::TeardownGroup, _) => user::teardown_group(&config),
+        (args::Mode::Run, args::Backend::AppContainer) => sys::run(&config),
+        (args::Mode::Run, args::Backend::User) => user::run(&config),
     });
     match outcome {
         Ok(code) => std::process::exit(code),

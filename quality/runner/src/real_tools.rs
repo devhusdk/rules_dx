@@ -658,7 +658,11 @@ fn biome_hinted_config_wins_over_defaults() {
 
 #[test]
 fn biome_format_reports_and_fix_rewrites() {
-    let backend = backend_for("biome", bound_tool("cfg/biome.json", b"{}"), roundtrip_biome);
+    let backend = backend_for(
+        "biome",
+        bound_tool("cfg/biome.json", b"{}"),
+        roundtrip_biome,
+    );
     let findings = backend
         .diagnose(
             "biome",
@@ -995,7 +999,10 @@ fn tools_without_a_bound_config_never_get_a_runner_default() {
         let err = backend
             .config_abs(tool_id, &plain_tool(), &staged.scratch)
             .expect_err("no config");
-        assert!(err.to_string().contains("no bound config"), "{tool_id}: {err}");
+        assert!(
+            err.to_string().contains("no bound config"),
+            "{tool_id}: {err}"
+        );
     }
 }
 
@@ -2248,7 +2255,11 @@ const HADOLINT_DIRTY: &str =
 
 #[test]
 fn hadolint_check_runs_with_the_bound_config_and_is_check_only() {
-    let backend = backend_for("hadolint", bound_tool("cfg/.hadolint.yaml", b""), hadolint_defaults);
+    let backend = backend_for(
+        "hadolint",
+        bound_tool("cfg/.hadolint.yaml", b""),
+        hadolint_defaults,
+    );
     let findings = backend
         .diagnose(
             "hadolint",
@@ -2393,7 +2404,11 @@ const CHECKMAKE_DIRTY: &str = "all:\n\t@true\n";
 
 #[test]
 fn checkmake_check_runs_with_the_bound_config_and_is_check_only() {
-    let backend = backend_for("checkmake", bound_tool("cfg/checkmake.ini", b""), checkmake_defaults);
+    let backend = backend_for(
+        "checkmake",
+        bound_tool("cfg/checkmake.ini", b""),
+        checkmake_defaults,
+    );
     let findings = backend
         .diagnose("checkmake", "lint", &single("Makefile", CHECKMAKE_DIRTY))
         .expect("diagnosed");
@@ -2524,7 +2539,11 @@ const GERSEMI_DIRTY: &str = "BAD\n";
 
 #[test]
 fn gersemi_check_runs_with_the_bound_config_and_check_never_writes() {
-    let backend = backend_for("gersemi", bound_tool("cfg/.gersemirc", b""), gersemi_defaults);
+    let backend = backend_for(
+        "gersemi",
+        bound_tool("cfg/.gersemirc", b""),
+        gersemi_defaults,
+    );
     let findings = backend
         .diagnose(
             "gersemi",
@@ -2545,7 +2564,11 @@ fn gersemi_check_runs_with_the_bound_config_and_check_never_writes() {
 
 #[test]
 fn gersemi_fix_rewrites_and_a_recheck_is_clean() {
-    let backend = backend_for("gersemi", bound_tool("cfg/.gersemirc", b""), gersemi_defaults);
+    let backend = backend_for(
+        "gersemi",
+        bound_tool("cfg/.gersemirc", b""),
+        gersemi_defaults,
+    );
     let fixed = backend
         .apply_fix("gersemi", "CMakeLists.txt", GERSEMI_DIRTY, "format")
         .expect("fixed");
@@ -2703,7 +2726,14 @@ fn mbake_config_error(
 
 #[test]
 fn mbake_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
-    let backend = backend_for("mbake", bound_tool("cfg/.bake.toml", b"[formatter]\nensure_final_newline = true\n"), mbake_defaults);
+    let backend = backend_for(
+        "mbake",
+        bound_tool(
+            "cfg/.bake.toml",
+            b"[formatter]\nensure_final_newline = true\n",
+        ),
+        mbake_defaults,
+    );
     let findings = backend
         .diagnose("mbake", "format", &single("Makefile", "BAD\n"))
         .expect("diagnosed");
@@ -2938,10 +2968,14 @@ const ELVIS_DIRTY: &str = "-module(a).\nf() -> io:format(\"x\").\n";
 
 #[test]
 fn elvis_check_runs_with_the_bound_config_and_is_check_only() {
-    let backend = backend_for("elvis", bound_tool(
+    let backend = backend_for(
+        "elvis",
+        bound_tool(
             "cfg/elvis.config",
             b"[{config, [#{files => [\"**/*.erl\"], ruleset => erl_files}]}].\n",
-        ), elvis_defaults);
+        ),
+        elvis_defaults,
+    );
     let findings = backend
         .diagnose("elvis", "lint", &single("lib/src/sub/a.erl", ELVIS_DIRTY))
         .expect("diagnosed");
@@ -2989,7 +3023,11 @@ fn redocly_files(root: &str) -> BTreeMap<String, String> {
 
 #[test]
 fn redocly_reports_root_findings_and_never_fixes() {
-    let backend = backend_for("redocly", bound_tool("cfg/redocly.yaml", b""), roundtrip_redocly);
+    let backend = backend_for(
+        "redocly",
+        bound_tool("cfg/redocly.yaml", b""),
+        roundtrip_redocly,
+    );
     assert!(
         backend
             .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
@@ -3015,7 +3053,11 @@ fn redocly_reports_root_findings_and_never_fixes() {
 
 #[test]
 fn redocly_places_fragment_findings_on_the_root() {
-    let backend = backend_for("redocly", bound_tool("cfg/redocly.yaml", b""), roundtrip_redocly);
+    let backend = backend_for(
+        "redocly",
+        bound_tool("cfg/redocly.yaml", b""),
+        roundtrip_redocly,
+    );
     let root = format!(
         "{REDOCLY_ROOT}components:\n  schemas:\n    Pet:\n      $ref: schemas/pet.yaml#/Pet\n# fragbad\n"
     );
@@ -3047,7 +3089,11 @@ fn redocly_places_fragment_findings_on_the_root() {
 
 #[test]
 fn redocly_preflight_findings_skip_the_tool() {
-    let backend = backend_for("redocly", bound_tool("cfg/redocly.yaml", b""), roundtrip_redocly);
+    let backend = backend_for(
+        "redocly",
+        bound_tool("cfg/redocly.yaml", b""),
+        roundtrip_redocly,
+    );
     for (root, rule) in [
         ("swagger: '2.0'\n", "dx/api-spec-root"),
         ("info: {}\n", "dx/api-spec-root"),
@@ -3096,7 +3142,11 @@ fn redocly_rejects_unsafe_configs_before_running() {
 
 #[test]
 fn redocly_config_errors_are_never_clean() {
-    let backend = backend_for("redocly", bound_tool("cfg/redocly.yaml", b""), roundtrip_redocly);
+    let backend = backend_for(
+        "redocly",
+        bound_tool("cfg/redocly.yaml", b""),
+        roundtrip_redocly,
+    );
     let err = backend
         .diagnose(
             "redocly",
@@ -4110,7 +4160,11 @@ fn bicep_missing_binary(
 
 #[test]
 fn bicep_lint_reports_located_findings_in_a_scratch_home() {
-    let backend = backend_for("bicep", bound_tool("cfg/bicepconfig.json", b"{}"), bicep_fake);
+    let backend = backend_for(
+        "bicep",
+        bound_tool("cfg/bicepconfig.json", b"{}"),
+        bicep_fake,
+    );
     let mut files = single("infra/a.bicep", BICEP_UNUSED);
     files.insert("infra/b.bicep".to_owned(), BICEP_CLEAN.to_owned());
     let findings = backend
@@ -4130,7 +4184,11 @@ fn bicep_lint_reports_located_findings_in_a_scratch_home() {
 
 #[test]
 fn bicep_registry_reference_is_an_error_finding_with_a_hint() {
-    let backend = backend_for("bicep", bound_tool("cfg/bicepconfig.json", b"{}"), bicep_fake);
+    let backend = backend_for(
+        "bicep",
+        bound_tool("cfg/bicepconfig.json", b"{}"),
+        bicep_fake,
+    );
     let findings = backend
         .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_REGISTRY))
         .expect("diagnosed");
@@ -4202,7 +4260,11 @@ fn bicep_bound_config_is_written_at_the_scratch_root() {
 
 #[test]
 fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
-    let backend = backend_for("bicep", bound_tool("cfg/bicepconfig.json", b"{}"), bicep_fake);
+    let backend = backend_for(
+        "bicep",
+        bound_tool("cfg/bicepconfig.json", b"{}"),
+        bicep_fake,
+    );
     assert!(
         backend
             .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_CLEAN))
@@ -4224,7 +4286,11 @@ fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
 
 #[test]
 fn bicep_format_fails_on_a_syntax_error_but_not_on_other_lint_errors() {
-    let backend = backend_for("bicep", bound_tool("cfg/bicepconfig.json", b"{}"), bicep_fake);
+    let backend = backend_for(
+        "bicep",
+        bound_tool("cfg/bicepconfig.json", b"{}"),
+        bicep_fake,
+    );
     let err = backend
         .diagnose(
             "bicep",
@@ -5535,7 +5601,11 @@ fn tflint_plugin_failure(
 
 #[test]
 fn tflint_plugin_failure_is_an_error_not_a_clean_run() {
-    let backend = backend_for("tflint", bound_tool("cfg/.tflint.hcl", b""), tflint_plugin_failure);
+    let backend = backend_for(
+        "tflint",
+        bound_tool("cfg/.tflint.hcl", b""),
+        tflint_plugin_failure,
+    );
     let err = backend
         .diagnose("tflint", "lint", &single("a/main.tf", "ok\n"))
         .expect_err("never clean");
@@ -7377,7 +7447,6 @@ fn lychee_goes_online_when_the_request_sets_the_env() {
             .is_empty()
     );
 }
-
 
 fn quiet_success() -> io::Result<ChildOutput> {
     Ok(ChildOutput {

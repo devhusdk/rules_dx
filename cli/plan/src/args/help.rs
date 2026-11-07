@@ -404,6 +404,13 @@ mod tests {
             ] {
                 assert!(text.contains(needle), "{flag}: missing {needle:?}");
             }
+            for removed in ["mutate", "explain", "env"] {
+                let prefix = format!("  {removed} ");
+                assert!(
+                    !text.lines().any(|line| line.starts_with(&prefix)),
+                    "{flag}: removed command {removed:?} is listed"
+                );
+            }
         }
     }
 

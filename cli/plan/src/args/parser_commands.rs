@@ -1130,6 +1130,18 @@ fn explain_is_not_a_command_or_a_flag() {
 }
 
 #[test]
+fn mutate_and_env_are_unknown_commands() {
+    for words in [
+        vec!["mutate"],
+        vec!["mutate", "//a:one"],
+        vec!["env"],
+        vec!["env", "--apply"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
+    }
+}
+
+#[test]
 fn floor_and_reason_parse_only_on_an_update_with_a_version() {
     let got = parse(&strings(&[
         "update",

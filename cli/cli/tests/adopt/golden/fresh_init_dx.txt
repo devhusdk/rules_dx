@@ -168,6 +168,9 @@ build:dx_dev_remote --compilation_mode=fastbuild
 # The dx_toolchain config builds toolchains unoptimized.
 build:dx_toolchain --compilation_mode=fastbuild
 
+# With a remote cache set, also store fetched repositories there; without one this does nothing. Only use a remote cache you trust.
+startup --experimental_remote_repo_contents_cache
+
 # Under --config=ci, run 64 actions at once, since remote cache hits hold job slots.
 common:ci --jobs=64
 

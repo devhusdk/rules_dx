@@ -125,7 +125,7 @@ The reusable workflows write a credential helper that reads the key from the env
 
    `tools/dx init --apply` writes the rest of `ci` and `ci-pr` to `.dx/bazelrc`: compression, timeouts, retries, local fallback, all CPUs, `--jobs=64`, `--loading_phase_threads=32`, `--nobuild_runfile_links`, an up-to-date `MODULE.bazel.lock`, and no uploads from pull requests. Under `--config=ci`, `<bin>.runfiles` trees are no longer built, so a script that builds and then runs `bazel-bin/...` relying on runfiles breaks.
 
-   Without a remote cache, no config is passed. With one, the workflow also writes `startup --experimental_remote_repo_contents_cache` to the runner's Bazel rc, so fetched repositories are reused from the remote cache. It is a startup option, which `--config=ci` cannot set. With 32 loading threads, the lookups run in parallel.
+   Without a remote cache, no config is passed. The `.dx/bazelrc` preset sets `startup --experimental_remote_repo_contents_cache`, which stores fetched repositories in the remote cache when one is set and does nothing otherwise. It applies to local runs too. With 32 loading threads, the lookups run in parallel.
 
 A remote cache is recommended.
 

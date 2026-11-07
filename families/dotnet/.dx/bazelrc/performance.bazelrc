@@ -1,5 +1,5 @@
 # Vendored Bazel execution preset -- GENERATED, do not edit.
-# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Regenerate: `tools/dx init --apply`.
 # Layer performance: build speed and the dx compilation configs.
 
 # Build host tools without optimization so builds finish sooner.
@@ -22,6 +22,9 @@ build:dx_dev_remote --compilation_mode=fastbuild
 
 # The dx_toolchain config builds toolchains unoptimized.
 build:dx_toolchain --compilation_mode=fastbuild
+
+# With a remote cache set, also store fetched repositories there; without one this does nothing. Only use a remote cache you trust.
+startup --experimental_remote_repo_contents_cache
 
 # Under --config=ci, run 64 actions at once, since remote cache hits hold job slots.
 common:ci --jobs=64

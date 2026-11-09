@@ -146,6 +146,7 @@ def _sign_build_impl(ctx):
     for name in ["cell.msix", "cell.msix.identity.json", "fake_makeappx.exe", "sign.ps1"]:
         asserts.true(env, name in runfiles, name + " is not a run input of the signer")
     environment = target[RunEnvironmentInfo].environment
+    asserts.equals(env, "1", environment.get("DX_EXTRA"))
     asserts.true(env, "DX_MSIX_PFX_PASSWORD" not in environment, "the password is fixed at build time")
     return analysistest.end(env)
 

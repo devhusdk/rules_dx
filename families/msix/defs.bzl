@@ -1,6 +1,6 @@
 """Windows MSIX packaging for target binaries."""
 
-load("@rules_powershell//powershell:defs.bzl", "pwsh_binary")
+load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary")
 load("@rules_dx//libs/starlark:packaging.bzl", "claim_dest", "data_path", "only_chars", "platform_arch")
 load(":pins.bzl", "MAX_VERSION_TESTED", "MIN_VERSION")
 
@@ -280,16 +280,20 @@ def msix_package(name, target_compatible_with = [], **kwargs):
 
 def msix_sign(name, package, target_compatible_with = [], **kwargs):
     """Declares a run target that signs a copy of one MSIX package."""
+    package = str(package)
     signtool = str(Label("//:signtool"))
-    pwsh_binary(
+    data = list(kwargs.pop("data", []))
+    env = dict(kwargs.pop("env", {}))
+    deps = list(kwargs.pop("deps", []))
+    srcs = list(kwargs.pop("srcs", []))
+    env["DX_MSIX_PACKAGE"] = "$(rlocationpaths " + package + ")"
+    env["DX_MSIX_SIGNTOOL"] = "$(rlocationpaths " + signtool + ")"
+    powershell_binary(
         name = name,
-        srcs = [Label("//:sign.ps1")],
-        data = [package, signtool],
-        env = {
-            "DX_MSIX_PACKAGE": "$(rlocationpaths " + package + ")",
-            "DX_MSIX_SIGNTOOL": "$(rlocationpaths " + signtool + ")",
-        },
-        deps = [Label("@rules_powershell//powershell/runfiles")],
+        srcs = [Label("//:sign.ps1")] + srcs,
+        data = [package, signtool] + data,
+        env = env,
+        deps = [Label("@rules_powershell//powershell/runfiles")] + deps,
         target_compatible_with = _windowsonly_chars(target_compatible_with),
         **kwargs
     )

@@ -133,6 +133,7 @@ msix_package(
 msix_sign(
     name = "cell_sign",
     package = ":cell",
+    env = {"DX_EXTRA": "1"},
     tags = ["manual"],
 )
 

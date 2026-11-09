@@ -7,7 +7,7 @@ load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
-load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
+load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "SOURCE_BUILT_TOOL_PLATFORMS")
 load("//quality/testdata:real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_tools", "matrix_platform_case_names")
@@ -27,15 +27,15 @@ def _artifact_platforms():
         by_tool.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
     return by_tool
 
-def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS):
-    """Returns claimed platforms with no artifact: no native pin and no inventoried emulated fallback.
+def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS, source_built = SOURCE_BUILT_TOOL_PLATFORMS):
+    """Returns claimed platforms with no artifact: no native pin, no inventoried emulated fallback and no source build.
 
     A fallback only supplies an artifact for tools listed in the emulated inventory; it is never
     evidence for the claim (see unproven_claims).
     """
     missing = []
     for platform in claimed:
-        if platform in pinned:
+        if platform in pinned or platform in source_built.get(tool, []):
             continue
         target = fallbacks.get(platform)
         if target in pinned and tool in emulated.get(platform, []):
@@ -88,6 +88,16 @@ def _evidence_checks():
             "emulated tool without a fallback pin fails the pin check",
             unpinned_platforms("tflint", ["windows_arm64"], ["linux_x86_64"], {"windows_arm64": "windows_x86_64"}, {"windows_arm64": ["tflint"]}),
             ["windows_arm64"],
+        ),
+        expect_equal(
+            "source-built tool claiming linux_arm64 passes the pin check",
+            unpinned_platforms("nixfmt", ["linux_arm64", "linux_x86_64"], ["linux_x86_64"], {}, {}, {"nixfmt": ["linux_arm64"]}),
+            [],
+        ),
+        expect_equal(
+            "tool outside the source-built inventory fails the pin check",
+            unpinned_platforms("regal", ["linux_arm64"], ["linux_x86_64"], {}, {}, {"nixfmt": ["linux_arm64"]}),
+            ["linux_arm64"],
         ),
         expect_equal(
             "a windows_x86_64 flag does not prove a windows_arm64 claim",

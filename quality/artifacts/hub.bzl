@@ -68,6 +68,11 @@ PARTIAL_TOOL_PLATFORMS = {
     "ormolu": ["linux_x86_64", "macos_arm64", "windows_x86_64"],
 }
 
+# Tools built from a locked source tree on a platform with no pinned artifact.
+SOURCE_BUILT_TOOL_PLATFORMS = {
+    "nixfmt": ["linux_arm64"],
+}
+
 # Name of the empty target a partial tool resolves to on an unpinned platform.
 UNAVAILABLE_TARGET = "dx_unavailable"
 

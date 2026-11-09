@@ -42,6 +42,9 @@ fn shfmt_editorconfig(bound: Option<&[u8]>) -> Vec<u8> {
     out
 }
 
+/// helmfmt reads `~/.helmfmt` and then `./.helmfmt` of its working directory, the scratch root.
+const HELMFMT_CONFIG_REL: &str = ".helmfmt";
+
 const FSHARPLINT_CONTEXT_REL: &str = "dx-fsharplint/context.json";
 
 pub(super) struct FsharplintInputs {
@@ -179,6 +182,21 @@ impl RealBackend {
                 mirror_rel: PathBuf::from(SHFMT_CONFIG_REL),
                 contents: MirrorContents::Bytes(shfmt_editorconfig(bound)),
             });
+        }
+        if tool_id == "helmfmt" {
+            let bound = tool.config_rel.as_deref().and_then(|rel| {
+                tool.tool_files
+                    .iter()
+                    .find(|(file, _)| file == rel)
+                    .map(|(_, bytes)| bytes.clone())
+            });
+            mirrors.retain(|mirror| mirror.mirror_rel != Path::new(HELMFMT_CONFIG_REL));
+            if let Some(bytes) = bound {
+                mirrors.push(MirrorFile {
+                    mirror_rel: PathBuf::from(HELMFMT_CONFIG_REL),
+                    contents: MirrorContents::Bytes(bytes),
+                });
+            }
         }
         if tool_id == "selene" && !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter()))
         {

@@ -122,6 +122,7 @@ CURATED_DEFAULTS = {
         "lint": ["detekt", "typos"],
         "typecheck": ["kotlinc"],
     },
+    # helmfmt is pre-1.0 and prettier skips chart templates, so helm format stays opt-in.
     "helm": {
         "audit": [],
         "format": [],

@@ -377,6 +377,7 @@ pub const TOOLS: &[&str] = &[
     "graphql_eslint",
     "hadolint",
     "helm",
+    "helmfmt",
     "hlint",
     "javac",
     "jet",
@@ -460,6 +461,12 @@ pub const TOOLS: &[&str] = &[
 ];
 
 pub const OVERLAPS: &[Overlap] = &[
+    Overlap {
+        family: "helm",
+        class: "helm",
+        concern: "format",
+        tools: [("helmfmt", "format"), ("prettier", "format")],
+    },
     Overlap {
         family: "javascript",
         class: "javascript",

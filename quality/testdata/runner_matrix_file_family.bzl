@@ -2119,6 +2119,25 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_helm_format_config",
+        "generated": {
+            "matrix/helmfmt_config/Chart.yaml": "apiVersion: v2\nname: demo\nversion: 0.1.0\n",
+            "matrix/helmfmt_config/templates/deployment.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ .Release.Name }}\n  labels:\n    {{- include \"demo.labels\" . | nindent 4 }}\nspec:\n  replicas:   {{ .Values.replicas }}\n  template:\n    spec:\n      containers:\n        - name: app\n          image: \"{{ .Values.image }}\"\n{{- if .Values.env }}\n          env:\n  {{- range .Values.env }}\n            - name: {{ .name }}\n              value: {{ .value | quote }}\n  {{- end }}\n{{- end }}\n",
+        },
+        "capability": "format",
+        "stages": ["helmfmt;helm;matrix/helmfmt_config/Chart.yaml,matrix/helmfmt_config/templates/deployment.yaml"],
+        "tool_names": ["helmfmt"],
+        "tool_binaries": ["@dx_tools//:helmfmt"],
+        "toolfile_tools": ["helmfmt"],
+        "toolfile_srcs": [":helmfmt_cfg/.helmfmt"],
+        "config_tools": ["helmfmt"],
+        "config_files": [":helmfmt_cfg/.helmfmt"],
+        "expected_file": ":matrix/matrix_helm_format_config.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },    {
         # A template parse failure is an error finding, never a clean run.
         "name": "matrix_helm_format_syntax_error",
         "generated": {

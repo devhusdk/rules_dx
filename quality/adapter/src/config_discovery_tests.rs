@@ -77,6 +77,10 @@ fn table() -> Vec<(&'static str, How)> {
         ("gplint", Staged("config passed by the launcher")),
         ("graphql_eslint", Staged("config passed by the launcher")),
         ("hadolint", Arg(|b, f, c| hadolint_check(b, &[f], c))),
+        (
+            "helmfmt",
+            Staged("bound config staged as .helmfmt in the working directory"),
+        ),
         ("hlint", Arg(|b, f, c| hlint_check(b, &[f], c))),
         (
             "julialint",

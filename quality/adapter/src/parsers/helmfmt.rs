@@ -5,6 +5,7 @@ use crate::{ColumnEncoding, TextPosition};
 const TOOL: &str = "helmfmt";
 const UNFORMATTED: &str = "[UNFORMATTED] ";
 const ERROR: &str = "[ERROR]  ";
+const CONFIG_WARNING: &str = "Warning: Error parsing config";
 const SYNTAX: &str = "Invalid syntax ";
 
 /// `helmfmt --check` exits 0 when every file is formatted and exits 1 for unformatted files and
@@ -19,6 +20,9 @@ pub fn parse_helmfmt(
 ) -> Result<Vec<FileFinding>, ParseError> {
     let out = as_text(TOOL, stdout)?;
     let err = as_text(TOOL, stderr)?;
+    if err.lines().any(|line| line.starts_with(CONFIG_WARNING)) {
+        return Err(ParseError::shape(TOOL, "config rejected"));
+    }
     match code {
         Some(0) if !err.is_empty() => Err(ParseError::shape(TOOL, "exit 0 with stderr")),
         Some(0) if out.contains(UNFORMATTED) || out.contains(ERROR) => {
@@ -107,6 +111,13 @@ mod tests {
 
     fn run(err: &str, code: Option<i32>) -> Result<Vec<FileFinding>, ParseError> {
         parse_helmfmt(b"", err.as_bytes(), code, &FILES)
+    }
+
+    #[test]
+    fn helmfmt_config_parse_warning_is_a_tool_error() {
+        let warning = "Warning: Error parsing config /s/.helmfmt: invalid character\n";
+        assert!(run(warning, Some(0)).is_err());
+        assert!(run(&format!("{warning}[UNFORMATTED] /s/a.yaml\n"), Some(1)).is_err());
     }
 
     #[test]

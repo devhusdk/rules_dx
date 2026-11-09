@@ -223,10 +223,14 @@ fn fake_gh(dir: &Path, marker: &Path) {
     let marker = marker.display();
     std::fs::write(
         dir.join("gh"),
-        format!("#!/bin/sh\necho ran > '{marker}'\n"),
+        format!("#!/bin/sh\n[ \"$1 $2\" = \"release view\" ] && exit 1\necho ran > '{marker}'\n"),
     )
     .expect("fake gh");
-    std::fs::write(dir.join("gh.cmd"), format!("@echo ran> \"{marker}\"\r\n")).expect("fake gh");
+    std::fs::write(
+        dir.join("gh.cmd"),
+        format!("@if \"%1 %2\"==\"release view\" exit /b 1\r\n@echo ran> \"{marker}\"\r\n"),
+    )
+    .expect("fake gh");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
@@ -267,7 +271,7 @@ fn a_github_launcher_stages_an_external_input_without_publishing() {
             copy.display()
         );
     }
-    assert!(!marker.exists(), "a dry run must not run gh");
+    assert!(!marker.exists(), "a dry run must not publish with gh");
 }
 
 #[test]

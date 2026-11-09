@@ -15,6 +15,7 @@ filegroup(
 
 github_deploy(
     name = "identity_github",
+    testonly = True,
     artifacts = [
         ":external_notice",
         "//deploy/rules:release_demo_archive",

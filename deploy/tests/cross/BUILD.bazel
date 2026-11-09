@@ -24,6 +24,7 @@ aarch64_link_test(
 archive_deploy(
     name = "cross_release",
     app = ":cross_app",
+    testonly = True,
 )
 
 cross_deployment(

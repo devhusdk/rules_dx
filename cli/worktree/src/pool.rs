@@ -439,7 +439,7 @@ impl Pool {
         Ok(found)
     }
 
-    pub(crate) fn slot_path(&self, slot: u32) -> PathBuf {
+    pub fn slot_path(&self, slot: u32) -> PathBuf {
         self.base.join(slot.to_string())
     }
 

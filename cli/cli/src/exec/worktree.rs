@@ -303,6 +303,14 @@ fn release_pool(workspace: &Path, target: &Path) -> Result<Pool, WorktreeError> 
     open_pool(workspace)
 }
 
+/// The slot number `path` names, when it is plain digits and no such path exists.
+fn slot_number(path: &str, target: &Path) -> Option<u32> {
+    if path.is_empty() || !path.bytes().all(|byte| byte.is_ascii_digit()) || target.exists() {
+        return None;
+    }
+    path.parse().ok()
+}
+
 fn release(
     invocation: &Invocation,
     workspace: &Path,
@@ -312,9 +320,12 @@ fn release(
     out: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let cwd = dx_process::current_directory().unwrap_or_else(|_| workspace.to_path_buf());
-    let target = release_target(path, workspace, &cwd);
+    let mut target = release_target(path, workspace, &cwd);
     let gone = !workspace.exists();
     let pool = release_pool(workspace, &target)?;
+    if let Some(slot) = path.and_then(|path| slot_number(path, &target)) {
+        target = pool.slot_path(slot);
+    }
     if !gone {
         ops::claim(&pool, host, who, workspace)?;
     }
@@ -1230,6 +1241,19 @@ mod tests {
             Path::new("/home/u/proj"),
         );
         assert_eq!(target, PathBuf::from("/home/u/proj/../slots/4"));
+    }
+
+    #[test]
+    fn a_digit_only_release_path_names_a_slot() {
+        assert_eq!(slot_number("28", Path::new("/nonexistent/dx/28")), Some(28));
+        assert_eq!(slot_number("x28", Path::new("/nonexistent/dx/x28")), None);
+        assert_eq!(slot_number("", Path::new("/nonexistent")), None);
+    }
+
+    #[test]
+    fn a_digit_only_release_path_that_exists_stays_a_path() {
+        let dir = tempfile::tempdir().expect("dir");
+        assert_eq!(slot_number("28", dir.path()), None);
     }
 
     #[test]

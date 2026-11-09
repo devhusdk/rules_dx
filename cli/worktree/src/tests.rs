@@ -43,6 +43,7 @@ struct FakeHost {
     footprint: Mutex<BTreeMap<u32, u64>>,
     stopped: Mutex<Vec<u32>>,
     edit_on_scan: Mutex<Option<PathBuf>>,
+    occupied: Mutex<Vec<PathBuf>>,
 }
 
 impl FakeHost {
@@ -72,6 +73,7 @@ impl FakeHost {
             footprint: Mutex::new(BTreeMap::new()),
             stopped: Mutex::new(Vec::new()),
             edit_on_scan: Mutex::new(None),
+            occupied: Mutex::new(Vec::new()),
         }
     }
 
@@ -127,6 +129,15 @@ impl FakeHost {
         self.clock.fetch_add(seconds, Ordering::SeqCst);
     }
 
+    /// Makes `process_in` report a process working in `dir`.
+    fn occupy(&self, dir: &Path) {
+        self.occupied.lock().expect("occupied").push(dir.to_path_buf());
+    }
+
+    fn vacate(&self) {
+        self.occupied.lock().expect("occupied").clear();
+    }
+
     fn live(&self, pid: u32) {
         self.alive.lock().expect("alive").insert(pid);
     }
@@ -170,6 +181,14 @@ impl Host for FakeHost {
 
     fn boot_id(&self) -> Option<String> {
         self.boot.lock().expect("boot").clone()
+    }
+
+    fn process_in(&self, dir: &Path) -> bool {
+        self.occupied
+            .lock()
+            .expect("occupied")
+            .iter()
+            .any(|busy| busy.starts_with(dir))
     }
 
     fn disk_space(&self, path: &Path) -> Option<DiskSpace> {
@@ -1341,6 +1360,30 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_after_the_quiet_period() 
             .as_deref()
             .is_some_and(|holder| holder.contains("s2"))
     );
+}
+
+#[test]
+fn a_slot_with_a_process_working_in_it_is_not_reclaimed() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(20);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.advance(ops::STOP_GRACE_SECS);
+    git(
+        &first.path,
+        &["push", "--quiet", "-u", "origin", "feature/a"],
+    );
+    host.occupy(&first.path.join("cli"));
+    let listing = ops::list(&pool, &host, false).expect("list");
+    assert_eq!(slot_one(&listing).state, State::Held);
+    let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a"));
+    assert!(refused.is_err());
+    let other = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("other");
+    assert_ne!(other.slot, 1);
+    host.vacate();
+    let listing = ops::list(&pool, &host, false).expect("list");
+    assert_eq!(slot_one(&listing).state, State::Reclaimable);
 }
 
 fn run_dx_in(pool: &Pool, slot: u32) -> dx_atomic_fs::lease::SharedLease {

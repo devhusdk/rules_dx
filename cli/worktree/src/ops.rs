@@ -320,10 +320,10 @@ fn hold_known(pool: &Pool, host: &dyn Host, record: &Record, busy: bool) -> Hold
     if !record.held {
         return Hold::Free;
     }
-    if busy || holder_alive(host, record) {
+    let path = pool.slot_path(record.slot);
+    if busy || holder_alive(host, record) || host.process_in(&path) {
         return Hold::Alive;
     }
-    let path = pool.slot_path(record.slot);
     if !matches!(git::dirty(&path, &|| host.interrupted()), Ok(false)) {
         return Hold::Waiting("holder gone, tree has uncommitted changes");
     }

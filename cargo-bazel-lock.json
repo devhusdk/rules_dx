@@ -1,5 +1,5 @@
 {
-  "checksum": "95bfa5141be6b55723386950ad21821c14438cc174ffcc7e945ffce32a7331b2",
+  "checksum": "d585d5fb84a94e24239a62c93c98e72a2fb6b8f4731b9cd4923e6c93227388da",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3570,6 +3570,19 @@
       ],
       "version": "0.2.33"
     },
+    "cli_entrypoint_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cli_entrypoint_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "cmac 0.7.2": {
       "common_attrs": {
         "deps": [
@@ -5785,6 +5798,58 @@
         }
       ],
       "version": "0.3.2"
+    },
+    "deploy_cross_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "deploy_cross_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "deploy_offline_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "deploy_offline_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "deploy_release_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "deploy_release_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "deploy_runfiles_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "deploy_runfiles_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "der 0.7.10": {
       "common_attrs": {
@@ -28459,8 +28524,13 @@
     "ci_producers 0.0.0": "tools/ci/ci_producers",
     "ci_tests 0.0.0": "tools/ci_tests",
     "ci_workflow 0.0.0": "tools/ci/ci_workflow",
+    "cli_entrypoint_tests 0.0.0": "cli/cli_entrypoint_tests",
     "codegen_shard 0.0.0": "generation/codegen_shard",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
+    "deploy_cross_tests 0.0.0": "deploy/tests/deploy_cross_tests",
+    "deploy_offline_tests 0.0.0": "deploy/deploy_offline_tests",
+    "deploy_release_tests 0.0.0": "deploy/release/deploy_release_tests",
+    "deploy_runfiles_tests 0.0.0": "deploy/tests/deploy_runfiles_tests",
     "docs_components 0.0.0": "tools/docs/docs_components",
     "docs_powershell 0.0.0": "tools/docs/docs_powershell",
     "docs_rust 0.0.0": "tools/docs/docs_rust",

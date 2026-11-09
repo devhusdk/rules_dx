@@ -6,7 +6,7 @@
 $ErrorActionPreference = 'Stop'
 
 if (-not $env:BAZEL_SH) {
-    $dirs = $env:PATH.Split(';') | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\', '/') }
+    $dirs = $env:PATH.Split(';') | Where-Object { $_ } | ForEach-Object { $_.Replace('/', '\').TrimEnd('\') }
     $first = $dirs | ForEach-Object { "$_\bash.exe" } | Where-Object { [IO.File]::Exists($_) } | Select-Object -First 1
     $gitBash = $dirs | Where-Object { [IO.File]::Exists("$_\git.exe") } |
         ForEach-Object { "$([IO.Path]::GetDirectoryName($_))\usr\bin\bash.exe" } |

@@ -12,7 +12,8 @@ struct Host {
 impl Host {
     fn new(files: &[&str]) -> Host {
         let dir = dx_test_scratch::scratch("bazel-wrapper");
-        let root = dir.path().to_path_buf();
+        // The wrapper prints paths with backslashes; TEST_TMPDIR may use forward slashes.
+        let root = PathBuf::from(dir.path().to_string_lossy().replace('/', "\\"));
         for file in files {
             let path = root.join(file);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();

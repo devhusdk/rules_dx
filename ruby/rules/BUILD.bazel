@@ -3,6 +3,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":toolchain_tests.bzl", "ruby_toolchain_contract_tests")
 load(":wrapper_tests.bzl", "ruby_wrapper_contract_tests")
 
+# gazelle:dx_ignore_import ruby benchmark/ips
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([

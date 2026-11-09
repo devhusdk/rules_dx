@@ -15,7 +15,7 @@ exports_files(
 )
 
 ocaml_fuzz_test(
-    name = "reverse_fuzz",
+    name = "reverse_fuzz_test",
     args = [
         "-r",
         "200",

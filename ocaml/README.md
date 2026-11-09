@@ -232,7 +232,7 @@ use_repo(ocaml, "ocaml_fuzz")
 
 # BUILD.bazel
 ocaml_fuzz_test(
-    name = "reverse_fuzz",
+    name = "reverse_fuzz_test",
     struct = "reverse_fuzz.ml",
     deps = ["@ocaml_fuzz//:crowbar"],
 )

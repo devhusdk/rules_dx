@@ -216,6 +216,7 @@ rust_library(
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//cli/update:dx_update",
         "//libs/binfmt:dx_binfmt",

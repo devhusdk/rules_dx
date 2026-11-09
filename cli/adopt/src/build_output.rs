@@ -201,19 +201,19 @@ struct Git<'a> {
 }
 
 impl Git<'_> {
-    fn run(&self, args: &[&str]) -> Option<std::process::Output> {
-        let mut cmd = Command::new("git");
-        cmd.arg("-C").arg(self.root).args(args);
+    fn run(&self, args: &[&str]) -> Option<dx_process::capture::Captured> {
+        let mut cmd = dx_process::capture::git(self.root);
+        cmd.args(args);
         (self.configure)(&mut cmd);
-        cmd.output().ok()
+        dx_process::capture::run_captured(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT).ok()
     }
 
     fn ok_text(&self, args: &[&str]) -> Option<String> {
         let output = self.run(args)?;
-        if !output.status.success() {
+        if !output.success() {
             return None;
         }
-        let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        let text = output.stdout_text().trim().to_owned();
         (!text.is_empty()).then_some(text)
     }
 
@@ -221,10 +221,10 @@ impl Git<'_> {
         let output = self
             .run(args)
             .ok_or_else(|| "git did not start".to_owned())?;
-        if output.status.success() {
+        if output.success() {
             return Ok(output.stdout);
         }
-        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stderr = output.stderr_text();
         let line = stderr.lines().next().unwrap_or("git failed").trim();
         Err(line.to_owned())
     }
@@ -272,7 +272,7 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
     let Some(inside) = git.run(&["rev-parse", "--is-inside-work-tree"]) else {
         return Ok(report);
     };
-    if !inside.status.success() {
+    if !inside.success() {
         return Ok(report);
     }
     let mut paths: Vec<(String, bool)> = Vec::new();

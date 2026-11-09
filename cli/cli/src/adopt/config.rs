@@ -152,19 +152,12 @@ fn tool_config(tool: &str) -> Result<&'static ToolConfig, String> {
 }
 
 pub(super) fn blob_sha(workspace: &Path, base: &str) -> Result<String, String> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(workspace)
-        .args(["hash-object", "--", base])
-        .output()
-        .map_err(|error| format!("cannot run git hash-object: {error}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "git hash-object {base} failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+    let output = dx_process::capture::run_checked(
+        dx_process::capture::git(workspace).args(["hash-object", "--", base]),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(output.stdout_text().trim().to_owned())
 }
 
 /// Copies the base to the tool's root file behind a `dx: override of base <sha>` comment and

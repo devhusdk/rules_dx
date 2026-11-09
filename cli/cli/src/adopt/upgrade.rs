@@ -455,22 +455,14 @@ fn dx_snapshot(workspace: &Path) -> BTreeMap<String, Vec<u8>> {
 }
 
 fn git(workspace: &Path, args: &[&str], input: Option<&[u8]>) -> Option<Vec<u8>> {
-    let mut child = std::process::Command::new("git")
-        .arg("-C")
-        .arg(workspace)
-        .args(args)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .ok()?;
-    let mut stdin = child.stdin.take()?;
-    if let Some(bytes) = input {
-        stdin.write_all(bytes).ok()?;
-    }
-    drop(stdin);
-    let output = child.wait_with_output().ok()?;
-    output.status.success().then_some(output.stdout)
+    dx_process::capture::run_captured_with_input(
+        dx_process::capture::git(workspace).args(args),
+        input,
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .and_then(dx_process::capture::Captured::into_success)
+    .ok()
+    .map(|output| output.stdout)
 }
 
 /// The old base an override copy was taken from: the pre-upgrade base when its blob sha

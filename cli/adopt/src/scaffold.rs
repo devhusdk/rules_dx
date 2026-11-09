@@ -271,14 +271,11 @@ impl CiProvider {
         if root.join(".github/workflows/ci.yml").exists() {
             return Self::Github;
         }
-        let gitlab_remote = std::process::Command::new("git")
-            .arg("-C")
-            .arg(root)
-            .args(["remote", "get-url", "origin"])
-            .output()
-            .is_ok_and(|out| {
-                out.status.success() && String::from_utf8_lossy(&out.stdout).contains("gitlab")
-            });
+        let gitlab_remote = dx_process::capture::run_checked(
+            dx_process::capture::git(root).args(["remote", "get-url", "origin"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .is_ok_and(|out| out.stdout_text().contains("gitlab"));
         if gitlab_remote {
             Self::Gitlab
         } else {
@@ -292,16 +289,12 @@ pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
 /// The repo's default branch: `origin/HEAD`, then `init.defaultBranch`, then `main`.
 pub fn detect_default_branch(root: &Path) -> String {
     let git = |args: &[&str]| -> Option<String> {
-        let out = std::process::Command::new("git")
-            .arg("-C")
-            .arg(root)
-            .args(args)
-            .output()
-            .ok()?;
-        if !out.status.success() {
-            return None;
-        }
-        Some(String::from_utf8_lossy(&out.stdout).trim().to_owned())
+        let out = dx_process::capture::run_checked(
+            dx_process::capture::git(root).args(args),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .ok()?;
+        Some(out.stdout_text().trim().to_owned())
     };
     let from_origin = git(&["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
         .and_then(|name| name.strip_prefix("origin/").map(str::to_owned))

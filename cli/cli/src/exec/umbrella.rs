@@ -1298,16 +1298,11 @@ pub(super) fn lint_commits(
 }
 
 fn git(workspace: &Path, args: &[&str]) -> Option<String> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(workspace)
-        .args(args)
-        .output()
-        .ok()?;
-    output
-        .status
-        .success()
-        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+    let mut command = dx_process::capture::git(workspace);
+    command.args(args);
+    dx_process::capture::run_checked(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
+        .ok()
+        .map(|output| output.stdout_text())
 }
 
 #[cfg(test)]

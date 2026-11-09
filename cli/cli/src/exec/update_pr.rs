@@ -325,21 +325,21 @@ fn emit(out: &mut dyn Write, outcomes: &[Outcome], json: bool, exit: i32) -> Res
     Ok(())
 }
 
+const NETWORK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
+
 pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String> {
-    let output = Command::new(program)
-        .args(args)
-        .current_dir(root)
-        .output()
-        .map_err(|error| format!("{} {}: {error}", program.display(), args.join(" ")))?;
-    if !output.status.success() {
-        return Err(format!(
-            "{} {} failed: {}",
-            program.display(),
-            args.join(" "),
-            tail(&String::from_utf8_lossy(&output.stderr))
-        ));
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    let label = format!("{} {}", program.display(), args.join(" "));
+    dx_process::capture::run_checked(
+        Command::new(program).args(args).current_dir(root),
+        NETWORK_TIMEOUT,
+    )
+    .map(|output| output.stdout_text())
+    .map_err(|error| match error {
+        dx_process::capture::RunError::Failed { stderr, .. } => {
+            format!("{label} failed: {}", tail(&stderr))
+        }
+        other => format!("{label}: {other}"),
+    })
 }
 
 pub(super) const WORKFLOW_SKIP: &str = "skipped: token cannot push workflow files";
@@ -364,24 +364,21 @@ fn refused_workflow(stderr: &str) -> bool {
 
 pub(super) fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, String> {
     let args = ["push", "--force-with-lease", "origin", branch];
-    let output = Command::new(&tools.git)
-        .args(args)
-        .current_dir(root)
-        .output()
-        .map_err(|error| format!("{} {}: {error}", tools.git.display(), args.join(" ")))?;
-    if output.status.success() {
-        return Ok(true);
+    let label = format!("{} {}", tools.git.display(), args.join(" "));
+    let result = dx_process::capture::run_checked(
+        Command::new(&tools.git).args(args).current_dir(root),
+        NETWORK_TIMEOUT,
+    );
+    match result {
+        Ok(_) => Ok(true),
+        Err(dx_process::capture::RunError::Failed { stderr, .. }) => {
+            if refused_workflow(&stderr) {
+                return Ok(false);
+            }
+            Err(format!("{label} failed: {}", tail(&stderr)))
+        }
+        Err(other) => Err(format!("{label}: {other}")),
     }
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if refused_workflow(&stderr) {
-        return Ok(false);
-    }
-    Err(format!(
-        "{} {} failed: {}",
-        tools.git.display(),
-        args.join(" "),
-        tail(&stderr)
-    ))
 }
 
 #[allow(clippy::too_many_arguments)]

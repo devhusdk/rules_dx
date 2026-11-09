@@ -10,6 +10,7 @@ rust_library(
     name = "dx_process",
     srcs = [
         "src/bazel_sh.rs",
+        "src/capture.rs",
         "src/groups.rs",
         "src/lib.rs",
         "src/lifecycle.rs",
@@ -47,6 +48,8 @@ rust_test(
     srcs = [
         "src/bazel_sh.rs",
         "src/bazel_sh_tests.rs",
+        "src/capture.rs",
+        "src/capture_tests.rs",
         "src/groups.rs",
         "src/groups_tests.rs",
         "src/lib.rs",

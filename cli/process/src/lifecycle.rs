@@ -190,11 +190,36 @@ pub fn run_command_until(
     cleanup: CleanupBudget,
     stop: &dyn Fn() -> Option<i32>,
 ) -> io::Result<ChildOutcome> {
+    run_command_with_input(command, None, capture, timeout, descendants, cleanup, stop)
+}
+
+/// Like `run_command_until`, and feeds `input` to the child's stdin, then closes it.
+/// Without input, stdin is null. A child that stops reading early is not an error.
+pub fn run_command_with_input(
+    command: &mut Command,
+    input: Option<&[u8]>,
+    capture: &CapturePolicy,
+    timeout: Duration,
+    descendants: Descendants,
+    cleanup: CleanupBudget,
+    stop: &dyn Fn() -> Option<i32>,
+) -> io::Result<ChildOutcome> {
     command
-        .stdin(Stdio::null())
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut owned = backend::spawn_owned(command, descendants)?;
+    if let (Some(input), Some(mut stdin)) = (input, owned.take_stdin()) {
+        let input = input.to_vec();
+        std::thread::spawn(move || {
+            use std::io::Write as _;
+            let _ = stdin.write_all(&input);
+        });
+    }
     let limit = capture.max_bytes;
     let stdout_rx = drain_pipe(owned.take_stdout(), limit);
     let stderr_rx = drain_pipe(owned.take_stderr(), limit);

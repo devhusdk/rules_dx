@@ -208,11 +208,11 @@ fn ignore_with_missing(text: Option<String>) -> Option<String> {
 
 /// Whether git lists files under `.dx/bazelrc`; false when git is missing or this is no repository.
 fn layers_tracked(root: &Path) -> bool {
-    std::process::Command::new("git")
-        .args(["ls-files", "--", CONSUMER_DIR])
-        .current_dir(root)
-        .output()
-        .is_ok_and(|out| out.status.success() && !out.stdout.is_empty())
+    dx_process::capture::run_checked(
+        dx_process::capture::git(root).args(["ls-files", "--", CONSUMER_DIR]),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .is_ok_and(|out| !out.stdout.is_empty())
 }
 
 fn tracked_note() -> String {

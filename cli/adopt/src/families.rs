@@ -228,16 +228,7 @@ fn git_files(root: &Path) -> Option<Vec<String>> {
     if !root.join(".git").exists() {
         return None;
     }
-    let mut git = std::process::Command::new("git");
-    for var in [
-        "GIT_DIR",
-        "GIT_WORK_TREE",
-        "GIT_INDEX_FILE",
-        "GIT_COMMON_DIR",
-        "GIT_OBJECT_DIRECTORY",
-    ] {
-        git.env_remove(var);
-    }
+    let mut git = dx_process::capture::git(root);
     if let Some(parent) = root
         .canonicalize()
         .ok()
@@ -245,22 +236,18 @@ fn git_files(root: &Path) -> Option<Vec<String>> {
     {
         git.env("GIT_CEILING_DIRECTORIES", parent);
     }
-    let out = git
-        .arg("-C")
-        .arg(root)
-        .args([
+    let out = dx_process::capture::run_checked(
+        git.args([
             "ls-files",
             "-z",
             "--cached",
             "--others",
             "--exclude-standard",
-        ])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&out.stdout);
+        ]),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .ok()?;
+    let text = out.stdout_text();
     Some(
         text.split('\0')
             .filter(|path| !path.is_empty())

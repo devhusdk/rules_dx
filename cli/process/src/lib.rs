@@ -15,6 +15,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 pub mod bazel_sh;
+pub mod capture;
 pub mod groups;
 pub mod lifecycle;
 #[cfg(unix)]

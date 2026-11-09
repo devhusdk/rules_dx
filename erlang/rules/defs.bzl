@@ -16,7 +16,7 @@ load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS")
 load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_kwargs", _ERLANG_CELLS = "ERLANG_CELLS", _ERLANG_COMPATIBLE_WITH = "ERLANG_COMPATIBLE_WITH")
 
@@ -286,8 +286,15 @@ def app_sources(kwargs, glob = None):
     excluded = [entry for entry in _listed(kwargs, ["extra_srcs", "extra_hdrs"]) if not _is_label(entry)]
     return glob(ERLANG_SOURCE_GLOBS, exclude = excluded, allow_empty = True)
 
+_ERLC_OPTS = ["+debug_info", "+warn_export_vars", "+warn_shadow_vars", "+warn_obsolete_guard"] + select({
+    Label("@rules_erlang//:debug_build"): [],
+    "//conditions:default": ["+deterministic"],
+})
+
 def _app(upstream_macro, name, testonly, visibility, kwargs):
-    kwargs = erlang_kwargs(kwargs)
+    kwargs, warning_flags = dx_warnings_as_errors(erlang_kwargs(kwargs), ["-Werror"])
+    if "erlc_opts" not in kwargs and "beam_files" not in kwargs:
+        kwargs["erlc_opts"] = _ERLC_OPTS + warning_flags
     tags = kwargs.pop("tags", None)
     nifs = kwargs.pop("nifs", [])
     if nifs:

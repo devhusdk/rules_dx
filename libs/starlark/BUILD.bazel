@@ -33,6 +33,7 @@ exports_files([
     "seven_zip.bzl",
     "tag_probe.bzl",
     "wrapper.bzl",
+    "warnings_parity.sh",
     "wrapper_signatures.sh",
 ])
 

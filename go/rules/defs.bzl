@@ -74,20 +74,25 @@ _go_forward_test = dx_executable_forward_rule(
     optional_providers = [_GoArchive],
 )
 
+_WARNINGS = ("copts", ["-Werror"], [])
+
+def _cgo_warnings(kwargs):
+    return _WARNINGS if kwargs.get("cgo") == True else None
+
 def _cgo_kwargs(kwargs):
     return {"cgo": kwargs.get("cgo", False)}
 
 def go_library(name, srcs, importpath, visibility = None, **kwargs):
     """Minimal wrapper over go_library."""
-    dx_wrap(name, _go_library, _go_library_forward, srcs, visibility = visibility, importpath = importpath, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
+    dx_wrap(name, _go_library, _go_library_forward, srcs, visibility = visibility, importpath = importpath, extra_forward_kwargs = _cgo_kwargs(kwargs), warnings = _cgo_warnings(kwargs), **kwargs)
 
 def go_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_binary. cgo is off unless set."""
-    dx_wrap_binary(name, _go_binary, _go_binary_forward, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
+    dx_wrap_binary(name, _go_binary, _go_binary_forward, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), warnings = _cgo_warnings(kwargs), **kwargs)
 
 def go_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_test. cgo is off unless set."""
-    dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
+    dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), warnings = _cgo_warnings(kwargs), **kwargs)
 
 def go_fuzz_test(name, *, fuzz, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test plus a `<name>_run` runner that fuzzes the function `fuzz` for `dx fuzz`."""

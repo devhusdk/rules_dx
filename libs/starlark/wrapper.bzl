@@ -640,6 +640,7 @@ def dx_test_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
     out.setdefault("size", "small")
     out.pop("env", None)
     out.pop("env_inherit", None)
+    out.pop("warnings_as_errors", None)
     if srcs != None:
         out["srcs"] = srcs
     return out
@@ -655,11 +656,12 @@ def dx_binary_upstream_kwargs(kwargs, srcs, upstream_visibility = None):
     out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     out.pop("env", None)
     out.pop("env_inherit", None)
+    out.pop("warnings_as_errors", None)
     return out
 
 def dx_wrap_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
     """Returns the private upstream kwargs for one library shape."""
-    out = {key: value for key, value in kwargs.items() if key not in ("tags", "srcs")}
+    out = {key: value for key, value in kwargs.items() if key not in ("tags", "srcs", "warnings_as_errors")}
     if srcs != None:
         out["srcs"] = srcs
     out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
@@ -679,9 +681,17 @@ def dx_test_forward_kwargs(kwargs):
         out["target_compatible_with"] = kwargs["target_compatible_with"]
     return out
 
-def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, **kwargs):
+def dx_warnings_upstream(upstream, kwargs, warnings):
+    """Returns upstream with the warnings_as_errors flags appended to the attribute warnings names."""
+    if warnings == None:
+        return upstream
+    key, on, off = warnings
+    _, flag = dx_warnings_as_errors(kwargs, on, off)
+    return dx_append_flags(upstream, key, flag)
+
+def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, warnings = None, **kwargs):
     """Instantiates one private upstream binary plus its public forwarder."""
-    effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs, upstream_visibility)
+    effective = dx_binary_upstream_kwargs(dx_warnings_upstream(upstream_kwargs if upstream_kwargs != None else kwargs, kwargs, warnings), srcs, upstream_visibility)
     upstream_rule(
         name = name + "_upstream",
         **effective
@@ -710,9 +720,9 @@ def dx_with_tag(tags, tag):
         out.append(tag)
     return out
 
-def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, upstream_visibility = None, **kwargs):
+def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, upstream_visibility = None, warnings = None, **kwargs):
     """Instantiates one private upstream test plus its public forwarder."""
-    base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
+    base = dx_warnings_upstream(dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs), kwargs, warnings)
     effective = dx_test_upstream_kwargs(base, srcs = srcs, upstream_visibility = upstream_visibility)
     forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
     forward_kwargs = dx_test_forward_kwargs(kwargs)
@@ -733,11 +743,11 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         **forward_kwargs
     )
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, **kwargs):
+def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, warnings = None, **kwargs):
     """Instantiates one private upstream library target plus its public forwarder."""
     upstream_rule(
         name = name + "_upstream",
-        **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs, upstream_visibility)
+        **dx_wrap_upstream_kwargs(dx_warnings_upstream(upstream_kwargs if upstream_kwargs != None else kwargs, kwargs, warnings), srcs, upstream_visibility)
     )
     forward_kwargs = dx_wrap_forward_kwargs(kwargs)
     if extra_forward_kwargs:

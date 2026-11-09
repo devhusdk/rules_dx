@@ -1,3 +1,4 @@
+load("@rules_dx//libs/starlark:conformance.bzl", "dx_warnings_parity_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
@@ -52,3 +53,12 @@ exports_files(
     visibility = ["//.dx:__pkg__"],
 )
 # dx:end exports
+
+dx_warnings_parity_test(
+    name = "warnings_parity_test",
+    mapped = {
+        "csharp": ["//csharp/rules:kwargs.bzl"],
+        "fsharp": ["//fsharp/rules:kwargs.bzl"],
+    },
+    opted_out = [],
+)

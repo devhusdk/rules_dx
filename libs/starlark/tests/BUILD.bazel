@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//cc/rules:defs.bzl", "cc_test")
+load("//libs/starlark:conformance.bzl", "dx_warnings_parity_test")
 load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//libs/starlark/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
@@ -269,4 +270,28 @@ starlark_test(
     name = "exec_group_forwarder_analysis",
     mode = "analysis",
     subjects = [":exec_group_forwarder"],
+)
+
+dx_warnings_parity_test(
+    name = "warnings_parity_test",
+    mapped = {
+        "cc": ["//cc/rules:defs.bzl"],
+        "d": ["//d/rules:defs.bzl"],
+        "elixir": ["//elixir/rules:kwargs.bzl"],
+        "erlang": ["//erlang/rules:defs.bzl"],
+        "fortran": ["//fortran/rules:defs.bzl"],
+        "go": ["//go/rules:defs.bzl"],
+        "haskell": ["//haskell/rules:kwargs.bzl"],
+        "java": ["//java/rules:kwargs.bzl"],
+        "kotlin": ["//kotlin/rules:defs.bzl"],
+        "ocaml": ["//ocaml/rules:defs.bzl"],
+        "rust": ["//rust/rules:defs.bzl"],
+        "scala": ["//scala/rules:validate.bzl"],
+        "swift": ["//swift/rules:defs.bzl"],
+    },
+    opted_out = [
+        "dart",
+        "typescript",
+        "zig",
+    ],
 )

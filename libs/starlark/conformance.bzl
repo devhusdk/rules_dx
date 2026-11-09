@@ -269,3 +269,28 @@ def dx_wrapper_signature_test(name, defs = "defs.bzl"):
             "//conditions:default": [],
         }),
     )
+
+def dx_warnings_parity_test(name, mapped, opted_out):
+    """Fails when a compiled language neither maps warnings_as_errors nor opts out.
+
+    Args:
+      name: test name.
+      mapped: dict of language to the .bzl files that map the flag.
+      opted_out: list of languages whose compiler reports no warnings.
+    """
+    args = []
+    data = []
+    for lang in sorted(mapped.keys()):
+        args.append(lang + "=" + ",".join(["$(rootpath {})".format(f) for f in mapped[lang]]))
+        data.extend(mapped[lang])
+    args.extend([lang + "=-" for lang in sorted(opted_out)])
+    sh_test(
+        name = name,
+        srcs = [Label("//libs/starlark:warnings_parity.sh")],
+        args = args,
+        data = data,
+        target_compatible_with = select({
+            "@platforms//os:windows": ["@platforms//:incompatible"],
+            "//conditions:default": [],
+        }),
+    )

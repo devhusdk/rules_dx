@@ -9,7 +9,7 @@ load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_warnings_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
@@ -89,6 +89,8 @@ _LIBSTDCXX_ATTRS = {
     "msvc": attr.bool(doc = "Whether the target uses the MSVC ABI (cl.exe or clang-cl)."),
     "crt_static": attr.bool(doc = "Whether the target's own rustc_flags set +crt-static."),
 }
+
+_WARNINGS = ("rustc_flags", ["-Dwarnings"], [])
 
 def _libstdcxx_forward(rustc_flags = None):
     """Returns the forwarder kwargs that mark libstdc++ platforms and static CRT targets."""
@@ -232,6 +234,7 @@ def rust_library(
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
+        warnings = _WARNINGS,
         **kwargs
     )
 
@@ -260,6 +263,7 @@ def rust_binary(
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")) | {"wasm": wasm or ""},
+        warnings = _WARNINGS,
         **kwargs
     )
 
@@ -270,7 +274,7 @@ def _rust_browser_binary(name, srcs, crate_name, edition, visibility, **kwargs):
     bindgen = name + "_bindgen"
     _rust_binary(
         name = upstream,
-        **dx_wrap_upstream_kwargs(_libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True), srcs)
+        **dx_wrap_upstream_kwargs(dx_warnings_upstream(_libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True), kwargs, _WARNINGS), srcs)
     )
     private = {
         "tags": ["manual"],
@@ -343,7 +347,7 @@ def rust_test(
         forward_kwargs["crate"] = crate
     if coverage_lib != None:
         forward_kwargs["coverage_lib"] = coverage_lib
-    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, **kwargs)
+    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, warnings = _WARNINGS, **kwargs)
 
 def rust_bench(
         name,
@@ -382,7 +386,7 @@ def _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, *
     }
     if runtime != None:
         forward_kwargs["runtime"] = runtime
-    dx_wrap_test(name, _rust_test, _rust_wasi_run_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, coverage_collector = False, **{key: value for key, value in kwargs.items() if key != "env"})
+    dx_wrap_test(name, _rust_test, _rust_wasi_run_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, coverage_collector = False, warnings = _WARNINGS, **{key: value for key, value in kwargs.items() if key != "env"})
 
 def rust_proc_macro(
         name,
@@ -400,6 +404,7 @@ def rust_proc_macro(
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
+        warnings = _WARNINGS,
         **kwargs
     )
 
@@ -419,6 +424,7 @@ def rust_shared_library(
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
+        warnings = _WARNINGS,
         **kwargs
     )
 
@@ -438,6 +444,7 @@ def rust_static_library(
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = False),
         extra_forward_kwargs = _libstdcxx_forward(kwargs.get("rustc_flags")),
+        warnings = _WARNINGS,
         **kwargs
     )
 
@@ -571,7 +578,7 @@ def _rust_browser_test(name, wasm, **kwargs):
     """Runs the bundle under a managed, platform-qualified browser."""
     forward = dx_forwarded_test_kwargs(kwargs)
     forward.setdefault("size", "large")
-    upstream = {k: v for k, v in kwargs.items() if k not in _FORWARDER_ONLY_KWARGS}
+    upstream = {k: v for k, v in kwargs.items() if k not in _FORWARDER_ONLY_KWARGS and k != "warnings_as_errors"}
     user_tags = forward.pop("tags", [])
     _rust_wasm_bindgen_test(
         name = name + "_upstream",

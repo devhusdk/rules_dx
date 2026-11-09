@@ -106,13 +106,15 @@ def _cover(kwargs):
         "//conditions:default": [],
     }))
 
+_WARNINGS = ("dopts", ["-w"], [])
+
 def d_library(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_library rule."""
     kwargs = d_kwargs(kwargs)
     kwargs = _cover(kwargs)
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _string_srcs(name, kwargs)
-    dx_wrap(name, _d_library, _d_library_forward, srcs, visibility = visibility, quality_srcs = quality_srcs, **kwargs)
+    dx_wrap(name, _d_library, _d_library_forward, srcs, visibility = visibility, quality_srcs = quality_srcs, warnings = _WARNINGS, **kwargs)
 
 def d_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_binary rule. srcs is required."""
@@ -122,7 +124,7 @@ def d_binary(name, *, srcs = None, visibility = None, **kwargs):
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _string_srcs(name, kwargs)
     upstream = dict(kwargs, tags = dx_upstream_tags(kwargs.get("tags", None)))
-    dx_wrap_binary(name, _d_binary, _d_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = quality_srcs, **kwargs)
+    dx_wrap_binary(name, _d_binary, _d_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = quality_srcs, warnings = _WARNINGS, **kwargs)
 
 D_COVERAGE_COLLECTOR = True
 
@@ -133,7 +135,7 @@ def d_test(name, *, srcs = None, visibility = None, **kwargs):
     kwargs = d_kwargs(kwargs)
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _cover(_string_srcs(name, kwargs))
-    dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)
+    dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, warnings = _WARNINGS, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)
 
 def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. srcs define LLVMFuzzerTestOneInput, for example with ldc.libfuzzer."""

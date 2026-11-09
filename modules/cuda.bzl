@@ -231,13 +231,6 @@ CUDA_CELLS = {
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         components = _LINUX_X86_64_COMPONENTS,
     ),
-    "windows_x86_64": struct(
-        rules_cuda_platform = "windows-x86_64",
-        blocker = "",
-        redist = CUDA_VERSION,
-        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
-        components = _WINDOWS_X86_64_COMPONENTS,
-    ),
     "linux_arm64": struct(
         rules_cuda_platform = "linux-sbsa",
         blocker = "",
@@ -245,9 +238,16 @@ CUDA_CELLS = {
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
         components = _LINUX_ARM64_COMPONENTS,
     ),
+    "windows_x86_64": struct(
+        rules_cuda_platform = "windows-x86_64",
+        blocker = "",
+        redist = CUDA_VERSION,
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        components = _WINDOWS_X86_64_COMPONENTS,
+    ),
     "windows_arm64": struct(
         rules_cuda_platform = "windows-arm64",
-        blocker = "rules_cuda 0.4.0-beta1 has no windows-arm64 platform and pins nvcc_msvc to x86_64 (#5969); needs an MSVC ARM64 cl.exe toolchain (#4822)",
+        blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64"],
         components = _WINDOWS_ARM64_COMPONENTS,

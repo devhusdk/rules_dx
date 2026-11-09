@@ -284,6 +284,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "redist_cccl_key.patch",
                 content: include_str!("../../../patches/rules_cuda/redist_cccl_key.patch"),
             },
+            OverridePatch {
+                file: "windows_arm64.patch",
+                content: include_str!("../../../patches/rules_cuda/windows_arm64.patch"),
+            },
         ],
     },
     Override {

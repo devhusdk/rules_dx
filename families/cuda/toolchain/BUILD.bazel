@@ -13,13 +13,17 @@ cell_settings(
     cells = CUDA_CELLS,
 )
 
-selects.config_setting_group(
-    name = "cell_windows_x86_64_msvc",
-    match_all = [
-        ":cell_windows_x86_64",
-        "@rules_dx//cc/toolchains:msvc_selected",
-    ],
-)
+[
+    selects.config_setting_group(
+        name = "cell_%s_msvc" % cell,
+        match_all = [
+            ":cell_" + cell,
+            "@rules_dx//cc/toolchains:msvc_selected",
+        ],
+    )
+    for cell in CUDA_CELLS
+    if cell.startswith("windows_")
+]
 
 exports_files([
     "check.bzl",

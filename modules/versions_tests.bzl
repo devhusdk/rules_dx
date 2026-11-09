@@ -22,11 +22,16 @@ def _archive_pin(sha256, strip_prefix, url):
         "    strip_prefix = \"" + strip_prefix + "\",",
     ]) + "\n" + "    urls = [\"" + url + "\"],"
 
-def _redist_pins(cells):
+def _string_list(attr, items, multiline):
+    if multiline:
+        return attr + " = [\n" + "".join(["        \"" + item + "\",\n" for item in items]) + "    ],"
+    return attr + " = [" + ", ".join(["\"" + item + "\"" for item in items]) + "],"
+
+def _redist_pins(cells, multiline = False):
     return [
         "\n".join([
-            "components = [" + ", ".join(["\"" + name + "\"" for name in _CUDA_COMPONENTS]) + "],",
-            "platforms = [" + ", ".join(["\"" + _CUDA_CELLS[cell].rules_cuda_platform + "\"" for cell in cells]) + "],",
+            _string_list("components", _CUDA_COMPONENTS, multiline),
+            _string_list("platforms", [_CUDA_CELLS[cell].rules_cuda_platform for cell in cells], multiline),
             "sha256 = \"" + _CUDA_REDIST_SHA256 + "\",",
             "version = \"" + _CUDA_REDIST_VERSION + "\",",
         ]),
@@ -39,9 +44,7 @@ def versions_contract_tests(name):
         for pin in _GO_SDK_SDKS[platform]:
             go_archive_pins.append(pin)
     cuda_pins = _redist_pins(_cuda_qualified_cells())
-
-    # The root module also fetches the Windows x86_64 redist (#7017).
-    root_cuda_pins = _redist_pins(["linux_x86_64", "linux_arm64", "windows_x86_64"])
+    root_cuda_pins = _redist_pins(_cuda_qualified_cells(), multiline = True)
     redist_prefix = "https://developer.download.nvidia.com/compute/cuda/redist/"
     cuda_manifest_blocks = [
         "            \"relative_path\": \"" + pin.url.removeprefix(redist_prefix) + "\",\n            \"sha256\": \"" + pin.sha256 + "\","

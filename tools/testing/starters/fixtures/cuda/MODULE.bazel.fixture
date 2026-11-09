@@ -4,7 +4,7 @@ cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.redist_json(
     name = "cuda_redist",
     components = ["cccl", "crt", "cublas", "cudart", "cufft", "curand", "nvcc", "nvvm"],
-    platforms = ["linux-x86_64", "linux-sbsa"],
+    platforms = ["linux-x86_64", "linux-sbsa", "windows-x86_64", "windows-arm64"],
     sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
     version = "13.4.2",
 )

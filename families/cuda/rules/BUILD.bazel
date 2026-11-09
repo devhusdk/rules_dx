@@ -54,12 +54,13 @@ dx_wrapper_contract_tests(
             ],
         ),
         expect_equal(
-            "linux and windows x86_64 cells are qualified",
+            "every cell is qualified",
             cuda_qualified_cells(),
             [
                 "linux_x86_64",
-                "windows_x86_64",
                 "linux_arm64",
+                "windows_x86_64",
+                "windows_arm64",
             ],
         ),
         expect_equal(
@@ -104,9 +105,10 @@ dx_wrapper_contract_tests(
             "windows sha256 values are 64 characters",
             all([len(c.sha256) == 64 for c in CUDA_CELLS["windows_x86_64"].components.values()]),
         ),
-        expect_true(
-            "windows arm64 is blocked",
-            len(CUDA_CELLS["windows_arm64"].blocker) > 0,
+        expect_equal(
+            "windows arm64 is qualified",
+            CUDA_CELLS["windows_arm64"].blocker,
+            "",
         ),
         expect_equal(
             "windows arm64 pins the linux x86_64 component versions",

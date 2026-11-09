@@ -335,6 +335,14 @@ platform(
 )
 
 platform(
+    name = "windows_arm64_platform",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
+platform(
     name = "linux_x86_64_platform",
     constraint_values = [
         "@platforms//os:linux",

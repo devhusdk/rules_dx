@@ -7523,8 +7523,8 @@
     },
     "@@rules_cuda+//cuda:extensions.bzl%toolchain": {
       "general": {
-        "bzlTransitiveDigest": "pEc6sbAsi959Be97YB+0BV1+oWptpHR7AB6EPPdUOOM=",
-        "usagesDigest": "5M+oe5TsQBah74E3+sLnJ9p/C7edZUvlzyJx3TZ9qhk=",
+        "bzlTransitiveDigest": "UMwNeUz0o/orqnG0G3i1s42dJD7ykaR5OiiKbLnG590=",
+        "usagesDigest": "YzbKLCdz+37MqmLUtPjfoW2izej3S43y7mODoteSmDQ=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
           "REPO_MAPPING:bazel_features+,bazel_features_version bazel_features++version_extension+bazel_features_version",
@@ -7876,6 +7876,118 @@
               "toolkit_version": "13.4.2"
             }
           },
+          "cuda_cccl_windows_arm64_13_4_2": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cccl",
+              "descriptive_name": "CXX Core Compute Libraries",
+              "urls": [
+                "https://developer.download.nvidia.com/compute/cuda/redist/cccl/windows-arm64/cccl-windows-arm64-13.3.4.3.1-archive.zip"
+              ],
+              "sha256": "e298fc4546a889a4d8329657eac567d93a082c0480d7c9b23690d28d8753d21d",
+              "strip_prefix": "cccl-windows-arm64-13.3.4.3.1-archive",
+              "version": "13.3.4.3.1",
+              "toolkit_version": "13.4.2"
+            }
+          },
+          "cuda_crt_windows_arm64_13_4_2": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "crt",
+              "descriptive_name": "CUDA CRT",
+              "urls": [
+                "https://developer.download.nvidia.com/compute/cuda/redist/cuda_crt/windows-arm64/cuda_crt-windows-arm64-13.4.92-archive.zip"
+              ],
+              "sha256": "3fa09349f4af5a39ffb806ce48db9c406f81fcd3366e066fdca6eba97927764a",
+              "strip_prefix": "cuda_crt-windows-arm64-13.4.92-archive",
+              "version": "13.4.92",
+              "toolkit_version": "13.4.2"
+            }
+          },
+          "cuda_cublas_windows_arm64_13_4_2": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cublas",
+              "descriptive_name": "CUDA cuBLAS",
+              "urls": [
+                "https://developer.download.nvidia.com/compute/cuda/redist/libcublas/windows-arm64/libcublas-windows-arm64-13.8.0.4-archive.zip"
+              ],
+              "sha256": "ec79698528f64361a370d1b0254a927e369b57525831fadcb2cdb7732d8ab621",
+              "strip_prefix": "libcublas-windows-arm64-13.8.0.4-archive",
+              "version": "13.8.0.4",
+              "toolkit_version": "13.4.2"
+            }
+          },
+          "cuda_cudart_windows_arm64_13_4_2": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cudart",
+              "descriptive_name": "CUDA Runtime (cudart)",
+              "urls": [
+                "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/windows-arm64/cuda_cudart-windows-arm64-13.4.92-archive.zip"
+              ],
+              "sha256": "d3cec2717ba3c2c714c5869a5374365d087c698d87c0ddd3bd41715447112891",
+              "strip_prefix": "cuda_cudart-windows-arm64-13.4.92-archive",
+              "version": "13.4.92",
+              "toolkit_version": "13.4.2"
+            }
+          },
+          "cuda_cufft_windows_arm64_13_4_2": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cufft",
+              "descriptive_name": "CUDA cuFFT",
+              "urls": [
+                "https://developer.download.nvidia.com/compute/cuda/redist/libcufft/windows-arm64/libcufft-windows-arm64-12.4.0.43-archive.zip"
+              ],
+              "sha256": "44e86a7ebcfc2e26dde3156a62d59b944e80ca0fbdbb13f9c92825c92c810091",
+              "strip_prefix": "libcufft-windows-arm64-12.4.0.43-archive",
+              "version": "12.4.0.43",
+              "toolkit_version": "13.4.2"
+            }
+          },
+          "cuda_curand_windows_arm64_13_4_2": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "curand",
+              "descriptive_name": "NVIDIA cuRAND library",
+              "urls": [
+                "https://developer.download.nvidia.com/compute/cuda/redist/libcurand/windows-arm64/libcurand-windows-arm64-10.4.4.72-archive.zip"
+              ],
+              "sha256": "14bb95c3173140fecb49919b4d568abff1d245a54e60a5ebf6814c72bbe16831",
+              "strip_prefix": "libcurand-windows-arm64-10.4.4.72-archive",
+              "version": "10.4.4.72",
+              "toolkit_version": "13.4.2"
+            }
+          },
+          "cuda_nvcc_windows_arm64_13_4_2": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "nvcc",
+              "descriptive_name": "Cuda Nvcc",
+              "urls": [
+                "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvcc/windows-arm64/cuda_nvcc-windows-arm64-13.4.92-archive.zip"
+              ],
+              "sha256": "8ca6e46052dba9e1a3e72d071ce83079e7edf70020f94eac54de55689b0d2141",
+              "strip_prefix": "cuda_nvcc-windows-arm64-13.4.92-archive",
+              "version": "13.4.92",
+              "toolkit_version": "13.4.2"
+            }
+          },
+          "cuda_nvvm_windows_arm64_13_4_2": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "nvvm",
+              "descriptive_name": "CUDA NVVM",
+              "urls": [
+                "https://developer.download.nvidia.com/compute/cuda/redist/libnvvm/windows-arm64/libnvvm-windows-arm64-13.4.92-archive.zip"
+              ],
+              "sha256": "3bd0c42bca5f16a6055b32a10535e48c23e8701eb9c9fbb7e6eff655841cfe9d",
+              "strip_prefix": "libnvvm-windows-arm64-13.4.92-archive",
+              "version": "13.4.92",
+              "toolkit_version": "13.4.2"
+            }
+          },
           "cuda_cccl": {
             "repoRuleId": "@@rules_cuda+//cuda:platform_alias_extension.bzl%platform_alias_repo",
             "attributes": {
@@ -7888,6 +8000,9 @@
               },
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_cccl_windows_x86_64_13_4_2"
+              },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_cccl_windows_arm64_13_4_2"
               },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_cccl_linux_sbsa_13_4_2"
@@ -7908,6 +8023,9 @@
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_crt_windows_x86_64_13_4_2"
               },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_crt_windows_arm64_13_4_2"
+              },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_crt_linux_sbsa_13_4_2"
               },
@@ -7926,6 +8044,9 @@
               },
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_cublas_windows_x86_64_13_4_2"
+              },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_cublas_windows_arm64_13_4_2"
               },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_cublas_linux_sbsa_13_4_2"
@@ -7946,6 +8067,9 @@
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_cudart_windows_x86_64_13_4_2"
               },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_cudart_windows_arm64_13_4_2"
+              },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_cudart_linux_sbsa_13_4_2"
               },
@@ -7964,6 +8088,9 @@
               },
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_cufft_windows_x86_64_13_4_2"
+              },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_cufft_windows_arm64_13_4_2"
               },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_cufft_linux_sbsa_13_4_2"
@@ -7984,6 +8111,9 @@
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_curand_windows_x86_64_13_4_2"
               },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_curand_windows_arm64_13_4_2"
+              },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_curand_linux_sbsa_13_4_2"
               },
@@ -8002,6 +8132,9 @@
               },
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_nvcc_windows_x86_64_13_4_2"
+              },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_nvcc_windows_arm64_13_4_2"
               },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_nvcc_linux_sbsa_13_4_2"
@@ -8022,6 +8155,9 @@
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_nvvm_windows_x86_64_13_4_2"
               },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_nvvm_windows_arm64_13_4_2"
+              },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_nvvm_linux_sbsa_13_4_2"
               },
@@ -8040,6 +8176,9 @@
               },
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_cccl_windows_x86_64_13_4_2"
+              },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_cccl_windows_arm64_13_4_2"
               },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_cccl_linux_sbsa_13_4_2"
@@ -8060,6 +8199,9 @@
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_crt_windows_x86_64_13_4_2"
               },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_crt_windows_arm64_13_4_2"
+              },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_crt_linux_sbsa_13_4_2"
               },
@@ -8078,6 +8220,9 @@
               },
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_cublas_windows_x86_64_13_4_2"
+              },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_cublas_windows_arm64_13_4_2"
               },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_cublas_linux_sbsa_13_4_2"
@@ -8098,6 +8243,9 @@
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_cudart_windows_x86_64_13_4_2"
               },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_cudart_windows_arm64_13_4_2"
+              },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_cudart_linux_sbsa_13_4_2"
               },
@@ -8116,6 +8264,9 @@
               },
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_cufft_windows_x86_64_13_4_2"
+              },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_cufft_windows_arm64_13_4_2"
               },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_cufft_linux_sbsa_13_4_2"
@@ -8136,6 +8287,9 @@
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_curand_windows_x86_64_13_4_2"
               },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_curand_windows_arm64_13_4_2"
+              },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_curand_linux_sbsa_13_4_2"
               },
@@ -8155,6 +8309,9 @@
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_nvcc_windows_x86_64_13_4_2"
               },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_nvcc_windows_arm64_13_4_2"
+              },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_nvcc_linux_sbsa_13_4_2"
               },
@@ -8173,6 +8330,9 @@
               },
               "windows_x86_64_repos": {
                 "13.4.2": "cuda_nvvm_windows_x86_64_13_4_2"
+              },
+              "windows_arm64_repos": {
+                "13.4.2": "cuda_nvvm_windows_arm64_13_4_2"
               },
               "linux_sbsa_repos": {
                 "13.4.2": "cuda_nvvm_linux_sbsa_13_4_2"

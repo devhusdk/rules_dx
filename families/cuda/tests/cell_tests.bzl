@@ -33,6 +33,8 @@ def _make(platform, compiler):
 
 _windows_llvm_test = _make("windows_x86_64", "llvm")
 _windows_msvc_test = _make("windows_x86_64", "msvc")
+_windows_arm64_llvm_test = _make("windows_arm64", "llvm")
+_windows_arm64_msvc_test = _make("windows_arm64", "msvc")
 _linux_llvm_test = _make("linux_x86_64", "llvm")
 
 def cuda_cell_tests(name):
@@ -45,12 +47,16 @@ def cuda_cell_tests(name):
     _compat_probe(name = probe, compat = CUDA_TARGET, tags = ["manual"])
     _windows_llvm_test(name = name + "_windows_llvm", target_under_test = ":" + probe, expected = _INCOMPATIBLE, size = "small")
     _windows_msvc_test(name = name + "_windows_msvc", target_under_test = ":" + probe, expected = [], size = "small")
+    _windows_arm64_llvm_test(name = name + "_windows_arm64_llvm", target_under_test = ":" + probe, expected = _INCOMPATIBLE, size = "small")
+    _windows_arm64_msvc_test(name = name + "_windows_arm64_msvc", target_under_test = ":" + probe, expected = [], size = "small")
     _linux_llvm_test(name = name + "_linux_llvm", target_under_test = ":" + probe, expected = [], size = "small")
     native.test_suite(
         name = name,
         tests = [
             ":" + name + "_windows_llvm",
             ":" + name + "_windows_msvc",
+            ":" + name + "_windows_arm64_llvm",
+            ":" + name + "_windows_arm64_msvc",
             ":" + name + "_linux_llvm",
         ],
     )

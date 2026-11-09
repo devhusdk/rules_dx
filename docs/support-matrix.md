@@ -18,7 +18,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Avro | none | none: schemas only, no packages |
 | C and C++ | none | `conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set |
 | C# | none | `nuget` |
-| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_arm64`: not tested yet | none: the CUDA toolkit is a pinned download |
+| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download |
 | D | none | `dub` (pinned, no advisories) |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` |
 | Elixir | none | `hex` |

@@ -20,7 +20,7 @@ cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.redist_json(
     name = "cuda_redist",
     components = ["cccl", "crt", "cublas", "cudart", "cufft", "curand", "nvcc", "nvvm"],
-    platforms = ["linux-x86_64", "linux-sbsa"],
+    platforms = ["linux-x86_64", "linux-sbsa", "windows-x86_64", "windows-arm64"],
     sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
     version = "13.4.2",
 )
@@ -92,11 +92,11 @@ The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
 Linux x86_64 and Linux arm64 (sbsa) are qualified. CUDA targets are incompatible on other platforms,
 so `bazel build //...` skips them.
 
-Windows x86_64 (CUDA 13.4.2 redist) is qualified with `--//cc/toolchains:compiler=msvc`:
-nvcc on Windows only drives `cl.exe`. With the default `llvm` compiler CUDA targets are
-incompatible there, so Windows builds skip them instead of failing. Windows arm64 13.4.2
-archives are pinned but blocked on rules_cuda platform support (#5969) and an MSVC ARM64
-host compiler (#4822).
+Windows x86_64 and Windows arm64 (CUDA 13.4.2 redist) are qualified with
+`--//cc/toolchains:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With the default
+`llvm` compiler CUDA targets are incompatible there, so Windows builds skip them instead of
+failing. rules_dx patches rules_cuda 0.4.0-beta1 for the windows-arm64 toolkit
+(bazel-contrib/rules_cuda#528).
 
 ## Errors
 

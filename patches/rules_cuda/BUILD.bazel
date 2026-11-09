@@ -3,6 +3,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 exports_files([
     "msvc_dlink_crt.patch",
     "redist_cccl_key.patch",
+    "windows_arm64.patch",
 ])
 
 real_source_target(

@@ -6,8 +6,8 @@ look for them in their own repository.
 
 load("@rules_dx//modules:cuda.bzl", "CUDA_CELLS")
 
-# nvcc on Windows only drives cl.exe, so the Windows cell also needs the msvc compiler flag.
+# nvcc on Windows only drives cl.exe, so the Windows cells also need the msvc compiler flag.
 CUDA_CELL_SETTINGS = {
-    cell: Label("//toolchain:cell_windows_x86_64_msvc" if cell == "windows_x86_64" else "//toolchain:cell_" + cell)
+    cell: Label("//toolchain:cell_%s_msvc" % cell if cell.startswith("windows_") else "//toolchain:cell_" + cell)
     for cell in CUDA_CELLS
 }

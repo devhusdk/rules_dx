@@ -38,6 +38,7 @@ def elixir_bat(source):
     return source.replace(BAT_ERL_OPTIONS_MARKER, '  "%ERTS_BIN%erl.exe" ' + UNICODE_ERL_OPTIONS.strip() + " %ELIXIR_ERL_OPTIONS%")
 
 _DIST_BUILD = """load("@rules_dx//elixir/toolchain:elixir.bzl", "dx_elixir")
+load("@rules_elixir//:elixir_toolchain.bzl", "elixir_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 

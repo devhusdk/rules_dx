@@ -4,13 +4,122 @@ use serde_json::Value;
 
 use dx_testing::read_runfiles;
 
+/// Returns the parsed workflow `text`, named `name` in failures, which must be valid Actions YAML.
+#[track_caller]
+pub fn parse(name: &str, text: &str) -> Value {
+    match yaml_serde::from_str(text) {
+        Ok(document) => document,
+        Err(error) => panic!("{name} is not valid workflow YAML: {error}"),
+    }
+}
+
 /// Returns the parsed workflow at `path`, which must be valid Actions YAML.
 #[track_caller]
 pub fn document(path: &str) -> Value {
-    let text = read_runfiles(path);
-    match yaml_serde::from_str(&text) {
-        Ok(document) => document,
-        Err(error) => panic!("{path} is not valid workflow YAML: {error}"),
+    parse(path, &read_runfiles(path))
+}
+
+/// Returns (path, document) for every workflow in `DX_WORKFLOWS`, parsed once.
+#[track_caller]
+pub fn all() -> Vec<(String, Value)> {
+    dx_testing::workflow_files()
+        .into_iter()
+        .map(|path| {
+            let document = document(&path);
+            (path, document)
+        })
+        .collect()
+}
+
+/// Returns (id, job) for every job of `document`, or none when it declares no jobs.
+pub fn jobs_of(document: &Value) -> Vec<(&str, &Value)> {
+    document
+        .get("jobs")
+        .and_then(Value::as_object)
+        .map(|jobs| jobs.iter().map(|(id, job)| (id.as_str(), job)).collect())
+        .unwrap_or_default()
+}
+
+/// Returns the steps of `job`, or none for a job that calls a reusable workflow.
+pub fn steps_of(job: &Value) -> &[Value] {
+    job.get("steps")
+        .and_then(Value::as_array)
+        .map_or(&[], Vec::as_slice)
+}
+
+/// Returns the shell and `actions/github-script` code a step runs.
+pub fn step_code(step: &Value) -> Vec<&str> {
+    let mut code = Vec::new();
+    if let Some(run) = step.get("run").and_then(Value::as_str) {
+        code.push(run);
+    }
+    let is_script = step
+        .get("uses")
+        .and_then(Value::as_str)
+        .is_some_and(|uses| uses.starts_with("actions/github-script@"));
+    if is_script {
+        if let Some(script) = step.pointer("/with/script").and_then(Value::as_str) {
+            code.push(script);
+        }
+    }
+    code
+}
+
+/// Returns the permissions a job holds: its own, else the workflow's.
+pub fn effective_permissions<'a>(document: &'a Value, job: &'a Value) -> &'a Value {
+    job.get("permissions").unwrap_or(&document["permissions"])
+}
+
+/// Returns the keys that a job's `strategy.matrix` defines, including `include` entries.
+pub fn matrix_keys(job: &Value) -> Vec<String> {
+    let Some(matrix) = job.pointer("/strategy/matrix").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut keys: Vec<String> = matrix
+        .keys()
+        .filter(|key| key.as_str() != "include" && key.as_str() != "exclude")
+        .cloned()
+        .collect();
+    for entry in matrix
+        .get("include")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        keys.extend(
+            entry
+                .as_object()
+                .into_iter()
+                .flat_map(|map| map.keys().cloned()),
+        );
+    }
+    keys
+}
+
+/// Pushes the name of every `matrix.<name>` read inside a `${{ }}` expression of `value`.
+pub fn matrix_refs(value: &Value, found: &mut Vec<String>) {
+    match value {
+        Value::String(text) => {
+            for expression in text.split("${{").skip(1) {
+                let expression = expression.split("}}").next().unwrap_or_default();
+                for (at, _) in expression.match_indices("matrix.") {
+                    let before = expression[..at].chars().next_back();
+                    if before.is_some_and(|c| c.is_alphanumeric() || matches!(c, '_' | '.' | '-')) {
+                        continue;
+                    }
+                    let name: String = expression[at + "matrix.".len()..]
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || matches!(c, '_' | '-'))
+                        .collect();
+                    if !name.is_empty() {
+                        found.push(name);
+                    }
+                }
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|item| matrix_refs(item, found)),
+        Value::Object(map) => map.values().for_each(|item| matrix_refs(item, found)),
+        _ => {}
     }
 }
 

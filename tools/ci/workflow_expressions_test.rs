@@ -1,37 +1,16 @@
 use serde_json::Value;
 
-use dx_testing::read_runfiles;
-
 /// Returns the offending line of every `${{` in the code of one workflow document.
 fn findings(name: &str, document: &Value) -> (usize, Vec<String>) {
     let mut scanned = 0;
     let mut found = Vec::new();
-    let Some(jobs) = document.get("jobs").and_then(Value::as_object) else {
-        return (scanned, found);
-    };
-    for (job_id, job) in jobs {
-        let Some(steps) = job.get("steps").and_then(Value::as_array) else {
-            continue;
-        };
-        for (index, step) in steps.iter().enumerate() {
+    for (job_id, job) in ci_workflow::jobs_of(document) {
+        for (index, step) in ci_workflow::steps_of(job).iter().enumerate() {
             let label = step
                 .get("name")
                 .and_then(Value::as_str)
                 .map_or_else(|| format!("#{index}"), str::to_owned);
-            let mut code = Vec::new();
-            if let Some(run) = step.get("run").and_then(Value::as_str) {
-                code.push(run);
-            }
-            let is_script = step
-                .get("uses")
-                .and_then(Value::as_str)
-                .is_some_and(|uses| uses.starts_with("actions/github-script@"));
-            if is_script {
-                if let Some(script) = step.pointer("/with/script").and_then(Value::as_str) {
-                    code.push(script);
-                }
-            }
-            for text in code {
+            for text in ci_workflow::step_code(step) {
                 scanned += 1;
                 for line in text.lines().filter(|line| line.contains("${{")) {
                     found.push(format!(
@@ -46,16 +25,15 @@ fn findings(name: &str, document: &Value) -> (usize, Vec<String>) {
 }
 
 fn parse(name: &str, text: &str) -> Value {
-    yaml_serde::from_str(text)
-        .unwrap_or_else(|error| panic!("{name} is not valid workflow YAML: {error}"))
+    ci_workflow::parse(name, text)
 }
 
 #[test]
 fn every_run_block_is_expression_free() {
     let mut scanned = 0;
     let mut found = Vec::new();
-    for name in dx_testing::workflow_files() {
-        let (count, hits) = findings(&name, &parse(&name, &read_runfiles(&name)));
+    for (name, document) in ci_workflow::all() {
+        let (count, hits) = findings(&name, &document);
         scanned += count;
         found.extend(hits);
     }
@@ -103,10 +81,8 @@ jobs:
 
 /// Names every job that runs steps but sets no `timeout-minutes`.
 fn jobs_without_timeout(name: &str, document: &Value) -> Vec<String> {
-    let Some(jobs) = document.get("jobs").and_then(Value::as_object) else {
-        return Vec::new();
-    };
-    jobs.iter()
+    ci_workflow::jobs_of(document)
+        .into_iter()
         .filter(|(_, job)| job.get("uses").is_none() && job.get("timeout-minutes").is_none())
         .map(|(job_id, _)| format!("{name}: job {job_id}"))
         .collect()
@@ -115,11 +91,8 @@ fn jobs_without_timeout(name: &str, document: &Value) -> Vec<String> {
 #[test]
 fn every_job_sets_a_timeout() {
     let mut missing = Vec::new();
-    for name in dx_testing::workflow_files() {
-        missing.extend(jobs_without_timeout(
-            &name,
-            &parse(&name, &read_runfiles(&name)),
-        ));
+    for (name, document) in ci_workflow::all() {
+        missing.extend(jobs_without_timeout(&name, &document));
     }
     assert!(
         missing.is_empty(),
@@ -128,69 +101,13 @@ fn every_job_sets_a_timeout() {
     );
 }
 
-/// Keys that a job's `strategy.matrix` defines, including keys set by `include` entries.
-fn matrix_keys(job: &Value) -> Vec<String> {
-    let Some(matrix) = job.pointer("/strategy/matrix").and_then(Value::as_object) else {
-        return Vec::new();
-    };
-    let mut keys: Vec<String> = matrix
-        .keys()
-        .filter(|key| key.as_str() != "include" && key.as_str() != "exclude")
-        .cloned()
-        .collect();
-    for entry in matrix
-        .get("include")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-    {
-        keys.extend(
-            entry
-                .as_object()
-                .into_iter()
-                .flat_map(|map| map.keys().cloned()),
-        );
-    }
-    keys
-}
-
-/// Pushes the name of every `matrix.<name>` read inside a `${{ }}` expression of `value`.
-fn matrix_refs(value: &Value, found: &mut Vec<String>) {
-    match value {
-        Value::String(text) => {
-            for expression in text.split("${{").skip(1) {
-                let expression = expression.split("}}").next().unwrap_or_default();
-                for (at, _) in expression.match_indices("matrix.") {
-                    let before = expression[..at].chars().next_back();
-                    if before.is_some_and(|c| c.is_alphanumeric() || matches!(c, '_' | '.' | '-')) {
-                        continue;
-                    }
-                    let name: String = expression[at + "matrix.".len()..]
-                        .chars()
-                        .take_while(|c| c.is_alphanumeric() || matches!(c, '_' | '-'))
-                        .collect();
-                    if !name.is_empty() {
-                        found.push(name);
-                    }
-                }
-            }
-        }
-        Value::Array(items) => items.iter().for_each(|item| matrix_refs(item, found)),
-        Value::Object(map) => map.values().for_each(|item| matrix_refs(item, found)),
-        _ => {}
-    }
-}
-
 /// Names every `matrix.<name>` a job reads that its own `strategy.matrix` does not define.
 fn undefined_matrix_refs(name: &str, document: &Value) -> Vec<String> {
-    let Some(jobs) = document.get("jobs").and_then(Value::as_object) else {
-        return Vec::new();
-    };
     let mut missing = Vec::new();
-    for (job_id, job) in jobs {
-        let defined = matrix_keys(job);
+    for (job_id, job) in ci_workflow::jobs_of(document) {
+        let defined = ci_workflow::matrix_keys(job);
         let mut refs = Vec::new();
-        matrix_refs(job, &mut refs);
+        ci_workflow::matrix_refs(job, &mut refs);
         for key in refs.iter().filter(|key| !defined.contains(key)) {
             missing.push(format!(
                 "{name}: job {job_id} reads matrix.{key}, which its strategy.matrix does not define"
@@ -203,11 +120,8 @@ fn undefined_matrix_refs(name: &str, document: &Value) -> Vec<String> {
 #[test]
 fn every_matrix_reference_is_defined() {
     let mut missing = Vec::new();
-    for name in dx_testing::workflow_files() {
-        missing.extend(undefined_matrix_refs(
-            &name,
-            &parse(&name, &read_runfiles(&name)),
-        ));
+    for (name, document) in ci_workflow::all() {
+        missing.extend(undefined_matrix_refs(&name, &document));
     }
     assert!(
         missing.is_empty(),

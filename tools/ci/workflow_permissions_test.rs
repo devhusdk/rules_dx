@@ -1,7 +1,5 @@
 use serde_json::Value;
 
-use dx_testing::read_runfiles;
-
 /// Text that shows a step uses a write scope, one entry per scope GitHub grants.
 /// A scope missing here fails the check, so a new grant needs a reviewed marker.
 const MARKERS: &[(&str, &[&str])] = &[
@@ -57,26 +55,8 @@ const TOKENLESS: &[&str] = &["id-token"];
 
 const TOKEN_NEEDLES: &[&str] = &["github.token", "secrets.GITHUB_TOKEN"];
 
-/// Returns every workflow under `.github/workflows`, so new workflows join the check.
-fn workflows() -> Vec<String> {
-    dx_testing::workflow_files()
-}
-
 fn parse(name: &str, text: &str) -> Value {
-    yaml_serde::from_str(text)
-        .unwrap_or_else(|error| panic!("{name} is not valid workflow YAML: {error}"))
-}
-
-fn document(name: &str) -> Value {
-    parse(name, &read_runfiles(name))
-}
-
-/// Returns the scopes a job holds: its own `permissions`, else the workflow's.
-fn effective_scopes<'a>(workflow: &'a Value, job: &'a Value) -> &'a Value {
-    match job.get("permissions") {
-        Some(own) => own,
-        None => &workflow["permissions"],
-    }
+    ci_workflow::parse(name, text)
 }
 
 /// Returns true when one step shows it uses `scope`.
@@ -93,22 +73,23 @@ fn step_uses_scope(step: &Value, scope: &str, markers: &[&str]) -> bool {
 /// Returns one message per write scope that no step of its job uses.
 fn unused_write_scopes(name: &str, workflow: &Value) -> Vec<String> {
     let mut problems = Vec::new();
-    let Some(jobs) = workflow["jobs"].as_object() else {
+    let jobs = ci_workflow::jobs_of(workflow);
+    if jobs.is_empty() {
         return vec![format!("{name} declares no jobs")];
-    };
+    }
     for (id, job) in jobs {
         if job.get("uses").is_some() {
             // A calling job's grants are checked against the called workflow elsewhere.
             continue;
         }
-        let scopes = effective_scopes(workflow, job);
+        let scopes = ci_workflow::effective_permissions(workflow, job);
         let Some(scopes) = scopes.as_object() else {
             problems.push(format!(
                 "{name} job {id} must list its permissions as a map, got {scopes}"
             ));
             continue;
         };
-        let steps = job["steps"].as_array().cloned().unwrap_or_default();
+        let steps = ci_workflow::steps_of(job);
         for (scope, level) in scopes {
             if level != "write" {
                 continue;
@@ -134,10 +115,7 @@ fn unused_write_scopes(name: &str, workflow: &Value) -> Vec<String> {
 
 #[test]
 fn every_workflow_sets_top_level_permissions() {
-    let names = workflows();
-    assert!(!names.is_empty(), "DX_WORKFLOWS names no workflows");
-    for name in names {
-        let workflow = document(&name);
+    for (name, workflow) in ci_workflow::all() {
         assert!(
             workflow["permissions"].is_object(),
             "{name} must set top-level permissions as a map, got {}",
@@ -148,9 +126,9 @@ fn every_workflow_sets_top_level_permissions() {
 
 #[test]
 fn every_write_scope_has_a_step_that_uses_it() {
-    let problems: Vec<String> = workflows()
+    let problems: Vec<String> = ci_workflow::all()
         .iter()
-        .flat_map(|name| unused_write_scopes(name, &document(name)))
+        .flat_map(|(name, workflow)| unused_write_scopes(name, workflow))
         .collect();
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
@@ -227,7 +205,7 @@ fn add_scopes(scopes: &mut Vec<(String, String)>, permissions: &Value, what: &st
 
 /// Returns every scope a reusable workflow requests: its top level and every job's.
 fn requested_scopes(path: &str) -> Vec<(String, String)> {
-    let workflow = document(path);
+    let workflow = ci_workflow::document(path);
     let mut scopes = Vec::new();
     add_scopes(&mut scopes, &workflow["permissions"], path);
     for (id, job) in ci_workflow::jobs(path) {

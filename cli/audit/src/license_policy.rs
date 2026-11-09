@@ -35,7 +35,7 @@ pub enum PolicyProblem {
     MultiListed { identity: String },
     #[error("license {identity:?} for set {set:?} conflicts with the global policy table")]
     SetConflict { set: String, identity: String },
-    #[error("invalid licenses.toml: {message}")]
+    #[error("invalid license.toml: {message}")]
     InvalidLicensesToml { message: String },
     #[error("license exception invalid: {0}")]
     Exception(#[from] ExceptionProblem),
@@ -252,7 +252,7 @@ fn parse_file(text: &str) -> Result<LicensesFile, PolicyProblem> {
 }
 
 /// The policy for `profile`: its embedded base with `text`, the workspace's
-/// licenses.toml, merged over it. Missing or blank text means the base alone.
+/// license.toml, merged over it. Missing or blank text means the base alone.
 pub fn load_licenses(text: Option<&str>, profile: Profile) -> Result<LicensePolicy, PolicyProblem> {
     let base_text =
         base_text("licenses", profile).ok_or_else(|| PolicyProblem::InvalidLicensesToml {

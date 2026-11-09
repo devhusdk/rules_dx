@@ -177,7 +177,7 @@ _shipped_inventory = rule(
             doc = "native_runtime targets the archive ships next to the app.",
             providers = [NativeRuntimeInfo],
         ),
-        "_licenses": attr.label(default = Label("//:licenses.toml"), allow_single_file = True),
+        "_licenses": attr.label(default = Label("//:license.toml"), allow_single_file = True),
         "_lock": attr.label(default = Label("//:cargo-bazel-lock.json"), allow_single_file = True),
         "_tool": attr.label(
             cfg = "exec",

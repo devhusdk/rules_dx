@@ -1,6 +1,6 @@
 # dx: yours to edit; `dx security --accept` and `dx license --accept` append here
 
-#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json
+#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/license.schema.json
 schema_version = 1
 
 [distribution]

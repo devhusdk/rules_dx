@@ -465,7 +465,7 @@ rust_test(
         "//:MODULE.bazel.lock",
         "//:biome.json",
         "//.github:workflows",
-        "//:licenses.toml",
+        "//:license.toml",
         "//:pnpm-workspace.yaml",
         "//:ruff.toml",
         "//cli/path:src/state.rs",

@@ -11,7 +11,7 @@ fn main() {
             dx_audit::config_schema::security_schema(),
         ),
         (
-            "licenses.schema.json",
+            "license.schema.json",
             dx_audit::config_schema::licenses_schema(),
         ),
     ];

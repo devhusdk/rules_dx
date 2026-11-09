@@ -1,9 +1,9 @@
 use super::{licenses_schema, security_schema};
 
 const SECURITY_SCHEMA: &str = include_str!("../schema/security.schema.json");
-const LICENSES_SCHEMA: &str = include_str!("../schema/licenses.schema.json");
+const LICENSES_SCHEMA: &str = include_str!("../schema/license.schema.json");
 const SECURITY_TOML: &str = include_str!("../../../security.toml");
-const LICENSES_TOML: &str = include_str!("../../../licenses.toml");
+const LICENSES_TOML: &str = include_str!("../../../license.toml");
 
 fn validator(schema: &str) -> jsonschema::Validator {
     jsonschema::validator_for(&serde_json::from_str(schema).unwrap()).unwrap()
@@ -102,7 +102,7 @@ fn config_page_lists_every_license_key() {
         Distribution, LicenseException, LicenseInventory, LicensesFile, PolicyFile, PolicyLists,
         SetReview,
     };
-    let file = "licenses.toml";
+    let file = "license.toml";
     assert_listed(file, "top level", LicensesFile::key_names());
     assert_listed(file, "`[policy]`", PolicyFile::key_names());
     assert_listed(file, "`[policy.distributed]`", PolicyLists::key_names());

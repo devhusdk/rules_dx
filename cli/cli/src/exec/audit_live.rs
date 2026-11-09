@@ -246,14 +246,14 @@ pub(super) fn write_nuget_lock(harness: &Harness) {
 
 pub(super) fn write_mit_licenses(harness: &Harness) {
     harness.write_source(
-        "licenses.toml",
+        "license.toml",
         "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n",
     );
 }
 
 pub(super) fn write_cargo_inventory_licenses(harness: &Harness) {
     harness.write_source(
-        "licenses.toml",
+        "license.toml",
         "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
     );
 }
@@ -1109,7 +1109,7 @@ fn audit_live_license_names_uncovered_dependency_sets() {
     let (code, out, err) = run_with(&["license", "//third_party/go:go"], &runner, &|harness| {
         write_go_mod(harness);
         harness.write_source(
-                "licenses.toml",
+                "license.toml",
                 "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//third_party/go:go\"]\n",
             );
     });
@@ -1124,7 +1124,7 @@ fn write_junit_exception(harness: &Harness) {
         r#"{"artifacts": {"junit:junit": {"version": "4.13.2"}}}"#,
     );
     harness.write_source(
-        "licenses.toml",
+        "license.toml",
         "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\ntext_present = true\n",
     );
 }
@@ -1151,7 +1151,7 @@ pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
         harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
         harness.write_source(
-                "licenses.toml",
+                "license.toml",
                 "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
             );
     });
@@ -1165,7 +1165,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
         harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
         harness.write_source(
-                "licenses.toml",
+                "license.toml",
                 "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
             );
     });
@@ -1200,7 +1200,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
                 "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    FSharp.Core (10.1.201)\n",
             );
             harness.write_source(
-                "licenses.toml",
+                "license.toml",
                 "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"FSharp.Core\"\nset = \"nuget\"\nlicense = \"MIT\"\nversions = \"10.1.201\"\ntext_present = true\n",
             );
         },
@@ -1215,7 +1215,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
             "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/hello v1.0.0\n",
         );
         harness.write_source(
-                "licenses.toml",
+                "license.toml",
                 "schema_version = 1\n[policy.distributed]\nallow = [\"BSD-3-Clause\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"example.com/hello\"\nset = \"go\"\nlicense = \"BSD-3-Clause\"\nversions = \"v1.0.0\"\ntext_present = true\n",
             );
     });
@@ -1229,7 +1229,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
             "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/hello v1.0.0\n",
         );
         harness.write_source(
-                "licenses.toml",
+                "license.toml",
                 "schema_version = 1\n[policy.distributed]\nallow = [\"BSD-3-Clause\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"example.com/hello\"\nset = \"go\"\nlicense = \"BSD-3-Clause\"\nversions = \"v1.0.0\"\n",
             );
     });
@@ -1243,7 +1243,7 @@ pub(super) fn audit_live_target_scopes_to_owning_set_only() {
     let (code, out, err) = run_with(&["license", "//third_party/go:go"], &runner, &|harness| {
         write_go_mod(harness);
         harness.write_source(
-                "licenses.toml",
+                "license.toml",
                 "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//third_party/go:go\"]\n",
             );
     });

@@ -224,13 +224,13 @@ exports_files([
     "ruff.toml",
     "rustfmt.toml",
     "pnpm-workspace.yaml",
-    "licenses.toml",
+    "license.toml",
     "security.toml",
 ])
 
 filegroup(
     name = "audit_curator",
-    srcs = ["licenses.toml"],
+    srcs = ["license.toml"],
 )
 
 filegroup(
@@ -324,11 +324,11 @@ json_schema(
 
 json_schema(
     name = "licenses_schema",
-    src = "//cli/audit:schema/licenses.schema.json",
+    src = "//cli/audit:schema/license.schema.json",
     files = [
-        "licenses.toml",
+        "license.toml",
     ],
-    url = "https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json",
+    url = "https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/license.schema.json",
 )
 
 json_schemas(
@@ -347,7 +347,7 @@ real_source_target(
     toml_srcs = [
         "ruff.toml",
         "rustfmt.toml",
-        "licenses.toml",
+        "license.toml",
         "security.toml",
         "dx.toml",
     ],

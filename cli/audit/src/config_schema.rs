@@ -16,9 +16,9 @@ pub fn security_schema() -> String {
     render::<SecurityFile>("security.toml")
 }
 
-/// Returns the JSON Schema for `licenses.toml`.
+/// Returns the JSON Schema for `license.toml`.
 pub fn licenses_schema() -> String {
-    render::<LicensesFile>("licenses.toml")
+    render::<LicensesFile>("license.toml")
 }
 
 #[cfg(test)]

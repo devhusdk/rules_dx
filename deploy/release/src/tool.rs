@@ -66,7 +66,7 @@ const KINDS: &[KindSpec] = &[
     KindSpec {
         kind: Kind::Inventory,
         name: "inventory",
-        usage: "<shipped.json> <cargo-bazel-lock.json> <licenses.toml> <manifest> <texts_dir> [<runtimes.json>]",
+        usage: "<shipped.json> <cargo-bazel-lock.json> <license.toml> <manifest> <texts_dir> [<runtimes.json>]",
         arity: Arity::Between(5, 6),
     },
 ];
@@ -515,14 +515,14 @@ mod tests {
                 "inventory",
                 "shipped.json",
                 "lock.json",
-                "licenses.toml",
+                "license.toml",
                 "manifest.txt",
                 "texts"
             ])),
             Ok(Invocation::Inventory {
                 shipped: PathBuf::from("shipped.json"),
                 lock: PathBuf::from("lock.json"),
-                licenses: PathBuf::from("licenses.toml"),
+                licenses: PathBuf::from("license.toml"),
                 dst: PathBuf::from("manifest.txt"),
                 texts: PathBuf::from("texts"),
                 runtimes: None,
@@ -593,7 +593,7 @@ mod tests {
                 "inventory",
                 "/definitely/missing/shipped.json",
                 "/definitely/missing/lock.json",
-                "/definitely/missing/licenses.toml",
+                "/definitely/missing/license.toml",
                 "/definitely/missing/manifest.txt",
                 "/definitely/missing/texts",
             ]),

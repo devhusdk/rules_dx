@@ -194,6 +194,6 @@
   "required": [
     "schema_version"
   ],
-  "title": "licenses.toml",
+  "title": "license.toml",
   "type": "object"
 }

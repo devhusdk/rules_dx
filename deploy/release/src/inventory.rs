@@ -144,7 +144,7 @@ fn read_crate_texts(krate: &ShippedCrate) -> Result<Vec<(String, String)>, Strin
     Ok(texts.into_iter().collect())
 }
 
-/// Whether licenses.toml approves a crate shipping no words for `license`.
+/// Whether license.toml approves a crate shipping no words for `license`.
 fn approved(policy: &dx_audit::license_policy::LicensePolicy, finding: &JoinedCrate) -> bool {
     let finding = dx_audit::license_policy::LicenseFinding {
         package: finding.name.clone(),
@@ -182,7 +182,7 @@ fn manifest_license(krate: &ShippedCrate) -> Result<String, String> {
 ///
 /// Fails when a crate is missing from the lockfile, when the lockfile has no
 /// license for it, or when its license needs reproduced words, it ships none
-/// and licenses.toml has no exception for it.
+/// and license.toml has no exception for it.
 pub fn join(
     crates: &[ShippedCrate],
     lock_text: &str,
@@ -241,7 +241,7 @@ pub fn join(
         });
         if dx_audit::license_notice::notice_fails(outcome, tier) {
             return Err(format!(
-                "inventory: missing-notice-text: {}@{} ({}) ships no LICENSE*/COPYING*/NOTICE* file; add a licenses.toml exception or a text",
+                "inventory: missing-notice-text: {}@{} ({}) ships no LICENSE*/COPYING*/NOTICE* file; add a license.toml exception or a text",
                 entry.name, entry.version, entry.license
             ));
         }
@@ -428,7 +428,7 @@ mod tests {
         });
         std::fs::write(&shipped_json, doc.to_string()).expect("shipped");
         let lock = text(dir.path(), "lock.json", LOCK);
-        let licenses = text(dir.path(), "licenses.toml", "\n");
+        let licenses = text(dir.path(), "license.toml", "\n");
         let manifest = dir.path().join("manifest.txt");
         let texts = dir.path().join("out");
         write_inventory(&shipped_json, &lock, &licenses, &manifest, &texts, None).expect("writes");
@@ -472,7 +472,7 @@ mod tests {
         });
         let shipped_json = text(dir.path(), "shipped.json", &doc.to_string());
         let lock = text(dir.path(), "lock.json", LOCK);
-        let licenses = text(dir.path(), "licenses.toml", "\n");
+        let licenses = text(dir.path(), "license.toml", "\n");
         let manifest = dir.path().join("manifest.txt");
         let texts = dir.path().join("out");
         let records = dir.path().join("runtimes.json");
@@ -522,7 +522,7 @@ mod tests {
             ),
             (
                 shipped("beta", "2.0.0", vec![]),
-                "inventory: missing-notice-text: beta@2.0.0 (MIT) ships no LICENSE*/COPYING*/NOTICE* file; add a licenses.toml exception or a text",
+                "inventory: missing-notice-text: beta@2.0.0 (MIT) ships no LICENSE*/COPYING*/NOTICE* file; add a license.toml exception or a text",
             ),
             (
                 shipped("beta", "2.0.0", vec![text(dir.path(), "e/LICENSE", " \n")]),
@@ -563,7 +563,7 @@ mod tests {
         assert!(
             join(&[], LOCK, "[policy\n")
                 .expect_err("bad toml")
-                .starts_with("inventory: invalid licenses.toml")
+                .starts_with("inventory: invalid license.toml")
         );
     }
 

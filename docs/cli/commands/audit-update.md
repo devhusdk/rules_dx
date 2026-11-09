@@ -107,7 +107,7 @@ Images: when the scope holds `oci_deploy` targets, `dx security` builds each ima
 
 ### License
 
-`dx license` reads `licenses.toml` from the workspace root. Without it every scope is distributed and only `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC` and `Unlicense` pass. `schema_version` is `1`. An unknown key fails the run.
+`dx license` reads `license.toml` from the workspace root. Without it every scope is distributed and only `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC` and `Unlicense` pass. `schema_version` is `1`. An unknown key fails the run.
 
 ```toml
 schema_version = 1
@@ -142,7 +142,7 @@ text_present = true
 
 ### Accepting a finding
 
-`--accept` runs the audit and appends an `[[exception]]` to `security.toml` (or `licenses.toml`) for each finding it names, instead of reporting the findings. `--reason` and `--expires` are required with it. The entry gets `versions = "=<installed version>"`. `--accept uncovered:<set>` appends an `[[uncovered]]` entry. The edit keeps comments and order; a missing file is created with the `#:schema` line and `schema_version = 1`.
+`--accept` runs the audit and appends an `[[exception]]` to `security.toml` (or `license.toml`) for each finding it names, instead of reporting the findings. `--reason` and `--expires` are required with it. The entry gets `versions = "=<installed version>"`. `--accept uncovered:<set>` appends an `[[uncovered]]` entry. The edit keeps comments and order; a missing file is created with the `#:schema` line and `schema_version = 1`.
 
 ```sh
 tools/dx security --accept GHSA-aaaa-bbbb-cccc:some-package --reason "Reviewed; no reachable code path." --expires 2027-03-01
@@ -151,7 +151,7 @@ tools/dx license --accept some-package --reason "Reviewed by legal." --expires 2
 
 An `--accept` that matches no finding fails and leaves the file unchanged. An entry that is already there is not added again.
 
-Add `#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json` (or `licenses.schema.json`) at the top of the file for editor checks.
+Add `#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json` (or `license.schema.json`) at the top of the file for editor checks.
 
 Freshness and expiry use today's UTC date. Set `DX_AUDIT_TODAY=YYYY-MM-DD` to pin it.
 
@@ -478,7 +478,7 @@ use_repo(pnpm, "pnpm")
 - A check runs `install --lockfile-only --frozen-lockfile`, writes nothing, and fails with `updater exited <code>` when the lock is stale. A check with `set:package` is unsupported.
 - User and global `.npmrc` files are ignored. A `.npmrc` in the set directory applies.
 - The set is unsupported when `locks` omits `<set directory>/pnpm-lock.yaml`, or a parent `pnpm-workspace.yaml` makes it a member. A set with its own `pnpm-workspace.yaml` is its own root. A set under a parent whose `packages` is exactly `["."]` is accepted and runs with `--ignore-workspace`.
-- `dx license` reports `UNKNOWN` unless `licenses.toml` has `[[inventory]]` with `set = "npm"`.
+- `dx license` reports `UNKNOWN` unless `license.toml` has `[[inventory]]` with `set = "npm"`.
 
 ### ruby
 

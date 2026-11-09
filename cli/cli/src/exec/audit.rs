@@ -183,7 +183,7 @@ pub(crate) enum AuditError {
     LockParse { rel: String, detail: String },
     #[error("dependency set {set} has no lock dx can read; expected {expected}")]
     LockUnsupported { set: String, expected: &'static str },
-    #[error("invalid licenses.toml: {error}")]
+    #[error("invalid license.toml: {error}")]
     LicenseInvalid {
         #[source]
         error: dx_audit::license_policy::PolicyProblem,
@@ -731,7 +731,7 @@ fn load_license_policy(
     let invalid = |error| AuditError::LicenseInvalid { error };
     let profile = audit_profile(workspace)
         .map_err(|message| invalid(PolicyProblem::InvalidLicensesToml { message }))?;
-    let text = read_policy_text(workspace, "licenses.toml")?;
+    let text = read_policy_text(workspace, "license.toml")?;
     load_licenses(text.as_deref(), profile).map_err(invalid)
 }
 

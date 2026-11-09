@@ -47,7 +47,7 @@ before any file is written.
 It writes every path in the [fixed file set](#fixed-file-set). Re-running
 `dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
 
-Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `licenses.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"` (see the [config reference](config.md)). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages found.
+Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `license.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"` (see the [config reference](config.md)). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages found.
 
 `--ci` picks the CI files. `github` writes the three `.github/workflows` files, `gitlab` writes one `.gitlab-ci.yml` that includes the GitLab template at the pinned rules_dx commit, and `none` writes no CI file. Without it init keeps the provider of an existing `.gitlab-ci.yml` or `.github/workflows/ci.yml`, then picks `gitlab` when the `origin` remote URL names GitLab, else `github`.
 

@@ -2,7 +2,7 @@ use super::*;
 use crate::license_expr::{IdClass, LicenseExpr, TierOutcome, evaluate};
 use crate::profile_base::Profile;
 
-/// Loads `body` as a standard-profile licenses.toml whose line 1 is `schema_version = 1`.
+/// Loads `body` as a standard-profile license.toml whose line 1 is `schema_version = 1`.
 fn load(body: &str) -> Result<LicensePolicy, PolicyProblem> {
     load_licenses(
         Some(&format!("schema_version = 1\n{body}")),

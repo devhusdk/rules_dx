@@ -9,7 +9,7 @@
 )]
 
 //! Loads and validates `dx.toml`, and holds the conventions `security.toml` and
-//! `licenses.toml` share with it.
+//! `license.toml` share with it.
 
 pub mod config;
 pub mod conventions;

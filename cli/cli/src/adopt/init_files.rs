@@ -726,14 +726,14 @@ mod tests {
     fn init_writes_no_audit_files_and_keeps_an_existing_licenses_toml() {
         let scratch = dx_test_scratch::scratch("dx-init-audit-");
         let root = scratch.path();
-        std::fs::write(root.join("licenses.toml"), "[policy]\nblocked = []\n").expect("licenses");
+        std::fs::write(root.join("license.toml"), "[policy]\nblocked = []\n").expect("licenses");
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
         assert!(!root.join("dx.toml").exists());
         assert!(!root.join("security.toml").exists());
         assert!(!root.join(".dx/config/licenses").exists());
         assert!(!root.join(".dx/config/security").exists());
-        let licenses = std::fs::read_to_string(root.join("licenses.toml")).expect("licenses");
+        let licenses = std::fs::read_to_string(root.join("license.toml")).expect("licenses");
         assert_eq!(licenses, "[policy]\nblocked = []\n");
         assert!(!err.contains("existing config kept"), "{err}");
         scratch.close().expect("cleanup");

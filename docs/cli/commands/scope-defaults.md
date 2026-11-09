@@ -11,10 +11,9 @@ dx check --affected --output=json
 
 | Command | No scope means |
 | --- | --- |
-| `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, `check`, `security`, `license` | `//...`. Pass `--affected` for only what your changes reach. |
+| `build`, `test`, `coverage`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `check`, `security`, `license` | `//...`. Pass `--affected` for only what your changes reach. |
 | `generate` | The whole repo. |
 | `docs` | The docs sites, shards, and API trees under `//...`. |
-| `env` | The whole repo. Or pass exactly one `//` or `@` label. |
 | `update` | Every set. Or pass `set`, `set:package`, a label, or a path. `<set:package> <version>` takes one package and one version. |
 | `run` | A runnable scope. With none, dx runs the only executable target in the repo, or lists up to 10 to pick from. |
 | `deploy` | Exactly one main-workspace label. |
@@ -27,7 +26,7 @@ dx check --affected --output=json
 
 - Labels and patterns: `//...`, `//pkg:target`. Only `dx run` accepts `@repo//...`.
 - Files and directories: workspace-relative paths. A file resolves to the rules that use it. A directory becomes `//dir/...`. Paths with control characters are refused.
-- `--here`: the current directory tree, as `//path/...` (`//...` at the root). Under `bazel run` it uses `BUILD_WORKING_DIRECTORY`. It does not combine with scopes. Accepted by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, `license`, and `docs`.
+- `--here`: the current directory tree, as `//path/...` (`//...` at the root). Under `bazel run` it uses `BUILD_WORKING_DIRECTORY`. It does not combine with scopes. Accepted by `build`, `test`, `coverage`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, `license`, and `docs`.
 - `--affected`: the targets your changes reach. It does not combine with scopes or `--here`. Accepted by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, `check`, `security`, and `license`. `generate` and `docs` reject it.
 
 Targets that do not fit the target platform are skipped by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, and `check`. Skipped tests report `skipped`. Pass `-- --noskip_incompatible_explicit_targets` to fail on them. `dx run` fails on them.

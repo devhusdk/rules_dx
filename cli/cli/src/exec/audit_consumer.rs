@@ -597,7 +597,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(out.contains("react"), "{code} {out}{err}");
         assert!(out.contains("UNKNOWN"), "{out}");
         harness.write_source(
-            "licenses.toml",
+            "license.toml",
             "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\", \"Apache-2.0\"]\nreview = []\ndeny = []\n\n\
              [[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\n\
              versions = \"18.2.0\"\ntext_present = true\n",
@@ -743,7 +743,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(out.contains("UNKNOWN"), "{out}");
         assert!(!out.contains("failed to assess"), "{out}");
         harness.write_source(
-            "licenses.toml",
+            "license.toml",
             "schema_version = 1\n[policy.distributed]\nallow = [\"MIT\", \"Apache-2.0\"]\nreview = []\ndeny = []\n\n\
              [[inventory]]\npackage = \"rack\"\nset = \"ruby\"\nlicense = \"MIT\"\n\
              versions = \"2.2.0\"\ntext_present = true\n",

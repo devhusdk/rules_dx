@@ -154,7 +154,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
     .map_err(|error| format!("publish dry-run: NOTICE validation failed: {error}"))?;
     let artifacts_list = read_text(&inputs.release_artifacts_list, "release artifacts list")?;
     for required in [
-        "licenses.toml",
+        "license.toml",
         "sbom_demo.spdx.json",
         "sbom_demo.provenance.json",
         "notice_demo.NOTICE",
@@ -397,7 +397,7 @@ mod tests {
         let release_artifacts_list = write_text(
             dir,
             "release-artifacts.txt",
-            "licenses.toml\nsbom_demo.spdx.json\nsbom_demo.provenance.json\nnotice_demo.NOTICE\n",
+            "license.toml\nsbom_demo.spdx.json\nsbom_demo.provenance.json\nnotice_demo.NOTICE\n",
         );
         let draft_log = write_text(
             dir,
@@ -708,7 +708,7 @@ mod tests {
         inputs.release_artifacts_list = write_text(
             dir.path(),
             "short.txt",
-            "licenses.toml\nsbom_demo.spdx.json\n",
+            "license.toml\nsbom_demo.spdx.json\n",
         );
         let error = publish_dry_run_check(&inputs).expect_err("short list must fail");
         assert!(error.contains("release artifacts list"), "got {error}");

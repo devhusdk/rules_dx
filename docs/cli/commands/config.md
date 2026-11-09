@@ -1,7 +1,7 @@
 # Config Reference
 
 dx reads two files from the workspace root: `security.toml` for `dx security`
-and `licenses.toml` for `dx license`. Both are optional. Each is merged over a
+and `license.toml` for `dx license`. Both are optional. Each is merged over a
 base that ships with dx; the top-level `tier` in `dx.toml` picks it:
 `standard` (the default) or `strict`. An unknown key fails the run. Defaults come from flags and `DX_` variables (see
 [Command Reference](README.md)).
@@ -66,7 +66,7 @@ exclude = ["//third_party/..."]
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `schema_version` | integer | none | Must be `1`. |
-| `tier` | string | `"standard"` | `standard` or `strict`. The tier for every family that does not set its own, and for `security.toml` and `licenses.toml`. |
+| `tier` | string | `"standard"` | `standard` or `strict`. The tier for every family that does not set its own, and for `security.toml` and `license.toml`. |
 | `skip_tools` | array of strings | `[]` | Tool ids dropped from every family, such as `["typos"]`. An unknown id fails the run. |
 | `families` | table | empty | Per-family settings, keyed by family id. An unknown id fails the run. |
 | `scope` | table | empty | What dx leaves out. |
@@ -84,7 +84,7 @@ curated tools; see [Default tools](quality.md#default-tools).
 | `lint` | array of strings | curated | Tool ids that lint the family. |
 | `format` | array of strings | curated | Tool ids that format the family. |
 | `typecheck` | array of strings | curated | Tool ids that typecheck the family. |
-| `audit` | array of strings | curated | Tool ids that audit the family. |
+| `audit` | array of strings | curated | Tool ids that audit the family. One group for the `dx security` and `dx license` tools; the policy lives in `security.toml` and `license.toml`. |
 | `disabled` | boolean | `false` | Turns the whole family off. |
 
 A list replaces the curated tools. A list whose entries all start with `+` or `-`
@@ -149,7 +149,7 @@ Two sets are not dependency sets:
 | `reason` | string | none | Why the gap is accepted. |
 | `expires` | string | none | Date the acceptance ends. |
 
-## licenses.toml
+## license.toml
 
 Used by `dx license`. See [Audit, Update](audit-update.md).
 
@@ -158,7 +158,7 @@ The base comes from the `dx.toml` `tier`.
 A list this file sets replaces the tier's list; a list it leaves out comes
 from the tier. The strict tier denies what standard only reviews.
 
-### licenses.toml top level
+### license.toml top level
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -168,7 +168,7 @@ from the tier. The strict tier denies what standard only reviews.
 | `exception` | array of tables | none | Accepted license findings. |
 | `inventory` | array of tables | none | Licenses declared by hand. |
 
-### licenses.toml `[policy]`
+### license.toml `[policy]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -176,7 +176,7 @@ from the tier. The strict tier denies what standard only reviews.
 | `distributed` | table | empty | Tiers for distributed scopes. |
 | `sets` | table of tables | empty | Per-set tiers, keyed by set name. |
 
-### licenses.toml `[policy.distributed]`
+### license.toml `[policy.distributed]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -184,19 +184,19 @@ from the tier. The strict tier denies what standard only reviews.
 | `review` | array of strings | `[]` | License ids that need review. |
 | `deny` | array of strings | `[]` | License ids that fail. |
 
-### licenses.toml `[policy.sets.<set>]`
+### license.toml `[policy.sets.<set>]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `review` | array of strings | `[]` | Extra ids that need review in this set. |
 
-### licenses.toml `[distribution]`
+### license.toml `[distribution]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `internal` | array of strings | `[]` | Label patterns for internal scopes. |
 
-### licenses.toml `[[exception]]`
+### license.toml `[[exception]]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -207,7 +207,7 @@ from the tier. The strict tier denies what standard only reviews.
 | `reason` | string | none | Why the license is accepted. |
 | `expires` | string | none | Date the exception ends. |
 
-### licenses.toml `[[inventory]]`
+### license.toml `[[inventory]]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|

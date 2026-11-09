@@ -1,4 +1,4 @@
-//! Appends accepted findings to `security.toml` and `licenses.toml`, keeping the file's comments and order.
+//! Appends accepted findings to `security.toml` and `license.toml`, keeping the file's comments and order.
 
 use toml_edit::{ArrayOfTables, DocumentMut, Item, Table, value};
 

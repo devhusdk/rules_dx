@@ -29,7 +29,7 @@ real_source_target(
         "//:README.md",
         "//:SECURITY.md",
         "//:biome.json",
-        "//:licenses.toml",
+        "//:license.toml",
         "//:ruff.toml",
         "//tools/docs/ir/proto:doc_ir.proto",
         "//tools/docs/ir/ir:src/lib.rs",

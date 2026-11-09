@@ -94,7 +94,7 @@ fn init_in_an_empty_dir() {
     for file in [
         "dx.toml",
         "security.toml",
-        "licenses.toml",
+        "license.toml",
         "ruff.toml",
         "biome.json",
         "rustfmt.toml",

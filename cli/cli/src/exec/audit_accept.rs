@@ -3,7 +3,7 @@ use super::*;
 const OWNER_NOTE: &str =
     "# dx: yours to edit; `dx security --accept` and `dx license --accept` append here";
 const SECURITY_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json";
-const LICENSE_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/licenses.schema.json";
+const LICENSE_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/license.schema.json";
 
 /// A vulnerability finding that an `--accept` can turn into an exception.
 pub(super) struct VulnCandidate {
@@ -103,7 +103,7 @@ pub(super) fn accept_security(
     Ok(lines)
 }
 
-/// Writes the matching findings to `licenses.toml`; returns one line per entry.
+/// Writes the matching findings to `license.toml`; returns one line per entry.
 pub(super) fn accept_license(
     workspace: &Path,
     accept: &Acceptance<'_>,
@@ -141,7 +141,7 @@ pub(super) fn accept_license(
             return Err(format!("--accept {spec} matches no finding"));
         }
     }
-    write_entries(workspace, "licenses.toml", LICENSE_SCHEMA, &entries)?;
+    write_entries(workspace, "license.toml", LICENSE_SCHEMA, &entries)?;
     Ok(lines)
 }
 

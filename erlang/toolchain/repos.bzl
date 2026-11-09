@@ -1,5 +1,6 @@
 """Hermetic Erlang/OTP acquisition and toolchain registration."""
 
+load("//elixir/rules:hex.bzl", "hex_package")
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(
@@ -13,6 +14,7 @@ load(
     "ERLFMT_VERSION",
     "ERTS_VERSION",
     "GETOPT_VERSION",
+    "HEX_SOURCES",
     "KATANA_CODE_VERSION",
     "OTP_RELEASE",
     "OTP_VERSION",
@@ -220,6 +222,19 @@ erlang_escript_archive(
 )
 """
 
+_HEX_BUILD = """load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_app(
+    app_name = "{app}",
+    app_version = "{version}",
+    deps = {deps},
+)
+"""
+
+HEX_DEPS = {"dx_erlperf": ["@dx_erlang_argparse//:erlang_app"]}
+
 TOOL_BUILDS = {
     "dx_elvis": _ELVIS_BUILD.format(version = ELVIS_VERSION),
     "dx_elvis_core": _ELVIS_CORE_BUILD.format(version = ELVIS_CORE_VERSION),
@@ -379,6 +394,14 @@ def _erlang_impl(mctx):
             sha256 = source.sha256,
             strip_prefix = source.strip_prefix,
             urls = [source.url],
+        )
+    for name, hex in sorted(HEX_SOURCES.items()):
+        hex_package(
+            name = name,
+            build_file_content = _HEX_BUILD.format(app = hex.package, version = hex.version, deps = repr(HEX_DEPS.get(name, []))),
+            package = hex.package,
+            sha256 = hex.sha256,
+            version = hex.version,
         )
     return mctx.extension_metadata(reproducible = True)
 

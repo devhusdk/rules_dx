@@ -8,6 +8,7 @@ load("//erlang/rules:defs.bzl", _escript_archive = "erlang_escript_archive", "ru
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", _COVER_LOAD = "COVER_LOAD", _ELIXIR_CELLS = "ELIXIR_CELLS", _ELIXIR_COMPATIBLE_WITH = "ELIXIR_COMPATIBLE_WITH", "elixir_app_kwargs", "elixir_cover_opts", "elixir_kwargs")
@@ -175,3 +176,13 @@ def elixir_test(name, *, srcs = None, visibility = None, **kwargs):
     upstream = dict(kwargs, elixir_opts = elixir_cover_opts(kwargs.get("elixir_opts")))
     apps = {"apps": kwargs["deps"]} if kwargs.get("deps") else None
     dx_wrap_test(name, _ex_unit_test, _ex_unit_forward_test, helper_first(srcs), visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = apps, **kwargs)
+
+def elixir_bench(name, srcs, tags = None, deps = None, **kwargs):
+    """elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-bench.json."""
+    elixir_test(
+        name = name,
+        srcs = srcs,
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        deps = (deps or []) + [Label("//elixir/bench:dx_bench")],
+        **kwargs
+    )

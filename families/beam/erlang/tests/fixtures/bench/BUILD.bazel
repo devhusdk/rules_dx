@@ -1,0 +1,36 @@
+load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bench", "test_erlang_app")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    glob([
+        "src/*",
+        "test/*",
+    ]) + ["BUILD.bazel"],
+    visibility = ["//visibility:public"],
+)
+
+erlang_app(
+    app_description = "Sums a list two ways.",
+    app_name = "sum",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+test_erlang_app(
+    app_description = "Sums a list two ways.",
+    app_name = "sum",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_bench(
+    name = "sum_bench_SUITE",
+    app_name = "sum",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

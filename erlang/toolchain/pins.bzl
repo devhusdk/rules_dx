@@ -63,6 +63,20 @@ TOOL_SOURCES = {
     ),
 }
 
+# Hex releases fetched for erlang_bench: erlperf and its one dependency.
+HEX_SOURCES = {
+    "dx_erlang_argparse": struct(
+        package = "argparse",
+        sha256 = "525979122bea3641a1dd3abc53f2add19f7f427d507018f8c7caf0693a6e78c8",
+        version = "2.0.0",
+    ),
+    "dx_erlperf": struct(
+        package = "erlperf",
+        sha256 = "c6fc9b9c784facaca01b826b7721efb3bcd7675b228902a182d9e0816f880029",
+        version = "2.3.0",
+    ),
+}
+
 GLIBC_FLOOR = "2.35"
 
 RUNTIME_MIRROR = JAMMY_RUNTIME_MIRROR

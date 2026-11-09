@@ -111,6 +111,21 @@ The base PLT is built by Bazel from the pinned OTP tree. See
 `docs/cli/commands/quality.md` for the PLT application list and the rules.
 The tool is shared with Elixir: an `elixir_app` adds its own PLT.
 
+## Benchmarks
+
+`erlang_bench` is a `ct_suite` for `dx bench`. erlperf 2.3.0 comes with rules_dx. Call `dx_bench:run/1,2` in a test case with a map of names to funs. It measures each fun with erlperf and writes `dx-bench.json`, one row per job in ops/s. Pass erlperf run options as the second argument.
+
+```python
+load("@rules_dx//erlang/rules:defs.bzl", "erlang_bench")
+
+erlang_bench(
+    name = "sum_bench_SUITE",
+    app_name = "sum",
+)
+```
+
+It needs the `erlang_app` and `test_erlang_app` of the package, like `ct_suite`. The target is tagged `dx-bench` and `manual`. No coverage-guided fuzzer exists for the BEAM, so there is no `erlang_fuzz_test`.
+
 ## Runtime
 
 On Linux the OTP build comes from `builds.hex.pm` for Ubuntu 22.04. Its

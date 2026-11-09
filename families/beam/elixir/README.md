@@ -69,6 +69,24 @@ escript_archive(
 - An `escript_archive` fails at analysis time when a bundled app ships a NIF; a NIF cannot load from an escript archive.
 - A test that runs no tests fails.
 
+## Benchmarks
+
+`elixir_bench` is an `elixir_test` for `dx bench`. Benchee 1.5.1 comes with rules_dx. Call `DxBench.run/2` once in the test with a map of names to funs. It runs Benchee without formatters and writes `dx-bench.json`, one row per job in ns.
+
+```python
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_bench")
+
+elixir_bench(
+    name = "sum_bench",
+    srcs = [
+        "sum_bench.exs",
+        "test_helper.exs",
+    ],
+)
+```
+
+The target is tagged `dx-bench` and `manual`. Benchee has no coverage-guided fuzzer on the BEAM, so there is no `elixir_fuzz_test`.
+
 ## Hex packages
 
 Declare each Hex package once, pinned to a version and the tarball digest.

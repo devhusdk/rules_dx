@@ -1,0 +1,19 @@
+load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_app(
+    testonly = True,
+    app_description = "Writes erlperf results as dx-bench.json.",
+    app_name = "dx_bench",
+    app_version = "0.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = ["@dx_erlperf//:erlang_app"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -1149,10 +1149,14 @@ cuda.toolkit(
 use_repo(cuda, "cuda")
 
 erlang = use_extension("//erlang/toolchain:repos.bzl", "erlang")
-use_repo(erlang, "dx_elvis", "dx_erlfmt", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
+use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
 
 elixir = use_extension("//elixir/toolchain:extensions.bzl", "elixir")
-use_repo(elixir, "dx_credo", "dx_elixir", "rules_elixir")
+elixir.lock(
+    name = "dx_benchee",
+    lock = "//elixir/bench:mix.lock",
+)
+use_repo(elixir, "dx_benchee", "dx_credo", "dx_elixir", "rules_elixir")
 
 # needed: @rules_powershell (powershell extension) loads @rules_batch
 bazel_dep(name = "rules_batch", version = "0.1.1")

@@ -8,6 +8,12 @@ exports_files([
     "gotreesitter_embed.patch",
 ])
 
+alias(
+    name = "oapi_codegen_runtime",
+    actual = "@com_github_oapi_codegen_runtime//:runtime",
+    visibility = ["//visibility:public"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

@@ -584,13 +584,16 @@
         "real_thrift_typecheck_aspect"
       ],
       "bazel_deps": [
+        "aspect_rules_ts",
         "bazel_skylib",
         "platforms",
         "rules_cc",
         "rules_dx",
+        "rules_python",
         "rules_shell"
       ],
       "dirs": [
+        "api_spec",
         "avro",
         "bcr_test_module",
         "capnproto",
@@ -598,7 +601,9 @@
         "third_party",
         "thrift"
       ],
-      "extensions": [],
+      "extensions": [
+        "@aspect_rules_ts//ts:extensions.bzl%typescript"
+      ],
       "file_extensions": [
         ".avsc",
         ".capnp",

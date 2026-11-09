@@ -12,6 +12,12 @@ TOOLS = {
         "resources": "light",
         "shard": "kubernetes",
     },
+    "helmfmt": {
+        "attr": attr.label(default = "//config:tool_helmfmt", allow_single_file = True, cfg = "exec"),
+        "kind": "file",
+        "resources": "light",
+        "shard": "kubernetes",
+    },
     "kubeconform": {
         "attr": attr.label(default = "//config:tool_kubeconform", allow_single_file = True, cfg = "exec"),
         "kind": "file",
@@ -27,6 +33,12 @@ TOOLS = {
 }
 
 SHARD_SPECS = {
+    "real_kubernetes_format": {
+        "capability": "format",
+        "doc": "Additive Kubernetes format family aspect (helmfmt).",
+        "shard": "kubernetes",
+        "suffix": "-kubernetes",
+    },
     "real_kubernetes_lint": {
         "capability": "lint",
         "doc": "Additive Kubernetes lint family aspect (kubeconform, helm).",
@@ -112,5 +124,7 @@ _CFG = real_config(
     toolchain = None,
     check_policy = False,
 )
+
+real_kubernetes_format_aspect = real_make_aspect(_CFG, "real_kubernetes_format")
 
 real_kubernetes_lint_aspect = real_make_aspect(_CFG, "real_kubernetes_lint")

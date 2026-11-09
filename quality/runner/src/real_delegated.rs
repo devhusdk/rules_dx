@@ -210,6 +210,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "ffmt",
         "gersemi",
         "gofumpt",
+        "helmfmt",
         "jsonnetfmt",
         "julia_format",
         "latexindent",

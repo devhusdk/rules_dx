@@ -208,6 +208,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "helmfmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "nixfmt",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -558,6 +564,28 @@ impl<'a> FixSession<'a> {
                 }
             }
             return Ok(fixed);
+        }
+        if tool_id == "helmfmt" {
+            let known_file = |path: &str| {
+                self.known.contains(path) || stage.source_paths.iter().any(|source| source == path)
+            };
+            if targets
+                .iter()
+                .any(|path| !commands::is_helm_template(path, known_file))
+            {
+                let accepted: Vec<String> = targets
+                    .iter()
+                    .filter(|path| commands::is_helm_template(path, known_file))
+                    .cloned()
+                    .collect();
+                let mut fixed = self.fix(index, stage, current, &accepted)?;
+                for path in targets {
+                    if !fixed.contains_key(path) {
+                        fixed.insert(path.clone(), text_of(path)?);
+                    }
+                }
+                return Ok(fixed);
+            }
         }
         if matches!(route, Route::Keep) || targets.is_empty() {
             return targets
@@ -1192,6 +1220,7 @@ impl super::RealBackend {
                 )),
                 "cue" => Ok(commands::cue_fix(&tool.binary, refs)),
                 "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
+                "helmfmt" => Ok(commands::helmfmt_fix(&tool.binary, refs)),
                 "nixfmt" => Ok(commands::nixfmt_fix(&tool.binary, refs)),
                 "ormolu" => Ok(commands::ormolu_fix(&tool.binary, refs)),
                 "topiary" => Ok(commands::topiary_fix(&tool.binary, refs)),

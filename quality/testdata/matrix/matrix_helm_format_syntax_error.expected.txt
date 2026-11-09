@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_helm_format_syntax_error
+capability FORMAT
+stages 1
+stage helmfmt classes=helm sources=matrix/helmfmt_broken/Chart.yaml,matrix/helmfmt_broken/templates/deployment.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR helmfmt - matrix/helmfmt_broken/templates/deployment.yaml 31 31 fixable=false "invalid template syntax: template: validation:3: unexpected \"}\" in operand"
+terminal 1
+terminal ERROR helmfmt - matrix/helmfmt_broken/templates/deployment.yaml 31 31 fixable=false "invalid template syntax: template: validation:3: unexpected \"}\" in operand"
+replacements 0

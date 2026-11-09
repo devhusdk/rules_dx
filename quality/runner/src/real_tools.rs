@@ -5346,6 +5346,145 @@ fn fake_nixfmt(
     })
 }
 
+const HELMFMT_CLEAN: &str = "a:\n{{- if .x }}\n  b: 1\n{{- end }}\n";
+const HELMFMT_DIRTY: &str = "a:\n  {{- if .x }}\n  b: 1\n{{- end }}\n";
+
+/// A fake helmfmt that follows the real contract: it only ever sees `--files` paths of chart
+/// templates, `--check` never writes and lists `[UNFORMATTED]` records on stderr, a template syntax
+/// error is an `[ERROR]` record that leaves the file alone, and a fix rewrites unformatted files.
+fn fake_helmfmt(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic_scratch_home(env);
+    let check = argv.iter().any(|arg| arg == "--check");
+    let files: Vec<&OsString> = argv
+        .iter()
+        .skip(1)
+        .filter(|arg| *arg != "--check" && *arg != "--files")
+        .collect();
+    assert!(!files.is_empty(), "helmfmt is never run without files");
+    let mut stderr = String::new();
+    for file in files {
+        let name = file.to_string_lossy().replace('\\', "/");
+        assert!(
+            name.contains("/templates/") || name.ends_with(".tpl"),
+            "helmfmt was given {name}"
+        );
+        let name = file.to_string_lossy().into_owned();
+        let text = std::fs::read_to_string(file)?;
+        if text.contains("BROKEN") {
+            stderr.push_str(&format!(
+                "[ERROR]  Invalid syntax {name}: invalid template syntax: template: validation:2: unexpected EOF\n"
+            ));
+        } else if text != HELMFMT_CLEAN {
+            if check {
+                stderr.push_str(&format!("[UNFORMATTED] {name}\n"));
+            } else {
+                std::fs::write(file, HELMFMT_CLEAN)?;
+            }
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(if stderr.is_empty() { 0 } else { 1 }),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+fn chart_with(template: &str, text: &str) -> BTreeMap<String, String> {
+    BTreeMap::from([
+        ("c/Chart.yaml".to_owned(), "name:   c\n".to_owned()),
+        ("c/values.yaml".to_owned(), "a:   1\n".to_owned()),
+        (template.to_owned(), text.to_owned()),
+    ])
+}
+
+#[test]
+fn helmfmt_formats_only_chart_templates() {
+    let backend = backend_for("helmfmt", plain_tool(), fake_helmfmt);
+    let findings = backend
+        .diagnose(
+            "helmfmt",
+            "format",
+            &chart_with("c/templates/d.yaml", HELMFMT_DIRTY),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "helmfmt");
+    assert_eq!(findings[0].path, "c/templates/d.yaml");
+    assert!(
+        backend
+            .diagnose(
+                "helmfmt",
+                "format",
+                &chart_with("c/templates/d.yaml", HELMFMT_CLEAN)
+            )
+            .expect("diagnosed")
+            .is_empty()
+    );
+    assert!(
+        backend
+            .diagnose(
+                "helmfmt",
+                "format",
+                &chart_with("c/templates/_helpers.tpl", HELMFMT_DIRTY)
+            )
+            .expect("diagnosed")
+            .len()
+            == 1
+    );
+}
+
+#[test]
+fn helmfmt_leaves_files_outside_templates_alone() {
+    let backend = backend_for("helmfmt", plain_tool(), fake_helmfmt);
+    let files = chart_with("c/other/d.yaml", HELMFMT_DIRTY);
+    assert!(
+        backend
+            .diagnose("helmfmt", "format", &files)
+            .expect("diagnosed")
+            .is_empty()
+    );
+    assert_eq!(
+        backend
+            .apply_fix("helmfmt", "c/values.yaml", "a:   1\n", "format")
+            .expect("kept"),
+        "a:   1\n"
+    );
+}
+
+#[test]
+fn helmfmt_fix_rewrites_a_template_and_a_syntax_error_stays() {
+    let backend = backend_for("helmfmt", plain_tool(), fake_helmfmt);
+    let known = std::collections::BTreeSet::from(["c/Chart.yaml".to_owned()]);
+    assert_eq!(
+        backend
+            .apply_fix_in_context(
+                "helmfmt",
+                "c/templates/d.yaml",
+                HELMFMT_DIRTY,
+                "format",
+                &known
+            )
+            .expect("fixed"),
+        HELMFMT_CLEAN
+    );
+    let broken = chart_with("c/templates/e.yaml", "BROKEN\n");
+    let findings = backend
+        .diagnose("helmfmt", "format", &broken)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert!(findings[0].message.contains("unexpected EOF"));
+    assert_eq!(
+        backend
+            .apply_fix_in_context("helmfmt", "c/templates/e.yaml", "BROKEN\n", "format", &known)
+            .expect("kept"),
+        "BROKEN\n"
+    );
+}
+
 const TOPIARY_CLEAN: &str = "let x = 1\n";
 
 /// A fake `dx_topiary` that follows its contract: check mode lists the paths that would change

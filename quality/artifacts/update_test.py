@@ -81,6 +81,9 @@ class ChecksumsFilePinTest(unittest.TestCase):
     def test_yamlfmt(self):
         self._check("yamlfmt", "/v0.21.0/checksums.txt")
 
+    def test_helmfmt(self):
+        self._check("helmfmt", "/v0.7.0/helmfmt_0.7.0_checksums.txt")
+
     def test_jsonnetfmt(self):
         self._check("jsonnetfmt", "/v0.22.0/checksums.txt")
 

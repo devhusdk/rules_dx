@@ -50,6 +50,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "graphql_eslint",
     "hadolint",
     "helm",
+    "helmfmt",
     "hlint",
     "javac",
     "jet",

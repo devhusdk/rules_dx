@@ -1819,6 +1819,63 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "helmfmt": {
+        "upstream_version": "0.7.0",
+        "release_page": "https://github.com/digitalstudium/helmfmt/releases/tag/v0.7.0",
+        "licenses": [
+            {
+                "name": "GPL-3.0",
+                "source": "https://github.com/digitalstudium/helmfmt/blob/v0.7.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "helmfmt_Linux_x86_64.tar.gz",
+                "url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_Linux_x86_64.tar.gz",
+                "checksums_url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_0.7.0_checksums.txt",
+                "kind": "tar.gz",
+                "executable": "helmfmt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "helmfmt_Linux_arm64.tar.gz",
+                "url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_Linux_arm64.tar.gz",
+                "checksums_url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_0.7.0_checksums.txt",
+                "kind": "tar.gz",
+                "executable": "helmfmt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "helmfmt_Darwin_arm64.tar.gz",
+                "url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_Darwin_arm64.tar.gz",
+                "checksums_url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_0.7.0_checksums.txt",
+                "kind": "tar.gz",
+                "executable": "helmfmt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "helmfmt_Windows_x86_64.tar.gz",
+                "url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_Windows_x86_64.tar.gz",
+                "checksums_url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_0.7.0_checksums.txt",
+                "kind": "tar.gz",
+                "executable": "helmfmt.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "helmfmt_Windows_arm64.tar.gz",
+                "url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_Windows_arm64.tar.gz",
+                "checksums_url": "https://github.com/digitalstudium/helmfmt/releases/download/v0.7.0/helmfmt_0.7.0_checksums.txt",
+                "kind": "tar.gz",
+                "executable": "helmfmt.exe",
+            },
+        },
+    },
     "hlint": {
         "upstream_version": "3.10",
         "release_page": "https://github.com/ndmitchell/hlint/releases/tag/v3.10",

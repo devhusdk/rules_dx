@@ -18,6 +18,19 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "helmfmt",
+        adapters = {"format": ["helm"]},
+        support = [
+            row(
+                capability = "format",
+                classes = ["helm"],
+                family = "helm",
+                fix = "supported",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+        ],
+    ),
+    tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
         concerns = {"lint": "schema"},

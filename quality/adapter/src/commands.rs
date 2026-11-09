@@ -173,6 +173,10 @@ const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-f
 const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
 const STYLUA_CONFIG_FLAG: &str = "--config-path";
 const NIXFMT_CHECK_ARGS: &[&str] = &["--check"];
+const HELMFMT_CHECK_ARGS: &[&str] = &["--check", "--files"];
+const HELMFMT_FIX_ARGS: &[&str] = &["--files"];
+const HELM_CHART_FILE: &str = "Chart.yaml";
+const HELM_TEMPLATES_DIR: &str = "templates";
 const ORMOLU_CHECK_ARGS: &[&str] = &[
     "--mode",
     "check",
@@ -1960,6 +1964,43 @@ fn mix_format(binary: &Path, args: &[&str], files: &[&Path], config: Option<&Pat
     )
 }
 
+/// Whether helmfmt formats a workspace path: a `.tpl` file, or a file under a `templates`
+/// directory whose parent holds a `Chart.yaml` (`has_file` answers for a workspace path). Chart.yaml
+/// and values files stay with prettier.
+pub fn is_helm_template(path: &str, has_file: impl Fn(&str) -> bool) -> bool {
+    let path = path.replace('\\', "/");
+    if path.ends_with(".tpl") {
+        return true;
+    }
+    let mut dir = path.as_str();
+    while let Some((parent, _)) = dir.rsplit_once('/') {
+        let (grand, name) = parent
+            .rsplit_once('/')
+            .map_or(("", parent), |(grand, name)| (grand, name));
+        if name == HELM_TEMPLATES_DIR {
+            let chart = if grand.is_empty() {
+                HELM_CHART_FILE.to_owned()
+            } else {
+                format!("{grand}/{HELM_CHART_FILE}")
+            };
+            if has_file(&chart) {
+                return true;
+            }
+        }
+        dir = parent;
+    }
+    false
+}
+
+/// Explicit chart template paths only.
+pub fn helmfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, HELMFMT_CHECK_ARGS, files, "")
+}
+
+pub fn helmfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, HELMFMT_FIX_ARGS, files, "")
+}
+
 /// Explicit owned `.nix` paths only: the default RFC style at width 100, no `--follow-symlinks`
 /// (which would write through a link into the source tree) and no style flags.
 pub fn nixfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
@@ -3083,7 +3124,7 @@ pub enum ArgTransport {
 /// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "actionlint" | "keep_sorted" | "typos" | "lychee" | "notebook_outputs" | "ruff"
+        "actionlint" | "helmfmt" | "keep_sorted" | "typos" | "lychee" | "notebook_outputs" | "ruff"
         | "pydoclint" | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => {
             ArgTransport::Batched
         }

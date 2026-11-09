@@ -321,6 +321,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `ansible_lint` | Lint Ansible | `windows_x86_64`, `windows_arm64` |
 | `kubeconform` | Validate Kubernetes manifests | |
 | `helm` | Lint Helm charts and validate rendered manifests | |
+| `helmfmt` | Format Helm chart templates | |
 | `terraform` | Format and typecheck Terraform | |
 | `tflint` | Lint Terraform | |
 | `bicep` | Format and lint Bicep | |

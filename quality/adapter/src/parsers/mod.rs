@@ -45,6 +45,7 @@ pub mod google_java_format;
 pub mod gplint;
 pub mod hadolint;
 pub mod helm;
+pub mod helmfmt;
 pub mod hlint;
 pub mod jet;
 pub mod jsonnet_lint;
@@ -175,6 +176,7 @@ pub use google_java_format::parse_google_java_format;
 pub use gplint::parse_gplint;
 pub use hadolint::parse_hadolint;
 pub use helm::{RenderedFile, parse_helm_lint, parse_helm_template_error, split_rendered};
+pub use helmfmt::parse_helmfmt;
 pub use hlint::parse_hlint;
 pub use jet::parse_jet;
 pub use jsonnet_lint::parse_jsonnet_lint;
@@ -2603,6 +2605,14 @@ mod tests {
         super::weeder::parse_weeder(input, input, code, files)
     }
 
+    fn fuzz_helmfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::helmfmt::parse_helmfmt(input, input, code, files)
+    }
+
     fn fuzz_hlint(
         input: &[u8],
         code: Option<i32>,
@@ -3016,6 +3026,7 @@ mod tests {
         ("zizmor", fuzz_zizmor),
         ("hadolint", fuzz_hadolint),
         ("helm", fuzz_helm),
+        ("helmfmt", fuzz_helmfmt),
         ("hlint", fuzz_hlint),
         ("weeder", fuzz_weeder),
         ("jet", fuzz_jet),

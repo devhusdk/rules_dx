@@ -20,6 +20,7 @@ load("//quality/artifacts:gitleaks.bzl", _gitleaks = "ARTIFACTS")
 load("//quality/artifacts:google_java_format.bzl", _google_java_format = "SOURCE")
 load("//quality/artifacts:hadolint.bzl", _hadolint = "ARTIFACTS")
 load("//quality/artifacts:helm.bzl", _helm = "ARTIFACTS")
+load("//quality/artifacts:helmfmt.bzl", _helmfmt = "ARTIFACTS")
 load("//quality/artifacts:hlint.bzl", _hlint = "ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "hub_build")
 load("//quality/artifacts:jsonnet_lint.bzl", _jsonnet_lint = "ARTIFACTS")
@@ -79,6 +80,7 @@ _ARTIFACTS = [
         _gitleaks,
         _hadolint,
         _helm,
+        _helmfmt,
         _hlint,
         _jsonnet_lint,
         _jsonnetfmt,

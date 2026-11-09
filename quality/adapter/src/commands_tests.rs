@@ -1823,6 +1823,15 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&nixfmt_fix(Path::new(BIN), &[nix, other])),
         vec![BIN, "/scratch/sample.nix", "/scratch/other.nix"]
     );
+    let template = Path::new("/scratch/chart/templates/a.yaml");
+    assert_eq!(
+        argv_strings(&helmfmt_check(Path::new(BIN), &[template])),
+        vec![BIN, "--check", "--files", "/scratch/chart/templates/a.yaml"]
+    );
+    assert_eq!(
+        argv_strings(&helmfmt_fix(Path::new(BIN), &[template])),
+        vec![BIN, "--files", "/scratch/chart/templates/a.yaml"]
+    );
     let hs = Path::new("/scratch/Sample.hs");
     assert_eq!(
         argv_strings(&ormolu_check(Path::new(BIN), &[hs])),
@@ -3659,4 +3668,19 @@ fn trivy_config_runs_offline_against_the_cache_dir() {
             "/scratch/Dockerfile",
         ]
     );
+}
+
+#[test]
+fn helm_templates_are_the_files_under_templates_next_to_a_chart_file() {
+    let chart = |path: &str| path == "a/chart/Chart.yaml" || path == "Chart.yaml";
+    assert!(is_helm_template("a/chart/templates/d.yaml", chart));
+    assert!(is_helm_template("a/chart/templates/sub/d.yaml", chart));
+    assert!(is_helm_template("a\\chart\\templates\\d.yaml", chart));
+    assert!(is_helm_template("templates/d.yaml", chart));
+    assert!(is_helm_template("anywhere/_helpers.tpl", |_| false));
+    assert!(!is_helm_template("a/chart/Chart.yaml", chart));
+    assert!(!is_helm_template("a/chart/values.yaml", chart));
+    assert!(!is_helm_template("a/chart/templates/NOTES.txt", |_| false));
+    assert!(!is_helm_template("b/templates/d.yaml", chart));
+    assert!(!is_helm_template("a/chart/templates.yaml", chart));
 }

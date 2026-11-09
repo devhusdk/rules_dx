@@ -378,6 +378,45 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
+        id: "helmfmt",
+        run: |backend, call| {
+            let tool_id = call.tool_id;
+            let tool = call.tool;
+            let staged = call.staged;
+            let scratch = &staged.scratch;
+            let known = |path: &str| {
+                staged
+                    .pairs
+                    .iter()
+                    .chain(&staged.sibling_pairs)
+                    .any(|(ws, _)| ws == path)
+                    || scratch.root().join(path).is_file()
+            };
+            let templates: Vec<(String, std::path::PathBuf)> = staged
+                .pairs
+                .iter()
+                .filter(|(ws, _)| commands::is_helm_template(ws, known))
+                .cloned()
+                .collect();
+            if templates.is_empty() {
+                return Ok(Vec::new());
+            }
+            backend.check_files(
+                tool_id,
+                tool,
+                scratch,
+                &templates,
+                |files| Ok(commands::helmfmt_check(&tool.binary, files)),
+                |out, names| {
+                    parsed(
+                        tool_id,
+                        parsers::parse_helmfmt(&out.stdout, &out.stderr, out.code, names),
+                    )
+                },
+            )
+        },
+    },
+    ToolDef {
         id: "topiary",
         run: |backend, call| {
             let tool_id = call.tool_id;

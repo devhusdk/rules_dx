@@ -1,8 +1,10 @@
 """Minimal Zig wrappers."""
 
-load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_library = "zig_library", _zig_test = "zig_test")
+load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_library = "zig_library", _zig_test = "zig_test", _zig_configure_binary = "zig_configure_binary")
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
@@ -128,3 +130,36 @@ def zig_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
         "//conditions:default": [],
     }))
     dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)
+
+def zig_bench(name, main = None, srcs = None, visibility = None, tags = None, **kwargs):
+    """A ReleaseFast zig_binary plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
+    binary = name + "_bin"
+    build, run = split_test_kwargs(kwargs)
+    run = with_default_size(run)
+    zig_binary(
+        name = binary + "_unoptimized",
+        main = main,
+        srcs = srcs,
+        visibility = ["//visibility:private"],
+        testonly = True,
+        tags = merge_tags(tags, "manual"),
+        **build
+    )
+    _zig_configure_binary(
+        name = binary,
+        actual = ":" + binary + "_unoptimized",
+        mode = "release_fast",
+        visibility = ["//visibility:private"],
+        testonly = True,
+        tags = merge_tags(tags, "manual"),
+    )
+    sh_test(
+        name = name,
+        srcs = [Label("//zig/rules:bench_run.sh")],
+        args = ["$(rootpath :" + binary + ")"] + run.pop("args", []),
+        data = run.pop("data", []) + [":" + binary],
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        testonly = True,
+        visibility = visibility,
+        **run
+    )

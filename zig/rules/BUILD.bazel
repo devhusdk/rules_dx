@@ -9,6 +9,7 @@ load(":defs.bzl", "ZIG_COVERAGE_COLLECTOR", "ZIG_QUALITY_TOOLS", "zig_import_nam
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "bench_run.sh",
     "defs.bzl",
 ])
 

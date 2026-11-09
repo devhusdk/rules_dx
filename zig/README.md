@@ -31,6 +31,23 @@ zig_test(
 
 Start a project with `dx init --apply demo` and add sources.
 
+## Benchmarks
+
+`zig_bench` builds a private `<name>_bin` with `mode = "release_fast"` and declares `<name>` as the manual `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
+
+```python
+load("@rules_dx//zig/rules:defs.bzl", "zig_bench")
+
+zig_bench(
+    name = "parse_bench",
+    main = "parse_bench.zig",
+)
+```
+
+The program times its own loop with `std.Io.Timestamp` and prints one line per benchmark, `bench <name> <ns_per_op> <iterations>`. The test turns those lines into `dx-bench.json`.
+
+There is no `zig_fuzz_test`. Zig's fuzzer runs only under `zig build --fuzz`, which drives the test binary over a private protocol. A Bazel-built test binary cannot run it with a time limit and crash output.
+
 ## Formatting
 
 `dx format` runs `zig fmt` by default. No flag is needed. The Zig SDK is fetched only for Zig targets:

@@ -195,8 +195,13 @@ pub(crate) fn output_line(command: Command) -> String {
     if !command.supports_json() {
         return format!("Output: text only; {}", report_clause(command));
     }
+    let streamed = if command.output_caps().streamed {
+        " (json streams events while the command runs)"
+    } else {
+        ""
+    };
     format!(
-        "Output: --output {}; {}",
+        "Output: --output {}{streamed}; {}",
         output_modes(command),
         report_clause(command)
     )
@@ -654,7 +659,14 @@ mod tests {
                 format!("--report {}=<destination> (repeatable).", reports.join("|"))
             };
             let want = if accepts_output(command, "text") {
-                format!("Output: --output {}; {report}", modes.join("|"))
+                {
+                let streamed = if command.output_caps().streamed {
+                    " (json streams events while the command runs)"
+                } else {
+                    ""
+                };
+                format!("Output: --output {}{streamed}; {report}", modes.join("|"))
+            }
             } else {
                 format!("Output: text only; {report}")
             };

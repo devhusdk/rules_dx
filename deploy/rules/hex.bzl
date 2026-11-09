@@ -1,6 +1,6 @@
 """Local-first Hex publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "ALNUM", "VERSION_CHARS", "only_chars")
 
@@ -37,10 +37,9 @@ def hex_tool_error(tool):
 
 def _hex_config_impl(ctx):
     """Writes the deploy config for one Hex deployment."""
-    package_files = ctx.attr.package[DefaultInfo].files.to_list()
+    package_files = ctx.files.srcs
     if len(package_files) == 0:
-        fail("hex_deploy " + str(ctx.label) + ": package " +
-             str(ctx.attr.package.label) + " provides no files, want at least one source file")
+        fail("hex_deploy " + str(ctx.label) + ": srcs provide no files, want at least one source file")
     rlocs = [rlocation_path(ctx, f) for f in package_files]
 
     return deploy_config(
@@ -52,15 +51,15 @@ def _hex_config_impl(ctx):
             "tool": ctx.attr.tool,
             "version": ctx.attr.version,
         },
-        ctx.runfiles(files = package_files).merge(ctx.attr.package[DefaultInfo].default_runfiles),
+        ctx.runfiles(files = package_files).merge_all([src[DefaultInfo].default_runfiles for src in ctx.attr.srcs]),
     )
 
 _hex_config = rule(
     implementation = _hex_config_impl,
     doc = "Writes the deploy config for one Hex deployment.",
     attrs = {
-        "package": attr.label(
-            doc = "Package target whose files are published by the deployment.",
+        "srcs": attr.label_list(
+            doc = "Package targets whose files are published by the deployment.",
             allow_files = True,
             mandatory = True,
         ),
@@ -73,20 +72,14 @@ _hex_config = rule(
             mandatory = True,
         ),
         "version": attr.string(
-            doc = "Package version published by the deployment.",
-            mandatory = True,
+            doc = "Package version the manifest must declare, empty to publish the manifest's version.",
         ),
     },
 )
 
-def hex_deploy(name, package, version = "0.0.0", tool = "mix", build_mode = "release", sbom = None):
+def hex_deploy(name, srcs, package = "", version = "", tool = "mix", build_mode = "release", sbom = None):
     """Publishes an Elixir or Erlang package as a local-first Hex deployment."""
-    name_error = hex_name_error(name)
-    if name_error != "":
-        fail(name_error + " (in " + native.package_name() + ":" + name + ")")
-    version_error = hex_version_error(version)
-    if version_error != "":
-        fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    pkg, version = deploy_identity(name, package, version, hex_name_error, hex_version_error)
     tool_error = hex_tool_error(tool)
     if tool_error != "":
         fail(tool_error + " (in " + native.package_name() + ":" + name + ")")
@@ -94,8 +87,8 @@ def hex_deploy(name, package, version = "0.0.0", tool = "mix", build_mode = "rel
     config_target = name + "_config"
     _hex_config(
         name = config_target,
-        package = package,
-        package_name = name,
+        srcs = srcs,
+        package_name = pkg,
         tool = tool,
         version = version,
     )

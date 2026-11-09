@@ -1,7 +1,7 @@
 """Local-first pub.dev publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "LOWER_ALNUM", "VERSION_CHARS", "only_chars")
 
@@ -46,10 +46,9 @@ def pub_hosted_url_error(hosted_url):
 
 def _pub_config_impl(ctx):
     """Writes the deploy config for one pub.dev deployment."""
-    package_files = ctx.attr.package[DefaultInfo].files.to_list()
+    package_files = ctx.files.srcs
     if len(package_files) == 0:
-        fail("pub_deploy " + str(ctx.label) + ": package " +
-             str(ctx.attr.package.label) + " provides no files, want at least pubspec.yaml")
+        fail("pub_deploy " + str(ctx.label) + ": srcs provide no files, want at least pubspec.yaml")
     rlocs = [rlocation_path(ctx, f) for f in package_files]
     values = {
         "hosted_url": ctx.attr.hosted_url,
@@ -57,14 +56,14 @@ def _pub_config_impl(ctx):
         "package_rlocs": rlocs,
         "version": ctx.attr.version,
     }
-    runfiles = ctx.runfiles(files = package_files).merge(ctx.attr.package[DefaultInfo].default_runfiles)
+    runfiles = ctx.runfiles(files = package_files).merge_all([src[DefaultInfo].default_runfiles for src in ctx.attr.srcs])
     if ctx.attr.api_compat != "off":
         package_dir = ""
         if ctx.attr.api_baseline == "git":
             pubspecs = [f for f in package_files if f.basename == "pubspec.yaml"]
             if len(pubspecs) == 0:
-                fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a pubspec.yaml in package " +
-                     str(ctx.attr.package.label))
+                fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a pubspec.yaml in srcs of " +
+                     str(ctx.label))
             pubspec = pubspecs[0]
             if not pubspec.is_source:
                 fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a checked-in pubspec.yaml, " +
@@ -124,8 +123,8 @@ _pub_config = rule(
             doc = "HTTPS URL of the pub server.",
             mandatory = True,
         ),
-        "package": attr.label(
-            doc = "Package target whose files are published by the deployment.",
+        "srcs": attr.label_list(
+            doc = "Package targets whose files are published by the deployment.",
             allow_files = True,
             mandatory = True,
         ),
@@ -134,20 +133,14 @@ _pub_config = rule(
             mandatory = True,
         ),
         "version": attr.string(
-            doc = "Package version published by the deployment.",
-            mandatory = True,
+            doc = "Package version the manifest must declare, empty to publish the manifest's version.",
         ),
     },
 )
 
-def pub_deploy(name, package, version = "0.0.0", hosted_url = PUB_DEFAULT_HOSTED_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+def pub_deploy(name, srcs, package = "", version = "", hosted_url = PUB_DEFAULT_HOSTED_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Publishes a Dart or Flutter package as a local-first pub.dev deployment."""
-    name_error = pub_name_error(name)
-    if name_error != "":
-        fail(name_error + " (in " + native.package_name() + ":" + name + ")")
-    version_error = pub_version_error(version)
-    if version_error != "":
-        fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    pkg, version = deploy_identity(name, package, version, pub_name_error, pub_version_error)
     hosted_error = pub_hosted_url_error(hosted_url)
     if hosted_error != "":
         fail(hosted_error + " (in " + native.package_name() + ":" + name + ")")
@@ -161,8 +154,8 @@ def pub_deploy(name, package, version = "0.0.0", hosted_url = PUB_DEFAULT_HOSTED
         api_baseline = api_baseline,
         api_compat = api_compat,
         hosted_url = hosted_url,
-        package = package,
-        package_name = name,
+        srcs = srcs,
+        package_name = pkg,
         version = version,
     )
 

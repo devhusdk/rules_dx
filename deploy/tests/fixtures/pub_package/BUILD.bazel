@@ -12,7 +12,7 @@ filegroup(
 
 pub_deploy(
     name = "dx_pub_fixture",
-    package = ":package",
+    srcs = [":package"],
     version = "1.0.0",
 )
 

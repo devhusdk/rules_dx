@@ -32,6 +32,24 @@ pub(crate) fn placeholder_refusal(tool: &str, value: &str) -> Option<String> {
     })
 }
 
+/// Returns the version to publish: the manifest's, which must equal `expected` when the BUILD file declares one.
+pub(crate) fn resolve_version(
+    tool: &str,
+    file: &str,
+    declared: Option<&str>,
+    expected: &str,
+) -> Result<String, String> {
+    let Some(declared) = declared else {
+        return Err(format!("{tool}: {file} declares no plain version"));
+    };
+    if expected.is_empty() || declared == expected {
+        return Ok(declared.to_owned());
+    }
+    Err(format!(
+        "{tool}: {file} declares version {declared}, BUILD declares {expected}; refusing"
+    ))
+}
+
 /// Credential values read by a passed owner gate.
 pub(crate) struct Secrets(Vec<(&'static str, String)>);
 
@@ -358,6 +376,20 @@ mod tests {
         for value in ["1.0.0", "v1.0.0", "0.0.1", "0.0.0-rc1"] {
             assert!(placeholder_refusal("demo", value).is_none());
         }
+    }
+
+    #[test]
+    fn resolve_version_reads_the_manifest_and_checks_the_declared_one() {
+        assert_eq!(resolve_version("t", "f", Some("1.2.3"), ""), Ok("1.2.3".to_owned()));
+        assert_eq!(resolve_version("t", "f", Some("1.2.3"), "1.2.3"), Ok("1.2.3".to_owned()));
+        assert_eq!(
+            resolve_version("t", "f", Some("1.2.3"), "9.9.9").expect_err("mismatch"),
+            "t: f declares version 1.2.3, BUILD declares 9.9.9; refusing"
+        );
+        assert_eq!(
+            resolve_version("t", "f", None, "").expect_err("missing"),
+            "t: f declares no plain version"
+        );
     }
 
     #[cfg(unix)]

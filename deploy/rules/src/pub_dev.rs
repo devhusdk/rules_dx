@@ -6,7 +6,7 @@ use crate::api_compat::{
 };
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, scrubbed_command,
+    placeholder_refusal, resolve_version, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -55,17 +55,14 @@ fn pubspec_is_flutter(text: &str) -> bool {
 }
 
 /// Returns a refusal when the pubspec is not the target package.
-fn pubspec_refusal(text: &str, package_name: &str, version: &str) -> Option<String> {
+fn pubspec_refusal(text: &str, package_name: &str) -> Option<String> {
     let name = pubspec_field(text, "name");
-    let found = pubspec_field(text, "version");
-    if name.as_deref() == Some(package_name) && found.as_deref() == Some(version) {
+    if name.as_deref() == Some(package_name) {
         return None;
     }
-    let show = |value: &Option<String>| value.clone().unwrap_or_else(|| "(missing)".to_owned());
     Some(format!(
-        "pub_deploy: pubspec.yaml is {} {}, target is {package_name} {version}; refusing",
-        show(&name),
-        show(&found)
+        "pub_deploy: pubspec.yaml is {}, target is {package_name}; refusing",
+        name.as_deref().unwrap_or("(missing)")
     ))
 }
 
@@ -98,24 +95,31 @@ fn pub_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Result<
     Ok(())
 }
 
-/// Stages the package and checks pubspec.yaml and CHANGELOG.md against the target.
+/// Stages the package, checks pubspec.yaml and CHANGELOG.md against the target and returns
+/// whether it is a flutter package with the resolved version.
 fn pub_checked_stage(
     mapped: &[(std::path::PathBuf, String)],
     staging: &Path,
     package_name: &str,
     version: &str,
-) -> Result<bool, String> {
+) -> Result<(bool, String), String> {
     pub_stage(mapped, staging).map_err(|error| format!("pub_deploy: {error}"))?;
     let pubspec = std::fs::read_to_string(staging.join("pubspec.yaml"))
         .map_err(|error| format!("pub_deploy: cannot read pubspec.yaml: {error}"))?;
-    if let Some(error) = pubspec_refusal(&pubspec, package_name, version) {
+    if let Some(error) = pubspec_refusal(&pubspec, package_name) {
         return Err(error);
     }
+    let version = resolve_version(
+        "pub_deploy",
+        "pubspec.yaml",
+        pubspec_field(&pubspec, "version").as_deref(),
+        version,
+    )?;
     let changelog = std::fs::read_to_string(staging.join("CHANGELOG.md")).ok();
-    if let Some(error) = changelog_refusal(changelog.as_deref(), version) {
+    if let Some(error) = changelog_refusal(changelog.as_deref(), &version) {
         return Err(error);
     }
-    Ok(pubspec_is_flutter(&pubspec))
+    Ok((pubspec_is_flutter(&pubspec), version))
 }
 
 fn tool_name(flutter: bool) -> &'static str {
@@ -510,7 +514,7 @@ pub fn pub_main_checked(
                 Some((dart, root))
             })
     };
-    let api_check = |staging: &Path| -> Result<(), String> {
+    let api_check = |staging: &Path, version: &str| -> Result<(), String> {
         if mode == ApiCompatMode::Off {
             return Ok(());
         }
@@ -534,10 +538,6 @@ pub fn pub_main_checked(
     };
     let live = PUB_GATE.requested(env_or_empty);
     let secrets = if live {
-        if let Some(error) = placeholder_refusal("pub_deploy", version) {
-            eprintln!("{error}");
-            return 1;
-        }
         match PUB_GATE.authorize(env_or_empty) {
             Ok(secrets) => Some(secrets),
             Err(error) => {
@@ -565,10 +565,13 @@ pub fn pub_main_checked(
         &api_check,
     );
     let _ = std::fs::remove_dir_all(&staging);
-    if let Err(message) = result {
-        eprintln!("{message}");
-        return 1;
-    }
+    let version = match result {
+        Ok(version) => version,
+        Err(message) => {
+            eprintln!("{message}");
+            return 1;
+        }
+    };
     if live {
         println!("pub_deploy: published {package_name} {version}");
         return 0;
@@ -596,20 +599,25 @@ fn pub_run_checked(
     version: &str,
     hosted_url: &str,
     secrets: Option<crate::run::Secrets>,
-    api_check: &dyn Fn(&Path) -> Result<(), String>,
-) -> Result<(), String> {
-    let flutter = pub_checked_stage(mapped, staging, package_name, version)?;
-    api_check(staging)?;
+    api_check: &dyn Fn(&Path, &str) -> Result<(), String>,
+) -> Result<String, String> {
+    let (flutter, version) = pub_checked_stage(mapped, staging, package_name, version)?;
+    if secrets.is_some() {
+        if let Some(error) = placeholder_refusal("pub_deploy", &version) {
+            return Err(error);
+        }
+    }
+    api_check(staging, &version)?;
     let tool = tool_name(flutter);
     let Some(program) = which_on_path(tool) else {
         if secrets.is_some() {
             return Err(format!("pub_deploy: '{tool}' CLI not found on PATH"));
         }
         println!("pub_deploy: {tool} not found on PATH; skipped {tool} pub publish --dry-run");
-        return Ok(());
+        return Ok(version);
     };
     let Some(secrets) = secrets else {
-        return pub_dry_run(&program, staging);
+        return pub_dry_run(&program, staging).map(|()| version);
     };
     pub_dry_run(&program, staging)?;
     let cache = tempfile_stage_dir("pub-cache-").map_err(|error| format!("pub_deploy: {error}"))?;
@@ -621,7 +629,7 @@ fn pub_run_checked(
         secrets.get("PUB_TOKEN"),
     );
     let _ = std::fs::remove_dir_all(&cache);
-    published
+    published.map(|()| version)
 }
 
 #[cfg(test)]
@@ -634,14 +642,12 @@ mod tests {
 
     #[test]
     fn pubspec_must_match_target() {
-        assert_eq!(pubspec_refusal(PUBSPEC, "pub_demo", "1.2.3"), None);
-        let wrong = pubspec_refusal(PUBSPEC, "pub_demo", "2.0.0").expect("version refused");
-        assert!(wrong.contains("pub_demo 1.2.3") && wrong.contains("target is pub_demo 2.0.0"));
-        let missing = pubspec_refusal("name: pub_demo\n", "pub_demo", "1.2.3").expect("missing");
+        assert_eq!(pubspec_refusal(PUBSPEC, "pub_demo"), None);
+        let wrong = pubspec_refusal(PUBSPEC, "other").expect("name refused");
+        assert!(wrong.contains("is pub_demo") && wrong.contains("target is other"));
+        let missing = pubspec_refusal("version: 1.2.3\n", "pub_demo").expect("missing");
         assert!(missing.contains("(missing)"), "{missing}");
-        assert!(
-            pubspec_refusal("  name: pub_demo\n  version: 1.2.3\n", "pub_demo", "1.2.3").is_some()
-        );
+        assert!(pubspec_refusal("  name: pub_demo\n", "pub_demo").is_some());
     }
 
     #[test]
@@ -718,6 +724,10 @@ mod tests {
             assert_eq!(
                 pub_main(&rlocs, "pub_demo", "9.9.9", "https://pub.invalid", &argv),
                 1
+            );
+            assert_eq!(
+                pub_main(&rlocs, "pub_demo", "", "https://pub.invalid", &argv),
+                0
             );
         });
         let house = outdir.join("pub_demo-package");

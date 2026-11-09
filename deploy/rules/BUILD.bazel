@@ -1618,8 +1618,13 @@ filegroup(
 
 pub_deploy(
     name = "pub_demo",
-    package = ":pub_demo_package",
-    version = "0.0.0",
+    srcs = [":pub_demo_package"],
+)
+
+pub_deploy(
+    name = "pub-demo-alias",
+    srcs = [":pub_demo_package"],
+    package = "pub_demo",
 )
 
 pub_unit_tests(name = "pub_unit")
@@ -1629,6 +1634,11 @@ pub_config_content_tests(name = "pub_config_content")
 deploy_analysis_test(
     name = "pub_analysis",
     subject = "pub_demo",
+)
+
+deploy_analysis_test(
+    name = "pub_alias_analysis",
+    subject = "pub-demo-alias",
 )
 
 crates_unit_tests(name = "crates_unit")
@@ -1683,7 +1693,7 @@ deploy_analysis_test(
 
 hex_deploy(
     name = "hex_demo",
-    package = "//deploy/tests/fixtures/hex_package",
+    srcs = ["//deploy/tests/fixtures/hex_package"],
 )
 
 hex_unit_tests(name = "hex_unit")

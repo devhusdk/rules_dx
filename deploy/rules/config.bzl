@@ -36,3 +36,19 @@ def deploy_config(ctx, kind, values, runfiles):
         ),
         DxDeployConfigInfo(file = out, kind = kind),
     ]
+
+def deploy_identity(name, package, version, name_error, version_error):
+    """Returns the (package, version) a deploy macro publishes.
+
+    The package defaults to the target name. An empty version means the launcher reads it from the manifest.
+    """
+    pkg = package or name
+    where = " (in " + native.package_name() + ":" + name + ")"
+    error = name_error(pkg)
+    if error != "":
+        fail(error + where)
+    if version != "":
+        error = version_error(version)
+        if error != "":
+            fail(error + where)
+    return pkg, version

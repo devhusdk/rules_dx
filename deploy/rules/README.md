@@ -404,16 +404,16 @@ load("@rules_dx//deploy/rules:hex.bzl", "hex_deploy")
 
 hex_deploy(
     name = "hex_demo",
-    package = ":hex_demo_package",
+    srcs = [":hex_demo_package"],
     tool = "mix",
-    version = "1.0.0",
 )
 ```
 
-- `name`: the Hex package name.
-- `package`: required. The package files, including `mix.exs` (`rebar.config` for `rebar3`).
+- `name`: the target name, and the Hex package name unless `package` is set.
+- `srcs`: required. The package files, including `mix.exs` (`rebar.config` for `rebar3`).
+- `package`: the Hex package name. Defaults to `name`.
 - `tool`: `mix` or `rebar3`. Defaults to `mix`.
-- `version`: defaults to `0.0.0`. It must equal the `version` in `mix.exs`, or the `vsn` in the `.app.src` for `rebar3`.
+- `version`: defaults to empty, which publishes the version in `mix.exs` (the `vsn` in the `.app.src` for `rebar3`). When set, it must equal that version.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-hex/package/`, checks the version, and runs
@@ -587,16 +587,16 @@ load("@rules_dx//deploy/rules:pub.bzl", "pub_deploy")
 
 pub_deploy(
     name = "pub_demo",
-    package = ":pub_demo_package",
-    version = "0.0.0",
+    srcs = [":pub_demo_package"],
 )
 ```
 
-- `name`: the package name, lowercase letters, digits and `_`.
-- `package`: required. The package files, including `pubspec.yaml` and
+- `name`: the target name, and the package name unless `package` is set.
+- `srcs`: required. The package files, including `pubspec.yaml` and
   `CHANGELOG.md`.
-- `version`: defaults to `0.0.0`. Must equal the `pubspec.yaml` version and
-  have a heading in `CHANGELOG.md`.
+- `package`: the package name, lowercase letters, digits and `_`. Defaults to `name`.
+- `version`: defaults to empty, which publishes the `pubspec.yaml` version. When
+  set, it must equal that version. Either way `CHANGELOG.md` needs a heading for it.
 - `hosted_url`: defaults to `https://pub.dev`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).

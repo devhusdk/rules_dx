@@ -2,7 +2,7 @@
 
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, scrubbed_command,
+    placeholder_refusal, resolve_version, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -69,30 +69,24 @@ pub fn app_src_version(text: &str) -> Option<String> {
     first_quoted(rest).map(str::to_owned)
 }
 
-/// Returns a refusal when the staged package does not declare the target version.
+/// Returns the version the staged package declares, which must match the BUILD version when set.
 fn hex_version_refusal(
     staging: &Path,
     mapped: &[(PathBuf, String)],
     tool: &str,
     version: &str,
-) -> Option<String> {
+) -> Result<String, String> {
     let (file, found) = if tool == "mix" {
         let text = std::fs::read_to_string(staging.join("mix.exs")).unwrap_or_default();
         ("mix.exs".to_owned(), mix_version(&text))
     } else {
         let Some((_, rel)) = mapped.iter().find(|(_, rel)| rel.ends_with(".app.src")) else {
-            return Some("hex_deploy: package has no .app.src file; refusing".to_owned());
+            return Err("hex_deploy: package has no .app.src file; refusing".to_owned());
         };
         let text = std::fs::read_to_string(staging.join(rel)).unwrap_or_default();
         (rel.clone(), app_src_version(&text))
     };
-    if found.as_deref() == Some(version) {
-        return None;
-    }
-    Some(format!(
-        "hex_deploy: {file} declares version {}, target is {version}; refusing",
-        found.as_deref().unwrap_or("(not a plain value)")
-    ))
+    resolve_version("hex_deploy", &file, found.as_deref(), version)
 }
 
 fn hex_stage(mapped: &[(PathBuf, String)], staging: &Path) -> Result<(), String> {
@@ -173,19 +167,16 @@ fn hex_publish_args(tool: &str) -> Vec<&'static str> {
     }
 }
 
-/// Stages the package under `dir`, checks its version and returns the mapped paths.
+/// Stages the package under `dir`, checks its version and returns the resolved version.
 fn hex_stage_checked(
     files: &[PathBuf],
     dir: &Path,
     tool: &str,
     version: &str,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let mapped = hex_package_paths(files, tool).map_err(|error| format!("hex_deploy: {error}"))?;
     hex_stage(&mapped, dir).map_err(|error| format!("hex_deploy: {error}"))?;
-    match hex_version_refusal(dir, &mapped, tool, version) {
-        Some(error) => Err(error),
-        None => Ok(()),
-    }
+    hex_version_refusal(dir, &mapped, tool, version)
 }
 
 /// Runs the Hex deploy tool.
@@ -223,10 +214,13 @@ pub fn hex_main(
     let staged = std::fs::create_dir_all(&package_dir)
         .map_err(|error| format!("hex_deploy: {error}"))
         .and_then(|()| hex_stage_checked(&files, &package_dir, tool, version));
-    if let Err(error) = staged {
-        eprintln!("{error}");
-        return 1;
-    }
+    let version = match staged {
+        Ok(version) => version,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
     let tarball = house.join(format!("{package_name}-{version}.tar"));
     match which_on_path(tool) {
         Some(program) => {
@@ -251,10 +245,6 @@ pub fn hex_main(
 }
 
 fn hex_publish(files: &[PathBuf], package_name: &str, version: &str, tool: &str) -> i32 {
-    if let Some(error) = placeholder_refusal("hex_deploy", version) {
-        eprintln!("{error}");
-        return 1;
-    }
     let secrets = match HEX_GATE.authorize(env_or_empty) {
         Ok(secrets) => secrets,
         Err(error) => {
@@ -273,17 +263,21 @@ fn hex_publish(files: &[PathBuf], package_name: &str, version: &str, tool: &str)
             return 1;
         }
     };
-    let published = hex_stage_checked(files, &staging, tool, version).and_then(|()| {
+    let published = hex_stage_checked(files, &staging, tool, version).and_then(|version| {
+        if let Some(error) = placeholder_refusal("hex_deploy", &version) {
+            return Err(error);
+        }
         hex_run(
             &program,
             &hex_publish_args(tool),
             &staging,
             secrets.get("HEX_API_KEY"),
         )
+        .map(|()| version)
     });
     let _ = std::fs::remove_dir_all(&staging);
     match published {
-        Ok(()) => {
+        Ok(version) => {
             println!("hex_deploy: published {package_name} {version}");
             0
         }
@@ -337,10 +331,17 @@ mod tests {
             write(&root, "lib/demo.ex", ""),
         ];
         let staging = scratch.path().join("staging");
-        assert_eq!(hex_stage_checked(&files, &staging, "mix", "1.0.0"), Ok(()));
+        assert_eq!(
+            hex_stage_checked(&files, &staging, "mix", "1.0.0"),
+            Ok("1.0.0".to_owned())
+        );
+        assert_eq!(
+            hex_stage_checked(&files, &staging, "mix", ""),
+            Ok("1.0.0".to_owned())
+        );
         let error = hex_stage_checked(&files, &staging, "mix", "2.0.0").expect_err("mismatch");
         assert!(
-            error.contains("mix.exs declares version 1.0.0, target is 2.0.0"),
+            error.contains("mix.exs declares version 1.0.0, BUILD declares 2.0.0"),
             "{error}"
         );
 
@@ -356,7 +357,11 @@ mod tests {
         let staging = scratch.path().join("erl_staging");
         assert_eq!(
             hex_stage_checked(&files, &staging, "rebar3", "0.2.0"),
-            Ok(())
+            Ok("0.2.0".to_owned())
+        );
+        assert_eq!(
+            hex_stage_checked(&files, &staging, "rebar3", ""),
+            Ok("0.2.0".to_owned())
         );
         assert!(hex_stage_checked(&files, &staging, "rebar3", "0.3.0").is_err());
         let error =

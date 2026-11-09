@@ -161,8 +161,8 @@ fn run() -> i32 {
     run_from(std::env::args_os())
 }
 
-fn main() {
-    std::process::exit(run());
+fn main() -> std::process::ExitCode {
+    dx_error::exit_code(run())
 }
 // LCOV_EXCL_STOP - reason: end process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 

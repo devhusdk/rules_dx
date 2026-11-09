@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use dx_env::{RefreshOptions, RefreshOutcome, identity_hex, parse_staged, probe_symlink, refresh};
+use dx_error::DxError;
 
 const METADATA_CANDIDATES: &[(&str, &str)] = &[
     ("rules_dx/env/default_tree.metadata.json", "_main"),
@@ -23,10 +24,8 @@ const USAGE: &str =
     "usage: env [--workspace DIR] [--staged-bin DIR --metadata FILE] [--lock-timeout-ms N]";
 const ABOUT: &str = "install the staged environment tree into .dx/local/bin";
 
-fn usage_error(message: &str) -> i32 {
-    tracing::error!("dx sync: {message}");
-    tracing::error!("{USAGE}");
-    2
+fn usage_error(message: &str) -> DxError {
+    DxError::usage(format!("dx sync: {message}\n{USAGE}"))
 }
 
 #[derive(Parser)]
@@ -99,15 +98,14 @@ fn installed_message(outcome: &RefreshOutcome, count: usize, identity: &str) -> 
     }
 }
 
-fn help(out: &mut impl std::io::Write) -> i32 {
-    match writeln!(out, "dx sync: {ABOUT}").and_then(|()| writeln!(out, "{USAGE}")) {
-        Ok(()) => 0,
-        Err(_) => 1,
-    }
+fn help(out: &mut impl std::io::Write) -> Result<(), DxError> {
+    writeln!(out, "dx sync: {ABOUT}")
+        .and_then(|()| writeln!(out, "{USAGE}"))
+        .map_err(|error| DxError::failure(format!("dx sync: cannot write help: {error}")))
 }
 
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-fn run() -> i32 {
+fn run() -> Result<(), DxError> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (workspace, staged_bin, metadata, lock_timeout) = match plan(&args) {
         Ok(Plan::Help) => return help(&mut std::io::stdout().lock()),
@@ -117,7 +115,7 @@ fn run() -> i32 {
             metadata,
             lock_timeout,
         }) => (workspace, staged_bin, metadata, lock_timeout),
-        Err(message) => return usage_error(&message),
+        Err(message) => return Err(usage_error(&message)),
     };
     let cwd = dx_process::current_directory().unwrap_or_else(|_| PathBuf::from("."));
     let start = match workspace {
@@ -129,10 +127,9 @@ fn run() -> i32 {
         _ => match locate_default_tree() {
             Some(paths) => paths,
             None => {
-                tracing::error!(
-                    "dx sync: default tree not found in runfiles; pass --staged-bin and --metadata explicitly"
-                );
-                return 1;
+                return Err(DxError::failure(
+                    "dx sync: default tree not found in runfiles; pass --staged-bin and --metadata explicitly",
+                ));
             }
         },
     };
@@ -146,17 +143,13 @@ fn run() -> i32 {
     let tools = match std::fs::read_to_string(&metadata) {
         Ok(text) => match parse_staged(&text, options.os == "windows") {
             Ok(tools) => tools,
-            Err(error) => {
-                tracing::error!("dx sync: {error}");
-                return 1;
-            }
+            Err(error) => return Err(DxError::failure(format!("dx sync: {error}"))),
         },
         Err(error) => {
-            tracing::error!(
+            return Err(DxError::failure(format!(
                 "dx sync: cannot read staged metadata {}: {error}",
                 metadata.display()
-            );
-            return 1;
+            )));
         }
     };
     match refresh(&options, &probe_symlink) {
@@ -165,12 +158,9 @@ fn run() -> i32 {
                 "{}",
                 installed_message(&outcome, tools.len(), &identity_hex(&tools))
             );
-            0
+            Ok(())
         }
-        Err(error) => {
-            tracing::error!("dx sync: {error}");
-            1
-        }
+        Err(error) => Err(DxError::failure(format!("dx sync: {error}"))),
     }
 }
 
@@ -190,9 +180,15 @@ fn locate_default_tree() -> Option<(PathBuf, PathBuf)> {
     None
 }
 
-fn main() {
+fn main() -> std::process::ExitCode {
     dx_output::init_diagnostics(false);
-    std::process::exit(run());
+    match run() {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            tracing::error!("{error}");
+            error.into()
+        }
+    }
 }
 // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 
@@ -358,7 +354,9 @@ mod tests {
 
     #[test]
     fn usage_errors_report_two() {
-        assert_eq!(usage_error("bad flag"), 2);
+        let error = usage_error("bad flag");
+        assert_eq!(error.exit_code(), 2);
+        assert!(error.message().contains(USAGE));
     }
 
     struct FailingWriter;
@@ -376,10 +374,10 @@ mod tests {
     #[test]
     fn help_prints_usage_and_exits_zero() {
         let mut out = Vec::new();
-        assert_eq!(help(&mut out), 0);
+        assert!(help(&mut out).is_ok());
         let text = String::from_utf8(out).expect("utf8");
         assert_eq!(text, format!("dx sync: {ABOUT}\n{USAGE}\n"));
-        assert_eq!(help(&mut FailingWriter), 1);
+        assert_eq!(help(&mut FailingWriter).map_err(|e| e.exit_code()), Err(1));
         std::io::Write::flush(&mut FailingWriter).expect("flush is a no-op");
     }
 

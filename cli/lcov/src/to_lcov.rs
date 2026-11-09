@@ -42,9 +42,11 @@ fn convert(from: &str, xml: &str) -> Result<String, DxError> {
     let lcov = match from {
         "clover" => dx_lcov::clover_to_lcov(xml),
         "cobertura" => dx_lcov::cobertura_to_lcov(xml),
-        _ => return Err(DxError::usage(format!(
+        _ => {
+            return Err(DxError::usage(format!(
                 "unknown --from {from}; want clover or cobertura"
-            ))),
+            )));
+        }
     };
     lcov.map_err(|e| DxError::failure(e.to_string()))
 }
@@ -77,15 +79,17 @@ fn keep_sources(lcov: &str, sources: &[&str]) -> String {
 
 fn run(args: &[String]) -> Result<(), DxError> {
     let args = parse_args(args)?;
-    let xml =
-        fs::read_to_string(&args.input).map_err(|e| DxError::infra(format!("cannot read {}: {e}", args.input)))?;
+    let xml = fs::read_to_string(&args.input)
+        .map_err(|e| DxError::infra(format!("cannot read {}: {e}", args.input)))?;
     let mut lcov = convert(&args.from, &xml)?;
     if let Some(path) = &args.sources {
-        let list = fs::read_to_string(path).map_err(|e| DxError::infra(format!("cannot read {path}: {e}")))?;
+        let list = fs::read_to_string(path)
+            .map_err(|e| DxError::infra(format!("cannot read {path}: {e}")))?;
         let sources: Vec<&str> = list.lines().filter(|line| !line.is_empty()).collect();
         lcov = keep_sources(&lcov, &sources);
     }
-    fs::write(&args.output, lcov).map_err(|e| DxError::infra(format!("cannot write {}: {e}", args.output)))
+    fs::write(&args.output, lcov)
+        .map_err(|e| DxError::infra(format!("cannot write {}: {e}", args.output)))
 }
 
 // LCOV_EXCL_START - reason: process entry point that exits, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -206,7 +210,11 @@ mod tests {
         let output = dir.join("no_dir").join("out").display().to_string();
 
         let read = run(&strings(&["--from", "clover", &missing, &output]));
-        assert!(read.expect_err("input").message().starts_with("cannot read"));
+        assert!(
+            read.expect_err("input")
+                .message()
+                .starts_with("cannot read")
+        );
 
         let sources = run(&strings(&[
             "--from",
@@ -216,7 +224,12 @@ mod tests {
             &input,
             &output,
         ]));
-        assert!(sources.expect_err("sources").message().starts_with("cannot read"));
+        assert!(
+            sources
+                .expect_err("sources")
+                .message()
+                .starts_with("cannot read")
+        );
 
         let write = run(&strings(&["--from", "clover", &input, &output]));
         let error = write.expect_err("output");

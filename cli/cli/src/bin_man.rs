@@ -37,14 +37,16 @@ fn run() -> Result<(), DxError> {
         && !parent.as_os_str().is_empty()
     {
         std::fs::create_dir_all(parent).map_err(|error| {
-            DxError::infra(format!("dx_man: cannot create {}: {error}", parent.display()))
+            DxError::infra(format!(
+                "dx_man: cannot create {}: {error}",
+                parent.display()
+            ))
         })?;
     }
     let mut file = std::fs::File::create(&out).map_err(|error| {
         DxError::infra(format!("dx_man: cannot write {}: {error}", out.display()))
     })?;
-    file.write_all(&buffer).map_err(|error| {
-        DxError::infra(format!("dx_man: cannot write {}: {error}", out.display()))
-    })
+    file.write_all(&buffer)
+        .map_err(|error| DxError::infra(format!("dx_man: cannot write {}: {error}", out.display())))
 }
 // LCOV_EXCL_STOP - reason: end thin man shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

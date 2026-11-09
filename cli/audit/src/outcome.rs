@@ -18,9 +18,9 @@ pub struct AuditReport {
     pub outcomes: Vec<FamilyOutcome>,
 }
 
-pub const EXIT_SUCCESS: i32 = 0;
+pub const EXIT_SUCCESS: i32 = dx_error::EXIT_SUCCESS;
 
-pub const EXIT_FAILURE: i32 = 1;
+pub const EXIT_FAILURE: i32 = dx_error::EXIT_FAILURE;
 
 impl AuditFamily {
     fn order(self) -> u8 {

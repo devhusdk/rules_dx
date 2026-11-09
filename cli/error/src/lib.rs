@@ -77,9 +77,20 @@ impl fmt::Display for DxError {
 
 impl std::error::Error for DxError {}
 
+#[must_use]
+pub fn exit_code(code: i32) -> ExitCode {
+    ExitCode::from(u8::try_from(code).unwrap_or(1))
+}
+
+impl From<ErrorKind> for ExitCode {
+    fn from(kind: ErrorKind) -> Self {
+        exit_code(kind.exit_code())
+    }
+}
+
 impl From<DxError> for ExitCode {
     fn from(error: DxError) -> Self {
-        Self::from(u8::try_from(error.exit_code()).unwrap_or(1))
+        exit_code(error.exit_code())
     }
 }
 
@@ -109,6 +120,16 @@ mod tests {
         assert_eq!(error.exit_code(), EXIT_USAGE);
         assert_eq!(DxError::failure("x").exit_code(), EXIT_FAILURE);
         assert_eq!(DxError::infra("x").exit_code(), EXIT_INFRA);
+    }
+
+    #[test]
+    fn exit_code_falls_back_to_failure_outside_u8() {
+        assert_eq!(exit_code(0), ExitCode::from(0));
+        assert_eq!(exit_code(2), ExitCode::from(2));
+        assert_eq!(exit_code(3), ExitCode::from(3));
+        assert_eq!(exit_code(300), ExitCode::from(1));
+        assert_eq!(exit_code(-1), ExitCode::from(1));
+        assert_eq!(ExitCode::from(ErrorKind::Usage), ExitCode::from(2));
     }
 
     #[test]

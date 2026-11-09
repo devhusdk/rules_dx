@@ -56,6 +56,7 @@ rust_binary(
         normal = True,
     ) + [
         ":dx_tool_resolve",
+        "//cli/error:dx_error",
         "//cli/process:dx_process",
     ],
 )
@@ -79,6 +80,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_tool_resolve",
+        "//cli/error:dx_error",
         "//cli/process:dx_process",
     ],
 )

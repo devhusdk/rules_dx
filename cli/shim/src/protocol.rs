@@ -5,8 +5,8 @@ pub const SHIM_VERSION: &str = "0.0.0";
 pub const DEFAULT_RELEASE_BASE: &str = "https://github.com/devhusdk/rules_dx/releases/download";
 
 pub const VERSION_FILE: &str = ".dx/pins";
-pub const EXIT_USAGE: i32 = 2;
-pub const EXIT_FAILURE: i32 = 1;
+pub const EXIT_USAGE: i32 = dx_error::EXIT_USAGE;
+pub const EXIT_FAILURE: i32 = dx_error::EXIT_FAILURE;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShimError {
     pub code: i32,

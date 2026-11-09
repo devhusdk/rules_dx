@@ -72,6 +72,7 @@ rust_library(
     ) + [
         "//cli/adopt:dx_adopt",
         "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
         "//cli/process:dx_process",
         "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",
@@ -148,6 +149,7 @@ rust_test(
     ) + [
         "//cli/adopt:dx_adopt",
         "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
         "//libs/gomod:dx_gomod",

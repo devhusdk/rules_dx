@@ -43,6 +43,7 @@ rust_binary(
         normal = True,
     ) + [
         ":dx_env",
+        "//cli/error:dx_error",
         "//cli/output:dx_output",
         "//cli/process:dx_process",
         "@rules_rust//rust/runfiles",
@@ -93,6 +94,7 @@ rust_test(
     crate = ":env",
     deps = [
         ":dx_env",
+        "//cli/error:dx_error",
         "@rules_rust//rust/runfiles",
     ],
 )

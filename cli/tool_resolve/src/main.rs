@@ -65,7 +65,7 @@ fn main() -> ExitCode {
         Err(error) => {
             let _ = error.print();
             return if error.use_stderr() {
-                ExitCode::from(2)
+                dx_error::ErrorKind::Usage.into()
             } else {
                 ExitCode::SUCCESS
             };
@@ -78,7 +78,7 @@ fn main() -> ExitCode {
         }
         Err(error) => {
             eprintln!("{error}");
-            ExitCode::FAILURE
+            dx_error::ErrorKind::Failure.into()
         }
     }
 }

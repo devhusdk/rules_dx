@@ -93,6 +93,7 @@ rust_library(
     ) + [
         "//cli/digest:dx_digest",
         "//cli/dx_config",
+        "//cli/error:dx_error",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//libs/gomod:dx_gomod",
@@ -190,9 +191,10 @@ rust_test(
     ) + [
         "//cli/digest:dx_digest",
         "//cli/dx_config",
+        "//cli/error:dx_error",
         "//cli/process:dx_process",
-        "//cli/sbom:dx_sbom",
         "//cli/sbom/schema:dx_sbom_schema",
+        "//cli/sbom:dx_sbom",
         "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",
         "@crates//:serde",

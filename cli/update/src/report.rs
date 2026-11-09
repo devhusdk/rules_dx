@@ -1,8 +1,8 @@
 use super::outcome::UpdateReport;
 
-pub const EXIT_SUCCESS: i32 = 0;
+pub const EXIT_SUCCESS: i32 = dx_error::EXIT_SUCCESS;
 
-pub const EXIT_FAILURE: i32 = 1;
+pub const EXIT_FAILURE: i32 = dx_error::EXIT_FAILURE;
 
 pub fn exit_code(report: &UpdateReport) -> i32 {
     if report.overall_failure {

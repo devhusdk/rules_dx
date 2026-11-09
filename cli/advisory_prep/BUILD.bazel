@@ -34,6 +34,7 @@ rust_binary(
     ) + [
         ":dx_advisory_prep",
         "//cli/audit:dx_audit",
+        "//cli/error:dx_error",
     ],
 )
 
@@ -93,6 +94,7 @@ rust_test(
     ) + [
         ":dx_advisory_prep",
         "//cli/audit:dx_audit",
+        "//cli/error:dx_error",
     ],
 )
 

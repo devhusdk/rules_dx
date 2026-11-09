@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,7 +47,25 @@ if (reserved !== undefined) {
 }
 // Avro IDL (.avdl) is not JSON; prettier has no parser for it, so it is never passed on.
 const isAvdl = (arg) => !arg.startsWith("-") && arg.toLowerCase().endsWith(".avdl");
-const forwarded = args.filter((arg) => !isAvdl(arg));
+// Helm chart templates are Go templates, not YAML or HTML; the Go template plugin rewrites common
+// chart idioms into different YAML, so only Chart.yaml, values files and plain YAML are formatted.
+// A file is a chart template when a "templates" directory sits next to a Chart.yaml.
+function isHelmOnly(arg) {
+  if (arg.startsWith("-")) {
+    return false;
+  }
+  const base = path.basename(arg).toLowerCase();
+  if (base.endsWith(".tpl") || base.endsWith(".txt") || base === ".helmignore") {
+    return true;
+  }
+  for (let dir = path.dirname(arg); path.basename(dir) !== "" && dir !== path.dirname(dir); dir = path.dirname(dir)) {
+    if (path.basename(dir) === "templates" && existsSync(path.join(path.dirname(dir), "Chart.yaml"))) {
+      return true;
+    }
+  }
+  return false;
+}
+const forwarded = args.filter((arg) => !isAvdl(arg) && !isHelmOnly(arg));
 if (forwarded.length < args.length && forwarded.every((arg) => arg.startsWith("-"))) {
   process.exit(0);
 }

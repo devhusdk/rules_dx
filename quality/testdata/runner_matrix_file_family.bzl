@@ -2051,6 +2051,36 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_helm_prettier_pass",
+        "generated": {
+            "matrix/helm_prettier_clean.yaml": "apiVersion: v2\nname: demo\nversion: 0.1.0\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;helm;matrix/helm_prettier_clean.yaml"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_helm_prettier_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "matrix_helm_prettier_fail",
+        "generated": {
+            "matrix/helm_prettier_dirty.yaml": "apiVersion: v2\nname:   demo\nversion: 0.1.0\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;helm;matrix/helm_prettier_dirty.yaml"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_helm_prettier_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
         "name": "matrix_cloudformation_prettier_pass",
         "generated": {
             "matrix/cloudformation_prettier_clean.yaml": "Resources:\n  Bucket:\n    Type: AWS::S3::Bucket\n",

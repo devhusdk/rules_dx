@@ -40,7 +40,7 @@ preflight-windows-arm64() {
 
 starter() {
   local targets
-  targets="$(bazel query "$@" 'attr(tags, starter-consumer, //...)' --output=label)"
+  targets="$(bazel query "$@" 'attr(tags, starter-consumer, //...) except filter("_upstream$", //...)' --output=label)"
   test -n "$targets"
   # shellcheck disable=SC2086
   bazel build --nobuild "$@" $targets

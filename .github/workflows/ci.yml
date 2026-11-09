@@ -590,7 +590,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel query "$@" 'attr(tags, starter-consumer, //...)' --output=label | sort > "$RUNNER_TEMP/starter-all"
+          bazel query "$@" 'attr(tags, starter-consumer, //...) except filter("_upstream$", //...)' --output=label | sort > "$RUNNER_TEMP/starter-all"
           awk -v shard="$SHARD" -v shards="$SHARDS" '(NR - 1) % shards == shard' "$RUNNER_TEMP/starter-all" > "$RUNNER_TEMP/starter-targets"
           if [ ! -s "$RUNNER_TEMP/starter-all" ]; then
             echo "::error::No starter consumer targets exist."
@@ -1020,7 +1020,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: always()
         with:
-          sparse-checkout: tools/ci/compiler_table.sh
+          sparse-checkout: |
+            tools/ci/compiler_table.sh
+            .github/actions/assert-no-secret
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: always()

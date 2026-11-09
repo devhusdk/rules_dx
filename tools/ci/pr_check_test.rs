@@ -174,3 +174,23 @@ fn workflow_runs_on_pull_requests() {
         "{WORKFLOW} must not use pull_request_target"
     );
 }
+
+#[test]
+fn consumer_queries_skip_the_private_upstream_copies() {
+    for path in [CI, SCRIPT] {
+        let text = read_runfiles(path);
+        let mut seen = 0;
+        for line in text.lines() {
+            for tag in ["starter-consumer", "hermetic-consumer"] {
+                if line.contains(&format!("attr(tags, {tag}")) && line.contains("bazel query") {
+                    seen += 1;
+                    assert!(
+                        line.contains("except filter(\"_upstream$\", //...)"),
+                        "{path}: query for {tag} keeps _upstream copies: {line}"
+                    );
+                }
+            }
+        }
+        assert!(seen > 0, "{path} has no consumer query");
+    }
+}

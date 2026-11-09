@@ -254,6 +254,22 @@ fn every_upload_follows_a_matching_scan() {
                 assert_eq!(scanned, expected, "{at} scans another path than it uploads");
                 if scan["uses"].is_string() {
                     assert_eq!(scan["uses"], "./.github/actions/assert-no-secret", "{at}");
+                    for earlier in &steps[..index] {
+                        let sparse = &earlier["with"]["sparse-checkout"];
+                        if earlier["uses"]
+                            .as_str()
+                            .is_some_and(|uses| uses.starts_with("actions/checkout@"))
+                            && !sparse.is_null()
+                        {
+                            let listed = sparse.as_str().expect("sparse-checkout text");
+                            assert!(
+                                listed
+                                    .lines()
+                                    .any(|line| line.trim() == ".github/actions/assert-no-secret"),
+                                "{at} sparse checkout omits the scan action"
+                            );
+                        }
+                    }
                 }
             }
         }

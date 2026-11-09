@@ -360,6 +360,22 @@ const TRIVY_CONFIG_PREFIX: &[&str] = &[
     "--skip-check-update",
     "--disable-telemetry",
 ];
+const TRIVY_IMAGE_CONFIG_PREFIX: &[&str] = &[
+    "image",
+    "--format",
+    "json",
+    "--exit-code",
+    "0",
+    "--quiet",
+    "--skip-db-update",
+    "--skip-check-update",
+    "--offline-scan",
+    "--disable-telemetry",
+    "--scanners",
+    "secret",
+    "--image-config-scanners",
+    "misconfig,secret",
+];
 const END_OF_FLAGS: &[&str] = &["--"];
 const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
@@ -2836,6 +2852,21 @@ pub fn trivy_config_check(
     head.push(cache_dir.as_os_str().to_owned());
     head.extend(END_OF_FLAGS.iter().map(OsString::from));
     assemble(binary, head, &[file], "")
+}
+
+/// Scans the image config of one OCI layout directory with the embedded checks, never touching the
+/// network or a vulnerability database; `--cache-dir <cache>` keeps trivy out of the home directory.
+pub fn trivy_image_config_check(binary: &Path, layout: &Path, cache_dir: &Path) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(TRIVY_IMAGE_CONFIG_PREFIX.iter().map(OsString::from));
+    head.push(OsString::from("--cache-dir"));
+    head.push(cache_dir.as_os_str().to_owned());
+    head.push(OsString::from("--input"));
+    head.push(layout.as_os_str().to_owned());
+    Invocation {
+        argv: head,
+        cwd_rel: String::new(),
+    }
 }
 
 /// Always `--config <config>`: checkmake otherwise falls back to `$HOME/checkmake.ini`.

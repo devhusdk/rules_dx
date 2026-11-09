@@ -161,6 +161,12 @@ CURATED_DEFAULTS = {
         "lint": ["typos"],
         "typecheck": [],
     },
+    "oci_image": {
+        "audit": [],
+        "format": [],
+        "lint": ["trivy_image_config"],
+        "typecheck": [],
+    },
     "powershell": {
         "audit": [],
         "format": [],

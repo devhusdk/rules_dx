@@ -4,6 +4,7 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:providers.bzl", "PackageFilesInfo")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load(":image_quality.bzl", "oci_image_quality")
 load(":validate_image.bzl", "IMAGE_BASES", "IMAGE_LABEL_PLATFORMS", "IMAGE_PLATFORM_LABELS", "IMAGE_RUNTIMES", "image_options_error")
 
 _RUNTIME_LAYOUT = {
@@ -267,6 +268,13 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
             tars = layers,
             testonly = testonly,
             visibility = visibility if single else None,
+        )
+        oci_image_quality(
+            name = image + "_quality",
+            build_files = native.glob(["BUILD", "BUILD.bazel"], allow_empty = True),
+            image = image,
+            tags = tags,
+            testonly = testonly,
         )
         images.append(image)
 

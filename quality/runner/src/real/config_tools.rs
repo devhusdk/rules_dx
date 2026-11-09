@@ -320,6 +320,48 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
+        id: "trivy_image_config",
+        run: |backend, call| {
+            let tool_id = call.tool_id;
+            let tool = call.tool;
+            let scratch = &call.staged.scratch;
+            let cache = scratch.root().join("dx-trivy-cache");
+            let Some(layout) = tool.args.first() else {
+                return Err(execution(
+                    tool_id,
+                    "trivy_image_config needs the image layout path".to_owned(),
+                ));
+            };
+            let source = std::env::current_dir()
+                .map_err(|err| execution(tool_id, format!("working directory: {err}")))?
+                .join(layout);
+            let layout = scratch.root().join(OCI_LAYOUT_DIR_REL);
+            copy_layout(&source, &layout).map_err(|err| {
+                execution(tool_id, format!("copy {}: {err}", source.display()))
+            })?;
+            let (_, names) = super::single_run::paths(call);
+            let Some(file) = names.first() else {
+                return Ok(Vec::new());
+            };
+            let name = source
+                .file_name()
+                .map_or("image", |base| base.to_str().unwrap_or("image"));
+            let invocation = commands::trivy_image_config_check(&tool.binary, &layout, &cache);
+            let out = backend.run(tool_id, tool, &invocation, scratch)?;
+            parsed(
+                tool_id,
+                parsers::parse_trivy_image_config(
+                    &out.stdout,
+                    &out.stderr,
+                    out.code,
+                    &layout.to_string_lossy(),
+                    name,
+                    file,
+                ),
+            )
+        },
+    },
+    ToolDef {
         id: "deadnix",
         run: |backend, call| {
             let tool_id = call.tool_id;
@@ -679,6 +721,23 @@ const ARM_DIR_REL: &str = "dx-bicep-arm";
 
 /// Trivy does not read Bicep, so each file is built to ARM JSON and the staged templates are
 /// scanned together. ARM lines do not map to Bicep lines, so findings land on line 1.
+const OCI_LAYOUT_DIR_REL: &str = "dx-oci-layout";
+
+/// Copies the layout with its symlinked blobs resolved to regular files; trivy refuses symlinks.
+fn copy_layout(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if std::fs::metadata(entry.path())?.is_dir() {
+            copy_layout(&entry.path(), &target)?;
+        } else {
+            std::fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
 fn scan_bicep(
     backend: &RealBackend,
     call: &super::check::CheckCall,

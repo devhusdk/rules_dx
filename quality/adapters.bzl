@@ -38,6 +38,7 @@ NOT_APPLICABLE = {
         "asciidoc": "markup; no maintained AsciiDoc formatter exists, asciidoctor only converts",
         "capnp": "schema IDL; no maintained .capnp formatter exists, capnp only validates",
         "flatbuffers": "schema IDL; no maintained .fbs formatter exists, flatc only validates",
+        "oci_image": "image config; an image is a tar of layers, not text",
         "thrift": "schema IDL; the thrift compiler has no formatter, it only validates",
     },
     "typecheck": {

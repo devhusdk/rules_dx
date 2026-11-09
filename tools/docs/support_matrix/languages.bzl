@@ -290,7 +290,7 @@ ROWS = [
     {"name": "helm", "section": "formats", "title": "Helm"},
     {"name": "kubernetes", "section": "formats", "title": "Kubernetes"},
     {"name": "nix", "section": "formats", "title": "Nix"},
-    {"families": [], "name": "oci", "section": "formats", "title": "OCI images"},
+    {"families": ["oci_image"], "name": "oci", "section": "formats", "title": "OCI images"},
     {"name": "rego", "section": "formats", "title": "Rego"},
     {"name": "cue", "section": "formats", "title": "CUE"},
     {"name": "gherkin", "section": "formats", "title": "Gherkin"},

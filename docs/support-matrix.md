@@ -138,7 +138,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
 | Markdown | `lychee`, `markdown_check`, `typos`, `vale` | `prettier` | n/a | n/a | n/a | n/a |
 | Nix | `deadnix`, `typos` | `nixfmt` (not on `macos_arm64`: nixfmt builds from source with the managed GHC, which has no hermetic macOS cabal path yet; `windows_x86_64`: nixfmt depends on the unix package and does not build on Windows; `windows_arm64`: nixfmt depends on the unix package and does not build on Windows) | n/a | n/a | n/a | `deadnix` |
-| OCI images | no | no | no | n/a | n/a | n/a |
+| OCI images | `trivy_image_config` | n/a | no | n/a | n/a | n/a |
 | Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
 | Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |
 | reStructuredText | `lychee`, `typos`, `vale` | `docstrfmt` | n/a | n/a | n/a | n/a |
@@ -159,6 +159,7 @@ Not applicable for `format`:
 - `asciidoc`: markup; no maintained AsciiDoc formatter exists, asciidoctor only converts
 - `capnp`: schema IDL; no maintained .capnp formatter exists, capnp only validates
 - `flatbuffers`: schema IDL; no maintained .fbs formatter exists, flatc only validates
+- `oci_image`: image config; an image is a tar of layers, not text
 - `thrift`: schema IDL; the thrift compiler has no formatter, it only validates
 
 Not applicable for `lint`:

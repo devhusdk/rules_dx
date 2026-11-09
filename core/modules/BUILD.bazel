@@ -132,6 +132,7 @@ rust_test(
         "//quality:families/lua.bzl",
         "//quality:families/make.bzl",
         "//quality:families/nix.bzl",
+        "//quality:families/oci_image.bzl",
         "//quality:families/ocaml.bzl",
         "//quality:families/perl.bzl",
         "//quality:families/php.bzl",

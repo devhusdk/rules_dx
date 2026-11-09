@@ -107,6 +107,8 @@ exports_files([
     "nuget.bzl",
     "nuget_tests.bzl",
     "image.bzl",
+    "image_providers.bzl",
+    "image_quality.bzl",
     "image_tests.bzl",
     "oci.bzl",
     "oci_tests.bzl",

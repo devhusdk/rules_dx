@@ -3684,3 +3684,36 @@ fn helm_templates_are_the_files_under_templates_next_to_a_chart_file() {
     assert!(!is_helm_template("b/templates/d.yaml", chart));
     assert!(!is_helm_template("a/chart/templates.yaml", chart));
 }
+
+#[test]
+fn trivy_image_config_scans_the_layout_offline() {
+    let invocation = trivy_image_config_check(
+        Path::new(BIN),
+        Path::new("/scratch/image"),
+        Path::new("/cache/trivy"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "image",
+            "--format",
+            "json",
+            "--exit-code",
+            "0",
+            "--quiet",
+            "--skip-db-update",
+            "--skip-check-update",
+            "--offline-scan",
+            "--disable-telemetry",
+            "--scanners",
+            "secret",
+            "--image-config-scanners",
+            "misconfig,secret",
+            "--cache-dir",
+            "/cache/trivy",
+            "--input",
+            "/scratch/image",
+        ]
+    );
+}

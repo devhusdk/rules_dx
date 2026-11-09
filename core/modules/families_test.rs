@@ -518,7 +518,7 @@ fn moved_families_have_corpus_starlark_in_every_package() {
     }
 }
 
-const FAMILY_FILES: [&str; 43] = [
+const FAMILY_FILES: [&str; 44] = [
     "ansible",
     "beam",
     "cc",
@@ -542,6 +542,7 @@ const FAMILY_FILES: [&str; 43] = [
     "lua",
     "make",
     "nix",
+    "oci_image",
     "ocaml",
     "perl",
     "php",

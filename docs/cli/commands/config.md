@@ -142,6 +142,7 @@ Two sets are not dependency sets:
 
 - `set = "oci"` covers a finding from the `oci_deploy` image scan. `package` is the image package and `versions` is `*` or a range holding the installed version.
 - `set = "trivy_config"` covers a `trivy_config` lint finding. `advisory` is the trivy ID, such as `DS-0002`, `package` is the workspace-relative file or `*` for every file, and `versions` must be `*`. `dx lint` drops covered findings until `expires`.
+- `set = "trivy_image_config"` covers a `trivy_image_config` lint finding. `package` is the workspace-relative `BUILD.bazel` of the image or `*`; the other fields are those of `trivy_config`.
 
 ### security.toml `[[uncovered]]`
 

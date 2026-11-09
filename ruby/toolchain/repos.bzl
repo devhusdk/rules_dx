@@ -54,6 +54,7 @@ def _ruby_tools_impl(mctx):
         patches = [
             Label("//patches/rules_ruby:reproducible.patch"),
             Label("//patches/rules_ruby:coverage.patch"),
+            Label("//patches/rules_ruby:rubyinstaller_archive.patch"),
         ],
         sha256 = RULES_RUBY_SHA256,
         strip_prefix = "rules_ruby-" + RULES_RUBY_VERSION,

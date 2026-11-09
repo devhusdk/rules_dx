@@ -1738,6 +1738,7 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_ruby_format_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_ruby_format_fail",
@@ -1751,6 +1752,7 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_ruby_format_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_html_template_format_pass",
@@ -2391,6 +2393,7 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_ruby_lint_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_ruby_lint_fail",
@@ -2404,6 +2407,7 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_ruby_lint_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_ruby_lint_standard",

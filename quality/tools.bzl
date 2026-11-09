@@ -2038,10 +2038,9 @@ TOOLS = [
                 classes = ["ruby"],
                 family = "ruby",
                 fix = "supported",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
                 unsupported = {
-                    "windows_arm64": "Ruby portable builds ship no Windows interpreter",
-                    "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
+                    "windows_arm64": "RubyInstaller arm64 Ruby is not pinned or qualified",
                 },
             ),
             row(
@@ -2049,10 +2048,9 @@ TOOLS = [
                 classes = ["ruby"],
                 family = "ruby",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
                 unsupported = {
-                    "windows_arm64": "Ruby portable builds ship no Windows interpreter",
-                    "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
+                    "windows_arm64": "RubyInstaller arm64 Ruby is not pinned or qualified",
                 },
             ),
         ],

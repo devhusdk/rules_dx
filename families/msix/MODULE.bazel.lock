@@ -417,6 +417,8 @@
     "https://bcr.bazel.build/modules/rules_robolectric/4.14.1.2/source.json": "37c10335f2361c337c5c1f34ed36d2da70534c23088062b33a8bdaab68aa9dea",
     "https://bcr.bazel.build/modules/rules_rust/0.75.0/MODULE.bazel": "77452ad75faf65400abc8d0956033d5732c68d39478c9ac064288d3f484f6e34",
     "https://bcr.bazel.build/modules/rules_rust/0.75.0/source.json": "6205a2156646606f99828f217931f4cd5c68f3ada35916dab6601020358bfc63",
+    "https://bcr.bazel.build/modules/rules_rust_prost/0.75.0/MODULE.bazel": "352c97c54b4938acaae4f5be9cf380845d56ce6f062cf161f78059764f7d901a",
+    "https://bcr.bazel.build/modules/rules_rust_prost/0.75.0/source.json": "fdd8bb6bd5fca6d0f672a2438312016e91c8010fdd9c9355a8eec4f503aa5ac5",
     "https://bcr.bazel.build/modules/rules_rust_wasm_bindgen/0.75.0/MODULE.bazel": "2da21af41a035b2c603b2b8fe768d63746df1bae69fadd2d762c0436cd601ac8",
     "https://bcr.bazel.build/modules/rules_rust_wasm_bindgen/0.75.0/source.json": "f0ce711d9162d4fda731e58d2939358d70bc35ac641c9890f998e6852842cec2",
     "https://bcr.bazel.build/modules/rules_scala/7.4.1/MODULE.bazel": "74174791015794a463fb0f1e5b68d281dbb64d0afea01a539b21abe922eab79d",

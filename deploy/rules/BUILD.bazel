@@ -919,7 +919,7 @@ github_config(
         ":github_dup_b",
     ],
     deploy_name = "github_dup",
-    tag = "v0.0.0-dryrun",
+    release_tag = "v0.0.0-dryrun",
     tags = ["manual"],
 )
 
@@ -1014,7 +1014,7 @@ github_deploy(
         ":homebrew_demo_linux",
         ":homebrew_demo_mac",
     ],
-    tag = "v1.2.3",
+    release_tag = "v1.2.3",
 )
 
 homebrew_tap_deploy(

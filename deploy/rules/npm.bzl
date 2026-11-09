@@ -14,10 +14,10 @@ _VALID_PACKAGE_CHARS = _VALID_TAG_CHARS + "@/"
 def npm_tag_error(tag):
     """Validates one npm dist-tag value."""
     if type(tag) != "string" or tag == "":
-        return ("npm_deploy: invalid tag '" + str(tag) +
+        return ("npm_deploy: invalid dist_tag '" + str(tag) +
                 "': want a non-empty tag (for example 'latest')")
     if not only_chars(tag, _VALID_TAG_CHARS):
-        return ("npm_deploy: invalid tag '" + tag +
+        return ("npm_deploy: invalid dist_tag '" + tag +
                 "': want only [A-Za-z0-9._-]")
     return ""
 
@@ -108,7 +108,7 @@ _npm_config = rule(
     },
 )
 
-def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+def npm_deploy(name, package, dist_tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Packs files into a local npm feed with public or restricted access and a provenance policy.
 
     api_compat and api_baseline work as described under "Public API
@@ -117,7 +117,7 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
     pkg_error = npm_package_error(package)
     if pkg_error != "":
         fail(pkg_error + " (in " + native.package_name() + ":" + name + ")")
-    tag_error = npm_tag_error(tag)
+    tag_error = npm_tag_error(dist_tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")
     registry_error = npm_registry_error(registry)
@@ -146,7 +146,7 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         srcs = srcs,
         outs = [tarball, feed],
         tools = [_NPM_PACKER],
-        cmd = "$(location " + str(_NPM_PACKER) + ") " + shell.quote(package) + " " + shell.quote(tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
+        cmd = "$(location " + str(_NPM_PACKER) + ") " + shell.quote(package) + " " + shell.quote(dist_tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
     )
 
     _npm_config(

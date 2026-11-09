@@ -118,13 +118,13 @@ def npm_unit_tests(name):
             expect_equal(
                 "npm_tag_error rejects an empty tag",
                 npm_tag_error(""),
-                "npm_deploy: invalid tag '': want a non-empty tag " +
+                "npm_deploy: invalid dist_tag '': want a non-empty tag " +
                 "(for example 'latest')",
             ),
             expect_equal(
                 "npm_tag_error rejects shell-unsafe tag characters",
                 npm_tag_error("v1.0;evil"),
-                "npm_deploy: invalid tag 'v1.0;evil': want only " +
+                "npm_deploy: invalid dist_tag 'v1.0;evil': want only " +
                 "[A-Za-z0-9._-]",
             ),
             expect_equal(

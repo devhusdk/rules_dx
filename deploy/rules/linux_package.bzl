@@ -144,7 +144,10 @@ def linux_package_deploy(
         description = "",
         install_path = None,
         extra_files = {},
-        tag = "v0.0.0-dryrun",
+        release_tag = "",
+        tag_from_head = False,
+        notes = "commits",
+        notes_file = None,
         build_mode = "release",
         tags = [],
         sbom = None):
@@ -179,7 +182,10 @@ def linux_package_deploy(
     github_deploy(
         name = name,
         artifacts = artifacts,
-        tag = tag,
+        release_tag = release_tag,
+        tag_from_head = tag_from_head,
+        notes = notes,
+        notes_file = notes_file,
         build_mode = build_mode,
         tags = tags,
         sbom = sbom,

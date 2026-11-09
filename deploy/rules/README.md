@@ -121,7 +121,7 @@ npm_deploy(
 
 - `package`: required. The npm package name, `name` or `@scope/name`.
 - `srcs`: files to pack, including `package.json`. Defaults to `[]`.
-- `tag`: the dist-tag. Defaults to `latest`.
+- `dist_tag`: the dist-tag. Defaults to `latest`.
 - `registry`: defaults to `https://registry.npmjs.org`.
 - `access`: `public` or `restricted`. Defaults to `public`. `restricted`
   needs a scoped package.
@@ -490,7 +490,8 @@ github_deploy(
 ```
 
 - `artifacts`: files to attach. An empty list creates a draft with release notes only. Asset names must be unique.
-- `tag`: defaults to `v0.0.0-dryrun`.
+- `release_tag`: defaults to `v0.0.0-dryrun`. `tag_from_head = True` uses the tag that points at HEAD instead.
+- `notes`: `commits` (default) or `none`. `notes_file` is a markdown file used as the release body; it needs `notes = "none"`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `tags`: Bazel tags for the generated targets. Defaults to `[]`.
 - `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility). `go_modules` lists
@@ -570,7 +571,7 @@ linux_package_deploy(
 - `formats`: any of `deb`, `rpm`, `apk`. Defaults to `["deb", "rpm"]`.
 - `version`, `arch` (Go names such as `amd64`, `arm64`), `maintainer`, `description`: package metadata.
 - `extra_files`: more files, mapped to absolute install paths, installed as `0644`.
-- `tag`, `build_mode`, `tags`: as for `github_deploy`.
+- `release_tag`, `tag_from_head`, `notes`, `notes_file`, `build_mode`, `tags`: as for `github_deploy`.
 
 `bazel build //pkg:demo_deb` writes `demo_<version>_<arch>.deb`; each format
 has its own `<name>_<format>` target. `dx deploy //pkg:demo` stages the
@@ -784,7 +785,7 @@ oci_deploy(
   `.tar.gz`, or an OCI layout directory such as a rules_oci `oci_image`,
   holding one image.
 - `platform`: required. `linux/amd64` or `linux/arm64`.
-- `tag`: defaults to `latest`. At most 128 chars, not starting with `.` or `-`.
+- `image_tag`: defaults to `latest`. At most 128 chars, not starting with `.` or `-`.
 - `registry`: defaults to `ghcr.io`.
 - `repository`: lowercase OCI path segments. Defaults to `name`, so a
   mixed-case target needs `repository` set.
@@ -1157,7 +1158,7 @@ These registries have no deploy rule. The release is a git tag, a pull
 request, or an upload, so the last step is manual:
 
 - Go: push the tag `vX.Y.Z`. The module proxy fetches it from the repository.
-  For a GitHub release, set `tag` on `github_deploy` to that tag.
+  For a GitHub release, set `release_tag` on `github_deploy` to that tag.
 - Julia: push the tag, then comment `@JuliaRegistrator register` on the commit.
 - Swift: push a semver tag such as `1.2.0`. SwiftPM reads versions from tags.
 - PHP: run `composer validate`, then push a tag. Packagist reads tags from the

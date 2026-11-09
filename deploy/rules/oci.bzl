@@ -17,16 +17,16 @@ OCI_DEFAULT_REGISTRY = "ghcr.io"
 def oci_tag_error(tag):
     """Validates one image tag value."""
     if type(tag) != "string" or tag == "":
-        return ("oci_deploy: invalid tag '" + str(tag) +
+        return ("oci_deploy: invalid image_tag '" + str(tag) +
                 "': want a non-empty tag (for example 'latest')")
     if not only_chars(tag, _VALID_TAG_CHARS):
-        return ("oci_deploy: invalid tag '" + tag +
+        return ("oci_deploy: invalid image_tag '" + tag +
                 "': want only [A-Za-z0-9._-]")
     if tag[0] in ".-":
-        return ("oci_deploy: invalid tag '" + tag +
+        return ("oci_deploy: invalid image_tag '" + tag +
                 "': want a tag starting with [A-Za-z0-9_]")
     if len(tag) > _OCI_TAG_MAX:
-        return ("oci_deploy: invalid tag '" + tag +
+        return ("oci_deploy: invalid image_tag '" + tag +
                 "': want at most " + str(_OCI_TAG_MAX) + " characters")
     return ""
 
@@ -147,7 +147,7 @@ def _oci_config_impl(ctx):
         "scan": ctx.attr.scan,
         "scan_severity": ctx.attr.scan_severity,
         "size_budget_bytes": ctx.attr.size_budget_bytes,
-        "tag": ctx.attr.tag,
+        "tag": ctx.attr.image_tag,
     }
     if ctx.file.sbom:
         files.append(ctx.file.sbom)
@@ -185,7 +185,7 @@ _oci_config = rule(
             doc = "Image repository path within the registry.",
             mandatory = True,
         ),
-        "tag": attr.string(
+        "image_tag": attr.string(
             doc = "Image tag the deployment publishes.",
             mandatory = True,
         ),
@@ -200,7 +200,7 @@ _oci_config = rule(
     },
 )
 
-def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = "", sbom = None, scan = "fail", scan_severity = "HIGH"):
+def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = "", sbom = None, scan = "fail", scan_severity = "HIGH"):
     """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push. `dx security` scans the same image (output group dx_oci_image of the `<name>_config` target) and prints one row per image."""
     effective_repo = repository if repository != "" else name
     budget_error = size_budget_error(size_budget)
@@ -213,7 +213,7 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
     platform_error = oci_platform_error(platform)
     if platform_error != "":
         fail(platform_error + " (in " + native.package_name() + ":" + name + ")")
-    tag_error = oci_tag_error(tag)
+    tag_error = oci_tag_error(image_tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")
     registry_error = oci_registry_error(registry)
@@ -232,7 +232,7 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
         scan = scan,
         scan_severity = scan_severity,
         size_budget_bytes = size_budget_bytes(size_budget),
-        tag = tag,
+        image_tag = image_tag,
         platform = platform,
         sbom = sbom,
     )

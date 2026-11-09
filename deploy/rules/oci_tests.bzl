@@ -21,13 +21,13 @@ def oci_unit_tests(name):
             expect_equal(
                 "oci_tag_error rejects an empty tag",
                 oci_tag_error(""),
-                "oci_deploy: invalid tag '': want a non-empty tag " +
+                "oci_deploy: invalid image_tag '': want a non-empty tag " +
                 "(for example 'latest')",
             ),
             expect_equal(
                 "oci_tag_error rejects tag characters",
                 oci_tag_error("v1.0;curl evil"),
-                "oci_deploy: invalid tag 'v1.0;curl evil': want " +
+                "oci_deploy: invalid image_tag 'v1.0;curl evil': want " +
                 "only [A-Za-z0-9._-]",
             ),
             expect_equal(
@@ -119,17 +119,17 @@ def oci_unit_tests(name):
             expect_equal(
                 "oci_tag_error rejects leading -",
                 oci_tag_error("-rc1"),
-                "oci_deploy: invalid tag '-rc1': want a tag starting with [A-Za-z0-9_]",
+                "oci_deploy: invalid image_tag '-rc1': want a tag starting with [A-Za-z0-9_]",
             ),
             expect_equal(
                 "oci_tag_error rejects leading .",
                 oci_tag_error(".x"),
-                "oci_deploy: invalid tag '.x': want a tag starting with [A-Za-z0-9_]",
+                "oci_deploy: invalid image_tag '.x': want a tag starting with [A-Za-z0-9_]",
             ),
             expect_equal(
                 "oci_tag_error rejects 129 chars",
                 oci_tag_error("a" * 129),
-                "oci_deploy: invalid tag '" + "a" * 129 + "': want at most 128 characters",
+                "oci_deploy: invalid image_tag '" + "a" * 129 + "': want at most 128 characters",
             ),
             expect_equal(
                 "oci_repository_error accepts a__b",

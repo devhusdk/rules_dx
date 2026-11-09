@@ -21,28 +21,38 @@ def github_unit_tests(name):
             expect_equal(
                 "github_tag_error rejects an empty tag",
                 github_tag_error(""),
-                "github_deploy: invalid tag '': want a non-empty tag " +
+                "github_deploy: invalid release_tag '': want a non-empty tag " +
                 "(for example 'v0.0.0-dryrun')",
             ),
             expect_equal(
                 "github_tag_error rejects shell-unsafe tag characters",
                 github_tag_error("v1.0;curl evil"),
-                "github_deploy: invalid tag 'v1.0;curl evil': want only [A-Za-z0-9._-]",
+                "github_deploy: invalid release_tag 'v1.0;curl evil': want only [A-Za-z0-9._-]",
             ),
             expect_equal(
-                "github_tag_error accepts the current placeholder",
+                "github_tag_error rejects current, which tag_from_head replaces",
                 github_tag_error("current"),
+                "github_deploy: invalid release_tag 'current': use tag_from_head = True",
+            ),
+            expect_equal(
+                "github_notes_error accepts commits",
+                github_notes_error("commits"),
                 "",
             ),
             expect_equal(
-                "github_notes_error accepts a label",
+                "github_notes_error accepts none with a notes_file",
+                github_notes_error("none", "//docs:notes.md"),
+                "",
+            ),
+            expect_equal(
+                "github_notes_error rejects a label",
                 github_notes_error("//docs:notes.md"),
-                "",
+                "github_deploy: invalid notes '//docs:notes.md': want 'commits' or 'none'; use notes_file for a file",
             ),
             expect_equal(
-                "github_notes_error rejects an empty value",
-                github_notes_error(""),
-                "github_deploy: invalid notes '': want 'commits', 'none' or a file label",
+                "github_notes_error rejects commits with a notes_file",
+                github_notes_error("commits", "//docs:notes.md"),
+                "github_deploy: notes_file needs notes = 'none'",
             ),
             expect_equal(
                 "github_asset_collision_error accepts unique asset names",

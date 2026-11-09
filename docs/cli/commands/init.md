@@ -51,6 +51,8 @@ Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json
 
 `--ci` picks the CI files. `github` writes the three `.github/workflows` files, `gitlab` writes one `.gitlab-ci.yml` that includes the GitLab template at the pinned rules_dx commit, and `none` writes no CI file. Without it init keeps the provider of an existing `.gitlab-ci.yml` or `.github/workflows/ci.yml`, then picks `gitlab` when the `origin` remote URL names GitLab, else `github`.
 
+With the GitHub files, `dx init --apply` ends with `next:` lines for the settings they need: require the `dx-ci (aggregate)` check, set the `DX_REMOTE_CACHE` variable and the `BUILDBUDDY_API_KEY` secret, let Actions create and approve pull requests, and set the `DX_UPDATE_APP_ID` and `DX_UPDATE_APP_PRIVATE_KEY` secrets. The lines are fixed text; init makes no network or `gh` calls.
+
 Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini,copilot` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents <tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
 
 | Agent | Hooks file | Hooks |

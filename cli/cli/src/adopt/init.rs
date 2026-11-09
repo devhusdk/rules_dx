@@ -202,6 +202,9 @@ pub(crate) fn execute_init(
             applied.refused.contains(&format!("{}.envrc", target.prefix)),
         ));
     }
+    if result.is_ok() {
+        notes.extend(github_notes(&planned));
+    }
     let code = super::wiring::report(
         invocation,
         &applied,
@@ -237,6 +240,14 @@ fn sync_note(runner: &str, envrc_refused: bool) -> String {
         )
     } else {
         format!("next: run `{runner} sync` to fill .dx/local, then `direnv allow`")
+    }
+}
+
+fn github_notes(planned: &[super::init_files::InitFile]) -> Vec<String> {
+    if planned.iter().any(|file| file.path == ".github/workflows/ci.yml") {
+        dx_adopt::GITHUB_SETTINGS_NOTES.iter().map(|line| (*line).to_owned()).collect()
+    } else {
+        Vec::new()
     }
 }
 
@@ -1123,6 +1134,29 @@ mod tests {
             next_steps("tools/dx", true),
             "next: run `tools/dx generate --apply` to wire your existing code, then `tools/dx build //...`\n"
         );
+    }
+
+    #[test]
+    fn github_settings_notes_only_for_github_workflows() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-github-notes-");
+        let root = scratch.path().to_path_buf();
+        let (code, out, err) = run(&invocation(&["init", "--apply", "--ci=github"]), &root);
+        assert_eq!(code, 0, "{err}");
+        let text = format!("{out}{err}");
+        for needle in [
+            "dx-ci (aggregate)",
+            "DX_REMOTE_CACHE",
+            "BUILDBUDDY_API_KEY",
+            "create and approve pull requests",
+            "DX_UPDATE_APP_ID",
+        ] {
+            assert!(text.contains(needle), "{needle}: {text}");
+        }
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-no-github-notes-");
+        let root = scratch.path().to_path_buf();
+        let (code, out, err) = run(&invocation(&["init", "--apply", "--ci=gitlab"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(!format!("{out}{err}").contains("dx-ci (aggregate)"));
     }
 
     #[test]

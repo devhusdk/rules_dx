@@ -46,6 +46,14 @@ pub const DEVCONTAINER_JSON: &str = concat!(
     "}\n",
 );
 
+pub const GITHUB_SETTINGS_NOTES: [&str; 5] = [
+    "next: in GitHub branch protection, require the check `dx-ci (aggregate)`, not the per-platform jobs",
+    "next: set the Actions variable DX_REMOTE_CACHE to your remote cache URL",
+    "next: set the Actions secret BUILDBUDDY_API_KEY for the remote cache",
+    "next: allow Actions to create and approve pull requests (Settings, Actions, General, Workflow permissions) so dx-update and release can open PRs and auto-merge",
+    "next: set the Actions secrets DX_UPDATE_APP_ID and DX_UPDATE_APP_PRIVATE_KEY so dx-update PRs trigger CI",
+];
+
 pub const ENVRC_CONTENT: &str = concat!(
     "# Puts the managed bin on PATH. Reloads when `dx sync` selects a new setup.\n",
     "PATH_add .dx/local/bin\n",

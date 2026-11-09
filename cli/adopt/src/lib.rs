@@ -65,7 +65,7 @@ pub use preset::{
     preset_paths, write_preset,
 };
 pub use scaffold::{
-    Applied, CONSUMER_WORKFLOW_PIN, CiProvider, FileKind, bazelignore_covers_dx,
+    Applied, CONSUMER_WORKFLOW_PIN, CiProvider, FileKind, GITHUB_SETTINGS_NOTES, bazelignore_covers_dx,
     owned_file_drift, plan_init_files, plan_init_files_at,
     preflight_destinations, refresh_scaffold, render_consumer_caller, render_consumer_module_setup,
     render_gitlab_caller, with_overrides_include,

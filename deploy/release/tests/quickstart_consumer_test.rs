@@ -72,9 +72,15 @@ fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
     run
 }
 
-/// Gives the consumer the patch files its `rules_py_override` names, since patches must live in the root module.
+/// Gives the consumer the patch files named by `rules_py_override` and the lockfile's crate patches, which resolve in the root module.
 fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
-    let dir = source.join("patches/rules_py");
+    for package in ["rules_py", "ring", "gomod-parser"] {
+        copy_patches(source, case, package);
+    }
+}
+
+fn copy_patches(source: &std::path::Path, case: &Case, package: &str) {
+    let dir = source.join("patches").join(package);
     let entries =
         std::fs::read_dir(&dir).unwrap_or_else(|error| panic!("{}: {error}", dir.display()));
     for entry in entries {
@@ -85,12 +91,19 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
         {
             let name = path.file_name().unwrap_or_default();
             write_text(
-                &case.root().join("patches/rules_py").join(name),
+                &case.root().join("patches").join(package).join(name),
                 &read_text(&path),
             );
         }
     }
-    write_text(&case.root().join("patches/rules_py/BUILD.bazel"), "");
+    write_text(
+        &case
+            .root()
+            .join("patches")
+            .join(package)
+            .join("BUILD.bazel"),
+        "exports_files(glob([\"*.patch\"]))\n",
+    );
 }
 
 #[test]

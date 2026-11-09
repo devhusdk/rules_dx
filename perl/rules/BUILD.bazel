@@ -3,8 +3,9 @@ load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
+load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "PERL_QUALITY_TOOLS", "PERL_SOURCE_EXTS", "PERL_SOURCE_SPECS")
+load(":defs.bzl", "PERL_DEFERRED_SKIP_TAGS", "PERL_QUALITY_TOOLS", "PERL_SOURCE_EXTS", "PERL_SOURCE_SPECS")
 load(":platforms.bzl", "PERL_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
@@ -89,6 +90,16 @@ dx_wrapper_contract_tests(
             "no main and no srcs owns nothing",
             dx_entry_quality_srcs(None, None),
             [],
+        ),
+        expect_equal(
+            "perl rules add no-typecheck once",
+            dx_language_kwargs({"tags": ["manual", "no-typecheck"]}, PERL_DEFERRED_SKIP_TAGS)["tags"],
+            ["manual", "no-typecheck"],
+        ),
+        expect_equal(
+            "perl rules add no-typecheck to untagged targets",
+            dx_language_kwargs({}, PERL_DEFERRED_SKIP_TAGS)["tags"],
+            ["no-typecheck"],
         ),
     ],
     file_classes = ["perl"],

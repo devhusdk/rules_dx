@@ -1231,7 +1231,7 @@ fn swift_packages_follow_the_swift_deps_extension() {
 #[test]
 fn cpan_installs_follow_the_rules_perl_extension() {
     let file = parse(
-        "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl/cpan:extensions.bzl\", \"cpan_dev\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n",
+        "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl/cpan:extensions.bzl\", \"cpan\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n",
     );
     let found: Vec<_> = file
         .cpan_installs()

@@ -5,7 +5,6 @@ load(":repos.bzl", "declare")
 _lock = tag_class(
     doc = "One dub.selections.json and its digest sidecar.",
     attrs = {
-        "dev": attr.bool(doc = "Set when the extension is used with dev_dependency = True; the hub is then a dev dependency of the root module."),
         "digests": attr.label(mandatory = True, allow_single_file = [".json"], doc = "dub.digests.json: {\"packages\": {\"name\": {\"version\", \"sha256\"}}}."),
         "name": attr.string(mandatory = True, doc = "The hub repository name."),
         "selections": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The dub.selections.json DUB wrote."),
@@ -19,7 +18,10 @@ def _dub_impl(module_ctx):
         for tag in mod.tags.lock:
             declare(tag.name, module_ctx.read(tag.selections), module_ctx.read(tag.digests))
             if mod.is_root:
-                (root_dev_hubs if tag.dev else root_hubs).append(tag.name)
+                if module_ctx.is_dev_dependency(tag):
+                    root_dev_hubs.append(tag.name)
+                else:
+                    root_hubs.append(tag.name)
     return module_ctx.extension_metadata(
         reproducible = True,
         root_module_direct_deps = root_hubs,

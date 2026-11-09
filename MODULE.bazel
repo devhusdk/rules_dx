@@ -1103,7 +1103,7 @@ single_version_override(
     version = "1.5.0",
 )
 
-cpan = use_extension("//perl/cpan:extensions.bzl", "cpan_dev", dev_dependency = True)
+cpan = use_extension("//perl/cpan:extensions.bzl", "cpan", dev_dependency = True)
 cpan.install(
     name = "perl_app_cpan",
     lock = "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json",
@@ -1226,7 +1226,6 @@ register_toolchains("@dx_php_toolchains//:all")
 composer = use_extension("//php/composer:extensions.bzl", "composer", dev_dependency = True)
 composer.lock(
     name = "php_composer_fixture",
-    dev = True,
     digests = "//php/tests/fixtures/composer:composer.digests.json",
     lock = "//php/tests/fixtures/composer:composer.lock",
 )
@@ -1257,13 +1256,11 @@ register_toolchains("@dx_d_toolchains//:all")
 dub = use_extension("//d/dub:extensions.bzl", "dub", dev_dependency = True)
 dub.lock(
     name = "dub_fixture",
-    dev = True,
     digests = "//d/tests/fixtures/dub:dub.digests.json",
     selections = "//d/tests/fixtures/dub:dub.selections.json",
 )
 dub.lock(
     name = "d_app_dub",
-    dev = True,
     digests = "//d/tests/fixtures/d-app:dub.digests.json",
     selections = "//d/tests/fixtures/d-app:dub.selections.json",
 )

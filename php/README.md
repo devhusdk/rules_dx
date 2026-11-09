@@ -87,7 +87,7 @@ composer.lock(
 use_repo(composer, "vendor")
 ```
 
-Set `dev = True` on the tag when you use the extension with `dev_dependency = True`.
+Use `dev_dependency = True` on `use_extension` when the hub is only for development.
 
 Each package is the label `@vendor//<vendor>/<name>`, for example
 `@vendor//psr/http-factory`; put it in the `deps` of a `php_library`,

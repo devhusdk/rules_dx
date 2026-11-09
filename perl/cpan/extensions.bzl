@@ -1,4 +1,4 @@
-"""Dev-only CPAN hubs for rules_dx's own Perl examples."""
+"""CPAN hubs for rules_dx's own Perl examples."""
 
 load("@rules_perl//perl/cpan/private:carton.bzl", "install")
 
@@ -17,8 +17,9 @@ _install = tag_class(
     },
 )
 
-def _cpan_dev_impl(module_ctx):
-    hubs = []
+def _cpan_impl(module_ctx):
+    direct = []
+    dev = []
     for mod in module_ctx.modules:
         for attrs in mod.tags.install:
             hub = install(
@@ -31,15 +32,18 @@ def _cpan_dev_impl(module_ctx):
                 ),
             )
             if mod.is_root:
-                hubs.append(hub)
+                if module_ctx.is_dev_dependency(attrs):
+                    dev.append(hub)
+                else:
+                    direct.append(hub)
     return module_ctx.extension_metadata(
         reproducible = True,
-        root_module_direct_deps = [],
-        root_module_direct_dev_deps = hubs,
+        root_module_direct_deps = direct,
+        root_module_direct_dev_deps = dev,
     )
 
-cpan_dev = module_extension(
-    doc = "Builds CPAN hubs through rules_perl and reports them as dev dependencies.",
-    implementation = _cpan_dev_impl,
+cpan = module_extension(
+    doc = "Builds CPAN hubs through rules_perl.",
+    implementation = _cpan_impl,
     tag_classes = {"install": _install},
 )

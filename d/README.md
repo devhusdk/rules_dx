@@ -80,7 +80,7 @@ dub.lock(
 use_repo(dub, "dub_packages")
 ```
 
-Set `dev = True` on the tag when you use the extension with `dev_dependency = True`.
+Use `dev_dependency = True` on `use_extension` when the hub is only for development.
 
 Each package is the label `@dub_packages//<name>`, for example
 `@dub_packages//silly`; put it in the `deps` of a `d_library`, `d_binary` or

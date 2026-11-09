@@ -324,6 +324,8 @@ pub struct Invocation {
     pub files: bool,
     /// `build`/`test`/`coverage --timings`: print where build time went.
     pub timings: bool,
+    /// `--no-retry`: do not rerun once without the remote cache after a remote cache error.
+    pub no_retry: bool,
     /// `dx fuzz --budget`: the budget per target; 60s when absent.
     pub budget: Option<String>,
     /// `dx fuzz --jobs`: jobs each fuzz runner may use.
@@ -740,6 +742,7 @@ mod tests {
             capabilities: false,
             files: false,
             timings: false,
+            no_retry: false,
             budget: None,
             jobs: None,
             bench_regression: None,

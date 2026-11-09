@@ -8,12 +8,14 @@
     )
 )]
 
+pub mod cache_errors;
 pub mod failures;
 pub mod ledger;
 pub mod metrics;
 pub mod outputs;
 pub mod test_outputs;
 
+pub use cache_errors::{has_remote_cache_error, stream_remote_cache_error};
 pub use failures::{
     BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef, collect_build_failures,
 };

@@ -5,8 +5,11 @@
 //! "Server terminated abruptly"). The client exits 37. The command never ran,
 //! so running it again is safe. A crash after the command started is never
 //! repeated.
+//!
+//! A `build`, `test` or `coverage` call that fails with a remote cache error
+//! line in Bazel's own output runs once more with the remote cache off.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -59,6 +62,34 @@ pub fn restartable(code: Option<i32>, evidence: Evidence<'_>) -> bool {
             SIGNATURES.iter().any(|sig| text.contains(sig))
         }
     }
+}
+
+/// The Bazel options that turn the remote cache off.
+pub const CACHE_OFF_FLAGS: [&str; 2] = ["--remote_cache=", "--noremote_accept_cached"];
+
+const CACHE_COMMANDS: [&str; 3] = ["build", "test", "coverage"];
+
+/// `argv` with the remote cache turned off, or `None` when it is not a `build`, `test` or `coverage` call.
+pub fn cache_off_argv(argv: &[String]) -> Option<Vec<String>> {
+    if !is_bazel(argv) {
+        return None;
+    }
+    let command = argv
+        .iter()
+        .skip(1)
+        .position(|arg| !arg.starts_with('-'))?
+        + 1;
+    if !CACHE_COMMANDS.contains(&argv[command].as_str()) {
+        return None;
+    }
+    let end = argv[command..]
+        .iter()
+        .position(|arg| arg == "--")
+        .map_or(argv.len(), |at| command + at);
+    let mut off = argv[..end].to_vec();
+    off.extend(CACHE_OFF_FLAGS.map(String::from));
+    off.extend_from_slice(&argv[end..]);
+    Some(off)
 }
 
 fn is_bazel(argv: &[String]) -> bool {
@@ -115,6 +146,8 @@ impl Policy {
 pub struct RestartingRunner<R> {
     inner: R,
     policy: Policy,
+    cache_retry: bool,
+    cache_retries: Cell<u32>,
 }
 
 impl<R: Runner> RestartingRunner<R> {
@@ -122,12 +155,40 @@ impl<R: Runner> RestartingRunner<R> {
         RestartingRunner {
             inner,
             policy: Policy::real(),
+            cache_retry: false,
+            cache_retries: Cell::new(0),
         }
+    }
+
+    /// Turns the retry without the remote cache on or off; it starts off.
+    #[must_use]
+    pub fn with_cache_retry(mut self, on: bool) -> Self {
+        self.cache_retry = on;
+        self
+    }
+
+    /// How many calls ran again without the remote cache.
+    pub fn cache_retries(&self) -> u32 {
+        self.cache_retries.get()
     }
 
     #[cfg(test)]
     fn with_policy(inner: R, policy: Policy) -> Self {
-        RestartingRunner { inner, policy }
+        RestartingRunner {
+            inner,
+            policy,
+            cache_retry: true,
+            cache_retries: Cell::new(0),
+        }
+    }
+
+    fn cache_failed(&self, argv: &[String], cwd: &Path, status: &ChildStatus) -> bool {
+        self.cache_retry
+            && status.code.is_some_and(|code| code != 0)
+            && !(self.policy.stop)()
+            && bep_path_of(argv).is_some_and(|path| {
+                dx_bep::stream_remote_cache_error(&cwd.join(path)).unwrap_or(false)
+            })
     }
 
     fn evidence(argv: &[String], cwd: &Path) -> Evidence<'static> {
@@ -148,30 +209,47 @@ impl<R: Runner> RestartingRunner<R> {
         argv: &[String],
         cwd: &Path,
         withdraw: &dyn Fn() -> bool,
-        call: &dyn Fn() -> io::Result<Option<ChildStatus>>,
+        call: &dyn Fn(&[String]) -> io::Result<Option<ChildStatus>>,
     ) -> io::Result<Option<ChildStatus>> {
         let mut restarts = 0;
+        let mut current = argv.to_vec();
+        let mut cache_off = false;
         loop {
-            let Some(status) = call()? else {
+            let Some(status) = call(&current)? else {
                 return Ok(None);
             };
-            if restarts >= MAX_RESTARTS
-                || !is_bazel(argv)
-                || status.code != Some(RESTART_EXIT)
-                || (self.policy.stop)()
-                || !restartable(status.code, Self::evidence(argv, cwd))
-            {
+            let restart = restarts < MAX_RESTARTS
+                && is_bazel(argv)
+                && status.code == Some(RESTART_EXIT)
+                && !(self.policy.stop)()
+                && restartable(status.code, Self::evidence(argv, cwd));
+            let off = if restart || cache_off || !self.cache_failed(argv, cwd, &status) {
+                None
+            } else {
+                cache_off_argv(argv)
+            };
+            if !restart && off.is_none() {
                 return Ok(Some(status));
             }
             if withdraw() {
                 return Ok(None);
             }
-            restarts += 1;
             if let Some(path) = bep_path_of(argv) {
                 let _ = std::fs::remove_file(cwd.join(path));
             }
-            if !self.policy.pause(RESTART_EXIT, restarts) {
-                return Ok(Some(status));
+            if let Some(off) = off {
+                self.cache_retries.set(self.cache_retries.get() + 1);
+                let _ = writeln!(
+                    self.policy.notice.borrow_mut(),
+                    "dx: notice: bazel reported a remote cache error; running once more without the remote cache"
+                );
+                current = off;
+                cache_off = true;
+            } else {
+                restarts += 1;
+                if !self.policy.pause(RESTART_EXIT, restarts) {
+                    return Ok(Some(status));
+                }
             }
             if withdraw() {
                 return Ok(None);
@@ -182,7 +260,7 @@ impl<R: Runner> RestartingRunner<R> {
 
 impl<R: Runner> Runner for RestartingRunner<R> {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        self.attempts(argv, cwd, &|| false, &|| {
+        self.attempts(argv, cwd, &|| false, &|argv| {
             self.inner.run(argv, cwd, env).map(Some)
         })
         .map(|status| status.unwrap_or_else(|| ChildStatus::exited(RESTART_EXIT)))
@@ -204,7 +282,7 @@ impl<R: Runner> Runner for RestartingRunner<R> {
         env: &[(&str, &str)],
         withdraw: &dyn Fn() -> bool,
     ) -> io::Result<Option<ChildStatus>> {
-        self.attempts(argv, cwd, withdraw, &|| {
+        self.attempts(argv, cwd, withdraw, &|argv| {
             self.inner.run_withdrawable(argv, cwd, env, withdraw)
         })
     }
@@ -220,7 +298,7 @@ impl<R: Runner> Runner for RestartingRunner<R> {
         // Restarted clients may start a new Bazel server that would inherit the
         // handles, so only the first attempt carries them.
         let first = std::cell::Cell::new(true);
-        self.attempts(argv, cwd, withdraw.unwrap_or(&|| false), &|| {
+        self.attempts(argv, cwd, withdraw.unwrap_or(&|| false), &|argv| {
             let carried: &[&std::fs::File] = if first.replace(false) { held } else { &[] };
             self.inner.run_app(argv, cwd, env, withdraw, carried)
         })
@@ -571,6 +649,119 @@ mod tests {
             calls: Cell::new(0),
         };
         RestartingQueryRunner::with_policy(fake, policy(s.stop.clone(), s.out.clone()))
+    }
+
+    fn strs(words: &[&str]) -> Vec<String> {
+        words.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn cache_off_argv_inserts_before_the_end_of_options() {
+        let launcher = dx_process::launcher_argv0();
+        let with = |tail: &[&str]| {
+            let mut argv = vec![launcher.to_owned()];
+            argv.extend(tail.iter().map(ToString::to_string));
+            argv
+        };
+        assert_eq!(
+            cache_off_argv(&with(&["--output_base=/x", "test", "--k", "--", "//a:b"])),
+            Some(with(&[
+                "--output_base=/x",
+                "test",
+                "--k",
+                "--remote_cache=",
+                "--noremote_accept_cached",
+                "--",
+                "//a:b"
+            ]))
+        );
+        assert!(cache_off_argv(&with(&["coverage"])).is_some());
+        assert!(cache_off_argv(&with(&["query", "//..."])).is_none());
+        assert!(cache_off_argv(&with(&["run", "//a:b"])).is_none());
+        assert!(cache_off_argv(&strs(&["git", "build"])).is_none());
+        assert!(cache_off_argv(&with(&[])).is_none());
+    }
+
+    struct Cache {
+        calls: RefCell<Vec<Vec<String>>>,
+        codes: RefCell<VecDeque<i32>>,
+        stderr: &'static str,
+        bep: PathBuf,
+    }
+
+    impl Runner for Cache {
+        fn run(&self, argv: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
+            let fresh = self.calls.borrow().is_empty();
+            self.calls.borrow_mut().push(argv.to_vec());
+            assert!(fresh || !self.bep.exists(), "stale stream");
+            let text = if fresh { self.stderr } else { "" };
+            let event = serde_json::json!({"id": {"progress": {}}, "progress": {"stderr": text}});
+            std::fs::write(&self.bep, format!("{event}\n"))?;
+            let code = self.codes.borrow_mut().pop_front().unwrap_or(0);
+            Ok(ChildStatus::exited(code))
+        }
+    }
+
+    fn cache_runner(s: &Setup, codes: &[i32], stderr: &'static str) -> RestartingRunner<Cache> {
+        let fake = Cache {
+            calls: RefCell::default(),
+            codes: RefCell::new(codes.iter().copied().collect()),
+            stderr,
+            bep: s.dir.path().join("bep.json"),
+        };
+        RestartingRunner::with_policy(fake, policy(s.stop.clone(), s.out.clone()))
+    }
+
+    fn bazel_build() -> Vec<String> {
+        argv(dx_process::launcher_argv0(), true)
+    }
+
+    #[test]
+    fn a_remote_cache_error_runs_once_more_without_the_cache() {
+        let s = setup();
+        let r = cache_runner(&s, &[1, 0], "ERROR: Remote Cache: connection refused\n");
+        let status = r.run(&bazel_build(), s.dir.path(), &[]).unwrap();
+        assert_eq!(status.code, Some(0));
+        let calls = r.inner.calls.borrow();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0], bazel_build());
+        assert!(calls[1].ends_with(&strs(&CACHE_OFF_FLAGS)));
+        assert_eq!(r.cache_retries(), 1);
+        let text = String::from_utf8(s.out.borrow().clone()).unwrap();
+        assert!(text.contains("without the remote cache"), "{text}");
+    }
+
+    #[test]
+    fn the_cache_retry_happens_once() {
+        let s = setup();
+        let r = cache_runner(&s, &[1, 1, 0], "ERROR: Remote Cache: down\n");
+        let status = r.run(&bazel_build(), s.dir.path(), &[]).unwrap();
+        assert_eq!(status.code, Some(1));
+        assert_eq!(r.inner.calls.borrow().len(), 2);
+    }
+
+    #[test]
+    fn no_cache_retry_without_a_cache_error_a_failure_or_the_opt_in() {
+        let s = setup();
+        let r = cache_runner(&s, &[1, 0], "ERROR: Compiling x failed\n");
+        assert_eq!(
+            r.run(&bazel_build(), s.dir.path(), &[]).unwrap().code,
+            Some(1)
+        );
+        assert_eq!(r.inner.calls.borrow().len(), 1);
+        let r = cache_runner(&s, &[0], "ERROR: Remote Cache: down\n");
+        assert_eq!(
+            r.run(&bazel_build(), s.dir.path(), &[]).unwrap().code,
+            Some(0)
+        );
+        assert_eq!(r.inner.calls.borrow().len(), 1);
+        let r = cache_runner(&s, &[1, 0], "ERROR: Remote Cache: down\n").with_cache_retry(false);
+        assert_eq!(
+            r.run(&bazel_build(), s.dir.path(), &[]).unwrap().code,
+            Some(1)
+        );
+        assert_eq!(r.inner.calls.borrow().len(), 1);
+        assert_eq!(r.cache_retries(), 0);
     }
 
     #[test]

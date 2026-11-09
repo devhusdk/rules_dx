@@ -73,7 +73,7 @@ mod worktree;
 use dx_plan::args::{Command, Invocation};
 
 pub use audit::AUDIT_TODAY_ENV;
-pub use common::{ActionTally, Env, print_actions};
+pub use common::{ActionTally, Env, print_actions, print_cache_retries};
 pub use failure::{cancel, install_panic_events, install_panic_hint, set_usage_command, slot_stop};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 pub use update_version::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;

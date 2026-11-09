@@ -1115,6 +1115,19 @@ fn timings_parses_on_build_test_coverage_and_run() {
 }
 
 #[test]
+fn no_retry_parses_on_build_test_coverage_and_check() {
+    for command in ["build", "test", "coverage", "check"] {
+        assert!(
+            parse(&strings(&[command, "--no-retry"]))
+                .expect(command)
+                .no_retry
+        );
+        assert!(!parse(&strings(&[command])).expect(command).no_retry);
+    }
+    assert!(parse(&strings(&["lint", "--no-retry"])).is_err());
+}
+
+#[test]
 fn explain_is_not_a_command_or_a_flag() {
     for words in [
         vec!["explain"],

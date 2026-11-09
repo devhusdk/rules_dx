@@ -411,6 +411,16 @@ pub fn print_actions(output: OutputMode, tally: &ActionTally, err: &mut dyn Writ
     }
 }
 
+/// Prints on stderr in visible text mode that `retries` calls ran again without the remote cache.
+pub fn print_cache_retries(output: OutputMode, retries: u32, err: &mut dyn Write) {
+    if retries > 0 && dx_output::dx_text_visible(&output) {
+        let _ = writeln!(
+            err,
+            "dx: {retries} Bazel call(s) ran again without the remote cache after a remote cache error"
+        );
+    }
+}
+
 fn actions_line(counts: &ActionCounts) -> String {
     let cached = counts.cached();
     format!(

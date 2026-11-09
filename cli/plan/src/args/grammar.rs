@@ -162,6 +162,7 @@ pub(crate) struct Flags {
     pub(crate) capabilities: bool,
     pub(crate) files: bool,
     pub(crate) timings: bool,
+    pub(crate) no_retry: bool,
     pub(crate) budget: Option<String>,
     pub(crate) jobs: Option<u16>,
     pub(crate) max_regression: Option<u32>,
@@ -791,6 +792,14 @@ composite_group! {
 }
 
 flag_group! {
+    /// Do not rerun without the remote cache after a remote cache error.
+    NoRetryFlag, {
+        #[arg(long = "no-retry", overrides_with = "no_retry")]
+        no_retry: bool,
+    }
+}
+
+flag_group! {
     /// Print where build time went.
     TimingsFlag, {
         #[arg(long = "timings", overrides_with = "timings")]
@@ -1053,6 +1062,7 @@ command_args! {
         output: OutputFlag,
         own: BuildModeArgs,
         timings: TimingsFlag,
+        no_retry: NoRetryFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1063,6 +1073,7 @@ command_args! {
         output: OutputFlag,
         own: BuildModeArgs,
         timings: TimingsFlag,
+        no_retry: NoRetryFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1075,6 +1086,7 @@ command_args! {
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
         timings: TimingsFlag,
+        no_retry: NoRetryFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1105,6 +1117,7 @@ command_args! {
         apply: ApplyFlag,
         unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
+        no_retry: NoRetryFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,

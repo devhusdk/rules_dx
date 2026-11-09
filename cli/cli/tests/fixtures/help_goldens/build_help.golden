@@ -1,6 +1,6 @@
 run Bazel build over resolved targets
 
-Usage: dx build [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [scope ...] [-- bazel-options ...]
+Usage: dx build [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -46,6 +46,9 @@ Options:
 
       --timings
           Print where build time went
+
+      --no-retry
+          Do not rerun without the remote cache after a remote cache error
 
       --report <REPORT>
           Write a report file

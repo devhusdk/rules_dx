@@ -14,19 +14,19 @@ dx deploy --apply //app:deploy
 ## `dx build`
 
 ```text
-dx build [--here] [--affected] [--debug|--release] [--timings] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx build [--here] [--affected] [--debug|--release] [--timings] [--no-retry] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## `dx test`
 
 ```text
-dx test [--here] [--affected] [--debug|--release] [--timings] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--affected] [--debug|--release] [--timings] [--no-retry] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--timings] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--timings] [--no-retry] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## Flags
@@ -38,6 +38,7 @@ dx coverage [--here] [--affected] [--timings] [--min-coverage <percent>] [--min-
 | `--debug` | Compile with the `dx_build_debug` build mode (`build`, `test`, `run`, `deploy`). |
 | `--release` | Compile with the `dx_build_release` build mode. No flag uses `dx_build_dev`. |
 | `--timings` | (`build`, `test`, `coverage`, `run`; `run` reports on its build step.) Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions (with Bazel mnemonics when the trace has them), cache hit rate (disk, remote, local), bytes downloaded, Bazel peak heap and CPU time per action mnemonic (from the build event stream, absent for `run`), the ten slowest actions and repository fetch time. The trace is `.dx/local/timings/<run id>.json.gz` (the last five are kept) and the report `.dx/local/timings/report.json`; with `--output=json` the report is the message of a `timings_report` notice. |
+| `--no-retry` | (`build`, `test`, `coverage`, `check`.) Do not run Bazel again without the remote cache after a remote cache error. |
 | `--min-coverage <percent>` | `coverage`: fail below this whole percent (0-100). |
 | `--min-changed-line-coverage <percent>` | `coverage`: fail below this whole percent (0-100) on lines changed since the merge-base. |
 | `--report <format>=<path>` | Write a report. Repeatable. `-` is stdout. |
@@ -47,6 +48,8 @@ dx coverage [--here] [--affected] [--timings] [--min-coverage <percent>] [--min-
 `--debug` and `--release` conflict. Both change compilation only.
 
 When stdout is not a terminal, dx passes Bazel the quiet flags `--noshow_progress`, `--noshow_loading_progress`, `--noshow_timestamps`, `--curses=no`, `--ui_event_filters=-info,-debug` and `--test_summary=none`. `-v` keeps full Bazel output.
+
+When a Bazel `build`, `test` or `coverage` call fails and its own output (not test output) has an `ERROR:` line about the remote cache, dx runs it once more with `--remote_cache= --noremote_accept_cached`. dx prints a notice when it does, and the summary on stderr says how many calls ran again. `--no-retry` turns this off.
 
 ## Scopes
 

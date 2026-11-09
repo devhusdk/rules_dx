@@ -13,7 +13,7 @@ use std::path::Path;
 
 use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
 use dx_cli::exec::common::flush_out;
-use dx_cli::{ActionTally, Env, execute, print_actions};
+use dx_cli::{ActionTally, Env, execute, print_actions, print_cache_retries};
 use dx_output::OutputMode;
 use dx_plan::args::{is_discovery_exempt, json_output_intent, parse_with_ci};
 use dx_plan::plan::{create_run_temp_dir, remove_on_stop};
@@ -375,8 +375,15 @@ fn run() -> i32 {
     }
     dx_plan::plan::remove_stale_run_dirs(&temp_base);
     let reaped = dx_process::groups::reap_orphans();
-    let runner =
-        RestartingRunner::new(dx_process::BinaryRunner::new(inherit_stdout, die_by_signal));
+    let cache_retry = matches!(
+        invocation.command,
+        dx_plan::args::Command::Build
+            | dx_plan::args::Command::Test
+            | dx_plan::args::Command::Coverage
+            | dx_plan::args::Command::Check
+    ) && !invocation.no_retry;
+    let runner = RestartingRunner::new(dx_process::BinaryRunner::new(inherit_stdout, die_by_signal))
+        .with_cache_retry(cache_retry);
     let query_runner = RestartingQueryRunner::new(BinaryQueryRunner {
         runner: dx_process::BinaryRunner::new(inherit_stdout, die_by_signal),
     });
@@ -456,6 +463,7 @@ fn run() -> i32 {
         )
     });
     print_actions(invocation.output, &actions, &mut err);
+    print_cache_retries(invocation.output, runner.cache_retries(), &mut err);
     let temp_display = temp_dir.path().display().to_string();
     if let Err(error) = temp_dir.close() {
         let _ = writeln!(

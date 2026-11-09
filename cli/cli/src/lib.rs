@@ -18,5 +18,5 @@ pub mod startup;
 #[cfg(test)]
 mod test_support;
 
-pub use exec::{ActionTally, Env, execute, print_actions};
+pub use exec::{ActionTally, Env, execute, print_actions, print_cache_retries};
 // LCOV_EXCL_STOP - reason: end re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

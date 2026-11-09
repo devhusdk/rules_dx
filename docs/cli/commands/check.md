@@ -9,7 +9,7 @@ dx check --output json --report sarif=out.sarif //pkg/...
 ## `dx check`
 
 ```text
-dx check [--here] [--affected] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings n] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings n] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `--apply` writes validated fixes, then re-checks read-only.
@@ -17,6 +17,7 @@ Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `-
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Write fixes, then verify with a read-only check. |
+| `--no-retry` | Do not run Bazel again without the remote cache after a remote cache error. |
 | `--here` | Use the current directory tree. |
 | `--affected` | Use the targets your git changes reach, then run the affected tests as a last phase. |
 | `--diff` | Print the edits as a patch. |

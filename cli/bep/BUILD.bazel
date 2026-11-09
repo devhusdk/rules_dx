@@ -12,6 +12,7 @@ exports_files([
 rust_library(
     name = "dx_bep",
     srcs = [
+        "src/cache_errors.rs",
         "src/failures.rs",
         "src/ledger.rs",
         "src/lib.rs",

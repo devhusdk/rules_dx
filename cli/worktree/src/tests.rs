@@ -890,6 +890,45 @@ fn release_of_a_free_slot_with_its_directory_gone_lets_add_reuse_the_slot() {
 }
 
 #[test]
+fn release_of_a_live_holders_slot_whose_directory_is_gone_drops_the_lease() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    std::fs::remove_dir_all(&added.path).expect("remove slot");
+    let released =
+        ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect("release");
+    assert!(released.already_free);
+    assert!(pool.record(added.slot).is_none());
+}
+
+#[test]
+fn open_slot_finds_the_pool_of_a_deleted_slot_directory_without_git() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    std::fs::remove_dir_all(&added.path).expect("remove slot");
+    let found = Pool::open_slot(&added.path).expect("pool found");
+    ops::release(&found, &host, &who("s2", 20), &added.path, true).expect("force release");
+    assert!(pool.record(added.slot).is_none());
+}
+
+#[test]
+fn prune_apply_clears_a_held_lease_whose_directory_is_gone() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    std::fs::remove_dir_all(&added.path).expect("remove slot");
+    ops::prune(&pool, &host, true, false).expect("prune");
+    assert!(pool.record(added.slot).is_none());
+}
+
+#[test]
 fn release_of_a_record_less_slot_keeps_the_holder_check() {
     let fixture = Fixture::new();
     let pool = fixture.pool();

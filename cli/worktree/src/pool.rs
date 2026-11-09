@@ -368,6 +368,28 @@ impl Pool {
         })
     }
 
+    /// The existing pool whose slot directory is `path`, found from its marker instead of git.
+    ///
+    /// This serves a slot whose directory is already gone, where git cannot start in it.
+    pub fn open_slot(path: &Path) -> Option<Pool> {
+        let path = super::host::resolved(path);
+        for base in path.ancestors().skip(1) {
+            let Ok(bytes) = std::fs::read(state::dx_dir(base).join("repo")) else {
+                continue;
+            };
+            let bytes = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
+            let main = marker_main(bytes.strip_suffix(b"\r").unwrap_or(bytes));
+            if main.is_dir() {
+                return Some(Pool {
+                    main,
+                    base: base.to_path_buf(),
+                    lock_wait: POOL_LOCK_WAIT,
+                });
+            }
+        }
+        None
+    }
+
     /// The existing pool for the repository that holds `dir`, without creating one.
     pub(crate) fn find(dir: &Path, cache_base: &Path) -> Option<Pool> {
         Pool::locate(dir, cache_base, false).ok().flatten()
@@ -601,6 +623,16 @@ pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
         current = Some(parent);
     }
     None
+}
+
+#[cfg(unix)]
+fn marker_main(bytes: &[u8]) -> PathBuf {
+    PathBuf::from(<std::ffi::OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(bytes))
+}
+
+#[cfg(not(unix))]
+fn marker_main(bytes: &[u8]) -> PathBuf {
+    PathBuf::from(String::from_utf8_lossy(bytes).into_owned())
 }
 
 #[cfg(unix)]

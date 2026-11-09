@@ -304,7 +304,11 @@ fn release(
 ) -> Result<i32, Failed> {
     let cwd = dx_process::current_directory().unwrap_or_else(|_| workspace.to_path_buf());
     let target = release_target(path, workspace, &cwd);
-    let pool = open_pool(workspace)?;
+    // A slot whose directory is gone cannot start git, so find its pool from the marker.
+    let pool = match (workspace.exists(), Pool::open_slot(&target)) {
+        (false, Some(pool)) => pool,
+        _ => open_pool(workspace)?,
+    };
     ops::claim(&pool, host, who, workspace)?;
     let released = ops::release(&pool, host, who, &target, invocation.force)?;
     release_output(out, invocation, &released)?;

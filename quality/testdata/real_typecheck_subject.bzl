@@ -3,7 +3,7 @@
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load(
-    "//quality:real_aspects.bzl",
+    "//quality/testdata:all_languages.bzl",
     "real_erlang_typecheck_aspect",
     "real_julia_typecheck_aspect",
     "real_lua_typecheck_aspect",

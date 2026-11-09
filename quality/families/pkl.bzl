@@ -1,7 +1,7 @@
 """Pkl real quality aspects."""
 
 load("//quality:family_hooks.bzl", "default_files_hook")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//quality/tools/jvm:jar_lsp_tool.bzl", "PklLspToolInfo")
 
 TOOLS = {
@@ -73,3 +73,17 @@ real_pkl_format_aspect = real_make_aspect(_CFG, "real_pkl_format")
 real_pkl_typecheck_aspect = real_make_aspect(_CFG, "real_pkl_typecheck")
 
 real_pkl_lint_aspect = real_make_aspect(_CFG, "real_pkl_lint")
+
+PklShardProbeInfo = provider(
+    doc = "Shard names the pkl shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_pkl_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "pkl", PklShardProbeInfo)
+
+real_pkl_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "pkl", PklShardProbeInfo)
+
+real_pkl_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "pkl", PklShardProbeInfo)

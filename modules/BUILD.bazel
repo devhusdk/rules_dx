@@ -114,7 +114,7 @@ rust_test(
         "//quality:families/xml.bzl",
         "//quality:families/yaml.bzl",
         "//quality:families/zig.bzl",
-        "//quality:real_aspects.bzl",
+        "//quality/testdata:all_languages.bzl",
         "//quality:real_core.bzl",
     ],
     tags = [

@@ -12,6 +12,7 @@ package(default_visibility = ["//visibility:public"])
 unsupported_value("unsupported")
 
 exports_files([
+    "dart_config.bzl",
     "defs.bzl",
     "platforms.bzl",
     "providers.bzl",

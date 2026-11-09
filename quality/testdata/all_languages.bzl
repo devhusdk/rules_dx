@@ -66,6 +66,8 @@ load("//quality:families/ruby.bzl", _real_ruby_format_probe_aspect = "real_ruby_
 load("//quality:families/rust.bzl", _real_rust_format_probe_aspect = "real_rust_format_probe_aspect", _real_rust_lint_probe_aspect = "real_rust_lint_probe_aspect", _real_rust_typecheck_probe_aspect = "real_rust_typecheck_probe_aspect")
 load("//quality:families/swift.bzl", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect")
 load("//quality:families/zig.bzl", _real_zig_format_probe_aspect = "real_zig_format_probe_aspect", _real_zig_lint_probe_aspect = "real_zig_lint_probe_aspect", _real_zig_typecheck_probe_aspect = "real_zig_typecheck_probe_aspect")
+load("//quality:families/go.bzl", _real_go_format_probe_aspect = "real_go_format_probe_aspect", _real_go_lint_probe_aspect = "real_go_lint_probe_aspect", _real_go_typecheck_probe_aspect = "real_go_typecheck_probe_aspect")
+load("//quality:families/pkl.bzl", _real_pkl_format_probe_aspect = "real_pkl_format_probe_aspect", _real_pkl_lint_probe_aspect = "real_pkl_lint_probe_aspect", _real_pkl_typecheck_probe_aspect = "real_pkl_typecheck_probe_aspect")
 load("//quality:families/core_probe.bzl", _real_core_format_probe_aspect = "real_core_format_probe_aspect", _real_core_lint_probe_aspect = "real_core_lint_probe_aspect", _real_core_typecheck_probe_aspect = "real_core_typecheck_probe_aspect")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "real_request_tool_env")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_upstream_direct_sources", _RealShardProbeInfo = "RealShardProbeInfo", _real_policy_error = "real_policy_error", _real_quality_resource_set = "real_quality_resource_set", _real_shard_result_stems = "real_shard_result_stems", _real_skip_notes = "real_skip_notes", _real_tool_table_error = "real_tool_table_error", _real_unavailable_tools = "real_unavailable_tools", _real_tool_table_shape_error = "real_tool_table_shape_error", _real_wired_capabilities = "real_wired_capabilities", _real_wired_tools = "real_wired_tools")
@@ -523,3 +525,15 @@ real_core_format_probe_aspect = _real_core_format_probe_aspect
 real_core_lint_probe_aspect = _real_core_lint_probe_aspect
 
 real_core_typecheck_probe_aspect = _real_core_typecheck_probe_aspect
+
+real_go_format_probe_aspect = _real_go_format_probe_aspect
+
+real_go_lint_probe_aspect = _real_go_lint_probe_aspect
+
+real_go_typecheck_probe_aspect = _real_go_typecheck_probe_aspect
+
+real_pkl_format_probe_aspect = _real_pkl_format_probe_aspect
+
+real_pkl_lint_probe_aspect = _real_pkl_lint_probe_aspect
+
+real_pkl_typecheck_probe_aspect = _real_pkl_typecheck_probe_aspect

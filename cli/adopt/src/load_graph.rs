@@ -582,6 +582,30 @@ impl LoadGraph<'_> {
     }
 }
 
+/// The external repositories each file reachable from `roots` loads from directly. `roots` are
+/// paths from the workspace root; the result leaves out files that load from no external repository.
+pub fn external_repos(
+    workspace: &Path,
+    roots: &[String],
+) -> Result<BTreeMap<String, BTreeSet<String>>, String> {
+    let mut graph = LoadGraph {
+        workspace,
+        names: module_roots(workspace)?.names,
+        loads: BTreeMap::new(),
+        external: BTreeMap::new(),
+    };
+    for rel in roots {
+        let package = rel.rsplit_once('/').map_or("", |(package, _)| package);
+        graph.add(rel, package)?;
+    }
+    let reachable = graph.closure(roots);
+    Ok(graph
+        .external
+        .into_iter()
+        .filter(|(rel, _)| reachable.contains(rel))
+        .collect())
+}
+
 /// How a changed .bzl file reaches the build.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BzlImpact {

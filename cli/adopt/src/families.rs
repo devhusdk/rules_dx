@@ -179,7 +179,7 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
 }
 
 /// The lowercased extensions, with their dot, of the files under `root`.
-pub(crate) fn file_extensions(root: &Path) -> BTreeSet<String> {
+pub fn file_extensions(root: &Path) -> BTreeSet<String> {
     source_files(root)
         .iter()
         .filter_map(|path| {

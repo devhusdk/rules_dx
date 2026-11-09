@@ -13,15 +13,6 @@ DxNativeConfigInfo = provider(
     },
 )
 
-DxDartConfigInfo = provider(
-    doc = "Dart packages a dart_config pulls in for the analyzer.",
-    fields = {
-        "packages": "depset[DartPackageInfo]: packages of the config deps.",
-        "resources": "depset[File]: non-Dart lib files of those packages.",
-        "srcs": "depset[File]: Dart sources of those packages.",
-    },
-)
-
 CONFIG_REQUIRED_TOOLS = {
     "kubeconform": struct(
         name = "kubeconform",

@@ -1,3 +1,3 @@
-build --aspects=@my_dx//quality:real_aspects.bzl%real_lint_aspect,@my_dx//quality:real_aspects.bzl%real_format_aspect,@my_dx//quality:real_aspects.bzl%real_typst_format_aspect,@my_dx//quality:real_aspects.bzl%real_latex_format_aspect,@my_dx//quality:real_aspects.bzl%real_latex_lint_aspect
+build --aspects=@my_dx//quality:families/core.bzl%real_lint_aspect,@my_dx//quality:families/core.bzl%real_format_aspect,@my_dx//quality:families/typst.bzl%real_typst_format_aspect,@my_dx//quality:families/latex.bzl%real_latex_format_aspect,@my_dx//quality:families/latex.bzl%real_latex_lint_aspect
 build --output_groups=+dx_results
 build --keep_going

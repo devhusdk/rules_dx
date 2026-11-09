@@ -6,7 +6,7 @@ use super::{
     BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP, DOCS_TOOLS_OUTPUT_GROUP,
     KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG, SKIP_OUTPUT_GROUP,
     bazel_argv, bep_guards, bep_options, download_flag, download_guards,
-    registry::{aspects_for, probes_for, spec},
+    registry::{Consumer, aspects_for, probes_for, spec},
     rules_dx_label,
 };
 use crate::args::Command;
@@ -52,7 +52,7 @@ fn shaped_options(
     required
 }
 
-/// The shard name of one real aspect label: `...real_aspects.bzl%real_rust_lint_aspect` is `real_rust_lint`.
+/// The shard name of one real aspect label: `...families/rust.bzl%real_rust_lint_aspect` is `real_rust_lint`.
 fn shard_name(aspect: &str) -> &str {
     let name = aspect.rsplit_once('%').map_or(aspect, |(_, name)| name);
     name.strip_suffix("_aspect").unwrap_or(name)
@@ -165,8 +165,8 @@ pub fn plan_build(
 pub struct Selection<'a> {
     /// The shards the probe named; `None` passes every shard.
     pub shards: Option<&'a BTreeSet<String>>,
-    /// The consumer's `bazel_dep` names; `None` keeps every family's aspects.
-    pub installed_modules: Option<&'a [String]>,
+    /// The consumer's `bazel_dep` names and file extensions; `None` keeps every aspect.
+    pub consumer: Option<Consumer<'a>>,
     /// `--unsafe`: the aspects also compute the fixes tools mark unsafe.
     pub unsafe_fixes: bool,
 }
@@ -180,8 +180,8 @@ pub fn plan_build_with(
     startup_options: &[String],
     selection: Selection,
 ) -> Result<BuildPlan, ForwardError> {
-    let aspects = match selection.installed_modules {
-        Some(modules) => aspects_for(command, modules),
+    let aspects = match selection.consumer {
+        Some(consumer) => aspects_for(command, consumer),
         None => spec(command).aspects.to_vec(),
     };
     let aspects = joined_labels(select_aspects(aspects, selection.shards));
@@ -224,11 +224,11 @@ pub fn plan_probe(
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-    installed_modules: Option<&[String]>,
+    consumer: Option<Consumer>,
 ) -> Result<Option<BuildPlan>, ForwardError> {
-    let probes = match installed_modules {
-        Some(modules) => probes_for(command, modules),
-        None => spec(command).probes.iter().take(1).copied().collect(),
+    let probes = match consumer {
+        Some(consumer) => probes_for(command, consumer),
+        None => spec(command).probes.to_vec(),
     };
     if probes.is_empty() {
         return Ok(None);
@@ -624,7 +624,7 @@ mod tests {
                 .zip(&probe.argv)
                 .filter(|(left, right)| left != right)
                 .collect();
-            let probe_label = rules_dx_label(spec(command).probes[0]);
+            let probe_labels = joined_labels(spec(command).probes.iter().copied());
             assert_eq!(
                 differing,
                 vec![
@@ -633,7 +633,7 @@ mod tests {
                             "--aspects={}",
                             joined_labels(spec(command).aspects.iter().copied())
                         ),
-                        &format!("--aspects={probe_label}")
+                        &format!("--aspects={probe_labels}")
                     ),
                     (
                         &"--output_groups=dx_results,dx_skips".to_owned(),
@@ -665,13 +665,17 @@ mod tests {
     fn probe_with_installed_modules_passes_core_and_installed_family_probes() {
         let scope = resolved(&["//pkg:lib"]);
         let installed = strings(&["rules_dx_python"]);
+        let extensions = strings(&[".py", ".go"]).into_iter().collect();
         let plan = plan_probe(
             Command::Lint,
             &scope,
             &[],
             "/tmp/p.json",
             &[],
-            Some(&installed),
+            Some(Consumer {
+                modules: &installed,
+                extensions: &extensions,
+            }),
         )
         .expect("plan")
         .expect("probe");
@@ -682,6 +686,7 @@ mod tests {
             .expect("aspects");
         assert!(aspects.contains("core_probe.bzl%real_core_lint_probe_aspect"));
         assert!(aspects.contains("python.bzl%real_python_lint_probe_aspect"));
+        assert!(aspects.contains("go.bzl%real_go_lint_probe_aspect"));
         assert!(!aspects.contains("beam.bzl"));
     }
 
@@ -689,13 +694,17 @@ mod tests {
     fn probe_with_the_rust_module_installed_passes_the_rust_probe() {
         let scope = resolved(&["//pkg:lib"]);
         let installed = strings(&["rules_dx_rust"]);
+        let extensions = strings(&[".rs"]).into_iter().collect();
         let plan = plan_probe(
             Command::Lint,
             &scope,
             &[],
             "/tmp/p.json",
             &[],
-            Some(&installed),
+            Some(Consumer {
+                modules: &installed,
+                extensions: &extensions,
+            }),
         )
         .expect("plan")
         .expect("probe");
@@ -706,6 +715,7 @@ mod tests {
             .expect("aspects");
         assert!(aspects.contains("rust.bzl%real_rust_lint_probe_aspect"));
         assert!(!aspects.contains("python.bzl"));
+        assert!(!aspects.contains("go.bzl"));
     }
 
     #[test]
@@ -719,19 +729,19 @@ mod tests {
         assert_eq!(
             select_aspects(lint.aspects.to_vec(), Some(&rust)),
             vec![
-                "quality:real_aspects.bzl%real_lint_aspect",
+                "quality:families/core.bzl%real_lint_aspect",
                 "quality:families/rust.bzl%real_rust_lint_aspect",
             ]
         );
         let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
         assert_eq!(
             select_aspects(lint.aspects.to_vec(), Some(&unknown)),
-            vec!["quality:real_aspects.bzl%real_lint_aspect"]
+            vec!["quality:families/core.bzl%real_lint_aspect"]
         );
         let format = spec(Command::Format);
         assert_eq!(
             select_aspects(format.aspects.to_vec(), Some(&BTreeSet::new())),
-            vec!["quality:real_aspects.bzl%real_format_aspect"]
+            vec!["quality:families/core.bzl%real_format_aspect"]
         );
     }
 
@@ -768,13 +778,13 @@ mod tests {
             &[],
             Selection {
                 shards: Some(&rust),
-                installed_modules: None,
+                consumer: None,
                 unsafe_fixes: false,
             },
         )
         .expect("plan");
         assert!(plan.argv.contains(
-            &"--aspects=@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:families/rust.bzl%real_rust_lint_aspect".to_owned()
+            &"--aspects=@rules_dx//quality:families/core.bzl%real_lint_aspect,@rules_dx//quality:families/rust.bzl%real_rust_lint_aspect".to_owned()
         ));
     }
 
@@ -872,7 +882,7 @@ mod tests {
                 "--jobs=4",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_make_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_cmake_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_terraform_lint_aspect,@rules_dx//quality:families/dotnet.bzl%real_dotnet_lint_aspect,@rules_dx//quality:families/generation.bzl%real_capnp_lint_aspect,@rules_dx//quality:families/generation.bzl%real_flatbuffers_lint_aspect,@rules_dx//quality:families/generation.bzl%real_thrift_lint_aspect,@rules_dx//quality:families/generation.bzl%real_avro_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_go_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:families/js.bzl%real_js_lint_aspect,@rules_dx//quality:families/python.bzl%real_python_lint_aspect,@rules_dx//quality:families/generation.bzl%real_protobuf_lint_aspect,@rules_dx//quality:families/powershell.bzl%real_powershell_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_jvm_lint_aspect,@rules_dx//quality:families/ruby.bzl%real_ruby_lint_aspect,@rules_dx//quality:families/rust.bzl%real_rust_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_nix_lint_aspect,@rules_dx//quality:families/lua.bzl%real_lua_lint_aspect,@rules_dx//quality:families/ocaml.bzl%real_ocaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_kubernetes_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ansible_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_cloudformation_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_bicep_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_sql_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rego_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jsonnet_lint_aspect,@rules_dx//quality:families/fortran.bzl%real_fortran_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_typst_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_xml_lint_aspect,@rules_dx//quality:families/haskell.bzl%real_haskell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_latex_lint_aspect,@rules_dx//quality:families/beam.bzl%real_erlang_lint_aspect,@rules_dx//quality:families/beam.bzl%real_elixir_lint_aspect,@rules_dx//quality:families/php.bzl%real_php_lint_aspect,@rules_dx//quality:families/dart.bzl%real_dart_lint_aspect,@rules_dx//quality:families/d.bzl%real_d_lint_aspect,@rules_dx//quality:families/perl.bzl%real_perl_lint_aspect,@rules_dx//quality:families/swift.bzl%real_swift_lint_aspect,@rules_dx//quality:families/zig.bzl%real_zig_lint_aspect,@rules_dx//quality:families/julia.bzl%real_julia_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_pkl_lint_aspect",
+                "--aspects=@rules_dx//quality:families/cc.bzl%real_cc_lint_aspect,@rules_dx//quality:families/dockerfile.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:families/make.bzl%real_make_lint_aspect,@rules_dx//quality:families/cmake.bzl%real_cmake_lint_aspect,@rules_dx//quality:families/terraform.bzl%real_terraform_lint_aspect,@rules_dx//quality:families/dotnet.bzl%real_dotnet_lint_aspect,@rules_dx//quality:families/generation.bzl%real_capnp_lint_aspect,@rules_dx//quality:families/generation.bzl%real_flatbuffers_lint_aspect,@rules_dx//quality:families/generation.bzl%real_thrift_lint_aspect,@rules_dx//quality:families/generation.bzl%real_avro_lint_aspect,@rules_dx//quality:families/go.bzl%real_go_lint_aspect,@rules_dx//quality:families/core.bzl%real_lint_aspect,@rules_dx//quality:families/js.bzl%real_js_lint_aspect,@rules_dx//quality:families/python.bzl%real_python_lint_aspect,@rules_dx//quality:families/generation.bzl%real_protobuf_lint_aspect,@rules_dx//quality:families/powershell.bzl%real_powershell_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_jvm_lint_aspect,@rules_dx//quality:families/ruby.bzl%real_ruby_lint_aspect,@rules_dx//quality:families/rust.bzl%real_rust_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_scala_lint_aspect,@rules_dx//quality:families/shell.bzl%real_shell_lint_aspect,@rules_dx//quality:families/text.bzl%real_text_lint_aspect,@rules_dx//quality:families/html_template.bzl%real_html_template_lint_aspect,@rules_dx//quality:families/yaml.bzl%real_yaml_lint_aspect,@rules_dx//quality:families/nix.bzl%real_nix_lint_aspect,@rules_dx//quality:families/lua.bzl%real_lua_lint_aspect,@rules_dx//quality:families/ocaml.bzl%real_ocaml_lint_aspect,@rules_dx//quality:families/kubernetes.bzl%real_kubernetes_lint_aspect,@rules_dx//quality:families/ansible.bzl%real_ansible_lint_aspect,@rules_dx//quality:families/cloudformation.bzl%real_cloudformation_lint_aspect,@rules_dx//quality:families/bicep.bzl%real_bicep_lint_aspect,@rules_dx//quality:families/sql.bzl%real_sql_lint_aspect,@rules_dx//quality:families/rego.bzl%real_rego_lint_aspect,@rules_dx//quality:families/jsonnet.bzl%real_jsonnet_lint_aspect,@rules_dx//quality:families/fortran.bzl%real_fortran_lint_aspect,@rules_dx//quality:families/typst.bzl%real_typst_lint_aspect,@rules_dx//quality:families/xml.bzl%real_xml_lint_aspect,@rules_dx//quality:families/haskell.bzl%real_haskell_lint_aspect,@rules_dx//quality:families/latex.bzl%real_latex_lint_aspect,@rules_dx//quality:families/beam.bzl%real_erlang_lint_aspect,@rules_dx//quality:families/beam.bzl%real_elixir_lint_aspect,@rules_dx//quality:families/php.bzl%real_php_lint_aspect,@rules_dx//quality:families/dart.bzl%real_dart_lint_aspect,@rules_dx//quality:families/d.bzl%real_d_lint_aspect,@rules_dx//quality:families/perl.bzl%real_perl_lint_aspect,@rules_dx//quality:families/swift.bzl%real_swift_lint_aspect,@rules_dx//quality:families/zig.bzl%real_zig_lint_aspect,@rules_dx//quality:families/julia.bzl%real_julia_lint_aspect,@rules_dx//quality:families/pkl.bzl%real_pkl_lint_aspect",
                 "--output_groups=dx_results,dx_skips",
                 "--remote_download_outputs=toplevel",
             ]
@@ -993,7 +1003,7 @@ mod tests {
         .expect("plan");
         assert!(
             plan.argv.iter().any(|arg| arg
-                .contains("@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect")
+                .contains("@rules_dx//quality:families/core.bzl%real_typecheck_aspect")
                 && arg.contains("@rules_dx//quality:families/rust.bzl%real_rust_typecheck_aspect")
                 && arg.contains(
                     "@rules_dx//quality:families/dotnet.bzl%real_dotnet_typecheck_aspect"
@@ -1054,7 +1064,7 @@ mod tests {
         let plan = plan_docs(&resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert!(
-            argv.contains(&"--aspects=@rules_dx//quality:real_aspects.bzl%real_docs_aspect"),
+            argv.contains(&"--aspects=@rules_dx//tools/docs:aspect.bzl%real_docs_aspect"),
             "{argv:?}"
         );
         assert!(

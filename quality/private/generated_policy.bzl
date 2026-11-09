@@ -51,7 +51,7 @@ def dx_generated_policy(name, tier, families = None, defaults = True, disabled =
         fail("dx_generated_policy (%s): defaults = False needs families" % name)
     if not defaults and disabled:
         fail("dx_generated_policy (%s): disabled needs defaults = True" % name)
-    extends = Label("//quality:default_workspace_policy") if defaults else None
+    extends = Label("//config:default_workspace_policy") if defaults else None
     family_labels = []
     if families != None:
         error = generated_families_error(name, families)

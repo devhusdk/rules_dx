@@ -38,7 +38,17 @@ fn probed_shards_narrow_the_build_aspects() {
         vec!["real_lint_aspect", "real_rust_lint_aspect"]
     );
     let probe = &harness.probe_argv.borrow()[0];
-    assert_eq!(aspects_of(probe), vec!["real_lint_probe_aspect"]);
+    let expected: Vec<String> = dx_plan::plan::spec(dx_plan::args::Command::Lint)
+        .probes
+        .iter()
+        .map(|label| {
+            label
+                .rsplit_once('%')
+                .map_or(*label, |(_, name)| name)
+                .to_owned()
+        })
+        .collect();
+    assert_eq!(aspects_of(probe), expected);
     let bep = probe
         .iter()
         .find_map(|arg| arg.strip_prefix("--build_event_json_file="))

@@ -4,7 +4,7 @@ load("//quality/private:native_config_impl.bzl", "CONFIG_REQUIRED_TOOLS", "tier_
 load(":curated_defaults.bzl", "CURATED_DEFAULTS")
 load(":policy.bzl", "CAPABILITIES", "quality_family", "workspace_policy")
 
-visibility(["//quality/..."])
+visibility(["//config/...", "//quality/..."])
 
 def _tier_bases(profile):
     dirs = tier_base_dirs()

@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//quality:clang_syntax.bzl", "clang_syntax_aspect")
 load(
-    "//quality:real_aspects.bzl",
+    "//quality/testdata:all_languages.bzl",
     "real_cc_format_aspect",
     "real_cc_lint_aspect",
     "real_cc_typecheck_aspect",
@@ -365,7 +365,7 @@ _tier_base_default_test = analysistest.make(
     attrs = _TIER_BASE_ATTRS,
     config_settings = {
         str(Label("//config:config_profile")): "standard",
-        str(Label("//config:workspace")): str(Label("//quality:default_workspace_policy")),
+        str(Label("//config:workspace")): str(Label("//config:default_workspace_policy")),
     },
     extra_target_under_test_aspects = _PYTHON_ASPECTS,
 )
@@ -375,7 +375,7 @@ _tier_base_default_strict_test = analysistest.make(
     attrs = _TIER_BASE_ATTRS,
     config_settings = {
         str(Label("//config:config_profile")): "strict",
-        str(Label("//config:workspace")): str(Label("//quality:default_workspace_policy")),
+        str(Label("//config:workspace")): str(Label("//config:default_workspace_policy")),
     },
     extra_target_under_test_aspects = _PYTHON_ASPECTS,
 )

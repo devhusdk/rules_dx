@@ -3,7 +3,7 @@
 load("@rules_go//go:def.bzl", "GoArchive")
 load("//quality:family_hooks.bzl", "without")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "errcheck": {
@@ -111,3 +111,17 @@ real_go_format_aspect = real_make_aspect(_CFG, "real_go_format")
 real_go_lint_aspect = real_make_aspect(_CFG, "real_go_lint")
 
 real_go_typecheck_aspect = real_make_aspect(_CFG, "real_go_typecheck")
+
+GoShardProbeInfo = provider(
+    doc = "Shard names the go shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_go_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "go", GoShardProbeInfo)
+
+real_go_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "go", GoShardProbeInfo)
+
+real_go_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "go", GoShardProbeInfo)

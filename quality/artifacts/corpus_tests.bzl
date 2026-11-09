@@ -1,7 +1,7 @@
 """Coverage proofs for the owned generated metadata corpus."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect")
+load("//quality/testdata:all_languages.bzl", "real_format_aspect", "real_lint_aspect")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 def _corpus_coverage_impl(ctx):

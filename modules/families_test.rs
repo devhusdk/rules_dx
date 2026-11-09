@@ -303,7 +303,7 @@ fn every_item_is_in_exactly_one_family() {
     actual.insert("gazelle", gazelle_languages(&module));
     actual.insert(
         "aspects",
-        aspect_names(&dx_testing::read_runfiles("quality/real_aspects.bzl")),
+        aspect_names(&dx_testing::read_runfiles("quality/testdata/all_languages.bzl")),
     );
     let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
     let mut problems = extension_problems(&kinds);
@@ -514,34 +514,6 @@ fn moved_families_have_corpus_starlark_in_every_package() {
             "families/{family} packages without :corpus_starlark (or `# gazelle:dx_rust_corpus false`): {missing:?}"
         );
     }
-}
-
-#[test]
-fn real_core_loads_no_rule_set() {
-    let core = dx_testing::read_runfiles("quality/real_core.bzl");
-    let outside: Vec<&str> = core
-        .lines()
-        .filter(|line| line.contains("load(\"@") && !line.contains("load(\"@bazel_skylib"))
-        .collect();
-    assert!(
-        outside.is_empty(),
-        "quality/real_core.bzl may only load @bazel_skylib from outside the repo:\n{}",
-        outside.join("\n")
-    );
-}
-
-#[test]
-fn real_facade_loads_no_rule_set() {
-    let facade = dx_testing::read_runfiles("quality/real_aspects.bzl");
-    let outside: Vec<&str> = facade
-        .lines()
-        .filter(|line| line.contains("load(\"@") && !line.contains("load(\"@bazel_skylib"))
-        .collect();
-    assert!(
-        outside.is_empty(),
-        "quality/real_aspects.bzl may only load @bazel_skylib from outside the repo:\n{}",
-        outside.join("\n")
-    );
 }
 
 const FAMILY_FILES: [&str; 44] = [

@@ -7,9 +7,9 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_c
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":go_analysis.bzl", "go_lang_version")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "real_ocaml_lint_aspect")
+load("//quality/testdata:all_languages.bzl", "real_ocaml_lint_aspect")
 load(":unavailable_tool.bzl", "DxUnavailableToolInfo")
-load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "real_haskell_lint_aspect", "real_rust_typecheck_aspect", "real_skip_notes", "real_unavailable_tools", "real_typecheck_aspect", "rustc_diagnostics_group")
+load("//quality/testdata:all_languages.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "real_haskell_lint_aspect", "real_rust_typecheck_aspect", "real_skip_notes", "real_unavailable_tools", "real_typecheck_aspect", "rustc_diagnostics_group")
 
 def _f(path, is_source = True, extension = "rs", repo_name = ""):
     return struct(path = path, is_source = is_source, extension = extension, owner = struct(repo_name = repo_name))

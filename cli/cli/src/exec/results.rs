@@ -854,7 +854,7 @@ mod tests {
         assert!(message.contains("invalid BEP config"));
     }
 
-    const ASPECT: &str = "//quality:real_aspects.bzl%real_lint_aspect";
+    const ASPECT: &str = "//quality:families/core.bzl%real_lint_aspect";
 
     fn completion_id(label: &str) -> serde_json::Value {
         serde_json::json!({"targetCompleted": {
@@ -925,7 +925,7 @@ mod tests {
         assert_eq!(
             collected.problem_detail().as_deref(),
             Some(
-                "targetCompleted for //a:two (//quality:real_aspects.bzl%real_lint_aspect) \
+                "targetCompleted for //a:two (//quality:families/core.bzl%real_lint_aspect) \
                  was announced but never reported"
             )
         );

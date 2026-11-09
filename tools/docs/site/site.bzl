@@ -1,7 +1,7 @@
 """Docs site rules that render DocIr shards and prose with mdBook."""
 
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("//quality:real_aspects.bzl", "real_docs_aspect")
+load("//tools/docs:aspect.bzl", "real_docs_aspect")
 load(":render.bzl", "DocsApiInfo", "mdbook_site", "mdbook_text")
 
 def site_symbol_id(language, package, qualified):

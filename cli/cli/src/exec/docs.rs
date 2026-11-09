@@ -474,7 +474,7 @@ mod tests {
         let argv = harness.build_argv.borrow()[0].clone();
         assert!(
             argv.contains(
-                &"--aspects=@rules_dx//quality:real_aspects.bzl%real_docs_aspect".to_owned()
+                &"--aspects=@rules_dx//tools/docs:aspect.bzl%real_docs_aspect".to_owned()
             ),
             "{argv:?}"
         );

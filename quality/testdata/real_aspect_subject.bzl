@@ -3,7 +3,7 @@
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load(
-    "//quality:real_aspects.bzl",
+    "//quality/testdata:all_languages.bzl",
     "RealShardProbeInfo",
     "real_ansible_lint_aspect",
     "real_avro_lint_aspect",

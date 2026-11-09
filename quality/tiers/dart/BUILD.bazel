@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//quality:native_config.bzl", "dart_config")
+load("//dart/rules:defs.bzl", "dart_config")
 
 exports_files(
     glob(

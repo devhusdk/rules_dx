@@ -10,7 +10,6 @@ load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
 load(":fsc_tests.bzl", "fsc_unit_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
-load(":default_policy.bzl", "default_workspace_policy")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
@@ -49,7 +48,6 @@ exports_files([
     "native_config.bzl",
     "pipeline.bzl",
     "policy.bzl",
-    "real_aspects.bzl",
     "real_core.bzl",
     "registry.bzl",
     "roslyn_status.bat",
@@ -115,8 +113,6 @@ workspace_policy(
     disabled = ["rust"],
     extends = ":fixture_policy",
 )
-
-default_workspace_policy(name = "default_workspace_policy")
 
 policy_subject(
     name = "policy_under_test",
@@ -238,7 +234,7 @@ consumer_policy_tests(
                 "greet-real-lint-d.pb",
                 "greet-real-lint-text.pb",
             ],
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "//d/tests/fixtures/hello:greet",
         },
         {
@@ -248,7 +244,7 @@ consumer_policy_tests(
                 "calc-real-lint-fortran.pb",
                 "calc-real-lint-text.pb",
             ],
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "@rules_dx_fortran//fortran/tests/fixtures/calc:calc",
         },
         {
@@ -259,7 +255,7 @@ consumer_policy_tests(
                 "inventory_cli-real-lint-text.pb",
                 "inventory_cli-real-typecheck-dart.pb",
             ],
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "@rules_dx_dart//dart/tests/fixtures/dart-app/cli:inventory_cli",
         },
         {
@@ -269,7 +265,7 @@ consumer_policy_tests(
                 "clean-real-lint-ocaml.pb",
                 "clean-real-lint-text.pb",
             ],
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "//quality/testdata/ocaml_owned:clean",
         },
         {
@@ -279,7 +275,7 @@ consumer_policy_tests(
                 "hello-real-lint-powershell.pb",
                 "hello-real-lint-text.pb",
             ],
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "@rules_dx_powershell//tests/fixtures/hello:hello",
         },
         {
@@ -292,7 +288,7 @@ consumer_policy_tests(
                 ],
                 "//conditions:default": ["greet-real-lint-text.pb"],
             }),
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "//swift/tests/fixtures/hello:greet",
         },
         {
@@ -302,7 +298,7 @@ consumer_policy_tests(
                 "cli-real-lint-haskell.pb",
                 "cli-real-lint-text.pb",
             ],
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "//haskell/tests/fixtures/haskell-app/cli:cli",
         },
         {
@@ -311,7 +307,7 @@ consumer_policy_tests(
                 "clean_nix-real-lint-nix.pb",
                 "clean_nix-real-lint-text.pb",
             ],
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_nix",
         },
         {
@@ -321,7 +317,7 @@ consumer_policy_tests(
                 "greet-real-lint-text.pb",
                 "greet-real-lint-zig.pb",
             ],
-            "policy": "//quality:default_workspace_policy",
+            "policy": "//config:default_workspace_policy",
             "subject": "@rules_dx_zig//zig/tests/fixtures/hello:greet",
         },
         {
@@ -765,7 +761,6 @@ real_source_target(
         "policy.bzl",
         "policy_subject.bzl",
         "policy_tests.bzl",
-        "real_aspects.bzl",
         "real_core.bzl",
         "real_pipeline_tests.bzl",
         "registry.bzl",
@@ -880,6 +875,20 @@ rust_test(
     ],
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "core_load_graph_test",
+    srcs = ["core_load_graph_test.rs"],
+    data = ["//:MODULE.bazel"],
+    tags = [
+        "external",
+        "no-remote-exec",
+    ],
+    deps = [
+        "//cli/adopt:dx_adopt",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(

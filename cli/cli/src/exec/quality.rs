@@ -18,7 +18,7 @@ use dx_output::{
 };
 use dx_plan::args::{BREAKING_AGAINST_OPTION, Command, Invocation, QualityRequest};
 use dx_plan::plan::{
-    SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Selection, bep_path, plan_build_with, plan_probe,
+    SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Consumer, Selection, bep_path, plan_build_with, plan_probe,
 };
 use dx_plan::reports::{Destination, plan_reports};
 use dx_plan::resolve::{path_filter, resolve};
@@ -229,7 +229,7 @@ fn probe_shards(
     nonce: u64,
     actions: &ActionTally,
     probe_counts: &mut Option<ActionCounts>,
-    installed_modules: Option<&[String]>,
+    consumer: Option<Consumer>,
 ) -> Result<Option<BTreeSet<String>>, ProbeStop> {
     let bep = temp_dir.join(format!("dx-bep-{pid}-{nonce}-probe.json"));
     let Some(bep_text) = bep.to_str() else {
@@ -241,7 +241,7 @@ fn probe_shards(
         &request.bazel_options,
         bep_text,
         &request.bazel_startup_options,
-        installed_modules,
+        consumer,
     ) {
         Ok(Some(plan)) => plan,
         Ok(None) | Err(_) => return Ok(None),
@@ -398,6 +398,16 @@ fn run_quality_request(
     // in both cases every family's aspects stay.
     let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
     let installed = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace)).then_some(deps);
+    let extensions = installed
+        .as_ref()
+        .map(|_| dx_adopt::file_extensions(workspace));
+    let consumer = installed
+        .as_deref()
+        .zip(extensions.as_ref())
+        .map(|(modules, extensions)| Consumer {
+            modules,
+            extensions,
+        });
     let mut build = match plan_build_with(
         request.command,
         &resolved,
@@ -406,7 +416,7 @@ fn run_quality_request(
         &request.bazel_startup_options,
         Selection {
             shards: None,
-            installed_modules: installed.as_deref(),
+            consumer,
             unsafe_fixes: request.unsafe_fixes,
         },
     )
@@ -446,7 +456,7 @@ fn run_quality_request(
         nonce,
         actions,
         &mut probe_counts,
-        installed.as_deref(),
+        consumer,
     ) {
         Ok(Some(shards)) => {
             if let Ok(narrowed) = plan_build_with(
@@ -457,7 +467,7 @@ fn run_quality_request(
                 &request.bazel_startup_options,
                 Selection {
                     shards: Some(&shards),
-                    installed_modules: installed.as_deref(),
+                    consumer,
                     unsafe_fixes: request.unsafe_fixes,
                 },
             ) {

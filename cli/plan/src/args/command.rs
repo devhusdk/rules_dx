@@ -592,7 +592,7 @@ mod tests {
         let json: Vec<Command> = all
             .iter()
             .copied()
-            .filter(|c| !matches!(c, Command::Deploy | Command::Completion | Command::Fuzz))
+            .filter(|c| !matches!(c, Command::Deploy | Command::Completion))
             .collect();
         assert_eq!(set(Command::supports_json), json);
         let in_order = |names: &[Command]| -> Vec<Command> {

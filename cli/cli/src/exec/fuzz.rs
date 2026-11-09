@@ -1,15 +1,19 @@
 //! `dx fuzz`: runs dx-fuzz targets for a time budget and keeps their crashes.
 
+use std::io::Write;
 use std::path::Path;
 
 use super::common::*;
+use dx_output::{FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_value};
 use dx_plan::args::grammar::fuzz_seconds;
 use dx_plan::args::{BuildMode, Invocation};
 use dx_plan::plan::{plan_run, shell_join};
-use dx_plan::resolve::{exclude, resolve, run_label_query_file};
+use dx_plan::resolve::{QueryRunner, exclude, resolve, run_label_query_file};
+use dx_process::Runner;
 
 const DEFAULT_SECONDS: u64 = 60;
 const CRASH_EXIT: i32 = 77;
+const CODE_FUZZ_CRASH: &str = "fuzz_crash";
 
 fn runner_label(label: &str) -> String {
     format!("{label}_run")
@@ -48,6 +52,39 @@ pub(crate) fn execute_fuzz(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ..
     } = env;
+    let json = invocation.output == OutputMode::Json;
+    if json && let Err(exit) = emit_started(invocation, out) {
+        return exit;
+    }
+    let code = fuzz_targets(invocation, workspace, runner, query_runner, out, err);
+    if json && let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
+    {
+        return exit;
+    }
+    code
+}
+
+fn crash_event(label: &str, runner: &str, crash: &str, repro: &[String]) -> serde_json::Value {
+    let notice = NoticeEvent::warning(
+        CODE_FUZZ_CRASH,
+        format!("{label} crashed; reproduce with: {}", shell_join(repro)),
+    );
+    let mut event = notice_value(&notice);
+    event["target"] = label.into();
+    event["runner"] = runner.into();
+    event["crash_path"] = crash.into();
+    event["repro"] = repro.into();
+    event
+}
+
+fn fuzz_targets(
+    invocation: &Invocation,
+    workspace: &Path,
+    runner: &dyn Runner,
+    query_runner: &dyn QueryRunner,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
     let startup = &invocation.bazel_startup_options;
     let seconds = invocation.time.as_deref().map_or(DEFAULT_SECONDS, |raw| {
         fuzz_seconds(raw).unwrap_or(DEFAULT_SECONDS)
@@ -107,15 +144,25 @@ pub(crate) fn execute_fuzz(invocation: &Invocation, env: Env<'_>) -> i32 {
             (None, 0) => {}
             (None, CRASH_EXIT) => {
                 let crash = newest_crash(workspace, &dir).unwrap_or_else(|| dir.clone());
-                let repro = shell_join(&[
-                    "bazel".to_owned(),
+                let repro = [
+                    "dx".to_owned(),
                     "run".to_owned(),
-                    run,
+                    run.clone(),
                     "--".to_owned(),
                     "--repro".to_owned(),
-                    crash,
-                ]);
-                let _ = writeln!(err, "dx: {label} crashed; reproduce with: {repro}");
+                    crash.clone(),
+                ];
+                if invocation.output == OutputMode::Json {
+                    if let Err(exit) = emit_event(out, &crash_event(label, &run, &crash, &repro)) {
+                        return exit;
+                    }
+                } else {
+                    let _ = writeln!(
+                        err,
+                        "dx: {label} crashed; reproduce with: {}",
+                        shell_join(&repro)
+                    );
+                }
                 failed = true;
             }
             (None, code) => {
@@ -163,7 +210,7 @@ mod tests {
         let err = String::from_utf8(err).expect("stderr");
         assert_eq!(run.code, 1, "{err}");
         assert!(
-            err.contains("dx: //fixture:x crashed; reproduce with: bazel run //fixture:x_run -- --repro .dx/local/fuzz/fixture/x/crash-abc"),
+            err.contains("dx: //fixture:x crashed; reproduce with: dx run //fixture:x_run -- --repro .dx/local/fuzz/fixture/x/crash-abc"),
             "{err}"
         );
         let argv = &run.argv[0];
@@ -171,6 +218,40 @@ mod tests {
         for arg in ["--time", "1", "--out", ".dx/local/fuzz/fixture/x/"] {
             assert!(argv.contains(&arg.to_owned()), "{argv:?}");
         }
+    }
+
+    #[test]
+    fn json_output_reports_each_crash_without_bazel() {
+        let harness = Harness::new("fuzz-json");
+        harness
+            .query
+            .outputs
+            .borrow_mut()
+            .push(labels("//fixture:x\n"));
+        harness.write_source(".dx/local/fuzz/fixture/x/crash-abc", "boom");
+        let inv = invocation(&["fuzz", "//fixture:x", "--output", "json"]);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let run = harness.probe_streams(&inv, &[Some(77)], &mut out, &mut err);
+        assert_eq!(run.code, 1);
+        let out = String::from_utf8(out).expect("stdout");
+        let events: Vec<serde_json::Value> = out
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        let kinds: Vec<&str> = events.iter().map(|e| e["event"].as_str().unwrap()).collect();
+        assert_eq!(kinds, ["command_started", "notice", "command_finished"], "{out}");
+        let crash = &events[1];
+        assert_eq!(crash["code"], "fuzz_crash");
+        assert_eq!(crash["target"], "//fixture:x");
+        assert_eq!(crash["runner"], "//fixture:x_run");
+        assert_eq!(crash["crash_path"], ".dx/local/fuzz/fixture/x/crash-abc");
+        assert_eq!(
+            crash["repro"],
+            serde_json::json!(["dx", "run", "//fixture:x_run", "--", "--repro", ".dx/local/fuzz/fixture/x/crash-abc"])
+        );
+        assert!(!out.contains("bazel"), "{out}");
+        assert_eq!(events[2]["exit_code"], 1);
     }
 
     #[test]

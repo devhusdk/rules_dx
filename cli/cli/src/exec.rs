@@ -371,7 +371,7 @@ mod tests {
         (Command::Check, &["check"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 10] = [
+    const NO_BAZEL_BUILD: [Command; 11] = [
         Command::Init,
         Command::Security,
         Command::License,
@@ -382,6 +382,7 @@ mod tests {
         Command::Watch,
         Command::Worktree,
         Command::Config,
+        Command::Fuzz,
     ];
 
     fn bazel_build_argvs(words: &[&str], agent: bool, output: &str) -> Vec<Vec<String>> {

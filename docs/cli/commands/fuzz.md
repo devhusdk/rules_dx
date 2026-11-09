@@ -9,7 +9,7 @@ dx fuzz --time 90s --jobs 4
 ```
 
 ```text
-dx fuzz [--here] [--time <duration>] [--jobs <n>] [scope ...]
+dx fuzz [--output json] [--here] [--time <duration>] [--jobs <n>] [scope ...]
 ```
 
 A fuzz target is a rule tagged `dx-fuzz` with a runner named `<name>_run` next to it. Targets without the tag are skipped. Targets run one after another.
@@ -24,6 +24,7 @@ Rust: `rust_fuzz_test(name, srcs, crate_root = ...)` from `//rust/rules:defs.bzl
 | --- | --- |
 | `--time <duration>` | Time budget per target: `90`, `90s`, `5m` or `1h`. Default: `60s`. |
 | `--jobs <n>` | Jobs each runner may use. Passed to the runner as `--jobs <n>`. |
+| `--output json` | Write NDJSON events on stdout instead of text. |
 | `--here` | Run on the current directory tree. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 
@@ -50,10 +51,12 @@ The runner resolves `--out` against `BUILD_WORKSPACE_DIRECTORY` and writes crash
 A crash prints one line on stderr:
 
 ```text
-dx: //pkg:parser crashed; reproduce with: bazel run //pkg:parser_run -- --repro .dx/local/fuzz/pkg/parser/crash-<hash>
+dx: //pkg:parser crashed; reproduce with: dx run //pkg:parser_run -- --repro .dx/local/fuzz/pkg/parser/crash-<hash>
 ```
 
 `/.dx/local/` is in the `.gitignore` that `dx init` writes.
+
+With `--output json` dx writes `command_started`, one `notice` with code `fuzz_crash` per crash, and `command_finished`. The notice carries `target`, `runner`, `crash_path` and `repro`, the argv that replays the crash.
 
 Reports: none.
 

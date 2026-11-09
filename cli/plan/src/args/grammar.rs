@@ -1217,7 +1217,7 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx fuzz` accepts.
-    Fuzz => 23, NoPassthroughTail, { own: FuzzArgs, here: HereFlag, };
+    Fuzz => 23, NoPassthroughTail, { output: OutputFlag, own: FuzzArgs, here: HereFlag, };
     /// The flags `dx config` accepts.
     Config => 24, NoPassthroughTail, { output: OutputFlag, };
 }

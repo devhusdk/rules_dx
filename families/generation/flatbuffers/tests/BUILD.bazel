@@ -115,7 +115,7 @@ java_test(
     name = "JavaRoundtripTest",
     srcs = ["JavaRoundtripTest.java"],
     main_class = "JavaRoundtripTest",
-    tags = ["no-lint"],  # no checkstyle config in this fixture package
+    tags = ["no-lint"],  # no lint config in this fixture package
     test_class = "JavaRoundtripTest",
     use_testrunner = False,
     deps = [":shapes_java"],

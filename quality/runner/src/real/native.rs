@@ -256,27 +256,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
-        id: "cppcheck",
-        run: |backend, call| {
-            if !call.tool.upstream_diagnostics.is_empty() {
-                return backend.check_cppcheck_delegated(
-                    call.tool_id,
-                    call.tool,
-                    &call.staged.pairs,
-                );
-            }
-            let (refs, names) = paths(call);
-            let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-            let invocation =
-                commands::cppcheck_check(&call.tool.binary, &refs, call.config, &call.tool.args);
-            let out = run(backend, call, &invocation)?;
-            parsed(
-                call.tool_id,
-                parsers::parse_cppcheck(&out.stderr, out.code, &strs),
-            )
-        },
-    },
-    ToolDef {
         id: "staticcheck",
         run: |backend, call| {
             if !call.tool.upstream_diagnostics.is_empty() {

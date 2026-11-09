@@ -6,7 +6,6 @@ package(default_visibility = ["//:__subpackages__"])
 java_test(
     name = "greet_test",
     srcs = ["GreetTest.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     test_class = "greet.GreetTest",
     deps = [":greet"],
 )
@@ -18,7 +17,6 @@ java_library(
         "Guava.java",
         "Helper.java",
     ],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     deps = ["@maven//:com_google_guava_guava"],
 )
 

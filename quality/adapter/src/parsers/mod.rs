@@ -9,13 +9,11 @@ pub mod capnp;
 pub mod cfn_lint;
 pub mod check_jsonschema;
 pub mod checkmake;
-pub mod checkstyle;
 pub mod chktex;
 pub mod clang_format;
 pub mod clang_syntax;
 pub mod clang_tidy;
 pub mod cmakelint;
-pub mod cppcheck;
 pub mod credo;
 pub mod csharpier;
 pub mod cue;
@@ -141,13 +139,11 @@ pub use capnp::parse_capnp;
 pub use cfn_lint::parse_cfn_lint;
 pub use check_jsonschema::{CheckJsonschemaTarget, parse_check_jsonschema};
 pub use checkmake::parse_checkmake;
-pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use chktex::parse_chktex;
 pub use clang_format::parse_clang_format;
 pub use clang_syntax::parse_clang_syntax;
 pub use clang_tidy::parse_clang_tidy;
 pub use cmakelint::parse_cmakelint;
-pub use cppcheck::{keep_unused_function, parse_cppcheck};
 pub use credo::parse_credo;
 pub use csharpier::parse_csharpier;
 pub use cue::{parse_cue, parse_cue_vet};
@@ -1256,7 +1252,6 @@ mod tests {
         let failed = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"t"}},"results":[],"invocations":[{"executionSuccessful":false,"toolConfigurationNotifications":[{"level":"error","message":{"text":"missing class"}}]}]}]}"#;
         let files = ["/s/a.java"];
         let results = [
-            super::checkstyle::parse_checkstyle(failed, Some(0), &files, 8),
             super::pmd::parse_pmd(failed, Some(0), &files),
             super::spotbugs::parse_spotbugs(failed, Some(0), &files),
             super::roslyn::parse_roslyn(failed, Some(0), &files),
@@ -1734,14 +1729,6 @@ mod tests {
         )
     }
 
-    fn fuzz_checkstyle(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::checkstyle::parse_checkstyle(input, code, files, 8)
-    }
-
     fn fuzz_clang_format(
         input: &[u8],
         code: Option<i32>,
@@ -1764,14 +1751,6 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::clang_tidy::parse_clang_tidy(input, code, files)
-    }
-
-    fn fuzz_cppcheck(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::cppcheck::parse_cppcheck(input, code, files)
     }
 
     fn fuzz_csharpier(
@@ -2985,7 +2964,6 @@ mod tests {
         ("buf_format", fuzz_buf_format),
         ("checkmake", fuzz_checkmake),
         ("gersemi", fuzz_gersemi),
-        ("checkstyle", fuzz_checkstyle),
         ("cmakelint", fuzz_cmakelint),
         ("tflint", fuzz_tflint),
         ("trivy_config", fuzz_trivy_config),
@@ -2995,7 +2973,6 @@ mod tests {
         ("clang_format", fuzz_clang_format),
         ("clang_syntax", fuzz_clang_syntax),
         ("clang_tidy", fuzz_clang_tidy),
-        ("cppcheck", fuzz_cppcheck),
         ("csharpier", fuzz_csharpier),
         ("credo", fuzz_credo),
         ("cue", fuzz_cue),

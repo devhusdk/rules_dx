@@ -16,7 +16,6 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "errcheck",
         "staticcheck",
         "clang_tidy",
-        "cppcheck",
         "rubocop",
         "shellcheck",
         "yamllint",
@@ -98,10 +97,6 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         (
             "clang_tidy",
             "1 warning generated.\nsrc/a.scala:1:1: warning: finding [demo-check]\n  x\n  ^\nSuppressed 1 warnings (1 in non-user code).\n",
-        ),
-        (
-            "cppcheck",
-            r#"<results version="2"><errors><error id="demo" severity="warning" msg="finding"><location file="src/a.scala" line="1" column="1"/></error></errors></results>"#,
         ),
         (
             "staticcheck",
@@ -257,10 +252,6 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
 pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
     for (tool_id, report) in [
         ("clang_tidy", ""),
-        (
-            "cppcheck",
-            r#"<results version="2"><errors></errors></results>"#,
-        ),
         ("djlint", ""),
         ("errcheck", "{}"),
         ("fsharplint", ""),

@@ -37,17 +37,6 @@ java_binary(
     runtime_deps = [":avro_tools_import"],
 )
 
-java_import(
-    name = "checkstyle_import",
-    jars = ["@jvm_checkstyle//file"],
-)
-
-java_binary(
-    name = "checkstyle",
-    main_class = "com.puppycrawl.tools.checkstyle.Main",
-    runtime_deps = [":checkstyle_import"],
-)
-
 java_binary(
     name = "pmd",
     main_class = "net.sourceforge.pmd.cli.PmdCli",

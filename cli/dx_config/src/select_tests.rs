@@ -86,10 +86,10 @@ fn an_unknown_tool_gets_a_hint() {
 #[test]
 fn two_profiles_on_one_shared_tool_conflict() {
     let error = problem(
-        "schema_version = 1\n[families.go]\ntier = \"strict\"\nlint = [\"cppcheck\"]\n[families.rust]\nlint = [\"cppcheck\"]\n",
+        "schema_version = 1\n[families.go]\ntier = \"strict\"\nlint = [\"yamllint\"]\n[families.rust]\nlint = [\"yamllint\"]\n",
     );
     let text = error.to_string();
-    assert!(text.contains("`cppcheck`"), "{text}");
+    assert!(text.contains("`yamllint`"), "{text}");
     assert!(
         text.contains("`go` (strict)") && text.contains("`rust` (standard)"),
         "{text}"
@@ -135,19 +135,19 @@ fn plus_and_minus_edit_the_curated_list() {
     let curated = effective(None).unwrap().families["cc"].lint.clone();
     assert!(curated.iter().any(|tool| tool == "typos"));
     let config = parse(
-        "schema_version = 1\n[families.cc]\nlint = [\"+cppcheck\", \"-clang_tidy\"]\n",
+        "schema_version = 1\n[families.cc]\nlint = [\"+yamllint\", \"-clang_tidy\"]\n",
     )
     .unwrap();
     let lint = effective(Some(&config)).unwrap().families["cc"].lint.clone();
     let mut expected: Vec<String> = curated.into_iter().filter(|tool| tool != "clang_tidy").collect();
-    expected.push("cppcheck".to_owned());
+    expected.push("yamllint".to_owned());
     assert_eq!(lint, expected);
 }
 
 #[test]
 fn mixed_edits_and_unknown_skips_are_rejected() {
     assert!(matches!(
-        problem("schema_version = 1\n[families.cc]\nlint = [\"+cppcheck\", \"typos\"]\n"),
+        problem("schema_version = 1\n[families.cc]\nlint = [\"+yamllint\", \"typos\"]\n"),
         SelectionProblem::MixedEdit { .. }
     ));
     assert!(matches!(

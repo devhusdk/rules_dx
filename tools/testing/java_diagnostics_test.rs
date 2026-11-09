@@ -41,15 +41,29 @@ fn app_sources() -> Vec<PathBuf> {
         .collect()
 }
 
-fn checkstyle(source: &str) -> dx_testing::Run {
-    let config = file("DX_CHECKSTYLE_CONFIG").to_string_lossy().into_owned();
+fn pmd(source: &str) -> dx_testing::Run {
+    let ruleset = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"))
+        .join("ruleset.xml");
+    std::fs::write(
+        &ruleset,
+        "<?xml version=\"1.0\"?>\n<ruleset name=\"t\" xmlns=\"http://pmd.sourceforge.net/ruleset/2.0.0\">\n  <description>t</description>\n  <rule ref=\"category/java/codestyle.xml/UnnecessaryImport\"/>\n</ruleset>\n",
+    )
+    .expect("write ruleset");
+    let ruleset = ruleset.to_string_lossy().into_owned();
     let path = file(source).to_string_lossy().into_owned();
     dx_testing::run(
-        &file("DX_CHECKSTYLE"),
-        &["-c", config.as_str(), path.as_str()],
+        &file("DX_PMD"),
+        &[
+            "check",
+            "--no-cache",
+            "--rulesets",
+            ruleset.as_str(),
+            "--dir",
+            path.as_str(),
+        ],
         &[],
     )
-    .expect("checkstyle runs")
+    .expect("pmd runs")
 }
 
 fn format_check(source: &str) -> dx_testing::Run {
@@ -66,7 +80,7 @@ fn format_check(source: &str) -> dx_testing::Run {
 fn clean_source_compiles_lints_and_formats() {
     let built = javac("clean", "DX_CLEAN");
     assert!(built.status.success(), "{}", built.combined());
-    let linted = checkstyle("DX_CLEAN");
+    let linted = pmd("DX_CLEAN");
     assert!(linted.status.success(), "{}", linted.combined());
     let formatted = format_check("DX_CLEAN");
     assert!(formatted.status.success(), "{}", formatted.combined());
@@ -95,7 +109,7 @@ fn compiler_warning_is_an_error() {
 
 #[test]
 fn lint_finding_is_an_error() {
-    let run = checkstyle("DX_LINT");
+    let run = pmd("DX_LINT");
     assert!(!run.status.success());
     assert!(
         run.combined().contains("Unused import"),

@@ -89,7 +89,7 @@ curated tools; see [Default tools](quality.md#default-tools).
 
 A list replaces the curated tools. A list whose entries all start with `+` or `-`
 edits the curated tools instead, so later additions to the curated set still
-reach you: `lint = ["+cppcheck", "-typos"]`. Mixing the two forms fails the run.
+reach you: `lint = ["+yamllint", "-typos"]`. Mixing the two forms fails the run.
 An unknown tool id fails the run.
 
 ### dx.toml `[scope]`

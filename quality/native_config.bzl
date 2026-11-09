@@ -128,7 +128,6 @@ clang_format_config = _make_native_config_rule("clang_format")
 
 clang_tidy_config = _make_native_config_rule("clang_tidy")
 
-cppcheck_config = _make_native_config_rule("cppcheck")
 
 roslyn_config = _make_native_config_rule("roslyn")
 
@@ -140,7 +139,6 @@ govet_config = _make_native_config_rule("govet")
 
 fsharplint_config = _make_native_config_rule("fsharplint")
 
-checkstyle_config = _make_native_config_rule("checkstyle")
 
 pmd_config = _make_native_config_rule("pmd")
 

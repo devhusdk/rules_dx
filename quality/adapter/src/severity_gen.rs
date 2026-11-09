@@ -35,13 +35,6 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
-        "checkstyle",
-        crate::severity::ToolSeverityMap {
-            default: Some(crate::ToolSeverity::Warning),
-            categories: &[],
-        },
-    ),
-    (
         "chktex",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),

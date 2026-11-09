@@ -20,7 +20,6 @@ scala_library(
         "Greeter.java",
         "Mixed.scala",
     ],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
 )
 
 dx_direct_sources_test(

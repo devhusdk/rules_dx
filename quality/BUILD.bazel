@@ -16,7 +16,7 @@ load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
 load(":dart_context_tests.bzl", "dart_context_unit_tests")
 load(":fixtures_tests.bzl", "fixtures_unit_tests")
-load(":native_config.bzl", "checkstyle_config", "vale_config")
+load(":native_config.bzl", "vale_config")
 load(":native_config_tests.bzl", "native_config_unit_tests")
 load(":overlap_tests.bzl", "overlap_unit_tests")
 load(":nvcc_syntax_tests.bzl", "nvcc_syntax_unit_tests")
@@ -60,7 +60,6 @@ exports_files([
 ] + glob(["families/*.bzl"]))
 
 exports_files([
-    "corpus_checkstyle.xml",
     "corpus_vale.ini",
     "corpus_styles/Dx/Launcher.yml",
     "corpus_styles/Dx/Markers.yml",
@@ -599,14 +598,6 @@ consumer_policy_tests(
             "policy": "//quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:policy_bound_c",
         },
-        {
-            "case": "cc_cppcheck",
-            "expected_dx_results": [
-                "policy_bound_c-real-lint-cc.pb",
-            ],
-            "policy": "//quality/tests/fixtures/consumer_policy:cc_cppcheck_policy",
-            "subject": "//quality/tests/fixtures/consumer_policy:policy_bound_c",
-        },
     ],
 )
 
@@ -675,7 +666,6 @@ test_suite(
         ":clang_tidy_run_test",
         ":compile_check_exec_test",
         ":consumer_policy_cc_clang_tidy_test",
-        ":consumer_policy_cc_cppcheck_test",
         ":consumer_policy_bicep_checked_test",
         ":consumer_policy_cloudformation_linted_test",
         ":consumer_policy_html_template_formatted_test",
@@ -725,11 +715,6 @@ vale_config(
         "corpus_styles/Dx/Launcher.yml",
         "corpus_styles/Dx/Markers.yml",
     ],
-)
-
-checkstyle_config(
-    name = "corpus_checkstyle_config",
-    src = "corpus_checkstyle.xml",
 )
 
 real_source_target(

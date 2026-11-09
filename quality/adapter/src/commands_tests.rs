@@ -806,20 +806,6 @@ fn jvm_format_checks_list_paths_and_fixes_rewrite() {
 #[test]
 fn jvm_lint_checks_use_sarif_with_explicit_config() {
     let java = Path::new("/scratch/src/Hello.java");
-    let cfg = Path::new("/scratch/checkstyle.xml");
-    let check = checkstyle_check(Path::new(BIN), &[java], cfg);
-    assert_eq!(
-        argv_strings(&check),
-        vec![
-            BIN,
-            "-c",
-            "/scratch/checkstyle.xml",
-            "-f",
-            "sarif",
-            "/scratch/src/Hello.java"
-        ]
-    );
-    assert_eq!(check.cwd_rel, "");
     let pmd_cfg = Path::new("/scratch/pmd.xml");
     let pmd = pmd_check(Path::new(BIN), &[java], pmd_cfg);
     assert_eq!(
@@ -968,42 +954,6 @@ fn clang_tidy_check_carries_config_and_compile_commands() {
     assert!(argv.contains(&"-p".to_owned()));
     assert!(!argv.iter().any(|arg| arg.contains("--fix")));
     assert!(!argv.iter().any(|arg| arg.contains("--export-fixes")));
-}
-
-#[test]
-fn cppcheck_check_is_xml_with_optional_suppressions() {
-    let file = Path::new("/scratch/Sample.c");
-    let bare = cppcheck_check(Path::new(BIN), &[file], None, &[]);
-    assert_eq!(
-        argv_strings(&bare),
-        vec![BIN, "--xml", "--xml-version=2", "/scratch/Sample.c"]
-    );
-    assert_eq!(bare.cwd_rel, "");
-    let hinted = cppcheck_check(
-        Path::new(BIN),
-        &[file],
-        Some(Path::new("/scratch/suppressions.txt")),
-        &[],
-    );
-    assert!(
-        argv_strings(&hinted)
-            .iter()
-            .any(|arg| arg.starts_with("--suppressions-list=")),
-        "hinted suppressions ride --suppressions-list="
-    );
-    assert!(!argv_strings(&hinted).contains(&"--enable=all".to_owned()));
-    let sets = ["warning".to_owned(), "style".to_owned()];
-    let enabled = cppcheck_check(Path::new(BIN), &[file], None, &sets);
-    assert_eq!(
-        argv_strings(&enabled),
-        vec![
-            BIN,
-            "--xml",
-            "--xml-version=2",
-            "--enable=warning,style",
-            "/scratch/Sample.c"
-        ]
-    );
 }
 
 #[test]

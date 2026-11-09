@@ -254,7 +254,7 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "java curated defaults drop checkstyle",
+                "java curated defaults",
                 CURATED_DEFAULTS["java"],
                 {
                     "audit": [],

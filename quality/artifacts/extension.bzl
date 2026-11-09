@@ -11,9 +11,7 @@ load("//quality/artifacts:bisect_ppx.bzl", _bisect_ppx = "SOURCE")
 load("//quality/artifacts:buf.bzl", _buf = "ARTIFACTS")
 load("//quality/artifacts:buildifier.bzl", _buildifier = "ARTIFACTS")
 load("//quality/artifacts:checkmake.bzl", _checkmake = "ARTIFACTS")
-load("//quality/artifacts:checkstyle.bzl", _checkstyle = "SOURCE")
 load("//quality/artifacts:chktex.bzl", _chktex = "ARTIFACTS")
-load("//quality/artifacts:cppcheck.bzl", _cppcheck = "SOURCE")
 load("//quality/artifacts:cue.bzl", _cue = "ARTIFACTS")
 load("//quality/artifacts:ffmt.bzl", _ffmt = "ARTIFACTS")
 load("//quality/artifacts:fortitude.bzl", _fortitude = "ARTIFACTS")
@@ -118,8 +116,6 @@ _ARTIFACTS = [
 TOOL_SOURCES = [
     _avro_tools,
     _bisect_ppx,
-    _checkstyle,
-    _cppcheck,
     _detekt,
     _google_java_format,
     _ktfmt,

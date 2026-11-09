@@ -31,7 +31,7 @@
     },
     "FamilyConfig": {
       "additionalProperties": false,
-      "description": "Changes the curated tools of one family. A capability left out keeps the curated tools.\nA list replaces them, unless every entry starts with `+` or `-`: then it adds or removes\nthose tools, as in `lint = [\"+cppcheck\", \"-typos\"]`.",
+      "description": "Changes the curated tools of one family. A capability left out keeps the curated tools.\nA list replaces them, unless every entry starts with `+` or `-`: then it adds or removes\nthose tools, as in `lint = [\"+yamllint\", \"-typos\"]`.",
       "properties": {
         "audit": {
           "default": null,

@@ -72,7 +72,7 @@ pub enum CommitsPolicy {
 
 /// Changes the curated tools of one family. A capability left out keeps the curated tools.
 /// A list replaces them, unless every entry starts with `+` or `-`: then it adds or removes
-/// those tools, as in `lint = ["+cppcheck", "-typos"]`.
+/// those tools, as in `lint = ["+yamllint", "-typos"]`.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FamilyConfig {

@@ -438,21 +438,6 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "checkstyle",
-        adapters = {"lint": ["java"]},
-        config = config(suffixes = [".xml"], tier_active = True),
-        severity = severity(default = "warning"),
-        support = [
-            row(
-                capability = "lint",
-                classes = ["java"],
-                family = "java",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-            ),
-        ],
-    ),
-    tool(
         id = "chktex",
         adapters = {"lint": ["latex"]},
         config = config(kind = "none", tier_active = True),
@@ -652,22 +637,6 @@ TOOLS = [
                 family = "cmake",
                 fix = "check_only",
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-            ),
-        ],
-    ),
-    tool(
-        id = "cppcheck",
-        adapters = {
-            "lint": ["c", "cpp"],
-        },
-        config = config(suffixes = [".txt"], tier_active = True),
-        support = [
-            row(
-                capability = "lint",
-                classes = ["c", "cpp"],
-                family = "cc",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
         ],
     ),

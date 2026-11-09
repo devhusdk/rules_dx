@@ -868,25 +868,25 @@ mod tests {
                 "schema_version": 1,
                 "producer": "//pkg:target",
                 "capability": "lint",
-                "stages": [{"tool": "cppcheck", "classes": ["c"], "sources": ["a.c"]}],
+                "stages": [{"tool": "clang_tidy", "classes": ["c"], "sources": ["a.c"]}],
                 "sources": [{"workspace": "a.c", "exec": "exec/a.c"}],
                 "siblings": [],
                 "resolves": [],
-                "tools": {"cppcheck": tool},
+                "tools": {"clang_tidy": tool},
             }))
             .expect("encodes")
         };
         let with = doc(
-            json!({"binary": "bin/cppcheck", "args": ["warning", "style"], "files": [], "env": [], "upstream": []}),
+            json!({"binary": "bin/clang_tidy", "args": ["warning", "style"], "files": [], "env": [], "upstream": []}),
         );
         assert_eq!(
-            parse_real_request(&with).expect("parses").tools["cppcheck"].args,
+            parse_real_request(&with).expect("parses").tools["clang_tidy"].args,
             ["warning", "style"]
         );
         let without =
-            doc(json!({"binary": "bin/cppcheck", "files": [], "env": [], "upstream": []}));
+            doc(json!({"binary": "bin/clang_tidy", "files": [], "env": [], "upstream": []}));
         assert!(
-            parse_real_request(&without).expect("parses").tools["cppcheck"]
+            parse_real_request(&without).expect("parses").tools["clang_tidy"]
                 .args
                 .is_empty()
         );

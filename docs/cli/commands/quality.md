@@ -198,7 +198,6 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | --- | --- | --- |
 | `clang_format` | Format C, C++, CUDA, Objective-C | |
 | `clang_tidy` | Lint C, C++, CUDA, Objective-C | |
-| `cppcheck` | Lint C and C++ | |
 | `clang_syntax` | Typecheck C, C++, Objective-C with `-fsyntax-only` | Objective-C: not on Linux or Windows |
 | `nvcc_syntax` | Typecheck CUDA with `nvcc -cuda` | |
 | `rustfmt` | Format Rust | |
@@ -230,7 +229,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 
-`cppcheck` enables `warning,performance,portability` in the standard tier and adds `style` in strict. `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
+`spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
 ### JVM and .NET
 
@@ -428,12 +427,10 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `buildifier` | curated | `.buildifier.json` | override copy | dx |  |
 | `cfn_lint` | curated | `*.cfnlintrc`, `*.yaml`, `*.yml` | none | dx |  |
 | `checkmake` | catalog | `checkmake.ini` | override copy | dx |  |
-| `checkstyle` | catalog | `*.xml` | none | dx |  |
 | `clang_format` | curated | `.clang-format` | none | dx |  |
 | `clang_tidy` | curated | `*.clang-tidy` | none | dx |  |
 | `clippy` | curated |  | none | dx |  |
 | `cmakelint` | catalog | `.cmakelintrc` | override copy | dx |  |
-| `cppcheck` | catalog | `*.txt` | none | dx |  |
 | `credo` | catalog | `*.exs` | none | dx |  |
 | `csharpier` | catalog | `*.yaml` | none | dx |  |
 | `dart` | curated | `analysis_options.yaml` | extends | dx |  |

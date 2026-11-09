@@ -10,7 +10,6 @@ package(
 java_library(
     name = "impl",
     srcs = ["Impl.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
 )
 
 java_library(
@@ -27,7 +26,6 @@ dx_direct_sources_test(
 java_library(
     name = "tests",
     srcs = ["AllTests.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     deps = [
         ":impl",
         "@maven//:junit_junit",

@@ -44,11 +44,9 @@ rust_test(
     srcs = ["column_units_test.rs"],
     data = [
         "//quality/tools/javascript/bin:eslint",
-        "//quality/tools/jvm:checkstyle",
         "//quality/tools/jvm:pmd",
     ],
     env = {
-        "DX_CHECKSTYLE": "$(rootpath //quality/tools/jvm:checkstyle)",
         "DX_ESLINT": "$(rootpath //quality/tools/javascript/bin:eslint)",
         "DX_PMD": "$(rootpath //quality/tools/jvm:pmd)",
     },

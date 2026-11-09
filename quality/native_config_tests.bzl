@@ -46,7 +46,7 @@ def native_config_unit_tests(name):
                     [tool in tier_base_dirs() for tool in ["actionlint", "clippy", "prettier", "kubeconform", "bicep", "ruff"]],
                     len(tier_base_dirs()),
                 ],
-                [[False, False, False, False, True, True], 68],
+                [[False, False, False, False, True, True], 66],
             ),
             expect_equal(
                 "native_config_scratch_rel keeps in-repo paths and remaps external ones",
@@ -99,9 +99,9 @@ def native_config_unit_tests(name):
                 [".js", ".mjs", ".cjs"],
             ),
             expect_equal(
-                "native_config_extension pins the Java XML transports",
-                [native_config_extension("checkstyle"), native_config_extension("pmd")],
-                [".xml", ".xml"],
+                "native_config_extension pins the Java XML transport",
+                [native_config_extension("pmd")],
+                [".xml"],
             ),
             expect_equal(
                 "native_config_error rejects a non-xml pmd ruleset",
@@ -128,10 +128,9 @@ def native_config_unit_tests(name):
                 [
                     native_config_extension("clang_format"),
                     native_config_extension("clang_tidy"),
-                    native_config_extension("cppcheck"),
                     native_config_extension("staticcheck"),
                 ],
-                [".clang-format", ".clang-tidy", ".txt", ".conf"],
+                [".clang-format", ".clang-tidy", ".conf"],
             ),
             expect_equal(
                 "native_config_extension pins Structured transports",
@@ -231,7 +230,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
-                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, deadnix, detekt, djlint, elvis, errcheck, eslint, ffmt, fortitude, fsharplint, gersemi, govet, gplint, graphql_eslint, hadolint, hlint, julialint, kubeconform, latexindent, luals, lychee, markdown_check, mbake, mix_format, perlcritic, perltidy, phpcs, phpstan, pmd, prettier, psscriptanalyzer, pydoclint, qmlformat, qmllint, redocly, regal, remark, roslyn, rubocop, ruff, rustfmt, scalafix, scalafmt, selene, shellcheck, shfmt, spotbugs, sqlfluff, staticcheck, stylelint, stylua, swift_format, swift_lint, taplo, tflint, trivy_config, ty, typos, vale, yamlfmt, yamllint, zanuda, zizmor",
+                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, clang_format, clang_tidy, cmakelint, credo, csharpier, dart, deadnix, detekt, djlint, elvis, errcheck, eslint, ffmt, fortitude, fsharplint, gersemi, govet, gplint, graphql_eslint, hadolint, hlint, julialint, kubeconform, latexindent, luals, lychee, markdown_check, mbake, mix_format, perlcritic, perltidy, phpcs, phpstan, pmd, prettier, psscriptanalyzer, pydoclint, qmlformat, qmllint, redocly, regal, remark, roslyn, rubocop, ruff, rustfmt, scalafix, scalafmt, selene, shellcheck, shfmt, spotbugs, sqlfluff, staticcheck, stylelint, stylua, swift_format, swift_lint, taplo, tflint, trivy_config, ty, typos, vale, yamlfmt, yamllint, zanuda, zizmor",
             ),
             expect_equal(
                 "native_config_error requires a config",
@@ -415,9 +414,9 @@ def native_config_unit_tests(name):
                 "missing_required_config_error leaves tools with a tier base and bound tools alone",
                 [
                     missing_required_config_error(tool, "lint", {}, "//q:t")
-                    for tool in ["biome", "buildifier", "checkstyle", "eslint", "graphql_eslint", "ruff", "ty", "vale"]
+                    for tool in ["biome", "buildifier", "eslint", "graphql_eslint", "ruff", "ty", "vale"]
                 ] + [missing_required_config_error("kubeconform", "lint", {"kubeconform": _HINTS[0]}, "//q:t")],
-                ["", "", "", "", "", "", "", "", ""],
+                ["", "", "", "", "", "", "", ""],
             ),
         ],
     )

@@ -37,7 +37,6 @@ java_library(
         "Totals.java",
         ":build_info",  # keep
     ],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     resource_strip_prefix = "java/tests/fixtures/java-app",
     resources = ["invoices.json"],
     visibility = ["//java/tests/fixtures/java-app:__subpackages__"],
@@ -50,7 +49,6 @@ java_library(
 java_test(
     name = "invoice_reader_test",
     srcs = ["InvoiceReaderTest.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     test_class = "billing.InvoiceReaderTest",
     deps = [":billing"],
 )
@@ -58,7 +56,6 @@ java_test(
 java_test(
     name = "totals_test",
     srcs = ["TotalsTest.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     test_class = "billing.TotalsTest",
     deps = [
         ":billing",
@@ -69,7 +66,6 @@ java_test(
 java_test(
     name = "classpath_test",
     srcs = ["ClasspathTest.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     test_class = "billing.ClasspathTest",
     deps = [
         ":billing",

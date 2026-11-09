@@ -378,8 +378,8 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
     };
     match tool_id {
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "clippy" | "roslyn" | "csc"
-        | "fsc" | "fsharplint" | "checkstyle" | "fortitude" | "pkl_lsp" | "perlcritic"
-        | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck"
+        | "fsc" | "fsharplint" | "fortitude" | "pkl_lsp" | "perlcritic"
+        | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy"
         | "staticcheck" | "govet" | "gplint" | "errcheck" | "stylelint" | "yamllint"
         | "shellcheck" | "hadolint" | "hlint" | "redocly" | "kubeconform" | "helm" | "capnp"
         | "checkmake" | "flatc" | "tflint" | "cfn_lint" | "chktex" | "cmakelint" | "credo"

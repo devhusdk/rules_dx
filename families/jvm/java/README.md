@@ -36,8 +36,7 @@ turned into underscores, for example `@maven//:com_google_guava_guava`. See
 ## Format, lint and typecheck
 
 By default `dx format` runs `google_java_format`, `dx lint` runs `pmd`,
-`spotbugs` and `typos`, and `dx typecheck` runs `javac`. `checkstyle` is available in place of `pmd` and needs a
-`checkstyle.xml` bound with `checkstyle_config`; the two cannot be selected together. `pmd` reads a ruleset bound
+`spotbugs` and `typos`, and `dx typecheck` runs `javac`. `pmd` reads a ruleset bound
 with `pmd_config`. Without one it reports unused private methods, fields, locals,
 parameters and assignments as info. See the
 [quality config table](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/quality.md).

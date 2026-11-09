@@ -2376,7 +2376,6 @@ dx_tools.platform(
 )
 use_repo(
     dx_tools,
-    "cc_cppcheck",
     "dx_actionlint_linux_arm64",
     "dx_actionlint_linux_x86_64",
     "dx_actionlint_macos_arm64",
@@ -2580,7 +2579,6 @@ use_repo(
     "dx_zizmor_macos_arm64",
     "dx_zizmor_windows_x86_64",
     "jvm_avro_tools",
-    "jvm_checkstyle",
     "jvm_detekt",
     "jvm_google_java_format",
     "jvm_ktfmt",

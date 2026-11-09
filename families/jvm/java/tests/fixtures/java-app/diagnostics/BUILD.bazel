@@ -30,9 +30,8 @@ rust_test(
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_errorprone_error_prone_annotations",
         "@maven//:com_google_guava_guava",
-        "@rules_dx//quality:corpus_checkstyle.xml",
-        "@rules_dx//quality/tools/jvm:checkstyle",
         "@rules_dx//quality/tools/jvm:google_java_format",
+        "@rules_dx//quality/tools/jvm:pmd",
     ],
     env = {
         "DX_APP_SRCS": " ".join([
@@ -42,8 +41,6 @@ rust_test(
             "$(rootpath //java/tests/fixtures/java-app/billing:LineItem.java)",
             "$(rootpath //java/tests/fixtures/java-app/billing:Totals.java)",
         ]),
-        "DX_CHECKSTYLE": "$(rootpath @rules_dx//quality/tools/jvm:checkstyle)",
-        "DX_CHECKSTYLE_CONFIG": "$(rootpath @rules_dx//quality:corpus_checkstyle.xml)",
         "DX_CLEAN": "$(rootpath Clean.java)",
         "DX_ANNOTATIONS": "$(rootpath @maven//:com_google_errorprone_error_prone_annotations)",
         "DX_FORMAT": "$(rootpath Unformatted.java)",
@@ -52,6 +49,7 @@ rust_test(
         "DX_GUAVA": "$(rootpath @maven//:com_google_guava_guava)",
         "DX_JAVAC": "$(rootpath :javac)",
         "DX_LINT": "$(rootpath UnusedImport.java)",
+        "DX_PMD": "$(rootpath @rules_dx//quality/tools/jvm:pmd)",
         "DX_SYNTAX": "$(rootpath SyntaxError.java)",
         "DX_TYPE": "$(rootpath TypeError.java)",
         "DX_WARNING": "$(rootpath RawType.java)",
@@ -75,6 +73,7 @@ rust_test(
         "//java/tests/fixtures/java-app/cli:CliTest.java",
         "//java/tests/fixtures/java-app/cli:Main.java",
         "@rules_dx//quality/tools/jvm:google_java_format",
+        "@rules_dx//quality/tools/jvm:pmd",
     ],
     env = {
         "DX_FORMATTER": "$(rootpath @rules_dx//quality/tools/jvm:google_java_format)",

@@ -29,7 +29,6 @@ kotlin_library(
         "Greeter.java",
         "Mixed.kt",
     ],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     kotlinc_opts = ":jvm21_opts",
 )
 

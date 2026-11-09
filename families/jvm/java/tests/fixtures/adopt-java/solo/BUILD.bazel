@@ -6,7 +6,6 @@ package(default_visibility = ["//:__subpackages__"])
 java_test(
     name = "pure_test",
     srcs = ["PureTest.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     test_class = "solo.PureTest",
     deps = [":solo"],
 )
@@ -14,7 +13,6 @@ java_test(
 java_library(
     name = "solo",
     srcs = ["Pure.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
 )
 
 real_source_target(

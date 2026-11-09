@@ -110,7 +110,6 @@ const GOOGLE_JAVA_FORMAT_CHECK_ARGS: &[&str] = &["--dry-run", "--set-exit-if-cha
 const GOOGLE_JAVA_FORMAT_FIX_ARGS: &[&str] = &["--replace"];
 const KTFMT_CHECK_ARGS: &[&str] = &["--kotlinlang-style", "--dry-run", "--set-exit-if-changed"];
 const KTFMT_FIX_ARGS: &[&str] = &["--kotlinlang-style"];
-const CHECKSTYLE_MIDDLE: &[&str] = &["-f", "sarif"];
 const PMD_PREFIX: &[&str] = &["check"];
 const PMD_MIDDLE: &[&str] = &["--format", "sarif", "--rulesets"];
 const DIALYZER_ARGS: &[&str] = &[
@@ -370,7 +369,6 @@ const NOTEBOOK_OUTPUTS_FIX_ARGS: &[&str] = &["outputs", "--fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
 const CLANG_FORMAT_FIX_PREFIX: &[&str] = &["-i"];
 const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
-const CPPCHECK_PREFIX: &[&str] = &["--xml", "--xml-version=2"];
 const FSHARPLINT_CONFIG_FLAG: &[&str] = &["--config"];
 const SCALAFIX_CHECK_FLAGS: &[&str] = &["--check", "--no-stale-semanticdb"];
 
@@ -1064,32 +1062,6 @@ pub fn clang_tidy_check(
     assemble(binary, head, files, "")
 }
 
-/// `enable` holds further check sets; both go into one `--enable=` argument.
-pub fn cppcheck_check(
-    binary: &Path,
-    files: &[&Path],
-    suppressions: Option<&Path>,
-    enable: &[String],
-) -> Invocation {
-    let mut invocation = optional_joined(
-        binary,
-        CPPCHECK_PREFIX,
-        "--suppressions-list=",
-        suppressions,
-        SCALAFMT_EMPTY,
-        files,
-        "",
-    );
-    let checks: Vec<&str> = enable.iter().map(String::as_str).collect();
-    if !checks.is_empty() {
-        invocation.argv.insert(
-            1 + CPPCHECK_PREFIX.len(),
-            OsString::from(format!("--enable={}", checks.join(","))),
-        );
-    }
-    invocation
-}
-
 pub fn staticcheck_check(
     binary: &Path,
     files: &[&Path],
@@ -1118,18 +1090,6 @@ pub fn ktfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn ktfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KTFMT_FIX_ARGS, files, "")
-}
-
-pub fn checkstyle_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
-    required_flag(
-        binary,
-        SCALAFMT_EMPTY,
-        "-c",
-        config,
-        CHECKSTYLE_MIDDLE,
-        files,
-        "",
-    )
 }
 
 pub fn pmd_check(binary: &Path, files: &[&Path], ruleset: &Path) -> Invocation {

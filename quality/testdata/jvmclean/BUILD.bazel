@@ -26,17 +26,6 @@ quality_family(
 )
 
 quality_family(
-    name = "java_checkstyle_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "java",
-    lint = ["checkstyle"],
-)
-
-quality_family(
     name = "kotlin_detekt_family",
     disabled = [
         "audit",
@@ -57,18 +46,6 @@ workspace_policy(
     name = "pmd_strict_policy",
     configs = ["//quality/tiers/pmd:strict"],
     families = [":java_pmd_family"],
-)
-
-workspace_policy(
-    name = "checkstyle_standard_policy",
-    configs = ["//quality/tiers/checkstyle:standard"],
-    families = [":java_checkstyle_family"],
-)
-
-workspace_policy(
-    name = "checkstyle_strict_policy",
-    configs = ["//quality/tiers/checkstyle:strict"],
-    families = [":java_checkstyle_family"],
 )
 
 workspace_policy(

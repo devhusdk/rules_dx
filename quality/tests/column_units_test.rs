@@ -157,36 +157,6 @@ fn eslint_columns_are_utf16_units() {
 }
 
 #[test]
-fn checkstyle_columns_are_tab_expanded_scalars() {
-    let dir_guard = dx_test_scratch::scratch("checkstyle");
-    let dir = dir_guard.path();
-    let text = "class A {\n  String s = \"\u{1F600}\u{e9}\"; int x=1;\n\tString t = \"\u{1F600}\u{e9}\"; int y=2;\n\tString u = \"\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}\"; int z=3;\n}\n";
-    let file = write(dir, "A.java", text);
-    let config = "<?xml version=\"1.0\"?>\n<!DOCTYPE module PUBLIC \"-//Checkstyle//DTD Checkstyle Configuration 1.3//EN\" \"https://checkstyle.org/dtds/configuration_1_3.dtd\">\n<module name=\"Checker\">\n  <module name=\"TreeWalker\">\n    <module name=\"WhitespaceAround\"/>\n  </module>\n</module>\n";
-    let config_path = write(dir, "checkstyle.xml", config);
-    let invocation =
-        commands::checkstyle_check(&tool("DX_CHECKSTYLE"), &[file.as_path()], &config_path);
-    let out = run(&invocation, dir);
-    let name = file.to_str().expect("utf-8 path");
-    let findings = parsers::parse_checkstyle(
-        out.stdout.as_bytes(),
-        out.code,
-        &[name],
-        parsers::checkstyle_tab_width(config.as_bytes()),
-    )
-    .unwrap_or_else(|err| panic!("checkstyle output: {err}: {}", out.combined));
-    assert_sarif_lands(
-        &out,
-        "checkstyle",
-        &findings,
-        ColumnEncoding::Scalars,
-        "WhitespaceAroundCheck",
-        text,
-        &["=1", "=1", "=2", "=2", "=3", "=3"],
-    );
-}
-
-#[test]
 fn pmd_sarif_columns_land_after_an_emoji() {
     let dir_guard = dx_test_scratch::scratch("pmd");
     let dir = dir_guard.path();

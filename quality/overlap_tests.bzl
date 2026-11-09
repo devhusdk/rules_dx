@@ -8,9 +8,6 @@ load(":tools.bzl", "TOOLS", "tool")
 
 # Alternatives in the catalog: the same concern and class, never selected together in a family.
 EXPECTED_ALTERNATIVES = {
-    "lint/c": ["clang_tidy", "cppcheck"],
-    "lint/cpp": ["clang_tidy", "cppcheck"],
-    "lint/java": ["checkstyle", "pmd"],
     "lint/javascript": ["biome", "eslint"],
     "lint/jsx": ["biome", "eslint"],
     "lint/tsx": ["biome", "eslint"],

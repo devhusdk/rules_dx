@@ -100,8 +100,8 @@ pub enum ColumnEncoding {
     Scalars,
     Utf16,
     Utf8,
-    /// Unicode scalars with tabs expanded to the next multiple of `width`,
-    /// as Checkstyle reports columns. A width of 0 counts as 8.
+    /// Unicode scalars with tabs expanded to the next multiple of `width`.
+    /// A width of 0 counts as 8.
     ScalarsTabs {
         width: u32,
     },

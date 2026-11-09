@@ -14,13 +14,11 @@ package(default_visibility = [
 java_library(
     name = "report",
     srcs = ["src/main/java/org/example/adoptandroid/Report.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
 )
 
 java_test(
     name = "report_test",
     srcs = ["src/test/java/org/example/adoptandroid/ReportTest.java"],
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     main_class = "org.example.adoptandroid.ReportTest",
     use_testrunner = False,
     deps = [":report"],

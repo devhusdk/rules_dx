@@ -1,1 +1,0 @@
-pipeline failed: invalid tool output for cppcheck: cppcheck output is outside the pinned grammar: no <results> root

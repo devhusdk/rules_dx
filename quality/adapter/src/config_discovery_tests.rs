@@ -38,7 +38,6 @@ fn table() -> Vec<(&'static str, How)> {
         ),
         ("cfn_lint", Arg(|b, f, c| cfn_lint_check(b, &[f], c))),
         ("checkmake", Arg(|b, f, c| checkmake_check(b, &[f], c))),
-        ("checkstyle", Arg(|b, f, c| checkstyle_check(b, &[f], c))),
         (
             "clang_format",
             Arg(|b, f, c| clang_format_check(b, &[f], Some(c))),
@@ -49,10 +48,6 @@ fn table() -> Vec<(&'static str, How)> {
         ),
         ("clippy", Staged("tier rendered as internal flags")),
         ("cmakelint", Arg(|b, f, c| cmakelint_check(b, &[f], c))),
-        (
-            "cppcheck",
-            Staged("suppressions file staged; no project discovery"),
-        ),
         ("credo", Arg(|b, f, c| credo_check(b, &[f], c))),
         (
             "csharpier",

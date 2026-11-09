@@ -8,13 +8,6 @@ load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
-    "checkstyle": {
-        "attr": attr.label(default = "//quality/tools/jvm:checkstyle", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "jvm",
-    },
     "detekt": {
         "attr": attr.label(default = "//quality/tools/jvm:detekt", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -95,7 +88,7 @@ SHARD_SPECS = {
     },
     "real_jvm_lint": {
         "capability": "lint",
-        "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs; SpotBugs target-coupled via JavaInfo).",
+        "doc": "Additive JVM lint family aspect (Pmd/SpotBugs; SpotBugs target-coupled via JavaInfo).",
         "extra_attrs": {
             "_jacoco_runtime": attr.label(
                 default = "@bazel_tools//tools/jdk:JacocoCoverage",

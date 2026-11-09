@@ -1,24 +1,16 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//java/rules:defs.bzl", "java_library", "java_test")
-load("//quality:native_config.bzl", "checkstyle_config")
 load(":results.bzl", "spotbugs_results")
-
-checkstyle_config(
-    name = "checkstyle_cfg",
-    src = "checkstyle.xml",
-)
 
 java_library(
     name = "dep",
     srcs = ["Dirty.java"],
-    aspect_hints = [":checkstyle_cfg"],
     tags = ["manual"],
 )
 
 java_library(
     name = "app",
     srcs = ["Clean.java"],
-    aspect_hints = [":checkstyle_cfg"],
     tags = ["manual"],
     deps = [":dep"],
 )
@@ -26,7 +18,6 @@ java_library(
 java_library(
     name = "api",
     srcs = ["Api.java"],
-    aspect_hints = [":checkstyle_cfg"],
     neverlink = True,
     tags = ["manual"],
 )
@@ -34,7 +25,6 @@ java_library(
 java_library(
     name = "uses_api",
     srcs = ["UsesApi.java"],
-    aspect_hints = [":checkstyle_cfg"],
     tags = ["manual"],
     deps = [":api"],
 )
@@ -42,7 +32,6 @@ java_library(
 java_library(
     name = "collide",
     srcs = ["Collide.java"],
-    aspect_hints = [":checkstyle_cfg"],
     tags = ["manual"],
     deps = [
         "//quality/testdata/spotbugs_owned/a:lib",
@@ -53,7 +42,6 @@ java_library(
 java_test(
     name = "app_test",
     srcs = ["CleanTest.java"],
-    aspect_hints = [":checkstyle_cfg"],
     tags = ["manual"],
     test_class = "spotbugs_owned.CleanTest",
     deps = [
@@ -65,7 +53,6 @@ java_test(
 java_test(
     name = "implicit_test",
     srcs = ["ImplicitTest.java"],
-    aspect_hints = [":checkstyle_cfg"],
     tags = ["manual"],
     test_class = "spotbugs_owned.ImplicitTest",
     deps = [":app"],

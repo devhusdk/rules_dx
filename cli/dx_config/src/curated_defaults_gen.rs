@@ -338,14 +338,12 @@ pub const TOOLS: &[&str] = &[
     "capnp",
     "cfn_lint",
     "checkmake",
-    "checkstyle",
     "chktex",
     "clang_format",
     "clang_syntax",
     "clang_tidy",
     "clippy",
     "cmakelint",
-    "cppcheck",
     "credo",
     "csc",
     "csharpier",
@@ -461,24 +459,6 @@ pub const TOOLS: &[&str] = &[
 ];
 
 pub const OVERLAPS: &[Overlap] = &[
-    Overlap {
-        family: "cc",
-        class: "c",
-        concern: "lint",
-        tools: [("clang_tidy", "lint"), ("cppcheck", "lint")],
-    },
-    Overlap {
-        family: "cc",
-        class: "cpp",
-        concern: "lint",
-        tools: [("clang_tidy", "lint"), ("cppcheck", "lint")],
-    },
-    Overlap {
-        family: "java",
-        class: "java",
-        concern: "lint",
-        tools: [("checkstyle", "lint"), ("pmd", "lint")],
-    },
     Overlap {
         family: "javascript",
         class: "javascript",

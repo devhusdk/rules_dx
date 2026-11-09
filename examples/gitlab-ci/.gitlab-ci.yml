@@ -1,2 +1,0 @@
-include:
-  - remote: https://raw.githubusercontent.com/devhusdk/rules_dx/d0b7fb20347ab37231cc7fdf55a54e93b7a0071e/ci/gitlab/dx.gitlab-ci.yml

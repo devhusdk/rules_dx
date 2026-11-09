@@ -11,7 +11,7 @@ const CI: &str = ".github/workflows/ci.yml";
 
 /// Each reusable workflow with the starter that calls it.
 const PAIRS: [(&str, &str); 2] = [
-    ("reusable-consumer.yml", "examples/consumer-ci/caller.yml"),
+    ("reusable-consumer.yml", CI),
     ("reusable-docs.yml", "examples/docs-ci/caller.yml"),
 ];
 

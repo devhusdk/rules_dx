@@ -10,10 +10,7 @@ const PROJECT_MARKER: &str = ".git";
 
 const WORKFLOWS: &str = ".github/workflows";
 
-const CALLERS: [&str; 2] = [
-    "examples/consumer-ci/caller.yml",
-    "examples/docs-ci/caller.yml",
-];
+const CALLERS: [&str; 1] = ["examples/docs-ci/caller.yml"];
 
 const FIXTURE_DIR: &str = "tools/ci/actionlint_fixtures";
 

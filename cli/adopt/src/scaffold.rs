@@ -1564,28 +1564,6 @@ mod tests {
     }
 
     #[test]
-    fn generated_caller_matches_the_checked_in_starter() {
-        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-        let starter = std::fs::read_to_string(
-            std::path::Path::new(&source)
-                .join(workspace)
-                .join("examples/consumer-ci/caller.yml"),
-        )
-        .expect("examples/consumer-ci/caller.yml ships as test data");
-        let generated = render_consumer_caller();
-        let without_defaults: String = starter
-            .lines()
-            .filter(|l| !l.trim_start().starts_with("platforms:"))
-            .map(|l| format!("{l}\n"))
-            .collect();
-        assert_eq!(
-            generated.lines().skip(1).collect::<Vec<_>>(),
-            without_defaults.lines().collect::<Vec<_>>()
-        );
-    }
-
-    #[test]
     fn default_branch_prefers_origin_then_config_then_main() {
         let pick = super::pick_default_branch;
         assert_eq!(pick(Some("trunk".into()), Some("dev".into())), "trunk");

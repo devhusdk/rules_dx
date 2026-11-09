@@ -120,11 +120,6 @@ USER_BOOK = [
     mdbook_page("Strict Tiers", "docs/tiers-strict.md", "//docs:tiers-strict.md"),
     mdbook_section("Examples"),
     mdbook_page("Examples", "examples/README.md", "//examples:README.md"),
-    mdbook_page(
-        "Consumer CI",
-        "examples/consumer-ci/README.md",
-        "//examples:consumer-ci/README.md",
-    ),
     mdbook_page("Docs CI", "examples/docs-ci/README.md", "//examples:docs-ci/README.md"),
     mdbook_page(
         "GitLab CI",

@@ -445,7 +445,7 @@ fn example_pages_render_their_own_route_and_links() {
         "the example page must render its own heading"
     );
     let examples = read(&root, "examples/index.html");
-    for target in ["adopt-polyglot/", "consumer-ci/", "docs-ci/", "gitlab-ci/"] {
+    for target in ["adopt-polyglot/", "docs-ci/", "gitlab-ci/"] {
         assert!(
             examples.contains(&format!("href=\"{target}")),
             "the examples page must link {target}"

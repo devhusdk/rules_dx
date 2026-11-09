@@ -270,7 +270,6 @@ fn the_native_matrix_keeps_all_five_platforms() {
 fn every_gate_workflow_runs_on_merge_group_checks_requested() {
     for workflow in [
         CI_WORKFLOW,
-        "examples/consumer-ci/caller.yml",
         "examples/docs-ci/caller.yml",
     ] {
         let on = triggers(workflow);
@@ -485,7 +484,6 @@ fn the_ruleset_requires_the_gate_job_name() {
 #[test]
 fn no_other_workflow_job_reports_the_gate_context() {
     let mut names = dx_testing::workflow_files();
-    names.push("examples/consumer-ci/caller.yml".to_string());
     names.push("examples/docs-ci/caller.yml".to_string());
     for name in names {
         if name == CI_WORKFLOW {

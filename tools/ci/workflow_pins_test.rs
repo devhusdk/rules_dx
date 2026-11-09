@@ -1,9 +1,6 @@
 use dx_testing::{read_runfiles, runfiles_root, sha256_file};
 
-const CALLERS: [(&str, &str); 2] = [
-    ("examples/consumer-ci/caller.yml", "reusable-consumer.yml"),
-    ("examples/docs-ci/caller.yml", "reusable-docs.yml"),
-];
+const CALLERS: [(&str, &str); 1] = [("examples/docs-ci/caller.yml", "reusable-docs.yml")];
 
 const REUSABLE: [&str; 3] = [
     "reusable-consumer.yml",

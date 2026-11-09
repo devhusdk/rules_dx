@@ -3,10 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
-    "consumer-ci/README.md",
-    "consumer-ci/caller.yml",
     "docs-ci/caller.yml",
-    "gitlab-ci/.gitlab-ci.yml",
 ])
 
 real_source_target(
@@ -17,7 +14,6 @@ real_source_target(
     ],
     markdown_srcs = [
         "README.md",
-        "consumer-ci/README.md",
         "docs-ci/README.md",
         "gitlab-ci/README.md",
     ],

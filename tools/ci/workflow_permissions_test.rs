@@ -191,8 +191,7 @@ fn a_used_write_scope_passes_and_an_unknown_one_fails() {
 }
 
 /// Callers whose jobs call a reusable workflow and must grant what it requests.
-const CALLERS: [&str; 3] = [
-    "examples/consumer-ci/caller.yml",
+const CALLERS: [&str; 2] = [
     "examples/docs-ci/caller.yml",
     ".github/workflows/ci.yml",
 ];

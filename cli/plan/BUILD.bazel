@@ -183,7 +183,6 @@ rust_test(
         "//cli/cli/tests/fixtures/help_goldens:goldens",
         "//deploy/offline:offline.bzl",
         "//deploy/offline/bootstrap:src/lib.rs",
-        "//examples:gitlab-ci/.gitlab-ci.yml",
         "//gazelle/common:testdata/intended_manifest.json",
         "//gazelle/common:testdata/intended_manifest_failed.json",
         "//modules:versions.bzl",

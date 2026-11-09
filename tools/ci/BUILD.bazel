@@ -72,7 +72,6 @@ rust_test(
         "//.github:workflows/release-cells.yml",
         "//.github:workflows/release-consumer.yml",
         "//docs:github-ci.md",
-        "//examples:consumer-ci/caller.yml",
     ],
     env = {"DX_INPUT_VALIDATION": "$(rootpath :input_validation_bin)"},
     deps = [
@@ -221,7 +220,6 @@ rust_test(
         ":actionlint_fixtures",
         "//.github:actionlint.yaml",
         "//.github:workflows",
-        "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
         "@dx_tools//:actionlint",
         "@dx_tools//:shellcheck",
@@ -246,7 +244,6 @@ rust_test(
         "//.github:actions",
         "//.github:rulesets/main.json",
         "//.github:workflows",
-        "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
@@ -318,7 +315,6 @@ rust_test(
     srcs = ["workflow_permissions_test.rs"],
     data = [
         "//.github:workflows",
-        "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
@@ -700,7 +696,6 @@ rust_test(
     srcs = ["gitlab_example_test.rs"],
     data = [
         "//ci/gitlab:dx.gitlab-ci.yml",
-        "//examples:gitlab-ci/.gitlab-ci.yml",
     ],
     deps = [
         "//cli/test_scratch:dx_test_scratch",
@@ -732,7 +727,6 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//docs:github-ci.md",
-        "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
     deps = [
@@ -752,7 +746,6 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//.github:workflows/reusable-release.yml",
-        "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
     deps = ["//tools/testing:dx_testing"],

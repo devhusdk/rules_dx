@@ -1,12 +1,8 @@
 use yaml_serde::Value;
 
-use dx_testing::{read_runfiles, runfiles_root};
+use dx_testing::read_runfiles;
 
 const PIPELINES: &[&str] = &["ci/gitlab/dx.gitlab-ci.yml"];
-
-const CALLER: &str = "examples/gitlab-ci/.gitlab-ci.yml";
-
-const RAW: &str = "https://raw.githubusercontent.com/devhusdk/rules_dx/";
 
 const KEYWORDS: &[&str] = &["default", "variables", "workflow", "stages", "include"];
 
@@ -258,11 +254,10 @@ fn the_cache_is_keyed_on_the_lockfile_and_stays_protected() {
 
 #[test]
 fn the_example_needs_no_github_credentials() {
-    for file in [PIPELINES[0], CALLER] {
-        let text = read_runfiles(file);
-        for banned in ["GITHUB_", "GH_TOKEN", "secrets.", "CI_JOB_TOKEN"] {
-            assert!(!text.contains(banned), "{file} must not use {banned}");
-        }
+    let file = PIPELINES[0];
+    let text = read_runfiles(file);
+    for banned in ["GITHUB_", "GH_TOKEN", "secrets.", "CI_JOB_TOKEN"] {
+        assert!(!text.contains(banned), "{file} must not use {banned}");
     }
 }
 
@@ -278,59 +273,6 @@ fn the_image_is_digest_pinned() {
             .unwrap_or_else(|| panic!("{path}: image {image} is not digest-pinned"));
         assert_eq!(digest.len(), 64, "{path}: image digest must be a SHA-256");
     }
-}
-
-#[test]
-fn the_caller_pins_a_template_that_exists() {
-    let doc = document(CALLER);
-    let includes = strings_of_remotes(&doc);
-    assert_eq!(includes.len(), 1, "{CALLER} must include one remote");
-    let rest = includes[0]
-        .strip_prefix(RAW)
-        .unwrap_or_else(|| panic!("{CALLER}: remote must start with {RAW}"));
-    let (commit, path) = rest
-        .split_once('/')
-        .unwrap_or_else(|| panic!("{CALLER}: remote has no path"));
-    let hex = commit
-        .chars()
-        .all(|ch| ch.is_ascii_digit() || ('a'..='f').contains(&ch));
-    assert!(
-        commit.len() == 40 && hex,
-        "{CALLER}: pin {commit} is not a full commit"
-    );
-    assert_eq!(
-        path, PIPELINES[0],
-        "{CALLER}: remote must point at the template"
-    );
-    assert!(
-        runfiles_root().join(path).is_file(),
-        "{CALLER} pins {path}, which this workspace does not ship"
-    );
-}
-
-#[test]
-fn the_caller_holds_only_the_pin() {
-    let text = read_runfiles(CALLER);
-    for banned in ["BAZELISK", "sha256", "image:"] {
-        assert!(!text.contains(banned), "{CALLER} must not hold {banned}");
-    }
-    let doc = document(CALLER);
-    assert_eq!(
-        doc.as_mapping().expect("mapping").len(),
-        1,
-        "{CALLER} must hold only include"
-    );
-}
-
-/// Returns the remote URLs the pipeline includes.
-fn strings_of_remotes(doc: &Value) -> Vec<String> {
-    doc["include"]
-        .as_sequence()
-        .unwrap_or_else(|| panic!("{CALLER} has no include list"))
-        .iter()
-        .filter_map(|item| item["remote"].as_str())
-        .map(ToOwned::to_owned)
-        .collect()
 }
 
 #[test]

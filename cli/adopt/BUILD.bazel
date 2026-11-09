@@ -220,7 +220,6 @@ rust_test(
         "//:.bazelversion",
         "//:MODULE.bazel",
         "//:package.json",
-        "//examples:consumer-ci/caller.yml",
         "//modules:cuda.bzl",
         "@dx_tools//:shellcheck",
     ],

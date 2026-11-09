@@ -63,16 +63,8 @@ fn targets() -> Vec<(&'static str, Vec<Edit>)> {
             vec![pin("CONSUMER_WORKFLOW_PIN: &str = \"")],
         ),
         (
-            "examples/consumer-ci/caller.yml",
-            vec![pin("reusable-consumer.yml@")],
-        ),
-        (
             "examples/docs-ci/caller.yml",
             vec![pin("reusable-docs.yml@")],
-        ),
-        (
-            "examples/gitlab-ci/.gitlab-ci.yml",
-            vec![pin("githubusercontent.com/devhusdk/rules_dx/")],
         ),
     ]
 }
@@ -315,14 +307,6 @@ mod tests {
                 "0000000000000000000000000000000000000000000000000000000000000000  .github/workflows/reusable-docs.yml\n",
             ),
             (
-                "examples/consumer-ci/caller.yml",
-                "    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@e97ab7b550d08e047c35edc5f50c7d242227842f\n    with:\n",
-            ),
-            (
-                "examples/gitlab-ci/.gitlab-ci.yml",
-                "include:\n  - remote: https://raw.githubusercontent.com/devhusdk/rules_dx/e97ab7b550d08e047c35edc5f50c7d242227842f/ci/gitlab/dx.gitlab-ci.yml\n",
-            ),
-            (
                 "examples/docs-ci/caller.yml",
                 "    uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@e97ab7b550d08e047c35edc5f50c7d242227842f\n    with:\n      docs_scope: \"//...\"\n",
             ),
@@ -342,7 +326,7 @@ mod tests {
     fn rewrites_every_file() {
         let dir = tempfile::tempdir().unwrap();
         fixture(dir.path());
-        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(8));
+        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(6));
         assert!(read(dir.path(), "MODULE.bazel").contains("    version = \"1.2.3\","));
         assert!(read(dir.path(), "MODULE.bazel").contains("name = \"x\", version = \"9.9.9\""));
         assert_eq!(
@@ -360,17 +344,10 @@ mod tests {
                 dx_digest::sha256_hex(b"name: docs\n")
             )
         );
-        let consumer = read(dir.path(), "examples/consumer-ci/caller.yml");
-        assert!(consumer.contains(&format!("reusable-consumer.yml@{NEW}\n")));
-        assert!(!consumer.contains("rules_dx_version"));
         let docs_ci = read(dir.path(), "examples/docs-ci/caller.yml");
         assert!(docs_ci.contains(&format!("reusable-docs.yml@{NEW}\n")));
         assert!(docs_ci.contains("docs_scope: \"//...\""));
         assert!(!docs_ci.contains(OLD));
-        assert!(
-            read(dir.path(), "examples/gitlab-ci/.gitlab-ci.yml")
-                .contains(&format!("rules_dx/{NEW}/ci/gitlab/dx.gitlab-ci.yml\n"))
-        );
     }
 
     #[test]
@@ -381,7 +358,7 @@ mod tests {
         let path = dir.path().join("families/go/MODULE.bazel");
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, family).unwrap();
-        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(9));
+        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(7));
         assert_eq!(
             read(dir.path(), "families/go/MODULE.bazel"),
             "module(\n    name = \"rules_dx_go\",\n    version = \"1.2.3\",\n)\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nbazel_dep(name = \"x\", version = \"9.9.9\")\n"

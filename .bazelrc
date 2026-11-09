@@ -78,6 +78,8 @@ common:bb --remote_cache=grpcs://remote.buildbuddy.io
 common:bb --remote_cache_compression
 common:bb --remote_timeout=10m
 common:bb --credential_helper=remote.buildbuddy.io=%workspace%/tools/buildbuddy-credential-helper.sh
+common:bb-ro --config=bb
+common:bb-ro --noremote_upload_local_results
 common:ci --remote_cache=grpcs://remote.buildbuddy.io
 common:ci --experimental_remote_downloader=grpcs://remote.buildbuddy.io
 common:ci --experimental_remote_downloader_local_fallback

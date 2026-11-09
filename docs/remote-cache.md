@@ -38,6 +38,13 @@ Pass the config after `--`.
 dx build //... -- --config=cache
 ```
 
+A read-only key makes Bazel warn that the cache does not accept uploads. Add a config that turns uploads off and use it with that key.
+
+```text
+common:cache-ro --config=cache
+common:cache-ro --noremote_upload_local_results
+```
+
 `dx` still adds its shared disk cache locally, so Bazel uses both caches. Under `CI=true`, `dx` adds no disk cache.
 
 ## Backends

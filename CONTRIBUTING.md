@@ -31,6 +31,8 @@ tools/dx test --affected -- --config=bb
 
 `--config=bb` reads the key from the environment through `tools/buildbuddy-credential-helper.sh` on Linux and macOS. Never put the key in `user.bazelrc` or any other rc file, and never pass `--announce_rc`.
 
+A read-only key makes Bazel warn on every build that it cannot upload results. Use `--config=bb-ro` instead of `--config=bb`.
+
 ## Evidence status
 
 Each `evidence.yml` run posts the commit status `evidence/<platform>/<task>/<scope>` on the dispatched commit: pending at dispatch, then success, failure or error. `gh pr checks <n> --watch` shows it. A second run for the same platform, task and scope on one commit replaces the status.

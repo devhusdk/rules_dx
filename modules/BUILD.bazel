@@ -165,6 +165,7 @@ exports_files([
     "rust.bzl",
     "python.bzl",
     "families.json",
+    "pins.bzl",
     "python_budget.json",
     "versions.bzl",
 ])
@@ -175,6 +176,7 @@ real_source_target(
         "BUILD.bazel",
         "consumer_deps.bzl",
         "cuda.bzl",
+        "pins.bzl",
         "python.bzl",
         "rust.bzl",
         "ruby.bzl",

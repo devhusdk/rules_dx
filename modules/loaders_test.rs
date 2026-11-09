@@ -1,28 +1,8 @@
-//! Every non-dev bazel_dep of the root module is loaded by a public .bzl or listed as root-only.
+//! Every non-dev bazel_dep of the root module is loaded by a public .bzl.
 
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value};
-
-/// Non-dev deps that no public .bzl loads; each is used by a root extension or a BUILD file.
-const ROOT_ONLY: &[&str] = &[
-    "bazel_features",
-    "bazel_linux_packages",
-    "elfutils",
-    "hermetic_launcher",
-    "libxml2",
-    "lua",
-    "rules_android",
-    "rules_apple",
-    "rules_batch",
-    "rules_jvm_external",
-    "rules_rust_prost",
-    "tar.bzl",
-    "windows_support",
-    "yaml.bzl",
-    "zlib",
-];
 
 const SKIPPED_DIRS: &[&str] = &[
     "tests",
@@ -82,35 +62,14 @@ fn non_dev_deps(source: &str) -> Vec<String> {
         .collect()
 }
 
-/// Every way the loaders of `deps` disagree with `root_only`; empty when they agree.
-fn violations(deps: &[String], bzl: &[String], root_only: &[&str]) -> Vec<String> {
-    let loaders: BTreeMap<&str, usize> = deps
-        .iter()
+/// The deps in `deps` that no text in `bzl` mentions.
+fn unloaded(deps: &[String], bzl: &[String]) -> Vec<String> {
+    deps.iter()
+        .filter(|dep| !bzl.iter().any(|text| mentions(text, dep)))
         .map(|dep| {
-            let count = bzl.iter().filter(|text| mentions(text, dep)).count();
-            (dep.as_str(), count)
+            format!("bazel_dep {dep:?} is loaded by no public .bzl; make it dev_dependency or move it")
         })
-        .collect();
-    let mut problems = Vec::new();
-    for (dep, count) in &loaders {
-        let listed = root_only.contains(dep);
-        if *count == 0 && !listed {
-            problems.push(format!(
-                "bazel_dep {dep:?} is loaded by no public .bzl; make it dev_dependency or move it"
-            ));
-        }
-        if *count > 0 && listed {
-            problems.push(format!(
-                "bazel_dep {dep:?} is loaded by {count} public .bzl files; drop it from ROOT_ONLY"
-            ));
-        }
-    }
-    for dep in root_only {
-        if !loaders.contains_key(dep) {
-            problems.push(format!("ROOT_ONLY {dep:?} has no non-dev bazel_dep"));
-        }
-    }
-    problems
+        .collect()
 }
 
 #[test]
@@ -124,7 +83,7 @@ fn every_non_dev_bazel_dep_is_loaded_by_a_public_bzl() {
         bzl.len()
     );
     let deps = non_dev_deps(&dx_testing::read_runfiles("MODULE.bazel"));
-    let problems = violations(&deps, &bzl, ROOT_ONLY);
+    let problems = unloaded(&deps, &bzl);
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
@@ -132,17 +91,9 @@ fn every_non_dev_bazel_dep_is_loaded_by_a_public_bzl() {
 fn an_unloaded_dep_fails() {
     let deps = vec!["demo".to_owned(), "used".to_owned()];
     let bzl = vec!["load(\"@used//:defs.bzl\", \"x\")".to_owned()];
-    let problems = violations(&deps, &bzl, &[]);
+    let problems = unloaded(&deps, &bzl);
     assert_eq!(problems.len(), 1, "{problems:?}");
     assert!(problems[0].contains("\"demo\""), "{problems:?}");
-}
-
-#[test]
-fn a_listed_dep_that_is_loaded_fails() {
-    let deps = vec!["used".to_owned()];
-    let bzl = vec!["Label(\"@@used+//:x\")".to_owned()];
-    let problems = violations(&deps, &bzl, &["used"]);
-    assert_eq!(problems.len(), 1, "{problems:?}");
 }
 
 #[test]
@@ -153,10 +104,4 @@ fn a_prefix_of_another_repo_name_is_not_a_load() {
     ));
     assert!(mentions("load(\"@rules_python//:x.bzl\")", "rules_python"));
     assert!(mentions("\"@rules_python\"", "rules_python"));
-}
-
-#[test]
-fn a_stale_root_only_entry_fails() {
-    let problems = violations(&[], &[], &["gone"]);
-    assert_eq!(problems.len(), 1, "{problems:?}");
 }

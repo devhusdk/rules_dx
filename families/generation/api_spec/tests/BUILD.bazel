@@ -24,7 +24,7 @@ openapi_typescript_client(
 
 openapi_codegen_shard(
     name = "client_shard",
-    client = ":client",
+    generated = ":client",
     entries = ["gen/shop/client.ts|gen|shop|api_spec/tests/client.ts"],
     language = "typescript",
 )
@@ -80,7 +80,7 @@ openapi_go_client(
 
 openapi_codegen_shard(
     name = "petstore_go_shard",
-    client = ":petstore_go",
+    generated = ":petstore_go",
     entries = ["gen/petstore/petstore.go|gen|petstore|api_spec/tests/petstore.go"],
     language = "go",
 )
@@ -115,7 +115,7 @@ openapi_python_client(
 
 openapi_codegen_shard(
     name = "petstore_py_shard",
-    client = ":petstore_py",
+    generated = ":petstore_py",
     entries = ["gen/petstore|gen|petstore|api_spec/tests/petstore_py"],
     language = "python",
 )
@@ -157,7 +157,7 @@ openapi_rust_client(
 
 openapi_codegen_shard(
     name = "petstore_rs_shard",
-    client = ":petstore_rs",
+    generated = ":petstore_rs",
     entries = ["gen/petstore/petstore.rs|gen|petstore|api_spec/tests/petstore.rs"],
     language = "rust",
 )
@@ -192,7 +192,7 @@ build_test(
 
 openapi_codegen_shard(
     name = "unmatched_shard",
-    client = ":client",
+    generated = ":client",
     entries = ["gen/shop/other.ts|gen|shop|api_spec/tests/other.ts"],
     language = "typescript",
     tags = ["manual"],
@@ -200,7 +200,7 @@ openapi_codegen_shard(
 
 openapi_codegen_shard(
     name = "ruby_shard",
-    client = ":client",
+    generated = ":client",
     entries = ["gen/shop/client.rb|gen|shop|api_spec/tests/client.ts"],
     language = "ruby",
     tags = ["manual"],

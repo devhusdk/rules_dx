@@ -28,7 +28,7 @@ prost_codegen_shard(
     testonly = True,
     entries = ["gen/prost_result.rs|gen|result|result_proto.lib.rs"],
     language = "rust",
-    proto_rs = "//generation/proto:result_proto_rs",
+    generated = "//generation/proto:result_proto_rs",
     visibility = ["//visibility:private"],
 )
 

@@ -323,20 +323,20 @@ def thrift_rust_library(name, deps, crate_name = None, **kwargs):
     )
 
 def _shard_impl(ctx):
-    library = ctx.attr.library
-    if OutputGroupInfo not in library or THRIFT_GENERATED_SRCS_GROUP not in library[OutputGroupInfo]:
+    generated = ctx.attr.generated
+    if OutputGroupInfo not in generated or THRIFT_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
         fail(
             "thrift_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(library.label) + " has no " + THRIFT_GENERATED_SRCS_GROUP +
+            display_label(generated.label) + " has no " + THRIFT_GENERATED_SRCS_GROUP +
             " output group (want a thrift_cc_library, a thrift_java_library or NAME_generated of a thrift_rust_library)",
         )
     return codegen_bound_shard_providers(
         ctx,
         "thrift_codegen_shard",
         "thrift",
-        display_label(library.label),
+        display_label(generated.label),
         THRIFT_GENERATED_SRCS_GROUP,
-        library[OutputGroupInfo][THRIFT_GENERATED_SRCS_GROUP].to_list(),
+        generated[OutputGroupInfo][THRIFT_GENERATED_SRCS_GROUP].to_list(),
     )
 
 thrift_codegen_shard = rule(
@@ -348,7 +348,7 @@ thrift_codegen_shard = rule(
             mandatory = True,
         ),
         "language": attr.string(doc = "cpp, rust or java.", mandatory = True),
-        "library": attr.label(
+        "generated": attr.label(
             doc = "thrift_cc_library, thrift_java_library, or the NAME_generated target of a thrift_rust_library, whose generated files the entries bind.",
             mandatory = True,
         ),

@@ -77,12 +77,13 @@ load("@rules_dx//generation:codegen.bzl", "prost_codegen_shard")
 prost_codegen_shard(
     name = "api_codegen",
     entries = ["gen/api.rs|gen|api|api_proto.lib.rs"],
-    proto_rs = ":api_proto_rs",
+    generated = ":api_proto_rs",
+    language = "rust",
 )
 ```
 
 - gRPC for Rust needs no extra rule. `rust_prost_library` emits tonic stubs when the proto has a `service`, because the `rules_rust_prost` default toolchain sets `tonic_plugin` and `tonic_runtime`. Depend on `@rules_rust_prost//private/3rdparty/crates:tonic` and `:tokio` to serve or call it, as in `//rust/tests/tonic:greeter_test`. A custom `rust_prost_toolchain` must set `tonic_plugin`, `tonic_plugin_flag` and `tonic_runtime` together.
-- Set `language = "rust"` or `language = "java"` on the shard of a Rust or Java library. Bind a Rust shard to the `NAME_generated` target.
+- Every shard binds the target that generated the files with `generated`. Set `language = "rust"` or `language = "java"` on the shard of a Rust or Java library. Bind a Rust shard to the `NAME_generated` target.
 - A Java shard entry is the srcjar of one direct dep.
 - A shard lists the files of the libraries in the `deps` of its library rule only.
 - `flatbuffers_cc_library` takes `gen_object_api = True` for the object API. `flatbuffers_rust_library` takes a `root` schema, required when the library owns more than one.

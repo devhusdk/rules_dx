@@ -46,7 +46,7 @@ avro_codegen_shard(
     name = "point_cc_shard",
     entries = ["gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point.hh"],
     language = "cpp",
-    library = ":point_cc",
+    generated = ":point_cc",
 )
 
 codegen_shard_argv_test(
@@ -71,7 +71,7 @@ avro_codegen_shard(
         "gen/shape.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/shape.hh",
     ],
     language = "cpp",
-    library = ":shapes_cc",
+    generated = ":shapes_cc",
 )
 
 codegen_shard_argv_test(
@@ -130,7 +130,7 @@ avro_codegen_shard(
     name = "shapes_java_shard",
     entries = ["gen/shapes.srcjar|gen|dx.test|avro/tests/shapes_java.srcjar"],
     language = "java",
-    library = ":shapes_java",
+    generated = ":shapes_java",
 )
 
 codegen_shard_argv_test(

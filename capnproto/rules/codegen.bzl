@@ -422,27 +422,27 @@ def capnp_rust_library(name, library, deps = [], crate_name = None, **kwargs):
     )
 
 def _shard_impl(ctx):
-    library = ctx.attr.library
-    if ctx.attr.language in _LANGUAGES and CapnpCodegenInfo in library and library[CapnpCodegenInfo].language != ctx.attr.language:
+    generated = ctx.attr.generated
+    if ctx.attr.language in _LANGUAGES and CapnpCodegenInfo in generated and generated[CapnpCodegenInfo].language != ctx.attr.language:
         fail(
             "capnp_codegen_shard " + display_label(ctx.label) + ": language " + ctx.attr.language +
-            " does not match " + display_label(library.label) + ", which generates " +
-            library[CapnpCodegenInfo].language + ". Point library at a capnp_cc_library for cpp, " +
+            " does not match " + display_label(generated.label) + ", which generates " +
+            generated[CapnpCodegenInfo].language + ". Point generated at a capnp_cc_library for cpp, " +
             "at NAME_generated of a capnp_rust_library for rust, or at a capnp_java_library for java",
         )
-    if OutputGroupInfo not in library or CAPNP_GENERATED_SRCS_GROUP not in library[OutputGroupInfo]:
+    if OutputGroupInfo not in generated or CAPNP_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
         fail(
             "capnp_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(library.label) + " has no " + CAPNP_GENERATED_SRCS_GROUP +
+            display_label(generated.label) + " has no " + CAPNP_GENERATED_SRCS_GROUP +
             " output group (want a capnp_cc_library, a capnp_java_library or a capnp_rust_library NAME_generated)",
         )
     return codegen_bound_shard_providers(
         ctx,
         "capnp_codegen_shard",
         "capnp",
-        display_label(library.label),
+        display_label(generated.label),
         CAPNP_GENERATED_SRCS_GROUP,
-        library[OutputGroupInfo][CAPNP_GENERATED_SRCS_GROUP].to_list(),
+        generated[OutputGroupInfo][CAPNP_GENERATED_SRCS_GROUP].to_list(),
     )
 
 capnp_codegen_shard = rule(
@@ -454,7 +454,7 @@ capnp_codegen_shard = rule(
             mandatory = True,
         ),
         "language": attr.string(doc = "cpp, rust or java.", mandatory = True),
-        "library": attr.label(
+        "generated": attr.label(
             doc = "capnp_cc_library, capnp_java_library, or the NAME_generated target of a capnp_rust_library, whose generated files the entries bind.",
             mandatory = True,
         ),

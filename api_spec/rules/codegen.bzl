@@ -191,27 +191,27 @@ openapi_rust_client = rule(
 )
 
 def _shard_impl(ctx):
-    client = ctx.attr.client
-    if OutputGroupInfo not in client or OPENAPI_GENERATED_SRCS_GROUP not in client[OutputGroupInfo]:
+    generated = ctx.attr.generated
+    if OutputGroupInfo not in generated or OPENAPI_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
         fail(
             "openapi_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(client.label) + " has no " + OPENAPI_GENERATED_SRCS_GROUP +
+            display_label(generated.label) + " has no " + OPENAPI_GENERATED_SRCS_GROUP +
             " output group (want an openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client)",
         )
     return codegen_bound_shard_providers(
         ctx,
         "openapi_codegen_shard",
         "openapi",
-        display_label(client.label),
+        display_label(generated.label),
         OPENAPI_GENERATED_SRCS_GROUP,
-        client[OutputGroupInfo][OPENAPI_GENERATED_SRCS_GROUP].to_list(),
+        generated[OutputGroupInfo][OPENAPI_GENERATED_SRCS_GROUP].to_list(),
     )
 
 openapi_codegen_shard = rule(
     implementation = _shard_impl,
     doc = "Declares codegen plan entries for the file an openapi client rule generates. The file needs one entry with an EXEC_PATH suffix.",
     attrs = {
-        "client": attr.label(doc = "openapi_typescript_client whose output the entries bind.", mandatory = True),
+        "generated": attr.label(doc = "openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client whose output the entries bind.", mandatory = True),
         "entries": attr.string_list(
             doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
             mandatory = True,

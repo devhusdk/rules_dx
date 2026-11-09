@@ -270,7 +270,7 @@ dx_codegen_shard = rule(
     },
 )
 
-_CODEGEN_ASPECT_ATTRS = ["deps", "proto", "proto_rs"]
+_CODEGEN_ASPECT_ATTRS = ["deps", "proto", "generated"]
 
 def _dx_codegen_plan_aspect_impl(target, ctx):
     inputs = plan_shard_aspect_inputs(
@@ -370,38 +370,20 @@ def codegen_bound_shard_providers(ctx, rule_kind, schema_kind, upstream_label, g
 CODEGEN_SHARD_WRITER_LABEL = Label("//generation/codegen_shard:codegen_shard_writer")
 
 def _prost_codegen_shard_impl(ctx):
-    producer = display_label(ctx.label)
-    pair_error = codegen_pair_error(ctx.attr.schema_kind, ctx.attr.language)
-    if pair_error != "":
-        fail("prost_codegen_shard " + producer + ": " + pair_error)
-    upstream = ctx.attr.proto_rs
-    if OutputGroupInfo not in upstream:
+    generated = ctx.attr.generated
+    if OutputGroupInfo not in generated or "rust_generated_srcs" not in generated[OutputGroupInfo]:
         fail(
-            "prost_codegen_shard " + producer + ": upstream " +
-            display_label(upstream.label) + " carries no OutputGroupInfo",
+            "prost_codegen_shard " + display_label(ctx.label) + ": " +
+            display_label(generated.label) + " has no rust_generated_srcs output group (not a rust_prost_library)",
         )
-    groups = upstream[OutputGroupInfo]
-    if "rust_generated_srcs" not in groups:
-        fail(
-            "prost_codegen_shard " + producer + ": upstream " +
-            display_label(upstream.label) +
-            " has no rust_generated_srcs output group (not a rust_prost_library)",
-        )
-    generated = groups["rust_generated_srcs"].to_list()
-    if len(generated) == 0:
-        fail(
-            "prost_codegen_shard " + producer + ": upstream " +
-            display_label(upstream.label) + " emitted no generated Rust sources",
-        )
-    entries = [_parse_entry_spec(spec, producer) for spec in ctx.attr.entries]
-    codegen_bind_generated("prost_codegen_shard", producer, display_label(upstream.label), "rust_generated_srcs", generated, entries)
-    record = _checked_record(producer, ctx.attr.language, entries)
-    out = plan_shard_emit(ctx, "codegen", producer, "--language", ctx.attr.language, ctx.attr.entries, DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
-    return [
-        DefaultInfo(files = depset([out])),
-        DxCodegenPlanInfo(direct = [record], transitive = depset([record])),
-        OutputGroupInfo(dx_codegen_plans = depset([out] + generated)),
-    ]
+    return codegen_bound_shard_providers(
+        ctx,
+        "prost_codegen_shard",
+        "protobuf",
+        display_label(generated.label),
+        "rust_generated_srcs",
+        generated[OutputGroupInfo]["rust_generated_srcs"].to_list(),
+    )
 
 prost_codegen_shard = rule(
     implementation = _prost_codegen_shard_impl,
@@ -411,17 +393,13 @@ prost_codegen_shard = rule(
             doc = "Codegen entry specs for the sources prost generates.",
             mandatory = True,
         ),
-        "language": attr.string(
-            doc = "Target language of the generated code, rust by default.",
-            default = "rust",
-        ),
-        "proto_rs": attr.label(
-            doc = "Target providing the prost generated Rust sources.",
+        "generated": attr.label(
+            doc = "rust_prost_library whose generated Rust sources the entries bind.",
             mandatory = True,
         ),
-        "schema_kind": attr.string(
-            doc = "Schema kind of the inputs, protobuf by default.",
-            default = "protobuf",
+        "language": attr.string(
+            doc = "rust.",
+            mandatory = True,
         ),
         "_writer": attr.label(
             default = "//generation/codegen_shard:codegen_shard_writer",

@@ -54,7 +54,7 @@ flatbuffers_codegen_shard(
         "gen/api/shape_generated.h|gen|dx.api|flatbuffers/tests/api/shape_generated.h",
     ],
     language = "cpp",
-    library = ":shapes_cc",
+    generated = ":shapes_cc",
 )
 
 codegen_shard_argv_test(
@@ -84,7 +84,7 @@ flatbuffers_codegen_shard(
     name = "shapes_rs_shard",
     entries = ["gen/api/shape_generated.rs|gen|dx.api|flatbuffers/tests/shapes_rs_generated_fbs_rs/shape_generated.rs"],
     language = "rust",
-    library = ":shapes_rs_generated",
+    generated = ":shapes_rs_generated",
 )
 
 codegen_shard_argv_test(
@@ -128,7 +128,7 @@ flatbuffers_codegen_shard(
         "gen/api/shape.srcjar|gen|dx.api|flatbuffers/tests/api/_fbs_java/api.srcjar",
     ],
     language = "java",
-    library = ":shapes_java",
+    generated = ":shapes_java",
 )
 
 codegen_shard_argv_test(
@@ -160,7 +160,7 @@ flatbuffers_codegen_shard(
     name = "unclaimed_shard",
     entries = ["gen/base/common_generated.h|gen|dx.base|flatbuffers/tests/base/common_generated.h"],
     language = "cpp",
-    library = ":shapes_cc",
+    generated = ":shapes_cc",
     tags = ["manual"],
 )
 
@@ -168,7 +168,7 @@ flatbuffers_codegen_shard(
     name = "python_shard",
     entries = ["gen/a.py|gen|a|common_generated.h"],
     language = "python",
-    library = ":shapes_cc",
+    generated = ":shapes_cc",
     tags = ["manual"],
 )
 
@@ -189,7 +189,7 @@ flatbuffers_codegen_shard(
     name = "cpp_shard_on_rust",
     entries = ["gen/api/shape_generated.rs|gen|dx.api|flatbuffers/tests/shapes_rs_generated_fbs_rs/shape_generated.rs"],
     language = "cpp",
-    library = ":shapes_rs_generated",
+    generated = ":shapes_rs_generated",
     tags = ["manual"],
 )
 
@@ -197,7 +197,7 @@ flatbuffers_codegen_shard(
     name = "stray_rs_shard",
     entries = ["gen/api/other.rs|gen|dx.api|flatbuffers/tests/other.rs"],
     language = "rust",
-    library = ":shapes_rs_generated",
+    generated = ":shapes_rs_generated",
     tags = ["manual"],
 )
 
@@ -205,7 +205,7 @@ flatbuffers_codegen_shard(
     name = "java_shard_on_cc",
     entries = ["gen/base/common_generated.h|gen|dx.base|flatbuffers/tests/base/common_generated.h"],
     language = "java",
-    library = ":shapes_cc",
+    generated = ":shapes_cc",
     tags = ["manual"],
 )
 

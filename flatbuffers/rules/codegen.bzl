@@ -328,28 +328,28 @@ def flatbuffers_rust_library(name, library, root = None, **kwargs):
     )
 
 def _shard_impl(ctx):
-    library = ctx.attr.library
-    if FlatBuffersCodegenInfo in library and ctx.attr.language in ("cpp", "rust", "java") and library[FlatBuffersCodegenInfo].language != ctx.attr.language:
+    generated = ctx.attr.generated
+    if FlatBuffersCodegenInfo in generated and ctx.attr.language in ("cpp", "rust", "java") and generated[FlatBuffersCodegenInfo].language != ctx.attr.language:
         fail(
             "flatbuffers_codegen_shard " + display_label(ctx.label) + ": language " + ctx.attr.language +
-            " does not match " + display_label(library.label) + ", which generates " +
-            library[FlatBuffersCodegenInfo].language + ". Point library at a flatbuffers_cc_library for cpp, " +
+            " does not match " + display_label(generated.label) + ", which generates " +
+            generated[FlatBuffersCodegenInfo].language + ". Point generated at a flatbuffers_cc_library for cpp, " +
             "at NAME_generated of a flatbuffers_rust_library for rust, " +
             "or at a flatbuffers_java_library for java",
         )
-    if OutputGroupInfo not in library or FLATBUFFERS_GENERATED_SRCS_GROUP not in library[OutputGroupInfo]:
+    if OutputGroupInfo not in generated or FLATBUFFERS_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
         fail(
             "flatbuffers_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(library.label) + " has no " + FLATBUFFERS_GENERATED_SRCS_GROUP +
+            display_label(generated.label) + " has no " + FLATBUFFERS_GENERATED_SRCS_GROUP +
             " output group (want a flatbuffers_cc_library, a flatbuffers_java_library or a flatbuffers_rust_library NAME_generated)",
         )
     return codegen_bound_shard_providers(
         ctx,
         "flatbuffers_codegen_shard",
         "flatbuffers",
-        display_label(library.label),
+        display_label(generated.label),
         FLATBUFFERS_GENERATED_SRCS_GROUP,
-        library[OutputGroupInfo][FLATBUFFERS_GENERATED_SRCS_GROUP].to_list(),
+        generated[OutputGroupInfo][FLATBUFFERS_GENERATED_SRCS_GROUP].to_list(),
     )
 
 flatbuffers_codegen_shard = rule(
@@ -361,7 +361,7 @@ flatbuffers_codegen_shard = rule(
             mandatory = True,
         ),
         "language": attr.string(doc = "cpp, rust or java.", mandatory = True),
-        "library": attr.label(
+        "generated": attr.label(
             doc = "flatbuffers_cc_library, flatbuffers_java_library, or the NAME_generated target of a flatbuffers_rust_library, whose generated files the entries bind.",
             mandatory = True,
         ),

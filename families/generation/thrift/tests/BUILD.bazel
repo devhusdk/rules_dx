@@ -32,7 +32,7 @@ thrift_codegen_shard(
         "gen/api/shape.srcjar|gen|dx|thrift/tests/api/_thrift_cc/api.srcjar",
     ],
     language = "cpp",
-    library = ":shapes_cc",
+    generated = ":shapes_cc",
 )
 
 codegen_shard_argv_test(
@@ -77,7 +77,7 @@ thrift_codegen_shard(
         "gen/api/shape.srcjar|gen|dx|thrift/tests/api/_thrift_java/api.srcjar",
     ],
     language = "java",
-    library = ":shapes_java",
+    generated = ":shapes_java",
 )
 
 codegen_shard_argv_test(
@@ -113,7 +113,7 @@ thrift_codegen_shard(
         "gen/shape.rs|gen|dx|thrift/tests/shapes_rs_generated_thrift_rs/shape.rs",
     ],
     language = "rust",
-    library = ":shapes_rs_generated",
+    generated = ":shapes_rs_generated",
 )
 
 codegen_shard_argv_test(

@@ -168,20 +168,20 @@ avro_java_library = rule(
 )
 
 def _shard_impl(ctx):
-    library = ctx.attr.library
-    if OutputGroupInfo not in library or AVRO_GENERATED_SRCS_GROUP not in library[OutputGroupInfo]:
+    generated = ctx.attr.generated
+    if OutputGroupInfo not in generated or AVRO_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
         fail(
             "avro_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(library.label) + " has no " + AVRO_GENERATED_SRCS_GROUP +
+            display_label(generated.label) + " has no " + AVRO_GENERATED_SRCS_GROUP +
             " output group (want an avro_cc_library or avro_java_library)",
         )
     return codegen_bound_shard_providers(
         ctx,
         "avro_codegen_shard",
         "avro",
-        display_label(library.label),
+        display_label(generated.label),
         AVRO_GENERATED_SRCS_GROUP,
-        library[OutputGroupInfo][AVRO_GENERATED_SRCS_GROUP].to_list(),
+        generated[OutputGroupInfo][AVRO_GENERATED_SRCS_GROUP].to_list(),
     )
 
 avro_codegen_shard = rule(
@@ -190,7 +190,7 @@ avro_codegen_shard = rule(
     attrs = {
         "entries": attr.string_list(doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per file.", mandatory = True),
         "language": attr.string(doc = "cpp or java.", mandatory = True),
-        "library": attr.label(doc = "avro_cc_library or avro_java_library whose outputs the entries bind.", mandatory = True),
+        "generated": attr.label(doc = "avro_cc_library or avro_java_library whose outputs the entries bind.", mandatory = True),
         "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
     },
 )

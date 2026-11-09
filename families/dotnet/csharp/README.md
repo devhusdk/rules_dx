@@ -49,7 +49,7 @@ csharp_test(
 | `csharp_library` | Assembly from `srcs` |
 | `csharp_binary` | Executable run with `bazel run`. `srcs` is optional |
 | `csharp_test` | Test executable run with `bazel test` |
-| `csharp_bench` | `csharp_test` that runs `[Benchmark]` classes with BenchmarkDotNet and writes `dx-bench.json` for `dx bench`; add `nuget BenchmarkDotNet` to your `paket.dependencies` |
+| `csharp_bench` | `csharp_test` that runs `[Benchmark]` classes with BenchmarkDotNet and writes `dx-bench.json` for `dx bench`; BenchmarkDotNet comes with rules_dx_dotnet, so `paket.dependencies` needs no entry |
 
 - `target_frameworks` defaults to `["net10.0"]`. Set it to change it.
 - `warnings_as_errors` follows `//config:warnings_as_errors`, which is on by

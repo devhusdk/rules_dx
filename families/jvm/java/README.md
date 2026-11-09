@@ -48,7 +48,7 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 
 ## Benchmarks
 
-`java_bench` runs JMH benchmarks for `dx bench`. List `org.openjdk.jmh:jmh-core` and `jmh-generator-annprocess` in `maven_install.json`.
+`java_bench` runs JMH benchmarks for `dx bench`. JMH 1.37 comes with rules_dx, so no Maven hub entries are needed.
 
 ```python
 load("@rules_dx//java/rules:defs.bzl", "java_bench")
@@ -59,4 +59,4 @@ java_bench(
 )
 ```
 
-The test is tagged `dx-bench` and `manual` and writes `dx-bench.json` with one row per `@Benchmark` method. It runs one warmup and three measurement iterations of 200 ms in the test JVM, without forking. Set `jmh` and `jmh_processor` to other labels if your artifacts are not in `@maven`. `kotlin_bench` in `@rules_dx//kotlin/rules:defs.bzl` takes Kotlin sources the same way.
+The test is tagged `dx-bench` and `manual` and writes `dx-bench.json` with one row per `@Benchmark` method. It runs one warmup and three measurement iterations of 200 ms in the test JVM, without forking. `kotlin_bench` in `@rules_dx//kotlin/rules:defs.bzl` takes Kotlin sources the same way.

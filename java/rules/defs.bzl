@@ -170,16 +170,14 @@ def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, ta
     )
     dx_fuzz_runner(name, ":" + name, visibility = visibility, engine = "jazzer", target = target_class)
 
-def java_bench(name, srcs, deps = [], jmh = "@maven//:org_openjdk_jmh_jmh_core", jmh_processor = "@maven//:org_openjdk_jmh_jmh_generator_annprocess", tags = [], **kwargs):
+def java_bench(name, srcs, deps = [], tags = [], **kwargs):
     """Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench.
 
     Args:
       name: the test target.
       srcs: Java sources with @Benchmark methods.
       deps: libraries the benchmarks use.
-      jmh: the jmh-core target.
-      jmh_processor: the jmh-generator-annprocess target.
       tags: extra tags. dx-bench and manual are added.
       **kwargs: passed to the test.
     """
-    jmh_bench(name, java_library, srcs, deps, jmh, jmh_processor, tags, kwargs)
+    jmh_bench(name, java_library, srcs, deps, tags, kwargs)

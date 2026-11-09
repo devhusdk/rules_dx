@@ -49,7 +49,6 @@ Attributes:
   or repo keep only their file name.
 - `notice`: license and NOTICE files copied to `usr/share/licenses/<app_name>`.
 - `version`: recorded in the identity file.
-- `tools`, `runtime`: replace the pinned tools and runtime. The runtime must match the target arch.
 - Two different `libs`, `notice` or `data` files that map to the same path fail analysis. The same file listed twice is packaged once.
 
 Outputs:

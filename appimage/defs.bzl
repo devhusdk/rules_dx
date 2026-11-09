@@ -47,11 +47,11 @@ def _appimage_impl(ctx):
     exe = ctx.attr.binary[DefaultInfo].files_to_run.executable
     if exe == None:
         fail("appimage_package " + str(ctx.label) + ": binary " + str(ctx.attr.binary.label) + " has no executable")
-    tool_files = ctx.attr.tools[DefaultInfo].files.to_list()
+    tool_files = ctx.attr._tools[DefaultInfo].files.to_list()
     appimagetool = [f for f in tool_files if f.basename == "appimagetool"]
     if len(appimagetool) != 1:
         fail("appimage_package " + str(ctx.label) + ": tools must provide exactly one appimagetool")
-    runtime = ctx.file.runtime or (ctx.file._runtime_aarch64 if arch == "aarch64" else ctx.file._runtime_x86_64)
+    runtime = ctx.file._runtime_aarch64 if arch == "aarch64" else ctx.file._runtime_x86_64
 
     image = ctx.actions.declare_file(ctx.label.name + ".AppImage")
     identity = ctx.actions.declare_file(ctx.label.name + ".AppImage.identity.json")
@@ -109,14 +109,13 @@ _appimage_package = rule(
         "icon": attr.label(doc = "The <name>.png or <name>.svg icon.", mandatory = True, allow_single_file = [".png", ".svg"]),
         "libs": attr.label_list(doc = "Shared libraries placed under usr/lib.", allow_files = True),
         "notice": attr.label_list(doc = "License and NOTICE files placed under usr/share/licenses/<name>.", allow_files = True, mandatory = True, allow_empty = False),
-        "runtime": attr.label(doc = "The type 2 runtime for the target arch. Defaults to the pinned one.", allow_single_file = True, cfg = "target"),
-        "tools": attr.label(doc = "The appimagetool closure.", cfg = "exec", default = "@dx_appimage_tools//:tools"),
         "version": attr.string(doc = "Application version.", mandatory = True),
         "_arm64": attr.label(default = "@platforms//cpu:arm64"),
         "_build": attr.label(default = "//appimage/packer:appimage_packer", executable = True, cfg = "exec"),
         "_linux": attr.label(default = "@platforms//os:linux"),
         "_runtime_aarch64": attr.label(default = "@dx_appimage_tools//:runtime_aarch64", allow_single_file = True),
         "_runtime_x86_64": attr.label(default = "@dx_appimage_tools//:runtime_x86_64", allow_single_file = True),
+        "_tools": attr.label(doc = "The appimagetool closure.", cfg = "exec", default = "@dx_appimage_tools//:tools"),
         "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
     },
 )

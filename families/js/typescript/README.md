@@ -3,7 +3,7 @@
 Build and test TypeScript with `tsc` type checking.
 
 ```python
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_library", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
 
 typescript_library(
     name = "greet",
@@ -19,7 +19,9 @@ typescript_test(
 ```
 
 `typescript_binary` compiles `srcs` and runs the compiled `main`, which defaults to the only
-source. `main` must be a `.ts`, `.mts` or `.cts` file listed in `srcs`.
+source. `main` must be a `.ts`, `.mts` or `.cts` file listed in `srcs`. It also takes `deps`,
+`data`, `args`, `env`, `tsconfig`, `transpiler` and `declaration`. `entry_point` is derived from
+`main` and is rejected.
 
 ```python
 typescript_binary(

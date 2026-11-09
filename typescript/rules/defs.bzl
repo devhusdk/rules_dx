@@ -46,11 +46,11 @@ def _is_declaration(src):
             return True
     return False
 
-def typescript_srcs_rejection(srcs):
-    """Returns the rejection for forbidden typescript_library srcs, or None."""
+def typescript_srcs_rejection(srcs, rule = "typescript_library"):
+    """Returns the rejection for forbidden srcs of the named rule, or None."""
     bad = [src for src in srcs or [] if _is_declaration(src)]
     if bad:
-        return ("typescript_library takes real sources only; declaration " +
+        return (rule + " takes real sources only; declaration " +
                 "files are inert and must not be listed in srcs: " +
                 ", ".join(sorted(bad)))
     return None
@@ -315,6 +315,12 @@ def typescript_binary_rejection(srcs, main):
         return "typescript_binary main must end in .ts, .mts or .cts: " + str(entry)
     return None
 
+def typescript_binary_kwargs_rejection(kwargs):
+    """Returns the rejection for a user entry_point on typescript_binary, or None."""
+    if kwargs.get("entry_point", None) != None:
+        return "typescript_binary derives entry_point from main; set main instead of entry_point"
+    return None
+
 def typescript_compiled_entry(main):
     """Maps a .ts, .mts or .cts entry to its compiled .js, .mjs or .cjs path, or None."""
     for ext, out in _TS_ENTRY_EXTS.items():
@@ -325,7 +331,10 @@ def typescript_compiled_entry(main):
 def typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, tsconfig = None, transpiler = None, declaration = None, visibility = None, **kwargs):
     """Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src."""
     srcs = list(srcs or [])
-    rejection = typescript_srcs_rejection(srcs)
+    rejection = typescript_binary_kwargs_rejection(kwargs)
+    if rejection != None:
+        fail(rejection)
+    rejection = typescript_srcs_rejection(srcs, "typescript_binary")
     if rejection != None:
         fail(rejection)
     rejection = typescript_binary_rejection(srcs, main)
@@ -380,7 +389,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
 def typescript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript sources. runner defaults to "jest"; declaration_srcs are outside quality ownership."""
     srcs = srcs or []
-    rejection = typescript_srcs_rejection(srcs)
+    rejection = typescript_srcs_rejection(srcs, "typescript_test")
     if rejection != None:
         fail(rejection)
     decl_rejection = typescript_declaration_srcs_rejection(declaration_srcs)
@@ -447,7 +456,7 @@ _playwright_test = node_test_forward_rule("typescript_playwright_test", _DX_TS_S
 
 def typescript_playwright_test(name, *, srcs, config, node_modules, app = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP on DX_PLAYWRIGHT_PORT."""
-    rejection = typescript_srcs_rejection(srcs)
+    rejection = typescript_srcs_rejection(srcs, "typescript_playwright_test")
     if rejection != None:
         fail(rejection)
     kwargs["env"] = dict(kwargs.pop("env", None) or {})

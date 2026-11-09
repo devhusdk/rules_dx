@@ -298,6 +298,7 @@ dx rule that wraps it.
 | `@rules_ruby//ruby:defs.bzl` | `rb_binary`, `rb_library`, `rb_test` | `@rules_dx//ruby/rules:defs.bzl` | `ruby_binary`, `ruby_library`, `ruby_test` |
 | `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test` | `@rules_dx//rust/rules:defs.bzl` | same names |
 | `@rules_scala//scala:scala.bzl` | `scala_binary`, `scala_library`, `scala_test` | `@rules_dx//scala/rules:defs.bzl` | `scala_binary`, `scala_library`, `scala_test` |
+| `@aspect_rules_js//js:defs.bzl` | `js_binary` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary` |
 | `@aspect_rules_ts//ts:defs.bzl` | `ts_project` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_library` |
 | `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_test` |
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_test` |
@@ -334,11 +335,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_root_package_name` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_test` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_wasm_binary` |
-|  |  | `@rules_dx//deploy/rules:deployment.bzl` | `dx_deployment` |
 |  |  | `@rules_dx//deploy/tests/cross:defs.bzl` | `cross_deployment` |
 |  |  | `@rules_dx//dockerfile/rules:defs.bzl` | `dockerfile_library` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `app_sources` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `cover_sources` |
+|  |  | `@rules_dx//elixir/rules:defs.bzl` | `elixir_bench` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `escript_headers` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `helper_first` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `nif_priv` |
@@ -352,6 +353,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `app_sources` |
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `ct_run_args` |
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `ct_suite_source` |
+|  |  | `@rules_dx//erlang/rules:defs.bzl` | `erlang_bench` |
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `erlang_nif` |
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `erlang_release` |
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `escript_nif_message` |
@@ -364,6 +366,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `otp_tool_binary_impl` |
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `runfiles_path` |
 |  |  | `@rules_dx_android//packaging:defs.bzl` | `abi_transition_settings` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `abis_for_platforms` |
 |  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_install` |
 |  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_log` |
 |  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_start` |
@@ -474,6 +477,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_library` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `launcher_script` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_binary` |
+|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_fuzz_test` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_library` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_module` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_signature` |
@@ -534,6 +538,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//sql/rules:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_build` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_library` |
+|  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_test` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_bench` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_binary` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_fuzz_test` |
@@ -576,6 +581,10 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_is_source` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_relpath` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_bench` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary_kwargs_rejection` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary_main` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary_rejection` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_compiled_entry` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_declaration_srcs_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_empty_library_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_fuzz_test` |

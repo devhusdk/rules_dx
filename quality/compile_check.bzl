@@ -137,6 +137,8 @@ def ghc_check_argv(argv, scratch):
 
 _OCAML_DROP = ["-bin-annot", "-annot", "-c"]
 
+_OCAML_VALUE_FLAGS = ["-w", "-warn-error"]
+
 _OCAML_FLAGS = ["-stop-after", "typing", "-error-style", "short", "-color", "never"]
 
 def _basename(path):
@@ -156,7 +158,10 @@ def ocaml_check_argv(argv, scratch):
     output = ""
     compiles = 0
     take = ""
+    previous = ""
     for arg in argv[1:]:
+        value_of = previous
+        previous = arg
         if take != "":
             if take == "-o":
                 output = arg
@@ -166,7 +171,7 @@ def ocaml_check_argv(argv, scratch):
                 intf = arg
             take = ""
             continue
-        if arg.startswith("@"):
+        if arg.startswith("@") and value_of not in _OCAML_VALUE_FLAGS:
             return _fail("params files are not supported (found " + arg + ")")
         if arg in ["-o", "-impl", "-intf"]:
             take = arg

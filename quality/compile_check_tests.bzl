@@ -144,6 +144,11 @@ def compile_check_unit_tests(name):
                 True,
             ),
             expect_equal(
+                "ocaml warning specs starting with @ are flag values",
+                ocaml_check_argv([_OCAMLC, "-w", "@1..3@5..28", "-warn-error", "@8", "-c", "-impl", "p/m.ml", "-o", "out/M.cmo"], "tmp").error,
+                "",
+            ),
+            expect_equal(
                 "ocaml without -c is rejected",
                 ocaml_check_argv([_OCAMLC, "-impl", "p/m.ml", "-o", "out/M.cmo"], "tmp").error != "",
                 True,

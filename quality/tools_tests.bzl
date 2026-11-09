@@ -53,6 +53,7 @@ EXPECTED_IDS = [
     "graphql_eslint",
     "hadolint",
     "helm",
+    "helmfmt",
     "hlint",
     "javac",
     "jet",

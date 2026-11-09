@@ -552,6 +552,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `mdx_doc_shard` |
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `svelte_doc_shard` |
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `vue_doc_shard` |
+|  |  | `@rules_dx//tools/docs/dart:defs.bzl` | `dart_doc_shard` |
+|  |  | `@rules_dx//tools/docs/dart:defs.bzl` | `dart_shard_action` |
 |  |  | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` |
 |  |  | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` |
 |  |  | `@rules_dx//tools/docs/go:defs.bzl` | `docs_go_shard` |
@@ -634,6 +636,7 @@ SDK and toolchain extensions:
 
 API docs:
 
+- `@rules_dx//tools/docs/dart:defs.bzl`: Dart API doc shards.
 - `@rules_dx//tools/docs/go:defs.bzl`: Go API doc shards.
 - `@rules_dx//tools/docs/ruby:defs.bzl`: Ruby API doc shards.
 - `@rules_dx//tools/docs/jvm:defs.bzl`: Java and Kotlin API doc shards.

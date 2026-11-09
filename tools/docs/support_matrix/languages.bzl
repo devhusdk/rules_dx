@@ -429,7 +429,7 @@ LANGUAGES = [
         "dart",
         bench = "dart_bench",
         deps = "`pub`",
-        doc = NO_DOC,
+        doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
         coverage = ["package:test"],
         unsupported = "//dart/rules:unsupported",

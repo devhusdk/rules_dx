@@ -4,6 +4,7 @@ load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
+load("@rules_dart//dart:providers.bzl", _DartInfo = "DartInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
@@ -11,6 +12,7 @@ load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_config", "component_shard_action")
+load("//tools/docs/dart:defs.bzl", "dart_shard_action")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
@@ -23,6 +25,7 @@ load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
 
 _RUST_DOCS_TOOLCHAIN = str(Label("@rules_rust//rust:toolchain_type"))
 _RUBY_TOOLCHAIN = "@rules_ruby//ruby:toolchain_type"
+_DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 _CC_DOCS_TOOLCHAIN = "@bazel_tools//tools/cpp:toolchain_type"
 
 def _rust_docs_shard(target, ctx):
@@ -71,6 +74,17 @@ def _jvm_docs_shard(target, ctx):
             action = jvm_shard_action(ctx, language, target[JavaInfo], srcs, ctx.label.name, [], "_dx_docs/" + ctx.label.name, adapter, ctx.executable._jvm_convert)
             return action.shard
     return None
+
+def _dart_docs_shard(target, ctx):
+    if _DartInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary") or ctx.label.name.endswith("_upstream"):
+        return None
+    info = target[_DartInfo]
+    root = info.lib_root + "/lib/" if info.lib_root else "lib/"
+    if ctx.toolchains[_DART_TOOLCHAIN] == None or not [f for f in info.srcs if repo_relative(f.short_path).startswith(root) and f.extension == "dart"]:
+        return None
+    return dart_shard_action(ctx, info, info.package_name, "_dx_docs/" + ctx.label.name, ctx.executable._dart_extract).shard
 
 def _dotnet_docs_shard(target, ctx):
     if DocsShardInfo in target or DotnetDocsInfo not in target:
@@ -235,6 +249,9 @@ def _real_docs_aspect_impl(target, ctx):
     jvm_shard = _jvm_docs_shard(target, ctx)
     if jvm_shard:
         parts.append({"dx_results": [jvm_shard], "dx_docs_shards": [jvm_shard]})
+    dart_shard = _dart_docs_shard(target, ctx)
+    if dart_shard:
+        parts.append({"dx_results": [dart_shard], "dx_docs_shards": [dart_shard]})
     dotnet_shard = _dotnet_docs_shard(target, ctx)
     if dotnet_shard:
         parts.append({"dx_results": [dotnet_shard], "dx_docs_shards": [dotnet_shard]})
@@ -260,7 +277,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F#, PowerShell, Ruby, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, Dart, C#, F#, PowerShell, Ruby, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_component_extract": attr.label(
@@ -276,6 +293,11 @@ real_docs_aspect = aspect(
         "_dotnet_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/dotnet/extract:dotnet_extract"),
+            executable = True,
+        ),
+        "_dart_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/dart/extract:dart_extract"),
             executable = True,
         ),
         "_driver": attr.label(
@@ -376,6 +398,7 @@ real_docs_aspect = aspect(
     fragments = ["cpp"],
     requires = [rust_doc_inputs_aspect, dotnet_docs_collect_aspect],
     toolchains = [
+        config_common.toolchain_type(_DART_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(JAVA_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(KOTLIN_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_RUBY_TOOLCHAIN, mandatory = False),

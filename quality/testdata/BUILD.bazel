@@ -1983,6 +1983,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_dart_library_subject",
+    target = "//tools/docs/dart/fixture:ledger",
+)
+
+real_docs_subject(
     name = "docs_ruby_library_subject",
     target = "//tools/docs/ruby/fixture:geometry",
 )
@@ -2021,6 +2026,7 @@ real_docs_tests(
     name = "real_docs_shards",
     subjects = [
         ":docs_csharp_ledger_subject",
+        ":docs_dart_library_subject",
         ":docs_demo_site_api_subject",
         ":docs_demo_site_subject",
         ":docs_fsharp_ledger_subject",

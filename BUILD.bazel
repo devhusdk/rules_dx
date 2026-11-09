@@ -66,6 +66,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/components/fixture/mdx
 # gazelle:exclude tools/docs/components/fixture/bad/src/Broken.mdx
 # gazelle:exclude tools/docs/components/fixture/bad/src/TypeError.mdx
+# gazelle:exclude tools/docs/dart/fixture
 # gazelle:exclude tools/docs/ruby/fixture
 # gazelle:exclude tools/docs/go/godoc
 # gazelle:exclude cli/depcheck/testdata

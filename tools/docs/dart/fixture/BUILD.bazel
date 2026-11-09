@@ -1,0 +1,22 @@
+load("//dart/rules:defs.bzl", "dart_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/dart:defs.bzl", "dart_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+dart_library(
+    name = "ledger",
+    srcs = ["lib/ledger.dart"],
+)
+
+dart_doc_shard(
+    name = "ledger_docs",
+    lib = ":ledger",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

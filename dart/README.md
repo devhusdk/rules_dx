@@ -173,3 +173,7 @@ bazel build --platforms=//:linux_arm64 //app:cli
 ```
 
 `exe` and `aot-snapshot` cross-compile. `dart_test` runs on the host.
+
+## API docs
+
+`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `dart_library` and converts its `index.json` to a DocIr shard. `dx docs` runs it on every Dart library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_dart ships no SDK. The index holds each symbol's first doc paragraph, not its signature or source location.

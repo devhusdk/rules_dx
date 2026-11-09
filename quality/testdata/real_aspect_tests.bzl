@@ -586,6 +586,17 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_csharp_ledger_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_dart_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/dart/fixture/_dx_docs/ledger.ir.pb
+field dx_docs_sites=(none)
+field dx_results=ledger.ir.pb
+field label=//tools/docs/dart/fixture:ledger
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_dart_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_demo_site_api_subject
 field docs_shard_count=0
 field docs_shards=(none)

@@ -43,7 +43,9 @@ build:linux --@rules_rust//rust/settings:pipelined_compilation=true
 build:linux --linkopt=-Wno-unused-command-line-argument
 build:linux --host_linkopt=-Wno-unused-command-line-argument
 build:macos --@rules_rust//rust/settings:pipelined_compilation=true
-build:windows --@rules_rust//rust/settings:pipelined_compilation=true
+# No pipelined compilation on Windows: the rmeta and rlib of a crate can carry different SVHs there, so
+# linking fails with "required to be available in rlib format" (#9243, #9792, root cause #9292).
+build:windows --@rules_rust//rust/settings:pipelined_compilation=false
 # Statically link the MSVC CRT so Windows binaries need no vcruntime DLLs.
 build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+crt-static
 

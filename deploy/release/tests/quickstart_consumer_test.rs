@@ -72,17 +72,36 @@ fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
     run
 }
 
+/// Gives the consumer the patch files its `rules_py_override` names, since patches must live in the root module.
+fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
+    let dir = source.join("patches/rules_py");
+    let entries =
+        std::fs::read_dir(&dir).unwrap_or_else(|error| panic!("{}: {error}", dir.display()));
+    for entry in entries {
+        let path = entry.unwrap_or_else(|error| panic!("{error}")).path();
+        if path
+            .extension()
+            .is_some_and(|extension| extension == "patch")
+        {
+            let name = path.file_name().unwrap_or_default();
+            write_text(
+                &case.root().join("patches/rules_py").join(name),
+                &read_text(&path),
+            );
+        }
+    }
+    write_text(&case.root().join("patches/rules_py/BUILD.bazel"), "");
+}
+
 #[test]
 fn the_readme_quickstart_runs_as_written() {
     let source = rules_dx_source();
     let files = quickstart_files(&read_text(&source.join("README.md")));
     let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(
-        names,
-        [".bazelversion", "MODULE.bazel", "BUILD.bazel", ".bazelrc"]
-    );
+    assert_eq!(names, [".bazelversion", "MODULE.bazel", "BUILD.bazel"]);
 
     let case = nested::case("quickstart_readme");
+    copy_rules_py_patches(&source, &case);
     for (name, text) in &files {
         let mut text = text.replace("<release>", "0.0.0");
         if name == "MODULE.bazel" {
@@ -145,6 +164,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         &case.root().join(".bazelversion"),
         &read_text(&source.join(".bazelversion")),
     );
+    copy_rules_py_patches(&source, &case);
     let module = case.root().join("MODULE.bazel");
     write_text(
         &module,

@@ -40,6 +40,11 @@ rust_test(
         "//:module_srcs",
         "//bcr_test_module:files",
         "//modules:core_budget.json",
+        "//patches/rules_py:host_interpreter_windows_arm64.patch",
+        "//patches/rules_py:native_sdist_toolchain_flags.patch",
+        "//patches/rules_py:pep517_msvc.patch",
+        "//patches/rules_py:py_cc_toolchain_platform.patch",
+        "//patches/rules_py:venv_bin_files.patch",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_CORE_BUDGET": "$(rootpath //modules:core_budget.json)",

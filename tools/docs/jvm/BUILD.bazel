@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -19,21 +20,32 @@ filegroup(
     output_group = "api_json",
 )
 
-# keep
 rust_library(
     name = "jvm_test_support",
     testonly = True,
     srcs = ["jvm_test_support.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/jvm_test_support",
+        normal = True,
+    ),
+    crate_name = "jvm_test_support",
+    crate_root = "jvm_test_support.rs",
     deps = [
         "//tools/docs/ir/ir:documentation_ir",
         "//tools/testing:dx_testing",
     ],
 )
 
-# keep
 rust_test(
     name = "java_extract_test",
     srcs = ["java_extract_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/jvm_test_support",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "java_extract_test",
+    crate_root = "java_extract_test.rs",
     data = [
         ":fixture_shapes_json",
         "//tools/docs/jvm/convert:jvm_convert",
@@ -63,10 +75,16 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "kotlin_extract_test",
     srcs = ["kotlin_extract_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/jvm_test_support",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "kotlin_extract_test",
+    crate_root = "kotlin_extract_test.rs",
     data = [
         "//tools/docs/jvm/convert:jvm_convert",
         "//tools/docs/jvm/dokka:dokka_extract",
@@ -94,10 +112,16 @@ rust_test(
     ],
 )
 
-# keep
 rust_test(
     name = "scala_extract_test",
     srcs = ["scala_extract_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/jvm_test_support",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "scala_extract_test",
+    crate_root = "scala_extract_test.rs",
     data = [
         "//tools/docs/jvm/convert:jvm_convert",
         "//tools/docs/jvm/fixture:scala/dx/fixture/shapes/Circle.scala",
@@ -133,4 +157,10 @@ real_source_target(
         "shard.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

@@ -1,0 +1,21 @@
+[package]
+license = "Apache-2.0"
+name = "jvm_test_support"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "jvm_test_support"
+path = "jvm_test_support.rs"
+
+[[test]]
+name = "java_extract_test"
+path = "java_extract_test.rs"
+
+[[test]]
+name = "kotlin_extract_test"
+path = "kotlin_extract_test.rs"
+
+[[test]]
+name = "scala_extract_test"
+path = "scala_extract_test.rs"

@@ -1,5 +1,5 @@
 {
-  "checksum": "b300d4bb6a2de0ae857e155c8077518c0ed8fdd2eefde9d282ad6d443fb2d562",
+  "checksum": "29fb8c2eebd4282d276022cd2bcab51c48b1d61be46776e931d62302a039d1aa",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6677,6 +6677,45 @@
       ],
       "version": "0.2.7"
     },
+    "docs_components 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "docs_components",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "docs_powershell 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "docs_powershell",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "docs_rust 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "docs_rust",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "documentation_ir 0.0.0": {
       "common_attrs": {
         "edition": "2024"
@@ -7850,6 +7889,33 @@
         {
           "Library": {
             "crate_name": "dx_fingerprint",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_floor 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_floor",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_floor",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_floor",
             "crate_root": "src/lib.rs"
           }
         }
@@ -13459,6 +13525,27 @@
       ],
       "version": "0.0.0"
     },
+    "jvm_test_support 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "jvm_test_support",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "jvm_test_support",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "jvm_test_support",
+            "crate_root": "jvm_test_support.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "k256 0.13.4": {
       "common_attrs": {
         "crate_features": [
@@ -16874,6 +16961,25 @@
         }
       ],
       "version": "0.6.0"
+    },
+    "parallel_worktrees 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "parallel_worktrees",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "parking_lot 0.12.5": {
       "common_attrs": {
@@ -23165,6 +23271,27 @@
       ],
       "version": "0.14.2"
     },
+    "starter_scaffold 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "starter_scaffold",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "starter_scaffold",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "starter_scaffold",
+            "crate_root": "scaffold.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "static_assertions 1.1.0": {
       "common_attrs": {
         "edition": "2015"
@@ -23572,6 +23699,41 @@
         }
       ],
       "version": "2.6.1"
+    },
+    "support_matrix 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "yaml_serde 0.10.7",
+            "target": "yaml_serde"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "support_matrix",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "support_matrix",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "support_matrix",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "syn 1.0.109": {
       "build_script_attrs": {},
@@ -24412,6 +24574,27 @@
         }
       ],
       "version": "1.1.10"
+    },
+    "tiers 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "tiers",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "tiers",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "tiers",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "tinystr 0.8.4": {
       "common_attrs": {
@@ -28750,6 +28933,9 @@
     "cc_context 0.0.0": "cc/cc_context",
     "codegen_shard 0.0.0": "generation/codegen_shard",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
+    "docs_components 0.0.0": "tools/docs/docs_components",
+    "docs_powershell 0.0.0": "tools/docs/docs_powershell",
+    "docs_rust 0.0.0": "tools/docs/docs_rust",
     "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
     "dotnet_extract 0.0.0": "tools/docs/dotnet/dotnet_extract",
     "dx_adopt 0.0.0": "cli/dx_adopt",
@@ -28773,6 +28959,7 @@
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_families 0.0.0": "libs/dx_families",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
+    "dx_floor 0.0.0": "tools/testing/dx_floor",
     "dx_generate 0.0.0": "cli/dx_generate",
     "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_ide 0.0.0": "cli/dx_ide",
@@ -28806,7 +28993,9 @@
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "hello 0.0.0": "rust/tests/fixtures/hello",
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
+    "jvm_test_support 0.0.0": "tools/docs/jvm_test_support",
     "native_call 0.1.0": "rust/tests/fixtures/native_call",
+    "parallel_worktrees 0.0.0": "tools/testing/parallel_worktrees",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
     "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",
@@ -28822,6 +29011,9 @@
     "site_browser 0.0.0": "tools/docs/site/site_browser",
     "site_build 0.0.0": "tools/docs/site/site_build",
     "site_check 0.0.0": "tools/docs/site/site_check",
+    "starter_scaffold 0.0.0": "tools/testing/starter_scaffold",
+    "support_matrix 0.0.0": "tools/docs/support_matrix",
+    "tiers 0.0.0": "tools/docs/tiers",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract"
   }
 }

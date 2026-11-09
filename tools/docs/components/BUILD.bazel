@@ -1,6 +1,9 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+# gazelle:resolve rust dx_site_aggregate //tools/docs/site/aggregate:dx_site_aggregate
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
@@ -12,10 +15,16 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-# keep
 rust_test(
     name = "extract_test",
     srcs = ["extract_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/docs_components",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "extract_test",
+    crate_root = "extract_test.rs",
     data = [
         "//tools/docs/components/extract:component_extract",
         "//tools/docs/components/fixture/astro:src/Hero.astro",
@@ -56,6 +65,13 @@ rust_test(
 rust_test(
     name = "site_test",
     srcs = ["site_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/docs_components",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "site_test",
+    crate_root = "site_test.rs",
     data = [
         "//tools/docs/components/fixture/astro:ui_docs",
         "//tools/docs/components/fixture/mdx:ui_docs",
@@ -80,6 +96,13 @@ rust_test(
 rust_test(
     name = "isolation_test",
     srcs = ["isolation_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/docs_components",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "isolation_test",
+    crate_root = "isolation_test.rs",
     data = [
         "//quality/tools/javascript/bin:astro_component_meta",
         "//quality/tools/javascript/bin:mdx_component_meta",
@@ -118,4 +141,10 @@ real_source_target(
         "shard.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

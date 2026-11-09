@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
 load("//rust/rules:defs.bzl", "rust_test")
@@ -24,10 +25,16 @@ real_docs_shard_files(
     target = "//tools/docs/rust/fixture:docs_fixture",
 )
 
-# keep
 rust_test(
     name = "extract_test",
     srcs = ["extract_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/docs_rust",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "extract_test",
+    crate_root = "extract_test.rs",
     data = [
         ":fixture_rustdoc_json",
         ":fixture_srcs_file",
@@ -56,4 +63,10 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

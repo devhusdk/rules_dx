@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "all_crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 
@@ -8,29 +8,42 @@ package(default_visibility = [
     "//tools/testing/hermetic:__pkg__",
 ])
 
-# keep
 rust_library(
     name = "dx_floor",
     testonly = True,
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/dx_floor",
+        normal = True,
+    ),
+    crate_name = "dx_floor",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "tools/testing/dx_floor",
+        normal = True,
+    ) + ["//libs/module_bazel:dx_module_bazel"],
+)
+
+rust_test(
+    name = "dx_floor_test",
     srcs = [
         "src/lib.rs",
         "src/tests.rs",
     ],
+    aliases = aliases(
+        package_name = "tools/testing/dx_floor",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = ["testdata/graph_bazel_9_2_0.json"],
+    coverage_lib = ":dx_floor",
     crate_name = "dx_floor",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "tools/dx_testing",
+        package_name = "tools/testing/dx_floor",
         normal = True,
-    ) + [
-        "//libs/module_bazel:dx_module_bazel",
-    ],
-)
-
-# keep
-rust_test(
-    name = "dx_floor_test",
-    compile_data = ["testdata/graph_bazel_9_2_0.json"],
-    crate = ":dx_floor",
+        normal_dev = True,
+    ) + ["//libs/module_bazel:dx_module_bazel"],
 )
 
 exports_files(["testdata/graph_bazel_9_2_0.json"])
@@ -39,4 +52,10 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

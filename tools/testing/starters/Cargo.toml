@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "starter_scaffold"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "starter_scaffold"
+path = "scaffold.rs"

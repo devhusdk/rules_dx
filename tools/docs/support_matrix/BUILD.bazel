@@ -1,13 +1,10 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":facts.bzl", "support_matrix_facts")
 load(":facts_tests.bzl", "support_matrix_facts_tests")
 load(":languages.bzl", "support_matrix_inputs")
-
-# gazelle:resolve rust serde @crates//:serde
-# gazelle:resolve rust serde_json @crates//:serde_json
-# gazelle:resolve rust yaml_serde @crates//:yaml_serde
 
 package(default_visibility = VIS_TOOLS)
 
@@ -24,7 +21,6 @@ filegroup(
     ] + support_matrix_inputs(),
 )
 
-# keep
 rust_library(
     name = "support_matrix",
     srcs = [
@@ -34,9 +30,16 @@ rust_library(
         "src/starlark.rs",
         "src/workflows.rs",
     ],
+    aliases = aliases(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+    ),
     crate_name = "support_matrix",
     crate_root = "src/lib.rs",
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+    ) + [
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -44,33 +47,60 @@ rust_library(
     ],
 )
 
-# keep
 rust_test(
     name = "support_matrix_test",
+    aliases = aliases(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+        normal_dev = True,
+    ),
     crate = ":support_matrix",
+    deps = all_crate_deps(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+        normal_dev = True,
+    ),
 )
 
 rust_test(
     name = "generate_test",
     srcs = ["src/generate_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "generate_test",
+    crate_root = "src/generate_test.rs",
     data = [
         ":inputs",
         "//docs:support-matrix.md",
     ],
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+        normal_dev = True,
+    ) + [
         ":support_matrix",
         "@rules_rust//rust/runfiles",
     ],
 )
 
-# keep
 rust_binary(
     name = "update",
     srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+    ),
     args = ["--write"],
+    crate_name = "update",
     crate_root = "src/main.rs",
     data = [":inputs"],
-    deps = [":support_matrix"],
+    deps = all_crate_deps(
+        package_name = "tools/docs/support_matrix",
+        normal = True,
+    ) + [":support_matrix"],
 )
 
 real_source_target(
@@ -82,4 +112,10 @@ real_source_target(
         "languages.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

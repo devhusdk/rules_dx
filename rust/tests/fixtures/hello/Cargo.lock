@@ -1422,6 +1422,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "docs_components"
+version = "0.0.0"
+
+[[package]]
+name = "docs_powershell"
+version = "0.0.0"
+
+[[package]]
+name = "docs_rust"
+version = "0.0.0"
+
+[[package]]
 name = "documentation_ir"
 version = "0.0.0"
 
@@ -1710,6 +1722,13 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.20",
+]
+
+[[package]]
+name = "dx_floor"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -2944,6 +2963,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "jvm_test_support"
+version = "0.0.0"
+
+[[package]]
 name = "k256"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3672,6 +3695,13 @@ checksum = "30d5b2194ed13191c1999ae0704b7839fb18384fa22e49b57eeaa97d79ce40da"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "parallel_worktrees"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -5042,6 +5072,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "starter_scaffold"
+version = "0.0.0"
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5136,6 +5170,15 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+
+[[package]]
+name = "support_matrix"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "yaml_serde",
+]
 
 [[package]]
 name = "syn"
@@ -5286,6 +5329,10 @@ checksum = "1ad99c4c6d32803332c548b1af0540b357b3f5fc0be8f6c6bfe8b2e6ae784070"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "tiers"
+version = "0.0.0"
 
 [[package]]
 name = "tinystr"

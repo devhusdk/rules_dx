@@ -1,0 +1,17 @@
+[package]
+license = "Apache-2.0"
+name = "docs_components"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "extract_test"
+path = "extract_test.rs"
+
+[[test]]
+name = "isolation_test"
+path = "isolation_test.rs"
+
+[[test]]
+name = "site_test"
+path = "site_test.rs"

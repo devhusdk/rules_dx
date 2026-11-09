@@ -1,0 +1,12 @@
+[package]
+license = "Apache-2.0"
+name = "dx_floor"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+
+[lib]
+name = "dx_floor"
+path = "src/lib.rs"

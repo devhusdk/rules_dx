@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "tiers"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "tiers"
+path = "src/lib.rs"
+
+[[bin]]
+name = "render"
+path = "src/main.rs"

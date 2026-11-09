@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "docs_powershell"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "extract_test"
+path = "extract_test.rs"

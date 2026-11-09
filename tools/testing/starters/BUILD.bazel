@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
 load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH")
@@ -11,6 +12,8 @@ load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//rust/rules:defs.bzl", "rust_library")
 load(":defs.bzl", "starter_consumer_test", "starter_goldens_test")
+
+# gazelle:resolve rust dx_nested //tools/testing:dx_nested
 
 starter_consumer_test(
     name = "astro",
@@ -169,13 +172,17 @@ starter_consumer_test(
     name = "zig",
 )
 
-# keep
 rust_library(
     name = "starter_scaffold",
     testonly = True,
     srcs = ["scaffold.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/starter_scaffold",
+        normal = True,
+    ),
     crate_name = "starter_scaffold",
     crate_root = "scaffold.rs",
+    visibility = ["//visibility:public"],
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
@@ -196,4 +203,10 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

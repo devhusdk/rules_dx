@@ -514,6 +514,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_format_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_qml_format_fail",
@@ -528,6 +530,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_format_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_erlang_format_pass",
@@ -1024,6 +1028,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_lint_binary_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_qml_lint_binary_fail",
@@ -1038,6 +1044,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_lint_binary_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_qml_typecheck_binary_pass",
@@ -1052,6 +1060,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_typecheck_binary_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_qml_typecheck_binary_import",
@@ -1066,5 +1076,7 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_typecheck_binary_import.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
 ]

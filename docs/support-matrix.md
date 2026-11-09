@@ -115,7 +115,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a | n/a |
 | Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | Make | `checkmake`, `typos` | `mbake` | n/a | n/a | n/a | n/a |
-| Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker), `typos` | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | n/a | no: no dx coverage wiring in the Qt rules | n/a |
+| Qt | `qmllint`, `typos` | `qmlformat` | `qmllint` | n/a | no: no dx coverage wiring in the Qt rules | n/a |
 | Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |

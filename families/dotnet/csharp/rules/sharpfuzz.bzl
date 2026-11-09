@@ -8,7 +8,11 @@ SHARPFUZZ = [
     Label("@paket.main//sharpfuzz"),
 ]
 
-_LINUX = ["@platforms//os:linux"]
+_SUPPORTED = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:windows": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
 
 DxSharpFuzzInfo = provider(
     doc = "A target's runtime info with first-party assemblies instrumented by SharpFuzz.",
@@ -29,12 +33,12 @@ def _aspect_impl(target, ctx):
     libs = []
     for dll in runtime.libs:
         copy = ctx.actions.declare_file("{}_sharpfuzz/{}".format(ctx.label.name, dll.basename))
-        ctx.actions.run_shell(
+        ctx.actions.run(
             inputs = [dll],
             outputs = [copy],
+            executable = ctx.executable._instrument,
             tools = [ctx.executable._sharpfuzz],
-            command = 'cp "$1" "$2" && chmod u+w "$2" && "$3" "$2"',
-            arguments = [dll.path, copy.path, ctx.executable._sharpfuzz.path],
+            arguments = [ctx.executable._sharpfuzz.path, dll.path, copy.path],
             mnemonic = "SharpFuzzInstrument",
             progress_message = "Instrumenting %{output} with SharpFuzz",
         )
@@ -61,6 +65,11 @@ dx_sharpfuzz_aspect = aspect(
     implementation = _aspect_impl,
     attr_aspects = ["deps"],
     attrs = {
+        "_instrument": attr.label(
+            default = Label("@rules_dx//dotnet/fuzz:instrument"),
+            executable = True,
+            cfg = "exec",
+        ),
         "_sharpfuzz": attr.label(
             default = Label("@paket.main//sharpfuzz.commandline/tools:sharpfuzz"),
             executable = True,
@@ -111,7 +120,7 @@ def sharpfuzz_fuzz(name, binary, srcs, deps, visibility, tags, kwargs):
         )
         instrumented.append(":" + wrapped)
     kwargs = dict(kwargs)
-    kwargs["target_compatible_with"] = kwargs.get("target_compatible_with", _LINUX)
+    kwargs["target_compatible_with"] = kwargs.get("target_compatible_with", _SUPPORTED)
     binary(
         name = name,
         srcs = srcs,

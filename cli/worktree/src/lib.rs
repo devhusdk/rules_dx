@@ -25,7 +25,7 @@ mod tests;
 use std::path::Path;
 
 pub use hook::HookKind;
-pub use pool::{Record, Who, hold_busy, lease_for_dir, lease_for_workspace};
+pub use pool::{Record, Who, hold_busy, lease_for_dir, lease_for_workspace, slots_for_primary};
 
 /// Reclaims output bases before a build on low disk (without a pool, only host-wide leftovers); returns a message only when it acted or failed.
 pub fn reclaim_for_build(workspace: &Path) -> Option<String> {

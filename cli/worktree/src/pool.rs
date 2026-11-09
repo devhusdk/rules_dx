@@ -590,6 +590,23 @@ pub fn lease_for_dir(dir: &Path) -> Option<(PathBuf, Record)> {
     lease_for_workspace(&host::resolved(dir))
 }
 
+/// The slots of the pool whose primary checkout holds `dir`; none when `dir` is not in one.
+pub fn slots_for_primary(dir: &Path) -> Option<Vec<(PathBuf, Record)>> {
+    let dir = host::resolved(dir);
+    let main = dir.ancestors().find(|ancestor| ancestor.join(".git").is_dir())?;
+    let env = |name: &str| std::env::var(name).ok();
+    let pool = Pool::find(main, &cache_base(&env).ok()?)?;
+    if host::resolved(&pool.main) != main {
+        return None;
+    }
+    Some(
+        pool.records()
+            .into_iter()
+            .map(|record| (pool.slot_path(record.slot), record))
+            .collect(),
+    )
+}
+
 /// The slot a workspace is in and its lease, found from the path alone.
 pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
     let mut current = Some(workspace);

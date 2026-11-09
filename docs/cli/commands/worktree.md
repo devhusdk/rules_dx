@@ -169,7 +169,7 @@ Cursor or Gemini CLI. They ignore `DX_*` variables and print text.
 | `create` | `name`, `cwd` | Leases a slot on branch `worktree-<name>` and prints the path. |
 | `remove` | `worktree_path` | Releases that slot. Paths outside the pool are ignored. |
 | `stop` | `agent_id` | Marks the slots that agent holds as held by a gone holder. |
-| `guard` | `tool_input.command` | Exits `2` for `git worktree add`, `remove` or `prune`. Exits `2` for `git checkout`, `switch`, `reset` or `rebase` in a slot another agent holds. |
+| `guard` | `tool_input.command` | Exits `2` for `git worktree add`, `remove` or `prune`. Exits `2` for `git checkout`, `switch`, `reset`, `rebase`, `fetch`, `pull`, `stash` or `commit`, `bazel`, and `dx build`, `test` or `check` in a slot another agent holds. Exits `2` for the same commands in the primary checkout when the caller holds a slot; the message names the slot. Read-only git, `gh` and `dx worktree add`, `release` and `list` stay allowed. |
 
 `create`, `remove` and `stop` exit `1` on any failure, including empty or
 invalid stdin. `guard` exits `0` on empty or invalid stdin. For Cursor and

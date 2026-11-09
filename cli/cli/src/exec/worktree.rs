@@ -855,6 +855,10 @@ fn guard_hook(stdin: &str, who: &Who, out: &mut dyn Write, err: &mut dyn Write) 
             return 0;
         }
     };
+    if let Some(line) = hook::primary_checkout(&input, who, &dx_worktree::slots_for_primary) {
+        let _ = writeln!(err, "{line}");
+        return dx_process::pre_exec_code();
+    }
     match hook::guard(&input, who, &dx_worktree::lease_for_dir) {
         hook::Guard::Block(line) => {
             let _ = writeln!(err, "{line}");

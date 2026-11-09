@@ -782,10 +782,47 @@ pub enum Guard {
 /// Looks up the lease of the slot a directory is in.
 pub type LeaseLookup<'a> = &'a dyn Fn(&Path) -> Option<(PathBuf, Record)>;
 
-/// Git subcommands that change the checkout of the slot they run in.
-const SLOT_SWITCHING: &[&str] = &["checkout", "switch", "reset", "rebase"];
+/// Git subcommands that change the checkout they run in.
+const SLOT_SWITCHING: &[&str] = &[
+    "checkout", "switch", "reset", "rebase", "fetch", "pull", "stash", "commit",
+];
 
-/// Blocks `git worktree add|remove|prune`, blocks a checkout-changing git command in a slot
+/// `dx` subcommands that build or change the checkout they run in.
+const DX_MUTATING: &[&str] = &["build", "test", "check"];
+
+/// Looks up the slots of the pool whose primary checkout holds a directory; none when the
+/// directory is not in a primary checkout.
+pub type SlotsLookup<'a> = &'a dyn Fn(&Path) -> Option<Vec<(PathBuf, Record)>>;
+
+/// The refusal for a mutating command that runs in the primary checkout while the caller
+/// holds a slot. The lookup is only called for such commands whose directory is known.
+pub fn primary_checkout(input: &Value, who: &Who, slots: SlotsLookup) -> Option<String> {
+    let command = input
+        .get("tool_input")
+        .and_then(|tool| tool.get("command"))
+        .and_then(Value::as_str)?;
+    let dirs = switching_dirs(command, cwd(input));
+    if dirs.is_empty() {
+        return None;
+    }
+    let caller = Who {
+        session: who.session.clone().or_else(|| field(input, "session_id")),
+        agent: field(input, "agent_id"),
+        pid: who.pid,
+    };
+    dirs.iter().find_map(|dir| {
+        let owned = slots(dir)?
+            .into_iter()
+            .find(|(_, record)| record.held && !record.broken && record.held_by(&caller))?;
+        Some(format!(
+            "{} is the primary checkout and you hold {}; run the command there, or dx worktree add <branch> for another slot",
+            dir.display(),
+            owned.0.display()
+        ))
+    })
+}
+
+/// Blocks `git worktree add|remove|prune`, blocks a mutating git, bazel or dx command in a slot
 /// another agent holds, names the subagent for every dx command, and names the session for dx
 /// when the agent's shells do not. `who` carries the environment's session and pid; the agent
 /// comes from the payload, because the rewrite below only reaches later dx commands.
@@ -892,8 +929,8 @@ fn foreign_slot(input: &Value, who: &Who, lease: LeaseLookup) -> Option<String> 
     })
 }
 
-/// The directories where `command` runs a slot-switching git subcommand. Directories follow
-/// `cd` and `git -C`; a call whose directory cannot be told statically is left out.
+/// The directories where `command` runs a mutating git, bazel or dx command. Directories
+/// follow `cd` and `git -C`; a call whose directory cannot be told statically is left out.
 fn switching_dirs(command: &str, start: Option<PathBuf>) -> Vec<PathBuf> {
     let mut current = start;
     let mut found = Vec::new();
@@ -909,6 +946,20 @@ fn switching_dirs(command: &str, start: Option<PathBuf>) -> Vec<PathBuf> {
                 .find(|word| !matches!(*word, "--" | "-L" | "-P" | "-e" | "-@"));
             current = target.and_then(|target| move_to(current.as_deref(), target));
             continue;
+        }
+        match base(first) {
+            "bazel" | "bazelisk" => {
+                found.extend(current.clone());
+                continue;
+            }
+            "dx" | "dx.cmd" | "dx.exe" => {
+                let sub = words.iter().copied().find(|word| !word.starts_with('-'));
+                if sub.is_some_and(|sub| DX_MUTATING.contains(&sub)) {
+                    found.extend(current.clone());
+                }
+                continue;
+            }
+            _ => {}
         }
         if !is_git(first) {
             continue;

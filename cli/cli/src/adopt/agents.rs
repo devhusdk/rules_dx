@@ -16,7 +16,7 @@ pub(crate) fn block() -> String {
     let config = Command::Config.name();
     format!(
         "{BEGIN}\n\
-         - Start: `{dx} {worktree} add <branch>`. Finish: `{dx} {worktree} release`.\n\
+         - Start: `{dx} {worktree} add <branch>`. Finish: `{dx} {worktree} release`. Mutating git, bazel and dx commands in the primary checkout are denied while you hold a slot.\n\
          - Fix first: `{dx} {check} --apply --affected`.\n\
          - Then verify: `{dx} {test} --affected`.\n\
          - Before a PR: `{dx} {check} --affected`. It is the gate.\n\

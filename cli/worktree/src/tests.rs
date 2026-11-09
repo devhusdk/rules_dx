@@ -3130,7 +3130,7 @@ mod hooks {
         for command in [
             "git status",
             "git log",
-            "git fetch",
+            "git diff",
             "git worktree list",
             "echo git checkout x",
             "echo 'git reset --hard'",
@@ -3141,6 +3141,81 @@ mod hooks {
             assert_eq!(guard, hook::Guard::Allow, "{command}");
             assert_eq!(calls.get(), 0, "{command}");
         }
+    }
+
+    #[test]
+    fn writing_git_bazel_and_dx_are_blocked_in_another_agents_slot() {
+        for command in [
+            "git fetch",
+            "git pull",
+            "git stash",
+            "git commit -m x",
+            "bazel build //x",
+            "bazelisk test //x",
+            "tools/dx build //x",
+            "dx --verbose test --affected",
+            "dx check",
+        ] {
+            let line = blocked_in(command, "/pool/1", "a2").unwrap_or_default();
+            assert!(line.contains("agent a1"), "{command}: {line}");
+        }
+    }
+
+    /// Runs `command` in `cwd` as agent a1, who holds /pool/1, with /primary as the primary checkout.
+    fn in_primary(command: &str, cwd: &str, holds: bool) -> Option<String> {
+        let input = serde_json::json!({
+            "cwd": cwd, "agent_id": "a1", "session_id": "s1",
+            "tool_input": {"command": command},
+        });
+        let slots = |dir: &Path| {
+            dir.starts_with("/primary")
+                .then(|| vec![(PathBuf::from("/pool/1"), lease_record(holds.then_some("a1")))])
+        };
+        hook::primary_checkout(&input, &who("s1", 1), &slots)
+    }
+
+    #[test]
+    fn mutating_commands_in_the_primary_checkout_are_blocked_for_a_slot_holder() {
+        for command in [
+            "git checkout x",
+            "git switch x",
+            "git stash",
+            "git reset --hard",
+            "git fetch origin",
+            "git pull",
+            "git rebase main",
+            "git commit -m x",
+            "bazel build //x",
+            "tools/dx build //x",
+            "dx test --affected",
+            "dx check",
+            "cd /primary && git fetch",
+            "git -C /primary fetch",
+        ] {
+            let line = in_primary(command, "/primary/sub", true).unwrap_or_default();
+            assert!(line.contains("/pool/1"), "{command}: {line}");
+            assert!(line.contains("primary checkout"), "{command}: {line}");
+        }
+    }
+
+    #[test]
+    fn read_only_and_pool_commands_in_the_primary_checkout_are_allowed() {
+        for command in [
+            "git status",
+            "git log -3",
+            "git diff",
+            "gh pr view 1",
+            "tools/dx worktree add b",
+            "tools/dx worktree release /pool/1",
+            "tools/dx worktree list",
+            "ls",
+            "cd /pool/1 && git fetch",
+            "git -C /pool/1 commit -m x",
+        ] {
+            assert_eq!(in_primary(command, "/primary", true), None, "{command}");
+        }
+        assert_eq!(in_primary("git fetch", "/primary", false), None);
+        assert_eq!(in_primary("git fetch", "/pool/1", true), None);
     }
 
     #[test]

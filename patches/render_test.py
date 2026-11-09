@@ -29,6 +29,15 @@ class RenderTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             render.render(MODULE.replace("a.patch", "b.patch"), README)
 
+    def test_unlisted_patch(self):
+        with self.assertRaises(SystemExit):
+            render.render(MODULE.replace('["//patches/foo:a.patch"]', '["//patches/foo:a.patch", "//patches/foo:b.patch"]'), README)
+
+    def test_patches_across_rows(self):
+        readme = README + "| `foo` | 1.0 | `b.patch` | More |\n"
+        module = MODULE.replace('["//patches/foo:a.patch"]', '["//patches/foo:a.patch", "//patches/foo:b.patch"]')
+        self.assertIn("| `foo` | 2.0 | `b.patch` | More |", render.render(module, readme))
+
 
 if __name__ == "__main__":
     unittest.main()

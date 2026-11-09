@@ -27,6 +27,7 @@ def overrides(module_text):
 def render(module_text, readme_text):
     """Returns the README with each table row's Version set from MODULE.bazel."""
     known = overrides(module_text)
+    listed = {}
     out = []
     for line in readme_text.split("\n"):
         cells = line.split(" | ", 3)
@@ -38,9 +39,14 @@ def render(module_text, readme_text):
             for patch in re.findall(r"`([^`]+\.patch)`", cells[2]):
                 if patch not in patches:
                     raise SystemExit("patches/README.md: %s lists %s, which MODULE.bazel does not apply" % (module, patch))
+            listed.setdefault(module, set()).update(re.findall(r"`([^`]+\.patch)`", cells[2]))
             cells[1] = version
             line = " | ".join(cells)
         out.append(line)
+    for module, seen in listed.items():
+        for patch in known[module][1]:
+            if patch not in seen:
+                raise SystemExit("patches/README.md: %s does not list %s, which MODULE.bazel applies" % (module, patch))
     return "\n".join(out)
 
 

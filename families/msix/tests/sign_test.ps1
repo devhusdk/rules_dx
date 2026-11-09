@@ -298,6 +298,7 @@ function Assert-Refused([string]$Label, $Result, [int]$Exit, [string]$Message, [
 }
 
 $sign = $runfiles.Rlocation($env:DX_MSIX_SIGN)
+if (-not $sign.EndsWith(".ps1")) { throw "DX_MSIX_SIGN is not a .ps1: $sign" }
 $package = Find-Runfile $env:DX_MSIX_PACKAGE ".msix"
 $identity = Get-Content -LiteralPath (Find-Runfile $env:DX_MSIX_PACKAGE ".msix.identity.json") -Raw | ConvertFrom-Json -AsHashtable
 $unsigned = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()

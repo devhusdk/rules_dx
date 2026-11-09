@@ -122,7 +122,9 @@ $now = [System.DateTimeOffset]::UtcNow
 $pfx = Join-Path $env:TEST_TMPDIR "untrusted.pfx"
 [System.IO.File]::WriteAllBytes($pfx, $request.CreateSelfSigned($now.AddDays(-1), $now.AddDays(1)).Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, ""))
 $signed = Join-Path $env:TEST_TMPDIR "untrusted.msix"
-$sign = Invoke-Process (Get-Process -Id $PID).Path @("-NoLogo", "-NoProfile", "-NonInteractive", "-File", $runfiles.Rlocation($env:DX_MSIX_SIGN), "-Pfx", $pfx, "-Out", $signed)
+$signScript = $runfiles.Rlocation($env:DX_MSIX_SIGN)
+if (-not $signScript.EndsWith(".ps1")) { throw "DX_MSIX_SIGN is not a .ps1: $signScript" }
+$sign = Invoke-Process (Get-Process -Id $PID).Path @("-NoLogo", "-NoProfile", "-NonInteractive", "-File", $signScript, "-Pfx", $pfx, "-Out", $signed)
 Assert-Equal 0 $sign.Exit "untrusted sign exit ($($sign.Stderr))"
 Remove-TestPackage $identity.name
 try {

@@ -535,6 +535,7 @@ powershell_test(
     data = [
         ":app_arm64",
         ":argv_signtool",
+        "//:sign.ps1",
         "//:signtool",
         "//tests/fixtures/msix-app/app",
         "//tests/fixtures/msix-app/app:app_sign",
@@ -543,7 +544,7 @@ powershell_test(
         "DX_MSIX_ARGV_SIGNTOOL": "$(rlocationpaths :argv_signtool)",
         "DX_MSIX_ARM64": "$(rlocationpaths :app_arm64)",
         "DX_MSIX_PACKAGE": "$(rlocationpaths //tests/fixtures/msix-app/app)",
-        "DX_MSIX_SIGN": "$(rlocationpath //tests/fixtures/msix-app/app:app_sign)",
+        "DX_MSIX_SIGN": "$(rlocationpath //:sign.ps1)",
         "DX_MSIX_SIGNTOOL": "$(rlocationpaths //:signtool)",
     },
     target_compatible_with = _WINDOWS,
@@ -565,6 +566,7 @@ sign_env_test(
         data = [
             ":app_noresource",
             ":app_probe",
+            "//:sign.ps1",
             "//:signtool",
             "//tests/fixtures/msix-app/app",
             "//tests/fixtures/msix-app/app:app_sign",
@@ -574,7 +576,7 @@ sign_env_test(
             "DX_MSIX_NORESOURCE": "$(rlocationpaths :app_noresource)",
             "DX_MSIX_PACKAGE": "$(rlocationpaths //tests/fixtures/msix-app/app)",
             "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
-            "DX_MSIX_SIGN": "$(rlocationpath //tests/fixtures/msix-app/app:app_sign)",
+            "DX_MSIX_SIGN": "$(rlocationpath //:sign.ps1)",
             "DX_MSIX_SIGNTOOL": "$(rlocationpaths //:signtool)",
             "DX_MSIX_X64": "$(rlocationpaths //tests/fixtures/msix-app/app)",
         },

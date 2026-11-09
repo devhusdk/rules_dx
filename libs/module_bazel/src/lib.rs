@@ -277,6 +277,14 @@ pub struct LuaRocksLock<'a> {
     pub line: usize,
 }
 
+/// One `fortran.fpm` tag of the rules_dx Fortran extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FpmLock<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
 /// One `dub.lock` tag of the rules_dx dub extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DubLock<'a> {
@@ -913,8 +921,17 @@ impl ModuleFile {
     /// Every `elixir.lock` tag of rules_dx or this repository's `//elixir/toolchain:extensions.bzl`.
     pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
         const TAG: &str = "elixir.lock";
-        let external = self.tags(RUBY_MODULE, "elixir/toolchain:extensions.bzl", "elixir", "lock");
-        let own = self.tags_of("//elixir/toolchain:extensions.bzl".to_owned(), "elixir", "lock");
+        let external = self.tags(
+            RUBY_MODULE,
+            "elixir/toolchain:extensions.bzl",
+            "elixir",
+            "lock",
+        );
+        let own = self.tags_of(
+            "//elixir/toolchain:extensions.bzl".to_owned(),
+            "elixir",
+            "lock",
+        );
         external
             .chain(own)
             .map(|call| {
@@ -1036,6 +1053,22 @@ impl ModuleFile {
             .collect()
     }
 
+    /// Every `fortran.fpm` tag of the rules_dx Fortran extension in source order.
+    pub fn fpm_locks(&self) -> Result<Vec<FpmLock<'_>>, ModuleError> {
+        const TAG: &str = "fortran.fpm";
+        let own = self.tags_of("//fortran/toolchain:extensions.bzl".to_owned(), "fortran", "fpm");
+        self.tags(RUBY_MODULE, "fortran/toolchain:extensions.bzl", "fortran", "fpm")
+            .chain(own)
+            .map(|call| {
+                Ok(FpmLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
     /// Every `dub.lock` tag of the rules_dx dub extension in source order.
     pub fn dub_locks(&self) -> Result<Vec<DubLock<'_>>, ModuleError> {
         const TAG: &str = "dub.lock";
@@ -1057,33 +1090,47 @@ impl ModuleFile {
     pub fn ansible_collections(&self) -> Result<Vec<AnsibleCollections<'_>>, ModuleError> {
         const TAG: &str = "ansible.lock";
         let own = self.tags_of("//ansible:extensions.bzl".to_owned(), "ansible", "lock");
-        self.tags(RUBY_MODULE, "ansible:extensions.bzl", "ansible", "collections")
-            .chain(own)
-            .map(|call| {
-                Ok(AnsibleCollections {
-                    name: required(call, TAG, "name")?,
-                    lock: required(call, TAG, "lock")?,
-                    line: call.line,
-                })
+        self.tags(
+            RUBY_MODULE,
+            "ansible:extensions.bzl",
+            "ansible",
+            "collections",
+        )
+        .chain(own)
+        .map(|call| {
+            Ok(AnsibleCollections {
+                name: required(call, TAG, "name")?,
+                lock: required(call, TAG, "lock")?,
+                line: call.line,
             })
-            .collect()
+        })
+        .collect()
     }
 
     /// Every `bicep.registry_module` tag of the rules_dx bicep extension in source order.
     pub fn bicep_registry_modules(&self) -> Result<Vec<BicepRegistryModule<'_>>, ModuleError> {
         const TAG: &str = "bicep.registry_module";
-        let own = self.tags_of("//bicep:extensions.bzl".to_owned(), "bicep", "registry_module");
-        self.tags(RUBY_MODULE, "bicep:extensions.bzl", "bicep", "registry_module")
-            .chain(own)
-            .map(|call| {
-                Ok(BicepRegistryModule {
-                    name: required(call, TAG, "name")?,
-                    reference: required(call, TAG, "ref")?,
-                    digest: required(call, TAG, "digest")?,
-                    line: call.line,
-                })
+        let own = self.tags_of(
+            "//bicep:extensions.bzl".to_owned(),
+            "bicep",
+            "registry_module",
+        );
+        self.tags(
+            RUBY_MODULE,
+            "bicep:extensions.bzl",
+            "bicep",
+            "registry_module",
+        )
+        .chain(own)
+        .map(|call| {
+            Ok(BicepRegistryModule {
+                name: required(call, TAG, "name")?,
+                reference: required(call, TAG, "ref")?,
+                digest: required(call, TAG, "digest")?,
+                line: call.line,
             })
-            .collect()
+        })
+        .collect()
     }
 
     /// Every `ocaml.lock` tag of this repository's OCaml extension in source order.

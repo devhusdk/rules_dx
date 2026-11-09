@@ -137,5 +137,5 @@ one pinned archive per `[dependencies.<name>]` table, plus a hub repository
 named `name` with one `fortran_library` alias per package. Each table needs
 `version`, `url` and `sha256`, and may set `strip_prefix` and
 `dependencies`, a list of other locked packages. Each package compiles the
-Fortran sources under its `src` tree. `dx update` and `dx security` do not
-read the lock yet.
+Fortran sources under its `src` tree. `dx security` and `dx license` list the
+locked packages; `dx update` does not resolve them.

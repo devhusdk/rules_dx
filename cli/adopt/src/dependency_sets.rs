@@ -33,6 +33,8 @@ pub const ECOSYSTEM_COMPOSER: &str = "composer";
 
 pub const ECOSYSTEM_DUB: &str = "dub";
 
+pub const ECOSYSTEM_FPM: &str = "fpm";
+
 pub const ECOSYSTEM_LUAROCKS: &str = "luarocks";
 
 pub const ECOSYSTEM_OPAM: &str = "opam";
@@ -45,7 +47,7 @@ pub const ECOSYSTEM_ANSIBLE: &str = "ansible";
 
 pub const ECOSYSTEM_BICEP: &str = "bicep";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, luarocks, ansible, bicep";
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, luarocks, ansible, bicep";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -82,6 +84,10 @@ pub const PROJECT_TOML: &str = "Project.toml";
 pub const JULIA_MANIFEST: &str = "Manifest.toml";
 
 pub const JULIA_BAZEL_MANIFEST: &str = "Manifest.bazel.json";
+pub const FPM_LOCK: &str = "fpm.lock";
+
+pub const FPM_MANIFEST: &str = "fpm.toml";
+
 pub const DUB_SELECTIONS: &str = "dub.selections.json";
 
 pub const DUB_DIGESTS: &str = "dub.digests.json";
@@ -134,6 +140,7 @@ pub enum Ecosystem {
     Hex,
     Composer,
     Dub,
+    Fpm,
     LuaRocks,
     Opam,
     SwiftPm,
@@ -161,6 +168,7 @@ impl Ecosystem {
             Ecosystem::Hex => ECOSYSTEM_HEX,
             Ecosystem::Composer => ECOSYSTEM_COMPOSER,
             Ecosystem::Dub => ECOSYSTEM_DUB,
+            Ecosystem::Fpm => ECOSYSTEM_FPM,
             Ecosystem::LuaRocks => ECOSYSTEM_LUAROCKS,
             Ecosystem::Opam => ECOSYSTEM_OPAM,
             Ecosystem::Cabal => ECOSYSTEM_CABAL,
@@ -188,6 +196,7 @@ impl Ecosystem {
             ECOSYSTEM_HEX => Some(Ecosystem::Hex),
             ECOSYSTEM_COMPOSER => Some(Ecosystem::Composer),
             ECOSYSTEM_DUB => Some(Ecosystem::Dub),
+            ECOSYSTEM_FPM => Some(Ecosystem::Fpm),
             ECOSYSTEM_LUAROCKS => Some(Ecosystem::LuaRocks),
             ECOSYSTEM_OPAM => Some(Ecosystem::Opam),
             ECOSYSTEM_CABAL => Some(Ecosystem::Cabal),
@@ -217,6 +226,7 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::Fpm
             | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::Ansible
@@ -245,6 +255,7 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::Fpm
             | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::Bicep
@@ -284,6 +295,7 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::Fpm
             | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
@@ -308,7 +320,11 @@ impl Ecosystem {
             Ecosystem::Julia => Some("julia"),
             Ecosystem::Hex => Some("hex"),
             Ecosystem::Composer => Some("packagist"),
-            Ecosystem::Dub | Ecosystem::LuaRocks | Ecosystem::Ansible | Ecosystem::Bicep => None,
+            Ecosystem::Dub
+            | Ecosystem::Fpm
+            | Ecosystem::LuaRocks
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep => None,
             Ecosystem::Opam => Some("opam"),
             Ecosystem::Cabal => Some("hackage"),
             Ecosystem::SwiftPm => Some("swifturl"),
@@ -335,6 +351,7 @@ impl Ecosystem {
             Ecosystem::Hex => MIX_EXS,
             Ecosystem::Composer => COMPOSER_JSON,
             Ecosystem::Dub => "dub.json",
+            Ecosystem::Fpm => FPM_MANIFEST,
             Ecosystem::LuaRocks => LUAROCKS_LOCK,
             Ecosystem::Opam => "<name>.opam",
             Ecosystem::Cabal => CABAL_PROJECT,
@@ -360,6 +377,7 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::Fpm
             | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
@@ -726,6 +744,16 @@ pub fn discover(
                 Ecosystem::Composer,
                 vec![in_dir(&dir, COMPOSER_JSON)],
                 vec![lock, path(composer.digests)?],
+            )?);
+        }
+        for fpm in module.fpm_locks().map_err(hub)? {
+            let lock = path(fpm.lock)?;
+            let manifest = in_dir(&manifest_dir(std::slice::from_ref(&lock)), FPM_MANIFEST);
+            sets.push(hub_set(
+                fpm.name,
+                Ecosystem::Fpm,
+                vec![manifest],
+                vec![lock],
             )?);
         }
         for dub in module.dub_locks().map_err(hub)? {
@@ -1168,6 +1196,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Hex
         | Ecosystem::Composer
         | Ecosystem::Dub
+        | Ecosystem::Fpm
         | Ecosystem::LuaRocks
         | Ecosystem::Opam
         | Ecosystem::Cabal
@@ -1566,6 +1595,7 @@ pub fn check_backend_settings(
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
         Ecosystem::Dub => check_dub_layout(workspace, set),
+        Ecosystem::Fpm => check_pinned_lock(set, FPM_LOCK),
         Ecosystem::LuaRocks => check_pinned_lock(set, LUAROCKS_LOCK),
         Ecosystem::Opam => check_opam_layout(set),
         Ecosystem::Ansible => check_ansible_layout(set),

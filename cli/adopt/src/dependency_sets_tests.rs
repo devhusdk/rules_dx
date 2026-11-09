@@ -358,6 +358,19 @@ fn dub_locks_become_dub_sets() {
 }
 
 #[test]
+fn fpm_locks_become_fpm_sets() {
+    let module = "fortran = use_extension(\"@rules_dx//fortran/toolchain:extensions.bzl\", \"fortran\")\nfortran.fpm(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\n";
+    let read = |_: &str| Err("none".to_owned());
+    let registry = discover(module, &read)
+        .expect("discovers")
+        .expect("registry");
+    let set = registry.find("fpm_deps").expect("set");
+    assert_eq!(set.ecosystem, Ecosystem::Fpm);
+    assert_eq!(set.manifests, ["f/fpm.toml"]);
+    assert_eq!(set.locks, ["f/fpm.lock"]);
+}
+
+#[test]
 fn luarocks_locks_become_luarocks_sets() {
     let module = "luarocks = use_extension(\"@rules_dx//lua/luarocks:extensions.bzl\", \"luarocks\")\nluarocks.lock(name = \"rocks\", lock = \"//lua:luarocks.lock\", digests = \"//lua:luarocks.digests.json\")\n";
     let registry = found(module, &[]);
@@ -1085,7 +1098,7 @@ fn npm_sets_load_under_their_own_names() {
     assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
     assert_eq!(
         SUPPORTED_ECOSYSTEMS,
-        "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, luarocks, ansible, bicep"
+        "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, luarocks, ansible, bicep"
     );
 }
 

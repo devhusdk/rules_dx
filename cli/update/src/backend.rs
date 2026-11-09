@@ -565,6 +565,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Conan => {
                 "dx does not resolve Conan packages; edit conanfile and regenerate conan.lock with `conan lock create`"
             }
+            Ecosystem::Fpm => {
+                "dx does not resolve fpm packages; edit fpm.toml and regenerate fpm.lock by hand"
+            }
             Ecosystem::Dub => {
                 "dx does not resolve DUB packages; edit dub.json, run `dub upgrade`, and refresh dub.digests.json"
             }
@@ -766,6 +769,7 @@ pub fn plan_configured(
             | Ecosystem::PowerShell
             | Ecosystem::Conan
             | Ecosystem::Dub
+            | Ecosystem::Fpm
             | Ecosystem::LuaRocks
             | Ecosystem::Bicep,
             Selection::Full,
@@ -775,6 +779,7 @@ pub fn plan_configured(
             | Ecosystem::PowerShell
             | Ecosystem::Conan
             | Ecosystem::Dub
+            | Ecosystem::Fpm
             | Ecosystem::LuaRocks
             | Ecosystem::Bicep,
             Selection::Packages(_),
@@ -1193,6 +1198,7 @@ pub fn check_configured(
             | Ecosystem::PowerShell
             | Ecosystem::Conan
             | Ecosystem::Dub
+            | Ecosystem::Fpm
             | Ecosystem::LuaRocks
             | Ecosystem::Ansible
             | Ecosystem::Bicep,
@@ -1203,6 +1209,7 @@ pub fn check_configured(
             | Ecosystem::PowerShell
             | Ecosystem::Conan
             | Ecosystem::Dub
+            | Ecosystem::Fpm
             | Ecosystem::LuaRocks
             | Ecosystem::Ansible
             | Ecosystem::Bicep,

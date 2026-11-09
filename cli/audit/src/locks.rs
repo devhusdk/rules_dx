@@ -15,6 +15,8 @@ mod locks_conan;
 mod locks_cpan;
 #[path = "locks_dub.rs"]
 mod locks_dub;
+#[path = "locks_fpm.rs"]
+mod locks_fpm;
 #[path = "locks_hex.rs"]
 mod locks_hex;
 #[path = "locks_julia.rs"]
@@ -47,6 +49,7 @@ pub use locks_composer::*;
 pub use locks_conan::*;
 pub use locks_cpan::*;
 pub use locks_dub::*;
+pub use locks_fpm::*;
 pub use locks_hex::*;
 pub use locks_julia::*;
 pub use locks_licenses::*;

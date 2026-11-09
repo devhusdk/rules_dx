@@ -1636,6 +1636,18 @@ fn conan_lock_rejects_malformed_input() {
 }
 
 #[test]
+fn fpm_lock_lists_dependency_versions() {
+    let text = "[dependencies.zeta]\nversion = \"1.2.0\"\nurl = \"https://x/z.tar.gz\"\nsha256 = \"ab\"\n\n[dependencies.alpha]\nversion = \"0.1.0\"\n";
+    let packages = parse_fpm_lock(text).expect("parses");
+    let pairs: Vec<_> = packages
+        .iter()
+        .map(|p| (p.set.as_str(), p.name.as_str(), p.version.as_str()))
+        .collect();
+    assert_eq!(pairs, [("fpm", "alpha", "0.1.0"), ("fpm", "zeta", "1.2.0")]);
+    assert!(parse_fpm_lock("[dependencies.a]\nurl = \"u\"\n").is_err());
+}
+
+#[test]
 fn dub_selections_list_versions() {
     let text =
         r#"{"fileVersion": 1, "versions": {"vibe-d": "0.9.6", "semver": {"version": "0.8.0"}}}"#;

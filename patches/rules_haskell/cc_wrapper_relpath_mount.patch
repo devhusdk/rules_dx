@@ -13,3 +13,12 @@ diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.t
      if len(rel) < len(shortened):
          shortened = rel
  
+@@ -533,7 +536,7 @@
+         real = os.path.relpath(os.path.realpath(shortened))
+         if len(real) < len(shortened):
+             shortened = real
+-    except IOError:
++    except (IOError, ValueError):
+         # may fail if the path does not exist or on dangling symlinks.
+         pass
+ 

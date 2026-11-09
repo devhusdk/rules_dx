@@ -12,6 +12,7 @@ exports_files([
     "nif_exports.lds",
     "plt_build.escript",
     "providers.bzl",
+    "rebar_lock.bzl",
     "wrapper_tests.bzl",
 ])
 
@@ -38,6 +39,7 @@ real_source_target(
         "dialyzer.bzl",
         "kwargs.bzl",
         "providers.bzl",
+        "rebar_lock.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

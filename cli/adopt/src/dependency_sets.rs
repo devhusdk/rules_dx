@@ -65,6 +65,10 @@ pub const MIX_EXS: &str = "mix.exs";
 
 pub const MIX_LOCK: &str = "mix.lock";
 
+pub const REBAR_CONFIG: &str = "rebar.config";
+
+pub const REBAR_LOCK: &str = "rebar.lock";
+
 pub const PUBSPEC_YAML: &str = "pubspec.yaml";
 
 pub const PUBSPEC_LOCK: &str = "pubspec.lock";
@@ -705,6 +709,15 @@ pub fn discover(
                 vec![in_dir(&dir, MIX_LOCK)],
             )?);
         }
+        for rebar in module.rebar_locks().map_err(hub)? {
+            let dir = manifest_dir(std::slice::from_ref(&path(rebar.lock)?));
+            sets.push(hub_set(
+                rebar.name,
+                Ecosystem::Hex,
+                vec![in_dir(&dir, REBAR_CONFIG)],
+                vec![in_dir(&dir, REBAR_LOCK)],
+            )?);
+        }
         for composer in module.composer_locks().map_err(hub)? {
             let lock = path(composer.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&lock));
@@ -933,6 +946,7 @@ fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
             Ecosystem::Conan => CONANFILES.contains(&file),
             Ecosystem::Dub => DUB_MANIFESTS.contains(&file),
             Ecosystem::Opam => file.ends_with(".opam") && file != ".opam",
+            Ecosystem::Hex => file == REBAR_CONFIG,
             _ => false,
         };
         if file != set.ecosystem.manifest_name() && !allowed {
@@ -1544,7 +1558,10 @@ pub fn check_backend_settings(
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
         Ecosystem::Cpan => check_cpan_layout(workspace, set),
         Ecosystem::Pub => check_pinned_lock(set, PUBSPEC_LOCK),
-        Ecosystem::Hex => check_pinned_lock(set, MIX_LOCK),
+        Ecosystem::Hex => match hex_backend(set) {
+            Some(_) => Ok(()),
+            None => check_pinned_lock(set, MIX_LOCK),
+        },
         Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
@@ -2263,6 +2280,24 @@ pub fn npm_backend(set: &ResolvedSet) -> Option<NpmBackend> {
     .map(|(_, backend)| backend)
 }
 
+/// The package manager a configured hex set runs, chosen by the lock its `locks` list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HexBackend {
+    Mix,
+    Rebar3,
+}
+
+/// Picks the backend from the locks beside the manifest: mix.lock for mix, rebar.lock for rebar3.
+pub fn hex_backend(set: &ResolvedSet) -> Option<HexBackend> {
+    [
+        (MIX_LOCK, HexBackend::Mix),
+        (REBAR_LOCK, HexBackend::Rebar3),
+    ]
+    .into_iter()
+    .find(|(file, _)| set.locks.contains(&in_dir(&set.dir, file)))
+    .map(|(_, backend)| backend)
+}
+
 fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     let lock = in_dir(&set.dir, PNPM_LOCK);
     let unsupported = |detail: String| DependencySetsError::UnsupportedNpmLayout {
@@ -2938,6 +2973,25 @@ mod tests {
         assert_eq!(set.ecosystem, Ecosystem::Hex);
         assert_eq!(set.manifests, ["third_party/elixir/mix.exs"]);
         assert_eq!(set.locks, ["third_party/elixir/mix.lock"]);
+    }
+
+    #[test]
+    fn erlang_rebar_tags_become_rebar_hex_sets() {
+        let module = "erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
+        let registry = discover(module, &|_: &str| Err("none".to_owned()))
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("deps").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Hex);
+        assert_eq!(set.manifests, ["third_party/erlang/rebar.config"]);
+        assert_eq!(set.locks, ["third_party/erlang/rebar.lock"]);
+        let resolved = ResolvedSet::of(set);
+        assert_eq!(hex_backend(&resolved), Some(HexBackend::Rebar3));
+        let mix = ResolvedSet {
+            locks: vec!["third_party/erlang/mix.lock".to_owned()],
+            ..resolved
+        };
+        assert_eq!(hex_backend(&mix), Some(HexBackend::Mix));
     }
 
     #[test]

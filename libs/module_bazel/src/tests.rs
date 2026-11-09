@@ -1497,3 +1497,17 @@ fn mix_locks_follow_the_elixir_mix_tag() {
         .collect();
     assert_eq!(found, [("deps", "//app:mix.lock")]);
 }
+
+#[test]
+fn rebar_locks_follow_the_erlang_rebar_tag() {
+    let file = parse(
+        "erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//app:rebar.lock\")\nother = use_extension(\"//other:repos.bzl\", \"erlang\")\nother.rebar(name = \"x\", lock = \"//x:rebar.lock\")\n",
+    );
+    let found: Vec<_> = file
+        .rebar_locks()
+        .expect("locks")
+        .iter()
+        .map(|entry| (entry.name, entry.lock))
+        .collect();
+    assert_eq!(found, [("deps", "//app:rebar.lock")]);
+}

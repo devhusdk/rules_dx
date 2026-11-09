@@ -780,6 +780,10 @@ pub fn plan_configured(
             Selection::Packages(_),
         ) => Err(pinned_selective(set)),
         (Ecosystem::Ansible, request) => ansible_plan(workspace, set, request, offline, frozen, head),
+        (Ecosystem::Hex, _) if is_rebar(set) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "rebar.lock refresh: #9884",
+        }),
         (Ecosystem::Hex, request) => {
             if frozen {
                 return Err(BackendError::FrozenLocked {
@@ -1204,6 +1208,9 @@ pub fn check_configured(
             | Ecosystem::Bicep,
             Selection::Packages(_),
         ) => Err(pinned_selective(set)),
+        // Nothing refreshes a rebar.lock yet, so its check has nothing to run.
+        (Ecosystem::Hex, Selection::Full) if is_rebar(set) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Hex, Selection::Packages(_)) if is_rebar(set) => Err(pinned_selective(set)),
         (Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Staged(hex_staged(
             set,
             head,
@@ -1509,6 +1516,10 @@ fn go_staged(
         inputs,
         outputs: vec![sum],
     })
+}
+
+fn is_rebar(set: &ResolvedSet) -> bool {
+    dependency_sets::hex_backend(set) == Some(dependency_sets::HexBackend::Rebar3)
 }
 
 /// Plans a mix deps command on a staged copy of mix.exs and mix.lock, with the pinned Elixir
@@ -3866,6 +3877,35 @@ mod tests {
             locks: vec!["third_party/elixir/mix.lock".to_owned()],
             repository: None,
         }
+    }
+
+    fn rebar_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "erl".to_owned(),
+            ecosystem: Ecosystem::Hex,
+            dir: "third_party/erlang".to_owned(),
+            manifests: vec!["third_party/erlang/rebar.config".to_owned()],
+            locks: vec!["third_party/erlang/rebar.lock".to_owned()],
+            repository: None,
+        }
+    }
+
+    #[test]
+    fn rebar_check_is_pinned_and_update_is_unsupported() {
+        let head = no_head();
+        let closure = UvClosure::default();
+        let set = rebar_set();
+        assert_eq!(
+            check_configured(ws(), &set, &Selection::Full, false, true, &head, &closure),
+            Ok(CheckPlan::Pinned)
+        );
+        assert_eq!(
+            plan_configured(ws(), &set, &Selection::Full, false, false, &head, &closure),
+            Err(BackendError::Unsupported {
+                set: "erl".to_owned(),
+                reason: "rebar.lock refresh: #9884",
+            })
+        );
     }
 
     #[test]

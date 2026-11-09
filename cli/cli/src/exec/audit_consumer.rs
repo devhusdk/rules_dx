@@ -949,6 +949,23 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     #[test]
+    fn consumer_rebar_set_reports_a_vulnerable_lock() {
+        let module = "erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
+        let harness = consumer_harness("rebar-vuln", module, false);
+        harness.write_source("third_party/erlang/rebar.config", "{deps, [plug]}.\n");
+        harness.write_source(
+            "third_party/erlang/rebar.lock",
+            "{\"1.2.0\",\n[{<<\"plug\">>,{pkg,<<\"plug\">>,<<\"1.15.0\">>},0}]}.\n[\n{pkg_hash,[\n {<<\"plug\">>, <<\"AA\">>}]},\n{pkg_hash_ext,[\n {<<\"plug\">>, <<\"BB\">>}]}\n].\n",
+        );
+        write_advisory(&harness, "hex", HEX_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["security", "--output=json", "deps"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/GHSA-hex-0001"), "{out}");
+        assert!(out.contains("third_party/erlang/rebar.lock"), "{out}");
+    }
+
+    #[test]
     fn consumer_hex_set_reports_a_vulnerable_lock_and_passes_the_fixed_one() {
         let harness = hex_harness("hex-vuln", "1.15.0");
         write_advisory(&harness, "hex", HEX_ADVISORY);

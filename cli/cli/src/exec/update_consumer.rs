@@ -2314,6 +2314,28 @@ source = { registry = "https://pypi.org/simple" }
         assert!(launches[0].argv.iter().any(|arg| arg == "deps.update"));
     }
 
+    #[test]
+    fn consumer_mixed_mix_and_rebar_run_still_checks_the_mix_set() {
+        let module = format!(
+            "{HEX_MODULE}erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
+        );
+        let harness = consumer_harness("hex-mixed", &module, false);
+        harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");
+        harness.write_source("third_party/elixir/mix.lock", "%{}\n");
+        harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
+        harness.write_source("third_party/erlang/rebar.lock", "[].\n");
+        let runner = ScriptRunner::new(&[]);
+        stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
+        assert_ne!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert!(launches[0].argv.iter().any(|arg| arg == "deps.get"));
+        assert_eq!(
+            read_bytes(&harness, "third_party/erlang/rebar.lock"),
+            b"[].\n"
+        );
+    }
+
     const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//ocaml/app:ocaml_app.opam.locked\")\n";
 
     const OPAM_FILE: &str = "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {>= \"0.8.5\"}\n  \"ocaml\" {>= \"5.5\"}\n]\n";

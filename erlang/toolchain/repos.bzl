@@ -1,6 +1,7 @@
 """Hermetic Erlang/OTP acquisition and toolchain registration."""
 
 load("//elixir/rules:hex.bzl", "hex_package")
+load("//erlang/rules:rebar_lock.bzl", "rebar_lock_packages")
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load("//libs/starlark:toolchain.bzl", "toolchain_target")
@@ -225,6 +226,13 @@ erlang_app(
 )
 """
 
+_REBAR_ALIAS = """alias(
+    name = "{package}",
+    actual = "@{repo}//:erlang_app",
+    visibility = ["//visibility:public"],
+)
+"""
+
 HEX_DEPS = {"dx_erlperf": ["@dx_erlang_argparse//:erlang_app"]}
 
 TOOL_BUILDS = {
@@ -354,6 +362,27 @@ def hub_build():
     ))
     return "\n".join(content)
 
+def rebar_build(package, packages, prefix):
+    """Returns the BUILD file of one rebar.lock package: it links every package locked deeper."""
+    deps = ["@{}_{}//:erlang_app".format(prefix, other["package"]) for other in packages if other["level"] > package["level"]]
+    return _HEX_BUILD.format(app = package["package"], version = package["version"], deps = repr(deps))
+
+def rebar_hub_build(packages, prefix):
+    """Returns the hub BUILD file with one erlang_app alias per rebar.lock package."""
+    return "\n".join([_REBAR_ALIAS.format(package = p["package"], repo = prefix + "_" + p["package"]) for p in packages])
+
+def _declare_rebar(mctx, tag):
+    packages = rebar_lock_packages(mctx.read(tag.lock))
+    for package in packages:
+        hex_package(
+            name = tag.name + "_" + package["package"],
+            build_file_content = rebar_build(package, packages, tag.name),
+            package = package["package"],
+            sha256 = package["sha256"],
+            version = package["version"],
+        )
+    hub_repo(name = tag.name, files = {"BUILD.bazel": rebar_hub_build(packages, tag.name)})
+
 def _erlang_impl(mctx):
     pinned_archive(
         name = "rules_erlang",
@@ -395,9 +424,21 @@ def _erlang_impl(mctx):
             sha256 = hex.sha256,
             version = hex.version,
         )
+    for module in mctx.modules:
+        for tag in module.tags.rebar:
+            _declare_rebar(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
 
 erlang = module_extension(
     implementation = _erlang_impl,
     doc = "Creates rules_erlang, the pinned OTP trees, the toolchain hub and the erlfmt and elvis sources.",
+    tag_classes = {
+        "rebar": tag_class(
+            doc = "Declares a hex_package per entry of a rebar.lock and a hub repo with one erlang_app alias per package.",
+            attrs = {
+                "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The rebar.lock to read."),
+                "name": attr.string(mandatory = True, doc = "Hub repository name; package repos are named <name>_<package>."),
+            },
+        ),
+    },
 )

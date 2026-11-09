@@ -1,5 +1,8 @@
 use super::common::*;
-use dx_adopt::dependency_sets::{Ecosystem, ResolvedTarget, Selection, cargo_fetch_repository};
+use dx_adopt::dependency_sets::{
+    Ecosystem, HexBackend, ResolvedSet, ResolvedTarget, Selection, cargo_fetch_repository,
+    hex_backend,
+};
 use dx_output::{NoticeEvent, notice_event};
 use dx_plan::resolve::{QueryRunner, run_label_query_file};
 use std::collections::BTreeMap;
@@ -39,8 +42,8 @@ impl Via {
     }
 }
 
-fn depcheck_ecosystem(ecosystem: Ecosystem) -> Option<dx_depcheck::Ecosystem> {
-    match ecosystem {
+fn depcheck_ecosystem(set: &ResolvedSet) -> Option<dx_depcheck::Ecosystem> {
+    match set.ecosystem {
         Ecosystem::Cargo => Some(dx_depcheck::Ecosystem::Rust),
         Ecosystem::Npm => Some(dx_depcheck::Ecosystem::Js),
         Ecosystem::Uv => Some(dx_depcheck::Ecosystem::Python),
@@ -49,7 +52,10 @@ fn depcheck_ecosystem(ecosystem: Ecosystem) -> Option<dx_depcheck::Ecosystem> {
         Ecosystem::Maven => Some(dx_depcheck::Ecosystem::Java),
         Ecosystem::Nuget => Some(dx_depcheck::Ecosystem::Csharp),
         Ecosystem::Pub => Some(dx_depcheck::Ecosystem::Dart),
-        Ecosystem::Hex => Some(dx_depcheck::Ecosystem::Elixir),
+        Ecosystem::Hex => Some(match hex_backend(set) {
+            Some(HexBackend::Rebar3) => dx_depcheck::Ecosystem::Erlang,
+            _ => dx_depcheck::Ecosystem::Elixir,
+        }),
         _ => None,
     }
 }
@@ -304,7 +310,7 @@ pub(super) fn find(
 ) -> Vec<Unused> {
     let mut out = Vec::new();
     for target in resolved {
-        let Some(eco) = depcheck_ecosystem(target.set.ecosystem) else {
+        let Some(eco) = depcheck_ecosystem(&target.set) else {
             continue;
         };
         let set = target.set.name.as_str();
@@ -349,13 +355,16 @@ pub(super) fn find(
     out
 }
 
-fn lock_file_name(ecosystem: Ecosystem) -> &'static str {
-    match ecosystem {
+fn lock_file_name(set: &ResolvedSet) -> &'static str {
+    match set.ecosystem {
         Ecosystem::Cargo => "Cargo.lock",
         Ecosystem::Npm => "pnpm-lock.yaml",
         Ecosystem::Uv => "uv.lock",
         Ecosystem::Pub => "pubspec.lock",
-        Ecosystem::Hex => "mix.lock",
+        Ecosystem::Hex => match hex_backend(set) {
+            Some(HexBackend::Rebar3) => dx_adopt::dependency_sets::REBAR_LOCK,
+            _ => dx_adopt::dependency_sets::MIX_LOCK,
+        },
         _ => "Gemfile.lock",
     }
 }
@@ -371,7 +380,7 @@ pub(super) fn find_missing(
 ) -> Vec<Missing> {
     let mut out = Vec::new();
     for target in resolved {
-        let Some(eco) = depcheck_ecosystem(target.set.ecosystem) else {
+        let Some(eco) = depcheck_ecosystem(&target.set) else {
             continue;
         };
         let ecosystem = target.set.ecosystem;
@@ -384,7 +393,7 @@ pub(super) fn find_missing(
             Path::new(lock.as_str())
                 .file_name()
                 .and_then(|n| n.to_str())
-                == Some(lock_file_name(ecosystem))
+                == Some(lock_file_name(&target.set))
         });
         if ecosystem != Ecosystem::Go && lock.is_none() {
             continue;

@@ -449,7 +449,7 @@ LANGUAGES = [
     _language(
         "erlang",
         bench = "erlang_bench",
-        deps = "`hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it",
+        deps = "`hex` from `mix.lock` or an `erlang.rebar` `rebar.lock`; `dx update` audits and lists outdated `rebar.lock` packages but does not refresh it yet",
         doc = NO_DOC,
         dead_code = ["erlc warn_unused_vars, warn_unused_function"],
         coverage = ["cover"],

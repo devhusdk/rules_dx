@@ -512,7 +512,7 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Hex => match rel.rsplit('/').next() {
                 Some(dx_adopt::dependency_sets::MIX_LOCK) => dx_audit::locks::parse_mix_lock(text),
-                Some("rebar.lock") => dx_audit::locks::parse_rebar_lock(text),
+                Some(dx_adopt::dependency_sets::REBAR_LOCK) => dx_audit::locks::parse_rebar_lock(text),
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Conan => dx_audit::locks::parse_conan_lock(text),

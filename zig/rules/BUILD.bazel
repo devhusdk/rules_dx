@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
@@ -132,3 +132,5 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+dx_wrapper_signature_test(name = "wrapper_signature_test")

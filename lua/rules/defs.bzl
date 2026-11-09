@@ -55,11 +55,11 @@ def lua_library(name, srcs = None, visibility = None, **kwargs):
     """Lua modules other Lua targets can require."""
     _lua_library(name = name, srcs = srcs or [], visibility = visibility, **kwargs)
 
-def lua_binary(name, srcs = None, visibility = None, **kwargs):
+def lua_binary(name, *, srcs = None, visibility = None, **kwargs):
     """A Lua program that bazel run starts through the shared launcher."""
     _lua_binary(name = name, srcs = srcs or [], visibility = visibility, **kwargs)
 
-def lua_test(name, srcs = None, visibility = None, **kwargs):
+def lua_test(name, *, srcs = None, visibility = None, **kwargs):
     """A Lua test; it passes when main returns or calls os.exit(0)."""
     kwargs.setdefault("size", "small")
     _lua_test(name = name, srcs = srcs or [], visibility = visibility, **kwargs)

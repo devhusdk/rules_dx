@@ -1,5 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//ruby/rules:defs.bzl", "ruby_library", "ruby_test")
+load("//ruby/tests/fixtures/hello:quality_tests.bzl", "rspec_owns_spec_test")
 
 package(
     default_testonly = True,
@@ -26,6 +27,11 @@ ruby_test(
         ":spec_helper",
         "@bundle",
     ],
+)
+
+rspec_owns_spec_test(
+    name = "greeter_spec_quality_test",
+    target_under_test = ":greeter_spec",
 )
 
 real_source_target(

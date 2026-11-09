@@ -127,7 +127,7 @@ def python_test(name, *, srcs = None, main = None, runner = "pytest", visibility
     else:
         dx_wrap_test(name, _py_pytest_test, _python_forward_test, srcs, visibility = visibility, **kwargs)
 
-def python_fuzz_test(name, srcs = None, visibility = None, tags = None, **kwargs):
+def python_fuzz_test(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A python_binary that calls atheris plus a `<name>_run` runner for `dx fuzz`. Needs the atheris wheel: linux x86_64 only."""
     build, run = split_runner_kwargs(kwargs)
     linux_x86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
@@ -153,7 +153,7 @@ def python_fuzz_test(name, srcs = None, visibility = None, tags = None, **kwargs
     )
     dx_fuzz_runner(name, ":" + name, visibility = visibility)
 
-def python_bench(name, srcs = None, args = None, tags = None, deps = None, **kwargs):
+def python_bench(name, *, srcs = None, args = None, tags = None, deps = None, **kwargs):
     """python_test run by dx bench: pytest-benchmark numbers land in dx-bench.json."""
     python_test(
         name = name,

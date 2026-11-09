@@ -2,6 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//ruby/rules:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
 load("@rules_dx//ruby/rules:wrapper_tests.bzl", "ruby_coverage_env_test")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load(":quality_tests.bzl", "main_outside_srcs_test")
 
 package(
     default_testonly = True,
@@ -18,6 +19,17 @@ ruby_binary(
     srcs = ["main.rb"],
     main = "main.rb",
     deps = [":hello_lib"],
+)
+
+ruby_binary(
+    name = "main_outside_srcs",
+    srcs = ["hello.rb"],
+    main = "main_outside_srcs.rb",
+)
+
+main_outside_srcs_test(
+    name = "main_outside_srcs_quality_test",
+    target_under_test = ":main_outside_srcs",
 )
 
 ruby_test(
@@ -51,11 +63,14 @@ dx_hello_output_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "quality_tests.bzl",
+    ],
     tags = ["corpus"],
 )
 
 exports_files(
-    ["BUILD.bazel"],
+    ["BUILD.bazel", "main_outside_srcs.rb"],
     visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
 )

@@ -13,5 +13,5 @@ typescript_project(
 javascript_binary(
     name = "main_bin",
     data = [":main"],
-    entry_point = "main.js",
+    main = "main.js",
 )

@@ -36,7 +36,7 @@ javascript_binary(
     name = "main_bin",
     testonly = True,
     data = [":main"],
-    entry_point = "main.js",
+    main = "main.js",
 )
 
 genrule(

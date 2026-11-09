@@ -337,7 +337,7 @@ def _compiled_path(main):
     package = native.package_name()
     return (package + "/" if package else "") + main[:-len(".ts")] + ".js"
 
-def typescript_bench(name, srcs, node_modules, main = None, data = None, args = None, tags = None, **kwargs):
+def typescript_bench(name, *, srcs, node_modules, main = None, data = None, args = None, tags = None, **kwargs):
     """A typescript_test run by dx bench. `main`, the first of srcs by default, exports a tinybench Bench as its default export; its results land in dx-bench.json. `node_modules` must link tinybench."""
     typescript_test(
         name = name,
@@ -350,7 +350,7 @@ def typescript_bench(name, srcs, node_modules, main = None, data = None, args = 
         **kwargs
     )
 
-def typescript_fuzz_test(name, srcs, node_modules, main = None, data = None, deps = None, visibility = None, tags = None, **kwargs):
+def typescript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, deps = None, visibility = None, tags = None, **kwargs):
     """A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core."""
     build, run = split_runner_kwargs(kwargs)
     typescript_project(
@@ -365,7 +365,7 @@ def typescript_fuzz_test(name, srcs, node_modules, main = None, data = None, dep
     fixed_args = [_compiled_path(main or srcs[0])] + list(run.pop("fixed_args", []))
     javascript_binary(
         name = name,
-        entry_point = Label("//javascript/rules:fuzz_driver"),
+        main = Label("//javascript/rules:fuzz_driver"),
         data = [":" + name + "_bin", node_modules] + list(data or []),
         fixed_args = fixed_args,
         testonly = True,
@@ -377,7 +377,7 @@ def typescript_fuzz_test(name, srcs, node_modules, main = None, data = None, dep
 
 _playwright_test = node_test_forward_rule("typescript_playwright_test", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 
-def typescript_playwright_test(name, srcs, config, node_modules, app = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+def typescript_playwright_test(name, *, srcs, config, node_modules, app = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP on DX_PLAYWRIGHT_PORT."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:

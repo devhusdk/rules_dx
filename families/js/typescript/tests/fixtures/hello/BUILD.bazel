@@ -21,7 +21,7 @@ typescript_project(
 javascript_binary(
     name = "hello",
     data = [":hello_lib"],
-    entry_point = "main.js",
+    main = "main.js",
 )
 
 typescript_test(

@@ -69,7 +69,7 @@ func testKindInfo() rule.KindInfo {
 
 func binaryKindInfo() rule.KindInfo {
 	return rule.KindInfo{
-		MatchAttrs:    []string{"entry_point"},
+		MatchAttrs:    []string{"main"},
 		NonEmptyAttrs: map[string]bool{"data": true},
 		MergeableAttrs: map[string]bool{
 			"data": true,
@@ -351,7 +351,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
 		if p.entry && !common.CoveredBinary(args.File, binaryKind, common.BinaryName(p.name), servesEntry(EntryPointName(p.src))) {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
-			bin.SetAttr("entry_point", EntryPointName(p.src))
+			bin.SetAttr("main", EntryPointName(p.src))
 			bin.SetAttr("data", []string{":" + p.name})
 			result.Gen = append(result.Gen, bin)
 			result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
@@ -402,7 +402,7 @@ func allHaveTSConfig(file *rule.File, plans []plan) bool {
 
 // servesEntry reports whether a binary runs entry.
 func servesEntry(entry string) func(*rule.Rule) bool {
-	return func(r *rule.Rule) bool { return r.AttrString("entry_point") == entry }
+	return func(r *rule.Rule) bool { return r.AttrString("main") == entry }
 }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {

@@ -21,7 +21,7 @@ javascript_binary(
         "//javascript/tests/fixtures/node-app:package_json",
         "//javascript/tests/fixtures/node-app/registry",
     ],
-    entry_point = "main.js",
+    main = "main.js",
 )
 
 typescript_test(

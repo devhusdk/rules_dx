@@ -146,9 +146,11 @@ def javascript_wasm_bindgen_library(name, bindgen, deps = None, visibility = Non
         **kwargs
     )
 
-def javascript_binary(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over js_binary."""
+def javascript_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
+    """Minimal wrapper over js_binary; main is the entry file."""
     effective_srcs = srcs if srcs != None else []
+    if main != None:
+        kwargs["entry_point"] = main
     _javascript_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
 
 _javascript_test = node_test_forward_rule("javascript_*", _JS_EXTS, _DX_JS_SOURCE_SPECS)
@@ -175,7 +177,7 @@ def javascript_test(name, *, srcs = None, runner = "jest", node_modules = None, 
 def _source_label(src):
     return src if src.startswith(":") or src.startswith("//") or src.startswith("@") else ":" + src
 
-def javascript_bench(name, srcs, node_modules, main = None, data = None, args = None, tags = None, **kwargs):
+def javascript_bench(name, *, srcs, node_modules, main = None, data = None, args = None, tags = None, **kwargs):
     """A javascript_test run by dx bench. `main`, the first of srcs by default, exports a tinybench Bench as its default export; its results land in dx-bench.json. `node_modules` must link tinybench."""
     javascript_test(
         name = name,
@@ -188,7 +190,7 @@ def javascript_bench(name, srcs, node_modules, main = None, data = None, args = 
         **kwargs
     )
 
-def javascript_fuzz_test(name, srcs, node_modules, main = None, data = None, visibility = None, tags = None, **kwargs):
+def javascript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, visibility = None, tags = None, **kwargs):
     """A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core."""
     build, run = split_runner_kwargs(kwargs)
     javascript_library(
@@ -202,7 +204,7 @@ def javascript_fuzz_test(name, srcs, node_modules, main = None, data = None, vis
     fixed_args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(run.pop("fixed_args", []))
     javascript_binary(
         name = name,
-        entry_point = Label("//javascript/rules:fuzz_driver"),
+        main = Label("//javascript/rules:fuzz_driver"),
         data = [":" + name + "_bin", node_modules] + list(srcs) + list(data or []),
         fixed_args = fixed_args,
         testonly = True,

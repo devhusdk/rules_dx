@@ -13,7 +13,7 @@ package(
 javascript_binary(
     name = "tagged_bin",
     data = ["shared.js"],
-    entry_point = "main.js",
+    main = "main.js",
     tags = ["no-typecheck"],
 )
 

@@ -14,7 +14,7 @@ javascript_binary(
     name = "hello",
     srcs = ["main.js"],
     data = [":greet"],
-    entry_point = "main.js",
+    main = "main.js",
 )
 
 javascript_test(

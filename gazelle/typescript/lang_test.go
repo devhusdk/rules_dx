@@ -213,8 +213,8 @@ func TestGenerateEntryThinBinary(t *testing.T) {
 		t.Errorf("library srcs = %q, want main.ts", got)
 	}
 	bin := result.Gen[binIdx]
-	if got := bin.AttrString("entry_point"); got != "main.js" {
-		t.Errorf("binary entry_point = %q, want main.js", got)
+	if got := bin.AttrString("main"); got != "main.js" {
+		t.Errorf("binary main = %q, want main.js", got)
 	}
 	if got := strings.Join(bin.AttrStrings("data"), ","); got != ":main" {
 		t.Errorf("binary data = %q, want :main", got)
@@ -245,8 +245,8 @@ func TestGenerateEntryCompiledExtensions(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing javascript_binary(main_bin) in %v", result.Gen)
 	}
-	if got := result.Gen[binIdx].AttrString("entry_point"); got != "main.mjs" {
-		t.Errorf("binary entry_point = %q, want main.mjs", got)
+	if got := result.Gen[binIdx].AttrString("main"); got != "main.mjs" {
+		t.Errorf("binary main = %q, want main.mjs", got)
 	}
 }
 
@@ -281,8 +281,8 @@ func TestBinaryKindInfo(t *testing.T) {
 			t.Errorf("binary MatchAttrs must not contain srcs: %v", info.MatchAttrs)
 		}
 	}
-	if len(info.MatchAttrs) != 1 || info.MatchAttrs[0] != "entry_point" {
-		t.Errorf("binary MatchAttrs = %v, want [entry_point]", info.MatchAttrs)
+	if len(info.MatchAttrs) != 1 || info.MatchAttrs[0] != "main" {
+		t.Errorf("binary MatchAttrs = %v, want [main]", info.MatchAttrs)
 	}
 	if len(info.NonEmptyAttrs) != 1 || !info.NonEmptyAttrs["data"] {
 		t.Errorf("binary NonEmptyAttrs = %v, want data so stale binaries are removed", info.NonEmptyAttrs)
@@ -299,7 +299,7 @@ func TestResolvePreservesBinaryData(t *testing.T) {
 	l := newLang()
 	cfg := resolverConfig(t, nil)
 	bin := rule.NewRule(binaryKind, "main_bin")
-	bin.SetAttr("entry_point", "main.js")
+	bin.SetAttr("main", "main.js")
 	bin.SetAttr("data", []string{":main"})
 	l.Resolve(cfg, resolverIndex(l), nil, bin, refs(), label.New("", "app", "main_bin"))
 	if got := strings.Join(bin.AttrStrings("data"), ","); got != ":main" {
@@ -356,7 +356,7 @@ func TestMergeStaleCleansBinary(t *testing.T) {
 	readme := binaries(regenerate(t, sources, `javascript_binary(
     name = "hello",
     data = [":greet"],
-    entry_point = "main.js",
+    main = "main.js",
 )
 `))
 	if readme["hello"] == nil || len(readme) != 1 {
@@ -366,7 +366,7 @@ func TestMergeStaleCleansBinary(t *testing.T) {
 		t.Errorf("hello data = %q, want :greet", got)
 	}
 
-	kept := binaries(regenerate(t, sources, `javascript_binary(name = "main_bin", data = [":main"], entry_point = "main.js")
+	kept := binaries(regenerate(t, sources, `javascript_binary(name = "main_bin", data = [":main"], main = "main.js")
 `))
 	if kept["main_bin"] == nil || len(kept) != 1 {
 		t.Fatalf("binaries = %v, want only main_bin", kept)
@@ -375,7 +375,7 @@ func TestMergeStaleCleansBinary(t *testing.T) {
 		t.Errorf("main_bin data = %q, want :main", got)
 	}
 
-	stale := binaries(regenerate(t, map[string]string{"greet.ts": "export const x = 1;\n"}, `javascript_binary(name = "main_bin", data = [":main"], entry_point = "main.js")
+	stale := binaries(regenerate(t, map[string]string{"greet.ts": "export const x = 1;\n"}, `javascript_binary(name = "main_bin", data = [":main"], main = "main.js")
 `))
 	if len(stale) != 0 {
 		t.Errorf("binaries = %v, want stale main_bin removed", stale)

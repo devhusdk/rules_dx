@@ -16,7 +16,7 @@ javascript_library(
 javascript_binary(
     name = "hello",
     data = [":hello_lib"],
-    entry_point = "main.js",
+    main = "main.js",
 )
 
 javascript_test(

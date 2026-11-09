@@ -398,6 +398,9 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2046
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_windows_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
+          if [ "${{ matrix.platform }}" = windows_x86_64 ]; then
+            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc/toolchains:compiler=msvc //deploy/rules:pypi_native_msvc_verify
+          fi
       - name: Collect the evidence
         if: always()
         run: |

@@ -1,0 +1,66 @@
+name: compiler-evidence
+description: Record the evidence of the compiler probe tests listed in $RUNNER_TEMP/compiler-targets, and upload it.
+inputs:
+  platform:
+    description: Platform the evidence is recorded for.
+    required: true
+  name:
+    description: Basename of the evidence file and suffix of the uploaded artifact.
+    required: true
+  bin-from-bazel-info:
+    description: Resolve bazel-bin and bazel-testlogs with bazel info instead of the workspace symlinks.
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Record compiler evidence
+      if: always()
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        EVIDENCE_NAME: ${{ inputs.name }}
+        BIN_FROM_INFO: ${{ inputs.bin-from-bazel-info }}
+      run: |
+        # shellcheck disable=SC2086
+        set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+        out="$RUNNER_TEMP/compiler-evidence/${EVIDENCE_NAME}.jsonl"
+        if [ ! -f "$RUNNER_TEMP/compiler-targets" ]; then
+          echo "::notice::The compiler probe tests did not run; no compiler evidence recorded."
+          exit 0
+        fi
+        mkdir -p "$(dirname "$out")"
+        : > "$out"
+        if [ "$BIN_FROM_INFO" = true ]; then
+          DX_BIN="$(bazel info "$@" bazel-bin)"
+          DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
+        else
+          DX_BIN="$PWD/bazel-bin"
+          DX_TESTLOGS="$PWD/bazel-testlogs"
+        fi
+        DX_PRODUCERS="$DX_BIN/tools/ci/producers/producers_bin"
+        [ -f "$DX_PRODUCERS" ] || DX_PRODUCERS="$DX_PRODUCERS.exe"
+        export DX_BIN DX_TESTLOGS DX_PRODUCERS
+        facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
+        targets="$(cat "$RUNNER_TEMP/compiler-targets")"
+        DX_EVIDENCE_COMMAND="bazel test --skip_incompatible_explicit_targets $* $targets"
+        export DX_EVIDENCE_COMMAND
+        tools/ci/compiler_evidence.sh "$out" "$PLATFORM" "$facts"
+        {
+          echo "#### Compiler evidence"
+          echo "| row | version | probe compiler | target | observed producers | ran/total | outcome |"
+          echo "| --- | --- | --- | --- | --- | --- | --- |"
+          jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.observed_producers | join("; ")) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
+        } >> "$GITHUB_STEP_SUMMARY"
+    - name: Check the upload holds no secret
+      id: scan-compiler-evidence
+      if: always()
+      uses: ./.github/actions/assert-no-secret
+      with:
+        path: ${{ runner.temp }}/compiler-evidence
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: ${{ always() && steps.scan-compiler-evidence.outcome == 'success' }}
+      with:
+        name: compiler-evidence-${{ inputs.name }}
+        path: ${{ runner.temp }}/compiler-evidence
+        retention-days: 3

@@ -38,6 +38,19 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
             for warning in report.warnings {
                 let _ = writeln!(err, "{warning}");
             }
+            match dx_adopt::refresh_ignored_overrides(workspace) {
+                Ok(written) => {
+                    if let Ok(mut list) = REWRITTEN.lock() {
+                        list.extend(written);
+                    }
+                }
+                Err(error) => {
+                    let _ = writeln!(
+                        err,
+                        "dx: warning: third_party/rules_dx not refreshed: {error}"
+                    );
+                }
+            }
         }
         Err(error) => {
             let _ = writeln!(err, "dx: warning: .dx not refreshed: {error}");
@@ -80,6 +93,30 @@ mod tests {
         assert_eq!(run("build", root), "");
         assert!(root.join(LAYER).is_file());
         assert!(root.join(".dx/BUILD.bazel").is_file());
+    }
+
+    #[test]
+    fn an_ignored_third_party_dir_is_rebuilt() {
+        let scratch = workspace(true);
+        let root = scratch.path();
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            format!("include(\"{}\")\n", dx_adopt::OVERRIDES_INCLUDE),
+        )
+        .expect("module");
+        std::fs::write(root.join(".gitignore"), "/third_party/rules_dx/\n").expect("ignore");
+        let init = std::process::Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(["init", "-q"])
+            .status()
+            .expect("git");
+        assert!(init.success());
+        assert_eq!(run("build", root), "");
+        assert!(
+            root.join("third_party/rules_dx/rules_dx.MODULE.bazel")
+                .is_file()
+        );
     }
 
     #[test]

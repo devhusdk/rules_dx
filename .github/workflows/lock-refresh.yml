@@ -90,6 +90,7 @@ jobs:
         run: bazel mod deps --noshow_progress --lockfile_mode=update
       - name: Normalise the family locks
         run: |
+          tools/ci/families_materialize.sh
           for dir in families/*/; do
             [ -f "$dir/MODULE.bazel.lock" ] || continue
             (cd "$dir" && bazel mod deps --noshow_progress --lockfile_mode=update)

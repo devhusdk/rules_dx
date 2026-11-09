@@ -54,6 +54,7 @@ rust_test(
     srcs = ["families_test.rs"],
     data = [
         "families.json",
+        "//:.gitignore",
         "//:MODULE.bazel",
         "//quality:families/ansible.bzl",
         "//quality:families/beam.bzl",

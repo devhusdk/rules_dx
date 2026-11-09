@@ -6,6 +6,7 @@ query='attr(tags, "resources:nested_bazel", tests(//...)) except attr(name, ".*_
 cap=8
 
 family_query() {
+  tools/ci/families_materialize.sh
   local expr="$1"
   shift
   local module dir out

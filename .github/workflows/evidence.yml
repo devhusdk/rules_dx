@@ -382,7 +382,7 @@ jobs:
           cat "$RUNNER_TEMP/evidence/android-versions.txt"
       - name: Run the device scenario
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
-        run: cd families/android && sh tests/fixtures/rust_apk/device_run.sh emulator-5554 "$RUNNER_TEMP/evidence"
+        run: tools/ci/families_materialize.sh && cd families/android && sh tests/fixtures/rust_apk/device_run.sh emulator-5554 "$RUNNER_TEMP/evidence"
       - name: Run the rust-android fixture on the emulator
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |

@@ -15,6 +15,10 @@ AGENTS.local.md
 # dx managed state.
 **/.dx/local/
 
+# Family overrides and policy, rebuilt by dx.
+/families/*/third_party/rules_dx/
+/families/*/.dx/
+
 # dx local-only preferences.
 
 # Release outputs.

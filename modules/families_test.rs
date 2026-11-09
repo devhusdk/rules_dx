@@ -447,15 +447,21 @@ mod tests {
 }
 
 #[test]
-fn moved_families_vendor_the_overrides_dx_renders() {
+fn families_include_the_overrides_as_a_dev_dependency_and_git_ignores_them() {
     let root = dx_testing::rules_dx_source();
     let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    let include = format!("include(\"{}\", dev_dependency = True)", dx_adopt::OVERRIDES_INCLUDE);
     for (family, path) in &paths {
-        assert_eq!(
-            dx_adopt::check_overrides(&root.join(path)),
-            dx_adopt::OverridesState::Ok,
-            "families/{family}/third_party/rules_dx is stale; run: (cd {path} && ../../tools/dx init --apply)"
+        let module = std::fs::read_to_string(root.join(path).join("MODULE.bazel"))
+            .unwrap_or_else(|error| panic!("families/{family}/MODULE.bazel: {error}"));
+        assert!(
+            module.lines().any(|line| line == include),
+            "families/{family}/MODULE.bazel must contain: {include}"
         );
+    }
+    let ignore = std::fs::read_to_string(root.join(".gitignore")).expect(".gitignore");
+    for line in ["/families/*/third_party/rules_dx/", "/families/*/.dx/"] {
+        assert!(ignore.lines().any(|l| l == line), ".gitignore must contain {line}");
     }
 }
 

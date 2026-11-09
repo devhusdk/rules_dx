@@ -59,10 +59,7 @@ filegroup(
 
 # dx:begin exports
 exports_files(
-    [
-        ".buildifier.json",
-        ".editorconfig",
-    ],
+    [".buildifier.json"],
     visibility = ["//.dx:__pkg__"],
 )
 # dx:end exports

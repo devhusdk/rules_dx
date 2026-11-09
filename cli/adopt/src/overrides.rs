@@ -868,9 +868,75 @@ pub fn refresh_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
     Ok(wrote)
 }
 
+/// True when git ignores the generated `third_party/rules_dx`, so dx owns it.
+fn overrides_git_ignored(root: &Path) -> bool {
+    std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["check-ignore", "-q", "third_party/rules_dx/rules_dx.MODULE.bazel"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.code() == Some(0))
+        .unwrap_or(false)
+}
+
+/// Runs [`refresh_overrides`] only when git ignores `third_party/rules_dx`.
+pub fn refresh_ignored_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
+    if overrides_git_ignored(root) {
+        refresh_overrides(root)
+    } else {
+        Ok(Vec::new())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn git_repo(scratch: &Path, ignore: &str) {
+        let ok = std::process::Command::new("git")
+            .arg("-C")
+            .arg(scratch)
+            .args(["init", "-q"])
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        assert!(ok, "git init");
+        std::fs::write(scratch.join(".gitignore"), ignore).expect("ignore");
+        std::fs::write(
+            scratch.join("MODULE.bazel"),
+            format!("bazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\ninclude(\"{OVERRIDES_INCLUDE}\")\n"),
+        )
+        .expect("module");
+    }
+
+    #[test]
+    fn an_ignored_dir_is_rebuilt_and_a_second_run_writes_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-overrides-ignored-");
+        let root = scratch.path();
+        git_repo(root, "/third_party/rules_dx/\n");
+        let wrote = refresh_ignored_overrides(root).expect("refresh");
+        assert!(!wrote.is_empty());
+        for rel in &wrote {
+            assert!(root.join(rel).is_file(), "{rel}");
+        }
+        assert!(
+            refresh_ignored_overrides(root)
+                .expect("again")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_tracked_dir_is_left_alone() {
+        let scratch = dx_test_scratch::scratch("dx-overrides-tracked-");
+        let root = scratch.path();
+        git_repo(root, "");
+        assert!(refresh_ignored_overrides(root).expect("refresh").is_empty());
+        assert!(!root.join("third_party").exists());
+    }
 
     #[test]
     fn a_row_without_patches_renders_no_patch_attributes() {

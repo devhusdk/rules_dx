@@ -6,7 +6,7 @@ module(
 
 bazel_dep(name = "rules_dx", version = "0.0.0")
 
-include("//third_party/rules_dx:rules_dx.MODULE.bazel")
+include("//third_party/rules_dx:rules_dx.MODULE.bazel", dev_dependency = True)
 
 local_path_override(
     module_name = "rules_dx",

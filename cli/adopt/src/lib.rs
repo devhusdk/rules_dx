@@ -56,7 +56,7 @@ pub use lock_hubs::{
 pub use module_pin::{ModuleEdit, plan_rules_dx_version, write_edit_or_create, write_module_edit};
 pub use overrides::{
     OVERRIDES_INCLUDE, OverridesState, apply_overrides, check_overrides, check_overrides_in,
-    is_rules_dx_root, module_deps, preflight_overrides, refresh_overrides, render_overrides,
+    is_rules_dx_root, module_deps, preflight_overrides, refresh_ignored_overrides, refresh_overrides, render_overrides,
 };
 pub use ownership::Ownership;
 pub use preflight::{Finding, Preflight, preflight, render_plan_text, workspace_finding};

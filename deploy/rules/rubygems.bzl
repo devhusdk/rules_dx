@@ -1,6 +1,6 @@
 """Local-first RubyGems publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "ALNUM", "VERSION_CHARS", "only_chars")
 
@@ -74,26 +74,20 @@ _rubygems_config = rule(
             cfg = "exec",
         ),
         "version": attr.string(
-            doc = "Gem version published by the deployment.",
-            mandatory = True,
+            doc = "Gem version the gemspec must declare, empty to publish the gemspec's version.",
         ),
     },
 )
 
-def rubygems_deploy(name, gem, version = "0.0.0", ruby = None, ruby_files = None, build_mode = "release", sbom = None):
+def rubygems_deploy(name, gem, package = "", version = "", ruby = None, ruby_files = None, build_mode = "release", sbom = None):
     """Publishes staged gem sources as a local-first RubyGems deployment."""
-    name_error = rubygems_name_error(name)
-    if name_error != "":
-        fail(name_error + " (in " + native.package_name() + ":" + name + ")")
-    version_error = rubygems_version_error(version)
-    if version_error != "":
-        fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    pkg, version = deploy_identity(name, package, version, rubygems_name_error, rubygems_version_error)
 
     config_target = name + "_config"
     _rubygems_config(
         name = config_target,
         gem = gem,
-        gem_name = name,
+        gem_name = pkg,
         ruby = ruby,
         ruby_files = ruby_files,
         version = version,

@@ -13,7 +13,8 @@ use crate::api_compat::{
 };
 use crate::http;
 use crate::run::{
-    OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal, scrubbed_command,
+    OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal, resolve_version,
+    scrubbed_command,
 };
 use crate::{DeployRun, copy_verified, deploy_build_mode, tempfile_stage_dir, zip_archive};
 
@@ -394,6 +395,16 @@ pub fn maven_pom_metadata_error(
     } else {
         Some(format!("pom is not Central-ready: {}", problems.join("; ")))
     }
+}
+
+/// Returns the version to publish: the pom's, which must equal `expected` when the BUILD file declares one.
+fn maven_pom_version(pom: &[u8], expected: &str) -> Result<String, String> {
+    let fields = maven_pom_fields(pom).map_err(|error| format!("maven_deploy: {error}"))?;
+    let found = fields
+        .get("project/version")
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty());
+    resolve_version("maven_deploy", "pom", found.as_deref(), expected)
 }
 
 /// Secret signing key material for Maven detached signatures.
@@ -796,7 +807,9 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         );
         return 1;
     }
-    if let Err(error) = maven_coordinates_check(group, artifact, version) {
+    if !version.is_empty()
+        && let Err(error) = maven_coordinates_check(group, artifact, version)
+    {
         eprintln!("maven_deploy: {error}");
         return 1;
     }
@@ -814,6 +827,21 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
     let Some(pom) = run.resolve(pom_rloc) else {
         return 1;
     };
+    let version = match std::fs::read(&pom)
+        .map_err(|error| format!("maven_deploy: cannot read pom: {error}"))
+        .and_then(|bytes| maven_pom_version(&bytes, version))
+    {
+        Ok(version) => version,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
+    let version = version.as_str();
+    if let Err(error) = maven_coordinates_check(group, artifact, version) {
+        eprintln!("maven_deploy: {error}");
+        return 1;
+    }
     let mut extra: Vec<(&str, PathBuf)> = Vec::new();
     for (classifier, rloc) in [("sources", sources_rloc), ("javadoc", javadoc_rloc)] {
         if rloc.is_empty() {
@@ -1216,6 +1244,25 @@ pub(crate) mod tests {
             Some("pom root is <settings>, want <project>".to_owned())
         );
         assert!(maven_pom_metadata_error(b"<project><name>", "g", "a", "1").is_some());
+    }
+
+    #[test]
+    fn maven_version_comes_from_the_pom() {
+        let pom = central_pom("com.example", "demo", "1.2.3");
+        assert_eq!(
+            maven_pom_version(pom.as_bytes(), ""),
+            Ok("1.2.3".to_owned())
+        );
+        assert_eq!(
+            maven_pom_version(pom.as_bytes(), "1.2.3"),
+            Ok("1.2.3".to_owned())
+        );
+        let mismatch = maven_pom_version(pom.as_bytes(), "2.0.0").expect_err("mismatch");
+        assert!(
+            mismatch.contains("pom declares version 1.2.3, BUILD declares 2.0.0"),
+            "{mismatch}"
+        );
+        assert!(maven_pom_version(b"<project/>", "").is_err());
     }
 
     #[test]

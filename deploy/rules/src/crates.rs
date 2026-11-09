@@ -6,7 +6,7 @@ use crate::api_compat::{
 };
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, scrubbed_command,
+    placeholder_refusal, resolve_version, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -170,22 +170,31 @@ fn manifest_identity(text: &str) -> (Option<String>, Option<String>) {
     (name, version)
 }
 
-/// Returns a refusal when the staged manifest is not the target crate.
-fn manifest_refusal(text: &str, crate_name: &str, version: &str) -> Option<String> {
+/// Returns the version to publish, refusing a manifest that is not the target crate or declares another version.
+fn manifest_version(text: &str, crate_name: &str, version: &str) -> Result<String, String> {
     let (name, found) = manifest_identity(text);
-    let show = |value: &Option<String>| {
-        value
-            .clone()
-            .unwrap_or_else(|| "(not a plain value)".to_owned())
-    };
-    if name.as_deref() == Some(crate_name) && found.as_deref() == Some(version) {
-        return None;
+    if name.as_deref() != Some(crate_name) {
+        return Err(format!(
+            "crates_deploy: Cargo.toml is {}, target is {crate_name}; refusing",
+            name.unwrap_or_else(|| "(not a plain value)".to_owned())
+        ));
     }
-    Some(format!(
-        "crates_deploy: staged Cargo.toml is {} {}, target is {crate_name} {version}; refusing",
-        show(&name),
-        show(&found)
-    ))
+    resolve_version("crates_deploy", "Cargo.toml", found.as_deref(), version)
+}
+
+/// Reads the version to publish from the crate's Cargo.toml.
+fn crates_version(
+    files: &[std::path::PathBuf],
+    crate_name: &str,
+    version: &str,
+) -> Result<String, String> {
+    let mapped = crates_package_paths(files).map_err(|error| format!("crates_deploy: {error}"))?;
+    let Some((manifest, _)) = mapped.iter().find(|(_, rel)| rel == "Cargo.toml") else {
+        return Err("crates_deploy: crate has no Cargo.toml; refusing".to_owned());
+    };
+    let text = std::fs::read_to_string(manifest)
+        .map_err(|error| format!("crates_deploy: cannot read Cargo.toml: {error}"))?;
+    manifest_version(&text, crate_name, version)
 }
 
 fn crates_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Result<(), String> {
@@ -446,6 +455,14 @@ pub fn crates_main_checked(
         };
         files.push(path);
     }
+    let version = match crates_version(&files, crate_name, version) {
+        Ok(version) => version,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
+    let version = version.as_str();
     if CRATES_GATE.requested(env_or_empty) {
         if std::env::var("CRATES_ALLOW_DIRTY").unwrap_or_default() == "1" {
             eprintln!(
@@ -488,7 +505,7 @@ pub fn crates_main_checked(
             return 1;
         }
         let text = std::fs::read_to_string(&manifest).unwrap_or_default();
-        if let Some(error) = manifest_refusal(&text, crate_name, version) {
+        if let Err(error) = manifest_version(&text, crate_name, version) {
             let _ = std::fs::remove_dir_all(&staging);
             eprintln!("{error}");
             return 1;
@@ -574,13 +591,18 @@ mod tests {
     #[test]
     fn manifest_must_match_target() {
         let ok = "[package]\nname = \"demo\"\nversion = \"1.2.3\" # x\n[dependencies]\nname = \"other\"\n";
-        assert_eq!(manifest_refusal(ok, "demo", "1.2.3"), None);
-        let wrong_name = manifest_refusal(ok, "other", "1.2.3").expect("name refused");
-        assert!(wrong_name.contains("is demo 1.2.3, target is other 1.2.3"));
-        assert!(manifest_refusal(ok, "demo", "2.0.0").is_some());
+        assert_eq!(
+            manifest_version(ok, "demo", "1.2.3"),
+            Ok("1.2.3".to_owned())
+        );
+        assert_eq!(manifest_version(ok, "demo", ""), Ok("1.2.3".to_owned()));
+        let wrong_name = manifest_version(ok, "other", "").expect_err("name refused");
+        assert!(wrong_name.contains("Cargo.toml is demo, target is other"));
+        let mismatch = manifest_version(ok, "demo", "2.0.0").expect_err("version refused");
+        assert!(mismatch.contains("declares version 1.2.3, BUILD declares 2.0.0"));
         let workspace = "[package]\nname = \"demo\"\nversion.workspace = true\n";
-        assert!(manifest_refusal(workspace, "demo", "1.2.3").is_some());
-        assert!(manifest_refusal("", "demo", "1.2.3").is_some());
+        assert!(manifest_version(workspace, "demo", "").is_err());
+        assert!(manifest_version("", "demo", "").is_err());
     }
 
     #[test]

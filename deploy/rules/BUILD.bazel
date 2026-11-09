@@ -1569,7 +1569,6 @@ filegroup(
 crates_deploy(
     name = "crates_demo",
     crate = ":crates_demo_crate",
-    version = "0.0.0",
 )
 
 crates_deploy(
@@ -1577,7 +1576,6 @@ crates_deploy(
     api_baseline = "git",
     crate = ":crates_demo_crate",
     tags = ["manual"],
-    version = "0.0.0",
 )
 
 crates_deploy(
@@ -1585,7 +1583,6 @@ crates_deploy(
     api_compat = "warn",
     crate = ":crates_demo_crate",
     tags = ["manual"],
-    version = "0.0.0",
 )
 
 failure_test(
@@ -1656,7 +1653,6 @@ rubygems_deploy(
         "@platforms//os:linux": "@ruby//:files",
         "//conditions:default": None,
     }),
-    version = "0.0.0",
 )
 
 rubygems_unit_tests(name = "rubygems_unit")
@@ -1819,13 +1815,11 @@ genrule(
 
 maven_deploy(
     name = "maven_demo",
-    artifact = "maven_demo",
     group = "com.example",
     jar = ":maven_demo_lib",
     javadoc = ":maven_demo_javadoc_jar",
     pom = "testdata/maven/maven_demo-0.0.0.pom",
     sources = ":maven_demo_sources_jar",
-    version = "0.0.0",
 )
 
 maven_deploy(
@@ -1834,7 +1828,6 @@ maven_deploy(
     group = "com.example",
     jar = ":maven_demo_lib",
     pom = "testdata/maven/maven_demo-0.0.0.pom",
-    version = "0.0.0",
 )
 
 maven_unit_tests(name = "maven_unit")

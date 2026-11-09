@@ -2,7 +2,7 @@
 
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, scrubbed_command,
+    placeholder_refusal, resolve_version, scrubbed_command,
 };
 use crate::stage::*;
 use std::collections::BTreeSet;
@@ -41,22 +41,21 @@ fn gemspec_value(text: &str, field: &str) -> Option<String> {
     None
 }
 
-/// Returns a refusal when the staged gemspec is not the target gem.
-fn gemspec_refusal(text: &str, gem_name: &str, version: &str) -> Option<String> {
-    let (name, found) = (gemspec_value(text, "name"), gemspec_value(text, "version"));
-    if name.as_deref() == Some(gem_name) && found.as_deref() == Some(version) {
-        return None;
+/// Returns the version to publish, refusing a gemspec that is not the target gem or declares another version.
+fn gemspec_version(text: &str, gem_name: &str, version: &str) -> Result<String, String> {
+    let name = gemspec_value(text, "name");
+    if name.as_deref() != Some(gem_name) {
+        return Err(format!(
+            "rubygems_deploy: gemspec is {}, target is {gem_name}; refusing",
+            name.unwrap_or_else(|| "(not a plain value)".to_owned())
+        ));
     }
-    let show = |value: &Option<String>| {
-        value
-            .clone()
-            .unwrap_or_else(|| "(not a plain value)".to_owned())
-    };
-    Some(format!(
-        "rubygems_deploy: gemspec is {} {}, target is {gem_name} {version}; refusing",
-        show(&name),
-        show(&found)
-    ))
+    resolve_version(
+        "rubygems_deploy",
+        &format!("{gem_name}.gemspec"),
+        gemspec_value(text, "version").as_deref(),
+        version,
+    )
 }
 
 /// Maps gem input files to package-relative paths under the gemspec directory.
@@ -216,26 +215,24 @@ fn gem_push(program: &Path, gem: &Path, token: &str) -> Result<(), String> {
     Err(gem_failure("gem push", &output, token))
 }
 
-/// Stages the sources, checks the gemspec, builds the gem and checks its file list.
+/// Stages the sources, checks the gemspec, builds the gem and checks its file list; returns the gem and its version.
 fn rubygems_build_checked(
     gem_program: &Path,
     mapped: &[(PathBuf, String)],
     staging: &Path,
     gem_name: &str,
     version: &str,
-) -> Result<PathBuf, String> {
+) -> Result<(PathBuf, String), String> {
     rubygems_stage(mapped, staging)?;
     let gemspec = format!("{gem_name}.gemspec");
     let text = std::fs::read_to_string(staging.join(&gemspec))
         .map_err(|error| format!("rubygems_deploy: cannot read {gemspec}: {error}"))?;
-    if let Some(error) = gemspec_refusal(&text, gem_name, version) {
-        return Err(error);
-    }
-    let gem = gem_build(gem_program, staging, gem_name, version)?;
+    let version = gemspec_version(&text, gem_name, version)?;
+    let gem = gem_build(gem_program, staging, gem_name, &version)?;
     if let Some(error) = file_list_refusal(&gem_file_list(&gem)?, mapped, &gemspec) {
         return Err(error);
     }
-    Ok(gem)
+    Ok((gem, version))
 }
 
 /// Finds `gem` next to the pinned `ruby`, or on PATH when none is pinned.
@@ -276,10 +273,6 @@ pub fn rubygems_main(
     };
     let live = RUBYGEMS_GATE.requested(env_or_empty);
     let secrets = if live {
-        if let Some(error) = placeholder_refusal("rubygems_deploy", version) {
-            eprintln!("{error}");
-            return 1;
-        }
         match RUBYGEMS_GATE.authorize(env_or_empty) {
             Ok(secrets) => Some(secrets),
             Err(error) => {
@@ -312,9 +305,14 @@ pub fn rubygems_main(
         .and_then(|mapped| {
             rubygems_build_checked(&gem_program, &mapped, &staging, gem_name, version)
         });
-    let result = built.and_then(|gem| match &secrets {
-        Some(secrets) => gem_push(&gem_program, &gem, secrets.get("RUBYGEMS_API_TOKEN"))
-            .map(|()| format!("rubygems_deploy: pushed {gem_name} {version}")),
+    let result = built.and_then(|(gem, version)| match &secrets {
+        Some(secrets) => {
+            if let Some(error) = placeholder_refusal("rubygems_deploy", &version) {
+                return Err(error);
+            }
+            gem_push(&gem_program, &gem, secrets.get("RUBYGEMS_API_TOKEN"))
+                .map(|()| format!("rubygems_deploy: pushed {gem_name} {version}"))
+        }
         None => {
             let dest = run.outdir().join(format!("{gem_name}-{version}.gem"));
             copy_verified(&gem, &dest).map_err(|error| format!("rubygems_deploy: {error}"))?;
@@ -347,14 +345,22 @@ mod tests {
 
     #[test]
     fn gemspec_must_match_target() {
-        assert_eq!(gemspec_refusal(GEMSPEC, "demo", "1.2.3"), None);
-        let wrong = gemspec_refusal(GEMSPEC, "other", "1.2.3").expect("name refused");
+        assert_eq!(
+            gemspec_version(GEMSPEC, "demo", "1.2.3"),
+            Ok("1.2.3".to_owned())
+        );
+        assert_eq!(gemspec_version(GEMSPEC, "demo", ""), Ok("1.2.3".to_owned()));
+        let wrong = gemspec_version(GEMSPEC, "other", "").expect_err("name refused");
         assert!(
-            wrong.contains("is demo 1.2.3, target is other 1.2.3"),
+            wrong.contains("gemspec is demo, target is other"),
             "{wrong}"
         );
-        assert!(gemspec_refusal(GEMSPEC, "demo", "2.0.0").is_some());
-        assert!(gemspec_refusal("spec.version = Demo::VERSION\n", "demo", "1").is_some());
+        let mismatch = gemspec_version(GEMSPEC, "demo", "2.0.0").expect_err("version refused");
+        assert!(
+            mismatch.contains("declares version 1.2.3, BUILD declares 2.0.0"),
+            "{mismatch}"
+        );
+        assert!(gemspec_version("spec.version = Demo::VERSION\n", "demo", "").is_err());
     }
 
     #[test]
@@ -448,8 +454,9 @@ mod tests {
             &format!("[ \"$1\" = build ] && cp {} \"$4\"", prebuilt.display()),
         );
         let staging = scratch.path().join("staging");
-        let gem =
-            rubygems_build_checked(&build, &mapped, &staging, "demo", "1.2.3").expect("build");
+        let (gem, version) =
+            rubygems_build_checked(&build, &mapped, &staging, "demo", "").expect("build");
+        assert_eq!(version, "1.2.3");
         assert_eq!(
             gem.file_name().and_then(|n| n.to_str()),
             Some("demo-1.2.3.gem")

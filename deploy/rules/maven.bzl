@@ -1,7 +1,7 @@
 """Local-first Maven Central publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -222,13 +222,12 @@ _maven_config = rule(
             allow_single_file = True,
         ),
         "version": attr.string(
-            doc = "Maven version of the published artifact.",
-            mandatory = True,
+            doc = "Version the pom must declare, empty to publish the pom's version.",
         ),
     },
 )
 
-def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail", api_baseline = "registry"):
+def maven_deploy(name, jar, pom, group, artifact = "", version = "", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment.
 
     api_compat and api_baseline work as described under "Public API
@@ -237,12 +236,7 @@ def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_
     group_error = maven_group_error(group)
     if group_error != "":
         fail(group_error + " (in " + native.package_name() + ":" + name + ")")
-    artifact_error = maven_artifact_error(artifact)
-    if artifact_error != "":
-        fail(artifact_error + " (in " + native.package_name() + ":" + name + ")")
-    version_error = maven_version_error(version)
-    if version_error != "":
-        fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    artifact, version = deploy_identity(name, artifact, version, maven_artifact_error, maven_version_error)
     repository_error = maven_repository_error(repository_url)
     if repository_error != "":
         fail(repository_error + " (in " + native.package_name() + ":" + name + ")")

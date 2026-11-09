@@ -1,7 +1,7 @@
 """Local-first crates.io publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "ALNUM", "VERSION_CHARS", "only_chars")
 
@@ -87,25 +87,19 @@ _crates_config = rule(
             mandatory = True,
         ),
         "version": attr.string(
-            doc = "Crate version published by the deployment.",
-            mandatory = True,
+            doc = "Crate version the manifest must declare, empty to publish the manifest's version.",
         ),
     },
 )
 
-def crates_deploy(name, crate, version = "0.0.0", build_mode = "release", api_compat = "fail", api_baseline = "registry", tags = [], sbom = None):
+def crates_deploy(name, crate, package = "", version = "", build_mode = "release", api_compat = "fail", api_baseline = "registry", tags = [], sbom = None):
     """Publishes staged crate sources as a local-first crates.io deployment.
 
     api_compat and api_baseline work as described under "Public API
     compatibility" in the README; the tool is cargo-semver-checks, and the
     git baseline needs a checked-in, standalone Cargo.toml.
     """
-    name_error = crates_name_error(name)
-    if name_error != "":
-        fail(name_error + " (in " + native.package_name() + ":" + name + ")")
-    version_error = crates_version_error(version)
-    if version_error != "":
-        fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    pkg, version = deploy_identity(name, package, version, crates_name_error, crates_version_error)
 
     api_error = api_compat_error("crates_deploy", api_compat, api_baseline)
     if api_error != "":
@@ -114,7 +108,7 @@ def crates_deploy(name, crate, version = "0.0.0", build_mode = "release", api_co
     _crates_config(
         name = config_target,
         crate = crate,
-        crate_name = name,
+        crate_name = pkg,
         version = version,
         api_compat = api_compat,
         api_baseline = api_baseline,

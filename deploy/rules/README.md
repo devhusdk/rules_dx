@@ -21,23 +21,23 @@ load("@rules_dx//deploy/rules:maven.bzl", "maven_deploy")
 
 maven_deploy(
     name = "maven_demo",
-    artifact = "maven_demo",
     group = "com.example",
     jar = ":maven_demo_lib",
     pom = "maven_demo-0.0.0.pom",
-    version = "0.0.0",
 )
 ```
 
 - `jar`, `pom`: required. The files to upload.
-- `group`, `artifact`: required. The Maven coordinates.
+- `group`: required. The Maven group id.
+- `artifact`: defaults to `name`.
 - `sources`, `javadoc`: optional single `.jar` targets staged as
   `<artifact>-<version>-sources.jar` and `-javadoc.jar`, each with md5, sha1,
   sha256, sha512 and (when signing) `.asc`. Central requires both, so a live
   upload refuses before any network call when either is missing. Local staging
   works without them and prints `sources: yes|no` and `javadoc: yes|no`. A jar
   that holds only a README is accepted by Central as a placeholder.
-- `version`: defaults to `0.0.0`.
+- `version`: empty by default, which publishes the version in the pom. When
+  set, it must equal the pom's `<version>`.
 - `repository_url`: defaults to the Central Portal Publisher API below. No
   other host is accepted.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
@@ -369,13 +369,14 @@ load("@rules_dx//deploy/rules:crates.bzl", "crates_deploy")
 crates_deploy(
     name = "crates_demo",
     crate = ":crates_demo_crate",
-    version = "0.0.0",
 )
 ```
 
-- `name`: the crate name.
+- `name`: the crate name unless `package` is set.
+- `package`: the crate name when it differs from `name`.
 - `crate`: required. The crate files, including `Cargo.toml`.
-- `version`: defaults to `0.0.0`.
+- `version`: empty by default, which publishes the version in `Cargo.toml`.
+  When set, it must equal that version.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-vendor/vendor/<name>/` and
@@ -388,7 +389,7 @@ CRATES_PUBLISH_APPROVED=1 CARGO_REGISTRY_TOKEN=... \
 dx deploy --apply //pkg:crates_demo
 ```
 
-A live run refuses version `0.0.0` and `CRATES_ALLOW_DIRTY=1`.
+A live run refuses a `0.0.0` manifest version and `CRATES_ALLOW_DIRTY=1`.
 
 A default run checks the staged `Cargo.toml` and runs `cargo package --list`
 when `cargo` is on `PATH`. Without `cargo` it prints a skip line. It never
@@ -443,14 +444,16 @@ load("@rules_dx//deploy/rules:rubygems.bzl", "rubygems_deploy")
 rubygems_deploy(
     name = "rubygems_demo",
     gem = ":rubygems_demo_gem",
-    version = "1.0.0",
 )
 ```
 
-- `name`: the gem name. The gemspec must be `<name>.gemspec`.
+- `name`: the gem name unless `package` is set. The gemspec must be
+  `<gem name>.gemspec`.
+- `package`: the gem name when it differs from `name`.
 - `gem`: required. The gemspec and the files it packs, such as a
   `ruby_library`.
-- `version`: defaults to `0.0.0`. Must equal `spec.version` in the gemspec.
+- `version`: empty by default, which publishes `spec.version` from the
+  gemspec. When set, it must equal `spec.version`.
 - `ruby`: optional pinned `ruby` executable, such as `@ruby//:ruby_file`. The
   `gem` next to it is used instead of the one on `PATH`.
 - `ruby_files`: the files that ruby needs, such as `@ruby//:files`.
@@ -470,7 +473,7 @@ dx deploy --apply //pkg:rubygems_demo
 ```
 
 `RUBYGEMS_API_TOKEN` is sent to `gem push` as `GEM_HOST_API_KEY`. A live run
-refuses version `0.0.0`. Rerunning a pushed version: rubygems.org refuses
+refuses a `0.0.0` gemspec version. Rerunning a pushed version: rubygems.org refuses
 it, the run prints the last `gem` output lines and exits 1.
 
 # github_deploy

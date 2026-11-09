@@ -1,6 +1,6 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "fake_file", "label_string")
-load("//libs/starlark:wrapper.bzl", "dx_quality_srcs")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
 load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "runfiles_path", "shell_quote", "staged_path")
@@ -50,7 +50,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "main leads the owned sources",
-            dx_quality_srcs(
+            dx_entry_quality_srcs(
                 "main.php",
                 ["src/A.php"],
             ),
@@ -61,7 +61,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "main listed in srcs is owned once",
-            dx_quality_srcs(
+            dx_entry_quality_srcs(
                 "main.php",
                 [
                     "main.php",
@@ -75,7 +75,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "autoload files are owned once",
-            dx_quality_srcs(
+            dx_entry_quality_srcs(
                 None,
                 ["a.php"],
                 [
@@ -90,8 +90,30 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "no main and no srcs owns nothing",
-            dx_quality_srcs(None, None),
+            dx_entry_quality_srcs(None, None),
             [],
+        ),
+        expect_equal(
+            "main defaults to the target name with .php",
+            dx_infer_main(
+                "php_binary",
+                "hello",
+                None,
+                ["src/A.php", "hello.php"],
+                dx_main_candidates("hello", ".php"),
+            ),
+            "hello.php",
+        ),
+        expect_equal(
+            "the only src is main when no name matches",
+            dx_infer_main(
+                "php_binary",
+                "hello",
+                None,
+                ["run.php"],
+                dx_main_candidates("hello", ".php"),
+            ),
+            "run.php",
         ),
         expect_equal(
             "the deferred class skips quality",

@@ -39,7 +39,6 @@ rust_test(
         "//.bcr:presubmit.yml",
         "//:module_srcs",
         "//bcr_test_module:files",
-        "//modules:consumer_graph.json",
         "//modules:core_budget.json",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -51,7 +50,6 @@ rust_test(
     tags = NESTED_BAZEL_NETWORK_TAGS,
     deps = [
         "//tools/testing:dx_testing",
-        "//tools/testing/floor:dx_floor",
         "//tools/testing/nested:dx_nested",
         "@crates//:serde_json",
     ],

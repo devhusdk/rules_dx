@@ -129,15 +129,6 @@ fn the_readme_quickstart_runs_as_written() {
     );
     within_budget("after_check");
     assert!(failures.is_empty(), "{}", failures.join("\n"));
-
-    let graph = run_in(&case, &["mod", "graph", "--output=json"], "mod graph");
-    let table =
-        dx_floor::render_graph_table(&graph.stdout).unwrap_or_else(|error| panic!("{error}"));
-    let committed = read_text(&source.join("modules/consumer_graph.json"));
-    assert_eq!(
-        table, committed,
-        "the quickstart consumer resolves a different graph; commit this as modules/consumer_graph.json:\n{table}"
-    );
 }
 
 #[test]

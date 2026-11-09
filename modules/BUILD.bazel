@@ -144,7 +144,6 @@ test_suite(
 
 exports_files([
     "consumer_deps.bzl",
-    "consumer_graph.json",
     "core_budget.json",
     "cuda.bzl",
     "rust.bzl",

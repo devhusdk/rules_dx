@@ -1724,7 +1724,7 @@ mod tests {
     #[test]
     fn init_plan_event_shape() {
         let mut finding = PlanFindingEvent {
-            kind: "version_raise".to_owned(),
+            kind: "override_conflict".to_owned(),
             subject: "rules_rust".to_owned(),
             before: "0.60.0".to_owned(),
             after: "0.75.0".to_owned(),

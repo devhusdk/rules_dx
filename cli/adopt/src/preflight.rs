@@ -1,22 +1,13 @@
 //! The read-only "init plan" for a foreign `MODULE.bazel` (#3751): what adopting rules_dx
-//! would raise or conflict with, found from the declared files and `MODULE.bazel.lock`.
-//! No Bazel runs and nothing is written. Without a usable lock only declared deps are
-//! compared, so transitive raises are not seen; a note says so.
-//!
-//! The "after" versions come from `modules/consumer_graph.json`: every module a fresh dx
-//! consumer resolves to, transitive ones included. Bazel selects the highest version any module requires
-//! (minimal version selection), so the user's graph plus dx resolves to at least the higher
-//! of the user's version and the table's. Combining the two graphs is an approximation: a
-//! raise can be under-reported, never invented.
+//! would conflict with, found from the declared files. No Bazel runs and nothing is written.
 
-use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
 use crate::overrides::{OVERRIDES, OVERRIDES_INCLUDE};
 
-/// rules_dx's own non-dev `bazel_dep` versions, the floors a consumer's graph is raised to.
+/// rules_dx's own non-dev `bazel_dep` versions, the floors an override must meet.
 /// The drift test keeps this equal to `//:MODULE.bazel`.
 pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_rust", "0.75.0"),
@@ -66,24 +57,9 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("aspect_rules_jest", "0.26.0"),
 ];
 
-/// Every module a fresh dx consumer resolves to, with its version (`modules/consumer_graph.json`).
-const CONSUMER_GRAPH: &str = include_str!("../../../modules/consumer_graph.json");
-
-/// The embedded consumer graph as `(module, version)` rows.
-pub fn consumer_graph() -> Vec<(String, String)> {
-    parse_consumer_graph(CONSUMER_GRAPH).unwrap_or_default()
-}
-
-fn parse_consumer_graph(text: &str) -> Result<Vec<(String, String)>, String> {
-    let map: BTreeMap<String, String> =
-        serde_json::from_str(text).map_err(|e| format!("invalid consumer_graph.json: {e}"))?;
-    Ok(map.into_iter().collect())
-}
-
 /// What kind of finding it is; one plan section each.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Kind {
-    VersionRaise,
     OverrideConflict,
     ToolchainConflict,
     BazelrcConflict,
@@ -94,7 +70,6 @@ impl Kind {
     /// Stable id for machine output.
     pub fn id(self) -> &'static str {
         match self {
-            Kind::VersionRaise => "version_raise",
             Kind::OverrideConflict => "override_conflict",
             Kind::ToolchainConflict => "toolchain_conflict",
             Kind::BazelrcConflict => "bazelrc_conflict",
@@ -194,8 +169,6 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
     }
     result.applicable = true;
     let snippet_module = ModuleFile::parse(snippet).ok();
-    let raises = version_raises(root, &sources, snippet_module.as_ref(), &mut result.notes);
-    result.findings.extend(raises);
     result.findings.extend(override_conflicts(&sources));
     result
         .findings
@@ -269,170 +242,6 @@ fn bazelrc_conflicts(root: &Path) -> Vec<Finding> {
         }
     }
     out.sort_by(|a, b| (&a.file, a.line).cmp(&(&b.file, b.line)));
-    out
-}
-
-fn floors(snippet: Option<&ModuleFile>) -> Vec<(String, String)> {
-    let mut floors: Vec<(String, String)> = RULES_DX_DEPS
-        .iter()
-        .map(|(n, v)| ((*n).to_owned(), (*v).to_owned()))
-        .collect();
-    for (name, version) in consumer_graph() {
-        match floors.iter_mut().find(|(n, _)| *n == name) {
-            Some((_, v)) if compare_module_versions(&version, v).is_gt() => *v = version,
-            Some(_) => {}
-            None => floors.push((name, version)),
-        }
-    }
-    for call in snippet.iter().flat_map(|m| m.calls_named("bazel_dep")) {
-        let (Some(name), Some(version)) = (call.str("name"), call.str("version")) else {
-            continue;
-        };
-        match floors.iter_mut().find(|(n, _)| n == name) {
-            Some((_, v)) if compare_module_versions(version, v).is_gt() => *v = version.to_owned(),
-            Some(_) => {}
-            None => floors.push((name.to_owned(), version.to_owned())),
-        }
-    }
-    floors
-}
-
-/// The version each module resolved to in `MODULE.bazel.lock`: the highest version whose
-/// `source.json` the registry served, with the lock line of that key.
-fn lock_versions(text: &str) -> Result<BTreeMap<String, (String, usize)>, String> {
-    let root: serde_json::Value =
-        serde_json::from_str(text).map_err(|e| format!("invalid MODULE.bazel.lock: {e}"))?;
-    if root
-        .get("lockFileVersion")
-        .and_then(|v| v.as_u64())
-        .is_none()
-    {
-        return Err("invalid MODULE.bazel.lock: missing lockFileVersion".to_owned());
-    }
-    let Some(hashes) = root.get("registryFileHashes").and_then(|v| v.as_object()) else {
-        return Err("invalid MODULE.bazel.lock: missing registryFileHashes".to_owned());
-    };
-    let mut out: BTreeMap<String, (String, usize)> = BTreeMap::new();
-    for url in hashes.keys() {
-        let Some((_, rest)) = url.split_once("/modules/") else {
-            continue;
-        };
-        let parts: Vec<&str> = rest.split('/').collect();
-        let [name, version, "source.json"] = parts.as_slice() else {
-            continue;
-        };
-        let better = out
-            .get(*name)
-            .is_none_or(|(have, _)| compare_module_versions(version, have).is_gt());
-        if better {
-            let line = text
-                .lines()
-                .position(|l| l.contains(url.as_str()))
-                .map_or(0, |i| i + 1);
-            out.insert((*name).to_owned(), ((*version).to_owned(), line));
-        }
-    }
-    Ok(out)
-}
-
-/// What a module is raised or pinned to: the exact patched pin when dx owns an override
-/// for it, else the highest floor.
-fn after_version(name: &str, floor: &str) -> String {
-    OVERRIDES
-        .iter()
-        .find(|row| row.module == name)
-        .map_or_else(|| floor.to_owned(), |row| row.version.to_owned())
-}
-
-fn version_raises(
-    root: &Path,
-    sources: &[Source],
-    snippet: Option<&ModuleFile>,
-    notes: &mut Vec<String>,
-) -> Vec<Finding> {
-    let floors = floors(snippet);
-    let mut declared: BTreeMap<String, (String, String, usize)> = BTreeMap::new();
-    let mut overridden = BTreeSet::new();
-    for source in sources {
-        for call in source.module.calls() {
-            if call.name.ends_with("_override")
-                && let Some(target) = call.str("module_name")
-            {
-                overridden.insert(target.to_owned());
-            }
-        }
-        for call in source.module.calls_named("bazel_dep") {
-            let (Some(name), Some(have)) = (call.str("name"), call.str("version")) else {
-                continue;
-            };
-            let higher = declared
-                .get(name)
-                .is_none_or(|(v, _, _)| compare_module_versions(have, v).is_gt());
-            if higher {
-                declared.insert(
-                    name.to_owned(),
-                    (have.to_owned(), source.file.clone(), call.line),
-                );
-            }
-        }
-    }
-    let lock = match std::fs::read_to_string(root.join("MODULE.bazel.lock")) {
-        Err(_) => Err("MODULE.bazel.lock not found".to_owned()),
-        Ok(text) => lock_versions(&text),
-    };
-    let lock = lock.and_then(|locked| {
-        let stale = declared.iter().find(|(name, (have, _, _))| {
-            !overridden.contains(*name)
-                && *name != "rules_dx"
-                && locked
-                    .get(*name)
-                    .is_none_or(|(v, _)| compare_module_versions(have, v).is_gt())
-        });
-        match stale {
-            Some((name, _)) => Err(format!("MODULE.bazel.lock is stale for {name}")),
-            None => Ok(locked),
-        }
-    });
-    match &lock {
-        Ok(_) => notes.push("versions are read from MODULE.bazel.lock".to_owned()),
-        Err(reason) => notes.push(format!(
-            "{reason}; version raises compare declared bazel_deps only"
-        )),
-    }
-    let mut out = Vec::new();
-    for (name, floor) in &floors {
-        if name == "rules_dx" || overridden.contains(name) {
-            continue;
-        }
-        let from_lock = lock.as_ref().ok().and_then(|l| l.get(name));
-        let (have, file, line) = match (from_lock, declared.get(name)) {
-            (Some((v, _)), Some((_, file, line))) => (v.clone(), file.clone(), *line),
-            (Some((v, line)), None) => (v.clone(), "MODULE.bazel.lock".to_owned(), *line),
-            (None, Some((v, file, line))) => (v.clone(), file.clone(), *line),
-            (None, None) => continue,
-        };
-        let after = after_version(name, floor);
-        let pinned = OVERRIDES.iter().any(|row| row.module == name);
-        let ord = compare_module_versions(&have, &after);
-        let hint = if ord.is_lt() {
-            format!("rules_dx needs {name} {after}; Bazel will select it")
-        } else if pinned && ord.is_gt() {
-            format!("dx pins {name} to {after}, which is lower than your {have}")
-        } else {
-            continue;
-        };
-        out.push(Finding {
-            kind: Kind::VersionRaise,
-            subject: name.clone(),
-            before: have,
-            after,
-            file,
-            line,
-            hint,
-            hard: false,
-        });
-    }
-    out.sort_by(|a, b| (&a.file, a.line, &a.subject).cmp(&(&b.file, b.line, &b.subject)));
     out
 }
 
@@ -688,7 +497,6 @@ fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<
 pub fn render_plan_text(module: &str, apply: &str, plan: &Preflight) -> String {
     let mut out = format!("init plan: {module}\n");
     for (title, kind) in [
-        ("version raises", Kind::VersionRaise),
         ("override conflicts", Kind::OverrideConflict),
         ("toolchain conflicts", Kind::ToolchainConflict),
         ("bazelrc conflicts", Kind::BazelrcConflict),
@@ -776,27 +584,7 @@ mod tests {
         assert!(plan.applicable && plan.findings.is_empty());
         assert!(
             render_plan_text("app", "dx init app --apply", &plan)
-                .contains("version raises:\n  none\n")
-        );
-    }
-
-    #[test]
-    fn older_dep_is_raised_and_newer_is_not() {
-        let dir = scratch(&[(
-            "MODULE.bazel",
-            "bazel_dep(name = \"rules_rust\", version = \"0.60.0\")\nbazel_dep(name = \"rules_cc\", version = \"99.0.0\")\nbazel_dep(name = \"lua\", version = \"5.4.6.bcr.2\")\n",
-        )]);
-        let plan = preflight(dir.path(), &snippet());
-        assert_eq!(plan.findings.len(), 1, "{plan:?}");
-        let f = &plan.findings[0];
-        assert_eq!(
-            (f.subject.as_str(), f.before.as_str(), f.line),
-            ("rules_rust", "0.60.0", 1)
-        );
-        assert!(!f.hard);
-        assert!(
-            render_plan_text("app", "dx init app --apply", &plan)
-                .contains("rules_rust 0.60.0 -> 0.75.0")
+                .contains("override conflicts:\n  none\n")
         );
     }
 
@@ -916,168 +704,6 @@ mod tests {
         );
     }
 
-    fn lock_text(entries: &[(&str, &str)]) -> String {
-        let hashes: serde_json::Map<String, serde_json::Value> = entries
-            .iter()
-            .map(|(n, v)| {
-                (
-                    format!("https://bcr.bazel.build/modules/{n}/{v}/source.json"),
-                    serde_json::Value::String("x".to_owned()),
-                )
-            })
-            .collect();
-        serde_json::json!({"lockFileVersion": 24, "registryFileHashes": hashes}).to_string()
-    }
-
-    fn raises(files: &[(&str, &str)]) -> (Vec<Finding>, Vec<String>) {
-        let dir = scratch(files);
-        let plan = preflight(dir.path(), &snippet());
-        let found = plan
-            .findings
-            .into_iter()
-            .filter(|f| f.kind == Kind::VersionRaise)
-            .collect();
-        (found, plan.notes)
-    }
-
-    #[test]
-    fn transitive_raise_comes_from_the_lock() {
-        let lock = lock_text(&[("bazel_skylib", "1.0.0"), ("bazel_skylib", "0.9.0")]);
-        let (found, notes) = raises(&[
-            ("MODULE.bazel", "module(name = \"app\")\n"),
-            ("MODULE.bazel.lock", &lock),
-        ]);
-        assert_eq!(found.len(), 1, "{found:?}");
-        assert_eq!(
-            (found[0].subject.as_str(), found[0].before.as_str()),
-            ("bazel_skylib", "1.0.0")
-        );
-        assert_eq!(found[0].file, "MODULE.bazel.lock");
-        assert!(found[0].line > 0);
-        assert!(
-            notes
-                .iter()
-                .any(|n| n.contains("read from MODULE.bazel.lock"))
-        );
-    }
-
-    /// A module only the consumer graph knows (not a direct rules_dx dep, not patched).
-    fn transitive_only() -> (String, String) {
-        consumer_graph()
-            .into_iter()
-            .find(|(n, _)| {
-                !RULES_DX_DEPS.iter().any(|(d, _)| d == n)
-                    && !OVERRIDES.iter().any(|row| row.module == n)
-            })
-            .expect("consumer_graph.json has a transitive-only module")
-    }
-
-    #[test]
-    fn consumer_graph_parses_and_covers_the_direct_deps() {
-        let graph = parse_consumer_graph(CONSUMER_GRAPH).expect("parses");
-        assert!(!graph.is_empty());
-        for (name, declared) in RULES_DX_DEPS {
-            let Some((_, resolved)) = graph.iter().find(|(n, _)| n == name) else {
-                panic!("{name} is missing from modules/consumer_graph.json; regenerate it");
-            };
-            assert!(
-                compare_module_versions(resolved, declared).is_ge(),
-                "{name}: consumer_graph.json has {resolved}, below the declared {declared}"
-            );
-        }
-        let core_rows = OVERRIDES
-            .iter()
-            .filter(|row| crate::overrides::wanted(row, dx_families::families(), &BTreeSet::new()));
-        for row in core_rows {
-            assert!(
-                graph.iter().any(|(n, _)| n == row.module),
-                "{} is pinned but missing from consumer_graph.json",
-                row.module
-            );
-        }
-    }
-
-    #[test]
-    fn transitive_raise_only_the_consumer_graph_knows() {
-        let (name, version) = transitive_only();
-        let lock = lock_text(&[(&name, "0.0.1")]);
-        let (found, _) = raises(&[
-            ("MODULE.bazel", "module(name = \"app\")\n"),
-            ("MODULE.bazel.lock", &lock),
-        ]);
-        let hit = found.iter().find(|f| f.subject == name).expect("raise");
-        assert_eq!(
-            (hit.before.as_str(), hit.after.as_str()),
-            ("0.0.1", version.as_str())
-        );
-        assert_eq!(hit.file, "MODULE.bazel.lock");
-    }
-
-    #[test]
-    fn graph_module_absent_from_the_lock_is_not_reported() {
-        let (name, _) = transitive_only();
-        let lock = lock_text(&[("some_unrelated_module", "1.0.0")]);
-        let (found, _) = raises(&[
-            ("MODULE.bazel", "module(name = \"app\")\n"),
-            ("MODULE.bazel.lock", &lock),
-        ]);
-        assert!(found.iter().all(|f| f.subject != name), "{found:?}");
-    }
-
-    #[test]
-    fn stale_lock_falls_back_with_a_note() {
-        let lock = lock_text(&[("rules_rust", "0.50.0")]);
-        let (found, notes) = raises(&[
-            (
-                "MODULE.bazel",
-                "bazel_dep(name = \"rules_rust\", version = \"0.60.0\")\n",
-            ),
-            ("MODULE.bazel.lock", &lock),
-        ]);
-        assert_eq!(found[0].before, "0.60.0");
-        assert!(notes.iter().any(|n| n.contains("stale")), "{notes:?}");
-    }
-
-    #[test]
-    fn no_lock_notes_and_still_runs_file_checks() {
-        let (found, notes) = raises(&[(
-            "MODULE.bazel",
-            "bazel_dep(name = \"rules_rust\", version = \"0.60.0\")\n",
-        )]);
-        assert_eq!(found.len(), 1);
-        assert!(
-            notes
-                .iter()
-                .any(|n| n.contains("MODULE.bazel.lock not found")
-                    && n.contains("declared bazel_deps only")),
-            "{notes:?}"
-        );
-    }
-
-    #[test]
-    fn user_override_is_not_a_raise() {
-        let (found, _) = raises(&[(
-            "MODULE.bazel",
-            "bazel_dep(name = \"rules_go\", version = \"0.1.0\")\nsingle_version_override(module_name = \"rules_go\", version = \"0.1.0\")\n",
-        )]);
-        assert!(found.is_empty(), "{found:?}");
-    }
-
-    #[test]
-    fn patched_module_uses_the_pin_and_flags_a_lower_pin() {
-        let lock = lock_text(&[("rules_rust", "0.80.0")]);
-        let (found, _) = raises(&[
-            (
-                "MODULE.bazel",
-                "bazel_dep(name = \"rules_rust\", version = \"0.80.0\")\n",
-            ),
-            ("MODULE.bazel.lock", &lock),
-        ]);
-        assert_eq!(found.len(), 1, "{found:?}");
-        assert_eq!(found[0].after, "0.75.0");
-        assert!(found[0].hint.contains("lower"), "{}", found[0].hint);
-    }
-
     fn snapshot(dir: &Path) -> Vec<(String, Vec<u8>, std::time::SystemTime)> {
         let mut out = Vec::new();
         let mut pending = vec![dir.to_path_buf()];
@@ -1104,13 +730,11 @@ mod tests {
 
     #[test]
     fn preflight_never_writes() {
-        let lock = lock_text(&[("bazel_skylib", "1.0.0")]);
         let dir = scratch(&[
             (
                 "MODULE.bazel",
                 "bazel_dep(name = \"rules_rust\", version = \"0.1.0\")\n",
             ),
-            ("MODULE.bazel.lock", &lock),
             (".bazelrc", "build --verbose_failures\n"),
             ("sub/x.txt", "x"),
         ]);

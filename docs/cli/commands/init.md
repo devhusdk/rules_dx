@@ -171,18 +171,9 @@ Check reports a missing essential path or a stale path as drift, and exits `1`. 
 ## Init plan
 
 When the root has a `MODULE.bazel`, `dx init` (the check) also prints a read-only plan of
-what adopting rules_dx would change, found from the declared files and `MODULE.bazel.lock`. It runs no Bazel
+what adopting rules_dx would change, found from the declared files. It runs no Bazel
 and writes nothing. Sections:
 
-- `version raises`: a module that resolves below the version rules_dx needs (the highest of
-  its own `bazel_dep` floors, the `rules_dx` pin init would add, and the version in
-  `modules/consumer_graph.json`, see below). For a module dx patches, the
-  target is the exact version dx pins, and a pin below yours is reported as lower. Modules
-  you override yourself are skipped. The current version is the one in `MODULE.bazel.lock`
-  (the highest `source.json` it records, so transitive raises show, with the lock line), or
-  the declared `bazel_dep` version when the lock is missing, invalid, or stale (a declared
-  dep it lacks or has at a lower version); a note then says the comparison is declared-only.
-  Advisory.
 - `override conflicts`: a `*_override` you own. One on a module dx patches
   (`single_version_override` of `rules_rust`, for example) is hard, because dx cannot add its
   patches; one on another rules_dx dependency is advisory.
@@ -205,27 +196,20 @@ and writes nothing. Sections:
   `advisory: WORKSPACE is not read by Bazel 9; move its repos to MODULE.bazel (WORKSPACE:1)`
   to stderr, and `--apply` adds it to its notes.
 
-The "after" versions include transitive ones. `modules/consumer_graph.json` lists every module
-a fresh dx consumer resolves to. Bazel picks the highest version any module
-requires (<https://bazel.build/external/module#version-selection>), so your graph plus dx
-resolves to at least the higher of your version and the file's. This is an approximation of a
-real resolution: a raise can be under-reported, never invented. dx does not run Bazel on a copy
-of your workspace.
-
 | Exit code | Meaning |
 | --- | --- |
-| `0` | no hard findings (raises and advisory findings are printed) |
+| `0` | no hard findings (advisory findings are printed) |
 | `1` | a hard override or toolchain conflict, or other init drift |
 | `2` | usage error |
 
 Each finding names the file and line, including `include()`d `.MODULE.bazel` files. Hard
 findings add an `init plan: N hard conflicts (...)` clause to `init drift` and exit 1;
-advisory findings, and an unavailable lock, never change the exit code.
+advisory findings never change the exit code.
 
 With `--output=json`, the plan is one `init_plan` event per finding instead of text, with
-`kind` (`version_raise`, `override_conflict`, `toolchain_conflict`, `bazelrc_conflict`, `workspace_ignored`),
+`kind` (`override_conflict`, `toolchain_conflict`, `bazelrc_conflict`, `workspace_ignored`),
 `subject`, `before`, `after`, `path`, `line` (left out when unknown), `hint`, and `severity`
-(`hard` or `advisory`). Plan notes, such as the lock being unavailable, are `notice` events
+(`hard` or `advisory`). Plan notes, such as a `MODULE.bazel` that could not be compared, are `notice` events
 with code `init_plan_partial`. `--apply` refuses `--output=json`. The agent default of `json` does not apply to `--apply`, which prints text.
 
 ## rules_dx overrides

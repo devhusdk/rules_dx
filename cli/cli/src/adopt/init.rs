@@ -852,8 +852,7 @@ mod tests {
         std::fs::write(root.join("MODULE.bazel"), &module).expect("module");
         let (code, out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("rules_rust 0.60.0 -> 0.75.0"), "{out}");
-        assert!(out.contains("MODULE.bazel:2"), "{out}");
+        assert!(out.contains("override conflicts:\n  none"), "{out}");
         let conflict = format!(
             "{module}single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n"
         );
@@ -890,26 +889,22 @@ mod tests {
 
     #[test]
     fn init_check_json_emits_init_plan_events() {
-        let root = adopted_root("dx-adopt-init-plan-json-", "");
+        let root = adopted_root(
+            "dx-adopt-init-plan-json-",
+            "single_version_override(module_name = \"rules_cc\", version = \"0.1.0\")\n",
+        );
         let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
         assert_eq!(code, 0, "{out}{err}");
         let all = events(&out);
         let plan: Vec<_> = all.iter().filter(|e| e["event"] == "init_plan").collect();
         assert_eq!(plan.len(), 1, "{out}");
         let f = plan[0];
-        assert_eq!(f["kind"], "version_raise");
-        assert_eq!(f["subject"], "rules_rust");
-        assert_eq!(f["before"], "0.60.0");
-        assert_eq!(f["after"], "0.75.0");
+        assert_eq!(f["kind"], "override_conflict");
+        assert_eq!(f["subject"], "rules_cc");
         assert_eq!(f["path"], "MODULE.bazel");
-        assert_eq!(f["line"], 2);
+        assert_eq!(f["line"], 3);
         assert_eq!(f["severity"], "advisory");
         assert!(f["hint"].as_str().is_some_and(|h| !h.is_empty()));
-        assert!(
-            all.iter()
-                .any(|e| e["event"] == "notice" && e["code"] == "init_plan_partial"),
-            "{out}"
-        );
     }
 
     #[test]
@@ -947,29 +942,6 @@ mod tests {
                 .any(|e| e["event"] == "init_plan" && e["severity"] == "hard"),
             "{out}"
         );
-    }
-
-    #[test]
-    fn init_check_reads_transitive_raises_from_the_lock() {
-        let root = adopted_root("dx-adopt-init-plan-lock-", "");
-        let lock = serde_json::json!({
-            "lockFileVersion": 24,
-            "registryFileHashes": {
-                "https://bcr.bazel.build/modules/rules_rust/0.75.0/source.json": "x",
-                "https://bcr.bazel.build/modules/rules_rust/0.60.0/source.json": "x",
-                "https://bcr.bazel.build/modules/bazel_skylib/1.0.0/source.json": "x"
-            }
-        });
-        std::fs::write(root.join("MODULE.bazel.lock"), lock.to_string()).expect("lock");
-        let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
-        assert_eq!(code, 0, "{out}{err}");
-        let all = events(&out);
-        let subjects: Vec<_> = all
-            .iter()
-            .filter(|e| e["event"] == "init_plan")
-            .map(|e| e["subject"].as_str().unwrap_or_default().to_owned())
-            .collect();
-        assert_eq!(subjects, vec!["bazel_skylib".to_owned()], "{out}");
     }
 
     #[test]

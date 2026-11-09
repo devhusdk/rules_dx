@@ -1,8 +1,7 @@
 """Hermetic LuaLS acquisition: one repository holding the release tree of the host cell."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("//libs/starlark:toolchain.bzl", "host_archive")
-load("//lua/coverage:pins.bzl", "LUACOV_BUILD", "LUACOV_PINS")
+load("//libs/starlark:toolchain.bzl", "host_archive", "read_pins")
 load(":pins.bzl", "LDOC_PINS", "LUALS_CELLS")
 
 LUALS_BUILD = """package(default_visibility = ["//visibility:public"])
@@ -15,6 +14,14 @@ filegroup(
 )
 """
 
+LUACOV_BUILD = """package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "sources",
+    srcs = glob(["{root}**/*.lua"], exclude = ["**/spec/**", "**/html/**", "**/reporter/html.lua"]),
+)
+"""
+
 def _lua_impl(mctx):
     host_archive(
         name = "dx_luals",
@@ -23,13 +30,13 @@ def _lua_impl(mctx):
         cells = LUALS_CELLS,
         tool = "LuaLS",
     )
-    for pin in LUACOV_PINS:
+    for name, pin in read_pins(mctx, Label("//lua/coverage:pins.json"))["archives"].items():
         http_archive(
-            name = pin.name,
-            build_file_content = LUACOV_BUILD.format(root = "src/" if pin.name == "dx_luacov" else ""),
-            sha256 = pin.sha256,
-            strip_prefix = pin.strip_prefix,
-            urls = pin.urls,
+            name = name,
+            build_file_content = LUACOV_BUILD.format(root = "src/" if name == "dx_luacov" else ""),
+            sha256 = pin["sha256"],
+            strip_prefix = pin["strip_prefix"],
+            urls = pin["urls"],
         )
     for pin in LDOC_PINS:
         http_archive(

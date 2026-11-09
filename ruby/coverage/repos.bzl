@@ -1,10 +1,10 @@
 """Pinned SimpleCov gems that Ruby tests load under `bazel coverage` (#3954)."""
 
 load("//libs/starlark:repo.bzl", "gem_extract")
-load(":pins.bzl", "RUBY_BENCH_GEMS", "RUBY_BENCH_REPOSITORY", "RUBY_COVERAGE_GEMS", "RUBY_COVERAGE_REPOSITORY", "gem_dir", "gem_url")
+load(":gems.bzl", "RUBY_BENCH_GEMS", "RUBY_BENCH_REPOSITORY", "RUBY_COVERAGE_GEMS", "RUBY_COVERAGE_REPOSITORY")
 
 def _build_file(gems):
-    dirs = [gem_dir(gem) for gem in gems]
+    dirs = [gem.dir for gem in gems]
     lines = [
         "filegroup(",
         "    name = \"lib\",",
@@ -23,7 +23,7 @@ def _build_file(gems):
         "    glob([\"*/LICENSE*\"]) + [",
     ]
     for gem in gems:
-        lines.append("        \"" + gem_dir(gem) + "/lib/" + gem.entry + "\",")
+        lines.append("        \"" + gem.dir + "/lib/" + gem.entry + "\",")
     lines += [
         "    ],",
         "    visibility = [\"//visibility:public\"],",
@@ -34,13 +34,13 @@ def _build_file(gems):
 
 def _download_gems(ctx, gems):
     for gem in gems:
-        url = gem_url(gem)
+        url = gem.url
         gem_extract(
             ctx,
             url = url,
             sha256 = gem.sha256,
             canonical_id = "dx-ruby-coverage-gem:" + url,
-            output = gem_dir(gem),
+            output = gem.dir,
             required = ["lib/" + gem.entry],
         )
     ctx.file("BUILD.bazel", _build_file(gems))

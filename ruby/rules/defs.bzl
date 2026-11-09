@@ -6,7 +6,7 @@ load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load("//ruby/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
+load("//ruby/coverage:gems.bzl", "RUBY_COVERAGE_GEMS")
 
 _DX_RUBY_LIBRARY_PROVIDES = [
     RubyFilesInfo,
@@ -44,10 +44,10 @@ def ruby_coverage_lib_dirs(short_paths):
     """Returns the runfiles-relative lib dir of each pinned SimpleCov gem, in pin order."""
     dirs = []
     for gem in RUBY_COVERAGE_GEMS:
-        suffix = "/" + gem_dir(gem) + "/lib/" + gem.entry
+        suffix = "/" + gem.dir + "/lib/" + gem.entry
         found = [p for p in short_paths if p.endswith(suffix)]
         if not found:
-            fail("ruby coverage: no " + gem_dir(gem) + "/lib/" + gem.entry + " in the pinned gems")
+            fail("ruby coverage: no " + gem.dir + "/lib/" + gem.entry + " in the pinned gems")
         dirs.append(found[0][:-len("/" + gem.entry)])
     return dirs
 

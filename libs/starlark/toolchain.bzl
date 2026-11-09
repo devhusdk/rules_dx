@@ -169,11 +169,22 @@ def pins_hub(name, cells, toolchain_type):
         for cell in sorted(cells)
     ])
 
+def read_pins(mctx, label):
+    """Returns the decoded pins.json at a label.
+
+    Args:
+        mctx: Module or repository context.
+        label: Label of the pins.json.
+    """
+    return json.decode(mctx.read(label))
+
 def _dx_pins_impl(mctx):
     data = {}
     for mod in mctx.modules:
+        for tag in mod.tags.data:
+            data[tag.name] = read_pins(mctx, tag.pins)
         for tag in mod.tags.pin:
-            pins = json.decode(mctx.read(tag.pins))
+            pins = read_pins(mctx, tag.pins)
             build = mctx.read(tag.build)
             data[tag.name] = pins
             if tag.toolchain_type == None:
@@ -193,8 +204,15 @@ def _dx_pins_impl(mctx):
 
 dx_pins = module_extension(
     implementation = _dx_pins_impl,
-    doc = "Creates the repositories of every pins.json: one per cell and a toolchain hub, or one host-selected repository.",
+    doc = "Creates the repositories of every pins.json: one per cell and a toolchain hub, or one host-selected repository; exposes every pins.json as @dx_pins_data.",
     tag_classes = {
+        "data": tag_class(
+            doc = "One pins.json that only reaches @dx_pins_data; the caller creates its repositories.",
+            attrs = {
+                "name": attr.string(mandatory = True, doc = "Key of the file in PINS."),
+                "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file of archives."),
+            },
+        ),
         "pin": tag_class(
             doc = "One pins.json. With a toolchain_type it makes a repository per cell and a hub of toolchain() targets; without, one repository of the host cell.",
             attrs = {

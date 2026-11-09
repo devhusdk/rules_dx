@@ -1,5 +1,6 @@
 """LuaLS pin tests."""
 
+load("@dx_pins_data//:pins.bzl", "PINS")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load("//libs/starlark:host.bzl", "host_cell_of")
 load("//libs/starlark:toolchain.bzl", "pin_checks")
@@ -11,6 +12,7 @@ def _checks():
         expect_equal("linux host", host_cell_of("linux", "amd64"), "linux_x86_64"),
         expect_equal("mac arm host", host_cell_of("mac os x", "aarch64"), "macos_arm64"),
         expect_equal("windows host", host_cell_of("windows server 2022", "amd64"), "windows_x86_64"),
+        expect_equal("luacov archives", sorted(PINS["dx_lua_coverage"]["archives"].keys()), ["dx_luacov", "dx_luacov_reporter_lcov"]),
         expect_contains("the repo exports the binary", LUALS_BUILD, 'exports_files(["{binary}"])'),
     ]
 

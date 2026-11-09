@@ -4,8 +4,8 @@ load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_go//go:def.bzl", _GoArchive = "GoArchive", _GoInfo = "GoInfo", _go_binary = "go_binary", _go_library = "go_library", _go_test = "go_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
-load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_test_kwargs", "with_default_size")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
+load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 load(":cgo.bzl", "cgo_toolchain_error")
@@ -91,25 +91,19 @@ def go_test(name, *, srcs = None, visibility = None, **kwargs):
 
 def go_fuzz_test(name, *, fuzz, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test plus a `<name>_run` runner that fuzzes the function `fuzz` for `dx fuzz`."""
-    binary = name + "_bin"
-    build, run = split_test_kwargs(kwargs)
-    go_test(
-        name = binary,
-        srcs = srcs,
-        visibility = ["//visibility:private"],
-        tags = merge_tags(tags, "manual"),
-        testonly = True,
-        **build
-    )
-    native_test(
-        name = name,
-        src = ":" + binary,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
-        testonly = True,
+    dx_fuzz_test(
+        name,
+        go_test,
+        {"srcs": srcs},
+        tags = tags,
         visibility = visibility,
-        **with_default_size(run)
+        fuzz_rule = native_test,
+        fuzz_kwargs = {"src": ":" + name + "_bin"},
+        engine = "go",
+        target = fuzz,
+        test = True,
+        **kwargs
     )
-    dx_fuzz_runner(name, ":" + name, visibility = visibility, engine = "go", target = fuzz)
 
 def go_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test of the Benchmark functions plus a `<name>` runner that writes dx-bench.json for `dx bench`."""

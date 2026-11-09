@@ -5,8 +5,8 @@ load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo", _PyWheelsInfo = "PyWheelsInfo", _py_binary = "py_binary", _py_library = "py_library", _py_pytest_test = "py_pytest_test", _py_test = "py_test")
 load("//libs/exec_os:defs.bzl", "ExecOsInfo")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
-load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "with_default_size")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -129,29 +129,19 @@ def python_test(name, *, srcs = None, main = None, runner = "pytest", visibility
 
 def python_fuzz_test(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A python_binary that calls atheris plus a `<name>_run` runner for `dx fuzz`. Needs the atheris wheel: linux x86_64 only."""
-    build, run = split_runner_kwargs(kwargs)
+    kwargs = dict(kwargs)
     linux_x86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
-    compatible = linux_x86_64 + [c for c in run.pop("target_compatible_with", []) if c not in linux_x86_64]
-    python_binary(
-        name = name + "_bin",
-        srcs = srcs,
-        visibility = ["//visibility:private"],
-        testonly = True,
-        tags = merge_tags(tags, "manual"),
-        target_compatible_with = compatible,
-        **build
-    )
-    native_binary(
-        name = name,
-        src = ":" + name + "_bin",
-        out = name + "_fuzz",
+    compatible = linux_x86_64 + [c for c in kwargs.pop("target_compatible_with", []) if c not in linux_x86_64]
+    dx_fuzz_test(
+        name,
+        python_binary,
+        {"srcs": srcs, "target_compatible_with": compatible},
+        tags = tags,
         visibility = visibility,
-        testonly = True,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
-        target_compatible_with = compatible,
-        **run
+        fuzz_rule = native_binary,
+        fuzz_kwargs = {"src": ":" + name + "_bin", "out": name + "_fuzz", "target_compatible_with": compatible},
+        **kwargs
     )
-    dx_fuzz_runner(name, ":" + name, visibility = visibility)
 
 def python_bench(name, *, srcs = None, args = None, tags = None, deps = None, **kwargs):
     """python_test run by dx bench: pytest-benchmark numbers land in dx-bench.json."""

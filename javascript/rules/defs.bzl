@@ -5,8 +5,8 @@ load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "j
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
-load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "with_default_size")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//libs/starlark:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -192,24 +192,20 @@ def javascript_bench(name, *, srcs, node_modules, main = None, data = None, args
 
 def javascript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, visibility = None, tags = None, **kwargs):
     """A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core."""
-    build, run = split_runner_kwargs(kwargs)
-    javascript_library(
-        name = name + "_bin",
-        srcs = srcs,
-        testonly = True,
-        tags = merge_tags(tags, "manual"),
-        visibility = ["//visibility:private"],
-        **build
-    )
-    fixed_args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(run.pop("fixed_args", []))
-    javascript_binary(
-        name = name,
-        main = Label("//javascript/rules:fuzz_driver"),
-        data = [":" + name + "_bin", node_modules] + list(srcs) + list(data or []),
-        fixed_args = fixed_args,
-        testonly = True,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
+    kwargs = dict(kwargs)
+    fixed_args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(kwargs.pop("fixed_args", []))
+    dx_fuzz_test(
+        name,
+        javascript_library,
+        {"srcs": srcs},
+        tags = tags,
         visibility = visibility,
-        **run
+        fuzz_rule = javascript_binary,
+        fuzz_kwargs = {
+            "main": Label("//javascript/rules:fuzz_driver"),
+            "data": [":" + name + "_bin", node_modules] + list(srcs) + list(data or []),
+            "fixed_args": fixed_args,
+        },
+        target = name,
+        **kwargs
     )
-    dx_fuzz_runner(name, ":" + name, visibility = visibility, target = name)

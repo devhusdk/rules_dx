@@ -1,6 +1,6 @@
 """The libFuzzer ASAN binary rule and the `<name>_run` runner shared by the fuzz macros."""
 
-load(":fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
+load(":fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 
 def _asan_fuzzer_transition_impl(_settings, attr):
     return {
@@ -60,27 +60,54 @@ def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", harness = None
         visibility = visibility,
     )
 
-def dx_fuzz_test(name, binary_rule, binary_kwargs, tags = None, visibility = None, pinned_libfuzzer = True, **kwargs):
-    """Declares the private `<name>_bin` with `binary_rule`, the `dx_fuzz_binary` `<name>` and the `<name>_run` runner.
+def dx_fuzz_target(name, rule, *, tags = None, visibility = None, engine = "libfuzzer", target = "", fuzz = None, harness = None, **attrs):
+    """Declares the fuzz binary `<name>` with `rule` and the `<name>_run` runner `dx fuzz` calls.
 
-    `binary_kwargs` are the language rule's own attributes. `kwargs` split into those the
-    binary takes and the runner-facing `args` and `target_compatible_with`.
+    `<name>` is testonly and tagged "dx-fuzz" and "manual". `fuzz` is the label the runner
+    executes, `:<name>` by default. `harness` is passed to the runner after it. `attrs` go to `rule`.
     """
-    build, run = split_runner_kwargs(kwargs)
+    rule(
+        name = name,
+        testonly = True,
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        visibility = visibility,
+        **attrs
+    )
+    dx_fuzz_runner(name, fuzz or ":" + name, engine = engine, target = target, harness = harness, visibility = visibility)
+
+def dx_fuzz_test(
+        name,
+        binary_rule,
+        binary_kwargs,
+        tags = None,
+        visibility = None,
+        pinned_libfuzzer = True,
+        fuzz_rule = None,
+        fuzz_kwargs = None,
+        engine = "libfuzzer",
+        target = "",
+        test = False,
+        **kwargs):
+    """Declares the private `<name>_bin` with `binary_rule`, the fuzz binary `<name>` and the `<name>_run` runner.
+
+    `<name>` is a `dx_fuzz_binary` unless `fuzz_rule` is set; `fuzz_kwargs` are its extra attributes.
+    `binary_kwargs` are the language rule's own attributes and win over `kwargs`. With `test`, `kwargs`
+    split like a test rule's and `<name>` gets the default size; otherwise into `args` and
+    `target_compatible_with`, which `<name>` takes.
+    """
+    if test:
+        build, run = split_test_kwargs(kwargs)
+        run = with_default_size(run)
+    else:
+        build, run = split_runner_kwargs(kwargs)
     binary_rule(
         name = name + "_bin",
         visibility = ["//visibility:private"],
         testonly = True,
         tags = merge_tags(tags, "manual"),
-        **(binary_kwargs | build)
+        **(build | binary_kwargs)
     )
-    dx_fuzz_binary(
-        name = name,
-        binary = ":" + name + "_bin",
-        pinned_libfuzzer = pinned_libfuzzer,
-        visibility = visibility,
-        testonly = True,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
-        **run
-    )
-    dx_fuzz_runner(name, ":" + name, visibility = visibility)
+    if fuzz_rule == None:
+        fuzz_rule = dx_fuzz_binary
+        fuzz_kwargs = {"binary": ":" + name + "_bin", "pinned_libfuzzer": pinned_libfuzzer}
+    dx_fuzz_target(name, fuzz_rule, tags = tags, visibility = visibility, engine = engine, target = target, **(run | (fuzz_kwargs or {})))

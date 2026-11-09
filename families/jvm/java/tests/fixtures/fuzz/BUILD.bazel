@@ -41,3 +41,19 @@ dx_runner_attr_test(
     expected = {"args": ["-max_total_time=1"]},
     runner = "args_fuzz",
 )
+
+dx_runner_attr_test(
+    name = "parse_fuzz_attrs",
+    expected = {"tags": ["dx-fuzz", "manual"]},
+    runner = "parse_fuzz",
+)
+
+dx_runner_attr_test(
+    name = "parse_fuzz_run_attrs",
+    expected = {"args": [
+        "jazzer",
+        "$(rootpath :parse_fuzz)",
+        "tests.fixtures.fuzz.ParseFuzz",
+    ]},
+    runner = "parse_fuzz_run",
+)

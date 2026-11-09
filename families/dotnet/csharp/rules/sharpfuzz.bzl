@@ -1,8 +1,7 @@
 """SharpFuzz instrumentation and the `<name>` harness plus `<name>_run` runner shared by the .NET fuzz macros."""
 
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
-load("@rules_dx//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("@rules_dx//libs/starlark:fuzz_bench.bzl", "merge_tags")
+load("@rules_dx//libs/starlark:fuzz.bzl", "dx_fuzz_target")
 
 SHARPFUZZ = [
     Label("@paket.main//sharpfuzz"),
@@ -120,13 +119,15 @@ def sharpfuzz_fuzz(name, binary, srcs, deps, visibility, tags, kwargs):
         instrumented.append(":" + wrapped)
     kwargs = dict(kwargs)
     kwargs["target_compatible_with"] = kwargs.get("target_compatible_with", _SUPPORTED)
-    binary(
-        name = name,
+    dx_fuzz_target(
+        name,
+        binary,
+        engine = "dotnet",
+        fuzz = Label("@rules_dx//dotnet/fuzz:libfuzzer_dotnet"),
+        harness = ":" + name,
         srcs = srcs,
         deps = instrumented + SHARPFUZZ,
-        testonly = True,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        tags = tags,
         visibility = visibility,
         **kwargs
     )
-    dx_fuzz_runner(name, Label("@rules_dx//dotnet/fuzz:libfuzzer_dotnet"), engine = "dotnet", harness = ":" + name, visibility = visibility)

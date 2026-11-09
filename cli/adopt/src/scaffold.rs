@@ -478,6 +478,7 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
     add(&[".py", ".pyi"], python);
     let mut js = serde_json::json!({"typescript.tsdk": format!("{ide}/typescript/lib")});
     if tools.is_selected("eslint") {
+        js["eslint.runtime"] = bin("node").into();
         js["eslint.options"] = serde_json::json!({
             "overrideConfigFile": owned(&tools.eslint_config, ".dx/config/eslint/base.mjs"),
         });
@@ -563,9 +564,10 @@ const NESTED_SETTINGS: [&str; 5] = [
 ];
 
 /// Settings dx writes only for a selected tool; they go when the tool is no longer selected.
-const TOOL_SETTINGS: [&[&str]; 8] = [
+const TOOL_SETTINGS: [&[&str]; 9] = [
     &["ruff.configuration"],
     &["ruff.path"],
+    &["eslint.runtime"],
     &["biome.lsp.bin"],
     &["shellcheck.executablePath"],
     &["eslint.options", "overrideConfigFile"],
@@ -1944,13 +1946,45 @@ mod tests {
         assert_eq!(value["biome.lsp.bin"], format!("{bin}/biome"));
         assert_eq!(value["shellcheck.executablePath"], format!("{bin}/shellcheck"));
         assert_eq!(value["clangd.path"], format!("{bin}/clangd"));
+        assert_eq!(value["eslint.runtime"], format!("{bin}/node"));
         let tools = EditorTools {
             selected: Some(std::collections::BTreeSet::new()),
             ..EditorTools::default()
         };
         let value = editor_settings_value(&files, &tools);
-        for key in ["ruff.path", "biome.lsp.bin", "shellcheck.executablePath"] {
+        for key in [
+            "ruff.path",
+            "eslint.runtime",
+            "biome.lsp.bin",
+            "shellcheck.executablePath",
+        ] {
             assert!(value.get(key).is_none(), "{key}");
+        }
+    }
+
+    #[test]
+    fn extensions_read_the_config_dx_check_reads() {
+        let mut files = all_families();
+        files.insert(".sh".to_owned());
+        let base = editor_settings_value(&files, &EditorTools::default());
+        assert_eq!(
+            base["ruff.configuration"],
+            "${workspaceFolder}/.dx/config/ruff/base.toml"
+        );
+        let tools = EditorTools {
+            ruff_config: "ruff.toml".to_owned(),
+            eslint_config: "eslint.config.mjs".to_owned(),
+            ..EditorTools::default()
+        };
+        let root = editor_settings_value(&files, &tools);
+        assert_eq!(root["ruff.configuration"], "${workspaceFolder}/ruff.toml");
+        assert_eq!(
+            root["eslint.options"]["overrideConfigFile"],
+            "${workspaceFolder}/eslint.config.mjs"
+        );
+        let gopls: serde_json::Value = serde_json::from_str(GOPLS_STANDARD).expect("tier json");
+        for (key, tier) in gopls.as_object().into_iter().flatten() {
+            assert_eq!(&root[key.as_str()], tier, "{key}");
         }
     }
 

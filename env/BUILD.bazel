@@ -209,6 +209,48 @@ environment_tool(
     executable = "@llvm//tools:clangd",
 )
 
+config_setting(
+    name = "linux_x86_64",
+    constraint_values = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = ["@platforms//os:linux", "@platforms//cpu:arm64"],
+)
+
+config_setting(
+    name = "macos_x86_64",
+    constraint_values = ["@platforms//os:macos", "@platforms//cpu:x86_64"],
+)
+
+config_setting(
+    name = "macos_arm64",
+    constraint_values = ["@platforms//os:macos", "@platforms//cpu:arm64"],
+)
+
+config_setting(
+    name = "windows_x86_64",
+    constraint_values = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+)
+
+alias(
+    name = "node",
+    actual = select({
+        ":linux_arm64": "@nodejs_linux_arm64//:node_bin",
+        ":linux_x86_64": "@nodejs_linux_amd64//:node_bin",
+        ":macos_arm64": "@nodejs_darwin_arm64//:node_bin",
+        ":macos_x86_64": "@nodejs_darwin_amd64//:node_bin",
+        ":windows_x86_64": "@nodejs_windows_amd64//:node_bin",
+    }),
+)
+
+environment_tool(
+    name = "node_tool",
+    bin_name = "node",
+    executable = ":node",
+)
+
 environment_tool(
     name = "ruff_tool",
     bin_name = "ruff",
@@ -228,6 +270,7 @@ environment_config(
         ":clangd_tool",
         ":doctor_tool",
         ":dx_tool",
+        ":node_tool",
         ":quality_markdown_tool",
         ":ruff_tool",
         ":shellcheck_tool",

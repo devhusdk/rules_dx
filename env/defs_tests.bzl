@@ -255,8 +255,8 @@ def env_tree_analysis_tests(name):
     )
 
 EXPECTED_DEFAULT_CONFIG_OBSERVATIONS = """subject //env:default_config
-field count=7
-field names=biome,clangd,doctor,dx,quality_markdown,ruff,shellcheck
+field count=8
+field names=biome,clangd,doctor,dx,node,quality_markdown,ruff,shellcheck
 aspect_field aspect_seen=True
 aspect_field field_count=2
 aspect_field has_subject=True
@@ -277,11 +277,12 @@ file clangd
 file default_tree.metadata.json
 file doctor
 file dx
+file node
 file quality_markdown
 file ruff
 file shellcheck
-field count=7
-field host_names=biome,clangd,doctor,dx,quality_markdown,ruff,shellcheck
+field count=8
+field host_names=biome,clangd,doctor,dx,node,quality_markdown,ruff,shellcheck
 field platform=posix
 aspect_field aspect_seen=True
 aspect_field field_count=3
@@ -295,11 +296,12 @@ file clangd
 file default_tree.metadata.json
 file doctor
 file dx
+file node
 file quality_markdown
 file ruff
 file shellcheck
-field count=7
-field host_names=biome.exe,clangd.exe,doctor.exe,dx.exe,quality_markdown.exe,ruff.exe,shellcheck.exe
+field count=8
+field host_names=biome.exe,clangd.exe,doctor.exe,dx.exe,node.exe,quality_markdown.exe,ruff.exe,shellcheck.exe
 field platform=windows
 aspect_field aspect_seen=True
 aspect_field field_count=3

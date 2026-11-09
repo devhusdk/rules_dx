@@ -1,3 +1,5 @@
+use dx_adopt::RELEASE_ASSETS;
+use dx_test_scratch::scratch;
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -10,7 +12,7 @@ fn hash(n: usize) -> String {
 
 fn manifest() -> String {
     let mut lines = Vec::new();
-    for (n, asset) in dx_adopt::RELEASE_ASSETS.iter().enumerate() {
+    for (n, asset) in RELEASE_ASSETS.iter().enumerate() {
         let archive = if asset.contains("windows") {
             format!("{asset}.zip")
         } else {
@@ -31,7 +33,7 @@ fn gazelle_manifest() -> String {
 }
 
 fn release_dir(text: &str, bundle: bool) -> TempDir {
-    let dir = dx_test_scratch::scratch("fill_pins");
+    let dir = scratch("fill_pins");
     std::fs::write(dir.path().join(fill_pins::MANIFEST), text).unwrap();
     std::fs::write(
         dir.path().join(fill_pins::GAZELLE_MANIFEST),
@@ -53,7 +55,7 @@ fn writes_the_ten_hashes_and_nothing_else() {
     let dir = release_dir(&manifest(), true);
     let out = fill_pins::fill("v1.2.3", dir.path(), PINS, REPO, ok).unwrap();
     let mut expected = PINS.to_owned();
-    for (n, asset) in dx_adopt::RELEASE_ASSETS.iter().enumerate() {
+    for (n, asset) in RELEASE_ASSETS.iter().enumerate() {
         expected = expected.replace(
             &format!("\"{asset}\": \"\""),
             &format!("\"{asset}\": \"{}\"", hash(n + 1)),
@@ -213,7 +215,7 @@ fn check_passes_empty_pins_without_fetching_or_verifying() {
 #[test]
 fn check_fails_on_a_differing_pin() {
     let dir = release_dir(&manifest(), true);
-    let asset = dx_adopt::RELEASE_ASSETS[0];
+    let asset = RELEASE_ASSETS[0];
     let pins = filled().replace(&hash(1), &hash(9));
     let error =
         fill_pins::check("v1.2.3", dir.path(), &pins, REPO, false, nothing, ok).unwrap_err();

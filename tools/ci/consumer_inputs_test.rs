@@ -76,10 +76,10 @@ fn the_validate_job_needs_nothing_so_it_rejects_input_first() {
         .as_array()
         .unwrap_or_else(|| panic!("{WORKFLOW} job {VALIDATE} has no steps"));
     assert!(
-        steps.iter().any(|step| step["run"]
-            .as_str()
-            .is_some_and(|run| run.contains("@rules_dx//tools/ci:input_validation_bin"))),
-        "{WORKFLOW} job {VALIDATE} never runs @rules_dx//tools/ci:input_validation_bin"
+        steps.iter().any(|step| step["run"].as_str().is_some_and(
+            |run| run.contains("@rules_dx//tools/ci/input_validation:input_validation_bin")
+        )),
+        "{WORKFLOW} job {VALIDATE} never runs @rules_dx//tools/ci/input_validation:input_validation_bin"
     );
 }
 

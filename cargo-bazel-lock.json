@@ -1,5 +1,5 @@
 {
-  "checksum": "29fb8c2eebd4282d276022cd2bcab51c48b1d61be46776e931d62302a039d1aa",
+  "checksum": "cfd409695a6ab939ae355482f9cfdf7ed0dfe8e8f59e19e8ee5a8a5df7b45d98",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1738,6 +1738,37 @@
       ],
       "version": "1.8.3"
     },
+    "bcr_outdated 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "ureq 3.5.0",
+            "target": "ureq"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "bcr_outdated",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "bcr_outdated",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "bcr_outdated",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "beef 0.5.2": {
       "common_attrs": {
         "crate_features": [
@@ -3144,6 +3175,66 @@
       ],
       "version": "0.4.45"
     },
+    "ci_tests 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "starlark_syntax 0.14.2",
+            "target": "starlark_syntax"
+          },
+          {
+            "id": "yaml_serde 0.10.7",
+            "target": "yaml_serde"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "ci_workflow 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "yaml_serde 0.10.7",
+            "target": "yaml_serde"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "ci_workflow",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_workflow",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "ci_workflow",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "ciborium 0.2.2": {
       "common_attrs": {
         "crate_features": [
@@ -4190,6 +4281,33 @@
         }
       ],
       "version": "0.8.7"
+    },
+    "coverage_cells 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "coverage_cells",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "coverage_cells",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "coverage_cells",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "cpufeatures 0.2.17": {
       "common_attrs": {
@@ -6714,6 +6832,27 @@
       "name": "docs_rust",
       "repository": null,
       "targets": [],
+      "version": "0.0.0"
+    },
+    "docs_scope 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "docs_scope",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "docs_scope",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "docs_scope",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
       "version": "0.0.0"
     },
     "documentation_ir 0.0.0": {
@@ -9715,6 +9854,33 @@
       ],
       "version": "0.3.14"
     },
+    "evidence_inputs 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "evidence_inputs",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "evidence_inputs",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "evidence_inputs",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "fancy-regex 0.16.2": {
       "common_attrs": {
         "crate_features": [
@@ -9968,6 +10134,33 @@
         }
       ],
       "version": "0.2.29"
+    },
+    "fill_pins 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "fill_pins",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "fill_pins",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "fill_pins",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "find-msvc-tools 0.1.15": {
       "common_attrs": {
@@ -10527,6 +10720,27 @@
         }
       ],
       "version": "0.2.1"
+    },
+    "gate_base 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "gate_base",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "gate_base",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "gate_base",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "generation_result 0.0.0": {
       "common_attrs": {
@@ -12636,6 +12850,33 @@
         }
       ],
       "version": "0.1.4"
+    },
+    "input_validation 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "input_validation",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "input_validation",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "input_validation",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "insta 1.48.0": {
       "common_attrs": {
@@ -19801,6 +20042,27 @@
         }
       ],
       "version": "0.8.11"
+    },
+    "remote_cache_flags 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "remote_cache_flags",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "remote_cache_flags",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "remote_cache_flags",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "repin_all 0.0.0": {
       "common_attrs": {
@@ -28929,13 +29191,18 @@
   ],
   "workspace_members": {
     "appimage_packer 0.0.0": "appimage/appimage_packer",
+    "bcr_outdated 0.0.0": "tools/ci/bcr_outdated",
     "bench_fixture 0.0.0": "rust/tests/fixtures/bench_fixture",
     "cc_context 0.0.0": "cc/cc_context",
+    "ci_tests 0.0.0": "tools/ci_tests",
+    "ci_workflow 0.0.0": "tools/ci/ci_workflow",
     "codegen_shard 0.0.0": "generation/codegen_shard",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
+    "coverage_cells 0.0.0": "tools/ci/coverage_cells",
     "docs_components 0.0.0": "tools/docs/docs_components",
     "docs_powershell 0.0.0": "tools/docs/docs_powershell",
     "docs_rust 0.0.0": "tools/docs/docs_rust",
+    "docs_scope 0.0.0": "tools/ci/docs_scope",
     "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
     "dotnet_extract 0.0.0": "tools/docs/dotnet/dotnet_extract",
     "dx_adopt 0.0.0": "cli/dx_adopt",
@@ -28988,10 +29255,14 @@
     "dx_worktree 0.0.0": "cli/dx_worktree",
     "env_shard 0.0.0": "env/env_shard",
     "env_stubs 0.0.0": "env/env_stubs",
+    "evidence_inputs 0.0.0": "tools/ci/evidence_inputs",
+    "fill_pins 0.0.0": "tools/ci/fill_pins",
     "fuzz_fixture 0.0.0": "rust/tests/fixtures/fuzz_fixture",
+    "gate_base 0.0.0": "tools/ci/gate_base",
     "generation_result 0.0.0": "generation/generation_result",
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "hello 0.0.0": "rust/tests/fixtures/hello",
+    "input_validation 0.0.0": "tools/ci/input_validation",
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "jvm_test_support 0.0.0": "tools/docs/jvm_test_support",
     "native_call 0.1.0": "rust/tests/fixtures/native_call",
@@ -29004,6 +29275,7 @@
     "quality_notebook 0.0.0": "quality/quality_notebook",
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
+    "remote_cache_flags 0.0.0": "tools/ci/remote_cache_flags",
     "repin_all 0.0.0": "tools/repin_all",
     "ruby_extract 0.0.0": "tools/docs/ruby/ruby_extract",
     "rust_extract 0.0.0": "tools/docs/rust/rust_extract",

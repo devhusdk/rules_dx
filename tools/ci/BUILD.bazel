@@ -1,5 +1,6 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS)
@@ -30,6 +31,13 @@ filegroup(
 rust_test(
     name = "aggregate_scripts_test",
     srcs = ["aggregate_scripts_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "aggregate_scripts_test",
+    crate_root = "aggregate_scripts_test.rs",
     data = [
         ":aggregate_fixtures",
         ":ci_gate_fixtures",
@@ -38,200 +46,14 @@ rust_test(
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     tags = ["no-remote"],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "input_validation",
-    srcs = ["input_validation.rs"],
-    crate_name = "input_validation",
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "input_validation_bin",
-    srcs = ["input_validation_main.rs"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":input_validation"],
-)
-
-rust_test(
-    name = "input_validation_test",
-    srcs = ["input_validation_test.rs"],
-    data = [
-        ":input_validation_bin",
-        ":input_validation_fixtures",
-        "//.github:actionlint.yaml",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/release-cells.yml",
-        "//.github:workflows/release-consumer.yml",
-        "//docs:github-ci.md",
-        "//examples:consumer-ci/caller.yml",
-    ],
-    env = {"DX_INPUT_VALIDATION": "$(rootpath :input_validation_bin)"},
-    deps = [
-        ":evidence_inputs",
-        ":input_validation",
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "evidence_inputs",
-    srcs = ["evidence_inputs.rs"],
-    crate_name = "evidence_inputs",
-    deps = ["@crates//:serde_json"],
-)
-
-rust_test(
-    name = "evidence_inputs_test",
-    srcs = ["evidence_inputs_test.rs"],
-    data = [
-        "evidence_inputs.sh",
-        "//.github:workflows/evidence.yml",
-    ],
-    deps = [
-        ":evidence_inputs",
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "docs_scope",
-    srcs = ["docs_scope.rs"],
-    crate_name = "docs_scope",
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "docs_scope_bin",
-    srcs = ["docs_scope_main.rs"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":docs_scope"],
-)
-
-rust_test(
-    name = "docs_scope_test",
-    srcs = ["docs_scope_test.rs"],
-    data = [":docs_scope_bin"],
-    env = {"DX_DOCS_SCOPE_BIN": "$(rootpath :docs_scope_bin)"},
-    deps = [
-        ":docs_scope",
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "fill_pins",
-    srcs = ["fill_pins.rs"],
-    crate_name = "fill_pins",
-    deps = ["//cli/adopt:dx_adopt"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "fill_pins_bin",
-    srcs = ["fill_pins_main.rs"],
-    deps = [":fill_pins"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_test(
-    name = "fill_pins_test",
-    srcs = ["fill_pins_test.rs"],
-    deps = [
-        ":fill_pins",
-        "//cli/adopt:dx_adopt",
-        "//cli/test_scratch:dx_test_scratch",
-        "@crates//:tempfile",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "remote_cache_flags",
-    srcs = ["remote_cache_flags.rs"],
-    crate_name = "remote_cache_flags",
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "remote_cache_flags_bin",
-    srcs = ["remote_cache_flags_main.rs"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":remote_cache_flags"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_test(
-    name = "remote_cache_flags_test",
-    srcs = ["remote_cache_flags_test.rs"],
-    deps = [":remote_cache_flags"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "gate_base",
-    srcs = ["gate_base.rs"],
-    crate_name = "gate_base",
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "gate_base_bin",
-    srcs = ["gate_base_main.rs"],
-    deps = [":gate_base"],
-)
-
-rust_test(
-    name = "gate_base_test",
-    srcs = ["gate_base_test.rs"],
-    data = [":gate_base_bin"],
-    env = {"DX_GATE_BASE": "$(rootpath :gate_base_bin)"},
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "ci_workflow",
-    testonly = True,
-    srcs = ["ci_workflow.rs"],
-    crate_name = "ci_workflow",
-    deps = [
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-        "@crates//:yaml_serde",
-    ],
-)
-
-rust_test(
-    name = "ci_workflow_test",
-    srcs = ["ci_workflow_test.rs"],
-    data = [
-        "//.github:actions",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/gate.yml",
-        "//.github:workflows/reusable-consumer.yml",
-    ],
-    deps = [
-        ":ci_workflow",
         "@crates//:serde_json",
     ],
 )
@@ -239,13 +61,20 @@ rust_test(
 rust_test(
     name = "actionlint_test",
     srcs = ["actionlint_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "actionlint_test",
+    crate_root = "actionlint_test.rs",
     data = [
-        "input_validation.rs",
         ":actionlint_fixtures",
         "//.github:actionlint.yaml",
         "//.github:workflows",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
+        "//tools/ci/input_validation:src/lib.rs",
         "@dx_tools//:actionlint",
         "@dx_tools//:shellcheck",
     ],
@@ -254,8 +83,13 @@ rust_test(
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
         "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
     },
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -265,6 +99,13 @@ rust_test(
 rust_test(
     name = "aggregate_gates_test",
     srcs = ["aggregate_gates_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "aggregate_gates_test",
+    crate_root = "aggregate_gates_test.rs",
     data = [
         "//.github:actions",
         "//.github:rulesets/main.json",
@@ -273,8 +114,12 @@ rust_test(
         "//examples:docs-ci/caller.yml",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -283,19 +128,44 @@ rust_test(
 rust_test(
     name = "artifact_writes_test",
     srcs = ["artifact_writes_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "artifact_writes_test",
+    crate_root = "artifact_writes_test.rs",
     data = [
         "//libs/shard_writer:src/lib.rs",
         "//quality/runner:src/entry.rs",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
     name = "advisory_snapshots_test",
     srcs = ["advisory_snapshots_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "advisory_snapshots_test",
+    crate_root = "advisory_snapshots_test.rs",
     data = ["//.github:workflows/reusable-consumer.yml"],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "@crates//:serde_json",
     ],
 )
@@ -303,12 +173,23 @@ rust_test(
 rust_test(
     name = "consumer_reports_test",
     srcs = ["consumer_reports_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "consumer_reports_test",
+    crate_root = "consumer_reports_test.rs",
     data = [
         "//.github:workflows/reusable-consumer.yml",
         "//docs:github-ci.md",
     ],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -317,6 +198,13 @@ rust_test(
 rust_test(
     name = "secret_flags_test",
     srcs = ["secret_flags_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "secret_flags_test",
+    crate_root = "secret_flags_test.rs",
     data = [
         "//:.bazelrc",
         "//.github:actions",
@@ -327,9 +215,14 @@ rust_test(
         "DX_ACTIONS": "$(rootpaths //.github:actions)",
         "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
     },
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -339,14 +232,25 @@ rust_test(
 rust_test(
     name = "workflow_permissions_test",
     srcs = ["workflow_permissions_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "workflow_permissions_test",
+    crate_root = "workflow_permissions_test.rs",
     data = [
         "//.github:workflows",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -356,13 +260,25 @@ rust_test(
 rust_test(
     name = "advisory_launch_test",
     srcs = ["advisory_launch_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "advisory_launch_test",
+    crate_root = "advisory_launch_test.rs",
     data = [
         "//.github:workflows/reusable-consumer.yml",
         "//cli/advisory_prep",
     ],
     env = {"DX_ADVISORY_PREP": "$(rootpath //cli/advisory_prep)"},
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -372,9 +288,20 @@ rust_test(
 rust_test(
     name = "tool_resolve_test",
     srcs = ["tool_resolve_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "tool_resolve_test",
+    crate_root = "tool_resolve_test.rs",
     data = ["//.github:workflows/reusable-consumer.yml"],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "@crates//:serde_json",
     ],
 )
@@ -382,6 +309,13 @@ rust_test(
 rust_test(
     name = "action_pins_test",
     srcs = ["action_pins_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "action_pins_test",
+    crate_root = "action_pins_test.rs",
     data = [
         "//.github:actions",
         "//.github:workflows",
@@ -390,17 +324,36 @@ rust_test(
         "DX_ACTIONS": "$(rootpaths //.github:actions)",
         "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
     },
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
     name = "workflow_expressions_test",
     srcs = ["workflow_expressions_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "workflow_expressions_test",
+    crate_root = "workflow_expressions_test.rs",
     data = [
         "//.github:workflows",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -410,9 +363,20 @@ rust_test(
 rust_test(
     name = "dx_update_workflow_test",
     srcs = ["dx_update_workflow_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "dx_update_workflow_test",
+    crate_root = "dx_update_workflow_test.rs",
     data = ["//.github:workflows/dx-update.yml"],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -421,12 +385,23 @@ rust_test(
 rust_test(
     name = "release_workflow_test",
     srcs = ["release_workflow_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "release_workflow_test",
+    crate_root = "release_workflow_test.rs",
     data = [
         "//.github:workflows/reusable-release.yml",
         "//deploy/rules:gate_sources",
     ],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -435,13 +410,24 @@ rust_test(
 rust_test(
     name = "pr_check_test",
     srcs = ["pr_check_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "pr_check_test",
+    crate_root = "pr_check_test.rs",
     data = [
         "pr_check.sh",
         "//.github:workflows/ci.yml",
         "//.github:workflows/pr-check.yml",
     ],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
     ],
 )
@@ -449,23 +435,58 @@ rust_test(
 rust_test(
     name = "blocker_refs_test",
     srcs = ["blocker_refs_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "blocker_refs_test",
+    crate_root = "blocker_refs_test.rs",
     data = ["blocker_refs.sh"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
     name = "review_paths_test",
     srcs = ["review_paths_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "review_paths_test",
+    crate_root = "review_paths_test.rs",
     data = [
         "review_paths.sh",
         "//.github:review-paths.txt",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
     name = "setup_bazel_test",
     srcs = ["setup_bazel_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "setup_bazel_test",
+    crate_root = "setup_bazel_test.rs",
     data = [
         "//.github:actions",
         "//.github:workflows",
@@ -473,7 +494,12 @@ rust_test(
         "//tools/bazelisk:pin.env",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -483,10 +509,21 @@ rust_test(
 rust_test(
     name = "consumer_inputs_test",
     srcs = ["consumer_inputs_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "consumer_inputs_test",
+    crate_root = "consumer_inputs_test.rs",
     data = ["//.github:workflows/reusable-consumer.yml"],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -495,16 +532,37 @@ rust_test(
 rust_test(
     name = "crate_platform_pins_test",
     srcs = ["crate_platform_pins_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "crate_platform_pins_test",
+    crate_root = "crate_platform_pins_test.rs",
     data = [
         "//:MODULE.bazel",
         "//:cargo-bazel-lock.json",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
     name = "config_consistency_test",
     srcs = ["config_consistency_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "config_consistency_test",
+    crate_root = "config_consistency_test.rs",
     data = [
         "//:.bazelignore",
         "//:.bazelrc",
@@ -549,9 +607,13 @@ rust_test(
         "//tools/platforms/no_winsdk:toolchains.bzl",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//tools/bazelrc:dx_preset",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -573,6 +635,13 @@ rust_test(
 rust_test(
     name = "starlark_docs_test",
     srcs = ["starlark_docs_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "starlark_docs_test",
+    crate_root = "starlark_docs_test.rs",
     data = [
         "//appimage:corpus_starlark",
         "//astro/rules:corpus_starlark",
@@ -653,7 +722,12 @@ rust_test(
         "//zig/rules:corpus_starlark",
         "//zig/tools:corpus_starlark",
     ],
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:starlark_syntax",
     ],
@@ -662,12 +736,23 @@ rust_test(
 rust_test(
     name = "docs_deploy_test",
     srcs = ["docs_deploy_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "docs_deploy_test",
+    crate_root = "docs_deploy_test.rs",
     data = [
         "//.github:workflows/ci.yml",
         "//.github:workflows/reusable-docs.yml",
     ],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -676,13 +761,24 @@ rust_test(
 rust_test(
     name = "release_cells_runners_test",
     srcs = ["release_cells_runners_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "release_cells_runners_test",
+    crate_root = "release_cells_runners_test.rs",
     data = [
         "//.github:workflows/release-cells.yml",
         "//deploy/release:release_matrix",
     ],
     env = {"DX_RELEASE_MATRIX": "$(rootpath //deploy/release:release_matrix)"},
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -692,6 +788,13 @@ rust_test(
 rust_test(
     name = "release_assets_test",
     srcs = ["release_assets_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "release_assets_test",
+    crate_root = "release_assets_test.rs",
     data = [
         "release_cell.sh",
         "//:MODULE.bazel",
@@ -705,12 +808,26 @@ rust_test(
         "//cli/adopt:src/version.rs",
         "//cli/prebuilt:pins.bzl",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
     name = "signing_pins_test",
     srcs = ["signing_pins_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "signing_pins_test",
+    crate_root = "signing_pins_test.rs",
     data = [
         "//:MODULE.bazel",
         "//.github:workflows/ghcr.yml",
@@ -718,18 +835,37 @@ rust_test(
         "//deploy/release:signing.bzl",
         "//deploy/release:src/lib.rs",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
     name = "gitlab_example_test",
     srcs = ["gitlab_example_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "gitlab_example_test",
+    crate_root = "gitlab_example_test.rs",
     data = [
         "//ci/gitlab:dx.gitlab-ci.yml",
         "//examples:gitlab-ci/.gitlab-ci.yml",
     ],
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:yaml_serde",
     ],
@@ -738,12 +874,23 @@ rust_test(
 rust_test(
     name = "gitlab_inputs_parity_test",
     srcs = ["gitlab_inputs_parity_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "gitlab_inputs_parity_test",
+    crate_root = "gitlab_inputs_parity_test.rs",
     data = [
         "//.github:workflows/reusable-consumer.yml",
         "//ci/gitlab:dx.gitlab-ci.yml",
     ],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -753,6 +900,13 @@ rust_test(
 rust_test(
     name = "reusable_callers_test",
     srcs = ["reusable_callers_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "reusable_callers_test",
+    crate_root = "reusable_callers_test.rs",
     data = [
         "//.github:workflows/ci.yml",
         "//.github:workflows/reusable-consumer.yml",
@@ -761,8 +915,12 @@ rust_test(
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
-    deps = [
-        ":ci_workflow",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -771,18 +929,34 @@ rust_test(
 rust_test(
     name = "workflow_pins_test",
     srcs = ["workflow_pins_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "workflow_pins_test",
+    crate_root = "workflow_pins_test.rs",
     data = [
-        "docs_scope.rs",
-        "input_validation.rs",
         "starter_pin.sha256",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//.github:workflows/reusable-release.yml",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
+        "//tools/ci/docs_scope:src/lib.rs",
+        "//tools/ci/input_validation:src/lib.rs",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
+
+exports_files(["evidence_inputs.sh"])
 
 real_source_target(
     name = "corpus_starlark",
@@ -790,38 +964,20 @@ real_source_target(
     tags = ["corpus"],
 )
 
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "coverage_cells",
-    srcs = ["coverage_cells.rs"],
-    crate_name = "coverage_cells",
-    deps = ["@crates//:serde_json"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "coverage_cells_bin",
-    srcs = ["coverage_cells_main.rs"],
-    deps = [":coverage_cells"],
-)
-
-rust_test(
-    name = "coverage_cells_test",
-    srcs = ["coverage_cells_test.rs"],
-    data = ["//tools/coverage:cells.txt"],
-    deps = [
-        ":coverage_cells",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
 rust_binary(
     name = "producers_bin",
     testonly = True,
     srcs = ["producers_main.rs"],
-    deps = [
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+    ),
+    crate_name = "producers_bin",
+    crate_root = "producers_main.rs",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+    ) + [
         "//libs/binfmt:dx_binfmt",
         "@crates//:serde_json",
     ],
@@ -830,48 +986,33 @@ rust_binary(
 rust_test(
     name = "compiler_evidence_test",
     srcs = ["compiler_evidence_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "compiler_evidence_test",
+    crate_root = "compiler_evidence_test.rs",
     data = [
         "compiler_evidence.sh",
         ":producers_bin",
     ],
     env = {"DX_PRODUCERS_BIN": "$(rootpath :producers_bin)"},
     tags = ["no-remote"],
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
 )
 
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "bcr_outdated",
-    srcs = ["bcr_outdated.rs"],
-    crate_name = "bcr_outdated",
-    deps = [
-        "//libs/module_bazel:dx_module_bazel",
-        "@crates//:serde_json",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "bcr_outdated_bin",
-    srcs = ["bcr_outdated_main.rs"],
-    deps = [
-        ":bcr_outdated",
-        "//deploy/rules:dx_deploy_tools",
-        "//libs/module_bazel:dx_module_bazel",
-        "@crates//:ureq",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_test(
-    name = "bcr_outdated_test",
-    srcs = ["bcr_outdated_test.rs"],
-    deps = [
-        ":bcr_outdated",
-        "//libs/module_bazel:dx_module_bazel",
-    ],
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

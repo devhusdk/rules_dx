@@ -1,3 +1,4 @@
+use dx_test_scratch::scratch;
 use dx_testing::{read_runfiles, resolve_runfiles};
 use evidence_inputs::{PLATFORMS, validate};
 use std::process::Command;
@@ -30,7 +31,7 @@ fn has_jq() -> bool {
 
 /// Runs evidence_inputs.sh and returns what it wrote to GITHUB_OUTPUT, or None when it rejects the inputs.
 fn script(inputs: &[(&str, &str)], jq: bool) -> Option<String> {
-    let dir = dx_test_scratch::scratch("evidence-inputs");
+    let dir = scratch("evidence-inputs");
     let out = dir.path().join("github_output");
     let mut command = Command::new("bash");
     command

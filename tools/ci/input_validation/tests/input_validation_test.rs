@@ -1,8 +1,9 @@
+use dx_test_scratch::scratch;
 use std::collections::BTreeMap;
 use std::process::Command;
 
 use dx_testing::{read_runfiles, runfiles_root};
-use input_validation::{MATRIX_CHECKS, PLATFORMS};
+use input_validation::{MATRIX_CHECKS, PLATFORMS, validate_deployables};
 use serde_json::Value;
 
 const FIXTURE_DIR: &str = "tools/ci/input_validation_fixtures";
@@ -157,7 +158,7 @@ fn every_fixture_states_one_expected_outcome() {
 
 #[test]
 fn fixtures_report_the_expected_diagnostic_and_write_the_validated_outputs() {
-    let scratch = dx_test_scratch::scratch("input-validation");
+    let scratch = scratch("input-validation");
     for case in cases() {
         let expect = expectation(&case);
         let (code, text, written) = run(scratch.path(), &case, &expect);
@@ -431,7 +432,6 @@ fn callers_request_only_mapped_platforms() {
 
 #[test]
 fn deployables_accept_empty_and_label_lists() {
-    use input_validation::validate_deployables;
     assert_eq!(validate_deployables("").unwrap(), Vec::<String>::new());
     assert_eq!(
         validate_deployables(r#"["//pkg:npm", "@repo//pkg:github"]"#).unwrap(),
@@ -441,7 +441,6 @@ fn deployables_accept_empty_and_label_lists() {
 
 #[test]
 fn deployables_reject_bad_input() {
-    use input_validation::validate_deployables;
     for (text, says) in [
         ("[]", "empty array"),
         ("{}", "not an array"),

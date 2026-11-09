@@ -1,0 +1,16 @@
+[package]
+license = "Apache-2.0"
+name = "evidence_inputs"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+
+[lib]
+name = "evidence_inputs"
+path = "src/lib.rs"
+
+[[test]]
+name = "evidence_inputs_test"
+path = "tests/evidence_inputs_test.rs"

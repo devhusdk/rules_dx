@@ -66,7 +66,7 @@ jobs:
           while IFS= read -r file; do
             files+=("$file")
           done < <(find "$RUNNER_TEMP/coverage-reports" -name coverage.ndjson | sort)
-          bazel run "$@" //tools/ci:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
+          bazel run "$@" //tools/ci/coverage_cells:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
   docs:
     name: docs (self-call reusable docs workflow)
     uses: ./.github/workflows/reusable-docs.yml
@@ -913,7 +913,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
-          bazel run //tools/ci:fill_pins_bin -- "v$version" --check
+          bazel run //tools/ci/fill_pins:fill_pins_bin -- "v$version" --check
       - name: Write job summary
         if: always()
         env:

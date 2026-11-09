@@ -12,7 +12,7 @@ runs:
       run: |
         # shellcheck disable=SC2086
         set -- $BAZEL_CONFIG $BB_ARGS
-        bazel run "$@" @rules_dx//tools/ci:gate_base_bin
+        bazel run "$@" @rules_dx//tools/ci/gate_base:gate_base_bin
     - name: Check the affected targets
       shell: bash
       run: |

@@ -1,0 +1,20 @@
+[package]
+license = "Apache-2.0"
+name = "input_validation"
+version = "0.0.0"
+edition = "2024"
+
+[dev-dependencies]
+serde_json = "1"
+
+[lib]
+name = "input_validation"
+path = "src/lib.rs"
+
+[[bin]]
+name = "input_validation_bin"
+path = "src/main.rs"
+
+[[test]]
+name = "input_validation_test"
+path = "tests/input_validation_test.rs"

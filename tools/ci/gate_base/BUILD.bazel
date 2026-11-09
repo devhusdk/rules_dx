@@ -1,0 +1,61 @@
+load("@crates//:crates.bzl", "aliases")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+rust_library(
+    name = "gate_base",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/gate_base",
+        normal = True,
+    ),
+    crate_name = "gate_base",
+    crate_root = "src/lib.rs",
+    deps = [],
+)
+
+rust_binary(
+    name = "gate_base_bin",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/gate_base",
+        normal = True,
+    ),
+    crate_name = "gate_base_bin",
+    crate_root = "src/main.rs",
+    deps = [":gate_base"],
+)
+
+rust_test(
+    name = "gate_base_test",
+    srcs = ["tests/gate_base_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/gate_base",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "gate_base_test",
+    crate_root = "tests/gate_base_test.rs",
+    data = [":gate_base_bin"],
+    env = {"DX_GATE_BASE": "$(rootpath :gate_base_bin)"},
+    deps = [
+        ":gate_base",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

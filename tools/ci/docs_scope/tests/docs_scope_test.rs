@@ -1,4 +1,6 @@
 use docs_scope::lint_argv;
+use dx_test_scratch::{scratch, write};
+use dx_testing::runfiles_root;
 
 const PROBE: &str = "DX_SCOPE_EXECUTED";
 
@@ -77,9 +79,9 @@ fn separators_quotes_and_globs_are_rejected() {
 #[test]
 fn the_binary_runs_bazel_without_a_shell() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("docs-scope");
+    let scratch = scratch("docs-scope");
     let bin = scratch.path().join("bin");
-    dx_test_scratch::write(
+    write(
         &bin,
         "bazel",
         "#!/bin/sh\nfor arg in \"$@\"; do printf '%s\\n' \"$arg\"; done > \"$DX_ARGV_LOG\"\n",
@@ -91,7 +93,7 @@ fn the_binary_runs_bazel_without_a_shell() {
         bin.display(),
         std::env::var("PATH").unwrap_or_default()
     );
-    let exe = dx_testing::runfiles_root().join(std::env::var("DX_DOCS_SCOPE_BIN").unwrap());
+    let exe = runfiles_root().join(std::env::var("DX_DOCS_SCOPE_BIN").unwrap());
     let done = std::process::Command::new(exe)
         .current_dir(scratch.path())
         .env("DX_DOCS_SCOPE", "//... //docs:all")
@@ -122,7 +124,7 @@ fn the_binary_runs_bazel_without_a_shell() {
         ]
     );
     let bad = std::process::Command::new(
-        dx_testing::runfiles_root().join(std::env::var("DX_DOCS_SCOPE_BIN").unwrap()),
+        runfiles_root().join(std::env::var("DX_DOCS_SCOPE_BIN").unwrap()),
     )
     .current_dir(scratch.path())
     .env("DX_DOCS_SCOPE", "//...;id")

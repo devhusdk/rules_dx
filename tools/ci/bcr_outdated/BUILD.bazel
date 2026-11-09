@@ -1,0 +1,72 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+rust_library(
+    name = "bcr_outdated",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/bcr_outdated",
+        normal = True,
+    ),
+    crate_name = "bcr_outdated",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "tools/ci/bcr_outdated",
+        normal = True,
+    ) + ["//libs/module_bazel:dx_module_bazel"],
+)
+
+rust_binary(
+    name = "bcr_outdated_bin",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/bcr_outdated",
+        normal = True,
+    ),
+    crate_name = "bcr_outdated_bin",
+    crate_root = "src/main.rs",
+    deps = all_crate_deps(
+        package_name = "tools/ci/bcr_outdated",
+        normal = True,
+    ) + [
+        ":bcr_outdated",
+        "//deploy/rules:dx_deploy_tools",
+        "//libs/module_bazel:dx_module_bazel",
+    ],
+)
+
+rust_test(
+    name = "bcr_outdated_test",
+    srcs = ["tests/bcr_outdated_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/bcr_outdated",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "bcr_outdated_test",
+    crate_root = "tests/bcr_outdated_test.rs",
+    deps = all_crate_deps(
+        package_name = "tools/ci/bcr_outdated",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":bcr_outdated",
+        "//libs/module_bazel:dx_module_bazel",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

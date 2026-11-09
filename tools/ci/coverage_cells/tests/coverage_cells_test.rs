@@ -1,4 +1,5 @@
 use coverage_cells::{aggregate, expected_cells};
+use dx_testing::read_runfiles;
 use serde_json::{Value, json};
 
 const SHA: &str = "abc";
@@ -158,6 +159,6 @@ fn malformed_report_fails() {
 
 #[test]
 fn shipped_cell_list_names_the_five_native_cells() {
-    let text = dx_testing::read_runfiles("tools/coverage/cells.txt");
+    let text = read_runfiles("tools/coverage/cells.txt");
     assert_eq!(expected_cells(&text).len(), 5);
 }

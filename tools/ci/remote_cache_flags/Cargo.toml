@@ -1,0 +1,17 @@
+[package]
+license = "Apache-2.0"
+name = "remote_cache_flags"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "remote_cache_flags"
+path = "src/lib.rs"
+
+[[bin]]
+name = "remote_cache_flags_bin"
+path = "src/main.rs"
+
+[[test]]
+name = "remote_cache_flags_test"
+path = "tests/remote_cache_flags_test.rs"

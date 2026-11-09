@@ -1,5 +1,7 @@
 //! `bcr_outdated_bin <MODULE.bazel>` prints `bazel:<module> <version>` for each outdated dep.
 
+use dx_deploy_tools::http::publish_agent;
+use dx_module_bazel::ModuleFile;
 use std::process::ExitCode;
 
 fn fetch(agent: &ureq::Agent, module: &str) -> Result<String, String> {
@@ -22,7 +24,7 @@ fn main() -> ExitCode {
     };
     let parsed = std::fs::read_to_string(path)
         .map_err(|e| format!("{path}: {e}"))
-        .and_then(|text| dx_module_bazel::ModuleFile::parse(&text).map_err(|e| e.to_string()));
+        .and_then(|text| ModuleFile::parse(&text).map_err(|e| e.to_string()));
     let module = match parsed {
         Ok(module) => module,
         Err(error) => {
@@ -30,7 +32,7 @@ fn main() -> ExitCode {
             return ExitCode::from(1);
         }
     };
-    let agent = dx_deploy_tools::http::publish_agent();
+    let agent = publish_agent();
     let (lines, errors) = bcr_outdated::outdated(&module, &|name| fetch(&agent, name));
     for line in &lines {
         println!("{line}");

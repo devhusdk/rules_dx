@@ -1,0 +1,58 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+rust_library(
+    name = "evidence_inputs",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/evidence_inputs",
+        normal = True,
+    ),
+    crate_name = "evidence_inputs",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "tools/ci/evidence_inputs",
+        normal = True,
+    ) + ["@crates//:serde_json"],
+)
+
+rust_test(
+    name = "evidence_inputs_test",
+    srcs = ["tests/evidence_inputs_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/evidence_inputs",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "evidence_inputs_test",
+    crate_root = "tests/evidence_inputs_test.rs",
+    data = [
+        "//.github:workflows/evidence.yml",
+        "//tools/ci:evidence_inputs.sh",
+    ],
+    deps = all_crate_deps(
+        package_name = "tools/ci/evidence_inputs",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":evidence_inputs",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -1,3 +1,5 @@
+use dx_test_scratch::scratch;
+use dx_testing::runfiles_root;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -38,7 +40,7 @@ struct Repo {
 }
 
 fn repo(name: &str) -> Repo {
-    let path = dx_test_scratch::scratch(name).path().join("repo");
+    let path = scratch(name).path().join("repo");
     std::fs::create_dir_all(&path).expect("repo directory");
     git(&path, &["init", "-q", "-b", "main"]);
     let a = commit(&path, "a");
@@ -53,8 +55,7 @@ fn repo(name: &str) -> Repo {
 fn run(repo: &Repo, event: &str, before: &str, group: &str) -> (Output, String) {
     let env = repo.path.join("github_env");
     std::fs::write(&env, "").expect("env file");
-    let binary =
-        dx_testing::runfiles_root().join(std::env::var("DX_GATE_BASE").expect("DX_GATE_BASE"));
+    let binary = runfiles_root().join(std::env::var("DX_GATE_BASE").expect("DX_GATE_BASE"));
     let done = Command::new(binary)
         .current_dir(&repo.path)
         .env("GITHUB_ENV", &env)

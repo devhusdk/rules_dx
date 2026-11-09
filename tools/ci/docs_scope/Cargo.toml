@@ -1,0 +1,17 @@
+[package]
+license = "Apache-2.0"
+name = "docs_scope"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "docs_scope"
+path = "src/lib.rs"
+
+[[bin]]
+name = "docs_scope_bin"
+path = "src/main.rs"
+
+[[test]]
+name = "docs_scope_test"
+path = "tests/docs_scope_test.rs"

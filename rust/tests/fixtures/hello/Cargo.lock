@@ -315,6 +315,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
+name = "bcr_outdated"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
 name = "beef"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -612,6 +620,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ci_tests"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "starlark_syntax",
+ "yaml_serde",
+]
+
+[[package]]
+name = "ci_workflow"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "yaml_serde",
+]
+
+[[package]]
 name = "ciborium"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -854,6 +879,13 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "coverage_cells"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -1431,6 +1463,10 @@ version = "0.0.0"
 
 [[package]]
 name = "docs_rust"
+version = "0.0.0"
+
+[[package]]
+name = "docs_scope"
 version = "0.0.0"
 
 [[package]]
@@ -2143,6 +2179,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "evidence_inputs"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "fancy-regex"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2195,6 +2238,13 @@ checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
 dependencies = [
  "cfg-if",
  "libc",
+]
+
+[[package]]
+name = "fill_pins"
+version = "0.0.0"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]
@@ -2320,6 +2370,10 @@ checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
 dependencies = [
  "byteorder",
 ]
+
+[[package]]
+name = "gate_base"
+version = "0.0.0"
 
 [[package]]
 name = "generation_result"
@@ -2760,6 +2814,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "input_validation"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -4336,6 +4397,10 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+
+[[package]]
+name = "remote_cache_flags"
+version = "0.0.0"
 
 [[package]]
 name = "repin_all"

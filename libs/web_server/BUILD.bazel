@@ -1,0 +1,34 @@
+load("//python/rules:defs.bzl", "python_library", "python_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+# gazelle:resolve python pytest @pypi//pytest
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["server.bzl"])
+
+python_library(
+    name = "web_server",
+    srcs = ["web_server.py"],
+    imports = ["."],
+)
+
+python_test(
+    name = "web_server_test",
+    srcs = ["web_server_test.py"],
+    dep_group = "hello",
+    imports = ["."],
+    deps = [
+        ":web_server",
+        "@pypi//pytest",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "server.bzl",
+    ],
+    tags = ["corpus"],
+)

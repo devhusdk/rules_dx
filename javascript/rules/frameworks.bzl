@@ -3,8 +3,8 @@
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_wrap")
+load("//libs/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":web.bzl", "JavascriptWebAppInfo")
 
 def dx_framework_forward_rule(language, ext):
     """Creates the forwarding rule for one JS-framework wrapper."""

@@ -543,6 +543,7 @@ rust_test(
         "//julia/tools:corpus_starlark",
         "//kotlin/rules:corpus_starlark",
         "//libs/starlark:corpus_starlark",
+        "//libs/web_server:corpus_starlark",
         "//libs/testing:corpus_starlark",
         "//lua/private:corpus_starlark",
         "//lua/rules:corpus_starlark",

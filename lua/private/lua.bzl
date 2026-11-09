@@ -236,28 +236,4 @@ LUA_TEST_ATTRS = LUA_EXECUTABLE_ATTRS | {
 
 LUA_TOOLCHAINS = [LUA_TOOLCHAIN_TYPE]
 
-lua_library = rule(
-    implementation = lua_library_impl,
-    doc = "Lua modules other Lua targets can require.",
-    attrs = LUA_LIBRARY_ATTRS,
-    provides = [LuaInfo],
-    toolchains = LUA_TOOLCHAINS,
-)
-
-lua_binary = rule(
-    implementation = lua_executable_impl,
-    doc = "A Lua program that bazel run starts through the shared launcher.",
-    attrs = LUA_EXECUTABLE_ATTRS,
-    executable = True,
-    toolchains = LUA_TOOLCHAINS,
-)
-
-lua_test = rule(
-    implementation = lua_executable_impl,
-    doc = "A Lua test; it passes when main returns or calls os.exit(0).",
-    attrs = LUA_TEST_ATTRS,
-    test = True,
-    toolchains = LUA_TOOLCHAINS,
-)
-
 LUA_SOURCE_SPECS = [("lua", ["lua"])]

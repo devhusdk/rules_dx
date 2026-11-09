@@ -2,7 +2,6 @@
 # gazelle:dx_ignore_import lua luacov.runner
 # gazelle:dx_ignore_import lua luacov.reporter
 # gazelle:dx_ignore_import lua luacov.reporter.lcov
-load("//lua/private:lua.bzl", raw_lua_library = "lua_library")
 load("//lua/rules:defs.bzl", "lua_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -15,13 +14,13 @@ config_setting(
     values = {"collect_code_coverage": "true"},
 )
 
-raw_lua_library(
+lua_library(
     name = "luacov",
     srcs = ["@dx_luacov//:sources"],
     strip_import_prefix = "/src",
 )
 
-raw_lua_library(
+lua_library(
     name = "lcov",
     srcs = ["@dx_luacov_reporter_lcov//:sources"],
 )
@@ -32,7 +31,7 @@ lua_library(
     strip_import_prefix = "/lua/coverage",
 )
 
-raw_lua_library(
+lua_library(
     name = "enabled",
     deps = [
         ":dx",
@@ -41,7 +40,7 @@ raw_lua_library(
     ],
 )
 
-raw_lua_library(name = "none")
+lua_library(name = "none")
 
 # luacov under `bazel coverage`, nothing otherwise, so `bazel test` never fetches it.
 alias(

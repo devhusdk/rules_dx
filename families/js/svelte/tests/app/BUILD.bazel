@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_test")
-load("@rules_dx//javascript/rules:web.bzl", "javascript_web_server")
+load("@rules_dx//libs/web_server:server.bzl", "javascript_web_server")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//svelte/rules:defs.bzl", "svelte_build", "svelte_library")
 

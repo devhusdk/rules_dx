@@ -23,7 +23,8 @@ document.getElementById("consumer-asset").textContent = asset.trim();
 </html>
 """
 
-_BUILD_BAZEL = '''load("@rules_dx//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
+_BUILD_BAZEL = '''load("@rules_dx//javascript/rules:web.bzl", "javascript_web_app")
+load("@rules_dx//libs/web_server:server.bzl", "javascript_web_server")
 
 package(
     default_testonly = True,

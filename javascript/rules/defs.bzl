@@ -9,7 +9,7 @@ load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwarg
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":node_test.bzl", "node_test_forward_rule", "node_jest_upstream_attrs", "node_test_runner_rejection", "node_test_wrap_args")
+load("//libs/starlark:node_test.bzl", "node_test_forward_rule", "node_jest_upstream_attrs", "node_test_runner_rejection", "node_test_wrap_args")
 
 _DX_JS_LIBRARY_PROVIDES = [
     _JsInfo,

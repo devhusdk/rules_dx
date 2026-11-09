@@ -1,5 +1,6 @@
-load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_bundle", "javascript_web_server", "javascript_web_server_launcher")
+load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_bundle")
 load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//libs/web_server:server.bzl", "javascript_web_server", "javascript_web_server_launcher")
 load("//python/rules:defs.bzl", "python_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")

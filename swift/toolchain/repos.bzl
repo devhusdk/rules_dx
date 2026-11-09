@@ -2,9 +2,6 @@
 
 load("//libs/starlark:host.bzl", "host_cell")
 
-# Libraries swift-package loads that a plain host may lack.
-_HOST_LIBS = ["libxml2.so.2", "libicuuc.so.70", "libicudata.so.70"]
-
 def _swift_host_impl(repository_ctx):
     host = host_cell(repository_ctx)
     if host.startswith("macos"):
@@ -14,11 +11,7 @@ def _swift_host_impl(repository_ctx):
         swift = repository_ctx.path(Label("@dx_swift_linux_{}//:usr/bin/swift".format(arch)))
         sysroot = repository_ctx.path(Label("@dx_swift_sysroot_linux_{}//:REPO.bazel".format(arch))).dirname
         host_libs = sysroot.get_child("host_libs")
-        for lib in _HOST_LIBS:
-            repository_ctx.symlink(sysroot.get_child("usr/lib/{}-linux-gnu/{}".format(arch, lib)), "libs/" + lib)
-        libs = repository_ctx.path("libs")
-        script = 'LD_LIBRARY_PATH="{libs}:{host_libs}${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}" exec "{swift}" "$@"'.format(
-            libs = libs,
+        script = 'LD_LIBRARY_PATH="{host_libs}${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}" exec "{swift}" "$@"'.format(
             host_libs = host_libs,
             swift = swift,
         )

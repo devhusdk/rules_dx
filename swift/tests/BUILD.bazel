@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 real_source_target(
@@ -8,3 +9,29 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+# The Swift toolchain binaries load nothing from the host except glibc.
+[
+    sh_test(
+        name = "toolchain_libs_test_" + cpu,
+        srcs = ["toolchain_libs_test.sh"],
+        args = [
+            "$(rootpath @dx_swift_linux_%s//:usr/bin/llvm-objdump)" % cpu,
+            "$(rootpath @dx_swift_sysroot_linux_%s//:host_libs/libz.so.1)" % cpu,
+        ],
+        data = [
+            "@dx_swift_linux_%s//:files" % cpu,
+            "@dx_swift_linux_%s//:usr/bin/llvm-objdump" % cpu,
+            "@dx_swift_sysroot_linux_%s//:files" % cpu,
+            "@dx_swift_sysroot_linux_%s//:host_libs/libz.so.1" % cpu,
+        ],
+        target_compatible_with = [
+            "@platforms//os:linux",
+            "@platforms//cpu:" + cpu,
+        ],
+    )
+    for cpu in [
+        "aarch64",
+        "x86_64",
+    ]
+]

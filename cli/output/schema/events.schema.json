@@ -84,7 +84,7 @@
           "const": 3
         },
         "minor": {
-          "const": 8
+          "const": 9
         }
       },
       "required": [
@@ -1076,6 +1076,9 @@
         },
         "truncated": {
           "type": "boolean"
+        },
+        "next": {
+          "type": "string"
         }
       },
       "required": [

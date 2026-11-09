@@ -207,6 +207,7 @@ fn samples() -> Vec<Value> {
             text: "t".to_owned(),
             truncated: true,
         }),
+        next: Some("run it again"),
     };
     let capability = CapabilityEvent {
         name: "check".to_owned(),

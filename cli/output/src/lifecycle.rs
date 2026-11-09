@@ -2,7 +2,7 @@ use crate::validation::{OutputError, check_correlation, check_path, parse_digest
 use serde_json::{Value, json};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 8;
+pub const SCHEMA_MINOR: u64 = 9;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -708,6 +708,7 @@ pub struct FailureFacts<'a> {
     pub cause: &'a str,
     pub status: Option<i32>,
     pub excerpt: Option<&'a crate::diagnostics::Excerpt>,
+    pub next: Option<&'a str>,
 }
 
 /// An `error` event that also names the failure's cause, child status and bounded excerpt.
@@ -726,6 +727,10 @@ pub fn failure_event(
     if let Some(excerpt) = facts.excerpt {
         map.insert("excerpt".to_owned(), Value::String(excerpt.text.clone()));
         map.insert("truncated".to_owned(), Value::Bool(excerpt.truncated));
+    }
+    if let Some(next) = facts.next {
+        nonempty("next", next)?;
+        map.insert("next".to_owned(), Value::String(next.to_owned()));
     }
     Ok(Value::Object(map))
 }
@@ -1200,6 +1205,7 @@ mod tests {
                 cause: "query",
                 status: Some(7),
                 excerpt: Some(&excerpt),
+                next: Some("free disk space."),
             },
         )
         .expect("event");
@@ -1208,6 +1214,7 @@ mod tests {
         assert_eq!(event["status"], 7);
         assert_eq!(event["excerpt"], "ERROR: boom");
         assert_eq!(event["truncated"], true);
+        assert_eq!(event["next"], "free disk space.");
         let bare = failure_event(
             "invalid_scope",
             "bad scope",
@@ -1216,6 +1223,7 @@ mod tests {
                 cause: "input",
                 status: None,
                 excerpt: None,
+                next: None,
             },
         )
         .expect("event");
@@ -1223,6 +1231,7 @@ mod tests {
         assert!(bare.get("status").is_none());
         assert!(bare.get("excerpt").is_none());
         assert!(bare.get("truncated").is_none());
+        assert!(bare.get("next").is_none());
         assert!(
             failure_event(
                 "x",
@@ -1231,7 +1240,8 @@ mod tests {
                 &FailureFacts {
                     cause: "",
                     status: None,
-                    excerpt: None
+                    excerpt: None,
+                    next: None
                 }
             )
             .is_err()
@@ -1710,8 +1720,8 @@ mod tests {
     #[test]
     fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 8);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 8}));
+        assert_eq!(SCHEMA_MINOR, 9);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 9}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -2204,7 +2214,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 8},
+                "schema": {"major": 3, "minor": 9},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -2243,7 +2253,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 8},
+                "schema": {"major": 3, "minor": 9},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

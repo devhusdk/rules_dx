@@ -647,6 +647,7 @@ pub(crate) fn bazel_exit_event(
             cause: Cause::of(code).name(),
             status: Some(status),
             excerpt: None,
+            next: None,
         },
     )
 }
@@ -681,6 +682,7 @@ pub(crate) fn report_failed_with_next(
         cause: Cause::Report.name(),
         status: None,
         excerpt: None,
+        next: None,
     };
     emit_built(
         out,

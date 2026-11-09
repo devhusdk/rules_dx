@@ -192,13 +192,31 @@ impl Failure {
     }
 }
 
+fn next_hint(failure: &Failure) -> Option<String> {
+    super::bazel_hint::recorded()
+        .filter(|hint| hint.code == failure.code)
+        .map(|hint| hint.next)
+        .or_else(|| super::guidance::next_action(&failure.code).map(str::to_owned))
+}
+
+/// The printed next step without its `next: ` prefix, for the `error` event.
+fn next_step(failure: &Failure) -> Option<String> {
+    if failure.shows_usage() {
+        return None;
+    }
+    let hint = next_hint(failure)?;
+    Some(hint.strip_prefix("next: ").unwrap_or(&hint).to_owned())
+}
+
 /// Builds the `error` event of one failure; an event that fails to build becomes `invalid_result`.
 pub(crate) fn error_event_of(failure: &Failure) -> Result<serde_json::Value, i32> {
     let cause = failure.cause();
+    let next = next_step(failure);
     let facts = FailureFacts {
         cause: cause.name(),
         status: failure.status,
         excerpt: failure.excerpt.as_ref(),
+        next: next.as_deref(),
     };
     failure_event(&failure.code, &failure.message, failure.phase, &facts)
         .or_else(|error| {
@@ -210,6 +228,7 @@ pub(crate) fn error_event_of(failure: &Failure) -> Result<serde_json::Value, i32
                     cause: Cause::of(CODE_INVALID_RESULT).name(),
                     status: failure.status,
                     excerpt: None,
+                    next: None,
                 },
             )
         })
@@ -327,11 +346,7 @@ pub fn report_failure(
     }
     if failure.shows_usage() {
         let _ = writeln!(err, "{}", usage_text());
-    } else if let Some(hint) =
-        super::bazel_hint::recorded().filter(|hint| hint.code == failure.code)
-    {
-        let _ = writeln!(err, "{}", hint.next);
-    } else if let Some(next) = super::guidance::next_action(&failure.code) {
+    } else if let Some(next) = next_hint(failure) {
         let _ = writeln!(err, "{next}");
     }
     if output == OutputMode::Json
@@ -351,6 +366,16 @@ mod tests {
         let text = String::from_utf8(err).unwrap();
         assert!(text.contains("issues/new?template=bug_report.md"));
         assert!(text.contains("dx version"));
+    }
+
+    #[test]
+    fn the_error_event_carries_the_next_step_of_a_known_code() {
+        let failure = super::Failure::new("disk_full", "no space", 1);
+        let event = super::error_event_of(&failure).unwrap();
+        let next = event["next"].as_str().unwrap();
+        assert!(next.starts_with("free disk space"), "{next}");
+        let plain = super::Failure::new("no_such_code", "x", 1);
+        assert!(super::error_event_of(&plain).unwrap().get("next").is_none());
     }
 
     #[test]

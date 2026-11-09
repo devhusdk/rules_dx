@@ -36,7 +36,7 @@ terraform_library = rule(
         "providers": attr.label_list(
             cfg = "exec",
             providers = [TerraformProviderInfo],
-            doc = "Providers of the module, from the dx_terraform extension hub.",
+            doc = "Providers of the module, from the terraform extension hub.",
         ),
         "srcs": attr.label_list(allow_files = [".tf", ".tfvars", ".tftest.hcl", ".tfmock.hcl"], doc = "Terraform files of this module."),
     },

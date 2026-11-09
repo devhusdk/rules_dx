@@ -2,7 +2,7 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 ocaml = use_extension("@my_dx//ocaml/toolchain:repos.bzl", "ocaml")
-ocaml.packages(
+ocaml.lock(
     name = "ocaml_app",
     lock = "//ocaml/tests/fixtures/ocaml-app:ocaml_app.opam.locked",
 )

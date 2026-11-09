@@ -253,7 +253,7 @@ def _elixir_impl(mctx):
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(ELIXIR_CELLS)})
     _credo(name = CREDO_NAME)
     for module in mctx.modules:
-        for tag in module.tags.mix:
+        for tag in module.tags.lock:
             _declare_mix(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
 
@@ -261,7 +261,7 @@ elixir = module_extension(
     implementation = _elixir_impl,
     doc = "Creates rules_elixir, the pinned Elixir tree and the toolchain hub.",
     tag_classes = {
-        "mix": tag_class(
+        "lock": tag_class(
             doc = "Declares a hex_package per Hex entry of a mix.lock and a hub repo with one alias per package.",
             attrs = {
                 "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The mix.lock to read."),

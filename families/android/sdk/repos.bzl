@@ -1,6 +1,7 @@
 """Opt-in Android NDK and build-tools acquisition."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+load("@rules_dx//libs/starlark:license.bzl", "license_tag", "root_accepts")
 load("@rules_dx//libs/starlark:repo.bzl", "hub_repo")
 
 ANDROID_NDK_REVISION = "27.0.12077973"
@@ -326,7 +327,7 @@ def request_errors(request):
         quoted = ['"' + name + '"' for name in missing]
         errors.append(
             "android_sdk: accept " + ", ".join(missing) + " before acquisition; " +
-            "add android_sdk.configure(accept_licenses = [" + ", ".join(quoted) + "]) to the root MODULE.bazel",
+            "add android_sdk.license(accept = [" + ", ".join(quoted) + "]) to the root MODULE.bazel",
         )
     if request.mirror != "" and not request.mirror.startswith("https://"):
         errors.append("android_sdk: mirror '" + request.mirror + "' must use https")
@@ -926,9 +927,9 @@ _android_app_sdk_hub_repo = repository_rule(
     },
 )
 
-def _configure_tag(request):
+def _configure_tag(request, accept_licenses):
     return struct(
-        accept_licenses = list(request.accept_licenses),
+        accept_licenses = accept_licenses,
         api_level = request.api_level,
         enabled = request.enabled,
         extra_packages = list(request.extra_packages),
@@ -990,9 +991,10 @@ def _android_sdk_impl(module_ctx):
         urls = [bundletool_url()],
     )
     requests = []
+    accepted = root_accepts(module_ctx.modules)
     for module in module_ctx.modules:
         for tag in module.tags.configure:
-            requests.append(_configure_tag(tag))
+            requests.append(_configure_tag(tag, accepted))
     if len(requests) > 1:
         fail("android_sdk: configure the Android SDK once")
     repos = {}
@@ -1039,11 +1041,8 @@ def _android_sdk_impl(module_ctx):
 android_sdk = module_extension(
     implementation = _android_sdk_impl,
     tag_classes = {
+        "license": license_tag("Accepts Android SDK licenses."),
         "configure": tag_class(attrs = {
-            "accept_licenses": attr.string_list(
-                doc = "License identifiers the Android SDK configuration accepts.",
-                default = [],
-            ),
             "api_level": attr.int(
                 doc = "Platform API level to configure, zero for the default.",
                 default = 0,

@@ -119,7 +119,7 @@ hackage_package = repository_rule(
 )
 
 def declare_packages(mctx, tag):
-    """Declares the repositories of one haskell.packages tag.
+    """Declares the repositories of one haskell.lock tag.
 
     Args:
         mctx: The module extension context.
@@ -128,9 +128,9 @@ def declare_packages(mctx, tag):
     Returns:
         The names of the repositories created.
     """
-    sidecar = json.decode(mctx.read(tag.deps))
+    sidecar = json.decode(mctx.read(tag.lock))
     if sidecar.get("version") != 1:
-        fail("{} has sidecar version {}, expected 1".format(tag.deps, sidecar.get("version")))
+        fail("{} has sidecar version {}, expected 1".format(tag.lock, sidecar.get("version")))
     created = [tag.name]
     for name, package in sorted(hackage_packages(sidecar).items()):
         revised = package["cabal_revision"] > 0

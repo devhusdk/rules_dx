@@ -657,7 +657,7 @@ go_deps.from_file(go_mod = "//third_party/go:go.mod")
 
 ```starlark
 haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
-haskell.packages(name = "hackage", deps = "//third_party:haskell_deps.json")
+haskell.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
 ```
 
 - The manifest is `cabal.project` in the package of the `deps` label. Locks are `cabal.project.freeze` and the `haskell_deps.json` sidecar beside it. A check compares the versions in both.

@@ -305,7 +305,7 @@ def _ocaml_impl(mctx):
         strip_prefix = "dune-" + DUNE_VERSION,
         urls = [DUNE_URL],
     )
-    tags = [tag for module in mctx.modules for tag in module.tags.packages]
+    tags = [tag for module in mctx.modules for tag in module.tags.lock]
     locks = [parse_depends(mctx.read(tag.lock)) for tag in tags]
     wanted = {}
     for locked in locks:
@@ -341,7 +341,7 @@ ocaml = module_extension(
                 "strip_prefix": attr.string(doc = "Archive directory prefix to strip."),
             },
         ),
-        "packages": tag_class(
+        "lock": tag_class(
             doc = "Creates a hub repository with one alias per package pinned in an opam lock file.",
             attrs = {
                 "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The `.opam.locked` file."),

@@ -1,4 +1,4 @@
-"""Tests for the dx_terraform extension helpers and terraform_library providers."""
+"""Tests for the terraform extension helpers and terraform_library providers."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")

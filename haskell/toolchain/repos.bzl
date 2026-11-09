@@ -620,20 +620,20 @@ def _haskell_impl(mctx):
         )
     hub_repo(name = HUB_NAME, files = hub_files())
     for module in mctx.modules:
-        for tag in module.tags.packages:
+        for tag in module.tags.lock:
             declare_packages(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
 
-_packages = tag_class(
+_lock = tag_class(
     doc = "Builds the Hackage packages of a haskell_deps.json sidecar and exposes them through a hub repository.",
     attrs = {
-        "deps": attr.label(mandatory = True, allow_single_file = True, doc = "The haskell_deps.json written by haskell_deps_resolve."),
+        "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The haskell_deps.json written by haskell_deps_resolve."),
         "name": attr.string(mandatory = True, doc = "Name of the hub repository, which has one alias per package and per executable."),
     },
 )
 
 haskell = module_extension(
     implementation = _haskell_impl,
-    tag_classes = {"packages": _packages},
+    tag_classes = {"lock": _lock},
     doc = "Creates rules_haskell, the pinned GHC bindists, the toolchain hub and the Hackage package hubs.",
 )

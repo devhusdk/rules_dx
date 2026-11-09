@@ -202,7 +202,7 @@ swift_deps.from_package(resolved = "//apps/swift:Package.resolved", swift = "//a
 composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
 composer.lock(name = "vendor", lock = "//apps/php:composer.lock", digests = "//apps/php:composer.digests.json")
 ocaml = use_extension("@rules_dx//ocaml/toolchain:repos.bzl", "ocaml")
-ocaml.packages(name = "ocaml_app", lock = "//apps/ml:ocaml_app.opam.locked")
+ocaml.lock(name = "ocaml_app", lock = "//apps/ml:ocaml_app.opam.locked")
 EOF
 echo "requires 'Text::CSV', '== 2.06';" > "$(location sets_ok/perl/cpanfile)"
 cat > "$(location sets_ok/perl/cpanfile.snapshot)" <<'EOF'

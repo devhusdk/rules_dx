@@ -1,5 +1,5 @@
 elixir = use_extension("@my_dx//elixir/toolchain:repos.bzl", "elixir")
-elixir.mix(
+elixir.lock(
     name = "elixir_app_deps",
     lock = "//elixir/tests/fixtures/elixir-app:mix.lock",
 )

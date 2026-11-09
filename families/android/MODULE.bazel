@@ -43,7 +43,8 @@ use_repo(android_sdk, "dx_android_ndk_linux_x86_64", "dx_android_sdk", "dx_andro
 override_repo(_android_sdk_extension, androidsdk = "dx_androidsdk")
 
 android_sdk_dev = use_extension("//sdk:repos.bzl", "android_sdk", dev_dependency = True)
-android_sdk_dev.configure(accept_licenses = ["android-sdk-license"])
+android_sdk_dev.license(accept = ["android-sdk-license"])
+android_sdk_dev.configure()
 
 rules_java_toolchains = use_extension("@rules_java//java:extensions.bzl", "toolchains")
 use_repo(rules_java_toolchains, "remote_java_tools")

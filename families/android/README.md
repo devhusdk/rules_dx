@@ -6,8 +6,8 @@ fetch no Android payload.
 ```python
 android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk")
 
+android_sdk.license(accept = ["android-sdk-license"])
 android_sdk.configure(
-    accept_licenses = ["android-sdk-license"],
     # api_level = 31,                       # 31-34, default 34
     # extra_packages = ["platform-tools"],  # and/or "emulator"
 )
@@ -361,7 +361,8 @@ Coursier. A consumer root swaps in the SDK with:
 
 ```python
 android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk")
-android_sdk.configure(accept_licenses = ["android-sdk-license"])
+android_sdk.license(accept = ["android-sdk-license"])
+android_sdk.configure()
 use_repo(android_sdk, "dx_androidsdk")
 
 android_sdk_repository = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")

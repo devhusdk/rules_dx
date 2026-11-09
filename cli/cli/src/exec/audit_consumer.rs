@@ -682,7 +682,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(out.contains("apps/php/composer.lock"), "{out}");
     }
 
-    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.packages(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";
+    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";
 
     const OPAM_ADVISORY: &str = r#"[{
         "id": "OSV-OPAM-0001",
@@ -908,7 +908,7 @@ source = { registry = "https://pypi.org/simple" }
         harness
     }
 
-    const HEX_MODULE: &str = "elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.mix(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+    const HEX_MODULE: &str = "elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
 
     const HEX_ADVISORY: &str = r#"[{
         "id": "GHSA-hex-0001",
@@ -1196,7 +1196,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("vuln/CPANSA"), "{out}");
     }
 
-    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.packages(name = \"hackage\", deps = \"//hs:haskell_deps.json\")\n";
+    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
 
     const HACKAGE_ADVISORY: &str = r#"[{
         "id": "HSEC-2026-0001",

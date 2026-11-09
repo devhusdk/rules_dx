@@ -1,4 +1,4 @@
-"""Readers for the opam file fields that `ocaml.packages` needs."""
+"""Readers for the opam file fields that `ocaml.lock` needs."""
 
 SKIPPED_FILTERS = ["dev", "with-dev-setup", "with-doc", "with-test"]
 

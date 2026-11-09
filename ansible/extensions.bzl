@@ -81,7 +81,7 @@ _collections_repo = repository_rule(
     doc = "Fetches the collections named by an Ansible lock into ansible_collections/<ns>/<coll>/.",
 )
 
-_collections = tag_class(
+_lock = tag_class(
     doc = "One hub of locked Ansible collections.",
     attrs = {
         "lock": attr.label(
@@ -97,12 +97,12 @@ _collections = tag_class(
 )
 
 def _ansible_impl(module_ctx):
-    """Creates one hub per collections tag and reports the root module's hubs."""
+    """Creates one hub per lock tag and reports the root module's hubs."""
     direct = []
     dev = []
     seen = {}
     for mod in module_ctx.modules:
-        for tag in mod.tags.collections:
+        for tag in mod.tags.lock:
             if tag.name in seen:
                 _fail("hub %r is declared by both %s and %s" % (tag.name, seen[tag.name], mod.name))
             seen[tag.name] = mod.name
@@ -121,5 +121,5 @@ def _ansible_impl(module_ctx):
 ansible = module_extension(
     doc = "Fetches sha256-pinned Ansible collections; check time never reaches Galaxy.",
     implementation = _ansible_impl,
-    tag_classes = {"collections": _collections},
+    tag_classes = {"lock": _lock},
 )

@@ -98,7 +98,7 @@ named `<name>_<package>`, with the last checksum as `sha256`. The hub repo
 
 ```python
 elixir = use_extension("@rules_dx//elixir/toolchain:repos.bzl", "elixir")
-elixir.mix(name = "hex_deps", lock = "//:mix.lock")
+elixir.lock(name = "hex_deps", lock = "//:mix.lock")
 use_repo(elixir, "hex_deps")
 ```
 
@@ -113,7 +113,7 @@ rules_dx is not released yet. Install starts with the first BCR release.
 
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
 2. Run `bazel run @rules_dx//:dx -- generate --apply`.
-3. Add the `elixir.mix` tag for your `mix.lock` (see above).
+3. Add the `elixir.lock` tag for your `mix.lock` (see above).
 4. For each Hex package, add
    `# gazelle:resolve elixir <TopModule> @<hub>//:<package>` to the root
    `BUILD.bazel`, for example `# gazelle:resolve elixir Jason @hex_deps//:jason`.

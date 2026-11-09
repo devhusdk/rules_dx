@@ -22,7 +22,7 @@ erlang = use_extension("@rules_dx//erlang/toolchain:repos.bzl", "erlang")
 use_repo(erlang, "dx_erlang_toolchains")
 
 elixir = use_extension("@rules_dx//elixir/toolchain:repos.bzl", "elixir")
-elixir.mix(
+elixir.lock(
     name = "elixir_app_deps",
     lock = "//elixir/tests/fixtures/elixir-app:mix.lock",
 )

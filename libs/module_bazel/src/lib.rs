@@ -294,7 +294,7 @@ pub struct BicepRegistryModule<'a> {
     pub line: usize,
 }
 
-/// One `ocaml.packages` tag.
+/// One `ocaml.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OpamPackages<'a> {
     pub name: &'a str,
@@ -310,11 +310,11 @@ pub struct SwiftPackage<'a> {
     pub line: usize,
 }
 
-/// One `haskell.packages` tag.
+/// One `haskell.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HaskellPackages<'a> {
     pub name: &'a str,
-    pub deps: &'a str,
+    pub lock: &'a str,
     pub line: usize,
 }
 
@@ -326,7 +326,7 @@ pub struct PubLock<'a> {
     pub line: usize,
 }
 
-/// One `elixir.mix` tag of rules_dx or this repository.
+/// One `elixir.lock` tag of rules_dx or this repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MixLock<'a> {
     pub name: &'a str,
@@ -893,11 +893,11 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `elixir.mix` tag of rules_dx or this repository's `//elixir/toolchain:repos.bzl`.
+    /// Every `elixir.lock` tag of rules_dx or this repository's `//elixir/toolchain:repos.bzl`.
     pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
-        const TAG: &str = "elixir.mix";
-        let external = self.tags(RUBY_MODULE, "elixir/toolchain:repos.bzl", "elixir", "mix");
-        let own = self.tags_of("//elixir/toolchain:repos.bzl".to_owned(), "elixir", "mix");
+        const TAG: &str = "elixir.lock";
+        let external = self.tags(RUBY_MODULE, "elixir/toolchain:repos.bzl", "elixir", "lock");
+        let own = self.tags_of("//elixir/toolchain:repos.bzl".to_owned(), "elixir", "lock");
         external
             .chain(own)
             .map(|call| {
@@ -1032,19 +1032,19 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `ocaml.packages` tag of this repository's OCaml extension in source order.
+    /// Every `ocaml.lock` tag of this repository's OCaml extension in source order.
     pub fn opam_packages(&self) -> Result<Vec<OpamPackages<'_>>, ModuleError> {
-        const TAG: &str = "ocaml.packages";
+        const TAG: &str = "ocaml.lock";
         let own = self.tags_of(
             "//ocaml/toolchain:repos.bzl".to_owned(),
             "ocaml",
-            "packages",
+            "lock",
         );
         self.tags(
             RUBY_MODULE,
             "ocaml/toolchain:repos.bzl",
             "ocaml",
-            "packages",
+            "lock",
         )
         .chain(own)
         .map(|call| {
@@ -1057,25 +1057,25 @@ impl ModuleFile {
         .collect()
     }
 
-    /// Every `haskell.packages` tag of this repository's Haskell extension in source order.
+    /// Every `haskell.lock` tag of this repository's Haskell extension in source order.
     pub fn haskell_packages(&self) -> Result<Vec<HaskellPackages<'_>>, ModuleError> {
-        const TAG: &str = "haskell.packages";
+        const TAG: &str = "haskell.lock";
         let own = self.tags_of(
             "//haskell/toolchain:repos.bzl".to_owned(),
             "haskell",
-            "packages",
+            "lock",
         );
         self.tags(
             RUBY_MODULE,
             "haskell/toolchain:repos.bzl",
             "haskell",
-            "packages",
+            "lock",
         )
         .chain(own)
         .map(|call| {
             Ok(HaskellPackages {
                 name: required(call, TAG, "name")?,
-                deps: required(call, TAG, "deps")?,
+                lock: required(call, TAG, "lock")?,
                 line: call.line,
             })
         })

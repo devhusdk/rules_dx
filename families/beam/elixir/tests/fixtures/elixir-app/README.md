@@ -18,4 +18,4 @@ The run prints `24`, `24` and the snapshot `[{"name":"pears","units":24}]`. A co
 
 `catalog:catalog_test` covers parsing, the generated table and the JSON output. `stock:ledger_test` covers the limit from `app_env`, the application graph, and supervisor restarts after a kill and after a crash. `cli:stockctl_test` runs the commands in process and through the `stockctl` launcher.
 
-`jason` comes from `mix.lock` through the `elixir.mix` tag in `MODULE.bazel`; the hub repo `@elixir_app_deps` aliases it.
+`jason` comes from `mix.lock` through the `elixir.lock` tag in `MODULE.bazel`; the hub repo `@elixir_app_deps` aliases it.

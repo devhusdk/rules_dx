@@ -191,7 +191,7 @@ findings report the same workspace path.
 
 ## Opam packages
 
-`ocaml.packages(name, lock)` reads the pinned versions from the `depends:` list
+`ocaml.lock(name, lock)` reads the pinned versions from the `depends:` list
 of a `.opam.locked` file and creates a hub with one alias per package. Sources
 and sha256 digests come from the opam-repository snapshot pinned in
 `ocaml/toolchain/pins.bzl`; nothing runs opam. Compiler and `base-*` packages

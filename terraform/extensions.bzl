@@ -1,4 +1,4 @@
-"""dx_terraform: Terraform providers vendored with sha256 integrity.
+"""terraform: Terraform providers vendored with sha256 integrity.
 
 Each declared provider/target pair becomes a repository that unpacks the
 official provider zip into Terraform's unpacked filesystem-mirror layout. The
@@ -68,7 +68,7 @@ def provider_conflict_message(name, first, second):
     Returns:
       The error string naming both modules and their values.
     """
-    return "dx_terraform: conflicting declarations of provider %r: %s declares %s %s, %s declares %s %s" % (name, first[0], first[1], first[2], second[0], second[1], second[2])
+    return "terraform: conflicting declarations of provider %r: %s declares %s %s, %s declares %s %s" % (name, first[0], first[1], first[2], second[0], second[1], second[2])
 
 def default_url(source, version, target):
     kind = source.split("/")[-1]
@@ -121,7 +121,7 @@ def _extension_impl(ctx):
         for tag in module.tags.provider:
             errors = provider_errors(tag.source, tag.version, tag.sha256, tag.urls)
             if errors:
-                fail("dx_terraform: " + "; ".join(errors))
+                fail("terraform: " + "; ".join(errors))
             decl = (tag.source, tag.version, tag.sha256, tag.urls)
             who = "%s %s" % (module.name, module.version)
             if tag.name in decls and decls[tag.name][0] != decl:
@@ -157,7 +157,7 @@ _provider = tag_class(
     },
 )
 
-dx_terraform = module_extension(
+terraform = module_extension(
     doc = "Builds @dx_terraform_providers with one target per declared provider.",
     implementation = _extension_impl,
     tag_classes = {"provider": _provider},

@@ -29,7 +29,7 @@ bazel test //haskell/tests/fixtures/haskell-app/... --//haskell/tests/fixtures/h
 ## The pinned dependency
 
 `split` 0.2.5 comes from Hackage. `third_party/haskell_deps.json` pins its
-hash and `.cabal` revision, and the `haskell.packages` tag in the root
+hash and `.cabal` revision, and the `haskell.lock` tag in the root
 `MODULE.bazel` turns that file into the `@haskell_app_hackage` hub, which
 builds each package with `haskell_cabal_library`. Its license is
 BSD-3-Clause. Refresh the pin with

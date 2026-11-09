@@ -147,11 +147,23 @@ pub fn selected_configs(
     families: &BTreeSet<String>,
 ) -> Result<Vec<&'static ToolConfig>, GenerateError> {
     let selection = dx_config::effective(config)?;
+    let families = &with_named(config, families);
     let profiles = selected_profiles(&selection, families);
     Ok(TOOL_CONFIGS
         .iter()
         .filter(|config| profiles.contains_key(config.id))
         .collect())
+}
+
+/// The detected families plus every family `dx.toml` names.
+fn with_named(config: Option<&DxConfig>, families: &BTreeSet<String>) -> BTreeSet<String> {
+    let mut all = families.clone();
+    all.extend(
+        config
+            .into_iter()
+            .flat_map(|config| config.families.keys().cloned()),
+    );
+    all
 }
 
 /// The tier of every tool selected for a detected family.
@@ -189,6 +201,7 @@ pub fn bound_configs(
     root_files: &BTreeSet<String>,
 ) -> Result<Vec<(&'static str, String)>, GenerateError> {
     let selection = dx_config::effective(config)?;
+    let families = &with_named(config, families);
     let profiles = selected_profiles(&selection, families);
     let mut bound: Vec<(&'static str, String)> = TOOL_CONFIGS
         .iter()
@@ -209,11 +222,12 @@ pub fn bound_configs(
 pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateError> {
     let selection = dx_config::effective(inputs.config.as_ref())?;
     let root = selection.profile;
-    let profiles = selected_profiles(&selection, &inputs.families);
+    let detected = with_named(inputs.config.as_ref(), &inputs.families);
+    let profiles = selected_profiles(&selection, &detected);
     let families: BTreeMap<&str, &dx_config::FamilySelection> = selection
         .families
         .iter()
-        .filter(|(id, _)| inputs.families.contains(*id))
+        .filter(|(id, _)| detected.contains(*id))
         .map(|(id, family)| (id.as_str(), family))
         .collect();
     let mut tools: Vec<Tool> = TOOL_CONFIGS

@@ -687,6 +687,18 @@ fn an_opt_in_family_reaches_the_build() {
 }
 
 #[test]
+fn an_opt_in_family_is_rendered_without_detected_files() {
+    let out = rendered(&inputs(
+        Some("schema_version = 1\n[families.lua]\nformat = [\"stylua\"]\n"),
+        &[],
+        &[],
+    ));
+    let build = text(&out, ".dx/BUILD.bazel");
+    assert!(build.contains("\"lua\": {"), "{build}");
+    assert!(build.contains("stylua"), "{build}");
+}
+
+#[test]
 fn a_disabled_family_is_dropped() {
     let out = rendered(&inputs(
         Some("schema_version = 1\n[families.python]\ndisabled = true\n"),

@@ -208,7 +208,10 @@ def cc_test(name, srcs = None, visibility = None, **kwargs):
 
 def cc_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
-    flags = ["-fsanitize=fuzzer,address"]
+    flags = select({
+        Label("@platforms//os:windows"): ["-fsanitize=fuzzer"],
+        "//conditions:default": ["-fsanitize=fuzzer,address"],
+    })
     build, run = split_runner_kwargs(kwargs)
     cc_binary(
         name = name + "_bin",

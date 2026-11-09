@@ -36,11 +36,23 @@ dx_runner_attr_test(
         "args": ["-max_total_time=1"],
         "tags": ["dx-fuzz", "manual"],
     },
-    runner = "args_fuzz",
+    runner = "args_fuzz_asan",
 )
 
 dx_runner_attr_test(
     name = "parse_fuzz_run_attrs",
     expected = {"args": ["libfuzzer", "$(rootpath :parse_fuzz)"]},
     runner = "parse_fuzz_run",
+)
+
+dx_runner_attr_test(
+    name = "parse_fuzz_asan_attrs",
+    expected = {"asan": True},
+    runner = "parse_fuzz_asan",
+)
+
+dx_runner_attr_test(
+    name = "parse_fuzz_noasan_attrs",
+    expected = {"asan": False},
+    runner = "parse_fuzz_noasan",
 )

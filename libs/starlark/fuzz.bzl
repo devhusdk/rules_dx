@@ -4,7 +4,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 def _asan_fuzzer_transition_impl(_settings, attr):
     return {
-        "@llvm//config:asan": True,
+        "@llvm//config:asan": attr.asan,
         "@llvm//config:fuzzer": attr.pinned_libfuzzer,
     }
 
@@ -21,16 +21,41 @@ def _dx_fuzz_binary_impl(ctx):
     runfiles = ctx.runfiles(files = [executable]).merge(binary[DefaultInfo].default_runfiles)
     return [DefaultInfo(executable = executable, runfiles = runfiles)]
 
-dx_fuzz_binary = rule(
+_dx_fuzz_binary = rule(
     implementation = _dx_fuzz_binary_impl,
     attrs = {
         "binary": attr.label(doc = "Binary the runner executes.", executable = True, cfg = "target", mandatory = True),
+        "asan": attr.bool(default = True, doc = "Build `binary` with AddressSanitizer."),
         "pinned_libfuzzer": attr.bool(default = True, doc = "Link the pinned LLVM's libFuzzer. Off when the binary brings its own."),
     },
     cfg = _asan_fuzzer_transition,
     executable = True,
-    doc = "Builds `binary` with the pinned LLVM's AddressSanitizer runtime and, unless `pinned_libfuzzer` is off, its libFuzzer.",
+    doc = "Builds `binary` with the pinned LLVM's AddressSanitizer runtime when `asan` is set and, unless `pinned_libfuzzer` is off, its libFuzzer.",
 )
+
+def dx_fuzz_binary(name, binary, visibility = None, testonly = True, tags = None, target_compatible_with = None, **kwargs):
+    """Declares `<name>_asan`, `<name>_noasan` and `name`, which selects `<name>_noasan` on Windows."""
+    for suffix, asan in (("_asan", True), ("_noasan", False)):
+        _dx_fuzz_binary(
+            name = name + suffix,
+            binary = binary,
+            asan = asan,
+            visibility = ["//visibility:private"],
+            testonly = testonly,
+            tags = tags,
+            target_compatible_with = target_compatible_with,
+            **kwargs
+        )
+    native.alias(
+        name = name,
+        actual = select({
+            Label("@platforms//os:windows"): ":" + name + "_noasan",
+            "//conditions:default": ":" + name + "_asan",
+        }),
+        visibility = visibility,
+        testonly = testonly,
+        tags = tags,
+    )
 
 def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", harness = None, visibility = None):
     """Defines `<name>_run`, the runner `dx fuzz` calls for the fuzz binary `fuzz`."""

@@ -139,6 +139,7 @@ load(
     "real_xml_lint_aspect",
     "real_yaml_format_aspect",
     "real_yaml_lint_aspect",
+    "real_swift_typecheck_aspect",
     "real_zig_typecheck_aspect",
 )
 load("//quality:families/cc.bzl", "CcShardProbeInfo")
@@ -253,6 +254,7 @@ _REAL_ASPECTS = [
     real_jvm_typecheck_aspect,
     real_d_typecheck_aspect,
     real_fortran_typecheck_aspect,
+    real_swift_typecheck_aspect,
     real_zig_typecheck_aspect,
     real_rego_typecheck_aspect,
     real_capnp_typecheck_aspect,

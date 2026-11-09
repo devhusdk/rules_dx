@@ -436,6 +436,7 @@ pub const TOOLS: &[&str] = &[
     "stylua",
     "swift_format",
     "swift_lint",
+    "swiftc",
     "taplo",
     "terraform",
     "tflint",

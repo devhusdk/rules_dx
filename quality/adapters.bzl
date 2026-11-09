@@ -160,7 +160,6 @@ NOT_APPLICABLE = {
 TYPECHECK_CANDIDATES = {
     "graphql": "graphql-inspector validate (schema and documents against the schema)",
     "oci": "check-jsonschema against the OCI image-spec manifest and config schemas",
-    "swift": "swiftc -typecheck",
     "toml": "taplo check (validates against a schema)",
 }
 

@@ -13,7 +13,7 @@ load("//quality:families/make.bzl", _real_make_lint_aspect = "real_make_lint_asp
 load("//quality:families/nix.bzl", _real_nix_format_aspect = "real_nix_format_aspect", _real_nix_lint_aspect = "real_nix_lint_aspect", _NIX_SHARD_SPECS = "SHARD_SPECS", _NIX_TOOLS = "TOOLS")
 load("//quality:families/perl.bzl", _real_perl_format_aspect = "real_perl_format_aspect", _real_perl_lint_aspect = "real_perl_lint_aspect", _PERL_SHARD_SPECS = "SHARD_SPECS", _PERL_TOOLS = "TOOLS")
 load("//quality:families/shell.bzl", _real_shell_lint_aspect = "real_shell_lint_aspect", _real_shell_format_aspect = "real_shell_format_aspect", _SHELL_SHARD_SPECS = "SHARD_SPECS", _SHELL_TOOLS = "TOOLS")
-load("//quality:families/swift.bzl", _real_swift_format_aspect = "real_swift_format_aspect", _real_swift_lint_aspect = "real_swift_lint_aspect", _SWIFT_SHARD_SPECS = "SHARD_SPECS", _SWIFT_TOOLS = "TOOLS")
+load("//quality:families/swift.bzl", _real_swift_format_aspect = "real_swift_format_aspect", _real_swift_lint_aspect = "real_swift_lint_aspect", _real_swift_typecheck_aspect = "real_swift_typecheck_aspect", _SWIFT_SHARD_SPECS = "SHARD_SPECS", _SWIFT_TOOLS = "TOOLS")
 load("//quality:families/text.bzl", _real_text_lint_aspect = "real_text_lint_aspect", _TEXT_SHARD_SPECS = "SHARD_SPECS", _TEXT_TOOLS = "TOOLS")
 load("//quality:families/typst.bzl", _real_typst_format_aspect = "real_typst_format_aspect", _real_typst_lint_aspect = "real_typst_lint_aspect", _TYPST_SHARD_SPECS = "SHARD_SPECS", _TYPST_TOOLS = "TOOLS")
 load("//quality:families/xml.bzl", _real_xml_lint_aspect = "real_xml_lint_aspect", _XML_SHARD_SPECS = "SHARD_SPECS", _XML_TOOLS = "TOOLS")
@@ -64,7 +64,7 @@ load("//quality:families/powershell.bzl", _real_powershell_format_probe_aspect =
 load("//quality:families/python.bzl", _real_python_format_probe_aspect = "real_python_format_probe_aspect", _real_python_lint_probe_aspect = "real_python_lint_probe_aspect", _real_python_typecheck_probe_aspect = "real_python_typecheck_probe_aspect")
 load("//quality:families/ruby.bzl", _real_ruby_format_probe_aspect = "real_ruby_format_probe_aspect", _real_ruby_lint_probe_aspect = "real_ruby_lint_probe_aspect", _real_ruby_typecheck_probe_aspect = "real_ruby_typecheck_probe_aspect")
 load("//quality:families/rust.bzl", _real_rust_format_probe_aspect = "real_rust_format_probe_aspect", _real_rust_lint_probe_aspect = "real_rust_lint_probe_aspect", _real_rust_typecheck_probe_aspect = "real_rust_typecheck_probe_aspect")
-load("//quality:families/swift.bzl", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect")
+load("//quality:families/swift.bzl", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect", _real_swift_typecheck_probe_aspect = "real_swift_typecheck_probe_aspect")
 load("//quality:families/zig.bzl", _real_zig_format_probe_aspect = "real_zig_format_probe_aspect", _real_zig_lint_probe_aspect = "real_zig_lint_probe_aspect", _real_zig_typecheck_probe_aspect = "real_zig_typecheck_probe_aspect")
 load("//quality:families/core_probe.bzl", _real_core_format_probe_aspect = "real_core_format_probe_aspect", _real_core_lint_probe_aspect = "real_core_lint_probe_aspect", _real_core_typecheck_probe_aspect = "real_core_typecheck_probe_aspect")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "real_request_tool_env")
@@ -219,6 +219,8 @@ real_julia_format_aspect = _real_julia_format_aspect
 real_swift_format_aspect = _real_swift_format_aspect
 
 real_swift_lint_aspect = _real_swift_lint_aspect
+
+real_swift_typecheck_aspect = _real_swift_typecheck_aspect
 
 real_zig_format_aspect = _real_zig_format_aspect
 
@@ -508,6 +510,8 @@ real_rust_typecheck_probe_aspect = _real_rust_typecheck_probe_aspect
 real_swift_format_probe_aspect = _real_swift_format_probe_aspect
 
 real_swift_lint_probe_aspect = _real_swift_lint_probe_aspect
+
+real_swift_typecheck_probe_aspect = _real_swift_typecheck_probe_aspect
 
 real_zig_format_probe_aspect = _real_zig_format_probe_aspect
 

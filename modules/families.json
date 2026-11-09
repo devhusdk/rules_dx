@@ -1172,7 +1172,9 @@
         "real_swift_format_aspect",
         "real_swift_format_probe_aspect",
         "real_swift_lint_aspect",
-        "real_swift_lint_probe_aspect"
+        "real_swift_lint_probe_aspect",
+        "real_swift_typecheck_aspect",
+        "real_swift_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "rules_dx"

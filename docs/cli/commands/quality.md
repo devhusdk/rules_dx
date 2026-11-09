@@ -216,6 +216,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `flang` | Typecheck Fortran (opt-in) | |
 | `swift_format` | Format Swift | |
 | `swift_lint` | Lint Swift | |
+| `swiftc` | Typecheck Swift (opt-in) | |
 
 `clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. Headers are checked only when the target compiles them (`--features=parse_headers`). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It has no fix support.
 

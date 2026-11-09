@@ -2446,6 +2446,10 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "swiftc",
+        adapters = {"typecheck": ["swift"]},
+    ),
+    tool(
         id = "taplo",
         adapters = {
             "format": ["toml"],

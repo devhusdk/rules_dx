@@ -72,7 +72,7 @@ When the checkout is not a merge commit, scoped jobs warn and run `//...`. When 
 
 ## Read a failure
 
-1. Open the run summary. It lists `<check>: passed` or `failed (exit N)` for each check. A failed `lint` or `typecheck` also adds up to 10 annotations on the affected lines and a table of the first 50 findings.
+1. Open the run summary. It lists `<check>: passed (exit 0), ran: tools/dx <check> ... <scope>` or `failed (exit N), ran: ...` for each check. A scoped check with nothing affected adds `(nothing affected)`. A failed `lint` or `typecheck` also adds up to 10 annotations on the affected lines and a table of the first 50 findings.
 2. Open the failed job log.
 3. Download the reports:
 

@@ -170,6 +170,10 @@ fn the_checks_job_runs_every_validated_check_in_one_job_per_platform() {
     for needle in [
         "done <<< \"$DX_CHECK_LINES\"",
         "$GITHUB_STEP_SUMMARY",
+        "ran: $ran",
+        "tools/dx $dx_args",
+        "(nothing affected)",
+        "grep -qx 'no affected targets'",
         "exit \"$failed\"",
     ] {
         assert!(

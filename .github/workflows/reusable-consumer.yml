@@ -334,6 +334,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -o pipefail
           failed=0
           while IFS='|' read -r id dx_args dx_reports passthrough; do
             [ -n "$id" ] || continue
@@ -344,35 +345,44 @@ jobs:
                 ;;
             esac
             reports="${RUNNER_TEMP:-/tmp}/dx-reports/$id"
-            mkdir -p "$reports"
+            logs="${RUNNER_TEMP:-/tmp}/dx-logs"
+            mkdir -p "$reports" "$logs"
             read -ra args <<< "$dx_args"
+            ran="tools/dx $dx_args"
             read -ra tokens <<< "$dx_reports"
             for token in "${tokens[@]}"; do
               args+=(--report "${token%%=*}=$reports/${token#*=}")
             done
             if [ "$id" = "lint" ] && [ "$DX_LINK_CHECK_ONLINE" = "true" ]; then
               args+=(--online)
+              ran+=" --online"
             fi
             if [ "$id" = "lint" ] && [ "$DX_BUF_BREAKING" = "true" ]; then
               args+=(--breaking-against)
+              ran+=" --breaking-against"
             fi
             args+=("$scope")
+            ran+=" $scope"
             if [ "$passthrough" = "true" ]; then
               args+=(-- "$@")
             fi
             echo "::group::$id"
             rc=0
-            bazel run "$@" @rules_dx//:dx -- "${args[@]}" < /dev/null || rc=$?
+            log="$logs/$id.log"
+            bazel run "$@" @rules_dx//:dx -- "${args[@]}" < /dev/null 2>&1 | tee "$log" || rc=$?
             echo "::endgroup::"
+            if [ "$scope" = --affected ] && grep -qx 'no affected targets' "$log"; then
+              ran+=" (nothing affected)"
+            fi
             case "$id" in
               test|build)
                 cp .dx/local/timings/report.json "$reports/profile-$id.json" 2>/dev/null || true
                 ;;
             esac
             if [ "$rc" -eq 0 ]; then
-              echo "$id: passed (exit 0)" >> "$GITHUB_STEP_SUMMARY"
+              echo "$id: passed (exit 0), ran: $ran" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "$id: failed (exit $rc)" >> "$GITHUB_STEP_SUMMARY"
+              echo "$id: failed (exit $rc), ran: $ran" >> "$GITHUB_STEP_SUMMARY"
               failed=1
               sarif="$reports/$id.sarif"
               if [ -s "$sarif" ] && command -v jq > /dev/null; then

@@ -2,6 +2,7 @@
 
 load("//elixir/rules:hex.bzl", "hex_extract")
 load("//erlang/toolchain:pins.bzl", "CELLS")
+load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION")
 
 HUB_NAME = "dx_elixir_toolchains"
@@ -58,15 +59,6 @@ _DIALYZER_BEAMS = """
 filegroup(
     name = "dialyzer_beams_{app}",
     srcs = glob(["lib/{app}/ebin/*.beam"]),
-)
-"""
-
-_TOOLCHAIN = """toolchain(
-    name = "{cell}",
-    exec_compatible_with = {constraints},
-    target_compatible_with = {constraints},
-    toolchain = "@{repo}//:elixir",
-    toolchain_type = "{toolchain_type}",
 )
 """
 
@@ -166,10 +158,11 @@ dist_repo = repository_rule(
 
 def hub_build(cells):
     """Returns the hub BUILD file that registers Elixir on the given OTP cells."""
-    return "\n".join([_TOOLCHAIN.format(
-        cell = cell,
-        constraints = repr(CELLS[cell].exec_compatible_with),
-        repo = DIST_NAME,
+    return "\n".join([toolchain_target(
+        name = cell,
+        exec_compatible_with = CELLS[cell].exec_compatible_with,
+        target_compatible_with = CELLS[cell].exec_compatible_with,
+        toolchain = "@{}//:elixir".format(DIST_NAME),
         toolchain_type = str(Label("@rules_elixir//:toolchain_type")),
     ) for cell in cells])
 

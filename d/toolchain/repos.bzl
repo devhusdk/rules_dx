@@ -4,6 +4,7 @@ load("//libs/starlark:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load("//libs/starlark:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
+load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
 
 HUB_NAME = "dx_d_toolchains"
@@ -215,15 +216,6 @@ filegroup(
 )
 """.format(globs)
 
-_TOOLCHAIN = """toolchain(
-    name = "{cell}",
-    exec_compatible_with = {constraints},
-    target_compatible_with = {constraints},
-    toolchain = "@{repo}//:d_toolchain",
-    toolchain_type = "{toolchain_type}",
-)
-"""
-
 def ldc_repository_name(cell):
     """Returns the repository name one qualified cell's LDC is acquired into."""
     return LDC_PREFIX + cell
@@ -313,10 +305,11 @@ def hub_build():
     """Returns the hub BUILD file: one D toolchain per qualified cell."""
     content = []
     for cell in sorted(LDC_CELLS.keys()):
-        content.append(_TOOLCHAIN.format(
-            cell = cell,
-            constraints = repr(LDC_CELLS[cell].exec_compatible_with),
-            repo = ldc_repository_name(cell),
+        content.append(toolchain_target(
+            name = cell,
+            exec_compatible_with = LDC_CELLS[cell].exec_compatible_with,
+            target_compatible_with = LDC_CELLS[cell].exec_compatible_with,
+            toolchain = "@{}//:d_toolchain".format(ldc_repository_name(cell)),
             toolchain_type = str(Label("@rules_d//d:toolchain_type")),
         ))
     return "\n".join(content)

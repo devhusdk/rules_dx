@@ -3,6 +3,7 @@
 load("//elixir/rules:hex.bzl", "hex_package")
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(
     ":pins.bzl",
     "CELLS",
@@ -119,15 +120,6 @@ def nif_compatible_cases(cells):
     cases = {"@rules_dx//erlang/toolchain:cell_" + cell: [] for cell in sorted(cells)}
     cases["//conditions:default"] = ["@platforms//:incompatible"]
     return cases
-
-_TOOLCHAIN = """toolchain(
-    name = "{cell}",
-    exec_compatible_with = {constraints},
-    target_compatible_with = {constraints},
-    toolchain = "@{repo}//:erlang",
-    toolchain_type = "{toolchain_type}",
-)
-"""
 
 _GETOPT_BUILD = """load("@rules_erlang//:erlang_app.bzl", "erlang_app")
 
@@ -349,10 +341,11 @@ def hub_build():
     """Returns the hub BUILD file: one Erlang toolchain per qualified cell and the erl_nif alias."""
     content = ['load("@rules_cc//cc:defs.bzl", "cc_library")\n\npackage(default_visibility = ["//visibility:public"])\n']
     for cell in sorted(CELLS.keys()):
-        content.append(_TOOLCHAIN.format(
-            cell = cell,
-            constraints = repr(CELLS[cell].exec_compatible_with),
-            repo = cell_repository_name(cell),
+        content.append(toolchain_target(
+            name = cell,
+            exec_compatible_with = CELLS[cell].exec_compatible_with,
+            target_compatible_with = CELLS[cell].exec_compatible_with,
+            toolchain = "@{}//:erlang".format(cell_repository_name(cell)),
             toolchain_type = str(Label("@rules_erlang//tools:toolchain_type")),
         ))
     content.append(_HUB_NIF.format(

@@ -1,6 +1,7 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPBENCH", "PHPCS", "PHPDOCUMENTOR", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
 
 HUB_NAME = "dx_php_toolchains"
@@ -42,21 +43,6 @@ cc_library(
 
 _PHP_INCLUDES = ["include/php", "include/php/main", "include/php/Zend", "include/php/TSRM", "include/php/ext"]
 
-_TOOLCHAINS = """toolchain(
-    name = "{cell}",
-    target_compatible_with = {constraints},
-    toolchain = "@{repo}//:php_toolchain",
-    toolchain_type = "{toolchain_type}",
-)
-
-toolchain(
-    name = "{cell}_exec",
-    exec_compatible_with = {constraints},
-    toolchain = "@{repo}//:php_toolchain",
-    toolchain_type = "{exec_toolchain_type}",
-)
-"""
-
 def runtime_build(version, interpreter = "php", pcov = False):
     """Returns the BUILD file of one runtime repository; pcov names the PCOV extension it can load."""
     return _RUNTIME_BUILD.format(
@@ -71,13 +57,21 @@ def hub_build(cells):
     """Returns the hub BUILD file: a runtime and an exec toolchain per cell."""
     content = []
     for cell in sorted(cells):
-        content.append(_TOOLCHAINS.format(
-            cell = cell,
-            constraints = repr(PHP_CELLS[cell].exec_compatible_with),
-            exec_toolchain_type = EXEC_TOOLCHAIN_TYPE,
-            repo = RUNTIME_PREFIX + cell,
-            toolchain_type = TOOLCHAIN_TYPE,
-        ))
+        constraints = PHP_CELLS[cell].exec_compatible_with
+        content.append("\n".join([
+            toolchain_target(
+                name = cell,
+                target_compatible_with = constraints,
+                toolchain = "@{}//:php_toolchain".format(RUNTIME_PREFIX + cell),
+                toolchain_type = TOOLCHAIN_TYPE,
+            ),
+            toolchain_target(
+                name = cell + "_exec",
+                exec_compatible_with = constraints,
+                toolchain = "@{}//:php_toolchain".format(RUNTIME_PREFIX + cell),
+                toolchain_type = EXEC_TOOLCHAIN_TYPE,
+            ),
+        ]))
     return "\n".join(content)
 
 _SOURCES_BUILD = """package(default_visibility = ["//visibility:public"])

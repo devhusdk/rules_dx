@@ -1,6 +1,7 @@
 """Hermetic GHC acquisition and toolchain registration."""
 
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
+load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "CELLS", "GHC_VERSION", "RUNTIME_MIRROR", "qualified_cells")
 
 HUB_NAME = "dx_haskell_toolchains"
@@ -340,25 +341,6 @@ _GMP_EMPTY = """cc_library(
 )
 """
 
-_TOOLCHAIN = """toolchain(
-    name = "{cell}",
-    exec_compatible_with = {constraints},
-    target_compatible_with = {constraints},
-    toolchain = "@{repo}//:toolchain-impl",
-    toolchain_type = "{toolchain_type}",
-)
-"""
-
-_CC_TOOLCHAIN = """toolchain(
-    name = "{cell}",
-    exec_compatible_with = {constraints},
-    target_compatible_with = {constraints},
-    target_settings = ["{enabled}"],
-    toolchain = "@{repo}//:cc-compiler-mingw64",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-)
-"""
-
 _HUB_ALIAS = """alias(
     name = "{name}",
     actual = select({{
@@ -551,10 +533,11 @@ def hub_files(cells = CELLS):
     content = []
     arms = []
     for cell in qualified_cells(cells):
-        toolchains.append(_TOOLCHAIN.format(
-            cell = cell,
-            constraints = repr(cells[cell].exec_compatible_with),
-            repo = cell_repository_name(cell),
+        toolchains.append(toolchain_target(
+            name = cell,
+            exec_compatible_with = cells[cell].exec_compatible_with,
+            target_compatible_with = cells[cell].exec_compatible_with,
+            toolchain = "@{}//:toolchain-impl".format(cell_repository_name(cell)),
             toolchain_type = str(Label("@rules_haskell//haskell:toolchain")),
         ))
         content.append("config_setting(\n    name = \"{}_platform\",\n    constraint_values = {},\n)\n".format(
@@ -570,11 +553,13 @@ def hub_files(cells = CELLS):
         compatible = [cell for cell in qualified_cells(cells) if name in cells[cell].os_libraries]
         content.append(_OS_LIBRARY.format(name = name, arms = "".join(["        \":{}_platform\": [],\n".format(cell) for cell in compatible]), incompatible = str(Label("@platforms//:incompatible"))))
     cc_toolchains = [
-        _CC_TOOLCHAIN.format(
-            cell = cell,
-            constraints = repr(cells[cell].exec_compatible_with),
-            repo = cell_repository_name(cell),
-            enabled = str(Label("//haskell/toolchain:ghc_mingw_enabled")),
+        toolchain_target(
+            name = cell,
+            exec_compatible_with = cells[cell].exec_compatible_with,
+            target_compatible_with = cells[cell].exec_compatible_with,
+            target_settings = [str(Label("//haskell/toolchain:ghc_mingw_enabled"))],
+            toolchain = "@{}//:cc-compiler-mingw64".format(cell_repository_name(cell)),
+            toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
         )
         for cell in qualified_cells(cells)
         if getattr(cells[cell], "mingw_cc", False)

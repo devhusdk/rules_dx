@@ -1,5 +1,6 @@
 """Hermetic OCaml acquisition and toolchain registration."""
 
+load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
 
 HUB_NAME = "dx_ocaml_toolchains"
@@ -74,23 +75,6 @@ ocaml_import(
         "//conditions:default": "lib/ocaml/str/str.cma",
     }}),
     sigs = glob(["lib/ocaml/str/*.cmi", "lib/ocaml/str/*.cmx"]),
-)
-"""
-
-_TOOLCHAINS = """toolchain(
-    name = "{cell}_{emitter}",
-    exec_compatible_with = {exec_constraints},
-    target_compatible_with = {target_constraints},
-    toolchain = "@{repo}//:{emitter}",
-    toolchain_type = "{std_type}",
-)
-
-toolchain(
-    name = "{cell}_{emitter}_profile",
-    exec_compatible_with = {exec_constraints},
-    target_compatible_with = {target_constraints},
-    toolchain = "@{repo}//:{emitter}_profile",
-    toolchain_type = "{profile_type}",
 )
 """
 
@@ -200,15 +184,24 @@ def hub_build():
     content = []
     for cell in sorted(OCAML_CELLS.keys()):
         for emitter in OCAML_CELLS[cell].emitters:
-            content.append(_TOOLCHAINS.format(
-                cell = cell,
-                emitter = emitter,
-                exec_constraints = repr(OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].exec_compatible_with),
-                target_constraints = repr(OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].target_compatible_with),
-                repo = DIST_PREFIX + cell,
-                std_type = str(Label("@rules_ocaml//toolchain/type:std")),
-                profile_type = str(Label("@rules_ocaml//toolchain/type:profile")),
-            ))
+            exec_constraints = OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].exec_compatible_with
+            target_constraints = OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].target_compatible_with
+            content.append("\n".join([
+                toolchain_target(
+                    name = "{}_{}".format(cell, emitter),
+                    exec_compatible_with = exec_constraints,
+                    target_compatible_with = target_constraints,
+                    toolchain = "@{}{}//:{}".format(DIST_PREFIX, cell, emitter),
+                    toolchain_type = str(Label("@rules_ocaml//toolchain/type:std")),
+                ),
+                toolchain_target(
+                    name = "{}_{}_profile".format(cell, emitter),
+                    exec_compatible_with = exec_constraints,
+                    target_compatible_with = target_constraints,
+                    toolchain = "@{}{}//:{}_profile".format(DIST_PREFIX, cell, emitter),
+                    toolchain_type = str(Label("@rules_ocaml//toolchain/type:profile")),
+                ),
+            ]))
     for cell in sorted(OCAML_CELLS.keys()):
         content.append(_CELL.format(cell = cell, constraints = repr(OCAML_CELLS[cell].exec_compatible_with)))
     content.append(_OCAMLRUN.format(cases = repr({":" + cell: "@" + DIST_PREFIX + cell + "//:ocamlrun" for cell in sorted(OCAML_CELLS.keys())})))

@@ -68,3 +68,45 @@ def pin_checks(cells, version, archive_attr = "archive"):
         expect_true("urls name the version and archive", all([version in p.urls[0] and p.urls[0].endswith(getattr(p, archive_attr)) for p in pins])),
         expect_equal("cells are host cells", [c for c in cells if c not in _HOST_CELLS], []),
     ]
+
+def toolchain_target(name, toolchain, toolchain_type, exec_compatible_with = None, target_compatible_with = None, target_settings = None, visibility = None):
+    """Returns one toolchain() target; attributes left as None are omitted.
+
+    Args:
+        name: Target name.
+        toolchain: Label string of the toolchain implementation.
+        toolchain_type: Label string of the toolchain type.
+        exec_compatible_with: List of constraint label strings, or None.
+        target_compatible_with: List of constraint label strings, or None.
+        target_settings: List of config_setting label strings, or None.
+        visibility: List of visibility label strings, or None.
+    """
+    lines = ["toolchain(", "    name = {},".format(repr(name))]
+    for attr, value in [
+        ("exec_compatible_with", exec_compatible_with),
+        ("target_compatible_with", target_compatible_with),
+        ("target_settings", target_settings),
+    ]:
+        if value != None:
+            lines.append("    {} = {},".format(attr, repr(list(value))))
+    lines.append("    toolchain = {},".format(repr(toolchain)))
+    lines.append("    toolchain_type = {},".format(repr(toolchain_type)))
+    if visibility != None:
+        lines.append("    visibility = {},".format(repr(list(visibility))))
+    lines.append(")")
+    return "\n".join(lines) + "\n"
+
+def hub_checks(hub, toolchain_type, count, forbidden = []):
+    """Returns the checks every toolchain hub BUILD file shares.
+
+    Args:
+        hub: Rendered hub BUILD file content.
+        toolchain_type: Label string the hub must name.
+        count: Number of toolchain() targets the hub must hold.
+        forbidden: Repository names the hub must not mention.
+    """
+    return [
+        expect_true("hub loads nothing", "load(" not in hub),
+        expect_true("hub names the toolchain type", toolchain_type in hub),
+        expect_equal("hub toolchain count", hub.count("toolchain("), count),
+    ] + [expect_true("hub does not name " + repo, repo not in hub) for repo in forbidden]

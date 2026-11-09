@@ -1,5 +1,6 @@
 """Hermetic PowerShell acquisition and toolchain registration."""
 
+load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(
     ":pins.bzl",
     "PWSH_CELLS",
@@ -22,15 +23,6 @@ filegroup(
 pwsh_toolchain(
     name = "toolchain",
     pwsh = ":powershell_bin",
-    visibility = ["//visibility:public"],
-)
-"""
-
-_TOOLCHAIN = """toolchain(
-    name = "{name}",
-    target_compatible_with = {constraints},
-    toolchain = "@{name}//:toolchain",
-    toolchain_type = "{toolchain_type}",
     visibility = ["//visibility:public"],
 )
 """
@@ -58,10 +50,12 @@ pwsh_repo = repository_rule(
 def hub_build():
     """Returns the hub BUILD file: one toolchain per platform."""
     return "\n".join([
-        _TOOLCHAIN.format(
+        toolchain_target(
             name = repo_name(cell),
-            constraints = repr(PWSH_CELLS[cell].exec_compatible_with),
+            target_compatible_with = PWSH_CELLS[cell].exec_compatible_with,
+            toolchain = "@{}//:toolchain".format(repo_name(cell)),
             toolchain_type = str(Label("@rules_powershell//powershell:toolchain_type")),
+            visibility = ["//visibility:public"],
         )
         for cell in sorted(PWSH_CELLS.keys())
     ])

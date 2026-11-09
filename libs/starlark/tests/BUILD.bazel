@@ -19,6 +19,7 @@ load(":platform_tests.bzl", "platform_probe_tests")
 load(":repo_tests.bzl", "repo_unit_tests")
 load(":seven_zip_tests.bzl", "seven_zip_tests")
 load(":subject.bzl", "example_subject")
+load(":toolchain_tests.bzl", "toolchain_tests")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":warnings_tests.bzl", "warnings_tests")
 load(":wrapper_forward_fixture.bzl", "wrapper_forward_fixtures", "wrapper_forward_tests")
@@ -77,6 +78,8 @@ entry_tests(name = "entry")
 license_tests(name = "license")
 
 seven_zip_tests(name = "seven_zip")
+
+toolchain_tests(name = "toolchain")
 
 
 subject_analysis_tests(name = "subject_analysis")
@@ -208,6 +211,7 @@ real_source_target(
         "seven_zip_tests.bzl",
         "subject.bzl",
         "thin_compare.bzl",
+        "toolchain_tests.bzl",
         "warnings_tests.bzl",
         "wrapper_forward_fixture.bzl",
         "wrapper_tests.bzl",

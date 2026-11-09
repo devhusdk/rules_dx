@@ -1,6 +1,7 @@
 """D toolchain pin and acquisition tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//libs/starlark:toolchain.bzl", "hub_checks")
 load(":pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
 load(":repos.bzl", "DROPPED_PATHS", "LDC_BUILD", "TOOL_BUILDS", "WRAPPER", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
 
@@ -10,10 +11,7 @@ def _checks():
     windows_build = ldc_build(LDC_CELLS["windows_x86_64"], "bin/ldmd2.exe")
     arm64_build = ldc_build(LDC_CELLS["windows_arm64"], "bin/ldmd2.exe")
     hub = hub_build()
-    return [
-        expect_true("hub loads nothing", "load(" not in hub),
-        expect_true("hub never names rules_d", "@rules_d//" not in hub),
-        expect_contains("hub uses the rules_d type", hub, "//d:toolchain_type"),
+    return hub_checks(hub, "//d:toolchain_type", len(LDC_CELLS), ["@rules_d//"]) + [
         expect_equal("rules_d version", RULES_D_VERSION, "0.12.1"),
         expect_equal("rules_d digest", len(RULES_D_SHA256), 64),
         expect_contains("rules_d url names the version", RULES_D_URL, "v" + RULES_D_VERSION + ".tar.gz"),

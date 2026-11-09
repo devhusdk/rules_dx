@@ -1,6 +1,7 @@
 """Hermetic Flang acquisition and Fortran toolchain registration."""
 
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(
     ":pins.bzl",
     "FLANG_RT_PREFIX",
@@ -68,15 +69,7 @@ _IMPL = """dx_fortran_toolchain(
 )
 """
 
-_TOOLCHAIN = """toolchain(
-    name = "{cell}",
-    exec_compatible_with = {constraints},
-    target_compatible_with = {constraints},
-    toolchain = "//impl:{cell}_toolchain",
-    toolchain_type = "{toolchain_type}",
-)
-
-config_setting(
+_CONFIG = """config_setting(
     name = "{cell}_exec",
     constraint_values = {constraints},
 )
@@ -128,11 +121,14 @@ def hub_build():
             repo = FLANG_PREFIX + cell,
             runtime = FLANG_RT_NAME,
         ))
-        root.append(_TOOLCHAIN.format(
-            cell = cell,
-            constraints = repr(FORTRAN_CELLS[cell].constraints),
+        root.append(toolchain_target(
+            name = cell,
+            exec_compatible_with = FORTRAN_CELLS[cell].constraints,
+            target_compatible_with = FORTRAN_CELLS[cell].constraints,
+            toolchain = "//impl:{}_toolchain".format(cell),
             toolchain_type = str(Label("@rules_fortran//fortran:toolchain_type")),
         ))
+        root.append(_CONFIG.format(cell = cell, constraints = repr(FORTRAN_CELLS[cell].constraints)))
     for tool in ["compiler_files", "flang"]:
         cases = {":" + cell + "_exec": "@" + FLANG_PREFIX + cell + "//:" + tool for cell in sorted(FORTRAN_CELLS.keys())}
         root.append(_TOOL.format(name = tool, cases = repr(cases)))

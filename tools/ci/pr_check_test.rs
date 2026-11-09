@@ -163,19 +163,19 @@ fn job_stays_inside_the_time_budget() {
     let minutes = analysis["timeout-minutes"]
         .as_u64()
         .expect("timeout-minutes");
-    assert!(minutes <= 60, "timeout-minutes is {minutes}");
+    assert!(minutes <= 30, "timeout-minutes is {minutes}");
     let steps = analysis["steps"].as_array().expect("steps");
     let step = steps
         .iter()
         .find(|s| s["name"].as_str() == Some("affected tests"))
         .expect("affected tests step");
     let step_minutes = step["timeout-minutes"].as_u64().expect("step timeout");
-    assert!(step_minutes + 15 <= minutes, "step timeout {step_minutes}");
+    assert!(step_minutes + 10 <= minutes, "step timeout {step_minutes}");
     assert_eq!(step["shell"].as_str(), Some("bash"));
     let run = step["run"].as_str().expect("run");
     assert!(run.contains("BUILDBUDDY_API_KEY"), "fork skip missing");
     assert!(run.contains("pipefail"), "pipefail missing");
-    assert_eq!(run.matches("timeout 1200").count(), 2);
+    assert_eq!(run.matches("timeout 480").count(), 2);
     assert!(!run.contains("|grpc"), "retry must not match test output");
 }
 

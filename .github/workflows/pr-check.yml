@@ -18,7 +18,7 @@ concurrency:
 jobs:
   analysis:
     name: analysis (PR-time checks on linux_x86_64)
-    timeout-minutes: 60
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -65,7 +65,7 @@ jobs:
       - name: affected tests
         if: ${{ github.event_name == 'pull_request' }}
         shell: bash
-        timeout-minutes: 42
+        timeout-minutes: 18
         run: |
           if [ -z "$BUILDBUDDY_API_KEY" ]; then
             echo "::notice::affected tests skipped: no remote cache secret on this PR"
@@ -76,10 +76,10 @@ jobs:
           log="${RUNNER_TEMP:-/tmp}/affected-tests.log"
           set -o pipefail
           status=0
-          timeout 1200 tools/dx test --affected --since 'HEAD^1' -- "$@" 2>&1 | tee "$log" || status=$?
+          timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" 2>&1 | tee "$log" || status=$?
           if [ "$status" -ne 0 ] && grep -qE '^(WARNING|ERROR): .*[Rr]emote([ _][Cc]ache| [Ee]xecution)' "$log"; then
             echo "::warning::remote cache failed; retrying without it"
-            timeout 1200 tools/dx test --affected --since 'HEAD^1' -- "$@" --remote_cache= --noremote_accept_cached
+            timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" --remote_cache= --noremote_accept_cached
           else
             exit "$status"
           fi

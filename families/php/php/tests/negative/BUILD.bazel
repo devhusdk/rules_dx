@@ -1,0 +1,73 @@
+load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//php/rules:defs.bzl", "php_library", "php_test")
+load("//php/tests/negative:negative_tests.bzl", "php_autoload_input_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "negative_tests.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = [
+        "//:__subpackages__",
+        "@rules_dx//tools/ci:__pkg__",
+    ],
+)
+
+filegroup(
+    name = "not_php",
+    srcs = ["Answer.php"],
+)
+
+php_library(
+    name = "wrong_dep",
+    testonly = True,
+    srcs = ["Answer.php"],
+    tags = ["manual"],
+    deps = [":not_php"],  # keep
+)
+
+failure_test(
+    name = "dependency_without_php_info_fails_test",
+    expected_failure_substring = "does not have mandatory providers: 'PhpInfo'",
+    target = ":wrong_dep",
+)
+
+php_library(
+    name = "answer",
+    testonly = True,
+    srcs = ["Answer.php"],
+    tags = ["manual"],
+)
+
+php_test(
+    name = "undeclared_dep",
+    srcs = ["Dependent.php"],
+    tags = ["manual"],
+)
+
+php_test(
+    name = "declared_dep",
+    srcs = ["Dependent.php"],
+    tags = ["manual"],
+    deps = [":answer"],
+)
+
+php_autoload_input_test(
+    name = "undeclared_class_is_not_autoloaded_test",
+    file = "Answer.php",
+    present = False,
+    target = ":undeclared_dep_upstream",
+)
+
+php_autoload_input_test(
+    name = "declared_class_is_autoloaded_test",
+    file = "Answer.php",
+    present = True,
+    target = ":declared_dep_upstream",
+)

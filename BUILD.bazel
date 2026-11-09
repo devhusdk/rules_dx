@@ -31,7 +31,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude flutter/tests/fixtures
 # gazelle:exclude go/tests/fixtures
 # gazelle:exclude javascript/tests/fixtures
-# gazelle:exclude ruby/tests/fixtures
 # gazelle:exclude rust/tests/fixtures
 # gazelle:exclude quality/tests/fixtures
 # gazelle:exclude tools/docs/python/fixture
@@ -40,7 +39,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude svelte/tests/consumer
 # gazelle:exclude gazelle/protobuf/tests/roundtrip
 # gazelle:exclude examples/adopt-polyglot
-# gazelle:exclude php/tests/negative
 # gazelle:exclude quality/tools/lua/testdata
 # gazelle:exclude quality/testdata
 # gazelle:exclude cli/entrypoint
@@ -102,8 +100,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude fortran/tests/runtime
 # gazelle:exclude ocaml/tests/runtime
 # gazelle:exclude ocaml/tests/native
-# gazelle:exclude perl/tests/runtime
-# gazelle:exclude php/tests/fixtures
 # gazelle:exclude php/rules/tool.php
 # gazelle:exclude gazelle/php/builtins_dump.php
 # gazelle:exclude haskell/tests/runtime/src
@@ -122,7 +118,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude svelte/tests/fixtures/svelte-app
 # gazelle:exclude lua/tests/fixtures/lua-app
 # gazelle:exclude ocaml/tests/fixtures/ocaml-app
-# gazelle:exclude perl/tests/fixtures/perl-app
 # gazelle:exclude qt/tests/fixtures/qt-rust
 # gazelle:exclude qt/tests/fixtures/qt-tasks
 # gazelle:exclude zig/tests/fixtures/zig-app
@@ -146,8 +141,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude go/tests/fixtures/staticcheck
 # gazelle:exclude go/tests/fixtures/godeps
 # gazelle:exclude rust/tests/fixtures/hello
-# gazelle:exclude ruby/tests/fixtures/hello
-# gazelle:exclude ruby/tests/fixtures/rspec
 # gazelle:exclude zig/tests/fixtures/hello
 # gazelle:exclude swift/tests/fixtures/hello
 # gazelle:exclude julia/tests/fixtures/hello

@@ -118,13 +118,13 @@ exists, the Perl rules add the `no-typecheck` tag to every target. Set
 | `windows_arm64` | Unsupported |
 
 `macos_x86_64` has no CI cell. The `linux_arm64` cell is qualified by
-evidence.yml run 42002623118 (`//perl/tests/fixtures/perl-app/...`,
-`//perl/tests/runtime:all`, `//tools/testing/hermetic:perl`). The `macos_arm64`
+evidence.yml run 42002623118 (`@rules_dx_perl//perl/tests/fixtures/perl-app/...`,
+`@rules_dx_perl//perl/tests/runtime:all`, `//tools/testing/hermetic:perl`). The `macos_arm64`
 cell is qualified by evidence.yml run 42083319727: the example and runtime
 tests pass, a build and test pass rather than a hermetic one, since the
 hermetic qualification is linux only. The `windows_x86_64` cell is
-qualified by evidence.yml run 42112137283 (`//perl/tests/fixtures/perl-app/...`,
-`//perl/tests/runtime:all`), also a build and test pass. The `.bat` launcher
+qualified by evidence.yml run 42112137283 (`@rules_dx_perl//perl/tests/fixtures/perl-app/...`,
+`@rules_dx_perl//perl/tests/runtime:all`), also a build and test pass. The `.bat` launcher
 needs `RUNFILES_MANIFEST_FILE` with backslashes and no `RUNFILES_DIR`, and
 `cmd` needs double quotes.
 

@@ -1,0 +1,57 @@
+# Vendored Bazel execution preset -- GENERATED, do not edit.
+# Regenerate: `tools/dx init --apply`.
+# Layer performance: build speed and the dx compilation configs.
+
+# Build host tools without optimization so builds finish sooner.
+build --host_compilation_mode=fastbuild
+
+# The dx_build_debug config builds with debug symbols.
+build:dx_build_debug --compilation_mode=dbg
+
+# The dx_build_dev config builds unoptimized for quick edit and test loops.
+build:dx_build_dev --compilation_mode=fastbuild
+
+# The dx_build_release config builds optimized target code.
+build:dx_build_release --compilation_mode=opt
+
+# The dx_build_release config also optimizes host tools.
+build:dx_build_release --host_compilation_mode=opt
+
+# The dx_dev_remote config builds unoptimized on remote executors.
+build:dx_dev_remote --compilation_mode=fastbuild
+
+# The dx_toolchain config builds toolchains unoptimized.
+build:dx_toolchain --compilation_mode=fastbuild
+
+# With a remote cache set, also store fetched repositories there; without one this does nothing. Only use a remote cache you trust.
+startup --experimental_remote_repo_contents_cache
+
+# Under --config=ci, run 64 actions at once, since remote cache hits hold job slots.
+common:ci --jobs=64
+
+# Under --config=ci, compress remote cache transfers.
+common:ci --remote_cache_compression
+
+# Under --config=ci, send blobs under 100 bytes uncompressed.
+common:ci --experimental_remote_cache_compression_threshold=100
+
+# Under --config=ci, allow a remote cache call 10 minutes.
+common:ci --remote_timeout=10m
+
+# Under --config=ci, build locally when the remote cache fails.
+common:ci --remote_local_fallback
+
+# Under --config=ci, retry a failed remote cache call 5 times.
+common:ci --remote_retries=5
+
+# Under --config=ci, rebuild 5 times when the remote cache evicts an input.
+common:ci --experimental_remote_cache_eviction_retries=5
+
+# Under --config=ci, look up 32 repositories at once, since each remote contents cache lookup waits on the network.
+common:ci --loading_phase_threads=32
+
+# Under --config=ci, open up to 200 remote connections, since cache checks queue behind the default 100.
+common:ci --remote_max_connections=200
+
+# Under --config=ci-pr, read the remote cache without writing to it.
+common:ci-pr --noremote_upload_local_results

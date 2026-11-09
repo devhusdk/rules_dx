@@ -1,0 +1,47 @@
+load("@rules_dx//perl/rules:defs.bzl", "perl_binary", "perl_library", "perl_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+perl_library(
+    name = "dx_probe",
+    srcs = ["lib/DxProbe.pm"],
+    visibility = ["@rules_dx//quality/testdata:__pkg__"],
+)
+
+perl_binary(
+    name = "probe",
+    srcs = ["bin/probe.pl"],
+    deps = [":dx_probe"],
+)
+
+perl_test(
+    name = "probe_test",
+    srcs = ["t/probe.t"],
+    data = ["data.txt"],
+    env = {"DATA_FILE": "$(rlocationpath data.txt)"},
+    deps = [
+        ":dx_probe",
+        "@rules_perl//perl/runfiles",
+    ],
+)
+
+perl_test(
+    name = "launcher_test",
+    srcs = ["t/launcher.t"],
+    data = [":probe"],
+    env = {"PROBE_BIN": "$(rlocationpath :probe)"},
+    deps = ["@rules_perl//perl/runfiles"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
+)

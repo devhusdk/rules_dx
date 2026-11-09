@@ -211,7 +211,10 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_js",
         "@rules_dx_jvm",
         "@rules_dx_msix",
+        "@rules_dx_perl",
+        "@rules_dx_php",
         "@rules_dx_powershell",
+        "@rules_dx_ruby",
     ]
     .into_iter()
     .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));

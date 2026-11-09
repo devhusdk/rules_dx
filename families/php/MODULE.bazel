@@ -1,0 +1,32 @@
+module(
+    name = "rules_dx_php",
+    version = "0.0.0",
+    bazel_compatibility = [">=9.2.0"],
+)
+
+bazel_dep(name = "rules_dx", version = "0.0.0")
+
+include("//third_party/rules_dx:rules_dx.MODULE.bazel")
+
+local_path_override(
+    module_name = "rules_dx",
+    path = "../..",
+)
+
+# floor: equals tested
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+php = use_extension("@rules_dx//php/toolchain:repos.bzl", "php")
+use_repo(php, "dx_php_toolchains")
+
+register_toolchains("@dx_php_toolchains//:all")
+
+composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer", dev_dependency = True)
+composer.lock(
+    name = "php_composer_fixture",
+    digests = "//php/tests/fixtures/composer:composer.digests.json",
+    lock = "//php/tests/fixtures/composer:composer.lock",
+)
+use_repo(composer, php_fixture_vendor = "php_composer_fixture")

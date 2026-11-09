@@ -110,7 +110,7 @@ needed) over `ruby_library`, `ruby_binary` and `ruby_test` sources. Select
 ## Generating BUILD files
 
 `dx generate` writes `ruby_library` and `ruby_test` targets from your `.rb`
-files and `require` lines. The command reference covers `dx generate`. The `ruby/tests/fixtures/adopt-ruby` tree shows a full run.
+files and `require` lines. The command reference covers `dx generate`. The `families/ruby/ruby/tests/fixtures/adopt-ruby` tree shows a full run.
 
 ## Platforms
 

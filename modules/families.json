@@ -232,6 +232,7 @@
         "rules_java",
         "rules_jvm_external",
         "rules_kotlin",
+        "rules_perl",
         "rules_proto",
         "rules_python",
         "rules_scala",
@@ -281,11 +282,14 @@
         "mdx",
         "modules",
         "patches",
+        "perl",
+        "php",
         "powershell",
         "qt",
         "quality",
         "rego",
         "rst",
+        "ruby",
         "scala",
         "sql",
         "svelte",
@@ -310,8 +314,11 @@
         "//fortran/toolchain:repos.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
+        "//php/toolchain:repos.bzl%php",
         "//powershell/toolchain:repos.bzl%powershell",
         "//quality/artifacts:extension.bzl%dx_tools",
+        "//ruby/coverage:repos.bzl%ruby_coverage",
+        "//ruby/toolchain:repos.bzl%ruby_tools",
         "//third_party/dotnet:extension.bzl%paket",
         "//tools/bazelrc:repos.bzl%bazel_version",
         "//typescript/playwright:repos.bzl%playwright",
@@ -326,6 +333,7 @@
         "@rules_java//java:extensions.bzl%toolchains",
         "@rules_jvm_external//:extensions.bzl%maven",
         "@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions",
+        "@rules_perl//perl/cpan:extensions.bzl%cpan",
         "@rules_python//python/extensions:python.bzl%python",
         "@rules_scala//scala/extensions:config.bzl%scala_config",
         "@rules_scala//scala/extensions:deps.bzl%scala_deps",
@@ -872,13 +880,19 @@
         "real_perl_lint_probe_aspect"
       ],
       "bazel_deps": [
-        "rules_perl"
+        "bazel_skylib",
+        "platforms",
+        "rules_dx",
+        "rules_perl",
+        "rules_shell"
       ],
       "dirs": [
-        "perl"
+        "bcr_test_module",
+        "perl",
+        "third_party"
       ],
       "extensions": [
-        "@rules_perl//perl/cpan:extensions.bzl%cpan"
+        "@rules_dx//perl/cpan:extensions.bzl%cpan_dev"
       ],
       "file_extensions": [
         ".pl",
@@ -888,7 +902,9 @@
         "//gazelle/perl"
       ],
       "repo_rules": [],
-      "toolchains": []
+      "toolchains": [],
+      "module": "rules_dx_perl",
+      "path": "families/perl"
     },
     "php": {
       "aspects": [
@@ -897,12 +913,20 @@
         "real_php_typecheck_aspect",
         "real_php_typecheck_probe_aspect"
       ],
-      "bazel_deps": [],
+      "bazel_deps": [
+        "bazel_skylib",
+        "platforms",
+        "rules_dx",
+        "rules_shell"
+      ],
       "dirs": [
-        "php"
+        "bcr_test_module",
+        "php",
+        "third_party"
       ],
       "extensions": [
-        "//php/toolchain:repos.bzl%php"
+        "@rules_dx//php/composer:extensions.bzl%composer",
+        "@rules_dx//php/toolchain:repos.bzl%php"
       ],
       "file_extensions": [
         ".php"
@@ -913,7 +937,9 @@
       "repo_rules": [],
       "toolchains": [
         "@dx_php_toolchains//:all"
-      ]
+      ],
+      "module": "rules_dx_php",
+      "path": "families/php"
     },
     "powershell": {
       "aspects": [
@@ -984,14 +1010,18 @@
         "real_ruby_typecheck_aspect",
         "real_ruby_typecheck_probe_aspect"
       ],
-      "bazel_deps": [],
+      "bazel_deps": [
+        "bazel_skylib",
+        "rules_dx",
+        "rules_shell"
+      ],
       "dirs": [
-        "ruby"
+        "bcr_test_module",
+        "ruby",
+        "third_party"
       ],
       "extensions": [
-        "//ruby/coverage:repos.bzl%ruby_coverage",
-        "//ruby/toolchain:repos.bzl%ruby_tools",
-        "//ruby:extensions.bzl%ruby"
+        "@rules_dx//ruby:extensions.bzl%ruby"
       ],
       "file_extensions": [
         ".rb",
@@ -1003,7 +1033,9 @@
       "repo_rules": [],
       "toolchains": [
         "@ruby_toolchains//:all"
-      ]
+      ],
+      "module": "rules_dx_ruby",
+      "path": "families/ruby"
     },
     "rust": {
       "aspects": [

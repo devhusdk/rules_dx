@@ -1,0 +1,27 @@
+load("@rules_perl//perl/cpan:cpan_compiler.bzl", "cpan_compiler")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "cpanfile",
+        "cpanfile.snapshot",
+        "cpanfile.snapshot.lock.json",
+    ],
+    visibility = ["@rules_dx//tools/testing/hermetic:__pkg__"],
+)
+
+cpan_compiler(
+    name = "compiler",
+    cpanfile = "cpanfile",
+    lockfile = "cpanfile.snapshot.lock.json",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

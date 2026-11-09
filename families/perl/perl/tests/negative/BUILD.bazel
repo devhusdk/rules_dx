@@ -1,0 +1,83 @@
+load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//perl/rules:defs.bzl", "perl_library", "perl_test")
+load("//perl/tests/negative:negative_tests.bzl", "perl_runfile_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "negative_tests.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = [
+        "//:__subpackages__",
+        "@rules_dx//tools/ci:__pkg__",
+    ],
+)
+
+perl_library(
+    name = "base",
+    testonly = True,
+    srcs = ["Base.pm"],
+    tags = ["manual"],
+)
+
+perl_test(
+    name = "undeclared_dep",
+    srcs = ["base.t"],
+    tags = ["manual"],
+)
+
+perl_test(
+    name = "declared_dep",
+    srcs = ["base.t"],
+    tags = ["manual"],
+    deps = [":base"],
+)
+
+perl_runfile_test(
+    name = "undeclared_module_is_not_a_runfile_test",
+    file = "perl/tests/negative/Base.pm",
+    present = False,
+    target = ":undeclared_dep",
+)
+
+perl_runfile_test(
+    name = "declared_module_is_a_runfile_test",
+    file = "perl/tests/negative/Base.pm",
+    present = True,
+    target = ":declared_dep",
+)
+
+filegroup(
+    name = "not_perl",
+    srcs = ["Clean.pm"],
+)
+
+perl_library(
+    name = "wrong_dep",
+    testonly = True,
+    srcs = ["Clean.pm"],
+    tags = ["manual"],
+    deps = [":not_perl"],  # keep
+)
+
+failure_test(
+    name = "dependency_without_perl_info_fails_test",
+    expected_failure_substring = "does not have mandatory providers: 'PerlInfo'",
+    target = ":wrong_dep",
+)
+
+perl_library(
+    name = "negative",
+    testonly = True,
+    srcs = [
+        "Base.pm",
+        "Clean.pm",
+    ],
+    visibility = ["//visibility:public"],
+)

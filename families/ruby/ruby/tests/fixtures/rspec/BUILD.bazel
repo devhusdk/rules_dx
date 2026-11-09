@@ -1,0 +1,38 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//ruby/rules:defs.bzl", "ruby_library", "ruby_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+ruby_library(
+    name = "greeter_lib",
+    srcs = ["greeter.rb"],
+)
+
+ruby_library(
+    name = "spec_helper",
+    srcs = ["spec_helper.rb"],
+    deps = [":greeter_lib"],
+)
+
+ruby_test(
+    name = "greeter_spec",
+    srcs = ["greeter_spec.rb"],
+    args = ["$(rootpath greeter_spec.rb)"],
+    main = "@bundle//bin:rspec",
+    deps = [
+        ":spec_helper",
+        "@bundle",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)

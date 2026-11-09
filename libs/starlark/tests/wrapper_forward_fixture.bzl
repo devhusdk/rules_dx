@@ -128,6 +128,8 @@ def wrapper_forward_fixtures(name, hint):
         aspect_hints = [hint],
         run_env = {"DX_FORWARD": "1"},
         run_env_inherit = ["HOME"],
+        env = {"DX_WRAP_ENV": "1"},
+        env_inherit = ["USER"],
         tags = ["manual"],
     )
 

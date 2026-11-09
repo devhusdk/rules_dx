@@ -7,7 +7,7 @@ load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_symlink_default_info", "dx_symlink_executable", "dx_test_run_environment", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
@@ -383,7 +383,7 @@ def _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, *
     }
     if runtime != None:
         forward_kwargs["runtime"] = runtime
-    dx_wrap_test(name, _rust_test, _rust_wasi_run_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, coverage_collector = False, **kwargs)
+    dx_wrap_test(name, _rust_test, _rust_wasi_run_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, coverage_collector = False, **{key: value for key, value in kwargs.items() if key != "env"})
 
 def rust_proc_macro(
         name,
@@ -536,9 +536,10 @@ _browser_transition = transition(
 def _rust_wasm_bindgen_browser_test_impl(ctx):
     """Runs the upstream browser test under the qualified cell's browser."""
     upstream = dx_upstream(ctx)
-    providers = [dx_symlink_default_info(ctx, "rust_wasm_bindgen_test")]
-    if RunEnvironmentInfo in upstream:
-        providers.append(upstream[RunEnvironmentInfo])
+    providers = [
+        dx_symlink_default_info(ctx, "rust_wasm_bindgen_test"),
+        dx_test_run_environment(ctx, upstream[RunEnvironmentInfo] if RunEnvironmentInfo in upstream else None),
+    ]
     crate = ctx.attr.crate
     providers.append(crate[_rust_common.crate_info])
     if _rust_common.dep_info in crate:
@@ -562,10 +563,10 @@ _rust_wasm_bindgen_browser_test = rule(
             mandatory = True,
             cfg = _browser_transition,
         ),
-    },
+    } | dx_run_env_attrs(),
 )
 
-_FORWARDER_ONLY_KWARGS = ("tags", "timeout", "shard_count", "size", "local", "flaky", "args")
+_FORWARDER_ONLY_KWARGS = ("tags", "timeout", "shard_count", "size", "local", "flaky", "args", "env", "env_inherit")
 
 def _rust_browser_test(name, wasm, **kwargs):
     """Runs the bundle under a managed, platform-qualified browser."""
@@ -636,7 +637,7 @@ def _rust_wasi_run_test_impl(ctx):
     }
     return [
         DefaultInfo(executable = link, files = depset([link]), runfiles = runfiles),
-        RunEnvironmentInfo(environment = environment),
+        dx_test_run_environment(ctx, RunEnvironmentInfo(environment = environment)),
     ] + [upstream[p] for p in (_rust_common.crate_info, _rust_common.test_crate_info, _rust_common.dep_info) if p in upstream]
 
 _rust_wasi_run_test = rule(
@@ -652,7 +653,7 @@ _rust_wasi_run_test = rule(
         "upstream": attr.label(doc = "The test crate built for wasm32-wasip1.", mandatory = True, cfg = _wasi_test_transition),
         "_managed": attr.label(default = _WASMTIME, allow_single_file = True),
         "_runner": attr.label(default = "//wasi/testing:wasi_test_runner", executable = True, cfg = _no_coverage_transition),
-    },
+    } | dx_run_env_attrs(),
 )
 
 _FUZZ_RUSTC_FLAGS = [

@@ -1,7 +1,8 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "fake_file", "label_string")
+load("//libs/starlark:wrapper.bzl", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "binary_forward_kwargs", "binary_upstream_kwargs", "coverage_kwargs", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "run_environment", "runfiles_path", "test_forward_kwargs", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
+load(":defs.bzl", "binary_forward_kwargs", "binary_upstream_kwargs", "coverage_kwargs", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "runfiles_path", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
 load(":providers.bzl", "STANDARD_WARNING_OPTS", "STRICT_WARNING_OPTS", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
 
 package(default_visibility = ["//visibility:public"])
@@ -145,15 +146,15 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "env and env_inherit leave the upstream binary",
-            test_upstream_kwargs({
+            test_upstream_kwargs(dx_test_upstream_kwargs({
                 "env": {"K": "1"},
                 "env_inherit": ["HOME"],
-            }),
-            {},
+            })),
+            {"tags": ["manual"], "visibility": ["//visibility:private"]},
         ),
         expect_equal(
             "env and env_inherit reach the test forwarder",
-            test_forward_kwargs({
+            dx_test_forward_kwargs({
                 "env": {"K": "1"},
                 "env_inherit": ["HOME"],
             }),
@@ -182,31 +183,6 @@ dx_wrapper_contract_tests(
                 "env": {"K": "1"},
                 "env_inherit": ["HOME"],
             },
-        ),
-        expect_equal(
-            "the forwarder run environment merges upstream and wrapper env",
-            run_environment(
-                {
-                    "A": "1",
-                    "K": "0",
-                },
-                ["PATH"],
-                {"K": "1"},
-                [
-                    "HOME",
-                    "PATH",
-                ],
-            ),
-            fake_file(
-                environment = {
-                    "A": "1",
-                    "K": "1",
-                },
-                inherited_environment = [
-                    "PATH",
-                    "HOME",
-                ],
-            ),
         ),
         expect_equal(
             "a .mli sig keeps the target module name",

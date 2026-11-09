@@ -61,12 +61,6 @@ def dx_preserved_providers(upstream, required, what):
         out.append(upstream[provider])
     return out
 
-def dx_effective_visibility(visibility):
-    """Returns the explicit forwarder visibility for a public export."""
-    if visibility == None:
-        return ["//visibility:private"]
-    return visibility
-
 _DX_TEST_FORWARDER_EXEC_GROUPS = ("test",)
 
 def _dx_test_exec_group_keys(groups):
@@ -88,10 +82,10 @@ def dx_forwarded_test_kwargs(kwargs):
     out = {}
     if "tags" in kwargs and kwargs["tags"] != None:
         out["tags"] = list(kwargs["tags"])
-    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "flaky", "args"):
+    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "flaky", "args", "env", "env_inherit"):
         if key in kwargs and kwargs[key] != None:
             out[key] = kwargs[key]
-    if "args" in out and kwargs.get("data", None) != None:
+    if ("args" in out or "env" in out) and kwargs.get("data", None) != None:
         out["data"] = kwargs["data"]
     if kwargs.get("exec_properties", None) != None:
         props = _dx_test_exec_properties(kwargs["exec_properties"])
@@ -418,6 +412,43 @@ def _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_a
         out.append(upstream[OutputGroupInfo])
     return out
 
+def dx_run_env_attrs():
+    """Returns the env and env_inherit attributes of a test forwarder."""
+    return {
+        "env": attr.string_dict(doc = "Environment variables set when the test runs. Values expand $(location) over data."),
+        "env_inherit": attr.string_list(doc = "Environment variable names passed through from the caller."),
+    }
+
+def dx_merge_run_environment(upstream_env, upstream_inherited, env, inherited):
+    """Returns the run environment: upstream values, then the wrapper's own env and env_inherit."""
+    merged = dict(upstream_env)
+    merged.update(env)
+    names = list(upstream_inherited)
+    names += [key for key in inherited if key not in names]
+    return struct(environment = merged, inherited_environment = names)
+
+def dx_test_run_environment(ctx, base_info):
+    """Returns RunEnvironmentInfo with base_info (or None) plus the forwarder's env and env_inherit."""
+    data = getattr(ctx.attr, "data", [])
+    env = {key: ctx.expand_location(value, data) for key, value in getattr(ctx.attr, "env", {}).items()}
+    out = dx_merge_run_environment(
+        base_info.environment if base_info != None else {},
+        base_info.inherited_environment if base_info != None else [],
+        env,
+        getattr(ctx.attr, "env_inherit", []),
+    )
+    return RunEnvironmentInfo(environment = out.environment, inherited_environment = out.inherited_environment)
+
+def _dx_with_test_run_environment(ctx, providers):
+    out = []
+    base = None
+    for provider in providers:
+        if type(provider) == "RunEnvironmentInfo":
+            base = provider
+        else:
+            out.append(provider)
+    return out + [dx_test_run_environment(ctx, base)]
+
 def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, quality_tools = None, validate = None, cfg = None):
     """Creates the executable or test forwarding rule for one wrapper."""
 
@@ -432,7 +463,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
         if coverage != None and coverage.runfiles != None:
             extra_runfiles = coverage.runfiles if extra_runfiles == None else extra_runfiles.merge(coverage.runfiles)
         coverage_executable = getattr(coverage, "executable", None) if coverage != None else None
-        return (
+        providers = (
             [dx_symlink_default_info(ctx, what, extra_runfiles, coverage_executable)] +
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_optional(upstream, optional_providers, what) +
@@ -441,6 +472,9 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
             [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))] +
             _dx_tools_providers(ctx, quality_tools)
         )
+        if kind == "test":
+            return _dx_with_test_run_environment(ctx, providers)
+        return providers
 
     attrs = dx_forward_attrs(
         allow_files = allow_files,
@@ -452,6 +486,8 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
     attrs.update(_dx_tool_attrs(quality_tools))
     if kind == "test" or kind == "executable":
         attrs.update(dx_forward_data_attr())
+    if kind == "test":
+        attrs.update(dx_run_env_attrs())
     if cfg != None:
         attrs["_allowlist_function_transition"] = attr.label(default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"))
     if kind == "executable":
@@ -593,6 +629,8 @@ def dx_test_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
     out["tags"] = dx_upstream_tags(out.get("tags", None))
     out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     out.setdefault("size", "small")
+    out.pop("env", None)
+    out.pop("env_inherit", None)
     if srcs != None:
         out["srcs"] = srcs
     return out

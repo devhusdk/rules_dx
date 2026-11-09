@@ -11,7 +11,9 @@ load(
     "dx_lcov_merger_attr",
     "dx_quality_sources",
     "dx_symlink_default_info",
+    "dx_run_env_attrs",
     "dx_test_forward_kwargs",
+    "dx_test_run_environment",
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
@@ -522,7 +524,7 @@ def _qt_executable_forward_impl(ctx):
     extra = ctx.files.qml_imports + ctx.files.plugins + (ctx.files.fonts + ctx.files.platforms if gui else [])
     out = [
         dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = extra)),
-        _run_environment(ctx, gui),
+        dx_test_run_environment(ctx, _run_environment(ctx, gui)),
         dx_quality_sources(_quality_files(ctx), QT_SOURCE_SPECS, str(ctx.label)),
     ]
     if InstrumentedFilesInfo in upstream:
@@ -554,7 +556,7 @@ _qt_forward_test = rule(
     doc = "Forwards a Qt test and owns only its hand-written sources.",
     test = True,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **(dx_lcov_merger_attr() | dx_forward_data_attr())),
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **(dx_lcov_merger_attr() | dx_forward_data_attr() | dx_run_env_attrs())),
 )
 
 def qt_framework_path(short_path):

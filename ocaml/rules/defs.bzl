@@ -24,7 +24,7 @@ load(
 )
 load("//cc/rules:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_test_forward_kwargs", "dx_test_run_environment", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "OCamlCmtInfo", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
@@ -150,21 +150,8 @@ def runfiles_path(workspace_name, short_path):
         return short_path[3:]
     return workspace_name + "/" + short_path
 
-def run_environment(upstream_env, upstream_inherited, env, inherited):
-    """Returns the forwarder's run environment: upstream values, then the wrapper's own env and env_inherit."""
-    merged = dict(upstream_env)
-    merged.update(env)
-    names = list(upstream_inherited)
-    names += [key for key in inherited if key not in names]
-    return struct(environment = merged, inherited_environment = names)
-
 def _run_environment_info(ctx, upstream):
-    upstream_env, upstream_inherited = {}, []
-    if RunEnvironmentInfo in upstream:
-        upstream_env = upstream[RunEnvironmentInfo].environment
-        upstream_inherited = upstream[RunEnvironmentInfo].inherited_environment
-    out = run_environment(upstream_env, upstream_inherited, ctx.attr.env, ctx.attr.env_inherit)
-    return RunEnvironmentInfo(environment = out.environment, inherited_environment = out.inherited_environment)
+    return dx_test_run_environment(ctx, upstream[RunEnvironmentInfo] if RunEnvironmentInfo in upstream else None)
 
 def _native_coverage(ctx, upstream, exe):
     native = dx_native_test_coverage(ctx, upstream)
@@ -265,8 +252,7 @@ def _launcher_impl(ctx):
 def _launcher_attrs(extra = None, upstream_aspects = None):
     attrs = dx_forward_attrs(allow_files = _SOURCE_EXTS, upstream_providers = None, extra_attrs = extra, upstream_cfg = _toolchain, upstream_aspects = upstream_aspects)
     attrs.update(dx_forward_data_attr())
-    attrs["env"] = attr.string_dict(doc = "Environment variables set when the executable runs.")
-    attrs["env_inherit"] = attr.string_list(doc = "Environment variable names passed through from the caller.")
+    attrs.update(dx_run_env_attrs())
     attrs["_emitter"] = attr.label(default = OCAML_EMITTER_FLAG, providers = [BuildSettingInfo], doc = "The emitter flag: sys links native executables, vm bytecode.")
     attrs["_ocamlrun"] = attr.label(default = "@dx_ocaml_toolchains//:ocamlrun", allow_files = True)
     return attrs
@@ -319,21 +305,13 @@ def link_kwargs(kwargs):
         out["vm_linkage"] = "dynamic"
     return out
 
-TEST_ONLY_ATTRS = ["env", "env_inherit", "flaky", "local", "shard_count", "size", "testonly", "timeout"]
+TEST_ONLY_ATTRS = ["flaky", "local", "shard_count", "size", "testonly", "timeout"]
 
 RUN_ENV_ATTRS = ["env", "env_inherit"]
 
 def test_upstream_kwargs(kwargs):
     """Returns the test kwargs the upstream executable accepts."""
     return {key: value for key, value in kwargs.items() if key not in TEST_ONLY_ATTRS}
-
-def test_forward_kwargs(kwargs):
-    """Returns the test forwarder kwargs, including env and env_inherit, which the forwarder applies itself."""
-    out = dx_test_forward_kwargs(kwargs)
-    for key in RUN_ENV_ATTRS:
-        if kwargs.get(key) != None:
-            out[key] = kwargs[key]
-    return out
 
 def binary_upstream_kwargs(kwargs):
     """Returns the binary kwargs the upstream executable accepts."""
@@ -414,4 +392,4 @@ def ocaml_test(name, visibility = None, **kwargs):
     upstream = test_upstream_kwargs(dx_test_upstream_kwargs(link_kwargs(kwargs)))
     upstream["tags"] = upstream_tags(kwargs.get("tags"))
     _ocaml_binary(name = name + "_upstream", testonly = True, **upstream)
-    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **test_forward_kwargs(kwargs))
+    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))

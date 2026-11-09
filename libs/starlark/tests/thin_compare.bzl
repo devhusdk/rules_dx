@@ -157,9 +157,9 @@ aspect_field transitive_count=0"""
 
 THIN_CC_ENV_OBSERVATIONS = """subject //cc/tests/fixtures/hello:thin_cc_env_subject
 file thin_cc_env_subject.txt
-field env_equal=True
-field thin_env=DX_HELLO_ENV=1
-field thin_inherited=HOME
+field env_equal=False
+field thin_env=
+field thin_inherited=
 field thin_label=//cc/tests/fixtures/hello:hello_test_upstream
 field wrapper_env=DX_HELLO_ENV=1
 field wrapper_inherited=HOME

@@ -2,7 +2,7 @@
 
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "expect_equal", "starlark_test")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_effective_visibility", "dx_forwarded_test_kwargs", "dx_symlink_executable_name")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_forwarded_test_kwargs", "dx_merge_run_environment", "dx_symlink_executable_name")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "QualitySourcesInfo")
 
 def dx_file_class_checks(classes):
@@ -15,16 +15,20 @@ def dx_file_class_checks(classes):
 def dx_forwarder_checks():
     """Builds shared visibility and test kwarg checks."""
     return [
-        expect_equal("forwarder defaults to private", dx_effective_visibility(None), ["//visibility:private"]),
-        expect_equal("explicit visibility wins", dx_effective_visibility(["//visibility:public"]), ["//visibility:public"]),
         expect_equal("test kwargs keep manual", dx_forwarded_test_kwargs({"tags": ["manual", "cpu:4"]}), {"tags": ["manual", "cpu:4"]}),
         expect_equal("test kwargs forward timeout and flaky", dx_forwarded_test_kwargs({"timeout": "short", "flaky": True}), {"timeout": "short", "flaky": True}),
         expect_equal("test kwargs forward flaky", dx_forwarded_test_kwargs({"flaky": True}), {"flaky": True}),
         expect_equal("test kwargs forward args", dx_forwarded_test_kwargs({"args": ["--x"]}), {"args": ["--x"]}),
         expect_equal("test kwargs forward data with args", dx_forwarded_test_kwargs({"args": ["--x"], "data": [":d"]}), {"args": ["--x"], "data": [":d"]}),
         expect_equal("test kwargs keep data upstream without args", dx_forwarded_test_kwargs({"data": [":d"]}), {}),
-        expect_equal("test kwargs keep env upstream", dx_forwarded_test_kwargs({"env": {"K": "1"}}), {}),
-        expect_equal("test kwargs keep env_inherit upstream", dx_forwarded_test_kwargs({"env_inherit": ["HOME"]}), {}),
+        expect_equal("test kwargs forward env", dx_forwarded_test_kwargs({"env": {"K": "1"}}), {"env": {"K": "1"}}),
+        expect_equal("test kwargs forward env_inherit", dx_forwarded_test_kwargs({"env_inherit": ["HOME"]}), {"env_inherit": ["HOME"]}),
+        expect_equal("test kwargs forward data with env", dx_forwarded_test_kwargs({"env": {"K": "1"}, "data": [":d"]}), {"env": {"K": "1"}, "data": [":d"]}),
+        expect_equal(
+            "run environment: wrapper env wins, inherited names union in order",
+            dx_merge_run_environment({"A": "1", "B": "1"}, ["X", "Y"], {"B": "2"}, ["Y", "Z"]),
+            struct(environment = {"A": "1", "B": "2"}, inherited_environment = ["X", "Y", "Z"]),
+        ),
         expect_equal("test kwargs forward exec_properties", dx_forwarded_test_kwargs({"exec_properties": {"Pool": "gpu"}}), {"exec_properties": {"Pool": "gpu"}}),
         expect_equal("test kwargs drop other exec group properties", dx_forwarded_test_kwargs({"exec_properties": {"cpp_link.Pool": "c"}}), {}),
         expect_equal("test kwargs keep test and unprefixed properties", dx_forwarded_test_kwargs({"exec_properties": {"Pool": "a", "test.Pool": "b", "cpp_link.Pool": "c"}}), {"exec_properties": {"Pool": "a", "test.Pool": "b"}}),
@@ -83,6 +87,8 @@ def _target_facts(target, rule_attr):
         args = _attr_text(rule_attr, "args"),
         aspect_hints = _attr_text(rule_attr, "aspect_hints"),
         env = dx_render_run_env(run_env),
+        env_map = {k: v for k, v in run_env.environment.items() if k not in DX_COVERAGE_ENV} if run_env != None else {},
+        inherited_names = list(run_env.inherited_environment) if run_env != None else [],
         executable = exe,
         inherited = dx_render_run_inherited(run_env),
         instrumented = InstrumentedFilesInfo in target,
@@ -129,7 +135,10 @@ def _dx_wrapper_forward_subject_impl(ctx):
     fields = {
         "args_match": str(wrapper.args == upstream.args),
         "aspect_hints_match": str(wrapper.aspect_hints == upstream.aspect_hints),
-        "env_match": str(wrapper.env == upstream.env and wrapper.inherited == upstream.inherited),
+        "env_match": str(
+            all([wrapper.env_map.get(k) == v for k, v in upstream.env_map.items()]) and
+            all([name in wrapper.inherited_names for name in upstream.inherited_names]),
+        ),
         "kind": ctx.attr.kind,
         "quality_only_on_wrapper": str(wrapper.quality != None and upstream.quality == None),
         "testonly_match": str(wrapper.testonly == upstream.testonly),

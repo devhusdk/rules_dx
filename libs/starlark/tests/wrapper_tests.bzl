@@ -596,9 +596,9 @@ def wrapper_shape_kwargs_tests(name):
                 {"size": "small"},
             ),
             expect_equal(
-                "test forward keeps env upstream",
+                "test forward carries env",
                 dx_test_forward_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
-                {"size": "small"},
+                {"env": {"K": "1"}, "env_inherit": ["HOME"], "size": "small"},
             ),
             expect_equal(
                 "test forward rides hints",
@@ -661,9 +661,9 @@ def wrapper_shape_kwargs_tests(name):
                 {"exec_properties": {"Pool": "gpu"}, "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
-                "test upstream keeps env",
+                "test upstream drops env",
                 dx_test_upstream_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
-                {"env": {"K": "1"}, "env_inherit": ["HOME"], "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward defaults size to small",

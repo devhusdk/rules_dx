@@ -5,13 +5,9 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("@rules_dx//rust/rules:defs.bzl", "rust_static_library")
+load("@rules_dx//rust/rules:edition.bzl", "RUST_EDITION")
 load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
-load("//platforms:defs.bzl", "effective_api_level", "platform_label", "triple_for", "tuple_errors", "tuples")
-
-AndroidNativeInfo = provider(
-    doc = "One Android native shared library with its target facts.",
-    fields = ["api_level", "shared_library", "triple", "tuple"],
-)
+load("//platforms:defs.bzl", "effective_api_level", "platform_label", "tuple_errors", "tuples")
 
 _ANDROID_PLATFORMS = {name: platform_label(name) for name in tuples()}
 
@@ -60,18 +56,11 @@ def _android_library_proxy_impl(ctx):
     merged = cc_common.merge_cc_infos(
         direct_cc_infos = [link[CcInfo]] if CcInfo in link else [],
     )
-    triple = triple_for(ctx.attr.tuple)
     out = ctx.actions.declare_file(ctx.attr.name + ".so")
     ctx.actions.symlink(output = out, target_file = libraries[0])
     return [
         DefaultInfo(files = depset([out])),
         merged,
-        AndroidNativeInfo(
-            api_level = ctx.attr.api_level,
-            shared_library = libraries[0],
-            triple = triple,
-            tuple = ctx.attr.tuple,
-        ),
     ]
 
 _android_library_proxy = rule(
@@ -100,7 +89,8 @@ def android_native_library(
         c_srcs,
         hdrs = [],
         crate_name = None,
-        edition = "2021",
+        edition = RUST_EDITION,
+        platforms = None,
         api_level = 31,
         crate_features = [],
         rustc_flags = [],
@@ -108,7 +98,16 @@ def android_native_library(
         linkopts = [],
         visibility = None,
         **kwargs):
-    """Builds one mixed Rust and C shared library per Android tuple."""
+    """Builds one mixed Rust and C shared library per Android tuple.
+
+    `platforms` lists the tuples to build (default all). `name_<tuple>` is the
+    library for one tuple and `name` groups them.
+    """
+    platforms = tuples() if platforms == None else platforms
+    unknown = [tuple for tuple in platforms if tuple not in _ANDROID_PLATFORMS]
+    if len(platforms) == 0 or len(unknown) > 0:
+        fail("android_native_library: platforms must be a non-empty subset of " + ", ".join(tuples()) +
+             (", got unknown " + ", ".join(unknown) if len(unknown) > 0 else ""))
     shared, rust_kwargs = split_native_kwargs(kwargs)
     proxy_shared = dict(shared)
     proxy_shared["tags"] = sorted({tag: True for tag in shared.get("tags", []) + ["manual"]}.keys())
@@ -141,7 +140,7 @@ def android_native_library(
         visibility = ["//visibility:private"],
         **shared
     )
-    for tuple in tuples():
+    for tuple in platforms:
         _android_library_proxy(
             name = name + "_" + tuple,
             link = ":" + name + "_link",
@@ -150,6 +149,12 @@ def android_native_library(
             visibility = visibility,
             **proxy_shared
         )
+    native.filegroup(
+        name = name,
+        srcs = [name + "_" + tuple for tuple in platforms],
+        visibility = visibility,
+        **shared
+    )
 
 def java_android_library(**kwargs):
     """Android Java library over rules_android android_library."""

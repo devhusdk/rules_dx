@@ -1021,3 +1021,23 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+rust_test(
+    name = "git_launch_policy_test",
+    srcs = ["git_launch_policy_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "git_launch_policy_test",
+    crate_root = "git_launch_policy_test.rs",
+    data = ["//:MODULE.bazel"],
+    size = "small",
+    tags = ["external"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)

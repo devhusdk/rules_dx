@@ -863,7 +863,6 @@ rust_test(
         "//deploy/rules:src/lib.rs",
         "//env/env_shard:src/lib.rs",
         "//env/env_shard:src/main.rs",
-        "//env/stubs:src/bin_doctor.rs",
         "//env/stubs:src/bin_tool.rs",
         "//generation/codegen_shard:src/lib.rs",
         "//generation/codegen_shard:src/main.rs",

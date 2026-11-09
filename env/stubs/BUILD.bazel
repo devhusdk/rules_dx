@@ -1,5 +1,7 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//rust/rules:defs.bzl", "rust_binary")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
@@ -7,17 +9,21 @@ package(default_visibility = VIS_PUBLIC)
 
 exports_files(["Cargo.toml"])
 
-rust_binary(
+write_file(
+    name = "doctor_sh",
+    out = "doctor.sh",
+    content = [
+        "#!/bin/sh",
+        "echo 'rules_dx managed environment tool: //env:doctor'",
+        "",
+    ],
+    is_executable = True,
+)
+
+sh_binary(
     name = "doctor",
     testonly = False,
-    srcs = ["src/bin_doctor.rs"],
-    aliases = aliases(
-        package_name = "env/env_stubs",
-        normal = True,
-    ),
-    crate_name = "doctor",
-    crate_root = "src/bin_doctor.rs",
-    deps = [],
+    srcs = [":doctor_sh"],
 )
 
 rust_binary(

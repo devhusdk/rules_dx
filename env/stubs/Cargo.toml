@@ -5,9 +5,5 @@ version = "0.0.0"
 edition = "2024"
 
 [[bin]]
-name = "doctor"
-path = "src/bin_doctor.rs"
-
-[[bin]]
 name = "tool_sh"
 path = "src/bin_tool.rs"

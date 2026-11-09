@@ -210,13 +210,13 @@ environment_tool(
 environment_tool(
     name = "dx_tool",
     bin_name = "dx",
-    executable = "//cli/cli:dx",
+    executable = "@dx_prebuilt//:dx",
 )
 
 environment_tool(
     name = "quality_markdown_tool",
     bin_name = "quality_markdown",
-    executable = "//quality/markdown:quality_markdown",
+    executable = "@dx_prebuilt//:quality_markdown",
 )
 
 environment_config(

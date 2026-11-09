@@ -34,7 +34,7 @@ Targets that do not fit the target platform are skipped by `build`, `test`, `cov
 
 ## `--affected`
 
-Changes are the diff from the merge-base with the default branch (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`), plus staged, unstaged, and untracked files. A rename counts both paths. In a subdirectory workspace, changes outside it are ignored.
+Changes are the diff from the merge-base with the default branch (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`), plus staged, unstaged, and untracked files. A rename counts both paths. `--since <ref>` replaces the merge-base with that ref, for example `dx test --affected --since HEAD~1` for the last commit only. `--since` without `--affected` is a usage error, and a ref that names no commit exits `2`. In a subdirectory workspace, changes outside it are ignored.
 
 Each changed file maps to its owning targets, then to their reverse dependencies in `//...`. Targets tagged `manual` are left out.
 

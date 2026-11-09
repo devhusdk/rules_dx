@@ -211,6 +211,17 @@ fn audit_owned(workspace: &Path, target: &str) -> bool {
     }
 }
 
+/// The commit a `--since` ref names.
+pub(crate) fn since_base(
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    rev: &str,
+) -> Result<String, PlanError> {
+    let spec = format!("{rev}^{{commit}}");
+    git_text(runner, workspace, &["rev-parse", "--verify", "--quiet", &spec])
+        .ok_or_else(|| PlanError::Git(format!("--since {rev:?} does not name a commit")))
+}
+
 pub(crate) fn affected_base(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -476,7 +487,11 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         edit_commit_json,
     } = env;
     let text = !invocation.quiet && matches!(invocation.output, OutputMode::Text { .. });
-    let base = match affected_base(workspace, query_runner) {
+    let base = match &invocation.since {
+        Some(rev) => since_base(workspace, query_runner, rev),
+        None => affected_base(workspace, query_runner),
+    };
+    let base = match base {
         Ok(base) => base,
         Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
         Err(PlanError::Resolve(error)) => {
@@ -920,6 +935,37 @@ mod tests {
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert!(plan.widened.is_empty());
         assert_eq!(runner.expressions.borrow().len(), 1);
+    }
+
+    #[test]
+    fn since_replaces_the_merge_base() {
+        let dir = repo();
+        let root = dir.path();
+        write(root, "a/a.txt", "first\n");
+        git(root, &["commit", "--quiet", "-am", "first"]);
+        write(root, "a/b.txt", "second\n");
+        git(root, &["commit", "--quiet", "-am", "second"]);
+        let runner = GitRunner::new(&[]);
+        let base = since_base(root, &runner, "HEAD~1").ok().expect("base");
+        let graph = graph();
+        let runner = GitRunner::new(&[&graph]);
+        let plan = plan(Command::Build, root, &runner, &[], base.clone())
+            .ok()
+            .expect("plan");
+        assert_eq!(plan.changed_files, ["a/b.txt"]);
+        assert_eq!(plan.base, base);
+        let (all, _) = run(root, Command::Build, &[&graph]);
+        assert_eq!(all.changed_files, ["a/a.txt", "a/b.txt"]);
+    }
+
+    #[test]
+    fn since_rejects_a_ref_that_names_no_commit() {
+        let dir = repo();
+        let runner = GitRunner::new(&[]);
+        let Err(PlanError::Git(message)) = since_base(dir.path(), &runner, "nope") else {
+            panic!("expected a git error");
+        };
+        assert!(message.contains("nope"), "{message}");
     }
 
     #[test]

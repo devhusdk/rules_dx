@@ -268,6 +268,8 @@ pub struct Invocation {
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
+    /// `--since`: the ref `--affected` compares against instead of the merge-base.
+    pub since: Option<String>,
     pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
@@ -703,6 +705,7 @@ mod tests {
             to: None,
             here: true,
             affected: false,
+            since: None,
             affected_handoff: None,
             serve: false,
             port: None,

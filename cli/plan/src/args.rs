@@ -68,6 +68,9 @@ pub enum ArgsError {
     /// Affected selection was asked for alongside explicit scopes.
     #[error("option \"--affected\" cannot be combined with explicit scopes")]
     ConflictingAffected,
+    /// A base ref was given without affected selection.
+    #[error("option \"--since\" requires \"--affected\"")]
+    SinceNeedsAffected,
     /// Affected selection was asked for alongside the here tree.
     #[error("option \"--affected\" cannot be combined with \"--here\"")]
     AffectedWithHere,

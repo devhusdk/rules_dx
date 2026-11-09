@@ -68,3 +68,13 @@ fn scoped_commands_run_everything_without_a_scope() {
         assert!(!parse(&strings(&[name, "--here"])).expect("here").affected);
     }
 }
+
+#[test]
+fn since_needs_affected() {
+    let got = parse(&strings(&["test", "--affected", "--since", "HEAD~1"])).expect("since");
+    assert_eq!(got.since.as_deref(), Some("HEAD~1"));
+    assert!(matches!(
+        parse(&strings(&["test", "--since", "HEAD~1"])),
+        Err(ArgsError::SinceNeedsAffected)
+    ));
+}

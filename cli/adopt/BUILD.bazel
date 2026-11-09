@@ -210,6 +210,8 @@ rust_test(
         "//patches/windows_support:hostarm64_packages.patch",
         "//patches/windows_support:dx_msvc_layout.patch",
         "//patches/windows_support:source_directory_headers.patch",
+        "//patches/rules_swift:toolchain_sysroot_env.patch",
+        "//patches/rules_swift:non_root_toolchain.patch",
     ],
     coverage_lib = ":dx_adopt",
     crate_name = "dx_adopt",

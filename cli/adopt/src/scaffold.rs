@@ -475,6 +475,7 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
     );
     let mut python = serde_json::json!({
         "python.defaultInterpreterPath": format!("{ide}/python/python"),
+        "python.analysis.extraPaths": [format!("{ide}/python/site-packages")],
     });
     if tools.is_selected("ruff") {
         python["ruff.configuration"] =
@@ -1885,6 +1886,9 @@ mod tests {
             let rel = path.strip_prefix(&base).expect(path);
             assert!(dx_ide::OUTPUTS.contains(&rel), "{path}");
         }
+        let extra = value["python.analysis.extraPaths"][0].as_str().expect("extraPaths");
+        let rel = extra.strip_prefix(&base).expect(extra);
+        assert!(dx_ide::OUTPUTS.contains(&rel), "{extra}");
         let arg = value["clangd.arguments"][0].as_str().expect("arguments");
         let dir = arg.strip_prefix("--compile-commands-dir=").expect(arg);
         let rel = dir.strip_prefix(&base).expect(dir);

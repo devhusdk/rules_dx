@@ -26,11 +26,12 @@ pub use link::link;
 pub const IDE_DIR: &str = ".dx/local/ide";
 pub const STATE_FILE: &str = ".dx/local/ide/state.json";
 /// Paths under `IDE_DIR` that the plug-ins write and editor settings point at.
-pub const OUTPUTS: [&str; 7] = [
+pub const OUTPUTS: [&str; 8] = [
     "cc",
     "cc/clangd",
     "jdk/home",
     "python/python",
+    "python/site-packages",
     "rust_analyzer/flycheck.exe",
     "rust_analyzer/discover_bazel_rust_project.exe",
     "typescript/lib",
@@ -57,6 +58,8 @@ pub struct Plugin {
 /// Builds rules_dx labels and returns the absolute paths of their files.
 pub trait Runner {
     fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, String>;
+    /// Builds labels as they are written and returns the files of one output group.
+    fn build_group(&self, labels: &[String], group: &str) -> Result<Vec<PathBuf>, String>;
     /// Runs `bazel aquery --output=jsonproto` on an expression and returns the output.
     fn aquery(&self, expr: &str) -> Result<String, String>;
     /// The absolute execution root of the workspace.
@@ -323,6 +326,7 @@ mod tests {
         calls: Cell<usize>,
         lib: PathBuf,
         aquery: String,
+        groups: Vec<PathBuf>,
     }
 
     impl Runner for Fake {
@@ -334,6 +338,10 @@ mod tests {
                 self.lib.join("identity.cc_identity.json"),
                 self.lib.join("identity_exec.cc_identity.json"),
             ])
+        }
+
+        fn build_group(&self, _labels: &[String], _group: &str) -> Result<Vec<PathBuf>, String> {
+            Ok(self.groups.clone())
         }
 
         fn aquery(&self, _expr: &str) -> Result<String, String> {
@@ -352,6 +360,7 @@ mod tests {
             calls: Cell::new(0),
             lib,
             aquery: String::new(),
+            groups: Vec::new(),
         }
     }
 
@@ -514,6 +523,7 @@ mod tests {
             calls: Cell::new(0),
             lib: interpreter.clone(),
             aquery: String::new(),
+            groups: Vec::new(),
         };
         assert!(refresh(root, &runner).expect("first").ran);
         assert_eq!(
@@ -522,6 +532,36 @@ mod tests {
         );
         assert!(!refresh(root, &runner).expect("second").ran);
         assert_eq!(runner.calls.get(), 1);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn python_links_the_locked_packages_so_they_import() {
+        let scratch = dx_test_scratch::scratch("dx-ide-py-site-");
+        let root = scratch.path();
+        std::fs::write(root.join("main.py"), "").expect("py");
+        std::fs::write(
+            root.join("uv.lock"),
+            "[[package]]\nname = \"requests\"\nsource = { registry = \"x\" }\n",
+        )
+        .expect("lock");
+        let install = root.join("store").join("requests.install");
+        let site = install.join("lib/python3.12/site-packages");
+        std::fs::create_dir_all(site.join("requests")).expect("site");
+        std::fs::write(site.join("requests/__init__.py"), "").expect("module");
+        let interpreter = root.join("store").join("python3");
+        std::fs::write(&interpreter, "").expect("interpreter");
+        let runner = Fake {
+            calls: Cell::new(0),
+            lib: interpreter,
+            aquery: String::new(),
+            groups: vec![install],
+        };
+        let report = refresh(root, &runner).expect("refresh");
+        assert_eq!(report.failed, []);
+        let linked = root.join(".dx/local/ide/python/site-packages");
+        assert!(linked.join("requests/__init__.py").exists());
         scratch.close().expect("cleanup");
     }
 
@@ -604,6 +644,10 @@ mod tests {
     impl Runner for RustRunner {
         fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, String> {
             Ok(self.files.clone())
+        }
+
+        fn build_group(&self, _labels: &[String], _group: &str) -> Result<Vec<PathBuf>, String> {
+            Ok(Vec::new())
         }
 
         fn aquery(&self, _expr: &str) -> Result<String, String> {

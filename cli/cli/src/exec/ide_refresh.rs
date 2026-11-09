@@ -46,14 +46,12 @@ impl BazelBuild<'_> {
     }
 }
 
-impl dx_ide::Runner for BazelBuild<'_> {
-    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, String> {
-        let labels: Vec<String> = labels
-            .iter()
-            .map(|label| dx_plan::plan::rules_dx_label(label))
-            .collect();
-        self.run(&self.argv("build", &[], &labels)?)?;
-        let files = self.run(&self.argv("cquery", &["--output=files".to_owned()], &labels)?)?;
+impl BazelBuild<'_> {
+    fn build_files(&self, labels: &[String], options: &[String]) -> Result<Vec<PathBuf>, String> {
+        self.run(&self.argv("build", options, labels)?)?;
+        let mut cquery_options = options.to_vec();
+        cquery_options.push("--output=files".to_owned());
+        let files = self.run(&self.argv("cquery", &cquery_options, labels)?)?;
         let output_base = self.info("output_base")?;
         let execution_root = self.info("execution_root")?;
         Ok(files
@@ -70,6 +68,20 @@ impl dx_ide::Runner for BazelBuild<'_> {
                 }
             })
             .collect())
+    }
+}
+
+impl dx_ide::Runner for BazelBuild<'_> {
+    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, String> {
+        let labels: Vec<String> = labels
+            .iter()
+            .map(|label| dx_plan::plan::rules_dx_label(label))
+            .collect();
+        self.build_files(&labels, &[])
+    }
+
+    fn build_group(&self, labels: &[String], group: &str) -> Result<Vec<PathBuf>, String> {
+        self.build_files(labels, &[format!("--output_groups={group}")])
     }
 
     fn aquery(&self, expr: &str) -> Result<String, String> {

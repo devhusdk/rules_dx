@@ -4,7 +4,7 @@ use dx_process::Scope;
 
 use super::{
     PackageCache, QueryRunner, ResolveError, ResolvedScope, RuleGraph, SelectionContext,
-    classify_scopes, exclude, owners_in_graph, tests_for_owners,
+    classify_generate_scopes, classify_scopes, exclude, owners_in_graph, tests_for_owners,
 };
 
 /// Expands `scopes` into Bazel targets, leaving out the `dx.toml` excludes.
@@ -16,6 +16,23 @@ pub fn resolve(
 ) -> Result<ResolvedScope, ResolveError> {
     let excludes = exclude::load(workspace)?;
     let resolved = expand(scopes, workspace, runner, startup_options)?;
+    exclude::apply(resolved, &excludes, scopes)
+}
+
+/// Like [`resolve`], but files and directories map to their package directory
+/// without a Bazel query, so new files and packages without a BUILD file work.
+pub fn resolve_for_generate(
+    scopes: &[String],
+    workspace: &Path,
+) -> Result<ResolvedScope, ResolveError> {
+    let excludes = exclude::load(workspace)?;
+    let resolved = if scopes.is_empty() {
+        whole_repo()
+    } else if scopes.iter().all(|scope| scope.starts_with("//")) {
+        labels(classify_generate_scopes(scopes, workspace)?)
+    } else {
+        owners(classify_generate_scopes(scopes, workspace)?)
+    };
     exclude::apply(resolved, &excludes, scopes)
 }
 
@@ -124,6 +141,24 @@ mod tests {
     use dx_test_scratch::write;
     use dx_testing::cli::{graph_rule, graph_stdout, strings};
     use std::cell::RefCell;
+
+    #[test]
+    fn generate_scope_maps_new_files_and_dirs_without_a_query() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-generate-scope-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "svc/new.py", "x = 1\n");
+        write(&workspace, "top.py", "x = 1\n");
+        write(&workspace, "fresh/deep/a.txt", "x");
+        let got = resolve_for_generate(&strings(&["svc/new.py"]), &workspace).expect("file");
+        assert_eq!(got.targets, strings(&["//svc/..."]));
+        let got = resolve_for_generate(&strings(&["top.py"]), &workspace).expect("root file");
+        assert_eq!(got.targets, strings(&["//..."]));
+        let got = resolve_for_generate(&strings(&["fresh", "//other/..."]), &workspace)
+            .expect("dir and label");
+        assert_eq!(got.targets, strings(&["//fresh/...", "//other/..."]));
+        let err = resolve_for_generate(&strings(&["missing.py"]), &workspace).unwrap_err();
+        assert!(matches!(err, ResolveError::PathNotFound { .. }), "{err:?}");
+    }
 
     #[test]
     fn test_scope_maps_files_to_tests_and_keeps_patterns() {

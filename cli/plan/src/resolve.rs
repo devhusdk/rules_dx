@@ -21,9 +21,9 @@ pub use changed::{
     merge_base, missing_base_shallow_error, resolve_affected, shallow_clone,
 };
 pub use classify::first_line;
-pub(crate) use classify::{classify_scopes, owners_in_graph, parse_owners};
+pub(crate) use classify::{classify_generate_scopes, classify_scopes, owners_in_graph, parse_owners};
 pub use codegen_expand::expand_codegen_roots;
-pub use entry::{resolve, resolve_for_test_with_selection};
+pub use entry::{resolve, resolve_for_generate, resolve_for_test_with_selection};
 #[cfg(test)]
 pub(crate) use fake_query::FakeQuery;
 pub use graph_memo::MemoizedGraphQuery;

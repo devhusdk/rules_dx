@@ -4709,9 +4709,10 @@ mod tests {
         assert_eq!(harness.seen_env.borrow().len(), 4, "every phase ran");
         assert_eq!(
             out.matches("for //pkg:extra //pkg:lib").count(),
-            4,
-            "every phase plans the same owners: {out}"
+            3,
+            "every analysis phase plans the same owners: {out}"
         );
+        assert!(out.contains("Running generate for //pkg/..."), "{out}");
         assert_eq!(graph_calls(&harness), 1, "one graph load for the run");
     }
 

@@ -171,8 +171,8 @@ pub static COMMANDS: [CommandMeta; 25] = [
         name: "generate",
         scope_policy: "default-repo",
         describe: "update BUILD declarations from source with Gazelle (check by default; --apply writes)",
-        usage: "Usage: dx generate [--apply] [--here] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target; main-repository labels only), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        usage: "Usage: dx generate [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target; main-repository labels only), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. A file or directory maps to its own package directory, so a new file or a directory without a BUILD file works. --affected generates the directories of files changed since the default branch merge-base; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -573,8 +573,8 @@ pub(crate) mod owners {
         Lint, Typecheck, Format, Generate, Deploy, Check, Update, Init, Upgrade, Watch, Worktree,
     ];
     pub(crate) const BUILD_MODE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
-    pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
-        Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check,
+    pub(crate) const AFFECTED_OWNERS: [Command; 10] = [
+        Security, License, Lint, Typecheck, Format, Generate, Build, Test, Coverage, Check,
     ];
 }
 

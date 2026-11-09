@@ -10,7 +10,7 @@ use dx_plan::plan::{
     intended_path, patch_path, plan_generate,
 };
 use dx_plan::reports::plan_reports;
-use dx_plan::resolve::resolve;
+use dx_plan::resolve::resolve_for_generate;
 use std::io::Write;
 use std::path::Path;
 
@@ -403,12 +403,7 @@ fn run_generate_request(
         Ok(_) => {}
         Err(error) => return pre_exec(request.common.output, env.out, env.err, &error.to_string()),
     }
-    let resolved = match resolve(
-        &request.targets,
-        env.workspace,
-        env.query_runner,
-        &request.bazel_startup_options,
-    ) {
+    let resolved = match resolve_for_generate(&request.targets, env.workspace) {
         Ok(resolved) => resolved,
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };

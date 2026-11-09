@@ -6,25 +6,28 @@ Updates `BUILD` declarations from source with Gazelle.
 dx generate
 dx generate --apply //pkg/...
 dx generate --here
+dx generate --apply --affected
+dx generate --apply svc/new.py
 dx generate --output json //pkg/...
 dx generate --apply -- --jobs=4
 ```
 
 ```text
-dx generate [--here] [--apply] [--diff] [scope...] [-- bazel-options...]
+dx generate [--here] [--affected] [--apply] [--diff] [scope...] [-- bazel-options...]
 ```
 
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Write the updated BUILD files. Without it, stale files fail the run. |
 | `--here` | Use the current directory tree. |
+| `--affected` | Use the directories of files changed since the default branch merge-base. |
 | `--diff` | Print one unified patch per stale file, or per file `--apply` wrote or refused. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 
-`--affected`, `--fail-on`, and `--report` are usage errors.
+`--affected` does not combine with scopes or `--here`. `--fail-on` and `--report` are usage errors.
 
-Scopes: no scope means the whole repo. Pass labels, patterns, files, or directories of the main repository. Bazel options go after `--`.
+Scopes: no scope means the whole repo. Pass labels, patterns, files, or directories of the main repository. A file or directory maps to its own directory without asking Bazel, so a new file or a directory with no `BUILD` file works. Bazel options go after `--`.
 
 ## Output
 

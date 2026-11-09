@@ -82,6 +82,48 @@ pub(crate) fn classify_scopes(
     classify(scopes, workspace, cache, false)
 }
 
+/// Maps generate scopes to labels without asking Bazel: generate creates the
+/// BUILD files, so a file or directory is taken as its own package directory
+/// and `//dir/...` need not hold a BUILD file yet.
+pub(crate) fn classify_generate_scopes(
+    scopes: &[String],
+    workspace: &Path,
+) -> Result<Vec<String>, ResolveError> {
+    let mut targets = Vec::new();
+    for raw in scopes {
+        if raw.starts_with("//") {
+            targets.push(raw.clone());
+            continue;
+        }
+        if raw.starts_with('@') {
+            return Err(ResolveError::ExternalScope { scope: raw.clone() });
+        }
+        if raw.starts_with(':') {
+            return Err(ResolveError::RelativeLabel { scope: raw.clone() });
+        }
+        let rel = normalize_rel(raw)?;
+        if rel.chars().any(char::is_control) {
+            return Err(ResolveError::UnsupportedName { scope: raw.clone() });
+        }
+        let metadata = std::fs::symlink_metadata(workspace.join(&rel))
+            .map_err(|_| ResolveError::PathNotFound { scope: raw.clone() })?;
+        if metadata.is_dir() {
+            targets.push(dir_pattern(&rel));
+        } else if metadata.is_file() {
+            let dir = Path::new(&rel)
+                .parent()
+                .map(|parent| parent.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            targets.push(dir_pattern(&dir));
+        } else {
+            return Err(ResolveError::NotFileOrDir { scope: raw.clone() });
+        }
+    }
+    targets.sort();
+    targets.dedup();
+    Ok(targets)
+}
+
 pub(crate) fn classify_run_scopes(
     scopes: &[String],
     workspace: &Path,

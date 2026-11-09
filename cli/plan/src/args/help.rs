@@ -225,7 +225,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     ),
     (
         Command::Generate,
-        &["generate", "generate --apply //pkg/..."],
+        &["generate", "generate --apply //pkg/...", "generate --affected"],
     ),
     (
         Command::Build,

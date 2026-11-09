@@ -264,6 +264,10 @@ pub(crate) fn plan(
     if changes.is_empty() && overrides.is_empty() {
         return Ok(plan);
     }
+    if command == Command::Generate {
+        plan.targets = generate_scope(workspace, &plan.changed_files);
+        return Ok(plan);
+    }
     let mut selection = if changes.is_empty() {
         AffectedSelection {
             targets: Vec::new(),
@@ -332,6 +336,26 @@ pub(crate) fn plan(
         plan.unscoped = secrets_scan && plan.targets.is_empty();
     }
     Ok(plan)
+}
+
+/// The package patterns generate must visit for these changed files: each
+/// file's nearest existing directory, so new and deleted files count.
+fn generate_scope(workspace: &Path, changed_files: &[String]) -> Vec<String> {
+    let labels: Vec<String> = changed_files
+        .iter()
+        .map(|file| {
+            let mut dir = Path::new(file).parent();
+            while let Some(path) = dir {
+                if workspace.join(path).is_dir() {
+                    break;
+                }
+                dir = path.parent();
+            }
+            let dir = dir.map(|path| path.to_string_lossy().replace('\\', "/"));
+            format!("//{}:all", dir.unwrap_or_default())
+        })
+        .collect();
+    dx_plan::plan::generate_package_scope(&labels)
 }
 
 /// Splits off external-repo labels, which the test phase rejects as `invalid_scope`.
@@ -731,11 +755,29 @@ mod tests {
     }
 
     #[test]
+    fn generate_scope_uses_the_nearest_existing_directory() {
+        let dir = dx_test_scratch::scratch("dx-affected-generate-scope-");
+        write(dir.path(), "svc/new.py", "x = 1\n");
+        write(dir.path(), "lib/a/b.py", "x = 1\n");
+        let files = |names: &[&str]| -> Vec<String> {
+            names.iter().map(|name| (*name).to_owned()).collect()
+        };
+        assert_eq!(
+            generate_scope(dir.path(), &files(&["svc/new.py", "svc/gone/x.py", "lib/a/b.py"])),
+            files(&["//lib/a/...", "//svc/..."])
+        );
+        assert_eq!(
+            generate_scope(dir.path(), &files(&["README.md", "svc/new.py"])),
+            files(&["//..."])
+        );
+    }
+
+    #[test]
     fn empty_selection_reports_mode_for_every_affected_command() {
         use clap::ValueEnum;
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Test, &[]);
-        let cases: [(&[&str], &str); 14] = [
+        let cases: [(&[&str], &str); 16] = [
             (&["check", "--affected", "--output=json"], "check"),
             (
                 &["check", "--apply", "--affected", "--output=json"],
@@ -754,6 +796,11 @@ mod tests {
             (&["format", "--affected", "--output=json"], "check"),
             (
                 &["format", "--apply", "--affected", "--output=json"],
+                "default",
+            ),
+            (&["generate", "--affected", "--output=json"], "check"),
+            (
+                &["generate", "--apply", "--affected", "--output=json"],
                 "default",
             ),
             (&["build", "--affected", "--output=json"], "default"),

@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//zig/rules:defs.bzl", "zig_library", "zig_test")
-load("@rules_dx//zig/rules:wrapper_tests.bzl", "zig_kcov_env_test")
+load("@rules_dx//tools/coverage/kcov:kcov_tests.bzl", "dx_kcov_env_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -16,9 +16,11 @@ zig_test(
     deps = [":calc"],
 )
 
-zig_kcov_env_test(
+dx_kcov_env_test(
     name = "calc_test_kcov_test",
     instrumented = ["zig/tests/fixtures/calc/calc.zig"],
+    linux_platform = "//zig/rules:kcov_linux_x86_64",
+    other_platforms = ["//zig/rules:kcov_macos_arm64"],
     target = ":calc_test",
     upstream = "calc_test_upstream",
 )

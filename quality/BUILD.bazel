@@ -758,6 +758,7 @@ real_source_target(
         "parity_tests.bzl",
         "pipeline.bzl",
         "pipeline_tests.bzl",
+        "real_aspect_labels.bzl",
         "policy.bzl",
         "policy_subject.bzl",
         "policy_tests.bzl",

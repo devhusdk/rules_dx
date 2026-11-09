@@ -2,6 +2,7 @@ pub mod generate;
 pub mod managed;
 pub mod quality;
 pub mod registry;
+pub mod registry_gen;
 pub mod run_deploy;
 pub mod run_temp;
 pub mod workflow;

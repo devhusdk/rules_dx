@@ -5,6 +5,7 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":curated_defaults.bzl", "CROSS_FAMILY_TOOLS", "CURATED_DEFAULTS")
 load(":overlaps.bzl", "overlap_rows")
+load(":real_aspect_labels.bzl", "REAL_ASPECT_LABELS", "REAL_PROBE_LABELS")
 load(":tools.bzl", "TOOLS")
 
 _HEADER = """// Generated from quality/curated_defaults.bzl and quality/tools.bzl.
@@ -57,4 +58,32 @@ def dx_config_gen(name):
     write_source_files(
         name = name,
         files = {"src/curated_defaults_gen.rs": ":" + name + "_generated"},
+    )
+
+_REGISTRY_HEADER = """// Generated from quality/real_aspect_labels.bzl.
+// Run `bazel run //cli/plan:update_registry_gen` to refresh it.
+
+"""
+
+def _label_const(name, labels):
+    return "pub const %s: &[&str] = &[\n%s];\n" % (name, "".join(['    "%s",\n' % label for label in labels]))
+
+def registry_rust():
+    """Returns the full text of cli/plan/src/plan/registry_gen.rs."""
+    consts = []
+    for suffix, table in [("ASPECTS", REAL_ASPECT_LABELS), ("PROBES", REAL_PROBE_LABELS)]:
+        for command in sorted(table.keys()):
+            consts.append(_label_const("%s_%s" % (command.upper(), suffix), table[command]))
+    return _REGISTRY_HEADER + "\n".join(consts)
+
+def plan_registry_gen(name):
+    """Declares the generated aspect label table, its update target and its currency test."""
+    write_file(
+        name = name + "_generated",
+        out = name + ".rs",
+        content = registry_rust().splitlines() + [""],
+    )
+    write_source_files(
+        name = name,
+        files = {"src/plan/registry_gen.rs": ":" + name + "_generated"},
     )

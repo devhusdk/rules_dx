@@ -516,6 +516,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "haskell",
+    families = ["haskell"],
     failures = {"//haskell/tests/fixtures/haskell-app/cli:report_without_split": "Could not find module"},
     files = {
         "//haskell/tests/fixtures/haskell-app/third_party:haskell_deps.json": "haskell/tests/fixtures/haskell-app/stock/haskell_deps.json",
@@ -538,6 +539,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "ocaml",
+    families = ["ocaml"],
     failures = {
         "//ocaml/tests/fixtures/ocaml-app/cli:report_without_astring": "Unbound module Astring",
         "//ocaml/tests/fixtures/ocaml-app/diagnostics:syntax_error": "Syntax error",

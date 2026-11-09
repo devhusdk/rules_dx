@@ -309,6 +309,24 @@ local_path_override(
     path = "families/fortran",
 )
 
+bazel_dep(name = "rules_dx_haskell", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_haskell",
+    path = "families/haskell",
+)
+
+bazel_dep(name = "rules_dx_ocaml", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_ocaml",
+    path = "families/ocaml",
+)
+
+bazel_dep(name = "rules_dx_swift", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_swift",
+    path = "families/swift",
+)
+
 bazel_dep(name = "rules_dx_msix", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_msix",
@@ -911,8 +929,6 @@ swift_deps.from_package(
 )
 use_repo(swift_deps, "swift_package", "swiftpkg_swift_argument_parser")
 
-register_toolchains("//swift/toolchain:all")
-
 # floor: equals tested
 bazel_dep(name = "rules_dart", version = "0.8.1")
 single_version_override(
@@ -1146,8 +1162,6 @@ ocaml.annotation(
 )
 use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "rules_ocaml")
 
-register_toolchains("@dx_ocaml_toolchains//:all")
-
 fortran = use_extension("//fortran/toolchain:repos.bzl", "fortran")
 use_repo(fortran, "rules_fortran")
 
@@ -1196,8 +1210,6 @@ haskell.packages(
     deps = "//haskell/tests/fixtures/hackage-exe:haskell_deps.json",
 )
 use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app_hackage", "haskell_exe_hackage", "haskell_weeder_hackage", "rules_haskell")
-
-register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d/toolchain:repos.bzl", "d")
 use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_amd64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")

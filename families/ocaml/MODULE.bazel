@@ -1,0 +1,17 @@
+module(
+    name = "rules_dx_ocaml",
+    version = "0.0.0",
+    bazel_compatibility = [">=9.2.0"],
+)
+
+bazel_dep(name = "rules_dx", version = "0.0.0")
+include("//third_party/rules_dx:rules_dx.MODULE.bazel")
+local_path_override(
+    module_name = "rules_dx",
+    path = "../..",
+)
+
+ocaml = use_extension("@rules_dx//ocaml/toolchain:repos.bzl", "ocaml")
+use_repo(ocaml, "dx_ocaml_toolchains")
+
+register_toolchains("@dx_ocaml_toolchains//:all")

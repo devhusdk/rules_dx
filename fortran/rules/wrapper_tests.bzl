@@ -30,7 +30,7 @@ _COVERAGE = {
 _linux_test = analysistest.make(
     _kcov_env_impl,
     attrs = _ATTRS,
-    config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label("//fortran/tests/fixtures/calc:linux_x86_64"))},
+    config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label("//fortran/rules:linux_x86_64"))},
 )
 
 _off_test = analysistest.make(

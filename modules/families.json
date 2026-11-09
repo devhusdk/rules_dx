@@ -216,6 +216,7 @@
         "avro-cpp",
         "bazel_features",
         "bazel_lib",
+        "bazel_linux_packages",
         "bazel_skylib",
         "elfutils",
         "gazelle",
@@ -241,6 +242,7 @@
         "rules_python",
         "rules_scala",
         "rules_shell",
+        "rules_swift",
         "rules_zig",
         "tar.bzl",
         "windows_support",
@@ -279,6 +281,7 @@
         "gazelle",
         "generation",
         "go",
+        "haskell",
         "helm",
         "java",
         "javascript",
@@ -290,6 +293,7 @@
         "make",
         "mdx",
         "modules",
+        "ocaml",
         "patches",
         "perl",
         "php",
@@ -302,6 +306,7 @@
         "scala",
         "sql",
         "svelte",
+        "swift",
         "terraform",
         "third_party",
         "thrift",
@@ -325,13 +330,16 @@
         "//erlang/toolchain:repos.bzl%erlang",
         "//fortran/toolchain:repos.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
+        "//haskell/toolchain:repos.bzl%haskell",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
         "//lua/toolchain:repos.bzl%lua",
+        "//ocaml/toolchain:repos.bzl%ocaml",
         "//php/toolchain:repos.bzl%php",
         "//powershell/toolchain:repos.bzl%powershell",
         "//quality/artifacts:extension.bzl%dx_tools",
         "//ruby/coverage:repos.bzl%ruby_coverage",
         "//ruby/toolchain:repos.bzl%ruby_tools",
+        "//swift/toolchain:repos.bzl%swift_host",
         "//third_party/dotnet:extension.bzl%paket",
         "//tools/bazelrc:repos.bzl%bazel_version",
         "//typescript/playwright:repos.bzl%playwright",
@@ -339,6 +347,7 @@
         "@aspect_rules_js//npm:extensions.bzl%npm",
         "@aspect_rules_js//npm:extensions.bzl%pnpm",
         "@aspect_rules_ts//ts:extensions.bzl%typescript",
+        "@bazel_linux_packages//apt:extensions.bzl%apt",
         "@gazelle//:extensions.bzl%go_deps",
         "@llvm//extensions:osx.bzl%osx",
         "@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl%protoc",
@@ -353,6 +362,7 @@
         "@rules_python//python/extensions:python.bzl%python",
         "@rules_scala//scala/extensions:config.bzl%scala_config",
         "@rules_scala//scala/extensions:deps.bzl%scala_deps",
+        "@rules_swift//swift:extensions.bzl%swift",
         "@tar.bzl//tar:extensions.bzl%toolchains",
         "@windows_support//windows:extensions.bzl%msvc_runtime",
         "@windows_support//windows:extensions.bzl%windows_sdk"
@@ -397,14 +407,17 @@
         "//gazelle/flatbuffers",
         "//gazelle/fsharp",
         "//gazelle/go",
+        "//gazelle/haskell",
         "//gazelle/java",
         "//gazelle/javascript",
         "//gazelle/kotlin",
         "//gazelle/mdx",
+        "//gazelle/ocaml",
         "//gazelle/powershell",
         "//gazelle/protobuf",
         "//gazelle/scala",
         "//gazelle/svelte",
+        "//gazelle/swift",
         "//gazelle/thrift",
         "//gazelle/typescript",
         "//gazelle/vue"
@@ -427,6 +440,7 @@
         "//cc/toolchains:msvc_windows_x86_64",
         "//cc/toolchains:msvc_windows_x86_64_to_arm64",
         "//tools/platforms:protoc_windows_arm64",
+        "@dx_haskell_toolchains//cc:all",
         "@dx_powershell_toolchains//:all",
         "@llvm//toolchain:all"
       ]
@@ -585,10 +599,14 @@
         "real_fortran_typecheck_probe_aspect"
       ],
       "bazel_deps": [
-        "rules_dx"
+        "bazel_skylib",
+        "platforms",
+        "rules_dx",
+        "rules_shell"
       ],
       "dirs": [
         "bcr_test_module",
+        "fortran",
         "third_party"
       ],
       "extensions": [
@@ -664,22 +682,24 @@
         "real_haskell_typecheck_aspect",
         "real_haskell_typecheck_probe_aspect"
       ],
-      "bazel_deps": [],
+      "bazel_deps": [
+        "rules_dx"
+      ],
       "dirs": [
-        "haskell"
+        "bcr_test_module",
+        "third_party"
       ],
       "extensions": [
-        "//haskell/toolchain:repos.bzl%haskell"
+        "@rules_dx//haskell/toolchain:repos.bzl%haskell"
       ],
       "file_extensions": [
         ".hs"
       ],
-      "gazelle": [
-        "//gazelle/haskell"
-      ],
+      "gazelle": [],
+      "module": "rules_dx_haskell",
+      "path": "families/haskell",
       "repo_rules": [],
       "toolchains": [
-        "@dx_haskell_toolchains//cc:all",
         "@dx_haskell_toolchains//toolchains:all"
       ]
     },
@@ -893,20 +913,23 @@
         "real_ocaml_typecheck_aspect",
         "real_ocaml_typecheck_probe_aspect"
       ],
-      "bazel_deps": [],
+      "bazel_deps": [
+        "rules_dx"
+      ],
       "dirs": [
-        "ocaml"
+        "bcr_test_module",
+        "third_party"
       ],
       "extensions": [
-        "//ocaml/toolchain:repos.bzl%ocaml"
+        "@rules_dx//ocaml/toolchain:repos.bzl%ocaml"
       ],
       "file_extensions": [
         ".ml",
         ".mli"
       ],
-      "gazelle": [
-        "//gazelle/ocaml"
-      ],
+      "gazelle": [],
+      "module": "rules_dx_ocaml",
+      "path": "families/ocaml",
       "repo_rules": [],
       "toolchains": [
         "@dx_ocaml_toolchains//:all"
@@ -1118,26 +1141,22 @@
         "real_swift_lint_probe_aspect"
       ],
       "bazel_deps": [
-        "bazel_linux_packages",
-        "rules_swift"
+        "rules_dx"
       ],
       "dirs": [
-        "swift"
+        "bcr_test_module",
+        "third_party"
       ],
-      "extensions": [
-        "//swift/toolchain:repos.bzl%swift_host",
-        "@bazel_linux_packages//apt:extensions.bzl%apt",
-        "@rules_swift//swift:extensions.bzl%swift"
-      ],
+      "extensions": [],
       "file_extensions": [
         ".swift"
       ],
-      "gazelle": [
-        "//gazelle/swift"
-      ],
+      "gazelle": [],
+      "module": "rules_dx_swift",
+      "path": "families/swift",
       "repo_rules": [],
       "toolchains": [
-        "//swift/toolchain:all"
+        "@rules_dx//swift/toolchain:all"
       ]
     },
     "zig": {

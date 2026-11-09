@@ -88,6 +88,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "haskell",
+    bazel_deps = ["rules_dx", "rules_dx_haskell"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
 )
 
@@ -119,6 +120,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "ocaml",
+    bazel_deps = ["rules_dx", "rules_dx_ocaml"],
     target_compatible_with = OCAML_COMPATIBLE_WITH,
 )
 
@@ -171,6 +173,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "swift",
+    bazel_deps = ["rules_dx", "rules_dx_swift"],
     target_compatible_with = ["@platforms//os:linux"],
 )
 

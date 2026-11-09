@@ -20159,7 +20159,7 @@
     "@@rules_zig+//zig:extensions.bzl%zig": {
       "general": {
         "bzlTransitiveDigest": "vTeQKV6Xl5RuIpCwuarKlx1FwNYsPvKFOklJop5h/mI=",
-        "usagesDigest": "G3RaphUrcukF6Utq5kIh8yMCfhYZTf1FZHFUaUmNuy0=",
+        "usagesDigest": "QF0FP4iBd3UL3eOAQ/3YQ/7Y7gdmVPz2aHt0+5zCriE=",
         "recordedInputs": [
           "REPO_MAPPING:rules_zig+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:rules_zig+,bazel_tools bazel_tools",

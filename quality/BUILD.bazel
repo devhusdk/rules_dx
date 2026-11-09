@@ -246,7 +246,7 @@ consumer_policy_tests(
                 "calc-real-lint-text.pb",
             ],
             "policy": "//quality:default_workspace_policy",
-            "subject": "//fortran/tests/fixtures/calc:calc",
+            "subject": "@rules_dx_fortran//fortran/tests/fixtures/calc:calc",
         },
         {
             "case": "default_dart",

@@ -1,4 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# gazelle:exclude fortran
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,6 +16,21 @@ real_source_target(
     aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
+)
+
+sh_test(
+    name = "starlark_docs_test",
+    srcs = ["starlark_docs_test.sh"],
+    args = ["$(rootpath @rules_dx//tools/ci:starlark_docs_family_test)"],
+    data = [
+        "//fortran/tests/fixtures/calc:corpus_starlark",
+        "//fortran/tests/negative:corpus_starlark",
+        "//fortran/tests/runtime:corpus_starlark",
+        "//fortran/tests/runtime/kinds_a:corpus_starlark",
+        "//fortran/tests/runtime/kinds_b:corpus_starlark",
+        "@rules_dx//tools/ci:starlark_docs_family_test",
+    ],
+    env = {"STARLARK_DOCS_PACKAGES": "fortran/tests/fixtures/calc,fortran/tests/negative,fortran/tests/runtime,fortran/tests/runtime/kinds_a,fortran/tests/runtime/kinds_b"},
 )
 
 # dx:begin exports

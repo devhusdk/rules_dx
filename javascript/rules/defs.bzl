@@ -5,11 +5,11 @@ load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "j
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
+load("//libs/starlark:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load("//libs/starlark:node_test.bzl", "node_test_forward_rule", "node_jest_upstream_attrs", "node_test_runner_rejection", "node_test_wrap_args")
 
 _DX_JS_LIBRARY_PROVIDES = [
     _JsInfo,

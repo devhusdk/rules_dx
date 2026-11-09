@@ -3,13 +3,13 @@
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("@rules_dart//dart:utils.bzl", "dart_analyzable_info_with_package", "derive_lib_root")
 load("@rules_flutter//flutter:android.bzl", _flutter_android_app = "flutter_android_app")
-load("@rules_flutter//flutter:ios.bzl", _flutter_ios_app = "flutter_ios_app")
 load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_application", _flutter_gen_l10n = "flutter_gen_l10n", _flutter_library = "flutter_library", _flutter_test = "flutter_test")
+load("@rules_flutter//flutter:ios.bzl", _flutter_ios_app = "flutter_ios_app")
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
 load("//dart/rules:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS")
-load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//libs/starlark:cells.bzl", "unsupported_constraint")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -97,6 +97,7 @@ _flutter_application_forward = dx_library_forward_rule(
 
 def _missing_font_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".missing_font")
+
     # run_shell: The action only prints the error to stderr and fails.
     ctx.actions.run_shell(
         outputs = [out],

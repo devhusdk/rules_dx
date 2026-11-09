@@ -87,6 +87,6 @@ def julia_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     dx_wrap_test(name, _julia_test, _julia_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def julia_standalone_binary(name, **kwargs):
-    """Thin wrapper over julia_standalone_binary; binary is a dx julia_library with julia_main()::Cint."""
+    """Standalone binary from a dx julia_library that defines julia_main()::Cint."""
     kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
     _julia_standalone_binary(name = name, **kwargs)

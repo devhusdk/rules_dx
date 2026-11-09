@@ -1,7 +1,7 @@
 """Minimal PowerShell wrappers."""
 
-load("//libs/starlark:rlocation.bzl", "rlocation_path")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo", _pwsh_binary = "pwsh_binary", _pwsh_library = "pwsh_library", _pwsh_test = "pwsh_test")
+load("//libs/starlark:rlocation.bzl", "rlocation_path")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -43,7 +43,6 @@ def _workspace_path(file):
     if file.short_path.startswith("../"):
         return file.short_path[3:]
     return file.short_path
-
 
 def _pwsh_test_coverage(ctx, upstream):
     """Lists the instrumented sources for DxCoverage, which writes the LCOV from Pester."""
@@ -91,11 +90,11 @@ def powershell_library(name, srcs, visibility = None, **kwargs):
     dx_wrap(name, _pwsh_library, _pwsh_library_forward, srcs, visibility = visibility, **kwargs)
 
 def powershell_binary(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over pwsh_binary; srcs are .ps1 files and optional."""
+    """Binary of optional .ps1 srcs; no other defaults."""
     dx_wrap_binary(name, _pwsh_binary, _pwsh_binary_forward, srcs, visibility = visibility, **kwargs)
 
 def powershell_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over pwsh_test; srcs are .ps1 files."""
+    """Test of required .ps1 srcs, size small."""
     if srcs == None:
         fail("powershell_test //" + native.package_name() + ":" + name + " needs srcs")
     dx_wrap_test(name, _pwsh_test, _pwsh_forward_test, srcs, visibility = visibility, **kwargs)

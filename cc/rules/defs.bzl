@@ -8,8 +8,8 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_append_flags", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//libs/starlark:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_reset_transition", "dx_msvc_crt_validate")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
 _DX_CC_LIBRARY_PROVIDES = [

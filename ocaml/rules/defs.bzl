@@ -26,7 +26,7 @@ load("//cc/rules:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":kwargs.bzl", _OCAML_COMPATIBLE_WITH = "OCAML_COMPATIBLE_WITH", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults")
+load(":kwargs.bzl", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults", _OCAML_COMPATIBLE_WITH = "OCAML_COMPATIBLE_WITH")
 load(":providers.bzl", "OCamlCmtInfo", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
 
 OCAML_COMPATIBLE_WITH = _OCAML_COMPATIBLE_WITH
@@ -305,7 +305,7 @@ def ocaml_library(name, visibility = None, **kwargs):
     _library_shape(name, _ocaml_library, _library_forward, [], visibility, kwargs)
 
 def ocaml_binary(name, visibility = None, **kwargs):
-    """Thin wrapper over the rules_ocaml ocaml_binary rule run on the pinned ocamlrun."""
+    """Binary on the pinned ocamlrun, compatible only with the qualified OCaml cells."""
     kwargs = ocaml_with_defaults(kwargs)
     upstream = dx_binary_upstream_kwargs(ocaml_link_kwargs(kwargs), None)
     upstream["tags"] = ocaml_upstream_tags(kwargs.get("tags"))

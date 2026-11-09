@@ -83,7 +83,6 @@ def scala_test(name, srcs = None, visibility = None, **kwargs):
         **dx_without_warnings_attr(kwargs)
     )
 
-
 def scala_fuzz_test(name, srcs, target_class, deps = None, visibility = None, tags = None, **kwargs):
     """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""
     jazzer_fuzz(name, scala_library, srcs, deps, target_class, visibility, tags, kwargs)

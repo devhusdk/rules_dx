@@ -5,11 +5,11 @@ load("@rules_haskell//haskell:defs.bzl", _haskell_binary = "haskell_binary", _ha
 load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCoverageInfo", _HaskellInfo = "HaskellInfo", _HaskellLibraryInfo = "HaskellLibraryInfo")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/haskell:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
-load(":kwargs.bzl", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS", "haskell_kwargs", "haskell_upstream_kwargs")
+load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS")
 
 DEFAULT_GHCOPTS = _DEFAULT_GHCOPTS
 HASKELL_CELLS = _HASKELL_CELLS

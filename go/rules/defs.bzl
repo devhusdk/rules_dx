@@ -1,14 +1,14 @@
 """Minimal Go wrappers."""
 
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_go//go:def.bzl", _GoArchive = "GoArchive", _GoInfo = "GoInfo", _go_binary = "go_binary", _go_library = "go_library", _go_test = "go_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
-load(":cgo.bzl", "cgo_toolchain_error")
-load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
+load(":cgo.bzl", "cgo_toolchain_error")
 
 _DX_GO_LIBRARY_PROVIDES = [
     _GoInfo,

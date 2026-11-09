@@ -83,11 +83,11 @@ def fsharp_library(name, srcs, visibility = None, **kwargs):
     dx_wrap(name, _fsharp_library, _fsharp_library_forward, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
 
 def fsharp_binary(name, *, srcs = None, visibility = None, upstream_visibility = None, **kwargs):
-    """Minimal wrapper over fsharp_binary; srcs is optional and compiles in list order, target_frameworks defaults to net10.0 and warnings are errors."""
+    """Binary with target_frameworks net10.0, warnings as errors following the repo config, srcs compiled in list order."""
     dx_wrap_binary(name, _fsharp_binary, _fsharp_binary_forward, srcs, visibility = visibility, upstream_visibility = upstream_visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
 
 def fsharp_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over fsharp_test; srcs compile in list order, target_frameworks defaults to net10.0 and warnings are errors."""
+    """Test with target_frameworks net10.0, warnings as errors following the repo config, size small; srcs compiled in list order."""
     if srcs == None:
         fail("fsharp_test //" + native.package_name() + ":" + name + " needs srcs")
     dx_wrap_test(name, _fsharp_test, _fsharp_forward_test, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), coverage_collector = FSHARP_COVERAGE_COLLECTOR, **kwargs)

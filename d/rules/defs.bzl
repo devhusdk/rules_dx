@@ -7,7 +7,7 @@ load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":kwargs.bzl", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH", "d_kwargs")
+load(":kwargs.bzl", "d_kwargs", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH")
 
 D_CELLS = _D_CELLS
 D_COMPATIBLE_WITH = _D_COMPATIBLE_WITH

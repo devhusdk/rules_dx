@@ -992,7 +992,7 @@ helm_chart_deploy(
   must equal it.
 - `registry`: host plus optional path (lowercase, no empty segments, as for
   `oci_deploy`). `repository` adds a path below it.
-- `helm`: defaults to the pinned helm from `//config:tool_helm`.
+- The pinned helm from `//config:tool_helm` is always used.
 
 A dry run runs `helm lint`, then `helm package`, and prints the `.tgz` path.
 A live run (`dx deploy --apply`) needs `HELM_PUBLISH_APPROVED=1`, `OCI_API_USER`

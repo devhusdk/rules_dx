@@ -56,7 +56,7 @@ _helm_config = rule(
     },
 )
 
-def helm_chart_deploy(name, chart, registry, version = "", repository = "", helm = None, build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def helm_chart_deploy(name, chart, registry, version = "", repository = "", build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Packages a helm_chart and pushes it to an OCI registry as a local-first deployment."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     where = " (in " + native.package_name() + ":" + name + ")"
@@ -77,7 +77,7 @@ def helm_chart_deploy(name, chart, registry, version = "", repository = "", helm
         name = config_target,
         chart = chart,
         deploy_name = name,
-        helm = helm or str(Label("//config:tool_helm")),
+        helm = str(Label("//config:tool_helm")),
         registry = registry,
         repository = repository,
         version = version,

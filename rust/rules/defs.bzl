@@ -715,7 +715,7 @@ def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rust
     )
     sh_binary(
         name = name + "_run",
-        srcs = [Label("//cc/rules:fuzz_run.sh")],
+        srcs = [Label("//tools/fuzz:fuzz_run.sh")],
         args = ["$(rootpath :" + name + ")"],
         data = [":" + name],
         testonly = True,

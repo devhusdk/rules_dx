@@ -17,7 +17,7 @@ sh_test(
     args = ["$(rootpath :parse_fuzz)"],
     data = [
         ":parse_fuzz",
-        "//cc/rules:fuzz_run.sh",
+        "//tools/fuzz:fuzz_run.sh",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     timeout = "short",

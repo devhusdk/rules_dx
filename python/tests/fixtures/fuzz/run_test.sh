@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-run=./python/rules/fuzz_run.sh
+run=./tools/fuzz/fuzz_run.sh
 bin="$1"
 
 out="$TEST_TMPDIR/out"

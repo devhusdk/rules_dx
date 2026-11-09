@@ -123,7 +123,7 @@ def python_fuzz_test(name, srcs = None, visibility = None, tags = None, **kwargs
     python_binary(name = name, srcs = srcs, visibility = visibility, testonly = True, tags = (tags or []) + ["dx-fuzz"], **kwargs)
     sh_binary(
         name = name + "_run",
-        srcs = [Label("//python/rules:fuzz_run.sh")],
+        srcs = [Label("//tools/fuzz:fuzz_run.sh")],
         args = ["$(rootpath :" + name + ")"],
         data = [":" + name],
         testonly = True,

@@ -1,0 +1,5 @@
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files(["fuzz_run.sh"])

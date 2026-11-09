@@ -255,7 +255,7 @@ def cc_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None
     )
     sh_binary(
         name = name + "_run",
-        srcs = [Label("//cc/rules:fuzz_run.sh")],
+        srcs = [Label("//tools/fuzz:fuzz_run.sh")],
         args = ["$(rootpath :" + name + ")"],
         data = [":" + name],
         testonly = True,

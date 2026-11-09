@@ -609,6 +609,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_json_command_writes_the_common_envelope() {
+        use clap::ValueEnum;
+        for command in Command::value_variants()
+            .iter()
+            .copied()
+            .filter(|c| c.output_caps().json)
+        {
+            let name = command.name();
+            let started = dx_output::command_started(name, "default").expect("started");
+            assert_eq!(
+                started.to_string(),
+                format!(
+                    r#"{{"command":"{name}","event":"command_started","mode":"default","schema":{{"major":{},"minor":{}}}}}"#,
+                    dx_output::SCHEMA_MAJOR,
+                    dx_output::SCHEMA_MINOR
+                ),
+                "dx {name} command_started"
+            );
+            for (code, status) in [(0, "ok"), (1, "failed"), (3, "failed")] {
+                let finished =
+                    dx_output::command_finished(code, &dx_output::FinishedCounts::default());
+                assert_eq!(
+                    finished.to_string(),
+                    format!(
+                        r#"{{"event":"command_finished","exit_code":{code},"schema":{{"major":{},"minor":{}}},"status":"{status}"}}"#,
+                        dx_output::SCHEMA_MAJOR,
+                        dx_output::SCHEMA_MINOR
+                    ),
+                    "dx {name} command_finished"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn support_sets_are_pinned() {
         use clap::ValueEnum;
         let all = Command::value_variants();

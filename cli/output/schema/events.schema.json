@@ -505,6 +505,12 @@
         "exit_code": {
           "type": "integer"
         },
+        "status": {
+          "enum": [
+            "ok",
+            "failed"
+          ]
+        },
         "results_complete": {
           "type": "boolean"
         },
@@ -684,7 +690,8 @@
       "required": [
         "schema",
         "event",
-        "exit_code"
+        "exit_code",
+        "status"
       ],
       "unevaluatedProperties": false
     },

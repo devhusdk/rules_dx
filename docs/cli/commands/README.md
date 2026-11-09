@@ -75,7 +75,7 @@ and `minor`. The stream starts with `command_started` and ends with
 `command_finished`. Logs go to stderr. The schema is
 [`cli/output/schema/events.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/output/schema/events.schema.json).
 Readers accept added fields and any minor, and reject a `major` they do not write.
-`command_finished` carries `exit_code`. Commands that run Bazel write events while they run; `dx <command> --help` marks them.
+Every event carries `schema` and `event`. `command_finished` carries `exit_code` and `status`: `ok` for exit code 0, `failed` otherwise. Commands that run Bazel write events while they run; `dx <command> --help` marks them.
 
 ```sh
 tools/dx lint //... --output=json

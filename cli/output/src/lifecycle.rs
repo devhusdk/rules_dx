@@ -1192,6 +1192,10 @@ pub struct TestCounts {
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
     let mut map = base("command_finished");
     map.insert("exit_code".to_owned(), Value::from(exit_code));
+    map.insert(
+        "status".to_owned(),
+        Value::from(if exit_code == 0 { "ok" } else { "failed" }),
+    );
     if let Some(results_complete) = counts.results_complete {
         map.insert("results_complete".to_owned(), Value::Bool(results_complete));
     }

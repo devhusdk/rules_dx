@@ -402,3 +402,15 @@ fn an_unknown_field_on_a_finished_event_fails_the_schema() {
     command["extra"] = json!(1);
     assert!(!validator.is_valid(&command));
 }
+
+#[test]
+fn command_finished_requires_a_status() {
+    let validator = jsonschema::draft202012::new(&schema()).expect("schema compiles");
+    let mut event = finished();
+    assert_eq!(event["status"], "ok");
+    assert!(validator.is_valid(&event));
+    event["status"] = json!("done");
+    assert!(!validator.is_valid(&event));
+    event.as_object_mut().expect("object").remove("status");
+    assert!(!validator.is_valid(&event));
+}

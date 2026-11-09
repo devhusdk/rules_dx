@@ -42,3 +42,19 @@ runs `kotlinc`. None of them needs a config file.
 ## Platforms
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
+
+## Fuzzing
+
+`kotlin_fuzz_test` builds a Jazzer fuzz target for `dx fuzz`, like `java_fuzz_test`.
+
+```python
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_fuzz_test")
+
+kotlin_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["ParseFuzz.kt"],
+    target_class = "pkg.ParseFuzz",
+)
+```
+
+The target class needs a static `fuzzerTestOneInput(data: ByteArray)`, so put it in an `object` with `@JvmStatic`.

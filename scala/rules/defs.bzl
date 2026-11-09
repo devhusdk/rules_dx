@@ -4,6 +4,7 @@ load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_scala//scala:scala.bzl", _scala_binary = "scala_binary", _scala_library = "scala_library", _scala_test = "scala_test")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//java/rules:coverage.bzl", "dx_jvm_test_coverage")
+load("//java/rules:jazzer.bzl", "jazzer_fuzz")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":validate.bzl", "scala_scalacopts_with_warnings_as_errors")
@@ -79,3 +80,18 @@ def scala_test(name, srcs = None, visibility = None, **kwargs):
         extra_forward_kwargs = {"main_class": kwargs.get("main_class") or _SCALA_TEST_RUNNER},
         **dx_without_warnings_attr(kwargs)
     )
+
+
+def scala_fuzz_test(name, srcs, target_class, deps = None, visibility = None, tags = None, **kwargs):
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.
+
+    Args:
+      name: the fuzz binary; the runner is `<name>_run`.
+      srcs: Scala sources. A top-level `object` exposes `fuzzerTestOneInput` as a static method.
+      target_class: the class Jazzer fuzzes.
+      deps: libraries the target uses.
+      visibility: visibility of the binary and the runner.
+      tags: extra tags. dx-fuzz and manual are added.
+      **kwargs: `args` and `target_compatible_with` go to the binary, the rest to the library.
+    """
+    jazzer_fuzz(name, scala_library, srcs, deps, target_class, visibility, tags, kwargs)

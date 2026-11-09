@@ -8,6 +8,7 @@ package(default_visibility = ["//visibility:public"])
 _ON = {"warnings_as_errors": True}
 
 exports_files([
+    "jazzer.bzl",
     "jmh.bzl",
     "coverage.bzl",
     "coverage_tests.bzl",

@@ -435,6 +435,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_wasm_bindgen_library` |
 |  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_standalone_binary` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_bench` |
+|  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_fuzz_test` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_warnings_as_errors_opts` |
 |  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_library` |
 |  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_schemas` |
@@ -510,6 +511,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_shared_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_static_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_test` |
+|  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_fuzz_test` |
 |  |  | `@rules_dx//sql/rules:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_build` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_library` |

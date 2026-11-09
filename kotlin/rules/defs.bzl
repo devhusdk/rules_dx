@@ -6,6 +6,7 @@ load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
 load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
 load("//java/rules:defs.bzl", "java_jmh_test")
+load("//java/rules:jazzer.bzl", "jazzer_fuzz")
 load("//java/rules:jmh.bzl", "jmh_bench")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -146,3 +147,23 @@ def kotlin_bench(name, srcs, deps = [], tags = [], **kwargs):
         visibility = ["//visibility:private"],
     )
     jmh_bench(name, kotlin_library, java_jmh_test, srcs, deps, tags, kwargs, {"javac_opts": ":" + name + "_javac_opts"})
+
+def kotlin_fuzz_test(name, srcs, target_class, deps = None, visibility = None, tags = None, **kwargs):
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.
+
+    Args:
+      name: the fuzz binary; the runner is `<name>_run`.
+      srcs: Kotlin sources. The target class needs a static `fuzzerTestOneInput`, so use `@JvmStatic` in an object.
+      target_class: the class Jazzer fuzzes.
+      deps: libraries the target uses.
+      visibility: visibility of the binary and the runner.
+      tags: extra tags. dx-fuzz and manual are added.
+      **kwargs: `args` and `target_compatible_with` go to the binary, the rest to the library.
+    """
+    kt_javac_options(
+        name = name + "_javac_opts",
+        warn = "off",
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
+    jazzer_fuzz(name, kotlin_library, srcs, deps, target_class, visibility, tags, kwargs, {"javac_opts": ":" + name + "_javac_opts"})

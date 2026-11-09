@@ -3,7 +3,7 @@ set -eu
 
 run="$TEST_SRCDIR/$1"
 bin="$2"
-target=tests.fixtures.fuzz.ParseFuzz
+target="$3"
 
 out="$TEST_TMPDIR/out"
 status=0

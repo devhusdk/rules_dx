@@ -44,3 +44,19 @@ lint tool is on by default. `scalafmt` needs a `.scalafmt.conf` bound with
 ## Platforms
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
+
+## Fuzzing
+
+`scala_fuzz_test` builds a Jazzer fuzz target for `dx fuzz`, like `java_fuzz_test`.
+
+```python
+load("@rules_dx//scala/rules:defs.bzl", "scala_fuzz_test")
+
+scala_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["ParseFuzz.scala"],
+    target_class = "pkg.ParseFuzz",
+)
+```
+
+The target class needs a static `fuzzerTestOneInput(data: Array[Byte])`, which a top-level `object` method provides.

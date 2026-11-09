@@ -19,6 +19,7 @@ sh_test(
     args = [
         "$(rlocationpath @rules_dx//libs/starlark:fuzz_run.sh)",
         "$(rootpath :parse_fuzz)",
+        "tests.fixtures.fuzz.ParseFuzz",
     ],
     data = [
         ":parse_fuzz",

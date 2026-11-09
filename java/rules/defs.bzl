@@ -3,9 +3,8 @@
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_library = "java_library", _java_test = "java_test")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
+load("//java/rules:jazzer.bzl", "jazzer_fuzz")
 load("//java/rules:jmh.bzl", "jmh_bench")
-load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors")
@@ -108,26 +107,7 @@ def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, ta
     target_class = target_class or java_entry_class(name, srcs, native.package_name())
     if target_class == None:
         fail("java_fuzz_test %s needs target_class" % name)
-    build, run = split_runner_kwargs(kwargs)
-    java_library(
-        name = name + "_bin",
-        srcs = srcs,
-        deps = deps,
-        testonly = True,
-        tags = merge_tags(tags, "manual"),
-        visibility = ["//visibility:private"],
-        **build
-    )
-    _java_binary(
-        name = name,
-        main_class = "com.code_intelligence.jazzer.Jazzer",
-        runtime_deps = [":" + name + "_bin", Label("@dx_jazzer//jar"), Label("@dx_jazzer_api//jar")],
-        testonly = True,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
-        visibility = visibility,
-        **run
-    )
-    dx_fuzz_runner(name, ":" + name, visibility = visibility, engine = "jazzer", target = target_class)
+    jazzer_fuzz(name, java_library, srcs, deps, target_class, visibility, tags, kwargs)
 
 def java_bench(name, srcs, deps = [], tags = [], **kwargs):
     """Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench.

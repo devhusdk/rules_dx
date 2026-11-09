@@ -371,10 +371,13 @@ def hub_build():
     ))
     return "\n".join(content)
 
-def rebar_build(package, packages, prefix):
-    """Returns the BUILD file of one rebar.lock package: it links every package locked deeper."""
-    deps = ["@{}_{}//:erlang_app".format(prefix, other["package"]) for other in packages if other["level"] > package["level"]]
-    return _HEX_BUILD.format(app = package["package"], version = package["version"], deps = repr(deps))
+def rebar_build(package):
+    """Returns the BUILD file template of one rebar.lock package: {deps} is filled from its Hex requirements."""
+    return _HEX_BUILD.format(app = package["package"], version = package["version"], deps = "{deps}")
+
+def rebar_labels(packages, prefix):
+    """Returns the erlang_app label of each rebar.lock package by name."""
+    return {p["package"]: "@{}_{}//:erlang_app".format(prefix, p["package"]) for p in packages}
 
 def rebar_hub_build(packages, prefix):
     """Returns the hub BUILD file with one erlang_app alias per rebar.lock package."""
@@ -385,7 +388,8 @@ def _declare_rebar(mctx, tag):
     for package in packages:
         hex_package(
             name = tag.name + "_" + package["package"],
-            build_file_content = rebar_build(package, packages, tag.name),
+            build_file_template = rebar_build(package),
+            dependency_labels = rebar_labels(packages, tag.name),
             package = package["package"],
             sha256 = package["sha256"],
             version = package["version"],

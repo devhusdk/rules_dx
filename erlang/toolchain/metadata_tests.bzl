@@ -2,7 +2,9 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "TOOL_SOURCES", "WINDOWS_DROPPED_PATHS")
-load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir", "rebar_build", "rebar_hub_build")
+load("//elixir/rules:hex.bzl", "hex_dependency_labels", "hex_requirements")
+load("//erlang/rules:rebar_lock.bzl", "rebar_lock_packages")
+load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir", "rebar_build", "rebar_hub_build", "rebar_labels")
 
 _SOURCE = """#!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
@@ -11,9 +13,30 @@ exec "$BINDIR/erlexec" ${1+"$@"}
 """
 
 _REBAR = [
-    {"level": 0, "package": "cowboy", "sha256": "a", "version": "2.10.0"},
-    {"level": 1, "package": "cowlib", "sha256": "b", "version": "2.12.1"},
+    {"package": "cowboy", "sha256": "a", "version": "2.10.0"},
+    {"package": "cowlib", "sha256": "b", "version": "2.12.1"},
 ]
+
+_METADATA = '''{<<"name">>,<<"cowboy">>}.
+{<<"requirements">>,
+ [[{<<"app">>,<<"cowlib">>},
+   {<<"name">>,<<"cowlib">>},
+   {<<"optional">>,false},
+   {<<"requirement">>,<<"~> 2.12">>}],
+  [{<<"app">>,<<"ranch">>},
+   {<<"name">>,<<"ranch">>},
+   {<<"optional">>,true},
+   {<<"requirement">>,<<"~> 1.8">>}]]}.
+{<<"version">>,<<"2.10.0">>}.
+'''
+
+_LOCK = '''{"1.2.0",
+[{<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.12.1">>},1}]}.
+[
+{pkg_hash_ext,[
+ {<<"cowlib">>, <<"ABCD">>}]}
+].
+'''
 
 def _checks():
     script = erl_script(_SOURCE, CLOSURE_DIR)
@@ -60,8 +83,11 @@ def _checks():
         expect_contains("erts mismatch handles none", erts_mismatch_message("1.2", []), "found: none"),
         expect_false("the hub names no rules_erlang target", "@rules_erlang" in hub_build()),
         expect_contains("the hub names the rules_dx type", hub_build(), "//erlang/toolchain/type:toolchain_type"),
-        expect_equal("rebar packages link deeper levels", rebar_build(_REBAR[0], _REBAR, "hub").count("@hub_cowlib//:erlang_app"), 1),
-        expect_false("the deepest rebar package links nothing", "@hub_" in rebar_build(_REBAR[1], _REBAR, "hub")),
+        expect_contains("rebar build leaves the deps to the metadata", rebar_build(_REBAR[0]), "deps = {deps}"),
+        expect_equal("rebar labels name each package", rebar_labels(_REBAR, "hub")["cowlib"], "@hub_cowlib//:erlang_app"),
+        expect_equal("requirements list names and optional flags", hex_requirements("cowboy", _METADATA), [("cowlib", False), ("ranch", True)]),
+        expect_equal("requirements keep only locked packages", hex_dependency_labels("cowboy", _METADATA, rebar_labels(_REBAR, "hub")), ["@hub_cowlib//:erlang_app"]),
+        expect_equal("lock packages carry no level", rebar_lock_packages(_LOCK), [{"package": "cowlib", "sha256": "abcd", "version": "2.12.1"}]),
         expect_contains("rebar hub aliases every package", rebar_hub_build(_REBAR, "hub"), 'actual = "@hub_cowlib//:erlang_app"'),
         expect_true("wx is dropped", dropped_application("wx-2.5")),
         expect_false("crypto is kept", dropped_application("crypto-5.6")),

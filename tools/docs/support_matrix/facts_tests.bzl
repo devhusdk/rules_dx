@@ -11,6 +11,7 @@ load("//tools/docs/d:defs.bzl", "d_doc_shard")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
 load("//tools/docs/javascript:defs.bzl", "javascript_doc_shard")
+load("//tools/docs/haskell:defs.bzl", "haskell_doc_shard")
 load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_doc_shard")
 load("//tools/docs/perl:defs.bzl", "perl_doc_shard")
 load("//tools/docs/php:defs.bzl", "php_doc_shard")
@@ -35,6 +36,7 @@ _SHARD_RULES = {
     "cuda_doc_shard": cuda_doc_shard,
     "fsharp_doc_shard": fsharp_doc_shard,
     "go_doc_shard": go_doc_shard,
+    "haskell_doc_shard": haskell_doc_shard,
     "java_doc_shard": java_doc_shard,
     "julia_doc_shard": julia_doc_shard,
     "javascript_doc_shard": javascript_doc_shard,

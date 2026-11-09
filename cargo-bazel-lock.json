@@ -1,5 +1,5 @@
 {
-  "checksum": "62004244cee28568ddcc1f0706af0e8e1331315a1bae368ef7827c3391d1ea25",
+  "checksum": "c978dbd2ef70f7bebc134112a424e06fc4aae969ec64256d80463c455ca43c44",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -11323,6 +11323,27 @@
         }
       ],
       "version": "0.17.1"
+    },
+    "haskell_extract 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "dx_docs_haskell_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "haskell_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_haskell_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "heapless 0.7.17": {
       "build_script_attrs": {
@@ -28833,6 +28854,7 @@
     "generation_result 0.0.0": "generation/generation_result",
     "go_docs_tests 0.0.0": "tools/docs/go_docs_tests",
     "go_extract 0.0.0": "tools/docs/go/go_extract",
+    "haskell_extract 0.0.0": "tools/docs/haskell/haskell_extract",
     "hermetic 0.0.0": "tools/testing/hermetic",
     "ide_tests 0.0.0": "tools/ide_tests",
     "julia_extract 0.0.0": "tools/docs/julia/julia_extract",

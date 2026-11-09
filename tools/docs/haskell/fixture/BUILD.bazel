@@ -1,0 +1,25 @@
+load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/haskell:defs.bzl", "haskell_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+haskell_library(
+    name = "geometry",
+    srcs = ["src/Geometry.hs"],
+    deps = ["@dx_haskell_toolchains//:base"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+)
+
+haskell_doc_shard(
+    name = "geometry_docs",
+    lib = ":geometry",
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

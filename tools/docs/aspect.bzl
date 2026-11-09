@@ -14,6 +14,7 @@ load("//php/rules:providers.bzl", _PhpInfo = "PhpInfo")
 load("//php/toolchain:php.bzl", _PHP_EXEC_TOOLCHAIN = "EXEC_TOOLCHAIN_TYPE")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_haskell//haskell:providers.bzl", _HaskellInfo = "HaskellInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
@@ -30,6 +31,7 @@ load("//tools/docs/fortran:defs.bzl", "FORTRAN_SOURCE_EXTENSIONS", "fortran_shar
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/julia:defs.bzl", "julia_shard_action")
 load("//tools/docs/ocaml:defs.bzl", "ODOC_CONFIG", "ocaml_odoc_available", "ocaml_shard_action", "ocaml_typed_trees")
+load("//tools/docs/haskell:defs.bzl", "HASKELL_TOOLCHAIN", "haskell_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/perl:defs.bzl", "perl_shard_action")
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
@@ -124,6 +126,14 @@ def _cc_docs_shard(target, ctx):
     if not headers or not doxygen_available(doxygen):
         return None
     return cc_shard_action(ctx, language, headers, ctx.label.name, "_dx_docs/" + ctx.label.name, doxygen, ctx.executable._cc_extract).shard
+def _haskell_docs_shard(target, ctx):
+    if _HaskellInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary") or ctx.label.name.endswith("_upstream"):
+        return None
+    if ctx.toolchains[HASKELL_TOOLCHAIN] == None or not target[_HaskellInfo].source_files.to_list():
+        return None
+    return haskell_shard_action(ctx, target[_HaskellInfo], ctx.label.name, "", "_dx_docs/" + ctx.label.name, ctx.executable._haskell_extract).shard
 
 def _dotnet_docs_shard(target, ctx):
     if DocsShardInfo in target or DotnetDocsInfo not in target:
@@ -392,6 +402,9 @@ def _real_docs_aspect_impl(target, ctx):
     cc_shard = _cc_docs_shard(target, ctx)
     if cc_shard:
         parts.append({"dx_results": [cc_shard], "dx_docs_shards": [cc_shard]})
+    haskell_shard = _haskell_docs_shard(target, ctx)
+    if haskell_shard:
+        parts.append({"dx_results": [haskell_shard], "dx_docs_shards": [haskell_shard]})
     dotnet_shard = _dotnet_docs_shard(target, ctx)
     if dotnet_shard:
         parts.append({"dx_results": [dotnet_shard], "dx_docs_shards": [dotnet_shard]})
@@ -438,7 +451,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Dart, C#, F#, PowerShell, Perl, Protobuf, Ruby, Julia, OCaml, Fortran, PHP, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The PHP branch runs the pinned phpDocumentor (@dx_phpdocumentor) on the pinned PHP and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The Protobuf branch runs the protoc of the proto toolchain with --include_source_info over a proto_library's own .proto srcs and the DocIr extractor (//tools/docs/protobuf/extract:protobuf_extract). The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Haskell, Dart, C#, F#, PowerShell, Perl, Protobuf, Ruby, Julia, OCaml, Fortran, PHP, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The PHP branch runs the pinned phpDocumentor (@dx_phpdocumentor) on the pinned PHP and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The Protobuf branch runs the protoc of the proto toolchain with --include_source_info over a proto_library's own .proto srcs and the DocIr extractor (//tools/docs/protobuf/extract:protobuf_extract). The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_cc_extract": attr.label(
@@ -459,6 +472,11 @@ real_docs_aspect = aspect(
         "_d_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/d/extract:d_extract"),
+            executable = True,
+        ),
+        "_haskell_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/haskell/extract:haskell_extract"),
             executable = True,
         ),
         "_dotnet_extract": attr.label(
@@ -637,6 +655,7 @@ real_docs_aspect = aspect(
     toolchains = [
         config_common.toolchain_type(_DART_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(D_TOOLCHAIN, mandatory = False),
+        config_common.toolchain_type(HASKELL_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(JAVA_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(KOTLIN_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_PERL_TOOLCHAIN, mandatory = False),

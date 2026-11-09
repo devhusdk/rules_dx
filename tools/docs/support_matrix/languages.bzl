@@ -498,7 +498,7 @@ LANGUAGES = [
         "haskell",
         bench = "haskell_bench",
         deps = "`hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`: only cabal has a set",
-        doc = NO_DOC,
+        doc = struct(tool = "haddock", shard = "haskell_doc_shard"),
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
         coverage = ["hpc"],
         unsupported = "//haskell/toolchain:unsupported",

@@ -101,13 +101,14 @@ tools/dx docs //lib:site
 | Kotlin | `@rules_dx//tools/docs/jvm:defs.bzl` | `kotlin_doc_shard` | `lib`, `package`, `deps` |
 | Scala | `@rules_dx//tools/docs/jvm:defs.bzl` | `scala_doc_shard` | `lib`, `package`, `deps` |
 | D | `@rules_dx//tools/docs/d:defs.bzl` | `d_doc_shard` | `lib`, `package`, `config` |
+| Haskell | `@rules_dx//tools/docs/haskell:defs.bzl` | `haskell_doc_shard` | `lib`, `package`, `config` |
 | PowerShell | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_doc_shard` | `srcs`, `manifest`, `package`, `config` |
 | Dart | `@rules_dx//tools/docs/dart:defs.bzl` | `dart_doc_shard` | `lib`, `package` |
 | C# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
 | F# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
 | Protobuf | `@rules_dx//tools/docs/protobuf:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
 
-Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Dart, C#, F# and Perl libraries in scope that have
+Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Dart, C#, F# and Perl libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
 an F# library needs `generate_documentation_file = True`; others are skipped. A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files gets one when its package has exactly one `tsconfig.json` with `allowJs` among its sources.
 

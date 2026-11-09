@@ -89,6 +89,10 @@ by another glibc version. If the host has no `C.UTF-8` locale, GHC falls back
 to ASCII and can fail on non-ASCII text with `invalid byte sequence`. Check
 with `locale -a | grep -i c.utf`.
 
+## API docs
+
+`dx docs` documents every `haskell_library` in scope with the `haddock` of the pinned GHC bindist: `haddock --hoogle` writes the declarations and their comments as Hoogle text, and `haskell_doc_shard` (`@rules_dx//tools/docs/haskell:defs.bzl`) turns them into the API reference. Nothing needs to be installed. Test and binary targets are skipped. A library that needs GHCi libraries (Template Haskell with C dependencies) fails in haddock with its own error.
+
 ## Formatting
 
 `dx format` runs `ormolu` 0.9.0.0 on Haskell sources by default, on Linux x86_64. See the Haskell section of `docs/cli/commands/quality.md`. `dx typecheck` runs `ghc -fno-code` when a `haskell` family opts in with `typecheck = ["ghc"]`. `dx lint` runs `hlint` 3.10 by default, on Linux x86_64 only; other platforms skip it with a note.

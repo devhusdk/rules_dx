@@ -54,6 +54,7 @@ tools/docs/dart:defs.bzl
 tools/docs/d:defs.bzl
 tools/docs/go:defs.bzl
 tools/docs/javascript:defs.bzl
+tools/docs/haskell:defs.bzl
 tools/docs/jvm:defs.bzl
 tools/docs/ocaml:defs.bzl
 tools/docs/powershell:defs.bzl

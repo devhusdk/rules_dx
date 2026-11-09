@@ -1,6 +1,6 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
-use dx_nested::compose::rules_dx_override;
+use dx_nested::compose::{rules_dx_override, rules_py_override};
 use dx_nested::{self as nested, Case, footprint};
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
 
@@ -87,6 +87,7 @@ fn the_readme_quickstart_runs_as_written() {
         let mut text = text.replace("<release>", "0.0.0");
         if name == "MODULE.bazel" {
             text.push_str(&rules_dx_override(&source));
+            text.push_str(&rules_py_override());
         }
         write_text(&case.root().join(name), &text);
     }
@@ -145,7 +146,10 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         &read_text(&source.join(".bazelversion")),
     );
     let module = case.root().join("MODULE.bazel");
-    write_text(&module, &(read_text(&module) + &rules_dx_override(&source)));
+    write_text(
+        &module,
+        &(read_text(&module) + &rules_dx_override(&source) + &rules_py_override()),
+    );
 
     let flags = presubmit_list(&presubmit, "run_flags");
     for target in presubmit_list(&presubmit, "run_targets") {

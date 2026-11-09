@@ -1,4 +1,4 @@
-# gazelle:dx_corpus false
+# gazelle:dx_rust_corpus false
 
 load("//rules:defs.bzl", "CUDA_TARGET", "cuda_component_library")
 

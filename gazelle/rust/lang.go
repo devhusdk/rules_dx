@@ -150,9 +150,9 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 				continue
 			}
 			if directive.Key == corpusDirective {
-				enabled, err := parseCorpusDirective(directive.Value)
+				enabled, err := common.ParseBoolDirective(directive.Value)
 				if err != nil {
-					l.fail(common.InPackage(rel), "%v", err)
+					l.fail(common.InPackage(rel), "rust: malformed # gazelle:%s: %v", corpusDirective, err)
 					continue
 				}
 				corpus = enabled

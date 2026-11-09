@@ -15,7 +15,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
 # gazelle:resolve rust serde_json @crates//:serde_json
-# gazelle:dx_corpus true
+# gazelle:dx_rust_corpus true
 # gazelle:dx_external maven third_party/jvm/maven_install.json maven
 # gazelle:dx_external maven third_party/jvm/rules_android_maven_install.json rules_android_maven
 # gazelle:dx_external maven third_party/jvm/scala3_test_install.json dx_scala3_test

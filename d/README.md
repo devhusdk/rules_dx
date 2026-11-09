@@ -57,7 +57,7 @@ Next to a `dub.json`, generation reads the import roots (`importPaths`, else `so
 
 An import resolves to `@dub//<package>` when its first segment is the name of a dependency in
 `dub.json` (with `-` read as `_`) and `dub.selections.json` pins it. Set
-`# gazelle:d_dub_hub <name>` in a BUILD file to name the hub repo other than `dub`, for example
+`# gazelle:dx_external dub dub.json <repo>` in a BUILD file to name the hub repo other than `dub`, for example
 `dub_packages`. `# gazelle:resolve d <module> <label>` overrides one import.
 
 ## Coverage

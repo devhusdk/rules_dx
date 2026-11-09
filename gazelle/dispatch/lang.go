@@ -8,7 +8,6 @@ import (
 	"os"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -51,6 +50,16 @@ func ignoreLanguageNames(langs []language.Language) []string {
 }
 
 var ignoreLanguages = sync.OnceValue(func() []string { return ignoreLanguageNames(composedLanguages()) })
+
+var knownDirectives = sync.OnceValue(func() map[string]bool {
+	known := map[string]bool{common.FixtureTestonlyDirective: true}
+	for _, lang := range composedLanguages() {
+		for _, key := range lang.KnownDirectives() {
+			known[key] = true
+		}
+	}
+	return known
+})
 
 type dispatchLang struct {
 	language.BaseLang
@@ -108,13 +117,19 @@ func (l *dispatchLang) Configure(c *config.Config, rel string, f *rule.File) {
 		if d.Key != common.FixtureTestonlyDirective {
 			continue
 		}
-		on, err := strconv.ParseBool(d.Value)
+		on, err := common.ParseBoolDirective(d.Value)
 		if err != nil {
-			l.fail(common.InPackage(rel), "%s: //%s: want true or false, got %q", common.FixtureTestonlyDirective, rel, d.Value)
+			l.fail(common.InPackage(rel), "%s: //%s: %v", common.FixtureTestonlyDirective, rel, err)
 			continue
 		}
 		if c != nil {
 			common.SetFixtureTestonly(c, on)
+		}
+	}
+	declared := knownDirectives()
+	for _, d := range f.Directives {
+		if strings.HasPrefix(d.Key, "dx_") && !declared[d.Key] {
+			l.fail(common.InPackage(rel), "%s: //%s: unknown directive # gazelle:%s", d.Key, rel, d.Key)
 		}
 	}
 	known := ignoreLanguages()

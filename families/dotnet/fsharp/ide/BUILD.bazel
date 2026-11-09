@@ -1,4 +1,4 @@
-# gazelle:dx_corpus false
+# gazelle:dx_rust_corpus false
 load("@rules_dx//modules:versions.bzl", "DOTNET_VERSION")
 load("@rules_dx//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("@rules_dx//tools/ide:ide_tool.bzl", "ide_dotnet_tool")

@@ -1,4 +1,4 @@
-# gazelle:dx_corpus false
+# gazelle:dx_rust_corpus false
 
 # gazelle:exclude probe_nif.c
 load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_nif", "escript_archive")

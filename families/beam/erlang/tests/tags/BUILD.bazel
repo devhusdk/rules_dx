@@ -1,4 +1,4 @@
-# gazelle:dx_corpus false
+# gazelle:dx_rust_corpus false
 
 load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "test_erlang_app")
 load("@rules_dx//libs/starlark:defs.bzl", "starlark_test")

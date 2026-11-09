@@ -944,3 +944,17 @@ func TestConfigureRejectsBadFixtureTestonly(t *testing.T) {
 		t.Error("a bad value turned the marking on")
 	}
 }
+
+func TestConfigureRejectsUnknownDxDirective(t *testing.T) {
+	l := &dispatchLang{}
+	f := rule.EmptyFile("BUILD.bazel", "pkg")
+	f.Directives = []rule.Directive{
+		{Key: "dx_rust_corpus", Value: "true"},
+		{Key: "dx_externl", Value: "go go.mod"},
+		{Key: "resolve", Value: "go x //y"},
+	}
+	l.Configure(testConfig(), "pkg", f)
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "unknown directive # gazelle:dx_externl") {
+		t.Fatalf("errors = %v, want one unknown directive error", l.errors)
+	}
+}

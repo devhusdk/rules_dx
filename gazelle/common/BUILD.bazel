@@ -25,6 +25,7 @@ go_library(
         "android.go",
         "buildsnapshot.go",
         "classlang.go",
+        "directive.go",
         "doc.go",
         "dotnetplatform.go",
         "erlangnif.go",

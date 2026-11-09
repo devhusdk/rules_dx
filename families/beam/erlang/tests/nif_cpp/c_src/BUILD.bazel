@@ -1,4 +1,4 @@
-# gazelle:dx_corpus false
+# gazelle:dx_rust_corpus false
 
 # gazelle:ignore
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")

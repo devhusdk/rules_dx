@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
-# gazelle:dx_corpus true
+# gazelle:dx_rust_corpus true
 
 real_source_target(
     name = "corpus_markdown",

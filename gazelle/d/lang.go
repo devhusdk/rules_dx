@@ -9,11 +9,9 @@ import (
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
-	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
-	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
@@ -23,13 +21,8 @@ const languageName = "d"
 // executable.
 const BinaryKind = "d_binary"
 
-// hubDirective names the repository that holds the DUB packages.
-const hubDirective = "d_dub_hub"
-
 // TestKind is the rule kind generated for a library with unittest blocks.
 const TestKind = "d_test"
-
-const defaultHub = "dub"
 
 const unresolvedHint = "add a d_library whose srcs declare that module, or an exact # gazelle:resolve d <module> <label>"
 
@@ -58,7 +51,6 @@ type dubConfig struct {
 	rel     string
 	project *common.DubProject
 	roots   []string
-	hub     string
 }
 
 func dubOf(c *config.Config) *dubConfig {
@@ -71,31 +63,11 @@ const dubExt = "d.dub"
 func configureDub(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
 	cfg := dubOf(c)
 	if project := common.ReadDubProject(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))); project != nil {
-		next := &dubConfig{rel: rel, project: project, hub: defaultHub}
+		next := &dubConfig{rel: rel, project: project}
 		for _, root := range project.Roots(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))) {
 			next.roots = append(next.roots, path.Join(rel, root))
 		}
-		if cfg != nil {
-			next.hub = cfg.hub
-		}
 		cfg = next
-	}
-	if f != nil {
-		for _, d := range f.Directives {
-			if d.Key != hubDirective {
-				continue
-			}
-			if cfg == nil {
-				cfg = &dubConfig{hub: defaultHub}
-			} else {
-				copied := *cfg
-				cfg = &copied
-			}
-			cfg.hub = strings.TrimSpace(d.Value)
-			if cfg.hub == "" {
-				cfg.hub = defaultHub
-			}
-		}
 	}
 	if cfg != nil {
 		c.Exts[dubExt] = cfg
@@ -128,7 +100,6 @@ func NewLanguage() language.Language {
 		Kinds:          dKinds,
 		ExtraKinds:     []string{BinaryKind, TestKind},
 		External:       "dub",
-		Directives:     []string{hubDirective},
 		ConfigureExt:   configureDub,
 		DefsPackage:    "d/rules:defs.bzl",
 		ImportAttr:     "srcs",
@@ -137,22 +108,6 @@ func NewLanguage() language.Language {
 		UnresolvedHint: unresolvedHint,
 		Generate:       generateRules,
 	})}
-}
-
-// Resolve maps the hub repo of DUB imports to the d_dub_hub directive.
-func (l *dLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
-	spec := l.ResolveSpecFor(c, r, from)
-	if cfg := dubOf(c); cfg != nil && spec.External != nil {
-		inner := spec.External
-		spec.External = func(name string) ([]label.Label, string) {
-			labels, hint := inner(name)
-			for i := range labels {
-				labels[i].Repo = cfg.hub
-			}
-			return labels, hint
-		}
-	}
-	common.ResolveSingle(c, ix, r, raw, from, spec)
 }
 
 // Imports indexes each source under the module it defines, read from its

@@ -67,14 +67,14 @@ Every dx command except `init`, `status` and `upgrade` first brings `.dx` in ste
 
 ## Directives
 
-Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They apply to the directory and below.
+Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They apply to the directory and below. A `dx_` directive that dx does not know fails generation.
 
 | Directive | What it does |
 | --- | --- |
 | `dx_ignore_import <language> <import>` | Skip one import. Fails when nothing matches, the language is unknown, or the value is malformed. |
 | `resolve <language> <import> <label>` | Map one import to an exact label. |
 | `dx_external <ecosystem> <path\|off> [<repo>]` | Name the manifest or lockfile that third-party imports resolve through. |
-| `dx_corpus true\|false` | Turn the Rust corpus targets on or off. |
+| `dx_rust_corpus true\|false` | Turn the Rust corpus targets on or off. |
 | `dx_rust_crates_hub <repo>` | Load `aliases` and `all_crate_deps` for Cargo packages from the crate_universe hub `@<repo>` instead of `@crates`. The package needs a `BUILD` file. |
 | `dx_cuda_platforms <spec> <spec>...` | Set `platforms` of a generated `cuda_library`. Required for `.cu` and `.cuh` files. |
 | `dx_fixture_testonly true\|false` | Mark generated libraries under a `tests/`, `fixtures/` or `testdata/` directory `testonly`. Off by default. Inherited by child packages. |
@@ -84,7 +84,7 @@ When `.dx/BUILD.bazel` from `dx generate` already has a `ruff_config` for the ro
 
 `dx_ignore_import` languages: `astro`, `cc`, `csharp`, `dart`, `elixir`, `erlang`, `fsharp`, `go`, `haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `ocaml`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`, `scala`, `svelte`, `swift`, `typescript`, `vue`, `zig`.
 
-`dx_external` ecosystems: `go` (`go.mod`, no repo), `maven` (`maven_install.json`, repo `maven`), `python` (`uv.lock`, repo `pypi`), `pub` (`pubspec.lock`, repo `pub_deps`), `npm` (root `package.json`). Repeat the line to use several files. `off` drops an inherited file. Without the directive, a `go.mod`, `maven_install.json`, `uv.lock`, `pubspec.lock`, or root `package.json` applies to its directory and below. When an import is unresolved but such a file in another directory provides it, the error names the `dx_external` line to add.
+`dx_external` ecosystems: `go` (`go.mod`, no repo), `maven` (`maven_install.json`, repo `maven`), `python` (`uv.lock`, repo `pypi`), `pub` (`pubspec.lock`, repo `pub_deps`), `dub` (`dub.json` with `dub.selections.json`, repo `dub`), `npm` (root `package.json`). Repeat the line to use several files. `off` drops an inherited file. Without the directive, a `go.mod`, `maven_install.json`, `uv.lock`, `pubspec.lock`, or root `package.json` applies to its directory and below. When an import is unresolved but such a file in another directory provides it, the error names the `dx_external` line to add.
 
 ```starlark
 # gazelle:dx_external maven third_party/jvm/maven_install.json maven

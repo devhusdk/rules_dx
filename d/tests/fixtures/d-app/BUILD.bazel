@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
-# gazelle:d_dub_hub d_app_deps
+# gazelle:dx_external dub dub.json d_app_deps
 
 exports_files([
     "dub.digests.json",

@@ -14,17 +14,7 @@ import (
 
 const corpusKind = "real_source_target"
 
-const corpusDirective = "dx_corpus"
-
-func parseCorpusDirective(value string) (bool, error) {
-	switch strings.TrimSpace(value) {
-	case "true":
-		return true, nil
-	case "false":
-		return false, nil
-	}
-	return false, fmt.Errorf("rust: malformed # gazelle:%s: want true or false", corpusDirective)
-}
+const corpusDirective = "dx_rust_corpus"
 
 func isGeneratedCorpusName(name string) bool {
 	switch name {

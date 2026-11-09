@@ -489,10 +489,8 @@ mod tests {
     }
 
     fn git(root: &Path, args: &[&str]) {
-        let mut cmd = Command::new("git");
-        cmd.arg("-C")
-            .arg(root)
-            .args([
+        let mut cmd = dx_process::capture::git(root);
+        cmd.args([
                 "-c",
                 "user.name=t",
                 "-c",
@@ -502,8 +500,8 @@ mod tests {
             ])
             .args(args);
         dx_test_scratch::isolate_git(&mut cmd, sandbox_of(root));
-        let status = cmd.status().expect("git");
-        assert!(status.success(), "{args:?}");
+        dx_process::capture::run_checked(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT)
+            .unwrap_or_else(|error| panic!("{args:?}: {error}"));
     }
 
     fn write(root: &Path, rel: &str, body: &[u8]) {
@@ -651,11 +649,11 @@ mod tests {
     #[test]
     fn scan_outside_git_finds_nothing() {
         let root = temp();
-        let version = Command::new("git")
-            .arg("--version")
-            .output()
-            .expect("git runs");
-        assert!(version.status.success(), "git is installed");
+        dx_process::capture::run_checked(
+            dx_process::capture::git(&root).arg("--version"),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("git is installed");
         write(&root, "target/x", b"x");
         assert_eq!(scan_isolated(&root), Ok(ScanReport::default()));
     }

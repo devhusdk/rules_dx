@@ -50,16 +50,12 @@ fn release_command(tag: &str, asset_bases: &[String], with_notes: bool) -> Strin
 }
 
 fn git_output(workspace: Option<&std::ffi::OsString>, args: &[&str]) -> Result<String, String> {
-    let mut cmd = std::process::Command::new("git");
-    cmd.args(args);
-    if let Some(dir) = workspace {
-        cmd.current_dir(dir);
-    }
-    let out = cmd.output().map_err(|error| format!("git: {error}"))?;
-    if !out.status.success() {
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        return Err(format!("git {} failed: {}", args[0], stderr.trim()));
-    }
+    let dir = workspace.map_or_else(|| std::path::PathBuf::from("."), std::path::PathBuf::from);
+    let out = dx_process::capture::run_checked(
+        dx_process::capture::git(&dir).args(args),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .map_err(|error| error.to_string())?;
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 

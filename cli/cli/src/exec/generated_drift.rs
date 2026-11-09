@@ -115,14 +115,14 @@ mod tests {
     }
 
     fn git(root: &Path, args: &[&str]) {
-        let status = Command::new("git")
-            .args(["-c", "user.name=dx", "-c", "user.email=dx@example.com"])
-            .args(["-c", "commit.gpgsign=false"])
-            .args(args)
-            .current_dir(root)
-            .status()
-            .expect("git runs");
-        assert!(status.success(), "git {args:?}");
+        dx_process::capture::run_checked(
+            dx_process::capture::git(root)
+                .args(["-c", "user.name=dx", "-c", "user.email=dx@example.com"])
+                .args(["-c", "commit.gpgsign=false"])
+                .args(args),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
     }
 
     /// A workspace with a python file whose generated `.dx` is committed.

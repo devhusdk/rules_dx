@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Validates the evidence workflow dispatch inputs and appends them to GITHUB_OUTPUT.
-# evidence_inputs_test checks it against evidence_inputs.rs, with and without jq.
+# evidence_inputs_test checks it against evidence_inputs/src/lib.rs, with and without jq.
 set -euo pipefail
 fail() { echo "evidence input rejected: $1"; exit 1; }
 known=(linux_x86_64 linux_arm64 macos_arm64 windows_x86_64 windows_arm64)

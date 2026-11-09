@@ -381,7 +381,7 @@ fn evidence_runners_match_the_table() {
     assert_eq!(
         evidence,
         table(),
-        "evidence_inputs.rs PLATFORMS drifted from input_validation.rs"
+        "evidence_inputs/src/lib.rs PLATFORMS drifted from input_validation/src/lib.rs"
     );
 }
 

@@ -48,7 +48,7 @@ fn script(inputs: &[(&str, &str)], jq: bool) -> Option<String> {
     output.status.success().then_some(written)
 }
 
-/// Validates with evidence_inputs.rs and checks that the script agrees with and without jq.
+/// Validates with evidence_inputs/src/lib.rs and checks that the script agrees with and without jq.
 fn check(inputs: &[(&str, &str)]) -> Result<Vec<(String, String)>, String> {
     let validated = validate(|name| lookup(inputs, name).to_string()).map(|done| done.outputs);
     let expected = validated.as_ref().ok().map(|outputs| {
@@ -62,7 +62,7 @@ fn check(inputs: &[(&str, &str)]) -> Result<Vec<(String, String)>, String> {
         assert_eq!(
             script(inputs, jq),
             expected,
-            "{SCRIPT} (jq: {jq}) disagrees with evidence_inputs.rs on {inputs:?}"
+            "{SCRIPT} (jq: {jq}) disagrees with evidence_inputs/src/lib.rs on {inputs:?}"
         );
     }
     validated

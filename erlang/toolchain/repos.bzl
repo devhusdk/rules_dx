@@ -353,7 +353,7 @@ def hub_build():
             cell = cell,
             constraints = repr(CELLS[cell].exec_compatible_with),
             repo = cell_repository_name(cell),
-            toolchain_type = str(Label("//erlang/toolchain/type:toolchain_type")),
+            toolchain_type = str(Label("@rules_erlang//tools:toolchain_type")),
         ))
     content.append(_HUB_NIF.format(
         compatible = repr(nif_compatible_cases(CELLS.keys())),
@@ -374,7 +374,6 @@ def _erlang_impl(mctx):
             Label("//patches/rules_erlang:02_tcw_tags.patch"),
             Label("//patches/rules_erlang:03_auto_sname.patch"),
             Label("//patches/rules_erlang:04_otp_tree.patch"),
-            Label("//patches/rules_erlang:toolchain_type_alias.patch"),
         ],
         sha256 = RULES_ERLANG_SHA256,
         strip_prefix = "rules_erlang-" + RULES_ERLANG_COMMIT,

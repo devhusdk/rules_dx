@@ -206,8 +206,8 @@ def hub_build():
                 exec_constraints = repr(OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].exec_compatible_with),
                 target_constraints = repr(OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].target_compatible_with),
                 repo = DIST_PREFIX + cell,
-                std_type = str(Label("//ocaml/toolchain/type:std")),
-                profile_type = str(Label("//ocaml/toolchain/type:profile")),
+                std_type = str(Label("@rules_ocaml//toolchain/type:std")),
+                profile_type = str(Label("@rules_ocaml//toolchain/type:profile")),
             ))
     for cell in sorted(OCAML_CELLS.keys()):
         content.append(_CELL.format(cell = cell, constraints = repr(OCAML_CELLS[cell].exec_compatible_with)))

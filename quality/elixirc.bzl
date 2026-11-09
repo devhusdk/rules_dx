@@ -7,7 +7,7 @@ load("@rules_erlang//:util.bzl", "path_join")
 load("@rules_erlang//private:util.bzl", "erl_libs_contents")
 load("//libs/starlark:resources.bzl", "dx_medium_resources")
 
-_TOOLCHAIN = Label("//elixir/toolchain/type:toolchain_type")
+_TOOLCHAIN = Label("@rules_elixir//:toolchain_type")
 
 ElixircInfo = provider(
     doc = "elixirc output from compiling the sources of one elixir_bytecode target.",

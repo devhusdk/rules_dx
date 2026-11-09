@@ -61,7 +61,7 @@ def hub_build():
         _TOOLCHAIN.format(
             name = repo_name(cell),
             constraints = repr(PWSH_CELLS[cell].exec_compatible_with),
-            toolchain_type = str(Label("//powershell/toolchain/type:toolchain_type")),
+            toolchain_type = str(Label("@rules_powershell//powershell:toolchain_type")),
         )
         for cell in sorted(PWSH_CELLS.keys())
     ])

@@ -54,7 +54,7 @@ def _checks():
         expect_contains("erts mismatch names found", erts_mismatch_message("1.2", ["erts-3.4"]), "erts-3.4"),
         expect_contains("erts mismatch handles none", erts_mismatch_message("1.2", []), "found: none"),
         expect_false("the hub names no rules_erlang target", "@rules_erlang" in hub_build()),
-        expect_contains("the hub names the rules_dx type", hub_build(), "//erlang/toolchain/type:toolchain_type"),
+        expect_contains("the hub names the rules_erlang type", hub_build(), "//tools:toolchain_type"),
         expect_true("wx is dropped", dropped_application("wx-2.5")),
         expect_false("crypto is kept", dropped_application("crypto-5.6")),
         expect_false("prefix is not enough", dropped_application("wxwidgets-1.0")),

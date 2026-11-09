@@ -5,7 +5,6 @@ exports_files([
     "native_cc_env.patch",
     "platform_alias.patch",
     "static_cc_deps.patch",
-    "toolchain_type_alias.patch",
 ])
 
 real_source_target(

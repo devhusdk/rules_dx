@@ -170,7 +170,7 @@ def hub_build(cells):
         cell = cell,
         constraints = repr(CELLS[cell].exec_compatible_with),
         repo = DIST_NAME,
-        toolchain_type = str(Label("//elixir/toolchain/type:toolchain_type")),
+        toolchain_type = str(Label("@rules_elixir//:toolchain_type")),
     ) for cell in cells])
 
 _APP_BUILD = """load("{defs}", "ELIXIR_COMPATIBLE_WITH", "elixir_app")

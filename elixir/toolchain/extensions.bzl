@@ -28,7 +28,6 @@ def _elixir_impl(mctx):
             Label("//patches/rules_elixir:elixir_app_deps.patch"),
             Label("//patches/rules_elixir:warnings_as_errors.patch"),
             Label("//patches/rules_elixir:relocatable_tree.patch"),
-            Label("//patches/rules_elixir:toolchain_type_alias.patch"),
             Label("//patches/rules_elixir:windows_ex_unit_test.patch"),
         ],
         sha256 = RULES_ELIXIR_SHA256,

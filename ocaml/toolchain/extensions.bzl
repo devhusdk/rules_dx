@@ -56,7 +56,6 @@ def _ocaml_impl(mctx):
             Label("//patches/rules_ocaml:hermetic_ocaml.patch"),
             Label("//patches/rules_ocaml:native_cc_env.patch"),
             Label("//patches/rules_ocaml:platform_alias.patch"),
-            Label("//patches/rules_ocaml:toolchain_type_alias.patch"),
             Label("//patches/rules_ocaml:static_cc_deps.patch"),
         ],
         sha256 = RULES_OCAML_SHA256,

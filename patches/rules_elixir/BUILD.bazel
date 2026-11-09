@@ -4,7 +4,6 @@ exports_files([
     "elixir_app_deps.patch",
     "elixir_app_name.patch",
     "relocatable_tree.patch",
-    "toolchain_type_alias.patch",
     "warnings_as_errors.patch",
     "windows_ex_unit_test.patch",
 ])

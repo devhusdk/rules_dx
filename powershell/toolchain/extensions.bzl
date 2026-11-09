@@ -7,7 +7,6 @@ load(":repos.bzl", "HUB_NAME", "hub_build", "pwsh_repo", "repo_name")
 def _powershell_impl(mctx):
     pinned_archive(
         name = "rules_powershell",
-        patches = [Label("//patches/rules_powershell:toolchain_type_alias.patch")],
         sha256 = RULES_POWERSHELL_SHA256,
         urls = [RULES_POWERSHELL_URL],
     )

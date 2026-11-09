@@ -8,7 +8,6 @@ filegroup(
         "//:module_srcs",
         "//erlang/rules:module_srcs",
         "//erlang/toolchain:module_srcs",
-        "//erlang/toolchain/type:module_srcs",
         "//erlang/tools:module_srcs",
     ],
 )

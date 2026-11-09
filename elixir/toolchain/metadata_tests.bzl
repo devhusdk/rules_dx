@@ -43,7 +43,7 @@ def _checks():
         expect_equal("the hub registers each Elixir cell", hub.count("toolchain("), len(ELIXIR_CELLS)),
         expect_equal("the hub skips other OTP cells", [cell for cell in CELLS if cell not in ELIXIR_CELLS and '"' + cell + '"' in hub], []),
         expect_false("the hub names no rules_elixir target", "@rules_elixir" in hub),
-        expect_contains("the hub names the rules_dx type", hub, "//elixir/toolchain/type:toolchain_type"),
+        expect_contains("the hub names the rules_elixir type", hub, "//:toolchain_type"),
         expect_false("launcher keeps no bare options", "-ebin $ELIXIR_ERL_OPTIONS" in script),
         expect_equal("only the elixir windows launcher is kept", [path for path in DROPPED_PATHS if path.endswith(".bat") or path.endswith(".ps1")], ["bin/iex.bat", "bin/mix.bat", "bin/mix.ps1"]),
         expect_contains("windows launcher forces Unicode names and stdio", elixir_bat(_BAT_SOURCE), '"%ERTS_BIN%erl.exe" +fnu -kernel standard_io_encoding unicode %ELIXIR_ERL_OPTIONS%'),

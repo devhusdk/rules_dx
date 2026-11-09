@@ -12,7 +12,7 @@ def _checks():
         expect_equal("rules_powershell digest", len(RULES_POWERSHELL_SHA256), 64),
         expect_true("hub loads nothing", "load(" not in hub),
         expect_true("hub names no rules_powershell label", "@rules_powershell" not in hub),
-        expect_contains("hub uses the rules_dx type", hub, "//powershell/toolchain/type:toolchain_type"),
+        expect_contains("hub uses the rules_powershell type", hub, "//powershell:toolchain_type"),
         expect_equal("one toolchain per platform", hub.count("toolchain(\n"), len(PWSH_CELLS)),
         expect_contains("hub names each platform repo", hub, "@" + repo_name("linux_x86_64") + "//:toolchain"),
     ]

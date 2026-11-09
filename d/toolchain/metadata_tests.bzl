@@ -13,7 +13,7 @@ def _checks():
     return [
         expect_true("hub loads nothing", "load(" not in hub),
         expect_true("hub never names rules_d", "@rules_d//" not in hub),
-        expect_contains("hub uses the dx toolchain type", hub, "//d/toolchain/type:toolchain_type"),
+        expect_contains("hub uses the rules_d type", hub, "//d:toolchain_type"),
         expect_equal("rules_d version", RULES_D_VERSION, "0.12.1"),
         expect_equal("rules_d digest", len(RULES_D_SHA256), 64),
         expect_contains("rules_d url names the version", RULES_D_URL, "v" + RULES_D_VERSION + ".tar.gz"),

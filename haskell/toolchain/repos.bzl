@@ -555,7 +555,7 @@ def hub_files(cells = CELLS):
             cell = cell,
             constraints = repr(cells[cell].exec_compatible_with),
             repo = cell_repository_name(cell),
-            toolchain_type = str(Label("//haskell/toolchain/type:toolchain")),
+            toolchain_type = str(Label("@rules_haskell//haskell:toolchain")),
         ))
         content.append("config_setting(\n    name = \"{}_platform\",\n    constraint_values = {},\n)\n".format(
             cell,

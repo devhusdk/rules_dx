@@ -131,7 +131,7 @@ def hub_build():
         root.append(_TOOLCHAIN.format(
             cell = cell,
             constraints = repr(FORTRAN_CELLS[cell].constraints),
-            toolchain_type = str(Label("//fortran/toolchain/type:toolchain_type")),
+            toolchain_type = str(Label("@rules_fortran//fortran:toolchain_type")),
         ))
     for tool in ["compiler_files", "flang"]:
         cases = {":" + cell + "_exec": "@" + FLANG_PREFIX + cell + "//:" + tool for cell in sorted(FORTRAN_CELLS.keys())}
@@ -144,7 +144,6 @@ def _fortran_impl(mctx):
         dropped = DROPPED_PATHS,
         patches = [
             Label("//patches/rules_fortran:module_map_key.patch"),
-            Label("//patches/rules_fortran:toolchain_type_alias.patch"),
         ],
         sha256 = RULES_FORTRAN_SHA256,
         strip_prefix = "rules_fortran-" + RULES_FORTRAN_COMMIT,

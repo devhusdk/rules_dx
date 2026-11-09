@@ -3,7 +3,7 @@
 load("@rules_d//d/private:providers.bzl", "DInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
-D_TOOLCHAIN = str(Label("//d/toolchain/type:toolchain_type"))
+D_TOOLCHAIN = str(Label("@rules_d//d:toolchain_type"))
 
 _DDirectSrcsInfo = provider(
     doc = "The .d and .di files one D library lists in its own srcs.",

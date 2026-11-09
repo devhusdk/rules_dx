@@ -29,6 +29,12 @@ jobs:
         with:
           app-id: ${{ secrets.DX_UPDATE_APP_ID }}
           private-key: ${{ secrets.DX_UPDATE_APP_PRIVATE_KEY }}
+      - name: Warn when the update App is not configured
+        if: env.HAS_APP != 'true'
+        run: |
+          msg="DX_UPDATE_APP_ID and DX_UPDATE_APP_PRIVATE_KEY are not set, so CI will not run on these PRs."
+          echo "::warning::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0

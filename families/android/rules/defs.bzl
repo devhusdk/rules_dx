@@ -6,37 +6,22 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("@rules_dx//rust/rules:defs.bzl", "rust_static_library")
 load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
-load("//platforms:defs.bzl", "effective_api_level", "platform_label", "triple_for", "tuple_errors", "tuples")
+load("//platforms:defs.bzl", "effective_api_level", "platform_label", "triple_for")
+load("//platforms:validate.bzl", "android_tuple_errors", "android_tuples")
+load(":kwargs.bzl", "android_split_native_kwargs")
 
 AndroidNativeInfo = provider(
     doc = "One Android native shared library with its target facts.",
     fields = ["api_level", "shared_library", "triple", "tuple"],
 )
 
-_ANDROID_PLATFORMS = {name: platform_label(name) for name in tuples()}
+_ANDROID_PLATFORMS = {name: platform_label(name) for name in android_tuples()}
 
 _API_LEVEL_SETTING = str(Label("//platforms:api_level"))
 
-_SHARED_KWARGS = [
-    "compatible_with",
-    "deprecation",
-    "exec_compatible_with",
-    "features",
-    "restricted_to",
-    "tags",
-    "target_compatible_with",
-    "testonly",
-]
-
-def split_native_kwargs(kwargs):
-    """Splits kwargs into attributes for every generated target and the rest."""
-    shared = {key: kwargs[key] for key in _SHARED_KWARGS if key in kwargs}
-    rest = {key: value for key, value in kwargs.items() if key not in shared}
-    return shared, rest
-
 def _android_transition_impl(_settings, attr):
     if attr.tuple not in _ANDROID_PLATFORMS:
-        fail("android_native_library: unknown tuple '" + attr.tuple + "': want " + ", ".join(tuples()))
+        fail("android_native_library: unknown tuple '" + attr.tuple + "': want " + ", ".join(android_tuples()))
     return {
         "//command_line_option:platforms": [_ANDROID_PLATFORMS[attr.tuple]],
         _API_LEVEL_SETTING: effective_api_level(attr.api_level),
@@ -49,7 +34,7 @@ android_transition = transition(
 )
 
 def _android_library_proxy_impl(ctx):
-    failures = tuple_errors(ctx.attr.tuple, ctx.attr.api_level)
+    failures = android_tuple_errors(ctx.attr.tuple, ctx.attr.api_level)
     if len(failures) > 0:
         fail("; ".join(failures))
     link = ctx.attr.link[0] if type(ctx.attr.link) == "list" else ctx.attr.link
@@ -109,7 +94,7 @@ def android_native_library(
         visibility = None,
         **kwargs):
     """Builds one mixed Rust and C shared library per Android tuple."""
-    shared, rust_kwargs = split_native_kwargs(kwargs)
+    shared, rust_kwargs = android_split_native_kwargs(kwargs)
     proxy_shared = dict(shared)
     proxy_shared["tags"] = sorted({tag: True for tag in shared.get("tags", []) + ["manual"]}.keys())
     if len(rust_srcs) == 1:
@@ -141,7 +126,7 @@ def android_native_library(
         visibility = ["//visibility:private"],
         **shared
     )
-    for tuple in tuples():
+    for tuple in android_tuples():
         _android_library_proxy(
             name = name + "_" + tuple,
             link = ":" + name + "_link",

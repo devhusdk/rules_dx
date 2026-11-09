@@ -1,7 +1,8 @@
 """Unit and analysis tests for the Maven Central publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_repository_error", "maven_sources_error", "maven_version_error")
+load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL")
+load(":maven_validate.bzl", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_repository_error", "maven_sources_error", "maven_version_error")
 
 def maven_unit_tests(name):
     starlark_test(

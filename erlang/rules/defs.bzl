@@ -13,16 +13,16 @@ load("//cc/rules:defs.bzl", "CC_COVERAGE_TRANSITION", _cc_library = "cc_library"
 load("//erlang/rules:beam.bzl", "beam_info")
 load("//erlang/rules:providers.bzl", "BeamInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
-load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS", "OTP_UNPORTED_CELLS")
+load("//erlang/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS")
 load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":kwargs.bzl", _ERLANG_CELLS = "ERLANG_CELLS", _ERLANG_COMPATIBLE_WITH = "ERLANG_COMPATIBLE_WITH", "erlang_app_forward_kwargs", "erlang_kwargs")
+
+ERLANG_CELLS = _ERLANG_CELLS
+ERLANG_COMPATIBLE_WITH = _ERLANG_COMPATIBLE_WITH
 
 ErlangAppInfo = _ErlangAppInfo
-
-ERLANG_CELLS = sorted([cell for cell in CELLS.keys() if cell not in OTP_UNPORTED_CELLS])
-
-ERLANG_COMPATIBLE_WITH = otp_compatible_with(ERLANG_CELLS)
 
 ERLANG_NIF_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ERLANG_CELLS if cell not in OTP_NIF_UNPORTED_CELLS])
 
@@ -285,21 +285,6 @@ def app_sources(kwargs, glob = None):
     excluded = [entry for entry in _listed(kwargs, ["extra_srcs", "extra_hdrs"]) if not _is_label(entry)]
     return glob(ERLANG_SOURCE_GLOBS, exclude = excluded, allow_empty = True)
 
-def app_forward_kwargs(testonly, nifs, tags, kwargs):
-    """Returns the kwargs the public erlang_app forwarder keeps."""
-    out = {"testonly": True} if testonly else {}
-    if nifs:
-        out["nifs"] = nifs
-    if tags != None:
-        out["tags"] = tags
-    if kwargs.get("target_compatible_with", None) != None:
-        out["target_compatible_with"] = kwargs["target_compatible_with"]
-    return out
-
-def erlang_kwargs(kwargs):
-    """Returns kwargs with the Erlang platform guard appended."""
-    return dx_language_kwargs(kwargs, [], ERLANG_COMPATIBLE_WITH)
-
 def _app(upstream_macro, name, testonly, visibility, kwargs):
     kwargs = erlang_kwargs(kwargs)
     tags = kwargs.pop("tags", None)
@@ -313,7 +298,7 @@ def _app(upstream_macro, name, testonly, visibility, kwargs):
             kwargs["extra_priv"] = list(kwargs.get("extra_priv", [])) + nifs
     owned = app_sources(kwargs)
     upstream_macro(name = name + "_upstream", testonly = testonly, tags = dx_upstream_tags(tags), **kwargs)
-    forward_kwargs = app_forward_kwargs(testonly, nifs, tags, kwargs)
+    forward_kwargs = erlang_app_forward_kwargs(testonly, nifs, tags, kwargs)
     _erlang_app_forward(
         name = name,
         upstream = ":" + name + "_upstream",

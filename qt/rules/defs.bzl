@@ -21,6 +21,7 @@ load("//qt/sdk:needs.bzl", "QtNeedsInfo")
 load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES", "QT_VERSION", "RUNTIME_PLUGINS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":validate.bzl", "qt_uri_error")
 
 QtInfo = provider(
     doc = "Qt metadata one Qt target exports to its dependents.",
@@ -86,18 +87,6 @@ def qt_version_parts(version):
     if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
         fail("qt_qml_module: version '" + version + "' must be MAJOR.MINOR")
     return (parts[0], parts[1])
-
-def qt_uri_error(uri):
-    """Returns why a QML module URI is malformed, or an empty string."""
-    if uri == "":
-        return "uri must not be empty"
-    for segment in uri.split("."):
-        if segment == "" or not (segment[0].isalpha() or segment[0] == "_"):
-            return "uri '" + uri + "' segment '" + segment + "' must start with a letter"
-        for char in segment.elems():
-            if not (char.isalnum() or char == "_"):
-                return "uri '" + uri + "' segment '" + segment + "' holds '" + char + "'"
-    return ""
 
 def qt_qmldir(uri, typeinfo, types, depends = []):
     """Returns the qmldir text for one module, its (name, version, path) types and dependencies."""

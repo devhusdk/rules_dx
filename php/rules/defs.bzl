@@ -1,19 +1,17 @@
 """Thin dx wrappers over the owned PHP rules."""
 
-load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_macro_upstream_visibility", "dx_strip_none", "dx_wrap", "dx_wrap_binary", "dx_wrap_test", "dx_wrapper_macro_attrs")
-load("//php/toolchain:pins.bzl", "PHP_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":kwargs.bzl", _PHP_COMPATIBLE_WITH = "PHP_COMPATIBLE_WITH", _PHP_DEFERRED_SKIP_TAGS = "PHP_DEFERRED_SKIP_TAGS", "php_kwargs")
 load(":php.bzl", "PHP_SOURCE_EXTS", _php_binary = "php_binary", _php_library = "php_library", _php_test = "php_test")
 load(":providers.bzl", _PhpInfo = "PhpInfo")
+
+PHP_COMPATIBLE_WITH = _PHP_COMPATIBLE_WITH
+PHP_DEFERRED_SKIP_TAGS = _PHP_DEFERRED_SKIP_TAGS
 
 PhpInfo = _PhpInfo
 
 PHP_SOURCE_SPECS = [("php", ["php"])]
-
-PHP_COMPATIBLE_WITH = cells_compatible_with(PHP_CELLS, "//php/toolchain", sorted(PHP_CELLS.keys()), unsupported = True)
-
-PHP_DEFERRED_SKIP_TAGS = ["no-format"]
 
 _php_library_forward = dx_library_forward_rule(
     provides = [_PhpInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
@@ -56,26 +54,6 @@ def php_quality_srcs(main, srcs, extra = None):
         if src not in owned:
             owned.append(src)
     return owned
-
-def php_compatible_with(target_compatible_with):
-    """Appends the pinned PHP cells to the caller's constraints."""
-    return (target_compatible_with or []) + PHP_COMPATIBLE_WITH
-
-def php_deferred_tags(tags):
-    """Adds the skip tags that keep the deferred php class out of quality aspects."""
-    out = list(tags or [])
-    for tag in PHP_DEFERRED_SKIP_TAGS:
-        if tag not in out:
-            out.append(tag)
-    return out
-
-def php_kwargs(kwargs):
-    """Returns kwargs with the deferred quality tags and the PHP cell constraints."""
-    return dict(
-        kwargs,
-        tags = php_deferred_tags(kwargs.get("tags")),
-        target_compatible_with = php_compatible_with(kwargs.get("target_compatible_with")),
-    )
 
 def _php_library_impl(name, srcs, visibility, **kwargs):
     kwargs = php_kwargs(dx_strip_none(kwargs))

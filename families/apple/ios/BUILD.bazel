@@ -26,6 +26,7 @@ exports_files([
     "metadata_tests.bzl",
     "simctl_ops.sh",
     "simulator.bzl",
+    "validate.bzl",
     "xcframework_check.sh",
 ])
 
@@ -186,6 +187,7 @@ real_source_target(
         "lib_tests.bzl",
         "metadata_tests.bzl",
         "simulator.bzl",
+        "validate.bzl",
     ],
     tags = ["corpus"],
 )

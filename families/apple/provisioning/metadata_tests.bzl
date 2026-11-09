@@ -1,33 +1,11 @@
 """Apple provisioning pin and selection coverage."""
 
 load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(
-    ":defs.bzl",
-    "LOCAL_ROUTE",
-    "MANAGED_ROUTE",
-    "MINIMUM_MACOS",
-    "MINIMUM_XCODE",
-    "QUALIFIED_HOST",
-    "REQUIRED_LICENSES",
-    "XCODE_LINEAGE",
-    "ceiling_for",
-    "default_selection",
-    "deployment_floor",
-    "host_constraints",
-    "host_errors",
-    "hosts",
-    "license_errors",
-    "provisioning_errors",
-    "route_errors",
-    "routes",
-    "sdk_errors",
-    "sdk_names",
-    "version_errors",
-    "xcode_errors",
-)
+load(":defs.bzl", "LOCAL_ROUTE", "MANAGED_ROUTE", "MINIMUM_MACOS", "MINIMUM_XCODE", "QUALIFIED_HOST", "REQUIRED_LICENSES", "XCODE_LINEAGE", "ceiling_for", "deployment_floor", "host_constraints")
+load(":validate.bzl", "provisioning_default_selection", "provisioning_errors", "provisioning_host_errors", "provisioning_hosts", "provisioning_license_errors", "provisioning_route_errors", "provisioning_routes", "provisioning_sdk_errors", "provisioning_sdk_names", "provisioning_version_errors", "provisioning_xcode_errors")
 
 def _selection(**kwargs):
-    base = default_selection(kwargs.get("route", "local"))
+    base = provisioning_default_selection(kwargs.get("route", "local"))
     fields = [
         "accept_licenses",
         "allow_download",
@@ -54,14 +32,14 @@ def _selection(**kwargs):
 
 def _apple_checks():
     checks = []
-    checks.append(expect_equal("routes", routes(), ["local", "managed"]))
-    checks.append(expect_equal("hosts", hosts(), ["macos_arm64"]))
+    checks.append(expect_equal("routes", provisioning_routes(), ["local", "managed"]))
+    checks.append(expect_equal("hosts", provisioning_hosts(), ["macos_arm64"]))
     checks.append(expect_equal("minimum xcode", MINIMUM_XCODE, "16.0"))
     checks.append(expect_equal("xcode lineage", XCODE_LINEAGE, "16."))
     checks.append(expect_equal("minimum macos", MINIMUM_MACOS, "14.5"))
     checks.append(expect_equal("qualified host", QUALIFIED_HOST, "macos_arm64"))
     checks.append(expect_equal("required licenses", REQUIRED_LICENSES, ["apple-xcode-license"]))
-    checks.append(expect_equal("sdk names", sdk_names(), ["iphoneos", "iphonesimulator", "macosx"]))
+    checks.append(expect_equal("sdk names", provisioning_sdk_names(), ["iphoneos", "iphonesimulator", "macosx"]))
     checks.append(expect_equal("iphoneos floor", deployment_floor("iphoneos"), "17.0"))
     checks.append(expect_equal("simulator floor", deployment_floor("iphonesimulator"), "17.0"))
     checks.append(expect_equal("macos sdk floor", deployment_floor("macosx"), "14.0"))
@@ -78,74 +56,74 @@ def _apple_checks():
     checks.append(expect_equal("unknown host constraints are empty", host_constraints("linux_x86_64"), []))
     checks.append(expect_equal(
         "missing route fails",
-        route_errors(""),
+        provisioning_route_errors(""),
         ["apple: select one execution route: want local, managed"],
     ))
-    checks.append(expect_equal("local route is clean", route_errors("local"), []))
-    checks.append(expect_equal("managed route is clean", route_errors("managed"), []))
+    checks.append(expect_equal("local route is clean", provisioning_route_errors("local"), []))
+    checks.append(expect_equal("managed route is clean", provisioning_route_errors("managed"), []))
     checks.append(expect_equal(
         "unknown route fails",
-        route_errors("remote"),
+        provisioning_route_errors("remote"),
         ["apple: unknown route 'remote': want local, managed"],
     ))
-    checks.append(expect_equal("qualified host is clean", host_errors("macos_arm64"), []))
+    checks.append(expect_equal("qualified host is clean", provisioning_host_errors("macos_arm64"), []))
     checks.append(expect_equal(
         "unknown host fails",
-        host_errors("linux_x86_64"),
+        provisioning_host_errors("linux_x86_64"),
         ["apple: unknown host 'linux_x86_64': want macos_arm64"],
     ))
-    checks.append(expect_equal("empty xcode is clean", xcode_errors(""), []))
-    checks.append(expect_equal("lineage xcode is clean", xcode_errors("16.2"), []))
+    checks.append(expect_equal("empty xcode is clean", provisioning_xcode_errors(""), []))
+    checks.append(expect_equal("lineage xcode is clean", provisioning_xcode_errors("16.2"), []))
     checks.append(expect_equal(
         "old xcode fails",
-        xcode_errors("15.4"),
+        provisioning_xcode_errors("15.4"),
         ["apple: xcode '15.4' is outside 16"],
     ))
     checks.append(expect_equal(
         "freeform xcode fails",
-        xcode_errors("sixteen"),
+        provisioning_xcode_errors("sixteen"),
         ["apple: xcode_version 'sixteen' is not a dotted version"],
     ))
-    checks.append(expect_equal("empty version is clean", version_errors("macos_version", "", "14.5"), []))
-    checks.append(expect_equal("floor version is clean", version_errors("macos_version", "14.5", "14.5"), []))
-    checks.append(expect_equal("newer version is clean", version_errors("macos_version", "15.1", "14.5"), []))
+    checks.append(expect_equal("empty version is clean", provisioning_version_errors("macos_version", "", "14.5"), []))
+    checks.append(expect_equal("floor version is clean", provisioning_version_errors("macos_version", "14.5", "14.5"), []))
+    checks.append(expect_equal("newer version is clean", provisioning_version_errors("macos_version", "15.1", "14.5"), []))
     checks.append(expect_equal(
         "downgraded version fails",
-        version_errors("macos_version", "13.6", "14.5"),
+        provisioning_version_errors("macos_version", "13.6", "14.5"),
         ["apple: macos_version '13.6' is below 14.5"],
     ))
     checks.append(expect_equal(
         "freeform version fails",
-        version_errors("macos_version", "sonoma", "14.5"),
+        provisioning_version_errors("macos_version", "sonoma", "14.5"),
         ["apple: macos_version 'sonoma' is not a dotted version"],
     ))
     checks.append(expect_equal(
         "missing sdk fails",
-        sdk_errors("", ""),
+        provisioning_sdk_errors("", ""),
         ["apple: select one SDK: want iphoneos, iphonesimulator, macosx"],
     ))
-    checks.append(expect_equal("implied floor is clean", sdk_errors("iphoneos", ""), []))
-    checks.append(expect_equal("floor deployment is clean", sdk_errors("iphoneos", "17.0"), []))
-    checks.append(expect_equal("newer deployment is clean", sdk_errors("macosx", "15.0"), []))
+    checks.append(expect_equal("implied floor is clean", provisioning_sdk_errors("iphoneos", ""), []))
+    checks.append(expect_equal("floor deployment is clean", provisioning_sdk_errors("iphoneos", "17.0"), []))
+    checks.append(expect_equal("newer deployment is clean", provisioning_sdk_errors("macosx", "15.0"), []))
     checks.append(expect_equal(
         "unqualified sdk fails",
-        sdk_errors("watchos", ""),
+        provisioning_sdk_errors("watchos", ""),
         ["apple: sdk 'watchos' is outside iphoneos, iphonesimulator, macosx"],
     ))
     checks.append(expect_equal(
         "downgraded deployment fails",
-        sdk_errors("iphoneos", "16.0"),
+        provisioning_sdk_errors("iphoneos", "16.0"),
         ["apple: deployment_target '16.0' is below 17.0"],
     ))
-    checks.append(expect_equal("accepted license is clean", license_errors(["apple-xcode-license"]), []))
+    checks.append(expect_equal("accepted license is clean", provisioning_license_errors(["apple-xcode-license"]), []))
     checks.append(expect_equal(
         "missing license fails",
-        license_errors([]),
+        provisioning_license_errors([]),
         ["apple: accept apple-xcode-license before provisioning; add them to the accept_licenses attribute"],
     ))
     checks.append(expect_equal(
         "missing license names the target",
-        license_errors([], "local_simulator"),
+        provisioning_license_errors([], "local_simulator"),
         ["apple: accept apple-xcode-license before provisioning; add them to the accept_licenses attribute of local_simulator"],
     ))
     checks.append(expect_equal(

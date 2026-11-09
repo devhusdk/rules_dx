@@ -1,7 +1,8 @@
 """Application packaging selection coverage."""
 
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "aab_check_errors", "abi_transition_settings", "apk_manifest_errors", "apk_set_errors", "release_sign_errors", "rust_android_apk_errors")
+load(":defs.bzl", "abi_transition_settings")
+load(":validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
 load(
     ":repos.bzl",
     "ABI_PLATFORMS",
@@ -93,45 +94,45 @@ def _packaging_checks():
     ))
     checks.append(expect_equal(
         "valid manifest errors",
-        apk_manifest_errors("com.example.app", 31, 1, "android.app.NativeActivity"),
+        android_apk_manifest_errors("com.example.app", 31, 1, "android.app.NativeActivity"),
         [],
     ))
     checks.append(expect_true(
         "manifest errors app id api version and activity",
-        len(apk_manifest_errors("app", 29, 0, "")) == 4,
+        len(android_apk_manifest_errors("app", 29, 0, "")) == 4,
     ))
-    checks.append(expect_equal("default sign errors", release_sign_errors(["v1", "v2", "v3"], 0), []))
-    checks.append(expect_equal("min sdk sign errors", release_sign_errors(["v2"], 31), []))
+    checks.append(expect_equal("default sign errors", android_release_sign_errors(["v1", "v2", "v3"], 0), []))
+    checks.append(expect_equal("min sdk sign errors", android_release_sign_errors(["v2"], 31), []))
     checks.append(expect_equal(
         "unknown scheme sign errors",
-        release_sign_errors(["v9"], 0),
+        android_release_sign_errors(["v9"], 0),
         ["android_sign: scheme 'v9' is unknown: want v1, v2, v3, v4"],
     ))
     checks.append(expect_equal(
         "empty scheme sign errors",
-        release_sign_errors([], 0),
+        android_release_sign_errors([], 0),
         ["android_sign: schemes must name at least one signature scheme"],
     ))
     checks.append(expect_equal(
         "duplicate scheme sign errors",
-        release_sign_errors(["v2", "v2"], 0),
+        android_release_sign_errors(["v2", "v2"], 0),
         ["android_sign: schemes holds duplicates"],
     ))
     checks.append(expect_equal(
         "v4 alone sign errors",
-        release_sign_errors(["v4"], 0),
+        android_release_sign_errors(["v4"], 0),
         ["android_sign: scheme v4 needs v2 or v3"],
     ))
     checks.append(expect_equal(
         "v1 and v4 sign errors",
-        release_sign_errors(["v1", "v4"], 0),
+        android_release_sign_errors(["v1", "v4"], 0),
         ["android_sign: scheme v4 needs v2 or v3"],
     ))
-    checks.append(expect_equal("v2 and v4 sign errors", release_sign_errors(["v2", "v4"], 0), []))
-    checks.append(expect_equal("v3 and v4 sign errors", release_sign_errors(["v3", "v4"], 0), []))
+    checks.append(expect_equal("v2 and v4 sign errors", android_release_sign_errors(["v2", "v4"], 0), []))
+    checks.append(expect_equal("v3 and v4 sign errors", android_release_sign_errors(["v3", "v4"], 0), []))
     checks.append(expect_equal(
         "unknown scheme with v4 sign errors",
-        release_sign_errors(["v9", "v4"], 0),
+        android_release_sign_errors(["v9", "v4"], 0),
         [
             "android_sign: scheme 'v9' is unknown: want v1, v2, v3, v4",
             "android_sign: scheme v4 needs v2 or v3",
@@ -139,18 +140,18 @@ def _packaging_checks():
     ))
     checks.append(expect_equal(
         "low min sdk sign errors",
-        release_sign_errors(["v2"], 21),
+        android_release_sign_errors(["v2"], 21),
         ["android_sign: min_sdk 21 is below 31"],
     ))
-    checks.append(expect_equal("clean aab check", aab_check_errors(["arm64-v8a", "x86_64"], ["string/app_name"]), []))
+    checks.append(expect_equal("clean aab check", android_aab_check_errors(["arm64-v8a", "x86_64"], ["string/app_name"]), []))
     checks.append(expect_equal(
         "unknown abi aab check",
-        aab_check_errors(["mips"], []),
+        android_aab_check_errors(["mips"], []),
         ["android_check: abi 'mips' is unknown: want arm64-v8a, x86_64"],
     ))
     checks.append(expect_equal(
         "malformed resource aab check",
-        aab_check_errors([], ["app_name", "string/", "/app_name", "a/b/c"]),
+        android_aab_check_errors([], ["app_name", "string/", "/app_name", "a/b/c"]),
         [
             "android_check: resource 'app_name' must be type/name",
             "android_check: resource 'string/' must be type/name",
@@ -160,17 +161,17 @@ def _packaging_checks():
     ))
     checks.append(expect_equal(
         "duplicate abi aab check",
-        aab_check_errors(["x86_64", "x86_64"], []),
+        android_aab_check_errors(["x86_64", "x86_64"], []),
         ["android_check: platforms holds duplicates"],
     ))
     checks.append(expect_equal("abi transition keeps both flags", abi_transition_settings([], {"//command_line_option:android_platforms": ["a"], "@rules_android//flags:android_platforms": ["b"]}), {"//command_line_option:android_platforms": ["a"], "@rules_android//flags:android_platforms": ["b"]}))
     both = abi_transition_settings(["x86_64"], {})
     checks.append(expect_equal("abi transition writes native and starlark flag", both["//command_line_option:android_platforms"], both["@rules_android//flags:android_platforms"]))
     checks.append(expect_equal("abi transition writes one platform", len(both["//command_line_option:android_platforms"]), 1))
-    checks.append(expect_equal("one aab and spec apk set", apk_set_errors("//:set", 1, 1), []))
+    checks.append(expect_equal("one aab and spec apk set", android_apk_set_errors("//:set", 1, 1), []))
     checks.append(expect_equal(
         "missing aab and spec apk set",
-        apk_set_errors("//:set", 0, 2),
+        android_apk_set_errors("//:set", 0, 2),
         [
             "android_apk_set: '//:set' aab built 0 aab files, want exactly one",
             "android_apk_set: '//:set' device_spec names 2 json files, want exactly one",

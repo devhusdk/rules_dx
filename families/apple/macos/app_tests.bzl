@@ -1,7 +1,7 @@
 """macOS application selection coverage."""
 
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors", "platform_errors")
+load("//bundle:validate.bzl", "bundle_id_errors", "bundle_platform_errors", "bundle_version_errors")
 load(":app.bzl", "default_macos_app", "macos_app_errors", "owner_relative_path", "plugin_errors")
 
 def _app(**kwargs):
@@ -86,7 +86,7 @@ def _app_checks():
     ))
     checks.append(expect_equal(
         "two platforms fail",
-        platform_errors("apple_macos_app", ["arm64", "x86_64"], ["arm64"]),
+        bundle_platform_errors("apple_macos_app", ["arm64", "x86_64"], ["arm64"]),
         ["apple_macos_app: platforms takes one of arm64"],
     ))
     checks.append(expect_equal(

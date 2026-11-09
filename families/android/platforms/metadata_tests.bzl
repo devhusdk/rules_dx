@@ -1,34 +1,17 @@
 """Android native tuple and configuration coverage."""
 
 load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(
-    ":defs.bzl",
-    "api_floor",
-    "clang_target",
-    "constraint_list",
-    "cpu_for",
-    "cxx_runtime_errors",
-    "default_library_config",
-    "effective_api_level",
-    "library_config_errors",
-    "ndk_prebuilt_dir",
-    "ndk_revision_errors",
-    "platform_label",
-    "rust_triples",
-    "sysroot_api_dir",
-    "triple_for",
-    "tuple_errors",
-    "tuples",
-)
+load(":defs.bzl", "api_floor", "clang_target", "constraint_list", "cpu_for", "effective_api_level", "ndk_prebuilt_dir", "platform_label", "rust_triples", "sysroot_api_dir", "triple_for")
+load(":validate.bzl", "android_cxx_runtime_errors", "android_default_library_config", "android_library_config_errors", "android_ndk_revision_errors", "android_tuple_errors", "android_tuples")
 
 def _config(**kwargs):
-    base = default_library_config("device")
+    base = android_default_library_config("device")
     fields = ["api_level", "copts", "cxx_runtime", "features", "rustc_flags", "tuple"]
     return struct(**{key: kwargs.get(key, getattr(base, key)) for key in fields})
 
 def _platform_checks():
     checks = []
-    checks.append(expect_equal("tuples", tuples(), ["device", "emulator"]))
+    checks.append(expect_equal("tuples", android_tuples(), ["device", "emulator"]))
     checks.append(expect_equal("device triple", triple_for("device"), "aarch64-linux-android"))
     checks.append(expect_equal("emulator triple", triple_for("emulator"), "x86_64-linux-android"))
     checks.append(expect_equal("unknown triple is empty", triple_for("watch"), ""))
@@ -59,42 +42,42 @@ def _platform_checks():
         sysroot_api_dir("aarch64-linux-android", 31),
         "sysroot/usr/lib/aarch64-linux-android/31",
     ))
-    checks.append(expect_equal("supported tuple is clean", tuple_errors("device", 31), []))
-    checks.append(expect_equal("zero api is clean", tuple_errors("emulator", 0), []))
+    checks.append(expect_equal("supported tuple is clean", android_tuple_errors("device", 31), []))
+    checks.append(expect_equal("zero api is clean", android_tuple_errors("emulator", 0), []))
     checks.append(expect_equal(
         "unknown tuple fails",
-        tuple_errors("watch", 31),
+        android_tuple_errors("watch", 31),
         ["android: unknown tuple 'watch': want device, emulator"],
     ))
     checks.append(expect_equal(
         "downgraded api fails",
-        tuple_errors("device", 29),
+        android_tuple_errors("device", 29),
         ["android: api_level 29 is below 31"],
     ))
-    checks.append(expect_equal("shared runtime is clean", cxx_runtime_errors("shared"), []))
-    checks.append(expect_equal("static runtime is clean", cxx_runtime_errors("static"), []))
-    checks.append(expect_equal("none runtime is clean", cxx_runtime_errors("none"), []))
+    checks.append(expect_equal("shared runtime is clean", android_cxx_runtime_errors("shared"), []))
+    checks.append(expect_equal("static runtime is clean", android_cxx_runtime_errors("static"), []))
+    checks.append(expect_equal("none runtime is clean", android_cxx_runtime_errors("none"), []))
     checks.append(expect_equal(
         "unknown runtime fails",
-        cxx_runtime_errors("system"),
+        android_cxx_runtime_errors("system"),
         ["android: cxx_runtime 'system' is unknown: want shared, static, none"],
     ))
-    checks.append(expect_equal("pinned revision is clean", ndk_revision_errors("27.0.12077973"), []))
-    checks.append(expect_equal("newer r27 revision is clean", ndk_revision_errors("27.2.12479018"), []))
+    checks.append(expect_equal("pinned revision is clean", android_ndk_revision_errors("27.0.12077973"), []))
+    checks.append(expect_equal("newer r27 revision is clean", android_ndk_revision_errors("27.2.12479018"), []))
     checks.append(expect_equal(
         "other lineage fails",
-        ndk_revision_errors("26.3.11579264"),
+        android_ndk_revision_errors("26.3.11579264"),
         ["android: ndk revision '26.3.11579264' is outside r27"],
     ))
-    checks.append(expect_equal("default config is clean", library_config_errors(default_library_config("emulator")), []))
+    checks.append(expect_equal("default config is clean", android_library_config_errors(android_default_library_config("emulator")), []))
     checks.append(expect_equal(
         "custom config is clean",
-        library_config_errors(_config(tuple = "emulator", api_level = 34, features = ["neon"], cxx_runtime = "static")),
+        android_library_config_errors(_config(tuple = "emulator", api_level = 34, features = ["neon"], cxx_runtime = "static")),
         [],
     ))
     checks.append(expect_equal(
         "bad tuple and runtime fail",
-        library_config_errors(_config(tuple = "watch", cxx_runtime = "system")),
+        android_library_config_errors(_config(tuple = "watch", cxx_runtime = "system")),
         [
             "android: unknown tuple 'watch': want device, emulator",
             "android: cxx_runtime 'system' is unknown: want shared, static, none",

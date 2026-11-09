@@ -2,13 +2,8 @@
 
 load("@rules_apple//apple:providers.bzl", "AppleBundleInfo")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//bundle:defs.bzl", "bundle_id_errors", "display")
-
-def macos_bundle_errors(kind, label, platform_type, bundle_extension, bundle_id):
-    """Returns the errors that keep one bundle from macOS signing."""
-    if platform_type != "macos" or bundle_extension != ".app":
-        return ["{}: '{}' is not a macOS application".format(kind, label)]
-    return bundle_id_errors(kind, bundle_id)
+load("//bundle:defs.bzl", "display")
+load(":validate.bzl", "macos_bundle_errors")
 
 def _meta_impl(ctx):
     kind = ctx.attr.kind

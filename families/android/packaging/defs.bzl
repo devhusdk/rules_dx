@@ -10,6 +10,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//platforms:defs.bzl", "api_floor")
 load("//sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
 load(":repos.bzl", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
+load(":validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
 
@@ -22,32 +23,6 @@ _JAVA_RUNTIME = Label("@rules_java//toolchains:current_java_runtime")
 _BUNDLETOOL = Label("//packaging:bundletool")
 
 _DEBUG_KEYSTORE = Label("@rules_android//tools/android:debug_keystore")
-
-def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):
-    """Returns one error string per rejected application package selection."""
-    errors = []
-    if apk_name == "":
-        errors.append("rust_android_apk: name must not be empty")
-    errors.extend(app_id_errors(app_id))
-    errors.extend(abi_errors(abis))
-    if len(abis) == 0:
-        errors.append("rust_android_apk: platforms must name at least one ABI")
-    if api_level != 0 and api_level < api_floor():
-        errors.append("rust_android_apk: api_level " + str(api_level) + " is below " + str(api_floor()))
-    if version_code <= 0:
-        errors.append("rust_android_apk: version_code " + str(version_code) + " must be positive")
-    return errors
-
-def apk_manifest_errors(app_id, api_level, version_code, activity):
-    """Returns one error string per rejected generated-manifest selection."""
-    errors = list(app_id_errors(app_id))
-    if api_level != 0 and api_level < api_floor():
-        errors.append("rust_android_apk: api_level " + str(api_level) + " is below " + str(api_floor()))
-    if version_code <= 0:
-        errors.append("rust_android_apk: version_code " + str(version_code) + " must be positive")
-    if activity == "":
-        errors.append("rust_android_apk: activity must not be empty")
-    return errors
 
 def _manifest_text(app_id, activity, api_level, library, permissions, version_code, version_name):
     lines = [
@@ -121,7 +96,7 @@ _apk_validation = rule(
 )
 
 def _apk_manifest_impl(ctx):
-    failures = apk_manifest_errors(ctx.attr.app_id, ctx.attr.api_level, ctx.attr.version_code, ctx.attr.activity)
+    failures = android_apk_manifest_errors(ctx.attr.app_id, ctx.attr.api_level, ctx.attr.version_code, ctx.attr.activity)
     if len(failures) > 0:
         fail("; ".join(failures))
     content = _manifest_text(
@@ -533,24 +508,7 @@ def android_adb_log(name, serial = "", visibility = None):
         visibility = visibility,
     )
 
-KNOWN_SCHEMES = ["v1", "v2", "v3", "v4"]
 DEFAULT_SCHEMES = ["v1", "v2", "v3"]
-
-def release_sign_errors(schemes, min_sdk):
-    """Returns one error string per rejected release signing selection."""
-    errors = []
-    if len(schemes) == 0:
-        errors.append("android_sign: schemes must name at least one signature scheme")
-    for scheme in schemes:
-        if scheme not in KNOWN_SCHEMES:
-            errors.append("android_sign: scheme '" + scheme + "' is unknown: want " + ", ".join(KNOWN_SCHEMES))
-    if len(schemes) != len(dict([(scheme, True) for scheme in schemes])):
-        errors.append("android_sign: schemes holds duplicates")
-    if "v4" in schemes and "v2" not in schemes and "v3" not in schemes:
-        errors.append("android_sign: scheme v4 needs v2 or v3")
-    if min_sdk != 0 and min_sdk < api_floor():
-        errors.append("android_sign: min_sdk " + str(min_sdk) + " is below " + str(api_floor()))
-    return errors
 
 def _sign_selection_impl(ctx):
     files = [file for file in ctx.attr.package[DefaultInfo].files.to_list() if file.extension in ["apk", "aab"]]
@@ -560,7 +518,7 @@ def _sign_selection_impl(ctx):
         if len(ctx.attr.schemes) > 0 or ctx.attr.min_sdk != 0:
             fail("android_sign: schemes and min_sdk apply to APKs only")
         return []
-    failures = release_sign_errors(ctx.attr.schemes or DEFAULT_SCHEMES, ctx.attr.min_sdk)
+    failures = android_release_sign_errors(ctx.attr.schemes or DEFAULT_SCHEMES, ctx.attr.min_sdk)
     if len(failures) > 0:
         fail("; ".join(failures))
     return []
@@ -659,20 +617,11 @@ def android_sign(name, package, schemes = None, min_sdk = 0, visibility = None):
         visibility = visibility,
     )
 
-def aab_check_errors(abis, resources):
-    """Returns one error string per rejected App Bundle check selection."""
-    errors = ["android_check: " + e.removeprefix("rust_android_apk: ") for e in abi_errors(abis)]
-    for resource in resources:
-        parts = resource.split("/")
-        if len(parts) != 2 or parts[0] == "" or parts[1] == "":
-            errors.append("android_check: resource '" + resource + "' must be type/name")
-    return errors
-
 def _check_selection_impl(ctx):
     files = [file for file in ctx.attr.package[DefaultInfo].files.to_list() if file.extension in ["apk", "aab"]]
     if len(files) != 1:
         fail("android_check: '" + str(ctx.attr.package.label) + "' built " + str(len(files)) + " .apk/.aab files, want exactly one; point package at one APK or App Bundle")
-    failures = aab_check_errors(ctx.attr.abis, ctx.attr.resources)
+    failures = android_aab_check_errors(ctx.attr.abis, ctx.attr.resources)
     if files[0].extension == "apk" and (len(ctx.attr.abis) > 0 or len(ctx.attr.resources) > 0):
         failures.append("android_check: platforms and resources apply to App Bundles only")
     if len(failures) > 0:
@@ -716,19 +665,10 @@ def android_check(name, package, platforms = [], resources = [], size = "small",
         visibility = visibility,
     )
 
-def apk_set_errors(label, aab_count, spec_count):
-    """Returns one error string per rejected APK set selection."""
-    errors = []
-    if aab_count != 1:
-        errors.append("android_apk_set: '" + label + "' aab built " + str(aab_count) + " aab files, want exactly one")
-    if spec_count != 1:
-        errors.append("android_apk_set: '" + label + "' device_spec names " + str(spec_count) + " json files, want exactly one")
-    return errors
-
 def _apk_set_impl(ctx):
     aabs = [file for file in ctx.files.aab if file.extension == "aab"]
     specs = [file for file in ctx.files.device_spec if file.extension == "json"]
-    failures = apk_set_errors(str(ctx.label), len(aabs), len(specs))
+    failures = android_apk_set_errors(str(ctx.label), len(aabs), len(specs))
     if len(failures) > 0:
         fail("; ".join(failures))
     out_dir = ctx.actions.declare_directory(ctx.label.name + "_apks")

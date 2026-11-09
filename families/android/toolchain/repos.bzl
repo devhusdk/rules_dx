@@ -1,6 +1,7 @@
 """Local NDK-backed C++ toolchain repositories for Android native builds."""
 
-load("//platforms:defs.bzl", "api_floor", "constraint_list", "cxx_runtime_errors", "ndk_revision_errors", "rust_triples")
+load("//platforms:defs.bzl", "api_floor", "constraint_list", "rust_triples")
+load("//platforms:validate.bzl", "android_cxx_runtime_errors", "android_ndk_revision_errors")
 load("//sdk:repos.bzl", "ANDROID_NDK_CLANG_VERSION", "ANDROID_NDK_REVISION", "NDK_PREBUILT", "ndk_repository_name", "ndk_toolchain_build")
 
 _SDK_ANCHOR = "source.properties"
@@ -35,10 +36,10 @@ def toolchain_repo_errors(local_path, revision, api_level, cxx_runtime):
     errors = []
     if local_path == "":
         errors.append("android_ndk_toolchain: local_path names the installed Android SDK")
-    errors.extend(ndk_revision_errors(revision))
+    errors.extend(android_ndk_revision_errors(revision))
     if api_level != 0 and api_level < api_floor():
         errors.append("android_ndk_toolchain: api_level " + str(api_level) + " is below " + str(api_floor()))
-    errors.extend(cxx_runtime_errors(cxx_runtime))
+    errors.extend(android_cxx_runtime_errors(cxx_runtime))
     return errors
 
 _TUPLE_BUILD = """

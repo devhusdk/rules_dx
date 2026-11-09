@@ -6,6 +6,7 @@ exports_files([
     "cell_tests.bzl",
     "defs.bzl",
     "library_check.sh",
+    "validate.bzl",
 ])
 
 real_source_target(
@@ -14,6 +15,7 @@ real_source_target(
         "BUILD.bazel",
         "cell_tests.bzl",
         "defs.bzl",
+        "validate.bzl",
     ],
     tags = ["corpus"],
 )

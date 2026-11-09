@@ -1,7 +1,7 @@
 """Explicit-apply Cloudflare Pages publisher for dx deploy."""
 
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
@@ -85,8 +85,9 @@ cloudflare_config = rule(
     },
 )
 
-def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler = None, build_mode = "release", tags = [], sbom = None, size_budget = ""):
+def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler = None, build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes a static bundle directory to an existing Cloudflare Pages project."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     wrangler = wrangler or str(Label("//quality/tools/javascript/bin:wrangler"))
     error = cloudflare_pages_error(account_id, project, branch, production_branch)
     if error != "":
@@ -99,7 +100,6 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         name = check_target,
         srcs = [site],
         outs = [name + ".pages.json"],
-        tags = tags,
         tools = [_VERIFY],
         cmd = "$(location " + str(_VERIFY) + ") " + " ".join([
             shell.quote(account_id),
@@ -109,6 +109,7 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
             "$(execpath " + site + ")",
             "$@",
         ]),
+        **attrs
     )
 
     cloudflare_config(
@@ -119,8 +120,8 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         production_branch = production_branch,
         project = project,
         site = site,
-        tags = tags,
         wrangler = wrangler,
+        **attrs
     )
 
     dx_deployment(
@@ -130,6 +131,5 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         data = [":" + check_target],
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        tags = tags,
-        **deployment_budget(name, size_budget, [site]),
+        **(deployment_budget(name, size_budget, [site]) | attrs)
     )

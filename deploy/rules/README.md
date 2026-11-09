@@ -13,6 +13,11 @@ Every `*_deploy` macro that publishes files takes it and sets `artifacts` to
 the files it publishes. Building the deployment fails when they together are
 larger, and prints both sizes in bytes. Empty means no budget.
 
+Every `*_deploy` macro ends with the same four attributes: `tags`,
+`visibility`, `testonly` and `target_compatible_with`. Each is forwarded to the
+`dx_deployment` and to every helper target the macro generates, such as the
+`_config`, `_pack` and archive targets.
+
 # maven_deploy
 
 Publishes one jar and its pom to a Maven repository.
@@ -495,7 +500,6 @@ github_deploy(
 - `release_tag`: defaults to `v0.0.0-dryrun`. `tag_from_head = True` uses the tag that points at HEAD instead.
 - `notes`: `commits` (default) or `none`. `notes_file` is a markdown file used as the release body; it needs `notes = "none"`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
-- `tags`: Bazel tags for the generated targets. Defaults to `[]`.
 - `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility). `go_modules` lists
   the workspace-relative module directories to check; empty means the `go.mod` at the root.
 

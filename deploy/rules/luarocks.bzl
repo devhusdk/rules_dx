@@ -1,6 +1,6 @@
 """Local-first LuaRocks publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -73,8 +73,9 @@ _luarocks_config = rule(
     },
 )
 
-def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "release", sbom = None, size_budget = ""):
+def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Uploads one rockspec after checking its package and version."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, luarocks_name_error, luarocks_version_error)
 
     config_target = name + "_config"
@@ -84,6 +85,7 @@ def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "re
         package = pkg,
         rockspec = rockspec,
         version = version,
+        **attrs
     )
 
     dx_deployment(
@@ -92,5 +94,5 @@ def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "re
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [rockspec]),
+        **(deployment_budget(name, size_budget, [rockspec]) | attrs)
     )

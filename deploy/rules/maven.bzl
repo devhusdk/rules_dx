@@ -1,7 +1,7 @@
 """Local-first Maven Central publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":maven_validate.bzl", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_sources_error", "maven_version_error")
 
@@ -115,12 +115,13 @@ _maven_config = rule(
     },
 )
 
-def maven_deploy(name, jar, pom, group, artifact = "", version = "", build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = ""):
+def maven_deploy(name, jar, pom, group, artifact = "", version = "", build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment.
 
     api_compat and api_baseline work as described under "Public API
     compatibility" in the README; the tool is japicmp on the jar.
     """
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     group_error = maven_group_error(group)
     if group_error != "":
         fail(group_error + " (in " + native.package_name() + ":" + name + ")")
@@ -141,6 +142,7 @@ def maven_deploy(name, jar, pom, group, artifact = "", version = "", build_mode 
         pom = pom,
         sources = sources,
         version = version,
+        **attrs
     )
 
     dx_deployment(
@@ -149,5 +151,5 @@ def maven_deploy(name, jar, pom, group, artifact = "", version = "", build_mode 
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [jar, pom] + ([sources] if sources else []) + ([javadoc] if javadoc else [])),
+        **(deployment_budget(name, size_budget, [jar, pom] + ([sources] if sources else []) + ([javadoc] if javadoc else [])) | attrs)
     )

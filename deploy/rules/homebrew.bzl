@@ -1,6 +1,6 @@
 """Local-first Homebrew tap publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "DxDeployConfigInfo", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "DxDeployConfigInfo", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "LOWER_ALNUM", "NAME_CHARS", "only_chars")
 
@@ -74,9 +74,13 @@ def homebrew_tap_deploy(
         desc = None,
         homepage = None,
         build_mode = "release",
+        sbom = None,
         tags = [],
-        sbom = None):
+        visibility = None,
+        testonly = False,
+        target_compatible_with = []):
     """Renders a Homebrew formula from a github_deploy release and pushes it to a tap."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     formula = formula or name
     where = " (in " + native.package_name() + ":" + name + ")"
     for error in [
@@ -98,7 +102,7 @@ def homebrew_tap_deploy(
         release = release,
         repo = repo,
         tap = tap,
-        tags = tags,
+        **attrs
     )
 
     dx_deployment(
@@ -107,5 +111,5 @@ def homebrew_tap_deploy(
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        tags = tags,
+        **attrs
     )

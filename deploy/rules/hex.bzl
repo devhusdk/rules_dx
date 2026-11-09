@@ -1,6 +1,6 @@
 """Local-first Hex publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "ALNUM", "VERSION_CHARS", "only_chars")
 
@@ -77,8 +77,9 @@ _hex_config = rule(
     },
 )
 
-def hex_deploy(name, srcs, package = "", version = "", tool = "mix", build_mode = "release", sbom = None, size_budget = ""):
+def hex_deploy(name, srcs, package = "", version = "", tool = "mix", build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes an Elixir or Erlang package as a local-first Hex deployment."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, hex_name_error, hex_version_error)
     tool_error = hex_tool_error(tool)
     if tool_error != "":
@@ -91,6 +92,7 @@ def hex_deploy(name, srcs, package = "", version = "", tool = "mix", build_mode 
         package_name = pkg,
         tool = tool,
         version = version,
+        **attrs
     )
 
     dx_deployment(
@@ -99,5 +101,5 @@ def hex_deploy(name, srcs, package = "", version = "", tool = "mix", build_mode 
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, srcs),
+        **(deployment_budget(name, size_budget, srcs) | attrs)
     )

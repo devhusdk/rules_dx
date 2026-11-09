@@ -1,6 +1,6 @@
 """Local-first RubyGems publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "ALNUM", "VERSION_CHARS", "only_chars")
 
@@ -79,8 +79,9 @@ _rubygems_config = rule(
     },
 )
 
-def rubygems_deploy(name, gem, package = "", version = "", ruby = None, ruby_files = None, build_mode = "release", sbom = None, size_budget = ""):
+def rubygems_deploy(name, gem, package = "", version = "", ruby = None, ruby_files = None, build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes staged gem sources as a local-first RubyGems deployment."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, rubygems_name_error, rubygems_version_error)
 
     config_target = name + "_config"
@@ -91,6 +92,7 @@ def rubygems_deploy(name, gem, package = "", version = "", ruby = None, ruby_fil
         ruby = ruby,
         ruby_files = ruby_files,
         version = version,
+        **attrs
     )
 
     dx_deployment(
@@ -99,5 +101,5 @@ def rubygems_deploy(name, gem, package = "", version = "", ruby = None, ruby_fil
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [gem]),
+        **(deployment_budget(name, size_budget, [gem]) | attrs)
     )

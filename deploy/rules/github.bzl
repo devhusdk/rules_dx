@@ -1,7 +1,7 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
@@ -113,7 +113,7 @@ github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", tags = [], sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], visibility = None, testonly = None, size_budget = ""):
+def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes pinned files as a draft-only GitHub Release.
 
     `sbom` is a dx_sbom target uploaded as one more release asset.
@@ -125,6 +125,7 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
     compatibility" in the README; the tool is apidiff on each of `go_modules`
     (workspace-relative directories; empty means the go.mod at the root).
     """
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     if tag_from_head:
         if release_tag != "":
             fail("github_deploy: release_tag and tag_from_head are exclusive (in " + native.package_name() + ":" + name + ")")
@@ -157,8 +158,7 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         notes_file = notes_file,
         release_tag = release_tag,
         tag_from_head = tag_from_head,
-        tags = tags,
-        testonly = testonly,
+        **attrs
     )
 
     dx_deployment(
@@ -167,8 +167,5 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        tags = tags,
-        testonly = testonly,
-        visibility = visibility,
-        **deployment_budget(name, size_budget, artifacts),
+        **(deployment_budget(name, size_budget, artifacts) | attrs)
     )

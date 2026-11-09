@@ -1,7 +1,7 @@
 """Local-first pub.dev publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "LOWER_ALNUM", "VERSION_CHARS", "only_chars")
 
@@ -138,8 +138,9 @@ _pub_config = rule(
     },
 )
 
-def pub_deploy(name, srcs, package = "", version = "", registry_url = PUB_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = ""):
+def pub_deploy(name, srcs, package = "", version = "", registry_url = PUB_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes a Dart or Flutter package as a local-first pub.dev deployment."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, pub_name_error, pub_version_error)
     registry_error = pub_registry_url_error(registry_url)
     if registry_error != "":
@@ -157,6 +158,7 @@ def pub_deploy(name, srcs, package = "", version = "", registry_url = PUB_DEFAUL
         srcs = srcs,
         package_name = pkg,
         version = version,
+        **attrs
     )
 
     dx_deployment(
@@ -165,5 +167,5 @@ def pub_deploy(name, srcs, package = "", version = "", registry_url = PUB_DEFAUL
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, srcs),
+        **(deployment_budget(name, size_budget, srcs) | attrs)
     )

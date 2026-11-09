@@ -1,7 +1,7 @@
 """Local-first OCI publisher for dx deploy."""
 
 load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "LOWER_ALNUM", "NAME_CHARS", "only_chars")
 
@@ -203,8 +203,9 @@ _oci_config = rule(
     } | PLATFORM_ATTRS,
 )
 
-def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = "", sbom = None, scan = "fail", scan_severity = "HIGH"):
+def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = "", sbom = None, scan = "fail", scan_severity = "HIGH", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes one docker save or OCI layout archive or OCI layout directory holding one image for `platform`, a linux amd64 or arm64 platform label, as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push. `dx security` scans the same image (output group dx_oci_image of the `<name>_config` target) and prints one row per image."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     effective_repo = repository if repository != "" else name
     if scan not in ["off", "warn", "fail"]:
         fail("oci_deploy: invalid scan '" + str(scan) + "': want off, warn or fail (in " + native.package_name() + ":" + name + ")")
@@ -231,6 +232,7 @@ def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_D
         image_tag = image_tag,
         platform = platform,
         sbom = sbom,
+        **attrs
     )
 
     dx_deployment(
@@ -239,5 +241,5 @@ def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_D
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [image_tar]),
+        **(deployment_budget(name, size_budget, [image_tar]) | attrs)
     )

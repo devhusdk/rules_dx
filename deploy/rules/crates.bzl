@@ -1,7 +1,7 @@
 """Local-first crates.io publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":crates_validate.bzl", "crates_name_error", "crates_version_error")
 load(":defs.bzl", "dx_deployment")
 
@@ -68,13 +68,14 @@ _crates_config = rule(
     },
 )
 
-def crates_deploy(name, crate, package = "", version = "", build_mode = "release", api_compat = "fail", api_baseline = "registry", tags = [], sbom = None, size_budget = ""):
+def crates_deploy(name, crate, package = "", version = "", build_mode = "release", api_compat = "fail", api_baseline = "registry", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes staged crate sources as a local-first crates.io deployment.
 
     api_compat and api_baseline work as described under "Public API
     compatibility" in the README; the tool is cargo-semver-checks, and the
     git baseline needs a checked-in, standalone Cargo.toml.
     """
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, crates_name_error, crates_version_error)
 
     api_error = api_compat_error("crates_deploy", api_compat, api_baseline)
@@ -88,15 +89,14 @@ def crates_deploy(name, crate, package = "", version = "", build_mode = "release
         version = version,
         api_compat = api_compat,
         api_baseline = api_baseline,
-        tags = tags,
+        **attrs
     )
 
     dx_deployment(
         name = name,
         sbom = sbom,
-        tags = tags,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [crate]),
+        **(deployment_budget(name, size_budget, [crate]) | attrs)
     )

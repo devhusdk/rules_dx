@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "display_label")
 load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":resources.bzl", "resource_path_error")
@@ -90,8 +90,9 @@ def archive_filenames(name, format = "tar.gz"):
     """Returns the deterministic (archive, checksum) output names."""
     return (name + "." + format, name + "." + format + ".sha256")
 
-def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = None):
+def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = None, tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Packages one executable as a deployable tarball and sha256 file, optionally failing above size_budget such as '25MB'."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     (tarball, checksum) = archive_filenames(name)
     archive_target = name + "_archive"
     checksum_target = name + "_checksum"
@@ -100,6 +101,7 @@ def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = N
     _archive_stage(
         name = stage_target,
         app = app,
+        **attrs
     )
 
     native.genrule(
@@ -108,6 +110,7 @@ def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = N
         outs = [tarball],
         tools = [_ARCHIVER],
         cmd = "$(location " + str(_ARCHIVER) + ") $(location :" + stage_target + ") $(OUTS)",
+        **attrs
     )
 
     native.genrule(
@@ -116,12 +119,14 @@ def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = N
         outs = [checksum],
         tools = [_HASHER],
         cmd = "$(location " + _HASHER + ") $(location :" + archive_target + ") $(OUTS)",
+        **attrs
     )
 
     app_name_target = name + "_app_name"
     _archive_app_name(
         name = app_name_target,
         app = app,
+        **attrs
     )
 
     config_target = name + "_config"
@@ -130,6 +135,7 @@ def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = N
         app_name = ":" + app_name_target,
         checksum = ":" + checksum_target,
         tarball = ":" + archive_target,
+        **attrs
     )
 
     dx_deployment(
@@ -144,7 +150,7 @@ def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = N
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [":" + archive_target]),
+        **(deployment_budget(name, size_budget, [":" + archive_target]) | attrs)
     )
 
 CONSUMER_ARCHES = ["x86_64", "aarch64"]

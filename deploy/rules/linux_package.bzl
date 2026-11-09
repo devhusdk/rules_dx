@@ -1,6 +1,7 @@
 """Builds deb, rpm and apk packages with nfpm and attaches them to a GitHub release."""
 
 load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
+load(":config.bzl", "deploy_attrs")
 load(":github.bzl", "github_deploy")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
@@ -166,11 +167,13 @@ def linux_package_deploy(
         notes = "commits",
         notes_file = None,
         build_mode = "release",
-        tags = [],
         sbom = None,
+        tags = [],
         visibility = None,
-        testonly = None):
+        testonly = False,
+        target_compatible_with = []):
     """Builds Linux packages from one binary and publishes them as a draft GitHub release."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     where = " (in " + native.package_name() + ":" + name + ")"
     name_error = linux_package_name_error(name)
     if name_error != "":
@@ -194,9 +197,7 @@ def linux_package_deploy(
             maintainer = maintainer,
             package = name,
             version = version,
-            tags = tags,
-            testonly = testonly,
-            visibility = visibility,
+            **attrs
         )
         artifacts.append(":" + target)
 
@@ -208,8 +209,6 @@ def linux_package_deploy(
         notes = notes,
         notes_file = notes_file,
         build_mode = build_mode,
-        tags = tags,
         sbom = sbom,
-        testonly = testonly,
-        visibility = visibility,
+        **attrs
     )

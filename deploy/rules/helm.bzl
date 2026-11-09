@@ -1,7 +1,7 @@
 """Local-first Helm chart publisher for dx deploy."""
 
 load("//helm/rules:providers.bzl", "HelmChartInfo")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":oci.bzl", "oci_registry_error", "oci_repository_error")
 load(":validate.bzl", "VERSION_CHARS", "only_chars")
@@ -66,8 +66,9 @@ _helm_config = rule(
     },
 )
 
-def helm_chart_deploy(name, chart, registry, version = "", repository = "", helm = None, build_mode = "release", sbom = None, size_budget = ""):
+def helm_chart_deploy(name, chart, registry, version = "", repository = "", helm = None, build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Packages a helm_chart and pushes it to an OCI registry as a local-first deployment."""
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     where = " (in " + native.package_name() + ":" + name + ")"
     if version != "":
         version_error = helm_version_error(version)
@@ -90,6 +91,7 @@ def helm_chart_deploy(name, chart, registry, version = "", repository = "", helm
         registry = registry,
         repository = repository,
         version = version,
+        **attrs
     )
 
     dx_deployment(
@@ -98,5 +100,5 @@ def helm_chart_deploy(name, chart, registry, version = "", repository = "", helm
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [chart]),
+        **(deployment_budget(name, size_budget, [chart]) | attrs)
     )

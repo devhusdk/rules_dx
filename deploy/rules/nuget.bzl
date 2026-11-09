@@ -1,7 +1,7 @@
 """Local-first NuGet publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -112,12 +112,13 @@ _nuget_config = rule(
     },
 )
 
-def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = ""):
+def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes one nupkg after checking its nuspec id and version.
 
     api_compat and api_baseline work as described under "Public API
     compatibility" in the README; the tool is Microsoft.DotNet.ApiCompat.
     """
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, nuget_id_error, nuget_version_error)
     api_error = api_compat_error("nuget_deploy", api_compat, api_baseline)
     if api_error != "":
@@ -136,6 +137,7 @@ def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_D
         package = pkg,
         registry_url = registry_url,
         version = version,
+        **attrs
     )
 
     dx_deployment(
@@ -144,5 +146,5 @@ def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_D
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [nupkg]),
+        **(deployment_budget(name, size_budget, [nupkg]) | attrs)
     )

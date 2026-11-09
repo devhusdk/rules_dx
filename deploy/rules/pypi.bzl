@@ -2,7 +2,7 @@
 
 load("//libs/starlark:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
@@ -124,7 +124,7 @@ _pypi_config = rule(
     },
 )
 
-def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", api_package = "", api_src = "", size_budget = ""):
+def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", api_package = "", api_src = "", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes one wheel plus an optional sdist as a local-first PyPI deployment.
 
     api_compat and api_baseline work as described under "Public API
@@ -132,6 +132,7 @@ def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_
     name, which defaults to the distribution name, and api_src the
     workspace-relative source directory the git baseline needs.
     """
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     name_error = pypi_name_error(name)
     if name_error != "":
         fail(name_error + " (in " + native.package_name() + ":" + name + ")")
@@ -156,6 +157,7 @@ def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_
         registry_url = registry_url,
         sdist = sdist,
         wheel = wheel,
+        **attrs
     )
 
     dx_deployment(
@@ -164,5 +166,5 @@ def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [wheel] + ([sdist] if sdist else [])),
+        **(deployment_budget(name, size_budget, [wheel] + ([sdist] if sdist else [])) | attrs)
     )

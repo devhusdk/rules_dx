@@ -51,6 +51,7 @@ load(":resources.bzl", "dx_resources")
 load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
 load(":rubygems.bzl", "rubygems_deploy")
 load(":rubygems_tests.bzl", "rubygems_unit_tests")
+load(":standard_attrs_tests.bzl", "PROBE_COMPATIBLE", "PROBE_TAG", "PROBE_VISIBILITY", "standard_attrs_unit_tests")
 load(":validate_tests.bzl", "validate_unit_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -2141,4 +2142,42 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+archive_deploy(
+    name = "attrs_archive",
+    app = ":deploy_program",
+    tags = [PROBE_TAG],
+    target_compatible_with = PROBE_COMPATIBLE,
+    testonly = True,
+    visibility = PROBE_VISIBILITY,
+)
+
+npm_deploy(
+    name = "attrs_npm",
+    srcs = ["npm_demo/package.json"],
+    package = "npm-demo",
+    tags = [PROBE_TAG],
+    target_compatible_with = PROBE_COMPATIBLE,
+    testonly = True,
+    visibility = PROBE_VISIBILITY,
+)
+
+cloudflare_pages_deploy(
+    name = "attrs_cloudflare",
+    account_id = "0123456789abcdef0123456789abcdef",
+    branch = "feature/demo",
+    production_branch = "main",
+    project = "dx-demo",
+    site = ":cloudflare_demo_site",
+    wrangler = ":cloudflare_demo_wrangler",
+    tags = [PROBE_TAG],
+    target_compatible_with = PROBE_COMPATIBLE,
+    testonly = True,
+    visibility = PROBE_VISIBILITY,
+)
+
+standard_attrs_unit_tests(
+    name = "standard_attrs_unit",
+    prefixes = ["attrs_archive", "attrs_npm", "attrs_cloudflare"],
 )

@@ -1,6 +1,6 @@
 """Octopus Deploy publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -165,11 +165,12 @@ _octopus_config = rule(
     },
 )
 
-def octopus_deploy(name, srcs, project, package = "", channel = "Default", version = "", deploy_to = [], space = "", registry_url = OCTOPUS_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, size_budget = ""):
+def octopus_deploy(name, srcs, project, package = "", channel = "Default", version = "", deploy_to = [], space = "", registry_url = OCTOPUS_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Publishes one `<package>.<version>.tar.gz` archive as a local-first Octopus deployment.
 
     The package id defaults to the target name. An empty version means the launcher reads it from the archive filename.
     """
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     project_error = octopus_project_error(project)
     if project_error != "":
         fail(project_error + " (in " + native.package_name() + ":" + name + ")")
@@ -200,6 +201,7 @@ def octopus_deploy(name, srcs, project, package = "", channel = "Default", versi
         srcs = srcs,
         space = space,
         version = version,
+        **attrs
     )
 
     dx_deployment(
@@ -208,5 +210,5 @@ def octopus_deploy(name, srcs, project, package = "", channel = "Default", versi
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [srcs]),
+        **(deployment_budget(name, size_budget, [srcs]) | attrs)
     )

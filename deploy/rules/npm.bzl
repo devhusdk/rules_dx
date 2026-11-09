@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:shell.bzl", "shell")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":npm_validate.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
 
@@ -47,12 +47,13 @@ _npm_config = rule(
     },
 )
 
-def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry_url = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = ""):
+def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry_url = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
     """Packs files into a local npm feed with public or restricted access and a provenance policy.
 
     api_compat and api_baseline work as described under "Public API
     compatibility" in the README; the tool is api-extractor on the types entry.
     """
+    attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     package, _ = deploy_identity(name, package, "", npm_package_error, npm_package_error)
     tag_error = npm_tag_error(dist_tag)
     if tag_error != "":
@@ -84,6 +85,7 @@ def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry_url 
         outs = [tarball, feed],
         tools = [_NPM_PACKER],
         cmd = "$(location " + str(_NPM_PACKER) + ") " + shell.quote(package) + " " + shell.quote(dist_tag) + " " + shell.quote(registry_url) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
+        **attrs
     )
 
     _npm_config(
@@ -92,6 +94,7 @@ def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry_url 
         tarball = ":" + tarball,
         api_compat = api_compat,
         api_baseline = api_baseline,
+        **attrs
     )
 
     dx_deployment(
@@ -100,5 +103,5 @@ def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry_url 
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
-        **deployment_budget(name, size_budget, [":" + tarball]),
+        **(deployment_budget(name, size_budget, [":" + tarball]) | attrs)
     )

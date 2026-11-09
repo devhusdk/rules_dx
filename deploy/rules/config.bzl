@@ -61,3 +61,12 @@ def deployment_budget(name, size_budget, artifacts):
     if error != "":
         fail(error + " (in " + native.package_name() + ":" + name + ")")
     return {"artifacts": artifacts, "size_budget": size_budget}
+
+def deploy_attrs(tags, visibility, testonly, target_compatible_with):
+    """Returns the standard attributes every *_deploy macro forwards to each target it generates."""
+    return {
+        "tags": tags,
+        "target_compatible_with": target_compatible_with,
+        "testonly": testonly,
+        "visibility": visibility,
+    }

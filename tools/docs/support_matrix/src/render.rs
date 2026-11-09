@@ -74,14 +74,24 @@ fn language_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> 
         .into_iter()
         .map(|row| {
             let dependencies = facts.dependencies.get(&row.name).cloned();
+            let macro_cell = |macros: &BTreeMap<String, String>| {
+                macros
+                    .get(&row.name)
+                    .map_or_else(|| "n/a".to_owned(), |name| format!("`{name}`"))
+            };
             vec![
                 row.title.clone(),
                 unsupported_cell(facts, platforms, row),
                 dependencies.unwrap_or_else(|| "none".to_owned()),
+                macro_cell(&facts.bench),
+                macro_cell(&facts.fuzz),
             ]
         })
         .collect();
-    table(&["Language", "Not supported on", "Dependencies"], &rows)
+    table(
+        &["Language", "Not supported on", "Dependencies", "Bench", "Fuzz"],
+        &rows,
+    )
 }
 
 fn compiler_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> String {
@@ -385,6 +395,7 @@ mod tests {
         {"id": "macos_arm64", "os": "macos", "cpu": "arm64"}
       ],
       "sections": ["languages", "targets", "compilers", "formats"],
+      "bench": {"go": "go_bench"},
       "rows": [
         {"name": "go", "title": "Go", "section": "languages", "families": ["go"],
          "coverage": {"collectors": ["go cover"], "reason": ""},
@@ -437,7 +448,7 @@ mod tests {
         assert_eq!(page, render(&facts, &platforms));
         assert!(page.is_ascii());
         assert!(
-            page.contains("| Go | `macos_arm64`: not tested yet | none |\n"),
+            page.contains("| Go | `macos_arm64`: not tested yet | none | `go_bench` | n/a |\n"),
             "{page}"
         );
         assert!(

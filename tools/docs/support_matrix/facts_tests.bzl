@@ -14,7 +14,7 @@ load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
 load("//tools/docs/site:site.bzl", "docs_site")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
 load(":facts.bzl", "compiler_blocker_problems", "support_matrix_facts_dict", "tool_not_applicable")
-load(":languages.bzl", "DEPENDENCIES", "DOC_TOOLS", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "BENCH", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
 
 # Loading each symbol proves the shard rule exists; the names are what DOC_TOOLS may point at.
 _SHARD_RULES = {
@@ -52,6 +52,14 @@ def _dependency_problems(facts):
     languages = [row["name"] for row in facts["rows"] if row["section"] == "languages"]
     problems = ["missing " + name for name in languages if name not in DEPENDENCIES]
     return problems + ["unknown row " + name for name in DEPENDENCIES if name not in languages]
+
+def _macro_problems(facts, macros, suffix):
+    languages = [row["name"] for row in facts["rows"] if row["section"] == "languages"]
+    return [
+        "bad macro " + name + ":" + macro
+        for name, macro in macros.items()
+        if name not in languages or macro != name + suffix
+    ]
 
 def _families_resolve(facts):
     return [
@@ -179,6 +187,8 @@ def support_matrix_facts_tests(name):
                 sorted([rule for rule, tool in facts["api_compat_tools"].items() if tool == "not available"]),
                 ["hackage_deploy", "hex_deploy", "luarocks_deploy", "rubygems_deploy"],
             ),
+            expect_equal("bench macros name a language row each", _macro_problems(facts, BENCH, "_bench"), []),
+            expect_equal("fuzz macros name a language row each", _macro_problems(facts, FUZZ, "_fuzz_test"), []),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],
     )

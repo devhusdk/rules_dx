@@ -56,6 +56,36 @@ COMPUTED_CONSTRAINTS = {
     "//qt/rules:defs.bzl%QT_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
+# The benchmark and fuzz macros each language row ships, shown in the Bench and Fuzz columns. A language without one shows n/a.
+BENCH = {
+    "cc": "cc_bench",
+    "csharp": "csharp_bench",
+    "fsharp": "fsharp_bench",
+    "go": "go_bench",
+    "haskell": "haskell_bench",
+    "java": "java_bench",
+    "javascript": "javascript_bench",
+    "kotlin": "kotlin_bench",
+    "python": "python_bench",
+    "rust": "rust_bench",
+    "scala": "scala_bench",
+    "typescript": "typescript_bench",
+    "zig": "zig_bench",
+}
+
+FUZZ = {
+    "cc": "cc_fuzz_test",
+    "csharp": "csharp_fuzz_test",
+    "go": "go_fuzz_test",
+    "java": "java_fuzz_test",
+    "javascript": "javascript_fuzz_test",
+    "kotlin": "kotlin_fuzz_test",
+    "python": "python_fuzz_test",
+    "rust": "rust_fuzz_test",
+    "scala": "scala_fuzz_test",
+    "typescript": "typescript_fuzz_test",
+}
+
 # What each language row shows in the Dependencies column: the dependency set names, or none with the reason. Lock files without a set are named so `dx security` warnings can point here.
 DEPENDENCIES = {
     "astro": "`npm`",

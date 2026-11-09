@@ -111,6 +111,12 @@ pub struct Facts {
     /// Language row name to the cell of its dependency sets, or none with the reason.
     #[serde(default)]
     pub dependencies: BTreeMap<String, String>,
+    /// Language row name to its `*_bench` macro.
+    #[serde(default)]
+    pub bench: BTreeMap<String, String>,
+    /// Language row name to its `*_fuzz_test` macro.
+    #[serde(default)]
+    pub fuzz: BTreeMap<String, String>,
     /// Publishing rule to the tool its api_compat check runs, or "not available".
     #[serde(default)]
     pub api_compat_tools: BTreeMap<String, String>,

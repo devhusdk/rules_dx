@@ -18,7 +18,7 @@ concurrency:
 jobs:
   analysis:
     name: analysis (PR-time checks on linux_x86_64)
-    timeout-minutes: 15
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: false
@@ -61,3 +62,17 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           tools/ci/pr_check.sh cli $BAZEL_CONFIG $BB_ARGS
+      - name: affected tests
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS --test_tag_filters=-resources:nested_bazel:1,-starter-consumer,-network-consumer
+          log="${RUNNER_TEMP:-/tmp}/affected-tests.log"
+          status=0
+          timeout 1500 tools/dx test --affected --since 'HEAD^1' -- "$@" 2>&1 | tee "$log" || status=$?
+          if [ "$status" -ne 0 ] && grep -qiE 'remote (cache|execution)|remote_cache|grpc' "$log"; then
+            echo "::warning::remote cache failed; retrying without it"
+            timeout 1500 tools/dx test --affected --since 'HEAD^1' -- "$@" --remote_cache= --noremote_accept_cached
+          else
+            exit "$status"
+          fi

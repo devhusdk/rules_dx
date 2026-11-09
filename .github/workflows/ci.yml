@@ -794,7 +794,26 @@ jobs:
     name: gate
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: read
     steps:
+      - name: Require settled evidence statuses
+        if: ${{ github.event_name == 'merge_group' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          sha="${HEAD_REF##*-}"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "gate: no PR head sha in $HEAD_REF" >&2; exit 1; }
+          bad="$(gh api --paginate "repos/$REPO/commits/$sha/statuses" --jq '.[] | [.context, .state] | @tsv' \
+            | awk -F'\t' '$1 ~ /^evidence\// && !seen[$1]++ && $2 != "success" { print $1 " (" $2 ")" }')"
+          if [ -n "$bad" ]; then
+            echo "gate: evidence statuses not green on $sha:" >&2
+            echo "$bad" >&2
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0

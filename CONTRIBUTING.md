@@ -35,7 +35,7 @@ A read-only key makes Bazel warn on every build that it cannot upload results. U
 
 ## Evidence status
 
-Each `evidence.yml` run posts the commit status `evidence/<platform>/<task>/<scope>` on the dispatched commit: pending at dispatch, then success, failure or error. `gh pr checks <n> --watch` shows it. A second run for the same platform, task and scope on one commit replaces the status.
+Each `evidence.yml` run posts the commit status `evidence/<platform>/<task>/<scope>` on the dispatched commit: pending at dispatch, then success, failure or error. `gh pr checks <n> --watch` shows it. A second run for the same platform, task and scope on one commit replaces the status. The merge-group `gate` job fails when the newest status of any `evidence/*` context on the pull request head is `pending`, `failure` or `error`.
 
 ## Issues and labels
 

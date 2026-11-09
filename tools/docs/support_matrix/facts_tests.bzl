@@ -5,6 +5,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "TYPECHECK_CANDIDATES")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//tools/docs/components:defs.bzl", "astro_doc_shard", "mdx_doc_shard", "svelte_doc_shard", "vue_doc_shard")
+load("//tools/docs/dart:defs.bzl", "dart_doc_shard")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
 load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_doc_shard")
@@ -20,6 +21,7 @@ load(":languages.bzl", "BENCH", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "PLATFORMS"
 _SHARD_RULES = {
     "astro_doc_shard": astro_doc_shard,
     "csharp_doc_shard": csharp_doc_shard,
+    "dart_doc_shard": dart_doc_shard,
     "fsharp_doc_shard": fsharp_doc_shard,
     "go_doc_shard": go_doc_shard,
     "java_doc_shard": java_doc_shard,

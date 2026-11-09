@@ -112,14 +112,37 @@ def parse_depend_names(text):
             names.append(name)
     return names
 
+_B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+def _hex_to_base64(digits):
+    """Returns the base64 text of a hex digest."""
+    values = [int(digits[i:i + 2], 16) for i in range(0, len(digits), 2)]
+    out = ""
+    for i in range(0, len(values), 3):
+        chunk = values[i:i + 3]
+        word = chunk[0] << 16
+        if len(chunk) > 1:
+            word |= chunk[1] << 8
+        if len(chunk) > 2:
+            word |= chunk[2]
+        out += _B64[(word >> 18) & 63] + _B64[(word >> 12) & 63]
+        out += _B64[(word >> 6) & 63] if len(chunk) > 1 else "="
+        out += _B64[word & 63] if len(chunk) > 2 else "="
+    return out
+
 def parse_url(text):
-    """Returns struct(src, sha256) from the `url` section of an opam file."""
+    """Returns struct(src, sha256, integrity) from the `url` section of an opam file.
+
+    A file with only a sha512 checksum gets an empty sha256 and a
+    `sha512-<base64>` integrity.
+    """
     at = _field(text, "url")
     if at < 0:
         fail("the opam file has no url section")
     body = _scan(text, at, "{", "}")
     src = None
     sha256 = None
+    sha512 = None
     at_src = body.find("src:")
     if at_src >= 0:
         quoted = body[at_src + 4:].split("\"")
@@ -130,8 +153,12 @@ def parse_url(text):
         for part in line.split("\""):
             if part.startswith("sha256="):
                 sha256 = part[len("sha256="):]
+            elif part.startswith("sha512="):
+                sha512 = part[len("sha512="):]
     if not src:
         fail("the opam url section has no src")
-    if not sha256:
-        fail("the opam url section has no sha256 checksum for " + src)
-    return struct(src = src, sha256 = sha256)
+    if sha256:
+        return struct(src = src, sha256 = sha256, integrity = "")
+    if not sha512:
+        fail("the opam url section has no sha256 or sha512 checksum for " + src)
+    return struct(src = src, sha256 = "", integrity = "sha512-" + _hex_to_base64(sha512))

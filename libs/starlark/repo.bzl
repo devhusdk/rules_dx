@@ -23,11 +23,12 @@ def crlf_text(text):
 
 def _pinned_archive_impl(rctx):
     if rctx.attr.download_as:
-        rctx.download(url = rctx.attr.urls, output = rctx.attr.download_as, sha256 = rctx.attr.sha256)
+        rctx.download(url = rctx.attr.urls, output = rctx.attr.download_as, sha256 = rctx.attr.sha256, integrity = rctx.attr.integrity)
     else:
         rctx.download_and_extract(
             url = rctx.attr.urls,
             sha256 = rctx.attr.sha256,
+            integrity = rctx.attr.integrity,
             stripPrefix = rctx.attr.strip_prefix,
             type = rctx.attr.type,
         )
@@ -56,10 +57,11 @@ pinned_archive = repository_rule(
         "download_as": attr.string(doc = "File name to download to without extracting."),
         "dropped": attr.string_list(doc = "Paths deleted after extraction."),
         "files": attr.string_dict(doc = "Repository path to file content."),
+        "integrity": attr.string(doc = "Subresource integrity of the archive, such as sha512-<base64>, used when there is no sha256."),
         "inner": attr.string_list(doc = "Archives inside the downloaded one, extracted into the repository and then deleted."),
         "patches": attr.label_list(doc = "Patches applied last with strip 1."),
         "required": attr.string_list(doc = "Paths the archive must ship."),
-        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
+        "sha256": attr.string(doc = "Archive digest; set this or integrity."),
         "strip_prefix": attr.string(doc = "Archive directory prefix to strip."),
         "type": attr.string(doc = "Archive type when the URL does not show it."),
         "urls": attr.string_list(mandatory = True, doc = "Archive URLs, tried in order."),

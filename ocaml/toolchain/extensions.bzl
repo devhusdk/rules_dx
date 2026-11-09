@@ -16,6 +16,7 @@ def _snapshot_fact(mctx, package, version):
     url = parse_url(opam)
     return {
         "needs": [n for n in parse_depend_names(opam) if not is_toolchain_package(n)],
+        "integrity": url.integrity,
         "sha256": url.sha256,
         "src": url.src,
     }
@@ -40,6 +41,7 @@ def _declare_packages(mctx, tag, locked, annotations, facts):
             name = package_repo_name(tag.name, package),
             files = {"BUILD.bazel": build_file},
             sha256 = fact["sha256"],
+            integrity = fact.get("integrity", ""),
             strip_prefix = annotation.strip_prefix if annotation else "{}-{}".format(package, version),
             urls = [fact["src"]],
         )

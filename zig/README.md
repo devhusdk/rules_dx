@@ -40,6 +40,37 @@ public declarations into the API reference. Own files the main file re-exports
 with `pub const x = @import("x.zig")` become modules. Nothing needs to be
 installed.
 
+## Packages
+
+The `.dependencies` of a `build.zig.zon` become one hub of `zig_library` targets. Bazel fetches each archive through its repository cache; Zig never runs at fetch time. Only `http(s)` archive URLs (`.tar.gz`, `.tgz`, `.tar.xz`, `.tar.zst`, `.zip`) are supported; `git+` URLs and path dependencies are not.
+
+```python
+zig_deps = use_extension("@rules_dx//zig/deps:extensions.bzl", "zig_deps")
+zig_deps.lock(
+    name = "zig_packages",
+    digests = "//:zig.digests.json",
+    lock = "//:build.zig.zon",
+)
+use_repo(zig_deps, "zig_packages")
+```
+
+A package is `@zig_packages//<name>`, imported by that name. Its root module is the first existing of `src/<name>.zig`, `src/root.zig`, `<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon` dependencies that the hub holds become deps. `@zig_packages//:all_packages` groups every package.
+
+The `.hash` of a dependency is not the archive digest, so `zig.digests.json` pins the archives:
+
+```json
+{
+  "packages": {
+    "xxhash": {
+      "hash": "<the .hash in build.zig.zon>",
+      "sha256": "<sha256 of the archive at .url>"
+    }
+  }
+}
+```
+
+A package without a matching entry fails the fetch and prints the entry to commit.
+
 ## Benchmarks
 
 `zig_bench` builds a private `<name>_bin` with `mode = "release_fast"` and declares `<name>` as the manual `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.

@@ -699,7 +699,7 @@ LANGUAGES = [
     _language(
         "zig",
         bench = "zig_bench",
-        deps = "none for `build.zig.zon`: the zig family does not fetch `.dependencies`",
+        deps = "`zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256)",
         doc = struct(tool = "zig std.zig.Ast", shard = "zig_doc_shard"),
         dead_code = ["zig ast-check unused local, unused parameter"],
         coverage = ["kcov"],

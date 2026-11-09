@@ -9,6 +9,7 @@ exports_files([
     "msvc_source_directories.patch",
     "lse_atomic_sources.patch",
     "stage0_runtime_features.patch",
+    "aarch64_outline_atomics.patch",
 ])
 
 sh_test(

@@ -352,6 +352,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "stage0_runtime_features.patch",
                 content: include_str!("../../../patches/llvm/stage0_runtime_features.patch"),
             },
+            OverridePatch {
+                file: "aarch64_outline_atomics.patch",
+                content: include_str!("../../../patches/llvm/aarch64_outline_atomics.patch"),
+            },
         ],
     },
     Override {

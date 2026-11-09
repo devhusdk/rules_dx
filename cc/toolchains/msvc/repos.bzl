@@ -1,8 +1,7 @@
 """MSVC toolchains over the windows_support repositories behind a license acceptance."""
 
 load("//cc/toolchains:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
-load("//libs/starlark:license.bzl", "accepted", "license_tag", "unaccepted")
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//libs/starlark:license.bzl", "accepted", "unaccepted")
 load(":layout.bzl", "SUPPORTED_CELLS")
 
 HUB_NAME = "dx_msvc"
@@ -84,23 +83,3 @@ def hub_build(accepted, vc_repo = "", sdk_repo = "", msvc_version = MSVC_TOOLSET
     else:
         text += 'cc_toolchain_unavailable(\n    name = "msvc_vcruntime",\n    error = {},\n)\n\n'.format(json.encode(UNACCEPTED))
     return text.rstrip("\n") + "\n"
-
-def _extension_impl(mctx):
-    if accepted(mctx, "dx_msvc", LICENSE):
-        files = {
-            "BUILD.bazel": hub_build(True, Label("@msvc_runtime//:BUILD.bazel").repo_name, Label("@windows_sdk//:BUILD.bazel").repo_name),
-            "NOTICE": "Microsoft Visual C++ and Windows SDK files, licensed under {}\nMSVC {}\nWindows SDK {}\n".format(LICENSE_URL, MSVC_TOOLSET_VERSION, WINDOWS_SDK_INCLUDE_VERSION),
-            "REPO.bazel": "",
-        }
-    else:
-        files = {"BUILD.bazel": hub_build(False)}
-    hub_repo(name = HUB_NAME, files = files)
-    return mctx.extension_metadata(reproducible = True)
-
-_license = license_tag("Accepts the Visual Studio Build Tools license for this build.")
-
-msvc = module_extension(
-    implementation = _extension_impl,
-    doc = "Declares the MSVC toolchain hub repository.",
-    tag_classes = {"license": _license},
-)

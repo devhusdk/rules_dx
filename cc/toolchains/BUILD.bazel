@@ -527,6 +527,7 @@ real_source_target(
         "identity_tests.bzl",
         "pins.bzl",
         "repos.bzl",
+        "extensions.bzl",
         "select.bzl",
         "unavailable.bzl",
         "gcc_unsupported_tests.bzl",

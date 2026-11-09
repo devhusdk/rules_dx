@@ -1,11 +1,6 @@
 """Pinned Chromium headless shell for typescript_playwright_test."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
-
-CHROMIUM_VERSION = "156.0.8078.4"
 CHROMIUM_REVISION = "1248"
-
-_BASE_URL = "https://storage.googleapis.com/chrome-for-testing-public/" + CHROMIUM_VERSION
 
 ARTIFACTS = {
     "linux_arm64": struct(
@@ -75,25 +70,10 @@ def _chromium_impl(rctx):
     ]))
     return rctx.repo_metadata(reproducible = True)
 
-_chromium_repo = repository_rule(
+chromium_repo = repository_rule(
     implementation = _chromium_impl,
     attrs = {
         "sha256": attr.string(mandatory = True),
         "url": attr.string(mandatory = True),
     },
-)
-
-def _playwright_impl(module_ctx):
-    for platform in sorted(ARTIFACTS.keys()):
-        artifact = ARTIFACTS[platform]
-        _chromium_repo(
-            name = repository_name(platform),
-            sha256 = artifact.sha256,
-            url = _BASE_URL + "/" + artifact.path,
-        )
-    hub_repo(name = "dx_playwright_chromium", files = {"BUILD.bazel": hub_build()})
-    return module_ctx.extension_metadata(reproducible = True)
-
-playwright = module_extension(
-    implementation = _playwright_impl,
 )

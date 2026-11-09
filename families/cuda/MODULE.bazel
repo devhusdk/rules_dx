@@ -39,10 +39,10 @@ cuda_dev.toolkit(
     nvcc_version = "13.4",
 )
 
-cuda_license = use_extension("//toolchain:repos.bzl", "cuda_license")
+cuda_license = use_extension("//toolchain:extensions.bzl", "cuda_license")
 use_repo(cuda_license, "dx_cuda_license")
 
-cuda_license_dev = use_extension("//toolchain:repos.bzl", "cuda_license", dev_dependency = True)
+cuda_license_dev = use_extension("//toolchain:extensions.bzl", "cuda_license", dev_dependency = True)
 cuda_license_dev.license(accept = ["cuda-eula"])
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust", dev_dependency = True)

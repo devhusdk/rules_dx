@@ -1,7 +1,5 @@
 """Pinned upstream Firefox acquisition for the documentation browser harness."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
-
 FIREFOX_VERSION = "157.0"
 
 FIREFOX_CDN = "https://download-installer.cdn.mozilla.net/pub/firefox/releases/" + FIREFOX_VERSION
@@ -31,7 +29,6 @@ PLATFORM_CONSTRAINTS = {
     "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
 }
 
-_HUB_NAME = "dx_firefox"
 _REPOSITORY_PREFIX = "dx_firefox_"
 
 _ARTIFACT_KEYS = [
@@ -139,7 +136,7 @@ def _tool_build():
         "",
     ])
 
-_firefox_repo = repository_rule(
+firefox_repo = repository_rule(
     implementation = _firefox_repo_impl,
     attrs = {
         "archive_format": attr.string(
@@ -160,27 +157,4 @@ _firefox_repo = repository_rule(
         ),
         "url": attr.string(doc = "Download URL of the tool archive.", mandatory = True),
     },
-)
-
-def _firefox_impl(module_ctx):
-    if len(module_ctx.modules) == 0:
-        fail("firefox: the extension is only reachable from a module graph")
-    errors = artifact_errors()
-    if len(errors) > 0:
-        fail("firefox: " + "; ".join(errors))
-    for platform in sorted(ARTIFACTS.keys()):
-        artifact = ARTIFACTS[platform]
-        _firefox_repo(
-            name = repository_name(platform),
-            archive_format = artifact.archive_format,
-            asset = artifact.asset,
-            executable = artifact.executable,
-            sha256 = artifact.sha256,
-            url = url_for(artifact),
-        )
-    hub_repo(name = _HUB_NAME, files = {"BUILD.bazel": hub_build()})
-    return module_ctx.extension_metadata(reproducible = True)
-
-firefox = module_extension(
-    implementation = _firefox_impl,
 )

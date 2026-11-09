@@ -393,6 +393,7 @@ real_source_target(
         "hello_output.bzl",
         "nested_bazel.bzl",
         "repos.bzl",
+        "extensions.bzl",
     ],
     tags = ["corpus"],
 )

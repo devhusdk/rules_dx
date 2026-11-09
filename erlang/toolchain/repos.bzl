@@ -1,9 +1,6 @@
 """Hermetic Erlang/OTP acquisition and toolchain registration."""
 
-load("//elixir/rules:hex.bzl", "hex_package")
-load("//erlang/rules:rebar_lock.bzl", "rebar_lock_packages")
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(
     ":pins.bzl",
@@ -16,15 +13,10 @@ load(
     "ERLFMT_VERSION",
     "ERTS_VERSION",
     "GETOPT_VERSION",
-    "HEX_SOURCES",
     "KATANA_CODE_VERSION",
     "OTP_RELEASE",
     "OTP_VERSION",
-    "RULES_ERLANG_COMMIT",
-    "RULES_ERLANG_SHA256",
-    "RULES_ERLANG_URL",
     "RUNTIME_MIRROR",
-    "TOOL_SOURCES",
     "WINDOWS_DROPPED_PATHS",
 )
 
@@ -40,7 +32,7 @@ BOOT_FILES = ["no_dot_erlang.boot", "start_clean.boot", "start_sasl.boot"]
 
 _CELL_PREFIX = "dx_otp_"
 
-_ROOT_BUILD = """load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+ROOT_BUILD = """load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -60,7 +52,7 @@ string_flag(name = "ct_test_windows_logdir_drive_letter", build_setting_default 
 exports_files(["LICENSE", "LICENSE-APACHE2", "LICENSE-MPL-RabbitMQ"])
 """
 
-_PRIVATE_BUILD = """config_setting(
+PRIVATE_BUILD = """config_setting(
     name = "private_stamp_detect",
     values = {"stamp": "1"},
 )
@@ -215,7 +207,7 @@ erlang_escript_archive(
 )
 """
 
-_HEX_BUILD = """load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+HEX_BUILD = """load("@rules_erlang//:erlang_app.bzl", "erlang_app")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -232,8 +224,6 @@ _REBAR_ALIAS = """alias(
     visibility = ["//visibility:public"],
 )
 """
-
-HEX_DEPS = {"dx_erlperf": ["@dx_erlang_argparse//:erlang_app"]}
 
 TOOL_BUILDS = {
     "dx_elvis": _ELVIS_BUILD.format(version = ELVIS_VERSION),
@@ -337,7 +327,7 @@ def _otp_repo_impl(rctx):
     ))
     return rctx.repo_metadata(reproducible = True)
 
-_otp_repo = repository_rule(
+otp_repo = repository_rule(
     implementation = _otp_repo_impl,
     doc = "Acquires one relocatable OTP tree plus its native runtime closure.",
     attrs = {
@@ -365,80 +355,8 @@ def hub_build():
 def rebar_build(package, packages, prefix):
     """Returns the BUILD file of one rebar.lock package: it links every package locked deeper."""
     deps = ["@{}_{}//:erlang_app".format(prefix, other["package"]) for other in packages if other["level"] > package["level"]]
-    return _HEX_BUILD.format(app = package["package"], version = package["version"], deps = repr(deps))
+    return HEX_BUILD.format(app = package["package"], version = package["version"], deps = repr(deps))
 
 def rebar_hub_build(packages, prefix):
     """Returns the hub BUILD file with one erlang_app alias per rebar.lock package."""
     return "\n".join([_REBAR_ALIAS.format(package = p["package"], repo = prefix + "_" + p["package"]) for p in packages])
-
-def _declare_rebar(mctx, tag):
-    packages = rebar_lock_packages(mctx.read(tag.lock))
-    for package in packages:
-        hex_package(
-            name = tag.name + "_" + package["package"],
-            build_file_content = rebar_build(package, packages, tag.name),
-            package = package["package"],
-            sha256 = package["sha256"],
-            version = package["version"],
-        )
-    hub_repo(name = tag.name, files = {"BUILD.bazel": rebar_hub_build(packages, tag.name)})
-
-def _erlang_impl(mctx):
-    pinned_archive(
-        name = "rules_erlang",
-        dropped = ["MODULE.bazel", "gazelle", "test"],
-        files = {
-            "BUILD.bazel": _ROOT_BUILD,
-            "private/BUILD.bazel": _PRIVATE_BUILD,
-        },
-        patches = [
-            Label("//patches/rules_erlang:01_xrl_yrl.patch"),
-            Label("//patches/rules_erlang:02_tcw_tags.patch"),
-            Label("//patches/rules_erlang:03_auto_sname.patch"),
-            Label("//patches/rules_erlang:04_otp_tree.patch"),
-        ],
-        sha256 = RULES_ERLANG_SHA256,
-        strip_prefix = "rules_erlang-" + RULES_ERLANG_COMMIT,
-        type = "tar.gz",
-        urls = [RULES_ERLANG_URL],
-    )
-    for cell in sorted(CELLS.keys()):
-        _otp_repo(name = cell_repository_name(cell), cell = cell)
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
-    for tool in sorted(TOOL_SOURCES.keys()):
-        source = TOOL_SOURCES[tool]
-        pinned_archive(
-            name = tool,
-            dropped = source.dropped,
-            files = {"BUILD.bazel": TOOL_BUILDS[tool]},
-            patches = source.patches,
-            sha256 = source.sha256,
-            strip_prefix = source.strip_prefix,
-            urls = [source.url],
-        )
-    for name, hex in sorted(HEX_SOURCES.items()):
-        hex_package(
-            name = name,
-            build_file_content = _HEX_BUILD.format(app = hex.package, version = hex.version, deps = repr(HEX_DEPS.get(name, []))),
-            package = hex.package,
-            sha256 = hex.sha256,
-            version = hex.version,
-        )
-    for module in mctx.modules:
-        for tag in module.tags.rebar:
-            _declare_rebar(mctx, tag)
-    return mctx.extension_metadata(reproducible = True)
-
-erlang = module_extension(
-    implementation = _erlang_impl,
-    doc = "Creates rules_erlang, the pinned OTP trees, the toolchain hub and the erlfmt and elvis sources.",
-    tag_classes = {
-        "rebar": tag_class(
-            doc = "Declares a hex_package per entry of a rebar.lock and a hub repo with one erlang_app alias per package.",
-            attrs = {
-                "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The rebar.lock to read."),
-                "name": attr.string(mandatory = True, doc = "Hub repository name; package repos are named <name>_<package>."),
-            },
-        ),
-    },
-)

@@ -1,6 +1,5 @@
 """Hermetic Flang acquisition and Fortran toolchain registration."""
 
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load("//libs/starlark:toolchain.bzl", "toolchain_target")
 load(
     ":pins.bzl",
@@ -9,9 +8,6 @@ load(
     "FLANG_RT_URL",
     "FLANG_VERSION",
     "FORTRAN_CELLS",
-    "RULES_FORTRAN_COMMIT",
-    "RULES_FORTRAN_SHA256",
-    "RULES_FORTRAN_URL",
 )
 
 HUB_NAME = "dx_fortran_toolchains"
@@ -103,7 +99,7 @@ def _flang_rt_impl(rctx):
     rctx.file("BUILD.bazel", flang_rt_build(rctx.read(rctx.attr.build_file), HUB_NAME))
     return rctx.repo_metadata(reproducible = True)
 
-_flang_rt = repository_rule(
+flang_rt_repo = repository_rule(
     implementation = _flang_rt_impl,
     doc = "Extracts the pinned flang-rt sources and their Flang headers.",
     attrs = {
@@ -133,31 +129,3 @@ def hub_build():
         cases = {":" + cell + "_exec": "@" + FLANG_PREFIX + cell + "//:" + tool for cell in sorted(FORTRAN_CELLS.keys())}
         root.append(_TOOL.format(name = tool, cases = repr(cases)))
     return {"BUILD.bazel": "\n".join(root), "impl/BUILD.bazel": "\n".join(impl)}
-
-def _fortran_impl(mctx):
-    pinned_archive(
-        name = "rules_fortran",
-        dropped = DROPPED_PATHS,
-        patches = [
-            Label("//patches/rules_fortran:module_map_key.patch"),
-        ],
-        sha256 = RULES_FORTRAN_SHA256,
-        strip_prefix = "rules_fortran-" + RULES_FORTRAN_COMMIT,
-        urls = [RULES_FORTRAN_URL],
-    )
-    for cell in sorted(FORTRAN_CELLS.keys()):
-        pinned_archive(
-            name = FLANG_PREFIX + cell,
-            files = {"BUILD.bazel": flang_build(cell)},
-            sha256 = FORTRAN_CELLS[cell].sha256,
-            strip_prefix = FORTRAN_CELLS[cell].strip_prefix,
-            urls = [FORTRAN_CELLS[cell].url],
-        )
-    _flang_rt(name = FLANG_RT_NAME, build_file = Label("//fortran/toolchain:flang_rt.BUILD.bazel"))
-    hub_repo(name = HUB_NAME, files = hub_build())
-    return mctx.extension_metadata(reproducible = True)
-
-fortran = module_extension(
-    implementation = _fortran_impl,
-    doc = "Creates rules_fortran, the pinned Flang compilers, flang-rt and the toolchain hub.",
-)

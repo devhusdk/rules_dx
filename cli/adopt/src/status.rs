@@ -369,7 +369,7 @@ const LANGUAGE_TOOLCHAINS: &[LanguageToolchain] = &[
     },
     LanguageToolchain {
         language: "dotnet",
-        bzl_suffix: "//dotnet:extensions.bzl",
+        bzl_suffix: "//dotnet:rules_dotnet.bzl",
         extension: "dotnet",
         tag: "toolchain",
         attribute: Some("dotnet_version"),

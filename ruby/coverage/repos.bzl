@@ -1,7 +1,7 @@
 """Pinned SimpleCov gems that Ruby tests load under `bazel coverage` (#3954)."""
 
 load("//libs/starlark:repo.bzl", "gem_extract")
-load(":pins.bzl", "RUBY_BENCH_GEMS", "RUBY_BENCH_REPOSITORY", "RUBY_COVERAGE_GEMS", "RUBY_COVERAGE_REPOSITORY", "gem_dir", "gem_url")
+load(":pins.bzl", "RUBY_BENCH_GEMS", "RUBY_COVERAGE_GEMS", "gem_dir", "gem_url")
 
 def _build_file(gems):
     dirs = [gem_dir(gem) for gem in gems]
@@ -52,22 +52,10 @@ def _ruby_coverage_gems_impl(ctx):
 def _ruby_bench_gems_impl(ctx):
     return _download_gems(ctx, RUBY_BENCH_GEMS)
 
-_ruby_coverage_gems = repository_rule(
+ruby_coverage_gems = repository_rule(
     implementation = _ruby_coverage_gems_impl,
 )
 
-_ruby_bench_gems = repository_rule(
+ruby_bench_gems = repository_rule(
     implementation = _ruby_bench_gems_impl,
-)
-
-def _ruby_coverage_impl(module_ctx):
-    if len(module_ctx.modules) == 0:
-        fail("ruby gems: the extension is only reachable from a module graph")
-    _ruby_coverage_gems(name = RUBY_COVERAGE_REPOSITORY)
-    _ruby_bench_gems(name = RUBY_BENCH_REPOSITORY)
-    return module_ctx.extension_metadata(reproducible = True)
-
-ruby_coverage = module_extension(
-    doc = "Downloads the pinned, checksum-verified SimpleCov gems as @dx_ruby_coverage_gems and benchmark-ips as @dx_ruby_bench_gems.",
-    implementation = _ruby_coverage_impl,
 )

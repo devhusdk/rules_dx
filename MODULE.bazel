@@ -593,10 +593,10 @@ single_version_override(
     version = "3.7.2",
 )
 
-dotnet_tools = use_extension("//dotnet:repos.bzl", "dotnet_tools")
+dotnet_tools = use_extension("//dotnet:extensions.bzl", "dotnet_tools")
 use_repo(dotnet_tools, "dx_libfuzzer_dotnet", "rules_dotnet")
 
-dotnet = use_extension("//dotnet:extensions.bzl", "dotnet")
+dotnet = use_extension("//dotnet:rules_dotnet.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")
 dotnet.toolchain(
     name = "dotnet_apphost",
@@ -796,7 +796,7 @@ gcc_toolchains.toolchain(
 )
 use_repo(gcc_toolchains, "custom_gcc_x86_64")
 
-gcc = use_extension("//cc/toolchains:repos.bzl", "gcc")
+gcc = use_extension("//cc/toolchains:extensions.bzl", "gcc")
 use_repo(gcc, "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64")
 
 protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
@@ -820,10 +820,10 @@ register_toolchains("@dx_powershell_toolchains//:all")
 bazel_dep(name = "bazel_features", version = "1.54.1")
 
 # Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them (#3954).
-ruby_coverage = use_extension("//ruby/coverage:repos.bzl", "ruby_coverage")
+ruby_coverage = use_extension("//ruby/coverage:extensions.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 
-ruby_tools = use_extension("//ruby/toolchain:repos.bzl", "ruby_tools")
+ruby_tools = use_extension("//ruby/toolchain:extensions.bzl", "ruby_tools")
 use_repo(ruby_tools, "dx_sorbet", "rules_ruby")
 
 # The pinned Ruby is declared in families/ruby; deploy tests read its files.
@@ -925,10 +925,10 @@ use_repo(
     dx_swift_linux_x86_64 = "dx_swift_ubuntu22.04",
 )
 
-swift_host = use_extension("//swift/toolchain:repos.bzl", "swift_host")
+swift_host = use_extension("//swift/toolchain:extensions.bzl", "swift_host")
 use_repo(swift_host, "dx_swift_host")
 
-swift_format_macos = use_extension("//swift/toolchain:repos.bzl", "swift_format_macos")
+swift_format_macos = use_extension("//swift/toolchain:extensions.bzl", "swift_format_macos")
 use_repo(swift_format_macos, "dx_swift_format_macos_arm64")
 
 # floor: equals tested; dev only, for the swift-app fixture packages
@@ -1008,13 +1008,13 @@ use_repo(
     "bsd_tar_toolchains_windows_arm64",
 )
 
-dart_tools = use_extension("//dart:repos.bzl", "dart_tools")
+dart_tools = use_extension("//dart:extensions.bzl", "dart_tools")
 use_repo(dart_tools, "dx_rules_dart_pub")
 
 # The dart_codegen fixture stays in core: rules_dart cannot place outputs for
 # a source in an external repository, so it only works with core as root.
 pub = use_extension(
-    "//dart:extensions.bzl",
+    "//dart:pub.bzl",
     "pub",
     dev_dependency = True,
 )
@@ -1026,7 +1026,7 @@ pub.from_lock(
 use_repo(pub, "dx_dart_deps")
 
 # pub_deploy's api_compat check runs this pinned dart_apitool.
-pub_tools = use_extension("//dart:extensions.bzl", "pub")
+pub_tools = use_extension("//dart:pub.bzl", "pub")
 pub_tools.from_lock(
     name = "dart_apitool_deps",
     lock = "//dart/tools/dart_apitool:pubspec.lock",
@@ -1169,7 +1169,7 @@ cuda.toolkit(
 )
 use_repo(cuda, "cuda")
 
-erlang = use_extension("//erlang/toolchain:repos.bzl", "erlang")
+erlang = use_extension("//erlang/toolchain:extensions.bzl", "erlang")
 use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
 
 elixir = use_extension("//elixir/toolchain:extensions.bzl", "elixir")
@@ -1224,7 +1224,7 @@ ocaml.annotation(
 )
 use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "ocaml_fuzz", "rules_ocaml")
 
-fortran = use_extension("//fortran/toolchain:repos.bzl", "fortran")
+fortran = use_extension("//fortran/toolchain:extensions.bzl", "fortran")
 use_repo(fortran, "rules_fortran")
 
 # floor: equals tested
@@ -1252,10 +1252,10 @@ single_version_override(
     version = "1.0.0",
 )
 
-lua_tools = use_extension("//lua/toolchain:repos.bzl", "lua")
+lua_tools = use_extension("//lua/toolchain:extensions.bzl", "lua")
 use_repo(lua_tools, "dx_luacov", "dx_luacov_reporter_lcov", "dx_ldoc", "dx_luafilesystem", "dx_luals", "dx_penlight")
 
-php = use_extension("//php/toolchain:repos.bzl", "php")
+php = use_extension("//php/toolchain:extensions.bzl", "php")
 use_repo(php, "dx_composer", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
 
 haskell = use_extension("//haskell/toolchain:extensions.bzl", "haskell")
@@ -1281,7 +1281,7 @@ haskell.lock(
 )
 use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_nixfmt_hackage", "haskell_weeder_hackage", "rules_haskell")
 
-d = use_extension("//d/toolchain:repos.bzl", "d")
+d = use_extension("//d/toolchain:extensions.bzl", "d")
 use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_x86_64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
@@ -2082,22 +2082,22 @@ _web_consumer_repo(
 
 _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-semver_checks = use_extension("//deploy/rules/pins:repos.bzl", "semver_checks")
+semver_checks = use_extension("//deploy/rules/pins:extensions.bzl", "semver_checks")
 use_repo(semver_checks, "cargo_semver_checks_linux_arm64", "cargo_semver_checks_linux_x86_64", "cargo_semver_checks_macos_arm64", "cargo_semver_checks_windows_x86_64")
 
-japicmp = use_extension("//deploy/rules/pins:repos.bzl", "japicmp")
+japicmp = use_extension("//deploy/rules/pins:extensions.bzl", "japicmp")
 use_repo(japicmp, "japicmp_jar")
 
-apicompat = use_extension("//deploy/rules/pins:repos.bzl", "apicompat")
+apicompat = use_extension("//deploy/rules/pins:extensions.bzl", "apicompat")
 use_repo(apicompat, "apicompat_tool")
 
-cosign = use_extension("//deploy/release:repos.bzl", "cosign", dev_dependency = True)
+cosign = use_extension("//deploy/release:extensions.bzl", "cosign", dev_dependency = True)
 use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
 
-bazel_version = use_extension("//tools/bazelrc:repos.bzl", "bazel_version")
+bazel_version = use_extension("//tools/bazelrc:extensions.bzl", "bazel_version")
 use_repo(bazel_version, "dx_bazel_version")
 
-nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
+nested_bazel = use_extension("//tools/testing:extensions.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
 
 _http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
@@ -2638,13 +2638,13 @@ use_repo(
     "jvm_spotbugs_dist",
 )
 
-yard = use_extension("//tools/docs/ruby:repos.bzl", "yard", dev_dependency = True)
+yard = use_extension("//tools/docs/ruby:extensions.bzl", "yard", dev_dependency = True)
 use_repo(yard, "dx_yard")
 
-doxygen = use_extension("//tools/docs/cc:repos.bzl", "doxygen", dev_dependency = True)
+doxygen = use_extension("//tools/docs/cc:extensions.bzl", "doxygen", dev_dependency = True)
 use_repo(doxygen, "dx_doxygen")
 
-playwright = use_extension("//typescript/playwright:repos.bzl", "playwright")
+playwright = use_extension("//typescript/playwright:extensions.bzl", "playwright")
 use_repo(
     playwright,
     "dx_playwright_chromium",
@@ -2653,7 +2653,7 @@ use_repo(
     "dx_playwright_chromium_macos_arm64",
 )
 
-firefox = use_extension("//tools/docs/site/browser:repos.bzl", "firefox", dev_dependency = True)
+firefox = use_extension("//tools/docs/site/browser:extensions.bzl", "firefox", dev_dependency = True)
 use_repo(
     firefox,
     "dx_firefox",
@@ -2706,13 +2706,13 @@ use_repo(windows_msvc_runtime, "msvc_runtime")
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")
 
-msvc = use_extension("//cc/toolchains/msvc:repos.bzl", "msvc")
+msvc = use_extension("//cc/toolchains/msvc:extensions.bzl", "msvc")
 use_repo(msvc, "dx_msvc")
 
-msvc_dev = use_extension("//cc/toolchains/msvc:repos.bzl", "msvc", dev_dependency = True)
+msvc_dev = use_extension("//cc/toolchains/msvc:extensions.bzl", "msvc", dev_dependency = True)
 msvc_dev.license(accept = ["visual-studio-build-tools"])
 
-cuda_license_dev = use_extension("@rules_dx_cuda//toolchain:repos.bzl", "cuda_license", dev_dependency = True)
+cuda_license_dev = use_extension("@rules_dx_cuda//toolchain:extensions.bzl", "cuda_license", dev_dependency = True)
 cuda_license_dev.license(accept = ["cuda-eula"])
 
 qt_sdk = use_extension("//qt/sdk:extensions.bzl", "qt_sdk", dev_dependency = True)

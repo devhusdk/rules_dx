@@ -950,7 +950,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_rebar_set_reports_a_vulnerable_lock() {
-        let module = "erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
+        let module = "erlang = use_extension(\"//erlang/toolchain:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
         let harness = consumer_harness("rebar-vuln", module, false);
         harness.write_source("third_party/erlang/rebar.config", "{deps, [plug]}.\n");
         harness.write_source(

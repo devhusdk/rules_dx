@@ -112,7 +112,7 @@
       ],
       "extensions": [
         "@rules_dx//elixir/toolchain:extensions.bzl%elixir",
-        "@rules_dx//erlang/toolchain:repos.bzl%erlang"
+        "@rules_dx//erlang/toolchain:extensions.bzl%erlang"
       ],
       "file_extensions": [
         ".erl",
@@ -327,35 +327,35 @@
         "zig"
       ],
       "extensions": [
-        "//cc/toolchains/msvc:repos.bzl%msvc",
-        "//cc/toolchains:repos.bzl%gcc",
+        "//cc/toolchains/msvc:extensions.bzl%msvc",
+        "//cc/toolchains:extensions.bzl%gcc",
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
-        "//dart:extensions.bzl%pub",
-        "//dart:repos.bzl%dart_tools",
-        "//deploy/rules/pins:repos.bzl%apicompat",
-        "//deploy/rules/pins:repos.bzl%japicmp",
-        "//deploy/rules/pins:repos.bzl%semver_checks",
-        "//dotnet:extensions.bzl%dotnet",
-        "//dotnet:repos.bzl%dotnet_tools",
+        "//dart:pub.bzl%pub",
+        "//dart:extensions.bzl%dart_tools",
+        "//deploy/rules/pins:extensions.bzl%apicompat",
+        "//deploy/rules/pins:extensions.bzl%japicmp",
+        "//deploy/rules/pins:extensions.bzl%semver_checks",
+        "//dotnet:rules_dotnet.bzl%dotnet",
+        "//dotnet:extensions.bzl%dotnet_tools",
         "//elixir/toolchain:extensions.bzl%elixir",
-        "//erlang/toolchain:repos.bzl%erlang",
-        "//fortran/toolchain:repos.bzl%fortran",
+        "//erlang/toolchain:extensions.bzl%erlang",
+        "//fortran/toolchain:extensions.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//haskell/toolchain:extensions.bzl%haskell",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
-        "//lua/toolchain:repos.bzl%lua",
+        "//lua/toolchain:extensions.bzl%lua",
         "//ocaml/toolchain:extensions.bzl%ocaml",
-        "//php/toolchain:repos.bzl%php",
+        "//php/toolchain:extensions.bzl%php",
         "//powershell/toolchain:extensions.bzl%powershell",
         "//quality/artifacts:extension.bzl%dx_tools",
-        "//ruby/coverage:repos.bzl%ruby_coverage",
-        "//ruby/toolchain:repos.bzl%ruby_tools",
+        "//ruby/coverage:extensions.bzl%ruby_coverage",
+        "//ruby/toolchain:extensions.bzl%ruby_tools",
         "//ruby:extensions.bzl%ruby",
-        "//swift/toolchain:repos.bzl%swift_format_macos",
-        "//swift/toolchain:repos.bzl%swift_host",
+        "//swift/toolchain:extensions.bzl%swift_format_macos",
+        "//swift/toolchain:extensions.bzl%swift_host",
         "//third_party/dotnet:extension.bzl%paket",
-        "//tools/bazelrc:repos.bzl%bazel_version",
-        "//typescript/playwright:repos.bzl%playwright",
+        "//tools/bazelrc:extensions.bzl%bazel_version",
+        "//typescript/playwright:extensions.bzl%playwright",
         "@apple_support//crosstool:setup.bzl%apple_cc_configure_extension",
         "@aspect_rules_js//npm:extensions.bzl%npm",
         "@aspect_rules_js//npm:extensions.bzl%pnpm",
@@ -496,7 +496,7 @@
         "toolchain"
       ],
       "extensions": [
-        "//toolchain:repos.bzl%cuda_license",
+        "//toolchain:extensions.bzl%cuda_license",
         "@rules_cuda//cuda:extensions.bzl%toolchain"
       ],
       "file_extensions": [
@@ -523,7 +523,7 @@
         "d"
       ],
       "extensions": [
-        "//d/toolchain:repos.bzl%d"
+        "//d/toolchain:extensions.bzl%d"
       ],
       "file_extensions": [
         ".d"
@@ -562,7 +562,7 @@
       ],
       "extensions": [
         "@rules_dart//dart:extensions.bzl%dart",
-        "@rules_dx//dart:extensions.bzl%pub",
+        "@rules_dx//dart:pub.bzl%pub",
         "@rules_flutter//flutter:extensions.bzl%flutter"
       ],
       "file_extensions": [
@@ -598,8 +598,8 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//dotnet:extensions.bzl%dotnet",
-        "@rules_dx//dotnet:repos.bzl%dotnet_tools",
+        "@rules_dx//dotnet:rules_dotnet.bzl%dotnet",
+        "@rules_dx//dotnet:extensions.bzl%dotnet_tools",
         "@rules_dx//third_party/dotnet:extension.bzl%paket"
       ],
       "file_extensions": [
@@ -638,7 +638,7 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//fortran/toolchain:repos.bzl%fortran"
+        "@rules_dx//fortran/toolchain:extensions.bzl%fortran"
       ],
       "file_extensions": [
         ".f90"
@@ -1009,7 +1009,8 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//php/toolchain:repos.bzl%php"
+        "@rules_dx//php/composer:extensions.bzl%composer",
+        "@rules_dx//php/toolchain:extensions.bzl%php"
       ],
       "file_extensions": [
         ".php"

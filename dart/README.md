@@ -111,14 +111,14 @@ Add a `pubspec.lock` and run `dx generate --apply`: it adds `rules_dart` and a `
 
 ## Pub dependencies
 
-Declare a hub with the `pub` extension from `@rules_dx//dart:extensions.bzl`. The lock pins each package
+Declare a hub with the `pub` extension from `@rules_dx//dart:pub.bzl`. The lock pins each package
 to a sha256. Make the lock with `dart pub get` on a developer machine, never
 inside an action.
 
 ```python
 bazel_dep(name = "rules_dart", version = "0.8.1")
 
-pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
+pub = use_extension("@rules_dx//dart:pub.bzl", "pub")
 pub.from_lock(
     name = "my_pub_deps",
     lock = "//third_party/dart:pubspec.lock",

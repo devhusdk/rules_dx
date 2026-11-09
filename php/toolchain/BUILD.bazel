@@ -12,6 +12,7 @@ exports_files([
     "php.bzl",
     "pins.bzl",
     "repos.bzl",
+    "extensions.bzl",
     "version_check.php",
 ])
 
@@ -40,6 +41,7 @@ real_source_target(
         "php.bzl",
         "pins.bzl",
         "repos.bzl",
+        "extensions.bzl",
     ],
     tags = ["corpus"],
 )

@@ -39,7 +39,7 @@ UNSUPPORTED_REASON = "Doxygen publishes no official Linux arm64 or Windows arm64
 
 UNSUPPORTED_MARKER = "doxygen_unsupported.txt"
 
-_REPOSITORY_NAME = "dx_doxygen"
+REPOSITORY_NAME = "dx_doxygen"
 
 # Only the binary and its DLL feed an action; the release also ships thousands of manual pages.
 _BUILD = """\
@@ -72,17 +72,6 @@ def _doxygen_repo_impl(ctx):
     ctx.file("BUILD.bazel", _BUILD)
     return ctx.repo_metadata(reproducible = True)
 
-_doxygen_repo = repository_rule(
+doxygen_repo = repository_rule(
     implementation = _doxygen_repo_impl,
-)
-
-def _doxygen_impl(module_ctx):
-    if len(module_ctx.modules) == 0:
-        fail("doxygen: the extension is only reachable from a module graph")
-    _doxygen_repo(name = _REPOSITORY_NAME)
-    return module_ctx.extension_metadata(reproducible = True)
-
-doxygen = module_extension(
-    doc = "Downloads the pinned, checksum-verified Doxygen release for the host as @dx_doxygen.",
-    implementation = _doxygen_impl,
 )

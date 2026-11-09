@@ -21,6 +21,7 @@ exports_files(
     [
         "Cargo.toml",
         "repos.bzl",
+        "extensions.bzl",
         "src/lib.rs",
         "src/lib_tests.rs",
     ],
@@ -71,6 +72,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "repos.bzl",
+        "extensions.bzl",
     ],
     tags = ["corpus"],
 )

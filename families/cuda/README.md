@@ -30,7 +30,7 @@ cuda.toolkit(
 )
 use_repo(cuda, "cuda")
 
-cuda_license = use_extension("@rules_dx_cuda//toolchain:repos.bzl", "cuda_license")
+cuda_license = use_extension("@rules_dx_cuda//toolchain:extensions.bzl", "cuda_license")
 cuda_license.license(accept = ["cuda-eula"])
 ```
 

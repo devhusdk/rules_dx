@@ -19,10 +19,10 @@ bazel_dep(name = "rules_cc", version = "0.2.27")
 bazel_dep(name = "rules_rust", version = "0.75.0", dev_dependency = True)
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
-dotnet_tools = use_extension("@rules_dx//dotnet:repos.bzl", "dotnet_tools")
+dotnet_tools = use_extension("@rules_dx//dotnet:extensions.bzl", "dotnet_tools")
 use_repo(dotnet_tools, "rules_dotnet")
 
-dotnet = use_extension("@rules_dx//dotnet:extensions.bzl", "dotnet")
+dotnet = use_extension("@rules_dx//dotnet:rules_dotnet.bzl", "dotnet")
 use_repo(dotnet, "dotnet_toolchains")
 
 register_toolchains("@dotnet_toolchains//:all")

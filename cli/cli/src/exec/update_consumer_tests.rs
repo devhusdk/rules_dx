@@ -1649,7 +1649,7 @@ fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
 #[test]
 fn consumer_mixed_mix_and_rebar_run_still_checks_the_mix_set() {
     let module = format!(
-        "{HEX_MODULE}erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
+        "{HEX_MODULE}erlang = use_extension(\"//erlang/toolchain:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
     );
     let harness = consumer_harness("hex-mixed", &module, false);
     harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");

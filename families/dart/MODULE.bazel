@@ -37,7 +37,7 @@ flutter.pub(
 )
 use_repo(flutter, "dx_flutter_deps")
 
-pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
+pub = use_extension("@rules_dx//dart:pub.bzl", "pub")
 pub.from_lock(
     name = "dx_dart_deps",
     lock = "@rules_dx//third_party/dart:pubspec.lock",

@@ -2,10 +2,9 @@
 
 load("//libs/starlark:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load("//libs/starlark:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 load("//libs/starlark:toolchain.bzl", "toolchain_target")
-load(":pins.bzl", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
+load(":pins.bzl", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION")
 
 HUB_NAME = "dx_d_toolchains"
 
@@ -50,7 +49,7 @@ DROPPED_PATHS = [
     "tools",
 ]
 
-_ROOT_BUILD = """exports_files(["LICENSE"])
+ROOT_BUILD = """exports_files(["LICENSE"])
 """
 
 WRAPPER = """#!/bin/sh
@@ -293,7 +292,7 @@ def ldc_build(cell, wrapper):
         wrapper = wrapper,
     )
 
-_ldc = repository_rule(
+ldc_repo = repository_rule(
     implementation = _ldc_impl,
     doc = "Acquires one pinned LDC release plus its native runtime closure.",
     attrs = {
@@ -313,41 +312,3 @@ def hub_build():
             toolchain_type = str(Label("@rules_d//d:toolchain_type")),
         ))
     return "\n".join(content)
-
-def tool_files(tool):
-    """Returns the files written into one D quality tool source repository."""
-    files = dict(TOOL_SOURCES[tool].files)
-    files["BUILD.bazel"] = tool_build(tool)
-    return files
-
-def _d_impl(mctx):
-    pinned_archive(
-        name = "rules_d",
-        dropped = DROPPED_PATHS,
-        files = {"BUILD.bazel": _ROOT_BUILD},
-        patches = [
-            Label("//patches/rules_d:pic_link.patch"),
-        ],
-        sha256 = RULES_D_SHA256,
-        strip_prefix = "rules_d-" + RULES_D_VERSION,
-        urls = [RULES_D_URL],
-    )
-    for cell in sorted(LDC_CELLS.keys()):
-        _ldc(name = ldc_repository_name(cell), cell = cell)
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
-    for tool in sorted(TOOL_SOURCES.keys()):
-        source = TOOL_SOURCES[tool]
-        pinned_archive(
-            name = tool,
-            dropped = source.dropped,
-            files = tool_files(tool),
-            sha256 = source.sha256,
-            strip_prefix = source.strip_prefix,
-            urls = [source.url],
-        )
-    return mctx.extension_metadata(reproducible = True)
-
-d = module_extension(
-    implementation = _d_impl,
-    doc = "Creates rules_d, the pinned LDC compilers and the D toolchain hub.",
-)

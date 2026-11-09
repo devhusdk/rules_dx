@@ -522,10 +522,10 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "//dart:extensions.bzl%pub": {
+    "//dart:pub.bzl%pub": {
       "general": {
         "bzlTransitiveDigest": "VNTf9kwkvE2nQ/+jY5ktqngyMqwf0ge9JSbNN0s5rsc=",
-        "usagesDigest": "YeokpRu115TyqUUIiQaK52ZoI8IdIiqyJ9iHjlLmwJ8=",
+        "usagesDigest": "BJVJaVRiEdIJryp9Q7Apr+qo0GWSbQ1fvArPuFHbvHg=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_rules_dart_pub +dart_tools+dx_rules_dart_pub",
           "REPO_MAPPING:+dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_darwin_amd64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_amd64",
@@ -7272,10 +7272,10 @@
         }
       }
     },
-    "//dotnet:extensions.bzl%dotnet": {
+    "//dotnet:rules_dotnet.bzl%dotnet": {
       "general": {
         "bzlTransitiveDigest": "TY3p2T9O4wQEDjKHmm6jRocuy7/SL/AKyW61FJOC3kE=",
-        "usagesDigest": "gwD6utIAVSPaNFJDAACLzT0/0hKpzqdT0iRVU8QhRj4=",
+        "usagesDigest": "M9HcQwvdkHRXAxXph2lrJLSfgNbtjqsFU0CyJuTjDyo=",
         "recordedInputs": [
           "REPO_MAPPING:,rules_dotnet +dotnet_tools+rules_dotnet"
         ],
@@ -92174,7 +92174,7 @@
         "src": "https://github.com/mirage/either/releases/download/1.0.0/either-1.0.0.tbz"
       }
     },
-    "//tools/testing:repos.bzl%nested_bazel": {
+    "//tools/testing:extensions.bzl%nested_bazel": {
       "9.3.1": {
         "darwin-arm64": "19c4958626e0e3a564a61c2e85eeaab97b550a30632b82341191aa61ed0ccc1b",
         "darwin-x86_64": "01eb4368a9c331391448bc1f11b1bec4e57793a0cee0581579ee786cd26baf37",

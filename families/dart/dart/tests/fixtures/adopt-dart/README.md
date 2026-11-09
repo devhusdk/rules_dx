@@ -12,4 +12,4 @@ bazel run //dart/tests/fixtures/adopt-dart/packages/tool -- --name dart
 
 The `greet_test` test passes. The `# gazelle:dx_external` directive in `BUILD.bazel` points
 Gazelle at the lock in `third_party/dart`. In your own repository, point it at your own
-`pubspec.lock` and at the hub you declare with the `pub` extension from `@rules_dx//dart:extensions.bzl`.
+`pubspec.lock` and at the hub you declare with the `pub` extension from `@rules_dx//dart:pub.bzl`.

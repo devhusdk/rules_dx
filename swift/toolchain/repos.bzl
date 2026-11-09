@@ -18,16 +18,10 @@ def _swift_host_impl(repository_ctx):
     repository_ctx.file("swift", "#!/bin/sh\n{}\n".format(script), executable = True)
     repository_ctx.file("BUILD.bazel", 'exports_files(["swift"], visibility = ["//visibility:public"])\n')
 
-_swift_host = repository_rule(
+swift_host_repo = repository_rule(
     implementation = _swift_host_impl,
     doc = "A `swift` command that runs the managed toolchain on Linux and the Xcode one on macOS.",
 )
-
-def _swift_host_ext_impl(module_ctx):
-    _swift_host(name = "dx_swift_host")
-    return module_ctx.extension_metadata(reproducible = True)
-
-swift_host = module_extension(implementation = _swift_host_ext_impl)
 
 # swift-format is not published as a release binary; the Homebrew bottle built
 # from the swiftlang/swift-format 604.0.0 tag is the pinned macOS arm64 build.
@@ -52,13 +46,7 @@ def _swift_format_macos_impl(repository_ctx):
     )
     repository_ctx.file("BUILD.bazel", 'exports_files(["bin/swift-format"], visibility = ["//visibility:public"])\n')
 
-_swift_format_macos = repository_rule(
+swift_format_macos_repo = repository_rule(
     implementation = _swift_format_macos_impl,
     doc = "The sha256-pinned swift-format macOS arm64 binary.",
 )
-
-def _swift_format_macos_ext_impl(module_ctx):
-    _swift_format_macos(name = "dx_swift_format_macos_arm64")
-    return module_ctx.extension_metadata(reproducible = True)
-
-swift_format_macos = module_extension(implementation = _swift_format_macos_ext_impl)

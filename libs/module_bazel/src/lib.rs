@@ -886,7 +886,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `pub.from_lock` tag of rules_dart or this repository's `//dart:extensions.bzl` and
+    /// Every `pub.from_lock` tag of rules_dart or this repository's `//dart:pub.bzl` and
     /// `flutter.pub` tag of rules_flutter, in source order within each extension.
     pub fn pub_locks(&self) -> Result<Vec<PubLock<'_>>, ModuleError> {
         let dart = self
@@ -896,7 +896,7 @@ impl ModuleFile {
             .tags(FLUTTER_MODULE, "flutter:extensions.bzl", "flutter", "pub")
             .map(|call| ("flutter.pub", call));
         let own = self
-            .tags_of("//dart:extensions.bzl".to_owned(), "pub", "from_lock")
+            .tags_of("//dart:pub.bzl".to_owned(), "pub", "from_lock")
             .map(|call| ("pub.from_lock", call));
         dart.chain(flutter)
             .chain(own)
@@ -927,11 +927,11 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `erlang.rebar` tag of rules_dx or this repository's `//erlang/toolchain:repos.bzl`.
+    /// Every `erlang.rebar` tag of rules_dx or this repository's `//erlang/toolchain:extensions.bzl`.
     pub fn rebar_locks(&self) -> Result<Vec<RebarLock<'_>>, ModuleError> {
         const TAG: &str = "erlang.rebar";
-        let external = self.tags(RUBY_MODULE, "erlang/toolchain:repos.bzl", "erlang", "rebar");
-        let own = self.tags_of("//erlang/toolchain:repos.bzl".to_owned(), "erlang", "rebar");
+        let external = self.tags(RUBY_MODULE, "erlang/toolchain:extensions.bzl", "erlang", "rebar");
+        let own = self.tags_of("//erlang/toolchain:extensions.bzl".to_owned(), "erlang", "rebar");
         external
             .chain(own)
             .map(|call| {

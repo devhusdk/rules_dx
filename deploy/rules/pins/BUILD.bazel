@@ -7,6 +7,7 @@ exports_files([
     "apicompat_pins.bzl",
     "japicmp_pins.bzl",
     "repos.bzl",
+    "extensions.bzl",
     "semver_checks_pins.bzl",
 ])
 

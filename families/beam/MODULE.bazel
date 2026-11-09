@@ -18,7 +18,7 @@ bazel_dep(name = "rules_cc", version = "0.2.27")
 bazel_dep(name = "rules_rust", version = "0.75.0", dev_dependency = True)
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
-erlang = use_extension("@rules_dx//erlang/toolchain:repos.bzl", "erlang")
+erlang = use_extension("@rules_dx//erlang/toolchain:extensions.bzl", "erlang")
 use_repo(erlang, "dx_erlang_toolchains")
 
 elixir = use_extension("@rules_dx//elixir/toolchain:extensions.bzl", "elixir")

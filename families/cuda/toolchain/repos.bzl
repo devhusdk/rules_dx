@@ -1,8 +1,6 @@
 """CUDA toolkit license acceptance."""
 
-load("@rules_dx//libs/starlark:license.bzl", "accepted", "license_tag", "unaccepted")
-load("@rules_dx//libs/starlark:repo.bzl", "hub_repo")
-
+load("@rules_dx//libs/starlark:license.bzl", "accepted", "unaccepted")
 HUB_NAME = "dx_cuda_license"
 
 LICENSE = "cuda-eula"
@@ -17,15 +15,3 @@ def hub_build(accepted):
         str(Label(":check.bzl")),
         json.encode("" if accepted else UNACCEPTED),
     )
-
-def _extension_impl(mctx):
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(accepted(mctx, "dx_cuda", LICENSE))})
-    return mctx.extension_metadata(reproducible = True)
-
-_license = license_tag("Accepts the CUDA Toolkit EULA for this build.")
-
-cuda_license = module_extension(
-    implementation = _extension_impl,
-    doc = "Declares the CUDA Toolkit license repository.",
-    tag_classes = {"license": _license},
-)

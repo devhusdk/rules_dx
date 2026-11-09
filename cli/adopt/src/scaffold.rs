@@ -146,9 +146,20 @@ const TOOL_EDITOR_EXTENSIONS: [(&str, &str, &[&str]); 4] = [
     ("stylelint", "stylelint.vscode-stylelint", CSS_FILES),
 ];
 
-/// The `.vscode/extensions.json` text: Bazel, then each language whose files are in `extensions`.
+const TOML_EDITOR_EXTENSION: &str = "tamasfe.even-better-toml";
+const TOML_ASSOCIATIONS_KEY: &str = "evenBetterToml.schema.associations";
+const DX_TOML_PATTERN: &str = "/dx\\.toml$";
+
+/// The dx.toml schema as published with this release's tag.
+fn dx_toml_schema_url() -> String {
+    format!(
+        "https://raw.githubusercontent.com/devhusdk/rules_dx/v{DX_VERSION}/cli/dx_config/schema/dx.schema.json"
+    )
+}
+
+/// The `.vscode/extensions.json` text: Bazel, TOML, then each language whose files are in `extensions`.
 fn render_editor_recommendations(extensions: &BTreeSet<String>, tools: &EditorTools) -> String {
-    let mut ids = vec![BAZEL_EDITOR_EXTENSION];
+    let mut ids = vec![BAZEL_EDITOR_EXTENSION, TOML_EDITOR_EXTENSION];
     ids.extend(
         LANGUAGE_EDITOR_EXTENSIONS
             .iter()
@@ -416,6 +427,7 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
     let mut settings = serde_json::json!({
         "files.watcherExclude": excludes,
         "search.exclude": excludes,
+        TOML_ASSOCIATIONS_KEY: {DX_TOML_PATTERN: dx_toml_schema_url()},
     });
     let mut add = |own: &[&str], entries: serde_json::Value| {
         if has(own)
@@ -522,7 +534,8 @@ pub fn render_editor_settings(extensions: &BTreeSet<String>, tools: &EditorTools
     text
 }
 
-const NESTED_SETTINGS: [&str; 4] = [
+const NESTED_SETTINGS: [&str; 5] = [
+    TOML_ASSOCIATIONS_KEY,
     "files.watcherExclude",
     "search.exclude",
     "ui.diagnostic.analyses",
@@ -1314,6 +1327,7 @@ mod tests {
             recommendations(&[("app/main.py", "print(1)\n")]),
             [
                 "bazelbuild.vscode-bazel",
+                "tamasfe.even-better-toml",
                 "ms-python.python",
                 "charliermarsh.ruff"
             ]
@@ -1321,10 +1335,10 @@ mod tests {
     }
 
     #[test]
-    fn repo_without_sources_recommends_only_bazel() {
+    fn repo_without_sources_recommends_bazel_and_toml() {
         assert_eq!(
             recommendations(&[("README.md", "hi\n")]),
-            ["bazelbuild.vscode-bazel"]
+            ["bazelbuild.vscode-bazel", "tamasfe.even-better-toml"]
         );
     }
 
@@ -1342,7 +1356,7 @@ mod tests {
             ("i.tsx", ""),
         ];
         let got = recommendations(&files);
-        assert_eq!(got.len(), 11, "{got:?}");
+        assert_eq!(got.len(), 12, "{got:?}");
         assert!(got.contains(&"biomejs.biome".to_owned()));
         assert_eq!(got[0], "bazelbuild.vscode-bazel");
         assert!(got.contains(&"rust-lang.rust-analyzer".to_owned()));
@@ -1781,6 +1795,34 @@ mod tests {
     }
 
     #[test]
+    fn editor_files_point_dx_toml_at_the_pinned_schema() {
+        let files = tree(&[".rs"]);
+        let recs: serde_json::Value = serde_json::from_str(&super::render_editor_recommendations(
+            &files,
+            &EditorTools::default(),
+        ))
+        .expect("json");
+        assert!(
+            recs["recommendations"]
+                .as_array()
+                .expect("array")
+                .contains(&"tamasfe.even-better-toml".into())
+        );
+        let settings = render_editor_settings(&files, &EditorTools::default());
+        let parsed: serde_json::Value = serde_json::from_str(&settings).expect("json");
+        let url = parsed["evenBetterToml.schema.associations"]["/dx\\.toml$"]
+            .as_str()
+            .expect("url");
+        assert!(url.contains(&format!("/v{DX_VERSION}/")), "{url}");
+        assert!(url.ends_with("cli/dx_config/schema/dx.schema.json"), "{url}");
+        let user = r#"{"evenBetterToml.schema.associations": {"mine": "x"}}"#;
+        let merged = merge_owned(FileKind::VscodeKeys, user, &settings).expect("merge");
+        let merged: serde_json::Value = serde_json::from_str(&merged).expect("json");
+        assert_eq!(merged["evenBetterToml.schema.associations"]["mine"], "x");
+        assert_eq!(merged["evenBetterToml.schema.associations"]["/dx\\.toml$"], url);
+    }
+
+    #[test]
     fn deselected_tools_leave_the_recommendations_on_merge() {
         let files = tree(&[".py", ".ts", ".css"]);
         let all = super::render_editor_recommendations(&files, &EditorTools::default());
@@ -2129,6 +2171,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
                 "me.mine",
                 "ms-python.python",
                 "bazelbuild.vscode-bazel",
+                "tamasfe.even-better-toml",
                 "golang.go"
             ])
         );

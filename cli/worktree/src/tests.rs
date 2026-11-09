@@ -44,6 +44,7 @@ struct FakeHost {
     stopped: Mutex<Vec<u32>>,
     edit_on_scan: Mutex<Option<PathBuf>>,
     occupied: Mutex<Vec<PathBuf>>,
+    max_slots: std::sync::atomic::AtomicUsize,
 }
 
 impl FakeHost {
@@ -74,6 +75,7 @@ impl FakeHost {
             stopped: Mutex::new(Vec::new()),
             edit_on_scan: Mutex::new(None),
             occupied: Mutex::new(Vec::new()),
+            max_slots: std::sync::atomic::AtomicUsize::new(24),
         }
     }
 
@@ -305,6 +307,10 @@ impl Host for FakeHost {
 
     fn disk_cache(&self) -> Option<PathBuf> {
         self.disk_cache.lock().expect("disk cache").clone()
+    }
+
+    fn max_slots(&self) -> usize {
+        self.max_slots.load(Ordering::SeqCst)
     }
 
     fn remove_tree(&self, path: &Path) -> bool {
@@ -1184,6 +1190,74 @@ fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
         .find(|block| block.contains(&second.path.to_string_lossy().into_owned()))
         .expect("slot 2 listed");
     assert!(entry.contains("locked"), "{entry}");
+}
+
+#[test]
+fn add_deletes_the_oldest_pushed_free_slots_above_the_limit() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    host.advance(10);
+    let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    host.advance(10);
+    let c = ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
+    for added in [&a, &b, &c] {
+        ops::release(&pool, &host, &me, &added.path, true).expect("release");
+        host.advance(10);
+    }
+    host.max_slots.store(2, Ordering::SeqCst);
+    let listing = ops::list(&pool, &host, true).expect("list");
+    let flagged: Vec<Option<u32>> = listing
+        .rows
+        .iter()
+        .filter(|row| row.prunable)
+        .map(|row| row.slot)
+        .collect();
+    assert_eq!(flagged, vec![Some(a.slot)]);
+    let d = ops::add(&pool, &host, &me, &create("feature/d")).expect("d");
+    let left: Vec<u32> = pool.records().iter().map(|record| record.slot).collect();
+    assert_eq!(left.len(), 2, "{left:?}");
+    assert!(!a.path.exists() || d.slot == a.slot);
+    assert!(pool.record(c.slot).is_some() || d.slot == c.slot);
+}
+
+#[test]
+fn add_keeps_free_slots_with_unpushed_commits_above_the_limit() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
+    std::fs::write(a.path.join("n.txt"), "n\n").expect("write");
+    git(&a.path, &["add", "n.txt"]);
+    git(&a.path, &["commit", "--quiet", "-m", "local"]);
+    host.advance(10);
+    ops::release(&pool, &host, &me, &b.path, true).expect("release b");
+    host.max_slots.store(1, Ordering::SeqCst);
+    let listing = ops::list(&pool, &host, true).expect("list");
+    assert!(listing.rows.iter().all(|row| row.slot != Some(a.slot) || !row.prunable));
+    ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
+    assert!(a.path.exists(), "the held slot with unpushed work stays");
+    assert!(pool.record(a.slot).is_some());
+}
+
+#[test]
+fn a_zero_limit_turns_surplus_deletion_off() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    ops::release(&pool, &host, &me, &a.path, true).expect("release");
+    host.max_slots.store(0, Ordering::SeqCst);
+    let listing = ops::list(&pool, &host, true).expect("list");
+    assert!(listing.rows.iter().all(|row| !row.prunable));
 }
 
 #[test]

@@ -24,6 +24,10 @@ pub(crate) struct OutputBase {
 
 pub(crate) use dx_process::DiskSpace;
 
+/// Names the slot count above which `add` deletes surplus free slots; `0` turns that off.
+pub const MAX_SLOTS_ENV: &str = "DX_WORKTREE_MAX_SLOTS";
+const DEFAULT_MAX_SLOTS: usize = 24;
+
 /// The machine facts the pool reads and the effects it has outside git.
 pub trait Host {
     fn now(&self) -> u64;
@@ -58,6 +62,10 @@ pub trait Host {
     fn shutdown_server(&self, server: &Server) -> bool;
     fn disk_bytes(&self, path: &Path) -> u64;
     fn disk_cache(&self) -> Option<PathBuf>;
+    /// The slot count above which `add` deletes free slots whose commits are all pushed.
+    fn max_slots(&self) -> usize {
+        DEFAULT_MAX_SLOTS
+    }
     /// Where nested-Bazel tests keep their slots, if this host has such a root.
     fn nested_root(&self) -> Option<PathBuf>;
     fn interrupted(&self) -> Option<i32>;
@@ -769,6 +777,13 @@ impl Host for SystemHost {
 
     fn disk_cache(&self) -> Option<PathBuf> {
         dx_process::current().bazel_disk_cache.clone()
+    }
+
+    fn max_slots(&self) -> usize {
+        std::env::var(MAX_SLOTS_ENV)
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+            .unwrap_or(DEFAULT_MAX_SLOTS)
     }
 
     fn nested_root(&self) -> Option<PathBuf> {

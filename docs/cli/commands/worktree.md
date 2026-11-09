@@ -85,8 +85,15 @@ keeps the slot held and blocks a release by another holder until it exits or
 
 The columns are slot, branch, holder, state, server, disk use and path. State
 is `held`, `free`, `reclaimable` (the holder is gone) or `external` (outside
-the pool). ` busy` is appended while a `dx` command runs in the slot. `--disk`
-fills the disk column and adds the shared disk cache size to the last line.
+the pool). ` busy` is appended while a `dx` command runs in the slot. ` prunable`
+is appended to a slot `add` would delete. `--disk` fills the disk column, marks
+the surplus slots described below and adds the shared disk cache size to the last
+line.
+
+`add` also deletes free slots, oldest first, when the pool would hold more than
+`DX_WORKTREE_MAX_SLOTS` slots (default `24`; `0` turns it off), and one when the
+disk is low. It deletes only a slot nobody holds, with a clean tree and every
+commit on a remote.
 
 `path <branch>` prints the path of the checkout that holds `<branch>`. It exits
 `1` when none does.
@@ -125,7 +132,7 @@ If the disk stays full, `add` refuses with `disk_full`. Run
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`, `prune_cache`, `prune_downloads`), `path`, `state`, `server`, and
 optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`
-and `busy`. `state` is `held`, `free`, `reclaimable`, `external`, `removed`,
+`busy` and `prunable`. `state` is `held`, `free`, `reclaimable`, `external`, `removed`,
 `kept`, `orphaned`, `nested`, `skipped` or `stale`. `summary` fields: `slots`,
 `servers`, `servers_rss_bytes`, `disk_cache_bytes` and, with `--disk`,
 `disk_bytes`.

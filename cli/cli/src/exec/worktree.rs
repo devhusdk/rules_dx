@@ -40,6 +40,7 @@ fn row_event(action: &str, row: &Row) -> serde_json::Value {
     .unwrap_or(serde_json::Value::Null);
     if let Some(map) = event.as_object_mut() {
         map.insert("busy".to_owned(), serde_json::Value::Bool(row.busy));
+        map.insert("prunable".to_owned(), serde_json::Value::Bool(row.prunable));
     }
     event
 }
@@ -400,6 +401,9 @@ fn list_lines(listing: &Listing) -> Vec<String> {
         };
         if row.busy {
             state.push_str(" busy");
+        }
+        if row.prunable {
+            state.push_str(" prunable");
         }
         lines.push(format!(
             "{slot}\t{}\t{}\t{}\t{}\t{}\t{}",
@@ -999,6 +1003,7 @@ mod tests {
                 server: false,
                 busy: false,
                 disk_bytes: disk,
+                prunable: false,
             }],
             servers: 1,
             servers_rss_bytes: 1024,

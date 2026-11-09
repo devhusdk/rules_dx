@@ -103,6 +103,8 @@ pub struct Row {
     /// A dx command is running in the slot, whether or not it is held.
     pub busy: bool,
     pub disk_bytes: Option<u64>,
+    /// Whether `add` would delete the slot: idle for 30 days, or surplus with every commit pushed.
+    pub prunable: bool,
 }
 
 /// The slots plus the machine totals.
@@ -331,6 +333,61 @@ fn hold_known(pool: &Pool, host: &dyn Host, record: &Record, busy: bool) -> Hold
         return Hold::Waiting("holder gone, commits are not pushed");
     }
     Hold::Reclaimable
+}
+
+/// What `surplus_slots` weighs.
+struct SurplusLimit {
+    /// The slot `add` is about to use.
+    keep: u32,
+    /// The slot count once `add` is done.
+    total: usize,
+    low_disk: bool,
+}
+
+/// The oldest slots to delete so the pool fits `Host::max_slots`, or one when the disk is low.
+/// A slot qualifies only when nobody holds it, its tree is clean and every commit is on a remote.
+fn surplus_slots(
+    pool: &Pool,
+    host: &dyn Host,
+    records: &[Record],
+    limit: &SurplusLimit,
+) -> Vec<u32> {
+    let max = host.max_slots();
+    if max == 0 {
+        return Vec::new();
+    }
+    let mut want = limit.total.saturating_sub(max);
+    if want == 0 && limit.low_disk {
+        want = 1;
+    }
+    if want == 0 {
+        return Vec::new();
+    }
+    let mut candidates: Vec<&Record> = records
+        .iter()
+        .filter(|record| record.slot != limit.keep && !record.broken)
+        .collect();
+    candidates.sort_by_key(|record| (record.last_used, record.slot));
+    let mut picked = Vec::new();
+    for record in candidates {
+        if picked.len() == want {
+            break;
+        }
+        if pushed_and_idle(pool, host, record) {
+            picked.push(record.slot);
+        }
+    }
+    picked
+}
+
+fn pushed_and_idle(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
+    match hold(pool, host, record) {
+        Hold::Free | Hold::Reclaimable => {}
+        Hold::Alive | Hold::Waiting(_) => return false,
+    }
+    let path = pool.slot_path(record.slot);
+    matches!(git::dirty(&path, &|| host.interrupted()), Ok(false))
+        && matches!(git::unpushed(&path, &|| host.interrupted()), Ok(0))
 }
 
 fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
@@ -642,7 +699,7 @@ pub(crate) fn lease_locked(
         chosen = first_quiet(pool, &candidates, &mut quiet)?;
         reclaimed = chosen.is_some();
     }
-    let stale: Vec<u32> = records
+    let mut stale: Vec<u32> = records
         .iter()
         .filter(|record| {
             !record.held
@@ -659,8 +716,24 @@ pub(crate) fn lease_locked(
         quiet = pool.try_quiet(slot)?;
     }
     let _quiet = quiet;
-    let mut reclaim_warning = low_disk(host, &pool.base)
-        .map(|low| reclaim_locked(pool, host, Some(slot), low, &lock).warning);
+    let low = low_disk(host, &pool.base);
+    let surplus = surplus_slots(
+        pool,
+        host,
+        &records,
+        &SurplusLimit {
+            keep: slot,
+            total: records.len() + usize::from(fresh),
+            low_disk: low.is_some(),
+        },
+    );
+    for number in surplus {
+        if !stale.contains(&number) {
+            stale.push(number);
+        }
+    }
+    let mut reclaim_warning =
+        low.map(|low| reclaim_locked(pool, host, Some(slot), low, &lock).warning);
     let reuse = chosen
         .filter(|record| !record.held)
         .map(|record| record.slot);
@@ -1363,7 +1436,31 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
     };
     let mut rows = Vec::new();
     let mut slot_disk = 0;
-    for record in pool.records() {
+    let records = pool.records();
+    let now = host.now();
+    let mut prunable: Vec<u32> = records
+        .iter()
+        .filter(|record| !record.held && now.saturating_sub(record.last_used) >= STALE_AFTER_SECS)
+        .map(|record| record.slot)
+        .collect();
+    if disk {
+        let surplus = surplus_slots(
+            pool,
+            host,
+            &records,
+            &SurplusLimit {
+                keep: 0,
+                total: records.len(),
+                low_disk: false,
+            },
+        );
+        for number in surplus {
+            if !prunable.contains(&number) {
+                prunable.push(number);
+            }
+        }
+    }
+    for record in records {
         let path = pool.slot_path(record.slot);
         let busy = pool.busy(record.slot);
         let held = hold_known(pool, host, &record, record.held && busy);
@@ -1398,6 +1495,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
             server: server_in(&servers, &path),
             busy,
             disk_bytes,
+            prunable: prunable.contains(&record.slot),
             path,
         });
     }
@@ -1419,6 +1517,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
             server: server_in(&servers, &checkout.path),
             busy: false,
             disk_bytes,
+            prunable: false,
             path: checkout.path,
         });
     }

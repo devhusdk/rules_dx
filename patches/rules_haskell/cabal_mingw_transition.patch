@@ -1,0 +1,47 @@
+diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
+--- a/haskell/cabal.bzl
++++ b/haskell/cabal.bzl
+@@ -5,6 +5,7 @@
+ load("@bazel_skylib//lib:sets.bzl", "sets")
+ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe", "read_netrc", "use_netrc")
+ load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
++load("@rules_dx//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
+ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
+ load(":cc.bzl", "cc_interop_info", "ghc_cc_program_args")
+ load(":haddock.bzl", "generate_unified_haddock_info")
+@@ -715,6 +716,7 @@
+ 
+ haskell_cabal_library = rule(
+     _haskell_cabal_library_impl,
++    cfg = ghc_mingw_transition,
+     attrs = {
+         "package_name": attr.string(
+             doc = "Cabal package name. Defaults to name attribute.",
+@@ -771,6 +773,9 @@
+         "flags": attr.string_list(
+             doc = "List of Cabal flags, will be passed to `Setup.hs configure --flags=...`.",
+         ),
++        "_allowlist_function_transition": attr.label(
++            default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"),
++        ),
+         "_cabal_wrapper": attr.label(
+             executable = True,
+             cfg = "exec",
+@@ -974,6 +979,7 @@
+ haskell_cabal_binary = rule(
+     _haskell_cabal_binary_impl,
+     executable = True,
++    cfg = ghc_mingw_transition,
+     attrs = {
+         "exe_name": attr.string(
+             doc = "Cabal executable component name. Defaults to the value of the name attribute.",
+@@ -1023,6 +1029,9 @@
+             doc = """A haskell_cabal_args target with cabal specific settings for this package.""",
+             providers = [[HaskellCabalArgsInfo]],
+         ),
++        "_allowlist_function_transition": attr.label(
++            default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"),
++        ),
+         "_cabal_wrapper": attr.label(
+             executable = True,
+             cfg = "exec",

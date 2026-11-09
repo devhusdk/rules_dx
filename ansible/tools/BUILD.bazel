@@ -1,0 +1,20 @@
+load("@rules_py//py:defs.bzl", "py_unittest_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["lock.py"])
+
+py_unittest_test(
+    name = "lock_unit_test",
+    srcs = [
+        "lock.py",
+        "lock_test.py",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

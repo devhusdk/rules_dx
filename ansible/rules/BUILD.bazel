@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["defs.bzl"])
+exports_files(["defs.bzl", "lock.bzl"])
 
 layout_unit_tests(name = "layout_unit")
 
@@ -15,6 +15,7 @@ real_source_target(
         "layout.bzl",
         "layout_corpus.bzl",
         "layout_tests.bzl",
+        "lock.bzl",
     ],
     tags = ["corpus"],
 )

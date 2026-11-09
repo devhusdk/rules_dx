@@ -254,3 +254,7 @@ ppx rewriters, which the opam hub cannot build.
 | `windows_arm64` | n/a | conda-forge ships no win-arm64 OCaml package |
 
 On other platforms OCaml targets fail toolchain resolution.
+
+## API docs
+
+`ocaml_doc_shard` (`@rules_dx//tools/docs/ocaml:defs.bzl`) turns an `ocaml_module` or `ocaml_signature` into a DocIr shard with the pinned odoc 3.2.2, built from the tools duniverse on linux_x86_64, linux_arm64 and macos_arm64. Other platforms skip OCaml in the docs aspect.

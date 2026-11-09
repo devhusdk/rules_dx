@@ -1,0 +1,12 @@
+diff --git a/cppo/src/dune b/cppo/src/dune
+--- a/cppo/src/dune
++++ b/cppo/src/dune
+@@ -14,8 +14,4 @@
+  (package cppo)
+  (public_name cppo)
+  (modules :standard \ compat)
+- (preprocess (per_module
+-  ((action (progn
+-    (run ocaml %{dep:compat.ml} %{input-file})
+-    (cat %{input-file}))) cppo_eval)))
+  (libraries unix str))

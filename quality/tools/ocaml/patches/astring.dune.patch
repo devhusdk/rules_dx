@@ -1,0 +1,18 @@
+diff --git a/astring/dune-project b/astring/dune-project
+new file mode 100644
+--- /dev/null
++++ b/astring/dune-project
+@@ -0,0 +1,4 @@
++(lang dune 3.11)
++(name astring)
++(package
++ (name astring))
+diff --git a/astring/src/dune b/astring/src/dune
+new file mode 100644
+--- /dev/null
++++ b/astring/src/dune
+@@ -0,0 +1,4 @@
++(library
++ (name astring)
++ (public_name astring)
++ (modules :standard \ astring_top astring_top_init))

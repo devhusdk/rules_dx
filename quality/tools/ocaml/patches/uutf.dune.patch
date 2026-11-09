@@ -1,0 +1,18 @@
+diff --git a/uutf/dune-project b/uutf/dune-project
+new file mode 100644
+--- /dev/null
++++ b/uutf/dune-project
+@@ -0,0 +1,4 @@
++(lang dune 3.11)
++(name uutf)
++(package
++ (name uutf))
+diff --git a/uutf/src/dune b/uutf/src/dune
+new file mode 100644
+--- /dev/null
++++ b/uutf/src/dune
+@@ -0,0 +1,4 @@
++(library
++ (name uutf)
++ (public_name uutf)
++ (modules uutf))

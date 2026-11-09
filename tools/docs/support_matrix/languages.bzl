@@ -566,7 +566,7 @@ LANGUAGES = [
         "ocaml",
         fuzz = "ocaml_fuzz_test",
         deps = "`opam`",
-        doc = NO_DOC,
+        doc = struct(tool = "odoc", shard = "ocaml_doc_shard"),
         dead_code = ["ocamlc warnings 26, 27, 32 to 39"],
         coverage = ["bisect_ppx"],
         not_applicable = {

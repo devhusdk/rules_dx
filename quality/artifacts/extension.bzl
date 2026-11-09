@@ -34,6 +34,7 @@ load("//quality/artifacts:mdbook.bzl", _mdbook = "ARTIFACTS")
 load("//quality/artifacts:nixfmt.bzl", _nixfmt = "ARTIFACTS")
 load("//quality/artifacts:opa.bzl", _opa = "ARTIFACTS")
 load("//quality/artifacts:ormolu.bzl", _ormolu = "ARTIFACTS")
+load("//quality/artifacts:odoc.bzl", _odoc = "SOURCE")
 load("//quality/artifacts:pkl.bzl", _pkl = "ARTIFACTS")
 load("//quality/artifacts:pkl_lsp.bzl", _pkl_lsp = "SOURCE")
 load("//quality/artifacts:platforms.bzl", "artifact_platform_key", "platform_repeat_message")
@@ -119,6 +120,7 @@ TOOL_SOURCES = [
     _detekt,
     _google_java_format,
     _ktfmt,
+    _odoc,
     _pkl_lsp,
     _pmd,
     _spotbugs,

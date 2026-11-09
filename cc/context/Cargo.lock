@@ -3512,6 +3512,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ocaml_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "ocb3"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

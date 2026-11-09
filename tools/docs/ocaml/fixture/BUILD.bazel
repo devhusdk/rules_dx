@@ -1,0 +1,36 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_signature")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/ocaml:defs.bzl", "ocaml_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+ocaml_signature(
+    name = "shapes_sig",
+    src = "src/shapes.mli",
+)
+
+ocaml_module(
+    name = "shapes",
+    sig = ":shapes_sig",
+    struct = "src/shapes.ml",
+)
+
+ocaml_doc_shard(
+    name = "shapes_docs",
+    lib = ":shapes_sig",
+    package = "shapes",
+)
+
+# Building the shard runs odoc compile, link and html-generate and the DocIr extractor.
+build_test(
+    name = "shards_build_test",
+    targets = [":shapes_docs"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

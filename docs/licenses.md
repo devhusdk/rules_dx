@@ -38,6 +38,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | mdbook | 0.4.52 | MPL-2.0 |
 | mksquashfs | 4.6.1 | GPL-2.0-or-later |
 | nixfmt | 1.5.0 | MPL-2.0 |
+| odoc | 3.2.2 | ISC |
 | opa | 1.21.4 | Apache-2.0 |
 | ormolu | 0.9.0.0 | BSD-3-Clause, LGPL-2.1-or-later, LGPL-3.0-or-later OR GPL-2.0-or-later, MIT |
 | pkl | 0.32.1 | Apache-2.0 |

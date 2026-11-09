@@ -1,0 +1,19 @@
+diff --git a/fpath/dune-project b/fpath/dune-project
+new file mode 100644
+--- /dev/null
++++ b/fpath/dune-project
+@@ -0,0 +1,4 @@
++(lang dune 3.11)
++(name fpath)
++(package
++ (name fpath))
+diff --git a/fpath/src/dune b/fpath/src/dune
+new file mode 100644
+--- /dev/null
++++ b/fpath/src/dune
+@@ -0,0 +1,5 @@
++(library
++ (name fpath)
++ (public_name fpath)
++ (libraries astring)
++ (modules fpath))

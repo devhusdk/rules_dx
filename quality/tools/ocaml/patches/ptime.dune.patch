@@ -1,0 +1,18 @@
+diff --git a/ptime/dune-project b/ptime/dune-project
+new file mode 100644
+--- /dev/null
++++ b/ptime/dune-project
+@@ -0,0 +1,4 @@
++(lang dune 3.11)
++(name ptime)
++(package
++ (name ptime))
+diff --git a/ptime/src/dune b/ptime/src/dune
+new file mode 100644
+--- /dev/null
++++ b/ptime/src/dune
+@@ -0,0 +1,4 @@
++(library
++ (name ptime)
++ (public_name ptime)
++ (modules ptime))

@@ -656,6 +656,25 @@ fn success_line(set: &ResolvedSet, request: &Selection) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn stop_of_reports_the_holder_once_then_the_signal() {
+        let (mut err, mut events) = (Vec::new(), Vec::new());
+        let mut gate = super::SlotGate {
+            err: &mut err,
+            events: &mut events,
+            phase: dx_plan::slots::Phase::new(dx_plan::args::Command::Update),
+            busy: Some("pid 7".to_owned()),
+        };
+        assert_eq!(
+            super::stop_of(&mut gate, 1),
+            dx_plan::slots::Stop::Busy("pid 7".to_owned())
+        );
+        assert_eq!(
+            super::stop_of(&mut gate, 130),
+            dx_plan::slots::Stop::Signal(130)
+        );
+    }
+
     use super::super::super::test_support::Harness;
     use super::super::super::test_support::{event, event_kinds, json_events};
     use super::super::update_live::{Launch, ScriptRunner, fake_pinned};

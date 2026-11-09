@@ -1716,6 +1716,26 @@ mod tests {
             "{err}"
         );
     }
+
+    #[test]
+    fn watch_stops_with_slots_busy_when_the_wait_limit_runs_out() {
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-busy-");
+        let dir = scratch.path().join("slots");
+        let _held = dx_plan::slots::acquire(&dir, 1, "tree-a", &mut |_| {}).expect("hold");
+        let gate = dx_plan::slots::Gate::new(dir.clone(), 1, "watch-tree".to_owned(), false)
+            .waiting_at_most(Some(Duration::ZERO));
+        let (code, busy, err) = slot_watch_through(
+            gate,
+            &dir,
+            &["watch", "build", "//a:one"],
+            Some(1),
+            |_, _| Ok(Vec::new()),
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(busy.is_empty(), "no Bazel run without a slot");
+        assert!(err.contains("slots_busy"), "{err}");
+        assert!(err.contains("tree-a"), "{err}");
+    }
 }
 
 // SIGTERM/SIGHUP and the group-signal probes have no Windows counterpart; the Windows Ctrl-C probe lives in watch_relaunch_tests.rs.

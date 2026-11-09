@@ -1,5 +1,5 @@
 {
-  "checksum": "a55f84c15d5a3c7ccc2b1907d4c4bbc0d6a9b1d391583675ec88ee3c10865d62",
+  "checksum": "4da2048d6d79be61f3b8d173df485d33fa3b524b5119a1058276b987427ce48b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3303,6 +3303,33 @@
         "Apache-2.0"
       ],
       "name": "ci_producers",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "ci_tests 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "starlark_syntax 0.14.2",
+            "target": "starlark_syntax"
+          },
+          {
+            "id": "yaml_serde 0.10.7",
+            "target": "yaml_serde"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_tests",
       "repository": null,
       "targets": [],
       "version": "0.0.0"
@@ -29174,6 +29201,7 @@
     "ci_gate_base 0.0.0": "tools/ci/ci_gate_base",
     "ci_input_validation 0.0.0": "tools/ci/ci_input_validation",
     "ci_producers 0.0.0": "tools/ci/ci_producers",
+    "ci_tests 0.0.0": "tools/ci_tests",
     "ci_workflow 0.0.0": "tools/ci/ci_workflow",
     "codegen_shard 0.0.0": "generation/codegen_shard",
     "component_extract 0.0.0": "tools/docs/components/component_extract",

@@ -652,6 +652,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ci_tests"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "starlark_syntax",
+ "yaml_serde",
+]
+
+[[package]]
 name = "ci_workflow"
 version = "0.0.0"
 dependencies = [

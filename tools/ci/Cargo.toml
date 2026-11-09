@@ -1,0 +1,146 @@
+[package]
+license = "Apache-2.0"
+name = "ci_tests"
+version = "0.0.0"
+edition = "2024"
+
+[dev-dependencies]
+serde_json = "1"
+starlark_syntax = "0.14"
+yaml_serde = "0.10"
+
+[[test]]
+name = "action_pins_test"
+path = "action_pins_test.rs"
+
+[[test]]
+name = "actionlint_test"
+path = "actionlint_test.rs"
+
+[[test]]
+name = "advisory_launch_test"
+path = "advisory_launch_test.rs"
+
+[[test]]
+name = "advisory_snapshots_test"
+path = "advisory_snapshots_test.rs"
+
+[[test]]
+name = "aggregate_gates_test"
+path = "aggregate_gates_test.rs"
+
+[[test]]
+name = "aggregate_scripts_test"
+path = "aggregate_scripts_test.rs"
+
+[[test]]
+name = "artifact_writes_test"
+path = "artifact_writes_test.rs"
+
+[[test]]
+name = "blocker_refs_test"
+path = "blocker_refs_test.rs"
+
+[[test]]
+name = "compiler_evidence_test"
+path = "compiler_evidence_test.rs"
+
+[[test]]
+name = "config_consistency_test"
+path = "config_consistency_test.rs"
+
+[[test]]
+name = "consumer_inputs_test"
+path = "consumer_inputs_test.rs"
+
+[[test]]
+name = "consumer_reports_test"
+path = "consumer_reports_test.rs"
+
+[[test]]
+name = "coverage_cells_test"
+path = "coverage_cells_test.rs"
+
+[[test]]
+name = "crate_platform_pins_test"
+path = "crate_platform_pins_test.rs"
+
+[[test]]
+name = "docs_scope_test"
+path = "docs_scope_test.rs"
+
+[[test]]
+name = "dx_update_workflow_test"
+path = "dx_update_workflow_test.rs"
+
+[[test]]
+name = "evidence_inputs_test"
+path = "evidence_inputs_test.rs"
+
+[[test]]
+name = "gate_base_test"
+path = "gate_base_test.rs"
+
+[[test]]
+name = "gitlab_example_test"
+path = "gitlab_example_test.rs"
+
+[[test]]
+name = "gitlab_inputs_parity_test"
+path = "gitlab_inputs_parity_test.rs"
+
+[[test]]
+name = "input_validation_test"
+path = "input_validation_test.rs"
+
+[[test]]
+name = "pr_check_test"
+path = "pr_check_test.rs"
+
+[[test]]
+name = "release_assets_test"
+path = "release_assets_test.rs"
+
+[[test]]
+name = "release_cells_runners_test"
+path = "release_cells_runners_test.rs"
+
+[[test]]
+name = "release_workflow_test"
+path = "release_workflow_test.rs"
+
+[[test]]
+name = "reusable_callers_test"
+path = "reusable_callers_test.rs"
+
+[[test]]
+name = "review_paths_test"
+path = "review_paths_test.rs"
+
+[[test]]
+name = "secret_flags_test"
+path = "secret_flags_test.rs"
+
+[[test]]
+name = "signing_pins_test"
+path = "signing_pins_test.rs"
+
+[[test]]
+name = "starlark_docs_test"
+path = "starlark_docs_test.rs"
+
+[[test]]
+name = "tool_resolve_test"
+path = "tool_resolve_test.rs"
+
+[[test]]
+name = "workflow_expressions_test"
+path = "workflow_expressions_test.rs"
+
+[[test]]
+name = "workflow_permissions_test"
+path = "workflow_permissions_test.rs"
+
+[[test]]
+name = "workflow_pins_test"
+path = "workflow_pins_test.rs"

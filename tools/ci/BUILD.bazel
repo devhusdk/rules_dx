@@ -163,28 +163,6 @@ rust_test(
 
 # keep: no Cargo.toml here; Gazelle would delete it
 rust_library(
-    name = "remote_cache_flags",
-    srcs = ["remote_cache_flags.rs"],
-    crate_name = "remote_cache_flags",
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "remote_cache_flags_bin",
-    srcs = ["remote_cache_flags_main.rs"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":remote_cache_flags"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_test(
-    name = "remote_cache_flags_test",
-    srcs = ["remote_cache_flags_test.rs"],
-    deps = [":remote_cache_flags"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
     name = "gate_base",
     srcs = ["gate_base.rs"],
     crate_name = "gate_base",
@@ -840,38 +818,5 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "bcr_outdated",
-    srcs = ["bcr_outdated.rs"],
-    crate_name = "bcr_outdated",
-    deps = [
-        "//libs/module_bazel:dx_module_bazel",
-        "@crates//:serde_json",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "bcr_outdated_bin",
-    srcs = ["bcr_outdated_main.rs"],
-    deps = [
-        ":bcr_outdated",
-        "//deploy/rules:dx_deploy_tools",
-        "//libs/module_bazel:dx_module_bazel",
-        "@crates//:ureq",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_test(
-    name = "bcr_outdated_test",
-    srcs = ["bcr_outdated_test.rs"],
-    deps = [
-        ":bcr_outdated",
-        "//libs/module_bazel:dx_module_bazel",
     ],
 )

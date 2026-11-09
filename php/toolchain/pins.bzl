@@ -96,3 +96,9 @@ PHPSTAN = struct(
     sha256 = "aa5cc7543f0de0ae7997deb24f654a3b2454b6ba4ba2c4552957a175886b60b1",
     urls = ["https://github.com/phpstan/phpstan/releases/download/2.3.3/phpstan.phar"],
 )
+
+PHPBENCH = struct(
+    version = "1.7.0",
+    sha256 = "68563bfbef7eb3af8ebf6b62ce80c9646ab61c9b1ce0011b57fb947f73ac3b37",
+    urls = ["https://github.com/phpbench/phpbench/releases/download/1.7.0/phpbench.phar"],
+)

@@ -2,6 +2,7 @@
 
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//php/toolchain:pins.bzl", "PHP_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -66,3 +67,19 @@ def php_test(name, *, srcs = None, visibility = None, **kwargs):
     """Runs PHPUnit test files on the pinned PHP and PHPUnit. srcs are the test files and are linted."""
     kwargs = dx_language_kwargs(kwargs, PHP_DEFERRED_SKIP_TAGS, PHP_COMPATIBLE_WITH)
     dx_wrap_test(name, _php_test, _php_forward_test, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(None, srcs), **kwargs)
+
+def php_bench(name, benches, data = None, env = None, tags = None, **kwargs):
+    """A php_test run by dx bench: phpbench runs the `benches` files, one class per file named like the file, and the result is written as dx-bench.json."""
+    phar = Label("@dx_phpbench//:phpbench.phar")
+    php_test(
+        name = name,
+        srcs = [Label("//php/rules:BenchTest.php")],
+        data = (data or []) + benches + [phar],
+        env = dict(
+            env or {},
+            DX_BENCH_FILES = " ".join(["$(rlocationpath %s)" % bench for bench in benches]),
+            DX_PHPBENCH = "$(rlocationpath %s)" % phar,
+        ),
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        **kwargs
+    )

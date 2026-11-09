@@ -484,6 +484,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `toolchain_settings` |
 |  |  | `@rules_dx//ocaml/tests/native:defs.bzl` | `sys_cell_test` |
 |  |  | `@rules_dx//perl/rules:defs.bzl` | `perl_bench` |
+|  |  | `@rules_dx//php/rules:defs.bzl` | `php_bench` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_binary` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_library` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_test` |

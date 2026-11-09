@@ -1,6 +1,6 @@
 //! Deterministic tar, gzip and zip archives, plus the archive publisher.
 
-use crate::run::{DeployRun, check_size_budget, deploy_build_mode, tree_bytes};
+use crate::run::{DeployRun, deploy_build_mode};
 use crate::stage::*;
 use std::io::{self, BufRead, Read, Write};
 use std::path::Path;
@@ -573,7 +573,6 @@ pub fn archive_main(
     app_rloc: &str,
     tarball_rloc: &str,
     checksum_rloc: &str,
-    size_budget: u64,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -588,13 +587,6 @@ pub fn archive_main(
         let app = resolve_runfile(app_rloc)?;
         let tarball = resolve_runfile(tarball_rloc)?;
         let checksum = resolve_runfile(checksum_rloc)?;
-        check_size_budget(
-            "archive_deploy",
-            "tarball",
-            tree_bytes(&tarball)?,
-            size_budget,
-        )
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
         archive_stage_release(&app, &tarball, &checksum, outdir)
     })();
     match resolved {

@@ -1,7 +1,7 @@
 """Explicit-apply Cloudflare Pages publisher for dx deploy."""
 
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
@@ -85,7 +85,7 @@ cloudflare_config = rule(
     },
 )
 
-def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler = None, build_mode = "release", tags = [], sbom = None):
+def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler = None, build_mode = "release", tags = [], sbom = None, size_budget = ""):
     """Publishes a static bundle directory to an existing Cloudflare Pages project."""
     wrangler = wrangler or str(Label("//quality/tools/javascript/bin:wrangler"))
     error = cloudflare_pages_error(account_id, project, branch, production_branch)
@@ -126,10 +126,10 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
     dx_deployment(
         name = name,
         sbom = sbom,
-        artifacts = [site],
         config = ":" + config_target,
         data = [":" + check_target],
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
         tags = tags,
+        **deployment_budget(name, size_budget, [site]),
     )

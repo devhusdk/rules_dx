@@ -1,6 +1,6 @@
 """Staging-to-production promotion publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -104,7 +104,7 @@ _promotion_config = rule(
     },
 )
 
-def promotion_deploy(name, artifact, version, from_environment = "staging", to_environment = "production", build_mode = "release", sbom = None):
+def promotion_deploy(name, artifact, version, from_environment = "staging", to_environment = "production", build_mode = "release", sbom = None, size_budget = ""):
     """Promotes one pinned artifact across environments with gated health and rollback."""
     from_error = promotion_environment_error(from_environment)
     if from_error != "":
@@ -135,4 +135,5 @@ def promotion_deploy(name, artifact, version, from_environment = "staging", to_e
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
+        **deployment_budget(name, size_budget, [artifact]),
     )

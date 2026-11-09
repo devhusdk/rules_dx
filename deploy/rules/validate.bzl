@@ -34,7 +34,7 @@ def size_budget_error(value):
     return ("size_budget '" + value + "': want a positive whole number and a unit, " +
             "for example '25MB' (B, KB, MB or GB, decimal)")
 
-def size_budget_bytes(value):
+def parse_size_budget(value):
     """Returns the byte count of one valid size_budget; '' means no budget and gives 0."""
     if value == "":
         return 0

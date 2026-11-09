@@ -1,7 +1,7 @@
 """Local-first NuGet publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -112,7 +112,7 @@ _nuget_config = rule(
     },
 )
 
-def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = ""):
     """Publishes one nupkg after checking its nuspec id and version.
 
     api_compat and api_baseline work as described under "Public API
@@ -144,4 +144,5 @@ def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_D
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
+        **deployment_budget(name, size_budget, [nupkg]),
     )

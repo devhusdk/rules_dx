@@ -1,7 +1,7 @@
 """Local-first crates.io publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":crates_validate.bzl", "crates_name_error", "crates_version_error")
 load(":defs.bzl", "dx_deployment")
 
@@ -68,7 +68,7 @@ _crates_config = rule(
     },
 )
 
-def crates_deploy(name, crate, package = "", version = "", build_mode = "release", api_compat = "fail", api_baseline = "registry", tags = [], sbom = None):
+def crates_deploy(name, crate, package = "", version = "", build_mode = "release", api_compat = "fail", api_baseline = "registry", tags = [], sbom = None, size_budget = ""):
     """Publishes staged crate sources as a local-first crates.io deployment.
 
     api_compat and api_baseline work as described under "Public API
@@ -98,4 +98,5 @@ def crates_deploy(name, crate, package = "", version = "", build_mode = "release
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
+        **deployment_budget(name, size_budget, [crate]),
     )

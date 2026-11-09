@@ -9,8 +9,9 @@ the shell, CI sets them in `reusable-release.yml`. In an agent session
 publishes only with `DX_DEPLOY_LIVE=1`.
 
 `size_budget` is optional, such as `25MB` (decimal `B`, `KB`, `MB` or `GB`).
-Building the deployment fails when its `artifacts` together are larger, and
-prints both sizes in bytes. Empty means no budget.
+Every `*_deploy` macro that publishes files takes it and sets `artifacts` to
+the files it publishes. Building the deployment fails when they together are
+larger, and prints both sizes in bytes. Empty means no budget.
 
 # maven_deploy
 
@@ -247,8 +248,8 @@ archive_deploy(
 - `app`: required. One executable target. It is the only tarball member.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `size_budget`: optional, such as `25MB`. A decimal `B`, `KB`, `MB` or `GB`
-  amount. The run fails before copying when the tarball is larger, and
-  prints both sizes in bytes. Empty means no budget.
+  amount. Building fails when the tarball is larger, and prints both sizes
+  in bytes. Empty means no budget.
 
 For an app built with GCC on Linux, `@rules_dx//cc/toolchains:gcc_linux_glibc`
 is a reviewed `os_supplied` runtime that records the pinned glibc floor.
@@ -769,8 +770,7 @@ oci_deploy(
   once per platform; `oci_deploy` takes one `platform` of it, and
   `<name>_load` loads the image of the first platform.
 
-The `oci_deploy` dry run prints the image size in bytes, and the `size_budget`
-when one is set.
+The `oci_deploy` dry run prints the image size in bytes.
 
 # oci_deploy
 
@@ -798,9 +798,8 @@ oci_deploy(
   mixed-case target needs `repository` set.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `size_budget`: optional, such as `500MB`. A decimal `B`, `KB`, `MB` or `GB`
-  amount. The run fails before staging or pushing when the image (the
-  archive file, or the layout directory tree) is larger, and prints both
-  sizes in bytes. Empty means no budget.
+  amount. Building fails when the image (the archive file, or the layout
+  directory tree) is larger, and prints both sizes in bytes. Empty means no budget.
 
 Default run stages `<repository>-oci-layout/` with an `index.json`. No
 credentials needed.

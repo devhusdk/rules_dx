@@ -1,7 +1,7 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
@@ -113,7 +113,7 @@ github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", tags = [], sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], visibility = None, testonly = None):
+def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", tags = [], sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], visibility = None, testonly = None, size_budget = ""):
     """Publishes pinned files as a draft-only GitHub Release.
 
     `sbom` is a dx_sbom target uploaded as one more release asset.
@@ -170,4 +170,5 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         tags = tags,
         testonly = testonly,
         visibility = visibility,
+        **deployment_budget(name, size_budget, artifacts),
     )

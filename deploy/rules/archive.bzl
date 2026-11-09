@@ -2,11 +2,10 @@
 
 load("//libs/starlark:defs.bzl", "display_label")
 load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":resources.bzl", "resource_path_error")
-load(":validate.bzl", "size_budget_bytes", "size_budget_error")
 
 _ARCHIVER = Label("//deploy/rules:archiver")
 _HASHER = str(Label("//deploy/rules:hasher"))
@@ -72,7 +71,6 @@ def _archive_config_impl(ctx):
         {
             "app_rloc": rlocation_path(ctx, app),
             "checksum_rloc": rlocation_path(ctx, checksum),
-            "size_budget_bytes": ctx.attr.size_budget_bytes,
             "tarball_rloc": rlocation_path(ctx, tarball),
         },
         ctx.runfiles(files = [app, tarball, checksum]),
@@ -84,7 +82,6 @@ _archive_config = rule(
     attrs = {
         "app_name": attr.label(mandatory = True, doc = "Text file with the app basename."),
         "checksum": attr.label(mandatory = True, doc = "Tarball sha256 file."),
-        "size_budget_bytes": attr.int(doc = "Largest allowed tarball size in bytes, 0 for no budget.", default = 0),
         "tarball": attr.label(mandatory = True, doc = "Release tarball."),
     },
 )
@@ -95,9 +92,6 @@ def archive_filenames(name, format = "tar.gz"):
 
 def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = None):
     """Packages one executable as a deployable tarball and sha256 file, optionally failing above size_budget such as '25MB'."""
-    budget_error = size_budget_error(size_budget)
-    if budget_error != "":
-        fail(budget_error + " (in " + native.package_name() + ":" + name + ")")
     (tarball, checksum) = archive_filenames(name)
     archive_target = name + "_archive"
     checksum_target = name + "_checksum"
@@ -135,7 +129,6 @@ def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = N
         name = config_target,
         app_name = ":" + app_name_target,
         checksum = ":" + checksum_target,
-        size_budget_bytes = size_budget_bytes(size_budget),
         tarball = ":" + archive_target,
     )
 
@@ -151,6 +144,7 @@ def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = N
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
+        **deployment_budget(name, size_budget, [":" + archive_target]),
     )
 
 CONSUMER_ARCHES = ["x86_64", "aarch64"]

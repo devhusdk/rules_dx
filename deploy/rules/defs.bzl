@@ -4,7 +4,7 @@ load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
 load("//libs/starlark:wrapper.bzl", "dx_symlink_executable")
 load(":sbom.bzl", "DxSbomFileInfo")
 load(":config.bzl", "DxDeployConfigInfo", "rlocation_path")
-load(":validate.bzl", "size_budget_bytes", "size_budget_error")
+load(":validate.bzl", "parse_size_budget", "size_budget_error")
 
 DxDeployInfo = provider(
     doc = "Deploy entrypoint identity and default build mode for dx deploy dispatch.",
@@ -72,7 +72,7 @@ def _dx_deployment_impl(ctx):
     if ctx.attr.size_budget and artifact_files:
         stamp = ctx.actions.declare_file(ctx.label.name + ".size_budget")
         args = ctx.actions.args()
-        args.add(size_budget_bytes(ctx.attr.size_budget))
+        args.add(parse_size_budget(ctx.attr.size_budget))
         args.add(stamp)
         args.add_all(artifact_files)
         ctx.actions.run(

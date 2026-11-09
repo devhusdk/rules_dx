@@ -4,7 +4,7 @@ use crate::archive::*;
 use crate::oci_scan::{OciChecks, ScanMode, run_trivy, scan_and_report};
 use crate::registry;
 use crate::run::{
-    DeployRun, OwnerGate, check_size_budget, deploy_build_mode, env_or_empty, placeholder_refusal,
+    DeployRun, OwnerGate, deploy_build_mode, env_or_empty, placeholder_refusal,
     tree_bytes,
 };
 use std::io::{self, Read, Write};
@@ -1059,16 +1059,15 @@ pub(crate) const OCI_GATE: OwnerGate = OwnerGate {
 };
 
 /// Runs the OCI deploy tool.
-pub fn oci_main<C: Into<OciChecks>>(
+pub fn oci_main(
     image_rloc: &str,
     registry: &str,
     repository: &str,
     tag: &str,
     platform: &str,
-    checks: C,
+    checks: OciChecks,
     argv: &[String],
 ) -> i32 {
-    let checks = checks.into();
     let Some(run) = DeployRun::start(
         "oci_deploy",
         "the layout is exactly the file pinned at analysis time",
@@ -1087,10 +1086,6 @@ pub fn oci_main<C: Into<OciChecks>>(
             return 1;
         }
     };
-    if let Err(error) = check_size_budget("oci_deploy", "image", bytes, checks.size_budget) {
-        eprintln!("{error}");
-        return 1;
-    }
     if OCI_GATE.requested(env_or_empty) {
         if let Some(error) = placeholder_refusal("oci_deploy", tag) {
             eprintln!("{error}");
@@ -1138,7 +1133,7 @@ pub fn oci_main<C: Into<OciChecks>>(
             println!("oci_deploy: staged {registry}/{repository}:{tag} (build_mode: {build_mode})");
             println!("  layout: {}", layout.display());
             println!("  index: {}", layout.join("index.json").display());
-            println!("{}", size_line(bytes, checks.size_budget));
+            println!("  size: {bytes} bytes");
             scan_and_report(&layout, &checks, run_trivy)
         }
         Err(error) => {
@@ -1148,27 +1143,10 @@ pub fn oci_main<C: Into<OciChecks>>(
     }
 }
 
-fn size_line(bytes: u64, budget: u64) -> String {
-    if budget == 0 {
-        format!("  size: {bytes} bytes")
-    } else {
-        format!("  size: {bytes} bytes (size_budget {budget} bytes)")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_support::*;
-
-    #[test]
-    fn size_line_names_the_budget_only_when_set() {
-        assert_eq!(size_line(2_000, 0), "  size: 2000 bytes");
-        assert_eq!(
-            size_line(2_000, 5_000),
-            "  size: 2000 bytes (size_budget 5000 bytes)"
-        );
-    }
 
     #[test]
     fn oci_layout_builds_index() {

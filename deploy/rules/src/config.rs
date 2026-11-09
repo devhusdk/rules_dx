@@ -16,8 +16,6 @@ pub struct ArchiveConfig {
     pub app_rloc: String,
     pub tarball_rloc: String,
     pub checksum_rloc: String,
-    #[serde(default)]
-    pub size_budget_bytes: u64,
 }
 
 /// Pins one draft GitHub Release: its tag and asset files.
@@ -243,8 +241,6 @@ pub struct OciConfig {
     pub repository: String,
     pub tag: String,
     pub platform: String,
-    #[serde(default)]
-    pub size_budget_bytes: u64,
     #[serde(default = "default_scan")]
     pub scan: String,
     #[serde(default = "default_scan_severity")]
@@ -374,7 +370,6 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &archive.app_rloc,
             &archive.tarball_rloc,
             &archive.checksum_rloc,
-            archive.size_budget_bytes,
             argv,
         ),
         DeployConfig::Github(github) => crate::github::github_main_checked(
@@ -549,7 +544,6 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 &oci.tag,
                 &oci.platform,
                 crate::OciChecks {
-                    size_budget: oci.size_budget_bytes,
                     scan,
                     scan_severity: oci.scan_severity.clone(),
                     label: oci.label.clone(),
@@ -628,25 +622,16 @@ mod tests {
                 app_rloc: "_main/a.txt".to_owned(),
                 tarball_rloc: "_main/a.tar.gz".to_owned(),
                 checksum_rloc: "_main/a.tar.gz.sha256".to_owned(),
-                size_budget_bytes: 0,
             }))
         );
     }
 
     #[test]
-    fn an_archive_config_round_trips_with_a_budget() {
+    fn an_archive_config_rejects_a_size_budget() {
         let config = parse(
-            r#"{"kind":"archive","config":{"app_rloc":"_main/a.txt","tarball_rloc":"_main/a.tar.gz","checksum_rloc":"_main/a.tar.gz.sha256","size_budget_bytes":25000000}}"#,
+            r#"{"kind":"archive","config":{"app_rloc":"_main/a.txt","tarball_rloc":"_main/a.tar.gz","checksum_rloc":"_main/a.tar.gz.sha256","size_budget":"25MB"}}"#,
         );
-        assert_eq!(
-            config,
-            Ok(DeployConfig::Archive(ArchiveConfig {
-                app_rloc: "_main/a.txt".to_owned(),
-                tarball_rloc: "_main/a.tar.gz".to_owned(),
-                checksum_rloc: "_main/a.tar.gz.sha256".to_owned(),
-                size_budget_bytes: 25_000_000,
-            }))
-        );
+        assert!(config.is_err());
     }
 
     #[test]
@@ -671,7 +656,6 @@ mod tests {
                 repository: "p".to_owned(),
                 tag: "t".to_owned(),
                 platform: "linux/amd64".to_owned(),
-                size_budget_bytes: 0,
                 scan: "fail".to_owned(),
                 scan_severity: "HIGH".to_owned(),
                 sbom_rloc: "_main/s.spdx.json".to_owned(),
@@ -836,7 +820,6 @@ mod tests {
                 repository: "p".to_owned(),
                 tag: "t".to_owned(),
                 platform: "linux/amd64".to_owned(),
-                size_budget_bytes: 0,
                 scan: "fail".to_owned(),
                 scan_severity: "HIGH".to_owned(),
                 sbom_rloc: String::new(),
@@ -1011,7 +994,6 @@ mod tests {
                 app_rloc: "a".to_owned(),
                 tarball_rloc: "b".to_owned(),
                 checksum_rloc: "c".to_owned(),
-                size_budget_bytes: 0,
             }),
             DeployConfig::Github(GithubConfig {
                 deploy_name: "demo".to_owned(),
@@ -1128,7 +1110,6 @@ mod tests {
                 repository: "demo".to_owned(),
                 tag: "latest".to_owned(),
                 platform: "linux/amd64".to_owned(),
-                size_budget_bytes: 0,
                 scan: "fail".to_owned(),
                 scan_severity: "HIGH".to_owned(),
                 sbom_rloc: String::new(),

@@ -1,7 +1,7 @@
 """Unit tests for the shared deploy charset validators."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":validate.bzl", "NAME_CHARS", "genrule_arg", "only_chars", "size_budget_bytes", "size_budget_error")
+load(":validate.bzl", "NAME_CHARS", "genrule_arg", "only_chars", "parse_size_budget", "size_budget_error")
 
 def validate_unit_tests(name):
     """Declares unit tests for the shared deploy validators."""
@@ -50,10 +50,10 @@ def validate_unit_tests(name):
                 size_budget_error("1.5MB") != "",
                 True,
             ),
-            expect_equal("size_budget_bytes reads megabytes as decimal", size_budget_bytes("25MB"), 25000000),
-            expect_equal("size_budget_bytes reads gigabytes", size_budget_bytes("2GB"), 2000000000),
-            expect_equal("size_budget_bytes reads kilobytes", size_budget_bytes("3KB"), 3000),
-            expect_equal("size_budget_bytes reads bytes", size_budget_bytes("7B"), 7),
-            expect_equal("size_budget_bytes gives 0 for no budget", size_budget_bytes(""), 0),
+            expect_equal("parse_size_budget reads megabytes as decimal", parse_size_budget("25MB"), 25000000),
+            expect_equal("parse_size_budget reads gigabytes", parse_size_budget("2GB"), 2000000000),
+            expect_equal("parse_size_budget reads kilobytes", parse_size_budget("3KB"), 3000),
+            expect_equal("parse_size_budget reads bytes", parse_size_budget("7B"), 7),
+            expect_equal("parse_size_budget gives 0 for no budget", parse_size_budget(""), 0),
         ],
     )

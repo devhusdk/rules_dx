@@ -32,17 +32,15 @@ impl ScanMode {
 /// What `oci_deploy` checks about the image before it is staged or pushed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OciChecks {
-    pub size_budget: u64,
     pub scan: ScanMode,
     pub scan_severity: String,
     /// The `oci_deploy` label, matched against label patterns in `security.toml`.
     pub label: String,
 }
 
-impl From<u64> for OciChecks {
-    fn from(size_budget: u64) -> Self {
+impl Default for OciChecks {
+    fn default() -> Self {
         Self {
-            size_budget,
             scan: ScanMode::Off,
             scan_severity: "HIGH".to_owned(),
             label: String::new(),
@@ -268,7 +266,7 @@ mod tests {
     fn fail_mode_exits_one_on_findings_only() {
         let checks = OciChecks {
             scan: ScanMode::Fail,
-            ..OciChecks::from(0)
+            ..OciChecks::default()
         };
         let layout = Path::new("layout");
         assert_eq!(

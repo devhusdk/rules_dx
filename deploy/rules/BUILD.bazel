@@ -690,12 +690,18 @@ native_runtime_unit_tests(name = "native_runtime_unit")
 
 deploy_analysis_test(
     name = "archive_analysis",
+    artifacts = [
+        "//deploy/rules:release_demo_archive",
+    ],
     app = "//deploy/rules:deploy_program",
     subject = "release_demo",
 )
 
 deploy_analysis_test(
     name = "archive_debug_analysis",
+    artifacts = [
+        "//deploy/rules:release_demo_debug_archive",
+    ],
     app = "//deploy/rules:deploy_program",
     build_mode = "debug",
     subject = "release_demo_debug",
@@ -902,6 +908,10 @@ github_unit_tests(name = "github_unit")
 
 deploy_analysis_test(
     name = "github_analysis",
+    artifacts = [
+        "//deploy/rules:release_demo_archive",
+        "//deploy/rules:release_demo_checksum",
+    ],
     subject = "github_demo",
 )
 
@@ -1076,6 +1086,7 @@ genrule(
 
 pypi_deploy(
     name = "pypi_demo",
+    size_budget = "25MB",
     sdist = ":pypi_demo_sdist",
     wheel = ":pypi_demo_wheel",
 )
@@ -1550,6 +1561,10 @@ pypi_unit_tests(name = "pypi_unit")
 
 deploy_analysis_test(
     name = "pypi_analysis",
+    artifacts = [
+        "//deploy/rules:pypi_demo_wheel",
+        "//deploy/rules:pypi_demo_sdist",
+    ],
     subject = "pypi_demo",
 )
 
@@ -1637,6 +1652,9 @@ pub_config_content_tests(name = "pub_config_content")
 
 deploy_analysis_test(
     name = "pub_analysis",
+    artifacts = [
+        "//deploy/rules:pub_demo_package",
+    ],
     subject = "pub_demo",
 )
 
@@ -1666,6 +1684,9 @@ rubygems_unit_tests(name = "rubygems_unit")
 
 deploy_analysis_test(
     name = "rubygems_analysis",
+    artifacts = [
+        "//deploy/tests/fixtures/ruby_gem:rubygems_demo_gem",
+    ],
     subject = "rubygems_demo",
 )
 
@@ -1691,6 +1712,9 @@ rust_test(
 
 deploy_analysis_test(
     name = "crates_analysis",
+    artifacts = [
+        "//deploy/rules:crates_demo_crate",
+    ],
     subject = "crates_demo",
 )
 
@@ -1703,11 +1727,15 @@ hex_unit_tests(name = "hex_unit")
 
 deploy_analysis_test(
     name = "hex_analysis",
+    artifacts = [
+        "//deploy/tests/fixtures/hex_package:hex_package",
+    ],
     subject = "hex_demo",
 )
 
 npm_deploy(
     name = "npm_demo",
+    size_budget = "25MB",
     srcs = ["npm_demo/package.json"],
     package = "npm-demo",
 )
@@ -1716,6 +1744,9 @@ npm_unit_tests(name = "npm_unit")
 
 deploy_analysis_test(
     name = "npm_analysis",
+    artifacts = [
+        "//deploy/rules:npm_demo.tgz",
+    ],
     subject = "npm_demo",
 )
 
@@ -1755,6 +1786,9 @@ nuget_config_content_tests(name = "nuget_config_content")
 
 deploy_analysis_test(
     name = "nuget_analysis",
+    artifacts = [
+        "//deploy/rules:nuget_demo_nupkg",
+    ],
     subject = "nuget_demo",
 )
 
@@ -1784,6 +1818,9 @@ hackage_unit_tests(name = "hackage_unit")
 
 deploy_analysis_test(
     name = "hackage_analysis",
+    artifacts = [
+        "//deploy/rules:hackage_demo_sdist",
+    ],
     subject = "hackage-demo",
 )
 
@@ -1813,6 +1850,9 @@ luarocks_unit_tests(name = "luarocks_unit")
 
 deploy_analysis_test(
     name = "luarocks_analysis",
+    artifacts = [
+        "//deploy/rules:luarocks_demo_rockspec",
+    ],
     subject = "luarocks_demo",
 )
 
@@ -1866,6 +1906,8 @@ genrule(
 
 maven_deploy(
     name = "maven_demo",
+    size_budget = "25MB",
+    artifact = "maven_demo",
     group = "com.example",
     jar = ":maven_demo_lib",
     javadoc = ":maven_demo_javadoc_jar",
@@ -1885,11 +1927,21 @@ maven_unit_tests(name = "maven_unit")
 
 deploy_analysis_test(
     name = "maven_analysis",
+    artifacts = [
+        "//deploy/rules:maven_demo_lib",
+        "//deploy/rules:testdata/maven/maven_demo-0.0.0.pom",
+        "//deploy/rules:maven_demo_sources_jar",
+        "//deploy/rules:maven_demo_javadoc_jar",
+    ],
     subject = "maven_demo",
 )
 
 deploy_analysis_test(
     name = "maven_plain_analysis",
+    artifacts = [
+        "//deploy/rules:maven_demo_lib",
+        "//deploy/rules:testdata/maven/maven_demo-0.0.0.pom",
+    ],
     subject = "maven_demo_plain",
 )
 
@@ -1941,6 +1993,9 @@ oci_unit_tests(name = "oci_unit")
 
 deploy_analysis_test(
     name = "oci_analysis",
+    artifacts = [
+        "//deploy/rules:oci_demo_tar",
+    ],
     subject = "oci_demo",
 )
 
@@ -1958,6 +2013,9 @@ oci_deploy(
 
 deploy_analysis_test(
     name = "oci_layout_analysis",
+    artifacts = [
+        "//deploy/rules:oci_demo_layout_dir",
+    ],
     subject = "oci_demo_layout",
 )
 
@@ -1981,6 +2039,9 @@ octopus_unit_tests(name = "octopus_unit")
 
 deploy_analysis_test(
     name = "octopus_analysis",
+    artifacts = [
+        "//deploy/rules:release_demo_archive",
+    ],
     subject = "octopus_demo",
 )
 
@@ -1996,6 +2057,9 @@ promotion_unit_tests(name = "promotion_unit")
 
 deploy_analysis_test(
     name = "promotion_analysis",
+    artifacts = [
+        "//deploy/rules:release_demo_archive",
+    ],
     subject = "promotion_demo",
 )
 

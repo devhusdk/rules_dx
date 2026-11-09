@@ -1,5 +1,7 @@
 """Typed deploy configs that the shared deploy_tool reads at run time."""
 
+load(":validate.bzl", "size_budget_error")
+
 DxDeployConfigInfo = provider(
     doc = "One deploy config JSON file that the shared deploy_tool reads through DX_DEPLOY_CONFIG.",
     fields = {
@@ -52,3 +54,10 @@ def deploy_identity(name, package, version, name_error, version_error):
         if error != "":
             fail(error + where)
     return pkg, version
+
+def deployment_budget(name, size_budget, artifacts):
+    """Returns the dx_deployment size_budget and artifacts arguments, failing on a bad budget."""
+    error = size_budget_error(size_budget)
+    if error != "":
+        fail(error + " (in " + native.package_name() + ":" + name + ")")
+    return {"artifacts": artifacts, "size_budget": size_budget}

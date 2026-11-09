@@ -1,9 +1,9 @@
 """Local-first OCI publisher for dx deploy."""
 
 load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deployment_budget", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":validate.bzl", "LOWER_ALNUM", "NAME_CHARS", "only_chars", "size_budget_bytes", "size_budget_error")
+load(":validate.bzl", "LOWER_ALNUM", "NAME_CHARS", "only_chars")
 
 _VALID_TAG_CHARS = NAME_CHARS
 
@@ -158,7 +158,6 @@ def _oci_config_impl(ctx):
         "repository": ctx.attr.repository,
         "scan": ctx.attr.scan,
         "scan_severity": ctx.attr.scan_severity,
-        "size_budget_bytes": ctx.attr.size_budget_bytes,
         "tag": ctx.attr.image_tag,
     }
     if ctx.file.sbom:
@@ -176,10 +175,6 @@ _oci_config = rule(
             doc = "docker save or OCI layout archive (.tar or .tar.gz), or OCI layout directory, holding one image with uncompressed, gzip, or zstd layers.",
             allow_single_file = True,
             mandatory = True,
-        ),
-        "size_budget_bytes": attr.int(
-            doc = "Largest allowed image size in bytes, 0 for no budget.",
-            default = 0,
         ),
         "scan": attr.string(
             doc = "Image vulnerability scan with trivy: off, warn or fail.",
@@ -211,9 +206,6 @@ _oci_config = rule(
 def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = "", sbom = None, scan = "fail", scan_severity = "HIGH"):
     """Publishes one docker save or OCI layout archive or OCI layout directory holding one image for `platform`, a linux amd64 or arm64 platform label, as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push. `dx security` scans the same image (output group dx_oci_image of the `<name>_config` target) and prints one row per image."""
     effective_repo = repository if repository != "" else name
-    budget_error = size_budget_error(size_budget)
-    if budget_error != "":
-        fail(budget_error + " (in " + native.package_name() + ":" + name + ")")
     if scan not in ["off", "warn", "fail"]:
         fail("oci_deploy: invalid scan '" + str(scan) + "': want off, warn or fail (in " + native.package_name() + ":" + name + ")")
     if scan_severity not in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]:
@@ -236,7 +228,6 @@ def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_D
         repository = effective_repo,
         scan = scan,
         scan_severity = scan_severity,
-        size_budget_bytes = size_budget_bytes(size_budget),
         image_tag = image_tag,
         platform = platform,
         sbom = sbom,
@@ -248,4 +239,5 @@ def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_D
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
+        **deployment_budget(name, size_budget, [image_tar]),
     )

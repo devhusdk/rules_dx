@@ -2811,7 +2811,7 @@ mod tests {
 
     #[test]
     fn ansible_and_bicep_tags_become_sets() {
-        let module = "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.collections(name = \"cols\", lock = \"//play:lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.registry_module(name = \"storage\", ref = \"br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0\", digest = \"sha256:abc\")\nbicep.registry_module(name = \"network\", ref = \"br:mcr.microsoft.com/bicep/avm/res/network/virtual-network:0.1.0\", digest = \"sha256:def\")\n";
+        let module = "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.lock(name = \"cols\", lock = \"//play:lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.registry_module(name = \"storage\", ref = \"br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0\", digest = \"sha256:abc\")\nbicep.registry_module(name = \"network\", ref = \"br:mcr.microsoft.com/bicep/avm/res/network/virtual-network:0.1.0\", digest = \"sha256:def\")\n";
         let registry = found(module, &[]);
         let cols = registry.find("cols").expect("set");
         assert_eq!(cols.ecosystem, Ecosystem::Ansible);

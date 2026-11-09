@@ -618,7 +618,7 @@ fn ansible_plan(
     let lock = set
         .locks
         .first()
-        .ok_or_else(|| unsupported("the ansible.collections tag names no lock"))?;
+        .ok_or_else(|| unsupported("the ansible.lock tag names no lock"))?;
     let dir = lock.rsplit_once('/').map_or(".", |(dir, _)| dir);
     let Some(target) = dependency_sets::target_label_in(workspace, dir, "ansible_lock") else {
         return Err(unsupported(

@@ -286,7 +286,7 @@ pub struct DubLock<'a> {
     pub line: usize,
 }
 
-/// One `ansible.collections` tag of the rules_dx ansible extension.
+/// One `ansible.lock` tag of the rules_dx ansible extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnsibleCollections<'a> {
     pub name: &'a str,
@@ -1028,10 +1028,10 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `ansible.collections` tag of the rules_dx ansible extension in source order.
+    /// Every `ansible.lock` tag of the rules_dx ansible extension in source order.
     pub fn ansible_collections(&self) -> Result<Vec<AnsibleCollections<'_>>, ModuleError> {
-        const TAG: &str = "ansible.collections";
-        let own = self.tags_of("//ansible:extensions.bzl".to_owned(), "ansible", "collections");
+        const TAG: &str = "ansible.lock";
+        let own = self.tags_of("//ansible:extensions.bzl".to_owned(), "ansible", "lock");
         self.tags(RUBY_MODULE, "ansible:extensions.bzl", "ansible", "collections")
             .chain(own)
             .map(|call| {

@@ -6,22 +6,26 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 31] = [
+const EXPECTED_NAMES: [&str; 38] = [
     "d_app_dub",
     "dart_apitool_deps",
     "dub_fixture",
     "dx_ansible_test_collections",
+    "dx_benchee",
     "dx_crates",
+    "dx_dart_bench_deps",
     "dx_dart_deps",
     "dx_dokka",
     "dx_flutter_app_deps",
     "dx_julia_coverage",
+    "dx_julia_docs",
     "dx_julia_format",
     "dx_julia_jet",
     "dx_julia_lint",
     "dx_npm",
     "dx_npm_tools",
     "dx_perl_cpan",
+    "dx_pypi-docstrfmt",
     "dx_pypi-grpc",
     "dx_pypi-python",
     "dx_pypi-sqlfluff",
@@ -31,11 +35,14 @@ const EXPECTED_NAMES: [&str; 31] = [
     "dx_thrift_crates",
     "go",
     "haskell_app_hackage",
+    "haskell_bench_hackage",
     "haskell_exe_hackage",
+    "haskell_nixfmt_hackage",
     "haskell_weeder_hackage",
     "maven",
     "nuget",
     "ocaml_app",
+    "ocaml_fuzz",
     "rules_android_maven",
     "swiftpm",
 ];

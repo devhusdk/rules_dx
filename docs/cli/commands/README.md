@@ -573,6 +573,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_odoc_available` |
 |  |  | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_shard_action` |
 |  |  | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_typed_trees` |
+|  |  | `@rules_dx//tools/docs/perl:defs.bzl` | `docs_perl_shard` |
+|  |  | `@rules_dx//tools/docs/perl:defs.bzl` | `perl_doc_shard` |
+|  |  | `@rules_dx//tools/docs/perl:defs.bzl` | `perl_shard_action` |
 |  |  | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_doc_shard` |
 |  |  | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_shard_action` |
 |  |  | `@rules_dx//tools/docs/python:defs.bzl` | `docs_python_shard` |
@@ -655,6 +658,7 @@ API docs:
 - `@rules_dx//tools/docs/julia:defs.bzl`: Julia API doc shards.
 - `@rules_dx//tools/docs/javascript:defs.bzl`: JavaScript API doc shards.
 - `@rules_dx//tools/docs/jvm:defs.bzl`: Java and Kotlin API doc shards.
+- `@rules_dx//tools/docs/perl:defs.bzl`: Perl API doc shards.
 - `@rules_dx//tools/docs/powershell:defs.bzl`: PowerShell API doc shards.
 - `@rules_dx//tools/docs/rust:defs.bzl`: Rust API doc shards.
 - `@rules_dx//tools/docs/site:site.bzl`: docs sites built from API doc shards.

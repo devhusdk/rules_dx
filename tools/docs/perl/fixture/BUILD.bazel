@@ -1,0 +1,22 @@
+load("//perl/rules:defs.bzl", "perl_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/perl:defs.bzl", "perl_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+perl_library(
+    name = "geometry",
+    srcs = ["lib/Geometry.pm"],
+)
+
+perl_doc_shard(
+    name = "geometry_docs",
+    lib = ":geometry",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

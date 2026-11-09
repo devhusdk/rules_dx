@@ -578,7 +578,7 @@ LANGUAGES = [
         "perl",
         bench = "perl_bench",
         deps = "`cpan`",
-        doc = NO_DOC,
+        doc = struct(tool = "pod (perl)", shard = "perl_doc_shard"),
         dead_code = ["perlcritic ProhibitUnusedVariables"],
         coverage = ["DxLcov"],
         not_applicable = {

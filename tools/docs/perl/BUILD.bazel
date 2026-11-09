@@ -1,0 +1,24 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+exports_files(
+    [
+        "defs.bzl",
+        "pod_dump.pl",
+    ],
+    visibility = VIS_TOOLS,
+)
+
+
+# gazelle:exclude pod_dump.pl
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

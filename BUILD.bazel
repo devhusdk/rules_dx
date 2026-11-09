@@ -72,6 +72,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/julia/fixture
 # gazelle:exclude tools/docs/ocaml/fixture
 # gazelle:exclude tools/docs/fortran/fixture
+# gazelle:exclude tools/docs/perl/fixture
 # gazelle:exclude tools/docs/go/godoc
 # gazelle:exclude cli/depcheck/testdata
 # gazelle:exclude go/tools/analysis

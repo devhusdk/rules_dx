@@ -11,6 +11,7 @@ load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
 load("//tools/docs/javascript:defs.bzl", "javascript_doc_shard")
 load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_doc_shard")
+load("//tools/docs/perl:defs.bzl", "perl_doc_shard")
 load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
 load("//tools/docs/python:defs.bzl", "python_doc_shard")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
@@ -35,6 +36,7 @@ _SHARD_RULES = {
     "kotlin_doc_shard": kotlin_doc_shard,
     "mdx_doc_shard": mdx_doc_shard,
     "ocaml_doc_shard": ocaml_doc_shard,
+    "perl_doc_shard": perl_doc_shard,
     "powershell_doc_shard": powershell_doc_shard,
     "python_doc_shard": python_doc_shard,
     "ruby_doc_shard": ruby_doc_shard,

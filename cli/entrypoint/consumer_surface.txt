@@ -36,7 +36,7 @@ make/rules:defs.bzl
 perl/rules:defs.bzl
 php/rules:defs.bzl
 powershell/rules:defs.bzl
-powershell/rules:gallery.bzl
+powershell/toolchain:gallery.bzl
 python/rules:defs.bzl
 qt/rules:defs.bzl
 qt/rules:rust.bzl

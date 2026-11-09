@@ -7,6 +7,7 @@ load(":pins.bzl", "CELLS")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "extensions.bzl",
     "metadata_tests.bzl",
     "packages.bzl",
     "pins.bzl",
@@ -76,6 +77,7 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "extensions.bzl",
         "metadata_tests.bzl",
         "packages.bzl",
         "pins.bzl",

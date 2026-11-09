@@ -2276,7 +2276,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!scratch_out(&runner).exists());
     }
 
-    const HEX_MODULE: &str = "elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+    const HEX_MODULE: &str = "elixir = use_extension(\"//elixir/toolchain:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
 
     fn hex_harness(name: &str) -> Harness {
         let harness = consumer_harness(name, HEX_MODULE, false);
@@ -2313,7 +2313,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(launches[0].argv.iter().any(|arg| arg == "deps.update"));
     }
 
-    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//ocaml/app:ocaml_app.opam.locked\")\n";
+    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//ocaml/app:ocaml_app.opam.locked\")\n";
 
     const OPAM_FILE: &str = "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {>= \"0.8.5\"}\n  \"ocaml\" {>= \"5.5\"}\n]\n";
 
@@ -2970,7 +2970,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(cpan_bytes(&harness), before);
     }
 
-    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell/toolchain:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
     const CABAL_FILES: [&str; 4] = [
         "hs/cabal.project",
         "hs/cabal.project.freeze",

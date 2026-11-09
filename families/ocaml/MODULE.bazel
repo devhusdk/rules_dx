@@ -11,7 +11,7 @@ local_path_override(
     path = "../..",
 )
 
-ocaml = use_extension("@rules_dx//ocaml/toolchain:repos.bzl", "ocaml")
+ocaml = use_extension("@rules_dx//ocaml/toolchain:extensions.bzl", "ocaml")
 use_repo(ocaml, "dx_ocaml_toolchains")
 
 register_toolchains("@dx_ocaml_toolchains//:all")

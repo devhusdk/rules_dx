@@ -593,14 +593,14 @@ Packaging and deploy:
 
 SDK and toolchain extensions:
 
-- `@rules_dx_android//sdk:repos.bzl`: Android SDK.
+- `@rules_dx_android//sdk:extensions.bzl`: Android SDK.
 - `@rules_dx_android//toolchain:repos.bzl`: Android NDK toolchain.
 - `@rules_dx_apple//ios:simulator.bzl`: iOS simulator.
 - `@rules_dx_cuda//toolchain:repos.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
-- `@rules_dx//powershell/rules:gallery.bzl`: PowerShell Gallery modules.
-- `@rules_dx_msix//:repos.bzl`: MSIX tools.
-- `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.
+- `@rules_dx//powershell/toolchain:gallery.bzl`: PowerShell Gallery modules.
+- `@rules_dx_msix//:extensions.bzl`: MSIX tools.
+- `@rules_dx//qt/sdk:extensions.bzl`: Qt SDK.
 
 API docs:
 

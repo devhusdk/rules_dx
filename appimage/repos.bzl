@@ -81,16 +81,7 @@ def _tools_impl(rctx):
     rctx.delete("appimagetool.AppImage")
     rctx.file("BUILD.bazel", hub_build())
 
-_tools = repository_rule(
+tools_repo = repository_rule(
     implementation = _tools_impl,
     doc = "Downloads the pinned appimagetool and the type 2 runtimes.",
-)
-
-def _extension_impl(mctx):
-    _tools(name = HUB_NAME)
-    return mctx.extension_metadata(reproducible = True)
-
-appimage_tools = module_extension(
-    implementation = _extension_impl,
-    doc = "Declares the pinned AppImage tool repository.",
 )

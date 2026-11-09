@@ -18,13 +18,13 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cc", version = "0.2.27")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
-powershell = use_extension("@rules_dx//powershell/toolchain:repos.bzl", "powershell")
+powershell = use_extension("@rules_dx//powershell/toolchain:extensions.bzl", "powershell")
 use_repo(powershell, "rules_powershell")
 
-msix_tools = use_extension("//:repos.bzl", "msix_tools")
+msix_tools = use_extension("//:extensions.bzl", "msix_tools")
 use_repo(msix_tools, "dx_msix_tools")
 
-msix_dev = use_extension("//:repos.bzl", "msix_tools", dev_dependency = True)
+msix_dev = use_extension("//:extensions.bzl", "msix_tools", dev_dependency = True)
 msix_dev.license(accept = ["windows-sdk-buildtools"])
 
 register_toolchains("//toolchains:all")

@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "elixir.bzl",
+    "extensions.bzl",
     "metadata_tests.bzl",
     "pins.bzl",
     "repos.bzl",
@@ -17,6 +18,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "elixir.bzl",
+        "extensions.bzl",
         "metadata_tests.bzl",
         "pins.bzl",
         "repos.bzl",

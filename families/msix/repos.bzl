@@ -1,8 +1,7 @@
 """Windows SDK Build Tools acquisition behind an explicit license acceptance."""
 
-load("@rules_dx//libs/starlark:license.bzl", "accepted", "license_tag", "unaccepted")
-load("@rules_dx//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "LICENSE_URL", "TOOL_ARCHES")
+load("@rules_dx//libs/starlark:license.bzl", "unaccepted")
+load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_VERSION", "LICENSE", "LICENSE_URL", "TOOL_ARCHES")
 
 HUB_NAME = "dx_msix_tools"
 
@@ -34,24 +33,3 @@ def hub_build(accepted):
         else:
             text += _UNACCEPTED_ARCH.format(arch = arch, error = json.encode(UNACCEPTED))
     return text
-
-def _extension_impl(mctx):
-    if accepted(mctx, "dx_msix", LICENSE):
-        pinned_archive(
-            name = HUB_NAME,
-            files = {"BUILD.bazel": hub_build(True)},
-            sha256 = BUILDTOOLS_SHA256,
-            type = "zip",
-            urls = [BUILDTOOLS_URL],
-        )
-    else:
-        hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(False)})
-    return mctx.extension_metadata(reproducible = True)
-
-_license = license_tag("Accepts the Windows SDK Build Tools license for this build.")
-
-msix_tools = module_extension(
-    implementation = _extension_impl,
-    doc = "Declares the pinned Windows SDK Build Tools repository.",
-    tag_classes = {"license": _license},
-)

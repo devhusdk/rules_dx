@@ -4,7 +4,7 @@ Acquire a pinned Qt 6.11.3 SDK and its runtime closure without system
 packages. Nothing is fetched until a target needs it.
 
 ```python
-qt_sdk = use_extension("@rules_dx//qt/sdk:repos.bzl", "qt_sdk")
+qt_sdk = use_extension("@rules_dx//qt/sdk:extensions.bzl", "qt_sdk")
 
 qt_sdk.configure(
     modules = ["qtdeclarative"],

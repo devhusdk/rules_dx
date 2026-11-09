@@ -129,7 +129,7 @@ The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC 
 The `haskell.lock` tag turns a `haskell_deps.json` into a hub repository:
 
 ```starlark
-haskell = use_extension("@rules_dx//haskell/toolchain:repos.bzl", "haskell")
+haskell = use_extension("@rules_dx//haskell/toolchain:extensions.bzl", "haskell")
 haskell.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
 use_repo(haskell, "hackage")
 ```

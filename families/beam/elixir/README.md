@@ -97,7 +97,7 @@ named `<name>_<package>`, with the last checksum as `sha256`. The hub repo
 `<name>` has one alias per package.
 
 ```python
-elixir = use_extension("@rules_dx//elixir/toolchain:repos.bzl", "elixir")
+elixir = use_extension("@rules_dx//elixir/toolchain:extensions.bzl", "elixir")
 elixir.lock(name = "hex_deps", lock = "//:mix.lock")
 use_repo(elixir, "hex_deps")
 ```

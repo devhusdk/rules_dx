@@ -2548,7 +2548,7 @@ mod tests {
 
     #[test]
     fn opam_packages_become_opam_sets() {
-        let module = "ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.lock(name = \"app_opam\", lock = \"//ocaml/app:app.opam.locked\")\n";
+        let module = "ocaml = use_extension(\"//ocaml/toolchain:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"app_opam\", lock = \"//ocaml/app:app.opam.locked\")\n";
         let registry = found(module, &[]);
         let set = registry.find("app_opam").expect("set");
         assert_eq!(set.ecosystem, Ecosystem::Opam);
@@ -2559,7 +2559,7 @@ mod tests {
 
     #[test]
     fn haskell_packages_become_cabal_sets() {
-        let module = "haskell = use_extension(\"//haskell/toolchain:repos.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//third_party:haskell_deps.json\")\n";
+        let module = "haskell = use_extension(\"//haskell/toolchain:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//third_party:haskell_deps.json\")\n";
         let registry = found(module, &[]);
         let set = registry.find("hackage").expect("set");
         assert_eq!(set.ecosystem, Ecosystem::Cabal);
@@ -2887,7 +2887,7 @@ mod tests {
 
     #[test]
     fn elixir_mix_tags_become_hex_sets() {
-        let module = "elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+        let module = "elixir = use_extension(\"//elixir/toolchain:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
         let registry = discover(module, &|_: &str| Err("none".to_owned()))
             .expect("discovers")
             .expect("registry");

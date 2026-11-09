@@ -61,7 +61,7 @@ Pin each PowerShell Gallery module to a package URL and its digest. Nothing
 runs `Install-Module`.
 
 ```python
-psgallery_module = use_repo_rule("@rules_dx//powershell/rules:gallery.bzl", "psgallery_module")
+psgallery_module = use_repo_rule("@rules_dx//powershell/toolchain:gallery.bzl", "psgallery_module")
 
 psgallery_module(
     name = "psgallery_pester",

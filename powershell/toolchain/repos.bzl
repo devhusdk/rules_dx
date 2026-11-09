@@ -1,12 +1,9 @@
 """Hermetic PowerShell acquisition and toolchain registration."""
 
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(
     ":pins.bzl",
     "PWSH_CELLS",
     "PWSH_DOWNLOAD",
-    "RULES_POWERSHELL_SHA256",
-    "RULES_POWERSHELL_URL",
 )
 
 HUB_NAME = "dx_powershell_toolchains"
@@ -50,7 +47,7 @@ def _pwsh_impl(rctx):
     rctx.file("BUILD.bazel", _PWSH_BUILD.format(binary = cell.binary))
     return rctx.repo_metadata(reproducible = True)
 
-_pwsh = repository_rule(
+pwsh_repo = repository_rule(
     implementation = _pwsh_impl,
     doc = "Downloads the pinned PowerShell build of one platform.",
     attrs = {
@@ -68,20 +65,3 @@ def hub_build():
         )
         for cell in sorted(PWSH_CELLS.keys())
     ])
-
-def _powershell_impl(mctx):
-    pinned_archive(
-        name = "rules_powershell",
-        patches = [Label("//patches/rules_powershell:toolchain_type_alias.patch")],
-        sha256 = RULES_POWERSHELL_SHA256,
-        urls = [RULES_POWERSHELL_URL],
-    )
-    for cell in sorted(PWSH_CELLS.keys()):
-        _pwsh(name = repo_name(cell), cell = cell)
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
-    return mctx.extension_metadata(reproducible = True)
-
-powershell = module_extension(
-    implementation = _powershell_impl,
-    doc = "Creates rules_powershell, the pinned PowerShell builds and the toolchain hub.",
-)

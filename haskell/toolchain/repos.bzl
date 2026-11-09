@@ -1,18 +1,7 @@
 """Hermetic GHC acquisition and toolchain registration."""
 
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(":packages.bzl", "declare_packages")
-load(
-    ":pins.bzl",
-    "CELLS",
-    "GHC_VERSION",
-    "RULES_HASKELL_COMMIT",
-    "RULES_HASKELL_SHA256",
-    "RULES_HASKELL_URL",
-    "RUNTIME_MIRROR",
-    "qualified_cells",
-)
+load(":pins.bzl", "CELLS", "GHC_VERSION", "RUNTIME_MIRROR", "qualified_cells")
 
 HUB_NAME = "dx_haskell_toolchains"
 
@@ -252,11 +241,10 @@ SETTINGS = {
     "LLVM llvm-as command": NO_HOST_TOOL,
 }
 
-_ROOT_BUILD = """exports_files(["LICENSE"])
+ROOT_BUILD = """exports_files(["LICENSE"])
 """
 
 _GHC_BUILD = """load("@rules_cc//cc:cc_import.bzl", "cc_import")
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
 {cc_loads}load("@rules_haskell//haskell:defs.bzl", "haskell_import", "haskell_toolchain")
 
 package(default_visibility = ["//visibility:public"])
@@ -313,7 +301,6 @@ filegroup(
 # The bundled mingw clang as a C toolchain. Only the hub's gated toolchain()
 # entries select it. Loads sit at the top of the generated file.
 _MINGW_CC_LOADS = """load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
-load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
 """
 
 _MINGW_CC_BUILD = """
@@ -539,7 +526,7 @@ def _ghc_repo_impl(rctx):
     ))
     return rctx.repo_metadata(reproducible = True)
 
-_ghc_repo = repository_rule(
+ghc_repo = repository_rule(
     implementation = _ghc_repo_impl,
     doc = "Acquires one relocatable GHC bindist plus its native runtime closure.",
     attrs = {
@@ -595,45 +582,3 @@ def hub_files(cells = CELLS):
         "BUILD.bazel": "load(\"@rules_haskell//haskell:defs.bzl\", \"haskell_toolchain_library\")\n\npackage(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(content),
         TOOLCHAINS_PACKAGE + "/BUILD.bazel": "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(toolchains),
     }
-
-def _haskell_impl(mctx):
-    pinned_archive(
-        name = "rules_haskell",
-        dropped = DROPPED_PATHS,
-        files = {"BUILD.bazel": _ROOT_BUILD},
-        patches = [
-            Label("//patches/rules_haskell:coverage_wrapper_no_report.patch"),
-            Label("//patches/rules_haskell:hermetic_haskell.patch"),
-            Label("//patches/rules_haskell:cabal_rules.patch"),
-            Label("//patches/rules_haskell:toolchain_type_alias.patch"),
-            Label("//patches/rules_haskell:cc_toolchain_config_info.patch"),
-        ],
-        sha256 = RULES_HASKELL_SHA256,
-        strip_prefix = "rules_haskell-" + RULES_HASKELL_COMMIT,
-        urls = [RULES_HASKELL_URL],
-    )
-    for cell in sorted(CELLS):
-        _ghc_repo(
-            name = cell_repository_name(cell),
-            cell = cell,
-            python = Label(CELLS[cell].python),
-        )
-    hub_repo(name = HUB_NAME, files = hub_files())
-    for module in mctx.modules:
-        for tag in module.tags.lock:
-            declare_packages(mctx, tag)
-    return mctx.extension_metadata(reproducible = True)
-
-_lock = tag_class(
-    doc = "Builds the Hackage packages of a haskell_deps.json sidecar and exposes them through a hub repository.",
-    attrs = {
-        "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The haskell_deps.json written by haskell_deps_resolve."),
-        "name": attr.string(mandatory = True, doc = "Name of the hub repository, which has one alias per package and per executable."),
-    },
-)
-
-haskell = module_extension(
-    implementation = _haskell_impl,
-    tag_classes = {"lock": _lock},
-    doc = "Creates rules_haskell, the pinned GHC bindists, the toolchain hub and the Hackage package hubs.",
-)

@@ -15,7 +15,7 @@ register_toolchains(
     "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
 )
 
-android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk")
+android_sdk = use_extension("@rules_dx_android//sdk:extensions.bzl", "android_sdk")
 android_sdk.configure(accept_licenses = ["android-sdk-license"])
 use_repo(android_sdk, "dx_android_sdk", "dx_androidsdk")
 

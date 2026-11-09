@@ -38,11 +38,11 @@ register_toolchains(
 
 _android_sdk_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
 
-android_sdk = use_extension("//sdk:repos.bzl", "android_sdk")
+android_sdk = use_extension("//sdk:extensions.bzl", "android_sdk")
 use_repo(android_sdk, "dx_android_ndk_linux_x86_64", "dx_android_sdk", "dx_androidsdk")
 override_repo(_android_sdk_extension, androidsdk = "dx_androidsdk")
 
-android_sdk_dev = use_extension("//sdk:repos.bzl", "android_sdk", dev_dependency = True)
+android_sdk_dev = use_extension("//sdk:extensions.bzl", "android_sdk", dev_dependency = True)
 android_sdk_dev.license(accept = ["android-sdk-license"])
 android_sdk_dev.configure()
 

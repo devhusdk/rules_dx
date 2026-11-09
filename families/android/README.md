@@ -4,7 +4,7 @@ Acquire pinned Android SDK packages on an opt-in basis. Disabled setups
 fetch no Android payload.
 
 ```python
-android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk")
+android_sdk = use_extension("@rules_dx_android//sdk:extensions.bzl", "android_sdk")
 
 android_sdk.license(accept = ["android-sdk-license"])
 android_sdk.configure(
@@ -360,7 +360,7 @@ lock_file = ...)` the same way, or the first fetch resolves it through
 Coursier. A consumer root swaps in the SDK with:
 
 ```python
-android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk")
+android_sdk = use_extension("@rules_dx_android//sdk:extensions.bzl", "android_sdk")
 android_sdk.license(accept = ["android-sdk-license"])
 android_sdk.configure()
 use_repo(android_sdk, "dx_androidsdk")

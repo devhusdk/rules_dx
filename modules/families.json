@@ -23,7 +23,7 @@
         "toolchain"
       ],
       "extensions": [
-        "//sdk:repos.bzl%android_sdk",
+        "//sdk:extensions.bzl%android_sdk",
         "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension",
         "@rules_java//java:extensions.bzl%toolchains"
       ],
@@ -43,7 +43,7 @@
         "appimage"
       ],
       "extensions": [
-        "//appimage:repos.bzl%appimage_tools"
+        "//appimage:extensions.bzl%appimage_tools"
       ],
       "file_extensions": [],
       "gazelle": [],
@@ -110,7 +110,7 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//elixir/toolchain:repos.bzl%elixir",
+        "@rules_dx//elixir/toolchain:extensions.bzl%elixir",
         "@rules_dx//erlang/toolchain:repos.bzl%erlang"
       ],
       "file_extensions": [
@@ -326,16 +326,16 @@
         "//deploy/rules/pins:repos.bzl%semver_checks",
         "//dotnet:extensions.bzl%dotnet",
         "//dotnet:repos.bzl%dotnet_tools",
-        "//elixir/toolchain:repos.bzl%elixir",
+        "//elixir/toolchain:extensions.bzl%elixir",
         "//erlang/toolchain:repos.bzl%erlang",
         "//fortran/toolchain:repos.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
-        "//haskell/toolchain:repos.bzl%haskell",
+        "//haskell/toolchain:extensions.bzl%haskell",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
         "//lua/toolchain:repos.bzl%lua",
-        "//ocaml/toolchain:repos.bzl%ocaml",
+        "//ocaml/toolchain:extensions.bzl%ocaml",
         "//php/toolchain:repos.bzl%php",
-        "//powershell/toolchain:repos.bzl%powershell",
+        "//powershell/toolchain:extensions.bzl%powershell",
         "//quality/artifacts:extension.bzl%dx_tools",
         "//ruby/coverage:repos.bzl%ruby_coverage",
         "//ruby/toolchain:repos.bzl%ruby_tools",
@@ -423,7 +423,7 @@
         "//gazelle/vue"
       ],
       "repo_rules": [
-        "//powershell/rules:gallery.bzl%psgallery_module",
+        "//powershell/toolchain:gallery.bzl%psgallery_module",
         "//quality/artifacts/hub_test:repos.bzl%hub_fixture_repo",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
@@ -690,7 +690,7 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//haskell/toolchain:repos.bzl%haskell"
+        "@rules_dx//haskell/toolchain:extensions.bzl%haskell"
       ],
       "file_extensions": [
         ".hs"
@@ -892,8 +892,8 @@
         "toolchains"
       ],
       "extensions": [
-        "//:repos.bzl%msix_tools",
-        "@rules_dx//powershell/toolchain:repos.bzl%powershell"
+        "//:extensions.bzl%msix_tools",
+        "@rules_dx//powershell/toolchain:extensions.bzl%powershell"
       ],
       "file_extensions": [],
       "gazelle": [],
@@ -921,7 +921,7 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//ocaml/toolchain:repos.bzl%ocaml"
+        "@rules_dx//ocaml/toolchain:extensions.bzl%ocaml"
       ],
       "file_extensions": [
         ".ml",

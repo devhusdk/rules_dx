@@ -11,7 +11,7 @@ local_path_override(
     path = "../..",
 )
 
-haskell = use_extension("@rules_dx//haskell/toolchain:repos.bzl", "haskell")
+haskell = use_extension("@rules_dx//haskell/toolchain:extensions.bzl", "haskell")
 use_repo(haskell, "dx_haskell_toolchains")
 
 register_toolchains("@dx_haskell_toolchains//toolchains:all")

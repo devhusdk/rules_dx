@@ -7221,14 +7221,14 @@
         }
       }
     },
-    "//qt/sdk:repos.bzl%qt_sdk": {
+    "//qt/sdk:extensions.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "8dwUyohHvtsr4aXy5bl18RzOF26+7Prl0pqk04z6Y+g=",
-        "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
+        "bzlTransitiveDigest": "3AyC2VZzJGg4i7NDSH/STaVMvziBdln5erH1VHNoVgk=",
+        "usagesDigest": "HRmJHBhAllRM7yd3/3jSXN8KuMksqbmGdvKd1+Ak7Wk=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "dx_qt_linux_arm64": {
-            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "repoRuleId": "@@//qt/sdk:repos.bzl%qt_cell_repo",
             "attributes": {
               "cell": "linux_arm64",
               "entry": "",
@@ -7242,7 +7242,7 @@
             }
           },
           "dx_qt_linux_x86_64": {
-            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "repoRuleId": "@@//qt/sdk:repos.bzl%qt_cell_repo",
             "attributes": {
               "cell": "linux_x86_64",
               "entry": "",
@@ -7256,7 +7256,7 @@
             }
           },
           "dx_qt_macos_arm64": {
-            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "repoRuleId": "@@//qt/sdk:repos.bzl%qt_cell_repo",
             "attributes": {
               "cell": "macos_arm64",
               "entry": "",
@@ -7270,7 +7270,7 @@
             }
           },
           "dx_qt_windows_arm64": {
-            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "repoRuleId": "@@//qt/sdk:repos.bzl%qt_cell_repo",
             "attributes": {
               "cell": "windows_arm64",
               "entry": "",
@@ -7284,7 +7284,7 @@
             }
           },
           "dx_qt_windows_x86_64": {
-            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "repoRuleId": "@@//qt/sdk:repos.bzl%qt_cell_repo",
             "attributes": {
               "cell": "windows_x86_64",
               "entry": "",
@@ -91962,7 +91962,7 @@
     }
   },
   "facts": {
-    "//ocaml/toolchain:repos.bzl%ocaml": {
+    "//ocaml/toolchain:extensions.bzl%ocaml": {
       "691408b00730fcedbd3e30ccdb42c388a83fd304/astring.0.8.5": {
         "needs": [
           "ocamlfind",

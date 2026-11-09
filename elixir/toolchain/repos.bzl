@@ -1,23 +1,8 @@
 """Hermetic Elixir acquisition and toolchain registration."""
 
-load("//elixir/rules:hex.bzl", "hex_extract", "hex_package")
-load("//elixir/rules:mix_lock.bzl", "mix_lock_packages")
+load("//elixir/rules:hex.bzl", "hex_extract")
 load("//erlang/toolchain:pins.bzl", "CELLS")
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(
-    ":pins.bzl",
-    "CREDO_PACKAGES",
-    "DIALYZER_PLT_ELIXIR",
-    "ELIXIR_APPLICATIONS",
-    "ELIXIR_CELLS",
-    "ELIXIR_SHA256",
-    "ELIXIR_URL",
-    "ELIXIR_VERSION",
-    "RULES_ELIXIR_COMMIT",
-    "RULES_ELIXIR_DROPPED",
-    "RULES_ELIXIR_SHA256",
-    "RULES_ELIXIR_URL",
-)
+load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION")
 
 HUB_NAME = "dx_elixir_toolchains"
 
@@ -53,7 +38,6 @@ def elixir_bat(source):
     return source.replace(BAT_ERL_OPTIONS_MARKER, '  "%ERTS_BIN%erl.exe" ' + UNICODE_ERL_OPTIONS.strip() + " %ELIXIR_ERL_OPTIONS%")
 
 _DIST_BUILD = """load("@rules_dx//elixir/toolchain:elixir.bzl", "dx_elixir")
-load("@rules_elixir//:elixir_toolchain.bzl", "elixir_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -153,7 +137,7 @@ def _credo_impl(rctx):
     rctx.file("BUILD.bazel", "")
     return rctx.repo_metadata(reproducible = True)
 
-_credo = repository_rule(
+credo_repo = repository_rule(
     implementation = _credo_impl,
     doc = "Builds the pinned Credo and its dependencies from Hex sources.",
 )
@@ -174,7 +158,7 @@ def _dist_impl(rctx):
     rctx.file("BUILD.bazel", _DIST_BUILD.format(version_file = VERSION_FILE, dialyzer_beams = "".join([_DIALYZER_BEAMS.format(app = app) for app in DIALYZER_PLT_ELIXIR])))
     return rctx.repo_metadata(reproducible = True)
 
-_dist = repository_rule(
+dist_repo = repository_rule(
     implementation = _dist_impl,
     doc = "Acquires the pinned precompiled Elixir distribution.",
 )
@@ -219,54 +203,3 @@ def mix_build(package, prefix):
 def mix_hub_build(packages, prefix):
     """Returns the hub BUILD file with one alias per package."""
     return "\n".join([_ALIAS.format(package = p["package"], repo = prefix + "_" + p["package"]) for p in packages])
-
-def _declare_mix(mctx, tag):
-    packages = mix_lock_packages(mctx.read(tag.lock))
-    for package in packages:
-        hex_package(
-            name = tag.name + "_" + package["package"],
-            build_file_content = mix_build(package, tag.name),
-            package = package["package"],
-            sha256 = package["sha256"],
-            version = package["version"],
-        )
-    hub_repo(name = tag.name, files = {"BUILD.bazel": mix_hub_build(packages, tag.name)})
-
-def _elixir_impl(mctx):
-    pinned_archive(
-        name = "rules_elixir",
-        dropped = RULES_ELIXIR_DROPPED,
-        patches = [
-            # Applied in this order: the deps patch builds on the name patch.
-            Label("//patches/rules_elixir:elixir_app_name.patch"),
-            Label("//patches/rules_elixir:elixir_app_deps.patch"),
-            Label("//patches/rules_elixir:warnings_as_errors.patch"),
-            Label("//patches/rules_elixir:relocatable_tree.patch"),
-            Label("//patches/rules_elixir:toolchain_type_alias.patch"),
-            Label("//patches/rules_elixir:windows_ex_unit_test.patch"),
-        ],
-        sha256 = RULES_ELIXIR_SHA256,
-        strip_prefix = "rules_elixir-" + RULES_ELIXIR_COMMIT,
-        urls = [RULES_ELIXIR_URL],
-    )
-    _dist(name = DIST_NAME)
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(ELIXIR_CELLS)})
-    _credo(name = CREDO_NAME)
-    for module in mctx.modules:
-        for tag in module.tags.lock:
-            _declare_mix(mctx, tag)
-    return mctx.extension_metadata(reproducible = True)
-
-elixir = module_extension(
-    implementation = _elixir_impl,
-    doc = "Creates rules_elixir, the pinned Elixir tree and the toolchain hub.",
-    tag_classes = {
-        "lock": tag_class(
-            doc = "Declares a hex_package per Hex entry of a mix.lock and a hub repo with one alias per package.",
-            attrs = {
-                "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The mix.lock to read."),
-                "name": attr.string(mandatory = True, doc = "Hub repository name; package repos are named <name>_<package>."),
-            },
-        ),
-    },
-)

@@ -656,7 +656,7 @@ go_deps.from_file(go_mod = "//third_party/go:go.mod")
 ### cabal
 
 ```starlark
-haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
+haskell = use_extension("//haskell/toolchain:extensions.bzl", "haskell")
 haskell.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
 ```
 

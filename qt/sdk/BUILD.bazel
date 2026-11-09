@@ -8,6 +8,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "cell_json.bzl",
+    "extensions.bzl",
     "launcher.c",
     "layout_linux.bzl",
     "layout_macos.bzl",
@@ -42,6 +43,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "cell_json.bzl",
+        "extensions.bzl",
         "layout_linux.bzl",
         "layout_macos.bzl",
         "layout_windows.bzl",

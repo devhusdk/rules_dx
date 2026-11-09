@@ -10,7 +10,6 @@ SHARPFUZZ = [
 
 _SUPPORTED = select({
     "@platforms//os:linux": [],
-    "@platforms//os:windows": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 

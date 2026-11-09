@@ -2589,6 +2589,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hermetic"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

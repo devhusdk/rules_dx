@@ -44,38 +44,42 @@ filegroup(
 rust_library(
     name = "hermetic",
     testonly = True,
-    srcs = [
-        "src/lib.rs",
-        "src/tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "tools/dx_testing",
+        package_name = "tools/testing/hermetic",
         normal = True,
     ),
     crate_name = "hermetic",
     crate_root = "src/lib.rs",
     target_compatible_with = MANIFEST_HOSTS,
     deps = all_crate_deps(
-        package_name = "tools/dx_testing",
+        package_name = "tools/testing/hermetic",
         normal = True,
     ) + [
-        "//libs/binfmt:dx_binfmt",
         "//cli/lcov:dx_lcov",
         "//cli/process:dx_process",
-        "//tools/testing/nested:dx_nested",
+        "//libs/binfmt:dx_binfmt",
         "//tools/testing:dx_testing",
         "//tools/testing/floor:dx_floor",
+        "//tools/testing/nested:dx_nested",
+        "@crates//:serde_json",
     ],
 )
 
 rust_test(
     name = "hermetic_unit_test",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
     aliases = aliases(
-        package_name = "tools/dx_testing",
+        package_name = "tools/testing/hermetic",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":hermetic",
+    coverage_lib = ":hermetic",
+    crate_name = "hermetic",
+    crate_root = "src/lib.rs",
     data = [
         ":cpp_rust_manifest",
     ],
@@ -85,18 +89,35 @@ rust_test(
     tags = ["no-remote-exec"],
     target_compatible_with = MANIFEST_HOSTS,
     deps = all_crate_deps(
-        package_name = "tools/dx_testing",
+        package_name = "tools/testing/hermetic",
         normal = True,
         normal_dev = True,
-    ),
+    ) + [
+        "//cli/lcov:dx_lcov",
+        "//cli/process:dx_process",
+        "//libs/binfmt:dx_binfmt",
+        "//tools/testing:dx_testing",
+        "//tools/testing/floor:dx_floor",
+        "//tools/testing/nested:dx_nested",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_binary(
     name = "verify",
     testonly = True,
     srcs = ["verify.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+    ),
+    crate_name = "verify",
+    crate_root = "verify.rs",
     target_compatible_with = LINUX_MACOS_WINDOWS,
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+    ) + [
         ":hermetic",
         "//tools/testing:dx_testing",
     ],
@@ -105,11 +126,23 @@ rust_binary(
 rust_test(
     name = "consumer_repos_test",
     srcs = ["consumer_repos_test.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "consumer_repos_test",
+    crate_root = "consumer_repos_test.rs",
     data = glob([
         "consumers/**/*BUILD.bazel",
         "consumers/*/module_fragment.bazel",
     ]),
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":hermetic",
         "//libs/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
     ],
@@ -118,9 +151,20 @@ rust_test(
 rust_test(
     name = "isolation_probe_test",
     srcs = ["isolation_test.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "isolation_probe_test",
+    crate_root = "isolation_test.rs",
     tags = QUALIFICATION_TAGS,
     target_compatible_with = MANIFEST_HOSTS,
-    deps = [":hermetic"],
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ) + [":hermetic"],
 )
 
 rust_binary(
@@ -132,32 +176,45 @@ rust_binary(
         "appcontainer/user.rs",
     ],
     aliases = aliases(
-        package_name = "tools/dx_testing",
+        package_name = "tools/testing/hermetic",
         normal = True,
     ),
+    crate_name = "appcontainer_run",
     crate_root = "appcontainer/main.rs",
     target_compatible_with = WINDOWS,
     deps = all_crate_deps(
-        package_name = "tools/dx_testing",
+        package_name = "tools/testing/hermetic",
         normal = True,
-    ),
-)
-
-rust_test(
-    name = "appcontainer_args_test",
-    srcs = ["appcontainer/args.rs"],
+    ) + [":hermetic"],
 )
 
 rust_binary(
     name = "isolation_windows_probe",
     testonly = True,
     srcs = ["isolation_windows_probe.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+    ),
+    crate_name = "isolation_windows_probe",
+    crate_root = "isolation_windows_probe.rs",
     target_compatible_with = WINDOWS,
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+    ) + [":hermetic"],
 )
 
 rust_test(
     name = "isolation_windows_probe_test",
     srcs = ["isolation_windows_test.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "isolation_windows_probe_test",
+    crate_root = "isolation_windows_test.rs",
     data = [
         ":appcontainer_run",
         ":isolation_windows_probe",
@@ -168,7 +225,11 @@ rust_test(
     },
     tags = QUALIFICATION_TAGS,
     target_compatible_with = WINDOWS,
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ) + [
         ":hermetic",
         "//tools/testing:dx_testing",
     ],
@@ -797,9 +858,21 @@ hermetic_qualification(
 rust_test(
     name = "cuda_gpu_facts_test",
     srcs = ["cuda_gpu_test.rs"],
-    deps = [
-        "//tools/testing/nested:dx_nested",
+    aliases = aliases(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cuda_gpu_facts_test",
+    crate_root = "cuda_gpu_test.rs",
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":hermetic",
         "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
     ],
 )
 
@@ -1162,4 +1235,25 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+)
+
+rust_test(
+    name = "appcontainer_run_bin_test",
+    aliases = aliases(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":appcontainer_run",
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

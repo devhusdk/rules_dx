@@ -24,7 +24,11 @@ sh_test(
 
 `dx bench` selects the `dx-bench` tests inside the scope with `attr(tags, ...)` over `tests(<scope>)`, then runs them with `--runs_per_test=1 --nocache_test_results --local_test_jobs=1 --test_output=errors --test_env=DX_BENCH=1`. Bazel flags after `--` are forwarded, except the ones dx owns.
 
-Every `<lang>_bench` macro (`go_bench`, `rust_bench`, `java_bench`, `kotlin_bench`, `python_bench`, `csharp_bench`, `fsharp_bench`, `d_bench`, `javascript_bench`, `typescript_bench`, `cc_bench`, `zig_bench`, `perl_bench`, `ruby_bench`, `dart_bench`, `php_bench`, `elixir_bench`, `erlang_bench`) declares `<name>` as the manual `dx-bench` test dx runs. Test attributes such as `size` (default `small`), `timeout`, `env`, `args`, `data`, `flaky` and `shard_count` go to `<name>`, the other attributes go to the private `<name>_bin`, and `tags` are merged with `dx-bench` and `manual`.
+Every `<lang>_bench` macro declares `<name>` as the manual `dx-bench` test dx runs, and merges `tags` with `dx-bench` and `manual`. How attributes are split depends on the macro:
+
+- `cc_bench`, `d_bench`, `go_bench`, `haskell_bench`, `rust_bench`, `swift_bench` and `zig_bench` declare a private `<name>_bin` plus a `<name>` runner. Test attributes such as `size` (default `small`), `timeout`, `env`, `args`, `data`, `flaky` and `shard_count` go to `<name>`, the other attributes go to `<name>_bin`.
+- `java_bench`, `kotlin_bench` and `scala_bench` declare a JMH library `<name>_bin` plus a `<name>` runner, with the same split and the same `size` default.
+- `csharp_bench`, `fsharp_bench`, `dart_bench`, `elixir_bench`, `erlang_bench`, `javascript_bench`, `perl_bench`, `php_bench`, `python_bench`, `ruby_bench` and `typescript_bench` declare only the `<name>` test, which takes every attribute. They declare no `_bin` and set no `size` default, so Bazel's default applies.
 
 Go: `go_bench(name, srcs, embed = ...)` from `//go/rules:defs.bzl` runs the `Benchmark*` functions with `-test.bench=. -test.benchmem` and turns each `ns/op`, `B/op` and `allocs/op` column into one result named `<Benchmark> <unit>`. The Go gazelle extension adds `<name>_bench` next to the `go_test` when a test file declares a `Benchmark*` function.
 

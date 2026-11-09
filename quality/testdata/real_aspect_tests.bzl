@@ -740,6 +740,17 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_powershell_library_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_protobuf_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/protobuf/fixture/_dx_docs/shop_proto.ir.pb
+field dx_docs_sites=(none)
+field dx_results=shop_proto.ir.pb
+field label=//tools/docs/protobuf/fixture:shop_proto
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_protobuf_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_python_library_subject
 field docs_shard_count=1
 field docs_shards=tools/docs/python/fixture/_dx_docs/mylib.ir.pb

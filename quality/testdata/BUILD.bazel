@@ -2004,6 +2004,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_protobuf_library_subject",
+    target = "//tools/docs/protobuf/fixture:shop_proto",
+)
+
+real_docs_subject(
     name = "docs_ruby_library_subject",
     target = "//tools/docs/ruby/fixture:geometry",
 )
@@ -2057,6 +2062,7 @@ real_docs_tests(
         ":docs_php_library_subject",
         ":docs_plain_subject",
         ":docs_powershell_library_subject",
+        ":docs_protobuf_library_subject",
         ":docs_python_library_subject",
         ":docs_ruby_library_subject",
         ":docs_rust_library_subject",

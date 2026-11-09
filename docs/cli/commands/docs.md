@@ -105,6 +105,7 @@ tools/dx docs //lib:site
 | Dart | `@rules_dx//tools/docs/dart:defs.bzl` | `dart_doc_shard` | `lib`, `package` |
 | C# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
 | F# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
+| Protobuf | `@rules_dx//tools/docs/protobuf:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
 
 Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Dart, C#, F# and Perl libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
@@ -114,5 +115,13 @@ C, C++ and CUDA shards document the public `hdrs` of a `cc_library` or
 `cuda_library` with the pinned Doxygen 1.18.0 (XML output, no host install).
 Doxygen publishes no Linux arm64 or Windows arm64 build, so those hosts get no
 C, C++ or CUDA API docs.
+
+A `proto_library` in scope that has no shard gets one automatically. Protobuf
+shards come from the protoc of the registered proto toolchain run with
+`--include_source_info`, so no tool beyond protoc is pinned. A message becomes
+a class, a field a field, an enum and its values an enum and its variants, a
+service an interface and an rpc a method. The comment above an item, or after
+it on the same line, is its doc text. A `map<K, V>` field shows as a map and
+its generated entry message is left out. Streaming rpcs say `stream`.
 
 A source error fails the build and writes no pages. Bazel's exit code is kept.

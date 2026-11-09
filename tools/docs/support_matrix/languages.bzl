@@ -607,7 +607,7 @@ LANGUAGES = [
     _language(
         "protobuf",
         deps = "none: schemas only, no packages",
-        doc = NO_DOC,
+        doc = struct(tool = "protoc", shard = "protobuf_doc_shard"),
         dead_code = ["none"],
     ),
     _language(

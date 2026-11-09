@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package shop.v1;
+
+import "tools/docs/protobuf/fixture/common.proto";
+
+// A customer order.
+message Order {
+  // One line of an order.
+  message Line {
+    // The product's SKU.
+    string sku = 1;
+    // How many units were bought.
+    int32 quantity = 2;
+  }
+
+  // The order id.
+  string id = 1;
+  // Where the order stands.
+  Status status = 2;
+  // The lines of the order.
+  repeated Line lines = 3;
+  // Free-form labels keyed by name.
+  map<string, string> labels = 4;
+  // When the order was placed.
+  Stamp placed = 5;
+}
+
+// A request for one order.
+message GetOrderRequest {
+  // The id of the order to read.
+  string id = 1;
+}
+
+// The order API.
+service Shop {
+  // Reads one order.
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  // Streams every change to the orders a client watches.
+  rpc Watch(stream GetOrderRequest) returns (stream Order);
+}

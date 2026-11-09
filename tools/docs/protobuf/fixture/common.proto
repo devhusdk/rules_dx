@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package shop.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// How an order is going.
+enum Status {
+  // No status was set.
+  STATUS_UNSPECIFIED = 0;
+  // The order waits for payment.
+  STATUS_OPEN = 1;
+  // The order was paid.
+  STATUS_PAID = 2;
+}
+
+// A moment on the shop's clock.
+message Stamp {
+  // When the moment happened.
+  google.protobuf.Timestamp at = 1;
+}

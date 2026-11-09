@@ -4000,6 +4000,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "protobuf_extract"
+version = "0.0.0"
+
+[[package]]
 name = "pulldown-cmark"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

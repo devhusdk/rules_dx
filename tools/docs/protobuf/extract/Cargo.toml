@@ -1,0 +1,15 @@
+[package]
+license = "Apache-2.0"
+name = "protobuf_extract"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+
+[lib]
+name = "dx_docs_protobuf_extract"
+path = "src/lib.rs"
+
+[[bin]]
+name = "protobuf_extract"
+path = "src/main.rs"

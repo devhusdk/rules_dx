@@ -4,8 +4,8 @@ use clap::ValueEnum;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event};
 use dx_output::{
-    CapabilityEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent, TierEvent,
-    ToolConfigEvent, capability_event, command_finished, command_started, owned_file_event,
+    CapabilityEvent, FamilyToolsEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent, TierEvent,
+    ToolConfigEvent, capability_event, command_finished, command_started, family_tools_event, owned_file_event,
     status_event, tier_event, tool_config_event,
 };
 use dx_plan::args::grammar::advertises_passthrough;
@@ -200,6 +200,7 @@ fn owned_files(workspace: &std::path::Path) -> Result<Vec<OwnedFileEvent>, Strin
 struct Bindings {
     tiers: Vec<TierEvent>,
     configs: Vec<ToolConfigEvent>,
+    tools: Vec<FamilyToolsEvent>,
     problem: Option<dx_adopt::StatusCheck>,
 }
 
@@ -212,6 +213,35 @@ fn problem_check(name: &str, detail: String) -> dx_adopt::StatusCheck {
     }
 }
 
+/// The tools each detected, enabled family runs per capability, after `dx.toml` edits.
+fn family_tools(
+    selection: &dx_config::Selection,
+    detected: &std::collections::BTreeSet<String>,
+) -> Vec<FamilyToolsEvent> {
+    let mut events = Vec::new();
+    for (id, family) in &selection.families {
+        if !detected.contains(id) {
+            continue;
+        }
+        let capabilities = [
+            ("lint", &family.lint),
+            ("format", &family.format),
+            ("typecheck", &family.typecheck),
+            ("audit", &family.audit),
+        ];
+        for (capability, tools) in capabilities {
+            if !tools.is_empty() {
+                events.push(FamilyToolsEvent {
+                    family: id.clone(),
+                    capability: capability.to_owned(),
+                    tools: tools.clone(),
+                });
+            }
+        }
+    }
+    events
+}
+
 fn bindings(workspace: &std::path::Path) -> Bindings {
     let config = match dx_config::load(workspace) {
         Ok(config) => config,
@@ -219,6 +249,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
             return Bindings {
                 tiers: Vec::new(),
                 configs: Vec::new(),
+                tools: Vec::new(),
                 problem: Some(problem_check("dx.toml", error.to_string())),
             };
         }
@@ -244,6 +275,13 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
         }));
     }
     let mut problem = None;
+    let tools = match dx_config::effective(config.as_ref()) {
+        Ok(selection) => family_tools(&selection, &families),
+        Err(error) => {
+            problem = Some(problem_check("dx.toml", error.to_string()));
+            Vec::new()
+        }
+    };
     let mut root_files = std::collections::BTreeSet::new();
     match std::fs::read_dir(workspace) {
         Ok(entries) => {
@@ -276,6 +314,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
     Bindings {
         tiers,
         configs,
+        tools,
         problem,
     }
 }
@@ -388,7 +427,8 @@ pub(crate) fn execute_status(
             .tiers
             .iter()
             .map(tier_event)
-            .chain(bound.configs.iter().map(tool_config_event));
+            .chain(bound.configs.iter().map(tool_config_event))
+            .chain(bound.tools.iter().map(family_tools_event));
         for event in events {
             match event {
                 Ok(event) => {
@@ -446,7 +486,15 @@ pub(crate) fn execute_status(
         .configs
         .iter()
         .map(|config| format!("config {}: {}", config.tool, config.file));
-    for line in tier_lines.chain(config_lines) {
+    let tool_lines = bound.tools.iter().map(|entry| {
+        format!(
+            "tools {} {}: {}",
+            entry.family,
+            entry.capability,
+            entry.tools.join(", ")
+        )
+    });
+    for line in tier_lines.chain(config_lines).chain(tool_lines) {
         if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
             return exit;
         }
@@ -758,6 +806,31 @@ mod tests {
             .find(|event| event["event"] == "tier" && event["family"] == "python")
             .expect("family tier event");
         assert_eq!(family["tier"], "strict");
+    }
+
+    #[test]
+    fn status_lists_the_effective_tools_per_family() {
+        let files = [
+            ("a.py", "x = 1\n"),
+            (
+                "dx.toml",
+                "schema_version = 1\nskip_tools = [\"typos\"]\n[families.python]\nformat = [\"-ruff\"]\n",
+            ),
+        ];
+        let out = status_with(&files, &["status"]);
+        assert!(out.contains("tools python lint: ruff\n"), "{out}");
+        assert!(out.contains("tools python typecheck: ty\n"), "{out}");
+        assert!(!out.contains("tools python format"), "{out}");
+        let json = json_events(&status_with(&files, &["status", "--output=json"]));
+        let lint = json
+            .iter()
+            .find(|event| {
+                event["event"] == "tools"
+                    && event["family"] == "python"
+                    && event["capability"] == "lint"
+            })
+            .expect("python lint tools event");
+        assert_eq!(lint["tools"], serde_json::json!(["ruff"]));
     }
 
     #[test]

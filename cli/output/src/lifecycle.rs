@@ -29,6 +29,7 @@ pub const EVENTS: &[&str] = &[
     "test_outcome",
     "tier",
     "tool_config",
+    "tools",
 ];
 
 pub fn schema() -> Value {
@@ -278,6 +279,28 @@ pub fn tool_config_event(config: &ToolConfigEvent) -> Result<Value, OutputError>
     let mut map = base("tool_config");
     map.insert("tool".to_owned(), Value::String(config.tool.clone()));
     map.insert("file".to_owned(), Value::String(config.file.clone()));
+    Ok(Value::Object(map))
+}
+
+/// The tools a family runs for one capability after `dx.toml` edits.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FamilyToolsEvent {
+    pub family: String,
+    /// `lint`, `format`, `typecheck` or `audit`.
+    pub capability: String,
+    pub tools: Vec<String>,
+}
+
+pub fn family_tools_event(entry: &FamilyToolsEvent) -> Result<Value, OutputError> {
+    nonempty("family", &entry.family)?;
+    nonempty("capability", &entry.capability)?;
+    let mut map = base("tools");
+    map.insert("family".to_owned(), Value::String(entry.family.clone()));
+    map.insert("capability".to_owned(), Value::String(entry.capability.clone()));
+    map.insert(
+        "tools".to_owned(),
+        Value::Array(entry.tools.iter().cloned().map(Value::String).collect()),
+    );
     Ok(Value::Object(map))
 }
 

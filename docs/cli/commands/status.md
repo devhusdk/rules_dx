@@ -60,7 +60,7 @@ tier python: standard [source: dx.toml]
 config ruff: ruff.toml
 ```
 
-`tier` is `standard` or `strict`. `source` is `dx.toml` when it sets `tier` and `default` otherwise. A detected, enabled family that sets its own `tier` in `dx.toml` adds a `tier <family>: ...` line. One `config <tool>: <root file>` line follows for each tool of a detected family whose root config file exists; `//.dx:<tool>` binds that file.
+`tier` is `standard` or `strict`. `source` is `dx.toml` when it sets `tier` and `default` otherwise. A detected, enabled family that sets its own `tier` in `dx.toml` adds a `tier <family>: ...` line. One `config <tool>: <root file>` line follows for each tool of a detected family whose root config file exists; `//.dx:<tool>` binds that file. One `tools <family> <capability>: <tool>, ...` line follows for each detected, enabled family and capability that has tools, after `skip_tools` and the `+`/`-` edits in `dx.toml`.
 
 With `--capabilities`, text adds one `capability <name>` line per command.
 
@@ -68,7 +68,7 @@ With `--files`, text adds one `file <path> <owns> <state>` line per file `dx ini
 
 JSON streams `command_started`, one `status` event per check (`name`, `status`, `detail`, `hint`), then `command_finished`. With `--capabilities` it adds one `capability` event per command (`name`, `source`, `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`, `effect`, `passthrough`). `source` is `cli-grammar` or `workspace-record`. `availability` is `available`, `unavailable` or `unknown`.
 
-JSON adds a `tier` event (`tier`, `source`, and `family` for a per-family tier) and one `tool_config` event (`tool`, `file`) per bound root config, before any `capability` events.
+JSON adds a `tier` event (`tier`, `source`, and `family` for a per-family tier) and one `tool_config` event (`tool`, `file`) per bound root config, and one `tools` event (`family`, `capability`, `tools`) per line above, before any `capability` events.
 
 With `--files` JSON adds one `owned_file` event per file (`path`, `owns`, `state`).
 

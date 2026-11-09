@@ -35,7 +35,7 @@ pub use findings::{
 };
 pub use lifecycle::{
     ActionCounts, BuildFailureEvent, CapabilityEvent, ChangedLineCoverageEvent, ConfigFileEvent, CoverageEvent,
-    EVENT_MESSAGE_LIMIT, EVENTS, FAILING_CASE_LIMIT, FailureDiagnostic, FailureFacts,
+    EVENT_MESSAGE_LIMIT, EVENTS, FamilyToolsEvent, family_tools_event, FAILING_CASE_LIMIT, FailureDiagnostic, FailureFacts,
     FailureRelated, FindingCounts, FinishedCounts, OwnedFileEvent, PlanFindingEvent, SCHEMA_MAJOR, SCHEMA_MINOR,
     SlotEvent, StatusEvent, SummaryEvent, TestCase, TestCounts, TestOutcome, TierEvent,
     ToolConfigEvent, build_failure_event, capability_event, capability_value,

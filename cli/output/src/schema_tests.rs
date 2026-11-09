@@ -342,6 +342,12 @@ fn samples() -> Vec<Value> {
             file: "ruff.toml".to_owned(),
         })
         .expect("tool config"),
+        family_tools_event(&FamilyToolsEvent {
+            family: "python".to_owned(),
+            capability: "lint".to_owned(),
+            tools: vec!["ruff".to_owned()],
+        })
+        .expect("family tools"),
         config_file_event(&ConfigFileEvent {
             tool: "hlint".to_owned(),
             file: ".hlint.yaml".to_owned(),

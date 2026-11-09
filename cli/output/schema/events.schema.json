@@ -74,6 +74,9 @@
     },
     {
       "$ref": "#/$defs/tool_config"
+    },
+    {
+      "$ref": "#/$defs/tools"
     }
   ],
   "$defs": {
@@ -1918,6 +1921,45 @@
         "event",
         "tool",
         "file"
+      ],
+      "additionalProperties": false
+    },
+    "tools": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "event": {
+          "const": "tools"
+        },
+        "correlation": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string"
+        },
+        "capability": {
+          "enum": [
+            "lint",
+            "format",
+            "typecheck",
+            "audit"
+          ]
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "schema",
+        "event",
+        "family",
+        "capability",
+        "tools"
       ],
       "additionalProperties": false
     }

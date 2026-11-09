@@ -14,7 +14,7 @@ fn check_mode_clean_run_succeeds() {
     let (code, out, err) = harness.run(&["lint", "//...", "--output=text"]);
     assert_eq!(code, 0);
     assert!(out.contains("Running lint analysis for"));
-    assert_eq!(err, "");
+    assert_eq!(err, "no findings in 0 target(s)\n");
 }
 
 #[test]
@@ -754,7 +754,7 @@ fn typed_quality_request_preserves_passthrough_and_default_scope() {
     let (code, out, err) = harness.run(&["lint", "--output=text", "--", "--jobs=4"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running lint analysis for //..."), "{out}");
-    assert_eq!(err, "", "{err}");
+    assert_eq!(err, "no findings in 0 target(s)\n", "{err}");
 }
 
 fn quality_phase(harness: &Harness, words: &[&str]) -> super::PhaseRun {

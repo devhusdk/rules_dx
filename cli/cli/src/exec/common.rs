@@ -2,8 +2,8 @@ use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
 use dx_output::{
-    ActionCounts, ChangeEvent, ChangeKind, FindingRecord, NoticeEvent, OutputMode, Span,
-    command_started, notice_event, write_event,
+    ActionCounts, ChangeEvent, ChangeKind, DiagnosticEvent, FindingRecord, NoticeEvent, OutputMode,
+    Severity, Span, command_started, notice_event, write_event,
 };
 use dx_plan::args::Invocation;
 use dx_plan::reports::Destination;
@@ -538,13 +538,63 @@ fn place(path: Option<&String>, span: Option<Span>) -> String {
     }
 }
 
+fn severity_word(severity: Severity, color: bool) -> String {
+    let name = severity.name();
+    let code = match severity {
+        Severity::Error => "31",
+        Severity::Warning => "33",
+        Severity::Info => return name.to_owned(),
+    };
+    if color {
+        format!("\x1b[{code}m{name}\x1b[0m")
+    } else {
+        name.to_owned()
+    }
+}
+
+/// The closing stderr line of a text-mode lint, typecheck or format run.
+pub(crate) fn findings_summary(diagnostics: &[DiagnosticEvent], targets: usize) -> String {
+    let count = |severity: Severity| {
+        diagnostics
+            .iter()
+            .filter(|d| d.severity == severity)
+            .count()
+    };
+    let (errors, warnings, infos) = (
+        count(Severity::Error),
+        count(Severity::Warning),
+        count(Severity::Info),
+    );
+    if diagnostics.is_empty() {
+        return format!("no findings in {targets} target(s)");
+    }
+    let files: std::collections::BTreeSet<_> = diagnostics
+        .iter()
+        .filter_map(|d| d.path.as_deref())
+        .collect();
+    let fixable = diagnostics.iter().filter(|d| d.fixable).count();
+    let mut line = format!("{errors} error(s), {warnings} warning(s)");
+    if infos > 0 {
+        line.push_str(&format!(", {infos} info"));
+    }
+    line.push_str(&format!(" in {} file(s)", files.len()));
+    if fixable > 0 {
+        line.push_str(&format!(", {fixable} fixable with --apply"));
+    }
+    line
+}
+
 pub(crate) fn text_finding(record: &FindingRecord) -> String {
+    text_finding_colored(record, dx_output::color_enabled())
+}
+
+fn text_finding_colored(record: &FindingRecord, color: bool) -> String {
     let diagnostic = &record.diagnostic;
     let span = diagnostic.range.and(record.span);
     let mut line = format!(
         "{}: {}: {} [{}",
         place(diagnostic.path.as_ref(), span),
-        diagnostic.severity.name(),
+        severity_word(diagnostic.severity, color),
         diagnostic.message,
         diagnostic.tool
     );
@@ -1103,7 +1153,7 @@ mod tests {
             "dx: 20 actions, 6 executed, 14 cached\n"
         );
     }
-    use dx_output::{DiagnosticEvent, FinishedCounts, Severity, command_finished};
+    use dx_output::{FinishedCounts, command_finished};
     use std::cell::RefCell;
     use std::path::PathBuf;
     use std::rc::Rc;
@@ -1702,6 +1752,28 @@ mod tests {
             text_finding(&record),
             "src/a.py:2:3: warning: mapped [lint-tool/rule] (x3)"
         );
+    }
+
+    #[test]
+    fn text_finding_colors_severity_only_when_asked() {
+        let mut record = finding(Some("src/a.py"), None);
+        record.diagnostic.severity = Severity::Error;
+        assert!(text_finding_colored(&record, true).contains("\x1b[31merror\x1b[0m"));
+        assert!(!text_finding_colored(&record, false).contains('\x1b'));
+    }
+
+    #[test]
+    fn summary_counts_findings_files_and_fixable() {
+        let mut error = DiagnosticEvent::new(Severity::Error, "t", "m");
+        error.path = Some("a.py".to_owned());
+        let mut warning = DiagnosticEvent::new(Severity::Warning, "t", "m");
+        warning.path = Some("a.py".to_owned());
+        warning.fixable = true;
+        assert_eq!(
+            findings_summary(&[error, warning], 3),
+            "1 error(s), 1 warning(s) in 1 file(s), 1 fixable with --apply"
+        );
+        assert_eq!(findings_summary(&[], 3), "no findings in 3 target(s)");
     }
 
     #[test]

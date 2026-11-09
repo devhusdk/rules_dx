@@ -1934,7 +1934,7 @@ mod tests {
             generate < format && format < lint && lint < typecheck,
             "{out}"
         );
-        assert_eq!(err, "", "{err}");
+        assert_eq!(err, "no findings in 0 target(s)\n".repeat(3), "{err}");
         assert_eq!(
             harness.seen_env.borrow().len(),
             4,
@@ -3404,7 +3404,8 @@ mod tests {
         );
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
-            err, "dx: collection_failed: lint wrote no sarif capture\n",
+            err.replace("no findings in 0 target(s)\n", ""),
+            "dx: collection_failed: lint wrote no sarif capture\n",
             "{err}"
         );
         assert_eq!(
@@ -3470,7 +3471,8 @@ mod tests {
         );
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
-            err, "dx: collection_failed: lint sarif capture is unreadable\n",
+            err.replace("no findings in 0 target(s)\n", ""),
+            "dx: collection_failed: lint sarif capture is unreadable\n",
             "{err}"
         );
         assert!(
@@ -3510,7 +3512,8 @@ mod tests {
         let (code, out, err) = harness.execute_with(&inv, &breaking);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
-            err, "dx: collection_failed: lint wrote no sarif capture\n",
+            err.replace("no findings in 0 target(s)\n", ""),
+            "dx: collection_failed: lint wrote no sarif capture\n",
             "{err}"
         );
         assert!(
@@ -3555,7 +3558,8 @@ mod tests {
             );
             assert_eq!(code, 1, "{name}: {out}{err}");
             assert_eq!(
-                err, "dx: collection_failed: lint sarif capture is malformed\n",
+                err.replace("no findings in 0 target(s)\n", ""),
+                "dx: collection_failed: lint sarif capture is malformed\n",
                 "{name}: {err}"
             );
             assert_eq!(merged_runs(&harness).len(), 1, "{name}: {out}");

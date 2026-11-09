@@ -60,7 +60,7 @@ Text prints one line per finding:
 path:line:column: severity: message [tool/rule]
 ```
 
-Lines and columns count Unicode characters. A finding without a position prints `path:`. A finding without a file prints `(no file):`. Identical findings print once with `(xN)`. Text ends with a `dx: <total> actions, ...` line on stderr.
+Lines and columns count Unicode characters. A finding without a position prints `path:`. A finding without a file prints `(no file):`. Identical findings print once with `(xN)`. Text ends with a summary on stderr, such as `2 error(s), 5 warning(s) in 4 file(s), 3 fixable with --apply`, or `no findings in N target(s)` when clean, followed by a `dx: <total> actions, ...` line. With color on, the severity word is red for errors and yellow for warnings.
 
 When files need changes, text prints `N file(s) need changes. Apply them with: dx <command> --apply ...`. Failures print a `next:` line with the fix.
 

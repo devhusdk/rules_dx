@@ -757,6 +757,9 @@ fn run_quality_request(
             Severity::Error => error += 1,
         }
     }
+    if matches!(request.common.output, OutputMode::Text { .. }) && collected.complete && !failed {
+        let _ = writeln!(err, "{}", findings_summary(&status, resolved.kept.len()));
+    }
     for item in &collected.unstable {
         let detail = item.describe();
         if request.common.output == OutputMode::Json {

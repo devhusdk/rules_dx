@@ -1981,6 +1981,7 @@ _consumer_archive_repo(
     dev_dependency = True,
 )
 
+# Stays in core on purpose: see families/rust/README.md.
 _consumer_wasm_bindgen_repo = use_repo_rule("//rust/tests/fixtures/wasm_bindgen:repos.bzl", "consumer_wasm_bindgen_repo")
 
 _consumer_wasm_bindgen_repo(
@@ -2156,6 +2157,7 @@ _http_archive(
     urls = ["https://static.crates.io/crates/adler2/adler2-2.0.1.crate"],
 )
 
+# Stays in core on purpose: see families/rust/README.md.
 _shared_consumer_repo = use_repo_rule("//rust/tests/fixtures/shared-rust-checks:repos.bzl", "shared_consumer_repo")
 
 _shared_consumer_repo(

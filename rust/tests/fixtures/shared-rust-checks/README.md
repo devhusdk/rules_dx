@@ -1,7 +1,8 @@
 # Shared Rust checks
 
 Tests and evidence for `examples/shared-rust` that are not part of the
-example itself.
+example itself. It lives in core because it needs `rules_dx_android`
+together with core examples; family modules may not depend on each other.
 
 - `inspect_apk_test` and `inspect_consumer_apk_test` check the package, SDK
   floor, label, launch activity, byte-identical assets, exported symbols per

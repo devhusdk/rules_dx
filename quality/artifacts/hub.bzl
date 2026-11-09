@@ -37,6 +37,7 @@ PLATFORM_FALLBACKS = {
 EMULATED_TOOLS = {
     "windows_arm64": [
         "chktex",
+        "container_structure_test",
         "ffmt",
         "hadolint",
         "hlint",

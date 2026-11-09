@@ -862,6 +862,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "container_structure_test": {
+        "upstream_version": "1.22.1",
+        "release_page": "https://github.com/GoogleContainerTools/container-structure-test/releases/tag/v1.22.1",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/GoogleContainerTools/container-structure-test/blob/v1.22.1/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "container-structure-test-linux-amd64",
+                "url": "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-amd64",
+                "kind": "raw",
+                "executable": "container-structure-test-linux-amd64",
+                "checksums_url": "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "container-structure-test-linux-arm64",
+                "url": "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-linux-arm64",
+                "kind": "raw",
+                "executable": "container-structure-test-linux-arm64",
+                "checksums_url": "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "container-structure-test-darwin-arm64",
+                "url": "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-darwin-arm64",
+                "kind": "raw",
+                "executable": "container-structure-test-darwin-arm64",
+                "checksums_url": "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "container-structure-test-windows-amd64.exe",
+                "url": "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/container-structure-test-windows-amd64.exe",
+                "kind": "raw",
+                "executable": "container-structure-test-windows-amd64.exe",
+                "checksums_url": "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v1.22.1/checksums.txt",
+            },
+        },
+    },
     "helm": {
         "upstream_version": "4.3.1",
         "release_page": "https://github.com/helm/helm/releases/tag/v4.3.1",

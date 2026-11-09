@@ -26,7 +26,7 @@ load("//quality:families/bicep.bzl", _real_bicep_format_aspect = "real_bicep_for
 load("//quality:families/terraform.bzl", _real_terraform_format_aspect = "real_terraform_format_aspect", _real_terraform_lint_aspect = "real_terraform_lint_aspect", _real_terraform_typecheck_aspect = "real_terraform_typecheck_aspect", _TERRAFORM_HOOKS = "HOOKS", _TERRAFORM_SHARD_SPECS = "SHARD_SPECS", _TERRAFORM_TOOLS = "TOOLS")
 load("//quality:families/lua.bzl", _real_lua_format_aspect = "real_lua_format_aspect", _real_lua_lint_aspect = "real_lua_lint_aspect", _real_lua_typecheck_aspect = "real_lua_typecheck_aspect", _LUA_HOOKS = "HOOKS", _LUA_SHARD_SPECS = "SHARD_SPECS", _LUA_TOOLS = "TOOLS")
 load("//quality:families/php.bzl", _real_php_lint_aspect = "real_php_lint_aspect", _real_php_typecheck_aspect = "real_php_typecheck_aspect", _PHP_HOOKS = "HOOKS", _PHP_SHARD_SPECS = "SHARD_SPECS", _PHP_TOOLS = "TOOLS")
-load("//quality:families/oci_image.bzl", _real_oci_image_lint_aspect = "real_oci_image_lint_aspect", _OCI_IMAGE_HOOKS = "HOOKS", _OCI_IMAGE_SHARD_SPECS = "SHARD_SPECS", _OCI_IMAGE_TOOLS = "TOOLS")
+load("//quality:families/oci_image.bzl", _real_oci_image_lint_aspect = "real_oci_image_lint_aspect", _real_oci_image_typecheck_aspect = "real_oci_image_typecheck_aspect", _OCI_IMAGE_HOOKS = "HOOKS", _OCI_IMAGE_SHARD_SPECS = "SHARD_SPECS", _OCI_IMAGE_TOOLS = "TOOLS")
 load("//quality:families/kubernetes.bzl", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect", _KUBERNETES_HOOKS = "HOOKS", _KUBERNETES_SHARD_SPECS = "SHARD_SPECS", _KUBERNETES_TOOLS = "TOOLS")
 load("//quality:families/sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _SQL_HOOKS = "HOOKS", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
 load("//quality:families/dart.bzl", _real_dart_format_aspect = "real_dart_format_aspect", _real_dart_lint_aspect = "real_dart_lint_aspect", _real_dart_typecheck_aspect = "real_dart_typecheck_aspect", _DART_HOOKS = "HOOKS", _DART_SHARD_SPECS = "SHARD_SPECS", _DART_TOOLS = "TOOLS")
@@ -274,6 +274,7 @@ real_shell_format_aspect = _real_shell_format_aspect
 
 real_dockerfile_lint_aspect = _real_dockerfile_lint_aspect
 real_oci_image_lint_aspect = _real_oci_image_lint_aspect
+real_oci_image_typecheck_aspect = _real_oci_image_typecheck_aspect
 real_make_format_aspect = _real_make_format_aspect
 real_make_lint_aspect = _real_make_lint_aspect
 

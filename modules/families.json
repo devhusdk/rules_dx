@@ -187,6 +187,7 @@
         "real_nix_format_aspect",
         "real_nix_lint_aspect",
         "real_oci_image_lint_aspect",
+        "real_oci_image_typecheck_aspect",
         "real_pkl_format_aspect",
         "real_pkl_lint_aspect",
         "real_pkl_typecheck_aspect",

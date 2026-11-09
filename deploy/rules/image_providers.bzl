@@ -5,5 +5,6 @@ OciImageQualityInfo = provider(
     fields = {
         "layout": "File: the OCI image layout directory the image rule produced.",
         "name": "string: target name of the image.",
+        "structure_tests": "list of File: container-structure-test configs of the image.",
     },
 )

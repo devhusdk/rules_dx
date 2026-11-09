@@ -193,7 +193,7 @@ _jars_for_platform = rule(
     },
 )
 
-def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy/rules/platforms:linux_amd64"], tags = [], main = None, main_class = None, runtime = False, visibility = None, testonly = None):
+def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy/rules/platforms:linux_amd64"], tags = [], main = None, main_class = None, runtime = False, structure_tests = [], visibility = None, testonly = None):
     """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
 
     One platform gives an oci_image and an oci_load target named name + "_load".
@@ -212,6 +212,10 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
     and a layer from the managed toolchain for each platform, installed under /opt, so the image
     runs the interpreter the build used instead of the one in the base image. The dotnet runtime
     runs with invariant globalization.
+
+    structure_tests lists container-structure-test configs that dx typecheck runs against each
+    image with the tar driver, which supports metadata, file existence, file content and license
+    tests but no command tests.
     """
     if not main and type(binary) == "string":
         main = image_default_main(base, binary, native.package_name())
@@ -296,6 +300,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
             name = image + "_quality",
             build_files = native.glob(["BUILD", "BUILD.bazel"], allow_empty = True),
             image = image,
+            structure_tests = structure_tests,
             tags = tags,
             testonly = testonly,
         )

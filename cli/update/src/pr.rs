@@ -4,69 +4,23 @@ use crate::discover::{Candidate, Registry};
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
-/// How outdated packages share pull requests.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum Group {
-    Package,
-    #[default]
-    Set,
-    All,
-}
-
-impl Group {
-    /// Reads `package`, `set` or `all`.
-    pub fn parse(text: &str) -> Option<Group> {
-        match text {
-            "package" => Some(Group::Package),
-            "set" => Some(Group::Set),
-            "all" => Some(Group::All),
-            _ => None,
-        }
-    }
-}
-
 /// Which `dx-update/` branches one run owns.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Scope {
-    group: Group,
-    everything: bool,
     sets: Vec<String>,
-    packages: Vec<(String, String)>,
 }
 
 impl Scope {
-    /// Builds a scope from whole sets, single packages, and whether no selector was given.
-    pub fn new(
-        group: Group,
-        everything: bool,
-        sets: Vec<String>,
-        packages: Vec<(String, String)>,
-    ) -> Scope {
-        Scope {
-            group,
-            everything,
-            sets,
-            packages,
-        }
+    /// Builds a scope from the sets this run updates whole.
+    pub fn new(sets: Vec<String>) -> Scope {
+        Scope { sets }
     }
 
     /// Tells whether this run may close the pull request on `branch`.
     pub fn covers(&self, branch: &str) -> bool {
-        match self.group {
-            Group::All => self.everything && branch == "dx-update/all",
-            Group::Set => self
-                .sets
-                .iter()
-                .any(|set| branch == format!("dx-update/{}", slug(set))),
-            Group::Package => {
-                self.sets
-                    .iter()
-                    .any(|set| branch.starts_with(&format!("dx-update/{}--", slug(set))))
-                    || self.packages.iter().any(|(set, package)| {
-                        branch == format!("dx-update/{}--{}", slug(set), slug(package))
-                    })
-            }
-        }
+        self.sets
+            .iter()
+            .any(|set| branch == format!("dx-update/{}", slug(set)))
     }
 }
 
@@ -87,23 +41,13 @@ pub struct GroupPlan {
     pub items: Vec<Item>,
 }
 
-/// Splits items into one plan per group, in branch order.
-pub fn plan(items: &[Item], group: Group) -> Vec<GroupPlan> {
+/// Splits items into one plan per set, in branch order.
+pub fn plan(items: &[Item]) -> Vec<GroupPlan> {
     let mut plans: BTreeMap<String, GroupPlan> = BTreeMap::new();
     for item in items {
         let set = &item.candidate.set;
-        let package = &item.candidate.package;
-        let (branch, title) = match group {
-            Group::Package => (
-                format!("dx-update/{}--{}", slug(set), slug(package)),
-                format!("Update {package} to {}", item.candidate.latest),
-            ),
-            Group::Set => (
-                format!("dx-update/{}", slug(set)),
-                format!("Update {set} dependencies"),
-            ),
-            Group::All => ("dx-update/all".to_owned(), "Update dependencies".to_owned()),
-        };
+        let branch = format!("dx-update/{}", slug(set));
+        let title = format!("Update {set} dependencies");
         plans
             .entry(branch.clone())
             .or_insert_with(|| GroupPlan {
@@ -217,35 +161,12 @@ mod tests {
     }
 
     #[test]
-    fn set_scope_covers_full_sets_only() {
-        let scope = Scope::new(Group::Set, false, sets(&["cargo"]), Vec::new());
+    fn scope_covers_full_sets_only() {
+        let scope = Scope::new(sets(&["cargo"]));
         assert!(scope.covers("dx-update/cargo"));
         assert!(!scope.covers("dx-update/npm"));
         assert!(!scope.covers("dx-update/cargo--serde"));
         assert!(!scope.covers("dx-update/all"));
-    }
-
-    #[test]
-    fn package_scope_covers_the_set_prefix_and_selected_packages() {
-        let scope = Scope::new(
-            Group::Package,
-            false,
-            sets(&["cargo"]),
-            vec![("npm".into(), "left pad".into())],
-        );
-        assert!(scope.covers("dx-update/cargo--serde"));
-        assert!(scope.covers("dx-update/npm--left-pad"));
-        assert!(!scope.covers("dx-update/npm--other"));
-        assert!(!scope.covers("dx-update/cargo"));
-    }
-
-    #[test]
-    fn all_scope_needs_no_selectors() {
-        let all = Scope::new(Group::All, true, sets(&["cargo"]), Vec::new());
-        assert!(all.covers("dx-update/all"));
-        assert!(!all.covers("dx-update/cargo"));
-        let picked = Scope::new(Group::All, false, sets(&["cargo"]), Vec::new());
-        assert!(!picked.covers("dx-update/all"));
     }
 
     fn item(set: &str, package: &str, latest: &str, registry: Registry) -> Item {
@@ -275,7 +196,7 @@ mod tests {
 
     #[test]
     fn set_groups_share_a_branch() {
-        let got = plan(&items(), Group::Set);
+        let got = plan(&items());
         let names: Vec<_> = got.iter().map(|p| p.branch.as_str()).collect();
         assert_eq!(names, ["dx-update/bazel", "dx-update/cargo"]);
         assert_eq!(got[1].items.len(), 2);
@@ -283,34 +204,15 @@ mod tests {
     }
 
     #[test]
-    fn package_groups_get_one_branch_each() {
-        let got = plan(&items(), Group::Package);
-        assert_eq!(got.len(), 3);
-        assert_eq!(got[2].branch, "dx-update/cargo--serde");
-        assert_eq!(got[2].title, "Update serde to 2.0.0");
-    }
-
-    #[test]
-    fn all_is_one_group() {
-        let got = plan(&items(), Group::All);
-        assert_eq!(got.len(), 1);
-        assert_eq!(got[0].branch, "dx-update/all");
-        assert_eq!(got[0].items.len(), 3);
-    }
-
-    #[test]
     fn odd_characters_become_dashes() {
-        let got = plan(
-            &[item("npm", "@scope/pkg", "2.0.0", Registry::Npm)],
-            Group::Package,
-        );
-        assert_eq!(got[0].branch, "dx-update/npm---scope-pkg");
-        assert!(plan(&[], Group::Set).is_empty());
+        let got = plan(&[item("c++/x", "pkg", "2.0.0", Registry::Npm)]);
+        assert_eq!(got[0].branch, "dx-update/c---x");
+        assert!(plan(&[]).is_empty());
     }
 
     #[test]
     fn body_lists_packages_and_lock_changes() {
-        let got = plan(&items()[..1], Group::Set);
+        let got = plan(&items()[..1]);
         let text = body(&got[0], &[("Cargo.lock".into(), 4, 2)]);
         assert!(text.contains(
             "- cargo:serde 1.0.0 -> 2.0.0 (https://crates.io/crates/serde, age unknown)"
@@ -321,27 +223,18 @@ mod tests {
 
     #[test]
     fn body_links_compare_and_release_when_the_repo_is_known() {
-        let mut one = plan(
-            &[item("npm", "left-pad", "2.0.0", Registry::Npm)],
-            Group::All,
-        );
+        let mut one = plan(&[item("npm", "left-pad", "2.0.0", Registry::Npm)]);
         one[0].items[0].candidate.repo = Some("o/left-pad".into());
         assert!(body(&one[0], &[]).contains(
             ": [compare](https://github.com/o/left-pad/compare/1.0.0...2.0.0), [release](https://github.com/o/left-pad/releases/tag/2.0.0)\n"
         ));
-        let plain = plan(
-            &[item("npm", "left-pad", "2.0.0", Registry::Npm)],
-            Group::All,
-        );
+        let plain = plan(&[item("npm", "left-pad", "2.0.0", Registry::Npm)]);
         assert!(!body(&plain[0], &[]).contains("compare"));
     }
 
     #[test]
     fn body_uses_the_tags_when_set() {
-        let mut one = plan(
-            &[item("go", "github.com/o/r/sub", "2.0.0", Registry::Npm)],
-            Group::All,
-        );
+        let mut one = plan(&[item("go", "github.com/o/r/sub", "2.0.0", Registry::Npm)]);
         one[0].items[0].candidate.repo = Some("o/r".into());
         one[0].items[0].candidate.tags = Some(("sub/v1.0.0".into(), "sub/v2.0.0".into()));
         assert!(body(&one[0], &[]).contains(
@@ -353,7 +246,7 @@ mod tests {
     fn body_marks_prereleases() {
         let mut one = items()[..1].to_vec();
         one[0].candidate.prerelease = true;
-        let got = plan(&one, Group::Set);
+        let got = plan(&one);
         assert!(body(&got[0], &[]).contains(", age unknown, prerelease)"));
     }
 
@@ -370,13 +263,6 @@ mod tests {
             ]
         );
         assert!(lock_numstat(text, &[]).is_empty());
-    }
-
-    #[test]
-    fn group_names_parse() {
-        assert_eq!(Group::parse("all"), Some(Group::All));
-        assert_eq!(Group::parse("x"), None);
-        assert_eq!(Group::default(), Group::Set);
     }
 
     const LISTING: &str = "a\trefs/tags/v1.0.0\nb\trefs/tags/v1.1.0\nc\trefs/tags/pkg@1.0.0\nd\trefs/tags/pkg@1.1.0\n";

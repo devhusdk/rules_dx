@@ -178,7 +178,7 @@ Set the Pages source to GitHub Actions before the first publish.
 
 ## Dependency updates
 
-`dx-update.yml` runs `tools/dx update --pr --group=set --automerge=patch --min-age=3 --max-prs=5` every Monday at 04:00 UTC and on `workflow_dispatch`. Edit `cron` and the flags to change it.
+`dx-update.yml` runs `tools/dx update --pr` every Monday at 04:00 UTC and on `workflow_dispatch`. Edit `cron` and the flags to change it.
 
 1. Allow auto-merge in the repository settings.
 2. Allow GitHub Actions to create and approve pull requests.

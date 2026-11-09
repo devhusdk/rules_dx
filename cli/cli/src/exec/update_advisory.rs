@@ -115,7 +115,6 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         open_pull_request(
             workspace,
             tools,
-            invocation,
             &release,
             &after,
             &diff,
@@ -208,7 +207,6 @@ fn vulnerabilities(stream: &str) -> Vec<String> {
 fn open_pull_request(
     root: &Path,
     tools: &Tools,
-    invocation: &Invocation,
     release: &Release,
     after: &str,
     diff: &[String],
@@ -271,17 +269,9 @@ fn open_pull_request(
             gh(&["pr", "edit", number, "--title", &title, "--body", &body])?;
             return Ok(format!("updated #{number}"));
         }
-        let labels = invocation.labels.clone().unwrap_or_default();
-        let mut args = vec![
+        let args = vec![
             "pr", "create", "--base", &base, "--head", BRANCH, "--title", &title, "--body", &body,
         ];
-        for label in labels
-            .split(',')
-            .map(str::trim)
-            .filter(|label| !label.is_empty())
-        {
-            args.extend(["--label", label]);
-        }
         let created = gh(&args).map_err(|error| {
             if error.contains(ACTIONS_PR_REFUSAL) {
                 format!("{error}\nturn on the repository setting \"Allow GitHub Actions to create and approve pull requests\" (Settings, Actions, General)")

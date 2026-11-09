@@ -53,7 +53,6 @@ pub fn level(current: &str, latest: &str) -> Level {
 /// What to drop.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Policy {
-    pub ignore: Vec<String>,
     pub allow_major: bool,
     pub cutoff: Option<String>,
 }
@@ -70,10 +69,7 @@ pub fn filter(candidates: &[Candidate], policy: &Policy) -> (Vec<Candidate>, Vec
     let mut kept = Vec::new();
     let mut skipped = Vec::new();
     for candidate in candidates {
-        let name = format!("{}:{}", candidate.set, candidate.package);
-        let reason = if policy.ignore.contains(&name) {
-            Some("ignored")
-        } else if !policy.allow_major
+        let reason = if !policy.allow_major
             && level(&candidate.current, &candidate.latest) == Level::Major
         {
             Some("major")
@@ -126,7 +122,7 @@ pub fn automerge(limit: Option<Level>, plan: &GroupPlan) -> bool {
 mod tests {
     use super::*;
     use crate::discover::Registry;
-    use crate::pr::{Group, Item, plan};
+    use crate::pr::{Item, plan};
 
     fn candidate(package: &str, current: &str, latest: &str, published: Option<&str>) -> Candidate {
         Candidate {
@@ -156,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn drops_ignored_major_and_new() {
+    fn drops_major_and_new() {
         let all = [
             candidate("a", "1.0.0", "1.0.1", Some("2026-01-01T00:00:00Z")),
             candidate("b", "1.0.0", "1.0.1", None),
@@ -165,15 +161,14 @@ mod tests {
             candidate("e", "1.0.0", "1.0.1", Some("soon")),
         ];
         let policy = Policy {
-            ignore: vec!["cargo:b".into()],
             allow_major: false,
             cutoff: Some("2026-01-31".into()),
         };
         let (kept, skipped) = filter(&all, &policy);
         let kept: Vec<_> = kept.iter().map(|c| c.package.as_str()).collect();
-        assert_eq!(kept, ["a", "e"]);
+        assert_eq!(kept, ["a", "b", "e"]);
         let why: Vec<_> = skipped.iter().map(|s| s.reason).collect();
-        assert_eq!(why, ["ignored", "major", "too new"]);
+        assert_eq!(why, ["major", "too new"]);
     }
 
     #[test]
@@ -202,7 +197,7 @@ mod tests {
                 untagged: false,
             })
             .collect();
-        let plans = plan(&items, Group::All);
+        let plans = plan(&items);
         assert!(!automerge(Some(Level::Patch), &plans[0]));
         assert!(automerge(Some(Level::Minor), &plans[0]));
         assert!(!automerge(None, &plans[0]));
@@ -219,7 +214,7 @@ mod tests {
             registry: Registry::Crates,
             untagged: false,
         }];
-        let plans = plan(&items, Group::All);
+        let plans = plan(&items);
         assert!(!automerge(Some(Level::Major), &plans[0]));
     }
 }

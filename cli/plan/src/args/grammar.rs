@@ -60,14 +60,6 @@ fn non_empty(raw: &str) -> Result<String, String> {
     }
 }
 
-/// A `set:package` pair.
-fn set_package(raw: &str) -> Result<String, String> {
-    match raw.split_once(':') {
-        Some((set, package)) if !set.is_empty() && !package.is_empty() => Ok(raw.to_owned()),
-        _ => Err("want set:package".to_owned()),
-    }
-}
-
 /// A coverage percent between 0 and 100.
 fn percent(raw: &str) -> Result<u32, String> {
     match raw.parse::<u32>() {
@@ -151,13 +143,9 @@ pub(crate) struct Flags {
     pub(crate) expunge: bool,
     pub(crate) add_missing: bool,
     pub(crate) pr: bool,
-    pub(crate) group: Option<String>,
-    pub(crate) labels: Option<String>,
     pub(crate) automerge: Option<String>,
     pub(crate) min_age: Option<u32>,
-    pub(crate) ignore: Vec<String>,
     pub(crate) allow_major: bool,
-    pub(crate) prereleases: bool,
     pub(crate) max_prs: Option<u16>,
     pub(crate) floor: bool,
     pub(crate) reason: Option<String>,
@@ -606,28 +594,6 @@ flag_group! {
 }
 
 flag_group! {
-    /// Group updates per package, set or all (needs --pr; default set).
-    GroupFlag, {
-        #[arg(
-            long,
-            value_name = "GROUP",
-            require_equals = true,
-            overrides_with = "group",
-            value_parser = clap::builder::PossibleValuesParser::new(["package", "set", "all"])
-        )]
-        group: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Comma-separated labels for new pull requests (needs --pr).
-    LabelsFlag, {
-        #[arg(long, value_name = "LABELS", require_equals = true, overrides_with = "labels", value_parser = non_empty)]
-        labels: Option<String>,
-    }
-}
-
-flag_group! {
     /// Auto-merge level: none, patch, minor or all (needs --pr; default patch).
     AutomergeFlag, {
         #[arg(
@@ -650,32 +616,10 @@ flag_group! {
 }
 
 flag_group! {
-    /// Skip one package, as set:package; repeatable (needs --pr).
-    IgnoreFlag, {
-        #[arg(
-            long,
-            value_name = "SET:PACKAGE",
-            require_equals = true,
-            action = clap::ArgAction::Append,
-            value_parser = set_package
-        )]
-        ignore: Vec<String>,
-    }
-}
-
-flag_group! {
     /// Include major version updates (needs --pr).
     AllowMajorFlag, {
         #[arg(long, overrides_with = "allow_major")]
         allow_major: bool,
-    }
-}
-
-flag_group! {
-    /// Offer prerelease versions; they are never auto-merged (needs --pr).
-    PrereleasesFlag, {
-        #[arg(long, overrides_with = "prereleases")]
-        prereleases: bool,
     }
 }
 
@@ -1139,13 +1083,9 @@ command_args! {
         prune: PruneFlag,
         add_missing: AddMissingFlag,
         pr: PrFlag,
-        group: GroupFlag,
-        labels: LabelsFlag,
         automerge: AutomergeFlag,
         min_age: MinAgeFlag,
-        ignore: IgnoreFlag,
         allow_major: AllowMajorFlag,
-        prereleases: PrereleasesFlag,
         max_prs: MaxPrsFlag,
         floor: FloorArgs,
     };

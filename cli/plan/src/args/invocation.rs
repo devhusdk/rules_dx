@@ -289,20 +289,12 @@ pub struct Invocation {
     pub add_missing: bool,
     /// `dx update --pr`: open or refresh one pull request per group.
     pub pr: bool,
-    /// `dx update --group`: `package`, `set` or `all`; `set` when absent.
-    pub group: Option<String>,
-    /// `dx update --labels`: comma-separated labels for new pull requests.
-    pub labels: Option<String>,
     /// `dx update --automerge`: `none`, `patch`, `minor` or `all`; `patch` when absent.
     pub automerge: Option<String>,
     /// `dx update --min-age`: days a version must have been published; 3 when absent.
     pub min_age: Option<u32>,
-    /// `dx update --ignore`: `set:package` pairs to skip.
-    pub ignore: Vec<String>,
     /// `dx update --allow-major`: include major updates.
     pub allow_major: bool,
-    /// `dx update --prereleases`: offer prerelease versions.
-    pub prereleases: bool,
     /// `dx update --max-prs`: open dx-update pull requests allowed; 5 when absent.
     pub max_prs: Option<u16>,
     /// `dx update --floor`: edit the bazel_dep floor instead of the tested override.
@@ -716,13 +708,9 @@ mod tests {
             expunge: false,
             add_missing: false,
             pr: false,
-            group: None,
-            labels: None,
             automerge: None,
             min_age: None,
-            ignore: Vec::new(),
             allow_major: false,
-            prereleases: false,
             max_prs: None,
             floor: false,
             reason: None,

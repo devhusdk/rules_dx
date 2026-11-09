@@ -1174,35 +1174,21 @@ fn floor_and_reason_parse_only_on_an_update_with_a_version() {
 }
 
 #[test]
-fn update_pr_takes_group_and_labels() {
-    let got = parse(&strings(&[
-        "update",
-        "--pr",
-        "--group=all",
-        "--labels=deps,bot",
-        "cargo",
-    ]))
-    .expect("pr");
+fn update_pr_takes_a_scope() {
+    let got = parse(&strings(&["update", "--pr", "cargo"])).expect("pr");
     assert!(got.pr);
-    assert_eq!(got.group.as_deref(), Some("all"));
-    assert_eq!(got.labels.as_deref(), Some("deps,bot"));
     let got = parse(&strings(&[
         "update",
         "--pr",
         "--automerge=minor",
         "--min-age=0",
-        "--ignore=cargo:serde",
-        "--ignore=npm:left-pad",
         "--allow-major",
-        "--prereleases",
         "--max-prs=2",
     ]))
     .expect("policy");
     assert_eq!(got.automerge.as_deref(), Some("minor"));
     assert_eq!(got.min_age, Some(0));
-    assert_eq!(got.ignore, ["cargo:serde", "npm:left-pad"]);
     assert!(got.allow_major);
-    assert!(got.prereleases);
     assert_eq!(got.max_prs, Some(2));
     assert!(!parse(&strings(&["update"])).expect("bare").pr);
     for words in [
@@ -1212,18 +1198,16 @@ fn update_pr_takes_group_and_labels() {
         vec!["update", "--pr", "--reason", "x"],
         vec!["update", "--pr", "--offline"],
         vec!["update", "--pr", "cargo:anyhow", "1.0.0"],
-        vec!["update", "--group=set"],
-        vec!["update", "--labels=deps"],
         vec!["update", "--automerge=all"],
         vec!["update", "--min-age=1"],
-        vec!["update", "--ignore=cargo:serde"],
         vec!["update", "--allow-major"],
-        vec!["update", "--prereleases"],
         vec!["update", "--max-prs=2"],
         vec!["update", "--pr", "--automerge=some"],
-        vec!["update", "--pr", "--ignore=serde"],
+        vec!["update", "--pr", "--group=set"],
+        vec!["update", "--pr", "--labels=deps"],
+        vec!["update", "--pr", "--ignore=cargo:serde"],
+        vec!["update", "--pr", "--prereleases"],
         vec!["update", "--pr", "--max-prs=0"],
-        vec!["update", "--pr", "--group=team"],
         vec!["build", "--pr"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");

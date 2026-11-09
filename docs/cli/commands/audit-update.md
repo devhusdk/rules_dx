@@ -235,15 +235,14 @@ tools/dx update
 tools/dx update --apply go
 tools/dx update --apply dx_pypi-python dx_pypi-tooling
 tools/dx update --outdated
-tools/dx update --pr --group=package dx_crates
+tools/dx update --pr dx_crates
 tools/dx update --apply dx_crates:anyhow 1.0.100
 ```
 
 ```text
 dx update [--apply [--prune] [--add-missing]] [--offline] [--frozen] [selector ...]
 dx update --outdated [selector ...]
-dx update --pr [--group=package|set|all] [--labels=<a,b>] [--automerge=none|patch|minor|all]
-  [--min-age=<days>] [--ignore=<set:package>] [--allow-major] [--prereleases]
+dx update --pr [--automerge=none|patch|minor|all] [--min-age=<days>] [--allow-major]
   [--max-prs=<n>] [selector ...]
 dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:package> <version>
 ```
@@ -254,16 +253,12 @@ dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:packag
 | `--prune` | With `--apply`: deletes the one-line declarations of unused dependencies (the entries `--outdated` lists as `unused:`) from `cargo`, `npm`, `uv`, `go` and `ruby` manifests, then refreshes the locks as usual. Each removal prints `dx: update_pruned: <set>: <name> (removed from <manifest>:<line>)` on stderr. Multi-line and table declarations are left in place. Does not combine with `--frozen`. |
 | `--add-missing` | With `--apply`: declares the imports `--outdated` lists as `missing:` for `cargo`, `npm`, `uv` and `ruby` sets, at the latest stable version from the registry, then refreshes the locks once. Each addition prints `dx: update_added: <set>: <name> <version> (added to <manifest>)` on stderr. Does not combine with `--frozen`, `--offline` or `--pr`. |
 | `--outdated` | Lists packages whose newest stable version is outside the declared range. |
-| `--pr` | Opens or refreshes one pull request per group. |
+| `--pr` | Opens or refreshes one pull request per set. |
 | `--offline` | Uses pinned cached snapshots. Fails with `offline_required` when missing. |
 | `--frozen` | Forbids manifest and lock changes. `--apply` fails with `frozen_locked` when a resolver would write. |
-| `--group=package\|set\|all` | Groups pull requests. Default `set`. Needs `--pr`. |
-| `--labels=<a,b>` | Labels for new pull requests. Needs `--pr`. |
 | `--automerge=none\|patch\|minor\|all` | Auto-merge level. Default `patch`. Needs `--pr`. |
 | `--min-age=<days>` | Skips versions newer than this. Default `3`. `0` turns it off. Needs `--pr`. |
-| `--ignore=<set:package>` | Skips one package. Repeatable. Needs `--pr`. |
 | `--allow-major` | Includes major updates. Needs `--pr`. |
-| `--prereleases` | Offers prereleases. Never auto-merged. Needs `--pr`. |
 | `--max-prs=<n>` | Stops opening pull requests at `n` open `dx-update/` pull requests. Default `5`. Needs `--pr`. |
 | `--floor` | Edits the `bazel_dep` floor instead of the tested override. Needs a version and `--reason`. |
 | `--reason <text>` | Why the floor is the oldest supported version. Needs `--floor`. |
@@ -339,19 +334,12 @@ After the version lines, `--outdated` also lists declared dependencies that no s
 
 ```sh
 tools/dx update --pr
-tools/dx update --pr --group=package --labels=dependencies dx_crates
-tools/dx update --pr --automerge=none --ignore=cargo:serde --max-prs=2
+tools/dx update --pr --automerge=none --max-prs=2
 ```
 
 Needs `git`, an authenticated `gh`, a clean working tree and a checked-out branch. That branch is the pull request base. Covers the same sets as `--outdated`, including GitHub Actions pins (branch `dx-update/github-actions`) and `.bazelversion`.
 
-| `--group` | Branch | One pull request per |
-| --- | --- | --- |
-| `set` | `dx-update/<set>` | dependency set |
-| `package` | `dx-update/<set>--<package>` | package |
-| `all` | `dx-update/all` | run |
-
-Characters outside letters, digits, `.`, `_` and `-` become `-` in branch names. Labels must exist, or the group fails.
+Each dependency set gets one pull request on `dx-update/<set>`. Characters outside letters, digits, `.`, `_` and `-` become `-` in branch names.
 
 Auto-merge runs `gh pr merge --auto --squash`. The repository must allow auto-merge, or the line ends with `auto-merge not enabled: ...` and the exit code is unchanged. A zero-major version counts a minor bump as major. A refresh that raises a pull request above the level turns auto-merge off. A version with no publish date is kept and the body says `age unknown`.
 
@@ -367,7 +355,7 @@ For each group, dx:
 
 The body lists each package as `old -> new` with its registry link, the compare and release links when the registry names a GitHub repository (cargo and ruby read it from the crates.io and rubygems.org metadata of outdated packages only; a failed metadata fetch leaves the registry link alone; the real tag names come from `git ls-remote --tags`, matching `v`, `<package>@v`, `<package>-v` and `<package>-` forms; with no match the body links the repository's releases page only), a `prerelease` mark, and the changed lock files with line counts.
 
-Skips print `skipped <set>:<package> <old> -> <new>: <reason>` with `ignored`, `major` or `too new` (JSON notice `update_pr_skipped`). A group over `--max-prs` prints `skipped: --max-prs=<n> reached`. A push refused for workflow files prints `skipped: token cannot push workflow files`. Neither changes the exit code. If the token may not create pull requests, the run fails and names the setting "Allow GitHub Actions to create and approve pull requests".
+Skips print `skipped <set>:<package> <old> -> <new>: <reason>` with `major` or `too new` (JSON notice `update_pr_skipped`). A group over `--max-prs` prints `skipped: --max-prs=<n> reached`. A push refused for workflow files prints `skipped: token cannot push workflow files`. Neither changes the exit code. If the token may not create pull requests, the run fails and names the setting "Allow GitHub Actions to create and approve pull requests".
 
 After the groups, dx closes open `dx-update/` pull requests on the base branch that this run covers but that have no updates left. It deletes the branch, comments `dx update: no updates left for this group.` and prints `closed #<n>`. Pull requests from forks are left alone. A group that fails any step is reset and not pushed; the next group runs. The base branch is checked out again at the end.
 
@@ -517,7 +505,7 @@ julia_pkg.from_manifest(
 )
 ```
 
-- `dx update --outdated` compares each `[deps]` package of `Project.toml` with the newest version in the General registry (`Versions.toml`), skipping yanked versions and, without `--prereleases`, prereleases. Standard libraries without a locked version are not listed.
+- `dx update --outdated` compares each `[deps]` package of `Project.toml` with the newest version in the General registry (`Versions.toml`), skipping yanked versions and prereleases. Standard libraries without a locked version are not listed.
 - `dx update <set>:<Package> <version>` sets the package's `[compat]` entry in `Project.toml`, keeping a leading `=` or `~`, and adds the entry when it is absent. A package not in `[deps]`, or an entry that lists several ranges, is refused. `--apply` then runs `Pkg.update` and the set's `julia_pkg_resolve`.
 - `dx security` matches `Manifest.toml` against the `Julia` advisories.
 

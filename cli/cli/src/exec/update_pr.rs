@@ -8,7 +8,7 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_update::discover::Fetch;
 use dx_update::policy::{Level, Policy, automerge, filter};
-use dx_update::pr::{Group, GroupPlan, Item, Scope, body, lock_numstat, pick_tags, plan};
+use dx_update::pr::{GroupPlan, Item, Scope, body, lock_numstat, pick_tags, plan};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -100,7 +100,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         workspace,
         &resolved,
         &builtins,
-        invocation.prereleases,
+        false,
         fetch,
     );
     let min_age = invocation.min_age.unwrap_or(DEFAULT_MIN_AGE);
@@ -113,7 +113,6 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         })
         .flatten();
     let policy = Policy {
-        ignore: invocation.ignore.clone(),
         allow_major: invocation.allow_major,
         cutoff,
     };
@@ -198,44 +197,23 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
             untagged,
         });
     }
-    let group = invocation
-        .group
-        .as_deref()
-        .and_then(Group::parse)
-        .unwrap_or_default();
-    let labels: Vec<String> = invocation
-        .labels
-        .as_deref()
-        .unwrap_or_default()
-        .split(',')
-        .map(str::trim)
-        .filter(|label| !label.is_empty())
-        .map(str::to_owned)
-        .collect();
-    let plans = plan(&items, group);
+    let plans = plan(&items);
     let locks: Vec<String> = resolved
         .iter()
         .flat_map(|target| target.set.locks.iter().cloned())
         .collect();
-    let mut full_sets = Vec::new();
-    let mut picked = Vec::new();
-    for target in &resolved {
-        match &target.request {
-            Selection::Full => full_sets.push(target.set.name.clone()),
-            Selection::Packages(names) => {
-                for name in names {
-                    picked.push((target.set.name.clone(), name.clone()));
-                }
-            }
-        }
-    }
+    let mut full_sets: Vec<String> = resolved
+        .iter()
+        .filter(|target| matches!(target.request, Selection::Full))
+        .map(|target| target.set.name.clone())
+        .collect();
     if builtins.selects_all_actions() {
         full_sets.push(dx_update::discover::github::ACTIONS_SET.to_owned());
     }
     if builtins.selects_all_containers() {
         full_sets.push(dx_update::discover::containers::SET.to_owned());
     }
-    let scope = Scope::new(group, invocation.targets.is_empty(), full_sets, picked);
+    let scope = Scope::new(full_sets);
     let mut step = |words: &[String]| -> Result<(), String> {
         let inner = dx_plan::args::parse(words).map_err(|error| format!("{error:?}"))?;
         let mut step_out = Vec::new();
@@ -270,7 +248,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         ))
     };
     let outcomes = match publish(
-        workspace, tools, &plans, &scope, &labels, &rules, &locks, &mut step,
+        workspace, tools, &plans, &scope, &rules, &locks, &mut step,
     ) {
         Ok(outcomes) => outcomes,
         Err(reason) => {
@@ -412,7 +390,6 @@ fn publish(
     tools: &Tools,
     plans: &[GroupPlan],
     scope: &Scope,
-    labels: &[String],
     rules: &Rules,
     locks: &[String],
     step: &mut Step<'_>,
@@ -453,7 +430,7 @@ fn publish(
             rules,
             locks,
         };
-        let result = publish_one(root, tools, group, labels, &ctx, step);
+        let result = publish_one(root, tools, group, &ctx, step);
         if existing.is_none() && result.as_ref().is_ok_and(|text| text.starts_with("opened")) {
             open.push((0, group.branch.clone()));
         }
@@ -540,7 +517,6 @@ fn publish_one(
     root: &Path,
     tools: &Tools,
     group: &GroupPlan,
-    labels: &[String],
     target: &Target<'_>,
     step: &mut Step<'_>,
 ) -> Result<String, String> {
@@ -640,7 +616,7 @@ fn publish_one(
         }
         return Ok(format!("updated #{number}{note}"));
     }
-    let mut args = vec![
+    let args = vec![
         "pr",
         "create",
         "--base",
@@ -652,9 +628,6 @@ fn publish_one(
         "--body",
         &text,
     ];
-    for label in labels {
-        args.extend(["--label", label]);
-    }
     let created = gh(&args).map_err(|error| {
         if error.contains(ACTIONS_PR_REFUSAL) {
             format!("{error}\nturn on the repository setting \"Allow GitHub Actions to create and approve pull requests\" (Settings, Actions, General)")
@@ -675,7 +648,6 @@ mod tests {
     #![cfg(unix)]
     use super::*;
     use dx_update::discover::{Candidate, Registry};
-    use dx_update::pr::Group;
 
     fn sh(root: &Path, args: &[&str]) -> String {
         program(Path::new("git"), root, args).expect("git")
@@ -783,18 +755,12 @@ mod tests {
                 },
                 registry: Registry::Crates,
                 untagged: false,
-            }],
-            Group::Set,
+            }]
         )
     }
 
     fn scope() -> Scope {
-        Scope::new(
-            Group::Set,
-            false,
-            vec!["cargo".into(), "npm".into()],
-            Vec::new(),
-        )
+        Scope::new(vec!["cargo".into(), "npm".into()])
     }
 
     fn rules() -> Rules {
@@ -836,7 +802,7 @@ mod tests {
     }
 
     #[test]
-    fn creates_a_pull_request_with_labels() {
+    fn creates_a_pull_request() {
         let fx = fixture("[]");
         let mut step = editing(fx.work.clone(), None);
         let got = publish(
@@ -844,7 +810,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &["deps".into()],
             &rules(),
             &["Cargo.lock".to_owned()],
             &mut step,
@@ -853,7 +818,6 @@ mod tests {
         assert_eq!(got[0].result, Ok("opened https://example.com/pr/9".into()));
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr create --base main --head dx-update/cargo"));
-        assert!(argv.contains("--label deps"));
         assert!(argv.contains("cargo:serde 1.0.0 -> 2.0.0"));
         assert!(argv.contains("| Cargo.lock | 1 | 0 |"));
         let pushed = sh(&fx.origin, &["rev-parse", "--verify", "dx-update/cargo"]);
@@ -873,7 +837,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -895,7 +858,6 @@ mod tests {
             &fx.tools,
             &plans,
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -922,7 +884,6 @@ mod tests {
             &fx.tools,
             &plans,
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -950,7 +911,6 @@ mod tests {
             &fx.tools,
             &plans,
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -971,7 +931,6 @@ mod tests {
             &fx.tools,
             &plans,
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -990,7 +949,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1009,7 +967,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1032,7 +989,6 @@ mod tests {
             &fx.tools,
             &two_plans(),
             &two_scope(),
-            &[],
             &rules,
             &[],
             &mut step,
@@ -1056,7 +1012,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules,
             &[],
             &mut step,
@@ -1086,7 +1041,6 @@ mod tests {
             &fx.tools,
             &two_plans(),
             &two_scope(),
-            &[],
             &rules,
             &[],
             &mut step,
@@ -1115,7 +1069,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1143,7 +1096,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1162,7 +1114,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1184,7 +1135,6 @@ mod tests {
             &fx.tools,
             &[],
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1202,7 +1152,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1214,7 +1163,6 @@ mod tests {
             &fx.tools,
             &plans(),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1235,7 +1183,6 @@ mod tests {
                 &fx.tools,
                 &plans(),
                 &scope(),
-                &[],
                 &rules(),
                 &[],
                 step,
@@ -1264,7 +1211,6 @@ mod tests {
                 &fx.tools,
                 &plans(),
                 &scope(),
-                &[],
                 &rules(),
                 &[],
                 step,
@@ -1288,7 +1234,6 @@ mod tests {
             &fx.tools,
             &plans_to("2.0.0"),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1300,7 +1245,6 @@ mod tests {
             &fx.tools,
             &plans_to("2.1.0"),
             &scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1510,18 +1454,12 @@ mod tests {
             &[
                 item("cargo", "serde"),
                 item("github-actions", "actions/checkout"),
-            ],
-            Group::Set,
+            ]
         )
     }
 
     fn two_scope() -> Scope {
-        Scope::new(
-            Group::Set,
-            false,
-            vec!["cargo".into(), "github-actions".into()],
-            Vec::new(),
-        )
+        Scope::new(vec!["cargo".into(), "github-actions".into()])
     }
 
     #[test]
@@ -1538,7 +1476,6 @@ mod tests {
             &fx.tools,
             &two_plans(),
             &two_scope(),
-            &[],
             &rules(),
             &[],
             &mut step,
@@ -1584,7 +1521,6 @@ mod tests {
             &fx.tools,
             &two_plans(),
             &two_scope(),
-            &[],
             &rules(),
             &[],
             &mut step,

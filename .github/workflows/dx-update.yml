@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           gh auth setup-git
-          tools/dx update --pr --group=set --automerge=patch --min-age=3 --max-prs=5
+          tools/dx update --pr
       - name: Refresh per-platform lock entries
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}

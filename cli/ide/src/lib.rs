@@ -585,6 +585,11 @@ mod tests {
             home
         );
         assert!(!refresh(root, &runner).expect("second").ran);
+        std::fs::remove_file(root.join("App.kt")).expect("rm");
+        std::fs::remove_dir_all(root.join(".dx/local/ide")).expect("rm ide");
+        std::fs::write(root.join("App.scala"), "").expect("scala");
+        assert_eq!(refresh(root, &runner).expect("scala").failed, []);
+        assert!(root.join(".dx/local/ide/jdk/home").exists());
         scratch.close().expect("cleanup");
     }
 

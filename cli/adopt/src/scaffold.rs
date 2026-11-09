@@ -536,6 +536,10 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
             "kotlin.languageServer.enabled": true,
         }),
     );
+    add(
+        &[".scala", ".sc"],
+        serde_json::json!({"metals.javaHome": format!("{ide}/jdk/home")}),
+    );
     settings
 }
 
@@ -1860,9 +1864,21 @@ mod tests {
             "java.jdt.ls.java.home",
             "kotlin.java.home",
             "kotlin.languageServer.enabled",
+            "metals.javaHome",
         ] {
             assert!(settings.contains(key), "lost {key}");
         }
+    }
+
+    #[test]
+    fn scala_workspace_gets_metals_java_home() {
+        let extensions = std::collections::BTreeSet::from([".scala".to_string()]);
+        let value = editor_settings_value(&extensions, &EditorTools::default());
+        assert_eq!(
+            value["metals.javaHome"],
+            serde_json::Value::from("${workspaceFolder}/.dx/local/ide/jdk/home")
+        );
+        assert!(value.get("java.jdt.ls.java.home").is_none());
     }
 
     #[test]
@@ -1875,6 +1891,7 @@ mod tests {
             "clangd.path",
             "java.jdt.ls.java.home",
             "kotlin.java.home",
+            "metals.javaHome",
         ] {
             let path = value[key].as_str().expect(key);
             let rel = path.strip_prefix(&base).expect(path);

@@ -2,7 +2,7 @@ use crate::{Ctx, Plugin, link};
 
 pub const PLUGIN: Plugin = Plugin {
     name: "jdk",
-    extensions: &["java", "kt", "kts"],
+    extensions: &["java", "kt", "kts", "scala", "sc"],
     labels: &["java/ide:java_tool"],
     outputs: &["home"],
     write,

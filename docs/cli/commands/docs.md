@@ -89,7 +89,7 @@ tools/dx docs //lib:site
 | MDX | `@rules_dx//tools/docs/components:defs.bzl` | `mdx_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig` |
 | Go | `@rules_dx//tools/docs/go:defs.bzl` | `go_doc_shard` | `library`, `package`, `goos`, `goarch`, `build_tags` |
 | Ruby | `@rules_dx//tools/docs/ruby:defs.bzl` | `ruby_doc_shard` | `lib`, `package`, `deps` |
-| OCaml | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_doc_shard` | `lib`, `package` |
+| OCaml | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_doc_shard` | `lib`, `package`, `config` |
 | Perl | `@rules_dx//tools/docs/perl:defs.bzl` | `perl_doc_shard` | `lib`, `package` |
 | Julia | `@rules_dx//tools/docs/julia:defs.bzl` | `julia_doc_shard` | `lib`, `module`, `package` |
 | Fortran | `@rules_dx//tools/docs/fortran:defs.bzl` | `fortran_doc_shard` | `lib`, `package` |

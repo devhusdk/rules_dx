@@ -2,7 +2,7 @@
 
 load("@rules_perl//perl/cpan/private:carton.bzl", "install")
 
-_install = tag_class(
+_lock = tag_class(
     doc = "One CPAN hub built from a carton lock.",
     attrs = {
         "lock": attr.label(
@@ -21,7 +21,7 @@ def _cpan_impl(module_ctx):
     direct = []
     dev = []
     for mod in module_ctx.modules:
-        for attrs in mod.tags.install:
+        for attrs in mod.tags.lock:
             hub = install(
                 module_ctx = module_ctx,
                 attrs = struct(
@@ -45,5 +45,5 @@ def _cpan_impl(module_ctx):
 cpan = module_extension(
     doc = "Builds CPAN hubs through rules_perl.",
     implementation = _cpan_impl,
-    tag_classes = {"install": _install},
+    tag_classes = {"lock": _lock},
 )

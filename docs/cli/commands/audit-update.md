@@ -447,7 +447,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `go_deps.from_file` with `go_mod` | `go` | `go_mod` | `go.sum` beside it |
 | `ruby.bundle_fetch` | `name`, default `bundle` | `gemfile` | `gemfile_lock` |
 | `composer.lock` of `@rules_dx//php/composer:extensions.bzl` | `name` | `composer.json` beside the lock | `lock`, `digests` |
-| `dub.lock` of `@rules_dx//d/dub:extensions.bzl` | `name` | `dub.json` or `dub.sdl` beside `selections` | `selections`, `digests` |
+| `dub.lock` of `@rules_dx//d/dub:extensions.bzl` | `name` | `dub.json` or `dub.sdl` beside `lock` | `lock`, `digests` |
 | `cpan.install` of `@rules_perl//perl/cpan:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and the `lock` JSON |
 | `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
 | Conan `BazelDeps` `conan_deps_module_extension.bzl` | `conan` | `conanfile.txt` or `conanfile.py` beside the .bzl or in its parent | `conan.lock` beside the conanfile |
@@ -533,7 +533,7 @@ dub = use_extension("@rules_dx//d/dub:extensions.bzl", "dub")
 dub.lock(
     name = "dub_deps",
     digests = "//d:dub.digests.json",
-    selections = "//d:dub.selections.json",
+    lock = "//d:dub.selections.json",
 )
 ```
 

@@ -991,7 +991,7 @@ impl ModuleFile {
             .map(|call| {
                 Ok(DubLock {
                     name: required(call, TAG, "name")?,
-                    selections: required(call, TAG, "selections")?,
+                    selections: required(call, TAG, "lock")?,
                     digests: required(call, TAG, "digests")?,
                     line: call.line,
                 })

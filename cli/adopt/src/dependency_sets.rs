@@ -2752,7 +2752,7 @@ mod tests {
 
     #[test]
     fn dub_locks_become_dub_sets() {
-        let module = "dub = use_extension(\"@rules_dx//d/dub:extensions.bzl\", \"dub\")\ndub.lock(name = \"dub_deps\", selections = \"//d:dub.selections.json\", digests = \"//d:dub.digests.json\")\n";
+        let module = "dub = use_extension(\"@rules_dx//d/dub:extensions.bzl\", \"dub\")\ndub.lock(name = \"dub_deps\", lock = \"//d:dub.selections.json\", digests = \"//d:dub.digests.json\")\n";
         let read = |path: &str| match path {
             "d/dub.sdl" => Ok(String::new()),
             _ => Err("none".to_owned()),

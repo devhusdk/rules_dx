@@ -6,8 +6,8 @@ _lock = tag_class(
     doc = "One dub.selections.json and its digest sidecar.",
     attrs = {
         "digests": attr.label(mandatory = True, allow_single_file = [".json"], doc = "dub.digests.json: {\"packages\": {\"name\": {\"version\", \"sha256\"}}}."),
+        "lock": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The dub.selections.json DUB wrote."),
         "name": attr.string(mandatory = True, doc = "The hub repository name."),
-        "selections": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The dub.selections.json DUB wrote."),
     },
 )
 
@@ -16,7 +16,7 @@ def _dub_impl(module_ctx):
     root_dev_hubs = []
     for mod in module_ctx.modules:
         for tag in mod.tags.lock:
-            declare(tag.name, module_ctx.read(tag.selections), module_ctx.read(tag.digests))
+            declare(tag.name, module_ctx.read(tag.lock), module_ctx.read(tag.digests))
             if mod.is_root:
                 if module_ctx.is_dev_dependency(tag):
                     root_dev_hubs.append(tag.name)

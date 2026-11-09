@@ -1230,12 +1230,12 @@ dub = use_extension("//d/dub:extensions.bzl", "dub", dev_dependency = True)
 dub.lock(
     name = "dub_fixture",
     digests = "//d/tests/fixtures/dub:dub.digests.json",
-    selections = "//d/tests/fixtures/dub:dub.selections.json",
+    lock = "//d/tests/fixtures/dub:dub.selections.json",
 )
 dub.lock(
     name = "d_app_dub",
     digests = "//d/tests/fixtures/d-app:dub.digests.json",
-    selections = "//d/tests/fixtures/d-app:dub.selections.json",
+    lock = "//d/tests/fixtures/d-app:dub.selections.json",
 )
 use_repo(
     dub,

@@ -20,7 +20,7 @@ bazel_dep(name = "rules_perl", version = "1.5.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 cpan = use_extension("@rules_dx//perl/cpan:extensions.bzl", "cpan", dev_dependency = True)
-cpan.install(
+cpan.lock(
     name = "perl_app_cpan",
     lock = "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json",
 )

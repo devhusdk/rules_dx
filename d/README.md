@@ -75,7 +75,7 @@ dub = use_extension("@rules_dx//d/dub:extensions.bzl", "dub")
 dub.lock(
     name = "dub_packages",
     digests = "//:dub.digests.json",
-    selections = "//:dub.selections.json",
+    lock = "//:dub.selections.json",
 )
 use_repo(dub, "dub_packages")
 ```

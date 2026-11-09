@@ -27,7 +27,7 @@ dx init demo-app
 
 Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a `pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
 
-`flutter_application(target = "web")` builds the web bundle.
+`flutter_web_app` builds the web bundle.
 
 ```sh
 tools/dx test //flutter/tests/runtime/...

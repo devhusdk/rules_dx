@@ -9,7 +9,7 @@ load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "Flutter
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
 load("//dart/rules:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS", "dart_entry_sources")
 load("//libs/starlark:cells.bzl", "unsupported_constraint")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 flutter_gen_l10n = _flutter_gen_l10n
@@ -48,6 +48,17 @@ _flutter_forward_test = dx_executable_forward_rule(
     allow_files = FLUTTER_SOURCE_EXTS,
     upstream_providers = [[DartAnalyzableInfo]],
     extra_attrs = dx_lcov_merger_attr(),
+    runtime = "besteffort",
+)
+
+_flutter_web_forward = dx_library_forward_rule(
+    provides = [DartAnalyzableInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
+    required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
+    quality_specs = DART_SOURCE_SPECS,
+    quality_tools = DART_QUALITY_TOOLS,
+    what = "flutter_web_app",
+    allow_files = FLUTTER_SOURCE_EXTS,
+    upstream_providers = [[DartAnalyzableInfo]],
     runtime = "besteffort",
 )
 
@@ -117,16 +128,8 @@ def flutter_test(name, main, srcs = None, visibility = None, **kwargs):
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
     dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
 
-def flutter_application(name, main, srcs = None, visibility = None, target = "native", **kwargs):
-    """Thin wrapper over flutter_application; target is native or web."""
-    if target == "web":
-        web_kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
-        if srcs != None:
-            web_kwargs["srcs"] = srcs
-        _flutter_web_app(name = name, main = main, visibility = visibility, **web_kwargs)
-        return
-    if target != "native":
-        fail('flutter_application: target must be "native" or "web", got "{}"'.format(target))
+def flutter_application(name, main, srcs = None, visibility = None, **kwargs):
+    """Thin wrapper over flutter_application."""
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
     dx_wrap(
         name,
@@ -144,6 +147,11 @@ def flutter_application(name, main, srcs = None, visibility = None, target = "na
         **kwargs
     )
 
+def flutter_web_app(name, main, srcs = None, visibility = None, **kwargs):
+    """Thin wrapper over flutter_web_app."""
+    kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    dx_wrap_binary(name, _flutter_web_app, _flutter_web_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
+
 def flutter_web_bundle(name, **kwargs):
     """Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds."""
     _flutter_web_bundle(name = name, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
@@ -155,6 +163,12 @@ _bad_abi = rule(
     implementation = _bad_abi_impl,
     attrs = {"message": attr.string(mandatory = True)},
 )
+
+def _flutter_app_kwargs(kwargs):
+    app_kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    if not app_kwargs.get("tags"):
+        app_kwargs["tags"] = ["manual"]
+    return app_kwargs
 
 def flutter_android_app(name, application, package_name, android_abi = "arm64", visibility = None, **kwargs):
     """Thin wrapper over flutter_android_app. An unknown android_abi fails when the target is analyzed."""
@@ -168,9 +182,7 @@ def flutter_android_app(name, application, package_name, android_abi = "arm64", 
             visibility = visibility,
         )
         return
-    app_kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
-    if not app_kwargs.get("tags"):
-        app_kwargs["tags"] = ["manual"]
+    app_kwargs = _flutter_app_kwargs(kwargs)
     _flutter_android_app(
         name = name,
         application = application,
@@ -186,5 +198,5 @@ def flutter_ios_app(name, application, bundle_id, **kwargs):
         name = name,
         application = application,
         bundle_id = bundle_id,
-        **kwargs
+        **_flutter_app_kwargs(kwargs)
     )

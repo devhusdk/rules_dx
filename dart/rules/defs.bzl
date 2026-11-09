@@ -42,6 +42,17 @@ _dart_binary_forward = dx_executable_forward_rule(
     runtime = "besteffort",
 )
 
+_dart_web_forward = dx_library_forward_rule(
+    provides = [DartAnalyzableInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
+    required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
+    quality_specs = DART_SOURCE_SPECS,
+    quality_tools = DART_QUALITY_TOOLS,
+    what = "dart web binary",
+    allow_files = DART_SOURCE_EXTS,
+    upstream_providers = [[DartAnalyzableInfo]],
+    runtime = "besteffort",
+)
+
 _dart_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, QualityToolsInfo],
@@ -94,21 +105,24 @@ def dart_library(name, srcs = None, visibility = None, **kwargs):
         kwargs["package_name"] = root_name
     dx_wrap(name, _dart_library, _dart_library_forward, srcs or [], visibility = visibility, **kwargs)
 
-def dart_binary(name, main = None, srcs = None, visibility = None, target = "native", **kwargs):
-    """Thin wrapper over dart_binary; target is native, js or wasm."""
-    if target in ("js", "wasm"):
-        web_kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
-        if main != None:
-            web_kwargs["main"] = main
-        if srcs != None:
-            web_kwargs["srcs"] = srcs
-        (_dart_js_binary if target == "js" else _dart_wasm_binary)(name = name, visibility = visibility, **web_kwargs)
-        return
-    if target != "native":
-        fail('dart_binary: target must be "native", "js" or "wasm", got "{}"'.format(target))
+def dart_binary(name, main = None, srcs = None, visibility = None, **kwargs):
+    """Thin wrapper over dart_binary."""
     main = _dart_main("dart_binary", name, main, srcs, False)
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_binary(name, _dart_binary, _dart_binary_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
+
+def _dart_web_binary(kind, upstream_rule, name, main, srcs, visibility, kwargs):
+    main = _dart_main(kind, name, main, srcs, False)
+    kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
+    dx_wrap_binary(name, upstream_rule, _dart_web_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
+
+def dart_js_binary(name, main = None, srcs = None, visibility = None, **kwargs):
+    """Thin wrapper over dart_js_binary."""
+    _dart_web_binary("dart_js_binary", _dart_js_binary, name, main, srcs, visibility, kwargs)
+
+def dart_wasm_binary(name, main = None, srcs = None, visibility = None, **kwargs):
+    """Thin wrapper over dart_wasm_binary."""
+    _dart_web_binary("dart_wasm_binary", _dart_wasm_binary, name, main, srcs, visibility, kwargs)
 
 def dart_test(name, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_test."""

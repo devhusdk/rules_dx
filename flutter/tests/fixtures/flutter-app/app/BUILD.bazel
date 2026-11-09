@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("@rules_dx//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH", "flutter_application", "flutter_gen_l10n", "flutter_library", "flutter_test", "flutter_web_bundle")
+load("@rules_dx//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH", "flutter_application", "flutter_gen_l10n", "flutter_library", "flutter_test", "flutter_web_app", "flutter_web_bundle")
 load("//flutter/tests/fixtures/flutter-app:profile.bzl", "profile_app")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -78,11 +78,10 @@ flutter_application(
     deps = [":app"] + _PUB,
 )
 
-flutter_application(
+flutter_web_app(
     name = "web",
     package_name = "flutter_app",
     main = "lib/main.dart",
-    target = "web",
     deps = [":app"] + _PUB,
 )
 

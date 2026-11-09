@@ -1,8 +1,9 @@
 # gazelle:ignore
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//flutter/rules:defs.bzl", "flutter_application", "flutter_library", "flutter_test")
+load("//flutter/rules:defs.bzl", "flutter_application", "flutter_library", "flutter_test", "flutter_web_app")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":web_tests.bzl", "web_owns_main_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -22,12 +23,18 @@ flutter_application(
     deps = [":lib"] + _DEPS,
 )
 
-flutter_application(
+flutter_web_app(
     name = "web",
     package_name = "dx_flutter_probe",
     main = "lib/main.dart",
-    target = "web",
     deps = [":lib"] + _DEPS,
+)
+
+web_owns_main_test(
+    name = "web_owns_main_test",
+    size = "small",
+    target_compatible_with = ["@platforms//os:linux"],
+    target_under_test = ":web",
 )
 
 build_test(
@@ -50,6 +57,6 @@ flutter_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = ["BUILD.bazel", "web_tests.bzl"],
     tags = ["corpus"],
 )

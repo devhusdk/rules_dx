@@ -1,4 +1,4 @@
-load("//modules:java-scala-kotlin.bzl", "JAVA_MAJOR")
+load("//modules:versions.bzl", "JAVA_MAJOR")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_java_tool")

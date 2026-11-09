@@ -1,4 +1,4 @@
-load("//modules:js.bzl", "NODE_VERSION_PREFIX")
+load("//modules:versions.bzl", "NODE_VERSION_PREFIX")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_node_tool")

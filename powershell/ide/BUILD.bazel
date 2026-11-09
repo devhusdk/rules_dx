@@ -1,4 +1,4 @@
-load("//modules:powershell.bzl", "PWSH_VERSION")
+load("//modules:versions.bzl", "PWSH_VERSION")
 load("//powershell/rules:defs.bzl", "powershell_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")

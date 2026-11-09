@@ -1,4 +1,4 @@
-load("//modules:js.bzl", "TYPESCRIPT_VERSION")
+load("//modules:versions.bzl", "TYPESCRIPT_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 

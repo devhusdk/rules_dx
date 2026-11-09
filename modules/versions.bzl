@@ -121,3 +121,17 @@ CONSUMER_BAZEL_DEPS = {
     "gcc_toolchain": struct(floor = "0.13.0", tested = "0.13.0"),
     "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
 }
+
+NPM_HUBS = ["dx_npm_tools"]
+NPM_DEV_HUBS = ["dx_npm"]
+NPM_LOCKS = [
+    "//:pnpm-lock.yaml",
+    "//quality/tools/javascript:pnpm-lock.yaml",
+]
+
+JVM_TOOL_VERSIONS = {
+    "scalafix": "0.14.9",
+}
+
+JAVA_MAJOR = "21"
+JAVA_RUNTIME_VERSION = "remotejdk_" + JAVA_MAJOR

@@ -1,4 +1,4 @@
-load("//modules:toolchains.bzl", "GO_SDK_VERSION")
+load("//modules:versions.bzl", "GO_SDK_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_go_tool")

@@ -116,23 +116,6 @@ rust_test(
 
 # keep
 rust_test(
-    name = "versions_loaded_test",
-    srcs = ["versions_loaded_test.rs"],
-    data = [
-        ":module_srcs",
-        "//java/ide:BUILD.bazel",
-        "//libs/testing:tested_stack.bzl",
-        "//lua/toolchain:BUILD.bazel",
-        "//python/rules:runtime_tests.bzl",
-        "//rust/rules:edition.bzl",
-        "//tools/docs/components:defs.bzl",
-        "@rules_dx_cuda//toolchain:check.bzl",
-    ],
-    deps = ["//tools/testing:dx_testing"],
-)
-
-# keep
-rust_test(
     name = "python_budget_test",
     srcs = ["python_budget_test.rs"],
     data = [
@@ -156,7 +139,6 @@ test_suite(
         ":families_test",
         ":python_budget_test",
         ":versions_contract",
-        ":versions_loaded_test",
     ],
 )
 
@@ -167,13 +149,8 @@ exports_files([
     "cuda.bzl",
     "rust.bzl",
     "python.bzl",
-    "js.bzl",
-    "java-scala-kotlin.bzl",
-    "dotnet.bzl",
     "families.json",
-    "powershell.bzl",
     "python_budget.json",
-    "toolchains.bzl",
     "versions.bzl",
 ])
 
@@ -183,13 +160,8 @@ real_source_target(
         "BUILD.bazel",
         "consumer_deps.bzl",
         "cuda.bzl",
-        "dotnet.bzl",
-        "java-scala-kotlin.bzl",
-        "js.bzl",
-        "powershell.bzl",
         "python.bzl",
         "rust.bzl",
-        "toolchains.bzl",
         "ruby.bzl",
         "versions.bzl",
         "versions_rs.bzl",

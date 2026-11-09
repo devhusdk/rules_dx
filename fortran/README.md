@@ -129,3 +129,13 @@ fortitude reads free-form source only.
 
 OpenMP, GPU offload and Wasm are unsupported. On other platforms Fortran
 targets are incompatible and skipped.
+
+## Locked packages
+
+`fortran.fpm(name, lock)` in `MODULE.bazel` reads an `fpm.lock` and declares
+one pinned archive per `[dependencies.<name>]` table, plus a hub repository
+named `name` with one `fortran_library` alias per package. Each table needs
+`version`, `url` and `sha256`, and may set `strip_prefix` and
+`dependencies`, a list of other locked packages. Each package compiles the
+Fortran sources under its `src` tree. `dx update` and `dx security` do not
+read the lock yet.

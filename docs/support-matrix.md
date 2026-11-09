@@ -24,7 +24,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Elixir | none | `hex` | `elixir_bench` | n/a |
 | Erlang | none | `hex` from `mix.lock` or an `erlang.rebar` `rebar.lock`; `dx update` audits and lists outdated `rebar.lock` packages but does not refresh it yet | `erlang_bench` | n/a |
 | Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a |
-| Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | none: no package manager | n/a | n/a |
+| Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | none for `fpm.toml`; a `fortran.fpm` `fpm.lock` builds pinned archives, but `dx update` and `dx security` do not read it yet | n/a | n/a |
 | F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` |
 | Go | none | `go` | `go_bench` | `go_fuzz_test` |
 | Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`, which `haskell_deps_resolve` can derive from `stack.yaml.lock` | `haskell_bench` | n/a |

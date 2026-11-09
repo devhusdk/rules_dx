@@ -129,3 +129,33 @@ def hub_build():
         cases = {":" + cell + "_exec": "@" + FLANG_PREFIX + cell + "//:" + tool for cell in sorted(FORTRAN_CELLS.keys())}
         root.append(_TOOL.format(name = tool, cases = repr(cases)))
     return {"BUILD.bazel": "\n".join(root), "impl/BUILD.bazel": "\n".join(impl)}
+
+_FPM_BUILD = """load("@rules_dx//fortran/rules:defs.bzl", "fortran_library")
+
+fortran_library(
+    name = "{name}",
+    srcs = glob(["src/**/*.{ext}"], allow_empty = True),
+    deps = {deps},
+    includes = ["src"],
+    visibility = ["//visibility:public"],
+)
+"""
+
+_FPM_ALIAS = """alias(
+    name = "{name}",
+    actual = "@{repo}//:{name}",
+    visibility = ["//visibility:public"],
+)
+"""
+
+def fpm_build(package, prefix):
+    """Returns the BUILD file of one fpm.lock package: a fortran_library over its src tree."""
+    return _FPM_BUILD.format(
+        name = package["name"],
+        ext = "{f,f90,f95,f03,f08,F,F90,F95,F03,F08}",
+        deps = repr(["@{}_{}//:{}".format(prefix, dep, dep) for dep in package["deps"]]),
+    )
+
+def fpm_hub_build(packages, prefix):
+    """Returns the hub BUILD file with one fortran_library alias per fpm.lock package."""
+    return "\n".join([_FPM_ALIAS.format(name = p["name"], repo = prefix + "_" + p["name"]) for p in packages])

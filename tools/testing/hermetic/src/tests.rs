@@ -2256,3 +2256,19 @@ fn isolation_check_result_reports_the_first_failure() {
         Ok(())
     );
 }
+
+#[test]
+fn lock_drift_accepts_the_same_lock() {
+    assert!(lock_drift("{\"a\": 1}\n", "{\"a\": 1}\n").is_ok());
+}
+
+#[test]
+fn lock_drift_names_the_refresh_flow_for_a_different_lock() {
+    let err = lock_drift("{\"a\": 1}\n", "{\"a\": 2}\n").unwrap_err();
+    assert!(err.contains("test.outputs"), "{err}");
+}
+
+#[test]
+fn lock_drift_ignores_crlf() {
+    assert!(lock_drift("a\r\nb\r\n", "a\nb\n").is_ok());
+}

@@ -876,6 +876,23 @@ rust_test(
     ],
 )
 
+# Manual: re-pins the cpp_rust Maven lock with the qualification's composed MODULE.bazel and
+# writes it to the undeclared outputs: /evidence scope=//tools/testing/hermetic:cpp_rust_maven_pin
+nested_bazel_test(
+    name = "cpp_rust_maven_pin",
+    timeout = "long",
+    srcs = ["maven_pin_test.rs"],
+    data = [":cpp_rust_manifest"],
+    env = {"DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)"},
+    network = True,
+    tags = ["manual"],
+    deps = [
+        ":hermetic",
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
 # Needs a CUDA GPU; run it by hand: bazel test //tools/testing/hermetic:cuda_gpu_nested_test
 nested_bazel_test(
     name = "cuda_gpu_nested_test",

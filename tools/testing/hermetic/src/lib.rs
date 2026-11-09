@@ -2580,6 +2580,26 @@ pub fn qualify(manifest: Manifest, root: &Path, out: &Path) -> Value {
     evidence
 }
 
+/// The rules_dx source tree the manifest's `MODULE.bazel` lives in.
+pub fn source_tree(manifest: &Manifest) -> Result<PathBuf, String> {
+    std::fs::canonicalize(&manifest.module_file)
+        .map(strip_verbatim)
+        .map_err(|err| format!("cannot resolve the rules_dx source tree: {err}"))?
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| "rules_dx MODULE.bazel has no parent".to_owned())
+}
+
+/// Fails when a freshly pinned Maven lock differs from the committed one, ignoring CRLF.
+pub fn lock_drift(committed: &str, pinned: &str) -> Result<(), String> {
+    if committed.replace("\r\n", "\n") == pinned.replace("\r\n", "\n") {
+        return Ok(());
+    }
+    Err("the committed maven_install.json is stale; copy maven_install.json from the test's \
+         undeclared outputs (test.outputs in the /evidence artifact) over it and commit"
+        .to_owned())
+}
+
 fn run_all(
     manifest: Manifest,
     root: &Path,
@@ -2587,12 +2607,7 @@ fn run_all(
     evidence: &mut Value,
     slot: &mut Option<Session>,
 ) -> Result<(), String> {
-    let source = std::fs::canonicalize(&manifest.module_file)
-        .map(strip_verbatim)
-        .map_err(|err| format!("cannot resolve the rules_dx source tree: {err}"))?
-        .parent()
-        .map(Path::to_path_buf)
-        .ok_or("rules_dx MODULE.bazel has no parent")?;
+    let source = source_tree(&manifest)?;
     let commit = git(&source, &["rev-parse", "HEAD"])?;
     let changes = git(&source, &["status", "--porcelain"])?;
     evidence["rules_dx"] = json!({"commit": commit, "dirty": !changes.is_empty(), "changes": changes, "source": source});

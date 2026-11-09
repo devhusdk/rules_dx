@@ -23,6 +23,8 @@ http_archive(
 
 bazel_dep(name = "rules_jvm_external", version = "7.2")
 
+# Refresh maven_install.json: /evidence scope=//tools/testing/hermetic:cpp_rust_maven_pin, then copy
+# test.outputs/maven_install.json from the artifact over it.
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [

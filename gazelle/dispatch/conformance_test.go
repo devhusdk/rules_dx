@@ -148,9 +148,9 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "dockerfile_library", target: "dockerfile", defs: "dockerfile/rules:defs.bzl",
 		symbols: []string{"dockerfile_library"},
 		extraLoads: map[string][]string{
-			"@rules_dx//cmake/rules:defs.bzl":    {"cmake_library"},
-			"@rules_dx//bicep/rules:defs.bzl":    {"bicep_library"},
-			"@rules_dx//asciidoc/rules:defs.bzl": {"asciidoc_library"},
+			"@rules_dx//cmake/rules:defs.bzl":           {"cmake_library"},
+			"@rules_dx//bicep/rules:defs.bzl":           {"bicep_library"},
+			"@rules_dx//asciidoc/rules:defs.bzl":        {"asciidoc_library"},
 			"@rules_dx//deploy/rules:image_quality.bzl": {"oci_image_quality"},
 		},
 	},

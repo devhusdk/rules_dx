@@ -330,6 +330,123 @@ fn toolchain_check(root: &Path) -> StatusCheck {
     )
 }
 
+struct LanguageToolchain {
+    language: &'static str,
+    bzl_suffix: &'static str,
+    extension: &'static str,
+    tag: &'static str,
+    attribute: Option<&'static str>,
+}
+
+const LANGUAGE_TOOLCHAINS: &[LanguageToolchain] = &[
+    LanguageToolchain {
+        language: "python",
+        bzl_suffix: "@rules_python//python/extensions:python.bzl",
+        extension: "python",
+        tag: "toolchain",
+        attribute: Some("python_version"),
+    },
+    LanguageToolchain {
+        language: "go",
+        bzl_suffix: "@rules_go//go:extensions.bzl",
+        extension: "go_sdk",
+        tag: "download",
+        attribute: Some("version"),
+    },
+    LanguageToolchain {
+        language: "node",
+        bzl_suffix: "@rules_nodejs//nodejs:extensions.bzl",
+        extension: "node",
+        tag: "toolchain",
+        attribute: Some("node_version"),
+    },
+    LanguageToolchain {
+        language: "jdk",
+        bzl_suffix: "@rules_java//java:extensions.bzl",
+        extension: "toolchains",
+        tag: "toolchains",
+        attribute: None,
+    },
+    LanguageToolchain {
+        language: "dotnet",
+        bzl_suffix: "//dotnet:extensions.bzl",
+        extension: "dotnet",
+        tag: "toolchain",
+        attribute: Some("dotnet_version"),
+    },
+    LanguageToolchain {
+        language: "swift",
+        bzl_suffix: "@rules_swift//swift:extensions.bzl",
+        extension: "swift",
+        tag: "toolchain",
+        attribute: Some("swift_version"),
+    },
+];
+
+fn language_toolchain_checks(root: &Path) -> Vec<StatusCheck> {
+    let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
+        return Vec::new();
+    };
+    let Ok(module) = ModuleFile::parse(&text) else {
+        return Vec::new();
+    };
+    let hint = "bazel build //...";
+    let mut checks = Vec::new();
+    for row in LANGUAGE_TOOLCHAINS {
+        let mut bindings = Vec::new();
+        for (bzl, name) in module.extensions() {
+            if name == row.extension && bzl.ends_with(row.bzl_suffix) {
+                bindings.extend(
+                    module
+                        .extension_bindings(bzl, name)
+                        .into_iter()
+                        .map(|(binding, _)| binding),
+                );
+            }
+        }
+        if bindings.is_empty() {
+            continue;
+        }
+        let mut versions: Vec<String> = Vec::new();
+        if let Some(attribute) = row.attribute {
+            for binding in &bindings {
+                let tag = format!("{binding}.{}", row.tag);
+                for call in module.calls_named(&tag) {
+                    if let Some(version) = call.str(attribute)
+                        && !versions.iter().any(|seen| seen == version)
+                    {
+                        versions.push(version.to_owned());
+                    }
+                }
+            }
+        }
+        let name = format!("toolchain.{}", row.language);
+        if versions.is_empty() {
+            checks.push(check(
+                &name,
+                "warn",
+                format!(
+                    "unknown: MODULE.bazel uses {} but declares no literal version",
+                    row.language
+                ),
+                hint,
+            ));
+        } else {
+            checks.push(check(
+                &name,
+                "ok",
+                format!(
+                    "declared: {} {} in MODULE.bazel",
+                    row.language,
+                    versions.join(", ")
+                ),
+                hint,
+            ));
+        }
+    }
+    checks
+}
+
 fn host_name(os: &str, arch: &str) -> Option<&'static str> {
     match (os, arch) {
         ("linux", "x86_64") => Some("linux_x86_64"),
@@ -478,6 +595,9 @@ pub fn observed_status_checks(
 ) -> Vec<StatusCheck> {
     let mut checks = vec![
         toolchain_check(root),
+    ];
+    checks.extend(language_toolchain_checks(root));
+    checks.extend([
         bazel_check(root, std::env::var_os("PATH")),
         module_check(root),
         init_plan_check(root),
@@ -489,7 +609,7 @@ pub fn observed_status_checks(
             &crate::read_version_pins(root).unwrap_or_default(),
             &crate::release_pins(MODULE_VERSION).unwrap_or_default(),
         ),
-    ];
+    ]);
     checks.extend(ide_check(root));
     checks
 }
@@ -549,6 +669,43 @@ mod tests {
         let text = render_status_text(&checks);
         assert!(text.contains("pin: ok"), "{text}");
         assert!(text.contains("toolchain: ok"), "{text}");
+    }
+
+    #[test]
+    fn language_toolchains_are_reported_per_family() {
+        let scratch = dx_test_scratch::scratch("dx-status-languages-");
+        let dir = scratch.path();
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            r#"
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.12")
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.24.1")
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
+node.toolchain(node_version = pinned)
+"#,
+        )
+        .expect("module");
+        let checks = super::language_toolchain_checks(dir);
+        let line = |name: &str| {
+            checks
+                .iter()
+                .find(|c| c.name == name)
+                .map(|c| (c.status.as_str(), c.detail.as_str()))
+        };
+        assert_eq!(
+            line("toolchain.python"),
+            Some(("ok", "declared: python 3.12 in MODULE.bazel"))
+        );
+        assert_eq!(
+            line("toolchain.go"),
+            Some(("ok", "declared: go 1.24.1 in MODULE.bazel"))
+        );
+        let node = line("toolchain.node").expect("node");
+        assert_eq!(node.0, "warn");
+        assert!(node.1.starts_with("unknown:"), "{}", node.1);
+        assert!(line("toolchain.swift").is_none());
     }
 
     #[test]

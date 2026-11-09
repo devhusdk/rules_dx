@@ -26,6 +26,7 @@ Scopes: none.
 | Check | Reports |
 | --- | --- |
 | `toolchain` | Rust and `rules_rust` versions declared in `MODULE.bazel`. `warn` when missing, unparsed, overridden or different from the tested versions. |
+| `toolchain.<lang>` | One record per language found in `MODULE.bazel`, for `python`, `go`, `node`, `jdk`, `dotnet` and `swift`, with the version from its extension tag (`python.toolchain`, `go_sdk.download`, `node.toolchain`, `dotnet.toolchain`, `swift.toolchain`). `warn` with `unknown` when no literal version is declared, as for `jdk`. |
 | `bazel` | `.bazelversion` and `bazel` or `bazelisk` on `PATH`. |
 | `module` | `rules_dx` version in `MODULE.bazel` (or an `include()`d file) against the `dx` version. A `single_version_override` version wins over `bazel_dep`. |
 | `init_plan` | Read-only `dx init` plan. `warn` names hard conflicts. |

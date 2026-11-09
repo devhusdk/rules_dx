@@ -13,7 +13,7 @@ tools/dx worktree prune --apply
 ```
 
 ```text
-dx worktree add <branch> [--create=<ref>] [--force] [--path-only]
+dx worktree add <branch> [--create <ref>] [--force] [--path-only]
 dx worktree release [<path>] [--force]
 dx worktree list [--disk]
 dx worktree path <branch>
@@ -26,7 +26,7 @@ A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>
 
 | Flag | What it does |
 | --- | --- |
-| `--create=<ref>` | Start a new branch from `<ref>`. `add` only. |
+| `--create <ref>` | Start a new branch from `<ref>`. `add` only. |
 | `--force` | `add`: take a slot held by another holder. `release`: discard unpushed work or free another holder's slot. |
 | `--path-only` | Print only the path on stdout. `add` only. |
 | `--disk` | Measure disk use per slot. `list` only, slow. |
@@ -207,7 +207,7 @@ and matcher `Bash`; a hook that exits 2 denies the command.
 | Gemini CLI | `.gemini/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
 | GitHub Copilot | `.github/hooks/dx.json` | none |
 
-`dx init --apply --agents=<list>` writes the file of each named agent when it
+`dx init --apply --agents <list>` writes the file of each named agent when it
 is absent and never overwrites one. If a file exists, it prints the missing
 hook entries. It also writes the launcher and the agent commands block in
 `AGENTS.md`; see the [fixed file set](init.md#fixed-file-set). `dx status`

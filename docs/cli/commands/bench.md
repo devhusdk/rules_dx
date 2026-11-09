@@ -9,7 +9,7 @@ dx bench --compare main --max-regression=20
 ```
 
 ```text
-dx bench [--compare <path|ref>] [--max-regression=<pct>] [--here] [scope ...] [-- bazel-options ...]
+dx bench [--compare <path|ref>] [--max-regression <pct>] [--here] [scope ...] [-- bazel-options ...]
 ```
 
 Tag a test `dx-bench`. Add `manual` so `dx test //...` skips it:
@@ -38,7 +38,7 @@ Text output prints one table per target with name, mean, stddev and unit. `--out
 
 `--compare <path|ref>` reads a `dx-bench/v1` document, either one test's `dx-bench.json` or a merged `last.json`. A value that is not a file is a git ref: `dx bench` downloads the `dx-bench-<platform>` artifact of the latest run on that ref with `gh run download` and reads the json file in it. The table gains `baseline` and `delta %` columns, and `--output=json` adds `baseline` and `delta_pct` to each result the baseline covers.
 
-`--max-regression=<pct>` needs `--compare` and exits 1 when a result is slower than its baseline by more than `<pct>` percent and by more than two standard deviations (the larger of the two stddevs). Each regression is printed to stderr as `bench_regression`.
+`--max-regression <pct>` needs `--compare` and exits 1 when a result is slower than its baseline by more than `<pct>` percent and by more than two standard deviations (the larger of the two stddevs). Each regression is printed to stderr as `bench_regression`.
 
 A target that passes but wrote no `dx-bench.json`, or wrote an invalid one, fails the run. With no `dx-bench` test in scope, `dx bench` exits 1 with `no_tests`.
 

@@ -4,12 +4,12 @@ Runs the fuzz targets in scope for a time budget and keeps their crashes under `
 
 ```sh
 dx fuzz //pkg:parser
-dx fuzz --time 5m //pkg/...
-dx fuzz --time 90s --jobs 4
+dx fuzz --budget 5m //pkg/...
+dx fuzz --budget 90s --jobs 4
 ```
 
 ```text
-dx fuzz [--output json] [--here] [--time <duration>] [--jobs <n>] [scope ...]
+dx fuzz [--output json] [--here] [--budget <duration>] [--jobs <n>] [scope ...]
 ```
 
 A fuzz target is a rule tagged `dx-fuzz` with a runner named `<name>_run` next to it. Targets without the tag are skipped. Targets run one after another.
@@ -28,7 +28,7 @@ Java, Kotlin and Scala: `java_fuzz_test`, `kotlin_fuzz_test` and `scala_fuzz_tes
 
 | Flag | What it does |
 | --- | --- |
-| `--time <duration>` | Time budget per target: `90`, `90s`, `5m` or `1h`. Default: `60s`. |
+| `--budget <duration>` | Time budget per target: `90`, `90s`, `5m` or `1h`. Default: `60s`. |
 | `--jobs <n>` | Jobs each runner may use. Passed to the runner as `--jobs <n>`. |
 | `--output json` | Write NDJSON events on stdout instead of text. |
 | `--here` | Run on the current directory tree. |

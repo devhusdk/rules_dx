@@ -162,7 +162,7 @@ pub(crate) struct Flags {
     pub(crate) capabilities: bool,
     pub(crate) files: bool,
     pub(crate) timings: bool,
-    pub(crate) time: Option<String>,
+    pub(crate) budget: Option<String>,
     pub(crate) jobs: Option<u16>,
     pub(crate) max_regression: Option<u32>,
     pub(crate) compare: Option<String>,
@@ -479,7 +479,7 @@ flag_group! {
 flag_group! {
     /// Agent tools whose files init adds.
     AgentsFlag, {
-        #[arg(long, value_enum, value_delimiter = ',', value_name = "LIST", require_equals = true)]
+        #[arg(long, value_enum, value_delimiter = ',', value_name = "LIST")]
         agents: Vec<Agent>,
     }
 }
@@ -631,7 +631,6 @@ flag_group! {
         #[arg(
             long,
             value_name = "LEVEL",
-            require_equals = true,
             overrides_with = "automerge",
             value_parser = clap::builder::PossibleValuesParser::new(["none", "patch", "minor", "all"])
         )]
@@ -642,7 +641,7 @@ flag_group! {
 flag_group! {
     /// Skip versions published fewer than this many days ago (needs --pr; default 3).
     MinAgeFlag, {
-        #[arg(long, value_name = "DAYS", require_equals = true, overrides_with = "min_age")]
+        #[arg(long, value_name = "DAYS", overrides_with = "min_age")]
         min_age: Option<u32>,
     }
 }
@@ -661,7 +660,6 @@ flag_group! {
         #[arg(
             long,
             value_name = "N",
-            require_equals = true,
             overrides_with = "max_prs",
             value_parser = clap::value_parser!(u16).range(1..)
         )]
@@ -729,7 +727,7 @@ composite_group! {
 flag_group! {
     /// Start a new branch from this ref (add only).
     CreateFlag, {
-        #[arg(long, value_name = "REF", value_parser = non_empty, require_equals = true, overrides_with = "create")]
+        #[arg(long, value_name = "REF", value_parser = non_empty, overrides_with = "create")]
         create: Option<String>,
     }
 }
@@ -802,9 +800,9 @@ flag_group! {
 
 flag_group! {
     /// Time budget per target, such as 90s, 5m or 1h (default 60s).
-    TimeFlag, {
-        #[arg(long, value_name = "DURATION", overrides_with = "time", value_parser = fuzz_duration)]
-        time: Option<String>,
+    BudgetFlag, {
+        #[arg(long, value_name = "DURATION", overrides_with = "budget", value_parser = fuzz_duration)]
+        budget: Option<String>,
     }
 }
 
@@ -824,7 +822,7 @@ flag_group! {
 composite_group! {
     /// The fuzz budget flags.
     FuzzArgs, {
-        time: TimeFlag,
+        budget: BudgetFlag,
         jobs: JobsFlag,
     }
 }

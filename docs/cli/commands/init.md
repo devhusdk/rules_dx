@@ -23,7 +23,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--agents=<list>] [--ci <provider>] [dir]
+dx init [--apply] [--agents <list>] [--ci <provider>] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -51,7 +51,7 @@ Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json
 
 `--ci` picks the CI files. `github` writes the three `.github/workflows` files, `gitlab` writes one `.gitlab-ci.yml` that includes the GitLab template at the pinned rules_dx commit, and `none` writes no CI file. Without it init keeps the provider of an existing `.gitlab-ci.yml` or `.github/workflows/ci.yml`, then picks `gitlab` when the `origin` remote URL names GitLab, else `github`.
 
-Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini,copilot` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents=<tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
+Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini,copilot` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents <tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
 
 | Agent | Hooks file | Hooks |
 | --- | --- | --- |
@@ -83,7 +83,7 @@ rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx sync`
 `.dx/local/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/local/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/local/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
-Flags: `--apply`, `--agents=<list>`, `--ci github|gitlab|none`.
+Flags: `--apply`, `--agents <list>`, `--ci github|gitlab|none`.
 Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.

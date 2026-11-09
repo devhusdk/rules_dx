@@ -1311,3 +1311,18 @@ fn max_findings_needs_json_output() {
         assert_eq!(invocation.max_findings, None, "{command}");
     }
 }
+
+#[test]
+fn value_flags_accept_a_space_or_equals() {
+    for (space, equals) in [
+        (vec!["init", "--agents", "claude,codex"], vec!["init", "--agents=claude,codex"]),
+        (vec!["bench", "--max-regression", "20"], vec!["bench", "--max-regression=20"]),
+        (vec!["update", "--pr", "--max-prs", "2"], vec!["update", "--pr", "--max-prs=2"]),
+        (vec!["fuzz", "--budget", "5m"], vec!["fuzz", "--budget=5m"]),
+    ] {
+        let a = parse(&strings(&space)).unwrap_or_else(|e| panic!("{space:?}: {e:?}"));
+        let b = parse(&strings(&equals)).unwrap_or_else(|e| panic!("{equals:?}: {e:?}"));
+        assert_eq!(a.command, b.command, "{space:?}");
+    }
+    assert!(parse(&strings(&["fuzz", "--time", "5m"])).is_err());
+}

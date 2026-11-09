@@ -324,11 +324,11 @@ pub struct Invocation {
     pub files: bool,
     /// `build`/`test`/`coverage --timings`: print where build time went.
     pub timings: bool,
-    /// `dx fuzz --time`: the budget per target; 60s when absent.
-    pub time: Option<String>,
+    /// `dx fuzz --budget`: the budget per target; 60s when absent.
+    pub budget: Option<String>,
     /// `dx fuzz --jobs`: jobs each fuzz runner may use.
     pub jobs: Option<u16>,
-    /// `dx bench --max-regression=<pct>`: the slowdown percent that fails the run.
+    /// `dx bench --max-regression <pct>`: the slowdown percent that fails the run.
     pub bench_regression: Option<u32>,
     /// `dx bench --compare`: a `dx-bench/v1` file path or a git ref.
     pub bench_compare: Option<String>,
@@ -737,7 +737,7 @@ mod tests {
             capabilities: false,
             files: false,
             timings: false,
-            time: None,
+            budget: None,
             jobs: None,
             bench_regression: None,
             bench_compare: None,

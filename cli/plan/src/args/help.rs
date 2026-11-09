@@ -275,7 +275,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     ),
     (
         Command::Fuzz,
-        &["fuzz //pkg:parser", "fuzz --time 5m //pkg/..."],
+        &["fuzz //pkg:parser", "fuzz --budget 5m //pkg/..."],
     ),
     (
         Command::Config,

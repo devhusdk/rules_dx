@@ -86,7 +86,7 @@ fn fuzz_targets(
     err: &mut dyn Write,
 ) -> i32 {
     let startup = &invocation.bazel_startup_options;
-    let seconds = invocation.time.as_deref().map_or(DEFAULT_SECONDS, |raw| {
+    let seconds = invocation.budget.as_deref().map_or(DEFAULT_SECONDS, |raw| {
         fuzz_seconds(raw).unwrap_or(DEFAULT_SECONDS)
     });
     let scope = match resolve(&invocation.targets, workspace, query_runner, startup) {
@@ -210,7 +210,7 @@ mod tests {
             .borrow_mut()
             .push(labels("//fixture:x\n"));
         harness.write_source(".dx/local/fuzz/fixture/x/crash-abc", "boom");
-        let inv = invocation(&["fuzz", "//fixture:x", "--time", "1s"]);
+        let inv = invocation(&["fuzz", "//fixture:x", "--budget", "1s"]);
         let mut err = Vec::new();
         let run = harness.probe_streams(&inv, &[Some(77)], &mut Vec::new(), &mut err);
         let err = String::from_utf8(err).expect("stderr");

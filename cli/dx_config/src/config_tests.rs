@@ -88,3 +88,12 @@ fn large_files_allow_parses_and_rejects_unknown_keys() {
     assert_eq!(config.large_files.allow, ["data/"]);
     assert!(parse("schema_version = 1\n[large_files]\nallw = []\n").is_err());
 }
+
+#[test]
+fn errors_name_the_line_and_column() {
+    let typo = message("schema_version = 1\n\ntierr = \"strict\"\n");
+    assert!(typo.starts_with("dx.toml:3:1: "), "{typo}");
+    assert!(typo.contains("unknown field `tierr`"), "{typo}");
+    let no_equals = message("schema_version = 1\ntier \"strict\"\n");
+    assert!(no_equals.contains("dx.toml:2:"), "{no_equals}");
+}

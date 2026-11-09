@@ -124,23 +124,32 @@ pub fn load(workspace: &Path) -> Result<Option<DxConfig>, LoadProblem> {
     parse(&text).map(Some)
 }
 
+/// Prefixes `message` with `dx.toml:<line>:<column>:` when the error has a position.
+fn located(text: &str, error: &toml::de::Error, message: String) -> String {
+    let Some(span) = error.span() else {
+        return message;
+    };
+    let before = &text[..span.start.min(text.len())];
+    let line = before.matches('\n').count() + 1;
+    let column = before.rsplit('\n').next().map_or(0, |last| last.chars().count()) + 1;
+    format!("dx.toml:{line}:{column}: {message}")
+}
+
 /// Parses and validates the text of a `dx.toml`.
 pub fn parse(text: &str) -> Result<DxConfig, LoadProblem> {
     let table: toml::Table =
         text.parse()
             .map_err(|error: toml::de::Error| LoadProblem::InvalidToml {
-                message: error.message().to_owned(),
+                message: located(text, &error, error.message().to_owned()),
             })?;
     if table.contains_key("paths") {
         return Err(LoadProblem::PathsNotSupported);
     }
     conventions::check_schema_version(table.get("schema_version"))?;
     let config: DxConfig =
-        table
-            .try_into()
-            .map_err(|error: toml::de::Error| LoadProblem::Invalid {
-                message: conventions::explain_unknown_key(error.message()),
-            })?;
+        toml::from_str(text).map_err(|error: toml::de::Error| LoadProblem::Invalid {
+            message: located(text, &error, conventions::explain_unknown_key(error.message())),
+        })?;
     for pattern in &config.scope.exclude {
         if !conventions::is_valid_pattern(pattern) {
             return Err(ConventionProblem::BadPattern {

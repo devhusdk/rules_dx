@@ -3,7 +3,6 @@
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
 load("@rules_erlang//:util.bzl", "path_join")
 load("@rules_erlang//private:util.bzl", "erl_libs_contents")
-load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs", "maybe_install_erlang")
 load("//libs/starlark:resources.bzl", "dx_medium_resources")
 
 _TOOLCHAIN = "@rules_erlang//tools:toolchain_type"
@@ -71,65 +70,46 @@ def _erlc_impl(target, ctx):
     for beam_dir in {f.dirname: True for f in ctx.rule.files.beam}:
         pa_args.extend(["-pa", beam_dir])
 
-    opts = ["'%s'" % o for o in attrs.erlc_opts if o not in ["+warnings_as_errors", "-Werror"]]
-    (erlang_home, _, runfiles) = erlang_dirs(erlang_ctx)
-    compile_first = ""
+    opts = ["--opt=%s" % o for o in attrs.erlc_opts if o not in ["+warnings_as_errors", "-Werror"]]
+    runfiles = ctx.runfiles()
+    compile_first = []
     compile_first_target = attrs.compile_first
     if type(compile_first_target) == "list":
         compile_first_target = compile_first_target[0] if compile_first_target else None
     if compile_first_target != None:
-        compile_first = compile_first_target[DefaultInfo].files_to_run.executable.path
+        compile_first = ["--compile-first=" + compile_first_target[DefaultInfo].files_to_run.executable.path]
         runfiles = runfiles.merge(compile_first_target[DefaultInfo].default_runfiles)
 
     log = ctx.actions.declare_file("dx_erlc/%s/%s.log" % (name, name))
     status = ctx.actions.declare_file("dx_erlc/%s/%s.exit" % (name, name))
     out_tree = ctx.actions.declare_directory("dx_erlc/%s/out" % name)
 
-    script = """log="$1"; status="$2"; out="$3"; shift 3
-{maybe_install_erlang}
-if [ -n "{erl_libs_path}" ]; then
-    export ERL_LIBS="{erl_libs_path}"
-fi
-erlc() {{
-    "{erlang_home}"/bin/erlc -v {include_args} {pa_args} "$@"
-}}
-run() {{
-    if [ -n "{compile_first}" ]; then
-        first=$("{erlang_home}"/bin/escript {compile_first} "$@")
-    else
-        first=
-    fi
-    if [ -n "$first" ]; then
-        erlc -o "$out" {erlc_opts} $first || return $?
-        erlc -pa "$out" -o "$out" {erlc_opts} "$@"
-    else
-        erlc -o "$out" {erlc_opts} "$@"
-    fi
-}}
-run "$@" > "$log" 2>&1
-echo "$?" > "$status"
-""".format(
-        maybe_install_erlang = maybe_install_erlang(erlang_ctx),
-        erl_libs_path = erl_libs_path,
-        erlang_home = erlang_home,
-        compile_first = compile_first,
-        include_args = " ".join(include_args),
-        pa_args = " ".join(pa_args),
-        erlc_opts = " ".join(opts),
-    )
-    srcs = ctx.actions.args()
-    srcs.add_all(ctx.rule.files.srcs)
-    ctx.actions.run_shell(
+    escript = ctx.attr._escript[DefaultInfo].files_to_run
+    args = ctx.actions.args()
+    args.add(ctx.file._replay)
+    args.add_all(compile_first)
+    args.add(log, format = "--log=%s")
+    args.add(status, format = "--status=%s")
+    args.add(out_tree.path, format = "--out=%s")
+    if erl_libs_path != "":
+        args.add(erl_libs_path, format = "--erl-libs=%s")
+    args.add_all(opts)
+    args.add_all(include_args + pa_args, format_each = "--erlc-arg=%s")
+    args.add("--")
+    args.add_all(ctx.rule.files.srcs)
+    ctx.actions.run(
         mnemonic = "ErlcWarnings",
         progress_message = "erlc diagnostics %{label}",
-        command = script,
-        arguments = [log.path, status.path, out_tree.path, srcs],
+        executable = escript,
+        arguments = [args],
+        tools = [escript],
         inputs = depset(
-            direct = ctx.rule.files.hdrs + ctx.rule.files.srcs + ctx.rule.files.beam + erl_libs_files,
+            direct = [ctx.file._replay] + ctx.rule.files.hdrs + ctx.rule.files.srcs + ctx.rule.files.beam + erl_libs_files,
             transitive = [runfiles.files],
         ),
         outputs = [log, status, out_tree],
         resource_set = dx_medium_resources,
+        use_default_shell_env = True,
         toolchain = _TOOLCHAIN,
     )
     return [ErlcInfo(logs = [log], names = [name], statuses = [status])]
@@ -138,5 +118,9 @@ erlc_aspect = aspect(
     implementation = _erlc_impl,
     doc = "Replays the erlc compilation of a target and records the compiler warnings.",
     attr_aspects = ["upstream", "beam"],
+    attrs = {
+        "_escript": attr.label(default = "//erlang/tools:escript_bin", cfg = "exec", executable = True),
+        "_replay": attr.label(default = "//quality:erlc_replay.escript", allow_single_file = True),
+    },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],
 )

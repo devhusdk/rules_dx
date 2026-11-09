@@ -908,11 +908,7 @@ TOOLS = [
                 context = "target_coupled",
                 family = "erlang",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                unsupported = {
-                    "windows_arm64": "The erlc replay needs a POSIX shell",
-                    "windows_x86_64": "The erlc replay needs a POSIX shell",
-                },
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
         ],
     ),

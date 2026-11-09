@@ -61,6 +61,7 @@ exports_files([
 
 exports_files([
     "corpus_vale.ini",
+    "erlc_replay.escript",
     "corpus_styles/Dx/Launcher.yml",
     "corpus_styles/Dx/Markers.yml",
 ])

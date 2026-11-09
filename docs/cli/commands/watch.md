@@ -41,13 +41,15 @@ Local only. `CI=true` is refused.
 
 ## Output
 
-Each iteration writes the wrapped command's output. Watch adds one line per iteration and one per trigger. `--quiet` drops them. With `--output json`, `--diff`, or `--report <format>=-`, they go to stderr.
+Each iteration writes the wrapped command's output. Watch adds a header and a pass/fail line per iteration, one line per trigger, and a separator before each rerun. On a terminal it also clears the screen before a rerun. `--quiet` drops them. With `--output json`, `--diff`, or `--report <format>=-`, they go to stderr.
 
 ```text
 watch:test:debounce=200ms scope=//... iteration=1
-watching (Ctrl-C to stop)
+iteration 1: ok in 4.2s; watching (Ctrl-C to stop)
 changed /work/repo/src/main.rs (+1 more)
+----------------------------------------
 watch:test:debounce=200ms scope=//... iteration=2
+iteration 2: failed (exit 1) in 1.3s; watching
 stopped
 ```
 

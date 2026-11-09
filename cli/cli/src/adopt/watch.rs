@@ -1,6 +1,6 @@
 use crate::exec::{ActionTally, print_actions};
 use std::cell::RefCell;
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -185,6 +185,15 @@ fn watch(
             return stopped(progress, out, err, signo);
         }
         round += 1;
+        if round > 1 {
+            if std::io::stdout().is_terminal() && progress != Progress::Silent {
+                let _ = write!(out, "\x1b[2J\x1b[H");
+            }
+            if let Err(exit) = progress.say(&mut *out, &mut *err, SEPARATOR) {
+                return exit;
+            }
+        }
+        let started = Instant::now();
         if let Err(exit) = progress.say(
             &mut *out,
             &mut *err,
@@ -248,9 +257,11 @@ fn watch(
         }
         let mut quiet = (!session.polling())
             .then(|| QuietStretch::begin(query_runner, workspace, Instant::now()));
-        if round == 1
-            && let Err(exit) = progress.say(&mut *out, &mut *err, "watching (Ctrl-C to stop)")
-        {
+        if let Err(exit) = progress.say(
+            &mut *out,
+            &mut *err,
+            &verdict_line(round, code, started.elapsed(), round == 1),
+        ) {
             return exit;
         }
         let mut change = pending.into_inner();
@@ -315,6 +326,21 @@ fn scope_label(iteration: &Invocation) -> String {
     iteration.targets.join(" ")
 }
 
+const SEPARATOR: &str = "----------------------------------------";
+
+fn verdict_line(round: u32, code: i32, elapsed: Duration, first: bool) -> String {
+    let verdict = if code == 0 {
+        "ok".to_owned()
+    } else {
+        format!("failed (exit {code})")
+    };
+    let hint = if first { " (Ctrl-C to stop)" } else { "" };
+    format!(
+        "iteration {round}: {verdict} in {:.1}s; watching{hint}",
+        elapsed.as_secs_f64()
+    )
+}
+
 fn changed_line(paths: &[PathBuf]) -> String {
     if paths.len() == 1 {
         return format!("changed {}", paths[0].display());
@@ -325,6 +351,19 @@ fn changed_line(paths: &[PathBuf]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn verdict_line_reports_exit_and_time() {
+        let took = Duration::from_millis(4200);
+        assert_eq!(
+            verdict_line(1, 0, took, true),
+            "iteration 1: ok in 4.2s; watching (Ctrl-C to stop)"
+        );
+        assert_eq!(
+            verdict_line(3, 1, took, false),
+            "iteration 3: failed (exit 1) in 4.2s; watching"
+        );
+    }
     use crate::adopt::test_support::{
         NullQuery, Truncated, event_kinds, events_of_kind, invocation, json_events,
     };
@@ -1421,13 +1460,16 @@ mod tests {
         );
         assert!(!events[0].contains("--help"), "{}", events[0]);
         assert_eq!(events[1], events[4], "the replacement runs the same argv");
-        let lines: Vec<&str> = stdout.lines().collect();
+        let lines: Vec<&str> = stdout
+            .lines()
+            .filter(|line| !line.starts_with("iteration "))
+            .collect();
         assert_eq!(
             lines,
             [
                 "watch:run:debounce=200ms scope=//app:bin iteration=1",
-                "watching (Ctrl-C to stop)",
                 "changed /ws/src/main.rs",
+                SEPARATOR,
                 "watch:run:debounce=200ms scope=//app:bin iteration=2",
             ],
             "{stdout}"

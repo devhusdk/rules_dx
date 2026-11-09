@@ -7,12 +7,16 @@ pub const DX_FAIL_ON_ENV: &str = "DX_FAIL_ON";
 pub const DX_BUILD_SLOTS_ENV: &str = "DX_BUILD_SLOTS";
 
 /// Environment variables that mark a process started by a coding agent.
-pub const AGENT_ENVS: [&str; 5] = [
+pub const AGENT_ENVS: [&str; 9] = [
     "CLAUDECODE",
     "CODEX_THREAD_ID",
     "CURSOR_AGENT",
     "GEMINI_CLI",
     "AI_AGENT",
+    "AGENT",
+    "GOOSE_TERMINAL",
+    "OPENCODE",
+    "AMP_CURRENT_THREAD_ID",
 ];
 
 /// Whether any agent marker is set to a non-empty value.

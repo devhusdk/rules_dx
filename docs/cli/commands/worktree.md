@@ -215,8 +215,8 @@ not import `AGENTS.md`.
 
 ## Agent sessions
 
-When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI` or
-`AI_AGENT` is set, the default output is `json` for commands that support it,
+When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, `AI_AGENT`,
+`AGENT`, `GOOSE_TERMINAL`, `OPENCODE` or `AMP_CURRENT_THREAD_ID` is set, the default output is `json` for commands that support it,
 and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win. In CI
 these variables are ignored.
 

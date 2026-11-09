@@ -79,8 +79,8 @@ Readers accept added fields and any minor, and reject a `major` they do not writ
 tools/dx lint //... --output=json
 ```
 
-When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI` or
-`AI_AGENT` is set, the default output is `json`. See
+When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, `AI_AGENT`,
+`AGENT`, `GOOSE_TERMINAL`, `OPENCODE` or `AMP_CURRENT_THREAD_ID` is set, the default output is `json`. See
 [Agent sessions](worktree.md#agent-sessions).
 
 ## Exit Codes

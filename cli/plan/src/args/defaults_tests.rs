@@ -298,6 +298,23 @@ fn no_default_source_selects_apply() {
 }
 
 #[test]
+fn every_agent_has_a_marker_or_a_reason() {
+    use super::super::grammar::Agent;
+    for agent in Agent::ALL {
+        let marker = match agent {
+            Agent::Claude => Some("CLAUDECODE"),
+            Agent::Codex => Some("CODEX_THREAD_ID"),
+            Agent::Gemini => Some("GEMINI_CLI"),
+            // GitHub documents no variable that marks a Copilot CLI shell.
+            Agent::Copilot => None,
+        };
+        if let Some(marker) = marker {
+            assert!(dx_adopt::defaults::AGENT_ENVS.contains(&marker), "{agent:?}");
+        }
+    }
+}
+
+#[test]
 fn agent_markers_default_json_and_explicit_choices_win() {
     use super::parse_with_ci;
     for marker in dx_adopt::defaults::AGENT_ENVS {

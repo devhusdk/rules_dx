@@ -166,6 +166,16 @@ reported; only the sources of the target are. Bind a `luals_config` from
 set globals or diagnostics. The runtime version, the library, `libraryFiles` and
 the output paths are always set by dx. Only `linux_x86_64` is qualified.
 
+## API docs
+
+`dx docs` documents a `lua_library` with `lua_doc_shard(name, lib, package)` from
+`@rules_dx//tools/docs/lua:defs.bzl`. It runs the pinned LDoc 1.5.0 on the
+pinned Lua over the library's own sources and writes a DocIr shard. LDoc needs
+the C module LuaFileSystem, so rules_dx builds LuaFileSystem 1.9.0 from a
+sha256-pinned source with the hermetic C toolchain and links it into the Lua
+that runs LDoc. Penlight 1.14.0 is pinned the same way. Document modules with
+`@module` and functions with LDoc tags; local functions are left out.
+
 ## Coverage
 
 Lua tests write LCOV under `bazel coverage` and `dx coverage` through luacov.

@@ -3,7 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("//libs/starlark:toolchain.bzl", "host_archive")
 load("//lua/coverage:pins.bzl", "LUACOV_BUILD", "LUACOV_PINS")
-load(":pins.bzl", "LUALS_CELLS")
+load(":pins.bzl", "LDOC_PINS", "LUALS_CELLS")
 
 LUALS_BUILD = """package(default_visibility = ["//visibility:public"])
 
@@ -31,9 +31,17 @@ def _lua_impl(mctx):
             strip_prefix = pin.strip_prefix,
             urls = pin.urls,
         )
+    for pin in LDOC_PINS:
+        http_archive(
+            name = pin.name,
+            build_file_content = pin.build,
+            sha256 = pin.sha256,
+            strip_prefix = pin.strip_prefix,
+            urls = pin.urls,
+        )
     return mctx.extension_metadata(reproducible = True)
 
 lua = module_extension(
     implementation = _lua_impl,
-    doc = "Creates the pinned LuaLS, luacov and luacov-reporter-lcov repositories.",
+    doc = "Creates the pinned LuaLS, luacov, luacov-reporter-lcov, LDoc, Penlight and LuaFileSystem repositories.",
 )

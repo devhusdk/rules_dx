@@ -673,6 +673,7 @@ API docs:
 - `@rules_dx//tools/docs/ruby:defs.bzl`: Ruby API doc shards.
 - `@rules_dx//tools/docs/julia:defs.bzl`: Julia API doc shards.
 - `@rules_dx//tools/docs/javascript:defs.bzl`: JavaScript API doc shards.
+- `@rules_dx//tools/docs/lua:defs.bzl`: Lua API doc shards.
 - `@rules_dx//tools/docs/jvm:defs.bzl`: Java and Kotlin API doc shards.
 - `@rules_dx//tools/docs/perl:defs.bzl`: Perl API doc shards.
 - `@rules_dx//tools/docs/php:defs.bzl`: PHP API doc shards.

@@ -17,6 +17,7 @@ load("//tools/docs/haskell:defs.bzl", "haskell_doc_shard")
 load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_doc_shard")
 load("//tools/docs/perl:defs.bzl", "perl_doc_shard")
 load("//tools/docs/php:defs.bzl", "php_doc_shard")
+load("//tools/docs/lua:defs.bzl", "lua_doc_shard")
 load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
 load("//tools/docs/protobuf:defs.bzl", "protobuf_doc_shard")
 load("//tools/docs/python:defs.bzl", "python_doc_shard")
@@ -46,6 +47,7 @@ _SHARD_RULES = {
     "julia_doc_shard": julia_doc_shard,
     "javascript_doc_shard": javascript_doc_shard,
     "kotlin_doc_shard": kotlin_doc_shard,
+    "lua_doc_shard": lua_doc_shard,
     "mdx_doc_shard": mdx_doc_shard,
     "ocaml_doc_shard": ocaml_doc_shard,
     "perl_doc_shard": perl_doc_shard,

@@ -1,0 +1,30 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//lua/rules:defs.bzl", "lua_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/lua:defs.bzl", "lua_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+lua_library(
+    name = "shapes",
+    srcs = ["src/shapes.lua"],
+    strip_import_prefix = "/tools/docs/lua/fixture/src",
+)
+
+lua_doc_shard(
+    name = "shapes_docs",
+    lib = ":shapes",
+)
+
+# Building the shard runs LDoc on the pinned Lua and converts its output.
+build_test(
+    name = "shards_build_test",
+    targets = [":shapes_docs"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

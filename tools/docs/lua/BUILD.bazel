@@ -1,0 +1,32 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+exports_files(
+    [
+        "defs.bzl",
+        "dx_ldoc_json.lua",
+    ],
+    visibility = VIS_TOOLS,
+)
+
+# LDoc needs the C module LuaFileSystem; this runner links it into the pinned Lua.
+cc_binary(
+    name = "ldoc_main",
+    srcs = ["ldoc_main.c"],
+    deps = [
+        "@dx_luafilesystem//:lfs",
+        "@lua//:liblua",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

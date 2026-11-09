@@ -97,7 +97,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | `CoverageTools` | none |
 | Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
-| Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` | `selene unused_variable` |
+| Lua | `selene`, `typos` | `stylua` | `luals` | `ldoc` | `luacov` | `selene unused_variable` |
 | MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | `jest` | `eslint no-unused-vars` |
 | OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | `odoc` | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
 | Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | `pod (perl)` | `DxLcov` | `perlcritic ProhibitUnusedVariables` |

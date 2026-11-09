@@ -3228,6 +3228,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "lua_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

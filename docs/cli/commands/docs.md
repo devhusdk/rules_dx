@@ -94,6 +94,7 @@ tools/dx docs //lib:site
 | Julia | `@rules_dx//tools/docs/julia:defs.bzl` | `julia_doc_shard` | `lib`, `module`, `package` |
 | Fortran | `@rules_dx//tools/docs/fortran:defs.bzl` | `fortran_doc_shard` | `lib`, `package` |
 | PHP | `@rules_dx//tools/docs/php:defs.bzl` | `php_doc_shard` | `lib`, `package` |
+| Lua | `@rules_dx//tools/docs/lua:defs.bzl` | `lua_doc_shard` | `lib`, `package` |
 | Python | `@rules_dx//tools/docs/python:defs.bzl` | `python_doc_shard` | `library`, `package`, `docstyle` (`google`, `numpy` or `sphinx`) |
 | C and C++ | `@rules_dx//tools/docs/cc:defs.bzl` | `cc_doc_shard` | `lib`, `package` |
 | CUDA | `@rules_dx//tools/docs/cc:defs.bzl` | `cuda_doc_shard` | `lib`, `package` |

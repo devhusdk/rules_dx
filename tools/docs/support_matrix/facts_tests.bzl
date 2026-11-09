@@ -2,7 +2,7 @@
 
 load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_BUILD")
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load("//quality:adapters.bzl", "NOT_APPLICABLE")
+load("//quality:adapters.bzl", "NOT_APPLICABLE", "TYPECHECK_CANDIDATES")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//tools/docs/components:defs.bzl", "astro_doc_shard", "mdx_doc_shard", "svelte_doc_shard", "vue_doc_shard")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
@@ -77,6 +77,18 @@ def _not_applicable_problems(facts):
         if family not in facts["quality"] or facts["quality"][family].get(capability, []) != []
     ]
 
+def _typecheck_gaps(facts):
+    declared = facts["not_applicable"]["typecheck"]
+    gaps = []
+    for row in facts["rows"]:
+        if row["section"] == "compilers" or (row["section"] == "targets" and not row["families"]):
+            continue
+        tools = [tool for family in row["families"] for tool in facts["quality"][family]["typecheck"]]
+        not_applicable = bool(row["families"]) and all([family in declared for family in row["families"]])
+        if not tools and not not_applicable:
+            gaps.append(row["name"])
+    return gaps
+
 # Rows with a stated reason that do not yet declare an unsupported constraint_value; shrink as #6175 lands them.
 _PENDING_UNSUPPORTED = ["appimage", "apple", "cc_gcc", "cc_msvc", "cuda", "fortran", "ocaml", "perl", "swift"]
 
@@ -109,7 +121,17 @@ def support_matrix_facts_tests(name):
             expect_equal(
                 "typecheck n/a families are an explicit snapshot",
                 sorted(NOT_APPLICABLE["typecheck"].keys()),
-                ["ansible", "api_spec", "asciidoc", "bicep", "cloudformation", "cmake", "dockerfile", "gherkin", "helm", "html_template", "jsonnet", "kubernetes", "latex", "make", "nix", "perl", "powershell", "rst", "sql", "typst", "xml", "yaml"],
+                ["ansible", "api_spec", "asciidoc", "bicep", "cloudformation", "cmake", "core", "css", "dockerfile", "gherkin", "helm", "html_template", "jsonnet", "kubernetes", "latex", "make", "markdown", "nix", "perl", "powershell", "rst", "shell", "sql", "starlark", "typst", "xml", "yaml"],
+            ),
+            expect_equal(
+                "typecheck no rows are an explicit snapshot",
+                _typecheck_gaps(facts),
+                ["graphql", "oci", "swift", "toml"],
+            ),
+            expect_equal(
+                "every typecheck no row names a candidate tool",
+                sorted(TYPECHECK_CANDIDATES.keys()),
+                _typecheck_gaps(facts),
             ),
             expect_equal(
                 "records merge per family, capability and tool",

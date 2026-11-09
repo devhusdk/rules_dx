@@ -124,11 +124,11 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
 | Cap'n Proto | `capnp`, `typos` | n/a | `capnp` | n/a | n/a | n/a |
 | CloudFormation | `cfn_lint`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| CSS | `stylelint`, `typos` | `prettier` | no | n/a | n/a | n/a |
+| CSS | `stylelint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |
 | FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a | n/a |
 | Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| GitHub workflows | `actionlint`, `zizmor` | `yamlfmt` | no | n/a | n/a | n/a |
+| GitHub workflows | `actionlint`, `zizmor` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | GraphQL | `graphql_eslint`, `typos` | `prettier` | no | n/a | n/a | n/a |
 | Helm | `helm`, `trivy_config`, `typos` | no | n/a | n/a | n/a | n/a |
 | HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |
@@ -136,15 +136,15 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a | n/a |
 | Kubernetes | `kubeconform`, `trivy_config`, `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
-| Markdown | `lychee`, `markdown_check`, `typos`, `vale` | `prettier` | no | n/a | n/a | n/a |
+| Markdown | `lychee`, `markdown_check`, `typos`, `vale` | `prettier` | n/a | n/a | n/a | n/a |
 | Nix | `deadnix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a | `deadnix` |
 | OCI images | no | no | no | n/a | n/a | n/a |
 | Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
 | Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |
 | reStructuredText | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
-| Shell | `shellcheck`, `typos` | `shfmt` | no | n/a | n/a | `shellcheck SC2034` |
+| Shell | `shellcheck`, `typos` | `shfmt` | n/a | n/a | n/a | `shellcheck SC2034` |
 | SQL | `sqlfluff`, `typos` | `sqlfluff` | n/a | n/a | n/a | n/a |
-| Starlark | `buildifier`, `typos` | `buildifier` | no | n/a | n/a | `buildifier unused-variable` |
+| Starlark | `buildifier`, `typos` | `buildifier` | n/a | n/a | n/a | `buildifier unused-variable` |
 | Terraform | `tflint`, `trivy_config`, `typos` | `terraform` | `terraform` | n/a | n/a | n/a |
 | Thrift | `thrift`, `typos` | n/a | `thrift` | n/a | n/a | n/a |
 | TOML | `taplo`, `typos` | `taplo` | no | n/a | n/a | n/a |
@@ -172,6 +172,8 @@ Not applicable for `typecheck`:
 - `bicep`: declarative templates; bicep lint already reports compile errors and analyzer rules, so there is no separate type check
 - `cloudformation`: declarative templates; cfn-lint schema validation is lint, not type checking
 - `cmake`: no static type system; build language with untyped strings
+- `core`: workflow YAML; actionlint already checks expressions in lint
+- `css`: no static type system; stylelint covers lint
 - `dockerfile`: no static type system; hadolint covers lint
 - `gherkin`: natural-language scenarios; no type system
 - `helm`: chart lint plus schema validation of rendered manifests
@@ -180,11 +182,14 @@ Not applicable for `typecheck`:
 - `kubernetes`: declarative manifests; schema validation is not type checking
 - `latex`: typesetting macro language; no static type system
 - `make`: no static type system; build language with untyped strings
+- `markdown`: markup; no static type system
 - `nix`: dynamically typed expression language; no maintained type checker
 - `perl`: dynamically typed; no maintained type checker
 - `powershell`: no type checker; PSScriptAnalyzer is a linter only
 - `rst`: markup; no static type system
+- `shell`: no static type system; shellcheck covers lint
 - `sql`: type checking needs a database schema and dialect; standalone .sql files carry neither
+- `starlark`: dynamically typed; no maintained standalone type checker, buildifier covers lint
 - `typst`: dynamically typed markup; no standalone type checker
 - `xml`: data format; schema validation is not type checking
 - `yaml`: data format; schema validation is not type checking

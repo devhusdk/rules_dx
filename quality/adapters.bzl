@@ -135,17 +135,32 @@ NOT_APPLICABLE = {
         "kubernetes": "declarative manifests; schema validation is not type checking",
         "latex": "typesetting macro language; no static type system",
         "make": "no static type system; build language with untyped strings",
+        "markdown": "markup; no static type system",
         "nix": "dynamically typed expression language; no maintained type checker",
+        "starlark": "dynamically typed; no maintained standalone type checker, buildifier covers lint",
         "cmake": "no static type system; build language with untyped strings",
+        "core": "workflow YAML; actionlint already checks expressions in lint",
+        "css": "no static type system; stylelint covers lint",
         "perl": "dynamically typed; no maintained type checker",
         "powershell": "no type checker; PSScriptAnalyzer is a linter only",
         "rst": "markup; no static type system",
+        "shell": "no static type system; shellcheck covers lint",
         "asciidoc": "markup; no static type system",
         "sql": "type checking needs a database schema and dialect; standalone .sql files carry neither",
         "typst": "dynamically typed markup; no standalone type checker",
         "xml": "data format; schema validation is not type checking",
         "yaml": "data format; schema validation is not type checking",
     },
+}
+
+# Families whose Typecheck cell is `no` because the adapter is missing, mapped
+# to the tool that would fill it. A `no` cell must name one; otherwise the
+# family belongs in NOT_APPLICABLE["typecheck"] with a reason.
+TYPECHECK_CANDIDATES = {
+    "graphql": "graphql-inspector validate (schema and documents against the schema)",
+    "oci": "check-jsonschema against the OCI image-spec manifest and config schemas",
+    "swift": "swiftc -typecheck",
+    "toml": "taplo check (validates against a schema)",
 }
 
 def not_applicable_error(not_applicable, adapters, class_to_family):

@@ -176,6 +176,7 @@ const SNIPPET: &str = "module(name = \"my_project\")\n\nbazel_dep(name = \"rules
 struct FakeRunner {
     version: String,
     fail: Vec<&'static str>,
+    fail_stdout: &'static str,
     snippet: Option<&'static str>,
     calls: RefCell<Vec<String>>,
 }
@@ -185,6 +186,7 @@ impl FakeRunner {
         FakeRunner {
             version: "dx 1.2.3\n".to_owned(),
             fail: Vec::new(),
+            fail_stdout: "",
             snippet: Some(SNIPPET),
             calls: RefCell::new(Vec::new()),
         }
@@ -202,7 +204,7 @@ impl Runner for FakeRunner {
         if self.fail.contains(&args[0]) {
             return RunOutput {
                 success: false,
-                stdout: String::new(),
+                stdout: self.fail_stdout.to_owned(),
                 stderr: format!("{} broke\n", args[0]),
             };
         }
@@ -411,7 +413,7 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
                 ),
                 format!("{exe_name} build //... in consumer"),
                 format!("{exe_name} test //... in consumer"),
-                format!("{exe_name} check //... in consumer"),
+                format!("{exe_name} check --diff //... in consumer"),
             ]
         );
         assert!(
@@ -1369,4 +1371,35 @@ fn rename_with_retry_moves_and_gives_up() {
     std::fs::create_dir(&from).expect("mkdir");
     rename_with_retry(&from, &to, 3, none).expect("rename");
     assert!(to.is_dir() && !from.exists());
+}
+
+#[test]
+fn consumer_check_failure_carries_the_patch() {
+    let patch = "--- a/BUILD.bazel\n+++ b/BUILD.bazel\n@@ -1 +1 @@\n-old\n+new";
+    let mut runner = FakeRunner::new();
+    runner.fail = vec!["check"];
+    runner.fail_stdout = patch;
+    let fixture = synthetic("tar.gz", |_| {});
+    let record = qualify(&fixture.inputs, &runner);
+    assert_failed(&record, "consumer", patch);
+}
+
+#[test]
+fn ran_keeps_head_and_tail_of_long_stdout() {
+    struct Loud(String);
+    impl Runner for Loud {
+        fn run(&self, _: &Path, _: &[&str], _: &Path) -> RunOutput {
+            RunOutput {
+                success: false,
+                stdout: self.0.clone(),
+                stderr: String::new(),
+            }
+        }
+    }
+    let text = format!("HEAD{}é{}TAIL", "x".repeat(6000), "y".repeat(6000));
+    let error = ran(&Loud(text), Path::new("dx"), &["check"], Path::new(".")).unwrap_err();
+    assert!(error.contains("HEAD"), "{error}");
+    assert!(error.contains("TAIL"), "{error}");
+    assert!(error.contains("\n...\n"), "{error}");
+    assert!(error.len() < 4300, "{}", error.len());
 }

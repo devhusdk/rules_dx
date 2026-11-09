@@ -47,6 +47,15 @@ filegroup(
     srcs = glob(["testdata/**"]),
 )
 
+exports_files(
+    [
+        "testdata/source_only/crates/dx_release_consumer/BUILD.in",
+        "testdata/source_only/crates/dx_release_consumer/BUILD.out",
+        "testdata/source_only/crates/dx_release_consumer/src/lib.rs",
+    ],
+    visibility = ["//deploy/release:__pkg__"],
+)
+
 gazelle_generation_test(
     name = "generation_test",
     gazelle_binary = "@dx_gazelle//:gazelle",

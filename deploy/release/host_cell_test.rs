@@ -83,3 +83,18 @@ fn consumer_template_ships_every_staged_file() {
         assert!(!template.join(forbidden).exists(), "{forbidden}");
     }
 }
+
+#[test]
+fn consumer_template_matches_the_gazelle_fixture() {
+    let template = data("DX_CONSUMER_TEMPLATE");
+    let template = template.parent().expect("template dir");
+    let read = |path: &std::path::Path| std::fs::read(path).expect("read");
+    let build = read(&template.join("consumer.BUILD.bazel"));
+    assert_eq!(build, read(&data("DX_CONSUMER_FIXTURE_BUILD_IN")), "BUILD.in");
+    assert_eq!(build, read(&data("DX_CONSUMER_FIXTURE_BUILD_OUT")), "BUILD.out");
+    assert_eq!(
+        read(&template.join("lib.rs")),
+        read(&data("DX_CONSUMER_FIXTURE_LIB")),
+        "src/lib.rs"
+    );
+}

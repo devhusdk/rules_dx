@@ -212,12 +212,18 @@ rust_test(
         ":consumer_template",
         ":dx_host_cell",
         ":release_matrix",
+        "//gazelle/rust:testdata/source_only/crates/dx_release_consumer/BUILD.in",
+        "//gazelle/rust:testdata/source_only/crates/dx_release_consumer/BUILD.out",
+        "//gazelle/rust:testdata/source_only/crates/dx_release_consumer/src/lib.rs",
     ] + select({
         "@platforms//os:windows": [":dx_host_cell_pdb"],
         "//conditions:default": [],
     }),
     env = {
         "DX_CONSUMER_TEMPLATE": "$(rootpath consumer/consumer.BUILD.bazel)",
+        "DX_CONSUMER_FIXTURE_BUILD_IN": "$(rootpath //gazelle/rust:testdata/source_only/crates/dx_release_consumer/BUILD.in)",
+        "DX_CONSUMER_FIXTURE_BUILD_OUT": "$(rootpath //gazelle/rust:testdata/source_only/crates/dx_release_consumer/BUILD.out)",
+        "DX_CONSUMER_FIXTURE_LIB": "$(rootpath //gazelle/rust:testdata/source_only/crates/dx_release_consumer/src/lib.rs)",
         "DX_HOST_CELL": "$(rootpath :dx_host_cell)",
         "DX_RELEASE_MATRIX": "$(rootpath :release_matrix)",
     } | select({

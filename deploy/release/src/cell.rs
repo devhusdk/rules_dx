@@ -300,27 +300,41 @@ fn container_for(os: &str) -> &'static str {
     }
 }
 
+const STDOUT_HEAD: usize = 3000;
+const STDOUT_TAIL: usize = 1000;
+
+/// Keeps the head and the tail of long output, cutting on char boundaries.
+fn clip(text: &str) -> String {
+    if text.len() <= STDOUT_HEAD + STDOUT_TAIL {
+        return text.to_owned();
+    }
+    let mut head = STDOUT_HEAD;
+    while !text.is_char_boundary(head) {
+        head -= 1;
+    }
+    let mut tail = text.len() - STDOUT_TAIL;
+    while !text.is_char_boundary(tail) {
+        tail += 1;
+    }
+    format!("{}\n...\n{}", &text[..head], &text[tail..])
+}
+
 fn ran(runner: &dyn Runner, program: &Path, args: &[&str], cwd: &Path) -> Result<String, String> {
     let out = runner.run(program, args, cwd);
     if out.success {
         return Ok(out.stdout);
     }
     // `dx check` prints its findings on stdout and only the progress log on stderr.
-    let stdout = out.stdout.trim();
-    let mut start = stdout.len().saturating_sub(4000);
-    while !stdout.is_char_boundary(start) {
-        start += 1;
-    }
-    let stdout_tail = &stdout[start..];
+    let stdout = clip(out.stdout.trim());
     let mut message = format!(
         "{} {} failed: {}",
         program.display(),
         args.join(" "),
         out.stderr.trim()
     );
-    if !stdout_tail.is_empty() {
+    if !stdout.is_empty() {
         message.push_str("\nstdout: ");
-        message.push_str(stdout_tail);
+        message.push_str(&stdout);
     }
     Err(message)
 }
@@ -606,11 +620,13 @@ fn installed_checks(
             runner,
         )
         .and_then(|dir| {
-            ["build", "test", "check"]
-                .into_iter()
-                .try_for_each(|command| {
-                    ran(runner, &moved_exe, &[command, "//..."], &dir).map(drop)
-                })
+            [
+                vec!["build", "//..."],
+                vec!["test", "//..."],
+                vec!["check", "--diff", "//..."],
+            ]
+            .into_iter()
+                .try_for_each(|args| ran(runner, &moved_exe, &args, &dir).map(drop))
         }),
     );
 }

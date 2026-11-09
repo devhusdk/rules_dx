@@ -106,8 +106,10 @@ dx has no suppression of its own. Use the tool's native inline form:
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Findings at or above `--fail-on`; any proposed change in a check; an incomplete result set; a target that did not converge; a conflicting or unapplied fix; a failed report write; a Bazel failure. |
+| `1` | Findings at or above `--fail-on`; any proposed change in a check; an incomplete result set; a target that did not converge; a conflicting or unapplied fix; a failed report write. |
 | `2` | Usage or scope error. |
+| Bazel's code | Bazel failed. |
+| `128`+N | A signal stopped dx. |
 
 ## Choose tools and tier
 

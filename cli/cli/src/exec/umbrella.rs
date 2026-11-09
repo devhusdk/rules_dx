@@ -2826,7 +2826,7 @@ mod tests {
                 })
                 .expect("valid result");
         let (code, out, err) = fix_apply_lint_fails(&harness, unstable, "text");
-        assert_eq!(code, 1, "the failed phase's code stays: {out}{err}");
+        assert_eq!(code, 7, "the failed phase's code stays: {out}{err}");
         assert!(
             err.contains("dx: verification_failed: format failed verification after apply"),
             "{err}"
@@ -3290,7 +3290,7 @@ mod tests {
             launches: Cell::new(0),
         };
         let (code, out, err) = harness.execute_with(&inv, &runner);
-        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(code, 33, "{out}{err}");
         let events = json_events(&out);
         let errors = events_of_kind(&events, "error");
         assert_eq!(errors[0]["code"], serde_json::json!("server_out_of_memory"));

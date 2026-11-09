@@ -52,7 +52,7 @@ events and `command_finished`. A failure adds one `error`. `--diff` and
 | `1` | Launch, signal or preview failure, such as no single site tree, a missing `index.html` or a port in use. |
 | `2` | Usage or scope error, such as `--here` with an explicit scope. |
 | Bazel's code | Bazel failed. `36` means a disk has under 1 GiB free. |
-| `130`, `129`, `143` | Ctrl-C, `SIGHUP` or `SIGTERM` stopped the preview. |
+| `128`+N | Signal N stopped the preview, such as `130` for Ctrl-C. |
 
 ## Doc shard rules
 

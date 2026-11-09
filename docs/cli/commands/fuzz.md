@@ -65,5 +65,7 @@ Reports: none.
 | Code | Meaning |
 | --- | --- |
 | `0` | No target crashed. Also when no target in scope carries `dx-fuzz`. |
-| `1` | A target crashed or its runner failed. |
+| `1` | A target crashed. |
+| Runner's code | The fuzz runner exited nonzero without a crash, or Bazel failed. |
+| `128`+N | A signal stopped the runner or dx. |
 | `2` | Usage error. |

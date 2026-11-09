@@ -802,13 +802,16 @@ fn run_quality_request(
             }
         }
     }
+    let exit_code = if collected.complete && !failed && reports_ok {
+        0
+    } else if bazel_code != 0 {
+        bazel_code
+    } else {
+        1
+    };
     if request.common.output == OutputMode::Json {
         let finished = command_finished(
-            if collected.complete && !failed && reports_ok {
-                0
-            } else {
-                1
-            },
+            exit_code,
             &FinishedCounts {
                 results_complete: Some(collected.complete),
                 run_id: None,
@@ -847,11 +850,7 @@ fn run_quality_request(
     } else {
         PhaseKind::Clean
     };
-    if collected.complete && !failed && reports_ok {
-        0
-    } else {
-        1
-    }
+    exit_code
 }
 
 #[cfg(test)]

@@ -108,7 +108,7 @@ fn fuzz_targets(
         let _ = writeln!(err, "dx: no dx-fuzz targets in scope");
         return 0;
     }
-    let mut failed = false;
+    let mut status = 0;
     for label in &labels {
         let dir = out_dir(label);
         if let Err(error) = std::fs::create_dir_all(workspace.join(&dir)) {
@@ -139,7 +139,9 @@ fn fuzz_targets(
         match (exit.signal, exit.code) {
             (Some(signo), _) => {
                 app_signalled_line(err, &run, signo);
-                failed = true;
+                if status == 0 {
+                    status = 128 + signo;
+                }
             }
             (None, 0) => {}
             (None, CRASH_EXIT) => {
@@ -163,15 +165,19 @@ fn fuzz_targets(
                         shell_join(&repro)
                     );
                 }
-                failed = true;
+                if status == 0 {
+                    status = 1;
+                }
             }
             (None, code) => {
                 let _ = writeln!(err, "dx: fuzz_failed: {run} exited {code}");
-                failed = true;
+                if status == 0 {
+                    status = code;
+                }
             }
         }
     }
-    i32::from(failed)
+    status
 }
 
 #[cfg(test)]
@@ -255,8 +261,8 @@ mod tests {
     }
 
     #[test]
-    fn a_clean_run_exits_0_and_a_tool_error_exits_1() {
-        for (name, exit, want) in [("fuzz-clean", 0, 0), ("fuzz-tool", 3, 1)] {
+    fn a_clean_run_exits_0_and_a_tool_error_keeps_its_code() {
+        for (name, exit, want) in [("fuzz-clean", 0, 0), ("fuzz-tool", 3, 3)] {
             let harness = Harness::new(name);
             harness
                 .query

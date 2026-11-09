@@ -51,8 +51,9 @@ fn finish_incomplete_generate(
 
 /// Adds the `MODULE.bazel` stanzas for the root lock files and the rules_dx modules
 /// with `--apply`, first creating the root locks that are missing; otherwise says what
-/// `--apply` would do. Problems are reported on `err` and never change the exit code.
-fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) {
+/// `--apply` would do. Every step is said on `err` and kept as a notice for the run.
+fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
+    let mut wiring = Wiring::default();
     let workspace = env.workspace;
     let apply = request.applies();
     let unlocked = dx_adopt::unlocked_manifests(workspace);
@@ -60,31 +61,32 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) {
     for manifest in &unlocked {
         let lock = lock_for(manifest);
         if !apply {
-            let _ = writeln!(env.err, "dx: would create {lock}; run dx generate --apply");
+            wiring.pending(env.err, format!("would create {lock}; run dx generate --apply"));
         } else if *manifest == "Cargo.toml" {
             match std::fs::write(workspace.join(lock), "") {
                 Ok(()) => seeded_cargo = true,
                 Err(error) => {
-                    let _ = writeln!(env.err, "dx: {lock} not created: {error}");
+                    wiring.failed(env.err, format!("{lock} not created: {error}"));
                 }
             }
         } else if *manifest == "package.json" {
-            seed_pnpm_lock(request, env);
+            seed_pnpm_lock(request, env, &mut wiring);
         } else {
-            seed_uv_lock(request, env);
+            seed_uv_lock(request, env, &mut wiring);
         }
     }
     let hubs = dx_adopt::plan_lock_hubs(workspace).map(|hubs| (hubs.notes, hubs.edit));
     if matches!(&hubs, Ok((_, Some(_)))) && !has_root_build(workspace) {
-        let _ = writeln!(
+        wiring.pending(
             env.err,
-            "dx: the lock labels need a root BUILD.bazel; run dx init --apply"
+            "the lock labels need a root BUILD.bazel; run dx init --apply".to_owned(),
         );
     }
     wire(
         workspace,
         apply,
         env.err,
+        &mut wiring,
         "lock files",
         "stanzas for the lock files at the root",
         hubs,
@@ -95,46 +97,50 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) {
         workspace,
         apply,
         env.err,
+        &mut wiring,
         "rules_dx modules",
         "the rules_dx modules it needs",
         deps,
     );
     if seeded_cargo {
-        fill_cargo_lock(request, env);
+        fill_cargo_lock(request, env, &mut wiring);
     }
-    wire_maven_locks(request, env);
+    wire_maven_locks(request, env, &mut wiring);
+    wiring
 }
 
 /// Creates what each root Maven lock needs: its package's `BUILD.bazel`, the root
 /// `dx_external` line, and a pinned lock when it is missing or empty.
-fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>) {
+fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let plan = match dx_adopt::plan_maven_locks(env.workspace) {
         Ok(plan) => plan,
         Err(error) => {
-            let _ = writeln!(env.err, "dx: Maven locks not wired: {error}");
+            wiring.failed(env.err, format!("Maven locks not wired: {error}"));
             return;
         }
     };
     for note in &plan.notes {
-        let _ = writeln!(env.err, "dx: {note}");
+        wiring.info(env.err, note.clone());
     }
     let apply = request.applies();
     for edit in &plan.edits {
         if !apply {
-            let _ = writeln!(
+            wiring.pending(
                 env.err,
-                "dx: {} would gain what its Maven lock needs; run dx generate --apply",
-                edit.path
+                format!(
+                    "{} would gain what its Maven lock needs; run dx generate --apply",
+                    edit.path
+                ),
             );
         } else if let Err(error) = dx_adopt::write_edit_or_create(env.workspace, edit) {
-            let _ = writeln!(env.err, "dx: Maven locks not wired: {error}");
+            wiring.failed(env.err, format!("Maven locks not wired: {error}"));
         } else {
-            let _ = writeln!(env.err, "dx: wrote {}", edit.path);
+            wiring.info(env.err, format!("wrote {}", edit.path));
         }
     }
     for (lock, repository) in &plan.seeds {
         if !apply {
-            let _ = writeln!(env.err, "dx: would pin {lock}; run dx generate --apply");
+            wiring.pending(env.err, format!("would pin {lock}; run dx generate --apply"));
             continue;
         }
         let empty = dx_adopt::ModuleEdit {
@@ -143,7 +149,7 @@ fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>) {
             new: String::new(),
         };
         if let Err(error) = dx_adopt::write_edit_or_create(env.workspace, &empty) {
-            let _ = writeln!(env.err, "dx: {lock} not created: {error}");
+            wiring.failed(env.err, format!("{lock} not created: {error}"));
             continue;
         }
         let argv = dx_update::backend::maven_pin_argv(&request.bazel_head(), repository);
@@ -155,6 +161,7 @@ fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>) {
         report_seed(
             env.workspace,
             env.err,
+            wiring,
             lock,
             "the Maven pin",
             env.runner.run(&argv, env.workspace, &pairs),
@@ -175,7 +182,7 @@ fn has_root_build(workspace: &Path) -> bool {
 }
 
 /// Runs `uv lock` at the root with the pinned uv and interpreter.
-fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>) {
+fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let closure = super::update::configured_uv_closure(
         env.runner,
         env.query_runner,
@@ -186,7 +193,7 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>) {
     let argv = match dx_update::backend::uv_lock_argv("uv.lock", ".", &closure, false, false) {
         Ok(argv) => argv,
         Err(error) => {
-            let _ = writeln!(env.err, "dx: uv.lock not created: {error}");
+            wiring.failed(env.err, format!("uv.lock not created: {error}"));
             return;
         }
     };
@@ -198,6 +205,7 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>) {
     report_seed(
         env.workspace,
         env.err,
+        wiring,
         "uv.lock",
         "uv lock",
         env.runner.run_hermetic(&argv, env.workspace, &pairs),
@@ -205,18 +213,19 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>) {
 }
 
 /// Makes `@pnpm` visible to the root module, then runs `pnpm install --lockfile-only` with it.
-fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>) {
+fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let tool = dx_adopt::plan_pnpm_tool(env.workspace).map(|plan| (plan.notes, plan.edit));
     wire(
         env.workspace,
         true,
         env.err,
+        wiring,
         "the pnpm tool",
         "the pnpm tool",
         tool,
     );
     let Some(dir) = env.workspace.to_str() else {
-        let _ = writeln!(env.err, "dx: pnpm-lock.yaml not created: non-UTF-8 path");
+        wiring.failed(env.err, "pnpm-lock.yaml not created: non-UTF-8 path".to_owned());
         return;
     };
     let command = ["install".to_owned(), "--lockfile-only".to_owned()];
@@ -225,6 +234,7 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>) {
     report_seed(
         env.workspace,
         env.err,
+        wiring,
         "pnpm-lock.yaml",
         "pnpm install",
         env.runner.run(&argv, env.workspace, &[]),
@@ -232,7 +242,7 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>) {
 }
 
 /// Fills the empty `Cargo.lock` with the crate_universe repin `dx update` runs.
-fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>) {
+fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let argv = dx_update::backend::configured_fetch_argv(&request.bazel_head(), "crates", false);
     let vars = dx_update::backend::cargo_env("workspace", "crates");
     let pairs: Vec<(&str, &str)> = vars
@@ -242,6 +252,7 @@ fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>) {
     report_seed(
         env.workspace,
         env.err,
+        wiring,
         "Cargo.lock",
         "bazel fetch",
         env.runner.run(&argv, env.workspace, &pairs),
@@ -251,32 +262,38 @@ fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>) {
 fn report_seed(
     workspace: &Path,
     err: &mut dyn Write,
+    wiring: &mut Wiring,
     lock: &str,
     tool: &str,
     status: std::io::Result<dx_process::ChildStatus>,
 ) {
     let written = std::fs::metadata(workspace.join(lock)).is_ok_and(|meta| meta.len() > 0);
-    let _ = match status {
-        Ok(status) if status.code == Some(0) && written => writeln!(err, "dx: wrote {lock}"),
-        Ok(status) if status.code == Some(0) => writeln!(
+    match status {
+        Ok(status) if status.code == Some(0) && written => {
+            wiring.info(err, format!("wrote {lock}"));
+        }
+        Ok(status) if status.code == Some(0) => wiring.failed(
             err,
-            "dx: {lock} is still empty after {tool}; run dx generate --apply again"
+            format!("{lock} is still empty after {tool}; run dx generate --apply again"),
         ),
-        Ok(status) => writeln!(
+        Ok(status) => wiring.failed(
             err,
-            "dx: {lock} not written: {tool} exited {}; run dx generate --apply again",
-            status
-                .code
-                .map_or_else(|| "by signal".to_owned(), |code| code.to_string())
+            format!(
+                "{lock} not written: {tool} exited {}; run dx generate --apply again",
+                status
+                    .code
+                    .map_or_else(|| "by signal".to_owned(), |code| code.to_string())
+            ),
         ),
-        Err(error) => writeln!(err, "dx: {lock} not written: {tool}: {error}"),
-    };
+        Err(error) => wiring.failed(err, format!("{lock} not written: {tool}: {error}")),
+    }
 }
 
 fn wire(
     workspace: &Path,
     apply: bool,
     err: &mut dyn Write,
+    wiring: &mut Wiring,
     what: &str,
     gain: &str,
     plan: Result<(Vec<String>, Option<dx_adopt::ModuleEdit>), dx_adopt::AdoptError>,
@@ -284,26 +301,59 @@ fn wire(
     let (notes, edit) = match plan {
         Ok(plan) => plan,
         Err(error) => {
-            let _ = writeln!(err, "dx: {what} not wired: {error}");
+            wiring.failed(err, format!("{what} not wired: {error}"));
             return;
         }
     };
-    for note in &notes {
-        let _ = writeln!(err, "dx: {note}");
+    for note in notes {
+        wiring.info(err, note);
     }
     let Some(edit) = edit else {
         return;
     };
     if !apply {
-        let _ = writeln!(
+        wiring.pending(
             err,
-            "dx: {} would gain {gain}; run dx generate --apply",
-            edit.path
+            format!("{} would gain {gain}; run dx generate --apply", edit.path),
         );
     } else if let Err(error) = dx_adopt::write_module_edit(workspace, &edit) {
-        let _ = writeln!(err, "dx: {what} not wired: {error}");
+        wiring.failed(err, format!("{what} not wired: {error}"));
     } else {
-        let _ = writeln!(err, "dx: wrote {}", edit.path);
+        wiring.info(err, format!("wrote {}", edit.path));
+    }
+}
+
+/// What the module and lock wiring said, kept for the JSON stream and the exit code.
+#[derive(Default)]
+struct Wiring {
+    notices: Vec<dx_output::NoticeEvent>,
+    pending: bool,
+    failed: bool,
+}
+
+impl Wiring {
+    fn info(&mut self, err: &mut dyn Write, message: String) {
+        self.say(err, dx_output::NoticeEvent::info("wiring", message));
+    }
+
+    fn pending(&mut self, err: &mut dyn Write, message: String) {
+        self.pending = true;
+        self.say(err, dx_output::NoticeEvent::warning("wiring_pending", message));
+    }
+
+    fn failed(&mut self, err: &mut dyn Write, message: String) {
+        self.failed = true;
+        self.say(err, dx_output::NoticeEvent::warning("wiring_failed", message));
+    }
+
+    fn say(&mut self, err: &mut dyn Write, notice: dx_output::NoticeEvent) {
+        let _ = writeln!(err, "dx: {}", notice.message);
+        self.notices.push(notice);
+    }
+
+    /// A check with edits left to make, or an apply that could not make one, is not clean.
+    fn dirty(&self, apply: bool) -> bool {
+        if apply { self.failed } else { self.pending }
     }
 }
 
@@ -363,7 +413,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
-    wire_module(request, &mut env);
+    let wiring = wire_module(request, &mut env);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     let _ = std::fs::remove_file(&patch);
@@ -464,10 +514,13 @@ fn run_generate_request(
             );
         }
     };
-    let code = projected.exit_code(match gazelle {
+    let mut code = projected.exit_code(match gazelle {
         GazelleStatus::Failed(failed) => failed,
         GazelleStatus::Completed => 0,
     });
+    if code == 0 && wiring.dirty(apply) {
+        code = 1;
+    }
     let next_kind = generate_kind(code, gazelle, projected.results_complete);
     *effects = PhaseEffects {
         changes: projected.files.len() as u64,
@@ -482,7 +535,7 @@ fn run_generate_request(
                 return kept_child(env.err, bazel_code, exit);
             }
         }
-        for notice in &projected.notices {
+        for notice in wiring.notices.iter().chain(&projected.notices) {
             if let Err(exit) = emit_event(env.out, &notice_value(notice)) {
                 return kept_child(env.err, bazel_code, exit);
             }
@@ -651,7 +704,7 @@ mod tests {
     fn generate_check_only_reports_the_lock_stanzas() {
         let harness = lock_workspace("generate-lock-check", "check");
         let (code, out, err) = harness.run(&["generate"]);
-        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("run dx generate --apply"), "{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert_eq!(module, "module(name = \"app\")\n");
@@ -670,7 +723,7 @@ mod tests {
     fn generate_apply_seeds_cargo_lock_and_repins_crates() {
         let harness = cargo_workspace("generate-seed-cargo", "default");
         let (code, out, err) = harness.run(&["generate", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(code, 1, "{out}{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert!(
             module.contains("cargo_lockfile = \"//:Cargo.lock\""),
@@ -704,7 +757,7 @@ mod tests {
         harness.write_source("BUILD.bazel", "");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(code, 1, "{out}{err}");
         let read = |rel: &str| std::fs::read_to_string(harness.workspace.join(rel)).expect(rel);
         assert_eq!(
             read("third_party/BUILD.bazel"),
@@ -735,12 +788,16 @@ mod tests {
     fn generate_check_says_which_lock_it_would_create() {
         let harness = cargo_workspace("generate-seed-check", "check");
         let (code, out, err) = harness.run(&["generate"]);
-        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("dx: would create Cargo.lock; run dx generate --apply"),
             "{err}"
         );
         assert!(!harness.workspace.join("Cargo.lock").exists());
+        let (code, out, _) = harness.run(&["generate", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        assert!(out.contains("\"code\":\"wiring_pending\""), "{out}");
+        assert!(out.contains("would create Cargo.lock"), "{out}");
         assert!(
             !harness
                 .build_argv
@@ -772,7 +829,7 @@ mod tests {
         harness.write_source("pyproject.toml", "[project]\nname = \"app\"\n");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("dx: uv.lock not created:"), "{err}");
         assert!(!harness.workspace.join("uv.lock").exists());
     }

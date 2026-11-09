@@ -1,0 +1,32 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_bench")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+d_bench(
+    name = "parse_bench",
+    srcs = ["parse_bench.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+sh_test(
+    name = "parse_bench_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :parse_bench_bin)"],
+    data = [":parse_bench_bin"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+    timeout = "short",
+)
+
+dx_runner_attr_test(
+    name = "parse_bench_attrs",
+    expected = {
+        "size": "small",
+        "tags": ["dx-bench", "manual"],
+    },
+    runner = "parse_bench",
+)

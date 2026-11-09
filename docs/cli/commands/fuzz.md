@@ -18,6 +18,8 @@ Every `<lang>_fuzz_test` macro has the same shape. `<name>` is the manual `dx-fu
 
 Go: `go_fuzz_test(name, fuzz = "FuzzParse", srcs = ..., ...)` from `//go/rules:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
 
+D: `d_fuzz_test(name, srcs)` from `//d/rules:defs.bzl` builds with LDC's `-fsanitize=fuzzer,address` and the pinned LLVM's libFuzzer. `srcs` define `LLVMFuzzerTestOneInput`, for example through `ldc.libfuzzer`.
+
 Python: `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` from `//python/rules:defs.bzl` declares a binary that calls `atheris.Setup` and `atheris.Fuzz`, tags it and adds the `<name>_run` runner. Manual and Linux x86_64 only: there is no atheris wheel for Windows.
 
 JavaScript and TypeScript: `javascript_fuzz_test(name, srcs, node_modules)` from `//javascript/rules:defs.bzl` and `typescript_fuzz_test` from `//typescript/rules:defs.bzl` run the `fuzz(data)` function that the first source (or `main`) exports with [Jazzer.js](https://github.com/CodeIntelligenceTesting/jazzer.js), tag it and add the `<name>_run` runner. List `@jazzer.js/core` in `package.json` so `node_modules` links it. pnpm needs `packageExtensions` that add `@babel/core` and `@babel/types` to `@jazzer.js/bug-detectors` and `@babel/types` to `@jazzer.js/instrumentor`, which use them without declaring them. Jazzer.js ships native add-ons for Linux, macOS arm64 and x64, and Windows x64.

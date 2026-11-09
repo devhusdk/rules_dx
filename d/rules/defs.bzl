@@ -1,7 +1,10 @@
 """Thin D wrappers over rules_d."""
 
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_d//d:defs.bzl", _d_binary = "d_binary", _d_library = "d_library", _d_test = "d_test")
 load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH", "d_kwargs")
@@ -131,3 +134,51 @@ def d_test(name, *, srcs = None, visibility = None, **kwargs):
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _cover(_string_srcs(name, kwargs))
     dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)
+
+def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = None, linkopts = None, **kwargs):
+    """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. srcs define LLVMFuzzerTestOneInput, for example with ldc.libfuzzer."""
+    flags = ["-fsanitize=fuzzer,address"]
+    build, run = split_runner_kwargs(kwargs)
+    run = d_kwargs(run)
+    d_binary(
+        name = name + "_bin",
+        srcs = srcs,
+        visibility = ["//visibility:private"],
+        testonly = True,
+        tags = merge_tags(tags, "manual"),
+        dopts = flags + (dopts or []),
+        linkopts = flags + (linkopts or []),
+        **build
+    )
+    dx_fuzz_binary(
+        name = name,
+        binary = ":" + name + "_bin",
+        visibility = visibility,
+        testonly = True,
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        **run
+    )
+    dx_fuzz_runner(name, ":" + name, visibility = visibility)
+
+def d_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
+    """A d_binary run by `dx bench`; it writes dx-bench.json to TEST_UNDECLARED_OUTPUTS_DIR."""
+    binary = name + "_bin"
+    build, run = split_test_kwargs(kwargs)
+    run = d_kwargs(with_default_size(run))
+    d_binary(
+        name = binary,
+        srcs = srcs,
+        visibility = ["//visibility:private"],
+        testonly = True,
+        tags = merge_tags(tags, "manual"),
+        **build
+    )
+    native_test(
+        name = name,
+        src = ":" + binary,
+        data = run.pop("data", []),
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        testonly = True,
+        visibility = visibility,
+        **run
+    )

@@ -38,6 +38,12 @@ d_test(
 - `imports`, `string_srcs`, `string_imports`, `versions`, `dopts` and
   `linkopts` pass through to `rules_d`. Files in `string_srcs` are read with
   `import("file")` and are not D sources.
+- `d_bench` is a `d_binary` for `dx bench`. The program times its work with
+  `std.datetime.stopwatch.benchmark` and writes `dx-bench.json` to
+  `TEST_UNDECLARED_OUTPUTS_DIR`.
+- `d_fuzz_test` builds `srcs` with `-fsanitize=fuzzer,address` for `dx fuzz`.
+  Define `LLVMFuzzerTestOneInput`, for example with `ldc.libfuzzer`'s
+  `DefineTestOneInput`. It adds the `<name>_run` runner.
 - `D_COMPATIBLE_WITH` covers every pinned LDC cell: linux x86_64, linux arm64, macOS arm64,
   Windows x86_64 and Windows arm64. windows_arm64 runs the x64 LDC under emulation. Both Windows
   cells constrain on the `@llvm//constraints/windows/abi:msvc` ABI, because LDC's prebuilt runtime

@@ -1,0 +1,48 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_fuzz_test")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+d_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["parse.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+sh_test(
+    name = "parse_fuzz_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :parse_fuzz)"],
+    data = [
+        ":parse_fuzz",
+        "//libs/starlark:fuzz_run.sh",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    timeout = "short",
+)
+
+d_fuzz_test(
+    name = "args_fuzz",
+    srcs = ["parse.d"],
+    args = ["-max_total_time=1"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+dx_runner_attr_test(
+    name = "args_fuzz_attrs",
+    expected = {
+        "args": ["-max_total_time=1"],
+        "tags": ["dx-fuzz", "manual"],
+    },
+    runner = "args_fuzz",
+)
+
+dx_runner_attr_test(
+    name = "parse_fuzz_run_attrs",
+    expected = {"args": ["libfuzzer", "$(rootpath :parse_fuzz)"]},
+    runner = "parse_fuzz_run",
+)

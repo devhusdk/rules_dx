@@ -1679,11 +1679,11 @@ rubygems_deploy(
     name = "rubygems_demo",
     gem = "//deploy/tests/fixtures/ruby_gem:rubygems_demo_gem",
     ruby = select({
-        "@platforms//os:linux": "@rules_dx_ruby//:ruby_file",
+        "@platforms//os:linux": "@ruby//:ruby_file",
         "//conditions:default": None,
     }),
     ruby_files = select({
-        "@platforms//os:linux": "@rules_dx_ruby//:ruby_files",
+        "@platforms//os:linux": "@ruby//:files",
         "//conditions:default": None,
     }),
 )
@@ -2152,7 +2152,7 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob(["**"]),
+    srcs = glob(["**"]) + ["//helm/rules:module_srcs"],
     visibility = ["//:__subpackages__"],
 )
 

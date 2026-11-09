@@ -875,7 +875,10 @@ rust_test(
 rust_test(
     name = "jvm_classpath_policy_test",
     srcs = ["jvm_classpath_policy_test.rs"],
-    data = glob(["*.bzl"]),
+    data = glob([
+        "*.bzl",
+        "families/*.bzl",
+    ]),
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],
 )

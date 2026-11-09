@@ -2,8 +2,8 @@
 //! `_jvm_aux_jars`, which keeps compile-only (neverlink) jars. A tool that reads
 //! `transitive_runtime_jars` directly silently loses them.
 //!
-//! Scans `quality/*.bzl` only (the data glob does not cross into subpackages);
-//! JVM aspect code moved into a subpackage must extend the glob.
+//! Scans `quality/*.bzl` and `quality/families/*.bzl` (the data globs); JVM aspect
+//! code moved into another subpackage must extend the globs.
 
 use std::path::Path;
 
@@ -11,7 +11,21 @@ use dx_testing::runfiles_root;
 
 /// Functions allowed to read JavaInfo classpaths. Add a function here only with
 /// a justification; prefer calling `_jvm_aux_jars(java_info, owned)`.
-const ALLOWED_FUNCTIONS: &[&str] = &["_jvm_aux_jars", "_jacoco_runtime_jars"];
+const ALLOWED_FUNCTIONS: &[&str] = &[
+    "_jvm_aux_jars",
+    "_jacoco_runtime_jars",
+    // Dependency analysis reads the compile classpath to attribute used jars to
+    // owners; it never builds a tool classpath, so neverlink jars are irrelevant.
+    "_indirect_jars",
+    "_unused_deps_map",
+    "_analyzer",
+    // Compiler and compiler-plugin jars come from toolchain targets, not from
+    // the analyzed target's classpath.
+    "_kotlinc_check",
+    "_scalac_check",
+    "scalac_toolchain_jars",
+    "_scala_plugin_jars",
+];
 
 const FORBIDDEN: &[&str] = &[
     "transitive_runtime_jars",
@@ -50,15 +64,20 @@ fn violations(src: &str) -> Vec<(usize, &'static str)> {
 }
 
 fn bzl_sources() -> Vec<(String, String)> {
-    let dir = runfiles_root().join("quality");
     let mut out = Vec::new();
-    for entry in std::fs::read_dir(&dir).expect("readable quality dir") {
-        let path = entry.expect("dir entry").path();
-        if path.extension().is_some_and(|e| e == "bzl") {
-            out.push((
-                name(&path),
-                std::fs::read_to_string(&path).expect("readable bzl"),
-            ));
+    for sub in ["quality", "quality/families"] {
+        let dir = runfiles_root().join(sub);
+        for entry in std::fs::read_dir(&dir).expect("readable quality dir") {
+            let path = entry.expect("dir entry").path();
+            if path.extension().is_some_and(|e| e == "bzl") {
+                let file = name(&path);
+                let file = if sub == "quality" {
+                    file
+                } else {
+                    format!("families/{file}")
+                };
+                out.push((file, std::fs::read_to_string(&path).expect("readable bzl")));
+            }
         }
     }
     out
@@ -88,8 +107,8 @@ fn jvm_classpaths_are_read_only_through_jvm_aux_jars() {
 fn jvm_aux_jars_helper_exists_and_is_used() {
     let (_, src) = bzl_sources()
         .into_iter()
-        .find(|(f, _)| f == "real_aspects.bzl")
-        .expect("real_aspects.bzl scanned");
+        .find(|(f, _)| f == "families/jvm.bzl")
+        .expect("families/jvm.bzl scanned");
     assert!(
         src.contains("def _jvm_aux_jars("),
         "_jvm_aux_jars helper was removed"
@@ -105,7 +124,7 @@ fn jvm_aux_jars_helper_exists_and_is_used() {
 fn scanned_sources_are_not_empty() {
     let files = bzl_sources();
     assert!(!files.is_empty(), "no .bzl files in runfiles");
-    assert!(files.iter().any(|(f, _)| f == "real_aspects.bzl"));
+    assert!(files.iter().any(|(f, _)| f == "families/jvm.bzl"));
 }
 
 #[test]

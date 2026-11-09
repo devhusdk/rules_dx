@@ -3827,6 +3827,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "php_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"

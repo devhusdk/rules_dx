@@ -707,6 +707,17 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_mdx_library_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_php_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/php/fixture/_dx_docs/geometry.ir.pb
+field dx_docs_sites=(none)
+field dx_results=geometry.ir.pb
+field label=//tools/docs/php/fixture:geometry
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_php_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_plain_subject
 field docs_shard_count=0
 field docs_shards=(none)

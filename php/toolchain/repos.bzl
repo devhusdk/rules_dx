@@ -1,7 +1,7 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPBENCH", "PHPCS", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
+load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPBENCH", "PHPCS", "PHPDOCUMENTOR", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
 
 HUB_NAME = "dx_php_toolchains"
 
@@ -136,6 +136,7 @@ def _php_impl(mctx):
         ("dx_phpunit", "phpunit.phar", PHPUNIT),
         ("dx_phpbench", "phpbench.phar", PHPBENCH),
         ("dx_phpcs", "phpcs.phar", PHPCS),
+        ("dx_phpdocumentor", "phpDocumentor.phar", PHPDOCUMENTOR),
         ("dx_phpstan", "phpstan.phar", PHPSTAN),
     ]:
         pinned_archive(name = name, download_as = file, files = {"BUILD.bazel": phar_build(file)}, sha256 = pin.sha256, urls = pin.urls)

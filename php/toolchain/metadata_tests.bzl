@@ -6,10 +6,10 @@ load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/rules:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
 load(":php.bzl", "TOOLCHAIN_TYPE")
-load(":pins.bzl", "COMPOSER", "PCOV", "PHPBENCH", "PHPCS", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "STATIC_PHP", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
+load(":pins.bzl", "COMPOSER", "PCOV", "PHPBENCH", "PHPCS", "PHPDOCUMENTOR", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "STATIC_PHP", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
 load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
 
-PINS = [COMPOSER, PCOV, PHPBENCH, PHPCS, PHPSTAN, PHPSTAN_STRICT_RULES, PHPUNIT, UNUSED_PUBLIC, WEBMOZART_ASSERT]
+PINS = [COMPOSER, PCOV, PHPBENCH, PHPCS, PHPDOCUMENTOR, PHPSTAN, PHPSTAN_STRICT_RULES, PHPUNIT, UNUSED_PUBLIC, WEBMOZART_ASSERT]
 
 def _checks():
     hub = hub_build(PHP_CELLS.keys())
@@ -51,7 +51,7 @@ def php_metadata_tests(name):
         checks = _checks(),
     )
 
-REQUIRED_MODULES = ["Phar", "dom", "json", "libxml", "mbstring", "tokenizer", "xml", "xmlwriter"]
+REQUIRED_MODULES = ["Phar", "ctype", "dom", "hash", "iconv", "json", "libxml", "mbstring", "simplexml", "tokenizer", "xml", "xmlwriter"]
 
 def _php_version_test_impl(ctx):
     php = ctx.toolchains[TOOLCHAIN_TYPE].php

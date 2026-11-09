@@ -181,6 +181,15 @@ dx typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/tools:phpstan
 
 Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.
 
+## API docs
+
+`php_doc_shard` (`@rules_dx//tools/docs/php:defs.bzl`) turns the public API of a
+`php_library` into a DocIr shard. The pinned phpDocumentor 3.10.0 phar reads the
+library's own `srcs` on the pinned PHP, and `php_extract` converts its output.
+Public classes, interfaces, traits, enums, functions, methods, properties and
+constants are documented; `@internal` and `@ignore` elements are left out. The
+aspect skips cells with no pinned PHP.
+
 ## Platforms
 
 | Cell | Status |

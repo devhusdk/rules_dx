@@ -102,3 +102,9 @@ PHPBENCH = struct(
     sha256 = "68563bfbef7eb3af8ebf6b62ce80c9646ab61c9b1ce0011b57fb947f73ac3b37",
     urls = ["https://github.com/phpbench/phpbench/releases/download/1.7.0/phpbench.phar"],
 )
+
+PHPDOCUMENTOR = struct(
+    version = "3.10.0",
+    sha256 = "fe1e7c23ba3329aa6f19ac3c807446159a431a195ec5d9163b0c281a15105207",
+    urls = ["https://github.com/phpDocumentor/phpDocumentor/releases/download/v3.10.0/phpDocumentor.phar"],
+)

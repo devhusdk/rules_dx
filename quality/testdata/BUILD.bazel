@@ -1984,6 +1984,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_php_library_subject",
+    target = "//tools/docs/php/fixture:geometry",
+)
+
+real_docs_subject(
     name = "docs_powershell_library_subject",
     target = "//tools/docs/powershell/fixture:tally_library",
 )
@@ -2049,6 +2054,7 @@ real_docs_tests(
         ":docs_javascript_library_subject",
         ":docs_kotlin_library_subject",
         ":docs_mdx_library_subject",
+        ":docs_php_library_subject",
         ":docs_plain_subject",
         ":docs_powershell_library_subject",
         ":docs_python_library_subject",

@@ -1,0 +1,22 @@
+load("//php/rules:defs.bzl", "php_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/php:defs.bzl", "php_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+php_library(
+    name = "geometry",
+    srcs = glob(["src/*.php"]),
+)
+
+php_doc_shard(
+    name = "geometry_docs",
+    lib = ":geometry",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

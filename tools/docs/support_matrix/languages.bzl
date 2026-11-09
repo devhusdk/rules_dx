@@ -589,7 +589,7 @@ LANGUAGES = [
         "php",
         bench = "php_bench",
         deps = "`packagist`",
-        doc = NO_DOC,
+        doc = struct(tool = "phpdocumentor", shard = "php_doc_shard"),
         dead_code = ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
         coverage = ["pcov (Linux only)"],
         unsupported = "//php/toolchain:unsupported",

@@ -1256,7 +1256,7 @@ lua_tools = use_extension("//lua/toolchain:repos.bzl", "lua")
 use_repo(lua_tools, "dx_luacov", "dx_luacov_reporter_lcov", "dx_luals")
 
 php = use_extension("//php/toolchain:repos.bzl", "php")
-use_repo(php, "dx_composer", "dx_phpbench", "dx_phpcs", "dx_phpstan", "dx_phpstan_strict_rules", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
+use_repo(php, "dx_composer", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
 
 haskell = use_extension("//haskell/toolchain:extensions.bzl", "haskell")
 haskell.lock(
@@ -1835,6 +1835,7 @@ crate.from_cargo(
         "//tools/docs/typescript/extract:Cargo.toml",
         "//tools/docs/components/extract:Cargo.toml",
         "//tools/docs/go/extract:Cargo.toml",
+        "//tools/docs/php/extract:Cargo.toml",
         "//tools/docs/ruby/extract:Cargo.toml",
         "//tools/docs/dart/extract:Cargo.toml",
         "//tools/docs/julia/extract:Cargo.toml",

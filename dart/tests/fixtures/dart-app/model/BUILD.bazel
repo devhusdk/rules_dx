@@ -1,4 +1,4 @@
-load("@rules_dx//dart/rules:defs.bzl", "dart_compatible_with", "dart_library")
+load("@rules_dx//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH", "dart_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]
@@ -18,7 +18,7 @@ genrule(
     srcs = ["schema.json"],
     outs = ["lib/schema.g.dart"],
     cmd = "$(location //dart/tests/fixtures/dart-app/gen:gen_schema) $< $@",
-    target_compatible_with = dart_compatible_with([]),
+    target_compatible_with = DART_COMPATIBLE_WITH,
     tools = ["//dart/tests/fixtures/dart-app/gen:gen_schema"],
 )
 

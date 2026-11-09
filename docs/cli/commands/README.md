@@ -312,7 +312,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_kwargs` |
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_quality_srcs` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_binary` |
-|  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_compatible_with` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_entry_sources` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_library` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_main_candidates` |
@@ -497,7 +496,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_binary_upstream_data` |
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_test_rejection` |
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_wasm_bindgen_library` |
-|  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_quality_srcs` |
 |  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_standalone_binary` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_kotlinc_opts_with_warnings_as_errors` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_test_class` |
@@ -556,13 +554,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `upstream_tags` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `with_defaults` |
 |  |  | `@rules_dx//ocaml/tests/native:defs.bzl` | `sys_cell_test` |
-|  |  | `@rules_dx//perl/rules:defs.bzl` | `perl_quality_srcs` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_binary` |
-|  |  | `@rules_dx//php/rules:defs.bzl` | `php_compatible_with` |
-|  |  | `@rules_dx//php/rules:defs.bzl` | `php_deferred_tags` |
-|  |  | `@rules_dx//php/rules:defs.bzl` | `php_kwargs` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_library` |
-|  |  | `@rules_dx//php/rules:defs.bzl` | `php_quality_srcs` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_test` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_benchmark` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_fuzz_test` |

@@ -1,7 +1,8 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "fake_file", "label_string")
+load("//libs/starlark:wrapper.bzl", "dx_quality_srcs")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS", "php_compatible_with", "php_deferred_tags", "php_kwargs", "php_quality_srcs")
+load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
 load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "runfiles_path", "shell_quote", "staged_path")
 
 package(default_visibility = ["//visibility:public"])
@@ -49,7 +50,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "main leads the owned sources",
-            php_quality_srcs(
+            dx_quality_srcs(
                 "main.php",
                 ["src/A.php"],
             ),
@@ -60,7 +61,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "main listed in srcs is owned once",
-            php_quality_srcs(
+            dx_quality_srcs(
                 "main.php",
                 [
                     "main.php",
@@ -74,7 +75,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "autoload files are owned once",
-            php_quality_srcs(
+            dx_quality_srcs(
                 None,
                 ["a.php"],
                 [
@@ -89,7 +90,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "no main and no srcs owns nothing",
-            php_quality_srcs(None, None),
+            dx_quality_srcs(None, None),
             [],
         ),
         expect_equal(
@@ -98,44 +99,9 @@ dx_wrapper_contract_tests(
             ["no-format"],
         ),
         expect_equal(
-            "user tags stay first",
-            php_deferred_tags([
-                "manual",
-                "no-lint",
-            ]),
-            [
-                "manual",
-                "no-lint",
-                "no-format",
-            ],
-        ),
-        expect_equal(
             "targets build on the pinned cells",
             type(PHP_COMPATIBLE_WITH),
             "select",
-        ),
-        expect_equal(
-            "caller constraints join the cells select",
-            type(php_compatible_with(["//x:y"])),
-            "select",
-        ),
-        expect_equal(
-            "no caller constraints keep the cells select",
-            type(php_compatible_with(None)),
-            "select",
-        ),
-        expect_equal(
-            "a select() constraint passes through",
-            type(php_compatible_with(_SELECT)),
-            "select",
-        ),
-        expect_equal(
-            "other attrs pass through",
-            php_kwargs({
-                "deps": [":a"],
-                "ini": {"k": "v"},
-            })["ini"],
-            {"k": "v"},
         ),
         expect_equal(
             "workspace sources keep their path",

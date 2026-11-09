@@ -521,6 +521,14 @@ def dx_language_kwargs(kwargs, skip_tags = [], compatible_with = []):
     out["target_compatible_with"] = (kwargs.get("target_compatible_with") or []) + compatible_with
     return out
 
+def dx_quality_srcs(main, srcs, extra = None):
+    """Returns the hand-written sources a target owns: main first, then srcs, then extra, each once."""
+    owned = []
+    for src in ([main] if main != None else []) + list(srcs or []) + list(extra or []):
+        if src not in owned:
+            owned.append(src)
+    return owned
+
 def dx_wrap_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one library shape."""
     out = {}

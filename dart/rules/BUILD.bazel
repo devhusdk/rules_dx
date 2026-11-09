@@ -4,7 +4,7 @@ load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "DART_SOURCE_SPECS", "dart_entry_sources", "dart_main_candidates", "dart_root_package_name")
-load(":platforms.bzl", "RULES_DART_PLATFORMS")
+load(":platforms.bzl", "DART_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -66,7 +66,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "no rules_dart sdk for windows arm64",
-            "windows_arm64" in RULES_DART_PLATFORMS,
+            "windows_arm64" in DART_PLATFORMS,
             False,
         ),
         expect_equal(
@@ -109,12 +109,12 @@ dx_wrapper_contract_tests(
             "@platforms//cpu:" + cpu,
         ],
     )
-    for name, (os, cpu) in RULES_DART_PLATFORMS.items()
+    for name, (os, cpu) in DART_PLATFORMS.items()
 ]
 
 selects.config_setting_group(
     name = "rules_dart_platform",
-    match_any = [":" + name for name in RULES_DART_PLATFORMS],
+    match_any = [":" + name for name in DART_PLATFORMS],
 )
 
 real_source_target(

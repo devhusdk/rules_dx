@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_src_path", "dx_strip_none", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_strip_none", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _PARITY_KWARGS = {
@@ -151,6 +151,16 @@ def wrapper_kwarg_hooks_tests(name):
             expect_equal(
                 "language kwargs default absent tags to the skip tags",
                 dx_language_kwargs({}, [])["tags"],
+                [],
+            ),
+            expect_equal(
+                "quality srcs list main, srcs and extra once each",
+                dx_quality_srcs("m", ["a", "m"], ["a", "e"]),
+                ["m", "a", "e"],
+            ),
+            expect_equal(
+                "quality srcs tolerate absent inputs",
+                dx_quality_srcs(None, None),
                 [],
             ),
             expect_equal(

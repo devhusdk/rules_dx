@@ -3,7 +3,7 @@
 load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//d/rules:defs.bzl", "D_CELLS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
-load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
+load("//dart/rules:platforms.bzl", "DART_PLATFORMS")
 load("//elixir/rules:defs.bzl", "ELIXIR_CELLS")
 load("//erlang/rules:defs.bzl", "ERLANG_CELLS")
 load("//erlang/toolchain:pins.bzl", OTP_CELLS = "CELLS")
@@ -14,7 +14,7 @@ load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
 load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
 load("//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
-load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
+load("//perl/rules:platforms.bzl", "PERL_PLATFORMS")
 load("//php/toolchain:pins.bzl", "PHP_CELLS")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
@@ -40,7 +40,7 @@ COMPUTED_CONSTRAINTS = {
     "@rules_dx_apple//ios:cell.bzl%APPLE_HOSTS": [["@platforms//os:ios"], ["@platforms//os:macos"]],
     "@rules_dx_cuda//rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
-    "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
+    "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(DART_PLATFORMS),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
     "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
     "//flutter/rules:defs.bzl%FLUTTER_COMPATIBLE_WITH": _os_cpu_pairs(FLUTTER_PLATFORMS),
@@ -51,7 +51,7 @@ COMPUTED_CONSTRAINTS = {
     "//julia/rules:defs.bzl%JULIA_COMPATIBLE_WITH": _os_cpu_pairs(JULIA_PLATFORMS),
     "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _cells(OCAML_CELLS, sorted(OCAML_CELLS.keys())),
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
-    "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(RULES_PERL_PLATFORMS),
+    "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(PERL_PLATFORMS),
     "//php/rules:defs.bzl%PHP_COMPATIBLE_WITH": _cells(PHP_CELLS, sorted(PHP_CELLS.keys())),
     "//qt/rules:defs.bzl%QT_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }

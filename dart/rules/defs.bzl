@@ -93,10 +93,6 @@ def dart_root_package_name(package, name, kwargs):
         return None
     return name
 
-def dart_compatible_with(target_compatible_with):
-    """Appends the rules_dart platform guard to the caller's constraints."""
-    return (target_compatible_with or []) + DART_COMPATIBLE_WITH
-
 def dart_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_library."""
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)

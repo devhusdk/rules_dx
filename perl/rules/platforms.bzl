@@ -1,6 +1,6 @@
 """The platforms rules_perl ships a toolchain for."""
 
-RULES_PERL_PLATFORMS = {
+PERL_PLATFORMS = {
     "linux_x86_64": ("linux", "x86_64"),
     "linux_arm64": ("linux", "arm64"),
     "macos_x86_64": ("macos", "x86_64"),

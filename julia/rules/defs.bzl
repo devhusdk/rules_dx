@@ -4,7 +4,7 @@ load("@rules_julia//julia:defs.bzl", _julia_binary = "julia_binary", _julia_libr
 load("@rules_julia//julia:julia_info.bzl", _JuliaInfo = "JuliaInfo")
 load("//julia/coverage:coverage.bzl", "dx_julia_coverage_aspect", "dx_julia_coverage_attrs", "dx_julia_test_coverage")
 load("//libs/starlark:cells.bzl", "unsupported_constraint")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_quality_srcs", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 JuliaInfo = _JuliaInfo
@@ -61,11 +61,6 @@ _julia_forward_test = dx_executable_forward_rule(
     coverage_providers = dx_julia_test_coverage,
 )
 
-def julia_quality_srcs(main, srcs):
-    """Returns the hand-written sources a Julia target owns: main first, then srcs."""
-    owned = [main] if main != None else []
-    return owned + [s for s in (srcs or []) if s != main]
-
 def julia_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over julia_library."""
     kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
@@ -77,7 +72,7 @@ def julia_binary(name, srcs = None, main = None, visibility = None, **kwargs):
     upstream = dict(kwargs, package_name = name)
     if main != None:
         upstream["main"] = main
-    dx_wrap_binary(name, _julia_binary, _julia_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = julia_quality_srcs(main, srcs), **kwargs)
+    dx_wrap_binary(name, _julia_binary, _julia_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_quality_srcs(main, srcs), **kwargs)
 
 def julia_test(name, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over julia_test."""
@@ -89,7 +84,7 @@ def julia_test(name, srcs = None, main = None, visibility = None, **kwargs):
     })
     if main != None:
         upstream["main"] = main
-    dx_wrap_test(name, _julia_test, _julia_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = julia_quality_srcs(main, srcs), **kwargs)
+    dx_wrap_test(name, _julia_test, _julia_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_quality_srcs(main, srcs), **kwargs)
 
 def julia_standalone_binary(name, **kwargs):
     """Thin wrapper over julia_standalone_binary; binary is a dx julia_library with julia_main()::Cint."""

@@ -57,6 +57,12 @@ haskell_binary(
 - C compiling, linking and object merging run on the rules_dx C++ toolchain.
   GHC reads no compiler, linker or preprocessor from the host.
 
+## Benchmarks
+
+`haskell_bench` builds a `haskell_binary` from [tasty-bench](https://hackage.haskell.org/package/tasty-bench) benchmarks and adds a `dx-bench` test `<name>` that runs it with `--csv` and writes `dx-bench.json` for `dx bench`. Resolve `tasty-bench` through `haskell.packages` like any Hackage dependency, see [bench](tests/fixtures/bench/BUILD.bazel).
+
+There is no `haskell_fuzz_test`: Haskell has no maintained libFuzzer-style fuzz harness.
+
 ## Runtime libraries
 
 GHC and the programs it links load two shared libraries that are not in

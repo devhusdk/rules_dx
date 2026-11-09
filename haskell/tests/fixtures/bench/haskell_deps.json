@@ -1,0 +1,486 @@
+{
+  "freeze_sha256": "08a07bb47b02731886e6f9940ca677d3b6f18657f0e38a9df071a3696957d426",
+  "index_state": "2026-10-01T00:00:00Z",
+  "inputs_sha256": "dd65c2fa6605d6ed3b1c0492e21562ce776e2e38eaa345a4a18c320d7313c173",
+  "packages": [
+    {
+      "cabal_revision": 0,
+      "cabal_sha256": "408d9232e5304efead718f96138d6d7eb2da608c6121c5c0dc6a71a833b14320",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ansi-terminal-types",
+        "base",
+        "colour"
+      ],
+      "name": "ansi-terminal",
+      "sdist_sha256": "9cf083cef2e2ba88a425f132c8a82bfa931eb4b0c38232b2017f8fcea2e23073",
+      "source": "hackage",
+      "version": "1.1.5"
+    },
+    {
+      "cabal_revision": 0,
+      "cabal_sha256": "1d6061eceaf35a9ed269b81177dd4c8c60403a499526f7f68fdffa4ec7842e7f",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "colour"
+      ],
+      "name": "ansi-terminal-types",
+      "sdist_sha256": "9fc9ce2157f1889bd99a4d22c9f1c64589590be0f797c3efe71c8fa17a11a689",
+      "source": "hackage",
+      "version": "1.1.3"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base"
+      ],
+      "name": "array",
+      "source": "ghc",
+      "version": "0.5.8.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ghc-internal",
+        "ghc-prim"
+      ],
+      "name": "base",
+      "source": "ghc",
+      "version": "4.20.2.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "tasty-bench"
+      ],
+      "name": "bench",
+      "source": "local",
+      "version": "0.1.0.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "array",
+        "base",
+        "bytestring",
+        "containers"
+      ],
+      "name": "binary",
+      "source": "ghc",
+      "version": "0.8.9.3"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "deepseq",
+        "ghc-prim",
+        "template-haskell"
+      ],
+      "name": "bytestring",
+      "source": "ghc",
+      "version": "0.12.2.0"
+    },
+    {
+      "cabal_revision": 0,
+      "cabal_sha256": "613dc8d5f6e51babe57398a742ab8d5c2964fa98b773f3bf6e6a72b7e87f1c6e",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base"
+      ],
+      "name": "colour",
+      "sdist_sha256": "1f3b1055675abe4e3362800cc9bf7ab9b92dfdf21a1f6c82b252611270be9680",
+      "source": "hackage",
+      "version": "2.3.7"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "array",
+        "base",
+        "deepseq",
+        "template-haskell"
+      ],
+      "name": "containers",
+      "source": "ghc",
+      "version": "0.7"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "array",
+        "base",
+        "ghc-prim"
+      ],
+      "name": "deepseq",
+      "source": "ghc",
+      "version": "1.5.0.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "filepath",
+        "os-string",
+        "time",
+        "unix"
+      ],
+      "name": "directory",
+      "source": "ghc",
+      "version": "1.3.8.5"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "mtl",
+        "stm",
+        "template-haskell",
+        "transformers"
+      ],
+      "name": "exceptions",
+      "source": "ghc",
+      "version": "0.10.9"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "bytestring",
+        "deepseq",
+        "exceptions",
+        "os-string",
+        "template-haskell"
+      ],
+      "name": "filepath",
+      "source": "ghc",
+      "version": "1.5.4.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ghc-prim"
+      ],
+      "name": "ghc-bignum",
+      "source": "ghc",
+      "version": "1.3"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base"
+      ],
+      "name": "ghc-boot-th",
+      "source": "ghc",
+      "version": "9.10.3"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ghc-bignum",
+        "ghc-prim",
+        "rts"
+      ],
+      "name": "ghc-internal",
+      "source": "ghc",
+      "version": "9.1003.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "rts"
+      ],
+      "name": "ghc-prim",
+      "source": "ghc",
+      "version": "0.12.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "transformers"
+      ],
+      "name": "mtl",
+      "source": "ghc",
+      "version": "2.3.1"
+    },
+    {
+      "cabal_revision": 1,
+      "cabal_sha256": "4c1dcbdbf2498f7cdd88826e876403db7f8d81931962060ec4c3a57a186c6cc3",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "prettyprinter",
+        "prettyprinter-ansi-terminal",
+        "process",
+        "text",
+        "transformers"
+      ],
+      "name": "optparse-applicative",
+      "sdist_sha256": "cf16aeefd821730c7738447fa7c6b7ada7ca1c9cc25400d64ef283294d345871",
+      "source": "hackage",
+      "version": "0.19.0.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "bytestring",
+        "deepseq",
+        "exceptions",
+        "template-haskell"
+      ],
+      "name": "os-string",
+      "source": "ghc",
+      "version": "2.0.7"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "deepseq",
+        "ghc-prim"
+      ],
+      "name": "pretty",
+      "source": "ghc",
+      "version": "1.1.3.6"
+    },
+    {
+      "cabal_revision": 0,
+      "cabal_sha256": "e3a802ea939d465b2e37b9fa09d8e5bb88b5775d6d62dd2ec6ca32b63416656d",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "text"
+      ],
+      "name": "prettyprinter",
+      "sdist_sha256": "f04eb6fd865512ad8672da1e8bfcea1c384509fc2f662c41b7ac39d7898706ee",
+      "source": "hackage",
+      "version": "1.7.2"
+    },
+    {
+      "cabal_revision": 0,
+      "cabal_sha256": "5184ba6002a650de3307547347eaba19bdc9b82eb68e943f406818caa215ce4f",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ansi-terminal",
+        "base",
+        "prettyprinter",
+        "text"
+      ],
+      "name": "prettyprinter-ansi-terminal",
+      "sdist_sha256": "912cd340d5c2583111e2eaeb9aa03b87551ca2e3dd78bbfd346756b9f1e6c9fe",
+      "source": "hackage",
+      "version": "1.1.4"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "deepseq",
+        "directory",
+        "filepath",
+        "os-string",
+        "unix"
+      ],
+      "name": "process",
+      "source": "ghc",
+      "version": "1.6.26.1"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [],
+      "name": "rts",
+      "source": "ghc",
+      "version": "1.0.2"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "array",
+        "base"
+      ],
+      "name": "stm",
+      "source": "ghc",
+      "version": "2.5.3.1"
+    },
+    {
+      "cabal_revision": 0,
+      "cabal_sha256": "4d7bb8fec6dbb3107ff4fb1b25fa5a73049afde4b50cd434f6843de6c270fdbf",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "deepseq"
+      ],
+      "name": "tagged",
+      "sdist_sha256": "cd4c8d122f367b608b3cafade19efe980c4d6b982aa27c6c0690e552948e6b78",
+      "source": "hackage",
+      "version": "0.9"
+    },
+    {
+      "cabal_revision": 1,
+      "cabal_sha256": "2065ef38e061551c7e3a997c4a4eac1b68dbf0553cc6177f01c8f7982f4cd375",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ansi-terminal",
+        "base",
+        "containers",
+        "optparse-applicative",
+        "stm",
+        "tagged",
+        "transformers",
+        "unix"
+      ],
+      "name": "tasty",
+      "sdist_sha256": "c76120141bd61c4418b3ed5efc5fe3094186d47cfe12d7be552320139f52c6c7",
+      "source": "hackage",
+      "version": "1.5.4"
+    },
+    {
+      "cabal_revision": 1,
+      "cabal_sha256": "06e336ea94ae35f116318e535a7d70947734bb7dae35f6ba36cfbd0bb23c1fe3",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "containers",
+        "deepseq",
+        "ghc-prim",
+        "tasty"
+      ],
+      "name": "tasty-bench",
+      "sdist_sha256": "829c80478dcd6450f3ddab0232603850bff6bc7277b2eecf126b2fd9c26d7be2",
+      "source": "hackage",
+      "version": "0.4"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "ghc-boot-th",
+        "ghc-prim",
+        "pretty"
+      ],
+      "name": "template-haskell",
+      "source": "ghc",
+      "version": "2.22.0.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "array",
+        "base",
+        "binary",
+        "bytestring",
+        "deepseq",
+        "ghc-prim",
+        "template-haskell"
+      ],
+      "name": "text",
+      "source": "ghc",
+      "version": "2.1.3"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "deepseq"
+      ],
+      "name": "time",
+      "source": "ghc",
+      "version": "1.12.2"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base"
+      ],
+      "name": "transformers",
+      "source": "ghc",
+      "version": "0.6.1.1"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base",
+        "bytestring",
+        "filepath",
+        "os-string",
+        "time"
+      ],
+      "name": "unix",
+      "source": "ghc",
+      "version": "2.8.7.0"
+    }
+  ],
+  "version": 1
+}

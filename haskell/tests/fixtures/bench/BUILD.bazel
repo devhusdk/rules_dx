@@ -1,0 +1,70 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//haskell/rules:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_bench")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+
+package(default_visibility = ["//visibility:private"])
+
+_PROJECT = [
+    "cabal.project",
+    "bench.cabal",
+]
+
+exports_files(["haskell_deps.json"])
+
+haskell_deps_resolve(
+    name = "resolve",
+    srcs = _PROJECT,
+)
+
+haskell_deps_resolve_test(
+    name = "resolve_test",
+    srcs = _PROJECT,
+)
+
+haskell_bench(
+    name = "sum_bench",
+    srcs = ["bench_src/Sum.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        "@dx_haskell_toolchains//:base",
+        "@haskell_bench_hackage//:tasty-bench",
+    ],
+)
+
+sh_test(
+    name = "sum_bench_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :sum_bench_bin)"],
+    data = [
+        ":sum_bench_bin",
+        "//haskell/rules:bench_run.sh",
+    ],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    timeout = "short",
+)
+
+haskell_bench(
+    name = "sized_bench",
+    srcs = ["bench_src/Sum.hs"],
+    size = "large",
+    timeout = "long",
+    args = ["--stdev", "100"],
+    tags = ["dx-bench", "extra"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        "@dx_haskell_toolchains//:base",
+        "@haskell_bench_hackage//:tasty-bench",
+    ],
+)
+
+dx_runner_attr_test(
+    name = "sized_bench_attrs",
+    expected = {
+        "args": ["$(rootpath :sized_bench_bin)", "--stdev", "100"],
+        "size": "large",
+        "tags": ["dx-bench", "extra", "manual"],
+        "timeout": "long",
+    },
+    runner = "sized_bench",
+)

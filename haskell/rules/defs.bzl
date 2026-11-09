@@ -3,8 +3,10 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_haskell//haskell:defs.bzl", _haskell_binary = "haskell_binary", _haskell_library = "haskell_library", _haskell_test = "haskell_test")
 load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCoverageInfo", _HaskellInfo = "HaskellInfo", _HaskellLibraryInfo = "HaskellLibraryInfo")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/haskell:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
 load(":kwargs.bzl", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS", "haskell_kwargs", "haskell_upstream_kwargs")
@@ -102,3 +104,27 @@ def haskell_test(name, srcs = [], visibility = None, **kwargs):
     upstream = haskell_upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))
     dx_wrap_test(name, _haskell_test, _haskell_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
+
+def haskell_bench(name, srcs = [], visibility = None, tags = None, **kwargs):
+    """A haskell_binary of tasty-bench benchmarks plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
+    binary = name + "_bin"
+    build, run = split_test_kwargs(kwargs)
+    run = with_default_size(run)
+    haskell_binary(
+        name = binary,
+        srcs = srcs,
+        visibility = ["//visibility:private"],
+        tags = merge_tags(tags, "manual"),
+        testonly = True,
+        **build
+    )
+    sh_test(
+        name = name,
+        srcs = [Label("//haskell/rules:bench_run.sh")],
+        args = ["$(rootpath :" + binary + ")"] + run.pop("args", []),
+        data = run.pop("data", []) + [":" + binary],
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        testonly = True,
+        visibility = visibility,
+        **run
+    )

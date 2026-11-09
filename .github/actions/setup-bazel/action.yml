@@ -35,18 +35,22 @@ runs:
         if [ "$RUNNER_OS" = Windows ]; then
           # Error 183 (already exists) means a non-directory sits where Bazel wants a
           # directory. Replace a stray file or dangling link; fail naming a real conflict.
-          for dir in /c/bz /d/bz /d/_bazel; do
+          for dir in /c/bz /c/_bazel /d/bz /d/_bazel; do
             [ -d "/${dir:1:1}" ] || continue
             if [ -e "$dir" ] && [ ! -d "$dir" ]; then
               rm -f "$dir" || { echo "::error::$dir exists and is not a directory"; exit 1; }
             elif [ -L "$dir" ] && [ ! -e "$dir" ]; then
               rm -f "$dir"
             fi
-            mkdir -p "$dir" || { echo "::error::cannot create $dir"; exit 1; }
+            # An existing directory (or junction to one) is reused as is.
+            [ -d "$dir" ] || mkdir -p "$dir" || { echo "::error::cannot create $dir"; exit 1; }
           done
         fi
         if [ "$RUNNER_OS" = Windows ] && [ -d /d ]; then
           echo "startup:windows --output_user_root=D:/bz" >> user.bazelrc
+        elif [ "$RUNNER_OS" = Windows ]; then
+          # windows_arm64 has no D: drive; keep the root off the preexisting c:\_bazel.
+          echo "startup:windows --output_user_root=C:/bz" >> user.bazelrc
         fi
     - name: Configure the remote cache credential helper
       uses: ./.github/actions/remote-cache-helper

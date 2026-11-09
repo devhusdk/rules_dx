@@ -65,6 +65,14 @@ pub fn outdated(
     found
 }
 
+/// Returns the newest stable version of `name` in the registry at `base`.
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+    newest(
+        &fetch.get(&format!("{base}/modules/{name}/metadata.json"))?,
+        false,
+    )
+}
+
 fn repo(body: &str) -> Option<String> {
     let metadata: serde_json::Value = serde_json::from_str(body).ok()?;
     metadata["repository"]

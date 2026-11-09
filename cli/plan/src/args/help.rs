@@ -265,7 +265,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     (Command::Init, &["init", "init --apply"]),
     (
         Command::Upgrade,
-        &["upgrade --to 0.2.0", "upgrade --apply --to 0.2.0"],
+        &["upgrade", "upgrade --apply --to 0.2.0"],
     ),
     (Command::Status, &["status", "status --output json"]),
     (

@@ -157,7 +157,16 @@ fn hand_off(
     }
 }
 
-/// Moves the `.dx/pins` pin to `--to`, newer or older, then refreshes existing
+/// Looks up the newest stable rules_dx in the Bazel registry.
+fn latest_release(fetch: &dyn dx_update::discover::Fetch) -> Result<String, String> {
+    dx_update::discover::bcr::latest_stable(
+        "rules_dx",
+        dx_update::discover::bcr::DEFAULT_BASE,
+        fetch,
+    )
+}
+
+/// Moves the `.dx/pins` pin to `--to` (or the newest release), newer or older, then refreshes existing
 /// launchers and an existing AGENTS.md block. Every refusal runs before the first write.
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
@@ -167,8 +176,39 @@ pub(crate) fn execute_upgrade(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let Some(to) = invocation.to.as_deref() else {
-        return pre_exec(invocation.output, out, err, "upgrade needs --to <version>");
+    let newest = || latest_release(&*crate::exec::update_outdated::registry_fetch());
+    upgrade_with(
+        invocation,
+        workspace,
+        runner,
+        query_runner,
+        &newest,
+        out,
+        err,
+    )
+}
+
+fn upgrade_with(
+    invocation: &Invocation,
+    workspace: &Path,
+    runner: &dyn Runner,
+    query_runner: Option<&dyn QueryRunner>,
+    newest: &dyn Fn() -> Result<String, String>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let latest;
+    let to = match invocation.to.as_deref() {
+        Some(to) => to,
+        None => match newest() {
+            Ok(version) => {
+                latest = version;
+                latest.as_str()
+            }
+            Err(_) => {
+                return pre_exec(invocation.output, out, err, "upgrade needs --to <version>");
+            }
+        },
     };
     let intent = dx_adopt::UpgradeIntent {
         apply: invocation.applies(),
@@ -1323,5 +1363,60 @@ mod tests {
     #[test]
     fn upgrade_codes_are_stable_single_source() {
         assert_eq!(CODE_UPGRADE_FAILED, "upgrade_failed");
+    }
+
+    fn run_latest(
+        newest: &dyn Fn() -> Result<String, String>,
+        root: &Path,
+    ) -> (i32, String, String) {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = upgrade_with(
+            &invocation(&["upgrade"]),
+            root,
+            &crate::adopt::test_support::NoRunner,
+            None,
+            newest,
+            &mut out,
+            &mut err,
+        );
+        (
+            code,
+            String::from_utf8(out).expect("out"),
+            String::from_utf8(err).expect("err"),
+        )
+    }
+
+    #[test]
+    fn upgrade_without_to_checks_against_the_newest_release() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-latest-", OLD);
+        let before = snapshot(&root);
+        let (code, out, err) = run_latest(&|| Ok("9.9.9".to_owned()), &root);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains(" -> 9.9.9"), "{out}");
+        assert!(
+            err.contains("can move to 9.9.9 (run `dx upgrade --to 9.9.9 --apply`)"),
+            "{err}"
+        );
+        assert_eq!(snapshot(&root), before);
+    }
+
+    #[test]
+    fn upgrade_without_to_keeps_the_old_error_offline() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-offline-", OLD);
+        let (code, out, err) = run_latest(&|| Err("offline".to_owned()), &root);
+        assert_eq!(code, 2, "{out}{err}");
+        assert!(err.contains("upgrade needs --to <version>"), "{err}");
+    }
+
+    #[test]
+    fn latest_release_reads_registry_metadata() {
+        let fetch = |url: &str| {
+            assert_eq!(
+                url,
+                "https://bcr.bazel.build/modules/rules_dx/metadata.json"
+            );
+            Ok(r#"{"versions":["1.0.0","1.2.0","2.0.0-rc1"],"yanked_versions":{}}"#.to_owned())
+        };
+        assert_eq!(latest_release(&fetch).as_deref(), Ok("1.2.0"));
     }
 }

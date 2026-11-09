@@ -60,7 +60,7 @@ mod umbrella;
 mod update;
 mod update_add_missing;
 mod update_advisory;
-mod update_outdated;
+pub(crate) mod update_outdated;
 mod update_pr;
 mod update_prune;
 mod update_unused;

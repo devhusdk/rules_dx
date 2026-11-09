@@ -619,11 +619,6 @@ fn parse_inner<S: AsRef<OsStr>>(
             });
         }
     }
-    if matches!(command, Command::Upgrade) && to.is_none() {
-        return Err(ArgsError::MissingValue {
-            option: "--to <version>".to_owned(),
-        });
-    }
     if command == Command::Generate
         && let Some(scope) = targets.iter().find(|scope| {
             scope.starts_with('@') && !scope.starts_with("@//") && !scope.starts_with("@@//")

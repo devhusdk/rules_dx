@@ -3,6 +3,7 @@
 Moves `rules_dx` and the pin in `.dx/pins` to a version, newer or older. Checks by default; `--apply` writes.
 
 ```sh
+tools/dx upgrade
 tools/dx upgrade --to 2.0.0
 tools/dx upgrade --to 2.0.0 --apply
 tools/dx upgrade --to 1.2.0 --apply
@@ -10,16 +11,18 @@ tools/dx upgrade --to 2.0.0 --apply --output json
 ```
 
 ```text
-dx upgrade [--apply] --to <version>
+dx upgrade [--apply] [--to <version>]
 ```
 
 | Flag | What it does |
 | --- | --- |
-| `--to <version>` | Version to pin. Required. |
+| `--to <version>` | Version to pin. Defaults to the newest stable `rules_dx` in the Bazel registry. |
 | `--apply` | Writes the changes instead of showing them. |
 | `--output text\|json` | Sets the output format. |
 
 Scopes: none. Positional scopes are rejected.
+
+Without `--to`, `dx upgrade` reads `modules/rules_dx/metadata.json` from the registry and uses its newest stable version, so the check prints `pin <old> can move to <new>` with the `--apply` command. If the registry cannot be reached it fails with `upgrade needs --to <version>`.
 
 ## What `--apply` Writes
 
@@ -97,4 +100,4 @@ JSON streams `command_started`, one `status` event named `pin` (status `ok`, hin
 | --- | --- |
 | `0` | Moved, or already current. |
 | `1` | The pin can move (check), or the move was refused. |
-| `2` | Usage error, including a missing `--to`. |
+| `2` | Usage error, including no `--to` when the registry cannot be reached. |

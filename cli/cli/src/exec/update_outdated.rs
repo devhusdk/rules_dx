@@ -96,7 +96,7 @@ fn github_auth(url: &str, token: Option<&str>) -> Option<(&'static str, String)>
         .then(|| ("Authorization", format!("Bearer {token}")))
 }
 
-pub(super) fn registry_fetch() -> Box<dyn Fetch> {
+pub(crate) fn registry_fetch() -> Box<dyn Fetch> {
     match std::env::var_os(REGISTRY_DIR_ENV) {
         Some(dir) => Box::new(DirFetch(PathBuf::from(dir))),
         None => Box::new(HttpFetch::new()),

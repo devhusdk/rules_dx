@@ -348,10 +348,8 @@ fn upgrade_needs_to_with_no_scopes() {
     assert!(got.command.is_adoption());
     assert!(got.command.supports_json());
     assert_eq!(
-        parse(&strings(&["upgrade", "--apply"])),
-        Err(ArgsError::MissingValue {
-            option: "--to <version>".to_owned(),
-        })
+        parse(&strings(&["upgrade", "--apply"])).map(|got| got.to),
+        Ok(None)
     );
     assert_eq!(
         parse(&strings(&["upgrade", "--to=2.0.0", "//a:one"])),

@@ -315,7 +315,7 @@ pub fn ignored(kind: HookKind, input: &Value) -> bool {
         && Dialect::of(input) != Dialect::Claude
 }
 
-/// Marks the slots of a finished subagent as held by a gone holder.
+/// Marks the slots of a finished subagent as held by a gone holder and stops their Bazel servers.
 pub fn stop(
     pool: &Pool,
     host: &dyn Host,
@@ -327,7 +327,7 @@ pub fn stop(
     }
     let agent = field(input, "agent_id").ok_or_else(|| missing(HookKind::Stop, "agent_id"))?;
     let session = who.session.clone().or_else(|| field(input, "session_id"));
-    let _lock = pool.lock()?;
+    let lock = pool.lock()?;
     let mut marked = Vec::new();
     for mut record in pool.records() {
         if record.held
@@ -340,6 +340,10 @@ pub fn stop(
             pool.write(&record)?;
             marked.push(record.slot);
         }
+    }
+    drop(lock);
+    for slot in &marked {
+        ops::stop_server(host, &pool.slot_path(*slot));
     }
     Ok(marked)
 }

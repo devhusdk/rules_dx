@@ -3628,10 +3628,12 @@ mod hooks {
                 .is_empty()
         );
         let stop = serde_json::json!({"agent_id": "a1"});
+        host.serve(900, &pool.slot_path(1));
         assert_eq!(
             hook::stop(&pool, &host, &first, &stop).expect("stop"),
             vec![1]
         );
+        assert_eq!(host.shutdown_paths(), vec![pool.slot_path(1)]);
         let row = ops::list(&pool, &host, false).expect("list").rows.remove(0);
         assert_eq!(
             row.state,

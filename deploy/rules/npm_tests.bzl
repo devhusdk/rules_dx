@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":npm.bzl", "npm_effective_provenance", "npm_filenames")
-load(":npm_validate.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_error", "npm_tag_error")
+load(":npm_validate.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
 
 def npm_unit_tests(name):
     starlark_test(
@@ -129,20 +129,20 @@ def npm_unit_tests(name):
                 "[A-Za-z0-9._-]",
             ),
             expect_equal(
-                "npm_registry_error accepts the default registry",
-                npm_registry_error("https://registry.npmjs.org"),
+                "npm_registry_url_error accepts the default registry",
+                npm_registry_url_error("https://registry.npmjs.org"),
                 "",
             ),
             expect_equal(
-                "npm_registry_error rejects a non-https registry",
-                npm_registry_error("http://registry.npmjs.org"),
-                "npm_deploy: invalid registry 'http://registry.npmjs.org': " +
+                "npm_registry_url_error rejects a non-https registry",
+                npm_registry_url_error("http://registry.npmjs.org"),
+                "npm_deploy: invalid registry_url 'http://registry.npmjs.org': " +
                 "want an https:// URL (for example 'https://registry.npmjs.org')",
             ),
             expect_equal(
-                "npm_registry_error rejects an empty registry",
-                npm_registry_error(""),
-                "npm_deploy: invalid registry '': want an https:// URL " +
+                "npm_registry_url_error rejects an empty registry",
+                npm_registry_url_error(""),
+                "npm_deploy: invalid registry_url '': want an https:// URL " +
                 "(for example 'https://registry.npmjs.org')",
             ),
         ],

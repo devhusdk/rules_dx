@@ -9,7 +9,7 @@ _VALID_ID_CHARS = NAME_CHARS
 
 _VALID_VERSION_CHARS = VERSION_CHARS
 
-NUGET_DEFAULT_SOURCE = "https://api.nuget.org/v3/index.json"
+NUGET_DEFAULT_REGISTRY_URL = "https://api.nuget.org/v3/index.json"
 
 def nuget_id_error(package_id):
     """Validates one package id value."""
@@ -41,14 +41,14 @@ def nuget_nupkg_error(filename):
                 "': want a filename ending in .nupkg")
     return ""
 
-def nuget_source_error(source):
-    """Validates one NuGet source URL value."""
-    if type(source) != "string" or source == "":
-        return ("nuget_deploy: invalid source '" + str(source) +
+def nuget_registry_url_error(registry_url):
+    """Validates one NuGet registry URL value."""
+    if type(registry_url) != "string" or registry_url == "":
+        return ("nuget_deploy: invalid registry_url '" + str(registry_url) +
                 "': want a non-empty https URL (for example '" +
-                NUGET_DEFAULT_SOURCE + "')")
-    if not source.startswith("https://"):
-        return ("nuget_deploy: invalid source '" + source +
+                NUGET_DEFAULT_REGISTRY_URL + "')")
+    if not registry_url.startswith("https://"):
+        return ("nuget_deploy: invalid registry_url '" + registry_url +
                 "': want an https URL so pushes never go over plaintext")
     return ""
 
@@ -69,7 +69,7 @@ def _nuget_config_impl(ctx):
         "deploy_name": ctx.attr.deploy_name,
         "nupkg_rloc": nupkg_rloc,
         "package_id": ctx.attr.package,
-        "source": ctx.attr.source,
+        "registry_url": ctx.attr.registry_url,
         "version": ctx.attr.version,
     }
     runfiles = ctx.runfiles(files = [nupkg_file])
@@ -104,7 +104,7 @@ _nuget_config = rule(
             mandatory = True,
         ),
         "package": attr.string(doc = "NuGet package id the deploy config pins."),
-        "source": attr.string(
+        "registry_url": attr.string(
             doc = "HTTPS NuGet feed URL the deploy tool publishes to.",
             mandatory = True,
         ),
@@ -112,7 +112,7 @@ _nuget_config = rule(
     },
 )
 
-def nuget_deploy(name, nupkg, package = "", version = "", source = NUGET_DEFAULT_SOURCE, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Publishes one nupkg after checking its nuspec id and version.
 
     api_compat and api_baseline work as described under "Public API
@@ -122,9 +122,9 @@ def nuget_deploy(name, nupkg, package = "", version = "", source = NUGET_DEFAULT
     api_error = api_compat_error("nuget_deploy", api_compat, api_baseline)
     if api_error != "":
         fail(api_error + " (in " + native.package_name() + ":" + name + ")")
-    source_error = nuget_source_error(source)
-    if source_error != "":
-        fail(source_error + " (in " + native.package_name() + ":" + name + ")")
+    registry_error = nuget_registry_url_error(registry_url)
+    if registry_error != "":
+        fail(registry_error + " (in " + native.package_name() + ":" + name + ")")
 
     config_target = name + "_config"
     _nuget_config(
@@ -134,7 +134,7 @@ def nuget_deploy(name, nupkg, package = "", version = "", source = NUGET_DEFAULT
         deploy_name = name,
         nupkg = nupkg,
         package = pkg,
-        source = source,
+        registry_url = registry_url,
         version = version,
     )
 

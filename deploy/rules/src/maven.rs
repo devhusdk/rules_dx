@@ -503,31 +503,7 @@ pub fn maven_verify_detached(public_armored: &str, data: &[u8], asc: &str) -> Re
 }
 
 /// Central Portal Publisher API base URL.
-pub const MAVEN_DEFAULT_REPOSITORY_URL: &str = "https://central.sonatype.com/api/v1/publisher/";
-
-/// Hosts that serve the Central Portal Publisher API.
-pub const MAVEN_SUPPORTED_HOSTS: [&str; 1] = ["central.sonatype.com"];
-
-const MAVEN_PUBLISHER_PATH: &str = "/api/v1/publisher/";
-
-/// Returns why one repository URL is not the Central Portal Publisher API, or None.
-pub fn maven_repository_url_error(repository_url: &str) -> Option<String> {
-    let Some(rest) = repository_url.strip_prefix("https://") else {
-        return Some(format!(
-            "maven_deploy: invalid repository_url '{repository_url}': want an https URL so uploads never go over plaintext"
-        ));
-    };
-    let host = rest.split('/').next().unwrap_or("");
-    let supported = MAVEN_SUPPORTED_HOSTS
-        .iter()
-        .any(|supported| host.eq_ignore_ascii_case(supported));
-    if !supported || &rest[host.len()..] != MAVEN_PUBLISHER_PATH {
-        return Some(format!(
-            "maven_deploy: invalid repository_url '{repository_url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"
-        ));
-    }
-    None
-}
+const MAVEN_PUBLISHER_URL: &str = "https://central.sonatype.com/api/v1/publisher/";
 
 fn maven_bundle_walk(dir: &Path, rel: &str, out: &mut Vec<(String, Vec<u8>)>) -> io::Result<()> {
     for entry in std::fs::read_dir(dir)? {
@@ -625,7 +601,6 @@ pub struct MavenLive {
 pub fn maven_live_gate(
     env: &dyn Fn(&str) -> String,
     version: &str,
-    repository_url: &str,
 ) -> Result<MavenLive, String> {
     if let Some(error) = placeholder_refusal("maven_deploy", version) {
         return Err(error);
@@ -637,9 +612,6 @@ pub fn maven_live_gate(
         );
     }
     let secrets = MAVEN_GATE.authorize(env)?;
-    if let Some(error) = maven_repository_url_error(repository_url) {
-        return Err(error);
-    }
     let passphrase = env("MAVEN_GPG_PASSPHRASE");
     let key = env("MAVEN_GPG_KEY");
     let signer = if key.is_empty() {
@@ -776,7 +748,6 @@ pub struct MavenLaunch<'a> {
     pub group: &'a str,
     pub artifact: &'a str,
     pub version: &'a str,
-    pub repository_url: &'a str,
     /// `off`, `warn` or `fail`; empty means off.
     pub api_compat: &'a str,
     /// `registry` or `git`; empty means registry.
@@ -795,7 +766,6 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         group,
         artifact,
         version,
-        repository_url,
         api_compat,
         api_baseline,
         japicmp_rloc,
@@ -884,7 +854,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         classified: &classified,
     };
     if MAVEN_GATE.requested(env_or_empty) {
-        let live = match maven_live_gate(&env_or_empty, version, repository_url) {
+        let live = match maven_live_gate(&env_or_empty, version) {
             Ok(live) => live,
             Err(error) => {
                 eprintln!("{error}");
@@ -929,13 +899,13 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         let name = format!("{group}:{artifact}:{version}");
         match maven_upload_bundle(
             &http::publish_agent(),
-            repository_url,
+            MAVEN_PUBLISHER_URL,
             &http::bearer_basic(&live.username, &live.password),
             &name,
             &bundle,
         ) {
             Ok(id) => {
-                println!("maven_deploy: uploaded {name} to {repository_url} as deployment {id}");
+                println!("maven_deploy: uploaded {name} to {MAVEN_PUBLISHER_URL} as deployment {id}");
                 println!(
                     "maven_deploy: not published yet; validate and publish the deployment in the Central Portal"
                 );
@@ -1049,14 +1019,14 @@ pub(crate) mod tests {
         ("MAVEN_PUBLISH_APPROVED", "1"),
     ];
 
-    fn gate_error(vars: &[(&str, &str)], version: &str, url: &str) -> Option<String> {
-        maven_live_gate(&gate_env(vars), version, url).err()
+    fn gate_error(vars: &[(&str, &str)], version: &str) -> Option<String> {
+        maven_live_gate(&gate_env(vars), version).err()
     }
 
     #[test]
     fn maven_live_gate_refuses_placeholder_versions() {
         for version in ["0.0.0", "v0.0.0", "0.0.0-dryrun", "v0.0.0-dryrun"] {
-            let error = gate_error(&APPROVED, version, MAVEN_DEFAULT_REPOSITORY_URL)
+            let error = gate_error(&APPROVED, version)
                 .expect("placeholder refused");
             assert!(error.contains("set a real version"), "{error}");
             assert!(error.contains(version), "{error}");
@@ -1270,7 +1240,7 @@ pub(crate) mod tests {
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_GPG_PASSPHRASE", "pw"));
         assert_eq!(
-            gate_error(&vars, "0.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
+            gate_error(&vars, "0.0.0"),
             Some(
                 "maven_deploy: live publish refuses placeholder version 0.0.0; set a real version"
                     .to_owned()
@@ -1284,7 +1254,7 @@ pub(crate) mod tests {
         vars.push(("MAVEN_GPG_PASSPHRASE", "pw"));
         for version in ["1.0.0-SNAPSHOT", "1.0-SNAPSHOT+b5"] {
             assert_eq!(
-                gate_error(&vars, version, MAVEN_DEFAULT_REPOSITORY_URL),
+                gate_error(&vars, version),
                 Some(
                     "maven_deploy: live staging refuses -SNAPSHOT versions; set a release version"
                         .to_owned()
@@ -1300,7 +1270,7 @@ pub(crate) mod tests {
             &[("MAVEN_USERNAME", "user"), ("MAVEN_PUBLISH_APPROVED", "1")][..],
         ] {
             assert_eq!(
-                gate_error(vars, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
+                gate_error(vars, "1.0.0"),
                 Some("maven_deploy: live staging needs MAVEN_USERNAME plus MAVEN_PASSWORD plus explicit owner approval (MAVEN_PUBLISH_APPROVED=1); refusing".to_owned())
             );
         }
@@ -1309,7 +1279,7 @@ pub(crate) mod tests {
     #[test]
     fn maven_gate_rejects_missing_approval() {
         assert_eq!(
-            gate_error(&APPROVED[..2], "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
+            gate_error(&APPROVED[..2], "1.0.0"),
             Some(
                 "maven_deploy: live staging needs MAVEN_PUBLISH_APPROVED=1 (owner approval); refusing"
                     .to_owned()
@@ -1320,12 +1290,12 @@ pub(crate) mod tests {
     #[test]
     fn maven_gate_rejects_unsigned_without_allow_and_accepts_with_allow() {
         assert_eq!(
-            gate_error(&APPROVED, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
+            gate_error(&APPROVED, "1.0.0"),
             Some("maven staging: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned())
         );
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
-        let live = maven_live_gate(&gate_env(&vars), "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL)
+        let live = maven_live_gate(&gate_env(&vars), "1.0.0")
             .ok()
             .expect("unsigned allowed");
         assert!(live.unsigned);
@@ -1338,7 +1308,7 @@ pub(crate) mod tests {
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_GPG_KEY", &secret));
         vars.push(("MAVEN_GPG_PASSPHRASE", PASSPHRASE));
-        let live = maven_live_gate(&gate_env(&vars), "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL)
+        let live = maven_live_gate(&gate_env(&vars), "1.0.0")
             .ok()
             .expect("signed");
         assert!(!live.unsigned);
@@ -1353,7 +1323,7 @@ pub(crate) mod tests {
             if allow {
                 vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
             }
-            let error = gate_error(&vars, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL).expect("refused");
+            let error = gate_error(&vars, "1.0.0").expect("refused");
             assert!(error.contains("without MAVEN_GPG_KEY"));
             assert!(!error.contains(PASSPHRASE));
         }
@@ -1387,72 +1357,11 @@ pub(crate) mod tests {
             let mut vars = APPROVED.to_vec();
             vars.push(("MAVEN_GPG_KEY", key));
             vars.push(("MAVEN_GPG_PASSPHRASE", passphrase));
-            let error = gate_error(&vars, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL).expect("refused");
+            let error = gate_error(&vars, "1.0.0").expect("refused");
             assert_eq!(error, want);
             assert!(!error.contains(PASSPHRASE) && !error.contains("wrong-passphrase"));
             assert!(!error.contains("PGP PRIVATE KEY"));
         }
-    }
-
-    #[test]
-    fn maven_gate_rejects_retired_host_at_runtime() {
-        let mut vars = APPROVED.to_vec();
-        vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
-        for url in [
-            "https://oss.sonatype.org/service/local/staging/deploy/maven2/",
-            "https://S01.oss.sonatype.org/content/",
-        ] {
-            assert_eq!(
-                gate_error(&vars, "1.0.0", url),
-                Some(format!(
-                    "maven_deploy: invalid repository_url '{url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"
-                ))
-            );
-        }
-        assert_eq!(
-            gate_error(&vars, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
-            None
-        );
-    }
-
-    #[test]
-    fn maven_gate_rejects_unsupported_host_at_runtime() {
-        let mut vars = APPROVED.to_vec();
-        vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
-        for url in [
-            "https://repo.example.com/maven2/",
-            "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/",
-            "https://central.sonatype.com/api/v1/",
-            "https://central.sonatype.com/api/v1/publisher/upload",
-        ] {
-            assert_eq!(
-                gate_error(&vars, "1.0.0", url),
-                Some(format!(
-                    "maven_deploy: invalid repository_url '{url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"
-                ))
-            );
-        }
-        assert_eq!(
-            gate_error(
-                &vars,
-                "1.0.0",
-                "https://Central.Sonatype.com/api/v1/publisher/"
-            ),
-            None
-        );
-    }
-
-    #[test]
-    fn maven_gate_rejects_plaintext_url() {
-        let mut vars = APPROVED.to_vec();
-        vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
-        let url = "http://central.sonatype.com/api/v1/publisher/";
-        assert_eq!(
-            gate_error(&vars, "1.0.0", url),
-            Some(format!(
-                "maven_deploy: invalid repository_url '{url}': want an https URL so uploads never go over plaintext"
-            ))
-        );
     }
 
     fn staged_house(scratch: &Path) -> PathBuf {
@@ -1669,7 +1578,6 @@ pub(crate) mod tests {
                     group: "com.example",
                     artifact: "maven_demo",
                     version: "0.0.0",
-                    repository_url: MAVEN_DEFAULT_REPOSITORY_URL,
                     api_compat: "off",
                     api_baseline: "registry",
                     ..Default::default()

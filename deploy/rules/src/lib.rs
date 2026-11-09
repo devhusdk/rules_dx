@@ -114,7 +114,6 @@ mod tests {
                     group: "com.example",
                     artifact: "demo",
                     version: "1.0.0",
-                    repository_url: "https://maven.invalid",
                     api_compat: "off",
                     api_baseline: "registry",
                     ..Default::default()
@@ -184,7 +183,6 @@ mod tests {
                             group: "com.example",
                             artifact: "demo",
                             version: "1.0.0",
-                            repository_url: "https://maven.invalid",
                             api_compat: "off",
                             api_baseline: "registry",
                             ..Default::default()
@@ -391,7 +389,6 @@ mod tests {
                             group: "com.example",
                             artifact: "demo",
                             version: "0.0.0",
-                            repository_url: "https://maven.invalid",
                             api_compat: "off",
                             api_baseline: "registry",
                             ..Default::default()
@@ -660,7 +657,6 @@ mod tests {
                             group: "com.example",
                             artifact: "maven_demo",
                             version: "1.0.0",
-                            repository_url: "https://maven.invalid",
                             api_compat: "off",
                             api_baseline: "registry",
                             ..Default::default()
@@ -877,7 +873,6 @@ mod tests {
             group: "",
             artifact: "",
             version: "",
-            repository_url: "",
             ..Default::default()
         };
         let _ = crate::OctopusLaunch {

@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":api_compat.bzl", "api_compat_error")
-load(":pub.bzl", "PUB_DEFAULT_HOSTED_URL", "pub_hosted_url_error", "pub_name_error", "pub_version_error")
+load(":pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_registry_url_error", "pub_name_error", "pub_version_error")
 
 def pub_unit_tests(name):
     starlark_test(
@@ -38,14 +38,14 @@ def pub_unit_tests(name):
                 "only [A-Za-z0-9._-+]",
             ),
             expect_equal(
-                "pub_hosted_url_error accepts the default server",
-                pub_hosted_url_error(PUB_DEFAULT_HOSTED_URL),
+                "pub_registry_url_error accepts the default server",
+                pub_registry_url_error(PUB_DEFAULT_REGISTRY_URL),
                 "",
             ),
             expect_equal(
-                "pub_hosted_url_error rejects plaintext URLs",
-                pub_hosted_url_error("http://pub.example.com"),
-                "pub_deploy: invalid hosted_url 'http://pub.example.com': " +
+                "pub_registry_url_error rejects plaintext URLs",
+                pub_registry_url_error("http://pub.example.com"),
+                "pub_deploy: invalid registry_url 'http://pub.example.com': " +
                 "want an https URL so publishes never go over plaintext",
             ),
             expect_equal(

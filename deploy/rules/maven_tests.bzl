@@ -1,8 +1,7 @@
 """Unit and analysis tests for the Maven Central publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL")
-load(":maven_validate.bzl", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_repository_error", "maven_sources_error", "maven_version_error")
+load(":maven_validate.bzl", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_sources_error", "maven_version_error")
 
 def maven_unit_tests(name):
     starlark_test(
@@ -102,47 +101,6 @@ def maven_unit_tests(name):
                 maven_version_error("1.0;curl evil"),
                 "maven_deploy: invalid version '1.0;curl evil': want " +
                 "only [A-Za-z0-9._-+]",
-            ),
-            expect_equal(
-                "maven_repository_error accepts the default Publisher URL",
-                maven_repository_error(MAVEN_DEFAULT_REPOSITORY_URL),
-                "",
-            ),
-            expect_equal(
-                "maven_repository_error rejects the retired OSSRH host",
-                maven_repository_error("https://oss.sonatype.org/service/local/staging/deploy/maven2/"),
-                "maven_deploy: invalid repository_url 'https://oss.sonatype.org/service/local/staging/deploy/maven2/': " +
-                "want the Central Portal Publisher API '" + MAVEN_DEFAULT_REPOSITORY_URL + "'",
-            ),
-            expect_equal(
-                "maven_repository_error accepts a mixed-case Publisher host",
-                maven_repository_error("https://Central.Sonatype.com/api/v1/publisher/"),
-                "",
-            ),
-            expect_equal(
-                "maven_repository_error rejects an unsupported host",
-                maven_repository_error("https://repo.example.com/maven2/"),
-                "maven_deploy: invalid repository_url 'https://repo.example.com/maven2/': " +
-                "want the Central Portal Publisher API '" + MAVEN_DEFAULT_REPOSITORY_URL + "'",
-            ),
-            expect_equal(
-                "maven_repository_error rejects the OSSRH staging API host",
-                maven_repository_error("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"),
-                "maven_deploy: invalid repository_url " +
-                "'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/': " +
-                "want the Central Portal Publisher API '" + MAVEN_DEFAULT_REPOSITORY_URL + "'",
-            ),
-            expect_equal(
-                "maven_repository_error rejects a wrong Publisher path",
-                maven_repository_error("https://central.sonatype.com/api/v1/"),
-                "maven_deploy: invalid repository_url 'https://central.sonatype.com/api/v1/': " +
-                "want the Central Portal Publisher API '" + MAVEN_DEFAULT_REPOSITORY_URL + "'",
-            ),
-            expect_equal(
-                "maven_repository_error rejects plaintext URLs",
-                maven_repository_error("http://example.com/maven2/"),
-                "maven_deploy: invalid repository_url 'http://example.com/maven2/': " +
-                "want an https URL so uploads never go over plaintext",
             ),
             expect_equal(
                 "maven_jar_error accepts a pinned jar filename",

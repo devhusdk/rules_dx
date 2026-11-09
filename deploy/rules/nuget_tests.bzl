@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":api_compat.bzl", "api_compat_error")
-load(":nuget.bzl", "NUGET_DEFAULT_SOURCE", "nuget_id_error", "nuget_nupkg_error", "nuget_source_error", "nuget_version_error")
+load(":nuget.bzl", "NUGET_DEFAULT_REGISTRY_URL", "nuget_id_error", "nuget_nupkg_error", "nuget_registry_url_error", "nuget_version_error")
 
 def nuget_unit_tests(name):
     starlark_test(
@@ -66,21 +66,21 @@ def nuget_unit_tests(name):
                 "filename ending in .nupkg",
             ),
             expect_equal(
-                "nuget_source_error accepts the default source",
-                nuget_source_error(NUGET_DEFAULT_SOURCE),
+                "nuget_registry_url_error accepts the default registry_url",
+                nuget_registry_url_error(NUGET_DEFAULT_REGISTRY_URL),
                 "",
             ),
             expect_equal(
-                "nuget_source_error rejects plaintext URLs",
-                nuget_source_error("http://example.com/v3/index.json"),
-                "nuget_deploy: invalid source 'http://example.com/v3/index.json': " +
+                "nuget_registry_url_error rejects plaintext URLs",
+                nuget_registry_url_error("http://example.com/v3/index.json"),
+                "nuget_deploy: invalid registry_url 'http://example.com/v3/index.json': " +
                 "want an https URL so pushes never go over plaintext",
             ),
             expect_equal(
-                "nuget_source_error rejects an empty source",
-                nuget_source_error(""),
-                "nuget_deploy: invalid source '': want a non-empty https " +
-                "URL (for example '" + NUGET_DEFAULT_SOURCE + "')",
+                "nuget_registry_url_error rejects an empty registry_url",
+                nuget_registry_url_error(""),
+                "nuget_deploy: invalid registry_url '': want a non-empty https " +
+                "URL (for example '" + NUGET_DEFAULT_REGISTRY_URL + "')",
             ),
             expect_equal(
                 "nuget_deploy rejects an unknown api_compat",

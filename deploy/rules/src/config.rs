@@ -80,7 +80,7 @@ pub struct PypiConfig {
     #[serde(default)]
     pub sdist_rloc: Option<String>,
     pub dist_name: String,
-    pub repository_url: String,
+    pub registry_url: String,
     pub api_compat: String,
     pub api_baseline: String,
     #[serde(default)]
@@ -123,7 +123,7 @@ pub struct NugetConfig {
     pub deploy_name: String,
     pub package_id: String,
     pub version: String,
-    pub source: String,
+    pub registry_url: String,
     pub api_compat: String,
     pub api_baseline: String,
     #[serde(default)]
@@ -159,7 +159,7 @@ pub struct PubConfig {
     pub package_rlocs: Vec<String>,
     pub package_name: String,
     pub version: String,
-    pub hosted_url: String,
+    pub registry_url: String,
     pub api_compat: String,
     pub api_baseline: String,
     #[serde(default)]
@@ -224,7 +224,6 @@ pub struct MavenConfig {
     pub group: String,
     pub artifact: String,
     pub version: String,
-    pub repository_url: String,
     pub api_compat: String,
     pub api_baseline: String,
     #[serde(default)]
@@ -286,7 +285,7 @@ pub struct OctopusConfig {
     pub version: String,
     pub deploy_to: Vec<String>,
     pub space: String,
-    pub octopus_url: String,
+    pub registry_url: String,
 }
 
 /// Pins one promotion: the artifact and the environment edge.
@@ -421,7 +420,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &pypi.wheel_rloc,
             pypi.sdist_rloc.as_deref().unwrap_or(""),
             &pypi.dist_name,
-            &pypi.repository_url,
+            &pypi.registry_url,
             &crate::PypiApiCheck {
                 mode: &pypi.api_compat,
                 baseline: &pypi.api_baseline,
@@ -457,7 +456,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &nuget.deploy_name,
             &nuget.package_id,
             &nuget.version,
-            &nuget.source,
+            &nuget.registry_url,
             &crate::NugetApiCheck {
                 mode: &nuget.api_compat,
                 baseline: &nuget.api_baseline,
@@ -496,7 +495,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &pub_config.package_rlocs,
             &pub_config.package_name,
             &pub_config.version,
-            &pub_config.hosted_url,
+            &pub_config.registry_url,
             &crate::PubApiCheck {
                 mode: &pub_config.api_compat,
                 baseline: &pub_config.api_baseline,
@@ -531,7 +530,6 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 group: &maven.group,
                 artifact: &maven.artifact,
                 version: &maven.version,
-                repository_url: &maven.repository_url,
                 api_compat: &maven.api_compat,
                 api_baseline: &maven.api_baseline,
                 japicmp_rloc: &maven.japicmp_rloc,
@@ -573,7 +571,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 version: &octopus.version,
                 deploy_to: &octopus.deploy_to,
                 space_default: &octopus.space,
-                url_default: &octopus.octopus_url,
+                url_default: &octopus.registry_url,
             },
             argv,
         ),
@@ -726,13 +724,13 @@ mod tests {
     fn the_new_kinds_round_trip() {
         assert_eq!(
             parse(
-                r#"{"kind":"pypi","config":{"wheel_rloc":"w","sdist_rloc":"s","dist_name":"d","repository_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#
+                r#"{"kind":"pypi","config":{"wheel_rloc":"w","sdist_rloc":"s","dist_name":"d","registry_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#
             ),
             Ok(DeployConfig::Pypi(PypiConfig {
                 wheel_rloc: "w".to_owned(),
                 sdist_rloc: Some("s".to_owned()),
                 dist_name: "d".to_owned(),
-                repository_url: "https://x".to_owned(),
+                registry_url: "https://x".to_owned(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
                 api_package: String::new(),
@@ -754,14 +752,14 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"nuget","config":{"nupkg_rloc":"n","deploy_name":"d","package_id":"","version":"1.0.0","source":"https://x","api_compat":"off","api_baseline":"registry"}}"#
+                r#"{"kind":"nuget","config":{"nupkg_rloc":"n","deploy_name":"d","package_id":"","version":"1.0.0","registry_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#
             ),
             Ok(DeployConfig::Nuget(NugetConfig {
                 nupkg_rloc: "n".to_owned(),
                 deploy_name: "d".to_owned(),
                 package_id: String::new(),
                 version: "1.0.0".to_owned(),
-                source: "https://x".to_owned(),
+                registry_url: "https://x".to_owned(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
                 dotnet_rloc: String::new(),
@@ -770,14 +768,14 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"nuget","config":{"nupkg_rloc":"n","deploy_name":"d","package_id":"","version":"1.0.0","source":"https://x","api_compat":"fail","api_baseline":"git","dotnet_rloc":"dn","apicompat_rloc":"ac"}}"#
+                r#"{"kind":"nuget","config":{"nupkg_rloc":"n","deploy_name":"d","package_id":"","version":"1.0.0","registry_url":"https://x","api_compat":"fail","api_baseline":"git","dotnet_rloc":"dn","apicompat_rloc":"ac"}}"#
             ),
             Ok(DeployConfig::Nuget(NugetConfig {
                 nupkg_rloc: "n".to_owned(),
                 deploy_name: "d".to_owned(),
                 package_id: String::new(),
                 version: "1.0.0".to_owned(),
-                source: "https://x".to_owned(),
+                registry_url: "https://x".to_owned(),
                 api_compat: "fail".to_owned(),
                 api_baseline: "git".to_owned(),
                 dotnet_rloc: "dn".to_owned(),
@@ -811,7 +809,7 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"maven","config":{"jar_rloc":"j","pom_rloc":"p","sources_rloc":"s","group":"g","artifact":"a","version":"1","repository_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#
+                r#"{"kind":"maven","config":{"jar_rloc":"j","pom_rloc":"p","sources_rloc":"s","group":"g","artifact":"a","version":"1","api_compat":"off","api_baseline":"registry"}}"#
             ),
             Ok(DeployConfig::Maven(MavenConfig {
                 jar_rloc: "j".to_owned(),
@@ -821,7 +819,6 @@ mod tests {
                 group: "g".to_owned(),
                 artifact: "a".to_owned(),
                 version: "1".to_owned(),
-                repository_url: "https://x".to_owned(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
                 japicmp_rloc: String::new(),
@@ -847,7 +844,7 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"octopus","config":{"package_rloc":"p","package":"pk","deploy_name":"d","project":"x","channel":"c","version":"1","deploy_to":["A,B","C"],"space":"","octopus_url":"https://x"}}"#
+                r#"{"kind":"octopus","config":{"package_rloc":"p","package":"pk","deploy_name":"d","project":"x","channel":"c","version":"1","deploy_to":["A,B","C"],"space":"","registry_url":"https://x"}}"#
             ),
             Ok(DeployConfig::Octopus(OctopusConfig {
                 package_rloc: "p".to_owned(),
@@ -858,7 +855,7 @@ mod tests {
                 version: "1".to_owned(),
                 deploy_to: vec!["A,B".to_owned(), "C".to_owned()],
                 space: String::new(),
-                octopus_url: "https://x".to_owned(),
+                registry_url: "https://x".to_owned(),
             }))
         );
         assert_eq!(
@@ -878,7 +875,7 @@ mod tests {
     #[test]
     fn a_missing_optional_rloc_parses_to_none() {
         let config = parse(
-            r#"{"kind":"pypi","config":{"wheel_rloc":"w","dist_name":"d","repository_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#,
+            r#"{"kind":"pypi","config":{"wheel_rloc":"w","dist_name":"d","registry_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#,
         );
         assert!(
             matches!(&config, Ok(DeployConfig::Pypi(pypi)) if pypi.sdist_rloc.is_none()),
@@ -1051,7 +1048,7 @@ mod tests {
                 wheel_rloc: "a".to_owned(),
                 sdist_rloc: None,
                 dist_name: "demo".to_owned(),
-                repository_url: "https://pypi.invalid".to_owned(),
+                registry_url: "https://pypi.invalid".to_owned(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
                 api_package: String::new(),
@@ -1078,7 +1075,7 @@ mod tests {
                 deploy_name: "demo".to_owned(),
                 package_id: String::new(),
                 version: String::new(),
-                source: "https://nuget.invalid".to_owned(),
+                registry_url: "https://nuget.invalid".to_owned(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
                 dotnet_rloc: String::new(),
@@ -1119,7 +1116,6 @@ mod tests {
                 group: "g".to_owned(),
                 artifact: "a".to_owned(),
                 version: "1.0.0".to_owned(),
-                repository_url: "https://maven.invalid".to_owned(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
                 japicmp_rloc: String::new(),
@@ -1146,7 +1142,7 @@ mod tests {
                 version: "1.0.0".to_owned(),
                 deploy_to: vec!["Production".to_owned()],
                 space: String::new(),
-                octopus_url: "https://octopus.invalid".to_owned(),
+                registry_url: "https://octopus.invalid".to_owned(),
             }),
             DeployConfig::Promotion(PromotionConfig {
                 artifact_rloc: "a".to_owned(),

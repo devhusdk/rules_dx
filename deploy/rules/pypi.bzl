@@ -8,7 +8,7 @@ load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 _VALID_NAME_CHARS = NAME_CHARS
 
-PYPI_DEFAULT_REPOSITORY_URL = "https://upload.pypi.org/legacy/"
+PYPI_DEFAULT_REGISTRY_URL = "https://upload.pypi.org/legacy/"
 
 def pypi_name_error(dist_name):
     """Validates one distribution name value."""
@@ -20,14 +20,14 @@ def pypi_name_error(dist_name):
                 "': want only [A-Za-z0-9._-]")
     return ""
 
-def pypi_repository_error(repository_url):
+def pypi_registry_url_error(registry_url):
     """Validates one PyPI repository URL value."""
-    if type(repository_url) != "string" or repository_url == "":
-        return ("pypi_deploy: invalid repository_url '" + str(repository_url) +
+    if type(registry_url) != "string" or registry_url == "":
+        return ("pypi_deploy: invalid registry_url '" + str(registry_url) +
                 "': want a non-empty https URL (for example '" +
-                PYPI_DEFAULT_REPOSITORY_URL + "')")
-    if not repository_url.startswith("https://"):
-        return ("pypi_deploy: invalid repository_url '" + repository_url +
+                PYPI_DEFAULT_REGISTRY_URL + "')")
+    if not registry_url.startswith("https://"):
+        return ("pypi_deploy: invalid registry_url '" + registry_url +
                 "': want an https URL so uploads never go over plaintext")
     return ""
 
@@ -61,7 +61,7 @@ def _pypi_config_impl(ctx):
         "api_package": ctx.attr.api_package or ctx.attr.dist_name.replace("-", "_"),
         "api_src": ctx.attr.api_src,
         "dist_name": ctx.attr.dist_name,
-        "repository_url": ctx.attr.repository_url,
+        "registry_url": ctx.attr.registry_url,
         "wheel_rloc": wheel_rloc,
     }
     griffe = ctx.attr._griffe[DefaultInfo]
@@ -106,7 +106,7 @@ _pypi_config = rule(
             doc = "PyPI distribution name, taken from the deployment target name.",
             mandatory = True,
         ),
-        "repository_url": attr.string(
+        "registry_url": attr.string(
             doc = "Upload endpoint URL of the package index.",
             mandatory = True,
         ),
@@ -124,7 +124,7 @@ _pypi_config = rule(
     },
 )
 
-def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", api_package = "", api_src = ""):
+def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", api_package = "", api_src = ""):
     """Publishes one wheel plus an optional sdist as a local-first PyPI deployment.
 
     api_compat and api_baseline work as described under "Public API
@@ -141,9 +141,9 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
     if api_compat != "off" and api_baseline == "git" and api_src == "":
         fail("pypi_deploy: api_baseline = \"git\" needs api_src (in " +
              native.package_name() + ":" + name + ")")
-    repository_error = pypi_repository_error(repository_url)
-    if repository_error != "":
-        fail(repository_error + " (in " + native.package_name() + ":" + name + ")")
+    registry_error = pypi_registry_url_error(registry_url)
+    if registry_error != "":
+        fail(registry_error + " (in " + native.package_name() + ":" + name + ")")
 
     config_target = name + "_config"
     _pypi_config(
@@ -153,7 +153,7 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
         api_compat = api_compat,
         api_package = api_package,
         api_src = api_src,
-        repository_url = repository_url,
+        registry_url = registry_url,
         sdist = sdist,
         wheel = wheel,
     )

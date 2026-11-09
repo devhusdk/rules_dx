@@ -1,7 +1,7 @@
 """Unit and analysis tests for the PyPI publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":pypi.bzl", "PYPI_DEFAULT_REPOSITORY_URL", "pypi_name_error", "pypi_repository_error", "pypi_wheel_error")
+load(":pypi.bzl", "PYPI_DEFAULT_REGISTRY_URL", "pypi_name_error", "pypi_registry_url_error", "pypi_wheel_error")
 
 def pypi_unit_tests(name):
     starlark_test(
@@ -31,21 +31,21 @@ def pypi_unit_tests(name):
                 "only [A-Za-z0-9._-]",
             ),
             expect_equal(
-                "pypi_repository_error accepts the default index URL",
-                pypi_repository_error(PYPI_DEFAULT_REPOSITORY_URL),
+                "pypi_registry_url_error accepts the default index URL",
+                pypi_registry_url_error(PYPI_DEFAULT_REGISTRY_URL),
                 "",
             ),
             expect_equal(
-                "pypi_repository_error rejects plaintext URLs",
-                pypi_repository_error("http://example.com/legacy/"),
-                "pypi_deploy: invalid repository_url 'http://example.com/legacy/': " +
+                "pypi_registry_url_error rejects plaintext URLs",
+                pypi_registry_url_error("http://example.com/legacy/"),
+                "pypi_deploy: invalid registry_url 'http://example.com/legacy/': " +
                 "want an https URL so uploads never go over plaintext",
             ),
             expect_equal(
-                "pypi_repository_error rejects an empty URL",
-                pypi_repository_error(""),
-                "pypi_deploy: invalid repository_url '': want a non-empty https " +
-                "URL (for example '" + PYPI_DEFAULT_REPOSITORY_URL + "')",
+                "pypi_registry_url_error rejects an empty URL",
+                pypi_registry_url_error(""),
+                "pypi_deploy: invalid registry_url '': want a non-empty https " +
+                "URL (for example '" + PYPI_DEFAULT_REGISTRY_URL + "')",
             ),
             expect_equal(
                 "pypi_wheel_error accepts a pinned wheel filename",

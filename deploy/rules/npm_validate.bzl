@@ -24,10 +24,10 @@ def npm_package_error(package):
                 "': want only [A-Za-z0-9@/_.-]")
     return ""
 
-def npm_registry_error(registry):
+def npm_registry_url_error(registry_url):
     """Validates one npm registry URL value."""
-    if type(registry) != "string" or not registry.startswith("https://"):
-        return ("npm_deploy: invalid registry '" + str(registry) +
+    if type(registry_url) != "string" or not registry_url.startswith("https://"):
+        return ("npm_deploy: invalid registry_url '" + str(registry_url) +
                 "': want an https:// URL " +
                 "(for example 'https://registry.npmjs.org')")
     return ""
@@ -49,15 +49,15 @@ def npm_access_error(package, access):
                 "got unscoped '" + package + "'")
     return ""
 
-def npm_provenance_error(access, registry, provenance):
-    """Validates one npm provenance policy against access and registry."""
+def npm_provenance_error(access, registry_url, provenance):
+    """Validates one npm provenance policy against access and registry_url."""
     if provenance not in ["required", "none"]:
         return ("npm_deploy: invalid provenance '" + str(provenance) +
                 "': want 'required' or 'none'")
     if provenance == "required" and access != "public":
         return ("npm_deploy: provenance 'required' is not supported with access '" +
                 access + "'; use access 'public' or provenance 'none'")
-    if provenance == "required" and registry.removeprefix("https://").split("/")[0] != "registry.npmjs.org":
+    if provenance == "required" and registry_url.removeprefix("https://").split("/")[0] != "registry.npmjs.org":
         return ("npm_deploy: provenance 'required' is not supported by registry '" +
-                registry + "'; use https://registry.npmjs.org or provenance 'none'")
+                registry_url + "'; use https://registry.npmjs.org or provenance 'none'")
     return ""

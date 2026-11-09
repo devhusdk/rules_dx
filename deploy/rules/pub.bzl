@@ -11,7 +11,7 @@ _VALID_VERSION_CHARS = VERSION_CHARS
 
 _FLUTTER_TOOLCHAIN = "@rules_flutter//flutter:toolchain_type"
 
-PUB_DEFAULT_HOSTED_URL = "https://pub.dev"
+PUB_DEFAULT_REGISTRY_URL = "https://pub.dev"
 
 def pub_name_error(package_name):
     """Validates one pub package name value."""
@@ -33,14 +33,14 @@ def pub_version_error(version):
                 "': want only [A-Za-z0-9._-+]")
     return ""
 
-def pub_hosted_url_error(hosted_url):
+def pub_registry_url_error(registry_url):
     """Validates one pub server URL value."""
-    if type(hosted_url) != "string" or hosted_url == "":
-        return ("pub_deploy: invalid hosted_url '" + str(hosted_url) +
+    if type(registry_url) != "string" or registry_url == "":
+        return ("pub_deploy: invalid registry_url '" + str(registry_url) +
                 "': want a non-empty https URL (for example '" +
-                PUB_DEFAULT_HOSTED_URL + "')")
-    if not hosted_url.startswith("https://"):
-        return ("pub_deploy: invalid hosted_url '" + hosted_url +
+                PUB_DEFAULT_REGISTRY_URL + "')")
+    if not registry_url.startswith("https://"):
+        return ("pub_deploy: invalid registry_url '" + registry_url +
                 "': want an https URL so publishes never go over plaintext")
     return ""
 
@@ -51,7 +51,7 @@ def _pub_config_impl(ctx):
         fail("pub_deploy " + str(ctx.label) + ": srcs provide no files, want at least pubspec.yaml")
     rlocs = [rlocation_path(ctx, f) for f in package_files]
     values = {
-        "hosted_url": ctx.attr.hosted_url,
+        "registry_url": ctx.attr.registry_url,
         "package_name": ctx.attr.package_name,
         "package_rlocs": rlocs,
         "version": ctx.attr.version,
@@ -119,7 +119,7 @@ _pub_config = rule(
             default = Label("//dart/tools/dart_apitool"),
             cfg = "exec",
         ),
-        "hosted_url": attr.string(
+        "registry_url": attr.string(
             doc = "HTTPS URL of the pub server.",
             mandatory = True,
         ),
@@ -138,12 +138,12 @@ _pub_config = rule(
     },
 )
 
-def pub_deploy(name, srcs, package = "", version = "", hosted_url = PUB_DEFAULT_HOSTED_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+def pub_deploy(name, srcs, package = "", version = "", registry_url = PUB_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Publishes a Dart or Flutter package as a local-first pub.dev deployment."""
     pkg, version = deploy_identity(name, package, version, pub_name_error, pub_version_error)
-    hosted_error = pub_hosted_url_error(hosted_url)
-    if hosted_error != "":
-        fail(hosted_error + " (in " + native.package_name() + ":" + name + ")")
+    registry_error = pub_registry_url_error(registry_url)
+    if registry_error != "":
+        fail(registry_error + " (in " + native.package_name() + ":" + name + ")")
     api_error = api_compat_error("pub_deploy", api_compat, api_baseline)
     if api_error != "":
         fail(api_error + " (in " + native.package_name() + ":" + name + ")")
@@ -153,7 +153,7 @@ def pub_deploy(name, srcs, package = "", version = "", hosted_url = PUB_DEFAULT_
         name = config_target,
         api_baseline = api_baseline,
         api_compat = api_compat,
-        hosted_url = hosted_url,
+        registry_url = registry_url,
         srcs = srcs,
         package_name = pkg,
         version = version,

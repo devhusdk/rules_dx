@@ -38,8 +38,6 @@ maven_deploy(
   that holds only a README is accepted by Central as a placeholder.
 - `version`: empty by default, which publishes the version in the pom. When
   set, it must equal the pom's `<version>`.
-- `repository_url`: defaults to the Central Portal Publisher API below. No
-  other host is accepted.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages a local file repository under `<artifact>-repo/`. No
@@ -101,7 +99,6 @@ Refusals, all exit 1:
 - `MAVEN_GPG_PASSPHRASE` set without `MAVEN_GPG_KEY`.
 - A `MAVEN_GPG_KEY` that is not an armored secret key, or a
   `MAVEN_GPG_PASSPHRASE` that does not unlock it.
-- Any other `repository_url` than the Publisher API.
 - Credentials the Portal rejects (HTTP 401 or 403).
 - A pom that is missing Central fields or does not match the coordinates.
 
@@ -122,7 +119,7 @@ npm_deploy(
 - `package`: the npm package name, `name` or `@scope/name`. Defaults to `name`.
 - `srcs`: files to pack, including `package.json`. Defaults to `[]`.
 - `dist_tag`: the dist-tag. Defaults to `latest`.
-- `registry`: defaults to `https://registry.npmjs.org`.
+- `registry_url`: defaults to `https://registry.npmjs.org`.
 - `access`: `public` or `restricted`. Defaults to `public`. `restricted`
   needs a scoped package.
 - `provenance`: `required` or `none`. Defaults to `required` for `public`
@@ -605,7 +602,7 @@ pub_deploy(
 - `package`: the package name, lowercase letters, digits and `_`. Defaults to `name`.
 - `version`: defaults to empty, which publishes the `pubspec.yaml` version. When
   set, it must equal that version. Either way `CHANGELOG.md` needs a heading for it.
-- `hosted_url`: defaults to `https://pub.dev`.
+- `registry_url`: defaults to `https://pub.dev`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
   Flutter packages skip the check.
@@ -642,7 +639,7 @@ nuget_deploy(
 - `nupkg`: required. One `.nupkg` file.
 - `package`: the package id. Defaults to `name`. Must match the nuspec id.
 - `version`: optional. Must match the nuspec version.
-- `source`: defaults to `https://api.nuget.org/v3/index.json`.
+- `registry_url`: defaults to `https://api.nuget.org/v3/index.json`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-feed/` with the nupkg. No credentials needed.
@@ -856,7 +853,7 @@ octopus_deploy(
   archive filename; a non-empty value must match it.
 - `deploy_to`: environments for the release command. Defaults to `[]`.
 - `space`: defaults to empty, the default space. `OCTOPUS_SPACE` overrides it.
-- `octopus_url`: an https URL. Defaults to `https://octopus.example.invalid`.
+- `registry_url`: an https URL. Defaults to `https://octopus.example.invalid`.
   `OCTOPUS_URL` overrides it.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
@@ -880,7 +877,7 @@ Rerunning a published version: `octo push` fails because the package exists,
 the run exits 1 and the hint names `FailIfExists`. That includes a rerun after
 a failed `create-release`. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
 env, never the command line. A live run refuses version `0.0.0` and the default
-`octopus_url`.
+`registry_url`.
 
 # promotion_deploy
 
@@ -966,7 +963,7 @@ Attributes:
   field.
 - `sdist`: optional. One `.tar.gz` file named `name-version.tar.gz`. Its
   project and version must match the wheel's.
-- `repository_url`: must start with `https://`. Defaults to
+- `registry_url`: must start with `https://`. Defaults to
   `https://upload.pypi.org/legacy/`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
@@ -1000,12 +997,12 @@ A dry run needs no credentials. `dx deploy --apply` publishes and needs:
   It never goes on the command line.
 
 `twine` must be on `PATH`. The run calls `twine upload --non-interactive
---repository-url <repository_url>` with the wheel and sdist files. It does
+--repository-url <registry_url>` with the wheel and sdist files. It does
 not write `<name>-wheelhouse/` and does not check file names. On success it
 prints:
 
 ```text
-pypi_deploy: uploaded <wheel file> to <repository_url>
+pypi_deploy: uploaded <wheel file> to <registry_url>
 ```
 
 A default run checks the wheel and sdist file names and that their project and

@@ -325,7 +325,7 @@ fn pypi_upload(
     wheel: &Path,
     sdist: Option<&Path>,
     stage: &Path,
-    repository_url: &str,
+    registry_url: &str,
     token: &str,
 ) -> i32 {
     let (_, version) = match pypi_check_pair(wheel, sdist) {
@@ -335,7 +335,7 @@ fn pypi_upload(
             return 1;
         }
     };
-    let code = pypi_upload_staged(twine, wheel, sdist, stage, repository_url, token, &version);
+    let code = pypi_upload_staged(twine, wheel, sdist, stage, registry_url, token, &version);
     let _ = std::fs::remove_dir_all(stage);
     code
 }
@@ -345,7 +345,7 @@ fn pypi_upload_staged(
     wheel: &Path,
     sdist: Option<&Path>,
     stage: &Path,
-    repository_url: &str,
+    registry_url: &str,
     token: &str,
     version: &str,
 ) -> i32 {
@@ -393,7 +393,7 @@ fn pypi_upload_staged(
     upload
         .arg("--non-interactive")
         .arg("--repository-url")
-        .arg(repository_url)
+        .arg(registry_url)
         .args(&files);
     let out = match upload.output() {
         Ok(out) => out,
@@ -408,11 +408,11 @@ fn pypi_upload_staged(
     eprint!("{stderr}");
     let base = wheel.file_name().and_then(|n| n.to_str()).unwrap_or("");
     if out.status.success() {
-        println!("pypi_deploy: uploaded {base} to {repository_url}");
+        println!("pypi_deploy: uploaded {base} to {registry_url}");
         return 0;
     }
     if let Some(note) =
-        pypi_duplicate_note(&format!("{stdout}{stderr}"), base, version, repository_url)
+        pypi_duplicate_note(&format!("{stdout}{stderr}"), base, version, registry_url)
     {
         eprintln!("{note}");
     }
@@ -566,7 +566,7 @@ pub fn pypi_main(
     wheel_rloc: &str,
     sdist_rloc: &str,
     dist_name: &str,
-    repository_url: &str,
+    registry_url: &str,
     argv: &[String],
 ) -> i32 {
     let off = PypiApiCheck {
@@ -580,7 +580,7 @@ pub fn pypi_main(
         wheel_rloc,
         sdist_rloc,
         dist_name,
-        repository_url,
+        registry_url,
         &off,
         argv,
     )
@@ -591,7 +591,7 @@ pub fn pypi_main_checked(
     wheel_rloc: &str,
     sdist_rloc: &str,
     dist_name: &str,
-    repository_url: &str,
+    registry_url: &str,
     api: &PypiApiCheck,
     argv: &[String],
 ) -> i32 {
@@ -622,7 +622,7 @@ pub fn pypi_main_checked(
             &wheel,
             sdist.as_deref(),
             &outdir.join(dist_name.to_owned() + "-upload"),
-            repository_url,
+            registry_url,
             secrets.get("PYPI_API_TOKEN"),
         );
     }

@@ -6,12 +6,6 @@ _VALID_ARTIFACT_CHARS = NAME_CHARS
 
 _VALID_VERSION_CHARS = VERSION_CHARS
 
-MAVEN_DEFAULT_REPOSITORY_URL = "https://central.sonatype.com/api/v1/publisher/"
-
-_SUPPORTED_HOSTS = ["central.sonatype.com"]
-
-_PUBLISHER_PATH = "/api/v1/publisher/"
-
 def _all_dots(value):
     """Reports whether a value is only dots."""
     return value.replace(".", "") == ""
@@ -55,24 +49,6 @@ def maven_version_error(version):
     if _all_dots(version):
         return ("maven_deploy: invalid version '" + version +
                 "': want a version that is not made only of dots")
-    return ""
-
-def maven_repository_error(repository_url):
-    """Validates one Maven repository URL value."""
-    if type(repository_url) != "string" or repository_url == "":
-        return ("maven_deploy: invalid repository_url '" + str(repository_url) +
-                "': want a non-empty https URL (for example '" +
-                MAVEN_DEFAULT_REPOSITORY_URL + "')")
-    if not repository_url.startswith("https://"):
-        return ("maven_deploy: invalid repository_url '" + repository_url +
-                "': want an https URL so uploads never go over plaintext")
-    host = repository_url[len("https://"):].split("/")[0].lower()
-    raw_host = repository_url[len("https://"):].split("/")[0]
-    path = repository_url[len("https://") + len(raw_host):]
-    if host not in _SUPPORTED_HOSTS or path != _PUBLISHER_PATH:
-        return ("maven_deploy: invalid repository_url '" + repository_url +
-                "': want the Central Portal Publisher API '" +
-                MAVEN_DEFAULT_REPOSITORY_URL + "'")
     return ""
 
 def _maven_jar_kind_error(kind, filename):

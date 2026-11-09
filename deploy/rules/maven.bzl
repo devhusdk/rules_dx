@@ -3,9 +3,7 @@
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":maven_validate.bzl", _MAVEN_DEFAULT_REPOSITORY_URL = "MAVEN_DEFAULT_REPOSITORY_URL", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_repository_error", "maven_sources_error", "maven_version_error")
-
-MAVEN_DEFAULT_REPOSITORY_URL = _MAVEN_DEFAULT_REPOSITORY_URL
+load(":maven_validate.bzl", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_sources_error", "maven_version_error")
 
 def _maven_config_impl(ctx):
     """Writes the deploy config for one Maven deployment."""
@@ -45,7 +43,6 @@ def _maven_config_impl(ctx):
         "group": ctx.attr.group,
         "jar_rloc": rlocation_path(ctx, jar_file),
         "pom_rloc": rlocation_path(ctx, pom_file),
-        "repository_url": ctx.attr.repository_url,
         "version": ctx.attr.version,
     }
     pinned = [jar_file, pom_file]
@@ -108,10 +105,6 @@ _maven_config = rule(
             allow_single_file = True,
             mandatory = True,
         ),
-        "repository_url": attr.string(
-            doc = "Maven repository endpoint that receives the publish.",
-            mandatory = True,
-        ),
         "sources": attr.label(
             doc = "Optional sources jar published as -sources.jar.",
             allow_single_file = True,
@@ -122,7 +115,7 @@ _maven_config = rule(
     },
 )
 
-def maven_deploy(name, jar, pom, group, artifact = "", version = "", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail", api_baseline = "registry"):
+def maven_deploy(name, jar, pom, group, artifact = "", version = "", build_mode = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment.
 
     api_compat and api_baseline work as described under "Public API
@@ -132,9 +125,6 @@ def maven_deploy(name, jar, pom, group, artifact = "", version = "", repository_
     if group_error != "":
         fail(group_error + " (in " + native.package_name() + ":" + name + ")")
     artifact, version = deploy_identity(name, artifact, version, maven_artifact_error, maven_version_error)
-    repository_error = maven_repository_error(repository_url)
-    if repository_error != "":
-        fail(repository_error + " (in " + native.package_name() + ":" + name + ")")
 
     api_error = api_compat_error("maven_deploy", api_compat, api_baseline)
     if api_error != "":
@@ -150,7 +140,6 @@ def maven_deploy(name, jar, pom, group, artifact = "", version = "", repository_
         javadoc = javadoc,
         pom = pom,
         sources = sources,
-        repository_url = repository_url,
         version = version,
     )
 

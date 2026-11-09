@@ -168,7 +168,7 @@ fn pub_publish(
     program: &Path,
     staging: &Path,
     cache: &Path,
-    hosted_url: &str,
+    registry_url: &str,
     token: &str,
 ) -> Result<(), String> {
     let command = || {
@@ -184,7 +184,7 @@ fn pub_publish(
         cmd
     };
     let mut add = command();
-    add.args(["pub", "token", "add", hosted_url, "--env-var", "PUB_TOKEN"]);
+    add.args(["pub", "token", "add", registry_url, "--env-var", "PUB_TOKEN"]);
     let added = add
         .output()
         .map_err(|error| format!("pub_deploy: {error}"))?;
@@ -274,7 +274,7 @@ fn pub_api_check(
     (dart, apitool): (&Path, &Path),
     flutter: Option<(&Path, &Path)>,
     (package_name, version): (&str, &str),
-    (staging, hosted_url): (&Path, &str),
+    (staging, registry_url): (&Path, &str),
     (baseline, package_dir): (&str, &str),
     workspace: &Path,
 ) -> Result<Outcome, String> {
@@ -304,7 +304,7 @@ fn pub_api_check(
             agent,
             (&dart, apitool, flutter_root),
             (package_name, version),
-            (staging, hosted_url),
+            (staging, registry_url),
             (baseline, package_dir),
             workspace,
             &work,
@@ -363,7 +363,7 @@ fn pub_api_compare(
     agent: &ureq::Agent,
     (dart, apitool, flutter_root): (&Path, &Path, Option<&Path>),
     (package_name, version): (&str, &str),
-    (staging, hosted_url): (&Path, &str),
+    (staging, registry_url): (&Path, &str),
     (baseline, package_dir): (Baseline, &str),
     workspace: &Path,
     work: &Path,
@@ -388,7 +388,7 @@ fn pub_api_compare(
     } else {
         let url = format!(
             "{}/api/packages/{package_name}",
-            hosted_url.trim_end_matches('/')
+            registry_url.trim_end_matches('/')
         );
         let body = match fetch_with(agent, &url, 16 << 20) {
             Ok(Some(body)) => body,
@@ -413,7 +413,7 @@ fn pub_api_compare(
     let mut env = vec![
         ("PATH", path.to_str().unwrap_or("")),
         ("PUB_CACHE", cache.to_str().unwrap_or("")),
-        ("PUB_HOSTED_URL", hosted_url),
+        ("PUB_HOSTED_URL", registry_url),
     ];
     if let Some(root) = flutter_root {
         env.push(("FLUTTER_ROOT", root.to_str().unwrap_or("")));
@@ -448,7 +448,7 @@ pub fn pub_main(
     package_rlocs: &[String],
     package_name: &str,
     version: &str,
-    hosted_url: &str,
+    registry_url: &str,
     argv: &[String],
 ) -> i32 {
     let off = PubApiCheck {
@@ -460,7 +460,7 @@ pub fn pub_main(
         flutter_root_rloc: "",
         package_dir: "",
     };
-    pub_main_checked(package_rlocs, package_name, version, hosted_url, &off, argv)
+    pub_main_checked(package_rlocs, package_name, version, registry_url, &off, argv)
 }
 
 /// Runs the pub deploy tool.
@@ -468,7 +468,7 @@ pub fn pub_main_checked(
     package_rlocs: &[String],
     package_name: &str,
     version: &str,
-    hosted_url: &str,
+    registry_url: &str,
     api: &PubApiCheck,
     argv: &[String],
 ) -> i32 {
@@ -526,7 +526,7 @@ pub fn pub_main_checked(
                     .as_ref()
                     .map(|(dart, root)| (dart.as_path(), root.as_path())),
                 (package_name, version),
-                (staging, hosted_url),
+                (staging, registry_url),
                 (api.baseline, api.package_dir),
                 &workspace_dir(),
             ),
@@ -560,7 +560,7 @@ pub fn pub_main_checked(
         &staging,
         package_name,
         version,
-        hosted_url,
+        registry_url,
         secrets,
         &api_check,
     );
@@ -597,7 +597,7 @@ fn pub_run_checked(
     staging: &Path,
     package_name: &str,
     version: &str,
-    hosted_url: &str,
+    registry_url: &str,
     secrets: Option<crate::run::Secrets>,
     api_check: &dyn Fn(&Path, &str) -> Result<(), String>,
 ) -> Result<String, String> {
@@ -625,7 +625,7 @@ fn pub_run_checked(
         &program,
         staging,
         &cache,
-        hosted_url,
+        registry_url,
         secrets.get("PUB_API_TOKEN"),
     );
     let _ = std::fs::remove_dir_all(&cache);

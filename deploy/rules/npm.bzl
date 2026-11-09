@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:shell.bzl", "shell")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":npm_validate.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_error", "npm_tag_error")
+load(":npm_validate.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
 
 _NPM_PACKER = Label("//deploy/rules:npm_packer")
 
@@ -47,7 +47,7 @@ _npm_config = rule(
     },
 )
 
-def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry_url = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Packs files into a local npm feed with public or restricted access and a provenance policy.
 
     api_compat and api_baseline work as described under "Public API
@@ -57,14 +57,14 @@ def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry = "h
     tag_error = npm_tag_error(dist_tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")
-    registry_error = npm_registry_error(registry)
-    if registry_error != "":
-        fail(registry_error + " (in " + native.package_name() + ":" + name + ")")
+    registry_url_error = npm_registry_url_error(registry_url)
+    if registry_url_error != "":
+        fail(registry_url_error + " (in " + native.package_name() + ":" + name + ")")
     access_error = npm_access_error(package, access)
     if access_error != "":
         fail(access_error + " (in " + native.package_name() + ":" + name + ")")
     provenance = npm_effective_provenance(access, provenance)
-    provenance_error = npm_provenance_error(access, registry, provenance)
+    provenance_error = npm_provenance_error(access, registry_url, provenance)
     if provenance_error != "":
         fail(provenance_error + " (in " + native.package_name() + ":" + name + ")")
     if len(srcs) == 0:
@@ -83,7 +83,7 @@ def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry = "h
         srcs = srcs,
         outs = [tarball, feed],
         tools = [_NPM_PACKER],
-        cmd = "$(location " + str(_NPM_PACKER) + ") " + shell.quote(package) + " " + shell.quote(dist_tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
+        cmd = "$(location " + str(_NPM_PACKER) + ") " + shell.quote(package) + " " + shell.quote(dist_tag) + " " + shell.quote(registry_url) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
     )
 
     _npm_config(

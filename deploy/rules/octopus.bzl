@@ -12,7 +12,7 @@ _VALID_VERSION_CHARS = VERSION_CHARS
 
 _VALID_ENVIRONMENT_CHARS = NAME_CHARS
 
-OCTOPUS_DEFAULT_URL = "https://octopus.example.invalid"
+OCTOPUS_DEFAULT_REGISTRY_URL = "https://octopus.example.invalid"
 
 def octopus_project_error(project):
     """Validates one Octopus project name value."""
@@ -66,14 +66,14 @@ def octopus_space_error(space):
                 "': want only [A-Za-z0-9._-]")
     return ""
 
-def octopus_url_error(octopus_url):
+def octopus_registry_url_error(registry_url):
     """Validates one Octopus server URL value."""
-    if type(octopus_url) != "string" or octopus_url == "":
-        return ("octopus_deploy: invalid octopus_url '" + str(octopus_url) +
+    if type(registry_url) != "string" or registry_url == "":
+        return ("octopus_deploy: invalid registry_url '" + str(registry_url) +
                 "': want a non-empty https URL (for example '" +
-                OCTOPUS_DEFAULT_URL + "')")
-    if not octopus_url.startswith("https://"):
-        return ("octopus_deploy: invalid octopus_url '" + octopus_url +
+                OCTOPUS_DEFAULT_REGISTRY_URL + "')")
+    if not registry_url.startswith("https://"):
+        return ("octopus_deploy: invalid registry_url '" + registry_url +
                 "': want an https URL so pushes never go over plaintext")
     return ""
 
@@ -117,7 +117,7 @@ def _octopus_config_impl(ctx):
             "channel": ctx.attr.channel,
             "deploy_name": ctx.attr.drop_name,
             "deploy_to": ctx.attr.deploy_to,
-            "octopus_url": ctx.attr.octopus_url,
+            "registry_url": ctx.attr.registry_url,
             "package": ctx.attr.package,
             "package_rloc": rlocation_path(ctx, package_file),
             "project": ctx.attr.project,
@@ -140,7 +140,7 @@ _octopus_config = rule(
             doc = "Deployment name recorded in the Octopus config.",
             mandatory = True,
         ),
-        "octopus_url": attr.string(
+        "registry_url": attr.string(
             doc = "Default Octopus Server URL the deploy tool uses.",
             mandatory = True,
         ),
@@ -165,7 +165,7 @@ _octopus_config = rule(
     },
 )
 
-def octopus_deploy(name, srcs, project, package = "", channel = "Default", version = "", deploy_to = [], space = "", octopus_url = OCTOPUS_DEFAULT_URL, build_mode = "release", sbom = None):
+def octopus_deploy(name, srcs, project, package = "", channel = "Default", version = "", deploy_to = [], space = "", registry_url = OCTOPUS_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None):
     """Publishes one `<package>.<version>.tar.gz` archive as a local-first Octopus deployment.
 
     The package id defaults to the target name. An empty version means the launcher reads it from the archive filename.
@@ -184,9 +184,9 @@ def octopus_deploy(name, srcs, project, package = "", channel = "Default", versi
     space_error = octopus_space_error(space)
     if space_error != "":
         fail(space_error + " (in " + native.package_name() + ":" + name + ")")
-    url_error = octopus_url_error(octopus_url)
-    if url_error != "":
-        fail(url_error + " (in " + native.package_name() + ":" + name + ")")
+    registry_error = octopus_registry_url_error(registry_url)
+    if registry_error != "":
+        fail(registry_error + " (in " + native.package_name() + ":" + name + ")")
 
     config_target = name + "_config"
     _octopus_config(
@@ -194,7 +194,7 @@ def octopus_deploy(name, srcs, project, package = "", channel = "Default", versi
         channel = channel,
         deploy_to = deploy_to,
         drop_name = name,
-        octopus_url = octopus_url,
+        registry_url = registry_url,
         package = package,
         project = project,
         srcs = srcs,

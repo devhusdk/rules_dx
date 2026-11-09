@@ -21,6 +21,8 @@ mod locks_hex;
 mod locks_julia;
 #[path = "locks_licenses.rs"]
 mod locks_licenses;
+#[path = "locks_luarocks.rs"]
+mod locks_luarocks;
 #[path = "locks_npm.rs"]
 mod locks_npm;
 #[path = "locks_opam.rs"]
@@ -48,6 +50,7 @@ pub use locks_dub::*;
 pub use locks_hex::*;
 pub use locks_julia::*;
 pub use locks_licenses::*;
+pub use locks_luarocks::*;
 pub use locks_npm::*;
 pub use locks_opam::*;
 pub use locks_paket::*;

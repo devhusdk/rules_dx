@@ -580,6 +580,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::SwiftPm => {
                 "dx does not resolve Swift packages; edit Package.swift and regenerate Package.resolved with `swift package resolve`"
             }
+            Ecosystem::LuaRocks => {
+                "dx does not resolve LuaRocks rocks; edit luarocks.lock and luarocks.digests.json by hand"
+            }
             _ => {
                 "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
             }
@@ -763,6 +766,7 @@ pub fn plan_configured(
             | Ecosystem::PowerShell
             | Ecosystem::Conan
             | Ecosystem::Dub
+            | Ecosystem::LuaRocks
             | Ecosystem::Bicep,
             Selection::Full,
         ) => Ok(BackendPlan::Noop),
@@ -771,6 +775,7 @@ pub fn plan_configured(
             | Ecosystem::PowerShell
             | Ecosystem::Conan
             | Ecosystem::Dub
+            | Ecosystem::LuaRocks
             | Ecosystem::Bicep,
             Selection::Packages(_),
         ) => Err(pinned_selective(set)),
@@ -1184,6 +1189,7 @@ pub fn check_configured(
             | Ecosystem::PowerShell
             | Ecosystem::Conan
             | Ecosystem::Dub
+            | Ecosystem::LuaRocks
             | Ecosystem::Ansible
             | Ecosystem::Bicep,
             Selection::Full,
@@ -1193,6 +1199,7 @@ pub fn check_configured(
             | Ecosystem::PowerShell
             | Ecosystem::Conan
             | Ecosystem::Dub
+            | Ecosystem::LuaRocks
             | Ecosystem::Ansible
             | Ecosystem::Bicep,
             Selection::Packages(_),
@@ -3041,6 +3048,21 @@ mod tests {
                 },
                 "Pester",
                 "PSGallery.lock.json by hand",
+            ),
+            (
+                ResolvedSet {
+                    name: "rocks".to_owned(),
+                    ecosystem: Ecosystem::LuaRocks,
+                    dir: "apps/lua".to_owned(),
+                    manifests: vec!["apps/lua/luarocks.lock".to_owned()],
+                    locks: vec![
+                        "apps/lua/luarocks.lock".to_owned(),
+                        "apps/lua/luarocks.digests.json".to_owned(),
+                    ],
+                    repository: None,
+                },
+                "inspect",
+                "edit luarocks.lock and luarocks.digests.json by hand",
             ),
         ]
     }

@@ -33,6 +33,8 @@ pub const ECOSYSTEM_COMPOSER: &str = "composer";
 
 pub const ECOSYSTEM_DUB: &str = "dub";
 
+pub const ECOSYSTEM_LUAROCKS: &str = "luarocks";
+
 pub const ECOSYSTEM_OPAM: &str = "opam";
 
 pub const ECOSYSTEM_SWIFTPM: &str = "swiftpm";
@@ -43,7 +45,7 @@ pub const ECOSYSTEM_ANSIBLE: &str = "ansible";
 
 pub const ECOSYSTEM_BICEP: &str = "bicep";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, ansible, bicep";
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, luarocks, ansible, bicep";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -81,6 +83,10 @@ pub const DUB_SELECTIONS: &str = "dub.selections.json";
 pub const DUB_DIGESTS: &str = "dub.digests.json";
 
 const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
+
+pub const LUAROCKS_LOCK: &str = "luarocks.lock";
+
+pub const LUAROCKS_DIGESTS: &str = "luarocks.digests.json";
 
 pub const COMPOSER_JSON: &str = "composer.json";
 
@@ -124,6 +130,7 @@ pub enum Ecosystem {
     Hex,
     Composer,
     Dub,
+    LuaRocks,
     Opam,
     SwiftPm,
     Cabal,
@@ -150,6 +157,7 @@ impl Ecosystem {
             Ecosystem::Hex => ECOSYSTEM_HEX,
             Ecosystem::Composer => ECOSYSTEM_COMPOSER,
             Ecosystem::Dub => ECOSYSTEM_DUB,
+            Ecosystem::LuaRocks => ECOSYSTEM_LUAROCKS,
             Ecosystem::Opam => ECOSYSTEM_OPAM,
             Ecosystem::Cabal => ECOSYSTEM_CABAL,
             Ecosystem::Ansible => ECOSYSTEM_ANSIBLE,
@@ -176,6 +184,7 @@ impl Ecosystem {
             ECOSYSTEM_HEX => Some(Ecosystem::Hex),
             ECOSYSTEM_COMPOSER => Some(Ecosystem::Composer),
             ECOSYSTEM_DUB => Some(Ecosystem::Dub),
+            ECOSYSTEM_LUAROCKS => Some(Ecosystem::LuaRocks),
             ECOSYSTEM_OPAM => Some(Ecosystem::Opam),
             ECOSYSTEM_CABAL => Some(Ecosystem::Cabal),
             ECOSYSTEM_ANSIBLE => Some(Ecosystem::Ansible),
@@ -204,6 +213,7 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::Ansible
             | Ecosystem::Bicep
@@ -231,6 +241,7 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::Bicep
             | Ecosystem::Cabal => "pinned",
@@ -269,6 +280,7 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
             | Ecosystem::Ansible
@@ -292,7 +304,7 @@ impl Ecosystem {
             Ecosystem::Julia => Some("julia"),
             Ecosystem::Hex => Some("hex"),
             Ecosystem::Composer => Some("packagist"),
-            Ecosystem::Dub | Ecosystem::Ansible | Ecosystem::Bicep => None,
+            Ecosystem::Dub | Ecosystem::LuaRocks | Ecosystem::Ansible | Ecosystem::Bicep => None,
             Ecosystem::Opam => Some("opam"),
             Ecosystem::Cabal => Some("hackage"),
             Ecosystem::SwiftPm => Some("swifturl"),
@@ -319,6 +331,7 @@ impl Ecosystem {
             Ecosystem::Hex => MIX_EXS,
             Ecosystem::Composer => COMPOSER_JSON,
             Ecosystem::Dub => "dub.json",
+            Ecosystem::LuaRocks => LUAROCKS_LOCK,
             Ecosystem::Opam => "<name>.opam",
             Ecosystem::Cabal => CABAL_PROJECT,
             Ecosystem::SwiftPm => PACKAGE_SWIFT,
@@ -343,6 +356,7 @@ impl Ecosystem {
             | Ecosystem::Hex
             | Ecosystem::Composer
             | Ecosystem::Dub
+            | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
             | Ecosystem::Ansible
@@ -716,6 +730,15 @@ pub fn discover(
                 vec![selections, path(dub.digests)?],
             )?);
         }
+        for luarocks in module.luarocks_locks().map_err(hub)? {
+            let lock = path(luarocks.lock)?;
+            sets.push(hub_set(
+                luarocks.name,
+                Ecosystem::LuaRocks,
+                vec![lock.clone()],
+                vec![lock, path(luarocks.digests)?],
+            )?);
+        }
         for opam in module.opam_packages().map_err(hub)? {
             let lock = path(opam.lock)?;
             let manifest = lock.strip_suffix(".locked").unwrap_or(&lock).to_owned();
@@ -1043,6 +1066,8 @@ const UV_PACKAGE_CHARSET: &str = "uv package names use [A-Za-z0-9_.-] only";
 
 const RUBY_PACKAGE_CHARSET: &str = "gem names use [A-Za-z0-9_.-] only";
 
+const LUAROCKS_PACKAGE_CHARSET: &str = "LuaRocks rock names use [A-Za-z0-9_.-] only";
+
 const POWERSHELL_PACKAGE_CHARSET: &str = "PowerShell module names use [A-Za-z0-9_.-] only";
 
 const CARGO_PACKAGE_CHARSET: &str = "crate names start alphanumerically and use [A-Za-z0-9_-] only";
@@ -1129,6 +1154,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Hex
         | Ecosystem::Composer
         | Ecosystem::Dub
+        | Ecosystem::LuaRocks
         | Ecosystem::Opam
         | Ecosystem::Cabal
         | Ecosystem::Ansible
@@ -1140,6 +1166,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
                 Ecosystem::Ruby => RUBY_PACKAGE_CHARSET,
                 Ecosystem::PowerShell => POWERSHELL_PACKAGE_CHARSET,
+                Ecosystem::LuaRocks => LUAROCKS_PACKAGE_CHARSET,
                 _ => UV_PACKAGE_CHARSET,
             };
             if package.is_empty() {
@@ -1522,6 +1549,7 @@ pub fn check_backend_settings(
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
         Ecosystem::Dub => check_dub_layout(workspace, set),
+        Ecosystem::LuaRocks => check_pinned_lock(set, LUAROCKS_LOCK),
         Ecosystem::Opam => check_opam_layout(set),
         Ecosystem::Ansible => check_ansible_layout(set),
         Ecosystem::Bicep => Ok(()),
@@ -2767,6 +2795,21 @@ mod tests {
     }
 
     #[test]
+    fn luarocks_locks_become_luarocks_sets() {
+        let module = "luarocks = use_extension(\"@rules_dx//lua/luarocks:extensions.bzl\", \"luarocks\")\nluarocks.lock(name = \"rocks\", lock = \"//lua:luarocks.lock\", digests = \"//lua:luarocks.digests.json\")\n";
+        let registry = found(module, &[]);
+        let set = registry.find("rocks").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::LuaRocks);
+        assert_eq!(set.manifests, ["lua/luarocks.lock"]);
+        assert_eq!(set.locks, ["lua/luarocks.lock", "lua/luarocks.digests.json"]);
+        assert!(check_backend_settings(Path::new("."), &ResolvedSet::of(set)).is_ok());
+        assert_eq!(Ecosystem::parse("luarocks"), Some(Ecosystem::LuaRocks));
+        assert_eq!(Ecosystem::LuaRocks.advisory_family(), None);
+        assert_eq!(Ecosystem::LuaRocks.supported_update(), "pinned");
+        assert!(validate_package(Ecosystem::LuaRocks, "lua-cjson").is_ok());
+    }
+
+    #[test]
     fn ansible_and_bicep_tags_become_sets() {
         let module = "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.collections(name = \"cols\", lock = \"//play:lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.registry_module(name = \"storage\", ref = \"br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0\", digest = \"sha256:abc\")\nbicep.registry_module(name = \"network\", ref = \"br:mcr.microsoft.com/bicep/avm/res/network/virtual-network:0.1.0\", digest = \"sha256:def\")\n";
         let registry = found(module, &[]);
@@ -3458,7 +3501,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, ansible, bicep"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, luarocks, ansible, bicep"
         );
     }
 

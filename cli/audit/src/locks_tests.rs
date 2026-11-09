@@ -1754,6 +1754,53 @@ fn composer_lock_lists_both_arrays_and_skips_branches() {
 }
 
 #[test]
+fn luarocks_lock_reads_bare_and_bracketed_keys() {
+    let text = "-- generated\nreturn {\n   dependencies = {\n      inspect = \"3.1.3-0\",\n      [\"lua-cjson\"] = '2.1.0.10-1';\n      [\"a.b\"] = \"1.0-1\",\n   },\n   extra = { x = \"1\" },\n}\n";
+    let packages = parse_luarocks_lock(text).expect("parses");
+    let found: Vec<_> = packages
+        .iter()
+        .map(|package| {
+            (
+                package.set.as_str(),
+                package.name.as_str(),
+                package.version.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("luarocks", "a.b", "1.0-1"),
+            ("luarocks", "inspect", "3.1.3-0"),
+            ("luarocks", "lua-cjson", "2.1.0.10-1"),
+        ]
+    );
+    let tabs = "return {\n\tdependencies = {\n\t\tinspect = \"3.1.3-0\"\n\t}\n}";
+    assert_eq!(parse_luarocks_lock(tabs).expect("parses").len(), 1);
+}
+
+#[test]
+fn luarocks_lock_accepts_an_empty_table_and_rejects_malformed_input() {
+    assert!(
+        parse_luarocks_lock("return { dependencies = {} }")
+            .expect("parses")
+            .is_empty()
+    );
+    for bad in [
+        "",
+        "{ dependencies = {} }",
+        "return { }",
+        "return { dependencies = { inspect = } }",
+        "return { dependencies = { inspect = \"1-0\" }",
+        "return { dependencies = { [inspect] = \"1-0\" } }",
+        "return { dependencies = { inspect = \"1-0 } }",
+        "return { dependencies = \"x\" }",
+    ] {
+        assert!(parse_luarocks_lock(bad).is_err(), "{bad}");
+    }
+}
+
+#[test]
 fn npm_name_ending_in_git_is_assessed() {
     let v6 = "lockfileVersion: 6.0\npackages:\n  /simple-git@3.16.0:\n    resolution: {integrity: sha512-abc}\n";
     let v9 = "lockfileVersion: '9.0'\npackages:\n  simple-git@3.16.0:\n    resolution: {integrity: sha512-abc}\n";

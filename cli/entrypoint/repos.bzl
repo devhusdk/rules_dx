@@ -139,6 +139,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "security_cargo_json.txt",
         "security_cpan_json.txt",
         "security_composer_json.txt",
+        "security_luarocks_json.txt",
         "security_json.txt",
         "security_npm_json.txt",
         "security_ruby_json.txt",
@@ -164,6 +165,8 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/php/composer.json",
         "sets_ok/apps/php/composer.lock",
         "sets_ok/apps/php/composer.digests.json",
+        "sets_ok/apps/lua/luarocks.lock",
+        "sets_ok/apps/lua/luarocks.digests.json",
         "sets_ok/apps/ml/ocaml_app.opam",
         "sets_ok/apps/ml/ocaml_app.opam.locked",
         "sets_bad/MODULE.bazel",
@@ -201,6 +204,8 @@ swift_deps = use_extension("@rules_swift_package_manager//:extensions.bzl", "swi
 swift_deps.from_package(resolved = "//apps/swift:Package.resolved", swift = "//apps/swift:Package.swift")
 composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
 composer.lock(name = "vendor", lock = "//apps/php:composer.lock", digests = "//apps/php:composer.digests.json")
+luarocks = use_extension("@rules_dx//lua/luarocks:extensions.bzl", "luarocks")
+luarocks.lock(name = "rocks", lock = "//apps/lua:luarocks.lock", digests = "//apps/lua:luarocks.digests.json")
 ocaml = use_extension("@rules_dx//ocaml/toolchain:extensions.bzl", "ocaml")
 ocaml.lock(name = "ocaml_app", lock = "//apps/ml:ocaml_app.opam.locked")
 EOF
@@ -217,6 +222,8 @@ echo '{"pins": [], "version": 3}' > "$(location sets_ok/apps/swift/Package.resol
 echo '{"require": {"psr/log": "^1.1"}}' > "$(location sets_ok/apps/php/composer.json)"
 echo '{"packages": [], "packages-dev": []}' > "$(location sets_ok/apps/php/composer.lock)"
 echo '{"packages": {}}' > "$(location sets_ok/apps/php/composer.digests.json)"
+printf 'return {\n   dependencies = {\n      inspect = "3.1.3-0",\n   },\n}\n' > "$(location sets_ok/apps/lua/luarocks.lock)"
+echo '{"packages": {}}' > "$(location sets_ok/apps/lua/luarocks.digests.json)"
 cp "$(location sets_ok/apps/php/composer.json)" "$$orig/consumer_sets_composer_json.orig"
 printf 'opam-version: "2.0"\ndepends: [\n  "astring" {>= "0.8.5"}\n]\n' > "$(location sets_ok/apps/ml/ocaml_app.opam)"
 printf 'opam-version: "2.0"\ndepends: [\n  "astring" {= "0.8.5"}\n]\n' > "$(location sets_ok/apps/ml/ocaml_app.opam.locked)"
@@ -334,6 +341,12 @@ if grep -q "no advisory coverage" "$(location security_composer_json.txt)"; then
   echo "security reported a configured composer set as uncovered" >&2
   exit 1
 fi
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" rocks > "$(location security_luarocks_json.txt)" 2>/dev/null; then
+  echo "security passed for a LuaRocks set without an uncovered entry" >&2
+  exit 1
+fi
+grep -q "failed to assess rocks" "$(location security_luarocks_json.txt)"
+grep -q "OSV defines no LuaRocks ecosystem" "$(location security_luarocks_json.txt)"
 if "$$public" update vendor:acme/other 1.0.0 --apply --workspace "$$ok" > "$(location edit_composer.txt)" 2>&1; then
   echo "update declared a package in a configured composer set" >&2
   exit 1

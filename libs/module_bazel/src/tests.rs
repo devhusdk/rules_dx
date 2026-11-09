@@ -1215,6 +1215,27 @@ fn composer_locks_follow_the_rules_dx_extension() {
 }
 
 #[test]
+fn luarocks_locks_follow_the_rules_dx_extension() {
+    let file = parse(
+        "luarocks = use_extension(\"@rules_dx//lua/luarocks:extensions.bzl\", \"luarocks\")\nluarocks.lock(name = \"rocks\", lock = \"//lua:luarocks.lock\", digests = \"//lua:luarocks.digests.json\")\nother = use_extension(\"//lua:extensions.bzl\", \"luarocks\")\nother.lock(name = \"x\", lock = \"//x:luarocks.lock\", digests = \"//x:d.json\")\n",
+    );
+    let found: Vec<_> = file
+        .luarocks_locks()
+        .expect("locks")
+        .iter()
+        .map(|entry| (entry.name, entry.lock, entry.digests))
+        .collect();
+    assert_eq!(
+        found,
+        [(
+            "rocks",
+            "//lua:luarocks.lock",
+            "//lua:luarocks.digests.json"
+        )]
+    );
+}
+
+#[test]
 fn swift_packages_follow_the_swift_deps_extension() {
     let file = parse(
         "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//app:Package.resolved\", swift = \"//app:Package.swift\")\nother = use_extension(\"//x:extensions.bzl\", \"swift_deps\")\nother.from_package(resolved = \"//y:Package.resolved\", swift = \"//y:Package.swift\")\n",

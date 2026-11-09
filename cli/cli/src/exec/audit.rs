@@ -67,6 +67,14 @@ mod tests {
     }
 
     #[test]
+    fn uncovered_message_names_luarocks() {
+        assert_eq!(
+            uncovered_message("rocks", "luarocks"),
+            "failed to assess rocks: no advisory backend for LuaRocks rocks; OSV defines no LuaRocks ecosystem (https://ossf.github.io/osv-schema/); accept it with an [[uncovered]] entry in security.toml"
+        );
+    }
+
+    #[test]
     fn set_without_a_readable_lock_fails() {
         let cargo = unreadable_lock_error(Ecosystem::Cargo, "cargo-bazel-lock.json");
         assert!(
@@ -539,6 +547,12 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::PowerShell => {
                 dx_audit::locks::parse_psgallery_lock(text)
             }
+            dx_adopt::dependency_sets::Ecosystem::LuaRocks => match rel.rsplit('/').next() {
+                Some(dx_adopt::dependency_sets::LUAROCKS_LOCK) => {
+                    dx_audit::locks::parse_luarocks_lock(text)
+                }
+                _ => Ok(Vec::new()),
+            },
             dx_adopt::dependency_sets::Ecosystem::Bazel
             | dx_adopt::dependency_sets::Ecosystem::Ansible
             | dx_adopt::dependency_sets::Ecosystem::Bicep => Ok(Vec::new()),
@@ -1062,6 +1076,9 @@ struct SecurityInputs<'a> {
 fn uncovered_message(label: &str, ecosystem: &str) -> String {
     let backend = if ecosystem == "powershell" {
         "PowerShell Gallery modules; NuGet.org advisories do not apply".to_owned()
+    } else if ecosystem == "luarocks" {
+        "LuaRocks rocks; OSV defines no LuaRocks ecosystem (https://ossf.github.io/osv-schema/)"
+            .to_owned()
     } else {
         format!("set {label} ({ecosystem})")
     };

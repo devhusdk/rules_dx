@@ -120,6 +120,7 @@ pub(super) fn run_license(
             dx_adopt::dependency_sets::Ecosystem::Npm
                 | dx_adopt::dependency_sets::Ecosystem::Ruby
                 | dx_adopt::dependency_sets::Ecosystem::PowerShell
+                | dx_adopt::dependency_sets::Ecosystem::LuaRocks
                 | dx_adopt::dependency_sets::Ecosystem::Cargo
                 | dx_adopt::dependency_sets::Ecosystem::Maven
                 | dx_adopt::dependency_sets::Ecosystem::Nuget
@@ -338,6 +339,7 @@ pub(super) fn run_license(
             dx_adopt::dependency_sets::Ecosystem::Npm
             | dx_adopt::dependency_sets::Ecosystem::Ruby
             | dx_adopt::dependency_sets::Ecosystem::PowerShell
+            | dx_adopt::dependency_sets::Ecosystem::LuaRocks
             | dx_adopt::dependency_sets::Ecosystem::Cargo
             | dx_adopt::dependency_sets::Ecosystem::Maven
             | dx_adopt::dependency_sets::Ecosystem::Nuget

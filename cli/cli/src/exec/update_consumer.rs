@@ -219,6 +219,7 @@ fn run_configured_target(
         | Ecosystem::Pub
         | Ecosystem::Conan
         | Ecosystem::Dub
+        | Ecosystem::LuaRocks
         | Ecosystem::Julia
         | Ecosystem::Hex
         | Ecosystem::Composer

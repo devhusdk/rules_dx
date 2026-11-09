@@ -268,6 +268,15 @@ pub struct ComposerLock<'a> {
     pub line: usize,
 }
 
+/// One `luarocks.lock` tag of the rules_dx luarocks extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LuaRocksLock<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub digests: &'a str,
+    pub line: usize,
+}
+
 /// One `dub.lock` tag of the rules_dx dub extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DubLock<'a> {
@@ -921,6 +930,26 @@ impl ModuleFile {
         )
         .map(|call| {
             Ok(ComposerLock {
+                name: required(call, TAG, "name")?,
+                lock: required(call, TAG, "lock")?,
+                digests: required(call, TAG, "digests")?,
+                line: call.line,
+            })
+        })
+        .collect()
+    }
+
+    /// Every `luarocks.lock` tag of the rules_dx luarocks extension in source order.
+    pub fn luarocks_locks(&self) -> Result<Vec<LuaRocksLock<'_>>, ModuleError> {
+        const TAG: &str = "luarocks.lock";
+        self.tags(
+            RUBY_MODULE,
+            "lua/luarocks:extensions.bzl",
+            "luarocks",
+            "lock",
+        )
+        .map(|call| {
+            Ok(LuaRocksLock {
                 name: required(call, TAG, "name")?,
                 lock: required(call, TAG, "lock")?,
                 digests: required(call, TAG, "digests")?,

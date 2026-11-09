@@ -164,6 +164,47 @@ pub fn resolve_run(
     Ok(candidates)
 }
 
+pub const DEPLOYMENTS_QUERY: &str = "kind(dx_deployment, //...)";
+
+/// The query `reusable-release.yml` runs to pick the deployables.
+pub const RELEASE_DEPLOYMENTS_QUERY: &str =
+    r#"attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))"#;
+
+/// Lists the repo's dx_deployment labels, marking the ones tagged release. Empty when the
+/// queries fail or find nothing.
+pub fn deploy_label_hint(
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+) -> String {
+    let Ok(all) = run_label_query(DEPLOYMENTS_QUERY, workspace, runner, startup_options) else {
+        return String::new();
+    };
+    let release = run_label_query(
+        RELEASE_DEPLOYMENTS_QUERY,
+        workspace,
+        runner,
+        startup_options,
+    )
+    .unwrap_or_default();
+    format_deploy_labels(&all, &release)
+}
+
+pub fn format_deploy_labels(all: &[String], release: &[String]) -> String {
+    if all.is_empty() {
+        return String::new();
+    }
+    let mut text = String::from("\ndeploy labels in this repo:");
+    for label in all {
+        text.push_str("\n  ");
+        text.push_str(label);
+        if release.contains(label) {
+            text.push_str(" (release)");
+        }
+    }
+    text
+}
+
 pub fn resolve_deploy(scopes: &[String]) -> Result<String, ResolveError> {
     if scopes.len() != 1 {
         return Err(ResolveError::DeployCount {
@@ -301,6 +342,41 @@ mod tests {
     use crate::resolve::NeverQuery;
     use dx_test_scratch::write;
     use dx_testing::cli::{graph_rule, graph_stdout, strings};
+
+    #[test]
+    fn deploy_labels_mark_the_release_ones() {
+        let all = strings(&["//deploy:production", "//deploy:staging"]);
+        let release = strings(&["//deploy:production"]);
+        assert_eq!(
+            format_deploy_labels(&all, &release),
+            "\ndeploy labels in this repo:\n  //deploy:production (release)\n  //deploy:staging"
+        );
+        assert_eq!(format_deploy_labels(&[], &release), "");
+    }
+
+    #[test]
+    fn deploy_hint_runs_both_queries() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-deploy-hint-");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//deploy:a\n//deploy:b\n"),
+            FakeQuery::ok("//deploy:b\n"),
+        ]);
+        let hint = deploy_label_hint(scratch.path(), &query, &[]);
+        assert!(hint.contains("//deploy:a\n"), "{hint}");
+        assert!(hint.ends_with("//deploy:b (release)"), "{hint}");
+        let calls = query.calls();
+        assert_eq!(calls[0].0.last().expect("expr"), DEPLOYMENTS_QUERY);
+        assert_eq!(calls[1].0.last().expect("expr"), RELEASE_DEPLOYMENTS_QUERY);
+    }
+
+    #[test]
+    fn release_query_matches_the_workflow() {
+        let workflow = include_str!("../../../../.github/workflows/reusable-release.yml");
+        assert!(
+            workflow.contains(&format!("'{RELEASE_DEPLOYMENTS_QUERY}'")),
+            "reusable-release.yml must run RELEASE_DEPLOYMENTS_QUERY"
+        );
+    }
 
     #[test]
     fn run_labels_pass_through_without_query() {

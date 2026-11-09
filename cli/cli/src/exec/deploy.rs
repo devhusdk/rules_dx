@@ -2,7 +2,7 @@ use super::common::*;
 use dx_plan::args::{BuildMode, Command, DX_BUILD_MODE_ENV, Invocation, resolve_build_mode};
 use dx_plan::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use dx_plan::reports::plan_reports;
-use dx_plan::resolve::{check_deployable, resolve_deploy};
+use dx_plan::resolve::{ResolveError, check_deployable, deploy_label_hint, resolve_deploy};
 use std::io::Write;
 
 /// Tells the deploy launcher to publish (1) or dry run (0).
@@ -36,7 +36,20 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(planned_reports.is_empty(), "dx deploy takes no --report");
     let label = match resolve_deploy(&invocation.targets) {
         Ok(label) => label,
-        Err(error) => return resolve_failed(invocation.output, out, err, &error),
+        Err(error) => {
+            let mut failure = Failure::resolve(&error);
+            if matches!(
+                error,
+                ResolveError::DeployCount { .. } | ResolveError::DeployScope { .. }
+            ) {
+                failure.message.push_str(&deploy_label_hint(
+                    workspace,
+                    query_runner,
+                    &invocation.bazel_startup_options,
+                ));
+            }
+            return report_failure(invocation.output, out, err, &failure);
+        }
     };
     if let Some(code) = refuse_agent_apply(invocation, ci, &label, out, err) {
         return code;

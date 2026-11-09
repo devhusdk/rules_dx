@@ -171,6 +171,7 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
+        "//.github:workflows/reusable-release.yml",
         "//docs:cli/commands/README.md",
         "//docs:tutorial.md",
     ],

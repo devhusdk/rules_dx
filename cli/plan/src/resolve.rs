@@ -32,7 +32,9 @@ pub use query::quote_set;
 pub(crate) use query::run_label_query;
 pub use query::run_label_query_file;
 pub use rule_graph::RuleGraph;
-pub use run_deploy::{DeployInfo, check_deployable, resolve_deploy, resolve_run};
+pub use run_deploy::{
+    DeployInfo, check_deployable, deploy_label_hint, resolve_deploy, resolve_run,
+};
 pub use selection::SelectionContext;
 #[cfg(test)]
 pub use test_map::map_owners_to_tests_with_selection;

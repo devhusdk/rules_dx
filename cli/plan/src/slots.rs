@@ -30,6 +30,45 @@ pub const BUILD_SLOTS_DISABLED_CODE: &str = "build_slots_disabled";
 /// Notice code for the disk reclaim a build slot runs before a build.
 pub const DISK_LOW_CODE: &str = "disk_low";
 
+/// Seconds a `dx worktree` slot's Bazel server may sit idle before it exits.
+pub const SLOT_MAX_IDLE_SECS: u64 = 300;
+
+/// The `--max_idle_secs` for the server of `workspace`: short inside a `dx worktree` slot, `None` elsewhere.
+pub fn slot_idle_secs(workspace: &Path) -> Option<u64> {
+    dx_worktree::lease_for_dir(workspace).map(|_| SLOT_MAX_IDLE_SECS)
+}
+
+/// Sets the memory one build slot is planned to use: MiB, or a count with an `m` or `g` suffix.
+pub const SLOT_MEMORY_ENV: &str = "DX_BUILD_SLOT_MEMORY";
+
+/// Reads a slot memory size in bytes; `None` for zero or anything unreadable.
+pub fn parse_slot_memory(value: &str) -> Option<u64> {
+    let value = value.trim().to_ascii_lowercase();
+    let (digits, unit) = match value.chars().last()? {
+        'g' => (&value[..value.len() - 1], 30),
+        'm' => (&value[..value.len() - 1], 20),
+        _ => (value.as_str(), 20),
+    };
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let bytes = digits.parse::<u64>().ok()?.checked_mul(1 << unit)?;
+    (bytes > 0).then_some(bytes)
+}
+
+/// Memory one local build slot is planned to use: `DX_BUILD_SLOT_MEMORY` when set and valid.
+pub fn slot_bytes(env_get: &dyn Fn(&str) -> Option<String>) -> u64 {
+    env_get(SLOT_MEMORY_ENV)
+        .and_then(|value| parse_slot_memory(&value))
+        .unwrap_or(BYTES_PER_SLOT)
+}
+
+/// `bytes` rescaled so that dividing by the default slot size counts slots of `per_slot` bytes.
+fn per_slot_scaled(bytes: u64, per_slot: u64) -> u64 {
+    let scaled = u128::from(bytes) * u128::from(BYTES_PER_SLOT) / u128::from(per_slot);
+    u64::try_from(scaled).unwrap_or(u64::MAX)
+}
+
 pub mod pressure;
 
 use pressure::{HostPressure, NoSignal, PRESSURE_WAIT, Pressure, PressurePause};
@@ -345,7 +384,12 @@ pub fn share_report(
     let dir = slots_dir(env_get)?;
     let memory = available_memory()?;
     let reserved = nested_reserve(workspace, env_get);
-    let size = sizing(setting, memory, reserved)?;
+    let per_slot = slot_bytes(env_get);
+    let size = sizing(
+        setting,
+        per_slot_scaled(memory, per_slot),
+        per_slot_scaled(reserved, per_slot),
+    )?;
     let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
     let cpus = u64::try_from(cpus).unwrap_or(1);
     // `usize::MAX` is no slot, so `held` counts every held slot plus the new run.
@@ -1125,6 +1169,7 @@ pub struct Gate {
     reclaimer: Option<Reclaimer>,
     reaper: Option<Reaper>,
     wait: Option<Duration>,
+    slot_bytes: u64,
 }
 
 /// The time source a gate paces its pressure pause by.
@@ -1186,6 +1231,15 @@ impl Gate {
             reclaimer: None,
             reaper: None,
             wait: None,
+            slot_bytes: BYTES_PER_SLOT,
+        }
+    }
+
+    /// Plans each local slot to use `bytes` of memory.
+    pub fn slot_memory(self, bytes: u64) -> Self {
+        Gate {
+            slot_bytes: bytes,
+            ..self
         }
     }
 
@@ -1214,7 +1268,7 @@ impl Gate {
         let target = if self.remote {
             BYTES_PER_REMOTE_SLOT
         } else {
-            BYTES_PER_SLOT
+            self.slot_bytes
         };
         Some((reaper.0)(&keep, target))
     }
@@ -1309,11 +1363,16 @@ impl Gate {
         let dir = slots_dir(env_get)?;
         let memory = available_memory()?;
         let reserved = nested_reserve(workspace, env_get);
+        let per_slot = slot_bytes(env_get);
         let Sizing {
             count,
             pool,
             extras,
-        } = sizing(setting, memory, reserved)?;
+        } = sizing(
+            setting,
+            per_slot_scaled(memory, per_slot),
+            per_slot_scaled(reserved, per_slot),
+        )?;
         let read = dx_process::rc::read_file;
         let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
         let startup = own_startup_options(args);
@@ -1348,11 +1407,12 @@ impl Gate {
             warm,
             ..Gate::new(dir, count, workspace.display().to_string(), json)
                 .reserving(pool)
+                .slot_memory(per_slot)
                 .extra(extras, remote)
                 .with_pressure(Arc::new(HostPressure::new(if remote {
                     BYTES_PER_REMOTE_SLOT
                 } else {
-                    BYTES_PER_SLOT
+                    per_slot
                 })))
                 .sharing(cpus, memory, reserved)
                 .reclaiming(move || dx_worktree::reclaim_for_build(&reclaim_in))
@@ -1412,7 +1472,9 @@ impl Gate {
             remote: self.remote,
             pause: PressurePause::new(PRESSURE_WAIT),
             now: &*self.clock.0,
-            deadline: self.wait.and_then(|wait| (self.clock.0)().checked_add(wait)),
+            deadline: self
+                .wait
+                .and_then(|wait| (self.clock.0)().checked_add(wait)),
         };
         let result = acquire_reserving(
             &self.dir,
@@ -2625,6 +2687,28 @@ mod tests {
         for index in reserve {
             assert!(!free(&dir, index), "reserve index {index} is held");
         }
+    }
+
+    #[test]
+    fn slot_memory_parses_sizes_and_scales_counts() {
+        assert_eq!(parse_slot_memory("4g"), Some(4 << 30));
+        assert_eq!(parse_slot_memory(" 512M "), Some(512 << 20));
+        assert_eq!(parse_slot_memory("2048"), Some(2048 << 20));
+        for bad in ["", "0", "g", "-1g", "1.5g", "4x"] {
+            assert_eq!(parse_slot_memory(bad), None, "{bad}");
+        }
+        let env = |value: &'static str| {
+            move |name: &str| (name == SLOT_MEMORY_ENV).then(|| value.to_owned())
+        };
+        assert_eq!(slot_bytes(&env("6g")), 6 << 30);
+        assert_eq!(slot_bytes(&env("nope")), BYTES_PER_SLOT);
+        assert_eq!(slot_bytes(&|_: &str| None), BYTES_PER_SLOT);
+        let memory = per_slot_scaled(24 << 30, 6 << 30);
+        assert_eq!(slot_count(memory, 0), 4);
+        assert_eq!(
+            slot_count(per_slot_scaled(24 << 30, 1 << 30), 0),
+            MAX_SLOTS.min(24)
+        );
     }
 
     #[test]

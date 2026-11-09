@@ -100,7 +100,8 @@ When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, `AI_AGENT`,
 Commands that run Bazel wait for a build slot, so parallel runs on one machine
 do not run out of memory. Slots are shared by every worktree on the machine.
 The count is the machine memory, or the cgroup limit if lower, divided by 3 GiB.
-It is at least 1 and at most 16.
+It is at least 1 and at most 16. `DX_BUILD_SLOT_MEMORY` replaces the 3 GiB:
+MiB, or a number ending in `m` or `g`. An unreadable or zero value is ignored.
 
 ```sh
 tools/dx build //... --build-slots 4
@@ -150,6 +151,7 @@ A flag on the command line wins over these defaults.
 | `DX_OUTPUT=<mode>` | Default for `--output`. |
 | `DX_BUILD_SLOTS=auto\|<n>\|off` | Default for `--build-slots`. |
 | `DX_BUILD_SLOTS_WAIT=<duration>` | Default for `--build-slots-wait`. |
+| `DX_BUILD_SLOT_MEMORY=<size>` | Memory planned per build slot, default `3g`. |
 | `NO_COLOR=<non-empty>` | Disable color in `auto` mode. |
 | `BUILD_WORKSPACE_DIRECTORY=<dir>` | Workspace start under `bazel run`. |
 | `BUILD_WORKING_DIRECTORY=<dir>` | Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`. |

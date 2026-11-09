@@ -338,6 +338,7 @@ fn local_policy() -> RcPolicy {
         local_memory: VerbMask::ALL,
         disk_cache_gc: true,
         gc_idle_delay_secs: None,
+        slot_idle_secs: None,
         rc_color: RcColor::NONE,
     }
 }
@@ -1185,4 +1186,25 @@ fn an_rc_color_choice_counts_only_when_its_section_and_config_are_active() {
     let nested = "build:inner --color=yes\nbuild:outer --config=inner\n";
     assert!(chosen(nested, &["bazel", "test", "--config=outer"]));
     assert!(!chosen("test --color=yes\n", &["bazel", "build", "//..."]));
+}
+
+#[test]
+fn a_slot_idle_adds_a_startup_flag_and_an_idle_delay() {
+    let policy = RcPolicy::from_env_in(
+        &|name| (name == "HOME").then(|| "/home/u".to_owned()),
+        Path::new("/ws"),
+        &|_| None,
+        Some(300),
+    );
+    assert_eq!(policy.slot_idle_secs, Some(300));
+    assert_eq!(policy.gc_idle_delay_secs, Some(100));
+    let head = startup_argv_with(&policy, &[]);
+    assert_eq!(head.last().map(String::as_str), Some("--max_idle_secs=300"));
+    let plain = RcPolicy::from_env_in(&|_| None, Path::new("/ws"), &|_| None, None);
+    assert_eq!(plain.slot_idle_secs, None);
+    assert!(
+        !startup_argv_with(&plain, &[])
+            .iter()
+            .any(|a| a.starts_with("--max_idle_secs"))
+    );
 }

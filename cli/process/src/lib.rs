@@ -33,8 +33,8 @@ mod stderr_tail;
 pub use rc::{
     DISK_CACHE_GC_MAX_AGE, DISK_CACHE_GC_MAX_SIZE, LocalShare, PRESET_LOCAL_RESOURCES, RcColor,
     RcPolicy, ShareToken, StartupPaths, VerbMask, build_verb_options, clear_share,
-    clear_share_source, configure, configure_real, current, default_disk_cache, repository_caches,
-    set_share, set_share_source, share, startup_output_paths, user_cache_dir,
+    clear_share_source, configure, configure_real, configure_real_in, current, default_disk_cache,
+    repository_caches, set_share, set_share_source, share, startup_output_paths, user_cache_dir,
 };
 pub use runner::{BinaryRunner, Holding};
 pub use stderr_tail::last_bazel_stderr;
@@ -397,10 +397,13 @@ pub fn head_settings(repo: &str) -> Vec<String> {
 
 fn launcher_head(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
     let opts = policy.startup_opts();
-    let mut argv = Vec::with_capacity(1 + opts.len() + startup_options.len());
+    let mut argv = Vec::with_capacity(2 + opts.len() + startup_options.len());
     argv.push(launcher_argv0().to_owned());
     for opt in opts {
         argv.push((*opt).to_owned());
+    }
+    if let Some(secs) = policy.slot_idle_secs {
+        argv.push(format!("--max_idle_secs={secs}"));
     }
     argv.extend(startup_options.iter().cloned());
     argv

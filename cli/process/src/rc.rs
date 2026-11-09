@@ -175,6 +175,8 @@ pub struct RcPolicy {
     pub disk_cache_gc: bool,
     /// The gc idle delay dx adds so cleanup can run before an idle server exits.
     pub gc_idle_delay_secs: Option<u64>,
+    /// The `--max_idle_secs` dx starts a worktree slot's server with.
+    pub slot_idle_secs: Option<u64>,
     /// Where an rc file sets `--color`, which then wins over `NO_COLOR`.
     pub rc_color: RcColor,
 }
@@ -188,6 +190,7 @@ static HERMETIC: RcPolicy = RcPolicy {
     local_memory: VerbMask::ALL,
     disk_cache_gc: false,
     gc_idle_delay_secs: None,
+    slot_idle_secs: None,
     rc_color: RcColor::NONE,
 };
 
@@ -289,6 +292,16 @@ impl RcPolicy {
         workspace: &Path,
         read_file: &dyn Fn(&Path) -> Option<String>,
     ) -> RcPolicy {
+        Self::from_env_in(env_get, workspace, read_file, None)
+    }
+
+    /// `from_env` for a workspace whose server idles out after `slot_idle_secs`, when given.
+    pub fn from_env_in(
+        env_get: &dyn Fn(&str) -> Option<String>,
+        workspace: &Path,
+        read_file: &dyn Fn(&Path) -> Option<String>,
+        slot_idle_secs: Option<u64>,
+    ) -> RcPolicy {
         let in_bazel_test = env_get("BAZEL_TEST").is_some_and(|value| !value.is_empty());
         if in_bazel_test {
             return RcPolicy::hermetic();
@@ -318,11 +331,17 @@ impl RcPolicy {
             };
         let disk_cache_gc =
             disk_cache.is_some() && !rc_sets_disk_cache_gc(&roots, workspace, read_file);
+        let slot_idle_secs = slot_idle_secs.filter(|secs| *secs > 0 && !ci);
         let gc_idle_delay_secs =
             if ci || rc_sets_flag(&roots, workspace, read_file, GC_IDLE_DELAY_FLAG) {
                 None
             } else {
-                rc_min_max_idle_secs(&roots, workspace, read_file).and_then(gc_idle_delay_for)
+                let rc_idle = rc_min_max_idle_secs(&roots, workspace, read_file);
+                let idle = match (rc_idle, slot_idle_secs) {
+                    (Some(rc), Some(slot)) => Some(rc.min(slot)),
+                    (rc, slot) => rc.or(slot),
+                };
+                idle.and_then(gc_idle_delay_for)
             };
         RcPolicy {
             read_user_rc: true,
@@ -332,6 +351,7 @@ impl RcPolicy {
             local_memory: VerbMask::where_rc_leaves_free(&lines, "memory"),
             disk_cache_gc,
             gc_idle_delay_secs,
+            slot_idle_secs,
             rc_color: RcColor::from_lines(&lines),
         }
     }
@@ -438,10 +458,16 @@ pub fn configure(policy: RcPolicy) {
 
 /// Sets the policy for this process from the real environment and files.
 pub fn configure_real(workspace: &Path) {
-    configure(RcPolicy::from_env(
+    configure_real_in(workspace, None);
+}
+
+/// `configure_real` for a workspace whose server idles out after `slot_idle_secs`, when given.
+pub fn configure_real_in(workspace: &Path, slot_idle_secs: Option<u64>) {
+    configure(RcPolicy::from_env_in(
         &|name| std::env::var(name).ok(),
         workspace,
         &read_file,
+        slot_idle_secs,
     ));
 }
 

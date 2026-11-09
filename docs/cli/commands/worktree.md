@@ -63,6 +63,11 @@ Another holder's slot is freed only when it is reclaimable or with `--force`. It
 `slot_busy` while a `dx` command runs in the slot. On an external worktree of
 this repository it removes the checkout and keeps the branch.
 
+Commands that run Bazel inside a slot start its server with
+`--max_idle_secs=300`, so an idle slot's server exits after five minutes.
+`--build-slots <n>` limits how many run at once and `DX_BUILD_SLOT_MEMORY` sets
+the memory each is planned to use.
+
 The working-directory check reads `/proc` on Linux only. It does not see other
 users' processes, processes hidden by `hidepid` or processes in other PID
 namespaces, and each check of a held slot scans every process. Any process whose

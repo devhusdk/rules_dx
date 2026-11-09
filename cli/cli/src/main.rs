@@ -327,7 +327,7 @@ fn run() -> i32 {
             }
         }
     };
-    dx_process::configure_real(&workspace);
+    dx_process::configure_real_in(&workspace, dx_plan::slots::slot_idle_secs(&workspace));
     dx_plan::plan::set_rules_dx_repo(&workspace);
     if let Some(note) = dx_plan::args::bare_scope_note(&invocation, &workspace, &cwd) {
         eprintln!("{note}");

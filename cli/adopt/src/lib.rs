@@ -16,7 +16,6 @@ pub mod families;
 pub mod git_changes;
 pub mod init_dir;
 pub mod launcher;
-pub mod legacy_layout;
 pub mod load_graph;
 pub mod lock_hubs;
 pub mod module_pin;

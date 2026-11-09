@@ -50,8 +50,6 @@ pub enum AdoptError {
     WorkspaceScan { detail: String },
     #[error("generate .dx: {detail}")]
     Generate { detail: String },
-    #[error("{detail}")]
-    LegacyLayout { detail: String },
     #[error("invalid invocation defaults: {detail}")]
     InvalidDefaults { detail: String },
     /// A boolean environment default is neither a documented on nor a documented off.

@@ -323,9 +323,6 @@ pub(super) fn apply(
     notes: &mut Vec<String>,
 ) -> Result<(), String> {
     check_module_version(root)?;
-    notes.extend(
-        dx_adopt::legacy_layout::migrate(root).map_err(|error| adopt_message(prefix, &error))?,
-    );
     let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
     if mode == Mode::Refresh {
         return refresh(root, prefix, files, applied, notes);

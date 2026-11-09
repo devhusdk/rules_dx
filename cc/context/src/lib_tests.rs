@@ -782,8 +782,14 @@ fn qualify_rejects_unknown_driver_and_missing_identity() {
     let graph = qualify_graph(PLAIN, "");
     let args = ["/usr/bin/gcc", "-c", "pkg/probe.cc"];
     let unknown = exported(&args, Some(identity("k8-fastbuild", Driver::Unknown)));
-    assert!(qualify(&graph, &[unknown], Path::new(".")).is_err());
-    assert!(qualify(&graph, &[exported(&args, None)], Path::new(".")).is_err());
+    for command in [unknown, exported(&args, None)] {
+        match qualify(&graph, &[command], Path::new(".")) {
+            Err(Error::Unqualified { reason, .. }) => {
+                assert_eq!(reason, "no compiler identity with a known driver")
+            }
+            other => panic!("expected an unqualified error, got {other:?}"),
+        }
+    }
 }
 
 #[test]

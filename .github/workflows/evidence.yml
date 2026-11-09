@@ -32,7 +32,7 @@ on:
         required: false
         default: ""
       qualify:
-        description: "windows_x86_64 only: run //cc/context:qualify for llvm and msvc."
+        description: "Run //cc/context:qualify. windows_x86_64: llvm and msvc; linux_x86_64: custom GCC via --extra_toolchains."
         type: boolean
         required: false
         default: false
@@ -318,6 +318,12 @@ jobs:
             fi
           done
           exit "$failed"
+      - name: Qualify cc/context exports with a custom toolchain
+        if: ${{ inputs.qualify && matrix.platform == 'linux_x86_64' }}
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/evidence"
+          bazel run --noshow_progress //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --output "$RUNNER_TEMP/evidence/qualify-custom-gcc.json" -- --extra_toolchains=//cc/toolchains/external:custom_gcc_x86_64 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-custom-gcc.log"
       - name: Build the APKs for the inspect tests
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |

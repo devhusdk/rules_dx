@@ -58,6 +58,9 @@ bazel run //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:pr
   --compiler llvm --output /tmp/qualify.json
 bazel run //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
   --compiler msvc --output qualify-msvc.json   # Windows host
+bazel run //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
+  --output qualify-custom-gcc.json -- \
+  --extra_toolchains=//cc/toolchains/external:custom_gcc_x86_64   # linux_x86_64 host
 ```
 
 Extra Bazel flags (for a custom toolchain) go after `--`. The evidence JSON records the
@@ -66,10 +69,18 @@ git SHA, Bazel version, compiler banner, every command run and every qualified e
 The qualifier builds and its unit tests pass on `linux_x86_64` and `windows_x86_64` CI
 (evidence run 41989006621). On `windows_x86_64` CI (evidence run 42124336539, SHA 43e0f98127ee), the qualifier
 reported `1 compile command(s) qualified` for `probe_plain` with `--compiler llvm` and
-with `--compiler msvc`. A custom (non-LLVM, non-MSVC) toolchain has not been qualified
-and is not claimed as supported. Dispatch `evidence.yml` with `qualify: true` on
-`windows_x86_64` to rerun; the artifact holds `qualify-llvm.json`, `qualify-msvc.json`
-and `msvc-vswhere.json`.
+with `--compiler msvc`.
+
+A consumer-registered custom toolchain is supported on `linux_x86_64`. With only
+`--extra_toolchains=//cc/toolchains/external:custom_gcc_x86_64` and no `--compiler`
+(SHA 94f1917d6a3b, Bazel 9.3.1, `x86_64-linux-gcc (GCC) 16.2.0`), the qualifier reported
+`1 compile command(s) qualified` for `probe_plain` with driver `Gnu` and argv0 the
+custom archive's `gcc`. A command whose identity has an unknown driver, or none, fails
+with `no compiler identity with a known driver` instead of passing.
+
+Dispatch `evidence.yml` with `qualify: true` on `windows_x86_64` or `linux_x86_64` to
+rerun; the artifact holds `qualify-llvm.json`, `qualify-msvc.json` and
+`msvc-vswhere.json` on Windows, and `qualify-custom-gcc.json` on Linux.
 
 ## Fixture records
 

@@ -1,0 +1,4 @@
+exports_files(
+    ["languages.bzl"],
+    visibility = ["//gazelle:__subpackages__"],
+)

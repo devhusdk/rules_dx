@@ -312,6 +312,42 @@ func TestConformanceRowsMatchComposedLanguages(t *testing.T) {
 	}
 }
 
+func TestGazelleLanguagePackagesAreRegistered(t *testing.T) {
+	src, err := filepath.EvalSymlinks("lang.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Dir(filepath.Dir(src)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	registered := map[string]bool{}
+	for _, name := range registeredPackages {
+		registered[name] = true
+	}
+	for _, name := range supportPackages {
+		registered[name] = true
+	}
+	found := map[string]bool{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		found[entry.Name()] = true
+		if !registered[entry.Name()] {
+			t.Errorf("gazelle/%s is not in GAZELLE_LANGUAGES or GAZELLE_SUPPORT_PACKAGES in gazelle/languages.bzl", entry.Name())
+		}
+	}
+	for _, name := range registeredPackages {
+		if !found[name] {
+			t.Errorf("GAZELLE_LANGUAGES lists %s but gazelle/%s does not exist", name, name)
+		}
+		if _, ok := conformanceRows[name]; !ok {
+			t.Errorf("GAZELLE_LANGUAGES lists %s but conformanceRows has no row", name)
+		}
+	}
+}
+
 func mapKeys[V any](m map[string]V) func(func(string) bool) {
 	return func(yield func(string) bool) {
 		for key := range m {

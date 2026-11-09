@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//gazelle:languages.bzl", "GAZELLE_LANGUAGES", "gazelle_languages_test_source")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":hub_tests.bzl", "dx_gazelle_hub_tests")
 
@@ -32,51 +33,19 @@ go_library(
     ],
 )
 
+gazelle_languages_test_source(name = "all_languages_test_go")
+
 go_test(
     name = "dispatch_test",
     srcs = [
-        "all_languages_test.go",
+        ":all_languages_test_go",
         "conformance_test.go",
         "lang_test.go",
     ],
     embed = [":dispatch"],
     pure = "on",
-    deps = [
-        "//gazelle/astro",
-        "//gazelle/avro",
-        "//gazelle/capnproto",
-        "//gazelle/cc",
-        "//gazelle/csharp",
-        "//gazelle/d",
-        "//gazelle/dart",
-        "//gazelle/elixir",
-        "//gazelle/erlang",
-        "//gazelle/flatbuffers",
-        "//gazelle/fsharp",
-        "//gazelle/go",
-        "//gazelle/haskell",
-        "//gazelle/java",
-        "//gazelle/javascript",
-        "//gazelle/julia",
-        "//gazelle/kotlin",
-        "//gazelle/lua",
-        "//gazelle/mdx",
-        "//gazelle/ocaml",
-        "//gazelle/ownership",
-        "//gazelle/perl",
-        "//gazelle/php",
-        "//gazelle/powershell",
-        "//gazelle/protobuf",
-        "//gazelle/python",
-        "//gazelle/ruby",
-        "//gazelle/rust",
-        "//gazelle/scala",
-        "//gazelle/svelte",
-        "//gazelle/swift",
-        "//gazelle/thrift",
-        "//gazelle/typescript",
-        "//gazelle/vue",
-        "//gazelle/zig",
+    data = ["lang.go"],
+    deps = ["//gazelle/%s" % name for name in GAZELLE_LANGUAGES] + [
         "//gazelle/common",
         "@gazelle//config",
         "@gazelle//language",

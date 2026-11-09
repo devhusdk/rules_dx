@@ -47,7 +47,6 @@ dx_runner_attr_test(
     expected = {"args": [
         "libfuzzer",
         "$(rootpath :parse_fuzz)",
-        "parse_fuzz",
     ]},
     runner = "parse_fuzz_run",
 )

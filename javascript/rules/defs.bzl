@@ -206,6 +206,5 @@ def javascript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, 
             "data": [":" + name + "_bin", node_modules] + list(srcs) + list(data or []),
             "fixed_args": fixed_args,
         },
-        target = name,
         **kwargs
     )

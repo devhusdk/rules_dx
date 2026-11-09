@@ -1,3 +1,5 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test")
@@ -47,6 +49,28 @@ roots_aggregate(
         "//dx:codegen",
         "//dx:env",
     ],
+)
+
+genquery(
+    name = "sync_roots_rust",
+    expression = "kind('rust_', deps(//dx:env) + deps(//dx:codegen))",
+    scope = [
+        "//dx:codegen",
+        "//dx:env",
+    ],
+)
+
+write_file(
+    name = "no_rust",
+    out = "no_rust.txt",
+    content = [],
+)
+
+# dx sync builds these roots in every consumer, so they must not compile Rust.
+diff_test(
+    name = "sync_roots_build_no_rust_test",
+    file1 = ":sync_roots_rust",
+    file2 = ":no_rust",
 )
 
 filegroup(

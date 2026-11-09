@@ -25,9 +25,9 @@ gazelle(
     visibility = VIS_DX_COMMANDS,
 )
 
-alias(
+filegroup(
     name = "env",
-    actual = "//cli/env:env",
+    srcs = [],
     visibility = VIS_DX_ROOTS,
 )
 

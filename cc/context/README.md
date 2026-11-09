@@ -1,41 +1,16 @@
 # C/C++ compilation context
 
-`//cc/context:compile_db` emits a clang-tidy consumption bundle for one Bazel target.
-
-```sh
-bazel build //cc/context:identity //cc/context:identity_exec
-bazel cquery --output=files //cc/context:identity //cc/context:identity_exec
-bazel aquery "mnemonic(CppCompile, deps(//pkg:target))" --output=jsonproto > actions.json
-bazel run //cc/context:compile_db -- \
-  --aquery actions.json \
-  --execroot "$(bazel info execution_root)" \
-  --label //pkg:target \
-  --require-source pkg/target.c \
-  --config pkg/.clang-tidy \
-  --output out \
-  --identity <first file from cquery> \
-  --identity <second file from cquery>
-```
-
-The output directory holds `compile_commands.json` and the bound `.clang-tidy`. Run
-clang-tidy against it with `-p out`.
-
-## Flags
-
-- `--aquery <path|->`: the `bazel aquery --output=jsonproto` record to read, `-` for stdin.
-- `--execroot <dir>`: the execroot the record's relative paths resolve against; must be absolute.
-- `--label <label>`: the target whose compile actions must be present.
-- `--require-source <path>`: a source that must have a compile command; repeatable.
-- `--config <path>`: the checked-in `.clang-tidy` policy to bind; required.
-- `--output <dir>`: directory to write the bundle into.
-- `--identity <file>`: compiler identity from `//cc/context:identity` or `//cc/context:identity_exec`; required, repeatable, one per configuration.
+`cc_context` (`src/lib.rs`) turns a `bazel aquery --output=jsonproto` record into a
+clang-tidy consumption bundle for one Bazel target: `compile_commands.json` and the bound
+`.clang-tidy`, to be run with `clang-tidy -p <bundle>`. The crate has no binary; the
+`//cc/context:identity` and `//cc/context:identity_exec` targets provide the compiler identity.
 
 ## Fail-closed behaviour
 
-The command exits non-zero and writes no bundle when the record has no compile action for
-`--label`, a `--require-source` has no compile command, one source has two conflicting
-compile commands, `--execroot` is relative, `--config` is missing, empty or not named
-`.clang-tidy`, no `--identity` is given, an action's configuration has no identity or an unknown driver,
+The exporter returns an error and writes no bundle when the record has no compile action for
+the label, a required source has no compile command, one source has two conflicting
+compile commands, the execroot is relative, the `.clang-tidy` policy is missing, empty or not named
+`.clang-tidy`, no identity is given, an action's configuration has no identity or an unknown driver,
 or an MSVC action has neither `INCLUDE` in its env nor `/imsvc`, `-imsvc`, `/winsysroot` or `-winsysroot` in argv, or no identity target.
 
 Every recorded argument reaches `compile_commands.json` unchanged, including the

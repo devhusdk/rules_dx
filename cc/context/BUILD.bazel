@@ -73,21 +73,6 @@ rust_test(
 )
 
 rust_binary(
-    name = "compile_db",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "cc/cc_context",
-        normal = True,
-    ),
-    crate_name = "compile_db",
-    crate_root = "src/main.rs",
-    deps = all_crate_deps(
-        package_name = "cc/cc_context",
-        normal = True,
-    ) + [":cc_context"],
-)
-
-rust_binary(
     name = "qualify",
     srcs = ["qualify/main.rs"],
     aliases = aliases(

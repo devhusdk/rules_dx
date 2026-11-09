@@ -9,10 +9,6 @@ name = "cc_context"
 path = "src/lib.rs"
 
 [[bin]]
-name = "compile_db"
-path = "src/main.rs"
-
-[[bin]]
 name = "qualify"
 path = "qualify/main.rs"
 

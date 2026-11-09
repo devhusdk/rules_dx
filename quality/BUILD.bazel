@@ -801,7 +801,6 @@ rust_test(
     data = [
         "//tools/workspace:clippy.toml",
         "//cc/context:src/lib.rs",
-        "//cc/context:src/main.rs",
         "//cli/adopt:src/lib.rs",
         "//cli/apply:src/lib.rs",
         "//cli/atomic_fs:src/lib.rs",

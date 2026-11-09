@@ -9,8 +9,6 @@ load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect
 load(":benchmarkdotnet.bzl", "BENCHMARKDOTNET")
 load(":proto.bzl", "csharp_proto_srcs")
 
-_BENCHMARKDOTNET = [Label("@paket.main//benchmarkdotnet"), Label("@paket.main//benchmarkdotnet.annotations")]
-
 # Set False to tag csharp tests dx-no-coverage-collector instead of running coverlet.
 CSHARP_COVERAGE_COLLECTOR = True
 

@@ -4,15 +4,15 @@ load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
 LINUX_PACKAGE_FORMATS = ["deb", "rpm", "apk"]
 
-_PACKAGE_ARCHES = {"aarch64": "arm64", "x86_64": "amd64"}
+LINUX_PACKAGE_ARCHES = {"aarch64": "arm64", "x86_64": "amd64"}
 
 def linux_package_arch_error(os, cpu):
     """Validates that the platform is a Linux platform the packages support."""
     if os != "linux":
         return "linux_package_deploy: unsupported os '" + os + "': want linux"
-    if cpu not in _PACKAGE_ARCHES:
+    if cpu not in LINUX_PACKAGE_ARCHES:
         return ("linux_package_deploy: unsupported cpu '" + cpu +
-                "': want one of " + ", ".join(sorted(_PACKAGE_ARCHES)))
+                "': want one of " + ", ".join(sorted(LINUX_PACKAGE_ARCHES)))
     return ""
 
 def linux_package_name_error(package):

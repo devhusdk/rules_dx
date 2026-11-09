@@ -3,7 +3,7 @@
 load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":config.bzl", "deploy_attrs", "deploy_identity")
 load(":github.bzl", "github_deploy")
-load(":validate_linux_package.bzl", "LINUX_PACKAGE_FORMATS", "linux_package_arch_error", "linux_package_dst_error", "linux_package_formats_error", "linux_package_name_error", "linux_package_version_error")
+load(":validate_linux_package.bzl", "LINUX_PACKAGE_ARCHES", "LINUX_PACKAGE_FORMATS", "linux_package_arch_error", "linux_package_dst_error", "linux_package_formats_error", "linux_package_name_error", "linux_package_version_error")
 
 def linux_package_filename(package, version, arch, fmt):
     """Returns the file name of one built package."""
@@ -53,7 +53,7 @@ def _linux_package_impl(ctx):
     arch_error = linux_package_arch_error(id.os, id.cpu)
     if arch_error != "":
         fail(arch_error + " (in " + str(ctx.label) + ")")
-    arch = _PACKAGE_ARCHES[id.cpu]
+    arch = LINUX_PACKAGE_ARCHES[id.cpu]
 
     config = ctx.actions.declare_file(ctx.label.name + ".nfpm.yaml")
     ctx.actions.write(

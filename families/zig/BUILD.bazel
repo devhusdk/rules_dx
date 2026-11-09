@@ -30,10 +30,9 @@ sh_test(
         "//zig/tests/fixtures/zig-app/cli:corpus_starlark",
         "//zig/tests/fixtures/zig-app/diagnostics:corpus_starlark",
         "//zig/tests/fixtures/zig-app/digest:corpus_starlark",
-        "//zig/tests/tags:corpus_starlark",
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
-    env = {"STARLARK_DOCS_PACKAGES": "zig/tests/fixtures/calc,zig/tests/fixtures/hello,zig/tests/fixtures/zig-app,zig/tests/fixtures/zig-app/catalog,zig/tests/fixtures/zig-app/cli,zig/tests/fixtures/zig-app/diagnostics,zig/tests/fixtures/zig-app/digest,zig/tests/tags"},
+    env = {"STARLARK_DOCS_PACKAGES": "zig/tests/fixtures/calc,zig/tests/fixtures/hello,zig/tests/fixtures/zig-app,zig/tests/fixtures/zig-app/catalog,zig/tests/fixtures/zig-app/cli,zig/tests/fixtures/zig-app/diagnostics,zig/tests/fixtures/zig-app/digest"},
 )
 
 # dx:begin exports

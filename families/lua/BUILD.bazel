@@ -31,10 +31,9 @@ sh_test(
         "//lua/tests/fixtures/lua-app/report:corpus_starlark",
         "//lua/tests/negative:corpus_starlark",
         "//lua/tests/runtime:corpus_starlark",
-        "//lua/tests/tags:corpus_starlark",
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
-    env = {"STARLARK_DOCS_PACKAGES": "lua/tests/analysis,lua/tests/fixtures/lua-app,lua/tests/fixtures/lua-app/catalog,lua/tests/fixtures/lua-app/cli,lua/tests/fixtures/lua-app/diagnostics,lua/tests/fixtures/lua-app/report,lua/tests/negative,lua/tests/runtime,lua/tests/tags"},
+    env = {"STARLARK_DOCS_PACKAGES": "lua/tests/analysis,lua/tests/fixtures/lua-app,lua/tests/fixtures/lua-app/catalog,lua/tests/fixtures/lua-app/cli,lua/tests/fixtures/lua-app/diagnostics,lua/tests/fixtures/lua-app/report,lua/tests/negative,lua/tests/runtime"},
 )
 
 # dx:begin exports

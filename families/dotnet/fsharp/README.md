@@ -90,7 +90,7 @@ Keep a `paket.dependencies` file in your module and generate the Bazel
 repository from it with rules_dotnet:
 
 ```sh
-bazel run @rules_dx_dotnet//dotnet:paket2bazel -- --dependencies-file third_party/dotnet/paket.dependencies --output-folder third_party/dotnet/deps
+bazel run @rules_dx//dotnet:paket2bazel -- --dependencies-file third_party/dotnet/paket.dependencies --output-folder third_party/dotnet/deps
 ```
 
 Load the generated extension in your `MODULE.bazel`:

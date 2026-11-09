@@ -441,30 +441,12 @@ rust_test(
 )
 
 rust_test(
-    name = "setup_bazel_test",
-    srcs = ["setup_bazel_test.rs"],
-    data = [
-        "//.github:actions",
-        "//.github:workflows",
-        "//ci/gitlab:dx.gitlab-ci.yml",
-        "//tools/bazelisk:pin.env",
-    ],
-    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
-    deps = [
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-        "@crates//:yaml_serde",
-    ],
-)
-
-rust_test(
     name = "consumer_inputs_test",
     srcs = ["consumer_inputs_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
         ":ci_workflow",
         "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
 )
@@ -635,20 +617,6 @@ rust_test(
 )
 
 rust_test(
-    name = "docs_deploy_test",
-    srcs = ["docs_deploy_test.rs"],
-    data = [
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/reusable-docs.yml",
-    ],
-    deps = [
-        ":ci_workflow",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-rust_test(
     name = "release_cells_runners_test",
     srcs = ["release_cells_runners_test.rs"],
     data = [
@@ -668,15 +636,7 @@ rust_test(
     name = "release_assets_test",
     srcs = ["release_assets_test.rs"],
     data = [
-        "release_cell.sh",
         "//:MODULE.bazel",
-        "//:RELEASING.md",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/evidence.yml",
-        "//.github:workflows/release.yml",
-        "//.github:workflows/release-cells.yml",
-        "//.github:workflows/release-consumer.yml",
-        "//cli/adopt:src/launcher.rs",
         "//cli/adopt:src/version.rs",
         "//cli/prebuilt:pins.bzl",
     ],

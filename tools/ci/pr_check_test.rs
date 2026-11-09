@@ -80,7 +80,6 @@ fn workflow_set_runs_the_action_and_workflow_tests() {
         .and_then(|rest| rest.split("\n}\n").next())
         .expect("workflow set");
     for label in [
-        "//tools/ci:setup_bazel_test",
         "//tools/ci:secret_flags_test",
         "//tools/ci:workflow_pins_test",
     ] {

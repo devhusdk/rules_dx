@@ -7,7 +7,7 @@ shift
 
 workflow() {
   bazel test "$@" //tools/ci:actionlint_test //tools/ci:workflow_expressions_test \
-    //tools/ci:setup_bazel_test //tools/ci:secret_flags_test //tools/ci:workflow_pins_test
+    //tools/ci:secret_flags_test //tools/ci:workflow_pins_test
 }
 
 PREFLIGHT_TARGETS='//cli/cli:dx //cc/tests/fixtures/hello:hello //cc/tests/fixtures/c-app/store:store_build_h

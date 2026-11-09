@@ -1403,3 +1403,15 @@ fn ran_keeps_head_and_tail_of_long_stdout() {
     assert!(error.contains("\n...\n"), "{error}");
     assert!(error.len() < 4300, "{}", error.len());
 }
+
+#[test]
+fn clip_cuts_on_char_boundaries() {
+    let head = format!("{}é{}", "x".repeat(2999), "y".repeat(3000));
+    let clipped = clip(&head);
+    assert!(clipped.starts_with(&"x".repeat(2999)), "{clipped}");
+    assert!(!clipped.contains('é'), "{clipped}");
+    let tail = format!("{}é{}", "x".repeat(3000), "y".repeat(999));
+    let clipped = clip(&tail);
+    assert!(clipped.ends_with(&"y".repeat(999)), "{clipped}");
+    assert!(!clipped.contains('é'), "{clipped}");
+}

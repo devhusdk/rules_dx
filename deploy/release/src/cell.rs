@@ -626,7 +626,7 @@ fn installed_checks(
                 vec!["check", "--diff", "//..."],
             ]
             .into_iter()
-                .try_for_each(|args| ran(runner, &moved_exe, &args, &dir).map(drop))
+            .try_for_each(|args| ran(runner, &moved_exe, &args, &dir).map(drop))
         }),
     );
 }

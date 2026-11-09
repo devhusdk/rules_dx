@@ -1,7 +1,7 @@
 """Unit tests for the Hex publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":hex.bzl", "hex_name_error", "hex_tool_error", "hex_version_error")
+load(":validate_hex.bzl", "hex_name_error", "hex_tool_error", "hex_version_error")
 
 def hex_unit_tests(name):
     starlark_test(

@@ -2,7 +2,7 @@
 
 load("//deploy/release:tool.bzl", "RELEASE_DEPLOY_TOOL")
 load("//deploy/rules:config.bzl", "deploy_config", "rlocation_path")
-load("//deploy/rules:defs.bzl", "dx_deployment")
+load("//deploy/rules:deployment.bzl", "dx_deployment")
 load("//deploy/rules:validate.bzl", "genrule_arg")
 
 def bcr_source_error(module_name, version):

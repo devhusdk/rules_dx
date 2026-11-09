@@ -2,8 +2,8 @@
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
-load(":crates_validate.bzl", "crates_name_error", "crates_version_error")
-load(":defs.bzl", "dx_deployment")
+load(":deployment.bzl", "dx_deployment")
+load(":validate_crates.bzl", "crates_name_error", "crates_version_error")
 
 def _crates_config_impl(ctx):
     """Writes the deploy config for one crates.io deployment."""

@@ -1,3 +1,5 @@
+"""Validators for the crates deploy rule."""
+
 load(":validate.bzl", "ALNUM", "VERSION_CHARS", "only_chars")
 
 _VALID_NAME_CHARS = ALNUM + "_-"

@@ -1,8 +1,8 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
-load("//deploy/rules:native_runtime.bzl", "native_runtime")
+load("//deploy/rules:native_runtime.bzl", "dx_native_runtime")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
-load("//deploy/rules:native_probe.bzl", "NATIVE_PROBE_COMPATIBLE", "native_probe_runtime_files")
+load("//deploy/rules:native_probe.bzl", "NATIVE_PROBE_COMPATIBLE", "dx_native_probe_runtime_files")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//deploy/rules:__pkg__"])
@@ -25,7 +25,7 @@ cc_shared_library(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
-native_runtime(
+dx_native_runtime(
     name = "dx_probe_helper_runtime",
     srcs = [":dx_probe_helper"],
     notice = "dx_probe_helper_NOTICE.txt",
@@ -83,7 +83,7 @@ filegroup(
     ],
 )
 
-native_probe_runtime_files(
+dx_native_probe_runtime_files(
     name = "msvc_runtime_files",
     runtime = "//cc/toolchains:msvc_vcruntime",
     tags = ["manual"],

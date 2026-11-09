@@ -1,7 +1,7 @@
 """Unit tests for the Hackage publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":hackage.bzl", "hackage_name_error", "hackage_sdist_error", "hackage_version_error")
+load(":validate_hackage.bzl", "hackage_name_error", "hackage_sdist_error", "hackage_version_error")
 
 def hackage_unit_tests(name):
     starlark_test(

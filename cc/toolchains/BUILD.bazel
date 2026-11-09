@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("//cc/rules:wrapper_tests.bzl", "cc_gcov_coverage_env_test")
 load("//cc/toolchains/msvc:toolchains.bzl", "msvc_toolchains")
-load("//deploy/rules:native_runtime.bzl", "native_runtime")
+load("//deploy/rules:native_runtime.bzl", "dx_native_runtime")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":bindings.bzl", "CC_COMPILERS")
 load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
@@ -551,7 +551,7 @@ exports_files(
 
 # The glibc and libgcc of the pinned GCC sysroot come from the host OS, and
 # libstdc++ is linked statically, so nothing ships with the app.
-native_runtime(
+dx_native_runtime(
     name = "gcc_linux_glibc",
     redistribution = "os_supplied",
     source = "gcc " + GCC_VERSION + " sysroot",
@@ -592,7 +592,7 @@ genrule(
     cmd = "cat $(SRCS) > $@",
 )
 
-native_runtime(
+dx_native_runtime(
     name = "gcc_linux_libstdcxx",
     srcs = [":gcc_linux_libstdcxx_libs"],
     notice = ":gcc_linux_libstdcxx_notice",
@@ -628,7 +628,7 @@ alias(
 )
 
 # The Universal CRT is part of Windows 10 and later.
-native_runtime(
+dx_native_runtime(
     name = "windows_ucrt",
     provides = [
         "api-ms-win-*",

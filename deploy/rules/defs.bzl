@@ -1,167 +1,54 @@
-"""Deploy boundary for dx deploy."""
+"""Public entry point of the deploy rules."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
-load("//libs/starlark:wrapper.bzl", "dx_symlink_executable")
-load(":sbom.bzl", "DxSbomFileInfo")
-load(":config.bzl", "DxDeployConfigInfo", "rlocation_path")
-load(":validate.bzl", "parse_size_budget", "size_budget_error")
+load(":archive.bzl", _archive_deploy = "archive_deploy", _consumer_archive = "consumer_archive")
+load(":cloudflare.bzl", _cloudflare_pages_deploy = "cloudflare_pages_deploy")
+load(":crates.bzl", _crates_deploy = "crates_deploy")
+load(":debug_info.bzl", _dx_dsym = "dx_dsym", _dx_pdb = "dx_pdb", _dx_split_debug_info = "dx_split_debug_info")
+load(":deployment.bzl", _DxDeployInfo = "DxDeployInfo", _VALID_DEPLOY_BUILD_MODES = "VALID_DEPLOY_BUILD_MODES", _dx_deployment = "dx_deployment")
+load(":github.bzl", _github_deploy = "github_deploy")
+load(":hackage.bzl", _hackage_deploy = "hackage_deploy")
+load(":helm.bzl", _helm_chart_deploy = "helm_chart_deploy")
+load(":hex.bzl", _hex_deploy = "hex_deploy")
+load(":homebrew.bzl", _homebrew_tap_deploy = "homebrew_tap_deploy")
+load(":image.bzl", _oci_image_from_binary = "oci_image_from_binary")
+load(":linux_package.bzl", _linux_package_deploy = "linux_package_deploy")
+load(":luarocks.bzl", _luarocks_deploy = "luarocks_deploy")
+load(":maven.bzl", _maven_deploy = "maven_deploy")
+load(":npm.bzl", _npm_deploy = "npm_deploy")
+load(":nuget.bzl", _nuget_deploy = "nuget_deploy")
+load(":oci.bzl", _oci_deploy = "oci_deploy")
+load(":octopus.bzl", _octopus_deploy = "octopus_deploy")
+load(":pub.bzl", _pub_deploy = "pub_deploy")
+load(":pypi.bzl", _pypi_deploy = "pypi_deploy")
+load(":resources.bzl", _dx_resources = "dx_resources")
+load(":rubygems.bzl", _rubygems_deploy = "rubygems_deploy")
+load(":sbom.bzl", _dx_sbom = "dx_sbom")
 
-DxDeployInfo = provider(
-    doc = "Deploy entrypoint identity and default build mode for dx deploy dispatch.",
-    fields = {
-        "app": "Label or None: the deployed app target when distinct from the deploy target.",
-        "artifacts": "List of Labels: declared app artifact targets staged for the deploy tool.",
-        "sbom": "String: exec path of the SPDX document, empty without an sbom.",
-        "size_budget": "String: the size_budget attribute, empty when unset.",
-        "size_stamp": "String: exec path of the file holding the checked size, empty without a budget.",
-        "build_mode": "String or None: default build mode ('debug', 'dev', 'release'); None means the command default applies.",
-    },
-)
-
-VALID_DEPLOY_BUILD_MODES = ["debug", "dev", "release"]
-
-def _dx_deployment_impl(ctx):
-    deploy_default = ctx.attr.deploy[DefaultInfo]
-    run = deploy_default.files_to_run
-    exe = run.executable if run != None else None
-    if exe == None:
-        fail("dx_deployment " + str(ctx.label) + ": deploy target " +
-             str(ctx.attr.deploy.label) + " has no executable")
-    link = dx_symlink_executable(ctx, exe)
-    runfiles = ctx.runfiles(files = [link]).merge(deploy_default.default_runfiles)
-    budget_error = size_budget_error(ctx.attr.size_budget)
-    if budget_error:
-        fail("dx_deployment " + str(ctx.label) + ": " + budget_error)
-    artifact_labels = []
-    artifact_files = []
-    for target in ctx.attr.artifacts:
-        info = target[DefaultInfo]
-        files = info.files.to_list()
-        if len(files) == 0:
-            fail("dx_deployment " + str(ctx.label) + ": artifact " +
-                 str(target.label) + " provides no files")
-        artifact_labels.append(display_label(target.label))
-        artifact_files.extend(files)
-        runfiles = runfiles.merge(ctx.runfiles(files = files))
-        runfiles = runfiles.merge(info.default_runfiles)
-    for target in ctx.attr.data:
-        runfiles = runfiles.merge(ctx.runfiles(files = target[DefaultInfo].files.to_list()))
-    extra = []
-    environment = {}
-    built = [link]
-    if ctx.attr.config:
-        config = ctx.attr.config[DxDeployConfigInfo]
-        runfiles = runfiles.merge(ctx.attr.config[DefaultInfo].default_runfiles)
-        runfiles = runfiles.merge(ctx.runfiles(files = [config.file]))
-        extra.append(config)
-        environment["DX_DEPLOY_CONFIG"] = rlocation_path(ctx, config.file)
-    sbom_path = ""
-    if ctx.attr.sbom:
-        sbom_file = ctx.attr.sbom[DxSbomFileInfo].file
-        runfiles = runfiles.merge(ctx.runfiles(files = [sbom_file]))
-        environment["DX_DEPLOY_SBOM"] = rlocation_path(ctx, sbom_file)
-        sbom_path = sbom_file.path
-        built.append(sbom_file)
-    app_label = None
-    app_text = ""
-    if ctx.attr.app:
-        app_label = ctx.attr.app.label
-        app_text = display_label(app_label)
-    validation = []
-    size_stamp = ""
-    if ctx.attr.size_budget and artifact_files:
-        stamp = ctx.actions.declare_file(ctx.label.name + ".size_budget")
-        args = ctx.actions.args()
-        args.add(parse_size_budget(ctx.attr.size_budget))
-        args.add(stamp)
-        args.add_all(artifact_files)
-        ctx.actions.run(
-            executable = ctx.executable._size_checker,
-            arguments = [args],
-            inputs = artifact_files,
-            outputs = [stamp],
-            mnemonic = "DxSizeBudget",
-            progress_message = "Checking size_budget of " + str(ctx.label),
-        )
-        validation.append(stamp)
-        size_stamp = stamp.path
-    if environment:
-        extra.append(RunEnvironmentInfo(environment = environment))
-    return [
-        OutputGroupInfo(_validation = depset(validation)),
-        DefaultInfo(
-            executable = link,
-            files = depset(built),
-            runfiles = runfiles,
-        ),
-        DxDeployInfo(
-            app = app_label,
-            artifacts = [target.label for target in ctx.attr.artifacts],
-            build_mode = ctx.attr.build_mode,
-            sbom = sbom_path,
-            size_budget = ctx.attr.size_budget,
-            size_stamp = size_stamp,
-        ),
-        DxSubjectInfo(fields = {
-            "app": app_text,
-            "artifacts": ",".join(artifact_labels),
-            "build_mode": ctx.attr.build_mode,
-        }),
-    ] + extra
-
-dx_deployment = rule(
-    implementation = _dx_deployment_impl,
-    doc = "Deployment that dx deploy runs with a declared build mode.",
-    executable = True,
-    attrs = {
-        "app": attr.label(
-            doc = "App target described by the deployment when distinct from the deploy target.",
-            cfg = "target",
-            executable = True,
-            mandatory = False,
-            providers = [DefaultInfo],
-        ),
-        "artifacts": attr.label_list(
-            doc = "Artifact targets staged into the deployment runfiles.",
-            allow_files = True,
-            cfg = "target",
-            mandatory = False,
-        ),
-        "config": attr.label(
-            cfg = "target",
-            mandatory = False,
-            providers = [DxDeployConfigInfo],
-            doc = "Deploy config the shared deploy_tool reads through DX_DEPLOY_CONFIG.",
-        ),
-        "data": attr.label_list(
-            allow_files = True,
-            cfg = "target",
-            doc = "Extra target-config files built and shipped with the deployment.",
-        ),
-        "deploy": attr.label(
-            doc = "Executable target that performs the deployment when run.",
-            cfg = "exec",
-            executable = True,
-            mandatory = True,
-        ),
-        "sbom": attr.label(
-            cfg = "target",
-            mandatory = False,
-            providers = [DxSbomFileInfo],
-            doc = "dx_sbom target whose SPDX document is staged with the deployment and counted by a dx deploy check.",
-        ),
-        "size_budget": attr.string(
-            doc = "Largest total size of artifacts, such as 25MB (decimal B, KB, MB or GB). Building fails above it and prints both sizes in bytes. Empty means no budget.",
-        ),
-        "_size_checker": attr.label(
-            cfg = "exec",
-            default = Label("//deploy/rules:size_checker"),
-            executable = True,
-        ),
-        "build_mode": attr.string(
-            doc = "Default build mode, one of debug, dev, or release.",
-            default = "release",
-            values = VALID_DEPLOY_BUILD_MODES,
-        ),
-    },
-)
+DxDeployInfo = _DxDeployInfo
+VALID_DEPLOY_BUILD_MODES = _VALID_DEPLOY_BUILD_MODES
+archive_deploy = _archive_deploy
+cloudflare_pages_deploy = _cloudflare_pages_deploy
+consumer_archive = _consumer_archive
+crates_deploy = _crates_deploy
+dx_deployment = _dx_deployment
+dx_dsym = _dx_dsym
+dx_pdb = _dx_pdb
+dx_resources = _dx_resources
+dx_sbom = _dx_sbom
+dx_split_debug_info = _dx_split_debug_info
+github_deploy = _github_deploy
+hackage_deploy = _hackage_deploy
+helm_chart_deploy = _helm_chart_deploy
+hex_deploy = _hex_deploy
+homebrew_tap_deploy = _homebrew_tap_deploy
+linux_package_deploy = _linux_package_deploy
+luarocks_deploy = _luarocks_deploy
+maven_deploy = _maven_deploy
+npm_deploy = _npm_deploy
+nuget_deploy = _nuget_deploy
+oci_deploy = _oci_deploy
+oci_image_from_binary = _oci_image_from_binary
+octopus_deploy = _octopus_deploy
+pub_deploy = _pub_deploy
+pypi_deploy = _pypi_deploy
+rubygems_deploy = _rubygems_deploy

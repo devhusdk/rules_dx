@@ -1,3 +1,5 @@
+"""Validators for the maven deploy rule."""
+
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
 _VALID_GROUP_CHARS = NAME_CHARS

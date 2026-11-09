@@ -2,40 +2,8 @@
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
-load(":defs.bzl", "dx_deployment")
-load(":validate.bzl", "NAME_CHARS", "only_chars")
-
-_VALID_TAG_CHARS = NAME_CHARS
-
-def github_notes_error(notes, notes_file = None):
-    """Validates the notes value: commits or none, with an optional notes_file."""
-    if notes not in ["commits", "none"]:
-        return "github_deploy: invalid notes '" + str(notes) + "': want 'commits' or 'none'; use notes_file for a file"
-    if notes_file and notes != "none":
-        return "github_deploy: notes_file needs notes = 'none'"
-    return ""
-
-def github_tag_error(tag):
-    """Validates one release tag value."""
-    if type(tag) != "string" or tag == "":
-        return ("github_deploy: invalid release_tag '" + str(tag) +
-                "': want a non-empty tag (for example 'v0.0.0-dryrun')")
-    if tag == "current":
-        return "github_deploy: invalid release_tag 'current': use tag_from_head = True"
-    if not only_chars(tag, _VALID_TAG_CHARS):
-        return ("github_deploy: invalid release_tag '" + tag +
-                "': want only [A-Za-z0-9._-]")
-    return ""
-
-def github_asset_collision_error(assets):
-    """Reports the first pair of artifacts that share one asset name."""
-    seen = {}
-    for label, base in assets:
-        if base in seen:
-            return ("github_deploy: artifacts " + seen[base] + " and " + label +
-                    " share the asset name '" + base + "'")
-        seen[base] = label
-    return ""
+load(":deployment.bzl", "dx_deployment")
+load(":validate_github.bzl", "github_asset_collision_error", "github_notes_error", "github_tag_error")
 
 def _github_config_impl(ctx):
     """Writes the deploy config for one draft release."""
@@ -89,7 +57,7 @@ def _github_config_impl(ctx):
         ctx.runfiles(files = asset_files + ([ctx.file.notes_file] if ctx.file.notes_file else [])).merge(runfiles).merge(apidiff_runfiles),
     )
 
-github_config = rule(
+_github_config = rule(
     doc = "Writes the deploy config for one draft release.",
     implementation = _github_config_impl,
     attrs = API_COMPAT_ATTRS | {
@@ -135,7 +103,7 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         fail(api_error + " (in " + native.package_name() + ":" + name + ")")
     checked = api_compat != "off"
     config_target = name + "_config"
-    github_config(
+    _github_config(
         name = config_target,
         api_baseline = api_baseline,
         api_compat = api_compat,

@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":api_compat.bzl", "api_compat_error")
-load(":pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_registry_url_error", "pub_name_error", "pub_version_error")
+load(":validate_pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_registry_url_error", "pub_name_error", "pub_version_error")
 
 def pub_unit_tests(name):
     starlark_test(

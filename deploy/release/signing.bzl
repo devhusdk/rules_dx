@@ -3,7 +3,7 @@
 load("//deploy/release:cosign_pins.bzl", "COSIGN_VERSION")
 load("//deploy/release:tool.bzl", "RELEASE_DEPLOY_TOOL")
 load("//deploy/rules:config.bzl", "deploy_config", "rlocation_path")
-load("//deploy/rules:defs.bzl", "dx_deployment")
+load("//deploy/rules:deployment.bzl", "dx_deployment")
 
 SIGNING_TRUST_ROOT = "https://tuf-repo-cdn.sigstore.dev"
 SIGNING_ISSUER = "https://token.actions.githubusercontent.com"

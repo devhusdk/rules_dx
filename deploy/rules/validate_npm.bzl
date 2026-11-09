@@ -1,3 +1,5 @@
+"""Validators for the npm deploy rule."""
+
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 _VALID_TAG_CHARS = NAME_CHARS

@@ -23,7 +23,7 @@ Every `*_deploy` macro ends with the same four attributes: `tags`,
 Publishes one jar and its pom to a Maven repository.
 
 ```starlark
-load("@rules_dx//deploy/rules:maven.bzl", "maven_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "maven_deploy")
 
 maven_deploy(
     name = "maven_demo",
@@ -113,7 +113,7 @@ Refusals, all exit 1:
 Packs files into an npm tarball and a local feed.
 
 ```starlark
-load("@rules_dx//deploy/rules:npm.bzl", "npm_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "npm_deploy")
 
 npm_deploy(
     name = "npm_demo",
@@ -162,7 +162,7 @@ Publishes a static bundle directory to an existing Cloudflare Pages project
 with a pinned Wrangler that Bazel builds.
 
 ```starlark
-load("@rules_dx//deploy/rules:cloudflare.bzl", "cloudflare_pages_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "cloudflare_pages_deploy")
 
 cloudflare_pages_deploy(
     name = "site_deploy",
@@ -242,7 +242,7 @@ Packages one executable as a tarball plus a sha256 file. No credentials and
 no live mode.
 
 ```starlark
-load("@rules_dx//deploy/rules:archive.bzl", "archive_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "archive_deploy")
 
 archive_deploy(
     name = "tasks_deploy",
@@ -279,7 +279,7 @@ Packages one app with its runtime files, resources, a `NOTICE` and an
 `IDENTITY.txt` as a tar.gz or zip plus a sha256 file. It builds files only and has no deploy run.
 
 ```starlark
-load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
+load("@rules_dx//deploy/rules:defs.bzl", "consumer_archive")
 
 consumer_archive(
     name = "ledger_release",
@@ -300,7 +300,7 @@ consumer_archive(
 - `linkage`: `static` or `dynamic`. Defaults to `dynamic`.
 - `runtime`: files the app needs at run time. Each lands at the archive root
   under its basename, mode 0644. Native libraries (`.dll`, `.dylib`, `.so` or
-  `.so.<n>`) must come through a `native_runtime` target; a plain file with
+  `.so.<n>`) must come through a `dx_native_runtime` target; a plain file with
   such a name fails the archive. Defaults to `[]`.
 - `format`: `tar.gz` or `zip`. Defaults to `tar.gz`.
 - `resources`: targets whose files land under `resources/`. Each file must
@@ -312,14 +312,14 @@ consumer_archive(
 
 `IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`,
 then one sorted `runtime: <name> <version> <redistribution>` line per
-`native_runtime` target in `runtime`.
-A `runtime` entry may be a `native_runtime` target, which records where a
+`dx_native_runtime` target in `runtime`.
+A `runtime` entry may be a `dx_native_runtime` target, which records where a
 library comes from and whether it may ship:
 
 ```starlark
-load("@rules_dx//deploy/rules:native_runtime.bzl", "native_runtime")
+load("@rules_dx//deploy/rules:native_runtime.bzl", "dx_native_runtime")
 
-native_runtime(
+dx_native_runtime(
     name = "vcruntime",
     srcs = ["vcruntime140.dll"],
     notice = "vcruntime_NOTICE.txt",
@@ -368,7 +368,7 @@ Examples: [Qt packaging](../../qt/README.md#packaging) and
 Stages crate sources as a local vendor tree and publishes them to crates.io.
 
 ```starlark
-load("@rules_dx//deploy/rules:crates.bzl", "crates_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "crates_deploy")
 
 crates_deploy(
     name = "crates_demo",
@@ -405,7 +405,7 @@ registry's message and the run exits 1.
 Stages an Elixir or Erlang package and publishes it to Hex.
 
 ```starlark
-load("@rules_dx//deploy/rules:hex.bzl", "hex_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "hex_deploy")
 
 hex_deploy(
     name = "hex_demo",
@@ -443,7 +443,7 @@ A live run refuses version `0.0.0`. It runs `mix hex.publish --yes`
 Builds a gem from its sources and pushes it to rubygems.org.
 
 ```starlark
-load("@rules_dx//deploy/rules:rubygems.bzl", "rubygems_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "rubygems_deploy")
 
 rubygems_deploy(
     name = "rubygems_demo",
@@ -485,7 +485,7 @@ it, the run prints the last `gem` output lines and exits 1.
 Stages pinned files for a draft GitHub Release and creates the draft.
 
 ```starlark
-load("@rules_dx//deploy/rules:github.bzl", "github_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "github_deploy")
 
 github_deploy(
     name = "github_demo",
@@ -524,7 +524,7 @@ tag must already exist on GitHub. A live run refuses `v0.0.0-dryrun`.
 Renders a Homebrew formula from a `github_deploy` release and pushes it to a tap repository.
 
 ```starlark
-load("@rules_dx//deploy/rules:homebrew.bzl", "homebrew_tap_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "homebrew_tap_deploy")
 
 homebrew_tap_deploy(
     name = "tool_tap",
@@ -561,7 +561,7 @@ Builds `.deb`, `.rpm` and `.apk` packages from one binary with a pinned
 `nfpm` and attaches them to a draft GitHub Release through `github_deploy`.
 
 ```starlark
-load("@rules_dx//deploy/rules:linux_package.bzl", "linux_package_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "linux_package_deploy")
 
 linux_package_deploy(
     name = "demo",
@@ -595,7 +595,7 @@ Linux x86_64, Linux arm64 and macOS arm64 hosts.
 Stages a Dart or Flutter package and publishes it to pub.dev.
 
 ```starlark
-load("@rules_dx//deploy/rules:pub.bzl", "pub_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "pub_deploy")
 
 pub_deploy(
     name = "pub_demo",
@@ -635,7 +635,7 @@ lands only in a temporary `PUB_CACHE` that is removed afterwards.
 Stages one nupkg as a local folder feed and pushes it to a NuGet source.
 
 ```starlark
-load("@rules_dx//deploy/rules:nuget.bzl", "nuget_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "nuget_deploy")
 
 nuget_deploy(
     name = "nuget_demo",
@@ -673,7 +673,7 @@ skipped, the run prints `nuget_deploy: skipped <id> <version>: already on
 Stages one cabal sdist locally and uploads it to Hackage.
 
 ```starlark
-load("@rules_dx//deploy/rules:hackage.bzl", "hackage_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "hackage_deploy")
 
 hackage_deploy(
     name = "hackage-demo",
@@ -705,7 +705,7 @@ This runs `cabal upload --publish --token=...`, so the token is visible in the
 Stages one rockspec locally and uploads it to LuaRocks.
 
 ```starlark
-load("@rules_dx//deploy/rules:luarocks.bzl", "luarocks_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "luarocks_deploy")
 
 luarocks_deploy(
     name = "luarocks_demo",
@@ -739,8 +739,8 @@ it runs. A live run refuses upstream version `0.0.0`.
 Builds an OCI image from one binary, with no Dockerfile.
 
 ```starlark
-load("@rules_dx//deploy/rules:image.bzl", "oci_image_from_binary")
-load("@rules_dx//deploy/rules:oci.bzl", "oci_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "oci_image_from_binary")
+load("@rules_dx//deploy/rules:defs.bzl", "oci_deploy")
 
 oci_image_from_binary(
     name = "image",
@@ -783,7 +783,7 @@ The `oci_deploy` dry run prints the image size in bytes.
 Stages one image as a local OCI layout and pushes it to a registry.
 
 ```starlark
-load("@rules_dx//deploy/rules:oci.bzl", "oci_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "oci_deploy")
 
 oci_deploy(
     name = "oci_demo",
@@ -839,7 +839,7 @@ A live run refuses tags `0.0.0` and `0.0.0-dryrun`.
 Stages one package for Octopus Deploy and pushes it to an Octopus server.
 
 ```starlark
-load("@rules_dx//deploy/rules:octopus.bzl", "octopus_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "octopus_deploy")
 
 octopus_deploy(
     name = "octopus_demo",
@@ -892,7 +892,7 @@ Native wheels come from `py_wheel`; there is no path that rebuilds an
 extension from the sdist.
 
 ```starlark
-load("@rules_dx//deploy/rules:pypi.bzl", "pypi_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "pypi_deploy")
 
 pypi_deploy(
     name = "pypi_demo",
@@ -978,7 +978,7 @@ Exit codes:
 Packages a `helm_chart` with the pinned `helm` and pushes it to an OCI registry.
 
 ```starlark
-load("@rules_dx//deploy/rules:helm.bzl", "helm_chart_deploy")
+load("@rules_dx//deploy/rules:defs.bzl", "helm_chart_deploy")
 
 helm_chart_deploy(
     name = "helm_demo",
@@ -1013,7 +1013,7 @@ Exit codes:
 Splits the debug info out of a Linux `cc_binary`.
 
 ```starlark
-load("@rules_dx//deploy/rules:debug_info.bzl", "dx_split_debug_info")
+load("@rules_dx//deploy/rules:defs.bzl", "dx_split_debug_info")
 
 dx_split_debug_info(
     name = "app_split",
@@ -1047,7 +1047,7 @@ or arch.
 Pairs the dSYM of a macOS `cc_binary` with that binary.
 
 ```starlark
-load("@rules_dx//deploy/rules:debug_info.bzl", "dx_dsym")
+load("@rules_dx//deploy/rules:defs.bzl", "dx_dsym")
 
 dx_dsym(
     name = "app_dsym",
@@ -1080,7 +1080,7 @@ llvm-symbolizer --obj=app_dsym.dSYM/Contents/Resources/DWARF/app 0x100003f40
 Pairs the PDB of a Windows `cc_binary` with that binary.
 
 ```starlark
-load("@rules_dx//deploy/rules:debug_info.bzl", "dx_pdb")
+load("@rules_dx//deploy/rules:defs.bzl", "dx_pdb")
 
 dx_pdb(
     name = "app_pdb",

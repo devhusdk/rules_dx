@@ -1,6 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_library")
 load("//deploy/rules:archive.bzl", "consumer_archive")
-load("//deploy/rules:native_runtime.bzl", "native_runtime")
+load("//deploy/rules:native_runtime.bzl", "dx_native_runtime")
 load("//deploy/rules:resources.bzl", "dx_resources")
 load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
@@ -133,7 +133,7 @@ rust_test(
     ],
 )
 
-native_runtime(
+dx_native_runtime(
     name = "demo_runtime",
     srcs = ["libdemo_runtime.so"],
     notice = "demo_runtime_NOTICE.txt",
@@ -142,14 +142,14 @@ native_runtime(
     version = "1.2",
 )
 
-native_runtime(
+dx_native_runtime(
     name = "demo_os_runtime",
     redistribution = "os_supplied",
     source = "operating system",
     version = "2.17",
 )
 
-native_runtime(
+dx_native_runtime(
     name = "demo_build_runtime",
     srcs = ["libdemo_runtime.so"],
     redistribution = "build_only",
@@ -157,7 +157,7 @@ native_runtime(
     version = "1.2",
 )
 
-native_runtime(
+dx_native_runtime(
     name = "demo_runtime_no_notice",
     srcs = ["libdemo_runtime.so"],
     redistribution = "app_local",
@@ -166,7 +166,7 @@ native_runtime(
     version = "1.2",
 )
 
-native_runtime(
+dx_native_runtime(
     name = "demo_os_runtime_files",
     srcs = ["libdemo_runtime.so"],
     redistribution = "os_supplied",
@@ -175,7 +175,7 @@ native_runtime(
     version = "2.17",
 )
 
-native_runtime(
+dx_native_runtime(
     name = "demo_runtime_no_version",
     srcs = ["libdemo_runtime.so"],
     notice = "demo_runtime_NOTICE.txt",

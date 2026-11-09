@@ -1,7 +1,7 @@
 """Unit tests for the Helm chart publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":helm.bzl", "helm_version_error")
+load(":validate_helm.bzl", "helm_version_error")
 
 def helm_unit_tests(name):
     starlark_test(

@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//deploy/rules:config.bzl", "DEPLOY_TOOL")
-load("//deploy/rules:defs.bzl", "dx_deployment")
+load("//deploy/rules:deployment.bzl", "dx_deployment")
 
 def _plain_file_rejected_impl(ctx):
     env = analysistest.begin(ctx)

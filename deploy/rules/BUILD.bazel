@@ -9,15 +9,15 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load(":api_compat_tests.bzl", "api_compat_unit_tests")
 load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_unit_tests", "consumer_archive_unit_tests")
-load(":cloudflare.bzl", "cloudflare_config", "cloudflare_pages_deploy")
+load(":cloudflare.bzl", "cloudflare_pages_deploy")
 load(":cloudflare_tests.bzl", "cloudflare_program_closure_tests", "cloudflare_unit_tests", "site_dir")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_config_content_tests", "crates_unit_tests")
-load(":defs.bzl", "dx_deployment")
+load(":deployment.bzl", "dx_deployment")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
-load(":github.bzl", "github_config", "github_deploy")
+load(":github.bzl", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
-load(":go_sdk.bzl", "go_binary_file")
+load(":go_sdk.bzl", "dx_go_binary_file")
 load(":hackage.bzl", "hackage_deploy")
 load(":hackage_tests.bzl", "hackage_unit_tests")
 load(":helm_tests.bzl", "helm_unit_tests")
@@ -65,8 +65,8 @@ exports_files([
     "config.bzl",
     "crates.bzl",
     "crates_tests.bzl",
-    "crates_validate.bzl",
     "defs.bzl",
+    "deployment.bzl",
     "debug_info.bzl",
     "deploy_tests.bzl",
     "github.bzl",
@@ -86,13 +86,11 @@ exports_files([
     "luarocks_tests.bzl",
     "maven.bzl",
     "maven_tests.bzl",
-    "maven_validate.bzl",
     "native_probe.bzl",
     "native_runtime.bzl",
     "native_runtime_tests.bzl",
     "npm.bzl",
     "npm_tests.bzl",
-    "npm_validate.bzl",
     "nuget.bzl",
     "nuget_tests.bzl",
     "image.bzl",
@@ -141,6 +139,27 @@ exports_files([
     "src/stage.rs",
     "src/test_support.rs",
     "validate.bzl",
+    "validate_archive.bzl",
+    "validate_cloudflare.bzl",
+    "validate_crates.bzl",
+    "validate_github.bzl",
+    "validate_hackage.bzl",
+    "validate_helm.bzl",
+    "validate_hex.bzl",
+    "validate_homebrew.bzl",
+    "validate_image.bzl",
+    "validate_linux_package.bzl",
+    "validate_luarocks.bzl",
+    "validate_maven.bzl",
+    "validate_native_runtime.bzl",
+    "validate_npm.bzl",
+    "validate_nuget.bzl",
+    "validate_oci.bzl",
+    "validate_octopus.bzl",
+    "validate_pub.bzl",
+    "validate_pypi.bzl",
+    "validate_resources.bzl",
+    "validate_rubygems.bzl",
     "validate_tests.bzl",
     "verify_test.rs",
 ])
@@ -920,8 +939,8 @@ genrule(
     tags = ["manual"],
 )
 
-github_config(
-    name = "github_dup_config",
+github_deploy(
+    name = "github_dup",
     artifacts = [
         ":github_dup_a",
         ":github_dup_b",
@@ -1495,11 +1514,10 @@ cloudflare_pages_deploy(
     wrangler = ":cloudflare_demo_wrangler",
 )
 
-cloudflare_config(
-    name = "cloudflare_not_a_directory_config",
+cloudflare_pages_deploy(
+    name = "cloudflare_not_a_directory",
     account_id = "0123456789abcdef0123456789abcdef",
     branch = "feature/demo",
-    deploy_name = "cloudflare_not_a_directory",
     production_branch = "main",
     project = "dx-demo",
     site = "cloudflare_demo/site/index.html",
@@ -1867,7 +1885,7 @@ java_library(
     srcs = ["testdata/maven/api_old/Api.java"],
 )
 
-go_binary_file(name = "go_binary")
+dx_go_binary_file(name = "go_binary")
 
 java_library(
     name = "maven_api_new_lib",
@@ -2053,8 +2071,8 @@ real_source_target(
         "config.bzl",
         "crates.bzl",
         "crates_tests.bzl",
-        "crates_validate.bzl",
         "defs.bzl",
+        "deployment.bzl",
         "deploy_tests.bzl",
         "github.bzl",
         "github_tests.bzl",
@@ -2066,10 +2084,8 @@ real_source_target(
         "homebrew_tests.bzl",
         "maven.bzl",
         "maven_tests.bzl",
-        "maven_validate.bzl",
         "npm.bzl",
         "npm_tests.bzl",
-        "npm_validate.bzl",
         "nuget.bzl",
         "nuget_tests.bzl",
         "oci.bzl",
@@ -2088,6 +2104,27 @@ real_source_target(
         "resources.bzl",
         "resources_tests.bzl",
         "validate.bzl",
+        "validate_archive.bzl",
+        "validate_cloudflare.bzl",
+        "validate_crates.bzl",
+        "validate_github.bzl",
+        "validate_hackage.bzl",
+        "validate_helm.bzl",
+        "validate_hex.bzl",
+        "validate_homebrew.bzl",
+        "validate_image.bzl",
+        "validate_linux_package.bzl",
+        "validate_luarocks.bzl",
+        "validate_maven.bzl",
+        "validate_native_runtime.bzl",
+        "validate_npm.bzl",
+        "validate_nuget.bzl",
+        "validate_oci.bzl",
+        "validate_octopus.bzl",
+        "validate_pub.bzl",
+        "validate_pypi.bzl",
+        "validate_resources.bzl",
+        "validate_rubygems.bzl",
         "validate_tests.bzl",
     ],
     tags = ["corpus"],

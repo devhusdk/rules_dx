@@ -2,7 +2,8 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":cloudflare.bzl", "cloudflare_pages_error", "cloudflare_pages_intent")
+load(":cloudflare.bzl", "cloudflare_pages_intent")
+load(":validate_cloudflare.bzl", "cloudflare_pages_error")
 
 _ACCOUNT = "0123456789abcdef0123456789abcdef"
 

@@ -4,36 +4,8 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:providers.bzl", "PackageFilesInfo")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load(":validate_image.bzl", "IMAGE_BASES", "IMAGE_LABEL_PLATFORMS", "IMAGE_PLATFORM_LABELS", "IMAGE_RUNTIMES", "image_options_error")
 
-IMAGE_BASES = {
-    "cc": "@distroless_cc",
-    "dotnet": "@dotnet_runtime",
-    "java": "@distroless_java",
-    "node": "@distroless_nodejs",
-    "python": "@distroless_python",
-    "static": "@distroless_static",
-}
-
-_RUNTIMES = {
-    "dotnet": {
-        "linux/amd64": "@dotnet_x86_64-unknown-linux-gnu//:runtime",
-        "linux/arm64": "@dotnet_arm64-unknown-linux-gnu//:runtime",
-    },
-    "java": {
-        "linux/amd64": "@remotejdk21_linux//:jdk",
-        "linux/arm64": "@remotejdk21_linux_aarch64//:jdk",
-    },
-    "node": {
-        "linux/amd64": "@nodejs_linux_amd64//:node_bin",
-        "linux/arm64": "@nodejs_linux_arm64//:node_bin",
-    },
-    "python": {
-        "linux/amd64": "@python_3_12_x86_64_unknown_linux_gnu//:files",
-        "linux/arm64": "@python_3_12_aarch64_unknown_linux_gnu//:files",
-    },
-}
-
-# Paths kept from each toolchain, relative to the part stripped; a trailing / means a directory.
 _RUNTIME_LAYOUT = {
     "dotnet": {"include": ["dotnet", "host/", "shared/Microsoft.NETCore.App/"], "strip": ""},
     "java": {"include": ["bin/", "conf/", "lib/", "release"], "strip": ""},
@@ -44,13 +16,6 @@ _RUNTIME_LAYOUT = {
         "strip": "",
     },
 }
-
-_PLATFORM_LABELS = {
-    "linux/amd64": "@rules_dx//deploy/rules/platforms:linux_amd64",
-    "linux/arm64": "@rules_dx//deploy/rules/platforms:linux_arm64",
-}
-
-_LABEL_PLATFORMS = {str(Label(label)): platform for platform, label in _PLATFORM_LABELS.items()}
 
 def image_binary_name(binary):
     """Returns the target name of a binary label."""
@@ -74,29 +39,6 @@ def image_default_main(base, binary, package):
     if base == "dotnet":
         return path + "/net10.0/" + name + ext
     return path + ext
-
-def image_options_error(binary, base, platforms, main = None, main_class = None, runtime = False):
-    """Validates the oci_image_from_binary arguments."""
-    if type(binary) != "string" or binary == "":
-        return "oci_image_from_binary: invalid binary '" + str(binary) + "': want a binary target label"
-    if base not in IMAGE_BASES:
-        return ("oci_image_from_binary: invalid base '" + str(base) +
-                "': want one of " + ", ".join(sorted(IMAGE_BASES)))
-    if type(platforms) != "list" or len(platforms) == 0:
-        return "oci_image_from_binary: want at least one platform, one of " + ", ".join(_PLATFORM_LABELS.values())
-    for platform in platforms:
-        if platform not in _LABEL_PLATFORMS:
-            return ("oci_image_from_binary: invalid platform '" + str(platform) +
-                    "': want one of " + ", ".join(_PLATFORM_LABELS.values()))
-    if len(depset(platforms).to_list()) != len(platforms):
-        return "oci_image_from_binary: want each platform once, got " + ", ".join(platforms)
-    if runtime and base not in _RUNTIMES:
-        return "oci_image_from_binary: runtime only applies to the python, java, node and dotnet bases"
-    if base in ("python", "node", "dotnet") and not main:
-        return "oci_image_from_binary: base '" + base + "' needs main, the workspace path of the entry script"
-    if base not in ("python", "java", "node", "dotnet") and (main or main_class):
-        return "oci_image_from_binary: main and main_class only apply to the python, java, node and dotnet bases"
-    return ""
 
 def image_entrypoint(base, app, main = None, main_class = None, runtime = False):
     """Returns the image entrypoint and environment for a base.
@@ -283,7 +225,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
 
     images = []
     for label in platforms:
-        platform = _LABEL_PLATFORMS[label]
+        platform = IMAGE_LABEL_PLATFORMS[label]
         suffix = "" if single else "_" + platform.split("/")[1]
         if base == "java":
             _jars_for_platform(
@@ -325,7 +267,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
             layout = _RUNTIME_LAYOUT[base]
             _runtime_files(
                 name = name + "_runtime_files" + suffix,
-                srcs = [str(Label(_RUNTIMES[base][platform]))],
+                srcs = [str(Label(IMAGE_RUNTIMES[base][platform]))],
                 drop = layout.get("drop", []),
                 include = layout["include"],
                 prefix = "/opt/" + base,

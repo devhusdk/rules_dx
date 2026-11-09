@@ -28,7 +28,7 @@ def _runtime_files_impl(ctx):
         out.append(copy)
     return [DefaultInfo(files = depset(out))]
 
-native_probe_runtime_files = rule(
+dx_native_probe_runtime_files = rule(
     implementation = _runtime_files_impl,
     doc = "Copies the files of a native_runtime next to the probe package so a wheel ships them.",
     attrs = {

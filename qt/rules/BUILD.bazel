@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//deploy/rules:native_runtime.bzl", "native_runtime")
+load("//deploy/rules:native_runtime.bzl", "dx_native_runtime")
 load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
@@ -53,7 +53,7 @@ dx_wrapper_contract_tests(
 
 # The system libraries a Qt app imports that qt_bundle does not ship, per Linux cell.
 [
-    native_runtime(
+    dx_native_runtime(
         name = "os_runtime_" + cell,
         provides = qt_os_supplied_libraries(CELLS[cell].needs.library),
         redistribution = "os_supplied",

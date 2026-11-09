@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":api_compat.bzl", "api_compat_error")
-load(":nuget.bzl", "NUGET_DEFAULT_REGISTRY_URL", "nuget_id_error", "nuget_nupkg_error", "nuget_registry_url_error", "nuget_version_error")
+load(":validate_nuget.bzl", "NUGET_DEFAULT_REGISTRY_URL", "nuget_id_error", "nuget_nupkg_error", "nuget_registry_url_error", "nuget_version_error")
 
 def nuget_unit_tests(name):
     starlark_test(

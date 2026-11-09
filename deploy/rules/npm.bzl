@@ -3,8 +3,8 @@
 load("@bazel_skylib//lib:shell.bzl", "shell")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
-load(":defs.bzl", "dx_deployment")
-load(":npm_validate.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
+load(":deployment.bzl", "dx_deployment")
+load(":validate_npm.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
 
 _NPM_PACKER = Label("//deploy/rules:npm_packer")
 

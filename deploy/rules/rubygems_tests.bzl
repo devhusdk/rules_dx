@@ -1,7 +1,7 @@
 """Unit and analysis tests for the rubygems.io publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":rubygems.bzl", "rubygems_name_error", "rubygems_version_error")
+load(":validate_rubygems.bzl", "rubygems_name_error", "rubygems_version_error")
 
 def rubygems_unit_tests(name):
     starlark_test(

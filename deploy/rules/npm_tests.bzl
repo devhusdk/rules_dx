@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":npm.bzl", "npm_effective_provenance", "npm_filenames")
-load(":npm_validate.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
+load(":validate_npm.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
 
 def npm_unit_tests(name):
     starlark_test(

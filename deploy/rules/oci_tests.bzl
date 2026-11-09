@@ -1,7 +1,7 @@
 """Unit and analysis tests for the OCI publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_image_error", "oci_platform", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error")
+load(":validate_oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_image_error", "oci_platform", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error")
 
 def oci_unit_tests(name):
     starlark_test(

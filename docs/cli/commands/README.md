@@ -334,7 +334,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_root_package_name` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_test` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_wasm_binary` |
-|  |  | `@rules_dx//deploy/rules:defs.bzl` | `dx_deployment` |
+|  |  | `@rules_dx//deploy/rules:deployment.bzl` | `dx_deployment` |
 |  |  | `@rules_dx//deploy/tests/cross:defs.bzl` | `cross_deployment` |
 |  |  | `@rules_dx//dockerfile/rules:defs.bzl` | `dockerfile_library` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `app_sources` |

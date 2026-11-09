@@ -2,8 +2,8 @@
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
-load(":defs.bzl", "dx_deployment")
-load(":maven_validate.bzl", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_sources_error", "maven_version_error")
+load(":deployment.bzl", "dx_deployment")
+load(":validate_maven.bzl", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_sources_error", "maven_version_error")
 
 def _maven_config_impl(ctx):
     """Writes the deploy config for one Maven deployment."""

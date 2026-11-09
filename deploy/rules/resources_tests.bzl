@@ -1,7 +1,7 @@
 """Unit and analysis tests for resource collections."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":resources.bzl", "resource_mapping_error", "resource_path_error")
+load(":validate_resources.bzl", "resource_mapping_error", "resource_path_error")
 
 def resources_unit_tests(name):
     starlark_test(

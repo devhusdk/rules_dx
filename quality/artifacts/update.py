@@ -1854,7 +1854,19 @@ TOOLS: dict[str, dict[str, Any]] = {
             {
                 "name": "BSD-3-Clause",
                 "source": "https://github.com/tweag/ormolu/blob/0.9.0.0/LICENSE.md",
-            }
+            },
+            {
+                "name": "LGPL-3.0-or-later OR GPL-2.0-or-later",
+                "source": "https://gmplib.org/",
+            },
+            {
+                "name": "MIT",
+                "source": "https://github.com/libffi/libffi/blob/master/LICENSE",
+            },
+            {
+                "name": "LGPL-2.1-or-later",
+                "source": "https://www.gnu.org/software/libiconv/",
+            },
         ],
         "platforms": {
             "linux_x86_64": {
@@ -1864,6 +1876,44 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-x86_64-linux.zip",
                 "kind": "zip",
                 "executable": "ormolu",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "ormolu-aarch64-darwin.zip",
+                "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-aarch64-darwin.zip",
+                "kind": "zip",
+                "executable": "ormolu",
+                "runtime": [
+                    {
+                        "path": "libcharset.1.dylib",
+                        "asset": "ormolu-aarch64-darwin.zip",
+                        "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-aarch64-darwin.zip",
+                        "kind": "zip",
+                        "member": "libcharset.1.dylib",
+                    },
+                    {
+                        "path": "libffi.7.dylib",
+                        "asset": "ormolu-aarch64-darwin.zip",
+                        "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-aarch64-darwin.zip",
+                        "kind": "zip",
+                        "member": "libffi.7.dylib",
+                    },
+                    {
+                        "path": "libgmp.10.dylib",
+                        "asset": "ormolu-aarch64-darwin.zip",
+                        "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-aarch64-darwin.zip",
+                        "kind": "zip",
+                        "member": "libgmp.10.dylib",
+                    },
+                    {
+                        "path": "libiconv.2.dylib",
+                        "asset": "ormolu-aarch64-darwin.zip",
+                        "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-aarch64-darwin.zip",
+                        "kind": "zip",
+                        "member": "libiconv.2.dylib",
+                    },
+                ],
             },
             "windows_x86_64": {
                 "os": "windows",

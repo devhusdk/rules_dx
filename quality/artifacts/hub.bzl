@@ -65,7 +65,7 @@ EMULATED_TOOLS = {
 PARTIAL_TOOL_PLATFORMS = {
     "hlint": ["linux_x86_64", "windows_x86_64"],
     "nixfmt": ["linux_x86_64"],
-    "ormolu": ["linux_x86_64", "windows_x86_64"],
+    "ormolu": ["linux_x86_64", "macos_arm64", "windows_x86_64"],
 }
 
 # Name of the empty target a partial tool resolves to on an unpinned platform.

@@ -1636,7 +1636,6 @@ TOOLS = [
                 transport = "single",
                 unsupported = {
                     "linux_arm64": "ormolu publishes no linux_arm64 build",
-                    "macos_arm64": "The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose",
                 },
             ),
         ],
@@ -2709,11 +2708,9 @@ TOOLS = [
                 context = "target_coupled",
                 family = "haskell",
                 fix = "check_only",
-                platforms = ["linux_x86_64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
                 transport = "single",
                 unsupported = {
-                    "linux_arm64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
-                    "macos_arm64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
                     "windows_arm64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
                     "windows_x86_64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
                 },

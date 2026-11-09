@@ -1,4 +1,4 @@
-use super::read_skip_notes;
+use super::{read_skip_notes, skip_notice};
 
 fn target(label: &str, set: &str) -> [String; 1] {
     [serde_json::json!({
@@ -34,4 +34,14 @@ fn a_tool_dropped_by_two_targets_is_noted_once() {
         read_skip_notes(&bep, dir.path()),
         vec![note.trim_end().to_owned()]
     );
+}
+
+#[test]
+fn a_skip_note_becomes_a_tool_skipped_notice() {
+    let note = "hlint: skipped, no pinned artifact for this execution platform";
+    let event = dx_output::notice_event(&skip_notice("lint", note)).expect("valid notice");
+    assert_eq!(event["code"], "tool_skipped");
+    assert_eq!(event["level"], "warning");
+    assert_eq!(event["related_command"], "lint");
+    assert_eq!(event["message"], note);
 }

@@ -9,6 +9,7 @@ pub(crate) const CODE_UPDATE_SET_PINNED: &str = "update_set_pinned";
 pub(crate) const CODE_UPDATE_SET_BLOCKED: &str = "update_set_blocked";
 pub(crate) const CODE_BUILD_EVENTS_INCOMPLETE: &str = "build_events_incomplete";
 pub(crate) const CODE_CHANGES_PROPOSED: &str = "changes_proposed";
+pub(crate) const CODE_TOOL_SKIPPED: &str = "tool_skipped";
 pub(crate) const CODE_TESTS_FILTERED: &str = "tests_filtered";
 pub(crate) const CODE_TARGETS_SKIPPED: &str = "targets_skipped";
 pub(crate) const CODE_INIT_PLAN_PARTIAL: &str = "init_plan_partial";

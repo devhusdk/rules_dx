@@ -3,7 +3,7 @@ use super::breaking_base;
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
-use super::notice_codes::CODE_CHANGES_PROPOSED;
+use super::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
 use super::quality_emit::{EmitInputs, emit_findings};
 use super::quality_patch::render_diff_patch;
@@ -301,6 +301,14 @@ pub(super) fn read_skip_notes(bep: &Path, workspace: &Path) -> Vec<String> {
     notes
 }
 
+/// The warning for a skip note of the form `<tool>: <reason>`.
+pub(super) fn skip_notice(command: &str, note: &str) -> NoticeEvent {
+    NoticeEvent {
+        related_command: Some(command.to_owned()),
+        ..NoticeEvent::warning(CODE_TOOL_SKIPPED, note)
+    }
+}
+
 fn run_quality_request(
     request: &QualityRequest,
     env: Env<'_>,
@@ -526,8 +534,14 @@ fn run_quality_request(
             return operational_output(request.common.output, out, err, &code, &message);
         }
     };
-    if request.common.output != OutputMode::Json {
-        for note in read_skip_notes(&bep, workspace) {
+    for note in read_skip_notes(&bep, workspace) {
+        if request.common.output == OutputMode::Json {
+            let notice = skip_notice(request.command.name(), &note);
+            if let Err(exit) = emit_built(out, notice_event(&notice)) {
+                let _ = std::fs::remove_file(&bep);
+                return exit;
+            }
+        } else {
             let _ = writeln!(err, "dx: note: {note}");
         }
     }

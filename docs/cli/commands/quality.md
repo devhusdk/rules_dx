@@ -66,7 +66,7 @@ When files need changes, text prints `N file(s) need changes. Apply them with: d
 
 `--diff` prints the patch on stdout. `Not applied:` and `Conflict:` lines go to stderr.
 
-JSON prints one `change` per file with `path`, `kind`, `edit_count` and `effect` (`proposed`, `applied` or `refused`). A refused change has a `reason`: `stale_source`, `unreadable_source`, `invalid_edits`, `write_failed`, `incomplete_collection`, `conflicting_digests` or `conflicting_candidates`. A check with proposed changes adds an info `notice` with code `changes_proposed`; its `message` is the `--apply` command. Findings from several targets print once with a `count` and every target in `origins`.
+JSON prints one `change` per file with `path`, `kind`, `edit_count` and `effect` (`proposed`, `applied` or `refused`). A refused change has a `reason`: `stale_source`, `unreadable_source`, `invalid_edits`, `write_failed`, `incomplete_collection`, `conflicting_digests` or `conflicting_candidates`. A check with proposed changes adds an info `notice` with code `changes_proposed`; its `message` is the `--apply` command. A tool that was skipped on this host adds a warning `notice` with code `tool_skipped`; its `message` names the tool and the reason, as the text-mode `dx: note:` line does. Findings from several targets print once with a `count` and every target in `origins`.
 
 A stdout SARIF report (`--report sarif=-`) works only with text output and moves findings to stderr. Relative destinations anchor at the workspace root. Colliding destinations and missing parent dirs exit `2`.
 

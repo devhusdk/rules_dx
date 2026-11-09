@@ -39,5 +39,5 @@ PORTABLE_RUBY_CHECKSUMS = {
     "ruby-3.4.12.x86_64_darwin.tar.gz": "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",
     "ruby-3.4.12.x86_64_linux.tar.gz": "885185fabbc01bf695550d7375e610ae85084f5340474c837e5d00ec6c6cc234",
     "rubyinstaller-3.4.12-1-x64.7z": "3806f164377824bcb17e1cf39b17d967e2bdc01e8547ce0254cd786dbe2cfe13",
-    "w64devkit-x64-2.11.0.7z.exe": "54c2bb9962e8a30c8270e34c5efc3d5fee579f53087fa7d435b95fbba2af7b2b",
+    "winlibs-x86_64-posix-seh-gcc-16.2.0-mingw-w64ucrt-14.0.0-r3.zip": "3c69305081e4a647144339a936244fcf7d3d9e558319e1ad7be2cd2886d4b6a1",
 }

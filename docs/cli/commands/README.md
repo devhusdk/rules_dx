@@ -549,6 +549,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `vue_doc_shard` |
 |  |  | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` |
 |  |  | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` |
+|  |  | `@rules_dx//tools/docs/elixir:defs.bzl` | `docs_elixir_shard` |
+|  |  | `@rules_dx//tools/docs/elixir:defs.bzl` | `elixir_doc_shard` |
+|  |  | `@rules_dx//tools/docs/elixir:defs.bzl` | `elixir_shard_action` |
+|  |  | `@rules_dx//tools/docs/erlang:defs.bzl` | `docs_erlang_shard` |
+|  |  | `@rules_dx//tools/docs/erlang:defs.bzl` | `erlang_doc_shard` |
+|  |  | `@rules_dx//tools/docs/erlang:defs.bzl` | `erlang_shard_action` |
 |  |  | `@rules_dx//tools/docs/go:defs.bzl` | `docs_go_shard` |
 |  |  | `@rules_dx//tools/docs/go:defs.bzl` | `go_doc_shard` |
 |  |  | `@rules_dx//tools/docs/go:defs.bzl` | `go_shard_action` |
@@ -625,6 +631,8 @@ SDK and toolchain extensions:
 
 API docs:
 
+- `@rules_dx//tools/docs/elixir:defs.bzl`: Elixir API doc shards.
+- `@rules_dx//tools/docs/erlang:defs.bzl`: Erlang API doc shards.
 - `@rules_dx//tools/docs/go:defs.bzl`: Go API doc shards.
 - `@rules_dx//tools/docs/ruby:defs.bzl`: Ruby API doc shards.
 - `@rules_dx//tools/docs/jvm:defs.bzl`: Java and Kotlin API doc shards.

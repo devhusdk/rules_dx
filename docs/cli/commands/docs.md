@@ -92,6 +92,8 @@ tools/dx docs //lib:site
 | Java | `@rules_dx//tools/docs/jvm:defs.bzl` | `java_doc_shard` | `lib`, `package`, `deps` |
 | Kotlin | `@rules_dx//tools/docs/jvm:defs.bzl` | `kotlin_doc_shard` | `lib`, `package`, `deps` |
 | Scala | `@rules_dx//tools/docs/jvm:defs.bzl` | `scala_doc_shard` | `lib`, `package`, `deps` |
+| Elixir | `@rules_dx//tools/docs/elixir:defs.bzl` | `elixir_doc_shard` | `app`, `package` |
+| Erlang | `@rules_dx//tools/docs/erlang:defs.bzl` | `erlang_doc_shard` | `app`, `package` |
 | PowerShell | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_doc_shard` | `srcs`, `manifest`, `package`, `config` |
 | C# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
 | F# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
@@ -99,5 +101,13 @@ tools/dx docs //lib:site
 Rust, Go, Python, Java, Kotlin, Scala, C# and F# libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
 an F# library needs `generate_documentation_file = True`; others are skipped.
+
+An `elixir_app` or `erlang_app` that lists its sources in `srcs` also gets a shard
+automatically. Elixir reads each module's docs chunk with `Code.fetch_docs/1` on
+the pinned Elixir, the data ExDoc renders, so no ExDoc build is pinned. Erlang
+runs `edoc` from the pinned OTP. Both read `@doc` or `%% @doc` text only; Elixir
+modules marked `@moduledoc false` and functions marked `@doc false` are skipped,
+and Erlang functions that are not exported are skipped. The drivers run through
+`sh`, so Windows execution platforms are not covered yet.
 
 A source error fails the build and writes no pages. Bazel's exit code is kept.

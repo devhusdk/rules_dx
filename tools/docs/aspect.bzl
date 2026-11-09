@@ -4,6 +4,7 @@ load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
+load("@rules_erlang//:erlang_app_info.bzl", _ErlangAppInfo = "ErlangAppInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
@@ -12,6 +13,9 @@ load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_config", "component_shard_action")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
+load("//tools/docs/beam:shard.bzl", "ELIXIR_TOOLCHAIN", "OTP_TOOLCHAIN")
+load("//tools/docs/elixir:defs.bzl", "elixir_shard_action")
+load("//tools/docs/erlang:defs.bzl", "erlang_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
@@ -107,6 +111,21 @@ def _ruby_docs_shard(target, ctx):
         return None
     yard = ctx.attr._ruby_yard[DefaultInfo].files.to_list()
     return ruby_shard_action(ctx, own, target[_RubyFilesInfo].transitive_srcs.to_list(), [], ctx.label.name, "_dx_docs/" + ctx.label.name, yard, ctx.file._ruby_driver, ctx.executable._ruby_extract).shard
+
+def _beam_docs_shard(target, ctx):
+    if _ErlangAppInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.label.name.endswith("_upstream") or ctx.toolchains[OTP_TOOLCHAIN] == None:
+        return None
+    package = target[_ErlangAppInfo].app_name
+    stem = "_dx_docs/" + ctx.label.name
+    action = erlang_shard_action(ctx, target, package, stem + "_erlang", ctx.file._erlang_driver, ctx.executable._beam_extract)
+    if action:
+        return action.shard
+    if ctx.toolchains[ELIXIR_TOOLCHAIN] == None:
+        return None
+    action = elixir_shard_action(ctx, target, package, stem + "_elixir", ctx.file._elixir_driver, ctx.executable._beam_extract)
+    return action.shard if action else None
 
 _TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
 _TS_TEST_MARKERS = [".test.", ".spec.", "_test."]
@@ -244,6 +263,9 @@ def _real_docs_aspect_impl(target, ctx):
     ruby_shard = _ruby_docs_shard(target, ctx)
     if ruby_shard:
         parts.append({"dx_results": [ruby_shard], "dx_docs_shards": [ruby_shard]})
+    beam_shard = _beam_docs_shard(target, ctx)
+    if beam_shard:
+        parts.append({"dx_results": [beam_shard], "dx_docs_shards": [beam_shard]})
     ts_shard = _typescript_docs_shard(target, ctx)
     if ts_shard:
         parts.append({"dx_results": [ts_shard], "dx_docs_shards": [ts_shard]})
@@ -260,9 +282,22 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F#, PowerShell, Ruby, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F#, PowerShell, Ruby, Elixir, Erlang, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The Elixir and Erlang branch reads Elixir docs chunks and Erlang edoc with the registered pinned runtimes and converts them with //tools/docs/beam/extract:beam_extract. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
+        "_beam_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/beam/extract:beam_extract"),
+            executable = True,
+        ),
+        "_elixir_driver": attr.label(
+            allow_single_file = True,
+            default = Label("//tools/docs/elixir:elixir_dump.exs"),
+        ),
+        "_erlang_driver": attr.label(
+            allow_single_file = True,
+            default = Label("//tools/docs/erlang:edoc_dump.escript"),
+        ),
         "_component_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/components/extract:component_extract"),
@@ -376,7 +411,9 @@ real_docs_aspect = aspect(
     fragments = ["cpp"],
     requires = [rust_doc_inputs_aspect, dotnet_docs_collect_aspect],
     toolchains = [
+        config_common.toolchain_type(ELIXIR_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(JAVA_TOOLCHAIN, mandatory = False),
+        config_common.toolchain_type(OTP_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(KOTLIN_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_RUBY_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_RUST_DOCS_TOOLCHAIN, mandatory = False),

@@ -6,6 +6,8 @@ load("//quality:adapters.bzl", "NOT_APPLICABLE", "TYPECHECK_CANDIDATES")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//tools/docs/components:defs.bzl", "astro_doc_shard", "mdx_doc_shard", "svelte_doc_shard", "vue_doc_shard")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
+load("//tools/docs/elixir:defs.bzl", "elixir_doc_shard")
+load("//tools/docs/erlang:defs.bzl", "erlang_doc_shard")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
 load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_doc_shard")
 load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
@@ -27,6 +29,8 @@ _SHARD_RULES = {
     "mdx_doc_shard": mdx_doc_shard,
     "powershell_doc_shard": powershell_doc_shard,
     "python_doc_shard": python_doc_shard,
+    "elixir_doc_shard": elixir_doc_shard,
+    "erlang_doc_shard": erlang_doc_shard,
     "ruby_doc_shard": ruby_doc_shard,
     "docs_site": docs_site,
     "scala_doc_shard": scala_doc_shard,

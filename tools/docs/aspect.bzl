@@ -26,6 +26,8 @@ load("//tools/docs/julia:defs.bzl", "julia_shard_action")
 load("//tools/docs/ocaml:defs.bzl", "ODOC_CONFIG", "ocaml_odoc_available", "ocaml_shard_action", "ocaml_typed_trees")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/perl:defs.bzl", "perl_shard_action")
+load("//tools/docs/php:defs.bzl", "php_shard_action")
+load("//php/rules:providers.bzl", _PhpInfo = "PhpInfo")
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
 load("//tools/docs/typescript:shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
@@ -37,6 +39,7 @@ _RUST_DOCS_TOOLCHAIN = str(Label("@rules_rust//rust:toolchain_type"))
 _RUBY_TOOLCHAIN = "@rules_ruby//ruby:toolchain_type"
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 _PERL_TOOLCHAIN = "@rules_perl//perl:exec_toolchain_type"
+_PHP_TOOLCHAIN = Label("//php/toolchain:exec_toolchain_type")
 _CC_DOCS_TOOLCHAIN = "@bazel_tools//tools/cpp:toolchain_type"
 
 def _rust_docs_shard(target, ctx):
@@ -182,6 +185,17 @@ def _perl_docs_shard(target, ctx):
     if not own:
         return None
     action = perl_shard_action(ctx, own, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.file._perl_driver, ctx.executable._perl_extract)
+    return action.shard if action else None
+
+def _php_docs_shard(target, ctx):
+    if _PhpInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    own = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension == "php"]
+    if not own:
+        return None
+    action = php_shard_action(ctx, own, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.file._php_driver, ctx.executable._php_extract)
     return action.shard if action else None
 
 _TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
@@ -374,6 +388,9 @@ def _real_docs_aspect_impl(target, ctx):
     perl_shard = _perl_docs_shard(target, ctx)
     if perl_shard:
         parts.append({"dx_results": [perl_shard], "dx_docs_shards": [perl_shard]})
+    php_shard = _php_docs_shard(target, ctx)
+    if php_shard:
+        parts.append({"dx_results": [php_shard], "dx_docs_shards": [php_shard]})
     ts_shard = _typescript_docs_shard(target, ctx)
     if ts_shard:
         parts.append({"dx_results": [ts_shard], "dx_docs_shards": [ts_shard]})
@@ -393,7 +410,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, D, Dart, C#, F#, PowerShell, Perl, Ruby, Julia, OCaml, Fortran, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, D, Dart, C#, F#, PowerShell, Perl, PHP, Ruby, Julia, OCaml, Fortran, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The PHP branch runs the pinned php over the tokenizer driver (//tools/docs/php:php_dump.php) and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_component_extract": attr.label(
@@ -482,6 +499,15 @@ real_docs_aspect = aspect(
             default = Label("//tools/docs/perl/extract:perl_extract"),
             executable = True,
         ),
+        "_php_driver": attr.label(
+            allow_single_file = True,
+            default = Label("//tools/docs/php:php_dump.php"),
+        ),
+        "_php_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/php/extract:php_extract"),
+            executable = True,
+        ),
         "_pwsh": attr.label(
             cfg = "exec",
             default = Label("@rules_powershell//powershell:current_pwsh_toolchain"),
@@ -563,6 +589,7 @@ real_docs_aspect = aspect(
         config_common.toolchain_type(JAVA_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(KOTLIN_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_PERL_TOOLCHAIN, mandatory = False),
+        config_common.toolchain_type(_PHP_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_RUBY_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_RUST_DOCS_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_CC_DOCS_TOOLCHAIN, mandatory = False),

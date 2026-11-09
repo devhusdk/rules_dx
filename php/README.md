@@ -202,3 +202,12 @@ The PHP binary is under the PHP License 3.01. It links extension libraries
 that keep their own licenses, such as libxml2, OpenSSL, curl, SQLite and
 zlib; static-php-cli lists them in the `license/` folder next to each build.
 Composer and PHPUnit are under the MIT and BSD-3-Clause licenses.
+
+## API docs
+
+`dx docs` builds an API reference for every `php_library` in scope. Declare a
+`php_doc_shard` from `@rules_dx//tools/docs/php:defs.bzl` to name the package
+or to set the shard by hand. It reads classes, interfaces, traits, enums,
+functions and methods and their docblocks from the library's own `.php` files
+with the pinned PHP tokenizer; private and protected methods are left out. It
+does not run on `windows_arm64`.

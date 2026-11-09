@@ -92,7 +92,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "cli/dx_lcov",
         normal = True,
-    ) + [":dx_lcov"],
+    ) + [
+        ":dx_lcov",
+        "//cli/error:dx_error",
+    ],
 )
 
 rust_test(
@@ -107,7 +110,7 @@ rust_test(
         package_name = "cli/dx_lcov",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//cli/error:dx_error"],
 )
 
 real_source_target(

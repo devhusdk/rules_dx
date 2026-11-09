@@ -209,6 +209,7 @@ rust_binary(
         normal = True,
     ) + [
         ":dx_cli",
+        "//cli/error:dx_error",
         "//cli/output:dx_output",
         "//cli/plan:dx_plan",
     ],

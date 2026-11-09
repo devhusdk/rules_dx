@@ -2,7 +2,9 @@
 
 use std::env;
 use std::fs;
-use std::process;
+use std::process::ExitCode;
+
+use dx_error::DxError;
 
 const USAGE: &str = "usage: to_lcov --from clover|cobertura [--sources <file>] <in> <out>";
 
@@ -14,7 +16,7 @@ struct Args {
     output: String,
 }
 
-fn parse_args(args: &[String]) -> Result<Args, String> {
+fn parse_args(args: &[String]) -> Result<Args, DxError> {
     let mut from = None;
     let mut sources = None;
     let mut paths = Vec::new();
@@ -26,8 +28,8 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
             _ => paths.push(arg.clone()),
         }
     }
-    let from = from.ok_or(USAGE)?;
-    let [input, output] = <[String; 2]>::try_from(paths).map_err(|_| USAGE)?;
+    let from = from.ok_or_else(|| DxError::usage(USAGE))?;
+    let [input, output] = <[String; 2]>::try_from(paths).map_err(|_| DxError::usage(USAGE))?;
     Ok(Args {
         from,
         sources,
@@ -36,13 +38,15 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
     })
 }
 
-fn convert(from: &str, xml: &str) -> Result<String, String> {
+fn convert(from: &str, xml: &str) -> Result<String, DxError> {
     let lcov = match from {
         "clover" => dx_lcov::clover_to_lcov(xml),
         "cobertura" => dx_lcov::cobertura_to_lcov(xml),
-        _ => return Err(format!("unknown --from {from}; want clover or cobertura")),
+        _ => return Err(DxError::usage(format!(
+                "unknown --from {from}; want clover or cobertura"
+            ))),
     };
-    lcov.map_err(|e| e.to_string())
+    lcov.map_err(|e| DxError::failure(e.to_string()))
 }
 
 /// Keeps the records whose path is a listed source or ends in `/<source>`, renamed to the longest such source.
@@ -71,25 +75,28 @@ fn keep_sources(lcov: &str, sources: &[&str]) -> String {
     out
 }
 
-fn run(args: &[String]) -> Result<(), String> {
+fn run(args: &[String]) -> Result<(), DxError> {
     let args = parse_args(args)?;
     let xml =
-        fs::read_to_string(&args.input).map_err(|e| format!("cannot read {}: {e}", args.input))?;
+        fs::read_to_string(&args.input).map_err(|e| DxError::infra(format!("cannot read {}: {e}", args.input)))?;
     let mut lcov = convert(&args.from, &xml)?;
     if let Some(path) = &args.sources {
-        let list = fs::read_to_string(path).map_err(|e| format!("cannot read {path}: {e}"))?;
+        let list = fs::read_to_string(path).map_err(|e| DxError::infra(format!("cannot read {path}: {e}")))?;
         let sources: Vec<&str> = list.lines().filter(|line| !line.is_empty()).collect();
         lcov = keep_sources(&lcov, &sources);
     }
-    fs::write(&args.output, lcov).map_err(|e| format!("cannot write {}: {e}", args.output))
+    fs::write(&args.output, lcov).map_err(|e| DxError::infra(format!("cannot write {}: {e}", args.output)))
 }
 
 // LCOV_EXCL_START - reason: process entry point that exits, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-fn main() {
+fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
-    if let Err(message) = run(&args) {
-        eprintln!("dx: {message}");
-        process::exit(1);
+    match run(&args) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("dx: {error}");
+            error.into()
+        }
     }
 }
 // LCOV_EXCL_STOP - reason: end process entry point, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -162,7 +169,7 @@ mod tests {
 
     #[test]
     fn converts_cobertura_end_to_end() {
-        let dir = env::temp_dir().join(format!("to_lcov_{}", process::id()));
+        let dir = env::temp_dir().join(format!("to_lcov_{}", std::process::id()));
         fs::create_dir_all(&dir).expect("temp dir");
         let input = dir.join("cobertura.xml");
         let output = dir.join("coverage.dat");
@@ -187,7 +194,7 @@ mod tests {
 
     #[test]
     fn reports_unreadable_input_sources_and_unwritable_output() {
-        let dir = env::temp_dir().join(format!("to_lcov_err_{}", process::id()));
+        let dir = env::temp_dir().join(format!("to_lcov_err_{}", std::process::id()));
         fs::create_dir_all(&dir).expect("temp dir");
         let input = dir.join("clover.xml");
         fs::write(
@@ -199,7 +206,7 @@ mod tests {
         let output = dir.join("no_dir").join("out").display().to_string();
 
         let read = run(&strings(&["--from", "clover", &missing, &output]));
-        assert!(read.expect_err("input").starts_with("cannot read"));
+        assert!(read.expect_err("input").message().starts_with("cannot read"));
 
         let sources = run(&strings(&[
             "--from",
@@ -209,10 +216,11 @@ mod tests {
             &input,
             &output,
         ]));
-        assert!(sources.expect_err("sources").starts_with("cannot read"));
+        assert!(sources.expect_err("sources").message().starts_with("cannot read"));
 
         let write = run(&strings(&["--from", "clover", &input, &output]));
-        let message = write.expect_err("output");
+        let error = write.expect_err("output");
+        let message = error.message();
         assert!(message.starts_with("cannot write"), "{message}");
     }
 }

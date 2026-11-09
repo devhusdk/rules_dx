@@ -10,36 +10,41 @@
 
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::ExitCode;
+
+use dx_error::DxError;
 
 // LCOV_EXCL_START - reason: thin man shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-fn main() {
+fn main() -> ExitCode {
     dx_output::init_diagnostics(false);
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            tracing::error!("{error}");
+            error.into()
+        }
+    }
+}
+
+fn run() -> Result<(), DxError> {
     let out: PathBuf = std::env::args_os()
         .nth(1)
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            tracing::error!("usage: dx_man <output-file>");
-            std::process::exit(2);
-        });
-    // LCOV_EXCL_STOP - reason: end thin man shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    let buffer = dx_plan::args::man_page().unwrap_or_else(|error| {
-        tracing::error!("dx_man: render failed: {error}");
-        std::process::exit(1);
-    });
+        .ok_or_else(|| DxError::usage("usage: dx_man <output-file>"))?;
+    let buffer = dx_plan::args::man_page()
+        .map_err(|error| DxError::failure(format!("dx_man: render failed: {error}")))?;
     if let Some(parent) = out.parent()
         && !parent.as_os_str().is_empty()
     {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| {
-            tracing::error!("dx_man: cannot create {}: {error}", parent.display());
-            std::process::exit(1);
-        });
+        std::fs::create_dir_all(parent).map_err(|error| {
+            DxError::infra(format!("dx_man: cannot create {}: {error}", parent.display()))
+        })?;
     }
-    let mut file = std::fs::File::create(&out).unwrap_or_else(|error| {
-        tracing::error!("dx_man: cannot write {}: {error}", out.display());
-        std::process::exit(1);
-    });
-    file.write_all(&buffer).unwrap_or_else(|error| {
-        tracing::error!("dx_man: cannot write {}: {error}", out.display());
-        std::process::exit(1);
-    });
+    let mut file = std::fs::File::create(&out).map_err(|error| {
+        DxError::infra(format!("dx_man: cannot write {}: {error}", out.display()))
+    })?;
+    file.write_all(&buffer).map_err(|error| {
+        DxError::infra(format!("dx_man: cannot write {}: {error}", out.display()))
+    })
 }
+// LCOV_EXCL_STOP - reason: end thin man shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

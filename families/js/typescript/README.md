@@ -19,7 +19,7 @@ typescript_test(
 ```
 
 `typescript_test` runs `jest` by default and needs `node_modules`. Set `runner = "node"` with an
-`entry_point` to run the file with Node instead.
+`main` to run the file with Node instead.
 On Windows, Jest coverage uses the v8 provider.
 
 ## Browser tests

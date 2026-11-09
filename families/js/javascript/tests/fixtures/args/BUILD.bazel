@@ -14,7 +14,7 @@ javascript_test(
         "$(rootpath :marker.txt)",
     ],
     data = [":marker.txt"],
-    entry_point = "args_test.mjs",
+    main = "args_test.mjs",
     runner = "node",
 )
 

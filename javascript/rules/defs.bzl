@@ -4,6 +4,7 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
@@ -152,23 +153,24 @@ def javascript_binary(name, srcs = None, visibility = None, **kwargs):
 
 _javascript_test = node_test_forward_rule("javascript_*", _JS_EXTS, _DX_JS_SOURCE_SPECS)
 
-def javascript_test_rejection(runner, node_modules, entry_point, kwargs):
+def javascript_test_rejection(runner, node_modules, main, kwargs):
     """Returns the rejection for bad javascript_test arguments, or None."""
-    return node_test_runner_rejection("javascript_test", runner, node_modules, entry_point, kwargs)
+    return node_test_runner_rejection("javascript_test", runner, node_modules, main, kwargs)
 
-def javascript_test(name, srcs, runner = "jest", node_modules = None, entry_point = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+def javascript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test, or js_test with runner = "node"."""
-    rejection = javascript_test_rejection(runner, node_modules, entry_point, kwargs)
+    rejection = javascript_test_rejection(runner, node_modules, main, kwargs)
     if rejection != None:
         fail(rejection)
     if runner == "node":
         upstream = _js_test
-        upstream_kwargs = {"entry_point": entry_point}
+        upstream_kwargs = {"entry_point": main}
     else:
         upstream = _jest_test
         upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
-    a = node_test_wrap_args(name, srcs, list(srcs) + (list(data) if data != None else []), package_json, upstream_kwargs, env_inherit, kwargs)
-    dx_wrap_test(name, upstream, _javascript_test, None, visibility = visibility, quality_srcs = srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
+    quality_srcs = dx_entry_quality_srcs(main, srcs)
+    a = node_test_wrap_args(name, quality_srcs, list(srcs or []) + (list(data) if data != None else []), package_json, upstream_kwargs, env_inherit, kwargs)
+    dx_wrap_test(name, upstream, _javascript_test, None, visibility = visibility, quality_srcs = quality_srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
 
 def _source_label(src):
     return src if src.startswith(":") or src.startswith("//") or src.startswith("@") else ":" + src
@@ -179,7 +181,7 @@ def javascript_bench(name, srcs, node_modules, main = None, data = None, args = 
         name = name,
         srcs = srcs,
         runner = "node",
-        entry_point = Label("//javascript/rules:bench_driver"),
+        main = Label("//javascript/rules:bench_driver"),
         data = list(data or []) + [node_modules],
         args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),

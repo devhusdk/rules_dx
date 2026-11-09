@@ -16,7 +16,7 @@ typescript_test(
     ],
     data = [":marker.txt"],
     declaration = True,
-    entry_point = "args_test.js",
+    main = "args_test.js",
     package_json = "//:package_json",
     runner = "node",
     tsconfig = "tsconfig.json",

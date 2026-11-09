@@ -22,7 +22,7 @@ javascript_test(
     srcs = ["js_test.mjs"],
     args = ["$(rootpath :hello_js)"],
     data = [":hello_js"],
-    entry_point = "js_test.mjs",
+    main = "js_test.mjs",
     package_json = "//:package_json",
     runner = "node",
 )
@@ -32,7 +32,7 @@ javascript_test(
     srcs = ["wasm_test.mjs"],
     args = ["$(rootpaths :hello_wasm)"],
     data = [":hello_wasm"],
-    entry_point = "wasm_test.mjs",
+    main = "wasm_test.mjs",
     package_json = "//:package_json",
     runner = "node",
 )

@@ -22,7 +22,7 @@ javascript_test(
     runner = "node",
     srcs = ["plain_test.js"],
     data = ["shared.js"],
-    entry_point = "plain_test.js",
+    main = "plain_test.js",
 )
 
 typescript_project(
@@ -40,7 +40,7 @@ typescript_test(
     srcs = ["user.ts"],
     declaration = True,
     declaration_srcs = ["shared.d.ts"],
-    entry_point = "user.js",
+    main = "user.js",
     tags = ["no-typecheck"],
     tsconfig = "tsconfig.json",
 )

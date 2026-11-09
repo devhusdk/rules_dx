@@ -27,20 +27,20 @@ def node_jest_upstream_attrs(node_modules, kwargs):
         }),
     }
 
-def node_test_runner_rejection(rule, runner, node_modules, entry_point, kwargs):
+def node_test_runner_rejection(rule, runner, node_modules, main, kwargs):
     """Returns the rejection for a bad runner or runner arguments, or None."""
     if runner not in ("jest", "node"):
         return rule + ' runner must be "jest" or "node", got "' + str(runner) + '".'
     if runner == "jest":
         if node_modules == None:
             return rule + ' with runner = "jest" needs node_modules.'
-        if entry_point != None:
-            return rule + ' with runner = "jest" runs jest; set runner = "node" to use entry_point.'
+        if main != None:
+            return rule + ' with runner = "jest" runs jest; set runner = "node" to use main.'
         if kwargs.get("auto_configure_reporters", True) == False:
             return rule + ' with runner = "jest" keeps the standard reporters; set runner = "node" for a custom runner.'
         return None
-    if entry_point == None:
-        return rule + ' with runner = "node" needs entry_point.'
+    if main == None:
+        return rule + ' with runner = "node" needs main.'
     if node_modules != None:
         return rule + ' with runner = "node" runs plain Node; `node_modules` needs runner = "jest".'
     for key in _JEST_ONLY_KEYS:

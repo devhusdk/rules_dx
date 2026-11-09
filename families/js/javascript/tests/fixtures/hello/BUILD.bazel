@@ -39,14 +39,14 @@ javascript_test(
     runner = "node",
     srcs = ["plain_test.js"],
     data = [":hello_lib"],
-    entry_point = "plain_test.js",
+    main = "plain_test.js",
 )
 
 javascript_test(
     name = "env_forward_test",
     runner = "node",
     srcs = ["plain_test.js"],
-    entry_point = "plain_test.js",
+    main = "plain_test.js",
     env = {"FOO": "1"},
     tags = ["manual"],
 )
@@ -58,7 +58,7 @@ javascript_test(
     size = "large",
     srcs = ["plain_test.js"],
     data = [":hello_lib"],
-    entry_point = "plain_test.js",
+    main = "plain_test.js",
     tags = ["manual"],
 )
 

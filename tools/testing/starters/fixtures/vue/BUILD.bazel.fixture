@@ -30,6 +30,6 @@ javascript_test(
         ":demo-app",
         ":node_modules/@vue/compiler-sfc",
     ],
-    entry_point = "hello.test.js",
+    main = "hello.test.js",
     package_json = ":package_json",
 )

@@ -36,7 +36,7 @@ javascript_test(
     name = "plain_test",
     srcs = ["plain_test.js"],
     data = [":greet"],
-    entry_point = "plain_test.js",
+    main = "plain_test.js",
     package_json = "//:package_json",
     runner = "node",
 )

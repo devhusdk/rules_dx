@@ -75,7 +75,7 @@ typescript_test(
         "packages.json",
     ],
     declaration = True,
-    entry_point = "plain_test.js",
+    main = "plain_test.js",
     package_json = "//javascript/tests/fixtures/node-app:package_json",
     runner = "node",
     transpiler = "tsc",

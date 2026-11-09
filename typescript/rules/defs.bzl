@@ -300,9 +300,9 @@ def ts_proto_library(name, proto, deps = None, visibility = None, **kwargs):
 
 _typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 
-def typescript_test_rejection(runner, node_modules, entry_point, kwargs):
+def typescript_test_rejection(runner, node_modules, main, kwargs):
     """Returns the rejection for bad typescript_test arguments, or None."""
-    return node_test_runner_rejection("typescript_test", runner, node_modules, entry_point, kwargs)
+    return node_test_runner_rejection("typescript_test", runner, node_modules, main, kwargs)
 
 def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs):
     """Declares the private test-only ts_project for one TypeScript test."""
@@ -326,21 +326,22 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
         **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
     )
 
-def typescript_test(name, srcs, runner = "jest", node_modules = None, entry_point = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+def typescript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
+    srcs = srcs or []
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
     decl_rejection = typescript_declaration_srcs_rejection(declaration_srcs)
     if decl_rejection != None:
         fail(decl_rejection)
-    runner_rejection = typescript_test_rejection(runner, node_modules, entry_point, kwargs)
+    runner_rejection = typescript_test_rejection(runner, node_modules, main, kwargs)
     if runner_rejection != None:
         fail(runner_rejection)
     _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs)
     if runner == "node":
         upstream = _js_test
-        upstream_kwargs = {"entry_point": entry_point}
+        upstream_kwargs = {"entry_point": main}
     else:
         upstream = _jest_test
         upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
@@ -359,7 +360,7 @@ def typescript_bench(name, srcs, node_modules, main = None, data = None, args = 
         name = name,
         srcs = srcs,
         runner = "node",
-        entry_point = Label("//javascript/rules:bench_driver"),
+        main = Label("//javascript/rules:bench_driver"),
         data = list(data or []) + [node_modules],
         args = [_compiled_path(main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),

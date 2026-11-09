@@ -112,7 +112,7 @@ javascript_test(
     name = "wasm_node_test",
     srcs = ["wasm_node_test.js"],
     data = [":wasm_hello_web_js"],
-    entry_point = "wasm_node_test.js",
+    main = "wasm_node_test.js",
     package_json = "//:package_json",
     runner = "node",
 )

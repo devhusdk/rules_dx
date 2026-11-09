@@ -199,9 +199,9 @@ dx_wrapper_contract_tests(
             "typescript_test with runner = \"jest\" needs node_modules.",
         ),
         expect_equal(
-            "jest rejects entry_point",
+            "jest rejects main",
             typescript_test_rejection("jest", "//:nm", "main.js", {}),
-            "typescript_test with runner = \"jest\" runs jest; set runner = \"node\" to use entry_point.",
+            "typescript_test with runner = \"jest\" runs jest; set runner = \"node\" to use main.",
         ),
         expect_equal(
             "jest rejects disabled reporters",
@@ -214,9 +214,9 @@ dx_wrapper_contract_tests(
             "typescript_test with runner = \"jest\" keeps the standard reporters; set runner = \"node\" for a custom runner.",
         ),
         expect_equal(
-            "node needs entry_point",
+            "node needs main",
             typescript_test_rejection("node", None, None, {}),
-            "typescript_test with runner = \"node\" needs entry_point.",
+            "typescript_test with runner = \"node\" needs main.",
         ),
         expect_equal(
             "node rejects node_modules",

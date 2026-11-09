@@ -24,7 +24,7 @@ typescript_test(
     runner = "node",
     srcs = ["hello_test.ts"],
     declaration = True,
-    entry_point = "hello_test.js",
+    main = "hello_test.js",
     package_json = "package.json",
     tsconfig = "tsconfig.json",
     deps = [":demo-app"],

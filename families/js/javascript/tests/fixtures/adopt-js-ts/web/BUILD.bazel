@@ -30,7 +30,7 @@ typescript_test(
     name = "plain_test",
     srcs = ["plain_test.ts"],
     declaration = True,
-    entry_point = "plain_test.js",
+    main = "plain_test.js",
     package_json = "//:package_json",
     runner = "node",
     transpiler = "tsc",

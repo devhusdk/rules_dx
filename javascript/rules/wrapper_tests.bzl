@@ -32,9 +32,9 @@ def javascript_wrapper_contract_tests(name):
                 "javascript_test with runner = \"jest\" needs node_modules.",
             ),
             expect_equal(
-                "jest rejects entry_point",
+                "jest rejects main",
                 javascript_test_rejection("jest", "//:nm", "main.js", {}),
-                "javascript_test with runner = \"jest\" runs jest; set runner = \"node\" to use entry_point.",
+                "javascript_test with runner = \"jest\" runs jest; set runner = \"node\" to use main.",
             ),
             expect_equal(
                 "jest rejects disabled reporters",
@@ -42,9 +42,9 @@ def javascript_wrapper_contract_tests(name):
                 "javascript_test with runner = \"jest\" keeps the standard reporters; set runner = \"node\" for a custom runner.",
             ),
             expect_equal(
-                "node needs entry_point",
+                "node needs main",
                 javascript_test_rejection("node", None, None, {}),
-                "javascript_test with runner = \"node\" needs entry_point.",
+                "javascript_test with runner = \"node\" needs main.",
             ),
             expect_equal(
                 "node rejects node_modules",

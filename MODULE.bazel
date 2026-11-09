@@ -950,7 +950,10 @@ bazel_dep(name = "rules_dart", version = "0.8.1")
 single_version_override(
     module_name = "rules_dart",
     patch_strip = 1,
-    patches = ["//patches/rules_dart:coverage.patch"],
+    patches = [
+        "//patches/rules_dart:coverage.patch",
+        "//patches/rules_dart:external_pkgsrcs.patch",
+    ],
     version = "0.8.1",
 )
 

@@ -124,10 +124,16 @@ pub const OVERRIDES: &[Override] = &[
         version: "0.8.1",
         patch_strip: 1,
         archive: None,
-        patches: &[OverridePatch {
-            file: "coverage.patch",
-            content: include_str!("../../../patches/rules_dart/coverage.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "coverage.patch",
+                content: include_str!("../../../patches/rules_dart/coverage.patch"),
+            },
+            OverridePatch {
+                file: "external_pkgsrcs.patch",
+                content: include_str!("../../../patches/rules_dart/external_pkgsrcs.patch"),
+            },
+        ],
     },
     Override {
         module: "rules_julia",

@@ -843,7 +843,7 @@ mod tests {
         let module =
             "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
         harness.write_source("MODULE.bazel", module);
-        harness.write_source("app.py", "");
+        harness.write_source("app.sh", "");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");

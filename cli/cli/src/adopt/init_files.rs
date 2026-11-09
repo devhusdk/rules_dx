@@ -802,6 +802,8 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-doc-rows-");
         let root = scratch.path();
         std::fs::write(root.join("app.py"), "print(1)\n").expect("source");
+        std::fs::create_dir(root.join("pkg")).expect("pkg");
+        std::fs::write(root.join("pkg/BUILD.bazel"), "dx_deployment(name = \"app\")\n").expect("build");
         let rows = doc_rows();
         let mut files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         let gitlab =
@@ -931,13 +933,13 @@ mod tests {
     }
 
     #[test]
-    fn apply_adds_no_family_module_for_a_python_workspace() {
+    fn apply_adds_no_family_module_for_a_shell_workspace() {
         let scratch = dx_test_scratch::scratch("dx-init-family-deps-");
         let root = scratch.path();
         let module =
             "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
         std::fs::write(root.join("MODULE.bazel"), module).expect("write");
-        std::fs::write(root.join("app.py"), "").expect("write");
+        std::fs::write(root.join("app.sh"), "").expect("write");
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
         let after = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");

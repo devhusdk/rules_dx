@@ -98,20 +98,12 @@ const GO_CHILD_ENV_EXTRA: &[&str] = &[
 ];
 
 fn git(workspace: &Path, args: &[&str]) -> Result<String, String> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(workspace)
-        .args(args)
-        .output()
-        .map_err(|error| format!("git: {error}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "git {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    dx_process::capture::run_checked(
+        dx_process::capture::git(workspace).args(args),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .map(|output| output.stdout_text())
+    .map_err(|error| error.to_string())
 }
 
 /// Returns the breaking changes of the module in `new` against the module in `old`.

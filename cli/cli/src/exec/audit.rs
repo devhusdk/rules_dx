@@ -436,15 +436,15 @@ fn fetch_pinned(url: &str) -> Result<Vec<u8>, String> {
         1,
     )
     .map_err(|error| error.to_string())?;
-    let done = std::process::Command::new(&plan.program)
-        .args(&plan.argv)
-        .status()
-        .map_err(|error| format!("{}: {error}", plan.program))?;
-    if !done.success() {
-        return Err(format!("{url}: {} {done}", plan.program));
-    }
+    dx_process::capture::run_checked(
+        std::process::Command::new(&plan.program).args(&plan.argv),
+        FETCH_TIMEOUT,
+    )
+    .map_err(|error| format!("{url}: {error}"))?;
     std::fs::read(&file).map_err(|error| format!("{url}: {error}"))
 }
+
+const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
 
 const NO_DEPENDENCY_SETS: &str = "no dependency sets: this workspace declares no hubs in MODULE.bazel. Add one, for example:\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:Cargo.lock\",\n    manifests = [\"//:Cargo.toml\"],\n)";
 

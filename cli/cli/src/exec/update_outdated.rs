@@ -193,6 +193,8 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     exit
 }
 
+const BAZEL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1800);
+
 /// Finds the pinned opam-repository snapshot checkout through the pinned opam wrapper.
 fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, String> {
     if let Some(dir) = std::env::var_os(OPAM_SNAPSHOT_ENV) {
@@ -200,15 +202,19 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, String> {
     }
     let mut argv = dx_process::BazelHead::default().argv("run");
     argv.extend(["@rules_dx//ocaml/tools:opam", "--", "snapshot-dir"].map(str::to_owned));
-    let output = std::process::Command::new(&argv[0])
-        .args(&argv[1..])
-        .current_dir(workspace)
-        .output()
-        .map_err(|error| format!("cannot run bazel for the opam snapshot: {error}"))?;
-    if !output.status.success() {
-        return Err("bazel could not provide the opam-repository snapshot".to_owned());
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
+    let output = dx_process::capture::run_checked(
+        std::process::Command::new(&argv[0])
+            .args(&argv[1..])
+            .current_dir(workspace),
+        BAZEL_TIMEOUT,
+    )
+    .map_err(|error| match error {
+        dx_process::capture::RunError::Spawn { source, .. } => {
+            format!("cannot run bazel for the opam snapshot: {source}")
+        }
+        _ => "bazel could not provide the opam-repository snapshot".to_owned(),
+    })?;
+    let text = output.stdout_text();
     match text.lines().last().map(str::trim).filter(|l| !l.is_empty()) {
         Some(dir) => Ok(PathBuf::from(dir)),
         None => Err("the opam wrapper printed no snapshot directory".to_owned()),

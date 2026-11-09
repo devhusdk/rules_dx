@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::time::Duration;
 
 use dx_process::lifecycle::{
@@ -9,45 +9,34 @@ use dx_process::lifecycle::{
 
 use super::WorktreeError;
 
-const GIT_ENV: [&str; 4] = [
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_INDEX_FILE",
-    "GIT_COMMON_DIR",
-];
+/// Bound for slot-changing git runs such as checkouts of large trees.
+const WRITE_TIMEOUT: Duration = Duration::from_secs(1800);
 
 /// Bound for the per-slot status reads. A timeout keeps the slot.
 const READ_TIMEOUT: Duration = Duration::from_secs(120);
 
 fn command(cwd: &Path) -> Command {
-    let mut command = Command::new("git");
-    command.current_dir(cwd);
-    for name in GIT_ENV {
-        command.env_remove(name);
-    }
-    command
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_OPTIONAL_LOCKS", "0")
-        .stdin(Stdio::null());
     // Tests must not see the developer's global hooks, `insteadOf` or signing config.
     #[cfg(test)]
-    super::tests::isolate(&mut command);
-    command
+    {
+        let mut command = dx_process::capture::git(cwd);
+        super::tests::isolate(&mut command);
+        command
+    }
+    #[cfg(not(test))]
+    dx_process::capture::git(cwd)
 }
 
 /// Runs git and returns stdout, or the failure with its stderr.
 pub(super) fn run<S: AsRef<OsStr>>(cwd: &Path, args: &[S]) -> Result<String, WorktreeError> {
-    let output = command(cwd)
-        .args(args)
-        .output()
-        .map_err(|error| WorktreeError::git(args, &format!("cannot start git: {error}")))?;
-    if output.status.success() {
-        return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+    let mut cmd = command(cwd);
+    cmd.args(args);
+    let output = dx_process::capture::run_captured(&mut cmd, WRITE_TIMEOUT)
+        .map_err(|error| WorktreeError::git(args, &error.to_string()))?;
+    if output.success() {
+        return Ok(output.stdout_text());
     }
-    Err(WorktreeError::git(
-        args,
-        String::from_utf8_lossy(&output.stderr).trim(),
-    ))
+    Err(WorktreeError::git(args, &output.stderr_text()))
 }
 
 /// Like `run`, for reads only: stops the child once `stop` returns a signal
@@ -98,46 +87,25 @@ pub(super) fn line(cwd: &Path, args: &[&str]) -> Result<String, WorktreeError> {
 
 /// Reports whether git exits zero.
 pub(super) fn succeeds(cwd: &Path, args: &[&str]) -> bool {
-    command(cwd)
-        .args(args)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|status| status.success())
-        .unwrap_or(false)
+    let mut cmd = command(cwd);
+    cmd.args(args);
+    dx_process::capture::run_captured(&mut cmd, WRITE_TIMEOUT).is_ok_and(|output| output.success())
 }
 
-/// Runs git with data on stdin and returns stdout. Feeds stdin concurrently so large input cannot deadlock.
+/// Runs git with data on stdin and returns stdout. A zero or one exit is a result.
 pub(super) fn run_with_input(
     cwd: &Path,
     args: &[&str],
     input: &[u8],
 ) -> Result<String, WorktreeError> {
-    use std::io::Write as _;
-    let mut child = command(cwd)
-        .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| WorktreeError::git(args, &format!("cannot start git: {error}")))?;
-    let stdin = child.stdin.take();
-    let output = std::thread::scope(|scope| {
-        scope.spawn(move || {
-            if let Some(mut stdin) = stdin {
-                let _ = stdin.write_all(input);
-            }
-        });
-        child.wait_with_output()
-    })
-    .map_err(|error| WorktreeError::git(args, &error.to_string()))?;
-    if output.status.success() || output.status.code() == Some(1) {
-        return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+    let mut cmd = command(cwd);
+    cmd.args(args);
+    let output = dx_process::capture::run_captured_with_input(&mut cmd, Some(input), WRITE_TIMEOUT)
+        .map_err(|error| WorktreeError::git(args, &error.to_string()))?;
+    if output.success() || output.code == Some(1) {
+        return Ok(output.stdout_text());
     }
-    Err(WorktreeError::git(
-        args,
-        String::from_utf8_lossy(&output.stderr).trim(),
-    ))
+    Err(WorktreeError::git(args, &output.stderr_text()))
 }
 
 /// One entry of `git worktree list --porcelain`.

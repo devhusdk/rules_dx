@@ -54,6 +54,17 @@ pub struct CommandBazel {
     pub dir: PathBuf,
 }
 
+const BAZEL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1800);
+
+fn run_detail(bin: &Path, error: &dx_process::capture::RunError) -> String {
+    match error {
+        dx_process::capture::RunError::Spawn { source, .. } => {
+            format!("could not run {}: {source}", bin.display())
+        }
+        other => other.to_string(),
+    }
+}
+
 impl Bazel for CommandBazel {
     fn cquery_files(&self, label: &str, args: &[String]) -> Result<String, ResolveError> {
         let mut argv = vec![
@@ -62,21 +73,21 @@ impl Bazel for CommandBazel {
             label.to_owned(),
         ];
         argv.extend(args.iter().cloned());
-        let output = Command::new(&self.bin)
-            .args(&argv)
-            .current_dir(&self.dir)
-            .output()
-            .map_err(|error| ResolveError::CqueryFailed {
-                label: label.to_owned(),
-                detail: format!("could not run {}: {error}", self.bin.display()),
-            })?;
-        if !output.status.success() {
+        let output = dx_process::capture::run_captured(
+            Command::new(&self.bin).args(&argv).current_dir(&self.dir),
+            BAZEL_TIMEOUT,
+        )
+        .map_err(|error| ResolveError::CqueryFailed {
+            label: label.to_owned(),
+            detail: run_detail(&self.bin, &error),
+        })?;
+        if !output.success() {
             return Err(ResolveError::CqueryFailed {
                 label: label.to_owned(),
-                detail: exit_detail(output.status.code(), &output.stderr),
+                detail: exit_detail(output.code, &output.stderr),
             });
         }
-        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+        Ok(output.stdout_text())
     }
 
     fn output_base(&self) -> Result<String, ResolveError> {
@@ -94,15 +105,17 @@ impl CommandBazel {
             key: key.to_owned(),
             detail,
         };
-        let output = Command::new(&self.bin)
-            .args(["info", key])
-            .current_dir(&self.dir)
-            .output()
-            .map_err(|error| failed(format!("could not run {}: {error}", self.bin.display())))?;
-        if !output.status.success() {
-            return Err(failed(exit_detail(output.status.code(), &output.stderr)));
+        let output = dx_process::capture::run_captured(
+            Command::new(&self.bin)
+                .args(["info", key])
+                .current_dir(&self.dir),
+            BAZEL_TIMEOUT,
+        )
+        .map_err(|error| failed(run_detail(&self.bin, &error)))?;
+        if !output.success() {
+            return Err(failed(exit_detail(output.code, &output.stderr)));
         }
-        let value = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        let value = output.stdout_text().trim().to_owned();
         if value.is_empty() {
             return Err(failed(format!("bazel info {key} printed nothing")));
         }

@@ -98,16 +98,11 @@ pub fn is_dx_state(path: &str) -> bool {
 
 /// True when git ignores the generated `.dx` files, so they would not be committed.
 pub fn dx_config_git_ignored(root: &Path) -> bool {
-    std::process::Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(["check-ignore", "-q", ".dx/BUILD.bazel"])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map(|status| status.code() == Some(0))
-        .unwrap_or(false)
+    dx_process::capture::run_captured(
+        dx_process::capture::git(root).args(["check-ignore", "-q", ".dx/BUILD.bazel"]),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .is_ok_and(|output| output.success())
 }
 
 /// Sorts changes by path and drops duplicate paths, keeping rename sources.

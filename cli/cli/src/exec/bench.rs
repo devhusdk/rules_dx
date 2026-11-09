@@ -130,18 +130,12 @@ fn load_baseline(
 }
 
 fn gh_output(gh: &Path, args: &[&str]) -> Result<String, String> {
-    let output = std::process::Command::new(gh)
-        .args(args)
-        .output()
-        .map_err(|error| format!("cannot run gh: {error}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "gh {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    dx_process::capture::run_checked(
+        std::process::Command::new(gh).args(args),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .map(|output| output.stdout_text())
+    .map_err(|error| error.to_string())
 }
 
 /// Downloads the `dx-bench-<platform>` artifact of the latest run on a ref.

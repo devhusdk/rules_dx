@@ -10,6 +10,8 @@ use serde::Deserialize;
 use crate::advisory::{AdvisoryPin, CODE_ADVISORY_REFRESH_FAILED, PIN_MAX_AGE_DAYS, TRIVY_FAMILY};
 use crate::exception::RiskException;
 
+const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
+
 pub const SEVERITIES: [&str; 4] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
 /// The exception set that covers every image.
@@ -184,13 +186,11 @@ fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(),
                 1,
             )
             .map_err(|error| error.to_string())?;
-            let done = Command::new(&plan.program)
-                .args(&plan.argv)
-                .status()
-                .map_err(|error| format!("{}: {error}", plan.program))?;
-            if !done.success() {
-                return Err(format!("{}: {} {done}", pin.url, plan.program));
-            }
+            dx_process::capture::run_checked(
+                Command::new(&plan.program).args(&plan.argv),
+                FETCH_TIMEOUT,
+            )
+            .map_err(|error| format!("{}: {error}", pin.url))?;
             let bytes = std::fs::read(&archive).map_err(|error| format!("{}: {error}", pin.url));
             let _ = std::fs::remove_file(&archive);
             bytes?

@@ -22,6 +22,10 @@ impl OwnedChild {
         self.child.try_wait()
     }
 
+    pub fn take_stdin(&mut self) -> Option<std::process::ChildStdin> {
+        self.child.stdin.take()
+    }
+
     pub fn take_stdout(&mut self) -> Option<ChildStdout> {
         self.child.stdout.take()
     }

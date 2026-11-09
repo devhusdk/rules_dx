@@ -251,6 +251,7 @@ COVERAGE_COLLECTORS = {
     "ruby": ["simplecov"],
     "rust": ["llvm-cov"],
     "scala": ["jacoco"],
+    "svelte": ["jest"],
     "typescript": ["jest"],
     "zig": ["kcov"],
 }
@@ -269,7 +270,6 @@ NO_COVERAGE = {
     "cuda": "cuda_test has no dx coverage wiring",
     "mdx": "js_test has no dx coverage wiring",
     "qt": "no dx coverage wiring in the Qt rules",
-    "svelte": "js_test has no dx coverage wiring",
     "swift": "no dx coverage wiring in the Swift rules",
     "vue": "js_test has no dx coverage wiring",
     "wasi": "the WASI guest test has no coverage collector",

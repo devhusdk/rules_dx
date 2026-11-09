@@ -2,6 +2,7 @@
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
+load("//javascript/rules:defs.bzl", "javascript_test")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_wrap")
 load("//libs/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -26,6 +27,21 @@ def dx_framework_library(name, srcs, upstream_rule, forward_rule, skip, visibili
             tags.append(tag)
     kwargs["tags"] = tags
     dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = visibility, **kwargs)
+
+def dx_framework_test(name, srcs, config, transform, packages, node_modules, data = None, **kwargs):
+    """Runs jest over framework components. `transform` compiles them, `config` builds the jest config from the shared helper, and `packages` are the node_modules packages (the compiler) the transform needs."""
+    if "config" in kwargs:
+        fail(name + ": config is set by the framework test rule")
+    javascript_test(
+        name = name,
+        srcs = srcs,
+        config = config,
+        data = list(data or []) + [transform, Label("//javascript/rules:framework_jest_config")] +
+               [node_modules + "/" + package for package in packages],
+        node_modules = node_modules,
+        node_options = ["--experimental-vm-modules"],
+        **kwargs
+    )
 
 def _dx_framework_web_app_impl(ctx):
     """Stages one built framework dist tree as a bundled web app."""

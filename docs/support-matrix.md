@@ -108,7 +108,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `rubocop Lint/UselessAssignment` |
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` | `scalac -Wunused` |
-| Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
+| Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | `jest` | `eslint @typescript-eslint/no-unused-vars` |
 | Swift | `swift_lint` (not on `windows_x86_64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64; `windows_arm64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64), `typos` | `swift_format` (not on `windows_x86_64`: swift-format is pinned only for Linux and macOS arm64; `windows_arm64`: swift-format is pinned only for Linux and macOS arm64) | no | no | no: no dx coverage wiring in the Swift rules | no |
 | TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
 | Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |

@@ -9,6 +9,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "framework_jest_config.cjs",
     "frameworks.bzl",
     "vite_tool.mjs",
     "web.bzl",
@@ -32,6 +33,11 @@ js_library(
 js_binary(
     name = "vite_tool",
     entry_point = "vite_tool.mjs",
+)
+
+copy_to_bin(
+    name = "framework_jest_config",
+    srcs = ["framework_jest_config.cjs"],
 )
 
 copy_to_bin(

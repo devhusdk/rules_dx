@@ -1,7 +1,7 @@
 """Svelte component libraries and app builds."""
 
 load("@aspect_rules_js//js:defs.bzl", _js_library = "js_library")
-load("//javascript/rules:frameworks.bzl", "dx_framework_forward_rule", "dx_framework_library", "dx_framework_build")
+load("//javascript/rules:frameworks.bzl", "dx_framework_forward_rule", "dx_framework_library", "dx_framework_build", "dx_framework_test")
 
 _svelte_library_forward = dx_framework_forward_rule("svelte", ".svelte")
 
@@ -12,3 +12,7 @@ def svelte_library(name, srcs, visibility = None, **kwargs):
 def svelte_build(name, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, **kwargs):
     """Builds one Vite Svelte app into a bundled web app tree and an optional SSR tree."""
     dx_framework_build(name, "svelte_build", "Svelte", ["vite", "@sveltejs/vite-plugin-svelte", "svelte"], srcs, config, node_modules, package_json = package_json, public = public, ssr_entry = ssr_entry, deps = deps, visibility = visibility, keep_entry_path = True, **kwargs)
+
+def svelte_test(name, srcs, node_modules, data = None, **kwargs):
+    """Runs jest over Svelte components, compiled by the linked svelte. Coverage maps back to the .svelte sources."""
+    dx_framework_test(name, srcs, Label("//svelte/rules:jest_config"), Label("//svelte/rules:jest_transform"), ["svelte"], node_modules, data = data, **kwargs)

@@ -119,6 +119,9 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
         "clean_failed" => {
             "next: check that the workspace and .dx are readable and writable and run the command again."
         }
+        "launch_failed" => {
+            "next: install bazelisk (or bazel) on PATH, using the version pinned in .bazelversion, and run the command again."
+        }
         "managed_commit_failed" => {
             "next: run `dx sync` again; if it still fails, check that .dx is writable."
         }
@@ -327,6 +330,7 @@ mod tests {
             "no_capability",
             "clean_failed",
             "managed_commit_failed",
+            "launch_failed",
         ] {
             let text = next_action(code).expect(code);
             assert!(text.starts_with("next: "), "{text}");

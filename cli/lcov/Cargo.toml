@@ -12,3 +12,7 @@ path = "src/lib.rs"
 lcov = "0.8"
 regex = "1"
 thiserror = "2"
+
+[[bin]]
+name = "to_lcov"
+path = "src/to_lcov.rs"

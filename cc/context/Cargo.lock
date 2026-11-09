@@ -720,6 +720,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "cli_entrypoint_tests"
+version = "0.0.0"
+
+[[package]]
 name = "cmac"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1234,6 +1238,22 @@ checksum = "bd2735a791158376708f9347fe8faba9667589d82427ef3aed6794a8981de3d9"
 dependencies = [
  "generic-array",
 ]
+
+[[package]]
+name = "deploy_cross_tests"
+version = "0.0.0"
+
+[[package]]
+name = "deploy_offline_tests"
+version = "0.0.0"
+
+[[package]]
+name = "deploy_release_tests"
+version = "0.0.0"
+
+[[package]]
+name = "deploy_runfiles_tests"
+version = "0.0.0"
 
 [[package]]
 name = "der"

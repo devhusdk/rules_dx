@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "deploy_cross_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "cross_archive_test"
+path = "cross_archive_test.rs"

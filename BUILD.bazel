@@ -39,7 +39,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude examples/adopt-polyglot
 # gazelle:exclude quality/tools/lua/testdata
 # gazelle:exclude quality/testdata
-# gazelle:exclude cli/entrypoint
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/release/consumer
@@ -77,7 +76,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cc/tests/fixtures/no_srcs
 # gazelle:exclude cc/tests/fixtures/consumer_cc
 # gazelle:exclude appimage/tests/fixtures
-# gazelle:exclude deploy/tests/cross
 # gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
 # gazelle:exclude deploy/symbols/fixture

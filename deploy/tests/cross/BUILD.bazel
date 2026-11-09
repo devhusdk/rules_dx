@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//deploy/rules:archive.bzl", "archive_deploy")
@@ -35,7 +36,15 @@ cross_deployment(
 
 rust_test(
     name = "cross_archive_test",
+    testonly = True,
     srcs = ["cross_archive_test.rs"],
+    aliases = aliases(
+        package_name = "deploy/tests/deploy_cross_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cross_archive_test",
+    crate_root = "cross_archive_test.rs",
     data = [":aarch64_release"],
     env = {"DX_RELEASE_FILES": "$(rootpaths :aarch64_release)"},
     target_compatible_with = [
@@ -54,4 +63,11 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

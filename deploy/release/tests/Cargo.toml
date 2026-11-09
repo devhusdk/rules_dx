@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "deploy_release_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "release_candidate_smoke_test"
+path = "candidate_consumer_test.rs"
+
+[[test]]
+name = "readme_quickstart_smoke_test"
+path = "quickstart_consumer_test.rs"

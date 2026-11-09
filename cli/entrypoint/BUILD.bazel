@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 
@@ -6,6 +7,13 @@ package(default_testonly = True)
 rust_test(
     name = "consumer_dx_entry",
     srcs = ["entrypoint_test.rs"],
+    aliases = aliases(
+        package_name = "cli/cli_entrypoint_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "consumer_dx_entry",
+    crate_root = "entrypoint_test.rs",
     data = [
         "@dx_consumer_entry//:consumer_dx_probe",
         "@dx_consumer_entry//:crate_help.txt",
@@ -33,17 +41,17 @@ rust_test(
         "@dx_consumer_scaffold//:init_dir_reapply.txt",
         "@dx_consumer_scaffold//:new_removed.txt",
         "@dx_consumer_sets//:bad_kind.txt",
+        "@dx_consumer_sets//:consumer_sets_probe",
         "@dx_consumer_sets//:edit_cargo.txt",
         "@dx_consumer_sets//:edit_composer.txt",
         "@dx_consumer_sets//:edit_opam.txt",
         "@dx_consumer_sets//:edit_pinned.txt",
         "@dx_consumer_sets//:edit_unsupported.txt",
-        "@dx_consumer_sets//:consumer_sets_probe",
         "@dx_consumer_sets//:license_json.txt",
         "@dx_consumer_sets//:nolock_license.txt",
         "@dx_consumer_sets//:security_cargo_json.txt",
-        "@dx_consumer_sets//:security_cpan_json.txt",
         "@dx_consumer_sets//:security_composer_json.txt",
+        "@dx_consumer_sets//:security_cpan_json.txt",
         "@dx_consumer_sets//:security_json.txt",
         "@dx_consumer_sets//:security_ruby_json.txt",
         "@dx_consumer_sets//:security_swiftpm_json.txt",
@@ -96,6 +104,13 @@ rust_test(
 rust_test(
     name = "consumer_dx_completion",
     srcs = ["completion_test.rs"],
+    aliases = aliases(
+        package_name = "cli/cli_entrypoint_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "consumer_dx_completion",
+    crate_root = "completion_test.rs",
     data = [
         "@dx_consumer_completion//:completion_argv.txt",
         "@dx_consumer_completion//:completion_env.txt",
@@ -115,6 +130,13 @@ rust_test(
 rust_test(
     name = "consumer_surface",
     srcs = ["surface_test.rs"],
+    aliases = aliases(
+        package_name = "cli/cli_entrypoint_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "consumer_surface",
+    crate_root = "surface_test.rs",
     data = [
         "consumer_surface.txt",
         "@dx_consumer_surface//:closure.txt",
@@ -148,3 +170,8 @@ real_source_target(
     tags = ["corpus"],
 )
 
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

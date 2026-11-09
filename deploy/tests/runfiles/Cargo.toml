@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "deploy_runfiles_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "deploy_runfiles_test"
+path = "deploy_runfiles_test.rs"

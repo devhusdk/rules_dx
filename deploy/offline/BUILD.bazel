@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load(":offline.bzl", "offline_bundle")
@@ -52,6 +53,13 @@ offline_file_tests(
 rust_test(
     name = "bootstrap_test",
     srcs = ["bootstrap_test.rs"],
+    aliases = aliases(
+        package_name = "deploy/deploy_offline_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "bootstrap_test",
+    crate_root = "bootstrap_test.rs",
     data = [
         ":bootstrap_offline",
         ":offline.bzl",
@@ -82,4 +90,10 @@ real_source_target(
         "offline_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

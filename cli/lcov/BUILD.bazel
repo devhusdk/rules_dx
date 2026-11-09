@@ -79,19 +79,35 @@ rust_test(
     ],
 )
 
-# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "to_lcov",
     srcs = ["src/to_lcov.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_lcov",
+        normal = True,
+    ),
+    crate_name = "to_lcov",
     crate_root = "src/to_lcov.rs",
     visibility = VIS_TOOLS_PUBLIC,
-    deps = [":dx_lcov"],
+    deps = all_crate_deps(
+        package_name = "cli/dx_lcov",
+        normal = True,
+    ) + [":dx_lcov"],
 )
 
-# keep: tests a binary Gazelle does not generate
 rust_test(
     name = "to_lcov_test",
+    aliases = aliases(
+        package_name = "cli/dx_lcov",
+        normal = True,
+        normal_dev = True,
+    ),
     crate = ":to_lcov",
+    deps = all_crate_deps(
+        package_name = "cli/dx_lcov",
+        normal = True,
+        normal_dev = True,
+    ),
 )
 
 real_source_target(

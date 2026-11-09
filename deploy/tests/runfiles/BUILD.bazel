@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//deploy/rules:github.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
@@ -34,7 +35,15 @@ child_runfiles(
 
 rust_test(
     name = "deploy_runfiles_test",
+    testonly = True,
     srcs = ["deploy_runfiles_test.rs"],
+    aliases = aliases(
+        package_name = "deploy/tests/deploy_runfiles_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "deploy_runfiles_test",
+    crate_root = "deploy_runfiles_test.rs",
     data = [
         ":archive_child",
         ":github_child",
@@ -69,4 +78,11 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

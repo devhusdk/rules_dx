@@ -1,0 +1,17 @@
+[package]
+license = "Apache-2.0"
+name = "cli_entrypoint_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "consumer_dx_entry"
+path = "entrypoint_test.rs"
+
+[[test]]
+name = "consumer_dx_completion"
+path = "completion_test.rs"
+
+[[test]]
+name = "consumer_surface"
+path = "surface_test.rs"

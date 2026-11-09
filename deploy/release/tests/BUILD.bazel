@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
@@ -10,7 +11,15 @@ package(
 rust_test(
     name = "release_candidate_smoke_test",
     timeout = "moderate",
+    testonly = True,
     srcs = ["candidate_consumer_test.rs"],
+    aliases = aliases(
+        package_name = "deploy/release/deploy_release_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "release_candidate_smoke_test",
+    crate_root = "candidate_consumer_test.rs",
     data = [
         "//cli/cli:dx",
         "//deploy:module_srcs",
@@ -33,7 +42,15 @@ rust_test(
 rust_test(
     name = "readme_quickstart_smoke_test",
     timeout = "moderate",
+    testonly = True,
     srcs = ["quickstart_consumer_test.rs"],
+    aliases = aliases(
+        package_name = "deploy/release/deploy_release_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "readme_quickstart_smoke_test",
+    crate_root = "quickstart_consumer_test.rs",
     data = [
         "//:README.md",
         "//.bcr:presubmit.yml",
@@ -69,4 +86,11 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

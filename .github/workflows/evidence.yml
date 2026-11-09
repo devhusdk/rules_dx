@@ -66,6 +66,33 @@ env:
   BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
 jobs:
+  pending:
+    name: evidence status (pending)
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    steps:
+      - name: Post pending statuses
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DX_SCOPE: ${{ inputs.scope }}
+          DX_TASK: ${{ inputs.task }}
+          DX_PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          task="$(printf '%s' "$DX_TASK" | tr -c 'a-z0-9_' '_' | cut -c1-40)"
+          description="$(printf '%s %s' "$task" "$DX_SCOPE" | tr '\n' ' ' | cut -c1-140)"
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          printf '%s' "$DX_PLATFORMS" | jq -r '.[]? | strings' 2>/dev/null | while read -r platform; do
+            [[ "$platform" =~ ^[a-z0-9_]{1,40}$ ]] || continue
+            gh api "repos/$GH_REPO/statuses/$GITHUB_SHA" \
+              -f state=pending \
+              -f "context=evidence/$platform/$task" \
+              -f "target_url=$url" \
+              -f "description=$description" || true
+          done
+
   evidence:
     name: evidence (${{ matrix.platform }})
     timeout-minutes: ${{ inputs.release_cell && 90 || 60 }}
@@ -523,3 +550,38 @@ jobs:
               printf '```\n'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  finish:
+    name: evidence status (final)
+    needs: [pending, evidence]
+    if: ${{ always() && needs.pending.result == 'success' }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      statuses: write
+    steps:
+      - name: Post final statuses
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DX_TASK: ${{ inputs.task }}
+          DX_PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          task="$(printf '%s' "$DX_TASK" | tr -c 'a-z0-9_' '_' | cut -c1-40)"
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          jobs="$(gh api "repos/$GH_REPO/actions/runs/$GITHUB_RUN_ID/jobs" --paginate --jq '.jobs[] | {name, conclusion}' | jq -s '.')"
+          printf '%s' "$DX_PLATFORMS" | jq -r '.[]? | strings' 2>/dev/null | while read -r platform; do
+            [[ "$platform" =~ ^[a-z0-9_]{1,40}$ ]] || continue
+            result="$(printf '%s' "$jobs" | jq -r --arg name "evidence ($platform)" '[.[] | select(.name == $name) | .conclusion][0] // "missing"')"
+            case "$result" in
+              success) state=success; description="evidence passed" ;;
+              failure) state=failure; description="evidence failed" ;;
+              *) state=error; description="run ended without a result" ;;
+            esac
+            gh api "repos/$GH_REPO/statuses/$GITHUB_SHA" \
+              -f "state=$state" \
+              -f "context=evidence/$platform/$task" \
+              -f "target_url=$url" \
+              -f "description=$description" || true
+          done

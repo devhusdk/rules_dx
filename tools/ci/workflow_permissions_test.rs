@@ -39,6 +39,7 @@ const MARKERS: &[(&str, &[&str])] = &[
     ("issues", &["gh issue ", "gh pr comment"]),
     ("packages", &["docker push", "deploy --apply"]),
     ("pages", &["actions/deploy-pages@"]),
+    ("statuses", &["/statuses/"]),
     (
         "pull-requests",
         &[

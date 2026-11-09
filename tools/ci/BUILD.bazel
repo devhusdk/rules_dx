@@ -118,6 +118,28 @@ rust_test(
 )
 
 rust_test(
+    name = "evidence_status_test",
+    srcs = ["evidence_status_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "evidence_status_test",
+    crate_root = "evidence_status_test.rs",
+    data = ["//.github:workflows/evidence.yml"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+rust_test(
     name = "docs_scope_test",
     srcs = ["docs_scope_test.rs"],
     aliases = aliases(

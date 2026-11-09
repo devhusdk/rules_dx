@@ -31,6 +31,10 @@ tools/dx test --affected -- --config=bb
 
 `--config=bb` reads the key from the environment through `tools/buildbuddy-credential-helper.sh` on Linux and macOS. Never put the key in `user.bazelrc` or any other rc file, and never pass `--announce_rc`.
 
+## Evidence status
+
+Each `evidence.yml` run posts the commit status `evidence/<platform>/<task>` on the dispatched commit: pending at dispatch, then success, failure or error. `gh pr checks <n> --watch` shows it. A second run for the same platform and task on one commit replaces the status.
+
 ## Issues and labels
 
 Use the bug template. Paste `dx status`.

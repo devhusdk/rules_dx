@@ -2478,20 +2478,14 @@ TOOLS = [
                 classes = ["thrift"],
                 family = "thrift",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                unsupported = {
-                    "windows_x86_64": "The thrift compiler build relies on POSIX headers (arpa/inet.h, pthread) and is not built for Windows",
-                },
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
             ),
             row(
                 capability = "typecheck",
                 classes = ["thrift"],
                 family = "thrift",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
-                unsupported = {
-                    "windows_x86_64": "The thrift compiler build relies on POSIX headers (arpa/inet.h, pthread) and is not built for Windows",
-                },
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
             ),
         ],
     ),

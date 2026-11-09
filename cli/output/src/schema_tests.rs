@@ -15,7 +15,7 @@ fn schema_defines_exactly_the_registered_events() {
     let mut defined: Vec<&str> = defs
         .keys()
         .map(String::as_str)
-        .filter(|name| *name != "schema")
+        .filter(|name| !matches!(*name, "schema" | "finished"))
         .collect();
     defined.sort_unstable();
     let mut registered = EVENTS.to_vec();

@@ -496,15 +496,9 @@
       ],
       "additionalProperties": false
     },
-    "command_finished": {
+    "finished": {
       "type": "object",
       "properties": {
-        "schema": {
-          "$ref": "#/$defs/schema"
-        },
-        "event": {
-          "const": "command_finished"
-        },
         "correlation": {
           "type": "string"
         },
@@ -537,35 +531,6 @@
             "info",
             "warning",
             "error"
-          ],
-          "additionalProperties": false
-        },
-        "findings": {
-          "type": "object",
-          "properties": {
-            "omitted": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "by_tool": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "integer",
-                "minimum": 0
-              }
-            },
-            "by_rule": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "integer",
-                "minimum": 0
-              }
-            }
-          },
-          "required": [
-            "omitted",
-            "by_tool",
-            "by_rule"
           ],
           "additionalProperties": false
         },
@@ -670,13 +635,58 @@
           ],
           "additionalProperties": false
         }
+      }
+    },
+    "command_finished": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/finished"
+        }
+      ],
+      "type": "object",
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "event": {
+          "const": "command_finished"
+        },
+        "findings": {
+          "type": "object",
+          "properties": {
+            "omitted": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "by_tool": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "by_rule": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "required": [
+            "omitted",
+            "by_tool",
+            "by_rule"
+          ],
+          "additionalProperties": false
+        }
       },
       "required": [
         "schema",
         "event",
         "exit_code"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "command_started": {
       "type": "object",
@@ -1330,6 +1340,11 @@
       "additionalProperties": false
     },
     "phase_finished": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/finished"
+        }
+      ],
       "type": "object",
       "properties": {
         "schema": {
@@ -1338,147 +1353,11 @@
         "event": {
           "const": "phase_finished"
         },
-        "correlation": {
-          "type": "string"
-        },
         "command": {
           "type": "string"
         },
         "phase": {
           "type": "string"
-        },
-        "exit_code": {
-          "type": "integer"
-        },
-        "results_complete": {
-          "type": "boolean"
-        },
-        "run_id": {
-          "type": "string"
-        },
-        "diagnostics": {
-          "type": "object",
-          "properties": {
-            "info": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "warning": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "error": {
-              "type": "integer",
-              "minimum": 0
-            }
-          },
-          "required": [
-            "info",
-            "warning",
-            "error"
-          ],
-          "additionalProperties": false
-        },
-        "changes": {
-          "type": "object",
-          "properties": {
-            "create": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "modify": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "applied": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "refused": {
-              "type": "integer",
-              "minimum": 0
-            }
-          },
-          "required": [
-            "create",
-            "modify"
-          ],
-          "additionalProperties": false
-        },
-        "tests": {
-          "type": "object",
-          "properties": {
-            "passed": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "failed": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "cached": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "no_cases": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "skipped": {
-              "type": "integer",
-              "minimum": 0
-            }
-          },
-          "required": [
-            "passed",
-            "failed",
-            "cached",
-            "no_cases",
-            "skipped"
-          ],
-          "additionalProperties": false
-        },
-        "actions": {
-          "type": "object",
-          "properties": {
-            "created": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "executed": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "cache_hits": {
-              "type": "object",
-              "properties": {
-                "disk": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "remote": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "local": {
-                  "type": "integer",
-                  "minimum": 0
-                }
-              },
-              "required": [
-                "disk",
-                "remote",
-                "local"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "created",
-            "executed",
-            "cache_hits"
-          ],
-          "additionalProperties": false
         }
       },
       "required": [
@@ -1488,7 +1367,7 @@
         "phase",
         "exit_code"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "phase_started": {
       "type": "object",

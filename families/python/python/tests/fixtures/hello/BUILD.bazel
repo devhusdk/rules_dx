@@ -1,4 +1,5 @@
 load("@rules_dx//libs/starlark/tests:thin_compare.bzl", "thin_compare_py_tests", "thin_compare_subject")
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//python/rules:defs.bzl", "python_bench", "python_binary", "python_library", "python_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -129,4 +130,10 @@ real_source_target(
     testonly = True,
     tags = ["corpus"],
     toml_srcs = ["pyproject.toml"],
+)
+
+dx_runner_attr_test(
+    name = "parse_bench_default_size",
+    expected = {"size": "small"},
+    runner = "parse_bench",
 )

@@ -6,7 +6,7 @@ load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo", _PyWheelsInfo = "PyWheelsInfo
 load("//libs/exec_os:defs.bzl", "ExecOsInfo")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -161,7 +161,7 @@ def python_bench(name, *, srcs = None, args = None, tags = None, deps = None, **
         args = ["-p", "dx_bench_plugin", "--benchmark-only"] + (args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),
         deps = (deps or []) + [Label("//python/rules:bench_plugin")],
-        **kwargs
+        **with_default_size(kwargs)
     )
 
 def _out_dir(ctx, info):

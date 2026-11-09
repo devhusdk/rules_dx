@@ -6,7 +6,7 @@ load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_in
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "with_default_size")
 load("//libs/starlark:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -187,7 +187,7 @@ def javascript_bench(name, *, srcs, node_modules, main = None, data = None, args
         data = list(data or []) + [node_modules],
         args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),
-        **kwargs
+        **with_default_size(kwargs)
     )
 
 def javascript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, visibility = None, tags = None, **kwargs):

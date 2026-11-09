@@ -2,7 +2,7 @@
 
 load("@rules_dotnet//dotnet:defs.bzl", _fsharp_binary = "fsharp_binary", _fsharp_library = "fsharp_library", _fsharp_test = "fsharp_test")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
-load("@rules_dx//libs/starlark:fuzz_bench.bzl", "merge_tags")
+load("@rules_dx//libs/starlark:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("@rules_dx//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
@@ -99,7 +99,7 @@ def fsharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
         srcs = srcs + [Label("//fsharp/rules:BenchMain.fs")],
         deps = (deps or []) + BENCHMARKDOTNET + [Label("@paket.main//fsharp.core")],
         tags = merge_tags(tags, "dx-bench", "manual"),
-        **kwargs
+        **with_default_size(kwargs)
     )
 
 def fsharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **kwargs):

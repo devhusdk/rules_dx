@@ -6,7 +6,7 @@ load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
 load("//javascript/rules:defs.bzl", "javascript_binary")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "with_default_size")
 load("//libs/starlark:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
 load("//quality:pipeline.bzl", "upstream_tags")
@@ -436,7 +436,7 @@ def typescript_bench(name, *, srcs, node_modules, main = None, data = None, args
         data = list(data or []) + [node_modules],
         args = [_compiled_path(main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),
-        **kwargs
+        **with_default_size(kwargs)
     )
 
 def typescript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, deps = None, visibility = None, tags = None, **kwargs):

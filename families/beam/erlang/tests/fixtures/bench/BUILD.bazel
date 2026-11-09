@@ -1,4 +1,5 @@
 load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bench", "test_erlang_app")
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -33,4 +34,10 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+dx_runner_attr_test(
+    name = "sum_bench_SUITE_default_size",
+    expected = {"size": "small"},
+    runner = "sum_bench_SUITE",
 )

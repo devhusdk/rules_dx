@@ -8,7 +8,7 @@ load("//erlang/rules:defs.bzl", "runfiles_path", _escript_archive = "erlang_escr
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "elixir_app_kwargs", "elixir_cover_opts", "elixir_kwargs", _COVER_LOAD = "COVER_LOAD", _ELIXIR_CELLS = "ELIXIR_CELLS", _ELIXIR_COMPATIBLE_WITH = "ELIXIR_COMPATIBLE_WITH")
@@ -184,5 +184,5 @@ def elixir_bench(name, *, srcs, tags = None, deps = None, **kwargs):
         srcs = srcs,
         tags = merge_tags(tags, "dx-bench", "manual"),
         deps = (deps or []) + [Label("//elixir/bench:dx_bench")],
-        **kwargs
+        **with_default_size(kwargs)
     )

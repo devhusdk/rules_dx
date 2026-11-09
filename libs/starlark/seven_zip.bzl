@@ -3,6 +3,8 @@
 Bazel's native .7z support cannot decode BCJ2, so archives that use it need a real 7-Zip.
 """
 
+load(":host.bzl", "host_cell")
+
 _RELEASE = "https://github.com/ip7z/7zip/releases/download/26.03/"
 
 _WINDOWS = struct(
@@ -36,19 +38,9 @@ SEVEN_ZIP_EXTRACTORS = {
     "windows_x86_64": _WINDOWS,
 }
 
-_HOST_OSES = {"linux": "linux", "mac os x": "macos"}
-
-_HOST_ARCHES = {"aarch64": "arm64", "amd64": "x86_64", "arm64": "arm64", "x86_64": "x86_64"}
-
-def seven_zip_host(os_name, arch):
-    """Returns the SEVEN_ZIP_EXTRACTORS key of one host from Bazel's os name and arch."""
-    name = os_name.lower()
-    name = "windows" if name.startswith("windows") else _HOST_OSES.get(name, name)
-    return name + "_" + _HOST_ARCHES.get(arch, arch)
-
 def seven_zip_fetch(rctx, output):
     """Downloads the pinned extractor of the repository host into output and returns its path."""
-    host = seven_zip_host(rctx.os.name, rctx.os.arch)
+    host = host_cell(rctx)
     if host not in SEVEN_ZIP_EXTRACTORS:
         fail("the pinned 7-Zip extractor runs on " + ", ".join(sorted(SEVEN_ZIP_EXTRACTORS.keys())) + " hosts only, not " + rctx.os.name + " " + rctx.os.arch)
     extractor = SEVEN_ZIP_EXTRACTORS[host]

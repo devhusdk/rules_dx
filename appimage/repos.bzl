@@ -1,5 +1,6 @@
 """Hermetic AppImage tool acquisition."""
 
+load("//libs/starlark:host.bzl", "host_cell")
 load(":pins.bzl", "ARCHES", "RUNTIMES", "TOOLS", "TOOL_BINARIES")
 
 HUB_NAME = "dx_appimage_tools"
@@ -39,23 +40,22 @@ def hub_build():
     names = ", ".join(['"bin/' + name + '"' for name in TOOL_BINARIES])
     return _BUILD % names
 
-def host_arch(os_name, arch):
-    """Returns the pinned arch name of a Linux host, or an empty string."""
-    if not os_name.startswith("linux"):
-        return ""
-    return {"aarch64": "aarch64", "amd64": "x86_64", "arm64": "aarch64", "x86_64": "x86_64"}.get(arch, "")
+def host_arch(cell):
+    """Returns the pinned arch name of a host cell, or an empty string."""
+    return {"linux_arm64": "aarch64", "linux_x86_64": "x86_64"}.get(cell, "")
 
-def host_error(os_name, arch):
-    """Returns why a host cannot acquire the tools, or an empty string."""
-    if not host_arch(os_name, arch):
-        return "AppImage tools are only pinned for linux_x86_64 and linux_arm64, not " + os_name + "_" + arch
+def host_error(cell):
+    """Returns why a host cell cannot acquire the tools, or an empty string."""
+    if not host_arch(cell):
+        return "AppImage tools are only pinned for linux_x86_64 and linux_arm64, not " + cell
     return ""
 
 def _tools_impl(rctx):
-    if host_error(rctx.os.name, rctx.os.arch):
+    cell = host_cell(rctx)
+    if host_error(cell):
         rctx.file("BUILD.bazel", unsupported_build())
         return
-    tool = TOOLS[host_arch(rctx.os.name, rctx.os.arch)]
+    tool = TOOLS[host_arch(cell)]
     rctx.download(
         url = [tool["url"]],
         output = "appimagetool.AppImage",

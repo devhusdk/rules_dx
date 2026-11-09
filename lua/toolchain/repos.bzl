@@ -1,6 +1,7 @@
 """Hermetic LuaLS acquisition: one repository holding the release tree of the host cell."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("//libs/starlark:host.bzl", "host_cell")
 load("//lua/coverage:pins.bzl", "LUACOV_BUILD", "LUACOV_PINS")
 load(":pins.bzl", "LUALS_CELLS")
 
@@ -18,22 +19,11 @@ def luals_build(binary):
     """Returns the BUILD file of the LuaLS repository."""
     return _BUILD.format(binary = binary)
 
-def host_cell(os_name, arch):
-    """Maps a repository_ctx host to a LUALS_CELLS key."""
-    if os_name.startswith("mac"):
-        os_key = "darwin"
-    elif os_name.startswith("windows"):
-        os_key = "windows"
-    else:
-        os_key = "linux"
-    arch_key = "aarch64" if arch in ["aarch64", "arm64"] else "x86_64"
-    if os_key == "windows":
-        # LuaLS ships no Windows arm64 build; Windows on Arm runs the x64 one.
-        arch_key = "x86_64"
-    return os_key + "_" + arch_key
-
 def _luals_impl(rctx):
-    cell = host_cell(rctx.os.name.lower(), rctx.os.arch)
+    cell = host_cell(rctx)
+    if cell == "windows_arm64":
+        # LuaLS ships no Windows arm64 build; Windows on Arm runs the x64 one.
+        cell = "windows_x86_64"
     pin = LUALS_CELLS.get(cell)
     if pin == None:
         fail("no pinned LuaLS archive for " + cell)

@@ -1,13 +1,16 @@
 """Module extension for the host `swift` command."""
 
+load("//libs/starlark:host.bzl", "host_cell")
+
 # Libraries swift-package loads that a plain host may lack.
 _HOST_LIBS = ["libxml2.so.2", "libicuuc.so.70", "libicudata.so.70"]
 
 def _swift_host_impl(repository_ctx):
-    if repository_ctx.os.name.startswith("mac"):
+    host = host_cell(repository_ctx)
+    if host.startswith("macos"):
         script = 'exec xcrun swift "$@"'
     else:
-        arch = "aarch64" if repository_ctx.os.arch in ["aarch64", "arm64"] else "x86_64"
+        arch = "aarch64" if host.endswith("arm64") else "x86_64"
         swift = repository_ctx.path(Label("@dx_swift_linux_{}//:usr/bin/swift".format(arch)))
         sysroot = repository_ctx.path(Label("@dx_swift_sysroot_linux_{}//:REPO.bazel".format(arch))).dirname
         host_libs = sysroot.get_child("host_libs")

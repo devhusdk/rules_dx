@@ -1,7 +1,8 @@
 """Shared 7-Zip extractor pin tests."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load("//libs/starlark:seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS", "seven_zip_host")
+load("//libs/starlark:host.bzl", "host_cell_of")
+load("//libs/starlark:seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
 
 _HEX = "0123456789abcdef"
 
@@ -17,10 +18,10 @@ def _checks():
         expect_equal("windows binary", SEVEN_ZIP_EXTRACTORS["windows_x86_64"].binary, "7zr.exe"),
         expect_equal("windows arm64 runs the x86 binary", SEVEN_ZIP_EXTRACTORS["windows_arm64"], SEVEN_ZIP_EXTRACTORS["windows_x86_64"]),
         expect_equal("hosts", [
-            seven_zip_host("Windows 11", "amd64"),
-            seven_zip_host("windows", "aarch64"),
-            seven_zip_host("mac os x", "aarch64"),
-            seven_zip_host("linux", "amd64"),
+            host_cell_of("Windows 11", "amd64"),
+            host_cell_of("windows", "aarch64"),
+            host_cell_of("mac os x", "aarch64"),
+            host_cell_of("linux", "amd64"),
         ], ["windows_x86_64", "windows_arm64", "macos_arm64", "linux_x86_64"]),
     ]
 

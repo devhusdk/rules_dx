@@ -1,7 +1,8 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
 load("//cc/toolchains:pins.bzl", "VC_REDIST_VERSION")
-load("//libs/starlark:seven_zip.bzl", "seven_zip_fetch", "seven_zip_host")
+load("//libs/starlark:host.bzl", "host_cell_of")
+load("//libs/starlark:seven_zip.bzl", "seven_zip_fetch")
 load(
     ":pins.bzl",
     "CELLS",
@@ -195,7 +196,7 @@ def _archive_errors(cell, key, archive, release):
 
 def host_key(os, arch):
     """Returns the EXTRACTORS key of one host from Bazel's os name and arch."""
-    return seven_zip_host(os, arch)
+    return host_cell_of(os, arch)
 
 def cell_errors(cell, entry):
     """Returns one error string per pin of one cell entry that is not ready to acquire."""

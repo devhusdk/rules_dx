@@ -1,5 +1,6 @@
 """Hermetic Sorbet acquisition: the pinned sorbet-static gem of the host, unpacked."""
 
+load("//libs/starlark:host.bzl", "host_cell")
 load("//libs/starlark:repo.bzl", "gem_extract", "pinned_archive")
 load(":pins.bzl", "RULES_RUBY_SHA256", "RULES_RUBY_URL", "RULES_RUBY_VERSION", "SORBET_BINARY", "SORBET_CELLS", "sorbet_url")
 
@@ -17,19 +18,8 @@ def sorbet_build(binary):
     """Returns the BUILD file of the Sorbet repository."""
     return _BUILD.format(binary = binary)
 
-def host_cell(os_name, arch):
-    """Maps a repository_ctx host to a SORBET_CELLS key."""
-    if os_name.startswith("mac"):
-        os_key = "darwin"
-    elif os_name.startswith("windows"):
-        os_key = "windows"
-    else:
-        os_key = "linux"
-    arch_key = "aarch64" if arch in ["aarch64", "arm64"] else "x86_64"
-    return os_key + "_" + arch_key
-
 def _sorbet_impl(rctx):
-    cell = host_cell(rctx.os.name.lower(), rctx.os.arch)
+    cell = host_cell(rctx)
     rctx.file("REPO.bazel", "")
     if cell.startswith("windows"):
         # No download: a stub keeps the label valid and fails loudly if it is ever run.

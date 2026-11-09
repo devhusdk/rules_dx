@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
-load(":tools.bzl", "is_canonical_token")
+load(":tool_defs.bzl", "is_canonical_token")
 
 
 WRAPPER_OWNERS = {

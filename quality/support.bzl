@@ -3,7 +3,8 @@
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
-load(":tools.bzl", "TOOLS", "is_canonical_token")
+load(":tool_defs.bzl", "is_canonical_token")
+load(":tools.bzl", "TOOLS")
 
 SUPPORT_DEFAULTS = {
     "artifact": "pinned",

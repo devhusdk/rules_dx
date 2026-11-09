@@ -30,6 +30,7 @@ load(":real_pipeline_tests.bzl", "real_pipeline_unit_tests", "rustc_request_anal
 load(":registry_tests.bzl", "registry_unit_tests")
 load(":sources_tests.bzl", "sources_registry_tests")
 load(":support_tests.bzl", "support_unit_tests")
+load(":tools_tests.bzl", "tools_unit_tests")
 load(":wrapper_owners.bzl", "wrapper_unit_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -55,6 +56,7 @@ exports_files([
     "sources.bzl",
     "support.bzl",
     "tool_config_docs.bzl",
+    "tool_defs.bzl",
     "tools.bzl",
     "unavailable_tool.bzl",
 ] + glob(["families/*.bzl"]))
@@ -627,6 +629,8 @@ diff_test(
 
 overlap_unit_tests(name = "overlap_tests")
 
+tools_unit_tests(name = "tools_unit")
+
 support_unit_tests(name = "support_unit")
 
 alias(
@@ -705,6 +709,7 @@ test_suite(
         ":registry_unit",
         ":sources_registry",
         ":support_unit",
+        ":tools_unit",
         ":wrapper_owners_unit",
     ],
 )
@@ -769,8 +774,10 @@ real_source_target(
         "support.bzl",
         "support_tests.bzl",
         "tool_config_docs.bzl",
+        "tool_defs.bzl",
         "tools.bzl",
         "tools_gen.bzl",
+        "tools_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
         "go_analysis.bzl",

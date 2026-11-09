@@ -1,6 +1,7 @@
 """Deterministic synthetic adapter registry."""
 
-load(":tools.bzl", "TOOLS", "is_canonical_token")
+load(":tool_defs.bzl", "is_canonical_token")
+load(":tools.bzl", "TOOLS")
 
 SYNTHETIC_ADAPTERS = {
     "fmt-a": {"format": ["rust"]},

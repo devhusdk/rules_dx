@@ -1,0 +1,191 @@
+"""Quality tool rows for the js family."""
+
+load("//quality:tool_defs.bzl", "config", "row", "severity", "tool")
+
+TOOLS = [
+    tool(
+        id = "biome",
+        adapters = {
+            "format": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
+            "lint": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
+        },
+        config = config(
+            suffixes = [".json"],
+            files = ["biome.json"],
+            tier_active = True,
+            suppressions = ["biome-ignore"],
+            suppression_extensions = [".cjs", ".css", ".cts", ".js", ".json", ".jsonc", ".jsx", ".mjs", ".mts", ".ts", ".tsx"],
+            rule_keys = ["linter.rules"],
+        ),
+        severity = severity(categories = {
+            "lint/a11y": "warning",
+            "lint/complexity": "warning",
+            "lint/correctness": "error",
+            "lint/performance": "warning",
+            "lint/security": "error",
+            "lint/style": "warning",
+            "lint/suspicious": "warning",
+        }),
+        support = [
+            row(
+                capability = "format",
+                classes = ["javascript", "jsx"],
+                family = "javascript",
+                fix = "supported",
+            ),
+            row(
+                capability = "lint",
+                classes = ["javascript", "jsx"],
+                family = "javascript",
+                fix = "supported",
+            ),
+            row(
+                capability = "format",
+                classes = ["tsx", "typescript"],
+                family = "typescript",
+                fix = "supported",
+            ),
+            row(
+                capability = "lint",
+                classes = ["tsx", "typescript"],
+                family = "typescript",
+                fix = "supported",
+            ),
+            row(
+                capability = "format",
+                classes = ["json", "jsonc"],
+                family = "json",
+                fix = "supported",
+            ),
+            row(
+                capability = "lint",
+                classes = ["json", "jsonc"],
+                family = "json",
+                fix = "supported",
+            ),
+        ],
+    ),
+    tool(
+        id = "eslint",
+        adapters = {"lint": ["astro", "javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"]},
+        config = config(
+            suffixes = [".js", ".mjs", ".cjs"],
+            files = [
+                "eslint.config.mjs",
+                "eslint.config.js",
+                "eslint.config.cjs",
+                "eslint.config.ts",
+                ".eslintrc*",
+            ],
+            ext = "mjs",
+            extends_syntax = "export { default } from \"./{base}\";\n",
+            comment = "//",
+            init_order = 2,
+            family = "js",
+            tier_active = True,
+            suppressions = ["eslint-disable"],
+            suppression_extensions = [".astro", ".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".svelte", ".ts", ".tsx", ".vue"],
+        ),
+        severity = severity(default = "warning", categories = {"security/": "error"}),
+        support = [
+            row(
+                capability = "lint",
+                classes = ["javascript"],
+                family = "javascript",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "lint",
+                classes = ["tsx", "typescript"],
+                family = "typescript",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "lint",
+                classes = ["astro"],
+                family = "astro",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "lint",
+                classes = ["svelte"],
+                family = "svelte",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "lint",
+                classes = ["vue"],
+                family = "vue",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "lint",
+                classes = ["mdx"],
+                family = "mdx",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+        ],
+    ),
+    tool(
+        id = "remark",
+        adapters = {"format": ["mdx"]},
+        config = config(suffixes = [".json"], tier_active = True, tier_base = False),
+        support = [
+            row(
+                capability = "format",
+                classes = ["mdx"],
+                family = "mdx",
+                fix = "supported",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+        ],
+    ),
+    tool(
+        id = "stylelint",
+        adapters = {"lint": ["css", "less", "scss"]},
+        config = config(
+            suffixes = [".json"],
+            files = [".stylelintrc.json", ".stylelintrc*", "stylelint.config.*"],
+            ext = "json",
+            extends_syntax = "{ \"extends\": [\"./{base}\"] }\n",
+            init_order = 4,
+            extensions = [".css"],
+            tier_active = True,
+            suppressions = ["stylelint-disable"],
+            suppression_extensions = [".css", ".less", ".scss"],
+        ),
+        severity = severity(default = "warning"),
+        support = [
+            row(
+                capability = "lint",
+                classes = ["css", "less", "scss"],
+                family = "css",
+                fix = "check_only",
+                platforms = ["linux_x86_64"],
+            ),
+        ],
+    ),
+    tool(
+        id = "tsc",
+        adapters = {
+            "typecheck": ["astro", "javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"],
+        },
+        config = config(
+            files = ["tsconfig.json"],
+            ext = "json",
+            extends_syntax = "{ \"extends\": \"./{base}\" }\n",
+            tier_dir = "tsconfig",
+            init_order = 3,
+            family = "js",
+            tier_active = True,
+            tier_base = False,
+        ),
+        severity = severity(default = "error"),
+    ),
+]

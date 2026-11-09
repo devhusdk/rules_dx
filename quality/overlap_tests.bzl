@@ -4,7 +4,8 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS")
 load(":overlaps.bzl", "owners")
-load(":tools.bzl", "TOOLS", "tool")
+load(":tool_defs.bzl", "tool")
+load(":tools.bzl", "TOOLS")
 
 # Alternatives in the catalog: the same concern and class, never selected together in a family.
 EXPECTED_ALTERNATIVES = {

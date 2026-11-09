@@ -1,6 +1,6 @@
 """Curated quality defaults."""
 
-load(":tools.bzl", "is_canonical_token")
+load(":tool_defs.bzl", "is_canonical_token")
 
 # Julia lints with julialint only. Its extra fetch over typos is the dx_julia_lint package set
 # (21 packages, about 4.2 MB); the 1.12.5 runtime (about 288 MB on linux_x86_64) is already

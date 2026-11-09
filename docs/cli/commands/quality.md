@@ -438,6 +438,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `deadnix` | curated | `*.txt` | none | dx |  |
 | `detekt` | curated | `*.yml`, `*.yaml` | none | dx |  |
 | `djlint` | catalog | `djlint.toml`, `*.djlintrc` | none | dx |  |
+| `docstrfmt` | catalog | `docstrfmt.toml` | override copy | dx |  |
 | `elvis` | catalog | `elvis.config`, `*.config` | none | dx |  |
 | `errcheck` | curated | `*.txt` | none | dx |  |
 | `eslint` | catalog | `eslint.config.mjs`, `eslint.config.js`, `eslint.config.cjs`, `eslint.config.ts`, `.eslintrc*` | extends | dx |  |
@@ -448,7 +449,6 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `govet` | curated | `*.json` | none | dx |  |
 | `gplint` | catalog | `*.gplintrc`, `*.json` | none | dx |  |
 | `graphql_eslint` | catalog | `*.json` | none | dx |  |
-| `docstrfmt` | catalog | `docstrfmt.toml` | override copy | dx |  |
 | `hadolint` | curated | `*.yaml`, `*.yml` | none | dx |  |
 | `hlint` | catalog | `.hlint.yaml` | override copy | dx |  |
 | `julialint` | curated | `*.toml` | none | dx |  |

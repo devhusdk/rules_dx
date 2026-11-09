@@ -38,3 +38,9 @@ dx_runner_attr_test(
     },
     runner = "args_fuzz",
 )
+
+dx_runner_attr_test(
+    name = "parse_fuzz_run_attrs",
+    expected = {"args": ["libfuzzer", "$(rootpath :parse_fuzz)"]},
+    runner = "parse_fuzz_run",
+)

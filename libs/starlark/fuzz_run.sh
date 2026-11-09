@@ -4,8 +4,15 @@ set -eu
 usage="usage: bazel run <name>_run -- [--time <seconds>] [--out <dir>] [--jobs <n>] [--repro <file>]"
 engine="$1"
 fuzz_bin="$2"
-target="$3"
-shift 3
+shift 2
+target=""
+case "$engine" in
+    jazzer|go)
+        [ $# -gt 0 ] || { echo "$usage" >&2; exit 2; }
+        target="$1"
+        shift
+        ;;
+esac
 
 case "$fuzz_bin" in
     /*) ;;

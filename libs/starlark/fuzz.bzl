@@ -44,7 +44,7 @@ def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", visibility = N
     sh_binary(
         name = name + "_run",
         srcs = [Label("//libs/starlark:fuzz_run.sh")],
-        args = [engine, "$(rootpath {})".format(fuzz), target],
+        args = [engine, "$(rootpath {})".format(fuzz)] + ([target] if target else []),
         data = [fuzz],
         testonly = True,
         visibility = visibility,

@@ -1,5 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//go/rules:defs.bzl", "go_fuzz_test", "go_library")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
 package(
     default_testonly = True,
@@ -28,4 +29,10 @@ sh_test(
         "//libs/starlark:fuzz_run.sh",
     ],
     timeout = "short",
+)
+
+dx_runner_attr_test(
+    name = "parse_fuzz_run_attrs",
+    expected = {"args": ["go", "$(rootpath :parse_fuzz)", "FuzzParse"]},
+    runner = "parse_fuzz_run",
 )

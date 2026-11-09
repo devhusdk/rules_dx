@@ -381,6 +381,12 @@ local_path_override(
     path = "families/python",
 )
 
+bazel_dep(name = "rules_dx_rust", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_rust",
+    path = "families/rust",
+)
+
 bazel_dep(name = "rules_dx_powershell", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_powershell",
@@ -1855,13 +1861,6 @@ crate.from_cargo(
 )
 use_repo(crate, "dx_thrift_crates")
 
-_consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl", "consumer_hub_repo")
-
-_consumer_hub_repo(
-    name = "consumer_hub",
-    dev_dependency = True,
-)
-
 _docs_consumer_repo = use_repo_rule("//tools/docs/rust/fixture/consumer:repos.bzl", "docs_consumer_repo")
 
 _docs_consumer_repo(
@@ -1922,20 +1921,6 @@ _consumer_resources_repo = use_repo_rule("//deploy/tests/fixtures/consumer_resou
 
 _consumer_resources_repo(
     name = "consumer_resources",
-    dev_dependency = True,
-)
-
-_consumer_native_repo = use_repo_rule("//rust/tests/fixtures/consumer_native:repos.bzl", "consumer_native_repo")
-
-_consumer_native_repo(
-    name = "consumer_native",
-    dev_dependency = True,
-)
-
-_consumer_abi_repo = use_repo_rule("//rust/tests/fixtures/consumer_abi:repos.bzl", "consumer_abi_repo")
-
-_consumer_abi_repo(
-    name = "consumer_abi",
     dev_dependency = True,
 )
 

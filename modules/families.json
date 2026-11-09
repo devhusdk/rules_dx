@@ -242,6 +242,8 @@
         "rules_proto",
         "rules_py",
         "rules_python",
+        "rules_rust",
+        "rules_rust_wasm_bindgen",
         "rules_scala",
         "rules_shell",
         "rules_swift",
@@ -306,6 +308,7 @@
         "rego",
         "rst",
         "ruby",
+        "rust",
         "scala",
         "sql",
         "svelte",
@@ -316,6 +319,7 @@
         "tools",
         "typescript",
         "vue",
+        "wasi",
         "zig"
       ],
       "extensions": [
@@ -365,6 +369,9 @@
         "@rules_py//py:extensions.bzl%python_interpreters",
         "@rules_py//uv:extensions.bzl%uv",
         "@rules_python//python/extensions:python.bzl%python",
+        "@rules_rust//crate_universe:extensions.bzl%crate",
+        "@rules_rust//rust:extensions.bzl%rust",
+        "@rules_rust_wasm_bindgen//:extensions.bzl%rust_ext",
         "@rules_scala//scala/extensions:config.bzl%scala_config",
         "@rules_scala//scala/extensions:deps.bzl%scala_deps",
         "@rules_swift//swift:extensions.bzl%swift",
@@ -421,6 +428,7 @@
         "//gazelle/powershell",
         "//gazelle/protobuf",
         "//gazelle/python",
+        "//gazelle/rust",
         "//gazelle/scala",
         "//gazelle/svelte",
         "//gazelle/swift",
@@ -449,7 +457,8 @@
         "@dx_haskell_toolchains//cc:all",
         "@dx_powershell_toolchains//:all",
         "@llvm//toolchain:all",
-        "@python_interpreters//:all"
+        "@python_interpreters//:all",
+        "@rust_toolchains//:all"
       ]
     },
     "cuda": {
@@ -1126,28 +1135,34 @@
         "real_rust_typecheck_probe_aspect"
       ],
       "bazel_deps": [
+        "bazel_skylib",
+        "platforms",
+        "rules_cc",
+        "rules_dx",
+        "rules_proto",
         "rules_rust",
-        "rules_rust_wasm_bindgen"
+        "rules_rust_prost",
+        "rules_rust_wasm_bindgen",
+        "rules_shell"
       ],
       "dirs": [
+        "bcr_test_module",
         "rust",
-        "wasi"
+        "third_party"
       ],
-      "extensions": [
-        "@rules_rust//crate_universe:extensions.bzl%crate",
-        "@rules_rust//rust:extensions.bzl%rust",
-        "@rules_rust_wasm_bindgen//:extensions.bzl%rust_ext"
-      ],
+      "extensions": [],
       "file_extensions": [
         ".rs"
       ],
-      "gazelle": [
-        "//gazelle/rust"
+      "gazelle": [],
+      "repo_rules": [
+        "//rust/tests/fixtures/consumer_abi:repos.bzl%consumer_abi_repo",
+        "//rust/tests/fixtures/consumer_hub:repos.bzl%consumer_hub_repo",
+        "//rust/tests/fixtures/consumer_native:repos.bzl%consumer_native_repo"
       ],
-      "repo_rules": [],
-      "toolchains": [
-        "@rust_toolchains//:all"
-      ]
+      "toolchains": [],
+      "module": "rules_dx_rust",
+      "path": "families/rust"
     },
     "swift": {
       "aspects": [

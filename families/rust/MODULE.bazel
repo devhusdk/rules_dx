@@ -1,0 +1,36 @@
+module(
+    name = "rules_dx_rust",
+    version = "0.0.0",
+    bazel_compatibility = [">=9.2.0"],
+)
+
+bazel_dep(name = "rules_dx", version = "0.0.0")
+
+include("//third_party/rules_dx:rules_dx.MODULE.bazel")
+
+local_path_override(
+    module_name = "rules_dx",
+    path = "../..",
+)
+
+# floor: equals tested
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.27")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
+bazel_dep(name = "rules_rust_prost", version = "0.75.0")
+bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.75.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+_consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl", "consumer_hub_repo")
+
+_consumer_hub_repo(name = "consumer_hub")
+
+_consumer_native_repo = use_repo_rule("//rust/tests/fixtures/consumer_native:repos.bzl", "consumer_native_repo")
+
+_consumer_native_repo(name = "consumer_native")
+
+_consumer_abi_repo = use_repo_rule("//rust/tests/fixtures/consumer_abi:repos.bzl", "consumer_abi_repo")
+
+_consumer_abi_repo(name = "consumer_abi")

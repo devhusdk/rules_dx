@@ -39,6 +39,7 @@ cc_library(
 sh_binary(
     name = "make_bindings",
     srcs = ["make_bindings.sh"],
+    visibility = ["@rules_dx_rust//rust/tests/fixtures/consumer_native:__pkg__"],
 )
 
 genrule(

@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn probes_for_lists_the_core_probe_and_the_installed_families_probes() {
-        let installed = ["rules_dx_python".to_owned()];
+        let installed = ["rules_dx_python".to_owned(), "rules_dx_rust".to_owned()];
         let probes = probes_for(Command::Lint, &installed);
         assert!(probes.contains(&"quality:families/core_probe.bzl%real_core_lint_probe_aspect"));
         assert!(probes.contains(&"quality:families/python.bzl%real_python_lint_probe_aspect"));

@@ -130,22 +130,14 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude swift/tests/fixtures/hello
 # gazelle:exclude d/tests/fixtures/hello
 # gazelle:exclude d/tests/fixtures/cc_interop
-# gazelle:exclude rust/tests/fixtures/bindgen
 # gazelle:exclude cc/tests/fixtures/googletest
 # gazelle:exclude cc/tests/fixtures/lcov_accounting
 # gazelle:exclude cc/tests/fixtures/linux_corpus
 # gazelle:exclude cc/tests/fixtures/prebuilt_interop
 # gazelle:exclude cc/tests/fixtures/strict_generation
-# gazelle:exclude rust/tests/fixtures/cargo_metadata
 # gazelle:exclude quality/tests/fixtures/strict_preset
 # gazelle:exclude quality/tests/fixtures/consumer_policy
-# gazelle:exclude rust/tests/fixtures/consumer_std
-# gazelle:exclude rust/tests/fixtures/consumer_hub
-# gazelle:exclude rust/tests/fixtures/consumer_wasm
-# gazelle:exclude rust/tests/fixtures/consumer_wasi
 # gazelle:exclude rust/tests/fixtures/native_call
-# gazelle:exclude rust/tests/fixtures/consumer_native
-# gazelle:exclude rust/tests/fixtures/consumer_abi
 
 package(default_visibility = ["//:__subpackages__"])
 

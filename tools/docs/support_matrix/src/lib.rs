@@ -220,6 +220,7 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_php",
         "@rules_dx_powershell",
         "@rules_dx_ruby",
+        "@rules_dx_rust",
         "@rules_dx_zig",
     ]
     .into_iter()

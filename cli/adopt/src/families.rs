@@ -318,6 +318,7 @@ mod tests {
         vec![
             family("go", "rules_dx_go", ".go"),
             family("python", "rules_dx_python", ".py"),
+            family("rust", "rules_dx_rust", ".rs"),
             Family {
                 name: "core".to_owned(),
                 file_extensions: vec![".md".to_owned()],
@@ -433,6 +434,15 @@ mod tests {
         let text = new_text(&deps);
         assert!(text.contains("rules_dx_python"), "{text}");
         assert!(!text.contains("rules_dx_go"), "{text}");
+    }
+
+    #[test]
+    fn a_rust_tree_gets_the_rust_module() {
+        let dir = workspace(MODULE, &["src/lib.rs"], false);
+        let deps = plan_family_deps(dir.path(), &table()).expect("plan");
+        let text = new_text(&deps);
+        assert!(text.contains("rules_dx_rust"), "{text}");
+        assert!(!text.contains("rules_dx_python"), "{text}");
     }
 
     #[test]

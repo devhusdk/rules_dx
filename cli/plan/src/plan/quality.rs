@@ -686,6 +686,29 @@ mod tests {
     }
 
     #[test]
+    fn probe_with_the_rust_module_installed_passes_the_rust_probe() {
+        let scope = resolved(&["//pkg:lib"]);
+        let installed = strings(&["rules_dx_rust"]);
+        let plan = plan_probe(
+            Command::Lint,
+            &scope,
+            &[],
+            "/tmp/p.json",
+            &[],
+            Some(&installed),
+        )
+        .expect("plan")
+        .expect("probe");
+        let aspects = plan
+            .argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix("--aspects="))
+            .expect("aspects");
+        assert!(aspects.contains("rust.bzl%real_rust_lint_probe_aspect"));
+        assert!(!aspects.contains("python.bzl"));
+    }
+
+    #[test]
     fn select_aspects_keeps_core_shards_and_the_probed_ones() {
         let lint = spec(Command::Lint);
         assert_eq!(

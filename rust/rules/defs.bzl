@@ -5,8 +5,8 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test")
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
-load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_runner_kwargs")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
+load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test")
 load("//libs/starlark:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
@@ -666,24 +666,10 @@ _FUZZ_RUSTC_FLAGS = [
 
 def rust_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys, **kwargs):
     """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
-    build, run = split_runner_kwargs(kwargs)
-    rust_binary(
-        name = name + "_bin",
-        srcs = srcs,
-        deps = (deps or []) + [libfuzzer_sys],
-        rustc_flags = _FUZZ_RUSTC_FLAGS + (rustc_flags or []),
-        rustc_env = dict(rustc_env or {}, RUSTC_BOOTSTRAP = "1"),
-        visibility = ["//visibility:private"],
-        testonly = True,
-        tags = merge_tags(tags, "manual"),
-        **build
-    )
-    dx_fuzz_binary(
-        name = name,
-        binary = ":" + name + "_bin",
-        visibility = visibility,
-        testonly = True,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
-        **run
-    )
-    dx_fuzz_runner(name, ":" + name, visibility = visibility)
+    binary_kwargs = {
+        "srcs": srcs,
+        "deps": (deps or []) + [libfuzzer_sys],
+        "rustc_flags": _FUZZ_RUSTC_FLAGS + (rustc_flags or []),
+        "rustc_env": dict(rustc_env or {}, RUSTC_BOOTSTRAP = "1"),
+    }
+    dx_fuzz_test(name, rust_binary, binary_kwargs, tags = tags, visibility = visibility, **kwargs)

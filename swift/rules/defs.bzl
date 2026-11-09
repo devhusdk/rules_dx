@@ -7,8 +7,8 @@ load("@rules_swift//swift:swift_interop_hint.bzl", _swift_interop_hint = "swift_
 load("@rules_swift//swift:swift_library.bzl", _swift_library = "swift_library")
 load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
-load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_runner_kwargs")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
+load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
@@ -128,30 +128,15 @@ def swift_test(name, srcs = None, visibility = None, platforms = None, **kwargs)
 
 def swift_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. Linux only."""
-    build, run = split_runner_kwargs(kwargs)
-    swift_binary(
-        name = name + "_bin",
-        srcs = srcs,
-        visibility = ["//visibility:private"],
-        testonly = True,
-        tags = merge_tags(tags, "manual"),
-        copts = ["-sanitize=fuzzer,address"] + (copts or []),
-        linkopts = ["-fsanitize=address"] + (linkopts or []),
-        deps = build.pop("deps", []) + [Label("//swift/toolchain:libfuzzer")],
-        features = build.pop("features", []) + ["swift.no_entry_point_rename"],
-        target_compatible_with = ["@platforms//os:linux"],
-        **build
-    )
-    dx_fuzz_binary(
-        name = name,
-        binary = ":" + name + "_bin",
-        pinned_libfuzzer = False,
-        visibility = visibility,
-        testonly = True,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
-        **run
-    )
-    dx_fuzz_runner(name, ":" + name, visibility = visibility)
+    binary_kwargs = {
+        "srcs": srcs,
+        "copts": ["-sanitize=fuzzer,address"] + (copts or []),
+        "linkopts": ["-fsanitize=address"] + (linkopts or []),
+        "deps": kwargs.pop("deps", []) + [Label("//swift/toolchain:libfuzzer")],
+        "features": kwargs.pop("features", []) + ["swift.no_entry_point_rename"],
+        "target_compatible_with": ["@platforms//os:linux"],
+    }
+    dx_fuzz_test(name, swift_binary, binary_kwargs, tags = tags, visibility = visibility, pinned_libfuzzer = False, **kwargs)
 
 def swift_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A swift_binary timing loop run by `dx bench`; it links `//swift/bench` to write dx-bench.json."""

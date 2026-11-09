@@ -1,5 +1,7 @@
 """The libFuzzer ASAN binary rule and the `<name>_run` runner shared by the fuzz macros."""
 
+load(":fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
+
 def _asan_fuzzer_transition_impl(_settings, attr):
     return {
         "@llvm//config:asan": True,
@@ -57,3 +59,28 @@ def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", harness = None
         testonly = True,
         visibility = visibility,
     )
+
+def dx_fuzz_test(name, binary_rule, binary_kwargs, tags = None, visibility = None, pinned_libfuzzer = True, **kwargs):
+    """Declares the private `<name>_bin` with `binary_rule`, the `dx_fuzz_binary` `<name>` and the `<name>_run` runner.
+
+    `binary_kwargs` are the language rule's own attributes. `kwargs` split into those the
+    binary takes and the runner-facing `args` and `target_compatible_with`.
+    """
+    build, run = split_runner_kwargs(kwargs)
+    binary_rule(
+        name = name + "_bin",
+        visibility = ["//visibility:private"],
+        testonly = True,
+        tags = merge_tags(tags, "manual"),
+        **(binary_kwargs | build)
+    )
+    dx_fuzz_binary(
+        name = name,
+        binary = ":" + name + "_bin",
+        pinned_libfuzzer = pinned_libfuzzer,
+        visibility = visibility,
+        testonly = True,
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        **run
+    )
+    dx_fuzz_runner(name, ":" + name, visibility = visibility)

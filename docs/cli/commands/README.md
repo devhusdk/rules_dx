@@ -565,6 +565,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/docs/jvm:defs.bzl` | `java_doc_shard` |
 |  |  | `@rules_dx//tools/docs/jvm:defs.bzl` | `kotlin_doc_shard` |
 |  |  | `@rules_dx//tools/docs/jvm:defs.bzl` | `scala_doc_shard` |
+|  |  | `@rules_dx//tools/docs/ocaml:defs.bzl` | `docs_ocaml_shard` |
+|  |  | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_doc_shard` |
+|  |  | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_odoc_available` |
+|  |  | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_shard_action` |
+|  |  | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_typed_trees` |
 |  |  | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_doc_shard` |
 |  |  | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_shard_action` |
 |  |  | `@rules_dx//tools/docs/python:defs.bzl` | `docs_python_shard` |
@@ -586,9 +591,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_is_source` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_relpath` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_bench` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary_forward_kwargs` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary_kwargs_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary_main` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary_rejection` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_binary_upstream_kwargs` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_compiled_entry` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_declaration_srcs_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_empty_library_rejection` |

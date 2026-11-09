@@ -23,6 +23,7 @@ sh_test(
     srcs = ["starlark_docs_test.sh"],
     args = ["$(rootpath @rules_dx//tools/ci:starlark_docs_family_test)"],
     data = [
+        "//perl/tests/bench:corpus_starlark",
         "//perl/tests/coverage:corpus_starlark",
         "//perl/tests/fixtures/perl-app:corpus_starlark",
         "//perl/tests/fixtures/perl-app/cli:corpus_starlark",
@@ -33,7 +34,7 @@ sh_test(
         "//perl/tests/runtime:corpus_starlark",
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
-    env = {"STARLARK_DOCS_PACKAGES": "perl/tests/coverage,perl/tests/fixtures/perl-app,perl/tests/fixtures/perl-app/cli,perl/tests/fixtures/perl-app/inventory,perl/tests/fixtures/perl-app/report,perl/tests/fixtures/perl-app/third_party,perl/tests/negative,perl/tests/runtime"},
+    env = {"STARLARK_DOCS_PACKAGES": "perl/tests/bench,perl/tests/coverage,perl/tests/fixtures/perl-app,perl/tests/fixtures/perl-app/cli,perl/tests/fixtures/perl-app/inventory,perl/tests/fixtures/perl-app/report,perl/tests/fixtures/perl-app/third_party,perl/tests/negative,perl/tests/runtime"},
 )
 
 filegroup(
@@ -47,7 +48,10 @@ filegroup(
 
 # dx:begin exports
 exports_files(
-    [".buildifier.json"],
+    [
+        ".buildifier.json",
+        ".editorconfig",
+    ],
     visibility = ["//.dx:__pkg__"],
 )
 # dx:end exports

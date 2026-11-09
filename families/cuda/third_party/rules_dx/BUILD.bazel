@@ -23,6 +23,7 @@ exports_files([
     "rules_cuda.redist_cccl_key.patch",
     "rules_cuda.windows_arm64.patch",
     "rules_dart.coverage.patch",
+    "rules_dart.external_pkgsrcs.patch",
     "rules_flutter.lock_extension.patch",
     "rules_flutter.missing_font.patch",
     "rules_flutter.registrant_javacopts.patch",

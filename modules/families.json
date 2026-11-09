@@ -68,6 +68,7 @@
         "bundle",
         "ios",
         "macos",
+        "platforms",
         "provisioning",
         "signing",
         "tests",
@@ -221,6 +222,7 @@
         "elfutils",
         "gazelle",
         "gcc_toolchain",
+        "google_benchmark",
         "hermetic_launcher",
         "libxml2",
         "llvm",
@@ -243,6 +245,7 @@
         "rules_py",
         "rules_python",
         "rules_rust",
+        "rules_rust_prost",
         "rules_rust_wasm_bindgen",
         "rules_scala",
         "rules_shell",
@@ -346,6 +349,8 @@
         "//quality/artifacts:extension.bzl%dx_tools",
         "//ruby/coverage:repos.bzl%ruby_coverage",
         "//ruby/toolchain:repos.bzl%ruby_tools",
+        "//ruby:extensions.bzl%ruby",
+        "//swift/toolchain:repos.bzl%swift_format_macos",
         "//swift/toolchain:repos.bzl%swift_host",
         "//third_party/dotnet:extension.bzl%paket",
         "//tools/bazelrc:repos.bzl%bazel_version",
@@ -414,6 +419,7 @@
         "//gazelle/capnproto",
         "//gazelle/cc",
         "//gazelle/csharp",
+        "//gazelle/dart",
         "//gazelle/elixir",
         "//gazelle/erlang",
         "//gazelle/flatbuffers",
@@ -422,19 +428,26 @@
         "//gazelle/haskell",
         "//gazelle/java",
         "//gazelle/javascript",
+        "//gazelle/julia",
         "//gazelle/kotlin",
+        "//gazelle/lua",
         "//gazelle/mdx",
         "//gazelle/ocaml",
+        "//gazelle/ownership",
+        "//gazelle/perl",
+        "//gazelle/php",
         "//gazelle/powershell",
         "//gazelle/protobuf",
         "//gazelle/python",
+        "//gazelle/ruby",
         "//gazelle/rust",
         "//gazelle/scala",
         "//gazelle/svelte",
         "//gazelle/swift",
         "//gazelle/thrift",
         "//gazelle/typescript",
-        "//gazelle/vue"
+        "//gazelle/vue",
+        "//gazelle/zig"
       ],
       "repo_rules": [
         "//powershell/toolchain:gallery.bzl%psgallery_module",
@@ -554,9 +567,7 @@
       "file_extensions": [
         ".dart"
       ],
-      "gazelle": [
-        "//gazelle/dart"
-      ],
+      "gazelle": [],
       "repo_rules": [],
       "toolchains": [],
       "module": "rules_dx_dart",
@@ -799,9 +810,7 @@
       "file_extensions": [
         ".jl"
       ],
-      "gazelle": [
-        "//gazelle/julia"
-      ],
+      "gazelle": [],
       "repo_rules": [],
       "toolchains": [],
       "module": "rules_dx_julia",
@@ -879,9 +888,7 @@
       "file_extensions": [
         ".lua"
       ],
-      "gazelle": [
-        "//gazelle/lua"
-      ],
+      "gazelle": [],
       "repo_rules": [
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive"
       ],
@@ -971,16 +978,12 @@
         "perl",
         "third_party"
       ],
-      "extensions": [
-        "@rules_dx//perl/cpan:extensions.bzl%cpan"
-      ],
+      "extensions": [],
       "file_extensions": [
         ".pl",
         ".pm"
       ],
-      "gazelle": [
-        "//gazelle/perl"
-      ],
+      "gazelle": [],
       "repo_rules": [],
       "toolchains": [],
       "module": "rules_dx_perl",
@@ -1005,15 +1008,12 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//php/composer:extensions.bzl%composer",
         "@rules_dx//php/toolchain:repos.bzl%php"
       ],
       "file_extensions": [
         ".php"
       ],
-      "gazelle": [
-        "//gazelle/php"
-      ],
+      "gazelle": [],
       "repo_rules": [],
       "toolchains": [
         "@dx_php_toolchains//:all"
@@ -1116,9 +1116,7 @@
         ".rb",
         ".rbs"
       ],
-      "gazelle": [
-        "//gazelle/ruby"
-      ],
+      "gazelle": [],
       "repo_rules": [],
       "toolchains": [
         "@ruby_toolchains//:all"
@@ -1221,9 +1219,7 @@
       "file_extensions": [
         ".zig"
       ],
-      "gazelle": [
-        "//gazelle/zig"
-      ],
+      "gazelle": [],
       "repo_rules": [
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive"
       ],

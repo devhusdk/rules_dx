@@ -1,5 +1,6 @@
 """Local-first PyPI publisher for dx deploy."""
 
+load("//rust/rules:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
@@ -42,10 +43,11 @@ def pypi_wheel_error(filename):
 
 def _pypi_config_impl(ctx):
     """Writes the deploy config for one PyPI deployment."""
-    wheel_files = ctx.attr.wheel[DefaultInfo].files.to_list()
+    wheel = ctx.attr.wheel[0]
+    wheel_files = wheel[DefaultInfo].files.to_list()
     if len(wheel_files) != 1:
         fail("pypi_deploy " + str(ctx.label) + ": wheel " +
-             str(ctx.attr.wheel.label) + " provides " +
+             str(wheel.label) + " provides " +
              str(len(wheel_files)) + " files, want exactly one .whl")
     wheel_file = wheel_files[0]
     wheel_error = pypi_wheel_error(wheel_file.basename)
@@ -67,10 +69,11 @@ def _pypi_config_impl(ctx):
         values["griffe_rloc"] = rlocation_path(ctx, ctx.executable._griffe)
     files = [wheel_file]
     if ctx.attr.sdist:
-        sdist_files = ctx.attr.sdist[DefaultInfo].files.to_list()
+        sdist = ctx.attr.sdist[0]
+        sdist_files = sdist[DefaultInfo].files.to_list()
         if len(sdist_files) != 1:
             fail("pypi_deploy " + str(ctx.label) + ": sdist " +
-                 str(ctx.attr.sdist.label) + " provides " +
+                 str(sdist.label) + " provides " +
                  str(len(sdist_files)) + " files, want exactly one .tar.gz")
         sdist_file = sdist_files[0]
         if not sdist_file.basename.endswith(".tar.gz"):
@@ -110,10 +113,12 @@ _pypi_config = rule(
         "sdist": attr.label(
             doc = "Optional source distribution, a single .tar.gz file.",
             allow_single_file = True,
+            cfg = dx_msvc_crt_reset_transition,
         ),
         "wheel": attr.label(
             doc = "Wheel file published as the main distribution.",
             allow_single_file = True,
+            cfg = dx_msvc_crt_reset_transition,
             mandatory = True,
         ),
     },

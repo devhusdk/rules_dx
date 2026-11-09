@@ -1,0 +1,41 @@
+load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
+
+exports_files(["README.md"])
+
+py_binary(
+    name = "render",
+    srcs = ["render.py"],
+    main = "render.py",
+)
+
+py_unittest_test(
+    name = "render_unit_test",
+    srcs = [
+        "render.py",
+        "render_test.py",
+    ],
+)
+
+genrule(
+    name = "readme_generated",
+    srcs = [
+        "README.md",
+        "//:MODULE.bazel",
+    ],
+    outs = ["README.generated.md"],
+    cmd = "$(execpath :render) $(execpath //:MODULE.bazel) $(execpath README.md) > $@",
+    tools = [":render"],
+)
+
+write_source_files(
+    name = "update_readme",
+    files = {"README.md": ":readme_generated"},
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

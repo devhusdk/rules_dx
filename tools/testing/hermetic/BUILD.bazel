@@ -435,6 +435,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "proto_bindings",
+    families = ["generation"],
     files = {
         "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
         "consumers/proto_bindings/go.mod": "go.mod",

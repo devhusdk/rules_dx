@@ -1,0 +1,32 @@
+# gazelle:ignore
+# gazelle:exclude a
+# gazelle:exclude b
+load("@rules_dx//capnproto/rules:codegen.bzl", "capnp_rust_library")
+load("@rules_dx//capnproto/rules:defs.bzl", "capnp_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//capnproto:__subpackages__"])
+
+# Two schemas that both generate module common_capnp; only the failure test builds this.
+capnp_library(
+    name = "dup",
+    srcs = [
+        "a/common.capnp",
+        "b/common.capnp",
+    ],
+    tags = ["manual"],
+)
+
+capnp_rust_library(
+    name = "dup_rs",
+    library = ":dup",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

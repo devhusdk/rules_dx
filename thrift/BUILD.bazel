@@ -5,6 +5,12 @@ exports_files([
     "pins.bzl",
 ])
 
+alias(
+    name = "thrift_compiler",
+    actual = "@dx_thrift//:thrift_compiler",
+    visibility = ["//visibility:public"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

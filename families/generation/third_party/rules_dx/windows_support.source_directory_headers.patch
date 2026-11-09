@@ -1,0 +1,146 @@
+diff --git a/windows/BUILD.bazel b/windows/BUILD.bazel
+--- a/windows/BUILD.bazel
++++ b/windows/BUILD.bazel
+@@ -22,3 +22,10 @@ bzl_library(
+         "@bazel_tools//tools/build_defs/repo:utils.bzl",
+     ],
+ )
++
++bzl_library(
++    name = "source_directory_headers",
++    srcs = ["source_directory_headers.bzl"],
++    visibility = ["//visibility:public"],
++    deps = ["@bazel_skylib//rules/directory:providers"],
++)
+diff --git a/windows/private/extensions/windows_sdk.BUILD.bazel b/windows/private/extensions/windows_sdk.BUILD.bazel
+--- a/windows/private/extensions/windows_sdk.BUILD.bazel
++++ b/windows/private/extensions/windows_sdk.BUILD.bazel
+@@ -2,6 +2,7 @@
+ 
+ load("@bazel_skylib//rules/directory:directory.bzl", "directory")
+ load("@bazel_skylib//rules/directory:subdirectory.bzl", "subdirectory")
++load("@windows_support//windows:source_directory_headers.bzl", "source_directory_headers")
+ 
+ package(default_visibility = ["//visibility:public"])
+ 
+@@ -38,11 +39,22 @@ directory(
+ )
+ 
+ subdirectory(
+-    name = "winsdk_ucrt_include",
++    name = "winsdk_ucrt_include_directory",
+     parent = ":winsdk_ucrt_include_files",
+     path = "__WINSDK_DIR__/base/c/Include/__WINSDK_INCLUDE_VERSION__/ucrt",
+ )
+ 
++filegroup(
++    name = "winsdk_ucrt_include_source_directory",
++    srcs = ["__WINSDK_DIR__/base/c/Include/__WINSDK_INCLUDE_VERSION__/ucrt"],
++)
++
++source_directory_headers(
++    name = "winsdk_ucrt_include",
++    directory = ":winsdk_ucrt_include_directory",
++    source_directory = ":winsdk_ucrt_include_source_directory",
++)
++
+ directory(
+     name = "winsdk_shared_include_files",
+     srcs = glob(
+@@ -52,11 +64,22 @@ directory(
+ )
+ 
+ subdirectory(
+-    name = "winsdk_shared_include",
++    name = "winsdk_shared_include_directory",
+     parent = ":winsdk_shared_include_files",
+     path = "__WINSDK_DIR__/base/c/Include/__WINSDK_INCLUDE_VERSION__/shared",
+ )
+ 
++filegroup(
++    name = "winsdk_shared_include_source_directory",
++    srcs = ["__WINSDK_DIR__/base/c/Include/__WINSDK_INCLUDE_VERSION__/shared"],
++)
++
++source_directory_headers(
++    name = "winsdk_shared_include",
++    directory = ":winsdk_shared_include_directory",
++    source_directory = ":winsdk_shared_include_source_directory",
++)
++
+ directory(
+     name = "winsdk_um_include_files",
+     srcs = glob(
+@@ -66,11 +89,22 @@ directory(
+ )
+ 
+ subdirectory(
+-    name = "winsdk_um_include",
++    name = "winsdk_um_include_directory",
+     parent = ":winsdk_um_include_files",
+     path = "__WINSDK_DIR__/base/c/Include/__WINSDK_INCLUDE_VERSION__/um",
+ )
+ 
++filegroup(
++    name = "winsdk_um_include_source_directory",
++    srcs = ["__WINSDK_DIR__/base/c/Include/__WINSDK_INCLUDE_VERSION__/um"],
++)
++
++source_directory_headers(
++    name = "winsdk_um_include",
++    directory = ":winsdk_um_include_directory",
++    source_directory = ":winsdk_um_include_source_directory",
++)
++
+ directory(
+     name = "winsdk_winrt_include_files",
+     srcs = glob(
+@@ -80,11 +114,22 @@ directory(
+ )
+ 
+ subdirectory(
+-    name = "winsdk_winrt_include",
++    name = "winsdk_winrt_include_directory",
+     parent = ":winsdk_winrt_include_files",
+     path = "__WINSDK_DIR__/base/c/Include/__WINSDK_INCLUDE_VERSION__/winrt",
+ )
+ 
++filegroup(
++    name = "winsdk_winrt_include_source_directory",
++    srcs = ["__WINSDK_DIR__/base/c/Include/__WINSDK_INCLUDE_VERSION__/winrt"],
++)
++
++source_directory_headers(
++    name = "winsdk_winrt_include",
++    directory = ":winsdk_winrt_include_directory",
++    source_directory = ":winsdk_winrt_include_source_directory",
++)
++
+ directory(
+     name = "winsdk_ucrt_lib_arm64_files",
+     srcs = glob(
+diff --git a/windows/source_directory_headers.bzl b/windows/source_directory_headers.bzl
+new file mode 100644
+--- /dev/null
++++ b/windows/source_directory_headers.bzl
+@@ -0,0 +1,20 @@
++"""Headers exposed as one source directory with their DirectoryInfo."""
++
++load("@bazel_skylib//rules/directory:providers.bzl", "DirectoryInfo")
++
++def _source_directory_headers_impl(ctx):
++    return [
++        ctx.attr.directory[DirectoryInfo],
++        DefaultInfo(files = ctx.attr.source_directory[DefaultInfo].files),
++    ]
++
++source_directory_headers = rule(
++    implementation = _source_directory_headers_impl,
++    doc = "Returns the DirectoryInfo of `directory` and the single source directory of `source_directory`.",
++    attrs = {
++        "directory": attr.label(mandatory = True, providers = [DirectoryInfo], doc = "Directory whose DirectoryInfo is forwarded."),
++        "source_directory": attr.label(mandatory = True, doc = "Filegroup holding the same directory as a source directory."),
++    },
++    provides = [DirectoryInfo],
++    cfg = config.none(),
++)

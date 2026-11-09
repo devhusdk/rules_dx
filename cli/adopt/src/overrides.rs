@@ -1091,6 +1091,13 @@ archive_override(
     }
 
     #[test]
+    fn core_codegen_patches_render_without_any_family_module() {
+        let files = render_in(dx_families::families(), &BTreeSet::new());
+        assert!(paths(&files).iter().any(|p| p.contains("protobuf.")));
+        assert!(paths(&files).iter().any(|p| p.contains("avro-cpp.")));
+    }
+
+    #[test]
     fn rules_cuda_patches_render_only_for_cuda_consumers() {
         let without = render_in(dx_families::families(), &BTreeSet::new());
         assert!(!paths(&without).iter().any(|p| p.contains("rules_cuda.")));

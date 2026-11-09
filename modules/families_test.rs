@@ -655,13 +655,16 @@ fn family_repos(module: &ModuleFile, json: &str, family: &str) -> BTreeSet<Strin
     let mut repos = listed("bazel_deps");
     let mut extensions = listed("extensions");
     if entry.get("path").is_some() {
-        extensions.extend(
-            families["core"]["extensions"]
+        let core = |key: &str| {
+            families["core"][key]
                 .as_array()
-                .expect("core extensions")
+                .unwrap_or_else(|| panic!("core has no {key} array"))
                 .iter()
-                .filter_map(|item| item.as_str().map(str::to_owned)),
-        );
+                .filter_map(|item| item.as_str().map(str::to_owned))
+                .collect::<Vec<_>>()
+        };
+        repos.extend(core("bazel_deps"));
+        extensions.extend(core("extensions"));
     }
     let bindings: BTreeSet<&str> = module
         .calls()

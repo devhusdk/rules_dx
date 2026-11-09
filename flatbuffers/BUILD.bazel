@@ -16,6 +16,12 @@ alias(
     visibility = ["//visibility:public"],
 )
 
+alias(
+    name = "reflection_fbs_schema",
+    actual = "@dx_flatbuffers//reflection:reflection_fbs_schema",
+    visibility = ["//visibility:public"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

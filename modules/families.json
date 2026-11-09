@@ -213,6 +213,7 @@
         "aspect_rules_jest",
         "aspect_rules_js",
         "aspect_rules_ts",
+        "avro-cpp",
         "bazel_features",
         "bazel_lib",
         "bazel_skylib",
@@ -222,6 +223,7 @@
         "libxml2",
         "llvm",
         "platforms",
+        "protobuf",
         "rules_android",
         "rules_apple",
         "rules_cc",
@@ -229,7 +231,9 @@
         "rules_java",
         "rules_jvm_external",
         "rules_kotlin",
+        "rules_proto",
         "rules_python",
+        "rules_rust_prost",
         "rules_scala",
         "rules_shell",
         "tar.bzl",
@@ -239,10 +243,13 @@
       ],
       "dirs": [
         "ansible",
+        "api_spec",
         "asciidoc",
         "astro",
+        "avro",
         "bcr_test_module",
         "bicep",
+        "capnproto",
         "cc",
         "ci",
         "cli",
@@ -259,7 +266,9 @@
         "erlang",
         "examples",
         "families",
+        "flatbuffers",
         "gazelle",
+        "generation",
         "go",
         "helm",
         "java",
@@ -280,6 +289,7 @@
         "svelte",
         "terraform",
         "third_party",
+        "thrift",
         "tools",
         "typescript",
         "vue"
@@ -307,6 +317,7 @@
         "@aspect_rules_ts//ts:extensions.bzl%typescript",
         "@gazelle//:extensions.bzl%go_deps",
         "@llvm//extensions:osx.bzl%osx",
+        "@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl%protoc",
         "@rules_go//go:extensions.bzl%go_sdk",
         "@rules_java//java:extensions.bzl%toolchains",
         "@rules_jvm_external//:extensions.bzl%maven",
@@ -349,18 +360,23 @@
       ],
       "gazelle": [
         "//gazelle/astro",
+        "//gazelle/avro",
+        "//gazelle/capnproto",
         "//gazelle/cc",
         "//gazelle/csharp",
         "//gazelle/elixir",
         "//gazelle/erlang",
+        "//gazelle/flatbuffers",
         "//gazelle/fsharp",
         "//gazelle/go",
         "//gazelle/java",
         "//gazelle/javascript",
         "//gazelle/kotlin",
         "//gazelle/mdx",
+        "//gazelle/protobuf",
         "//gazelle/scala",
         "//gazelle/svelte",
+        "//gazelle/thrift",
         "//gazelle/typescript",
         "//gazelle/vue"
       ],
@@ -562,22 +578,21 @@
         "real_thrift_typecheck_aspect"
       ],
       "bazel_deps": [
-        "avro-cpp",
-        "protobuf",
-        "rules_proto",
-        "rules_rust_prost"
+        "bazel_skylib",
+        "platforms",
+        "rules_cc",
+        "rules_dx",
+        "rules_shell"
       ],
       "dirs": [
-        "api_spec",
         "avro",
+        "bcr_test_module",
         "capnproto",
         "flatbuffers",
-        "generation",
+        "third_party",
         "thrift"
       ],
-      "extensions": [
-        "@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl%protoc"
-      ],
+      "extensions": [],
       "file_extensions": [
         ".avsc",
         ".capnp",
@@ -585,15 +600,11 @@
         ".proto",
         ".thrift"
       ],
-      "gazelle": [
-        "//gazelle/avro",
-        "//gazelle/capnproto",
-        "//gazelle/flatbuffers",
-        "//gazelle/protobuf",
-        "//gazelle/thrift"
-      ],
+      "gazelle": [],
       "repo_rules": [],
-      "toolchains": []
+      "toolchains": [],
+      "module": "rules_dx_generation",
+      "path": "families/generation"
     },
     "haskell": {
       "aspects": [

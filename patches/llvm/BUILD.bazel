@@ -1,6 +1,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":fuzzer_build.bzl", "fuzzer_build")
 
 exports_files([
     "libunwind_copy.patch",
@@ -64,4 +65,13 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+fuzzer_build(
+    name = "msvc_fuzzer_runtimes",
+    deps = [
+        "@llvm//runtimes:resource_directory_default",
+        "@llvm//runtimes/compiler-rt:clang_rt.fuzzer.static",
+    ],
+    tags = ["manual"],
 )

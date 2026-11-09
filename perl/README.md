@@ -41,6 +41,7 @@ perl_binary(
 | --- | --- |
 | `perl_library` | Modules from `.pm` files, with `lib` and the package on `@INC` |
 | `perl_test` | Runs one `.t` script; a non-zero exit fails the test |
+| `perl_bench` | `perl_test` for `dx bench`. The script calls `DxBench::run_benchmarks` with `name => sub` pairs, timed with core `Benchmark`; seconds per call |
 | `perl_binary` | Runs one `.pl` script with `bazel run` |
 
 - Library `tags` reach the library; the generated upstream target is

@@ -24,7 +24,7 @@ sh_test(
 
 `dx bench` selects the `dx-bench` tests inside the scope with `attr(tags, ...)` over `tests(<scope>)`, then runs them with `--runs_per_test=1 --nocache_test_results --local_test_jobs=1 --test_output=errors --test_env=DX_BENCH=1`. Bazel flags after `--` are forwarded, except the ones dx owns.
 
-Every `<lang>_bench` macro (`go_bench`, `rust_bench`, `java_bench`, `kotlin_bench`, `python_bench`, `csharp_bench`, `fsharp_bench`, `d_bench`, `javascript_bench`, `typescript_bench`, `cc_bench`, `zig_bench`) declares `<name>` as the manual `dx-bench` test dx runs. Test attributes such as `size` (default `small`), `timeout`, `env`, `args`, `data`, `flaky` and `shard_count` go to `<name>`, the other attributes go to the private `<name>_bin`, and `tags` are merged with `dx-bench` and `manual`.
+Every `<lang>_bench` macro (`go_bench`, `rust_bench`, `java_bench`, `kotlin_bench`, `python_bench`, `csharp_bench`, `fsharp_bench`, `d_bench`, `javascript_bench`, `typescript_bench`, `cc_bench`, `zig_bench`, `perl_bench`, `ruby_bench`) declares `<name>` as the manual `dx-bench` test dx runs. Test attributes such as `size` (default `small`), `timeout`, `env`, `args`, `data`, `flaky` and `shard_count` go to `<name>`, the other attributes go to the private `<name>_bin`, and `tags` are merged with `dx-bench` and `manual`.
 
 Go: `go_bench(name, srcs, embed = ...)` from `//go/rules:defs.bzl` runs the `Benchmark*` functions with `-test.bench=. -test.benchmem` and turns each `ns/op`, `B/op` and `allocs/op` column into one result named `<Benchmark> <unit>`. The Go gazelle extension adds `<name>_bench` next to the `go_test` when a test file declares a `Benchmark*` function.
 
@@ -49,3 +49,7 @@ D: `d_bench(name, srcs)` from `//d/rules:defs.bzl` is a `d_binary` that writes `
 Rust: `rust_bench` from `//rust/rules:defs.bzl` runs a criterion or `#[bench]` target with `--output-format bencher` and writes `dx-bench.json` in ns/iter. Gazelle turns `[[bench]]` entries with `harness = false` into `rust_bench` targets.
 
 JavaScript and TypeScript: `javascript_bench(name, srcs, node_modules)` from `//javascript/rules:defs.bzl` and `typescript_bench` from `//typescript/rules:defs.bzl` run a [tinybench](https://github.com/tinylibs/tinybench) `Bench` that the first source (or `main`) exports as its default export. Each task becomes one row, in milliseconds. List `tinybench` in `package.json` so `node_modules` links it. `typescript_bench` also takes the `typescript_test` attributes such as `deps` and `tsconfig`.
+
+Perl: `perl_bench` from `//perl/rules:defs.bzl` is a `perl_test` whose script calls `DxBench::run_benchmarks([name => sub { ... }, ...])`. It times each sub with the core `Benchmark` module and reports seconds per call.
+
+Ruby: `ruby_bench` from `//ruby/rules:defs.bzl` takes `main`, a script that calls `DxBench.run { |x| x.report("name") { ... } }` with the benchmark-ips API. The pinned benchmark-ips gem comes with rules_dx, so no Gemfile entry is needed. Results are in seconds per call.

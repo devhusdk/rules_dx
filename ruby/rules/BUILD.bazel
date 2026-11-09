@@ -6,6 +6,7 @@ load(":wrapper_tests.bzl", "ruby_wrapper_contract_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "bench_main.rb",
     "defs.bzl",
     "toolchain_tests.bzl",
     "wrapper_tests.bzl",

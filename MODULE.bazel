@@ -821,7 +821,7 @@ bazel_dep(name = "bazel_features", version = "1.54.1")
 
 # Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them (#3954).
 ruby_coverage = use_extension("//ruby/coverage:repos.bzl", "ruby_coverage")
-use_repo(ruby_coverage, "dx_ruby_coverage_gems")
+use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 
 ruby_tools = use_extension("//ruby/toolchain:repos.bzl", "ruby_tools")
 use_repo(ruby_tools, "dx_sorbet", "rules_ruby")

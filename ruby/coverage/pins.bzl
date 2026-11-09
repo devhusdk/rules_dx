@@ -15,6 +15,13 @@ RUBY_COVERAGE_GEMS = [
 
 RUBY_COVERAGE_REPOSITORY = "dx_ruby_coverage_gems"
 
+# benchmark-ips for ruby_bench; pure Ruby, no runtime dependencies.
+RUBY_BENCH_GEMS = [
+    struct(name = "benchmark-ips", version = "2.14.0", sha256 = "b72bc8a65d525d5906f8cd94270dccf73452ee3257a32b89fbd6684d3e8a9b1d", entry = "benchmark/ips.rb"),
+]
+
+RUBY_BENCH_REPOSITORY = "dx_ruby_bench_gems"
+
 def gem_url(gem):
     return "https://rubygems.org/downloads/" + gem.name + "-" + gem.version + ".gem"
 

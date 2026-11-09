@@ -1,0 +1,19 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//ruby/rules:defs.bzl", "ruby_bench")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+ruby_bench(
+    name = "sum_bench",
+    main = "sum_bench.rb",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

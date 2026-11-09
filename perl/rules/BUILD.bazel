@@ -5,7 +5,7 @@ load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "PERL_DEFERRED_SKIP_TAGS", "PERL_QUALITY_TOOLS", "PERL_SOURCE_EXTS", "PERL_SOURCE_SPECS")
+load(":defs.bzl", "PERL_DEFERRED_SKIP_TAGS", "PERL_QUALITY_TOOLS", "PERL_SOURCE_EXTS", "PERL_SOURCE_SPECS", "perl_library")
 load(":platforms.bzl", "PERL_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
@@ -17,6 +17,13 @@ exports_files([
     "platforms.bzl",
     "wrapper_tests.bzl",
 ])
+
+perl_library(
+    name = "bench",
+    srcs = ["lib/DxBench.pm"],
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+)
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",

@@ -1,0 +1,24 @@
+load("@rules_dx//perl/rules:defs.bzl", "perl_bench", "perl_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+perl_bench(
+    name = "sum_bench",
+    srcs = ["sum_bench.pl"],
+)
+
+perl_test(
+    name = "bench_report_test",
+    srcs = ["check_test.pl"],
+    deps = ["@rules_dx//perl/rules:bench"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

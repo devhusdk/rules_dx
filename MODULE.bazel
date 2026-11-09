@@ -1772,6 +1772,13 @@ crate.annotation(
     repositories = ["dx_crates"],
     version = "0.5.3",
 )
+
+# rmeta/rlib SVH split on windows_arm64 (#9243); drop with #9292.
+crate.annotation(
+    crate = "pulldown-cmark",
+    disable_pipelining = True,
+    repositories = ["dx_crates"],
+)
 crate.annotation(
     additive_build_file_content = """filegroup(
     name = "cxx_qt_runtime_files",

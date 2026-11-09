@@ -1,17 +1,36 @@
 diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
-index c9ff000..4be699d 100644
 --- a/ruby/private/download.bzl
 +++ b/ruby/private/download.bzl
-@@ -11,7 +11,7 @@ RUBY_BUILD_VERSION = "20260512"
+@@ -11,7 +11,27 @@
  
  _JRUBY_BINARY_URL = "https://repo1.maven.org/maven2/org/jruby/jruby-dist/{version}/jruby-dist-{version}-bin.tar.gz"
  _RUBY_BUILD_URL = "https://github.com/rbenv/ruby-build/archive/refs/tags/v{version}.tar.gz"
 -_RUBY_INSTALLER_URL = "https://github.com/oneclick/rubyinstaller2/releases/download/RubyInstaller-{version}-1/rubyinstaller-devkit-{version}-1-x64.exe"
 +_RUBY_INSTALLER_ARCHIVE_URL = "https://github.com/oneclick/rubyinstaller2/releases/download/RubyInstaller-{version}-1/{artifact}"
++_W64DEVKIT_NAME = "w64devkit-x64-2.11.0.7z.exe"
++_W64DEVKIT_URL = "https://github.com/skeeto/w64devkit/releases/download/v2.11.0/" + _W64DEVKIT_NAME
++
++# Strips the self-extractor stub so Bazel can unpack the 7z payload. The
++# payload start is the 7z signature whose start-header CRC matches.
++_STRIP_SFX_RB = """
++require "zlib"
++data = File.binread(ARGV[0])
++sig = "7z\\xBC\\xAF\\x27\\x1C".b
++pos = 0
++while (pos = data.index(sig, pos))
++  head = data[pos, 32]
++  if head.bytesize == 32 && head[8, 4].unpack1("V") == Zlib.crc32(head[12, 20])
++    File.binwrite(ARGV[1], data[pos..-1])
++    exit 0
++  end
++  pos += 1
++end
++abort "no 7z payload in " + ARGV[0]
++"""
  _PORTABLE_RUBY_NAME = "ruby-{version}.{platform}.tar.gz"
  _PORTABLE_RUBY_URL = "https://github.com/bazel-contrib/portable-ruby/releases/download/{release}/{name}"
  
-@@ -179,7 +179,7 @@ def _rb_download_impl(repository_ctx):
+@@ -179,7 +199,7 @@
          # Windows tarballs. Applies whether the platform was inferred from the
          # host (single-platform mode) or set explicitly via the `platform` attr
          # (multi-platform mode picking the Windows per-platform repo).
@@ -20,7 +39,7 @@ index c9ff000..4be699d 100644
      elif repository_ctx.attr.portable_ruby:
          _install_portable_ruby(
              repository_ctx,
-@@ -267,7 +267,7 @@ def is_reproducible(version, portable_ruby, is_windows_target):
+@@ -267,7 +287,7 @@
  
      Only portable Ruby is: it is a checksummed archive and writes no absolute
      paths. System Ruby depends on the host, TruffleRuby records Homebrew
@@ -29,7 +48,7 @@ index c9ff000..4be699d 100644
  
      Args:
          version: Ruby version string
-@@ -277,7 +277,7 @@ def is_reproducible(version, portable_ruby, is_windows_target):
+@@ -277,7 +297,7 @@
      Returns:
          bool
      """
@@ -38,7 +57,7 @@ index c9ff000..4be699d 100644
          return False
      if version == "system" or version.startswith("jruby") or version.startswith("truffleruby"):
          return False
-@@ -323,39 +323,26 @@ def _install_jruby(repository_ctx, version):
+@@ -323,39 +343,56 @@
      repository_ctx.symlink("dist/bin/bundle.bat", "dist/bin/bundle.cmd")
      repository_ctx.symlink("dist/bin/jgem.bat", "dist/bin/jgem.cmd")
  
@@ -60,6 +79,18 @@ index c9ff000..4be699d 100644
 +    artifact_name = stem + ".7z"
 +    if artifact_name not in checksums:
 +        fail("missing sha256 for {} in portable_ruby_checksums".format(artifact_name))
++    if arch == "x64":
++        # RubyInstaller ships no compiler or make; native gems (json, racc) need
++        # them. A sha256-pinned w64devkit (ucrt gcc, make, sh) is unpacked into
++        # dist/ so its bin/ is on PATH wherever the Ruby toolchain's is.
++        if _W64DEVKIT_NAME not in checksums:
++            fail("missing sha256 for {} in portable_ruby_checksums".format(_W64DEVKIT_NAME))
++        repository_ctx.report_progress("Downloading w64devkit")
++        repository_ctx.download(
++            url = _W64DEVKIT_URL,
++            sha256 = checksums[_W64DEVKIT_NAME],
++            output = "w64devkit.sfx",
++        )
 +    repository_ctx.report_progress("Extracting RubyInstaller " + version)
 +    repository_ctx.download_and_extract(
 +        url = _RUBY_INSTALLER_ARCHIVE_URL.format(version = version, artifact = artifact_name),
@@ -83,12 +114,27 @@ index c9ff000..4be699d 100644
 -
 -    if len(repository_ctx.attr.msys2_packages) > 0:
 -        mingw_package_prefix = _execute_command(repository_ctx, [
--            "./dist/bin/ruby.exe",
++    if arch == "x64":
++        repository_ctx.report_progress("Extracting w64devkit")
++        repository_ctx.file("strip_sfx.rb", _STRIP_SFX_RB)
++        _execute_command(repository_ctx, [
+             "./dist/bin/ruby.exe",
 -            "-rruby_installer",
 -            "-e",
 -            "puts RubyInstaller::Runtime::Msys2Installation.new.mingw_package_prefix",
--        ])
--
++            "strip_sfx.rb",
++            "w64devkit.sfx",
++            "w64devkit.7z",
+         ])
++        repository_ctx.extract(
++            archive = "w64devkit.7z",
++            output = "dist",
++            stripPrefix = "w64devkit",
++        )
++        repository_ctx.delete("w64devkit.sfx")
++        repository_ctx.delete("w64devkit.7z")
++        repository_ctx.delete("strip_sfx.rb")
+ 
 -        packages = ["%s-%s" % (mingw_package_prefix, package) for package in repository_ctx.attr.msys2_packages]
 -        _execute_command(repository_ctx, ["./dist/bin/ridk.cmd", "exec", "pacman", "--sync", "--noconfirm"] + packages)
 -

@@ -27,6 +27,7 @@ ruby.toolchain(
         "ruby-3.4.12.x86_64_darwin.tar.gz": "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",
         "ruby-3.4.12.x86_64_linux.tar.gz": "885185fabbc01bf695550d7375e610ae85084f5340474c837e5d00ec6c6cc234",
         "rubyinstaller-3.4.12-1-x64.7z": "3806f164377824bcb17e1cf39b17d967e2bdc01e8547ce0254cd786dbe2cfe13",
+        "w64devkit-x64-2.11.0.7z.exe": "54c2bb9962e8a30c8270e34c5efc3d5fee579f53087fa7d435b95fbba2af7b2b",
     },
     version = "3.4.12",
 )

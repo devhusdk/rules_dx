@@ -1,5 +1,6 @@
 """Shared cell setting tests."""
 
+load("@dx_pins_data//:pins.bzl", "PINS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//erlang/toolchain:pins.bzl", erlang_cells = "CELLS")
 load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
@@ -10,9 +11,7 @@ load("//lua/toolchain:pins.bzl", "LUALS_CELLS")
 load("//modules:cuda.bzl", "CUDA_CELLS")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//php/toolchain:pins.bzl", "PHP_CELLS")
-load("//powershell/toolchain:pins.bzl", "PWSH_CELLS")
 load("//qt/sdk:pins.bzl", qt_cells = "CELLS")
-load("//ruby/toolchain:pins.bzl", "SORBET_CELLS")
 
 _DEFAULT = "//conditions:default"
 
@@ -29,9 +28,9 @@ _ALL_CELLS = {
     "lua": LUALS_CELLS,
     "ocaml": OCAML_CELLS,
     "php": PHP_CELLS,
-    "powershell": PWSH_CELLS,
+    "powershell": PINS["dx_powershell_toolchains"]["cells"],
     "qt": qt_cells,
-    "ruby": SORBET_CELLS,
+    "ruby": PINS["dx_sorbet"]["cells"],
 }
 
 _OSES = ["linux", "macos", "windows"]

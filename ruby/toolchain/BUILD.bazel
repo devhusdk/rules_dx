@@ -6,9 +6,9 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "BUILD.bazel",
     "metadata_tests.bzl",
-    "pins.bzl",
-    "repos.bzl",
     "extensions.bzl",
+    "pins.json",
+    "sorbet.build",
 ])
 
 ruby_metadata_tests(name = "metadata")
@@ -20,9 +20,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "metadata_tests.bzl",
-        "pins.bzl",
-        "repos.bzl",
-        "extensions.bzl",
+            "extensions.bzl",
     ],
     tags = ["corpus"],
 )

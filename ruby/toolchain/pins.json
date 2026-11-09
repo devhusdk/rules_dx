@@ -1,0 +1,41 @@
+{
+  "cells": {
+    "linux_arm64": {
+      "binary": "libexec/sorbet",
+      "sha256": "797fb456360f91dd40c5eb1eaecee630742c2de112a76e3787506040fb750864",
+      "type": "gem",
+      "urls": [
+        "https://rubygems.org/downloads/sorbet-static-0.6.13599-aarch64-linux.gem"
+      ]
+    },
+    "linux_x86_64": {
+      "binary": "libexec/sorbet",
+      "sha256": "6fbb673e4d69b344bf5b6bec916820f87be08a351b2e4ff33df126345b1e8a70",
+      "type": "gem",
+      "urls": [
+        "https://rubygems.org/downloads/sorbet-static-0.6.13599-x86_64-linux.gem"
+      ]
+    },
+    "macos_arm64": {
+      "binary": "libexec/sorbet",
+      "sha256": "c023f9bdc8b974640b9eb3960295ec8f41dcfa385c89a699ceec8c6ed328eea6",
+      "type": "gem",
+      "urls": [
+        "https://rubygems.org/downloads/sorbet-static-0.6.13599-universal-darwin.gem"
+      ]
+    },
+    "macos_x86_64": {
+      "binary": "libexec/sorbet",
+      "sha256": "c023f9bdc8b974640b9eb3960295ec8f41dcfa385c89a699ceec8c6ed328eea6",
+      "type": "gem",
+      "urls": [
+        "https://rubygems.org/downloads/sorbet-static-0.6.13599-universal-darwin.gem"
+      ]
+    },
+    "windows_x86_64": {
+      "binary": "libexec/sorbet",
+      "stub": "#!/bin/sh\necho \"sorbet has no Windows build: the Ruby type check is not available on Windows\" >&2\nexit 2\n"
+    }
+  },
+  "version": "0.6.13599"
+}

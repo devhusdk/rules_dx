@@ -1,21 +1,18 @@
 """The powershell module extension."""
 
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "PWSH_CELLS", "RULES_POWERSHELL_SHA256", "RULES_POWERSHELL_URL")
-load(":repos.bzl", "HUB_NAME", "hub_build", "pwsh_repo", "repo_name")
+load("//libs/starlark:repo.bzl", "pinned_archive")
+
+_VERSION = "0.3.1"
 
 def _powershell_impl(mctx):
     pinned_archive(
         name = "rules_powershell",
-        sha256 = RULES_POWERSHELL_SHA256,
-        urls = [RULES_POWERSHELL_URL],
+        sha256 = "8ef875aa1dad8dc0f8f568547d2283f3d4b686b8e50374d6cdda4c5688fe6b7f",
+        urls = ["https://github.com/periareon/rules_powershell/releases/download/{0}/rules_powershell-{0}.tar.gz".format(_VERSION)],
     )
-    for cell in sorted(PWSH_CELLS.keys()):
-        pwsh_repo(name = repo_name(cell), cell = cell)
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
     return mctx.extension_metadata(reproducible = True)
 
 powershell = module_extension(
     implementation = _powershell_impl,
-    doc = "Creates rules_powershell, the pinned PowerShell builds and the toolchain hub.",
+    doc = "Creates the patched rules_powershell.",
 )

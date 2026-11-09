@@ -824,7 +824,33 @@ ruby_coverage = use_extension("//ruby/coverage:extensions.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 
 ruby_tools = use_extension("//ruby/toolchain:extensions.bzl", "ruby_tools")
-use_repo(ruby_tools, "dx_sorbet", "rules_ruby")
+use_repo(ruby_tools, "rules_ruby")
+
+dx_pins = use_extension("//libs/starlark:toolchain.bzl", "dx_pins")
+dx_pins.pin(
+    name = "dx_sorbet",
+    aliases = {"windows_arm64": "windows_x86_64"},
+    build = "//ruby/toolchain:sorbet.build",
+    pins = "//ruby/toolchain:pins.json",
+)
+dx_pins.pin(
+    name = "dx_powershell_toolchains",
+    build = "//powershell/toolchain:pwsh.build",
+    pins = "//powershell/toolchain:pins.json",
+    toolchain_type = "@rules_powershell//powershell:toolchain_type",
+)
+use_repo(
+    dx_pins,
+    "dx_powershell_toolchains",
+    "dx_powershell_toolchains__linux_arm64",
+    "dx_powershell_toolchains__linux_x86_64",
+    "dx_powershell_toolchains__macos_arm64",
+    "dx_powershell_toolchains__macos_x86_64",
+    "dx_powershell_toolchains__windows_arm64",
+    "dx_powershell_toolchains__windows_x86_64",
+    "dx_pins_data",
+    "dx_sorbet",
+)
 
 # The pinned Ruby is declared in families/ruby; deploy tests read its files.
 ruby = use_extension("//ruby:extensions.bzl", "ruby")
@@ -1183,17 +1209,7 @@ use_repo(elixir, "dx_benchee", "dx_credo", "dx_elixir", "rules_elixir")
 bazel_dep(name = "rules_batch", version = "0.1.1")
 
 powershell = use_extension("//powershell/toolchain:extensions.bzl", "powershell")
-use_repo(
-    powershell,
-    "dx_powershell_toolchains",
-    "dx_powershell_toolchains__linux_arm64",
-    "dx_powershell_toolchains__linux_x86_64",
-    "dx_powershell_toolchains__macos_arm64",
-    "dx_powershell_toolchains__macos_x86_64",
-    "dx_powershell_toolchains__windows_arm64",
-    "dx_powershell_toolchains__windows_x86_64",
-    "rules_powershell",
-)
+use_repo(powershell, "rules_powershell")
 
 ocaml = use_extension("//ocaml/toolchain:extensions.bzl", "ocaml")
 ocaml.lock(

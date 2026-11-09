@@ -120,7 +120,6 @@ NOT_APPLICABLE = {
     "format": {
         "capnp": "schema IDL; no maintained .capnp formatter exists, capnp only validates",
         "flatbuffers": "schema IDL; no maintained .fbs formatter exists, flatc only validates",
-        "avro": "schema files; avro-tools has no formatter, it only validates",
         "thrift": "schema IDL; the thrift compiler has no formatter, it only validates",
     },
     "typecheck": {

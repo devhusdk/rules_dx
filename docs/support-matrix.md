@@ -80,7 +80,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Name | Lint | Format | Typecheck | API docs | Coverage | Dead code |
 | --- | --- | --- | --- | --- | --- | --- |
 | Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
-| Avro | `avro_tools`, `typos` | n/a | `avro_tools` | no | n/a | no |
+| Avro | `avro_tools`, `typos` | `prettier` | `avro_tools` | no | n/a | no |
 | C and C++ | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | no | no: cuda_test has no dx coverage wiring | none |
@@ -123,7 +123,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
 | Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
 | Cap'n Proto | `capnp`, `typos` | n/a | `capnp` | n/a | n/a | n/a |
-| CloudFormation | `cfn_lint`, `trivy_config`, `typos` | no | n/a | n/a | n/a | n/a |
+| CloudFormation | `cfn_lint`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | CSS | `stylelint`, `typos` | `prettier` | no | n/a | n/a | n/a |
 | CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |
 | FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a | n/a |
@@ -136,7 +136,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a | n/a |
 | Kubernetes | `kubeconform`, `trivy_config`, `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
-| Markdown | `lychee`, `markdown_check`, `typos`, `vale` | no | no | n/a | n/a | n/a |
+| Markdown | `lychee`, `markdown_check`, `typos`, `vale` | `prettier` | no | n/a | n/a | n/a |
 | Nix | `deadnix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a | `deadnix` |
 | OCI images | no | no | no | n/a | n/a | n/a |
 | Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
@@ -156,7 +156,6 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 
 Not applicable for `format`:
 
-- `avro`: schema files; avro-tools has no formatter, it only validates
 - `capnp`: schema IDL; no maintained .capnp formatter exists, capnp only validates
 - `flatbuffers`: schema IDL; no maintained .fbs formatter exists, flatc only validates
 - `thrift`: schema IDL; the thrift compiler has no formatter, it only validates

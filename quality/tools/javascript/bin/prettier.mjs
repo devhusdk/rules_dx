@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,7 +45,13 @@ if (reserved !== undefined) {
   process.stderr.write(`prettier: ${reserved.split("=")[0]} is set by dx and cannot be passed\n`);
   process.exit(2);
 }
-const files = args.filter((arg) => !arg.startsWith("-")).map((arg) => arg.toLowerCase());
+// Avro IDL (.avdl) is not JSON; prettier has no parser for it, so it is never passed on.
+const isAvdl = (arg) => !arg.startsWith("-") && arg.toLowerCase().endsWith(".avdl");
+const forwarded = args.filter((arg) => !isAvdl(arg));
+if (forwarded.length < args.length && forwarded.every((arg) => arg.startsWith("-"))) {
+  process.exit(0);
+}
+const files = forwarded.filter((arg) => !arg.startsWith("-")).map((arg) => arg.toLowerCase());
 const plugins = Object.entries(PLUGINS)
   .filter(([, extensions]) => files.some((file) => extensions.some((extension) => file.endsWith(extension))))
   .map(([name]) => `--plugin=${fileURLToPath(import.meta.resolve(name))}`);
@@ -64,7 +71,30 @@ if (files.some(isDockerfileName)) {
 }
 // Prettier cannot infer a parser for names like Dockerfile.prod.
 const parser = dockerfiles ? ["--parser=dockerfile"] : [];
+// CloudFormation allows a .template extension for either JSON or YAML; prettier cannot infer a
+// parser for it, so one is picked from the content when the whole batch agrees.
+function templateParser(file) {
+  const lower = file.toLowerCase();
+  if (lower.endsWith(".json")) {
+    return "json";
+  }
+  if (lower.endsWith(".yaml") || lower.endsWith(".yml")) {
+    return "yaml";
+  }
+  if (!lower.endsWith(".template")) {
+    return undefined;
+  }
+  return readFileSync(file, "utf8").trimStart().startsWith("{") ? "json" : "yaml";
+}
+const templates = forwarded.filter((arg) => !arg.startsWith("-") && arg.toLowerCase().endsWith(".template"));
+if (templates.length > 0) {
+  const parsers = new Set(forwarded.filter((arg) => !arg.startsWith("-")).map(templateParser));
+  if (parsers.size !== 1 || parsers.has(undefined)) {
+    fail(`.template files need a batch of one format (all JSON or all YAML): ${templates.join(", ")}`);
+  }
+  parser.push(`--parser=${[...parsers][0]}`);
+}
 const options = `--config=${dxConfig ?? fileURLToPath(new URL("../../../tiers/prettier/standard.json", import.meta.url))}`;
 const ignore = `--ignore-path=${fileURLToPath(new URL("./prettier_ignore", import.meta.url))}`;
-process.argv.splice(2, args.length, ...plugins, ...parser, options, ignore, ...args);
+process.argv.splice(2, args.length, ...plugins, ...parser, options, ignore, ...forwarded);
 createRequire(import.meta.url)("prettier/bin/prettier.cjs");

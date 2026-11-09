@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_avro_prettier_pass
+capability FORMAT
+stages 1
+stage prettier classes=avro sources=matrix/avro_prettier_clean.avsc
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

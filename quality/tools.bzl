@@ -1786,7 +1786,7 @@ TOOLS = [
     tool(
         id = "prettier",
         adapters = {
-            "format": ["api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "json5", "less", "php", "scss", "svelte", "vue", "xml"],
+            "format": ["api_spec", "api_spec_ref", "astro", "avro", "cloudformation", "css", "dockerfile", "gherkin", "graphql", "html", "json5", "less", "markdown", "php", "scss", "svelte", "vue", "xml"],
         },
         config = config(suffixes = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"], tier_active = True, tier_base = False),
         support = [
@@ -1822,6 +1822,27 @@ TOOLS = [
                 capability = "format",
                 classes = ["gherkin"],
                 family = "gherkin",
+                fix = "supported",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "format",
+                classes = ["avro"],
+                family = "avro",
+                fix = "supported",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "format",
+                classes = ["cloudformation"],
+                family = "cloudformation",
+                fix = "supported",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "format",
+                classes = ["markdown"],
+                family = "markdown",
                 fix = "supported",
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),

@@ -61,21 +61,44 @@ fn module_not_found(stderr: &str) -> Option<Hint> {
 }
 
 fn stale_generated(stderr: &str) -> Option<Hint> {
+    missing_package(stderr).or_else(|| missing_dependency(stderr))
+}
+
+fn missing_package(stderr: &str) -> Option<Hint> {
     let line = stderr.lines().find(|line| {
         line.contains("no such package")
             && (line.contains("BUILD file not found") || line.contains(".dx/"))
     })?;
-    let package = line
-        .split("no such package '")
-        .nth(1)
-        .and_then(|rest| rest.split('\'').next())
-        .unwrap_or("a generated label");
+    let package = quoted_after(line, "no such package '").unwrap_or("a generated label");
     Some(Hint {
         code: CODE_STALE_GENERATED,
         next: format!(
             "next: package {package} has no BUILD file, so generated files are missing or stale; run `dx generate --apply` and run the command again."
         ),
     })
+}
+
+/// Errors a new import or #include causes when the BUILD deps were not regenerated.
+fn missing_dependency(stderr: &str) -> Option<Hint> {
+    let line = stderr.lines().find(|line| {
+        line.contains("no such target")
+            || (line.contains("target '") && line.contains("not declared in package"))
+            || line.contains("undeclared inclusion(s) in rule")
+            || line.contains("[strict] Using type")
+    })?;
+    let subject = quoted_after(line, "no such target '")
+        .or_else(|| quoted_after(line, "target '"))
+        .map_or("a dependency".to_owned(), str::to_owned);
+    Some(Hint {
+        code: CODE_STALE_GENERATED,
+        next: format!(
+            "next: {subject} is not a declared dependency, so the BUILD files are probably stale after a new import or include; run `dx generate --apply` and run the command again."
+        ),
+    })
+}
+
+fn quoted_after<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
+    line.split(prefix).nth(1)?.split('\'').next()
 }
 
 fn no_toolchain(stderr: &str) -> Option<Hint> {
@@ -168,6 +191,23 @@ mod tests {
         assert_eq!(hint.code, "stale_generated");
         assert!(hint.next.contains("gen/app"), "{}", hint.next);
         assert!(hint.next.contains("dx generate --apply"), "{}", hint.next);
+    }
+
+    #[test]
+    fn new_imports_without_generated_deps_point_at_dx_generate() {
+        for stderr in [
+            "ERROR: /w/a/BUILD:3:10: no such target '//lib:util': target 'util' not declared in package 'lib'",
+            "ERROR: /w/a/BUILD:3:10: no such target '//lib:util'",
+            "ERROR: a/BUILD:1:10: target 'util' not declared in package 'lib' defined by /w/lib/BUILD",
+            "ERROR: /w/a/BUILD:1:11: undeclared inclusion(s) in rule '//a:a': this rule is missing dependency declarations",
+            "a/Main.java:3: error: [strict] Using type lib.Util from an indirect dependency",
+        ] {
+            let hint = classify(stderr).unwrap_or_else(|| panic!("no hint for {stderr}"));
+            assert_eq!(hint.code, "stale_generated", "{stderr}");
+            assert!(hint.next.contains("dx generate --apply"), "{}", hint.next);
+        }
+        let hint = classify("no such target '//lib:util'").unwrap();
+        assert!(hint.next.contains("//lib:util"), "{}", hint.next);
     }
 
     #[test]

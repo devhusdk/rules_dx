@@ -40,6 +40,8 @@ exports_files([
     "rules_rust.msvc_pdb_output.patch",
     "rules_rust.pipelined_rmeta_path.patch",
     "rules_rust.rust_lld_msvc_libpath.patch",
+    "rules_swift.non_root_toolchain.patch",
+    "rules_swift.toolchain_sysroot_env.patch",
     "windows_support.dx_msvc_layout.patch",
     "windows_support.host_tools.patch",
     "windows_support.hostarm64_packages.patch",

@@ -790,6 +790,11 @@ zig.toolchain(zig_version = "0.17.0")
 bazel_dep(name = "rules_swift", version = "4.2.2")
 single_version_override(
     module_name = "rules_swift",
+    patch_strip = 1,
+    patches = [
+        "//patches/rules_swift:toolchain_sysroot_env.patch",
+        "//patches/rules_swift:non_root_toolchain.patch",
+    ],
     version = "4.2.2",
 )
 
@@ -849,9 +854,28 @@ use_repo(
     "dx_swift_sysroot_linux_x86_64",
 )
 
-swift = use_extension("//swift/toolchain:repos.bzl", "swift")
-swift.toolchain(swift_version = "6.4.1")
-use_repo(swift, "dx_swift_host", "dx_swift_linux_aarch64", "dx_swift_linux_x86_64")
+swift = use_extension("@rules_swift//swift:extensions.bzl", "swift")
+swift.toolchain(
+    name = "dx_swift",
+    env = {"LD_LIBRARY_PATH": "{sysroot}/host_libs"},
+    platform_sha256 = {
+        "ubuntu22.04": "e9ec2ff05ac0fc89bf2e7cecdee5da4d398898a768d7ee2b86a59d2a7f01c44b",
+        "ubuntu22.04-aarch64": "5d50538c0500ff1b253e799f3e48f04db0547856aef76905c85e5bdfe01e6901",
+    },
+    swift_version = "6.4.1",
+    sysroot = {
+        "ubuntu22.04": "@dx_swift_sysroot_linux_x86_64//:files",
+        "ubuntu22.04-aarch64": "@dx_swift_sysroot_linux_aarch64//:files",
+    },
+)
+use_repo(
+    swift,
+    dx_swift_linux_aarch64 = "dx_swift_ubuntu22.04-aarch64",
+    dx_swift_linux_x86_64 = "dx_swift_ubuntu22.04",
+)
+
+swift_host = use_extension("//swift/toolchain:repos.bzl", "swift_host")
+use_repo(swift_host, "dx_swift_host")
 
 # floor: equals tested; dev only, for the swift-app fixture packages
 bazel_dep(name = "rules_swift_package_manager", version = "1.25.0", dev_dependency = True)

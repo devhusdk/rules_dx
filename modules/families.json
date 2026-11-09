@@ -1013,8 +1013,9 @@
         "swift"
       ],
       "extensions": [
-        "//swift/toolchain:repos.bzl%swift",
-        "@bazel_linux_packages//apt:extensions.bzl%apt"
+        "//swift/toolchain:repos.bzl%swift_host",
+        "@bazel_linux_packages//apt:extensions.bzl%apt",
+        "@rules_swift//swift:extensions.bzl%swift"
       ],
       "file_extensions": [
         ".swift"

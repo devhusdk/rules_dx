@@ -1,0 +1,12 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+exports_files([
+    "non_root_toolchain.patch",
+    "toolchain_sysroot_env.patch",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

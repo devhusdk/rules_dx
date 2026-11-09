@@ -91336,7 +91336,7 @@
         "bzlTransitiveDigest": "zowmf+/xIP5BEtbczHDpItdKRiBtUlpbbxIukWipZPY=",
         "usagesDigest": "+Mer49Dj5TaKX4xrFJF8SNv6Zl06kOslHjXx6dnMIPU=",
         "recordedInputs": [
-          "REPO_MAPPING:,dx_swift_host +swift+dx_swift_host",
+          "REPO_MAPPING:,dx_swift_host +swift_host+dx_swift_host",
           "REPO_MAPPING:rules_swift_package_manager+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:rules_swift_package_manager+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_swift_package_manager+,cgrindel_bazel_starlib cgrindel_bazel_starlib+",
@@ -91348,7 +91348,7 @@
             "attributes": {
               "env": {},
               "package": "swift/tests/fixtures/swift-app/Package.swift",
-              "swift_executable": "@@+swift+dx_swift_host//:swift"
+              "swift_executable": "@@+swift_host+dx_swift_host//:swift"
             }
           },
           "swift_deps_package_repos": {
@@ -91368,7 +91368,7 @@
               "version": "1.8.2",
               "env": {},
               "env_inherit": [],
-              "swift_executable": "@@+swift+dx_swift_host//:swift",
+              "swift_executable": "@@+swift_host+dx_swift_host//:swift",
               "cached_json_directory": "",
               "make_files_read_only": false,
               "replace_scm_with_registry": false,

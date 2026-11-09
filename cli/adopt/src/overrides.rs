@@ -380,6 +380,22 @@ pub const OVERRIDES: &[Override] = &[
             },
         ],
     },
+    Override {
+        module: "rules_swift",
+        version: "4.2.2",
+        patch_strip: 1,
+        archive: None,
+        patches: &[
+            OverridePatch {
+                file: "toolchain_sysroot_env.patch",
+                content: include_str!("../../../patches/rules_swift/toolchain_sysroot_env.patch"),
+            },
+            OverridePatch {
+                file: "non_root_toolchain.patch",
+                content: include_str!("../../../patches/rules_swift/non_root_toolchain.patch"),
+            },
+        ],
+    },
 ];
 
 /// The consumer-side file name of one patch: `<module>.<file>`.
@@ -1121,6 +1137,13 @@ archive_override(
         let deps = BTreeSet::from(["rules_rust".to_owned()]);
         let files = render_in(dx_families::families(), &deps);
         assert!(paths(&files).iter().any(|p| p.contains("rules_rust.")));
+    }
+
+    #[test]
+    fn the_shipped_families_keep_rules_swift_with_no_deps() {
+        let files = render_in(dx_families::families(), &BTreeSet::new());
+        assert!(paths(&files).iter().any(|p| p.contains("rules_swift.")));
+        assert!(files[0].1.contains("module_name = \"rules_swift\""));
     }
 
     #[test]

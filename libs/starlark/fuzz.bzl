@@ -1,7 +1,5 @@
 """The libFuzzer ASAN binary rule and the `<name>_run` runner shared by the fuzz macros."""
 
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-
 def _asan_fuzzer_transition_impl(_settings, attr):
     return {
         "@llvm//config:asan": True,
@@ -32,11 +30,28 @@ dx_fuzz_binary = rule(
     doc = "Builds `binary` with the pinned LLVM's AddressSanitizer runtime and, unless `pinned_libfuzzer` is off, its libFuzzer.",
 )
 
+def _dx_fuzz_run_impl(ctx):
+    runner = ctx.attr.runner[DefaultInfo].files_to_run.executable
+    executable = ctx.actions.declare_file(ctx.label.name + (".exe" if runner.extension == "exe" else ""))
+    ctx.actions.symlink(output = executable, target_file = runner, is_executable = True)
+    runfiles = ctx.runfiles(files = [executable] + ctx.files.data).merge(ctx.attr.runner[DefaultInfo].default_runfiles)
+    for data in ctx.attr.data:
+        runfiles = runfiles.merge(data[DefaultInfo].default_runfiles)
+    return [DefaultInfo(executable = executable, runfiles = runfiles)]
+
+_dx_fuzz_run = rule(
+    implementation = _dx_fuzz_run_impl,
+    attrs = {
+        "data": attr.label_list(allow_files = True),
+        "runner": attr.label(default = Label("//libs/fuzz_run:fuzz_run"), executable = True, cfg = "target"),
+    },
+    executable = True,
+)
+
 def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", harness = None, visibility = None):
     """Defines `<name>_run`, the runner `dx fuzz` calls for the fuzz binary `fuzz`."""
-    sh_binary(
+    _dx_fuzz_run(
         name = name + "_run",
-        srcs = [Label("//libs/starlark:fuzz_run.sh")],
         args = [engine, "$(rootpath {})".format(fuzz)] + ([target] if target else []) + (["$(rootpath {})".format(harness)] if harness else []),
         data = [fuzz] + ([harness] if harness else []),
         testonly = True,

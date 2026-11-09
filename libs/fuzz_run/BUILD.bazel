@@ -1,0 +1,39 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_binary(
+    name = "fuzz_run",
+    srcs = [
+        "src/main.rs",
+        "src/run.rs",
+    ],
+    crate_name = "fuzz_run",
+    crate_root = "src/main.rs",
+    deps = ["@rules_rust//rust/runfiles"],
+)
+
+rust_test(
+    name = "fuzz_run_test",
+    srcs = [
+        "src/main.rs",
+        "src/run.rs",
+        "src/run_tests.rs",
+    ],
+    crate_name = "fuzz_run",
+    crate_root = "src/main.rs",
+    deps = ["@rules_rust//rust/runfiles"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-run=./libs/starlark/fuzz_run.sh
+run=./libs/fuzz_run/fuzz_run
 bin="$1"
 
 out="$TEST_TMPDIR/out"

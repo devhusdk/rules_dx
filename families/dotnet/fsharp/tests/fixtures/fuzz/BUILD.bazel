@@ -29,12 +29,12 @@ sh_test(
     args = [
         "$(rootpath @rules_dx//dotnet/fuzz:libfuzzer_dotnet)",
         "$(rootpath :parse_fuzz)",
-        "$(rootpath @rules_dx//libs/starlark:fuzz_run.sh)",
+        "$(rootpath @rules_dx//libs/fuzz_run:fuzz_run)",
     ],
     data = [
         ":parse_fuzz",
         "@rules_dx//dotnet/fuzz:libfuzzer_dotnet",
-        "@rules_dx//libs/starlark:fuzz_run.sh",
+        "@rules_dx//libs/fuzz_run:fuzz_run",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     timeout = "short",

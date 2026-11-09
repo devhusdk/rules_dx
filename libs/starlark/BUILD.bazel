@@ -19,7 +19,6 @@ exports_files([
         "fuzz_bench.bzl",
         "fuzz_bench_tests.bzl",
     "fuzz.bzl",
-    "fuzz_run.sh",
     "host.bzl",
     "jammy_runtime.bzl",
     "license.bzl",

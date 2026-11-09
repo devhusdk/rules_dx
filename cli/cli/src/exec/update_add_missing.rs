@@ -1,5 +1,5 @@
 use super::update_unused::{self, Missing, Via};
-use dx_adopt::dependency_sets::{Ecosystem, ResolvedTarget};
+use dx_adopt::dependency_sets::{Ecosystem, ResolvedTarget, Selection};
 use dx_plan::resolve::QueryRunner;
 use dx_update::discover::{Fetch, cargo, npm, pypi, ruby};
 use dx_update::edit::{AddError, AddRequest, ConfiguredKind, UpdateRequest};
@@ -52,6 +52,7 @@ fn plan(
     texts: &mut BTreeMap<String, String>,
     workspace: &Path,
     fetch: &dyn Fetch,
+    named: bool,
 ) -> Result<Option<Added>, String> {
     let set = &target.set;
     let near = match &item.via {
@@ -65,27 +66,33 @@ fn plan(
     let manifest = manifest_for(&set.manifests, near)
         .ok_or_else(|| "the set has no manifest".to_owned())?
         .clone();
-    let version = latest(set.ecosystem, &item.name, fetch)?;
-    let update = UpdateRequest::parse_configured_set(
-        kind,
-        &set.name,
-        std::slice::from_ref(&manifest),
-        set.repository.as_deref(),
-        &format!("{}:{}", set.name, item.name),
-        &version,
-    )
-    .map_err(|error| error.to_string())?;
-    let request = AddRequest::from_request(&update);
     if !texts.contains_key(&manifest) {
         let text = std::fs::read_to_string(workspace.join(&manifest))
             .map_err(|error| format!("{manifest}: {error}"))?;
         texts.insert(manifest.clone(), text);
     }
-    let inserted = match request.plan_insert(&texts[&manifest]) {
-        Ok(inserted) => inserted,
-        Err(AddError::Declared { .. }) => return Ok(None),
-        Err(error) => return Err(error.to_string()),
+    let request_for = |version: &str| {
+        UpdateRequest::parse_configured_set(
+            kind,
+            &set.name,
+            std::slice::from_ref(&manifest),
+            set.repository.as_deref(),
+            &format!("{}:{}", set.name, item.name),
+            version,
+        )
+        .map(|update| AddRequest::from_request(&update))
+        .map_err(|error| error.to_string())
     };
+    match request_for("0.0.0")?.plan_insert(&texts[&manifest]) {
+        Err(AddError::Declared { .. }) => return Ok(None),
+        Err(_) if named => return Ok(None),
+        Err(error) => return Err(error.to_string()),
+        Ok(_) => {}
+    }
+    let version = latest(set.ecosystem, &item.name, fetch)?;
+    let inserted = request_for(&version)?
+        .plan_insert(&texts[&manifest])
+        .map_err(|error| error.to_string())?;
     texts.insert(manifest.clone(), inserted);
     Ok(Some(Added {
         set: set.name.clone(),
@@ -104,17 +111,58 @@ pub(super) fn add_missing(
     query: &dyn QueryRunner,
     startup: &[String],
 ) -> Result<Vec<Added>, String> {
+    let items = update_unused::find_missing(workspace, resolved, query, startup);
+    declare(workspace, resolved, items, fetch, false)
+}
+
+/// Declares each `set:package` the selectors name but the set does not declare, at its latest
+/// stable version. Declared packages, manifests dx cannot edit and sets without a registry
+/// lookup are left to the selector path.
+pub(super) fn add_named(
+    workspace: &Path,
+    resolved: &[ResolvedTarget],
+    fetch: &dyn Fetch,
+) -> Result<Vec<Added>, String> {
+    let mut items = Vec::new();
+    for target in resolved {
+        if let Selection::Packages(names) = &target.request {
+            let cargo = target.set.ecosystem == Ecosystem::Cargo;
+            if cargo && names.len() > 1 {
+                continue;
+            }
+            for name in names {
+                if cargo && dx_update::backend::cargo_reserved_repin(name) {
+                    continue;
+                }
+                items.push(Missing {
+                    set: target.set.name.clone(),
+                    name: name.clone(),
+                    via: Via::Label(String::new()),
+                });
+            }
+        }
+    }
+    declare(workspace, resolved, items, fetch, true)
+}
+
+fn declare(
+    workspace: &Path,
+    resolved: &[ResolvedTarget],
+    items: Vec<Missing>,
+    fetch: &dyn Fetch,
+    named: bool,
+) -> Result<Vec<Added>, String> {
     let mut texts = BTreeMap::new();
     let mut added = Vec::new();
     let mut failures = Vec::new();
-    for item in update_unused::find_missing(workspace, resolved, query, startup) {
+    for item in items {
         let Some(target) = resolved.iter().find(|target| target.set.name == item.set) else {
             continue;
         };
         let Some(kind) = kind_of(target.set.ecosystem) else {
             continue;
         };
-        match plan(target, &item, kind, &mut texts, workspace, fetch) {
+        match plan(target, &item, kind, &mut texts, workspace, fetch, named) {
             Ok(Some(done)) => added.push(done),
             Ok(None) => {}
             Err(reason) => failures.push(format!("{}:{} ({reason})", item.set, item.name)),
@@ -251,6 +299,37 @@ mod tests {
                 .expect("again")
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn a_named_package_is_declared_at_its_latest_version_unless_it_already_is() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write(
+            root,
+            "web/package.json",
+            "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n",
+        );
+        let mut resolved = [target(
+            "npm",
+            Ecosystem::Npm,
+            "web/package.json",
+            "web/pnpm-lock.yaml",
+        )];
+        resolved[0].request = Selection::Packages(vec!["left-pad".to_owned(), "react".to_owned()]);
+        let no_network = |url: &str| -> Result<String, String> {
+            if url.ends_with("/react") {
+                Err("declared packages are not looked up".to_owned())
+            } else {
+                registry(url)
+            }
+        };
+        let added = add_named(root, &resolved, &no_network).expect("added");
+        let names: Vec<_> = added.iter().map(|a| format!("{} {}", a.name, a.version)).collect();
+        assert_eq!(names, ["left-pad 1.3.0"]);
+        let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
+        assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
+        assert!(npm.contains("\"react\": \"18.0.0\""), "{npm}");
     }
 
     #[test]

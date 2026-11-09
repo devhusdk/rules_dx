@@ -298,7 +298,7 @@ pub static COMMANDS: [CommandMeta; 25] = [
         scope_policy: "selector-default-all",
         describe: "update dependencies per set, or widen or add one package to a version (check by default; --apply writes)",
         usage: "Usage: dx update [--apply [--prune] [--add-missing]] [--outdated] [--pr [--automerge=none|patch|minor|all] [--min-age=<days>] [--allow-major] [--max-prs=<n>]] [--offline] [--frozen] [selector ...] | <set:package> <version> [--floor --reason=<text>]",
-        scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|powershell|ruby|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run checks all sets. `<set:package> <version>` widens that one package, or adds it when missing (bazel|cargo|github-actions|go|maven|npm|nuget).",
+        scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|powershell|ruby|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run checks all sets. `<set:package> <version>` widens that one package, or adds it when missing (bazel|cargo|github-actions|go|maven|npm|nuget). With --apply, `set:package` alone declares a missing cargo, npm, uv or ruby package at its latest stable version.",
         is_managed: false,
         is_adoption: false,
         default_release: false,

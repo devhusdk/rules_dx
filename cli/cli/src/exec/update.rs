@@ -54,6 +54,20 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         {
             return code;
         }
+        if invocation.applies()
+            && !invocation.offline
+            && !invocation.frozen
+            && let Err(code) = add_named(
+                invocation,
+                env.workspace,
+                &registry,
+                fetch.as_ref(),
+                env.out,
+                env.err,
+            )
+        {
+            return code;
+        }
         return update_consumer::execute_configured(invocation, env, &registry, verbose, mode);
     }
     let message = no_sets_message(env.workspace);
@@ -125,13 +139,47 @@ fn add_missing(
         Ok(resolved) => resolved,
         Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
     };
-    match update_add_missing::add_missing(
-        workspace,
-        &resolved,
-        fetch,
-        query_runner,
-        &invocation.bazel_startup_options,
-    ) {
+    report_added(
+        invocation,
+        update_add_missing::add_missing(
+            workspace,
+            &resolved,
+            fetch,
+            query_runner,
+            &invocation.bazel_startup_options,
+        ),
+        out,
+        err,
+    )
+}
+
+fn add_named(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    registry: &dx_adopt::dependency_sets::Registry,
+    fetch: &dyn dx_update::discover::Fetch,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+) -> Result<(), i32> {
+    let resolved = match dx_adopt::dependency_sets::resolve(registry, &invocation.targets) {
+        Ok(resolved) => resolved,
+        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
+    };
+    report_added(
+        invocation,
+        update_add_missing::add_named(workspace, &resolved, fetch),
+        out,
+        err,
+    )
+}
+
+fn report_added(
+    invocation: &Invocation,
+    added: Result<Vec<update_add_missing::Added>, String>,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+) -> Result<(), i32> {
+    match added {
         Ok(added) => {
             for item in added {
                 let _ = writeln!(

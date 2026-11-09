@@ -493,7 +493,7 @@ const CARGO_RESERVED: &str =
     "crate_universe reads this crate name as a repin mode; select the set without a package";
 
 /// Values crate_universe reads as a repin mode (or as "skip the repin") instead of a crate name.
-fn cargo_reserved_repin(name: &str) -> bool {
+pub fn cargo_reserved_repin(name: &str) -> bool {
     const WORDS: [&str; 13] = [
         "eager",
         "full",

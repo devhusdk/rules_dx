@@ -1271,6 +1271,13 @@ fn update_prune_needs_apply() {
 }
 
 #[test]
+fn update_apply_accepts_a_package_without_a_version() {
+    let got = parse(&strings(&["update", "--apply", "npm:left-pad"])).expect("add");
+    assert!(got.apply && !got.edits_version());
+    assert_eq!(got.targets, ["npm:left-pad"]);
+}
+
+#[test]
 fn update_add_missing_needs_apply_and_network() {
     let got = parse(&strings(&["update", "--apply", "--add-missing", "cargo"])).expect("add");
     assert!(got.add_missing && got.apply);

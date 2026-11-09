@@ -377,6 +377,8 @@ tools/dx update --apply --floor --reason "needs 0.3 API" bazel-modules:rules_cc 
 tools/dx update --apply npm:vue 3.5.42
 ```
 
+`tools/dx update --apply npm:left-pad` without a version declares a package its set does not declare yet at the latest stable version, prints `dx: update_added: <set>: <name> <version> (added to <manifest>)` and locks it. It works for cargo, npm, uv and ruby sets and uses the lookup of `--add-missing`; a declared package keeps its meaning as a selector, and `--offline` or `--frozen` skip the add.
+
 One `set:package` and one version widen that requirement, or declare it when missing. A version starts with a digit, `v` plus a digit, or is a commit SHA. The set is a [dependency set](#dependency-sets) or the built-in `bazel`, `containers` or `github-actions`. Any other set exits `2` and lists valid names.
 
 Without `--apply` it exits `0` when the manifest already declares the version, and `1` with `update drift` (widen) or `update pending` (add). `github-actions` and `bazel:.bazelversion` cannot add.

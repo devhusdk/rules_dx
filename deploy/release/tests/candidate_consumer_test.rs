@@ -2,7 +2,6 @@
 //! registry in a nested Bazel workspace, with no override.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{

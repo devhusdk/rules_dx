@@ -1,12 +1,12 @@
 """Builds its `deps` with the pinned LLVM's libFuzzer runtime enabled."""
 
 def _fuzzer_transition_impl(_settings, _attr):
-    return {"@llvm//config:fuzzer": True}
+    return {"@llvm//config:fuzzer": True, "//cc/toolchains:compiler": "llvm"}
 
 _fuzzer_transition = transition(
     implementation = _fuzzer_transition_impl,
     inputs = [],
-    outputs = ["@llvm//config:fuzzer"],
+    outputs = ["@llvm//config:fuzzer", "//cc/toolchains:compiler"],
 )
 
 def _fuzzer_build_impl(ctx):

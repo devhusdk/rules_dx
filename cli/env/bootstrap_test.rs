@@ -94,11 +94,11 @@ fn env_bootstrap() {
 
     let output = install(&bin, &root);
     assert!(
-        output.contains("installed 3 tool(s)"),
+        output.contains("installed 7 tool(s)"),
         "unexpected fresh-install output: {output}"
     );
 
-    for tool in ["doctor", "dx", "quality_markdown"] {
+    for tool in ["doctor", "dx", "quality_markdown", "ruff", "biome", "shellcheck", "clangd"] {
         assert_eq!(
             host(tool),
             format!("{tool}{}", std::env::consts::EXE_SUFFIX),
@@ -193,7 +193,7 @@ fn env_bootstrap() {
     assert!(
         replace
             .combined()
-            .contains("replaced managed tree with 2 tool(s)"),
+            .contains("replaced managed tree with 6 tool(s)"),
         "unexpected replacement output: {}",
         replace.combined()
     );
@@ -211,7 +211,7 @@ fn env_bootstrap() {
 
     let restore = install(&bin, &root);
     assert!(
-        restore.contains("replaced managed tree with 3 tool(s)"),
+        restore.contains("replaced managed tree with 7 tool(s)"),
         "unexpected restore output: {restore}"
     );
     assert!(

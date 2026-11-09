@@ -2,13 +2,14 @@
 
 `dx sync` writes the files editors need under `.dx/local/ide/`. `dx init --apply` writes `.vscode/settings.json` for the languages in the repo and points at these paths, so run `dx sync` after it.
 
+`dx sync` also links ruff, biome, shellcheck and clangd into `.dx/local/bin` from the copies Bazel already fetched. The settings use them for `ruff.path`, `biome.lsp.bin`, `shellcheck.executablePath` and `clangd.path`. ruff, biome and shellcheck are only set when `dx.toml` selects them.
+
 | Path | Used for |
 | --- | --- |
 | `.dx/local/ide/python/python` | Python interpreter |
 | `.dx/local/ide/python/site-packages` | Packages locked in `uv.lock` (from the `@pypi` hub), for `python.analysis.extraPaths` |
 | `.dx/local/ide/jdk/home` | Java JDK |
 | `.dx/local/ide/typescript/lib` | TypeScript library |
-| `.dx/local/ide/cc/clangd` | clangd binary |
 | `.dx/local/ide/cc/compile_commands.json` | C and C++ compilation database |
 | `.dx/local/ide/go/gopackagesdriver` (`gopackagesdriver.cmd` on Windows) | Go packages driver |
 

@@ -152,7 +152,8 @@ environment_tool = rule(
             mandatory = True,
         ),
         "executable": attr.label(
-            doc = "Executable target linked into the environment under its names.",
+            doc = "Executable target or file linked into the environment under its names.",
+            allow_files = True,
             cfg = "exec",
             executable = True,
             mandatory = True,

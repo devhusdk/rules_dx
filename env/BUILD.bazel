@@ -197,12 +197,40 @@ environment_tool(
     executable = "@dx_prebuilt//:quality_markdown",
 )
 
+environment_tool(
+    name = "biome_tool",
+    bin_name = "biome",
+    executable = "@dx_tools//:biome",
+)
+
+environment_tool(
+    name = "clangd_tool",
+    bin_name = "clangd",
+    executable = "@llvm//tools:clangd",
+)
+
+environment_tool(
+    name = "ruff_tool",
+    bin_name = "ruff",
+    executable = "@dx_tools//:ruff",
+)
+
+environment_tool(
+    name = "shellcheck_tool",
+    bin_name = "shellcheck",
+    executable = "@dx_tools//:shellcheck",
+)
+
 environment_config(
     name = "default_config",
     tools = [
+        ":biome_tool",
+        ":clangd_tool",
         ":doctor_tool",
         ":dx_tool",
         ":quality_markdown_tool",
+        ":ruff_tool",
+        ":shellcheck_tool",
     ],
 )
 

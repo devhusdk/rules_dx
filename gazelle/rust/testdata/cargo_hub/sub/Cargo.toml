@@ -1,0 +1,11 @@
+[package]
+name = "hub_tool"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+
+[[bin]]
+name = "hub_tool"
+path = "main.rs"

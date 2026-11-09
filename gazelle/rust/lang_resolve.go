@@ -357,11 +357,13 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 	return result
 }
 
-func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, includeDev bool) {
+// setCargoAttrs reports whether the deps call names external crates.
+func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, includeDev bool) bool {
 	packageName := crateUniversePackage(packagePath, manifest)
 	external := hasExternal(manifest.normalDeps) || (includeDev && hasExternal(manifest.devDeps))
 	r.SetAttr("deps", crateDepsCall{call: cargoCall("all_crate_deps", packageName, includeDev), external: external})
 	r.SetAttr("aliases", cargoCall("aliases", packageName, includeDev))
+	return external
 }
 
 func setScriptAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest) {

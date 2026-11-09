@@ -212,6 +212,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		return os.ReadFile(filepath.Join(args.Config.RepoRoot, filepath.FromSlash(name)))
 	}
 	var result language.GenerateResult
+	crateDeps := false
 	owners := make(map[string]sourceOwner)
 	publicLibs := common.ShouldSetVisibility(args)
 	for _, target := range manifest.targets {
@@ -251,7 +252,9 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			l.fail(common.InPackage(args.Rel), "rust: %s: target %s: %v", manifestPath, target.name, err)
 			continue
 		}
-		setCargoAttrs(r, args.Rel, manifest, includeDev)
+		if setCargoAttrs(r, args.Rel, manifest, includeDev) {
+			crateDeps = true
+		}
 		var resultImports targetImports
 		if target.kind == exampleKind || target.kind == benchKind {
 			resultImports = localCargoExampleImports(args.Config, manifest, imports)
@@ -277,7 +280,9 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 				testName = common.UnitTestName(target.crate())
 			}
 			t := unitTestRule(testName, target.name, target.crate(), root, tree, args.Rel, splitTests)
-			setCargoAttrs(t, args.Rel, manifest, true)
+			if setCargoAttrs(t, args.Rel, manifest, true) {
+				crateDeps = true
+			}
 			var testImports targetImports
 			if splitTests {
 				if manifest.edition != rulesDxEdition {
@@ -295,11 +300,44 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 	}
 	if manifest.build != nil && !manifest.build.disabled {
 		l.emitBuildScript(args, manifestPath, manifest, existsSet, read, owners, &result)
+		if hasExternal(manifest.buildDeps) {
+			crateDeps = true
+		}
 	}
 	if len(l.errors) > 0 {
 		return language.GenerateResult{}
 	}
+	if hub := cratesHub(args.Config); hub != "" && len(result.Gen) > 0 {
+		if args.File == nil {
+			l.fail(common.InPackage(args.Rel), "rust: //%s: %s needs an existing BUILD.bazel", args.Rel, cratesHubDirective)
+			return language.GenerateResult{}
+		}
+		loadCratesHub(args.File, hub, crateDeps)
+	}
 	return l.attachNative(args, result, plan)
+}
+
+// loadCratesHub points the aliases and all_crate_deps calls at hub. Gazelle
+// then treats both symbols as loaded and adds no @crates load for them.
+func loadCratesHub(f *rule.File, hub string, crateDeps bool) {
+	name := "@" + hub + "//:crates.bzl"
+	var load *rule.Load
+	for _, existing := range f.Loads {
+		if existing.Name() == name {
+			load = existing
+			break
+		}
+	}
+	if load == nil {
+		load = rule.NewLoad(name)
+		load.Insert(f, 0)
+	}
+	load.Add("aliases")
+	if crateDeps {
+		load.Add("all_crate_deps")
+	} else {
+		load.Remove("all_crate_deps")
+	}
 }
 
 func dxKindFor(target cargoTarget) string {

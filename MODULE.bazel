@@ -1888,7 +1888,11 @@ crate.from_cargo(
     name = "dx_quality_crates",
     cargo_lockfile = "//quality/tools/rust:Cargo.lock",
     lockfile = "//quality/tools/rust:cargo-bazel-lock.json",
-    manifests = ["//quality/tools/rust:Cargo.toml"],
+    manifests = [
+        "//quality/tools/rust:Cargo.toml",
+        "//quality/tools/rust/progenitor:Cargo.toml",
+        "//quality/tools/rust/topiary:Cargo.toml",
+    ],
     supported_platform_triples = [
         "aarch64-apple-darwin",
         "aarch64-unknown-linux-gnu",

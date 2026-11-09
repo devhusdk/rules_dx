@@ -73,6 +73,7 @@ Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They ap
 | `dx_external <ecosystem> <path\|off> [<repo>]` | Name the manifest or lockfile that third-party imports resolve through. |
 | `dx_native_tools <tool>...` | Pick the config tools the Rust language wires up: `buildifier`, `taplo`, `vale`, `rustfmt`. All are on by default. |
 | `dx_corpus true\|false` | Turn the Rust corpus targets on or off. |
+| `dx_rust_crates_hub <repo>` | Load `aliases` and `all_crate_deps` for Cargo packages from the crate_universe hub `@<repo>` instead of `@crates`. The package needs a `BUILD` file. |
 | `dx_cuda_platforms <spec> <spec>...` | Set `platforms` of a generated `cuda_library`. Required for `.cu` and `.cuh` files. |
 | `dx_fixture_testonly true\|false` | Mark generated libraries under a `tests/`, `fixtures/` or `testdata/` directory `testonly`. Off by default. Inherited by child packages. |
 | `lang <languages>` | Must list `dx_dispatch`, for example `go,dx_dispatch`. |

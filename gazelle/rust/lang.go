@@ -90,8 +90,9 @@ type rustLang struct {
 
 type rustConfig struct {
 	common.IgnoreConfig
-	tools  []string
-	corpus bool
+	tools     []string
+	corpus    bool
+	cratesHub string
 }
 
 type targetImports struct {
@@ -130,22 +131,32 @@ func (l *rustLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
 func (l *rustLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 
 func (*rustLang) KnownDirectives() []string {
-	return []string{"dx_ignore_import", nativeToolsDirective, corpusDirective}
+	return []string{"dx_ignore_import", nativeToolsDirective, corpusDirective, cratesHubDirective}
 }
 
 func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	common.ConfigureOwnedConfigs(c, rel)
 	tools := defaultNativeTools()
 	corpus := false
+	cratesHub := ""
 	if raw, ok := c.Exts[languageName]; ok {
 		parent := raw.(*rustConfig)
 		if parent.tools != nil {
 			tools = parent.tools
 		}
 		corpus = parent.corpus
+		cratesHub = parent.cratesHub
 	}
 	if file != nil {
 		for _, directive := range file.Directives {
+			if directive.Key == cratesHubDirective {
+				if !validCratesHub(directive.Value) {
+					l.fail(common.InPackage(rel), "rust: malformed # gazelle:%s %q: want a repository name such as crates", cratesHubDirective, directive.Value)
+					continue
+				}
+				cratesHub = directive.Value
+				continue
+			}
 			if directive.Key == corpusDirective {
 				enabled, err := parseCorpusDirective(directive.Value)
 				if err != nil {
@@ -172,7 +183,7 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	}
 	l.ignores = append(l.ignores, declared...)
 	inherited := common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)
-	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, tools: tools, corpus: corpus}
+	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, tools: tools, corpus: corpus, cratesHub: cratesHub}
 }
 
 func corpusEnabled(c *config.Config) bool {
@@ -181,6 +192,16 @@ func corpusEnabled(c *config.Config) bool {
 	}
 	cfg, ok := c.Exts[languageName].(*rustConfig)
 	return ok && cfg.corpus
+}
+
+func cratesHub(c *config.Config) string {
+	if c == nil || c.Exts == nil {
+		return ""
+	}
+	if cfg, ok := c.Exts[languageName].(*rustConfig); ok {
+		return cfg.cratesHub
+	}
+	return ""
 }
 
 func (l *rustLang) fail(pkg common.PackageRef, format string, args ...interface{}) {

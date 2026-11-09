@@ -21,4 +21,12 @@
 // gated by crate_universe through all_crate_deps. Local path deps are gated by
 // a select on os or rules_rust triple config_settings; a cfg that matches no
 // supported target is an error.
+//
+// Crate hubs: aliases and all_crate_deps come from @crates//:crates.bzl unless
+// # gazelle:dx_rust_crates_hub <repo> names another crate_universe hub for the
+// package and its subpackages. Generation then writes the
+// @<repo>//:crates.bzl load into the existing BUILD file, with all_crate_deps
+// only while a deps call names external crates. A package with the directive
+// but no BUILD file is an error. Moving a package from one non-default hub to
+// another leaves the old hub's load in place; delete it by hand.
 package rust

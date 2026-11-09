@@ -494,7 +494,7 @@ func TestLanguageMetadata(t *testing.T) {
 	if len(l.Kinds()) != 13 {
 		t.Fatalf("invalid kinds")
 	}
-	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus" {
+	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus,dx_rust_crates_hub" {
 		t.Fatal("invalid directives")
 	}
 	loads := l.ApparentLoads(func(name string) string {
@@ -553,6 +553,82 @@ func TestConfigureDirectiveForms(t *testing.T) {
 	l.AfterResolvingDeps(context.Background())
 	if common.MatchingIgnore(config.New(), languageName, "none") != nil || common.MatchingIgnore(cfg, languageName, "none") != nil {
 		t.Error("nonmatching ignore found")
+	}
+}
+
+func TestConfigureCratesHub(t *testing.T) {
+	l := &rustLang{}
+	l.Before(context.Background())
+	cfg := config.New()
+	l.Configure(cfg, "", nil)
+	if got := cratesHub(cfg); got != "" {
+		t.Errorf("default hub = %q, want none", got)
+	}
+	l.Configure(cfg, "tools", &rule.File{Directives: []rule.Directive{{Key: cratesHubDirective, Value: "dx_quality_crates"}}})
+	l.Configure(cfg, "tools/sub", &rule.File{})
+	if got := cratesHub(cfg); got != "dx_quality_crates" {
+		t.Errorf("inherited hub = %q, want dx_quality_crates", got)
+	}
+	for _, bad := range []string{"", "@crates", "crates//x", "crates:x"} {
+		l.Configure(cfg, "bad", &rule.File{Directives: []rule.Directive{{Key: cratesHubDirective, Value: bad}}})
+		if got := cratesHub(cfg); got != "dx_quality_crates" {
+			t.Errorf("hub after %q = %q, want the inherited one", bad, got)
+		}
+	}
+	if len(l.errors) != 4 || !strings.Contains(l.errors[0].Message, "malformed # gazelle:dx_rust_crates_hub") {
+		t.Errorf("errors = %+v", l.errors)
+	}
+	if cratesHub(nil) != "" || cratesHub(&config.Config{}) != "" {
+		t.Error("hub without rust config")
+	}
+}
+
+func TestGenerateCargoCratesHub(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\nedition = \"2024\"\n[dependencies]\nserde = \"1\"\n")
+	writeFixture(t, root, "src/main.rs", "fn main() {}\n")
+	generate := func(manifest string, file *rule.File) (*rustLang, language.GenerateResult) {
+		if manifest != "" {
+			writeFixture(t, root, "Cargo.toml", manifest)
+		}
+		cfg := config.New()
+		cfg.RepoRoot = root
+		l := &rustLang{}
+		l.Before(context.Background())
+		l.Configure(cfg, "", &rule.File{Directives: []rule.Directive{{Key: cratesHubDirective, Value: "hub"}}})
+		return l, l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: root, File: file, RegularFiles: []string{"Cargo.toml"}})
+	}
+	symbols := func(f *rule.File) map[string]string {
+		got := map[string]string{}
+		for _, load := range f.Loads {
+			got[load.Name()] = strings.Join(load.Symbols(), ",")
+		}
+		return got
+	}
+
+	file := rule.EmptyFile("BUILD.bazel", "")
+	other := rule.NewLoad("@crates//:crates.bzl")
+	other.Add("aliases")
+	other.Insert(file, 0)
+	l, result := generate("", file)
+	if len(l.errors) != 0 || len(result.Gen) == 0 {
+		t.Fatalf("errors = %v, gen = %d", l.errors, len(result.Gen))
+	}
+	if got := symbols(file); got["@hub//:crates.bzl"] != "aliases,all_crate_deps" || got["@crates//:crates.bzl"] != "aliases" {
+		t.Errorf("loads = %v", got)
+	}
+
+	generate("[package]\nname = \"app\"\nedition = \"2024\"\n", file)
+	if symbols(file)["@hub//:crates.bzl"] != "aliases" {
+		t.Errorf("loads without external deps = %v", symbols(file))
+	}
+	if len(file.Loads) != 2 {
+		t.Errorf("hub load duplicated: %v", symbols(file))
+	}
+
+	l, result = generate("", nil)
+	if len(result.Gen) != 0 || len(l.errors) != 1 || l.errors[0].Message != "rust: //: dx_rust_crates_hub needs an existing BUILD.bazel" {
+		t.Errorf("nil file: gen = %d, errors = %+v", len(result.Gen), l.errors)
 	}
 }
 

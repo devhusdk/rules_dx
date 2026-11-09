@@ -490,6 +490,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_progenitor"
+version = "0.0.0"
+dependencies = [
+ "openapiv3",
+ "prettyplease",
+ "progenitor",
+ "serde_json",
+ "serde_yaml",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "dx_quality_tools"
 version = "0.0.0"
 dependencies = [
@@ -539,6 +551,16 @@ dependencies = [
  "threadpool",
  "toml 0.7.2",
  "toml 1.2.0+spec-1.1.0",
+ "topiary-core",
+ "topiary-queries",
+ "tree-sitter",
+ "tree-sitter-ocaml",
+]
+
+[[package]]
+name = "dx_topiary"
+version = "0.0.0"
+dependencies = [
  "topiary-core",
  "topiary-queries",
  "tree-sitter",

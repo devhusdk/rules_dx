@@ -1,36 +1,50 @@
+load("@dx_quality_crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_test")
+
+# gazelle:dx_rust_crates_hub dx_quality_crates
 
 package(default_visibility = ["//visibility:public"])
-
-_DEPS = [
-    "@dx_quality_crates//:openapiv3",
-    "@dx_quality_crates//:prettyplease",
-    "@dx_quality_crates//:progenitor",
-    "@dx_quality_crates//:serde_json",
-    "@dx_quality_crates//:serde_yaml",
-    "@dx_quality_crates//:syn",
-]
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "dx_progenitor",
-    srcs = ["main.rs"],
-    crate_name = "dx_progenitor",
-    crate_root = "main.rs",
-    edition = "2021",
-    deps = _DEPS,
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_test(
-    name = "dx_progenitor_test",
-    crate = ":dx_progenitor",
-    deps = _DEPS,
-)
 
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+rust_binary(
+    name = "dx_progenitor",
+    srcs = ["main.rs"],
+    aliases = aliases(
+        package_name = "quality/tools/rust/dx_progenitor",
+        normal = True,
+    ),
+    crate_name = "dx_progenitor",
+    crate_root = "main.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "quality/tools/rust/dx_progenitor",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "dx_progenitor_bin_test",
+    aliases = aliases(
+        package_name = "quality/tools/rust/dx_progenitor",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_progenitor",
+    deps = all_crate_deps(
+        package_name = "quality/tools/rust/dx_progenitor",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

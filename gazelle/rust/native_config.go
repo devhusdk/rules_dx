@@ -14,7 +14,14 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
-const nativeToolsDirective = "dx_native_tools"
+const (
+	nativeToolsDirective = "dx_native_tools"
+	cratesHubDirective   = "dx_rust_crates_hub"
+)
+
+func validCratesHub(repo string) bool {
+	return repo != "" && !strings.ContainsAny(repo, "@/: \t")
+}
 
 type nativeTool struct {
 	id   string

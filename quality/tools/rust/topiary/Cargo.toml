@@ -1,0 +1,16 @@
+[package]
+license = "Apache-2.0"
+name = "dx_topiary"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "dx_topiary"
+path = "main.rs"
+
+[dependencies]
+topiary-core = "=0.8.0"
+topiary-queries = { version = "=0.8.0", default-features = false, features = ["ocaml", "ocaml_interface"] }
+tree-sitter = "=0.26.12"
+tree-sitter-ocaml = "=0.24.0"

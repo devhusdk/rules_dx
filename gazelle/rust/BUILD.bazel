@@ -154,6 +154,7 @@ real_source_target(
         "testdata/cargo/crates/shapes/Cargo.toml",
         "testdata/cargo/crates/staticlib/Cargo.toml",
         "testdata/cargo/crates/suite/Cargo.toml",
+        "testdata/cargo_hub/sub/Cargo.toml",
         "testdata/cargo_workspace/Cargo.toml",
         "testdata/cargo_workspace/crates/api/Cargo.toml",
         "testdata/cargo_workspace/crates/app/Cargo.toml",

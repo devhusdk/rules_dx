@@ -1,6 +1,7 @@
 """Docs aspect: puts docs sites, shards and API trees of a target in output groups."""
 
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
+load("@rules_julia//julia:julia_info.bzl", _JuliaInfo = "JuliaInfo")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
@@ -15,6 +16,7 @@ load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_conf
 load("//tools/docs/dart:defs.bzl", "dart_shard_action")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
+load("//tools/docs/julia:defs.bzl", "julia_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
@@ -121,6 +123,16 @@ def _ruby_docs_shard(target, ctx):
         return None
     yard = ctx.attr._ruby_yard[DefaultInfo].files.to_list()
     return ruby_shard_action(ctx, own, target[_RubyFilesInfo].transitive_srcs.to_list(), [], ctx.label.name, "_dx_docs/" + ctx.label.name, yard, ctx.file._ruby_driver, ctx.executable._ruby_extract).shard
+
+def _julia_docs_shard(target, ctx):
+    if _JuliaInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    info = target[_JuliaInfo]
+    if not [f for f in info.srcs.to_list() if f.extension == "jl"]:
+        return None
+    return julia_shard_action(ctx, info.srcs.to_list(), info.transitive_srcs.to_list(), ctx.label.name, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.executable._julia_driver, ctx.executable._julia_extract).shard
 
 _TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
 _TS_TEST_MARKERS = [".test.", ".spec.", "_test."]
@@ -261,6 +273,9 @@ def _real_docs_aspect_impl(target, ctx):
     ruby_shard = _ruby_docs_shard(target, ctx)
     if ruby_shard:
         parts.append({"dx_results": [ruby_shard], "dx_docs_shards": [ruby_shard]})
+    julia_shard = _julia_docs_shard(target, ctx)
+    if julia_shard:
+        parts.append({"dx_results": [julia_shard], "dx_docs_shards": [julia_shard]})
     ts_shard = _typescript_docs_shard(target, ctx)
     if ts_shard:
         parts.append({"dx_results": [ts_shard], "dx_docs_shards": [ts_shard]})
@@ -277,7 +292,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, Dart, C#, F#, PowerShell, Ruby, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, Dart, C#, F#, PowerShell, Ruby, Julia, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_component_extract": attr.label(
@@ -368,6 +383,16 @@ real_docs_aspect = aspect(
         "_scala_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/jvm/scaladoc:scaladoc_extract"),
+            executable = True,
+        ),
+        "_julia_driver": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/julia:doc_dump"),
+            executable = True,
+        ),
+        "_julia_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/julia/extract:julia_extract"),
             executable = True,
         ),
         "_ruby_driver": attr.label(

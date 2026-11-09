@@ -50,6 +50,18 @@ exists it also gets a `julia_test` named `<name>_test`. It never generates a
 `julia_binary`, `ext/` or `[weakdeps]`, and it leaves a `Project.toml` without
 a name alone. Third-party packages need a `# gazelle:resolve julia` line.
 
+## API docs
+
+`dx docs` documents every `julia_library` with no setup: it loads the library
+under the pinned Julia, reads the docstrings of the exported and `public`
+names through the pinned Documenter.jl 1.20.0, and writes a DocIr shard. The
+library is named after its root module. Its dependencies must be
+`julia_library` targets of the same workspace. To name the shard yourself, use
+`julia_doc_shard(name, lib, module, package)` from
+`@rules_dx//tools/docs/julia:defs.bzl`. Documenter and its packages are
+fetched from the Julia package server by sha256 and run on the same Julia as
+the formatter.
+
 ## Formatting
 
 `dx format` runs JuliaFormatter 2.2.0 when a `julia` family selects

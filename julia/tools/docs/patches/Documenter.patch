@@ -1,0 +1,12 @@
+--- a/src/Documenter.jl
++++ b/src/Documenter.jl
+@@ -105,9 +105,4 @@
+ include("deploydocs.jl")
+ include("doctest.jl")
+ 
+-import PrecompileTools
+-PrecompileTools.@compile_workload begin
+-    include("docs_precompile/make.jl")
+-end
+-
+ end # module

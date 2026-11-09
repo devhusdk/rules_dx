@@ -1057,6 +1057,10 @@ julia_pkg.from_manifest(
     lockfile = "//julia/coverage:Manifest.bazel.json",
 )
 julia_pkg.from_manifest(
+    name = "dx_julia_docs",
+    lockfile = "//julia/tools/docs:Manifest.bazel.json",
+)
+julia_pkg.from_manifest(
     name = "dx_julia_format",
     lockfile = "//julia/tools:Manifest.bazel.json",
 )
@@ -1072,6 +1076,16 @@ julia_pkg.pkg_annotation(
     dep = "Preferences",
     patch_args = ["-p1"],
     patches = ["//julia/tools/patches:Preferences.patch"],
+)
+julia_pkg.pkg_annotation(
+    dep = "Documenter",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/docs/patches:Documenter.patch"],
+)
+julia_pkg.pkg_annotation(
+    dep = "StructUtils",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/docs/patches:StructUtils.patch"],
 )
 julia_pkg.pkg_annotation(
     dep = "JET",
@@ -1106,7 +1120,7 @@ julia_pkg.pkg_annotation(
     patch_args = ["-p1"],
     patches = ["//julia/tools/lint/patches:JSON.patch"],
 )
-use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
+use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
 
 # floor: equals tested
 bazel_dep(name = "rules_perl", version = "1.5.0")
@@ -1817,6 +1831,7 @@ crate.from_cargo(
         "//tools/docs/go/extract:Cargo.toml",
         "//tools/docs/ruby/extract:Cargo.toml",
         "//tools/docs/dart/extract:Cargo.toml",
+        "//tools/docs/julia/extract:Cargo.toml",
         "//tools/docs/python/extract:Cargo.toml",
         "//tools/docs/powershell/extract:Cargo.toml",
         "//tools/docs/jvm/convert:Cargo.toml",

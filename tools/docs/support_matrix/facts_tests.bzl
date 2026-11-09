@@ -13,6 +13,7 @@ load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
 load("//tools/docs/python:defs.bzl", "python_doc_shard")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
 load("//tools/docs/site:site.bzl", "docs_site")
+load("//tools/docs/julia:defs.bzl", "julia_doc_shard")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
 load(":facts.bzl", "compiler_blocker_problems", "support_matrix_facts_dict", "tool_not_applicable")
 load(":languages.bzl", "BENCH", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
@@ -25,6 +26,7 @@ _SHARD_RULES = {
     "fsharp_doc_shard": fsharp_doc_shard,
     "go_doc_shard": go_doc_shard,
     "java_doc_shard": java_doc_shard,
+    "julia_doc_shard": julia_doc_shard,
     "kotlin_doc_shard": kotlin_doc_shard,
     "mdx_doc_shard": mdx_doc_shard,
     "powershell_doc_shard": powershell_doc_shard,

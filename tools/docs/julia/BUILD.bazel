@@ -1,0 +1,39 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_julia//julia:defs.bzl", "julia_binary")
+load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH")
+load("//julia/tools:julia_tool.bzl", "dx_julia_tool")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+exports_files(
+    [
+        "defs.bzl",
+        "doc_dump.jl",
+    ],
+    visibility = VIS_TOOLS,
+)
+
+julia_binary(
+    name = "doc_dump_bin",
+    srcs = ["doc_dump.jl"],
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+    visibility = ["//visibility:private"],
+    deps = ["@dx_julia_docs//:Documenter"],
+)
+
+# The driver runs under the Julia version the Documenter Manifest was resolved for.
+dx_julia_tool(
+    name = "doc_dump",
+    binary = ":doc_dump_bin",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

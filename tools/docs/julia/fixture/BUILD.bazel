@@ -1,0 +1,43 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//julia/rules:defs.bzl", "julia_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/julia:defs.bzl", "julia_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+julia_library(
+    name = "Shapes",
+    srcs = ["src/Shapes.jl"],
+)
+
+julia_library(
+    name = "Paint",
+    srcs = ["src/Paint.jl"],
+    deps = [":Shapes"],
+)
+
+julia_doc_shard(
+    name = "shapes_docs",
+    lib = ":Shapes",
+)
+
+julia_doc_shard(
+    name = "paint_docs",
+    lib = ":Paint",
+)
+
+# Building both shards loads the libraries under Julia and reads their docstrings with Documenter.
+build_test(
+    name = "shards_build_test",
+    targets = [
+        ":paint_docs",
+        ":shapes_docs",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

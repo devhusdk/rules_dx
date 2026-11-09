@@ -559,6 +559,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/docs/go:defs.bzl` | `docs_go_shard` |
 |  |  | `@rules_dx//tools/docs/go:defs.bzl` | `go_doc_shard` |
 |  |  | `@rules_dx//tools/docs/go:defs.bzl` | `go_shard_action` |
+|  |  | `@rules_dx//tools/docs/julia:defs.bzl` | `docs_julia_shard` |
+|  |  | `@rules_dx//tools/docs/julia:defs.bzl` | `julia_doc_shard` |
+|  |  | `@rules_dx//tools/docs/julia:defs.bzl` | `julia_shard_action` |
 |  |  | `@rules_dx//tools/docs/jvm:defs.bzl` | `java_doc_shard` |
 |  |  | `@rules_dx//tools/docs/jvm:defs.bzl` | `kotlin_doc_shard` |
 |  |  | `@rules_dx//tools/docs/jvm:defs.bzl` | `scala_doc_shard` |
@@ -639,6 +642,7 @@ API docs:
 - `@rules_dx//tools/docs/dart:defs.bzl`: Dart API doc shards.
 - `@rules_dx//tools/docs/go:defs.bzl`: Go API doc shards.
 - `@rules_dx//tools/docs/ruby:defs.bzl`: Ruby API doc shards.
+- `@rules_dx//tools/docs/julia:defs.bzl`: Julia API doc shards.
 - `@rules_dx//tools/docs/jvm:defs.bzl`: Java and Kotlin API doc shards.
 - `@rules_dx//tools/docs/powershell:defs.bzl`: PowerShell API doc shards.
 - `@rules_dx//tools/docs/rust:defs.bzl`: Rust API doc shards.

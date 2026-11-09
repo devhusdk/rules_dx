@@ -525,7 +525,7 @@ LANGUAGES = [
     _language(
         "julia",
         deps = "`julia`",
-        doc = NO_DOC,
+        doc = struct(tool = "documenter", shard = "julia_doc_shard"),
         dead_code = ["none"],
         coverage = ["CoverageTools"],
         unsupported = "//julia/rules:unsupported",

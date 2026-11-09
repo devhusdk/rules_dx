@@ -8,7 +8,7 @@
    bazel run @rules_dx//:dx -- init --apply
    ```
 
-   This writes `.github/workflows/ci.yml`, `.github/workflows/dx-update.yml` and `.github/workflows/release.yml` when missing. See [Init](cli/commands/init.md).
+   This writes `.github/workflows/ci.yml`, `.github/workflows/dx-update.yml` when missing, and `.github/workflows/release.yml` once a BUILD file declares a `dx_deployment`. See [Init](cli/commands/init.md).
 
 2. Check `ci.yml`:
 

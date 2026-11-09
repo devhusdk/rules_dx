@@ -744,6 +744,9 @@ pub fn plan_init_files_at(
         )
     };
     let mut files = plan_init_files_full(module_name, &branch, &extensions, &tools, ci)?;
+    if !crate::families::has_dx_deployment(root) {
+        files.retain(|file| file.path != ".github/workflows/release.yml");
+    }
     if !root.join("BUILD").exists() && !root.join(ROOT_BUILD).exists() {
         files.push(ScaffoldFile {
             path: ROOT_BUILD.to_owned(),
@@ -1087,6 +1090,23 @@ mod tests {
         assert!(caller.contains(&format!(
             "- remote: https://raw.githubusercontent.com/devhusdk/rules_dx/{CONSUMER_WORKFLOW_PIN}/ci/gitlab/dx.gitlab-ci.yml\n"
         )));
+    }
+
+    #[test]
+    fn release_caller_needs_a_dx_deployment_in_the_tree() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-release-gate-");
+        let root = scratch.path();
+        let has_release = |root: &std::path::Path| {
+            super::plan_init_files_at(root, "demo", Some(super::CiProvider::Github))
+                .expect("plans")
+                .iter()
+                .any(|f| f.path == ".github/workflows/release.yml")
+        };
+        assert!(!has_release(root));
+        std::fs::write(root.join("BUILD.bazel"), "dx_deployment(name = \"npm\")\n")
+            .expect("build file");
+        assert!(has_release(root));
+        scratch.close().expect("cleanup");
     }
 
     #[test]

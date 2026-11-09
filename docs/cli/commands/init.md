@@ -155,7 +155,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.github/workflows/ci.yml` | pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
 | `.gitlab-ci.yml` | pin | Written with `--ci gitlab` when missing. Only the commit in the template `remote:` URL is updated. |
 | `.github/workflows/dx-update.yml` | once | Written when missing. Never rewritten. |
-| `.github/workflows/release.yml` | pin | Written when missing. Only the `uses:` pin is updated. Calls `reusable-release.yml` on `v*` tags. A `workflow_dispatch` takes `publish` (default `false`), so a branch dispatch only plans and dry-runs. Existing files keep their triggers; add `publish` by hand. |
+| `.github/workflows/release.yml` | pin | Written when missing and a BUILD file declares a `dx_deployment`; run init again after adding the first one. Only the `uses:` pin is updated. Calls `reusable-release.yml` on `v*` tags. A `workflow_dispatch` takes `publish` (default `false`), so a branch dispatch only plans and dry-runs. Existing files keep their triggers; add `publish` by hand. |
 | `AGENTS.md` | block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
 | `CLAUDE.md` | lines | Created when missing and `--agents=claude` is given. `@AGENTS.md` is added when the import is missing. |
 | `.github/hooks/dx.json` | keys | Created when missing and `--agents=copilot` is given; missing hook entries are merged in place. |

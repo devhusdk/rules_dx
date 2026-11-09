@@ -190,6 +190,16 @@ pub(crate) fn file_extensions(root: &Path) -> BTreeSet<String> {
         .collect()
 }
 
+/// Whether a BUILD file under `root` declares a `dx_deployment`.
+pub(crate) fn has_dx_deployment(root: &Path) -> bool {
+    source_files(root).iter().any(|path| {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        matches!(name, "BUILD" | "BUILD.bazel")
+            && std::fs::read_to_string(root.join(path))
+                .is_ok_and(|text| text.contains("dx_deployment("))
+    })
+}
+
 /// The workspace files outside `.dx` and the `.bazelignore`d directories.
 fn source_files(root: &Path) -> Vec<String> {
     let ignored = bazelignore(root);

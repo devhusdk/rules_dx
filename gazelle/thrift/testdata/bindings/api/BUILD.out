@@ -21,6 +21,6 @@ thrift_java_library(
 
 thrift_rust_library(
     name = "api_rust",
+    library = ":api",
     visibility = ["//visibility:public"],
-    deps = [":api"],
 )

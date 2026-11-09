@@ -30,7 +30,7 @@ func NewLanguage() language.Language {
 		Defs:        "capnproto/rules:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "/capnp/",
-		Bindings:    common.IDLBindings("capnp", ""),
+		Bindings:    common.IDLBindings("capnp", "", false),
 		AbsoluteDep: true,
 	}, ParseImports, "add a capnp_library that owns that file or an exact # gazelle:resolve capnproto mapping")
 }

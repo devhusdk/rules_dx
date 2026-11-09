@@ -24,6 +24,6 @@ thrift_java_library(
 
 thrift_rust_library(
     name = "multi_rust",
+    library = ":multi",
     visibility = ["//visibility:public"],
-    deps = [":multi"],
 )

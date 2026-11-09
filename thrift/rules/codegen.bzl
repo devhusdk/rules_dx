@@ -6,7 +6,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
+load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers", "codegen_rust_library_kwargs")
 load("//libs/starlark:defs.bzl", "display_label")
 load("//libs/starlark:stage.bzl", "stage_closure")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
@@ -294,33 +294,26 @@ _thrift_rust_srcs = rule(
     },
 )
 
-def thrift_rust_library(name, deps, crate_name = None, **kwargs):
-    """One Rust crate with a module per schema of the deps and everything they include.
+def thrift_rust_library(name, library, crate_name = None, deps = [], **kwargs):
+    """One Rust crate with a module per schema of the library and everything it includes.
 
     Args:
       name: Name of the rust_library.
-      deps: thrift_library targets to generate Rust for.
+      library: thrift_library to generate Rust for.
       crate_name: Crate name dependents import; defaults to name.
-      **kwargs: Passed to the rust_library (visibility, tags, testonly).
+      deps: Extra Rust dependencies of the crate.
+      **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
+        and the like replace the defaults; srcs and deps are added to them.
     """
     generated = name + "_generated"
     _thrift_rust_srcs(
         name = generated,
-        deps = deps,
+        deps = [library],
         tags = kwargs.get("tags"),
         testonly = kwargs.get("testonly"),
         visibility = kwargs.get("visibility"),
     )
-    rust_library(
-        name = name,
-        srcs = [":" + generated],
-        crate_name = (crate_name or name).replace("-", "_"),
-        crate_root = None,
-        edition = "2021",
-        rustc_flags = ["--cap-lints=allow"],
-        deps = [Label("@dx_thrift//:rust_runtime")],
-        **kwargs
-    )
+    rust_library(**codegen_rust_library_kwargs(name, ":" + generated, crate_name, [Label("@dx_thrift//:rust_runtime")], deps, kwargs))
 
 def _shard_impl(ctx):
     library = ctx.attr.library

@@ -99,10 +99,7 @@ codegen_shard_argv_test(
 
 thrift_rust_library(
     name = "shapes_rs",
-    deps = [
-        "//thrift/tests/api",
-        "//thrift/tests/base",
-    ],
+    library = "//thrift/tests/api",
 )
 
 thrift_codegen_shard(

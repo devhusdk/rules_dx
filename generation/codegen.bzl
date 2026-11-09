@@ -40,6 +40,33 @@ DxCodegenSourcesInfo = provider(
 
 DX_CODEGEN_PLAN_OUTPUT_GROUP = "dx_codegen_plans"
 
+CODEGEN_RUST_EDITION = "2021"
+
+def codegen_rust_library_kwargs(name, generated, crate_name, runtime, deps, kwargs):
+    """Arguments of the rust_library wrapping a generated crate.
+
+    Args:
+      name: Name of the rust_library.
+      generated: Label of the target generating the crate sources.
+      crate_name: Crate name, or None for name.
+      runtime: Labels of the runtime crates.
+      deps: Dependencies of the caller, added after the runtime.
+      kwargs: Caller arguments; they override the defaults, and srcs and deps are added to.
+
+    Returns:
+      Keyword arguments for rust_library.
+    """
+    args = {
+        "crate_name": (crate_name or name).replace("-", "_"),
+        "crate_root": None,
+        "edition": CODEGEN_RUST_EDITION,
+        "rustc_flags": ["--cap-lints=allow"],
+    } | kwargs
+    args["name"] = name
+    args["srcs"] = [generated] + kwargs.get("srcs", [])
+    args["deps"] = runtime + deps + kwargs.get("deps", [])
+    return args
+
 DX_CODEGEN_SOURCES_SUFFIX = ".dxcodegen.src"
 
 DX_CODEGEN_SHARD_SUFFIX = ".dxcodegen.pb"

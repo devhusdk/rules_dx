@@ -29,18 +29,21 @@ type IDLBinding struct {
 	Infix  string
 	Module string
 	// Attr is the attribute that names the library: "deps" (a list) or
-	// "library" (one label, only for libraries with a single schema).
+	// "library" (one label).
 	Attr string
+	// OneSchema leaves the binding out for libraries with other than one schema.
+	OneSchema bool
 }
 
 // IDLBindings returns the cc, java and rust bindings of a schema language
 // whose rules are named <prefix>_cc_library, <prefix>_java_library and
 // <prefix>_rust_library. An empty rustAttr leaves out the rust binding.
-func IDLBindings(prefix, rustAttr string) []IDLBinding {
+// oneSchema limits the rust binding to libraries with a single schema.
+func IDLBindings(prefix, rustAttr string, oneSchema bool) []IDLBinding {
 	all := []IDLBinding{
-		{prefix + "_cc_library", "_cc", "rules_cc", "deps"},
-		{prefix + "_java_library", "_java", "rules_java", "deps"},
-		{prefix + "_rust_library", "_rust", "rules_rust", rustAttr},
+		{prefix + "_cc_library", "_cc", "rules_cc", "deps", false},
+		{prefix + "_java_library", "_java", "rules_java", "deps", false},
+		{prefix + "_rust_library", "_rust", "rules_rust", rustAttr, oneSchema},
 	}
 	var out []IDLBinding
 	for _, b := range all {
@@ -96,7 +99,7 @@ func addIDLBindings(spec IDLSpec, args language.GenerateArgs, result language.Ge
 			continue
 		}
 		for _, b := range active {
-			if b.Attr == "library" && len(lib.AttrStrings("srcs")) != 1 {
+			if b.OneSchema && len(lib.AttrStrings("srcs")) != 1 {
 				continue
 			}
 			r := rule.NewRule(b.Kind, lib.Name()+b.Infix)

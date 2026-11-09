@@ -17,7 +17,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
+load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers", "codegen_rust_library_kwargs")
 load("//libs/starlark:defs.bzl", "display_label")
 load("//libs/starlark:stage.bzl", "stage_closure")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
@@ -295,7 +295,7 @@ _flatbuffers_rust_srcs = rule(
     } | _PRIVATE_ATTRS,
 )
 
-def flatbuffers_rust_library(name, library, root = None, **kwargs):
+def flatbuffers_rust_library(name, library, crate_name = None, deps = [], root = None, **kwargs):
     """Rust crate for one root schema and its include closure.
 
     flatc --rust --gen-all emits the whole closure into one file, so the crate
@@ -305,8 +305,11 @@ def flatbuffers_rust_library(name, library, root = None, **kwargs):
     Args:
       name: Name of the rust_library.
       library: flatbuffers_library that owns the root schema.
+      crate_name: Crate name dependents import; defaults to name.
+      deps: Extra Rust dependencies of the crate.
       root: Root schema label; optional when the library owns one schema.
-      **kwargs: Passed to the rust_library (visibility, tags, testonly).
+      **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
+        and the like replace the defaults; srcs and deps are added to them.
     """
     generated = name + "_generated"
     _flatbuffers_rust_srcs(
@@ -317,15 +320,7 @@ def flatbuffers_rust_library(name, library, root = None, **kwargs):
         testonly = kwargs.get("testonly"),
         visibility = kwargs.get("visibility"),
     )
-    rust_library(
-        name = name,
-        srcs = [":" + generated],
-        crate_root = None,
-        edition = "2021",
-        rustc_flags = ["--cap-lints=allow"],
-        deps = [Label("//flatbuffers:runtime_rust")],
-        **kwargs
-    )
+    rust_library(**codegen_rust_library_kwargs(name, ":" + generated, crate_name, [Label("//flatbuffers:runtime_rust")], deps, kwargs))
 
 def _shard_impl(ctx):
     library = ctx.attr.library

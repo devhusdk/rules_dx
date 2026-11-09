@@ -10536,10 +10536,10 @@
         }
       }
     },
-    "@@rules_dx+//dart:extensions.bzl%pub": {
+    "@@rules_dx+//dart:pub.bzl%pub": {
       "general": {
         "bzlTransitiveDigest": "VNTf9kwkvE2nQ/+jY5ktqngyMqwf0ge9JSbNN0s5rsc=",
-        "usagesDigest": "1TLX5Y64c6WClHmlpjX2xGi3R2+vIG+V94DC1k5kXgM=",
+        "usagesDigest": "ph1iYxgkZ9x3YMRlAd3AQ2pRJ7ZbgRpUjKHf6Tq7eqc=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dx+,dx_rules_dart_pub rules_dx++dart_tools+dx_rules_dart_pub",
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_darwin_amd64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_amd64",
@@ -13221,10 +13221,10 @@
         }
       }
     },
-    "@@rules_dx+//dotnet:extensions.bzl%dotnet": {
+    "@@rules_dx+//dotnet:rules_dotnet.bzl%dotnet": {
       "general": {
         "bzlTransitiveDigest": "TY3p2T9O4wQEDjKHmm6jRocuy7/SL/AKyW61FJOC3kE=",
-        "usagesDigest": "5yhRriSjqKh8PzbNpKNm2BHBbjZ8R16PlNml9hu5hkk=",
+        "usagesDigest": "qWzSp3tbBufRvDrJ5X4VddQBv8Sr1KA9VYPBdxjWLe4=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dx+,rules_dotnet rules_dx++dotnet_tools+rules_dotnet"
         ],

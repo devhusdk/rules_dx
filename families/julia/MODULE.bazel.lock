@@ -10536,10 +10536,10 @@
         }
       }
     },
-    "@@rules_dx+//dart:extensions.bzl%pub": {
+    "@@rules_dx+//dart:pub.bzl%pub": {
       "general": {
         "bzlTransitiveDigest": "VNTf9kwkvE2nQ/+jY5ktqngyMqwf0ge9JSbNN0s5rsc=",
-        "usagesDigest": "e0J7R0cDLZesJ6rYY+czjPoa3Gkk8hXTNzeyBaislqQ=",
+        "usagesDigest": "ph1iYxgkZ9x3YMRlAd3AQ2pRJ7ZbgRpUjKHf6Tq7eqc=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dx+,dx_rules_dart_pub rules_dx++dart_tools+dx_rules_dart_pub",
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_darwin_amd64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_amd64",
@@ -10549,7 +10549,8 @@
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_windows_amd64 tar.bzl++toolchains+bsd_tar_toolchains_windows_amd64",
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_windows_arm64 tar.bzl++toolchains+bsd_tar_toolchains_windows_arm64",
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,yaml.bzl yaml.bzl+",
-          "FILE:@@rules_dx+//dart/tools/dart_apitool/pubspec.lock bcde4406b9a37a9d8df7f185033a0a067bfde50c4b786c71f5d6a38e9d138480"
+          "FILE:@@rules_dx+//dart/tools/dart_apitool/pubspec.lock bcde4406b9a37a9d8df7f185033a0a067bfde50c4b786c71f5d6a38e9d138480",
+          "FILE:@@rules_dx+//dart/rules/bench/pubspec.lock 1fdb12d41f188d31d09c31a0dd13ee0e902ddc52e6a61f36e5832642c5990e3b"
         ],
         "generatedRepoSpecs": {
           "dart_pub___fe_analyzer_shared": {
@@ -10567,6 +10568,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -10625,6 +10627,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -10683,6 +10686,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -10741,6 +10745,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -10799,6 +10804,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -10857,6 +10863,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -10915,6 +10922,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -10973,6 +10981,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11031,6 +11040,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11089,6 +11099,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11147,6 +11158,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11205,6 +11217,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11263,6 +11276,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11321,6 +11335,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11379,6 +11394,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11437,6 +11453,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11495,6 +11512,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11553,6 +11571,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11611,6 +11630,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11669,6 +11689,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11727,6 +11748,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11785,6 +11807,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11843,6 +11866,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11901,6 +11925,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -11959,6 +11984,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12017,6 +12043,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12075,6 +12102,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12133,6 +12161,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12191,6 +12220,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12249,6 +12279,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12307,6 +12338,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12365,6 +12397,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12423,6 +12456,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12481,6 +12515,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12539,6 +12574,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12597,6 +12633,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12655,6 +12692,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12713,6 +12751,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12771,6 +12810,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12829,6 +12869,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12887,6 +12928,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -12945,6 +12987,7 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -13003,6 +13046,66 @@
                 "archive",
                 "args",
                 "async",
+                "benchmark_harness",
+                "characters",
+                "checked_yaml",
+                "collection",
+                "colorize",
+                "colorize_lumberdash",
+                "console",
+                "convert",
+                "crypto",
+                "dart_apitool",
+                "ffi",
+                "file",
+                "freezed_annotation",
+                "glob",
+                "json_annotation",
+                "lumberdash",
+                "meta",
+                "package_config",
+                "path",
+                "petitparser",
+                "plist_parser",
+                "posix",
+                "pub_semver",
+                "pubspec_manager",
+                "pubspec_parse",
+                "simple_sparse_list",
+                "source_span",
+                "stack",
+                "string_scanner",
+                "strings",
+                "term_glyph",
+                "tuple",
+                "typed_data",
+                "unicode",
+                "vector_math",
+                "watcher",
+                "xml",
+                "yaml"
+              ],
+              "explicit_packages": [],
+              "code_assets": [],
+              "ignore_hook": false
+            }
+          },
+          "dart_pub__benchmark_harness": {
+            "repoRuleId": "@@rules_dx++dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "attributes": {
+              "package_name": "benchmark_harness",
+              "version": "2.4.0",
+              "sha256": "a2d3c4c83cac0126bf38e41eaf7bd9ed4f6635f1ee1a0cbc6f79fa9736c62cbd",
+              "base_url": "https://pub.dev",
+              "hub_name": "dart_pub",
+              "lock_packages": [
+                "_fe_analyzer_shared",
+                "analyzer",
+                "ansicolor",
+                "archive",
+                "args",
+                "async",
+                "benchmark_harness",
                 "characters",
                 "checked_yaml",
                 "collection",
@@ -13097,6 +13200,17 @@
                 "yaml"
               ]
             }
+          },
+          "dx_dart_bench_deps": {
+            "repoRuleId": "@@rules_dx++dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
+            "attributes": {
+              "hub_name": "dx_dart_bench_deps",
+              "spoke_prefix": "dart_pub",
+              "packages": [
+                "args",
+                "benchmark_harness"
+              ]
+            }
           }
         },
         "moduleExtensionMetadata": {
@@ -13107,10 +13221,10 @@
         }
       }
     },
-    "@@rules_dx+//dotnet:extensions.bzl%dotnet": {
+    "@@rules_dx+//dotnet:rules_dotnet.bzl%dotnet": {
       "general": {
         "bzlTransitiveDigest": "TY3p2T9O4wQEDjKHmm6jRocuy7/SL/AKyW61FJOC3kE=",
-        "usagesDigest": "5yhRriSjqKh8PzbNpKNm2BHBbjZ8R16PlNml9hu5hkk=",
+        "usagesDigest": "qWzSp3tbBufRvDrJ5X4VddQBv8Sr1KA9VYPBdxjWLe4=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dx+,rules_dotnet rules_dx++dotnet_tools+rules_dotnet"
         ],
@@ -20573,6 +20687,45 @@
   "facts": {
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "notice_version": "3"
+    },
+    "@@rules_dx+//ocaml/toolchain:extensions.bzl%ocaml": {
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/afl-persistent.1.4": {
+        "integrity": "sha512-aLd59n0+TiX2S0z+kCoYO5dxWOR2q9lpHmWmWwIgWV3oAqf9s6xHPFN54S4uGkzZbMX1HkB8cviSvbh9s2TdLA==",
+        "needs": [],
+        "sha256": "",
+        "src": "https://github.com/stedolan/ocaml-afl-persistent/archive/refs/tags/v1.4.tar.gz"
+      },
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/astring.0.8.5": {
+        "integrity": "",
+        "needs": [
+          "ocamlfind",
+          "ocamlbuild",
+          "topkg"
+        ],
+        "sha256": "865692630c07c3ab87c66cdfc2734c0fdfc9c34a57f8e89ffec7c7d15e7a70fa",
+        "src": "https://erratique.ch/software/astring/releases/astring-0.8.5.tbz"
+      },
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/cmdliner.2.1.1": {
+        "integrity": "sha512-zcM4ri5Wpyt8ddrpVkxXzKTh+/rEVKq7+DA/y2EjRihK7eWYTf3n6KeklsyHC71X3fKMqzo4ZnJ5sxZX+FwV3Q==",
+        "needs": [],
+        "sha256": "",
+        "src": "https://erratique.ch/software/cmdliner/releases/cmdliner-2.1.1.tbz"
+      },
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/crowbar.0.2.2": {
+        "integrity": "",
+        "needs": [
+          "cmdliner",
+          "afl-persistent"
+        ],
+        "sha256": "debd1345ac0116232390af64552d15948b5dc7200e287730235f7ff42098f3c5",
+        "src": "https://github.com/stedolan/crowbar/archive/v0.2.2.tar.gz"
+      },
+      "691408b00730fcedbd3e30ccdb42c388a83fd304/either.1.0.0": {
+        "integrity": "",
+        "needs": [],
+        "sha256": "bf674de3312dee7b7215f07df1e8a96eb3d679164b8a918cdd95b8d97e505884",
+        "src": "https://github.com/mirage/either/releases/download/1.0.0/either-1.0.0.tbz"
+      }
     },
     "@@rules_go+//go:extensions.bzl%go_sdk": {
       "1.22.4": {

@@ -543,7 +543,7 @@ def erlang_ct_suite_test(name, suite_name = "", visibility = None, **kwargs):
 
 def erlang_bench(name, suite_name = "", tags = None, runtime_deps = None, **kwargs):
     """ct_suite run by dx bench: dx_bench:run in the suite runs erlperf and writes dx-bench.json."""
-    ct_suite(
+    erlang_ct_suite_test(
         name = name,
         suite_name = suite_name,
         tags = merge_tags(tags, "dx-bench", "manual"),

@@ -122,3 +122,34 @@ pub fn strings(path: &str) -> Vec<String> {
     walk(&document(path), &mut out);
     out
 }
+
+/// Returns (job id, step name or `uses`, "|| true" or "continue-on-error") for every failure the workflow at `path` swallows.
+#[track_caller]
+pub fn swallows(path: &str) -> Vec<(String, String, String)> {
+    let mut found = Vec::new();
+    for (id, job) in jobs(path) {
+        if job.get("continue-on-error").is_some() {
+            found.push((id.clone(), String::new(), "continue-on-error".to_owned()));
+        }
+        let Some(steps) = job["steps"].as_array() else {
+            continue;
+        };
+        for step in steps {
+            let label = step["name"]
+                .as_str()
+                .or_else(|| step["uses"].as_str())
+                .unwrap_or_default()
+                .to_owned();
+            if step.get("continue-on-error").is_some() {
+                found.push((id.clone(), label.clone(), "continue-on-error".to_owned()));
+            }
+            if step["run"]
+                .as_str()
+                .is_some_and(|run| run.contains("|| true"))
+            {
+                found.push((id.clone(), label, "|| true".to_owned()));
+            }
+        }
+    }
+    found
+}

@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-use ci_workflow::{document, jobs, steps, triggers};
+use ci_workflow::{document, jobs, steps, swallows, triggers};
 use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
@@ -268,10 +268,7 @@ fn the_native_matrix_keeps_all_five_platforms() {
 
 #[test]
 fn every_gate_workflow_runs_on_merge_group_checks_requested() {
-    for workflow in [
-        CI_WORKFLOW,
-        "examples/docs-ci/caller.yml",
-    ] {
+    for workflow in [CI_WORKFLOW, "examples/docs-ci/caller.yml"] {
         let on = triggers(workflow);
         assert_eq!(
             on["merge_group"]["types"],
@@ -498,5 +495,117 @@ fn no_other_workflow_job_reports_the_gate_context() {
                 "{name} job {id} reports the gate context"
             );
         }
+    }
+}
+
+/// Failures ci.yml may swallow: (job, step, kind, reason).
+const ALLOWED_SWALLOWS: [(&str, &str, &str, &str); 3] = [
+    (
+        "preflight",
+        "Record the Windows rmeta diagnostics (#4850)",
+        "|| true",
+        "diagnostics only; the build under diagnosis reports its own failure",
+    ),
+    (
+        "preflight",
+        "Record the runner image",
+        "|| true",
+        "the image record is informational",
+    ),
+    (
+        "scheduled-report",
+        "Open, update or close the tracking issue",
+        "|| true",
+        "a failed issue lookup must not fail the report",
+    ),
+];
+
+#[test]
+fn ci_swallows_no_failure_outside_the_allow_list() {
+    let found = swallows(CI_WORKFLOW);
+    for (job, step, kind) in &found {
+        assert!(
+            ALLOWED_SWALLOWS
+                .iter()
+                .any(|(j, s, k, _)| j == job && s == step && k == kind),
+            "{CI_WORKFLOW} job {job} step {step:?} swallows a failure with {kind}"
+        );
+    }
+    for (job, step, kind, reason) in ALLOWED_SWALLOWS {
+        assert!(
+            found
+                .iter()
+                .any(|(j, s, k)| j == job && s == step && k == kind),
+            "stale allow-list entry: {job} {step:?} {kind} ({reason})"
+        );
+    }
+}
+
+#[test]
+fn the_swallow_scanner_finds_entries() {
+    assert!(
+        swallows(CONSUMER_WORKFLOW)
+            .iter()
+            .any(|(_, _, kind)| kind == "|| true"),
+        "{CONSUMER_WORKFLOW} swallows failures the scanner must report"
+    );
+}
+
+#[test]
+fn compiler_probes_run_before_the_evidence_step_and_fail_normally() {
+    for job in ["hermetic", "starter-consumer"] {
+        let all = steps(CI_WORKFLOW, job);
+        let position = |name: &str| {
+            all.iter()
+                .position(|step| step["name"] == json!(name))
+                .unwrap_or_else(|| panic!("{job} has no step {name:?}"))
+        };
+        let probe = position("Run the compiler probe tests");
+        let evidence = position("Record compiler evidence");
+        assert!(probe < evidence, "{job} probe step must precede evidence");
+        let probe_run = all[probe]["run"].as_str().unwrap_or_default();
+        assert!(!probe_run.contains("|| true"), "{job} probe step swallows");
+        assert!(probe_run.contains("bazel test"), "{job} probe runs no test");
+        let evidence_run = all[evidence]["run"].as_str().unwrap_or_default();
+        assert!(
+            !evidence_run
+                .lines()
+                .any(|line| line.trim_start().starts_with("bazel test")),
+            "{job} evidence step runs tests"
+        );
+        assert!(
+            all[evidence]["if"]
+                .as_str()
+                .unwrap_or_default()
+                .starts_with("always()"),
+            "{job} evidence step must run always"
+        );
+    }
+}
+
+#[test]
+fn the_gate_job_merges_evidence_without_swallowing() {
+    let all = steps(CI_WORKFLOW, GATE);
+    for step in all.iter().filter(|step| {
+        let uses = step["uses"].as_str().unwrap_or_default();
+        step["name"] == json!("Merge compiler evidence")
+            || uses.starts_with("actions/download-artifact@")
+            || uses.starts_with("actions/upload-artifact@")
+    }) {
+        assert!(
+            step.get("continue-on-error").is_none(),
+            "{GATE} step swallows: {step}"
+        );
+        assert!(
+            step["if"]
+                .as_str()
+                .unwrap_or_default()
+                .starts_with("always()")
+                || step["if"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .starts_with("${{ always()"),
+            "{GATE} step must run always: {step}"
+        );
     }
 }

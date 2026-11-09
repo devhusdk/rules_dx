@@ -307,6 +307,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_registry_module` |
 |  |  | `@rules_dx//capnproto/rules:defs.bzl` | `capnp_library` |
 |  |  | `@rules_dx//capnproto/rules:defs.bzl` | `std_import_path` |
+|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_bench` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_features` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_mismatch` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_probe` |
@@ -425,6 +426,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `library_name` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_bench` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
+|  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_bench` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |
 |  |  | `@rules_dx//helm/rules:defs.bzl` | `helm_chart` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_bench` |
@@ -476,6 +478,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_test` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_bench` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_fuzz_test` |
+|  |  | `@rules_dx//python/rules:defs.bzl` | `python_grpc_library` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_main` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_main_rejection` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_test_rejection` |
@@ -513,11 +516,14 @@ dx rule that wraps it.
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_shared_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_static_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_test` |
+|  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_bench` |
 |  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_fuzz_test` |
 |  |  | `@rules_dx//sql/rules:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_build` |
 |  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_library` |
+|  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_bench` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_binary` |
+|  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_fuzz_test` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_library` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_test` |
 |  |  | `@rules_dx//terraform/rules:defs.bzl` | `collect_providers` |
@@ -556,18 +562,19 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_content` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_is_source` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_relpath` |
-|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_playwright_test` |
-|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_proto_library` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_bench` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_declaration_srcs_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_empty_project_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_fuzz_test` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_playwright_test` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_proto_library` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_scoped_tsconfig_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_srcs_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_test_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_transpiler` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_upstream_srcs` |
 |  |  | `@rules_dx//vue/rules:defs.bzl` | `vue_build` |
+|  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_bench` |
 |  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_import_name` |
 
 Packaging and deploy:

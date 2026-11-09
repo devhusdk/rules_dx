@@ -29,10 +29,10 @@ def site_unit_tests(name):
                 ],
                 [
                     [
-                        ["README.md", "docs/README.md", "docs/cli/commands/README.md"],
-                        [None, "//docs:README.md", "//docs:cli/commands/README.md"],
+                        ["README.md", "docs/README.md", "docs/adopting-existing-bazel.md"],
+                        [None, "//docs:README.md", "//docs:adopting-existing-bazel.md"],
                     ],
-                    [61],
+                    [41],
                 ],
             ),
             expect_equal(
@@ -44,7 +44,7 @@ def site_unit_tests(name):
                     "- [rules_dx](README.md)",
                     "# Quickstart",
                     "- [Documentation](docs/README.md)",
-                    "# Command Reference",
+                    "- [Adopting rules_dx In An Existing Bazel Repo](docs/adopting-existing-bazel.md)",
                 ],
             ),
             expect_equal(
@@ -64,6 +64,7 @@ def site_unit_tests(name):
                     "- [Quickstart](docs/README.md)",
                     "- [Command Reference](docs/cli/commands/README.md)",
                     "- [CI](docs/github-ci.md)",
+                    "- [Support](docs/licenses.md)",
                     "- [Examples](examples/README.md)",
                     "",
                 ],

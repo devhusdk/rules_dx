@@ -826,6 +826,10 @@ use_repo(ruby_coverage, "dx_ruby_coverage_gems")
 ruby_tools = use_extension("//ruby/toolchain:repos.bzl", "ruby_tools")
 use_repo(ruby_tools, "dx_sorbet", "rules_ruby")
 
+# The pinned Ruby is declared in families/ruby; deploy tests read its files.
+ruby = use_extension("//ruby:extensions.bzl", "ruby")
+use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
+
 # floor: equals tested
 bazel_dep(name = "rules_zig", version = "0.17.0")
 single_version_override(

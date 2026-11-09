@@ -1750,6 +1750,7 @@ npm_deploy(
 
 deploy_analysis_test(
     name = "npm_alias_analysis",
+    artifacts = ["//deploy/rules:npm+alias.tgz"],
     subject = "npm+alias",
 )
 
@@ -1792,6 +1793,7 @@ nuget_deploy(
 
 deploy_analysis_test(
     name = "nuget_alias_analysis",
+    artifacts = ["//deploy/rules:nuget_demo_nupkg"],
     subject = "nuget+alias",
 )
 
@@ -1824,6 +1826,7 @@ hackage_deploy(
 
 deploy_analysis_test(
     name = "hackage_alias_analysis",
+    artifacts = ["//deploy/rules:hackage_demo_sdist"],
     subject = "hackage_alias",
 )
 
@@ -1856,6 +1859,7 @@ luarocks_deploy(
 
 deploy_analysis_test(
     name = "luarocks_alias_analysis",
+    artifacts = ["//deploy/rules:luarocks_demo_rockspec"],
     subject = "luarocks+alias",
 )
 
@@ -2032,7 +2036,7 @@ octopus_unit_tests(name = "octopus_unit")
 deploy_analysis_test(
     name = "octopus_analysis",
     artifacts = [
-        "//deploy/rules:release_demo_archive",
+        "//deploy/rules:octopus_demo_package",
     ],
     subject = "octopus_demo",
 )

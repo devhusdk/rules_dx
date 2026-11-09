@@ -885,15 +885,19 @@ fn pypi_native_case() {
     );
 }
 
-fn archiver_imports(members: &[(String, PathBuf)], check: &str) -> std::process::Output {
+fn archiver_imports(
+    members: &[(String, PathBuf)],
+    check: &str,
+    provides: &[&str],
+) -> std::process::Output {
     let out = dx_testing::mkscratch("pypi-imports")
         .expect("scratch imports")
         .join("ok");
     let mut command = std::process::Command::new(data("DX_ARCHIVER"));
-    command
-        .arg("--imports")
-        .arg(out)
-        .args(["--check", check, "--provides", "python3*"]);
+    command.arg("--imports").arg(out).args(["--check", check]);
+    for name in provides {
+        command.args(["--provides", name]);
+    }
     for (name, path) in members {
         command.arg(format!("{name}={}", path.display()));
     }
@@ -947,7 +951,7 @@ fn pypi_native_msvc_case() {
         std::fs::read(data("DX_MSVC_NOTICE")).expect("declared notice must be readable"),
     );
     let core = core(&members);
-    let output = archiver_imports(&members, &core);
+    let output = archiver_imports(&members, &core, &["python3*"]);
     assert!(
         output.status.success(),
         "{}",
@@ -958,7 +962,11 @@ fn pypi_native_msvc_case() {
         .filter(|(name, _)| *name == core)
         .cloned()
         .collect();
-    let output = archiver_imports(&alone, &core);
+    let output = archiver_imports(&alone, &core, &[]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    println!("{core} alone, nothing provided:\n{stderr}");
+    assert!(stderr.to_ascii_lowercase().contains("python3"), "{stderr}");
+    let output = archiver_imports(&alone, &core, &["python3*"]);
     let stderr = String::from_utf8_lossy(&output.stderr);
     println!("{core} without the shipped runtime:\n{stderr}");
     assert!(!output.status.success(), "{stderr}");

@@ -23,6 +23,7 @@ ClangSyntaxInfo = provider(
         "sources": "list of string: source path (execroot relative) per replayed action.",
         "statuses": "list of File: compiler exit code, one per replayed action.",
         "tidy_diagnostics": "list of File: clang-tidy output, one per replayed action.",
+        "tidy_error": "string: why clang-tidy cannot run on this target, empty when a clang_tidy config is bound.",
     },
 )
 
@@ -284,10 +285,14 @@ def _clang_syntax_impl(target, ctx):
         headers = depset(context.direct_private_headers, transitive = [context.headers])
     tidy = ctx.file._clang_tidy
     tidy_target = bound_config_targets(attrs, ctx.attr._policy[QualityPolicyInfo].configs, str(target.label)).get("clang_tidy")
-    if not tidy_target:
-        fail("clang_syntax: %s has no clang_tidy config; bind a clang_tidy_config or a policy with the tier base" % target.label)
-    tidy_config = tidy_target[DxNativeConfigInfo].config.path
-    tidy_closure = tidy_target[DxNativeConfigInfo].closure
+    tidy_config = ""
+    tidy_closure = depset()
+    tidy_error = ""
+    if tidy_target:
+        tidy_config = tidy_target[DxNativeConfigInfo].config.path
+        tidy_closure = tidy_target[DxNativeConfigInfo].closure
+    else:
+        tidy_error = "clang_syntax: %s has no clang_tidy config; bind a clang_tidy_config or a policy with the tier base" % target.label
     runner = ctx.file._clang_tidy_run
     argvs = []
     envs = []
@@ -307,7 +312,7 @@ def _clang_syntax_impl(target, ctx):
             fail("clang_syntax: Bazel does not expose the command line of the %s action of %s" % (action.mnemonic, target.label))
         if action.mnemonic == "CudaCompile":
             # nvcc compiles each source several times (pic/rdc variants); lint one.
-            if i not in cuda_keep:
+            if i not in cuda_keep or tidy_error:
                 continue
             src = nvcc_syntax_source(list(argv))
             tidy_argv = cuda_tidy_argv(tidy.path, list(argv), src, tidy_config)
@@ -340,8 +345,6 @@ def _clang_syntax_impl(target, ctx):
         driver = ctx.actions.declare_file("dx_clang_syntax/%s.driver" % stem)
         ctx.actions.write(output = driver, content = identity.driver)
         base_env = toolchain_env | dict(action.env)
-        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, base_env)
-        tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
         requirements = {}
         if action.mnemonic == "ObjcCompile":
             requirements = dict(xcode_config.execution_info())
@@ -361,31 +364,34 @@ def _clang_syntax_impl(target, ctx):
             execution_requirements = requirements,
             resource_set = dx_heavy_resources,
         )
-        if tidy_argv.error != "":
-            _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
-        else:
-            # run_shell: The shell redirects output or runs the bash runner script.
-            ctx.actions.run_shell(
-                mnemonic = "ClangTidy",
-                progress_message = "clang-tidy %{label}: " + src,
-                command = 'bash "$@"',
-                arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
-                inputs = depset([tidy, runner], transitive = [all_inputs, tidy_closure]),
-                outputs = [tidy_log],
-                env = syntax_env,
-                execution_requirements = requirements,
-                resource_set = dx_heavy_resources,
-            )
+        if not tidy_error:
+            tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, base_env)
+            tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
+            if tidy_argv.error != "":
+                _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
+            else:
+                # run_shell: The shell redirects output or runs the bash runner script.
+                ctx.actions.run_shell(
+                    mnemonic = "ClangTidy",
+                    progress_message = "clang-tidy %{label}: " + src,
+                    command = 'bash "$@"',
+                    arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
+                    inputs = depset([tidy, runner], transitive = [all_inputs, tidy_closure]),
+                    outputs = [tidy_log],
+                    env = syntax_env,
+                    execution_requirements = requirements,
+                    resource_set = dx_heavy_resources,
+                )
+            tidy_diagnostics.append(tidy_log)
         argvs.append(list(argv))
         envs.append(base_env)
         inputs.append(all_inputs)
-        tidy_diagnostics.append(tidy_log)
         sources.append(src)
         diagnostics.append(log)
         statuses.append(status)
         drivers.append(driver)
     return [
-        ClangSyntaxInfo(argv = argvs, envs = envs, inputs = inputs, sources = sources, diagnostics = diagnostics, drivers = drivers, statuses = statuses, tidy_diagnostics = tidy_diagnostics),
+        ClangSyntaxInfo(argv = argvs, envs = envs, inputs = inputs, sources = sources, diagnostics = diagnostics, drivers = drivers, statuses = statuses, tidy_diagnostics = tidy_diagnostics, tidy_error = tidy_error),
         OutputGroupInfo(clang_syntax = depset(diagnostics + statuses + drivers), clang_tidy = depset(tidy_diagnostics)),
     ]
 

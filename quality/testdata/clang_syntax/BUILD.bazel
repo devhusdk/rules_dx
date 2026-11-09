@@ -18,6 +18,10 @@ quality_family(
 
 workspace_policy(
     name = "cc_syntax_policy",
+    visibility = [
+        "//quality:__pkg__",
+        "//quality/testdata:__pkg__",
+    ],
     families = [":cc_syntax_family"],
 )
 
@@ -55,6 +59,10 @@ quality_family(
 
 workspace_policy(
     name = "cc_tidy_policy",
+    visibility = [
+        "//quality:__pkg__",
+        "//quality/testdata:__pkg__",
+    ],
     families = [":cc_tidy_family"],
 )
 
@@ -98,6 +106,10 @@ cc_library(
 
 cc_library(
     name = "dirty",
+    visibility = [
+        "//quality:__pkg__",
+        "//quality/testdata:__pkg__",
+    ],
     srcs = ["dirty.c"],
     copts = ["-DCLEAN_OFFSET=1"],
     tags = ["manual"],

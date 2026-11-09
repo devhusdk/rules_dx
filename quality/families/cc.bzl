@@ -123,6 +123,8 @@ def _clang_info(target, what):
 
 def _clang_tidy_hook(target, _ctx, _resolved, _capability, what, _shared):
     info = _clang_info(target, what)
+    if info.tidy_error:
+        fail(info.tidy_error)
     return real_context(upstream = info.tidy_diagnostics, late_inputs = info.tidy_diagnostics)
 
 def _clang_syntax_hook(target, _ctx, _resolved, _capability, what, _shared):

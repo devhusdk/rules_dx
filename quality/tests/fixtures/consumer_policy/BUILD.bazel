@@ -123,6 +123,7 @@ quality_family(
 
 workspace_policy(
     name = "cc_clang_tidy_policy",
+    bases = ["//quality/tiers/clang_tidy:standard"],
     families = [":clang_tidy_cc_family"],
 )
 

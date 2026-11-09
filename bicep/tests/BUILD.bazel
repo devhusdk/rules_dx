@@ -1,15 +1,15 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//bicep/rules:defs.bzl", "bicep_module", "bicep_registry_module")
+load("//bicep/rules:defs.bzl", "bicep_library", "bicep_registry_module")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load(":library_tests.bzl", "owns_bicep_class_test", "registry_deps_test", "registry_unit_tests", "transitive_context_test")
 
-bicep_module(
+bicep_library(
     name = "lib",
     srcs = ["fixtures/lib.bicep"],
     data = ["fixtures/data.json"],
 )
 
-bicep_module(
+bicep_library(
     name = "app",
     srcs = ["fixtures/app.bicep"],
     deps = [":lib"],
@@ -27,7 +27,7 @@ transitive_context_test(
     target_under_test = ":app",
 )
 
-bicep_module(
+bicep_library(
     name = "bad_src",
     srcs = ["fixtures/notes.txt"],
     tags = ["manual"],
@@ -39,7 +39,7 @@ failure_test(
     target = ":bad_src",
 )
 
-bicep_module(
+bicep_library(
     name = "config_in_data",
     data = ["fixtures/bicepconfig.json"],
     tags = ["manual"],
@@ -63,7 +63,7 @@ bicep_registry_module(
     ref = "br:example.invalid/m:1",
 )
 
-bicep_module(
+bicep_library(
     name = "registry_app",
     srcs = ["fixtures/registry_app.bicep"],
     deps = [":registry_fixture"],

@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//terraform/rules:defs.bzl", "terraform_module")
+load("//terraform/rules:defs.bzl", "terraform_library")
 load("//terraform/rules:providers.bzl", "terraform_provider")
 load(":provider_tests.bzl", "collects_providers_test", "provider_unit_tests")
 
@@ -22,19 +22,19 @@ terraform_provider(
     version = "3.2.3",
 )
 
-terraform_module(name = "bare")
+terraform_library(name = "bare")
 
-terraform_module(
+terraform_library(
     name = "leaf",
     providers = [":null_324"],
 )
 
-terraform_module(
+terraform_library(
     name = "root",
     deps = [":leaf"],
 )
 
-terraform_module(
+terraform_library(
     name = "conflict",
     providers = [":null_323"],
     tags = ["manual"],
@@ -60,7 +60,7 @@ failure_test(
 )
 
 # The hub resolves for the exec platform of the host.
-terraform_module(
+terraform_library(
     name = "hub_null",
     providers = ["@dx_terraform_providers//:null"],
 )

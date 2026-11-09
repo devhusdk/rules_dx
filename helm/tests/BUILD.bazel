@@ -10,7 +10,7 @@ helm_chart(
         "templates/cm.yaml",
         "values.yaml",
     ],
-    dependencies = ["charts/dep-1.0.0.tgz"],
+    subcharts = ["charts/dep-1.0.0.tgz"],
     namespace = "prod",
     release_name = "demo",
     values = ["values-prod.yaml"],
@@ -109,14 +109,14 @@ helm_chart(
 
 failure_test(
     name = "archive_in_srcs_fails",
-    expected_failure_substring = "belongs in dependencies, not srcs",
+    expected_failure_substring = "belongs in subcharts, not srcs",
     target = ":archive_in_srcs",
 )
 
 helm_chart(
     name = "misplaced_dependency",
     srcs = ["Chart.yaml"],
-    dependencies = ["other/dep-1.0.0.tgz"],
+    subcharts = ["other/dep-1.0.0.tgz"],
     tags = ["manual"],
 )
 

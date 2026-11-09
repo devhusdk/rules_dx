@@ -27,6 +27,6 @@ dockerfile_library = rule(
             allow_files = True,
             doc = "Dockerfiles of this package: Dockerfile, Containerfile, Dockerfile.*, Containerfile.*, *.Dockerfile, *.dockerfile, *.Containerfile or *.containerfile.",
         ),
-        "deps": attr.label_list(providers = [DefaultInfo], doc = "Other Dockerfile libraries this package depends on."),
+        "deps": attr.label_list(providers = [QualitySourcesInfo], doc = "Other Dockerfile libraries this package depends on."),
     },
 )

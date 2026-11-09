@@ -1,4 +1,4 @@
-"""kubernetes_manifests and kubernetes_schemas proofs."""
+"""kubernetes_library and kubernetes_schemas proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//quality:native_config.bzl", "DxNativeConfigInfo")

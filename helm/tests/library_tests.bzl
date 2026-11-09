@@ -25,7 +25,7 @@ def _chart_provider_impl(ctx):
     asserts.equals(env, "demo", info.release_name)
     asserts.equals(env, "prod", info.namespace)
     asserts.equals(env, ["values-prod.yaml"], [f.basename for f in info.values])
-    asserts.equals(env, ["dep-1.0.0.tgz"], [f.basename for f in info.dependencies])
+    asserts.equals(env, ["dep-1.0.0.tgz"], [f.basename for f in info.subcharts])
     return analysistest.end(env)
 
 chart_provider_test = analysistest.make(_chart_provider_impl)

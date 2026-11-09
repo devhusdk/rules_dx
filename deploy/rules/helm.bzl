@@ -41,7 +41,7 @@ def _helm_config_impl(ctx):
             "repository": ctx.attr.repository,
             "version": ctx.attr.version,
         },
-        ctx.runfiles(files = [helm] + ctx.attr.chart[DefaultInfo].files.to_list() + info.dependencies),
+        ctx.runfiles(files = [helm] + ctx.attr.chart[DefaultInfo].files.to_list() + info.subcharts),
     )
 
 _helm_config = rule(

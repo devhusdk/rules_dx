@@ -304,7 +304,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_build` |
 |  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_library` |
 |  |  | `@rules_dx//avro/rules:defs.bzl` | `avro_library` |
-|  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_module` |
+|  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_library` |
 |  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_registry_module` |
 |  |  | `@rules_dx//capnproto/rules:defs.bzl` | `capnp_library` |
 |  |  | `@rules_dx//capnproto/rules:defs.bzl` | `std_import_path` |
@@ -315,7 +315,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_unsupported` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_param_file_features` |
-|  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_template` |
+|  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_kwargs` |
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_quality_srcs` |
@@ -511,7 +511,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_test_class` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_test_entry_kwargs` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_warnings_as_errors_opts` |
-|  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_manifests` |
+|  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_library` |
 |  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_schemas` |
 |  |  | `@rules_dx//libs/exec_os:defs.bzl` | `exec_os` |
 |  |  | `@rules_dx//libs/launcher:defs.bzl` | `native_launch_descriptor_path` |
@@ -615,7 +615,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_library` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_test` |
 |  |  | `@rules_dx//terraform/rules:defs.bzl` | `collect_providers` |
-|  |  | `@rules_dx//terraform/rules:defs.bzl` | `terraform_module` |
+|  |  | `@rules_dx//terraform/rules:defs.bzl` | `terraform_library` |
 |  |  | `@rules_dx//thrift/rules:defs.bzl` | `thrift_library` |
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `astro_doc_shard` |
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `component_doc_shard` |

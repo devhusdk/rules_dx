@@ -1,9 +1,9 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//kubernetes/rules:defs.bzl", "kubernetes_manifests", "kubernetes_schemas")
+load("//kubernetes/rules:defs.bzl", "kubernetes_library", "kubernetes_schemas")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load(":library_tests.bzl", "owns_kubernetes_class_test", "schemas_config_test")
 
-kubernetes_manifests(
+kubernetes_library(
     name = "app",
     srcs = ["fixtures/app.yaml"],
 )

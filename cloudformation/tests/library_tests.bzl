@@ -1,4 +1,4 @@
-"""cloudformation_template proofs."""
+"""cloudformation_library proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//quality:sources.bzl", "QualitySourcesInfo")

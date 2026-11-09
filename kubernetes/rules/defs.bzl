@@ -1,7 +1,8 @@
 """Kubernetes manifest ownership and schema staging for dx lint."""
 
 load("//quality:native_config.bzl", "DxNativeConfigInfo")
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
+load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//quality:sources.bzl", "QualitySourcesInfo")
 
 def _version_error(version):
     parts = version.split(".")
@@ -12,28 +13,24 @@ def _version_error(version):
             return "kubernetes_version '" + version + "' must look like X.Y.Z"
     return ""
 
-def _kubernetes_manifests_impl(ctx):
-    direct_sources = {}
-    if len(ctx.files.srcs) > 0:
-        direct_sources["kubernetes"] = depset(ctx.files.srcs)
-    check_direct_sources(direct_sources, str(ctx.label))
+def _kubernetes_library_impl(ctx):
     return [
         DefaultInfo(files = depset(
             ctx.files.srcs,
             transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
         )),
-        QualitySourcesInfo(direct_sources = direct_sources),
+        dx_quality_sources(ctx.files.srcs, [("kubernetes", ["yaml", "yml", "json"])], str(ctx.label)),
     ]
 
-kubernetes_manifests = rule(
-    implementation = _kubernetes_manifests_impl,
+kubernetes_library = rule(
+    implementation = _kubernetes_library_impl,
     doc = "Owns the Kubernetes manifests of one package for dx lint (kubeconform).",
     attrs = {
         "srcs": attr.label_list(
             allow_files = [".yaml", ".yml", ".json"],
             doc = "Kubernetes manifest files of this package; every document needs apiVersion and kind.",
         ),
-        "deps": attr.label_list(providers = [DefaultInfo], doc = "Other manifest libraries this package depends on."),
+        "deps": attr.label_list(providers = [QualitySourcesInfo], doc = "Other manifest libraries this package depends on."),
     },
 )
 

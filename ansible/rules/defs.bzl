@@ -7,7 +7,7 @@ def _ansible_library_impl(ctx):
     forced = {f.short_path: True for f in ctx.files.playbooks}
     for f in ctx.files.playbooks:
         if f not in ctx.files.srcs:
-            fail(str(ctx.label) + ": playbooks entry " + f.short_path + " is not in srcs")
+            fail("ansible_library " + str(ctx.label) + ": playbooks entry " + f.short_path + " is not in srcs")
     ansible = []
     yaml = []
     for f in ctx.files.srcs:
@@ -35,6 +35,6 @@ ansible_library = rule(
     attrs = {
         "srcs": attr.label_list(allow_files = [".yaml", ".yml"], doc = "YAML files of this package."),
         "playbooks": attr.label_list(allow_files = [".yaml", ".yml"], doc = "Subset of srcs forced to the ansible class."),
-        "deps": attr.label_list(providers = [DefaultInfo], doc = "Libraries this package depends on."),
+        "deps": attr.label_list(providers = [QualitySourcesInfo], doc = "Libraries this package depends on."),
     },
 )

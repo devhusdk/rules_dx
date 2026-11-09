@@ -1,6 +1,6 @@
-load("@rules_dx//bicep/rules:defs.bzl", "bicep_module")
+load("@rules_dx//bicep/rules:defs.bzl", "bicep_library")
 
-bicep_module(
+bicep_library(
     name = "bicep",
     srcs = [
         "main.bicep",

@@ -71,7 +71,7 @@ def _helm_hook(target, ctx, _resolved, _capability, what, _shared):
     inputs.append(ctx.file._kubeconform)
     pairs = []
     if HelmChartInfo in target:
-        for f in target[HelmChartInfo].dependencies:
+        for f in target[HelmChartInfo].subcharts:
             ws_path = f.short_path
             if ".." in ws_path.split("/") or ws_path.startswith("../"):
                 continue
@@ -91,7 +91,7 @@ def _trivy_hook(target, ctx, _resolved, _capability, what, _shared):
     inputs = []
     stage(tool_files, inputs, "dx-helm/context.json", context)
     pairs = []
-    for f in target[HelmChartInfo].dependencies:
+    for f in target[HelmChartInfo].subcharts:
         ws_path = f.short_path
         if ".." in ws_path.split("/") or ws_path.startswith("../"):
             continue

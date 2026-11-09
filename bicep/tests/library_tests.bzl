@@ -1,4 +1,4 @@
-"""bicep_module ownership and provider proofs."""
+"""bicep_library ownership and provider proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//bicep/private:registry.bzl", "registry_errors")

@@ -36,21 +36,21 @@ def _helm_chart_impl(ctx):
         seen[f.short_path] = True
     for f in ctx.files.srcs:
         if f.extension == "tgz":
-            fail(who + "archive '" + f.short_path + "' belongs in dependencies, not srcs")
+            fail(who + "archive '" + f.short_path + "' belongs in subcharts, not srcs")
     chart_yaml = _join(package, "Chart.yaml")
     if chart_yaml not in [f.short_path for f in ctx.files.srcs]:
         fail(who + "srcs must contain " + chart_yaml)
-    for f in ctx.files.dependencies:
+    for f in ctx.files.subcharts:
         if f.extension != "tgz" or not f.short_path.startswith(_join(package, "charts/")):
-            fail(who + "dependency '" + f.short_path + "' must be a .tgz under " + _join(package, "charts/"))
+            fail(who + "subchart '" + f.short_path + "' must be a .tgz under " + _join(package, "charts/"))
     direct_sources = {"helm": depset(ctx.files.srcs + ctx.files.values)}
     check_direct_sources(direct_sources, str(ctx.label))
     return [
-        DefaultInfo(files = depset(ctx.files.srcs + ctx.files.values + ctx.files.dependencies)),
+        DefaultInfo(files = depset(ctx.files.srcs + ctx.files.values + ctx.files.subcharts)),
         QualitySourcesInfo(direct_sources = direct_sources),
         HelmChartInfo(
             chart_root = package,
-            dependencies = ctx.files.dependencies,
+            subcharts = ctx.files.subcharts,
             namespace = ctx.attr.namespace,
             release_name = ctx.attr.release_name,
             values = ctx.files.values,
@@ -61,7 +61,7 @@ helm_chart = rule(
     implementation = _helm_chart_impl,
     doc = "Owns one Helm chart, the package holding Chart.yaml, for dx lint.",
     attrs = {
-        "dependencies": attr.label_list(
+        "subcharts": attr.label_list(
             allow_files = [".tgz"],
             doc = "Vendored subchart archives under charts/; never fetched.",
         ),

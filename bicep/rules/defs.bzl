@@ -3,10 +3,10 @@
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "BicepInfo", "BicepRegistryInfo")
 
-def _bicep_module_impl(ctx):
+def _bicep_library_impl(ctx):
     for f in ctx.files.data:
         if f.basename == "bicepconfig.json":
-            fail("bicep_module: {} cannot be listed in data; bind it with bicep_config".format(f.short_path))
+            fail("bicep_library {}: {} cannot be listed in data; bind it with bicep_config".format(ctx.label, f.short_path))
     transitive_srcs = depset(
         ctx.files.srcs,
         transitive = [dep[BicepInfo].transitive_srcs for dep in ctx.attr.deps if BicepInfo in dep],
@@ -27,8 +27,8 @@ def _bicep_module_impl(ctx):
         dx_quality_sources(ctx.files.srcs, [("bicep", ["bicep", "bicepparam"])], str(ctx.label)),
     ]
 
-bicep_module = rule(
-    implementation = _bicep_module_impl,
+bicep_library = rule(
+    implementation = _bicep_library_impl,
     doc = "Owns the Bicep files of one package for dx quality.",
     attrs = {
         "srcs": attr.label_list(allow_files = [".bicep", ".bicepparam"], doc = "Bicep and Bicep parameter files of this package."),

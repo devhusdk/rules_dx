@@ -9,15 +9,15 @@ def collect_providers(label, own, deps):
     seen = {}
     for p in transitive.to_list():
         if seen.get(p.source, p.version) != p.version:
-            fail("%s: provider %s is required at versions %s and %s" % (label, p.source, seen[p.source], p.version))
+            fail("terraform_library %s: provider %s is required at versions %s and %s" % (label, p.source, seen[p.source], p.version))
         seen[p.source] = p.version
     return TerraformModuleInfo(transitive_providers = transitive)
 
-def _terraform_module_impl(ctx):
+def _terraform_library_impl(ctx):
     info = collect_providers(
         str(ctx.label),
         [p[TerraformProviderInfo] for p in ctx.attr.providers],
-        [d[TerraformModuleInfo] for d in ctx.attr.deps if TerraformModuleInfo in d],
+        [d[TerraformModuleInfo] for d in ctx.attr.deps],
     )
     return [
         DefaultInfo(files = depset(
@@ -28,11 +28,11 @@ def _terraform_module_impl(ctx):
         info,
     ]
 
-terraform_module = rule(
-    implementation = _terraform_module_impl,
+terraform_library = rule(
+    implementation = _terraform_library_impl,
     doc = "Owns the Terraform files of one module for dx format and lint.",
     attrs = {
-        "deps": attr.label_list(providers = [DefaultInfo], doc = "Terraform modules this module calls."),
+        "deps": attr.label_list(providers = [TerraformModuleInfo], doc = "Terraform modules this module calls."),
         "providers": attr.label_list(
             cfg = "exec",
             providers = [TerraformProviderInfo],

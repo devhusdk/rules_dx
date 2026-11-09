@@ -31,10 +31,9 @@ sh_test(
         "//perl/tests/fixtures/perl-app/third_party:corpus_starlark",
         "//perl/tests/negative:corpus_starlark",
         "//perl/tests/runtime:corpus_starlark",
-        "//perl/tests/tags:corpus_starlark",
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
-    env = {"STARLARK_DOCS_PACKAGES": "perl/tests/coverage,perl/tests/fixtures/perl-app,perl/tests/fixtures/perl-app/cli,perl/tests/fixtures/perl-app/inventory,perl/tests/fixtures/perl-app/report,perl/tests/fixtures/perl-app/third_party,perl/tests/negative,perl/tests/runtime,perl/tests/tags"},
+    env = {"STARLARK_DOCS_PACKAGES": "perl/tests/coverage,perl/tests/fixtures/perl-app,perl/tests/fixtures/perl-app/cli,perl/tests/fixtures/perl-app/inventory,perl/tests/fixtures/perl-app/report,perl/tests/fixtures/perl-app/third_party,perl/tests/negative,perl/tests/runtime"},
 )
 
 # dx:begin exports

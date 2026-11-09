@@ -18,6 +18,6 @@ cc_binary(
         "@dx_php_pcre2//:headers",
     ] + select({
         "@platforms//cpu:aarch64": ["@dx_php_headers_linux_arm64//:headers"],
-        "//conditions:default": ["@dx_php_headers_linux_amd64//:headers"],
+        "//conditions:default": ["@dx_php_headers_linux_x86_64//:headers"],
     }),
 )

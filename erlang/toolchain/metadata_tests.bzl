@@ -13,13 +13,13 @@ exec "$BINDIR/erlexec" ${1+"$@"}
 def _checks():
     script = erl_script(_SOURCE, CLOSURE_DIR)
     plain = erl_script(_SOURCE, None)
-    cell = CELLS["linux_amd64"]
+    cell = CELLS["linux_x86_64"]
     arm = CELLS["linux_arm64"]
     packages = [package.package for package in cell.runtime]
     debs = [package for name in CELLS for package in CELLS[name].runtime]
     arm_paths = [path for package in arm.runtime for path in package.libraries.values()]
     return [
-        expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
+        expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("only the windows cells are windows", sorted([name for name in CELLS if is_windows_cell(CELLS[name])]), ["windows_arm64", "windows_x86_64"]),
         expect_equal("windows cells share one archive", CELLS["windows_arm64"].otp_url, CELLS["windows_x86_64"].otp_url),
         expect_true("windows ships a zip", CELLS["windows_x86_64"].otp_url.endswith(".zip")),
@@ -46,7 +46,7 @@ def _checks():
         expect_equal("dialyzer PLT apps are shipped", [app for app in DIALYZER_PLT_CORE + DIALYZER_PLT_APPS if dropped_application(app + "-1.0")], []),
         expect_equal("dialyzer PLT apps are listed once", len(DIALYZER_PLT_CORE + DIALYZER_PLT_APPS), len(depset(DIALYZER_PLT_CORE + DIALYZER_PLT_APPS).to_list())),
         expect_equal("nif headers cover every cell", sorted([key.rpartition("cell_")[2] for key in nif_header_cases(CELLS.keys()) if "cell_" in key]), sorted(CELLS.keys())),
-        expect_equal("nif headers resolve to the cell repo", nif_header_cases(["linux_amd64"])["@rules_dx//erlang/toolchain:cell_linux_amd64"], ["@dx_otp_linux_amd64//:erl_nif"]),
+        expect_equal("nif headers resolve to the cell repo", nif_header_cases(["linux_x86_64"])["@rules_dx//erlang/toolchain:cell_linux_x86_64"], ["@dx_otp_linux_x86_64//:erl_nif"]),
         expect_equal("nif headers default to nothing", nif_header_cases(CELLS.keys())["//conditions:default"], []),
         expect_equal("nif default is incompatible", nif_compatible_cases(CELLS.keys())["//conditions:default"], ["@platforms//:incompatible"]),
         expect_equal("nif include follows erts", nif_include_dir(), "erts-" + ERTS_VERSION + "/include"),

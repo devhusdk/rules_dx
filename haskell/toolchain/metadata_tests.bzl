@@ -54,7 +54,7 @@ def _cell_checks(name):
     has_runtime = len(cell.runtime) > 0
     windows = name.startswith("windows_")
     conf = closure_library_dirs(_CONF.replace("{triple}", triple), CLOSURE_DIR)
-    arch_dir = {"linux_amd64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": "", "windows_x86_64": ""}[name]
+    arch_dir = {"linux_x86_64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": "", "windows_x86_64": ""}[name]
     return [
         expect_equal(name + " runtime packages", [package.package for package in cell.runtime], ["libgmp10", "libtinfo6"] if has_runtime else []),
         expect_true(name + " names a locale", len(cell.locale) > 0),
@@ -81,8 +81,8 @@ def _checks():
     checks = [
         expect_false("toolchain hub loads nothing", "load(" in hub_files()["toolchains/BUILD.bazel"]),
         expect_false("toolchain hub names no rules_haskell", "@rules_haskell" in hub_files()["toolchains/BUILD.bazel"]),
-        expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
-        expect_equal("qualified cells", qualified_cells(), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("windows is unblocked", CELLS["windows_x86_64"].blocker, ""),
         expect_true("windows host runs the windows cell", cell_matches_host("windows_x86_64", "windows server 2022", "amd64")),
         expect_false("linux never runs the windows cell", cell_matches_host("windows_x86_64", "linux", "amd64")),
@@ -96,13 +96,13 @@ def _checks():
         expect_true("darwin fetches the gmp license over https", CELLS["macos_arm64"].gmp_license.url.startswith("https://")),
         expect_true("arm64 mac runs the macos cell", cell_matches_host("macos_arm64", "mac os x", "aarch64")),
         expect_false("linux never runs the macos cell", cell_matches_host("macos_arm64", "linux", "aarch64")),
-        expect_true("amd64 host runs the amd64 cell", cell_matches_host("linux_amd64", "Linux", "amd64")),
-        expect_true("x86_64 host runs the amd64 cell", cell_matches_host("linux_amd64", "linux", "x86_64")),
+        expect_true("amd64 host runs the amd64 cell", cell_matches_host("linux_x86_64", "Linux", "amd64")),
+        expect_true("x86_64 host runs the amd64 cell", cell_matches_host("linux_x86_64", "linux", "x86_64")),
         expect_false("amd64 host never runs the arm64 cell", cell_matches_host("linux_arm64", "linux", "amd64")),
         expect_true("aarch64 host runs the arm64 cell", cell_matches_host("linux_arm64", "linux", "aarch64")),
         expect_true("arm64 host runs the arm64 cell", cell_matches_host("linux_arm64", "linux", "arm64")),
-        expect_false("arm64 host never runs the amd64 cell", cell_matches_host("linux_amd64", "linux", "aarch64")),
-        expect_false("other systems run no linux cell", cell_matches_host("linux_amd64", "mac os x", "x86_64")),
+        expect_false("arm64 host never runs the amd64 cell", cell_matches_host("linux_x86_64", "linux", "aarch64")),
+        expect_false("other systems run no linux cell", cell_matches_host("linux_x86_64", "mac os x", "x86_64")),
         expect_false("settings name no host path", host_path(settings)),
         expect_false("windows settings keep bundled mingw paths", host_path(windows_settings)),
         expect_contains("windows settings keep bundled mingw paths unchanged", windows_settings, "$tooldir/mingw/bin/unlit.exe"),

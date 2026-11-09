@@ -29,7 +29,7 @@ _WINDOWS_ADDON = struct(
 )
 
 LDC_CELLS = {
-    "linux_amd64": struct(
+    "linux_x86_64": struct(
         addon = None,
         archive = "ldc2-" + LDC_VERSION + "-linux-x86_64.tar.xz",
         compiler = "bin/ldmd2",

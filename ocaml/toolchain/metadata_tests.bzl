@@ -32,7 +32,7 @@ url {
 """
 
 def _checks():
-    linux = OCAML_CELLS["linux_amd64"]
+    linux = OCAML_CELLS["linux_x86_64"]
     ocaml = [p for p in linux.packages if p.name == "ocaml"][0]
     macos = {p.name: p for p in OCAML_CELLS["macos_arm64"].packages}
     return [

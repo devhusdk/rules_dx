@@ -11,7 +11,7 @@ RULES_OCAML_SHA256 = "a23ad90cff101aa9d0cea279462dad72dddf597fc23be7748fbb1bb631
 RULES_OCAML_URL = "https://github.com/obazl/rules_ocaml/archive/" + RULES_OCAML_COMMIT + ".tar.gz"
 
 OCAML_CELLS = {
-    "linux_amd64": struct(
+    "linux_x86_64": struct(
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         emitters = ["sys", "vm"],
         packages = [

@@ -23,7 +23,7 @@ _GMP_LICENSE = struct(
 )
 
 CELLS = {
-    "linux_amd64": struct(
+    "linux_x86_64": struct(
         blocker = "",
         exe_suffix = "",
         os_libraries = ["unix"],

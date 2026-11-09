@@ -5,7 +5,7 @@ load(":pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_
 load(":repos.bzl", "DROPPED_PATHS", "LDC_BUILD", "TOOL_BUILDS", "WRAPPER", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
 
 def _checks():
-    linux = LDC_CELLS["linux_amd64"]
+    linux = LDC_CELLS["linux_x86_64"]
     windows = [LDC_CELLS["windows_x86_64"], LDC_CELLS["windows_arm64"]]
     windows_build = ldc_build(LDC_CELLS["windows_x86_64"], "bin/ldmd2.exe")
     arm64_build = ldc_build(LDC_CELLS["windows_arm64"], "bin/ldmd2.exe")
@@ -19,7 +19,7 @@ def _checks():
         expect_contains("rules_d url names the version", RULES_D_URL, "v" + RULES_D_VERSION + ".tar.gz"),
         expect_equal("ldc version", LDC_VERSION, "1.43.0"),
         expect_equal("release url", LDC_RELEASES, "https://github.com/ldc-developers/ldc/releases/download/v1.43.0/"),
-        expect_equal("pinned cells", sorted(LDC_CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
+        expect_equal("pinned cells", sorted(LDC_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("arm64 linux archive", LDC_CELLS["linux_arm64"].archive, "ldc2-1.43.0-linux-aarch64.tar.xz"),
         expect_equal("macos archive", LDC_CELLS["macos_arm64"].archive, "ldc2-1.43.0-osx-arm64.tar.xz"),
         expect_true("every digest is a sha256", all([len(cell.sha256) == 64 for cell in LDC_CELLS.values()])),
@@ -32,7 +32,7 @@ def _checks():
         expect_equal("linux archive", linux.archive, "ldc2-1.43.0-linux-x86_64.tar.xz"),
         expect_equal("linux digest", len(linux.sha256), 64),
         expect_contains("linux prefix names the version", linux.strip_prefix, LDC_VERSION),
-        expect_equal("linux runtime closure", sorted([package.package for package in ldc_runtime("linux_amd64")]), ["gcc-12-base", "libgcc-s1", "zlib1g"]),
+        expect_equal("linux runtime closure", sorted([package.package for package in ldc_runtime("linux_x86_64")]), ["gcc-12-base", "libgcc-s1", "zlib1g"]),
         expect_true("the upstream toolchain extension is dropped", "d/extensions.bzl" in DROPPED_PATHS),
         expect_true("the upstream compiler download is dropped", "d/repositories.bzl" in DROPPED_PATHS),
         expect_true("the upstream module file is dropped", "MODULE.bazel" in DROPPED_PATHS),

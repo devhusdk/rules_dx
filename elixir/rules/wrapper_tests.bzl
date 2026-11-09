@@ -46,7 +46,7 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("srcs without a helper keep their order", helper_first(["b.exs", "a.exs"]), ["b.exs", "a.exs"]),
             expect_equal("nifs land in priv after globbed and extra files", nif_priv({"extra_priv": ["x.txt"]}, ["//n:nif"], _glob), ["priv/**/*!x.txt", "x.txt", "//n:nif"]),
             expect_equal("label extra_priv is not excluded from the glob", nif_priv({"extra_priv": ["//p:f"]}, [], lambda patterns, exclude = [], **_k: exclude), ["//p:f"]),
-            expect_equal("apps compile on the Elixir cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]),
+            expect_equal("apps compile on the Elixir cells", ELIXIR_CELLS, ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]),
             expect_equal("hex tarballs come from repo.hex.pm", hex_tarball_url("jason", "1.4.4"), "https://repo.hex.pm/tarballs/jason-1.4.4.tar"),
             expect_equal("hex metadata names the release", hex_metadata_entry("version", "1.4.4"), '{<<"version">>,<<"1.4.4">>}.'),
             expect_equal("mix.lock hex entries become pins", [(p["package"], p["version"], p["sha256"]) for p in mix_lock_packages(_MIX_LOCK)], [("decimal", "2.1.1", "outer1"), ("jason", "1.4.4", "outer2")]),

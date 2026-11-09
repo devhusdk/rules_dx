@@ -17,31 +17,31 @@ PWSH_CELLS = {
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
         binary = "pwsh",
     ),
-    "linux_x64": struct(
+    "linux_x86_64": struct(
         artifact = "powershell-7.5.13-linux-x64.tar.gz",
         sha256 = "e9256bfc6ac98fcbec97270e8a986577a7346a587837cc80d30595eef3c2546b",
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         binary = "pwsh",
     ),
-    "osx_arm64": struct(
+    "macos_arm64": struct(
         artifact = "powershell-7.5.13-osx-arm64.tar.gz",
         sha256 = "0d2f48707d18a388096bee8820967c2ef78156f4eb74700d8a77c50798b99e94",
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
         binary = "pwsh",
     ),
-    "osx_x64": struct(
+    "macos_x86_64": struct(
         artifact = "powershell-7.5.13-osx-x64.tar.gz",
         sha256 = "57b18193fb4038b115d2b0bfe284c275e471027cde1ad202e777febf2c7da58f",
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:x86_64"],
         binary = "pwsh",
     ),
-    "win_arm64": struct(
+    "windows_arm64": struct(
         artifact = "PowerShell-7.5.13-win-arm64.zip",
         sha256 = "fc850ea69b8d476a4c1bab1a2321a0b656260efa425681a62c290d1f7054c9e8",
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64"],
         binary = "pwsh.exe",
     ),
-    "win_x64": struct(
+    "windows_x86_64": struct(
         artifact = "PowerShell-7.5.13-win-x64.zip",
         sha256 = "120b8f0b04f3b3f6e8c351ddbe568bf596cdca15eeb2ecb7e724060051a36d65",
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],

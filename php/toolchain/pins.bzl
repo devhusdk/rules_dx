@@ -17,7 +17,7 @@ def _cell(arch, os_name, cpu, sha256, flavor = "common", ext = "tar.gz", interpr
     )
 
 PHP_CELLS = {
-    "linux_amd64": _cell("linux-x86_64", "linux", "x86_64", "3c932354edf5b49d70815fb3e6df3c3d30d3a17ecdd7e89778e31aa870c43897", flavor = "gnu-bulk", pcov = True),
+    "linux_x86_64": _cell("linux-x86_64", "linux", "x86_64", "3c932354edf5b49d70815fb3e6df3c3d30d3a17ecdd7e89778e31aa870c43897", flavor = "gnu-bulk", pcov = True),
     "linux_arm64": _cell("linux-aarch64", "linux", "aarch64", "ed2ae18b2c278f6559ff902f9126a59509f56ef5600ba7f34bd69cca2b0ae944", flavor = "gnu-bulk", pcov = True),
     "macos_arm64": _cell("macos-aarch64", "macos", "aarch64", "1ece01624e45db20444b8ce1f6ab9bf267979b7c8454058c7761304a23487f9d"),
     "windows_x86_64": _cell("win", "windows", "x86_64", "722b336feb6187b0e42c4e499a4731c877aa6a6f555fb886aeeceb30cf84f326", flavor = "spc-max", ext = "zip", interpreter = "php.exe"),
@@ -34,7 +34,7 @@ PCOV = struct(
 CONDA_FORGE = "https://conda.anaconda.org/conda-forge/"
 
 PHP_HEADERS = {
-    "linux_amd64": struct(
+    "linux_x86_64": struct(
         inner = "pkg-php-8.5.12-h2a25e86_0.tar.zst",
         sha256 = "2a1e0b77c218dcc68f054a5b7a3c7fe3593fb7ad91e9ae9d98d63251753edbd1",
         urls = [CONDA_FORGE + "linux-64/php-8.5.12-h2a25e86_0.conda"],

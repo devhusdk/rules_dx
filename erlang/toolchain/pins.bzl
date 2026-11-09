@@ -86,12 +86,12 @@ _WINDOWS_OTP_URL = "https://github.com/erlang/otp/releases/download/OTP-" + OTP_
 _WINDOWS_OTP_SHA256 = "4efe9772a84c6c1ef75377e9326815584958776c905f2bf687b62509e2d809c0"
 
 CELLS = {
-    "linux_amd64": struct(
+    "linux_x86_64": struct(
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         otp_sha256 = "1df9e6285b4d14319a789176db60c273131abebdfa6b5474a084dba49b0e54a2",
         otp_url = "https://builds.hex.pm/builds/otp/amd64/ubuntu-22.04/OTP-" + OTP_VERSION + ".tar.gz",
         strip_prefix = "OTP-" + OTP_VERSION,
-        runtime = JAMMY_RUNTIME["linux_amd64"],
+        runtime = JAMMY_RUNTIME["linux_x86_64"],
     ),
     "linux_arm64": struct(
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],

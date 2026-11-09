@@ -3,7 +3,7 @@
 JAMMY_RUNTIME_MIRROR = "https://launchpad.net/ubuntu/+archive/primary/+files"
 
 JAMMY_RUNTIME = {
-    "linux_amd64": [
+    "linux_x86_64": [
         struct(
             deb = "libtinfo6_6.3-2ubuntu0.3_amd64.deb",
             libraries = {"libtinfo.so.6": "lib/x86_64-linux-gnu/libtinfo.so.6"},

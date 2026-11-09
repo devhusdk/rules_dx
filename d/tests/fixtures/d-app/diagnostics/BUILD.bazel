@@ -6,7 +6,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 
 _CELLS = [
-    "linux_amd64",
+    "linux_x86_64",
     "linux_arm64",
     "macos_arm64",
     "windows_x86_64",

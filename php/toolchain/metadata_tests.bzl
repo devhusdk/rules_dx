@@ -13,7 +13,7 @@ PINS = [COMPOSER, PCOV, PHPBENCH, PHPCS, PHPSTAN, PHPSTAN_STRICT_RULES, PHPUNIT,
 
 def _checks():
     hub = hub_build(PHP_CELLS.keys())
-    flavors = {"linux_amd64": "gnu-bulk", "linux_arm64": "gnu-bulk", "macos_arm64": "common", "windows_x86_64": "spc-max"}
+    flavors = {"linux_x86_64": "gnu-bulk", "linux_arm64": "gnu-bulk", "macos_arm64": "common", "windows_x86_64": "spc-max"}
     mac = PHP_CELLS["macos_arm64"]
     cases = cell_cases("//php/toolchain", PHP_CELLS.keys(), unsupported = True)
     default = cases.pop("//conditions:default")
@@ -27,18 +27,18 @@ def _checks():
         expect_equal("macos constraints", mac.exec_compatible_with, ["@platforms//os:macos", "@platforms//cpu:aarch64"]),
         expect_equal("windows constraints", PHP_CELLS["windows_x86_64"].exec_compatible_with, ["@platforms//os:windows", "@platforms//cpu:x86_64"]),
         expect_equal("windows interpreter", PHP_CELLS["windows_x86_64"].interpreter, "php.exe"),
-        expect_equal("unix interpreters", [PHP_CELLS[c].interpreter for c in ["linux_amd64", "linux_arm64", "macos_arm64"]], ["php", "php", "php"]),
+        expect_equal("unix interpreters", [PHP_CELLS[c].interpreter for c in ["linux_arm64", "linux_x86_64", "macos_arm64"]], ["php", "php", "php"]),
         expect_contains("a pcov runtime names the extension", runtime_build(PHP_VERSION, "php", True), 'pcov = "@dx_php_pcov//:pcov.so",'),
         expect_contains("a runtime without pcov names none", runtime_build(PHP_VERSION), "pcov = None,"),
-        expect_equal("only the linux cells load pcov", sorted([c for c in PHP_CELLS if PHP_CELLS[c].pcov]), ["linux_amd64", "linux_arm64"]),
-        expect_true("pcov headers are pinned per linux cell", all([len(PHP_HEADERS[c].sha256) == 64 for c in PHP_HEADERS]) and sorted(PHP_HEADERS.keys()) == ["linux_amd64", "linux_arm64"]),
+        expect_equal("only the linux cells load pcov", sorted([c for c in PHP_CELLS if PHP_CELLS[c].pcov]), ["linux_arm64", "linux_x86_64"]),
+        expect_true("pcov headers are pinned per linux cell", all([len(PHP_HEADERS[c].sha256) == 64 for c in PHP_HEADERS]) and sorted(PHP_HEADERS.keys()) == ["linux_arm64", "linux_x86_64"]),
         expect_contains("the windows runtime exports its interpreter", runtime_build(PHP_VERSION, "php.exe"), 'interpreter = "php.exe",'),
         expect_contains("the windows runtime exports the exe", runtime_build(PHP_VERSION, "php.exe"), 'exports_files(["php.exe", "DX_PHP_VERSION"])'),
         expect_equal("the version file is named", VERSION_FILE, "DX_PHP_VERSION"),
         expect_contains("the runtime repo pins the version", runtime_build(PHP_VERSION), 'version = "' + PHP_VERSION + '",'),
         expect_equal("a cell declares two toolchains", hub.count("toolchain("), 2 * len(PHP_CELLS)),
-        expect_contains("the runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_amd64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:toolchain_type")) + "\","),
-        expect_contains("the exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_amd64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:exec_toolchain_type")) + "\","),
+        expect_contains("the runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_x86_64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:toolchain_type")) + "\","),
+        expect_contains("the exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_x86_64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:exec_toolchain_type")) + "\","),
         expect_contains("the windows runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:windows\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_windows_x86_64//:php_toolchain\","),
         expect_contains("the macos exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:macos\", \"@platforms//cpu:aarch64\"],\n    toolchain = \"@dx_php_macos_arm64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:exec_toolchain_type")) + "\","),
     ]

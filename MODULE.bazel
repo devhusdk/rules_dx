@@ -1172,11 +1172,11 @@ use_repo(
     powershell,
     "dx_powershell_toolchains",
     "dx_powershell_toolchains__linux_arm64",
-    "dx_powershell_toolchains__linux_x64",
-    "dx_powershell_toolchains__osx_arm64",
-    "dx_powershell_toolchains__osx_x64",
-    "dx_powershell_toolchains__win_arm64",
-    "dx_powershell_toolchains__win_x64",
+    "dx_powershell_toolchains__linux_x86_64",
+    "dx_powershell_toolchains__macos_arm64",
+    "dx_powershell_toolchains__macos_x86_64",
+    "dx_powershell_toolchains__windows_arm64",
+    "dx_powershell_toolchains__windows_x86_64",
     "rules_powershell",
 )
 
@@ -1263,7 +1263,7 @@ haskell.lock(
 use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_weeder_hackage", "rules_haskell")
 
 d = use_extension("//d/toolchain:repos.bzl", "d")
-use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_amd64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
+use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_x86_64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
 

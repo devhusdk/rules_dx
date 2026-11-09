@@ -1161,6 +1161,20 @@ mod tests {
     }
 
     #[test]
+    fn piped_requests_carry_quiet_flags_until_verbose() {
+        let mut inv = parsed(&["generate", "--", "--jobs=4"]);
+        inv.piped = true;
+        let mut want = quiet_flags();
+        want.push("--jobs=4".to_owned());
+        assert_eq!(inv.generate_request().expect("generate").bazel_options, want);
+        inv.verbose = true;
+        assert_eq!(
+            inv.generate_request().expect("generate").bazel_options,
+            vec!["--jobs=4".to_owned()]
+        );
+    }
+
+    #[test]
     fn agent_quiet_generate_request_puts_quiet_flags_before_the_callers_options() {
         let generate = agent(&["generate", "--output=json", "--", "--jobs=4"])
             .generate_request()

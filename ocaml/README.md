@@ -257,4 +257,4 @@ On other platforms OCaml targets fail toolchain resolution.
 
 ## API docs
 
-`ocaml_doc_shard` (`@rules_dx//tools/docs/ocaml:defs.bzl`) turns an `ocaml_module` or `ocaml_signature` into a DocIr shard with the pinned odoc 3.2.2, built from the tools duniverse on linux_x86_64, linux_arm64 and macos_arm64. Other platforms skip OCaml in the docs aspect.
+`ocaml_doc_shard` (`@rules_dx//tools/docs/ocaml:defs.bzl`) turns an `ocaml_module`, `ocaml_signature` or `ocaml_library` into a DocIr shard with the pinned odoc 3.2.2, built from the tools duniverse on linux_x86_64, linux_arm64 and macos_arm64. Other platforms skip OCaml in the docs aspect. The `config` attribute is the identity recorded on every symbol as `ocaml.config`; it defaults to `odoc=3.2.2`.

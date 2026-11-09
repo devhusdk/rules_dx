@@ -24,6 +24,7 @@ use html::{Node, markdown, text};
 const LANGUAGE: &str = "ocaml";
 const PAGE_FILE: &str = "index.html.json";
 const KEY_INCOMPLETE: &str = "ocaml.incomplete";
+const KEY_CONFIG: &str = "ocaml.config";
 const KEY_ITEM: &str = "ocaml.item";
 
 /// The inputs of one conversion.
@@ -31,12 +32,13 @@ const KEY_ITEM: &str = "ocaml.item";
 pub struct Options {
     pub html: Vec<String>,
     pub package: String,
+    pub config: String,
     pub out: String,
 }
 
 /// The usage line shown for a rejected invocation.
 pub fn usage() -> &'static str {
-    "usage: ocaml_extract --html DIR... --package NAME --out FILE"
+    "usage: ocaml_extract --html DIR... --package NAME [--config TEXT] --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
@@ -58,6 +60,7 @@ pub fn parse_args(args: &[String]) -> Result<Options, String> {
                 continue;
             }
             "--package" => &mut options.package,
+            "--config" => &mut options.config,
             "--out" => &mut options.out,
             _ => return Err(format!("unknown argument '{flag}'")),
         };
@@ -85,7 +88,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         collect(Path::new(html), Path::new(""), &mut pages)?;
     }
     pages.sort_by(|a, b| a.0.cmp(&b.0));
-    let shard = convert(&pages, &options.package)?;
+    let shard = convert(&pages, &options.package, &options.config)?;
     let bytes = documentation_ir::encode_shard(&shard)
         .map_err(|error| format!("cannot encode IR: {error:?}"))?;
     fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
@@ -260,7 +263,11 @@ fn qualified(path: &str) -> String {
 }
 
 /// Converts the pages (directory key, JSON text) of one odoc package into a validated shard.
-pub fn convert(pages: &[(String, String)], package: &str) -> Result<DocIr, String> {
+pub fn convert(
+    pages: &[(String, String)],
+    package: &str,
+    config: &str,
+) -> Result<DocIr, String> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(format!("invalid package '{package}'"));
     }
@@ -321,6 +328,9 @@ pub fn convert(pages: &[(String, String)], package: &str) -> Result<DocIr, Strin
         let mut extensions = vec![extension(KEY_ITEM, item.label)];
         if doc.is_empty() {
             extensions.push(extension(KEY_INCOMPLETE, "doc"));
+        }
+        if !config.is_empty() {
+            extensions.push(extension(KEY_CONFIG, config));
         }
         extensions.sort_by(|a, b| a.key.cmp(&b.key));
         let signature = if item.signature.trim().is_empty() {

@@ -18,7 +18,7 @@ load("//tools/docs/dart:defs.bzl", "dart_shard_action")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/julia:defs.bzl", "julia_shard_action")
-load("//tools/docs/ocaml:defs.bzl", "ocaml_odoc_available", "ocaml_shard_action", "ocaml_typed_trees")
+load("//tools/docs/ocaml:defs.bzl", "ODOC_CONFIG", "ocaml_odoc_available", "ocaml_shard_action", "ocaml_typed_trees")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
@@ -146,7 +146,7 @@ def _ocaml_docs_shard(target, ctx):
     trees = ocaml_typed_trees(target[_OCamlCmtInfo])
     if not trees:
         return None
-    return ocaml_shard_action(ctx, trees, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.executable._odoc, ctx.executable._ocaml_extract).shard
+    return ocaml_shard_action(ctx, trees, ctx.label.name, ODOC_CONFIG, "_dx_docs/" + ctx.label.name, ctx.executable._odoc, ctx.executable._ocaml_extract).shard
 
 _TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
 _TS_TEST_MARKERS = [".test.", ".spec.", "_test."]

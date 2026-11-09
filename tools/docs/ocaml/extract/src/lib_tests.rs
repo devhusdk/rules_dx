@@ -37,7 +37,7 @@ fn find<'a>(shard: &'a DocIr, id: &str) -> &'a Symbol {
 
 #[test]
 fn converts_pages_and_specs() {
-    let shard = convert(&pages(), "geo").unwrap();
+    let shard = convert(&pages(), "geo", "").unwrap();
     assert_eq!(shard.language, "ocaml");
     let module = find(&shard, "Shapes");
     assert_eq!(module.kind, SymbolKind::Module as i32);
@@ -58,7 +58,7 @@ fn converts_pages_and_specs() {
 
 #[test]
 fn nested_and_signature_pages_get_their_own_symbols() {
-    let shard = convert(&pages(), "geo").unwrap();
+    let shard = convert(&pages(), "geo", "").unwrap();
     assert_eq!(
         find(&shard, "Shapes.Sub.inner")
             .relations
@@ -74,7 +74,7 @@ fn nested_and_signature_pages_get_their_own_symbols() {
 
 #[test]
 fn colliding_names_stay_unique_and_undocumented_items_are_incomplete() {
-    let shard = convert(&pages(), "geo").unwrap();
+    let shard = convert(&pages(), "geo", "").unwrap();
     let value = find(&shard, "Shapes.t~2Dval");
     assert_eq!(value.kind, SymbolKind::Function as i32);
     assert!(value.extensions.iter().any(|e| e.key == KEY_INCOMPLETE));
@@ -82,12 +82,12 @@ fn colliding_names_stay_unique_and_undocumented_items_are_incomplete() {
 
 #[test]
 fn rejects_bad_input() {
-    assert!(convert(&pages(), "a b").unwrap_err().contains("invalid package"));
-    assert!(convert(&[], "geo").unwrap_err().contains("no public"));
+    assert!(convert(&pages(), "a b", "").unwrap_err().contains("invalid package"));
+    assert!(convert(&[], "geo", "").unwrap_err().contains("no public"));
     let bad = vec![("geo/M".to_owned(), "{".to_owned())];
-    assert!(convert(&bad, "geo").unwrap_err().contains("malformed"));
+    assert!(convert(&bad, "geo", "").unwrap_err().contains("malformed"));
     let flat = vec![("M".to_owned(), page("", ""))];
-    assert!(convert(&flat, "geo").unwrap_err().contains("package directory"));
+    assert!(convert(&flat, "geo", "").unwrap_err().contains("package directory"));
 }
 
 #[test]
@@ -118,4 +118,25 @@ fn parse_args_requires_every_flag_once() {
             .contains("more than once")
     );
     assert!(parse_args(&args(&["--html", ""])).unwrap_err().contains("empty"));
+}
+
+#[test]
+fn config_is_recorded_on_every_symbol() {
+    let shard = convert(&pages(), "geo", "odoc=3.2.2").unwrap();
+    assert!(!shard.symbols.is_empty());
+    for symbol in &shard.symbols {
+        let found = symbol.extensions.iter().find(|e| e.key == KEY_CONFIG).unwrap();
+        assert_eq!(found.value, b"odoc=3.2.2");
+    }
+    let bare = convert(&pages(), "geo", "").unwrap();
+    assert!(bare.symbols.iter().all(|s| s.extensions.iter().all(|e| e.key != KEY_CONFIG)));
+}
+
+#[test]
+fn parses_config_flag() {
+    let args: Vec<String> = ["--html", "h", "--package", "p", "--config", "c", "--out", "o"]
+        .iter()
+        .map(|a| a.to_string())
+        .collect();
+    assert_eq!(parse_args(&args).unwrap().config, "c");
 }

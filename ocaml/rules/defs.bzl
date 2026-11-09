@@ -93,6 +93,13 @@ def _cmt_providers(ctx, upstream):
     cmtis = groups.cmti.to_list() if hasattr(groups, "cmti") else []
     return [OCamlCmtInfo(owned = cmt_entries(ctx.files.srcs, cmts, cmtis))]
 
+def _library_cmt_providers(ctx, _upstream):
+    owned = []
+    for member in ctx.attr.manifest:
+        if OCamlCmtInfo in member:
+            owned += member[OCamlCmtInfo].owned
+    return [OCamlCmtInfo(owned = owned)]
+
 def _library_forward_rule(provider, name, extra_providers = None, extra_attrs = None):
     return dx_library_forward_rule(
         extra_attrs = extra_attrs,
@@ -113,7 +120,7 @@ _module_forward = _library_forward_rule(_OCamlModuleProvider, "OCamlModuleProvid
 
 _signature_forward = _library_forward_rule(_OCamlSignatureProvider, "OCamlSignatureProvider", _cmt_providers)
 
-_library_forward = _library_forward_rule(_OCamlLibraryProvider, "OCamlLibraryProvider")
+_library_forward = _library_forward_rule(_OCamlLibraryProvider, "OCamlLibraryProvider", _library_cmt_providers, {"manifest": attr.label_list(cfg = _toolchain, doc = "The modules and libraries the library bundles; their typed trees are forwarded in OCamlCmtInfo.")})
 
 _LAUNCHER = """#!/usr/bin/env bash
 set -euo pipefail
@@ -302,7 +309,7 @@ def ocaml_signature(name, src, visibility = None, **kwargs):
 
 def ocaml_library(name, visibility = None, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_library rule."""
-    _library_shape(name, _ocaml_library, _library_forward, [], visibility, kwargs)
+    _library_shape(name, _ocaml_library, _library_forward, [], visibility, kwargs, {"manifest": kwargs.get("manifest", [])})
 
 def ocaml_binary(name, visibility = None, **kwargs):
     """Binary on the pinned ocamlrun, compatible only with the qualified OCaml cells."""

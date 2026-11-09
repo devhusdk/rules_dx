@@ -14,6 +14,7 @@ load(":entry_tests.bzl", "entry_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
 load(":license_tests.bzl", "license_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
+load(":platform_tests.bzl", "platform_probe_tests")
 load(":repo_tests.bzl", "repo_unit_tests")
 load(":seven_zip_tests.bzl", "seven_zip_tests")
 load(":subject.bzl", "example_subject")
@@ -86,6 +87,8 @@ observations_only_tests(name = "observations_only_analysis")
 aspect_subject_tests(name = "aspect_subject_analysis")
 
 config_subject_tests(name = "config_subject_analysis")
+
+platform_probe_tests(name = "platform_probe_analysis")
 
 fixture_execution_tests(name = "fixture_execution")
 

@@ -1,9 +1,21 @@
 """Builds deb, rpm and apk packages with nfpm and attaches them to a GitHub release."""
 
+load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":github.bzl", "github_deploy")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 LINUX_PACKAGE_FORMATS = ["deb", "rpm", "apk"]
+
+_PACKAGE_ARCHES = {"aarch64": "arm64", "x86_64": "amd64"}
+
+def linux_package_arch_error(os, cpu):
+    """Validates that the platform is a Linux platform the packages support."""
+    if os != "linux":
+        return "linux_package_deploy: unsupported os '" + os + "': want linux"
+    if cpu not in _PACKAGE_ARCHES:
+        return ("linux_package_deploy: unsupported cpu '" + cpu +
+                "': want one of " + ", ".join(sorted(_PACKAGE_ARCHES)))
+    return ""
 
 def linux_package_name_error(package):
     """Validates one package name value."""
@@ -80,13 +92,19 @@ def _linux_package_impl(ctx):
             "type": "file",
         })
 
+    id = platform_identity(ctx)
+    arch_error = linux_package_arch_error(id.os, id.cpu)
+    if arch_error != "":
+        fail(arch_error + " (in " + str(ctx.label) + ")")
+    arch = _PACKAGE_ARCHES[id.cpu]
+
     config = ctx.actions.declare_file(ctx.label.name + ".nfpm.yaml")
     ctx.actions.write(
         output = config,
         content = linux_package_config(
             ctx.attr.package,
             ctx.attr.version,
-            ctx.attr.arch,
+            arch,
             ctx.attr.maintainer,
             ctx.attr.description,
             contents,
@@ -95,7 +113,7 @@ def _linux_package_impl(ctx):
     out = ctx.actions.declare_file(linux_package_filename(
         ctx.attr.package,
         ctx.attr.version,
-        ctx.attr.arch,
+        arch,
         ctx.attr.format,
     ))
     nfpm = ctx.executable._nfpm
@@ -114,7 +132,6 @@ linux_package = rule(
     doc = "Builds one deb, rpm or apk package from files with nfpm.",
     implementation = _linux_package_impl,
     attrs = {
-        "arch": attr.string(mandatory = True, doc = "Package architecture in Go naming, such as amd64 or arm64."),
         "contents": attr.label_keyed_string_dict(
             allow_files = True,
             mandatory = True,
@@ -131,7 +148,7 @@ linux_package = rule(
             executable = True,
             allow_single_file = True,
         ),
-    },
+    } | PLATFORM_ATTRS,
 )
 
 def linux_package_deploy(
@@ -139,7 +156,7 @@ def linux_package_deploy(
         binary,
         version = "0.0.0",
         formats = ["deb", "rpm"],
-        arch = "amd64",
+        platform = None,
         maintainer = "unknown <unknown@example.com>",
         description = "",
         install_path = None,
@@ -170,7 +187,7 @@ def linux_package_deploy(
         target = name + "_" + fmt
         linux_package(
             name = target,
-            arch = arch,
+            platform = platform,
             contents = contents,
             description = description or name,
             format = fmt,

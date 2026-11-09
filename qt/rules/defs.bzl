@@ -1099,18 +1099,6 @@ QT_BUNDLE_COMPATIBLE_WITH = select(
     {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/rules")]},
 )
 
-# consumer_archive os of the qualified cell the build targets.
-QT_CONSUMER_OS = select(
-    {_cell_setting(cell): IDENTITIES[cell].os for cell in _CONSUMER_CELLS} |
-    {"//conditions:default": ""},
-)
-
-# consumer_archive arch of the qualified cell the build targets.
-QT_CONSUMER_ARCH = select(
-    {_cell_setting(cell): qt_consumer_identity(cell).arch for cell in _CONSUMER_CELLS} |
-    {"//conditions:default": ""},
-)
-
 # consumer_archive min_runtime of the qualified cell the build targets.
 QT_CONSUMER_MIN_RUNTIME = select(
     {_cell_setting(cell): qt_consumer_identity(cell).min_runtime for cell in _CONSUMER_CELLS} |

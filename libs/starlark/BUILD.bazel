@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":platform.bzl", "platform_probe")
 
 bool_flag(
     name = "msvc_crt_from_rust",
@@ -24,6 +25,7 @@ exports_files([
     "msvc_crt.bzl",
     "packaging.bzl",
     "plan_shard.bzl",
+    "platform.bzl",
     "repo.bzl",
     "resources.bzl",
     "rlocation.bzl",
@@ -51,6 +53,7 @@ real_source_target(
         "msvc_crt.bzl",
         "packaging.bzl",
         "plan_shard.bzl",
+        "platform.bzl",
         "repo.bzl",
         "resources.bzl",
         "tag_probe.bzl",
@@ -62,6 +65,11 @@ real_source_target(
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
+)
+
+platform_probe(
+    name = "platform_probe",
+    visibility = ["//visibility:public"],
 )
 
 filegroup(

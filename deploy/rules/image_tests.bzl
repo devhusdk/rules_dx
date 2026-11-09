@@ -3,6 +3,10 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":image.bzl", "image_binary_name", "image_default_main", "image_entrypoint", "image_options_error", "image_runtime_dest")
 
+_AMD64 = str(Label("//deploy/rules/platforms:linux_amd64"))
+
+_ARM64 = str(Label("//deploy/rules/platforms:linux_arm64"))
+
 def image_unit_tests(name):
     starlark_test(
         name = name,
@@ -65,57 +69,57 @@ def image_unit_tests(name):
             ),
             expect_equal(
                 "image_options_error accepts the defaults",
-                image_options_error(":server", "static", ["linux/amd64"]),
+                image_options_error(":server", "static", [_AMD64]),
                 "",
             ),
             expect_equal(
                 "image_options_error accepts two platforms",
-                image_options_error(":server", "cc", ["linux/amd64", "linux/arm64"]),
+                image_options_error(":server", "cc", [_AMD64, _ARM64]),
                 "",
             ),
             expect_equal(
                 "image_options_error rejects an unknown base",
-                image_options_error(":server", "alpine", ["linux/amd64"]),
+                image_options_error(":server", "alpine", [_AMD64]),
                 "oci_image_from_binary: invalid base 'alpine': want one of cc, dotnet, java, node, python, static",
             ),
             expect_equal(
                 "image_options_error rejects an empty platform list",
                 image_options_error(":server", "static", []),
-                "oci_image_from_binary: want at least one platform, one of linux/amd64, linux/arm64",
+                "oci_image_from_binary: want at least one platform, one of @rules_dx//deploy/rules/platforms:linux_amd64, @rules_dx//deploy/rules/platforms:linux_arm64",
             ),
             expect_equal(
                 "image_options_error rejects an unknown platform",
-                image_options_error(":server", "static", ["windows/amd64"]),
-                "oci_image_from_binary: invalid platform 'windows/amd64': want one of linux/amd64, linux/arm64",
+                image_options_error(":server", "static", ["//other:windows"]),
+                "oci_image_from_binary: invalid platform '//other:windows': want one of @rules_dx//deploy/rules/platforms:linux_amd64, @rules_dx//deploy/rules/platforms:linux_arm64",
             ),
             expect_equal(
                 "image_options_error rejects a repeated platform",
-                image_options_error(":server", "static", ["linux/amd64", "linux/amd64"]),
-                "oci_image_from_binary: want each platform once, got linux/amd64, linux/amd64",
+                image_options_error(":server", "static", [_AMD64, _AMD64]),
+                "oci_image_from_binary: want each platform once, got " + _AMD64 + ", " + _AMD64,
             ),
             expect_equal(
                 "image_options_error accepts a python base with main",
-                image_options_error(":server", "python", ["linux/amd64"], main = "app/server.py"),
+                image_options_error(":server", "python", [_AMD64], main = "app/server.py"),
                 "",
             ),
             expect_equal(
                 "image_options_error wants main for python",
-                image_options_error(":server", "python", ["linux/amd64"]),
+                image_options_error(":server", "python", [_AMD64]),
                 "oci_image_from_binary: base 'python' needs main, the workspace path of the entry script",
             ),
             expect_equal(
                 "image_options_error accepts a java base with main_class",
-                image_options_error(":server", "java", ["linux/amd64"], main_class = "app.Server"),
+                image_options_error(":server", "java", [_AMD64], main_class = "app.Server"),
                 "",
             ),
             expect_equal(
                 "image_options_error leaves java main_class to the binary",
-                image_options_error(":server", "java", ["linux/amd64"]),
+                image_options_error(":server", "java", [_AMD64]),
                 "",
             ),
             expect_equal(
                 "image_options_error rejects main on a static base",
-                image_options_error(":server", "static", ["linux/amd64"], main = "server.py"),
+                image_options_error(":server", "static", [_AMD64], main = "server.py"),
                 "oci_image_from_binary: main and main_class only apply to the python, java, node and dotnet bases",
             ),
             expect_equal(
@@ -133,12 +137,12 @@ def image_unit_tests(name):
             ),
             expect_equal(
                 "image_options_error accepts a node base with main",
-                image_options_error(":server", "node", ["linux/amd64"], main = "app/server.js"),
+                image_options_error(":server", "node", [_AMD64], main = "app/server.js"),
                 "",
             ),
             expect_equal(
                 "image_options_error wants main for node",
-                image_options_error(":server", "node", ["linux/amd64"]),
+                image_options_error(":server", "node", [_AMD64]),
                 "oci_image_from_binary: base 'node' needs main, the workspace path of the entry script",
             ),
             expect_equal(
@@ -148,7 +152,7 @@ def image_unit_tests(name):
             ),
             expect_equal(
                 "image_options_error wants main for dotnet",
-                image_options_error(":server", "dotnet", ["linux/amd64"]),
+                image_options_error(":server", "dotnet", [_AMD64]),
                 "oci_image_from_binary: base 'dotnet' needs main, the workspace path of the entry script",
             ),
             expect_equal(
@@ -168,12 +172,12 @@ def image_unit_tests(name):
             ),
             expect_equal(
                 "image_options_error rejects runtime on a static base",
-                image_options_error(":server", "static", ["linux/amd64"], runtime = True),
+                image_options_error(":server", "static", [_AMD64], runtime = True),
                 "oci_image_from_binary: runtime only applies to the python, java, node and dotnet bases",
             ),
             expect_equal(
                 "image_options_error accepts runtime on a java base",
-                image_options_error(":server", "java", ["linux/amd64"], runtime = True),
+                image_options_error(":server", "java", [_AMD64], runtime = True),
                 "",
             ),
             expect_equal(

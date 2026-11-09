@@ -36,11 +36,10 @@ cc_toolchain_binary(
 consumer_archive(
     name = "hello_msvc_release",
     app = ":hello_msvc",
-    arch = "x86_64",
     format = "zip",
     min_runtime = "windows-10",
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
-    os = "windows",
+    platform = ":windows_x86_64",
     runtime = [
         "//cc/toolchains:msvc_vcruntime",
         "//cc/toolchains:windows_ucrt",

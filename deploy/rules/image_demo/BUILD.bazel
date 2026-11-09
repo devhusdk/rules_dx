@@ -23,15 +23,15 @@ oci_image_from_binary(
 oci_deploy(
     name = "publish",
     image_tar = ":image",
-    platform = "linux/amd64",
+    platform = "//deploy/rules/platforms:linux_amd64",
 )
 
 oci_image_from_binary(
     name = "image_multi",
     binary = ":hello",
     platforms = [
-        "linux/amd64",
-        "linux/arm64",
+        "//deploy/rules/platforms:linux_amd64",
+        "//deploy/rules/platforms:linux_arm64",
     ],
 )
 

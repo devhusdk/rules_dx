@@ -33,13 +33,8 @@ dx_resources(
 consumer_archive(
     name = "repo_root_release",
     app = ":external_app",
-    arch = select({
-        "@platforms//cpu:arm64": "aarch64",
-        "@platforms//cpu:x86_64": "x86_64",
-    }),
     min_runtime = "glibc-2.17",
     notice = ":NOTICE.txt",
-    os = "linux",
     resources = [":repo_res"],
 )
 '''
@@ -57,13 +52,8 @@ dx_resources(
 consumer_archive(
     name = "repo_nested_release",
     app = "//:external_app",
-    arch = select({
-        "@platforms//cpu:arm64": "aarch64",
-        "@platforms//cpu:x86_64": "x86_64",
-    }),
     min_runtime = "glibc-2.17",
     notice = "//:NOTICE.txt",
-    os = "linux",
     resources = [":repo_res"],
 )
 '''

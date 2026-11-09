@@ -4,7 +4,6 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:providers.bzl", "PackageFilesInfo")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load(":oci.bzl", "OCI_PLATFORMS", "oci_platform_error")
 
 IMAGE_BASES = {
     "cc": "@distroless_cc",
@@ -47,9 +46,11 @@ _RUNTIME_LAYOUT = {
 }
 
 _PLATFORM_LABELS = {
-    "linux/amd64": "//deploy/rules/platforms:linux_amd64",
-    "linux/arm64": "//deploy/rules/platforms:linux_arm64",
+    "linux/amd64": "@rules_dx//deploy/rules/platforms:linux_amd64",
+    "linux/arm64": "@rules_dx//deploy/rules/platforms:linux_arm64",
 }
+
+_LABEL_PLATFORMS = {str(Label(label)): platform for platform, label in _PLATFORM_LABELS.items()}
 
 def image_binary_name(binary):
     """Returns the target name of a binary label."""
@@ -82,11 +83,11 @@ def image_options_error(binary, base, platforms, main = None, main_class = None,
         return ("oci_image_from_binary: invalid base '" + str(base) +
                 "': want one of " + ", ".join(sorted(IMAGE_BASES)))
     if type(platforms) != "list" or len(platforms) == 0:
-        return "oci_image_from_binary: want at least one platform, one of " + ", ".join(OCI_PLATFORMS)
+        return "oci_image_from_binary: want at least one platform, one of " + ", ".join(_PLATFORM_LABELS.values())
     for platform in platforms:
-        error = oci_platform_error(platform)
-        if error != "":
-            return error.replace("oci_deploy", "oci_image_from_binary")
+        if platform not in _LABEL_PLATFORMS:
+            return ("oci_image_from_binary: invalid platform '" + str(platform) +
+                    "': want one of " + ", ".join(_PLATFORM_LABELS.values()))
     if len(depset(platforms).to_list()) != len(platforms):
         return "oci_image_from_binary: want each platform once, got " + ", ".join(platforms)
     if runtime and base not in _RUNTIMES:
@@ -249,7 +250,7 @@ _jars_for_platform = rule(
     },
 )
 
-def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd64"], tags = [], main = None, main_class = None, runtime = False, visibility = None, testonly = None):
+def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy/rules/platforms:linux_amd64"], tags = [], main = None, main_class = None, runtime = False, visibility = None, testonly = None):
     """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
 
     One platform gives an oci_image and an oci_load target named name + "_load".
@@ -271,6 +272,8 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     """
     if not main and type(binary) == "string":
         main = image_default_main(base, binary, native.package_name())
+    if type(platforms) == "list":
+        platforms = [str(native.package_relative_label(platform)) for platform in platforms]
     error = image_options_error(binary, base, platforms, main, main_class, runtime)
     if error != "":
         fail(error + " (in " + native.package_name() + ":" + name + ")")
@@ -279,13 +282,14 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     single = len(platforms) == 1
 
     images = []
-    for platform in platforms:
+    for label in platforms:
+        platform = _LABEL_PLATFORMS[label]
         suffix = "" if single else "_" + platform.split("/")[1]
         if base == "java":
             _jars_for_platform(
                 name = name + "_jars" + suffix,
                 binary = binary,
-                platform = _PLATFORM_LABELS[platform],
+                platform = label,
                 read_main_class = not main_class,
                 tags = ["manual"],
             )
@@ -305,7 +309,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
             _for_platform(
                 name = name + "_binary" + suffix,
                 binary = binary,
-                platform = _PLATFORM_LABELS[platform],
+                platform = label,
                 tags = ["manual"],
             )
             pkg_tar(

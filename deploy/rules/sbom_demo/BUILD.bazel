@@ -42,7 +42,7 @@ sh_test(
 oci_deploy(
     name = "app_image",
     image_tar = "image.tar",
-    platform = "linux/amd64",
+    platform = "//deploy/rules/platforms:linux_amd64",
     sbom = ":app_sbom",
 )
 

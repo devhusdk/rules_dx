@@ -1,6 +1,7 @@
 """Credential-free release archives for dx deploy."""
 
 load("//libs/starlark:defs.bzl", "display_label")
+load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
@@ -215,7 +216,8 @@ def consumer_resource_member(repo, package, name, short_path):
 
 def _consumer_stage_impl(ctx):
     """Stages one consumer app plus resources, NOTICE and IDENTITY for archiving."""
-    error = consumer_identity_error(ctx.attr.arch, ctx.attr.os, ctx.attr.linkage, ctx.attr.min_runtime, ctx.attr.format)
+    id = platform_identity(ctx)
+    error = consumer_identity_error(id.cpu, id.os, ctx.attr.linkage, ctx.attr.min_runtime, ctx.attr.format)
     if error != "":
         fail(error + " (in " + str(ctx.label) + ")")
     exe = ctx.attr.app[DefaultInfo].files_to_run.executable
@@ -312,8 +314,8 @@ def _consumer_stage_impl(ctx):
         output = identity_out,
         content = consumer_identity_text(
             ctx.attr.archive_name,
-            ctx.attr.arch,
-            ctx.attr.os,
+            id.cpu,
+            id.os,
             ctx.attr.linkage,
             ctx.attr.min_runtime,
             runtime_records,
@@ -358,10 +360,6 @@ _consumer_stage = rule(
             doc = "Consumer app executable target packaged into the archive.",
             mandatory = True,
         ),
-        "arch": attr.string(
-            doc = "Target architecture recorded in IDENTITY.txt.",
-            mandatory = True,
-        ),
         "archive_name": attr.string(
             doc = "Archive name recorded in IDENTITY.txt.",
             mandatory = True,
@@ -387,10 +385,6 @@ _consumer_stage = rule(
             doc = "License file packaged as NOTICE, exactly one file.",
             allow_files = True,
         ),
-        "os": attr.string(
-            doc = "Target operating system recorded in IDENTITY.txt.",
-            mandatory = True,
-        ),
         "resources": attr.label_list(
             doc = "Resource targets packaged under derived member paths.",
             allow_files = True,
@@ -404,7 +398,7 @@ _consumer_stage = rule(
             default = _ARCHIVER,
             executable = True,
         ),
-    },
+    } | PLATFORM_ATTRS,
 )
 
 def _consumer_tarball_impl(ctx):
@@ -454,7 +448,7 @@ _consumer_tarball = rule(
     },
 )
 
-def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, license_file = None, check_imports = True, format = "tar.gz", tags = None, target_compatible_with = None, visibility = None, testonly = None):
+def consumer_archive(name, app, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, license_file = None, check_imports = True, format = "tar.gz", platform = None, tags = None, target_compatible_with = None, visibility = None, testonly = None):
     """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file.
 
     `name` is the archive; `name_checksum` is its sha256 file. `name_stage` and `name_archive` are helpers.
@@ -467,7 +461,6 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
     _consumer_stage(
         name = stage_target,
         app = app,
-        arch = arch,
         archive_name = name,
         check_imports = check_imports,
         format = format,
@@ -475,7 +468,7 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         min_runtime = min_runtime,
         license_file = license_file,
         notice = notice,
-        os = os,
+        platform = platform,
         resources = resources,
         runtime = runtime,
         tags = tags,

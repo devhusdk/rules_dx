@@ -1929,7 +1929,7 @@ genrule(
 oci_deploy(
     name = "oci_demo",
     image_tar = ":oci_demo_tar",
-    platform = "linux/amd64",
+    platform = "//deploy/rules/platforms:linux_amd64",
 )
 
 image_unit_tests(name = "image_unit")
@@ -1950,7 +1950,7 @@ oci_layout_fixture(
 oci_deploy(
     name = "oci_demo_layout",
     image_tar = ":oci_demo_layout_dir",
-    platform = "linux/amd64",
+    platform = "//deploy/rules/platforms:linux_amd64",
 )
 
 deploy_analysis_test(

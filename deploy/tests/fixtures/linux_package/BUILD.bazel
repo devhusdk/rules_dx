@@ -26,5 +26,6 @@ linux_package_deploy(
         "apk",
     ],
     maintainer = "Demo <demo@example.com>",
+    platform = "//deploy/rules/platforms:linux_amd64",
     version = "1.2.3",
 )

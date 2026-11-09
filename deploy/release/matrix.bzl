@@ -121,13 +121,11 @@ def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx", pdb = "//c
         consumer_archive(
             name = cell_name,
             app = app,
-            arch = cell["machine"],
             format = cell["format"],
             license_file = "//:LICENSE",
             linkage = cell["linkage"],
             min_runtime = cell["min_runtime"],
             notice = ":" + cell_name + "_notice_notice",
-            os = cell["os"],
             runtime = cell["runtime"],
             target_compatible_with = constraints,
         )

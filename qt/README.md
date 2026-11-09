@@ -317,7 +317,7 @@ resource:
 
 ```python
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
-load("@rules_dx//qt/rules:defs.bzl", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "QT_CONSUMER_OS", "qt_bundle")
+load("@rules_dx//qt/rules:defs.bzl", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle")
 
 qt_bundle(
     name = "runtime",
@@ -328,10 +328,8 @@ qt_bundle(
 consumer_archive(
     name = "app_release",
     app = ":app",
-    arch = QT_CONSUMER_ARCH,
     min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "NOTICE",
-    os = QT_CONSUMER_OS,
     resources = [":runtime"],
     runtime = [":runtime_runtime"],
 )
@@ -341,10 +339,10 @@ consumer_archive(
 `resources/`, so `consumer_archive` puts them next to the executable. It ships
 nothing on cells without DLLs.
 
-`QT_CONSUMER_ARCH`, `QT_CONSUMER_OS` and `QT_CONSUMER_MIN_RUNTIME` select the
-archive identity of the targeted cell: `x86_64`, `linux` and `glibc-2.34` on
-`linux_x86_64`, `aarch64`, `linux` and `glibc-2.39` on `linux_arm64`, and
-`aarch64`, `macos` and `macos-13.0` on `macos_arm64`. `qt_bundle` is skipped on
+`consumer_archive` records the os and cpu of the target platform.
+`QT_CONSUMER_MIN_RUNTIME` selects the minimum runtime of the targeted cell:
+`glibc-2.34` on `linux_x86_64`, `glibc-2.39` on `linux_arm64` and `macos-13.0`
+on `macos_arm64`. `qt_bundle` is skipped on
 cells without a needs table, such as the Windows cells for now. On macOS, any
 non-empty `display` ships the `cocoa` platform plugin.
 

@@ -1,5 +1,6 @@
 """Local-first OCI publisher for dx deploy."""
 
+load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "LOWER_ALNUM", "NAME_CHARS", "only_chars", "size_budget_bytes", "size_budget_error")
@@ -113,6 +114,12 @@ def oci_platform_error(platform):
                 "': want one of " + ", ".join(OCI_PLATFORMS))
     return ""
 
+def oci_platform(id):
+    """Returns the OCI platform of a platform identity, or empty when it has none."""
+    if id.os != "linux":
+        return ""
+    return "linux/" + {"aarch64": "arm64", "x86_64": "amd64"}.get(id.cpu, id.cpu)
+
 def oci_image_error(filename, is_directory = False):
     """Validates one image archive filename or layout directory name."""
     if type(filename) != "string" or filename == "":
@@ -135,13 +142,18 @@ def _oci_config_impl(ctx):
     if tar_error != "":
         fail(tar_error + " (in " + str(ctx.label) + ")")
 
+    platform = oci_platform(platform_identity(ctx))
+    platform_error = oci_platform_error(platform)
+    if platform_error != "":
+        fail(platform_error + " (in " + str(ctx.label) + ")")
+
     files = [tar_file]
     repo = ("@" + ctx.label.repo_name) if ctx.label.repo_name else ""
     deploy_name = ctx.label.name[:-len("_config")] if ctx.label.name.endswith("_config") else ctx.label.name
     fields = {
         "image_rloc": rlocation_path(ctx, tar_file),
         "label": repo + "//" + ctx.label.package + ":" + deploy_name,
-        "platform": ctx.attr.platform,
+        "platform": platform,
         "registry": ctx.attr.registry,
         "repository": ctx.attr.repository,
         "scan": ctx.attr.scan,
@@ -189,19 +201,15 @@ _oci_config = rule(
             doc = "Image tag the deployment publishes.",
             mandatory = True,
         ),
-        "platform": attr.string(
-            doc = "Image platform, one of the supported OCI platforms.",
-            mandatory = True,
-        ),
         "sbom": attr.label(
             doc = "Optional dx_sbom target kept with the deployment for the cosign attestation.",
             allow_single_file = True,
         ),
-    },
+    } | PLATFORM_ATTRS,
 )
 
 def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = "", sbom = None, scan = "fail", scan_severity = "HIGH"):
-    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push. `dx security` scans the same image (output group dx_oci_image of the `<name>_config` target) and prints one row per image."""
+    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image for `platform`, a linux amd64 or arm64 platform label, as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`. The staged image is scanned with trivy (DX_TRIVY, DX_TRIVY_CACHE) for findings at or above scan_severity not covered by security.toml exceptions; scan is off, warn or fail, and fail also stops the push. `dx security` scans the same image (output group dx_oci_image of the `<name>_config` target) and prints one row per image."""
     effective_repo = repository if repository != "" else name
     budget_error = size_budget_error(size_budget)
     if budget_error != "":
@@ -210,9 +218,6 @@ def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_D
         fail("oci_deploy: invalid scan '" + str(scan) + "': want off, warn or fail (in " + native.package_name() + ":" + name + ")")
     if scan_severity not in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]:
         fail("oci_deploy: invalid scan_severity '" + str(scan_severity) + "': want LOW, MEDIUM, HIGH or CRITICAL (in " + native.package_name() + ":" + name + ")")
-    platform_error = oci_platform_error(platform)
-    if platform_error != "":
-        fail(platform_error + " (in " + native.package_name() + ":" + name + ")")
     tag_error = oci_tag_error(image_tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")

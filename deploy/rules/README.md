@@ -281,17 +281,18 @@ load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
 consumer_archive(
     name = "ledger_release",
     app = ":ledger",
-    arch = "x86_64",
     min_runtime = "glibc-2.34",
     notice = "NOTICE",
-    os = "linux",
+    platform = "@rules_dx//deploy/rules/platforms:linux_amd64",
     resources = [":runtime"],
 )
 ```
 
 - `app`: required. One executable target, stored at the archive root.
-- `arch`: required. `x86_64` or `aarch64`.
-- `os`: required. `linux`, `macos` or `windows`.
+- `platform`: Bazel platform whose os and cpu go into `IDENTITY.txt`. The os
+  is `linux`, `macos` or `windows` and the cpu `x86_64` or `aarch64`. Defaults
+  to the current target platform, so it cannot disagree with
+  `target_compatible_with`. The app and runtime are not rebuilt for it.
 - `min_runtime`: required. A non-empty requirement such as `glibc-2.34`.
 - `linkage`: `static` or `dynamic`. Defaults to `dynamic`.
 - `runtime`: files the app needs at run time. Each lands at the archive root
@@ -572,7 +573,10 @@ linux_package_deploy(
 
 - `binary`: executable installed at `install_path`, default `/usr/bin/<name>`.
 - `formats`: any of `deb`, `rpm`, `apk`. Defaults to `["deb", "rpm"]`.
-- `version`, `arch` (Go names such as `amd64`, `arm64`), `maintainer`, `description`: package metadata.
+- `platform`: a Linux x86_64 or arm64 Bazel platform label, recorded as the
+  package architecture (`amd64` or `arm64`). Defaults to the current target
+  platform; other operating systems fail. The binary is not rebuilt for it.
+- `version`, `maintainer`, `description`: package metadata.
 - `extra_files`: more files, mapped to absolute install paths, installed as `0644`.
 - `release_tag`, `tag_from_head`, `notes`, `notes_file`, `build_mode`, `tags`: as for `github_deploy`.
 
@@ -742,7 +746,7 @@ oci_image_from_binary(
 oci_deploy(
     name = "publish",
     image_tar = ":image",
-    platform = "linux/amd64",
+    platform = "@rules_dx//deploy/rules/platforms:linux_amd64",
 )
 ```
 
@@ -761,7 +765,8 @@ oci_deploy(
   base interpreter with a layer from the managed toolchain, installed under
   `/opt/<base>`, on the distroless `cc` image. The dotnet runtime runs with
   invariant globalization.
-- `platforms`: defaults to `["linux/amd64"]`. One platform gives an
+- `platforms`: Bazel platform labels, `@rules_dx//deploy/rules/platforms:linux_amd64`
+  or `:linux_arm64`. Defaults to the amd64 label. One platform gives an
   `oci_image` and an `<name>_load` target that `dx run` loads into a local
   runtime. Several platforms give an `oci_image_index` that builds the binary
   once per platform; `oci_deploy` takes one `platform` of it, and
@@ -780,14 +785,16 @@ load("@rules_dx//deploy/rules:oci.bzl", "oci_deploy")
 oci_deploy(
     name = "oci_demo",
     image_tar = ":oci_demo_tar",
-    platform = "linux/amd64",
+    platform = "@rules_dx//deploy/rules/platforms:linux_amd64",
 )
 ```
 
 - `image_tar`: required. A `docker save` or OCI layout archive, `.tar` or
   `.tar.gz`, or an OCI layout directory such as a rules_oci `oci_image`,
   holding one image.
-- `platform`: required. `linux/amd64` or `linux/arm64`.
+- `platform`: required. The Bazel platform label of the image,
+  `@rules_dx//deploy/rules/platforms:linux_amd64` or `:linux_arm64`; the deploy
+  records it as `linux/amd64` or `linux/arm64`.
 - `image_tag`: defaults to `latest`. At most 128 chars, not starting with `.` or `-`.
 - `registry`: defaults to `ghcr.io`.
 - `repository`: lowercase OCI path segments. Defaults to `name`, so a

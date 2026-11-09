@@ -44,10 +44,9 @@ cc_toolchain_binary(
 consumer_archive(
     name = "hello_gcc_release",
     app = ":hello_gcc",
-    arch = "x86_64",
     min_runtime = "glibc-2.28",
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
-    os = "linux",
+    platform = ":linux_x86_64",
     runtime = ["//cc/toolchains:gcc_linux_glibc"],
     target_compatible_with = [
         "@platforms//os:linux",
@@ -72,10 +71,9 @@ cc_toolchain_binary(
 consumer_archive(
     name = "hello_cxx_release",
     app = ":hello_cxx_gcc",
-    arch = "x86_64",
     min_runtime = "glibc-2.28",
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
-    os = "linux",
+    platform = ":linux_x86_64",
     runtime = [
         "//cc/toolchains:gcc_linux_glibc",
         "//cc/toolchains:gcc_linux_libstdcxx",

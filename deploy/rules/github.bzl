@@ -1,6 +1,6 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
-load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
@@ -131,7 +131,6 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", build_mode = "release"
     api_error = api_compat_error("github_deploy", api_compat, api_baseline)
     if api_error != "":
         fail(api_error + " (in " + native.package_name() + ":" + name + ")")
-    api_compat = api_compat_mode(api_compat)
     checked = api_compat != "off"
     config_target = name + "_config"
     github_config(

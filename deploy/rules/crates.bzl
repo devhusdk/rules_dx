@@ -1,6 +1,6 @@
 """Local-first crates.io publisher for dx deploy."""
 
-load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "ALNUM", "VERSION_CHARS", "only_chars")
@@ -116,7 +116,7 @@ def crates_deploy(name, crate, version = "0.0.0", build_mode = "release", api_co
         crate = crate,
         crate_name = name,
         version = version,
-        api_compat = api_compat_mode(api_compat),
+        api_compat = api_compat,
         api_baseline = api_baseline,
         tags = tags,
     )

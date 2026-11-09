@@ -1,6 +1,6 @@
 """Local-first pub.dev publisher for dx deploy."""
 
-load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "LOWER_ALNUM", "VERSION_CHARS", "only_chars")
@@ -159,7 +159,7 @@ def pub_deploy(name, package, version = "0.0.0", hosted_url = PUB_DEFAULT_HOSTED
     _pub_config(
         name = config_target,
         api_baseline = api_baseline,
-        api_compat = api_compat_mode(api_compat),
+        api_compat = api_compat,
         hosted_url = hosted_url,
         package = package,
         package_name = name,

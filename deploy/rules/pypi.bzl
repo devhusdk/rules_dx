@@ -1,7 +1,7 @@
 """Local-first PyPI publisher for dx deploy."""
 
 load("//rust/rules:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
-load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
@@ -138,7 +138,6 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
     api_error = api_compat_error("pypi_deploy", api_compat, api_baseline)
     if api_error != "":
         fail(api_error + " (in " + native.package_name() + ":" + name + ")")
-    api_compat = api_compat_mode(api_compat)
     if api_compat != "off" and api_baseline == "git" and api_src == "":
         fail("pypi_deploy: api_baseline = \"git\" needs api_src (in " +
              native.package_name() + ":" + name + ")")

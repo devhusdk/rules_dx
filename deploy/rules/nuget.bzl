@@ -1,6 +1,6 @@
 """Local-first NuGet publisher for dx deploy."""
 
-load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error", "api_compat_mode")
+load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
@@ -140,7 +140,7 @@ def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFA
     _nuget_config(
         name = config_target,
         api_baseline = api_baseline,
-        api_compat = api_compat_mode(api_compat),
+        api_compat = api_compat,
         deploy_name = name,
         nupkg = nupkg,
         package_id = package_id,

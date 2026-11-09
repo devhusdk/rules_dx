@@ -16,7 +16,7 @@ dx check --affected --output=json
 | `docs` | The docs sites, shards, and API trees under `//...`. |
 | `env` | The whole repo. Or pass exactly one `//` or `@` label. |
 | `update` | Every set. Or pass `set`, `set:package`, a label, or a path. `<set:package> <version>` takes one package and one version. |
-| `run` | Needs a runnable scope. |
+| `run` | A runnable scope. With none, dx runs the only executable target in the repo, or lists up to 10 to pick from. |
 | `deploy` | Exactly one main-workspace label. |
 | `watch` | A watchable command plus its scopes. |
 | `init` | An optional directory. |

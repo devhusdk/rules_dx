@@ -342,7 +342,7 @@ fn input_and_default_failures_end_in_one_error_before_any_bazel_call() {
     for (flags, env) in JSON_MODES {
         for (args, code) in [
             (vec!["build", "no/such/path"], "invalid_scope"),
-            (vec!["run"], "invalid_scope"),
+            (vec!["run", "no/such/path"], "invalid_scope"),
             (vec!["build", "--cwd", "src"], "invalid_arguments"),
             (vec!["build", "--dry-run"], "invalid_arguments"),
         ] {

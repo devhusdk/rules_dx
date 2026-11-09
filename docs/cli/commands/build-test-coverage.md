@@ -133,6 +133,7 @@ dx run [--debug|--release] [--timings] [--bazel-option <token>]... <label...> [-
 
 Builds the runnable targets, then runs them in order. Args after `--` go to the app. `--bazel-option <token>` passes one option to the build and the run. Repeatable.
 
+- With no scope, dx runs the only executable target under `//...`. If there are several it fails with `pass one of: ...` (up to 10 shown).
 - Labels and patterns run in order. A file or directory scope must match exactly one runnable target.
 - The first app that exits nonzero stops the rest.
 - `--apply` is a usage error. Works with `CI=true`.

@@ -642,11 +642,15 @@ mod tests {
     }
 
     #[test]
-    fn run_empty_scope_is_pre_exec() {
+    fn run_empty_scope_lists_runnables() {
         let harness = Harness::new("run-empty");
+        harness.query.script_stdout("//app:two\n//app:one\n");
+        harness
+            .query
+            .script_stdout("@@//app:two|True\n@@//app:one|True\n");
         let (code, _, err) = harness.run(&["run"]);
         assert_eq!(code, 2);
-        assert!(err.contains("empty scope"), "{err}");
+        assert!(err.contains("pass one of: //app:one, //app:two"), "{err}");
     }
 
     #[test]
@@ -1092,9 +1096,13 @@ mod tests {
     #[test]
     fn run_ci_keeps_resolution_errors() {
         let harness = Harness::new("run-ci-empty");
+        harness.query.script_stdout("//app:two\n//app:one\n");
+        harness
+            .query
+            .script_stdout("@@//app:two|True\n@@//app:one|True\n");
         let (code, _, err) = harness.run_with_ci(&["run"], true);
         assert_eq!(code, 2, "{err}");
-        assert!(err.contains("empty scope"), "{err}");
+        assert!(err.contains("pass one of"), "{err}");
         let harness = Harness::new("run-ci-norunnable");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");

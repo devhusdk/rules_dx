@@ -104,6 +104,11 @@ pub enum ResolveError {
         candidates = candidates.join(" ")
     )]
     AmbiguousRunnable { candidates: Vec<String> },
+    #[error("pass one of: {list}", list = list_with_more(candidates, *total))]
+    ChooseRunnable {
+        candidates: Vec<String>,
+        total: usize,
+    },
     #[error(
         "dx deploy needs exactly one label, got {count}: pass a deploy label such as //deploy:production"
     )]
@@ -350,4 +355,12 @@ mod tests {
         assert!(probed.is_empty(), "{probed:?}");
         assert!(matches!(failure(result), QueryFailure::Exit { .. }));
     }
+}
+
+fn list_with_more(candidates: &[String], total: usize) -> String {
+    let mut text = candidates.join(", ");
+    if total > candidates.len() {
+        text.push_str(&format!(", and {} more", total - candidates.len()));
+    }
+    text
 }

@@ -89,7 +89,7 @@ pub fn resolve_run(
     startup_options: &[String],
 ) -> Result<Vec<String>, ResolveError> {
     if scopes.is_empty() {
-        return Err(ResolveError::EmptyScope);
+        return resolve_only_runnable(workspace, runner, startup_options);
     }
     let mut cache = PackageCache::default();
     let classified = classify_run_scopes(scopes, workspace, &mut cache)?;
@@ -162,6 +162,35 @@ pub fn resolve_run(
         return Err(ResolveError::AmbiguousRunnable { candidates });
     }
     Ok(candidates)
+}
+
+const CHOOSE_RUNNABLE_CAP: usize = 10;
+
+fn resolve_only_runnable(
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+) -> Result<Vec<String>, ResolveError> {
+    let all = run_label_query(
+        &dir_runnable_expression("//..."),
+        workspace,
+        runner,
+        startup_options,
+    )?;
+    let mut found = filter_executables(&all, workspace, runner, startup_options)?;
+    match found.len() {
+        0 => Err(ResolveError::NoRunnable {
+            scopes: vec!["//...".to_owned()],
+        }),
+        1 => Ok(found),
+        total => {
+            found.truncate(CHOOSE_RUNNABLE_CAP);
+            Err(ResolveError::ChooseRunnable {
+                candidates: found,
+                total,
+            })
+        }
+    }
 }
 
 pub const DEPLOYMENTS_QUERY: &str = "kind(dx_deployment, //...)";
@@ -388,12 +417,53 @@ mod tests {
     }
 
     #[test]
-    fn run_empty_scope_is_a_usage_error() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-");
+    fn run_empty_scope_runs_the_only_executable() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-one-");
         let workspace = scratch.path().to_path_buf();
-        let query = NeverQuery;
-        let err = resolve_run(&[], &workspace, &query, &[]).expect_err("empty");
-        assert_eq!(err, ResolveError::EmptyScope);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//app:bin\n//app:lib\n"),
+            FakeQuery::ok("@@//app:bin|True\n@@//app:lib|False\n"),
+        ]);
+        let got = resolve_run(&[], &workspace, &query, &[]).expect("one");
+        assert_eq!(got, strings(&["//app:bin"]));
+        assert!(
+            query.calls()[0]
+                .0
+                .last()
+                .expect("expression")
+                .contains("//...")
+        );
+    }
+
+    #[test]
+    fn run_empty_scope_without_executables_is_no_runnable() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-none-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//app:lib\n"),
+            FakeQuery::ok("@@//app:lib|False\n"),
+        ]);
+        let err = resolve_run(&[], &workspace, &query, &[]).expect_err("none");
+        assert!(matches!(err, ResolveError::NoRunnable { .. }), "{err}");
+    }
+
+    #[test]
+    fn run_empty_scope_lists_at_most_ten_executables() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-many-");
+        let workspace = scratch.path().to_path_buf();
+        let labels: Vec<String> = (0..12).map(|i| format!("//app:b{i:02}")).collect();
+        let listing = labels.join("\n") + "\n";
+        let flags: String = labels.iter().map(|l| format!("@@{l}|True\n")).collect();
+        let query = FakeQuery::new(vec![FakeQuery::ok(&listing), FakeQuery::ok(&flags)]);
+        let err = resolve_run(&[], &workspace, &query, &[]).expect_err("many");
+        let text = err.to_string();
+        assert!(
+            text.starts_with("pass one of: //app:b00, //app:b01"),
+            "{text}"
+        );
+        assert!(text.contains("//app:b09"), "{text}");
+        assert!(!text.contains("//app:b10"), "{text}");
+        assert!(text.ends_with("and 2 more"), "{text}");
     }
 
     #[test]

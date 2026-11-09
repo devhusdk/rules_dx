@@ -19,7 +19,7 @@ Commands:
   test        run Bazel test over resolved targets
   coverage    collect LCOV coverage with optional threshold
   bench       run dx-bench tagged tests and print their numbers
-  run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
+  run         build and run runnable targets sequentially (labels/patterns; file/dir scopes need exactly one runnable)
   deploy      dry run one deploy target; --apply publishes it
   check       run generate+format+lint+typecheck in order (check by default; --apply writes fixes, then verifies with a read-only check)
   clean       reset the rebuildable state in .dx/local now; --bazel also runs `bazel clean`, --expunge `bazel clean --expunge` (no scopes)

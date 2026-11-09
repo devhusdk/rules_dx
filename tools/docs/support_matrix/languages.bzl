@@ -354,7 +354,7 @@ LANGUAGES = [
     ),
     _language(
         "apple",
-        no_coverage = "no dx coverage wiring in the Apple rules",
+        coverage = ["llvm-cov"],
         not_applicable = {
             "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
             "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS"

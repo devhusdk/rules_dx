@@ -13,6 +13,7 @@ real_source_target(
 rust_library(
     name = "collect_native_lib",
     srcs = [
+        "src/apple.rs",
         "src/collect.rs",
         "src/gcov.rs",
         "src/lib.rs",
@@ -32,9 +33,30 @@ rust_binary(
     deps = [":collect_native_lib"],
 )
 
+rust_binary(
+    name = "apple_post_action",
+    srcs = ["src/apple_main.rs"],
+    crate_name = "apple_post_action",
+    crate_root = "src/apple_main.rs",
+    data = [
+        "@llvm//tools:llvm-cov",
+        "@llvm//tools:llvm-profdata",
+    ],
+    rustc_env = {
+        "DX_LLVM_COV": "$(rlocationpath @llvm//tools:llvm-cov)",
+        "DX_LLVM_PROFDATA": "$(rlocationpath @llvm//tools:llvm-profdata)",
+    },
+    visibility = ["//visibility:public"],
+    deps = [
+        ":collect_native_lib",
+        "@rules_rust//rust/runfiles",
+    ],
+)
+
 rust_test(
     name = "collect_test",
     srcs = [
+        "src/apple.rs",
         "src/collect.rs",
         "src/gcov.rs",
         "src/lib.rs",

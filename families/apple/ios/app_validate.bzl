@@ -4,6 +4,13 @@ load("//bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
 load("//provisioning:validate.bzl", "provisioning_version_below")
 load(":validate.bzl", "ios_arch_errors", "ios_arches", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_xcode_errors")
 
+def ios_test_coverage_kwargs(env):
+    """Returns the test attributes that export coverage through the pinned LLVM."""
+    return {
+        "collect_code_coverage": False,
+        "env": dict(env) | {"COLLECT_PROFDATA": "1"},
+    }
+
 def ios_app_resource_errors(resources):
     """Returns one error string per empty app resource name."""
     errors = []

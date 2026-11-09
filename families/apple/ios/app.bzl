@@ -22,7 +22,7 @@ load(
     "target_cell",
 )
 load(":defs.bzl", "AppleIosLibInfo", "ios_platforms", "split_platform")
-load(":app_validate.bzl", "ios_app_errors", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
+load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(":validate.bzl", "ios_arch_errors", "ios_environment_errors", "ios_sdk_for")
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
@@ -597,12 +597,17 @@ def apple_ios_app_test(
         clean_up_simulator_action = Label("//ios:delete_test_simulator"),
         create_simulator_action = Label("//ios:create_test_simulator"),
         device_type = device_type,
+        export_covered_binaries = True,
         os_version = os_version,
+        post_action = Label("@rules_dx//tools/coverage/collect:apple_post_action"),
+        post_action_determines_exit_code = True,
         reuse_simulator = False,
         tags = ["manual"],
         testonly = True,
         visibility = ["//visibility:private"],
     )
+    env = kwargs.pop("env", {})
+    kwargs.update(ios_test_coverage_kwargs(env))
     ios_unit_test(
         name = name,
         minimum_os_version = deployment,

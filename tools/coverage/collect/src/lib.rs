@@ -1,5 +1,6 @@
 //! Collects LLVM coverage for tests with one llvm-profdata and llvm-cov pair.
 
+pub mod apple;
 mod collect;
 mod gcov;
 

@@ -12,6 +12,7 @@ load(
     "ios_entry_errors",
     "ios_signing_errors",
     "ios_slice_errors",
+    "ios_test_coverage_kwargs",
     "ios_test_errors",
     "ios_test_source_errors",
     "ios_xcframework_errors",
@@ -358,6 +359,11 @@ def _app_checks():
         "unnamed simulator fails",
         simulator_errors(""),
         ["apple_simulator: simulator names the target simulator by name or UDID"],
+    ))
+    checks.append(expect_equal(
+        "app tests export coverage through the post action",
+        ios_test_coverage_kwargs({"A": "1"}),
+        {"collect_code_coverage": False, "env": {"A": "1", "COLLECT_PROFDATA": "1"}},
     ))
     return checks
 

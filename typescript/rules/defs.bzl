@@ -328,6 +328,21 @@ def typescript_compiled_entry(main):
             return main[:-len(ext)] + out
     return None
 
+def typescript_binary_upstream_kwargs(name, entry, deps, data, kwargs):
+    """Returns the private js_binary kwargs: args and data forwarded, env held back for the forwarder."""
+    out = dx_binary_upstream_kwargs(kwargs, None)
+    out.pop("aspect_hints", None)
+    out["entry_point"] = ":" + typescript_compiled_entry(entry).lstrip(":")
+    out["data"] = [":" + name + "_ts"] + list(deps or []) + list(data or [])
+    return out
+
+def typescript_binary_forward_kwargs(data, kwargs):
+    """Returns the forwarder kwargs: args, env and env_inherit, with data so runfiles expansion resolves."""
+    run_kwargs = dict(kwargs)
+    if data != None:
+        run_kwargs["data"] = list(data)
+    return dx_binary_forward_kwargs(run_kwargs)
+
 def typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, tsconfig = None, transpiler = None, declaration = None, visibility = None, **kwargs):
     """Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src."""
     srcs = list(srcs or [])
@@ -342,10 +357,7 @@ def typescript_binary(name, *, srcs = None, main = None, deps = None, data = Non
         fail(rejection)
     entry = typescript_binary_main(srcs, main)
     _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, None, kwargs, testonly = kwargs.get("testonly", None))
-    upstream_kwargs = dx_binary_upstream_kwargs(kwargs, None)
-    upstream_kwargs.pop("aspect_hints", None)
-    upstream_kwargs["entry_point"] = ":" + typescript_compiled_entry(entry).lstrip(":")
-    upstream_kwargs["data"] = [":" + name + "_ts"] + list(deps or []) + list(data or [])
+    upstream_kwargs = typescript_binary_upstream_kwargs(name, entry, deps, data, kwargs)
     _js_binary(
         name = name + "_upstream",
         **upstream_kwargs
@@ -355,7 +367,7 @@ def typescript_binary(name, *, srcs = None, main = None, deps = None, data = Non
         upstream = name + "_upstream",
         srcs = srcs,
         visibility = visibility,
-        **dx_binary_forward_kwargs(kwargs)
+        **typescript_binary_forward_kwargs(data, kwargs)
     )
 
 _typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)

@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_content", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_binary_kwargs_rejection", "typescript_binary_main", "typescript_binary_rejection", "typescript_compiled_entry", "typescript_declaration_srcs_rejection", "typescript_empty_library_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_content", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_binary_kwargs_rejection", "typescript_binary_forward_kwargs", "typescript_binary_main", "typescript_binary_rejection", "typescript_binary_upstream_kwargs", "typescript_compiled_entry", "typescript_declaration_srcs_rejection", "typescript_empty_library_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 
 package(default_visibility = ["//visibility:public"])
@@ -209,6 +209,33 @@ dx_wrapper_contract_tests(
         expect_equal(
             "binary accepts kwargs without entry_point",
             typescript_binary_kwargs_rejection({"args": ["a"], "env": {}}),
+            None,
+        ),
+        expect_equal(
+            "binary upstream gets args and data, not env",
+            [
+                typescript_binary_upstream_kwargs("b", "a.ts", ["//d"], ["x.txt"], {"args": ["--x"], "env": {"K": "v"}}).get("args"),
+                typescript_binary_upstream_kwargs("b", "a.ts", ["//d"], ["x.txt"], {"args": ["--x"], "env": {"K": "v"}}).get("data"),
+                typescript_binary_upstream_kwargs("b", "a.ts", ["//d"], ["x.txt"], {"args": ["--x"], "env": {"K": "v"}}).get("env"),
+            ],
+            [["--x"], [":b_ts", "//d", "x.txt"], None],
+        ),
+        expect_equal(
+            "binary upstream entry follows mts and cts mains",
+            [
+                typescript_binary_upstream_kwargs("b", "sub/a.mts", None, None, {})["entry_point"],
+                typescript_binary_upstream_kwargs("b", "a.cts", None, None, {})["entry_point"],
+            ],
+            [":sub/a.mjs", ":a.cjs"],
+        ),
+        expect_equal(
+            "binary forwarder keeps args env and data",
+            typescript_binary_forward_kwargs(["x.txt"], {"args": ["--x"], "env": {"K": "v"}}),
+            {"args": ["--x"], "env": {"K": "v"}, "data": ["x.txt"]},
+        ),
+        expect_equal(
+            "binary forwarder drops data without args or env",
+            typescript_binary_forward_kwargs(["x.txt"], {}).get("data"),
             None,
         ),
         expect_equal(

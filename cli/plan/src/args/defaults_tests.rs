@@ -327,3 +327,31 @@ fn build_slots_flag_is_accepted_on_every_command() {
         Some(slots(3))
     );
 }
+
+#[test]
+fn build_slots_wait_reads_flag_then_env_and_rejects_bad_values() {
+    let wait = |words: &[&str], env: &[(&str, &str)]| {
+        parse_with(&strings(words), &env_of(env)).map(|invocation| invocation.build_slots_wait)
+    };
+    let secs = |n| Some(std::time::Duration::from_secs(n));
+    assert_eq!(wait(&["build"], &[]).expect("ok"), None);
+    assert_eq!(
+        wait(&["build"], &[("DX_BUILD_SLOTS_WAIT", "2m")]).expect("ok"),
+        secs(120)
+    );
+    assert_eq!(
+        wait(
+            &["build", "--build-slots-wait", "0"],
+            &[("DX_BUILD_SLOTS_WAIT", "2m")]
+        )
+        .expect("ok"),
+        secs(0)
+    );
+    assert_eq!(
+        wait(&["build", "--build-slots-wait", "soon"], &[]),
+        Err(crate::args::ArgsError::BadBuildSlotsWait {
+            origin: "--build-slots-wait",
+            value: "soon".to_owned()
+        })
+    );
+}

@@ -29,6 +29,7 @@ dx docs [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- 
 | `-v`, `--verbose` | Show more logs. |
 | `--color auto\|always\|never` | Color output. |
 | `--build-slots auto\|<n>\|off` | Build slots for this run. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
 | `--bazel-startup-option <token>` | Bazel startup option. Repeatable. |
 
 Args after `--` go to Bazel unchanged.

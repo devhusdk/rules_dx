@@ -253,6 +253,8 @@ pub struct Invocation {
     pub fail_on: Threshold,
     /// How many build slots this process sizes its gate with; `None` when neither flag nor env set it.
     pub build_slots: Option<dx_adopt::defaults::BuildSlots>,
+    /// How long to wait for a build slot before giving up; `None` waits for ever.
+    pub build_slots_wait: Option<std::time::Duration>,
     /// `dx watch --poll`: poll the tree on every platform.
     pub poll: bool,
     pub include_edits: bool,
@@ -696,6 +698,7 @@ mod tests {
             reports: Vec::new(),
             fail_on: Threshold::Warning,
             build_slots: None,
+            build_slots_wait: None,
             poll: false,
             include_edits: false,
             max_findings: None,

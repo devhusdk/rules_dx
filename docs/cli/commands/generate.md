@@ -23,7 +23,7 @@ dx generate [--here] [--affected] [--apply] [--diff] [scope...] [-- bazel-option
 | `--affected` | Use the directories of files changed since the default branch merge-base. |
 | `--diff` | Print one unified patch per stale file, or per file `--apply` wrote or refused. |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
 `--affected` does not combine with scopes or `--here`. `--fail-on` and `--report` are usage errors.
 

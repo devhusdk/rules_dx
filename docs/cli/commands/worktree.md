@@ -38,6 +38,7 @@ A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>
 | `-v`, `--verbose` | Show more logs. |
 | `--color auto\|always\|never` | Color output. |
 | `--build-slots auto\|<n>\|off` | Build slots for this run. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
 | `--bazel-startup-option <token>` | Bazel startup option. Repeatable. |
 
 A flag on the wrong subcommand exits `2`. Scopes: none. Reports: none.

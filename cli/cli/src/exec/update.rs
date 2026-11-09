@@ -343,17 +343,26 @@ struct SlotGate<'a> {
     err: &'a mut dyn std::io::Write,
     events: &'a mut dyn std::io::Write,
     phase: dx_plan::slots::Phase,
+    /// Who held the slots when a wait limit ran out, kept for the caller to report.
+    busy: Option<String>,
 }
 
 impl SlotGate<'_> {
+    /// Takes the slot before a Bazel run; `Err` carries the stop signal, or 1 with `busy` set.
     fn before(&mut self, argv: &[String]) -> Result<(), i32> {
-        self.phase
-            .need(
-                dx_update::backend::runs_bazel(argv),
-                &mut *self.err,
-                &mut *self.events,
-            )
-            .map(|_| ())
+        let taken = self.phase.need(
+            dx_update::backend::runs_bazel(argv),
+            &mut *self.err,
+            &mut *self.events,
+        );
+        match taken {
+            Ok(_) => Ok(()),
+            Err(dx_plan::slots::Stop::Signal(signo)) => Err(signo),
+            Err(dx_plan::slots::Stop::Busy(holder)) => {
+                self.busy = Some(holder);
+                Err(1)
+            }
+        }
     }
 }
 

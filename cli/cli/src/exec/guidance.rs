@@ -109,6 +109,9 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
         "server_out_of_memory" => {
             "next: the Bazel server ran out of memory; raise its heap (`startup --host_jvm_args=-XX:MaxRAMPercentage=<n>`) or narrow the scope."
         }
+        "slots_busy" => {
+            "next: see `dx status` for the holders, then run the command again or raise --build-slots-wait."
+        }
         "server_crashed" => "next: the Bazel server crashed; run the command again.",
         "invalid_bep" | "unreadable_bep" | "collection_failed" | "invalid_result" => {
             "next: results are incomplete; run the command again."

@@ -216,12 +216,15 @@ fn watch(
         };
         let mut notices = Vec::new();
         let mut phase = dx_plan::slots::Phase::new(iteration.command);
-        if let Err(signo) = phase.need(
+        if let Err(stop) = phase.need(
             dx_plan::slots::needs_slot(iteration.command),
             &mut *err,
             &mut notices,
         ) {
-            return stopped(progress, out, err, signo);
+            return match stop {
+                dx_plan::slots::Stop::Signal(signo) => stopped(progress, out, err, signo),
+                busy => crate::exec::slot_stop(iteration.output, out, err, busy),
+            };
         }
         let held = phase.slot().map(|slot| slot.runner(runner));
         let mut iteration_out = dx_plan::slots::AfterFirstLine::new(&mut *out, notices);

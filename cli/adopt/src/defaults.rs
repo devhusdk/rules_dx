@@ -1,5 +1,6 @@
 pub const DX_OUTPUT_ENV: &str = "DX_OUTPUT";
 pub const DX_BUILD_SLOTS_ENV: &str = "DX_BUILD_SLOTS";
+pub const DX_BUILD_SLOTS_WAIT_ENV: &str = "DX_BUILD_SLOTS_WAIT";
 
 /// Environment variables that mark a process started by a coding agent.
 pub const AGENT_ENVS: [&str; 9] = [
@@ -22,13 +23,32 @@ pub fn is_agent(get: &dyn Fn(&str) -> Option<String>) -> bool {
 }
 
 /// Environment defaults, the flag each one defaults, and the value shape.
-pub const ENV_DEFAULTS: [(&str, &str, &str); 2] = [
+pub const ENV_DEFAULTS: [(&str, &str, &str); 3] = [
     (DX_OUTPUT_ENV, "--output", "mode"),
     (DX_BUILD_SLOTS_ENV, "--build-slots", "auto|n|off"),
+    (DX_BUILD_SLOTS_WAIT_ENV, "--build-slots-wait", "duration"),
 ];
 
 /// Every documented `build-slots` spelling.
 pub const BUILD_SLOTS_SPELLINGS: &str = "auto|<n>|off";
+
+/// Read a slot wait: seconds, or a count with an `s`, `m` or `h` suffix. `0` means do not wait.
+pub fn parse_wait(value: &str) -> Option<std::time::Duration> {
+    let value = value.trim().to_ascii_lowercase();
+    let (digits, unit) = match value.chars().last()? {
+        's' => (&value[..value.len() - 1], 1),
+        'm' => (&value[..value.len() - 1], 60),
+        'h' => (&value[..value.len() - 1], 3600),
+        _ => (value.as_str(), 1),
+    };
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let seconds: u64 = digits.parse().ok()?;
+    seconds
+        .checked_mul(unit)
+        .map(std::time::Duration::from_secs)
+}
 
 /// The largest explicit slot count; each take walks every index up to it.
 pub const MAX_BUILD_SLOTS: usize = 1024;
@@ -96,6 +116,19 @@ mod tests {
         assert_eq!(env_string(&get, DX_BUILD_SLOTS_ENV), Some("2".to_owned()));
         assert_eq!(env_string(&get, DX_OUTPUT_ENV), None);
         assert_eq!(env_string(&get, "DX_MISSING"), None);
+    }
+
+    #[test]
+    fn wait_parse_reads_seconds_and_suffixes() {
+        use std::time::Duration;
+        assert_eq!(parse_wait("0"), Some(Duration::ZERO));
+        assert_eq!(parse_wait("90"), Some(Duration::from_secs(90)));
+        assert_eq!(parse_wait(" 30S "), Some(Duration::from_secs(30)));
+        assert_eq!(parse_wait("5m"), Some(Duration::from_secs(300)));
+        assert_eq!(parse_wait("2h"), Some(Duration::from_secs(7200)));
+        for bad in ["", "m", "-1", "1.5", "5d", "forever"] {
+            assert_eq!(parse_wait(bad), None, "{bad}");
+        }
     }
 
     #[test]

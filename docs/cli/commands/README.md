@@ -49,6 +49,7 @@ Every command takes these.
 | `-v`, `--verbose` | More output. |
 | `--color auto\|always\|never` | Color output. Default `auto`. |
 | `--build-slots auto\|<n>\|off` | Build slots for this run. Default `auto`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
 | `--bazel-startup-option <token>` | Bazel startup option. Repeatable. Takes `--output_base=<path>` or `--output_user_root=<path>`. |
 
 Other flags belong to one command family. `dx <command> --help` lists them.
@@ -114,6 +115,12 @@ tools/dx build //... --build-slots 4
 `dx: waiting for a build slot` to stderr and runs when a slot frees. Run
 `dx status` to see who holds the slots. Ctrl-C ends the wait.
 
+By default a run waits for ever. `--build-slots-wait <duration>` or
+`DX_BUILD_SLOTS_WAIT` sets a limit: seconds, or a number ending in `s`, `m` or
+`h`. `0` fails at once when no slot is free. When the limit passes, dx exits 1
+with the `slots_busy` error, which names the holders, and in JSON mode ends the
+stream with an `error` event. A free slot is always taken, whatever the limit.
+
 With a Bazel `--remote_executor`, dx offers more slots: the memory divided by
 1.5 GiB. A run takes an extra slot only when no regular slot is free and the
 host is not under memory pressure. On Linux that means `/proc/pressure/memory`
@@ -142,6 +149,7 @@ A flag on the command line wins over these defaults.
 | --- | --- |
 | `DX_OUTPUT=<mode>` | Default for `--output`. |
 | `DX_BUILD_SLOTS=auto\|<n>\|off` | Default for `--build-slots`. |
+| `DX_BUILD_SLOTS_WAIT=<duration>` | Default for `--build-slots-wait`. |
 | `NO_COLOR=<non-empty>` | Disable color in `auto` mode. |
 | `BUILD_WORKSPACE_DIRECTORY=<dir>` | Workspace start under `bazel run`. |
 | `BUILD_WORKING_DIRECTORY=<dir>` | Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`. |

@@ -15,7 +15,7 @@ dx sync [<label>] [-- bazel-options...]
 | Flag | What it does |
 | --- | --- |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
 `--apply`, `--fail-on` and `--report` are usage errors.
 

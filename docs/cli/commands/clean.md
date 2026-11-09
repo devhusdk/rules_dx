@@ -26,7 +26,7 @@ It keeps:
 | `--bazel` | Also run `bazel clean`. |
 | `--expunge` | Also run `bazel clean --expunge`. |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
 Both Bazel flags honour `--bazel-startup-option`. In a `dx worktree` slot, pass the slot's `--output_base` and only that slot's output base is cleaned.
 

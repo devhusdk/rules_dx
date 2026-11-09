@@ -123,6 +123,9 @@ fn render_env_help() -> String {
     out.push_str(
         "  <auto|n|off> sizes build slots from memory, takes exactly n (1-1024), or takes none.\n",
     );
+    out.push_str(
+        "  <duration> is seconds, or a number ending in s, m or h. 0 fails at once when no slot is free.\n",
+    );
     out.push_str("  NO_COLOR=<non-empty>\n");
     out.push_str("      Disable color output.\n");
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");

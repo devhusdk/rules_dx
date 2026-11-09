@@ -255,7 +255,9 @@ pub fn ci_ignores_env(name: &str, is_ci: bool) -> bool {
     is_ci
         && matches!(
             name,
-            dx_adopt::defaults::DX_OUTPUT_ENV | dx_adopt::defaults::DX_BUILD_SLOTS_ENV
+            dx_adopt::defaults::DX_OUTPUT_ENV
+                | dx_adopt::defaults::DX_BUILD_SLOTS_ENV
+                | dx_adopt::defaults::DX_BUILD_SLOTS_WAIT_ENV
         )
 }
 
@@ -276,6 +278,22 @@ fn resolve_build_slots(
             origin: source,
             value,
         })
+}
+
+/// Resolve `--build-slots-wait` across flag, `DX_BUILD_SLOTS_WAIT`, then unset.
+fn resolve_build_slots_wait(
+    flag: Option<String>,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Result<Option<std::time::Duration>, ArgsError> {
+    use dx_adopt::defaults::{DX_BUILD_SLOTS_WAIT_ENV, env_string, parse_wait};
+    let (origin, value) = match (flag, env_string(env_get, DX_BUILD_SLOTS_WAIT_ENV)) {
+        (Some(flag), _) => ("--build-slots-wait", flag),
+        (None, Some(env)) => (DX_BUILD_SLOTS_WAIT_ENV, env),
+        (None, None) => return Ok(None),
+    };
+    parse_wait(&value)
+        .map(Some)
+        .ok_or(ArgsError::BadBuildSlotsWait { origin, value })
 }
 
 fn parse_inner<S: AsRef<OsStr>>(
@@ -304,6 +322,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         report,
         fail_on,
         build_slots,
+        build_slots_wait,
         include_edits,
         max_findings,
         min_coverage,
@@ -387,6 +406,7 @@ fn parse_inner<S: AsRef<OsStr>>(
     );
     let fail_on_name = fail_on.unwrap_or_else(|| "warning".to_owned());
     let build_slots = resolve_build_slots(build_slots, env_get)?;
+    let build_slots_wait = resolve_build_slots_wait(build_slots_wait, env_get)?;
     let color_name = color_name.unwrap_or_else(|| "auto".to_owned());
     let color = dx_output::ColorMode::parse(&color_name).map_err(|_| ArgsError::BadColor {
         value: color_name.clone(),
@@ -680,6 +700,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         reports,
         fail_on,
         build_slots,
+        build_slots_wait,
         poll,
         include_edits,
         max_findings,

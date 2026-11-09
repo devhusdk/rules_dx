@@ -42,6 +42,11 @@ pub enum ArgsError {
     /// The resolved --build-slots value is not auto, a count, or off.
     #[error("unknown --build-slots {value:?} from {origin}: want auto|<n>|off (n from 1 to 1024)")]
     BadBuildSlots { origin: &'static str, value: String },
+    /// The resolved --build-slots-wait value is not a duration.
+    #[error(
+        "unknown --build-slots-wait {value:?} from {origin}: want seconds, or a number ending in s, m or h"
+    )]
+    BadBuildSlotsWait { origin: &'static str, value: String },
     /// The resolved --color value is not a mode.
     #[error("unknown --color {value:?}: want auto|always|never")]
     BadColor { value: String },

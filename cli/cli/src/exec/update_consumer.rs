@@ -49,6 +49,7 @@ pub(super) fn execute_configured(
         err: &mut *err,
         events: &mut *out,
         phase: dx_plan::slots::Phase::new(invocation.command),
+        busy: None,
     };
     let bazel = QueryBazel {
         query_runner,
@@ -57,7 +58,7 @@ pub(super) fn execute_configured(
     };
     let mut tools = UvTools::new(runner, &bazel, invocation.offline);
     for target in &resolved {
-        if let Err(signo) = run_configured_target(
+        if let Err(stop) = run_configured_target(
             &mut outcomes,
             target,
             runner,
@@ -67,7 +68,7 @@ pub(super) fn execute_configured(
             &mut gate,
         ) {
             drop(gate);
-            return crate::exec::cancel(invocation.output, out, err, signo);
+            return crate::exec::slot_stop(invocation.output, out, err, stop);
         }
     }
     gate.phase.release();
@@ -115,6 +116,14 @@ struct Outcomes {
     details: BTreeMap<String, SetDetail>,
 }
 
+/// The stop behind a gate error code: the busy holders when the wait ran out, else the signal.
+fn stop_of(gate: &mut SlotGate<'_>, code: i32) -> dx_plan::slots::Stop {
+    gate.busy.take().map_or(
+        dx_plan::slots::Stop::Signal(code),
+        dx_plan::slots::Stop::Busy,
+    )
+}
+
 fn run_configured_target(
     outcomes: &mut Outcomes,
     target: &ResolvedTarget,
@@ -123,7 +132,7 @@ fn run_configured_target(
     workspace: &std::path::Path,
     invocation: &Invocation,
     gate: &mut SlotGate<'_>,
-) -> Result<(), i32> {
+) -> Result<(), dx_plan::slots::Stop> {
     let Outcomes { attempted, details } = &mut *outcomes;
     let mode = RunMode::of(invocation);
     let set = &target.set;
@@ -289,7 +298,9 @@ fn run_configured_target(
     let guarded = (mode == RunMode::Check && bazel).then(|| CheckGuard::take(workspace, set));
     let mut launched = Ok(dx_process::ChildStatus::exited(0));
     for run in &runs {
-        gate.before(&run.argv)?;
+        if let Err(code) = gate.before(&run.argv) {
+            return Err(stop_of(gate, code));
+        }
         launched = launch(gate, runner, workspace, &run.argv, &run.env);
         if !matches!(&launched, Ok(status) if status.code == Some(0)) {
             break;
@@ -383,7 +394,7 @@ fn run_staged(
     workspace: &std::path::Path,
     mode: RunMode,
     gate: &mut SlotGate<'_>,
-) -> Result<(), i32> {
+) -> Result<(), dx_plan::slots::Stop> {
     use dx_update::outcome::SetStatus;
     let Outcomes { attempted, details } = outcomes;
     let set = &target.set;
@@ -399,7 +410,7 @@ fn run_staged(
     };
     let differing = match run_staged_core(run, workspace, &set.name, verb, &mut launch_tool) {
         Ok(differing) => differing,
-        Err(StagedError::Exit(code)) => return Err(code),
+        Err(StagedError::Exit(code)) => return Err(stop_of(gate, code)),
         Err(StagedError::Failed { message, code }) => {
             record_named(attempted, details, &set.name, SetStatus::Failed, message);
             if let Some(code) = code

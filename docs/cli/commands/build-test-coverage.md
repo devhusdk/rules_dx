@@ -42,7 +42,7 @@ dx coverage [--here] [--affected] [--timings] [--min-coverage <percent>] [--min-
 | `--min-changed-line-coverage <percent>` | `coverage`: fail below this whole percent (0-100) on lines changed since the merge-base. |
 | `--report <format>=<path>` | Write a report. Repeatable. `-` is stdout. |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
 `--debug` and `--release` conflict. Both change compilation only.
 

@@ -23,6 +23,8 @@ use dx_worktree::host::{self, Host, Server, SystemHost};
 pub const WAITING_FOR_BUILD_SLOT_CODE: &str = "waiting_for_build_slot";
 /// Notice code for a build slot the run could not take and skipped.
 pub const BUILD_SLOT_SKIPPED_CODE: &str = "build_slot_skipped";
+/// Failure code for a run that waited past its limit without getting a build slot.
+pub const SLOTS_BUSY_CODE: &str = "slots_busy";
 /// Notice code for a run that turned build slots off after an error.
 pub const BUILD_SLOTS_DISABLED_CODE: &str = "build_slots_disabled";
 /// Notice code for the disk reclaim a build slot runs before a build.
@@ -844,6 +846,8 @@ struct Admission<'a> {
     remote: bool,
     pause: PressurePause,
     now: &'a dyn Fn() -> Instant,
+    /// When to stop waiting; `None` waits for ever.
+    deadline: Option<Instant>,
 }
 
 impl Admission<'static> {
@@ -854,6 +858,7 @@ impl Admission<'static> {
             remote: false,
             pause: PressurePause::new(PRESSURE_WAIT),
             now: &Instant::now,
+            deadline: None,
         }
     }
 }
@@ -1023,6 +1028,13 @@ fn acquire_reserving(
                 }
             }
         }
+        if admission
+            .deadline
+            .is_some_and(|limit| (admission.now)() >= limit)
+        {
+            let names = holder(dir, layout.named(), ahead);
+            return Err(io::Error::new(io::ErrorKind::TimedOut, Busy(names)));
+        }
         if !announced {
             announced = true;
             let names = holder(dir, layout.named(), ahead);
@@ -1050,6 +1062,26 @@ fn acquire_reserving(
         on_poll();
         std::thread::sleep(POLL);
     }
+}
+
+/// Carried by the `TimedOut` error of a wait that reached its deadline: who held the slots.
+#[derive(Debug)]
+struct Busy(String);
+
+impl std::fmt::Display for Busy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Busy {}
+
+/// Why a slot was not taken: a stop signal, or no slot freed within the wait limit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Stop {
+    Signal(i32),
+    /// No slot freed in time; carries who held them.
+    Busy(String),
 }
 
 fn stopped(signo: i32) -> io::Error {
@@ -1092,6 +1124,7 @@ pub struct Gate {
     resources: Option<Resources>,
     reclaimer: Option<Reclaimer>,
     reaper: Option<Reaper>,
+    wait: Option<Duration>,
 }
 
 /// The time source a gate paces its pressure pause by.
@@ -1152,7 +1185,13 @@ impl Gate {
             resources: None,
             reclaimer: None,
             reaper: None,
+            wait: None,
         }
+    }
+
+    /// Gives up on a slot after waiting this long; zero fails when none is free at once.
+    pub fn waiting_at_most(self, wait: Option<Duration>) -> Self {
+        Gate { wait, ..self }
     }
 
     /// Runs `reap` once per wait, before the wait notice, with the workspaces to keep and the bytes to free.
@@ -1339,7 +1378,7 @@ impl Gate {
         command: Command,
         err: &mut dyn Write,
         events: &mut dyn Write,
-    ) -> Result<Option<Slot>, i32> {
+    ) -> Result<Option<Slot>, Stop> {
         if !needs_slot(command) {
             return Ok(None);
         }
@@ -1352,7 +1391,7 @@ impl Gate {
         command: Command,
         err: &mut dyn Write,
         events: &mut dyn Write,
-    ) -> Result<Option<Slot>, i32> {
+    ) -> Result<Option<Slot>, Stop> {
         self.take_warming(command, err, events, self.warm.clone())
     }
 
@@ -1363,7 +1402,7 @@ impl Gate {
         err: &mut dyn Write,
         events: &mut dyn Write,
         warm: Option<W>,
-    ) -> Result<Option<Slot>, i32> {
+    ) -> Result<Option<Slot>, Stop> {
         let json = self.json;
         let mut keep = warm.map(KeepWarm::new);
         let out = RefCell::new((err, events));
@@ -1373,6 +1412,7 @@ impl Gate {
             remote: self.remote,
             pause: PressurePause::new(PRESSURE_WAIT),
             now: &*self.clock.0,
+            deadline: self.wait.and_then(|wait| (self.clock.0)().checked_add(wait)),
         };
         let result = acquire_reserving(
             &self.dir,
@@ -1443,7 +1483,10 @@ impl Gate {
             }
             Err(error) => {
                 if let Some(signo) = dx_process::interrupted() {
-                    return Err(signo);
+                    return Err(Stop::Signal(signo));
+                }
+                if let Some(Busy(holder)) = error.get_ref().and_then(|inner| inner.downcast_ref()) {
+                    return Err(Stop::Busy(holder.clone()));
                 }
                 let message = format!("build slots disabled: {error}");
                 let _ = writeln!(err, "dx: {message}");
@@ -1766,7 +1809,7 @@ fn take(
     command: Command,
     err: &mut dyn Write,
     events: &mut dyn Write,
-) -> Result<Option<Slot>, i32> {
+) -> Result<Option<Slot>, Stop> {
     match GATE.with(|cell| cell.borrow().clone()) {
         Some(gate) => gate.take(command, err, events),
         None => Ok(None),
@@ -1796,7 +1839,7 @@ impl Phase {
         needed: bool,
         err: &mut dyn Write,
         events: &mut dyn Write,
-    ) -> Result<Option<&Slot>, i32> {
+    ) -> Result<Option<&Slot>, Stop> {
         if needed && !self.asked {
             self.asked = true;
             self.slot = take(self.command, err, events)?;
@@ -1883,7 +1926,7 @@ mod tests {
         err: &mut dyn Write,
         json: bool,
         events: &mut dyn Write,
-    ) -> Result<Option<Slot>, i32> {
+    ) -> Result<Option<Slot>, Stop> {
         Gate::from_env(workspace, env_get, json, &[], BuildSlots::Auto)
             .map(|gate| gate.with_pressure(Arc::new(Fixed(Some(false)))))
             .map_or(Ok(None), |gate| gate.hold(command, err, events))
@@ -4162,6 +4205,65 @@ mod tests {
         assert_eq!(notices.len(), 1, "{events}");
         assert_eq!(notices[0]["code"], "waiting_for_build_slot");
         notices[0].clone()
+    }
+
+    fn busy_gate(dir: &Path, wait: Duration) -> (Gate, Slot) {
+        let holder = take_gate(&Gate::new(
+            dir.to_path_buf(),
+            1,
+            "/w/holder".to_owned(),
+            false,
+        ))
+        .0;
+        let start = Instant::now();
+        let ticks = std::sync::atomic::AtomicU64::new(0);
+        let gate = Gate::new(dir.to_path_buf(), 1, "/w/me".to_owned(), true)
+            .with_clock(move || {
+                start + Duration::from_secs(ticks.fetch_add(1, std::sync::atomic::Ordering::SeqCst))
+            })
+            .waiting_at_most(Some(wait));
+        (gate, holder)
+    }
+
+    #[test]
+    fn a_zero_wait_fails_at_once_naming_the_holder() {
+        let scratch = dx_test_scratch::scratch("dx-slots-busy-");
+        let dir = scratch.path().join("slots");
+        let (gate, _holder) = busy_gate(&dir, Duration::ZERO);
+        let (mut err, mut events) = (Vec::new(), Vec::new());
+        let stop = gate
+            .take(Command::Test, &mut err, &mut events)
+            .err()
+            .expect("busy");
+        assert_eq!(stop, Stop::Busy("/w/holder".to_owned()));
+        assert!(err.is_empty() && events.is_empty());
+    }
+
+    #[test]
+    fn a_wait_gives_up_once_the_clock_passes_the_limit() {
+        let scratch = dx_test_scratch::scratch("dx-slots-deadline-");
+        let dir = scratch.path().join("slots");
+        let (gate, _holder) = busy_gate(&dir, Duration::from_secs(3));
+        let (mut err, mut events) = (Vec::new(), Vec::new());
+        let stop = gate
+            .take(Command::Test, &mut err, &mut events)
+            .err()
+            .expect("busy");
+        assert_eq!(stop, Stop::Busy("/w/holder".to_owned()));
+        assert!(
+            String::from_utf8(err)
+                .expect("utf8")
+                .contains("waiting for a build slot")
+        );
+    }
+
+    #[test]
+    fn a_free_slot_is_taken_even_with_a_zero_wait() {
+        let scratch = dx_test_scratch::scratch("dx-slots-free-");
+        let dir = scratch.path().join("slots");
+        let gate =
+            Gate::new(dir, 1, "/w/me".to_owned(), false).waiting_at_most(Some(Duration::ZERO));
+        assert!(take_gate(&gate).0.index == 0);
     }
 
     #[test]

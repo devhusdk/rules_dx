@@ -279,6 +279,24 @@ pub fn cancel(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, sign
     exit
 }
 
+/// Ends a run that could not take a build slot: a stop signal cancels, a busy wait fails with `slots_busy`.
+pub fn slot_stop(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    stop: dx_plan::slots::Stop,
+) -> i32 {
+    match stop {
+        dx_plan::slots::Stop::Signal(signo) => cancel(output, out, err, signo),
+        dx_plan::slots::Stop::Busy(holder) => {
+            let message = format!("no build slot freed in time (held by {holder})");
+            let failure =
+                Failure::new(dx_plan::slots::SLOTS_BUSY_CODE, &message, 1).without_usage();
+            report_failure(output, out, err, &failure)
+        }
+    }
+}
+
 fn panic_message(info: &std::panic::PanicHookInfo<'_>) -> String {
     let payload = info.payload();
     let text = payload
@@ -396,6 +414,24 @@ mod tests {
         assert_eq!(kinds[0]["code"], "cancelled");
         assert_eq!(kinds[1]["event"], "command_finished");
         assert_eq!(kinds[1]["exit_code"], 143);
+    }
+
+    #[test]
+    fn a_busy_slot_wait_fails_with_slots_busy_and_closes_the_json_stream() {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let stop = dx_plan::slots::Stop::Busy("pid 7".to_owned());
+        let code = super::slot_stop(OutputMode::Json, &mut out, &mut err, stop);
+        assert_eq!(code, 1);
+        let events: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(events[0]["event"], "error");
+        assert_eq!(events[0]["code"], "slots_busy");
+        assert!(events[0]["message"].as_str().unwrap().contains("pid 7"));
+        assert_eq!(events[1]["event"], "command_finished");
+        assert_eq!(events[1]["exit_code"], 1);
     }
 
     #[test]

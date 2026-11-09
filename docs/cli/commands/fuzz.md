@@ -26,7 +26,7 @@ Rust: `rust_fuzz_test(name, srcs, crate_root = ...)` from `//rust/rules:defs.bzl
 | `--jobs <n>` | Jobs each runner may use. Passed to the runner as `--jobs <n>`. |
 | `--output json` | Write NDJSON events on stdout instead of text. |
 | `--here` | Run on the current directory tree. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
 Scopes: labels, patterns, files, or dirs. With no scope, dx fuzz runs `//...`.
 

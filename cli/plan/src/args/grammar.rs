@@ -125,6 +125,7 @@ pub(crate) struct Flags {
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
     pub(crate) build_slots: Option<String>,
+    pub(crate) build_slots_wait: Option<String>,
     pub(crate) include_edits: bool,
     pub(crate) max_findings: Option<u32>,
     pub(crate) min_coverage: Option<u32>,
@@ -322,6 +323,18 @@ flag_group! {
 }
 
 flag_group! {
+    /// Give up waiting for a build slot after this long; 0 fails at once.
+    BuildSlotsWaitFlag, {
+        #[arg(
+            long = "build-slots-wait",
+            value_name = "duration",
+            overrides_with = "build_slots_wait"
+        )]
+        build_slots_wait: Option<String>,
+    }
+}
+
+flag_group! {
     /// Fail when a result is slower than the baseline by more than this percent.
     MaxRegressionFlag, {
         #[arg(long = "max-regression", value_name = "PCT", overrides_with = "max_regression")]
@@ -349,6 +362,7 @@ composite_group! {
         verbose: VerboseFlag,
         color: ColorFlag,
         build_slots: BuildSlotsFlag,
+        build_slots_wait: BuildSlotsWaitFlag,
         bazel_startup_option: BazelStartupOptionFlag,
     }
 }

@@ -47,7 +47,10 @@ Environment:
       Default for --output.
   DX_BUILD_SLOTS=<auto|n|off>
       Default for --build-slots.
+  DX_BUILD_SLOTS_WAIT=<duration>
+      Default for --build-slots-wait.
   <auto|n|off> sizes build slots from memory, takes exactly n (1-1024), or takes none.
+  <duration> is seconds, or a number ending in s, m or h. 0 fails at once when no slot is free.
   NO_COLOR=<non-empty>
       Disable color output.
   BUILD_WORKSPACE_DIRECTORY=<dir>

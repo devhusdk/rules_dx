@@ -402,14 +402,15 @@ fn run() -> i32 {
         invocation.output == OutputMode::Json,
         &slot_options,
         dx_plan::slots::effective_setting(invocation.build_slots, &workspace),
-    );
+    )
+    .map(|gate| gate.waiting_at_most(invocation.build_slots_wait));
     let slot = match gate.as_ref().map_or(Ok(None), |gate| {
         gate.hold(invocation.command, &mut err, &mut pending)
     }) {
         Ok(slot) => slot,
-        Err(signo) => {
+        Err(stop) => {
             let _ = out.write_all(&pending);
-            return dx_cli::exec::cancel(invocation.output, &mut out, &mut err, signo);
+            return dx_cli::exec::slot_stop(invocation.output, &mut out, &mut err, stop);
         }
     };
     let gate = if slot.is_some() { None } else { gate };

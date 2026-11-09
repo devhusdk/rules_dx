@@ -37,6 +37,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | `-v, --verbose` | Show more logs. |
 | `--color auto\|always\|never` | Set color output. |
 | `--build-slots auto\|n\|off` | Set build slots. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
 | `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. Use it for `--output_base` and `--output_user_root`. |
 
 ## Scopes

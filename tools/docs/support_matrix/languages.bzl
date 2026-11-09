@@ -56,123 +56,9 @@ COMPUTED_CONSTRAINTS = {
     "//qt/rules:defs.bzl%QT_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
-# The benchmark and fuzz macros each language row ships, shown in the Bench and Fuzz columns. A language without one shows n/a.
-BENCH = {
-    "cc": "cc_bench",
-    "csharp": "csharp_bench",
-    "d": "d_bench",
-    "dart": "dart_bench",
-    "elixir": "elixir_bench",
-    "erlang": "erlang_bench",
-    "fsharp": "fsharp_bench",
-    "go": "go_bench",
-    "haskell": "haskell_bench",
-    "java": "java_bench",
-    "javascript": "javascript_bench",
-    "kotlin": "kotlin_bench",
-    "perl": "perl_bench",
-    "php": "php_bench",
-    "python": "python_bench",
-    "ruby": "ruby_bench",
-    "rust": "rust_bench",
-    "scala": "scala_bench",
-    "swift": "swift_bench",
-    "typescript": "typescript_bench",
-    "zig": "zig_bench",
-}
 
-FUZZ = {
-    "cc": "cc_fuzz_test",
-    "csharp": "csharp_fuzz_test",
-    "d": "d_fuzz_test",
-    "fsharp": "fsharp_fuzz_test",
-    "go": "go_fuzz_test",
-    "java": "java_fuzz_test",
-    "javascript": "javascript_fuzz_test",
-    "kotlin": "kotlin_fuzz_test",
-    "ocaml": "ocaml_fuzz_test",
-    "python": "python_fuzz_test",
-    "rust": "rust_fuzz_test",
-    "scala": "scala_fuzz_test",
-    "swift": "swift_fuzz_test",
-    "typescript": "typescript_fuzz_test",
-}
 
-# What each language row shows in the Dependencies column: the dependency set names, or none with the reason. Lock files without a set are named so `dx security` warnings can point here.
-DEPENDENCIES = {
-    "astro": "`npm`",
-    "avro": "none: schemas only, no packages",
-    "cc": "`conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set",
-    "csharp": "`nuget`",
-    "cuda": "none: the CUDA toolkit is a pinned download",
-    "d": "`dub` (pinned, no advisories)",
-    "dart": "`pub`",
-    "elixir": "`hex`",
-    "erlang": "`hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it",
-    "flutter": "`pub`",
-    "fortran": "none: no package manager",
-    "fsharp": "`nuget`",
-    "go": "`go`",
-    "haskell": "`hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`: only cabal has a set",
-    "java": "`maven`",
-    "javascript": "`npm`",
-    "julia": "`julia`",
-    "kotlin": "`maven`",
-    "lua": "none: no LuaRocks support, rockspec packages are pinned with `http_archive`",
-    "mdx": "`npm`",
-    "ocaml": "`opam`",
-    "perl": "`cpan`",
-    "php": "`packagist`",
-    "powershell": "`powershell` (pinned, no advisories)",
-    "protobuf": "none: schemas only, no packages",
-    "python": "`uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager",
-    "ruby": "`ruby`",
-    "rust": "`cargo`",
-    "scala": "`maven`",
-    "svelte": "`npm`",
-    "swift": "`swiftpm`",
-    "typescript": "`npm`",
-    "vue": "`npm`",
-    "zig": "none for `build.zig.zon`: the zig family does not fetch `.dependencies`",
-}
 
-# The API doc tool per language and the *_doc_shard macro or rule that runs it (docs_site for Rust, which takes the crate itself). None marks a gap.
-DOC_TOOLS = {
-    "astro": {"tool": "astro-compiler", "shard": "astro_doc_shard"},
-    "avro": None,
-    "cc": None,
-    "csharp": {"tool": "csharp doc driver", "shard": "csharp_doc_shard"},
-    "cuda": None,
-    "d": None,
-    "dart": None,
-    "elixir": None,
-    "erlang": None,
-    "flutter": None,
-    "fortran": None,
-    "fsharp": {"tool": "fsharp doc driver", "shard": "fsharp_doc_shard"},
-    "go": {"tool": "go doc", "shard": "go_doc_shard"},
-    "haskell": None,
-    "java": {"tool": "javadoc", "shard": "java_doc_shard"},
-    "javascript": None,
-    "julia": None,
-    "kotlin": {"tool": "dokka", "shard": "kotlin_doc_shard"},
-    "lua": None,
-    "mdx": {"tool": "mdx", "shard": "mdx_doc_shard"},
-    "ocaml": None,
-    "perl": None,
-    "php": None,
-    "protobuf": None,
-    "powershell": {"tool": "pwsh", "shard": "powershell_doc_shard"},
-    "python": {"tool": "griffe", "shard": "python_doc_shard"},
-    "ruby": {"tool": "yard", "shard": "ruby_doc_shard"},
-    "rust": {"tool": "rustdoc", "shard": "docs_site"},
-    "scala": {"tool": "scaladoc", "shard": "scala_doc_shard"},
-    "svelte": {"tool": "svelte2tsx", "shard": "svelte_doc_shard"},
-    "swift": None,
-    "typescript": {"tool": "typedoc", "shard": "typescript_doc_shard"},
-    "vue": {"tool": "vue-component-meta", "shard": "vue_doc_shard"},
-    "zig": None,
-}
 
 # The tool api_compat runs per publishing rule; "not available" where no maintained free API diff tool exists.
 API_COMPAT_TOOLS = {
@@ -189,91 +75,9 @@ API_COMPAT_TOOLS = {
     "rubygems_deploy": "not available",
 }
 
-# The tool and rule that report unused code per row. A language row missing here has no dead-code tool yet; "none" marks a language where none exists.
-DEAD_CODE = {
-    "astro": ["eslint @typescript-eslint/no-unused-vars"],
-    "cc": ["clang_tidy misc-unused-parameters, misc-unused-using-decls"],
-    "csharp": ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
-    "cuda": ["none"],
-    "d": ["none"],
-    "dart": ["dart unused_element"],
-    "elixir": ["elixirc unused variable, unused function"],
-    "erlang": ["erlc warn_unused_vars, warn_unused_function"],
-    "fortran": ["fortitude C191 unreachable-statement"],
-    "fsharp": ["fsc FS1182 (--warnon:1182)"],
-    "go": ["staticcheck U1000"],
-    "haskell": ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
-    "java": ["pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter"],
-    "javascript": ["eslint no-unused-vars"],
-    "julia": ["none"],
-    "kotlin": ["detekt"],
-    "lua": ["selene unused_variable"],
-    "nix": ["deadnix"],
-    "ocaml": ["ocamlc warnings 26, 27, 32 to 39"],
-    "perl": ["perlcritic ProhibitUnusedVariables"],
-    "php": ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
-    "powershell": ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
-    "python": ["ruff F401, F841"],
-    "ruby": ["rubocop Lint/UselessAssignment"],
-    "rust": ["rustc dead_code"],
-    "scala": ["scalac -Wunused"],
-    "shell": ["shellcheck SC2034"],
-    "starlark": ["buildifier unused-variable"],
-    "svelte": ["eslint @typescript-eslint/no-unused-vars"],
-    "typescript": ["eslint no-unused-vars"],
-    "vue": ["eslint @typescript-eslint/no-unused-vars"],
-    "zig": ["zig ast-check unused local, unused parameter"],
-}
 
-# The coverage collector each row's tests write LCOV with. A row in neither dict has no coverage to report.
-COVERAGE_COLLECTORS = {
-    "cc": ["gcov", "llvm-cov"],
-    "csharp": ["coverlet"],
-    "d": ["ldc --coverage"],
-    "dart": ["package:test"],
-    "elixir": ["cover"],
-    "erlang": ["cover"],
-    "flutter": ["flutter_tester"],
-    "fortran": ["kcov"],
-    "fsharp": ["coverlet"],
-    "go": ["go cover"],
-    "haskell": ["hpc"],
-    "java": ["jacoco"],
-    "javascript": ["jest"],
-    "julia": ["CoverageTools"],
-    "kotlin": ["jacoco"],
-    "lua": ["luacov"],
-    "ocaml": ["bisect_ppx"],
-    "perl": ["DxLcov"],
-    "php": ["pcov (Linux only)"],
-    "powershell": ["pester"],
-    "python": ["coverage.py"],
-    "ruby": ["simplecov"],
-    "rust": ["llvm-cov"],
-    "scala": ["jacoco"],
-    "svelte": ["jest"],
-    "typescript": ["jest"],
-    "zig": ["kcov"],
-}
 
-# A note on where a row's coverage collector runs.
-COVERAGE_NOTES = {
-    "fortran": "kcov runs on Linux only",
-    "zig": "kcov runs on Linux only",
-}
 
-# The reason a row's tests have no coverage collector.
-NO_COVERAGE = {
-    "android": "no dx coverage wiring in the Android rules",
-    "apple": "no dx coverage wiring in the Apple rules",
-    "astro": "js_test has no dx coverage wiring",
-    "cuda": "cuda_test has no dx coverage wiring",
-    "mdx": "js_test has no dx coverage wiring",
-    "qt": "no dx coverage wiring in the Qt rules",
-    "swift": "no dx coverage wiring in the Swift rules",
-    "vue": "js_test has no dx coverage wiring",
-    "wasi": "the WASI guest test has no coverage collector",
-}
 
 def _hello(lang, repo = ""):
     return [repo + "//" + lang + "/tests/fixtures/hello:hello_test"]
@@ -517,6 +321,406 @@ ROWS = [
     {"name": "yaml", "section": "formats", "title": "YAML"},
 ]
 
+# One entry per row that carries per-language columns. Every row in the languages section must give deps, doc, and either coverage or no_coverage; facts.bzl fails on a gap instead of printing n/a.
+NO_DOC = struct(tool = "", shard = "")
+
+def _language(name, bench = None, fuzz = None, deps = None, doc = None, dead_code = None, coverage = None, coverage_note = "", no_coverage = None, unsupported = None, not_applicable = None):
+    return struct(
+        name = name,
+        bench = bench,
+        fuzz = fuzz,
+        deps = deps,
+        doc = doc,
+        dead_code = dead_code,
+        coverage = coverage,
+        coverage_note = coverage_note,
+        no_coverage = no_coverage,
+        unsupported = unsupported,
+        not_applicable = not_applicable,
+    )
+
+LANGUAGES = [
+    _language(
+        "android",
+        no_coverage = "no dx coverage wiring in the Android rules",
+    ),
+    _language(
+        "appimage",
+        not_applicable = {
+            "macos_arm64": "AppImage is a Linux format",
+            "windows_x86_64": "AppImage is a Linux format",
+            "windows_arm64": "AppImage is a Linux format"
+        },
+    ),
+    _language(
+        "apple",
+        no_coverage = "no dx coverage wiring in the Apple rules",
+        not_applicable = {
+            "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
+            "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS"
+        },
+    ),
+    _language(
+        "astro",
+        deps = "`npm`",
+        doc = struct(tool = "astro-compiler", shard = "astro_doc_shard"),
+        dead_code = ["eslint @typescript-eslint/no-unused-vars"],
+        no_coverage = "js_test has no dx coverage wiring",
+    ),
+    _language(
+        "avro",
+        deps = "none: schemas only, no packages",
+        doc = NO_DOC,
+    ),
+    _language(
+        "cc",
+        bench = "cc_bench",
+        fuzz = "cc_fuzz_test",
+        deps = "`conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set",
+        doc = NO_DOC,
+        dead_code = ["clang_tidy misc-unused-parameters, misc-unused-using-decls"],
+        coverage = ["gcov", "llvm-cov"],
+    ),
+    _language(
+        "cc_gcc",
+        not_applicable = {
+            "macos_arm64": "The GCC backend builds only for Linux",
+            "windows_arm64": "The GCC backend builds only for Linux",
+            "windows_x86_64": "The GCC backend builds only for Linux"
+        },
+    ),
+    _language(
+        "cc_msvc",
+        not_applicable = {
+            "linux_arm64": "Microsoft cl.exe runs only on Windows",
+            "linux_x86_64": "Microsoft cl.exe runs only on Windows",
+            "macos_arm64": "Microsoft cl.exe runs only on Windows"
+        },
+    ),
+    _language(
+        "csharp",
+        bench = "csharp_bench",
+        fuzz = "csharp_fuzz_test",
+        deps = "`nuget`",
+        doc = struct(tool = "csharp doc driver", shard = "csharp_doc_shard"),
+        dead_code = ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
+        coverage = ["coverlet"],
+    ),
+    _language(
+        "cuda",
+        deps = "none: the CUDA toolkit is a pinned download",
+        doc = NO_DOC,
+        dead_code = ["none"],
+        no_coverage = "cuda_test has no dx coverage wiring",
+        not_applicable = {
+            "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS"
+        },
+    ),
+    _language(
+        "d",
+        bench = "d_bench",
+        fuzz = "d_fuzz_test",
+        deps = "`dub` (pinned, no advisories)",
+        doc = NO_DOC,
+        dead_code = ["none"],
+        coverage = ["ldc --coverage"],
+    ),
+    _language(
+        "dart",
+        bench = "dart_bench",
+        deps = "`pub`",
+        doc = NO_DOC,
+        dead_code = ["dart unused_element"],
+        coverage = ["package:test"],
+        unsupported = "//dart/rules:unsupported",
+        not_applicable = {
+            "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
+        },
+    ),
+    _language(
+        "elixir",
+        bench = "elixir_bench",
+        deps = "`hex`",
+        doc = NO_DOC,
+        dead_code = ["elixirc unused variable, unused function"],
+        coverage = ["cover"],
+    ),
+    _language(
+        "erlang",
+        bench = "erlang_bench",
+        deps = "`hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it",
+        doc = NO_DOC,
+        dead_code = ["erlc warn_unused_vars, warn_unused_function"],
+        coverage = ["cover"],
+    ),
+    _language(
+        "flutter",
+        deps = "`pub`",
+        doc = NO_DOC,
+        coverage = ["flutter_tester"],
+        unsupported = "//flutter/rules:unsupported",
+        not_applicable = {
+            "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+        },
+    ),
+    _language(
+        "fortran",
+        deps = "none: no package manager",
+        doc = NO_DOC,
+        dead_code = ["fortitude C191 unreachable-statement"],
+        coverage = ["kcov"],
+        coverage_note = "kcov runs on Linux only",
+        not_applicable = {
+            "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build"
+        },
+    ),
+    _language(
+        "fsharp",
+        bench = "fsharp_bench",
+        fuzz = "fsharp_fuzz_test",
+        deps = "`nuget`",
+        doc = struct(tool = "fsharp doc driver", shard = "fsharp_doc_shard"),
+        dead_code = ["fsc FS1182 (--warnon:1182)"],
+        coverage = ["coverlet"],
+    ),
+    _language(
+        "go",
+        bench = "go_bench",
+        fuzz = "go_fuzz_test",
+        deps = "`go`",
+        doc = struct(tool = "go doc", shard = "go_doc_shard"),
+        dead_code = ["staticcheck U1000"],
+        coverage = ["go cover"],
+    ),
+    _language(
+        "haskell",
+        bench = "haskell_bench",
+        deps = "`hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`: only cabal has a set",
+        doc = NO_DOC,
+        dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
+        coverage = ["hpc"],
+        unsupported = "//haskell/toolchain:unsupported",
+        not_applicable = {
+            "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
+        },
+    ),
+    _language(
+        "java",
+        bench = "java_bench",
+        fuzz = "java_fuzz_test",
+        deps = "`maven`",
+        doc = struct(tool = "javadoc", shard = "java_doc_shard"),
+        dead_code = ["pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter"],
+        coverage = ["jacoco"],
+    ),
+    _language(
+        "javascript",
+        bench = "javascript_bench",
+        fuzz = "javascript_fuzz_test",
+        deps = "`npm`",
+        doc = NO_DOC,
+        dead_code = ["eslint no-unused-vars"],
+        coverage = ["jest"],
+    ),
+    _language(
+        "julia",
+        deps = "`julia`",
+        doc = NO_DOC,
+        dead_code = ["none"],
+        coverage = ["CoverageTools"],
+        unsupported = "//julia/rules:unsupported",
+        not_applicable = {
+            "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
+        },
+    ),
+    _language(
+        "kotlin",
+        bench = "kotlin_bench",
+        fuzz = "kotlin_fuzz_test",
+        deps = "`maven`",
+        doc = struct(tool = "dokka", shard = "kotlin_doc_shard"),
+        dead_code = ["detekt"],
+        coverage = ["jacoco"],
+    ),
+    _language(
+        "lua",
+        deps = "none: no LuaRocks support, rockspec packages are pinned with `http_archive`",
+        doc = NO_DOC,
+        dead_code = ["selene unused_variable"],
+        coverage = ["luacov"],
+    ),
+    _language(
+        "mdx",
+        deps = "`npm`",
+        doc = struct(tool = "mdx", shard = "mdx_doc_shard"),
+        no_coverage = "js_test has no dx coverage wiring",
+    ),
+    _language(
+        "nix",
+        dead_code = ["deadnix"],
+    ),
+    _language(
+        "ocaml",
+        fuzz = "ocaml_fuzz_test",
+        deps = "`opam`",
+        doc = NO_DOC,
+        dead_code = ["ocamlc warnings 26, 27, 32 to 39"],
+        coverage = ["bisect_ppx"],
+        not_applicable = {
+            "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
+            "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2"
+        },
+    ),
+    _language(
+        "perl",
+        bench = "perl_bench",
+        deps = "`cpan`",
+        doc = NO_DOC,
+        dead_code = ["perlcritic ProhibitUnusedVariables"],
+        coverage = ["DxLcov"],
+        not_applicable = {
+            "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build"
+        },
+    ),
+    _language(
+        "php",
+        bench = "php_bench",
+        deps = "`packagist`",
+        doc = NO_DOC,
+        dead_code = ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
+        coverage = ["pcov (Linux only)"],
+        unsupported = "//php/toolchain:unsupported",
+        not_applicable = {
+            "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
+        },
+    ),
+    _language(
+        "powershell",
+        deps = "`powershell` (pinned, no advisories)",
+        doc = struct(tool = "pwsh", shard = "powershell_doc_shard"),
+        dead_code = ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
+        coverage = ["pester"],
+    ),
+    _language(
+        "protobuf",
+        deps = "none: schemas only, no packages",
+        doc = NO_DOC,
+    ),
+    _language(
+        "python",
+        bench = "python_bench",
+        fuzz = "python_fuzz_test",
+        deps = "`uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager",
+        doc = struct(tool = "griffe", shard = "python_doc_shard"),
+        dead_code = ["ruff F401, F841"],
+        coverage = ["coverage.py"],
+    ),
+    _language(
+        "qt",
+        no_coverage = "no dx coverage wiring in the Qt rules",
+    ),
+    _language(
+        "ruby",
+        bench = "ruby_bench",
+        deps = "`ruby`",
+        doc = struct(tool = "yard", shard = "ruby_doc_shard"),
+        dead_code = ["rubocop Lint/UselessAssignment"],
+        coverage = ["simplecov"],
+    ),
+    _language(
+        "rust",
+        bench = "rust_bench",
+        fuzz = "rust_fuzz_test",
+        deps = "`cargo`",
+        doc = struct(tool = "rustdoc", shard = "docs_site"),
+        dead_code = ["rustc dead_code"],
+        coverage = ["llvm-cov"],
+    ),
+    _language(
+        "scala",
+        bench = "scala_bench",
+        fuzz = "scala_fuzz_test",
+        deps = "`maven`",
+        doc = struct(tool = "scaladoc", shard = "scala_doc_shard"),
+        dead_code = ["scalac -Wunused"],
+        coverage = ["jacoco"],
+    ),
+    _language(
+        "shell",
+        dead_code = ["shellcheck SC2034"],
+    ),
+    _language(
+        "starlark",
+        dead_code = ["buildifier unused-variable"],
+    ),
+    _language(
+        "svelte",
+        deps = "`npm`",
+        doc = struct(tool = "svelte2tsx", shard = "svelte_doc_shard"),
+        dead_code = ["eslint @typescript-eslint/no-unused-vars"],
+        coverage = ["jest"],
+    ),
+    _language(
+        "swift",
+        bench = "swift_bench",
+        fuzz = "swift_fuzz_test",
+        deps = "`swiftpm`",
+        doc = NO_DOC,
+        no_coverage = "no dx coverage wiring in the Swift rules",
+        not_applicable = {
+            "windows_arm64": "rules_dx registers no Swift toolchain for Windows",
+            "windows_x86_64": "rules_dx registers no Swift toolchain for Windows"
+        },
+    ),
+    _language(
+        "typescript",
+        bench = "typescript_bench",
+        fuzz = "typescript_fuzz_test",
+        deps = "`npm`",
+        doc = struct(tool = "typedoc", shard = "typescript_doc_shard"),
+        dead_code = ["eslint no-unused-vars"],
+        coverage = ["jest"],
+    ),
+    _language(
+        "vue",
+        deps = "`npm`",
+        doc = struct(tool = "vue-component-meta", shard = "vue_doc_shard"),
+        dead_code = ["eslint @typescript-eslint/no-unused-vars"],
+        no_coverage = "js_test has no dx coverage wiring",
+    ),
+    _language(
+        "wasi",
+        no_coverage = "the WASI guest test has no coverage collector",
+    ),
+    _language(
+        "zig",
+        bench = "zig_bench",
+        deps = "none for `build.zig.zon`: the zig family does not fetch `.dependencies`",
+        doc = NO_DOC,
+        dead_code = ["zig ast-check unused local, unused parameter"],
+        coverage = ["kcov"],
+        coverage_note = "kcov runs on Linux only",
+    ),
+]
+
+def _view(field):
+    return {lang.name: getattr(lang, field) for lang in LANGUAGES if getattr(lang, field) != None}
+
+BENCH = _view("bench")
+FUZZ = _view("fuzz")
+DEPENDENCIES = _view("deps")
+DEAD_CODE = _view("dead_code")
+COVERAGE_COLLECTORS = _view("coverage")
+NO_COVERAGE = _view("no_coverage")
+UNSUPPORTED_CONSTRAINTS = _view("unsupported")
+PLATFORM_NOT_APPLICABLE = _view("not_applicable")
+COVERAGE_NOTES = {lang.name: lang.coverage_note for lang in LANGUAGES if lang.coverage_note}
+DOC_TOOLS = {
+    lang.name: (None if lang.doc == NO_DOC else {"tool": lang.doc.tool, "shard": lang.doc.shard})
+    for lang in LANGUAGES
+    if lang.doc != None
+}
+
 NOT_LANGUAGES = [
     "containers",
     "bcr_test_module",
@@ -555,69 +759,7 @@ COMPILER_PLATFORM_PROBES = {
     "msvc": {"windows_arm64": "//cc/toolchains:identity_msvc_arm64_native"},
 }
 
-# The unsupported constraint_value of each row that declares one, written to cli/cli/src/exec/unsupported.json.
-UNSUPPORTED_CONSTRAINTS = {
-    "dart": "//dart/rules:unsupported",
-    "flutter": "//flutter/rules:unsupported",
-    "haskell": "//haskell/toolchain:unsupported",
-    "julia": "//julia/rules:unsupported",
-    "php": "//php/toolchain:unsupported",
-}
 
-# A platform a row does not support, with the reason.
-PLATFORM_NOT_APPLICABLE = {
-    "appimage": {
-        "macos_arm64": "AppImage is a Linux format",
-        "windows_x86_64": "AppImage is a Linux format",
-        "windows_arm64": "AppImage is a Linux format",
-    },
-    "apple": {
-        "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
-        "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
-    },
-    "cc_gcc": {
-        "macos_arm64": "The GCC backend builds only for Linux",
-        "windows_arm64": "The GCC backend builds only for Linux",
-        "windows_x86_64": "The GCC backend builds only for Linux",
-    },
-    "cc_msvc": {
-        "linux_arm64": "Microsoft cl.exe runs only on Windows",
-        "linux_x86_64": "Microsoft cl.exe runs only on Windows",
-        "macos_arm64": "Microsoft cl.exe runs only on Windows",
-    },
-    "cuda": {
-        "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS",
-    },
-    "dart": {
-        "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK",
-    },
-    "flutter": {
-        "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)",
-    },
-    "fortran": {
-        "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build",
-    },
-    "haskell": {
-        "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist",
-    },
-    "julia": {
-        "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build",
-    },
-    "ocaml": {
-        "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
-        "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2",
-    },
-    "perl": {
-        "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
-    },
-    "php": {
-        "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
-    },
-    "swift": {
-        "windows_arm64": "rules_dx registers no Swift toolchain for Windows",
-        "windows_x86_64": "rules_dx registers no Swift toolchain for Windows",
-    },
-}
 
 def _build_file(label):
     return label.split(":")[0] + ":BUILD.bazel"

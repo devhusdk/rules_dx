@@ -5,7 +5,7 @@ load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "NOT_LANGUAGES", "NO_COVERAGE", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "NO_COVERAGE", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -143,6 +143,17 @@ def support_matrix_facts_dict():
     for name in NO_COVERAGE:
         if name not in row_names:
             fail("support matrix: NO_COVERAGE names unknown row " + name)
+    for lang in LANGUAGES:
+        if lang.name not in row_names:
+            fail("support matrix: LANGUAGES names unknown row " + lang.name)
+    entries = {lang.name: lang for lang in LANGUAGES}
+    for row in ROWS:
+        if row["section"] != "languages":
+            continue
+        entry = entries.get(row["name"])
+        for column in ["deps", "doc"]:
+            if entry == None or getattr(entry, column) == None:
+                fail("support matrix: language row " + row["name"] + " has no " + column + " entry in LANGUAGES")
     platform_ids = {platform["id"]: True for platform in PLATFORMS}
     tool_na = tool_not_applicable(SUPPORT_RECORDS)
     declared_tables = PLATFORM_NOT_APPLICABLE.items()

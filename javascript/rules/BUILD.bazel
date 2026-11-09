@@ -1,3 +1,5 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//python/rules:defs.bzl", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
@@ -10,11 +12,22 @@ exports_files([
     "defs.bzl",
     "frameworks.bzl",
     "node_test.bzl",
+    "vite_tool.mjs",
     "web.bzl",
     "wrapper_tests.bzl",
 ])
 
 javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+js_binary(
+    name = "vite_tool",
+    entry_point = "vite_tool.mjs",
+)
+
+copy_to_bin(
+    name = "vite_tool_entry",
+    srcs = ["vite_tool.mjs"],
+)
 
 python_library(
     name = "web_server",

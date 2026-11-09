@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const tool = path.join(process.env.RUNFILES_DIR ?? process.env.JS_BINARY__RUNFILES, process.env.SVELTE_TOOL);
+const tool = path.join(process.env.RUNFILES_DIR ?? process.env.JS_BINARY__RUNFILES, process.env.VITE_TOOL);
 
 test("svelte_build fails on a compile error and names the file", () => {
 	const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "build-")), "o");

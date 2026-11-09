@@ -1,5 +1,6 @@
 """JS-framework library wrappers over js_library."""
 
+load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -68,3 +69,25 @@ _dx_framework_web_app = rule(
 def dx_framework_web_app(name, dist, what, **kwargs):
     """Exposes one built framework dist directory as a JavascriptWebAppInfo web app."""
     _dx_framework_web_app(name = name, dist = dist, what = what, **kwargs)
+
+_VITE_TOOL = Label("//javascript/rules:vite_tool")
+
+def dx_vite_build(name, out, srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, ssr_entry = None, keep_entry_path = False, tool = _VITE_TOOL):
+    """Runs one framework build into one output directory."""
+    env = {"VITE_TOOL_PACKAGE": native.package_name()}
+    if keep_entry_path:
+        env["VITE_TOOL_KEEP_ENTRY_PATH"] = "1"
+    js_run_binary(
+        resource_set = "mem_2g",
+        name = name,
+        srcs = list(srcs) + [config] + ([package_json] if package_json else []) + (public or []) + (deps or []) +
+               [node_modules + "/" + package for package in packages],
+        args = ["build", out, config] + ([ssr_entry] if ssr_entry else []),
+        chdir = native.package_name(),
+        env = env,
+        mnemonic = mnemonic + "SsrBuild" if ssr_entry else mnemonic + "Build",
+        out_dirs = [out],
+        tool = tool,
+        visibility = visibility,
+        tags = tags,
+    )

@@ -11,7 +11,7 @@ process.env.NO_COLOR = "1";
 process.env.FORCE_COLOR = "0";
 
 function usage(message) {
-	process.stderr.write(`mdx_tool: ${message}\n`);
+	process.stderr.write(`vite_tool: ${message}\n`);
 	process.exit(2);
 }
 
@@ -66,16 +66,25 @@ function buildMessages(prefix, error) {
 async function build(out, config, ssrEntry) {
 	if (!out || !config) usage("build requires an output directory and a config");
 	const root = process.cwd();
-	const prefix = process.env.MDX_TOOL_PACKAGE ?? ".";
+	const prefix = process.env.VITE_TOOL_PACKAGE ?? ".";
 	const vite = await importPackage("vite");
 	const cacheDir = path.join(
-		fs.mkdtempSync(path.join(os.tmpdir(), "mdx-tool-")),
+		fs.mkdtempSync(path.join(os.tmpdir(), "vite-tool-")),
 		"vite",
 	);
 	const outDir = path.resolve(root, out);
+	// Rolldown canonicalizes the HTML entry through the real execroot inside a
+	// sandbox, which makes Vite derive an escaping asset name from it.
+	const entry = path.join(root, "index.html");
+	const keepEntryPath = {
+		name: "vite-tool:keep-entry-path",
+		enforce: "pre",
+		resolveId: (id) => (path.resolve(id) === entry ? entry : null),
+	};
 	try {
 		await vite.build({
 			root,
+			plugins: process.env.VITE_TOOL_KEEP_ENTRY_PATH ? [keepEntryPath] : [],
 			configFile: path.resolve(root, config),
 			cacheDir,
 			logLevel: "warn",

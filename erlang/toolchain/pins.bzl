@@ -25,6 +25,12 @@ KATANA_CODE_VERSION = "2.5.3"
 
 GETOPT_VERSION = "1.0.3"
 
+REBAR3_VERSION = "3.28.0"
+
+REBAR3_SHA256 = "5a28b1cca082d3b023ec0f5df9d9f9d52557036c6f2a21c1ffa11b93a984dd42"
+
+REBAR3_URL = "https://github.com/erlang/rebar3/releases/download/" + REBAR3_VERSION + "/rebar3"
+
 TOOL_SOURCES = {
     "dx_elvis": struct(
         dropped = ["src/elvis.app.src"],

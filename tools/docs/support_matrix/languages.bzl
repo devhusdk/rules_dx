@@ -108,7 +108,7 @@ DEPENDENCIES = {
     "d": "`dub` (pinned, no advisories)",
     "dart": "`pub`",
     "elixir": "`hex`",
-    "erlang": "`hex` from `mix.lock` or an `erlang.rebar` `rebar.lock`; `dx update` audits and lists outdated `rebar.lock` packages but does not refresh it yet",
+    "erlang": "`hex`",
     "flutter": "`pub`",
     "fortran": "none: no package manager",
     "fsharp": "`nuget`",

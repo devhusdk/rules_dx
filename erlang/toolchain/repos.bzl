@@ -19,6 +19,8 @@ load(
     "KATANA_CODE_VERSION",
     "OTP_RELEASE",
     "OTP_VERSION",
+    "REBAR3_SHA256",
+    "REBAR3_URL",
     "RULES_ERLANG_COMMIT",
     "RULES_ERLANG_SHA256",
     "RULES_ERLANG_URL",
@@ -409,6 +411,13 @@ def _erlang_impl(mctx):
         strip_prefix = "rules_erlang-" + RULES_ERLANG_COMMIT,
         type = "tar.gz",
         urls = [RULES_ERLANG_URL],
+    )
+    pinned_archive(
+        name = "dx_rebar3",
+        download_as = "rebar3",
+        files = {"BUILD.bazel": 'exports_files(["rebar3"], visibility = ["//visibility:public"])\n'},
+        sha256 = REBAR3_SHA256,
+        urls = [REBAR3_URL],
     )
     for cell in sorted(CELLS.keys()):
         _otp_repo(name = cell_repository_name(cell), cell = cell)

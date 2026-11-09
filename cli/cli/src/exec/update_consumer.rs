@@ -2314,7 +2314,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     #[test]
-    fn consumer_mixed_mix_and_rebar_run_still_checks_the_mix_set() {
+    fn consumer_mixed_mix_and_rebar_run_checks_both_sets_and_apply_writes_both_locks() {
         let module = format!(
             "{HEX_MODULE}erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
         );
@@ -2323,16 +2323,38 @@ source = { registry = "https://pypi.org/simple" }
         harness.write_source("third_party/elixir/mix.lock", "%{}\n");
         harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
         harness.write_source("third_party/erlang/rebar.lock", "[].\n");
+        let files = [
+            ("mix.lock", "%{\"jason\" => 1}\n"),
+            ("rebar.lock", "[{<<\"jsx\">>,1}].\n"),
+        ];
         let runner = ScriptRunner::new(&[]);
-        stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+        stage(&runner, &files);
         let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_ne!(code, 0, "{out}{err}");
-        let launches = runner.launches.borrow();
-        assert!(launches[0].argv.iter().any(|arg| arg == "deps.get"));
+        {
+            let launches = runner.launches.borrow();
+            assert!(launches.iter().any(|l| l.argv.iter().any(|arg| arg == "deps.get")));
+            assert!(launches.iter().any(|l| l.argv.iter().any(|arg| arg == "lock")));
+        }
         assert_eq!(
             read_bytes(&harness, "third_party/erlang/rebar.lock"),
             b"[].\n"
         );
+
+        let runner = ScriptRunner::new(&[]);
+        stage(&runner, &files);
+        let (code, out, err) = run_with(&["update", "--apply"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            read_bytes(&harness, "third_party/erlang/rebar.lock"),
+            b"[{<<\"jsx\">>,1}].\n"
+        );
+        assert_eq!(
+            read_bytes(&harness, "third_party/erlang/rebar.config"),
+            b"{deps, []}.\n"
+        );
+        let launches = runner.launches.borrow();
+        assert!(launches.iter().any(|l| l.argv.iter().any(|arg| arg == "upgrade")));
     }
 
     const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//ocaml/app:ocaml_app.opam.locked\")\n";

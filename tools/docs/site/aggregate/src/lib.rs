@@ -351,6 +351,7 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
             Some(("kotlin", _)) => "kotlin",
             Some(("scala", _)) => "scala",
             Some(("vue", _)) => "ts",
+            Some(("d", _)) => "d",
             _ => "text",
         };
         text.push_str(&format!("```{fence}\n{}\n```\n\n", symbol.signature_text));

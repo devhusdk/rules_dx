@@ -4,6 +4,12 @@ Build, run and test D with the pinned `rules_d` 0.12.1 and LDC 1.43.0.
 Nothing needs to be installed. rules_dx registers the toolchain, so there is
 no setup in `MODULE.bazel`. Linking uses the hermetic LLVM C++ toolchain.
 
+## API docs
+
+`dx docs` documents every `d_library` in scope with the pinned LDC: `ldc2 -D -X`
+reads the ddoc comments, and `d_doc_shard` (`@rules_dx//tools/docs/d:defs.bzl`)
+turns them into the API reference. Nothing needs to be installed.
+
 ## Start
 
 Run `dx init --apply demo-app` and add sources. The language is wired when

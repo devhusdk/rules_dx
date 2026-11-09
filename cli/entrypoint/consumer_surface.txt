@@ -51,6 +51,7 @@ scala/rules:defs.bzl
 sql/rules:defs.bzl
 terraform/rules:defs.bzl
 tools/docs/dart:defs.bzl
+tools/docs/d:defs.bzl
 tools/docs/go:defs.bzl
 tools/docs/jvm:defs.bzl
 tools/docs/ocaml:defs.bzl

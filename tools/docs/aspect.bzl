@@ -6,6 +6,7 @@ load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
 load("@rules_dart//dart:providers.bzl", _DartInfo = "DartInfo")
+load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
@@ -15,6 +16,7 @@ load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_config", "component_shard_action")
 load("//tools/docs/dart:defs.bzl", "dart_shard_action")
+load("//tools/docs/d:defs.bzl", "D_TOOLCHAIN", "d_shard_action")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/julia:defs.bzl", "julia_shard_action")
@@ -89,6 +91,15 @@ def _dart_docs_shard(target, ctx):
     if ctx.toolchains[_DART_TOOLCHAIN] == None or not [f for f in info.srcs if repo_relative(f.short_path).startswith(root) and f.extension == "dart"]:
         return None
     return dart_shard_action(ctx, info, info.package_name, "_dx_docs/" + ctx.label.name, ctx.executable._dart_extract).shard
+def _d_docs_shard(target, ctx):
+    if _DInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary") or ctx.label.name.endswith("_upstream"):
+        return None
+    own = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension in ("d", "di")]
+    if not own or ctx.toolchains[D_TOOLCHAIN] == None:
+        return None
+    return d_shard_action(ctx, target[_DInfo], own, ctx.label.name, "", "_dx_docs/" + ctx.label.name, ctx.executable._d_extract).shard
 
 def _dotnet_docs_shard(target, ctx):
     if DocsShardInfo in target or DotnetDocsInfo not in target:
@@ -278,6 +289,9 @@ def _real_docs_aspect_impl(target, ctx):
     dart_shard = _dart_docs_shard(target, ctx)
     if dart_shard:
         parts.append({"dx_results": [dart_shard], "dx_docs_shards": [dart_shard]})
+    d_shard = _d_docs_shard(target, ctx)
+    if d_shard:
+        parts.append({"dx_results": [d_shard], "dx_docs_shards": [d_shard]})
     dotnet_shard = _dotnet_docs_shard(target, ctx)
     if dotnet_shard:
         parts.append({"dx_results": [dotnet_shard], "dx_docs_shards": [dotnet_shard]})
@@ -309,7 +323,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, Dart, C#, F#, PowerShell, Ruby, Julia, OCaml, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, D, Dart, C#, F#, PowerShell, Ruby, Julia, OCaml, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_component_extract": attr.label(
@@ -320,6 +334,11 @@ real_docs_aspect = aspect(
         "_csharp_driver": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/dotnet/csharp:csharp_api_pinned"),
+            executable = True,
+        ),
+        "_d_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/d/extract:d_extract"),
             executable = True,
         ),
         "_dotnet_extract": attr.label(
@@ -451,6 +470,7 @@ real_docs_aspect = aspect(
     requires = [rust_doc_inputs_aspect, dotnet_docs_collect_aspect],
     toolchains = [
         config_common.toolchain_type(_DART_TOOLCHAIN, mandatory = False),
+        config_common.toolchain_type(D_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(JAVA_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(KOTLIN_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_RUBY_TOOLCHAIN, mandatory = False),

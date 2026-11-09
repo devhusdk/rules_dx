@@ -1176,6 +1176,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "d_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"

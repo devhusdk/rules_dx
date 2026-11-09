@@ -84,7 +84,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | C and C++ | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | no | no: cuda_test has no dx coverage wiring | none |
-| D | `typos` | no | `ldc` | no | `ldc --coverage` | none |
+| D | `typos` | no | `ldc` | `ldc ddoc` | `ldc --coverage` | none |
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `package:test` | `dart unused_element` |
 | Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321), `elixirc` (not on `windows_x86_64`: The elixirc replay needs a POSIX shell; `windows_arm64`: The elixirc replay needs a POSIX shell) | no | `cover` | `elixirc unused variable, unused function` |
 | Erlang | `elvis`, `typos` | `erlfmt` | `dialyzer`, `erlc` | no | `cover` | `erlc warn_unused_vars, warn_unused_function` |

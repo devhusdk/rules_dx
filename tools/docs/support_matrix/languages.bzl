@@ -422,7 +422,7 @@ LANGUAGES = [
         bench = "d_bench",
         fuzz = "d_fuzz_test",
         deps = "`dub` (pinned, no advisories)",
-        doc = NO_DOC,
+        doc = struct(tool = "ldc ddoc", shard = "d_doc_shard"),
         dead_code = ["none"],
         coverage = ["ldc --coverage"],
     ),
